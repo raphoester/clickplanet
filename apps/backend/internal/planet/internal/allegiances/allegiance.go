@@ -33,7 +33,7 @@ type Allegiance struct {
 	change Change
 }
 
-func (a Allegiance) Pledged(flag string, at time.Time) (Allegiance, error) {
+func (a Allegiance) Pledged(flag string, at time.Time, lock Lock) (Allegiance, error) {
 	switch a.flag {
 	case flag:
 		return a, nil
@@ -41,14 +41,18 @@ func (a Allegiance) Pledged(flag string, at time.Time) (Allegiance, error) {
 		return Allegiance{flag: flag}, nil
 	}
 
-	if until := a.change.ChangeableAt(); at.Before(until) {
+	until := a.change.ChangeableAt()
+	if lock {
+		return Allegiance{}, Refusal{Flag: a.flag, Until: until, Locked: true, Reason: ErrLocked}
+	}
+	if at.Before(until) {
 		return Allegiance{}, Refusal{Flag: a.flag, Until: until, Reason: ErrChangedTooSoon}
 	}
 
 	return Allegiance{flag: flag, change: ChangedAt(at)}, nil
 }
 
-func (a Allegiance) PlayError(flag string) error {
+func (a Allegiance) PlayError(flag string, lock Lock) error {
 	switch a.flag {
 	case flag:
 		return nil
@@ -56,7 +60,7 @@ func (a Allegiance) PlayError(flag string) error {
 		return Refusal{Reason: ErrNoFlag}
 	}
 
-	return Refusal{Flag: a.flag, Until: a.change.ChangeableAt(), Reason: ErrOtherFlag}
+	return Refusal{Flag: a.flag, Until: a.change.ChangeableAt(), Locked: bool(lock), Reason: ErrOtherFlag}
 }
 
 func (a Allegiance) TakeSnapshot() Snapshot {

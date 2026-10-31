@@ -10,8 +10,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
 )
 
-func Encode(flag string, changeableAt time.Time) *planetv1.Allegiance {
-	allegiance := &planetv1.Allegiance{CountryId: flag}
+func Encode(flag string, changeableAt time.Time, locked bool) *planetv1.Allegiance {
+	allegiance := &planetv1.Allegiance{CountryId: flag, Locked: locked}
 	if !changeableAt.IsZero() {
 		allegiance.ChangeableAtUnixMs = changeableAt.UnixMilli()
 	}
@@ -26,7 +26,7 @@ func Refusal(err error) (*connect.Error, bool) {
 	}
 
 	refused := connect.NewError(connect.CodeFailedPrecondition, refusal.Reason)
-	if detail, detailErr := connect.NewErrorDetail(Encode(refusal.Flag, refusal.Until)); detailErr == nil {
+	if detail, detailErr := connect.NewErrorDetail(Encode(refusal.Flag, refusal.Until, refusal.Locked)); detailErr == nil {
 		refused.AddDetail(detail)
 	}
 

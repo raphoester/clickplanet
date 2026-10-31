@@ -6,10 +6,18 @@ export type Allegiance = {
 
     // Milliseconds since the epoch; undefined for a flag never changed.
     changeableAt?: number
+
+    // The rules in force let no flag change, whatever changeableAt says.
+    locked?: boolean
 }
 
-export function lockOf(allegiance: Allegiance | undefined, now: number): Allegiance | undefined {
-    return allegiance?.changeableAt !== undefined && allegiance.changeableAt > now ? allegiance : undefined
+// Why the flag held cannot change now: the rules in force, or the wait after a change.
+export type Lock = {kind: "rules"} | {kind: "wait", until: number}
+
+export function lockOf(allegiance: Allegiance | undefined, now: number): Lock | undefined {
+    if (allegiance?.locked) return {kind: "rules"}
+    if (allegiance?.changeableAt !== undefined && allegiance.changeableAt > now) return {kind: "wait", until: allegiance.changeableAt}
+    return undefined
 }
 
 export function minutesLeftOf(changeableAt: number, now: number): number {
@@ -18,7 +26,7 @@ export function minutesLeftOf(changeableAt: number, now: number): number {
 
 export function heldLine(allegiance: Allegiance, now: number): string {
     const name = Countries.get(allegiance.countryId)?.name ?? allegiance.countryId.toUpperCase()
-    const locked = lockOf(allegiance, now)?.changeableAt
-    if (locked === undefined) return `You play for ${name}`
-    return `You play for ${name} until ${describeEnd(locked, now)}`
+    const lock = lockOf(allegiance, now)
+    if (lock?.kind !== "wait") return `You play for ${name}`
+    return `You play for ${name} until ${describeEnd(lock.until, now)}`
 }

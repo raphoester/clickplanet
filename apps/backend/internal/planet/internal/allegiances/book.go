@@ -18,13 +18,14 @@ type CountryChecker interface {
 	CheckCountry(country string) bool
 }
 
-func NewBook(store Store, countries CountryChecker, clock cptime.Clock) Book {
-	return Book{store: store, countries: countries, clock: clock}
+func NewBook(store Store, countries CountryChecker, lock func() Lock, clock cptime.Clock) Book {
+	return Book{store: store, countries: countries, lock: lock, clock: clock}
 }
 
 type Book struct {
 	store     Store
 	countries CountryChecker
+	lock      func() Lock
 	clock     cptime.Clock
 }
 
@@ -37,9 +38,9 @@ func (b Book) Pledge(ctx context.Context, payer clicks.Payer, flag string) error
 		return fmt.Errorf("%q: %w", flag, clicks.ErrUnknownCountry)
 	}
 
-	at := b.clock.Now()
+	at, lock := b.clock.Now(), b.lock()
 	if err := b.store.Change(ctx, account, func(allegiance Allegiance) (Allegiance, error) {
-		return allegiance.Pledged(flag, at)
+		return allegiance.Pledged(flag, at, lock)
 	}); err != nil {
 		return fmt.Errorf("account %s may not play for %q: %w", account, flag, err)
 	}
@@ -57,7 +58,7 @@ func (b Book) PlayError(ctx context.Context, payer clicks.Payer, flag string) er
 	if err != nil {
 		return fmt.Errorf("could not read the flag account %s plays for: %w", account, err)
 	}
-	if err := allegiance.PlayError(flag); err != nil {
+	if err := allegiance.PlayError(flag, b.lock()); err != nil {
 		return fmt.Errorf("account %s may not play for %q: %w", account, flag, err)
 	}
 

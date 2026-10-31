@@ -57,6 +57,8 @@ the operator's calls carry and the log lines print as it is. `Snapshot.Restore(p
 - `bonuses.quiz.enabled`, `minInterval`, `maxInterval`, `maxChargesPerHour`, `offerTtl`, `answerWindow`, `missRetry`,
   `leaderBias` — the quizzes (on, 4–8 min, 12, 25 s, 8 s, 2 min, 1). See [Quizzes](quizzes.md)
 - `frozen` — the map takes no play (off). See [A frozen map](#a-frozen-map)
+- `allegianceLocked` — no account changes its flag; a first flag is still taken (off; on in a battle's set). See
+  [Allegiance](allegiance.md)
 
 ## A frozen map
 
@@ -98,6 +100,8 @@ The readers call it where they use the rules, not when they are built: a set tak
 - `clicks.ThrottlePart` — `clicks.Buckets` (the multipliers, `newAccountClicks`), `try_click` (`ClickTried.tempo`),
   and the click limiter: `cpratelimit.NewRuled` reads `Throttle.Policy(inForce.Since())`, its rate, bank and tempo.
 - `clicks.TollPart` — `clicks.Toll`: the price of each click, and `GetBonusRules.toll_steps`.
+- `allegiances.LockPart` — `allegiances.Book` (a pledge and a click for another flag) and `allegiance_query`
+  (`Allegiance.locked`).
 - `bonuses.Part` — the box registry (waits, kinds, flight, miss, activity, welcome, quizzes, the quiz lean),
   `bonuses.Charges` (the stacks), `bonuses.Bombing` (the radius), `enclose_click`, `place_shield_usecase`,
   `clicks.Claiming` (a tile's most shields, for a fortify) and `GetBonusRules`.

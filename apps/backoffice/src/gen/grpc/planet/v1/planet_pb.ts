@@ -239,6 +239,13 @@ export class Allegiance extends Message<Allegiance> {
    */
   changeableAtUnixMs = protoInt64.zero;
 
+  /**
+   * The rules in force let no flag change, whatever changeable_at_unix_ms says.
+   *
+   * @generated from field: bool locked = 3;
+   */
+  locked = false;
+
   constructor(data?: PartialMessage<Allegiance>) {
     super();
     proto3.util.initPartial(data, this);
@@ -249,6 +256,7 @@ export class Allegiance extends Message<Allegiance> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "changeable_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "locked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Allegiance {

@@ -12,12 +12,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
-	return &PostgresQuery{db: db}
+func NewPostgresQuery(db cppg.Conn, lock func() allegiances.Lock) *PostgresQuery {
+	return &PostgresQuery{db: db, lock: lock}
 }
 
 type PostgresQuery struct {
-	db cppg.Conn
+	db   cppg.Conn
+	lock func() allegiances.Lock
 }
 
 func (q *PostgresQuery) Allegiance(ctx context.Context, account allegiances.Account) (*planetv1.GetAllegianceResponse, error) {
@@ -39,6 +40,6 @@ func (q *PostgresQuery) Allegiance(ctx context.Context, account allegiances.Acco
 	}
 
 	return &planetv1.GetAllegianceResponse{
-		Allegiance: allegiancemessage.Encode(flag, allegiances.ChangedAt(changedAt.Time).ChangeableAt()),
+		Allegiance: allegiancemessage.Encode(flag, allegiances.ChangedAt(changedAt.Time).ChangeableAt(), bool(q.lock())),
 	}, nil
 }

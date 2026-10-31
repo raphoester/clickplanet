@@ -233,6 +233,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			throttle := rules.Reader(inForce, clicks.ThrottlePart)
 			game := rules.Reader(inForce, bonuses.Part)
 			freeze := rules.Reader(inForce, clicks.FreezePart)
+			lock := rules.Reader(inForce, allegiances.LockPart)
 
 			charges := bonuses.NewCharges(postgres_charge_store.New(db), game)
 
@@ -290,7 +291,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			pricer := clicks.NewToll(rules.Reader(inForce, clicks.TollPart), tilesStorage)
 
-			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, clock)
+			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, lock, clock)
 
 			writer := ledger.NewRecording(tilesStorage,
 				clicks.NewClaiming(tilesStorage, func() int { return game().Shield.PerTile }), takings, clock)
@@ -373,7 +374,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
 				GetCountrySizesHandler:   get_country_sizes_handler.New(borders),
-				GetAllegianceOfHandler:   get_allegiance_of_handler.New(allegiance_query.NewPostgresQuery(db)),
+				GetAllegianceOfHandler:   get_allegiance_of_handler.New(allegiance_query.NewPostgresQuery(db, lock)),
 				GetRuleSetNamesHandler:   get_rule_set_names_handler.New(rule_set_names_query.NewPostgresQuery(db)),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -461,7 +462,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db)),
 				GetLandmassHandler: get_landmass_handler.New(borders,
 					landmass_query.NewPostgresQuery(db, inmemory_tile_holders.New(tilesStorage))),
-				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db)),
+				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db, lock)),
 				PledgeAllegianceHandler: pledge_allegiance_handler.New(book),
 			}
 

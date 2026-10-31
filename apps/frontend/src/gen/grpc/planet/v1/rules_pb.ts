@@ -37,6 +37,14 @@ export class Rules extends Message<Rules> {
    */
   frozen = false;
 
+  /**
+   * No account changes its flag: PledgeAllegiance refuses another flag to an account that holds one. A first flag is
+   * still taken.
+   *
+   * @generated from field: bool allegiance_locked = 5;
+   */
+  allegianceLocked = false;
+
   constructor(data?: PartialMessage<Rules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -49,6 +57,7 @@ export class Rules extends Message<Rules> {
     { no: 2, name: "toll", kind: "message", T: TollRules },
     { no: 3, name: "bonuses", kind: "message", T: BonusRules },
     { no: 4, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "allegiance_locked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rules {

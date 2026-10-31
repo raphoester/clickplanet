@@ -59,7 +59,8 @@ and says what is in it. Read the doc before you change its area.
 - [Rate limiting](docs/rate-limiting.md) — two buckets per click, what the answer says is left, and a big country
   refills slower.
 - [VPN blocklist](docs/vpn-blocklist.md) — `Click` refused from vendored VPN ranges, before the rate limiter.
-- [Allegiance](docs/allegiance.md) — an account plays for one flag, and may change it once an hour.
+- [Allegiance](docs/allegiance.md) — an account plays for one flag, and may change it once an hour; a battle's rule
+  set locks it.
 - [Rules](docs/rules.md) — every game rule, in rule sets kept in postgres; the set in force in one atomic pointer;
   what a change does to what is already there; a frozen set, which takes no play.
 - [Shields](docs/shields.md) — a charge on a tile; each shield takes one foreign click.

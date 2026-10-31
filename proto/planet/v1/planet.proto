@@ -57,7 +57,8 @@ service ClickService {
   rpc GetAllegiance(GetAllegianceRequest) returns (GetAllegianceResponse);
 
   // The only way to set or change the flag: a click or a shield never does.
-  // Refused within the hour after a change, as a click for another flag is.
+  // Refused within the hour after a change, and while the rules in force lock the flags, as a click for another flag
+  // is.
   rpc PledgeAllegiance(PledgeAllegianceRequest) returns (PledgeAllegianceResponse);
 }
 
@@ -81,6 +82,9 @@ message Allegiance {
 
   // When another flag may be played: 0 for a flag never changed.
   int64 changeable_at_unix_ms = 2;
+
+  // The rules in force let no flag change, whatever changeable_at_unix_ms says.
+  bool locked = 3;
 }
 
 message ClickBudget {

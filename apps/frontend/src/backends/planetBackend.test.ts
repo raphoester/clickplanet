@@ -1849,6 +1849,27 @@ describe("PlanetBackend allegiance", () => {
         backend.close()
     })
 
+    it("reads the flag again when the rules change, so a lock shows with no reload", async () => {
+        const getAllegiance = vi.fn()
+            .mockResolvedValueOnce(held("fr"))
+            .mockResolvedValueOnce(new GetAllegianceResponse({allegiance: new AllegianceMessage({countryId: "fr", locked: true})}))
+        let changeRules = () => {}
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            await new Promise<void>(resolve => changeRules = resolve)
+            yield new PlanetEvent({event: {case: "rulesChanged", value: new RulesChanged()}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({getAllegiance, listenForEvents}), 1_000, fixedSession("identity-1"))
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "fr"}))
+
+        changeRules()
+
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "fr", locked: true}))
+        backend.close()
+    })
+
     it("pledges the flag clicked for before the first click of an account that holds none, and only then", async () => {
         const calls: string[] = []
         const getAllegiance = vi.fn()

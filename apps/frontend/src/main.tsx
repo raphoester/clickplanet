@@ -118,6 +118,14 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fake.freeze(false)
             return "the map takes play again"
         },
+        lockFlags: () => {
+            fake.lockFlags(true)
+            return "the flags are locked: no change of country"
+        },
+        openFlags: () => {
+            fake.lockFlags(false)
+            return "the flags may change again"
+        },
         giveBomb: () => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
             if (!globe) return "the globe is not loaded yet"

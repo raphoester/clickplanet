@@ -158,6 +158,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private tempo = 1
     private sharedWith: SharedBy | undefined
     private frozen = false
+    private flagsLocked = false
     private shapesClose = true
     private bannedUntil: number | undefined
     private readonly vpnBlocked: boolean
@@ -386,7 +387,13 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public unlockFlag(): void {
-        if (this.allegiance) this.holdAllegiance({countryId: this.allegiance.countryId})
+        if (this.allegiance) this.holdAllegiance({countryId: this.allegiance.countryId, locked: this.allegiance.locked})
+    }
+
+    // The rules in force lock the flags, as a battle's set may: no flag held changes, a first one is still taken.
+    public lockFlags(locked: boolean): void {
+        this.flagsLocked = locked
+        if (this.allegiance) this.holdAllegiance({...this.allegiance, locked: locked || undefined})
     }
 
     public listenForAllegiance(callback: (allegiance: Allegiance | undefined) => void): () => void {
@@ -402,18 +409,17 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     private play(countryId: string): void {
         const held = this.allegiance
-        if (!held) this.holdAllegiance({countryId})
+        if (!held) this.holdAllegiance({countryId, locked: this.flagsLocked || undefined})
         else if (held.countryId !== countryId) throw new AllegianceLockedError(held)
     }
 
     private pledge(countryId: string): void {
         const held = this.allegiance
         if (held?.countryId === countryId) return
+        if (held && lockOf(held, Date.now())) throw new AllegianceLockedError(held)
 
-        const locked = lockOf(held, Date.now())
-        if (locked) throw new AllegianceLockedError(locked)
-
-        this.holdAllegiance(held ? {countryId, changeableAt: Date.now() + FLAG_CHANGE_EVERY_MS} : {countryId})
+        const locked = this.flagsLocked || undefined
+        this.holdAllegiance(held ? {countryId, changeableAt: Date.now() + FLAG_CHANGE_EVERY_MS, locked} : {countryId, locked})
     }
 
     private holdAllegiance(allegiance: Allegiance): void {

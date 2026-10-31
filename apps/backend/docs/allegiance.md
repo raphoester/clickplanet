@@ -12,6 +12,13 @@ player could paint for one country and defend another click to click. **Only
   when. The same flag again changes nothing. `PlayError(flag)` is a click or a
   shield: the flag held plays, any other flag is a `Refusal` (`ErrOtherFlag`) whether
   a wait runs or not, and an account with no flag yet is one (`ErrNoFlag`).
+- **A rule set may lock the flags** (`allegianceLocked`, part `allegiances.LockPart`, see [Rules](rules.md)): a
+  battle's set does, so no player switches sides in the middle of a fight (the owner, 2026-10-31). Planet never hears
+  of a battle: the lock is a rule of the set in force, like a freeze. While it is on, `Pledged(flag, at, lock)` refuses
+  another flag to an account that holds one (`ErrLocked`), even after the hour, and the refusal says `Locked`. A first
+  flag and the same flag still go, so a newcomer joins mid-battle. The hour's wait is not touched: a change before the
+  battle still counts after it. `PlayError(flag, lock)` says the lock in its refusal too, so a page that hears a refused
+  click learns it.
 - **`allegiances.Book.Pledge(ctx, payer, flag)`** applies `Pledged` at the clock's
   time, in the store's `Change`: one transaction under `pg_advisory_xact_lock` on the
   account, so two tabs pledging two flags at once cannot both change it. A caller with
@@ -25,17 +32,18 @@ player could paint for one country and defend another click to click. **Only
   `place_shield_usecase` checks before it spends the shield. A bomb, a claim, a
   quiz and a refill name a flag only for what they announce, and are not held.
 - **The refusal is `FailedPrecondition` with a `planet.v1.Allegiance` detail**
-  (`allegiancemessage.Refusal`): the flag held and `changeable_at_unix_ms`. The
+  (`allegiancemessage.Refusal`): the flag held, `changeable_at_unix_ms` and `locked`. The
   client snaps back to that flag. With no flag held, the detail has no country.
 - **`ClickService/GetAllegiance`** answers the caller's (`allegiance_query`, straight
-  from postgres), as `Identified`: unset for an account that never pledged a flag,
-  and `changeable_at_unix_ms` 0 for a flag never changed. Not `NO_SIDE_EFFECTS`.
+  from postgres, and `locked` from the set in force), as `Identified`: unset for an account that never pledged a flag,
+  and `changeable_at_unix_ms` 0 for a flag never changed. Not `NO_SIDE_EFFECTS`. A set taking over sends
+  `rules_changed`, and the web client reads it again.
 - **`InternalService/GetAllegianceOf(account_id)`** is the same read for another module
   (`missions`, to draw an account's day), with the same query. An id that is no account is `InvalidArgument`.
 - **`ClickService/PledgeAllegiance(country_id)`** is `Book.Pledge`, and answers
   nothing: the client reads `GetAllegiance` after it. `Identified`, since it writes
   only the caller's own state. No account is `Unauthenticated`, a flag that is no
-  country `InvalidArgument`, and a change inside the hour is refused as above. **The
+  country `InvalidArgument`, and a change inside the hour or under a lock is refused as above. **The
   web client pledges** when the player picks a country, and before the first click of
   an account that holds no flag: a new guest gets its account from the mint of that
   click, so it has none at load.

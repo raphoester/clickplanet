@@ -4,7 +4,7 @@ import {LeaderboardEntry, rankOf} from "../domain/leaderboard.ts";
 import {countryLines, CountryOrder, shownOrder} from "../domain/race.ts";
 import {NO_TILE_DELTAS, TileDeltas} from "../domain/tileDeltas.ts";
 import {Race} from "../backends/standings.ts";
-import {Allegiance, lockOf, minutesLeftOf} from "../domain/allegiance.ts";
+import {Allegiance, Lock, lockOf, minutesLeftOf} from "../domain/allegiance.ts";
 import {describeEnd} from "../domain/endTime.ts";
 import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx";
 import CountryPicker from "./CountryPicker.tsx";
@@ -186,17 +186,35 @@ function PlayingFor({country, allegiance, rank, changeRef, onChange, slim}: Play
 function ChangeButton({allegiance, changeRef, onChange}: Pick<PlayingForProps, "allegiance" | "changeRef" | "onChange">) {
     useNow()
     const now = Date.now()
-    const locked = lockOf(allegiance, now)?.changeableAt
+    const lock = lockOf(allegiance, now)
 
     return <button ref={changeRef}
                    type="button"
-                   className={locked === undefined ? "button button-mini button-secondary menu-change" : "button button-mini button-secondary menu-change menu-change--locked"}
-                   aria-label={locked === undefined ? undefined : `Change country, next change at ${describeEnd(locked, now)}`}
+                   className={lock === undefined ? "button button-mini button-secondary menu-change" : "button button-mini button-secondary menu-change menu-change--locked"}
+                   aria-label={lock === undefined ? undefined : lockedChangeLabelOf(lock, now)}
                    onClick={onChange}>
-        {locked === undefined
+        {lock === undefined
             ? <><SwapIcon/><span>Change</span></>
-            : <><LockIcon/><span>{minutesLeftOf(locked, now)} min</span></>}
+            : <><LockIcon/><span>{lockedChangeTextOf(lock, now)}</span></>}
     </button>
+}
+
+function lockedChangeLabelOf(lock: Lock, now: number): string {
+    switch (lock.kind) {
+        case "rules":
+            return "Change country, locked for now"
+        case "wait":
+            return `Change country, next change at ${describeEnd(lock.until, now)}`
+    }
+}
+
+function lockedChangeTextOf(lock: Lock, now: number): string {
+    switch (lock.kind) {
+        case "rules":
+            return "Locked"
+        case "wait":
+            return `${minutesLeftOf(lock.until, now)} min`
+    }
 }
 
 export function BoardPlace(props: BoardPlaceProps & {headless?: boolean}) {
