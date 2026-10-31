@@ -28,7 +28,8 @@ and so is one from an account that pledged none.
   the flag held in its detail, which `PlanetBackend` keeps (`allegianceDetailOf`).
 - **The picked flag is always the held one**, locked or not: `Viewer` sets the
   country back to it (local storage, a share link, a CrazyGames invite, another
-  device). `Viewer`'s
+  device). A CrazyGames invite then asks the player whether to play for the
+  friend's flag (see [CrazyGames](crazygames.md)). `Viewer`'s
   `pickCountry` pledges first and sets the country only once the server took it.
 - **The picker says the rule over the list** (`CHANGE_RULE`, "You can change
   country once an hour."), and while the flag is held, when the next change is,

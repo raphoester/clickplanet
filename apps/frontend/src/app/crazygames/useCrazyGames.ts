@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react"
+import {useCallback, useEffect, useRef, useState} from "react"
 import {CrazyGamesPage, CrazyGamesSettings, DEFAULT_CRAZYGAMES_SETTINGS} from "../../backends/crazyGames.ts"
 import {Allegiance} from "../../domain/allegiance.ts"
 import {Country} from "../../domain/countries.ts"
@@ -39,14 +39,24 @@ export function useRoom(page: CrazyGamesPage | undefined, ready: boolean, flag: 
     }, [page, ready, flag])
 }
 
-export function useInvites(page: CrazyGamesPage | undefined, held: Allegiance | undefined, play: (country: Country) => void) {
-    const holds = useRef(held !== undefined)
+export type Invitation = {
+    // A friend's flag while the player holds another: the player chooses.
+    asked?: Country
+    answer: () => void
+}
+
+export function useInvites(page: CrazyGamesPage | undefined, held: Allegiance | undefined, play: (country: Country) => void): Invitation {
+    const [invited, setInvited] = useState<Country>()
+
+    useEffect(() => page?.room.listenForInvites(setInvited), [page])
 
     useEffect(() => {
-        holds.current = held !== undefined
-    }, [held])
+        if (!invited) return
+        if (held === undefined) play(invited)
+        else if (held.countryId === invited.code) setInvited(undefined)
+    }, [invited, held, play])
 
-    useEffect(() => page?.room.listenForInvites((country) => {
-        if (!holds.current) play(country)
-    }), [page, play])
+    const answer = useCallback(() => setInvited(undefined), [])
+
+    return {asked: invited && held && held.countryId !== invited.code ? invited : undefined, answer}
 }

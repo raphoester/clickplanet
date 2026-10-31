@@ -57,7 +57,8 @@ const crazyGames = ON_CRAZYGAMES ? connectCrazyGames() : undefined
 const words: Promise<WordFilter> = ON_CRAZYGAMES ? crazyGamesWords(CRAZYGAMES_WORDS_URL) : Promise.resolve(NO_FILTER)
 const seen = landingOf(page, document.referrer)
 const landing = crazyGames ? crazyGamesLanding(seen) : firstLanding(localLandingStore(), seen)
-if (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM)) {
+// CrazyGames' frame puts an invite's flag on this address as a plain ?f=, and its SDK reads it after this runs.
+if (!crazyGames && (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM))) {
     window.history.replaceState(null, "", withoutLanding(withoutSharedFlag(page)))
 }
 
