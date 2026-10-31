@@ -13,6 +13,26 @@ service InternalService {
   rpc GetTable(GetTableRequest) returns (GetTableResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc GetRoundPlayers(GetRoundPlayersRequest) returns (GetRoundPlayersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetRoundPlayersRequest {
+  string round_id = 1;
+}
+
+// Every account that took tiles in the round, guests too. NotFound for a round never opened.
+message GetRoundPlayersResponse {
+  repeated RoundPlayer players = 1;
+}
+
+// An account under the flag it took the most tiles for in the round.
+message RoundPlayer {
+  string account_id = 1;
+  string country_id = 2;
+  uint64 tiles = 3;
 }
 
 message GetTableRequest {

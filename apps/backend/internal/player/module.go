@@ -12,7 +12,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales/postgres_fight_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales/rpc_scoring_finales"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales/usecases/forget_fights_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales/usecases/record_finale_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
@@ -71,6 +76,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/message_sent_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/missions_paid_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/quiz_answered_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/season_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_account_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
@@ -119,10 +125,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the player module asks auth about accounts and planet about takes: %w", err)
+		return fmt.Errorf("the player module asks auth about accounts, planet about takes and scoring about finales: %w", err)
 	}
 	auth := authv1connect.NewInternalServiceClient(internal, baseURL)
 	fronts := rpc_planet_fronts.New(planetv1connect.NewInternalServiceClient(internal, baseURL))
+	scoring := rpc_scoring_finales.New(scoringv1connect.NewInternalServiceClient(internal, baseURL))
 
 	tagSalt := config.TagSalt
 	if tagSalt == "" {
@@ -157,10 +164,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	outbox := cpoutbox.New(db)
 
 	accounts := rpc_account_reader.New(auth)
+	fightStore := postgres_fight_store.New(db)
+	careers := titles.NewCareers(accounts, fightStore)
 	titleStore := postgres_title_store.New(db)
 	catalog := titles.NewCatalog()
 	titleBook := titles.NewBook(titleStore, catalog)
 	titleFeed := inprocess_title_feed.New()
+	award := notifying_award_titles.New(award_titles_usecase.New(store, careers, titleBook, clock), titleFeed)
 	wornTitleStore := postgres_worn_title_store.New(db)
 	wardrobe := wearing.NewWardrobe(wornTitleStore, titleBook, catalog)
 	titleCards := inprocess_title_catalog.New(catalog)
@@ -215,12 +225,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to missions.v1.MissionsPaid: %w", err)
 	}
 	awards, err := cpredis.Subscribe(ctx, streams, "player-titles",
-		log_subscriber.New(stats_changed_subscriber.New(notifying_award_titles.New(
-			award_titles_usecase.New(store, accounts, titleBook, clock), titleFeed,
-		)), props.Logger))
+		log_subscriber.New(stats_changed_subscriber.New(award), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to player.v1.StatsChanged: %w", err)
+	}
+	seasonEnds, err := cpredis.Subscribe(ctx, streams, "player-finales",
+		log_subscriber.New(season_ended_subscriber.New(record_finale_usecase.New(scoring, fightStore, award)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to gamemaster.v1.SeasonEnded: %w", err)
 	}
 	deletions, err := cpredis.Subscribe(ctx, streams, "player-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(store)), props.Logger))
@@ -239,6 +253,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the worn titles to auth.v1.AccountDeleted: %w", err)
+	}
+	forgottenFights, err := cpredis.Subscribe(ctx, streams, "player-finales-accounts",
+		log_subscriber.New(account_deleted_subscriber.New(forget_fights_usecase.New(fightStore)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the finales fought to auth.v1.AccountDeleted: %w", err)
 	}
 
 	forgetVisit := forget_visit_usecase.New(visits)
@@ -270,8 +290,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-		takes, posts, bombs, fortifies, claims, answers, missionsPaid, awards, deletions, forgottenTitles, forgottenChoices,
-		signIns, namings, signOuts, gone, cpoutbox.NewRelay("player-outbox", db, streams, props.Logger))))
+		takes, posts, bombs, fortifies, claims, answers, missionsPaid, awards, seasonEnds, deletions, forgottenTitles,
+		forgottenChoices, forgottenFights, signIns, namings, signOuts, gone,
+		cpoutbox.NewRelay("player-outbox", db, streams, props.Logger))))
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
 
@@ -319,7 +340,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	adminService := playerv1controller.AdminService{
 		ReconcileTitlesHandler: reconcile_titles_handler.New(audit_reconcile_titles.New(
-			reconcile_titles_usecase.New(store, accounts, titleStore, catalog, clock), props.Logger,
+			reconcile_titles_usecase.New(store, careers, titleStore, catalog, clock), props.Logger,
 		)),
 		GetAuthorsHandler: getAuthors,
 		AdminGetPlayerHandler: admin_get_player_handler.New(

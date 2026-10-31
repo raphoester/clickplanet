@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/postgres_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -45,4 +46,12 @@ func (s *testSuite) TestATitleKeepsTheTimeItWasFirstEarned() {
 	var earnedAt time.Time
 	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(), `SELECT earned_at FROM titles`).Scan(&earnedAt))
 	s.Equal(at, earnedAt.UTC())
+}
+
+func (s *testSuite) TestATitleOfASeasonKeepsItsNumber() {
+	s.Require().NoError(s.store.Grant(s.T().Context(), titles.Holdings{{15: 1}: {"season_0_gold"}}, at))
+
+	held, err := s.store.Held(s.T().Context(), players.AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(titles.IDs{"season_0_gold"}, held)
 }

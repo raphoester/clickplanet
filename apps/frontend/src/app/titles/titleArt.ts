@@ -22,6 +22,10 @@ export const BANDS: Partial<Record<Metal, readonly string[]>> = {
 
 const TITLE_METALS: Partial<Record<string, Metal>> = {
     og: "holo",
+    season_0_gold: "gold",
+    season_0_silver: "silver",
+    season_0_bronze: "bronze",
+    season_0_veteran: "platinum",
     settler: "bronze",
     raider: "silver",
     warlord: "gold",

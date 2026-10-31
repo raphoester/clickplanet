@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales/inmemory_fight_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/stats_changed_subscriber"
@@ -23,7 +24,8 @@ func subscriber(stats *inmemory_player_store.Store, held *inmemory_title_store.S
 	accounts := titles.NewFakeAccounts()
 	accounts.Create(linked, players.AccountOf(true, now))
 	book := titles.NewBook(held, titles.CatalogOf([]titles.Title{titles.FakeTitle{Key: "first", Tiles: 1}}))
-	return stats_changed_subscriber.New(award_titles_usecase.New(stats, accounts, book, cptime.NewFixedClock(now)))
+	careers := titles.NewCareers(accounts, inmemory_fight_store.New())
+	return stats_changed_subscriber.New(award_titles_usecase.New(stats, careers, book, cptime.NewFixedClock(now)))
 }
 
 func TestChangedStatsAreCheckedForTitles(t *testing.T) {
