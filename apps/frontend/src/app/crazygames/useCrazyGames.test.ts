@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {renderHook} from "@testing-library/react"
+import {act, renderHook} from "@testing-library/react"
 import {CrazyGamesPage} from "../../backends/crazyGames.ts"
 import {Countries, Country} from "../../domain/countries.ts"
 import {Allegiance} from "../../domain/allegiance.ts"
@@ -57,28 +57,66 @@ describe("useRoom", () => {
 })
 
 describe("useInvites", () => {
-    it("plays for each invite's flag while the player holds none", () => {
+    it("plays for each invite's flag while the player holds none, and asks nothing", () => {
         const {page, invite} = fakePage()
         const play = vi.fn()
-        renderHook(() => useInvites(page, undefined, play))
+        const {result} = renderHook(() => useInvites(page, undefined, play))
 
-        invite(FRANCE)
-        invite(GERMANY)
+        act(() => invite(FRANCE))
+        act(() => invite(GERMANY))
 
         expect(play.mock.calls).toEqual([[FRANCE], [GERMANY]])
+        expect(result.current.asked).toBeUndefined()
     })
 
-    it("keeps the flag held", () => {
+    it("asks a player who holds another flag, and pledges nothing itself", () => {
         const {page, invite} = fakePage()
         const play = vi.fn()
-        const {rerender} = renderHook(({held}) => useInvites(page, held, play), {
+        const {result} = renderHook(() => useInvites(page, {countryId: "de"}, play))
+
+        act(() => invite(FRANCE))
+
+        expect(result.current.asked).toBe(FRANCE)
+        expect(play).not.toHaveBeenCalled()
+    })
+
+    it("asks once the flag held loads after the invite", () => {
+        const {page, invite} = fakePage()
+        const play = vi.fn()
+        const {result, rerender} = renderHook(({held}) => useInvites(page, held, play), {
             initialProps: {held: undefined as Allegiance | undefined},
         })
 
+        act(() => invite(FRANCE))
         rerender({held: {countryId: "de"}})
-        invite(FRANCE)
 
-        expect(play).not.toHaveBeenCalled()
+        expect(play.mock.calls).toEqual([[FRANCE]])
+        expect(result.current.asked).toBe(FRANCE)
+    })
+
+    it("asks nothing of a player who already plays for the friend's flag", () => {
+        const {page, invite} = fakePage()
+        const {result} = renderHook(() => useInvites(page, {countryId: "fr"}, vi.fn()))
+
+        act(() => invite(FRANCE))
+
+        expect(result.current.asked).toBeUndefined()
+    })
+
+    it("asks no more once answered, or once the friend's flag is held", () => {
+        const {page, invite} = fakePage()
+        const {result, rerender} = renderHook(({held}) => useInvites(page, held, vi.fn()), {
+            initialProps: {held: {countryId: "de"} as Allegiance | undefined},
+        })
+
+        act(() => invite(FRANCE))
+        act(() => result.current.answer())
+        expect(result.current.asked).toBeUndefined()
+
+        act(() => invite(FRANCE))
+        rerender({held: {countryId: "fr"}})
+        rerender({held: {countryId: "it"}})
+        expect(result.current.asked).toBeUndefined()
     })
 
     it("stops listening when the page goes", () => {

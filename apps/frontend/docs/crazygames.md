@@ -67,9 +67,17 @@ Instant multiplayer needs nothing: there is no lobby, `/play` is the shared worl
   the flag is often set back at load. The page never calls `leftRoom()`: a player leaves the world only by
   closing the page.
 - **An invite gives its flag to a player who plays for none** (`useInvites`): the invite the page opened from
-  (`inviteParams`, told once) and each one taken while it plays (`addJoinRoomListener`), with no reload. A
-  player who holds a flag keeps it ([The flag played for](flag.md)): only the flag shown changes, never a
-  pledge. A flag that is not held yet at the invite is set back when the held one loads.
+  (`inviteParams`, told once) and each one taken while it plays (`addJoinRoomListener`), with no reload. Only the
+  flag shown changes; the first click pledges it.
+- **A player who holds another flag is asked** (`InvitedModal`): "Play for Bhutan" pledges it as the country picker
+  does (`pickCountry`), "Keep Bulgaria" keeps the flag held. A flag held is never changed without the player
+  ([The flag played for](flag.md)). While the flag is locked (the hour after a change, or a battle's rules), the prompt says so, as the
+  picker does, and offers no switch. A flag held that loads after the invite asks then: the flag shown goes back to the held one, and
+  the prompt opens. Once answered, or once the friend's flag is held, it asks no more for that invite.
+- **CrazyGames' frame puts the invite on our address as a plain `?f=`**: its game frame unpacks
+  `czy_invite_params` and copies its whole query onto the frame it makes for us (`/play?f=bt&czy_invite=true…`),
+  and the SDK reads the invite from that address after `main.tsx` runs. So on the CrazyGames page `main.tsx` keeps
+  `?f=` and `?s=` in the address; it only reads `?f=` as the flag shown at load, as a share link does.
 - **Invite friends** copies `inviteLink({f: <flag shown>})`, a link to the game on CrazyGames (`InviteFriends`,
   `InviteButton`). The Invite tab of the menu and of the phone's tab bar takes Share's place, and the frozen
   map's Invite copies the same link. `Menu`, `TabBar` and `ClickBudgetMeter` show it when they get `invite`,
@@ -87,7 +95,8 @@ a guest: no token, a prompt that answers false, the default settings.
 `npm run crazygames:words` once, then `VITE_CRAZYGAMES=1 VITE_FAKE_BACKEND=1 npm run dev`: the SDK runs in its local
 mode on `localhost`, with a demo user.
 `offerSignIn()` on the console offers sign-in and signs in as that user. The SDK's query parameters change what it
-answers (`?user_response=logged_out`, `?disableChat=true`, `?muteAudio=true`). An invite is
-`/play?czy_invite=true&czy_invite_params=f%3Dbr`, the form of `inviteLink` (a plain `&f=br` is a share link:
-`main.tsx` removes it before the SDK reads it). The local SDK logs each room report and drops the join listener,
-so an invite taken while playing is only in the tests.
+answers (`?user_response=logged_out`, `?disableChat=true`, `?muteAudio=true`). An invite as CrazyGames' frame
+hands it is `/play?f=br&czy_invite=true` (`inviteLink`'s own form, `?czy_invite=true&czy_invite_params=f%3Dbr`,
+works too). `fakeBackend.pledgeAllegiance("bg")` on the console after such a load shows the prompt a player who
+holds a flag gets. The local SDK logs each room report and drops the join listener, so an invite taken while
+playing is only in the tests.

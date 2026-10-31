@@ -124,6 +124,7 @@ import {useFlagMissionDone} from "../missions/useFlagMissionDone.ts";
 import {useClipNotice} from "../clips/useClipNotice.ts";
 import {CrazyGamesPage} from "../../backends/crazyGames.ts";
 import {useCrazyGames, useGameplay, useInvites, useRoom} from "../crazygames/useCrazyGames.ts";
+import InvitedModal from "../crazygames/InvitedModal.tsx";
 import InviteFriends from "../share/InviteFriends.tsx";
 import {MUTED_SOUND_SETTINGS} from "../../domain/soundSettings.ts";
 import "./Viewer.css"
@@ -174,7 +175,7 @@ export default function Viewer(props: ViewerProps) {
         const held = allegiance && allegiance.countryId !== countryState.code ? Countries.get(allegiance.countryId) : undefined
         if (held) handleSetCountry(held)
     }, [allegiance, countryState.code, handleSetCountry])
-    useInvites(props.crazyGames, allegiance, handleSetCountry)
+    const invitation = useInvites(props.crazyGames, allegiance, handleSetCountry)
     const invite = props.crazyGames?.room.inviteLink
     const pickCountry = async (country: Country) => {
         if (country.code !== countryState.code) await props.allegiance?.pledgeAllegiance(country.code)
@@ -569,6 +570,12 @@ export default function Viewer(props: ViewerProps) {
             multiplier={clickBudget.linkedMultiplier}
             fullBank={signInRefill}
             onClose={nudge.close}/>}
+
+        {invitation.asked && allegiance && <InvitedModal key={invitation.asked.code}
+                                                         friend={invitation.asked}
+                                                         held={allegiance}
+                                                         onSwitch={() => pickCountry(invitation.asked!)}
+                                                         onClose={invitation.answer}/>}
 
         {tileHolder.holder && <HolderCard key={`holder-${tileHolder.holder.id}`}
                                                               holder={tileHolder.holder}
