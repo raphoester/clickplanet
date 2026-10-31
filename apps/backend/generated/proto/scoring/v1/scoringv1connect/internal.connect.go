@@ -39,12 +39,16 @@ const (
 	// InternalServiceGetTableProcedure is the fully-qualified name of the InternalService's GetTable
 	// RPC.
 	InternalServiceGetTableProcedure = "/scoring.v1.InternalService/GetTable"
+	// InternalServiceGetRoundPlayersProcedure is the fully-qualified name of the InternalService's
+	// GetRoundPlayers RPC.
+	InternalServiceGetRoundPlayersProcedure = "/scoring.v1.InternalService/GetRoundPlayers"
 )
 
 // InternalServiceClient is a client for the scoring.v1.InternalService service.
 type InternalServiceClient interface {
 	GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error)
 	GetTable(context.Context, *connect.Request[v1.GetTableRequest]) (*connect.Response[v1.GetTableResponse], error)
+	GetRoundPlayers(context.Context, *connect.Request[v1.GetRoundPlayersRequest]) (*connect.Response[v1.GetRoundPlayersResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the scoring.v1.InternalService service. By
@@ -72,13 +76,21 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getRoundPlayers: connect.NewClient[v1.GetRoundPlayersRequest, v1.GetRoundPlayersResponse](
+			httpClient,
+			baseURL+InternalServiceGetRoundPlayersProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetRoundPlayers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
-	getRound *connect.Client[v1.GetRoundRequest, v1.GetRoundResponse]
-	getTable *connect.Client[v1.GetTableRequest, v1.GetTableResponse]
+	getRound        *connect.Client[v1.GetRoundRequest, v1.GetRoundResponse]
+	getTable        *connect.Client[v1.GetTableRequest, v1.GetTableResponse]
+	getRoundPlayers *connect.Client[v1.GetRoundPlayersRequest, v1.GetRoundPlayersResponse]
 }
 
 // GetRound calls scoring.v1.InternalService.GetRound.
@@ -91,10 +103,16 @@ func (c *internalServiceClient) GetTable(ctx context.Context, req *connect.Reque
 	return c.getTable.CallUnary(ctx, req)
 }
 
+// GetRoundPlayers calls scoring.v1.InternalService.GetRoundPlayers.
+func (c *internalServiceClient) GetRoundPlayers(ctx context.Context, req *connect.Request[v1.GetRoundPlayersRequest]) (*connect.Response[v1.GetRoundPlayersResponse], error) {
+	return c.getRoundPlayers.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the scoring.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error)
 	GetTable(context.Context, *connect.Request[v1.GetTableRequest]) (*connect.Response[v1.GetTableResponse], error)
+	GetRoundPlayers(context.Context, *connect.Request[v1.GetRoundPlayersRequest]) (*connect.Response[v1.GetRoundPlayersResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -118,12 +136,21 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetRoundPlayersHandler := connect.NewUnaryHandler(
+		InternalServiceGetRoundPlayersProcedure,
+		svc.GetRoundPlayers,
+		connect.WithSchema(internalServiceMethods.ByName("GetRoundPlayers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/scoring.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetRoundProcedure:
 			internalServiceGetRoundHandler.ServeHTTP(w, r)
 		case InternalServiceGetTableProcedure:
 			internalServiceGetTableHandler.ServeHTTP(w, r)
+		case InternalServiceGetRoundPlayersProcedure:
+			internalServiceGetRoundPlayersHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -139,4 +166,8 @@ func (UnimplementedInternalServiceHandler) GetRound(context.Context, *connect.Re
 
 func (UnimplementedInternalServiceHandler) GetTable(context.Context, *connect.Request[v1.GetTableRequest]) (*connect.Response[v1.GetTableResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.InternalService.GetTable is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetRoundPlayers(context.Context, *connect.Request[v1.GetRoundPlayersRequest]) (*connect.Response[v1.GetRoundPlayersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.InternalService.GetRoundPlayers is not implemented"))
 }

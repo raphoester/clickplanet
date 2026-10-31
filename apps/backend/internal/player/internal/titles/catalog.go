@@ -3,6 +3,8 @@ package titles
 import (
 	"slices"
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales"
 )
 
 type Catalog struct {
@@ -11,7 +13,10 @@ type Catalog struct {
 }
 
 func NewCatalog() Catalog {
-	return CatalogOf([]Title{OG{}}, Conquest{}, Devotion{}, Chatter{}, Defense{}, Bombs{}, Loot{}, Quiz{}, Missions{})
+	return CatalogOf(
+		[]Title{OG{}, Season0Gold{}, Season0Silver{}, Season0Bronze{}, Season0Veteran{}},
+		Conquest{}, Devotion{}, Chatter{}, Defense{}, Bombs{}, Loot{}, Quiz{}, Missions{},
+	)
 }
 
 func CatalogOf(standalone []Title, tracks ...Track) Catalog {
@@ -152,6 +157,40 @@ func (OG) Name() string { return "OG" }
 func (OG) EarnedBy(career Career) bool {
 	return !career.account.CreatedAt().IsZero() && career.account.CreatedAt().Before(ogCutoff)
 }
+
+const seasonZero finales.Season = 0
+
+type Season0Gold struct{}
+
+func (Season0Gold) ID() ID { return "season_0_gold" }
+
+func (Season0Gold) Name() string { return "Season 0 Gold" }
+
+func (Season0Gold) EarnedBy(career Career) bool { return career.fights.PlacedIn(seasonZero, 1) }
+
+type Season0Silver struct{}
+
+func (Season0Silver) ID() ID { return "season_0_silver" }
+
+func (Season0Silver) Name() string { return "Season 0 Silver" }
+
+func (Season0Silver) EarnedBy(career Career) bool { return career.fights.PlacedIn(seasonZero, 2) }
+
+type Season0Bronze struct{}
+
+func (Season0Bronze) ID() ID { return "season_0_bronze" }
+
+func (Season0Bronze) Name() string { return "Season 0 Bronze" }
+
+func (Season0Bronze) EarnedBy(career Career) bool { return career.fights.PlacedIn(seasonZero, 3) }
+
+type Season0Veteran struct{}
+
+func (Season0Veteran) ID() ID { return "season_0_veteran" }
+
+func (Season0Veteran) Name() string { return "Season 0 Veteran" }
+
+func (Season0Veteran) EarnedBy(career Career) bool { return career.fights.FoughtIn(seasonZero) }
 
 type Settler struct{}
 

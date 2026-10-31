@@ -92,6 +92,8 @@ and says what is in it. Read the doc before you change its area.
 
 - [Chat](docs/chat.md) — messages, announcements, mutes, removals, replies, reactions, and what each account saw.
 - [Player](docs/player.md) — names and guest codes, stats, streaks, titles, and who is playing now.
+- [Season titles](docs/season-titles.md) — Season 0 Gold, Silver, Bronze and Veteran: who fought the Final Battle and
+  where its flag placed, read from scoring when the gamemaster tells `SeasonEnded`.
 - [Scoring](docs/scoring.md) — a points accountant: books, rounds and grants by the ids it is given, opened and closed
   by the gamemaster's commands, each round scored from the map when it closes; no season, day, battle or clock.
 - [The gamemaster](docs/gamemaster.md) — every moment of the game: the rule schedule that commands planet and the

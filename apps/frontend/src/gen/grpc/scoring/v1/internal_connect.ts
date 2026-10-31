@@ -5,7 +5,7 @@
 
 import { GetRoundRequest, GetRoundResponse } from "./scoring_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { GetTableRequest, GetTableResponse } from "./internal_pb.js";
+import { GetRoundPlayersRequest, GetRoundPlayersResponse, GetTableRequest, GetTableResponse } from "./internal_pb.js";
 
 /**
  * What another module reads of scoring's books, by the ids it was given.
@@ -32,6 +32,16 @@ export const InternalService = {
       name: "GetTable",
       I: GetTableRequest,
       O: GetTableResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc scoring.v1.InternalService.GetRoundPlayers
+     */
+    getRoundPlayers: {
+      name: "GetRoundPlayers",
+      I: GetRoundPlayersRequest,
+      O: GetRoundPlayersResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

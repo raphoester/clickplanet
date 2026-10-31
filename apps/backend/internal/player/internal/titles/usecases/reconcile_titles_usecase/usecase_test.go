@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales/inmemory_fight_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
@@ -34,12 +36,14 @@ type fixture struct {
 	stats    *inmemory_player_store.Store
 	titles   *inmemory_title_store.Store
 	accounts *titles.FakeAccounts
+	fights   *inmemory_fight_store.Store
 	taken    *uint64
 }
 
 func setUp() fixture {
 	return fixture{
-		stats: inmemory_player_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts(), taken: new(uint64),
+		stats: inmemory_player_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts(), fights: inmemory_fight_store.New(),
+		taken: new(uint64),
 	}
 }
 
@@ -64,7 +68,7 @@ func (f fixture) held(t *testing.T, i int) titles.IDs {
 func (f fixture) reconcile(t *testing.T, store reconcile_titles_usecase.Titles, catalog titles.Catalog) (reconcile_titles_usecase.Reconciled, error) {
 	t.Helper()
 
-	return reconcile_titles_usecase.New(f.stats, f.accounts, store, catalog, cptime.NewFixedClock(now)).Execute(t.Context()) //nolint:wrapcheck // the tests read the use case's error.
+	return reconcile_titles_usecase.New(f.stats, titles.NewCareers(f.accounts, f.fights), store, catalog, cptime.NewFixedClock(now)).Execute(t.Context()) //nolint:wrapcheck // the tests read the use case's error.
 }
 
 func TestEveryLinkedAccountGetsTheTitlesItsCareerEarnsAcrossPages(t *testing.T) {
@@ -170,7 +174,7 @@ func TestAReconciliationAfterTheLiveAwardsChangesNothing(t *testing.T) {
 	f := setUp()
 	f.player(t, 1, 100, linked)
 	f.player(t, 2, 100, players.AccountOf(false, now))
-	award := award_titles_usecase.New(f.stats, f.accounts, titles.NewBook(f.titles, titles.NewCatalog()), cptime.NewFixedClock(now))
+	award := award_titles_usecase.New(f.stats, titles.NewCareers(f.accounts, f.fights), titles.NewBook(f.titles, titles.NewCatalog()), cptime.NewFixedClock(now))
 	for _, i := range []int{1, 2} {
 		_, err := award.Execute(t.Context(), account(i))
 		require.NoError(t, err)
@@ -183,5 +187,26 @@ func TestAReconciliationAfterTheLiveAwardsChangesNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, reconcile_titles_usecase.Reconciled{}, reconciled)
 	assert.Equal(t, titles.IDs{"og", "settler"}, f.held(t, 1))
+	assert.Empty(t, f.held(t, 2), "a guest")
+}
+
+func TestTheFightersOfAFinaleKeepItsTitlesAndAGuestGetsNone(t *testing.T) {
+	f := setUp()
+	f.player(t, 1, 1, players.AccountOf(true, time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)))
+	f.player(t, 2, 1, players.AccountOf(false, now))
+	fights := make([]finales.Fight, 0, 2)
+	for _, i := range []int{1, 2} {
+		fight, err := finales.FightSnapshot{Account: account(i), Season: 0, Country: "fr", Rank: 3}.Restore()
+		require.NoError(t, err)
+		fights = append(fights, fight)
+	}
+	require.NoError(t, f.fights.Record(t.Context(), fights))
+	require.NoError(t, f.titles.Grant(t.Context(), titles.Holdings{account(1): {"season_0_bronze"}}, now))
+
+	reconciled, err := f.reconcile(t, f.titles, titles.NewCatalog())
+
+	require.NoError(t, err)
+	assert.Equal(t, reconcile_titles_usecase.Reconciled{Granted: 1}, reconciled)
+	assert.Equal(t, titles.IDs{"season_0_bronze", "season_0_veteran"}, f.held(t, 1))
 	assert.Empty(t, f.held(t, 2), "a guest")
 }

@@ -42,6 +42,7 @@ internal/scoring/internal/
     get_round_handler/round_query/          a round, live or scored — Territory, Authors, Scores
     get_scores_handler/scores_query/        a book's scores, the scores around a round, the table (GetTable)
     get_table_handler/                      InternalService/GetTable, through scores_query
+    get_round_players_handler/round_players_query/   InternalService/GetRoundPlayers: every account of a round
     (each */rpc_player_authors/           Authors, from player.v1.InternalService/GetAuthors)
     listen_for_events_handler/    the stream: a book's board and scores, the rounds asked, a heartbeat
       inprocess_feed/             Feed[K, V]: each key the streams follow, read once a period, sent when it changed
@@ -182,6 +183,10 @@ id that is not one is `InvalidArgument`.
   `Book.Table`. A GET, `public, max-age=10`. A book never opened has none.
 - **`InternalService/GetTable(book_id)`**: the same table with each tiebreak's points, and `closed`; NotFound for a book
   never opened.
+- **`InternalService/GetRoundPlayers(round_id)`** (`round_players_query`): every account that took tiles in the round,
+  guests too, each under the flag it took the most tiles for there (a tie goes to the country first by code), with
+  those tiles; NotFound for a round never opened. Player reads it for the fighters of a season's finale (see [Season
+  titles](season-titles.md)).
 - **`ListenForEvents(book_id, country_id, round_ids)`**: the book's board and scores, each round asked (10 at most, a
   round asked twice followed once), then each one again once it changed, and a `heartbeat` every
   `httpServer.streamHeartbeat`. No `book_id` follows no board and no scores. A round not opened yet is sent once it

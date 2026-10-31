@@ -15,8 +15,8 @@ type Stats interface {
 	Stats(ctx context.Context, account players.AccountID) (players.Stats, error)
 }
 
-type Accounts interface {
-	Account(ctx context.Context, account players.AccountID) (players.Account, error)
+type Careers interface {
+	Of(ctx context.Context, stats players.Stats) (titles.Career, error)
 }
 
 type Titles interface {
@@ -29,16 +29,16 @@ type Executor interface {
 }
 
 type UseCase struct {
-	stats    Stats
-	accounts Accounts
-	titles   Titles
-	clock    cptime.Clock
+	stats   Stats
+	careers Careers
+	titles  Titles
+	clock   cptime.Clock
 }
 
 var _ Executor = (*UseCase)(nil)
 
-func New(stats Stats, accounts Accounts, titles Titles, clock cptime.Clock) *UseCase {
-	return &UseCase{stats: stats, accounts: accounts, titles: titles, clock: clock}
+func New(stats Stats, careers Careers, titles Titles, clock cptime.Clock) *UseCase {
+	return &UseCase{stats: stats, careers: careers, titles: titles, clock: clock}
 }
 
 func (u *UseCase) Execute(ctx context.Context, account players.AccountID) (titles.IDs, error) {
@@ -50,12 +50,12 @@ func (u *UseCase) Execute(ctx context.Context, account players.AccountID) (title
 		return nil, fmt.Errorf("failed to read the stats: %w", err)
 	}
 
-	known, err := u.accounts.Account(ctx, account)
+	career, err := u.careers.Of(ctx, stats)
 	if err != nil {
-		return nil, fmt.Errorf("failed to ask auth about the account: %w", err)
+		return nil, fmt.Errorf("failed to read the career: %w", err)
 	}
 
-	unheld, err := u.titles.Unheld(ctx, account, titles.CareerOf(stats, known))
+	unheld, err := u.titles.Unheld(ctx, account, career)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the titles earned: %w", err)
 	}

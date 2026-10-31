@@ -4,8 +4,135 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { TablePlace } from "./scoring_pb.js";
+
+/**
+ * @generated from message scoring.v1.GetRoundPlayersRequest
+ */
+export class GetRoundPlayersRequest extends Message<GetRoundPlayersRequest> {
+  /**
+   * @generated from field: string round_id = 1;
+   */
+  roundId = "";
+
+  constructor(data?: PartialMessage<GetRoundPlayersRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.GetRoundPlayersRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoundPlayersRequest {
+    return new GetRoundPlayersRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRoundPlayersRequest {
+    return new GetRoundPlayersRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRoundPlayersRequest {
+    return new GetRoundPlayersRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRoundPlayersRequest | PlainMessage<GetRoundPlayersRequest> | undefined, b: GetRoundPlayersRequest | PlainMessage<GetRoundPlayersRequest> | undefined): boolean {
+    return proto3.util.equals(GetRoundPlayersRequest, a, b);
+  }
+}
+
+/**
+ * Every account that took tiles in the round, guests too. NotFound for a round never opened.
+ *
+ * @generated from message scoring.v1.GetRoundPlayersResponse
+ */
+export class GetRoundPlayersResponse extends Message<GetRoundPlayersResponse> {
+  /**
+   * @generated from field: repeated scoring.v1.RoundPlayer players = 1;
+   */
+  players: RoundPlayer[] = [];
+
+  constructor(data?: PartialMessage<GetRoundPlayersResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.GetRoundPlayersResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "players", kind: "message", T: RoundPlayer, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoundPlayersResponse {
+    return new GetRoundPlayersResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRoundPlayersResponse {
+    return new GetRoundPlayersResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRoundPlayersResponse {
+    return new GetRoundPlayersResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRoundPlayersResponse | PlainMessage<GetRoundPlayersResponse> | undefined, b: GetRoundPlayersResponse | PlainMessage<GetRoundPlayersResponse> | undefined): boolean {
+    return proto3.util.equals(GetRoundPlayersResponse, a, b);
+  }
+}
+
+/**
+ * An account under the flag it took the most tiles for in the round.
+ *
+ * @generated from message scoring.v1.RoundPlayer
+ */
+export class RoundPlayer extends Message<RoundPlayer> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint64 tiles = 3;
+   */
+  tiles = protoInt64.zero;
+
+  constructor(data?: PartialMessage<RoundPlayer>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.RoundPlayer";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoundPlayer {
+    return new RoundPlayer().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoundPlayer {
+    return new RoundPlayer().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoundPlayer {
+    return new RoundPlayer().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoundPlayer | PlainMessage<RoundPlayer> | undefined, b: RoundPlayer | PlainMessage<RoundPlayer> | undefined): boolean {
+    return proto3.util.equals(RoundPlayer, a, b);
+  }
+}
 
 /**
  * @generated from message scoring.v1.GetTableRequest

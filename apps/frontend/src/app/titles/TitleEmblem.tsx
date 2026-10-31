@@ -94,6 +94,14 @@ function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
     switch (title.id) {
         case "og":
             return <Letters text="OG" color={accent}/>
+        case "season_0_gold":
+            return <Letters text="1" color={accent}/>
+        case "season_0_silver":
+            return <Letters text="2" color={accent}/>
+        case "season_0_bronze":
+            return <Letters text="3" color={accent}/>
+        case "season_0_veteran":
+            return <Shape d={STAR} color={accent} width={1.6} transform="translate(50 50) scale(2) translate(-50 -43)"/>
         case "settler":
             return <>
                 <Line d="M42 71 V30" color={cream}/>
