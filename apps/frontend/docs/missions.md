@@ -13,7 +13,9 @@ itself, with nothing to press.
   with how far it went (`reachedOf`) over its goal, its reward in its bonus color, and
   **Done** once the backend says so (`done`: the client does not decide it). A guest sees
   the same rows and **Sign in to get it** on a mission done, which opens the sign-in pitch: its
-  pay waits for the sign-in that day. "Ends in" is the day's own end, 21:00 UTC.
+  pay waits for the sign-in that day. "Ends in" is the day's own end, 21:00 UTC. With no mission (no flag
+  pledged yet, or no day), a guest sees "Sign in to get missions." and a **Sign in** button to the pitch, a
+  signed-in player "No missions right now.": an empty place looked broken.
 - **The flag's mission comes first**, in a panel of its own (`FlagMissionRow`): "Flag mission", its order ("Break 300
   shields of", then the flag; or a ground's tiles), its bar, and the season points it gives the flag in gold. The
   whole flag counts on it, and the backend says when it is done. The badge does not count it.

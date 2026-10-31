@@ -8,6 +8,10 @@
     margin: 0;
 }
 
+.missions-sign-in {
+    align-self: flex-start;
+}
+
 .missions-left {
     margin: 0;
     font-size: var(--text-s);

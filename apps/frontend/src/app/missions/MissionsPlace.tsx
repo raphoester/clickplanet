@@ -22,7 +22,12 @@ export default function MissionsPlace({state, onSignIn, onSeen}: MissionsPlacePr
 
     if (state.kind === "loading") return <p className="missions-text" role="status">Loading…</p>
     if (state.kind === "failed") return <p className="missions-text" role="alert">Your missions could not be loaded.</p>
-    if (state.day.missions.length === 0 && !state.day.flagMission) return null
+    if (state.day.missions.length === 0 && !state.day.flagMission) return onSignIn
+        ? <div className="missions">
+            <p className="missions-text">Sign in to get missions.</p>
+            <button type="button" className="button missions-sign-in" onClick={onSignIn}>Sign in</button>
+        </div>
+        : <p className="missions-text">No missions right now.</p>
 
     return <div className="missions">
         <p className="missions-left">Ends in {timeLeft(state.day.endsAt, now)}</p>
