@@ -18,7 +18,6 @@ export type BombNewsProps = {
 
 export default function BombNews({drop, land, lowered, onDone}: BombNewsProps) {
     const name = Countries.get(drop.countryId)?.name ?? drop.countryId
-    const landName = land === undefined ? undefined : Countries.get(land)?.name
 
     const done = useRef(onDone)
     useEffect(() => {
@@ -34,7 +33,7 @@ export default function BombNews({drop, land, lowered, onDone}: BombNewsProps) {
         <div className="bomb-news-line panel">
             <span aria-hidden="true">{drop.tile === undefined ? "🌊" : "💥"}</span>
             <CountryFlag code={drop.countryId}/>
-            <span><strong>{name}</strong> {describeBlast({tile: drop.tile, cleared: drop.cleared.length}, landName)}</span>
+            <span><strong>{name}</strong> {describeBlast({tile: drop.tile, cleared: drop.cleared.length}, land)}</span>
         </div>
     </div>
 }

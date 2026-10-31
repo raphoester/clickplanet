@@ -26,6 +26,7 @@ message BombLanded {
   google.protobuf.Timestamp landed_at = 5;
   string account_id = 6;
   uint64 position = 7;
+  uint32 landmass_id = 8;
 }
 
 message Fortified {

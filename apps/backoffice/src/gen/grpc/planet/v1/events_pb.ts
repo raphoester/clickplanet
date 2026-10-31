@@ -199,6 +199,11 @@ export class BombLanded extends Message<BombLanded> {
    */
   position = protoInt64.zero;
 
+  /**
+   * @generated from field: uint32 landmass_id = 8;
+   */
+  landmassId = 0;
+
   constructor(data?: PartialMessage<BombLanded>) {
     super();
     proto3.util.initPartial(data, this);
@@ -214,6 +219,7 @@ export class BombLanded extends Message<BombLanded> {
     { no: 5, name: "landed_at", kind: "message", T: Timestamp },
     { no: 6, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 8, name: "landmass_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BombLanded {

@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 )
 
@@ -22,6 +23,7 @@ type Cursor interface {
 
 type Borders interface {
 	CountryOf(tile uint32) string
+	LandmassOf(tile uint32) clicks.LandmassID
 }
 
 type Sender interface {
@@ -126,6 +128,7 @@ func (u *UseCase) landedOf(position ledger.Position, bombing ledger.Bombing) *pl
 	}
 	if bombing.Blast.Tile != 0 {
 		landed.Ground = u.borders.CountryOf(bombing.Blast.Tile)
+		landed.LandmassId = uint32(u.borders.LandmassOf(bombing.Blast.Tile))
 	}
 	return landed
 }

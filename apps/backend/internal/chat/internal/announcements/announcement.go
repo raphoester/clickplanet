@@ -59,23 +59,27 @@ type Bomb struct {
 	position uint64
 	country  string
 	ground   string
+	landmass uint32
 	tile     uint32
 	cleared  uint32
 }
 
-func BombOf(position uint64, country string, ground string, tile uint32, cleared uint32) Bomb {
-	return Bomb{position: position, country: country, ground: ground, tile: tile, cleared: cleared}
+func BombOf(position uint64, country string, ground string, landmass uint32, tile uint32, cleared uint32) Bomb {
+	return Bomb{position: position, country: country, ground: ground, landmass: landmass, tile: tile, cleared: cleared}
 }
 
 type bombPayload struct {
-	Country string `json:"country"`
-	Ground  string `json:"ground,omitempty"`
-	Tile    uint32 `json:"tile,omitempty"`
-	Cleared uint32 `json:"cleared"`
+	Country  string `json:"country"`
+	Ground   string `json:"ground,omitempty"`
+	Landmass uint32 `json:"landmass,omitempty"`
+	Tile     uint32 `json:"tile,omitempty"`
+	Cleared  uint32 `json:"cleared"`
 }
 
 func (b Bomb) Announcement(at time.Time) (Announcement, error) {
-	payload, err := json.Marshal(bombPayload{Country: b.country, Ground: b.ground, Tile: b.tile, Cleared: b.cleared})
+	payload, err := json.Marshal(bombPayload{
+		Country: b.country, Ground: b.ground, Landmass: b.landmass, Tile: b.tile, Cleared: b.cleared,
+	})
 	if err != nil {
 		return Announcement{}, fmt.Errorf("failed to encode a bomb announcement: %w", err)
 	}

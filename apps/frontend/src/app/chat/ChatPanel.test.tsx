@@ -253,6 +253,16 @@ describe("ChatPanel", () => {
         expect(item("after").className).toContain("chat-message-opens")
     })
 
+    it("names the landmass a bomb hit, not the country it belongs to", async () => {
+        const bomb: ChatAnnouncement = {
+            kind: "bomb", id: "boom", announcedAt: 1_700_000_000_500, country: "fr", ground: "au", landmass: 420, tile: 42, cleared: 3,
+        }
+        const {backend} = stubBackend([message("a", "before")], [bomb])
+        setup(backend)
+
+        expect(await screen.findByText("bombed Tasmania")).toBeTruthy()
+    })
+
     it("says who was muted and for how long, as a line between the messages", async () => {
         const mute: ChatAnnouncement = {kind: "mute", id: "hush", announcedAt: 1_700_000_000_500, name: "guest_a1b2c3", seconds: 3600}
         const {backend} = stubBackend([message("a", "We target the players"), message("b", "thanks", 1_700_000_001_000)], [mute])

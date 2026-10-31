@@ -9,7 +9,7 @@ import {innerSphere} from "./sphere.ts";
 import {CapturedFrame, readDrawingBuffer} from "./capture.ts";
 import {GraphicsReport, graphicsReportOf} from "./graphicsReport.ts";
 import {TileField} from "./tileField.ts";
-import {BorderField, countryOfTile, loadBorders} from "./borderField.ts";
+import {BorderField, loadBorders} from "./borderField.ts";
 import {createBorderLines, loadBorderLines} from "./borderLines.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import {BORDERS_URL} from "./bordersAsset.ts";
@@ -707,7 +707,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             shakeFrom = seconds + IMPACT_DELAY
         }
         playSound("bomb", {volume: own ? 1 : DISTANT_BOMB_VOLUME, onWater: drop.tile === undefined})
-        onBombDropped(drop, drop.tile === undefined ? undefined : countryOfTile(borders, drop.tile))
+        const landmass = landmassOf(drop.tile)
+        onBombDropped(drop, landmass === undefined ? undefined : landmassName(landmass, borders.codes[landmass]))
     })
 
     const placeShield = (tile: number) => {

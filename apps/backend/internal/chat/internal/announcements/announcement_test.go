@@ -128,8 +128,8 @@ func TestAChampionIsAnnouncedUnderItsSeasonsID(t *testing.T) {
 func TestAFactIsAnnouncedUnderAnIDOfItsOwn(t *testing.T) {
 	ids := map[announcements.AnnouncementID]string{}
 	for name, told := range map[string]func(time.Time) (announcements.Announcement, error){
-		"bomb 7":        announcements.BombOf(7, "fr", "de", 42, 3).Announcement,
-		"bomb 8":        announcements.BombOf(8, "fr", "de", 42, 3).Announcement,
+		"bomb 7":        announcements.BombOf(7, "fr", "de", 7, 42, 3).Announcement,
+		"bomb 8":        announcements.BombOf(8, "fr", "de", 7, 42, 3).Announcement,
 		"fortify 7":     announcements.FortifyOf(7, "fr", "is", 3, 60).Announcement,
 		"mute 1":        announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", time.Hour).Announcement,
 		"day 5":         announcements.DayOf(0, 5).Announcement,
