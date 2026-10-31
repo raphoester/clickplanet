@@ -265,6 +265,14 @@ func (s Streak) Days() uint32 { return s.days }
 
 func (s Streak) LastDay() Day { return s.lastDay }
 
+func (s Streak) Covers(day Day) bool {
+	if s.days == 0 || s.lastDay.Before(day) {
+		return false
+	}
+	first := Day{midnight: s.lastDay.midnight.AddDate(0, 0, -int(s.days-1))}
+	return !day.Before(first)
+}
+
 func (s Streak) AsOf(today Day) Streak {
 	if s.lastDay.Empty() || s.lastDay == today || s.lastDay.Following() == today {
 		return s

@@ -77,6 +77,21 @@ func TestAStreakReadsZeroOnceAWholeDayWentBy(t *testing.T) {
 	assert.Equal(t, uint32(2), stats.AsOf(today.Following().Following()).StreakBest())
 }
 
+func TestAStreakCoversEachDayOfItsRunAndNoOther(t *testing.T) {
+	stats := taken(beforeMidnight.Add(-24*time.Hour), beforeMidnight, beforeMidnight.Add(24*time.Hour))
+	first, last := players.DayOf(beforeMidnight.Add(-24*time.Hour)), players.DayOf(beforeMidnight.Add(24*time.Hour))
+
+	assert.True(t, stats.Streak().Covers(first))
+	assert.True(t, stats.Streak().Covers(players.DayOf(beforeMidnight)))
+	assert.True(t, stats.Streak().Covers(last))
+	assert.False(t, stats.Streak().Covers(last.Following()))
+	assert.False(t, stats.Streak().Covers(players.DayOf(beforeMidnight.Add(-48*time.Hour))))
+	assert.False(t, players.Stats{}.Streak().Covers(first), "no take covers no day")
+
+	broken := taken(beforeMidnight, beforeMidnight.Add(3*24*time.Hour))
+	assert.False(t, broken.Streak().Covers(players.DayOf(beforeMidnight)), "a broken streak forgets its run")
+}
+
 func TestNoTakeIsNoDay(t *testing.T) {
 	var stats players.Stats
 

@@ -167,3 +167,14 @@ func TestAFightsFailureIsAnErrorAndGrantsNothing(t *testing.T) {
 
 	assert.Empty(t, f.held(t))
 }
+
+func TestATakeOnHalloweenGrantsItsTitleAtOnce(t *testing.T) {
+	f := setUp()
+	f.accounts.Create(ada, players.AccountOf(true, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)))
+	require.NoError(t, f.stats.Record(t.Context(), ada, players.TakeAt(0, 0, time.Date(2026, 10, 31, 21, 30, 0, 0, time.UTC))))
+
+	granted, err := f.awarded(t, titles.NewCatalog())
+
+	require.NoError(t, err)
+	assert.Equal(t, titles.IDs{"halloween_2026"}, granted)
+}

@@ -122,6 +122,27 @@ func TestTheReconciliationGrantsWhatIsEarnedAndRevokesWhatIsNot(t *testing.T) {
 	assert.Equal(t, 3, reconciliation.Revocations().Len())
 }
 
+func TestTheReconciliationNeverRevokesAKeepsake(t *testing.T) {
+	halloween := time.Date(2026, 10, 31, 20, 0, 0, 0, time.UTC)
+	career := func(account byte, days uint32, lastDay time.Time) titles.Career {
+		return titles.CareerOf(players.StatsSnapshot{
+			Account: players.AccountID{15: account}, TilesTaken: 1, Streak: players.StreakOf(days, players.DayOf(lastDay)),
+		}.Restore(), players.AccountOf(true, time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)), nil)
+	}
+	catalog := titles.CatalogOf([]titles.Title{titles.Halloween2026{}})
+
+	reconciliation := catalog.ReconciliationOf([]titles.Career{
+		career(1, 1, halloween),
+		career(2, 1, halloween.AddDate(0, 0, 3)),
+	}, titles.Holdings{
+		{15: 2}: {"halloween_2026", "retired"},
+	})
+
+	assert.Equal(t, titles.Holdings{{15: 1}: {"halloween_2026"}}, reconciliation.Grants())
+	assert.Equal(t, titles.Holdings{{15: 2}: {"retired"}}, reconciliation.Revocations(),
+		"a streak broken since Halloween no longer shows it, and the title stays")
+}
+
 func TestATitleStandsAloneOrAtItsPlaceInItsTrack(t *testing.T) {
 	standing, ok := tracks.StandingOf("badge")
 	assert.True(t, ok)

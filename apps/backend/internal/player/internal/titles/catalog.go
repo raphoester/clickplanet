@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
 type Catalog struct {
@@ -14,7 +15,7 @@ type Catalog struct {
 
 func NewCatalog() Catalog {
 	return CatalogOf(
-		[]Title{OG{}, Season0Gold{}, Season0Silver{}, Season0Bronze{}, Season0Veteran{}},
+		[]Title{OG{}, Season0Gold{}, Season0Silver{}, Season0Bronze{}, Season0Veteran{}, Halloween2026{}},
 		Conquest{}, Devotion{}, Chatter{}, Defense{}, Bombs{}, Loot{}, Quiz{}, Missions{},
 	)
 }
@@ -55,11 +56,21 @@ func (c Catalog) ReconciliationOf(careers []Career, held Holdings) Reconciliatio
 		if missing := earned.Without(held[account]); len(missing) > 0 {
 			reconciliation.grants[account] = missing
 		}
-		if unearned := held[account].Without(earned); len(unearned) > 0 {
+		if unearned := held[account].Without(earned).Without(c.keepsakes()); len(unearned) > 0 {
 			reconciliation.revocations[account] = unearned
 		}
 	}
 	return reconciliation
+}
+
+func (c Catalog) keepsakes() IDs {
+	var kept IDs
+	for _, title := range c.Titles() {
+		if _, ok := title.(Keepsake); ok {
+			kept = append(kept, title.ID())
+		}
+	}
+	return kept
 }
 
 func (c Catalog) StandingOf(id ID) (Standing, bool) {
@@ -191,6 +202,18 @@ func (Season0Veteran) ID() ID { return "season_0_veteran" }
 func (Season0Veteran) Name() string { return "Season 0 Veteran" }
 
 func (Season0Veteran) EarnedBy(career Career) bool { return career.fights.FoughtIn(seasonZero) }
+
+var halloween2026 = players.DayOf(time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC))
+
+type Halloween2026 struct{}
+
+func (Halloween2026) ID() ID { return "halloween_2026" }
+
+func (Halloween2026) Name() string { return "Halloween 2026" }
+
+func (Halloween2026) EarnedBy(career Career) bool { return career.stats.Streak().Covers(halloween2026) }
+
+func (Halloween2026) Keepsake() {}
 
 type Settler struct{}
 

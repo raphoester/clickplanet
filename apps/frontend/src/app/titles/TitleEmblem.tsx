@@ -36,6 +36,10 @@ const COMPASS = "M30 50 A20 20 0 1 0 70 50 A20 20 0 1 0 30 50"
 const GLOBE = "M31 50 A19 19 0 1 0 69 50 A19 19 0 1 0 31 50 Z"
 const MAP = "M29 37 L42 32 L58 38 L71 33 V63 L58 68 L42 62 L29 67 Z"
 const SCOPE = "M31 50 A19 19 0 1 0 69 50 A19 19 0 1 0 31 50"
+const PUMPKIN = "M50 41 C40 37 28 44 28 56 C28 68 39 73 50 71 C61 73 72 68 72 56 C72 44 60 37 50 41 Z"
+const PUMPKIN_FACE = "M38 55 L45 55 L41.5 48 Z M55 55 L62 55 L58.5 48 Z M37 60 L43 64.5 L47 61.5 L50 66 L53 61.5 L57 64.5 L63 60 Q50 72 37 60 Z"
+const STEM = "var(--halloween)"
+const GLOW = "var(--pumpkin-glow)"
 const SMALLER = "translate(50 49) scale(0.9) translate(-50 -49)"
 const LOYAL = "translate(50 52) scale(0.82) translate(-50 -52)"
 const UNBROKEN = "translate(50 52) scale(0.7) translate(-50 -52)"
@@ -102,6 +106,14 @@ function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
             return <Letters text="3" color={accent}/>
         case "season_0_veteran":
             return <Shape d={STAR} color={accent} width={1.6} transform="translate(50 50) scale(2) translate(-50 -43)"/>
+        case "halloween_2026":
+            return <>
+                <Shape d="M48 42 L47 32 Q51 28 56 31 L53 42 Z" color={STEM} width={2.5}/>
+                <Shape d={PUMPKIN} color={accent}/>
+                <path d="M44 42 Q37 56 44 70 M56 42 Q63 56 56 70" style={{stroke: "var(--pumpkin-shade)"}} strokeWidth="2.5"
+                      fill="none"/>
+                <Shape d={PUMPKIN_FACE} color={GLOW} width={2}/>
+            </>
         case "settler":
             return <>
                 <Line d="M42 71 V30" color={cream}/>
@@ -287,7 +299,7 @@ function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
 function Bands({colors}: {colors: readonly string[]}) {
     const length = BAND_LENGTH / colors.length
     return <>
-        {colors.map((color, i) => <circle key={color} cx="50" cy="50" r={BAND_RADIUS} fill="none"
+        {colors.map((color, i) => <circle key={i} cx="50" cy="50" r={BAND_RADIUS} fill="none"
                                           style={{stroke: color}} strokeWidth="11"
                                           strokeDasharray={`${length} ${BAND_LENGTH - length}`}
                                           strokeDashoffset={-i * length}
