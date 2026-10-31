@@ -299,8 +299,10 @@ type Allegiance struct {
 	CountryId string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	// When another flag may be played: 0 for a flag never changed.
 	ChangeableAtUnixMs int64 `protobuf:"varint,2,opt,name=changeable_at_unix_ms,json=changeableAtUnixMs,proto3" json:"changeable_at_unix_ms,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// The rules in force let no flag change, whatever changeable_at_unix_ms says.
+	Locked        bool `protobuf:"varint,3,opt,name=locked,proto3" json:"locked,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Allegiance) Reset() {
@@ -345,6 +347,13 @@ func (x *Allegiance) GetChangeableAtUnixMs() int64 {
 		return x.ChangeableAtUnixMs
 	}
 	return 0
+}
+
+func (x *Allegiance) GetLocked() bool {
+	if x != nil {
+		return x.Locked
+	}
+	return false
 }
 
 type ClickBudget struct {
@@ -3810,12 +3819,13 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x17PledgeAllegianceRequest\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\"\x1a\n" +
-	"\x18PledgeAllegianceResponse\"^\n" +
+	"\x18PledgeAllegianceResponse\"v\n" +
 	"\n" +
 	"Allegiance\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x121\n" +
-	"\x15changeable_at_unix_ms\x18\x02 \x01(\x03R\x12changeableAtUnixMs\"\xec\x02\n" +
+	"\x15changeable_at_unix_ms\x18\x02 \x01(\x03R\x12changeableAtUnixMs\x12\x16\n" +
+	"\x06locked\x18\x03 \x01(\bR\x06locked\"\xec\x02\n" +
 	"\vClickBudget\x12\x16\n" +
 	"\x06tokens\x18\x01 \x01(\x01R\x06tokens\x12\x1a\n" +
 	"\bcapacity\x18\x02 \x01(\rR\bcapacity\x12*\n" +

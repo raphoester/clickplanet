@@ -132,6 +132,20 @@ describe("the game rules page", () => {
         expect(sent(admin)?.rules?.frozen).toBe(true)
     })
 
+    it("locks the flags of a set: no player changes country", async () => {
+        const admin = withCalm()
+        render(<RulesPanel planet={admin}/>)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
+        fireEvent.click(screen.getByLabelText("Flags locked: no player changes country"))
+        expect(screen.getByText("1 change")).toBeTruthy()
+        save()
+
+        await waitFor(() => expect(sent(admin)).toBeDefined())
+        expect(sent(admin)?.rules?.allegianceLocked).toBe(true)
+        expect(sent(admin)?.rules?.frozen).toBe(false)
+    })
+
     it("makes a new set from a copy of another", async () => {
         const admin = new FakeAdmin()
         render(<RulesPanel planet={admin}/>)

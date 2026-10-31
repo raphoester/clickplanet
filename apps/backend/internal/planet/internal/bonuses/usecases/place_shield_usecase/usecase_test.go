@@ -40,7 +40,7 @@ func setup(t *testing.T, shields int) fixture {
 	require.NoError(t, tiles.Load(t.Context()))
 
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
-	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), clock)
+	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), func() allegiances.Lock { return false }, clock)
 	require.NoError(t, book.Pledge(t.Context(), clicks.Payer{Account: string(caller)}, "fr"))
 
 	return fixture{
@@ -153,7 +153,7 @@ func TestAShieldForAnotherFlagThanTheOneHeldIsRefusedAndSpendsNothing(t *testing
 
 func TestAShieldWithNoFlagHeldIsRefusedAndSpendsNothing(t *testing.T) {
 	f := setup(t, 3)
-	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), f.clock)
+	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), func() allegiances.Lock { return false }, f.clock)
 	useCase := place_shield_usecase.New(bonuses.NewCharges(f.charges, twoATile), f.tiles, cpcountries.New(), book, twoATile)
 
 	_, err := useCase.Execute(played(t), place_shield_usecase.In{TileID: 7, CountryID: "fr"})

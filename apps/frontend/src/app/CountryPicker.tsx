@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {Countries, Country} from "../domain/countries.ts";
-import {Allegiance, lockOf} from "../domain/allegiance.ts";
+import {Allegiance, Lock, lockOf} from "../domain/allegiance.ts";
 import {describeEnd} from "../domain/endTime.ts";
 import {AllegianceLockedError} from "../backends/backend.ts";
 import SelectWithSearch from "./components/SelectWithSearch.tsx";
@@ -13,6 +13,17 @@ export type CountryPickerProps = {
 }
 
 export const CHANGE_RULE = "You can change country once an hour."
+export const LOCKED_RULE = "You can't change country right now."
+
+function ruleLineOf(lock: Lock | undefined, now: number): string {
+    if (lock === undefined) return CHANGE_RULE
+    switch (lock.kind) {
+        case "rules":
+            return LOCKED_RULE
+        case "wait":
+            return `${CHANGE_RULE} Next change at ${describeEnd(lock.until, now)}.`
+    }
+}
 
 export default function CountryPicker(props: CountryPickerProps) {
     const now = useNowUntilUnlocked(props.allegiance)
@@ -37,10 +48,7 @@ export default function CountryPicker(props: CountryPickerProps) {
     }
 
     return <>
-        <p className="country-picker-rule" role="status">
-            {CHANGE_RULE}
-            {locked?.changeableAt !== undefined && ` Next change at ${describeEnd(locked.changeableAt, now)}.`}
-        </p>
+        <p className="country-picker-rule" role="status">{ruleLineOf(locked, now)}</p>
         {failed && <p className="country-picker-failed" role="alert">Could not change country. Try again.</p>}
         {!locked && <div className="country-picker-list" aria-busy={sending || undefined}>
             <SelectWithSearch

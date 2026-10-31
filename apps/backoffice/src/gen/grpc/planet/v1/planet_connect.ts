@@ -189,7 +189,8 @@ export const ClickService = {
     },
     /**
      * The only way to set or change the flag: a click or a shield never does.
-     * Refused within the hour after a change, as a click for another flag is.
+     * Refused within the hour after a change, and while the rules in force lock the flags, as a click for another flag
+     * is.
      *
      * @generated from rpc planet.v1.ClickService.PledgeAllegiance
      */

@@ -6,8 +6,12 @@ click or a shield for another flag than the one pledged is refused, locked or no
 and so is one from an account that pledged none.
 
 - `AllegianceSource` (`backends/backend.ts`) is the flag held, `Allegiance` in
-  `domain/allegiance.ts`: the country and `changeableAt`, undefined for a flag
-  never changed. `lockOf` is whether it holds now.
+  `domain/allegiance.ts`: the country, `changeableAt`, undefined for a flag
+  never changed, and `locked`, set while the rules in force lock the flags (a battle's set does).
+  `lockOf` is what holds it now: `rules`, with no time, or the `wait` until `changeableAt`.
+- **The lock is planet's, not the battle's**: the client reads it from `GetAllegiance`
+  and never guesses it from the turn. `PlanetBackend` reads the flag again on
+  `rules_changed`, so a lock comes and goes with no reload.
 - **`pledgeAllegiance(country)` changes it** when the player picks a country:
   `PledgeAllegiance` with the identity token, then `GetAllegiance`, since the pledge
   answers nothing. A refusal is `AllegianceLockedError`. A visitor with no account
@@ -28,14 +32,16 @@ and so is one from an account that pledged none.
   `pickCountry` pledges first and sets the country only once the server took it.
 - **The picker says the rule over the list** (`CHANGE_RULE`, "You can change
   country once an hour."), and while the flag is held, when the next change is,
-  with no list. **There is no confirm step**: a tap on a country switches, since
+  with no list. Under the rules' lock it says `LOCKED_RULE` ("You can't change country right now.") alone, with no
+  list. **There is no confirm step**: a tap on a country switches, since
   the rule is right above it. A pick that failed for another reason says so, and
   the picker stays open.
 - **The Change button shows the lock**: a padlock and the minutes left
-  (`minutesLeftOf`), named with the time of the next change.
+  (`minutesLeftOf`), named with the time of the next change; under the rules' lock, a padlock and "Locked".
 - **A refused click is rolled back, plays the refusal, and says why** in a bubble
   over the clicks meter, "You play for Germany until 16:47" (`heldLine`, with no
-  time when no wait runs); a refused shield says the same. It only happens on a
+  time when no wait runs or the rules lock it); a refused shield says the same. It only happens on a
   page that did not know the flag changed elsewhere.
 - `FakeBackend` holds the flag the same way, and takes a first flag on the first
-  click, as the client's pledge would.
+  click, as the client's pledge would. `lockFlags()` and `openFlags()` on the console lock and open the flags, as a
+  battle's set does (see [Commands](commands.md)).

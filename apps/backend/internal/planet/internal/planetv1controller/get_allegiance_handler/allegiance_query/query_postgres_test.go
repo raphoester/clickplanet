@@ -24,15 +24,17 @@ type testSuite struct {
 	db    *cppg.Postgres
 	store *postgres_allegiance_store.Store
 	query *allegiance_query.PostgresQuery
+	lock  allegiances.Lock
 }
 
 func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "planet", migrations.FS)
 	s.store = postgres_allegiance_store.New(s.db)
-	s.query = allegiance_query.NewPostgresQuery(s.db)
+	s.query = allegiance_query.NewPostgresQuery(s.db, func() allegiances.Lock { return s.lock })
 }
 
 func (s *testSuite) SetupTest() {
+	s.lock = false
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 }
 
@@ -67,6 +69,14 @@ func (s *testSuite) TestAFirstFlagMayChangeNow() {
 	s.keep(alice, allegiances.Snapshot{Flag: "fr"})
 
 	s.True(proto.Equal(&planetv1.GetAllegianceResponse{Allegiance: &planetv1.Allegiance{CountryId: "fr"}},
+		s.allegiance(alice)))
+}
+
+func (s *testSuite) TestAFlagHeldUnderALockSaysSo() {
+	s.keep(alice, allegiances.Snapshot{Flag: "fr"})
+	s.lock = true
+
+	s.True(proto.Equal(&planetv1.GetAllegianceResponse{Allegiance: &planetv1.Allegiance{CountryId: "fr", Locked: true}},
 		s.allegiance(alice)))
 }
 

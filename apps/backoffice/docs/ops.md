@@ -34,9 +34,11 @@ given its name. The form takes the page's place, with "← All sets" back.
 [Rules](../../backend/docs/rules.md)): every set postgres keeps, `default` first, with its map (`Open`, or `Frozen` for
 a set that takes no play, `playOf`), its tempo (`3×`), its clicks (`60 in hand, 0.2 a second`) and its boxes.
 
-**The form edits every value of a set, grouped**, under one switch, "Frozen: the map takes no play" (the set's
+**The form edits every value of a set, grouped**, under two switches, "Frozen: the map takes no play" (the set's
 `frozen`: while it plays, planet refuses every click, bomb, shield, refill, box and quiz; see the backend's
-[A frozen map](../../backend/docs/rules.md#a-frozen-map)): Clicks (the tempo with them), Boxes, What a box is (the kinds'
+[A frozen map](../../backend/docs/rules.md#a-frozen-map)), and "Flags locked: no player changes country" (the set's
+`allegianceLocked`, for a battle's set: see the backend's [Allegiance](../../backend/docs/allegiance.md)): Clicks (the
+tempo with them), Boxes, What a box is (the kinds'
 weights), Charges, New accounts (with "Refill at first sign-in", the set's `bonuses.signInRefill`: see the backend's
 [A guest's first sign-in](../../backend/docs/sign-in-refill.md)), Quizzes (with their on switch), and the Toll, whose steps are rows to add and remove.
 `GROUPS` names each value by its path in the set's rules (`Rules.toJson`), so the form needs no code per value: a

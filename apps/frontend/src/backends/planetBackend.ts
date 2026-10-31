@@ -415,6 +415,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private readRulesInForce(): void {
         void this.readBudget()
         void this.readRules()
+        const token = this.streamToken ?? this.session.heldIdentity()
+        if (token) void this.readAllegiance(token)
     }
 
     // Updates from before a gap land before the globe hears of it, or they would outrank what it reads again.
@@ -1004,8 +1006,11 @@ export function priceOf(budget: ClickBudgetMessage): ClickPrice | undefined {
 export function allegianceOfMessage(message: AllegianceMessage | undefined): Allegiance | undefined {
     if (!message || message.countryId === "") return undefined
 
+    const allegiance: Allegiance = {countryId: message.countryId}
     const changeableAt = Number(message.changeableAtUnixMs)
-    return changeableAt === 0 ? {countryId: message.countryId} : {countryId: message.countryId, changeableAt}
+    if (changeableAt !== 0) allegiance.changeableAt = changeableAt
+    if (message.locked) allegiance.locked = true
+    return allegiance
 }
 
 export function allegianceDetailOf(e: unknown): Allegiance | undefined {

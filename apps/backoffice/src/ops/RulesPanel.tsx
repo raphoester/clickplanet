@@ -112,6 +112,11 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                     <input type="checkbox" checked={draft.frozen} onChange={e => change({frozen: e.target.checked})}/>
                     Frozen: the map takes no play
                 </label>
+                <label className="check">
+                    <input type="checkbox" checked={draft.allegianceLocked}
+                           onChange={e => change({allegianceLocked: e.target.checked})}/>
+                    Flags locked: no player changes country
+                </label>
             </div>
             <div className="rule-groups">
                 {GROUPS.map(group => (

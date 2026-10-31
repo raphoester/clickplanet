@@ -10,6 +10,7 @@ const changeEvery = time.Hour
 
 var (
 	ErrChangedTooSoon = errors.New("the flag was changed too recently to change again")
+	ErrLocked         = errors.New("the rules in force let no account change its flag")
 	ErrOtherFlag      = errors.New("the account plays for another flag")
 	ErrNoFlag         = errors.New("the account plays for no flag yet")
 	ErrNoAccount      = errors.New("only an account plays for a flag")
@@ -18,6 +19,7 @@ var (
 type Refusal struct {
 	Flag   string
 	Until  time.Time
+	Locked bool
 	Reason error
 }
 

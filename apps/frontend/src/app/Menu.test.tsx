@@ -73,6 +73,20 @@ describe("Menu", () => {
         expect(countryPanel()).toBeNull()
     })
 
+    it("shows a padlock and no list while the rules lock the flag, whatever the wait says", async () => {
+        const user = userEvent.setup()
+        render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+                     allegiance={{countryId: "fr", changeableAt: Date.now() - 1, locked: true}}/>)
+
+        const change = button("Change country, locked for now")
+        expect(change.textContent).toBe("Locked")
+
+        await user.click(change)
+
+        expect(screen.getByRole("status").textContent).toBe("You can't change country right now.")
+        expect(countryPanel()).toBeNull()
+    })
+
     it("offers every country once the wait is over, under the rule", async () => {
         const user = userEvent.setup()
         render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}

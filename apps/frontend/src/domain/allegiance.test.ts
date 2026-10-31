@@ -6,13 +6,19 @@ describe("lockOf", () => {
     const now = 1_700_000_000_000
 
     it("holds a flag until the time the server said", () => {
-        expect(lockOf({countryId: "de", changeableAt: now + 1}, now)).toEqual({countryId: "de", changeableAt: now + 1})
+        expect(lockOf({countryId: "de", changeableAt: now + 1}, now)).toEqual({kind: "wait", until: now + 1})
     })
 
     it("holds nothing once that time came, for a flag never changed, or with no flag", () => {
         expect(lockOf({countryId: "de", changeableAt: now}, now)).toBeUndefined()
         expect(lockOf({countryId: "fr"}, now)).toBeUndefined()
         expect(lockOf(undefined, now)).toBeUndefined()
+    })
+
+    it("holds a flag the rules lock, with no time, whatever the wait says", () => {
+        expect(lockOf({countryId: "de", locked: true}, now)).toEqual({kind: "rules"})
+        expect(lockOf({countryId: "de", changeableAt: now + 1, locked: true}, now)).toEqual({kind: "rules"})
+        expect(lockOf({countryId: "de", changeableAt: now - 1, locked: true}, now)).toEqual({kind: "rules"})
     })
 })
 
@@ -36,5 +42,9 @@ describe("heldLine", () => {
         expect(heldLine({countryId: "de", changeableAt}, now)).toBe(`You play for Germany until ${describeEnd(changeableAt, now)}`)
         expect(heldLine({countryId: "de"}, now)).toBe("You play for Germany")
         expect(heldLine({countryId: "de", changeableAt: now - 1}, now)).toBe("You play for Germany")
+    })
+
+    it("names no time while the rules lock the flag", () => {
+        expect(heldLine({countryId: "de", changeableAt: now + 30 * 60_000, locked: true}, now)).toBe("You play for Germany")
     })
 })

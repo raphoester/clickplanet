@@ -99,7 +99,8 @@ export type TollStep = {share: string, slowdown: string}
 
 // A set as the form edits it: every value as typed.
 export type Draft = {
-    name: string, values: Record<string, string>, quiz: boolean, signInRefill: boolean, frozen: boolean, toll: TollStep[]
+    name: string, values: Record<string, string>, quiz: boolean, signInRefill: boolean, frozen: boolean,
+    allegianceLocked: boolean, toll: TollStep[]
 }
 
 export function draftOf(set: RuleSet): Draft {
@@ -112,6 +113,7 @@ export function draftOf(set: RuleSet): Draft {
         quiz: rules.bonuses?.quiz?.enabled ?? false,
         signInRefill: rules.bonuses?.signInRefill ?? false,
         frozen: rules.frozen,
+        allegianceLocked: rules.allegianceLocked,
         toll: (rules.toll?.steps ?? []).map(step => ({
             share: String(Number((step.share * 100).toPrecision(12))), slowdown: String(step.slowdown),
         })),
@@ -147,6 +149,9 @@ export function complete(draft: Draft): boolean {
 export function changesOf(before: Draft, after: Draft): Change[] {
     const changes: Change[] = []
     if (before.frozen !== after.frozen) changes.push({label: "Frozen", before: yesOf(before.frozen), after: yesOf(after.frozen)})
+    if (before.allegianceLocked !== after.allegianceLocked) {
+        changes.push({label: "Flags locked", before: yesOf(before.allegianceLocked), after: yesOf(after.allegianceLocked)})
+    }
     if (before.quiz !== after.quiz) changes.push({label: "Quizzes on", before: yesOf(before.quiz), after: yesOf(after.quiz)})
     if (before.signInRefill !== after.signInRefill) {
         changes.push({label: "Refill at first sign-in", before: yesOf(before.signInRefill), after: yesOf(after.signInRefill)})
@@ -188,7 +193,11 @@ function yesOf(on: boolean): string {
 }
 
 export function ruleSetOf(draft: Draft): RuleSet {
-    const json: JsonObject = {bonuses: {quiz: {enabled: draft.quiz}, signInRefill: draft.signInRefill}, frozen: draft.frozen}
+    const json: JsonObject = {
+        bonuses: {quiz: {enabled: draft.quiz}, signInRefill: draft.signInRefill},
+        frozen: draft.frozen,
+        allegianceLocked: draft.allegianceLocked,
+    }
     for (const field of FIELDS) {
         put(json, field.path, jsonOf(Number(draft.values[field.path]), field))
     }

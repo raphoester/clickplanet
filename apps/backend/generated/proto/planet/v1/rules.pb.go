@@ -31,9 +31,12 @@ type Rules struct {
 	Bonuses *BonusRules            `protobuf:"bytes,3,opt,name=bonuses,proto3" json:"bonuses,omitempty"`
 	// The map takes no play: Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz are refused. The
 	// map still loads and streams.
-	Frozen        bool `protobuf:"varint,4,opt,name=frozen,proto3" json:"frozen,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Frozen bool `protobuf:"varint,4,opt,name=frozen,proto3" json:"frozen,omitempty"`
+	// No account changes its flag: PledgeAllegiance refuses another flag to an account that holds one. A first flag is
+	// still taken.
+	AllegianceLocked bool `protobuf:"varint,5,opt,name=allegiance_locked,json=allegianceLocked,proto3" json:"allegiance_locked,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Rules) Reset() {
@@ -90,6 +93,13 @@ func (x *Rules) GetBonuses() *BonusRules {
 func (x *Rules) GetFrozen() bool {
 	if x != nil {
 		return x.Frozen
+	}
+	return false
+}
+
+func (x *Rules) GetAllegianceLocked() bool {
+	if x != nil {
+		return x.AllegianceLocked
 	}
 	return false
 }
@@ -904,12 +914,13 @@ var File_planet_v1_rules_proto protoreflect.FileDescriptor
 
 const file_planet_v1_rules_proto_rawDesc = "" +
 	"\n" +
-	"\x15planet/v1/rules.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x16planet/v1/planet.proto\"\xa9\x01\n" +
+	"\x15planet/v1/rules.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x16planet/v1/planet.proto\"\xd6\x01\n" +
 	"\x05Rules\x12-\n" +
 	"\x06clicks\x18\x01 \x01(\v2\x15.planet.v1.ClickRulesR\x06clicks\x12(\n" +
 	"\x04toll\x18\x02 \x01(\v2\x14.planet.v1.TollRulesR\x04toll\x12/\n" +
 	"\abonuses\x18\x03 \x01(\v2\x15.planet.v1.BonusRulesR\abonuses\x12\x16\n" +
-	"\x06frozen\x18\x04 \x01(\bR\x06frozen\"\xc3\x02\n" +
+	"\x06frozen\x18\x04 \x01(\bR\x06frozen\x12+\n" +
+	"\x11allegiance_locked\x18\x05 \x01(\bR\x10allegianceLocked\"\xc3\x02\n" +
 	"\n" +
 	"ClickRules\x12\x14\n" +
 	"\x05tempo\x18\x01 \x01(\x01R\x05tempo\x12\x1d\n" +

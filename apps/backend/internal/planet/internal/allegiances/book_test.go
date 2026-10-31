@@ -23,7 +23,7 @@ func book() (allegiances.Book, *allegiances.MemoryStore, *cptime.FixedClock) {
 	store := allegiances.NewMemoryStore()
 	clock := cptime.NewFixedClock(at)
 
-	return allegiances.NewBook(store, cpcountries.New(), clock), store, clock
+	return allegiances.NewBook(store, cpcountries.New(), unlocked, clock), store, clock
 }
 
 func TestAnAccountIsHeldToItsFlagForAnHourAfterAChange(t *testing.T) {
@@ -41,6 +41,27 @@ func TestAnAccountIsHeldToItsFlagForAnHourAfterAChange(t *testing.T) {
 	clock.Advance(time.Minute)
 	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
 	assert.Equal(t, allegiances.Snapshot{Flag: "fr", ChangedAt: at.Add(time.Hour)}, store.Kept(alice))
+}
+
+func unlocked() allegiances.Lock { return false }
+
+func TestNoAccountChangesItsFlagWhileTheRulesLockThem(t *testing.T) {
+	var lock allegiances.Lock
+	store := allegiances.NewMemoryStore()
+	b := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return lock }, cptime.NewFixedClock(at))
+	payer := clicks.Payer{Account: alice}
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+
+	lock = true
+	require.ErrorIs(t, b.Pledge(t.Context(), payer, "de"), allegiances.ErrLocked)
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: bob}, "de"), "a first flag is still taken")
+	var refusal allegiances.Refusal
+	require.ErrorAs(t, b.PlayError(t.Context(), payer, "de"), &refusal)
+	assert.True(t, refusal.Locked)
+
+	lock = false
+	require.NoError(t, b.Pledge(t.Context(), payer, "de"))
+	assert.Equal(t, allegiances.Snapshot{Flag: "de", ChangedAt: at}, store.Kept(alice))
 }
 
 func TestEachAccountHasItsOwnFlag(t *testing.T) {

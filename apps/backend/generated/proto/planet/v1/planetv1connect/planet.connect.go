@@ -106,7 +106,8 @@ type ClickServiceClient interface {
 	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
 	GetAllegiance(context.Context, *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error)
 	// The only way to set or change the flag: a click or a shield never does.
-	// Refused within the hour after a change, as a click for another flag is.
+	// Refused within the hour after a change, and while the rules in force lock the flags, as a click for another flag
+	// is.
 	PledgeAllegiance(context.Context, *connect.Request[v1.PledgeAllegianceRequest]) (*connect.Response[v1.PledgeAllegianceResponse], error)
 }
 
@@ -387,7 +388,8 @@ type ClickServiceHandler interface {
 	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
 	GetAllegiance(context.Context, *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error)
 	// The only way to set or change the flag: a click or a shield never does.
-	// Refused within the hour after a change, as a click for another flag is.
+	// Refused within the hour after a change, and while the rules in force lock the flags, as a click for another flag
+	// is.
 	PledgeAllegiance(context.Context, *connect.Request[v1.PledgeAllegianceRequest]) (*connect.Response[v1.PledgeAllegianceResponse], error)
 }
 
