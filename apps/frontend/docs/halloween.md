@@ -32,8 +32,9 @@ flesh and the candle, which flickers (`flickerAt`).
 
 - **The look is the box's** (`BoxLook`, `box` or `pumpkin`, `BonusBox.setLook`): `Viewer` hands `useGlobe`
   `bonusLook`, and the globe's `setBonusLook` sets it. The orbit, the fade, the burst and the timings are the box's.
-- **The pumpkin tumbles on all three axes** (`pose`, `SPIN`), as the box does, so its grin and its marks come round
-  in turn.
+- **The pumpkin turns and rocks on all three axes, and is never upside down** (`pose`, `tumbleAt`): in the
+  camera's frame, a full turn about its stem, so its grin and its marks come round, and a rock forward and sideways
+  of under 90° in all. A full tumble, as the box's, put it upside down half the time; a rock of 10° read as one axis.
 - **It is drawn after the globe's light**: a three.js group starts its own draw order, so the pumpkin's group is at
   `renderOrder` 1, as the box's. At 0 the light pass laid the air over it, and it looked see-through.
 - **Its glow cycles orange, violet and green** (`HALO_CYCLES.pumpkin`), not the box's four colours.

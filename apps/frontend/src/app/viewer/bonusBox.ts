@@ -218,7 +218,7 @@ export function createBonusBox(): BonusBox {
             group.position.copy(orbitPosition(orbit, age * ORBIT_PER_SECOND))
             group.scale.setScalar(scale)
             box.rotation.set(age * SPIN_PER_SECOND, age * SPIN_PER_SECOND * 0.7, 0)
-            pumpkin.pose(age)
+            pumpkin.pose(age, camera)
 
             const opacity = flightOpacity(age, lifetime)
             setFade(opacity, 1)
