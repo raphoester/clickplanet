@@ -27,7 +27,8 @@ where it comes to rest** — the rows are 25px and a badge that starts low lands
 on the count below it.
 
 `index.css` owns the shared boxes — `.button`, `.button-mini`, `.icon-button`,
-`.menu-label` — **including their `max-width: 768px` sizes**. A component's own
+`.menu-label` — **including their phone sizes** (the `COMPACT` query, see
+[The screen](screen.md)). A component's own
 CSS file says what makes that component itself (its colour, its icon spacing),
 and must not restate height, padding, radius or font-size. Restating them is how
 the old Discord button ended up a 56px slab next to a 40px About button on

@@ -59,7 +59,7 @@
     color: var(--text);
 }
 
-@media only screen and (max-width: 768px) {
+@media (max-width: 768px), (max-height: 600px) {
     .about-photo {
         width: 76px;
         height: 76px;
