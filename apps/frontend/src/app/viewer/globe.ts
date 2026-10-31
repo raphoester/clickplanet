@@ -56,7 +56,7 @@ import {warnOnce} from "../../domain/warnOnce.ts";
 import {layoutViewport} from "./viewport.ts";
 import {createStarfield} from "./stars.ts";
 import {MAX_ZOOM, MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts";
-import {createBonusBox} from "./bonusBox.ts";
+import {BoxLook, createBonusBox} from "./bonusBox.ts";
 import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {createClickEffects} from "./clickEffects.ts";
@@ -228,6 +228,7 @@ export type Globe = {
     setCountry(country: Country): void
     setMapView(view: MapView): void
     setHalo(halo: Halo): void
+    setBonusLook(look: BoxLook): void
     takeReward(claimed: ClaimedBonus): void
     setArmed(armed: boolean): void
     setSwitch(name: keyof Switches, on: boolean): void
@@ -1162,6 +1163,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
         setHalo: (halo: Halo) => {
             paintHalo(atmosphere, halo)
+            invalidate()
+        },
+        setBonusLook: (look: BoxLook) => {
+            bonusBox.setLook(look)
             invalidate()
         },
         takeReward,

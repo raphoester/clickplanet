@@ -128,3 +128,11 @@
     --secondary: #5A6B8A;
     --secondary-light: #8A9BB8;
 }
+
+[data-mood="halloween"] {
+    --panel: #22183A;
+    --panel-raised: #2F2250;
+    --panel-sunk: #110A1F;
+    --secondary: #7A4DFF;
+    --secondary-light: #A07CFF;
+}

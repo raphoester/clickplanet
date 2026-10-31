@@ -96,7 +96,7 @@ import {useDebriefed} from "../season/useDebriefed.ts";
 import RoundReveal from "../season/RoundReveal.tsx";
 import {useRoundReveal} from "../season/useRoundReveal.ts";
 import {TurnBackend} from "../../backends/turn.ts";
-import {battleKeyOf, battleOf, finaleOf, nextBattleOf} from "../../domain/battle.ts";
+import {Battle, battleKeyOf, battleOf, finaleOf, nextBattleOf} from "../../domain/battle.ts";
 import {announcementKeyOf} from "../../domain/announcements.ts";
 import {useAnnouncements} from "../announcements/useAnnouncements.ts";
 import {useSchedule} from "../battle/useSchedule.ts";
@@ -127,6 +127,8 @@ import {useCrazyGames, useGameplay, useInvites, useRoom} from "../crazygames/use
 import InvitedModal from "../crazygames/InvitedModal.tsx";
 import InviteFriends from "../share/InviteFriends.tsx";
 import {MUTED_SOUND_SETTINGS} from "../../domain/soundSettings.ts";
+import {Halo} from "./atmosphere.ts";
+import "../halloween/Halloween.css"
 import "./Viewer.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
@@ -209,7 +211,8 @@ export default function Viewer(props: ViewerProps) {
     const finale = finaleOf(schedule.battles, schedule.turn, Date.now())
     const [accepted] = useState(acceptedClicks)
     const finaleTeaser = useFinaleTeaser(finale, Date.now(), accepted.listenForClicks)
-    const mood = moodOf(battle, clickBudget)
+    const mood = moodOf(schedule.turn, clickBudget)
+    const halloween = schedule.turn?.kind === "halloween"
     useMood(mood)
     const battleReveal = useBattleReveal(battle)
     const battleOver = useBattleOver(battle, schedule.debrief)
@@ -304,7 +307,8 @@ export default function Viewer(props: ViewerProps) {
         country: countryState,
         clickHue: hueOf(color),
         mapView: display.settings.mapView,
-        halo: battle ? "war" : "calm",
+        halo: haloOf(battle, halloween),
+        bonusLook: halloween ? "pumpkin" : "box",
         rendering: display.settings.rendering,
     })
 
@@ -716,6 +720,12 @@ export default function Viewer(props: ViewerProps) {
 
         {sessionUnavailable && <SessionUnavailableModal onClose={dismissSessionUnavailable}/>}
     </>
+}
+
+function haloOf(battle: Battle | undefined, halloween: boolean): Halo {
+    if (battle) return "war"
+    if (halloween) return "haunt"
+    return "calm"
 }
 
 function StatusCard({status}: {status: GlobeStatus}) {

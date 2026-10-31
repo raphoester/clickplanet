@@ -5,6 +5,7 @@ import glowFragment from "./shaders/atmosphere/fragment.glsl"
 
 import {mulberry32} from "./stars.ts"
 import {drawQuestionMark} from "./questionMark.ts"
+import {createPumpkin} from "./pumpkin.ts"
 
 const ORBIT_RADIUS = 1.15
 
@@ -39,7 +40,15 @@ export type BoxColour = keyof typeof BOX_PALETTE
 
 export const FACE_COLOURS: readonly BoxColour[] = ["blue", "green", "gold", "gold", "red", "red"]
 
-const HALO_CYCLE: readonly BoxColour[] = ["gold", "red", "blue", "green"]
+// What flies: the box, or on Halloween a jack-o'-lantern.
+export type BoxLook = "box" | "pumpkin"
+
+type Glow = readonly [number, number, number]
+
+const HALO_CYCLES: Record<BoxLook, readonly Glow[]> = {
+    box: (["gold", "red", "blue", "green"] as const).map((colour) => BOX_PALETTE[colour].glow),
+    pumpkin: [[1.0, 0.5, 0.1], [0.62, 0.3, 1.0], [0.45, 1.0, 0.3]],
+}
 const HALO_STEP_SECONDS = 0.7
 
 export const FACE_TONES = [0.74, 0.74, 1, 0.4, 0.74, 0.74]
@@ -66,6 +75,8 @@ export type BonusBox = {
     hide(): void
 
     update(seconds: number, camera: THREE.OrthographicCamera): boolean
+
+    setLook(look: BoxLook): void
 
     hitTest(camera: THREE.OrthographicCamera, ndc: THREE.Vector2): boolean
 
@@ -113,10 +124,14 @@ export function createBonusBox(): BonusBox {
     box.renderOrder = 0
     glow.renderOrder = 1
 
+    const pumpkin = createPumpkin()
+    pumpkin.object.visible = false
+
     const group = new THREE.Group()
     // With the marks over the ground, out of the globe's light.
     group.renderOrder = 1
     group.add(box)
+    group.add(pumpkin.object)
     group.add(glow)
     group.visible = false
 
@@ -129,9 +144,13 @@ export function createBonusBox(): BonusBox {
     let takenAt: number | undefined
     let deadline = Infinity
     let lifetime = LIFETIME_SECONDS
+    let look: BoxLook = "box"
+    const shapes: Record<BoxLook, THREE.Object3D> = {box, pumpkin: pumpkin.object}
+    const targets: Record<BoxLook, THREE.Object3D> = {box, pumpkin: pumpkin.body}
 
     const setFade = (opacity: number, flare: number) => {
         for (const material of materials) material.opacity = opacity
+        pumpkin.setOpacity(opacity)
         glowMaterial.uniforms.intensity.value = GLOW_INTENSITY * flare * opacity
     }
 
@@ -181,7 +200,7 @@ export function createBonusBox(): BonusBox {
             }
 
             const scale = boxScale(camera.zoom)
-            haloColourAt(seconds, glowMaterial.uniforms.colour.value)
+            haloColourAt(seconds, glowMaterial.uniforms.colour.value, HALO_CYCLES[look])
 
             if (phase === "taken") {
                 if (takenAt === undefined) takenAt = seconds
@@ -199,6 +218,7 @@ export function createBonusBox(): BonusBox {
             group.position.copy(orbitPosition(orbit, age * ORBIT_PER_SECOND))
             group.scale.setScalar(scale)
             box.rotation.set(age * SPIN_PER_SECOND, age * SPIN_PER_SECOND * 0.7, 0)
+            pumpkin.pose(age)
 
             const opacity = flightOpacity(age, lifetime)
             setFade(opacity, 1)
@@ -206,6 +226,11 @@ export function createBonusBox(): BonusBox {
             if (opacity <= 0) stop()
 
             return true
+        },
+
+        setLook(next: BoxLook) {
+            look = next
+            for (const [name, shape] of Object.entries(shapes)) shape.visible = name === next
         },
 
         hitTest(camera: THREE.OrthographicCamera, ndc: THREE.Vector2) {
@@ -217,7 +242,7 @@ export function createBonusBox(): BonusBox {
             group.updateMatrixWorld()
             raycaster.setFromCamera(ndc, camera)
 
-            return raycaster.intersectObject(box, false).length > 0
+            return raycaster.intersectObject(targets[look], false).length > 0
         },
 
         dispose() {
@@ -227,6 +252,7 @@ export function createBonusBox(): BonusBox {
             glowGeometry.dispose()
             glowMaterial.dispose()
             for (const texture of textures.values()) texture.dispose()
+            pumpkin.dispose()
         },
     }
 }
@@ -235,16 +261,13 @@ export function boxScale(zoom: number): number {
     return Math.min(WORLD_SIZE, MAX_APPARENT_SIZE / zoom)
 }
 
-export function haloColourAt(seconds: number, into = new THREE.Color()): THREE.Color {
+export function haloColourAt(seconds: number, into = new THREE.Color(), cycle = HALO_CYCLES.box): THREE.Color {
     const steps = seconds / HALO_STEP_SECONDS
     const index = Math.floor(steps)
     const through = steps - index
     const eased = through * through * (3 - 2 * through)
 
-    const glowAt = (step: number) => {
-        const length = HALO_CYCLE.length
-        return BOX_PALETTE[HALO_CYCLE[((step % length) + length) % length]].glow
-    }
+    const glowAt = (step: number) => cycle[((step % cycle.length) + cycle.length) % cycle.length]
     const from = glowAt(index)
     const to = glowAt(index + 1)
 

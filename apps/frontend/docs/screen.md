@@ -39,6 +39,8 @@ that does not.
   there: with nothing to set the place still holds About. The foot is
   `position: sticky`: the switches are longer than a phone's sheet, and a foot
   that scrolled with them was under the fold.
+- **What stands on the dock's top edge is its crown** (`--dock-crown`, 0 unless a mood puts props there, see
+  [Halloween](halloween.md)): the menu, the chat above the dock and the phone's chat toast keep clear of it.
 - **A sheet sits above the tab bar** and is as tall as what it holds, up to the
   room under the status bar; the chat's is that tall always, for its log to
   scroll. It covers the dock: a sheet is for reading, the dock for playing.
