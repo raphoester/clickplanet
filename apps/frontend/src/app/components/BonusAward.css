@@ -185,7 +185,7 @@
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 600px) {
     .bonus-award-card {
         padding: 20px var(--space-5);
     }

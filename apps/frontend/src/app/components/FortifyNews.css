@@ -22,7 +22,7 @@
     color: var(--shield-light);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 600px) {
     .fortify-news-line {
         flex-wrap: wrap;
         justify-content: center;

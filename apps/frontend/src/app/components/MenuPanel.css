@@ -36,7 +36,7 @@
     scrollbar-gutter: stable;
 }
 
-@media only screen and (max-width: 768px) {
+@media (max-width: 768px), (max-height: 600px) {
     .menu-panel-header {
         margin-top: var(--space-2);
     }

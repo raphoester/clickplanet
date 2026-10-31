@@ -125,7 +125,7 @@
     color: var(--text);
 }
 
-@media only screen and (max-width: 768px) {
+@media (max-width: 768px), (max-height: 600px) {
     .modal:has(.player-card) {
         align-items: flex-end;
         padding: var(--status-bar-height) 0 0;

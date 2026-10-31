@@ -54,7 +54,7 @@
     margin: var(--space-2) var(--space-1);
 }
 
-@media only screen and (max-width: 768px) {
+@media (max-width: 768px), (max-height: 600px) {
     .players-entry {
         padding: 5px var(--space-1);
     }

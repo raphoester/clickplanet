@@ -3,7 +3,16 @@
 **Nothing is drawn over the globe but four zones**, and a new feature goes in one
 of them rather than in a fifth panel. The rule is in [`DESIGN.md`](../DESIGN.md);
 this is where each zone lives. `Viewer` composes them, and `useCompact`
-(`compact.ts`, the 768px query, kept live) picks the phone or the desktop form.
+(`compact.ts`, the `COMPACT` query, kept live) picks the phone or the desktop form.
+
+**The phone form is for a screen 768px wide or less, or 600px high or less.**
+CrazyGames frames the game at 16:9, as small as 821×462, and a phone can be held
+sideways at 800×450. Below 600px high the desktop menu and chat cover most of the
+globe and the season chip covers the menu's title. At 606px high (CrazyGames'
+1077×606) the desktop form still shows the board's leader, a row under it, the
+chat and the globe between them, so it keeps that form. Every stylesheet's phone
+rules use the same `@media` query as `COMPACT`; `compact.test.ts` fails on one
+that does not.
 
 | Zone | Phone | Desktop |
 |---|---|---|
