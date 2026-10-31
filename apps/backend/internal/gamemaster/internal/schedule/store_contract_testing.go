@@ -56,6 +56,21 @@ func (s *StoreContractSuite) TestAnEntryIsReadAsItWasKept() {
 	s.Equal(s.snapshots([]Entry{entry}), s.snapshots([]Entry{read}))
 }
 
+func (s *StoreContractSuite) TestAnEntryOfEveryKindIsKept() {
+	n := byte(0)
+	for kind, times := range map[Kind]Times{Plain: 0, Battle: 3, Halloween: 0} {
+		n++
+		snapshot := kept(n, finaleStarts, finaleStarts.Add(time.Hour)).TakeSnapshot()
+		snapshot.Kind, snapshot.Times = kind, times
+		entry := snapshot.Restore()
+		s.save(entry)
+
+		read, err := s.store.Entry(s.T().Context(), entry.id)
+		s.Require().NoError(err, kind)
+		s.Equal(s.snapshots([]Entry{entry}), s.snapshots([]Entry{read}), kind)
+	}
+}
+
 func (s *StoreContractSuite) TestAnEntryNeverKeptIsUnknown() {
 	_, err := s.store.Entry(s.T().Context(), EntryID(uuid.UUID{15: 9}))
 	s.Require().ErrorIs(err, ErrUnknownEntry)
