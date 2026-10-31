@@ -83,7 +83,9 @@ off the proto, so a new one shows with no edit here.
   At most 300 characters (`MAX_DESCRIPTION`, the server's bound, which the field and `complete` hold too); it may be
   empty.
 - **The kind is what the entry is to the players** (`gamemaster.v1.EntryKind`): `battle`, which the game client gives a
-  war-like look, or `plain`, a change of the rules with no look. A new entry starts as a battle. The picker lists every
+  war-like look, `halloween`, which it dresses for Halloween, or `plain`, a change of the rules with no look. A new entry
+  starts as a battle. **To dress the game for Halloween**, add an entry of kind halloween that plays the set that would
+  play anyway (`default`), at a priority under any battle: it scores nothing, and the Final Battle plays over it. The picker lists every
   kind the proto names but unspecified (`kinds`, `wordOf`), so a kind added to the contract shows with no edit here.
 - **A season's Final Battle is in the list too** (`linesOf`, `FinaleLine`), from `GetSchedule.finales`: its set, kind
   battle, its times and words, "above all" for its priority, and "Season N's final battle" where an entry has its

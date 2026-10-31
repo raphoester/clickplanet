@@ -78,11 +78,21 @@ func TestAPlainEntryIsScheduled(t *testing.T) {
 	assert.Equal(t, schedule.Plain, made.TakeSnapshot().Kind)
 }
 
-func TestABattleScoresOneToTenTimesAndAPlainEntryNone(t *testing.T) {
+func TestAHalloweenEntryIsScheduled(t *testing.T) {
+	halloween := draft("calm", finale, battleEnds, 1)
+	halloween.Kind, halloween.Times = schedule.Halloween, 0
+
+	made, err := schedule.NewEntry(id(1), halloween, now)
+
+	require.NoError(t, err)
+	assert.Equal(t, schedule.Halloween, made.TakeSnapshot().Kind)
+}
+
+func TestABattleScoresOneToTenTimesAndAPlainOrHalloweenEntryNone(t *testing.T) {
 	for _, refused := range []struct {
 		kind  schedule.Kind
 		times schedule.Times
-	}{{schedule.Battle, 0}, {schedule.Battle, 11}, {schedule.Plain, 1}} {
+	}{{schedule.Battle, 0}, {schedule.Battle, 11}, {schedule.Plain, 1}, {schedule.Halloween, 1}} {
 		asked := draft("calm", finale, battleEnds, 1)
 		asked.Kind, asked.Times = refused.kind, refused.times
 

@@ -92,13 +92,14 @@ internal/gamemaster/
 `gamemaster.schedule_entries`. Each has an end: one that never ended could never be stopped.
 
 **The times are how many times a day's points a battle scores** (`schedule.Times`, column `times`): 1 to 10 for a
-battle, 0 for a plain entry, which scores nothing; anything else is refused with the draft's other reasons
+battle, 0 for a plain or a Halloween entry, which scores nothing; anything else is refused with the draft's other reasons
 (`ErrInvalidEntry`), and postgres checks it too. Migration `20261028130000_entry_times` gave every battle kept 3: the
 only one planned was the Final Battle, worth three days.
 
 **The kind is what the entry is to the players** (`schedule.Kind`, the postgres enum `entry_kind`): `battle`, which
-the game client gives a war-like look, or `plain`, a change of the rules with no look for them (a quieter antibot
-bound for a day). The set's name is the operator's word and never crosses to the players; the kind is the published
+the game client gives a war-like look, `halloween`, a plain entry the client dresses for Halloween (migration
+`20261031130000_halloween_kind`), or `plain`, a change of the rules with no look for them (a quieter antibot bound for a
+day). Only a battle is a round, or on the timeline. The set's name is the operator's word and never crosses to the players; the kind is the published
 language the client reads (see [The game client](#the-game-client)). A kind nobody knows is refused
 (`ErrUnknownKind`). More kinds will come: each is a value of the enum, in the proto and in postgres, and a word the
 client interprets.

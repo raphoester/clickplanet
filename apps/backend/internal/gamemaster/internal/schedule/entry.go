@@ -36,8 +36,9 @@ type Priority uint32
 type Kind string
 
 const (
-	Plain  Kind = "plain"
-	Battle Kind = "battle"
+	Plain     Kind = "plain"
+	Battle    Kind = "battle"
+	Halloween Kind = "halloween"
 )
 
 // Description is the entry's words for the players: what its rules are, in plain text.
@@ -45,7 +46,7 @@ type Description string
 
 const MaxDescription = 300
 
-// Times is how many times a day's points a battle scores, 1 to 10. A plain entry scores none: 0.
+// Times is how many times a day's points a battle scores, 1 to 10. A plain or a Halloween entry scores none: 0.
 type Times uint32
 
 const MaxTimes Times = 10
@@ -55,7 +56,7 @@ var (
 	ErrStarted         = errors.New("this entry has started, and runs to its end: schedule another at a higher priority")
 	ErrUnknownEntry    = errors.New("no entry has this id")
 	ErrUnknownSet      = errors.New("keeps no rule set of this name")
-	ErrUnknownKind     = errors.New("no entry is of this kind: plain or battle")
+	ErrUnknownKind     = errors.New("no entry is of this kind: plain, battle or halloween")
 	ErrLongDescription = errors.New("the description is too long")
 )
 
@@ -132,9 +133,9 @@ func (t Times) Check(kind Kind) error {
 		if t < 1 || t > MaxTimes {
 			return fmt.Errorf("a battle scores %d times a day's points, not 1 to %d", t, MaxTimes)
 		}
-	case Plain:
+	case Plain, Halloween:
 		if t != 0 {
-			return fmt.Errorf("a plain entry scores no points, not %d times", t)
+			return fmt.Errorf("a %s entry scores no points, not %d times", kind, t)
 		}
 	}
 	return nil
@@ -142,7 +143,7 @@ func (t Times) Check(kind Kind) error {
 
 func (k Kind) check() error {
 	switch k {
-	case Plain, Battle:
+	case Plain, Battle, Halloween:
 		return nil
 	}
 	return fmt.Errorf("%w: %q", ErrUnknownKind, k)

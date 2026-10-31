@@ -32,8 +32,8 @@ describe("the sets", () => {
 
 describe("the kinds", () => {
     it("are every kind the proto names but unspecified, each with its word", () => {
-        expect(kinds()).toEqual([EntryKind.PLAIN, EntryKind.BATTLE])
-        expect(kinds().map(wordOf)).toEqual(["plain", "battle"])
+        expect(kinds()).toEqual([EntryKind.PLAIN, EntryKind.BATTLE, EntryKind.HALLOWEEN])
+        expect(kinds().map(wordOf)).toEqual(["plain", "battle", "halloween"])
     })
 })
 

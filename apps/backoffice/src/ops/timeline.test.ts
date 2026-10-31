@@ -82,6 +82,15 @@ describe("the timeline", () => {
         expect(rules.map(block => block.label)).toEqual(["newer"])
     })
 
+    it("names an entry by its kind", () => {
+        const schedule = new GetScheduleResponse({entries: [new Entry({
+            id: "spooky", ruleSet: "default", kind: EntryKind.HALLOWEEN, priority: 1, madeAt: at("2026-10-31T12:00:00Z"),
+            startsAt: at("2026-11-02T00:00:00Z"), endsAt: at("2026-11-02T06:00:00Z"),
+        })]})
+        const rules = timelineOf({...night, schedule}).blocks.filter(block => block.lane === "rules")
+        expect(rules.map(block => block.detail)).toEqual(["Halloween entry"])
+    })
+
     it("keeps only what is still to come", () => {
         const instants = upcoming(timelineOf(night).instants, new Date("2026-10-31T22:00:00Z"))
         expect(instants[0].at.toISOString()).toBe("2026-10-31T23:00:00.000Z")
