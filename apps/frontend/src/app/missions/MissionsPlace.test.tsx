@@ -79,6 +79,23 @@ describe("MissionsPlace", () => {
         expect(onSignIn).toHaveBeenCalled()
     })
 
+    it("asks a guest with no mission to sign in", () => {
+        const onSignIn = vi.fn()
+        render(<MissionsPlace state={day()} onSignIn={onSignIn}/>)
+
+        expect(screen.getByText("Sign in to get missions.")).toBeDefined()
+        fireEvent.click(screen.getByRole("button", {name: "Sign in"}))
+
+        expect(onSignIn).toHaveBeenCalled()
+    })
+
+    it("says so when a signed-in player has no mission", () => {
+        render(<MissionsPlace state={day()}/>)
+
+        expect(screen.getByText("No missions right now.")).toBeDefined()
+        expect(screen.queryByRole("button")).toBeNull()
+    })
+
     it("shows a mission done as done, with nothing to press", () => {
         render(<MissionsPlace state={day(mission({...doneBank, paid: true}), mission({...doneBank, id: "rival"}))}/>)
 
