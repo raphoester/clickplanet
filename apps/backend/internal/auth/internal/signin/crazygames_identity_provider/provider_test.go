@@ -104,7 +104,7 @@ func TestAGoodTokenNamesTheUserAndNoAddress(t *testing.T) {
 	claim, err := provider.Claim(t.Context(), signed(t, key, goodHeader(), goodPayload()))
 
 	require.NoError(t, err)
-	assert.Equal(t, accounts.ClaimOf("cg-user-1", "", false), *claim)
+	assert.Equal(t, accounts.ClaimOf("cg-user-1", "", false).WithName("Nova.42"), *claim)
 }
 
 func TestANumericUserIDIsReadAsItsDigits(t *testing.T) {

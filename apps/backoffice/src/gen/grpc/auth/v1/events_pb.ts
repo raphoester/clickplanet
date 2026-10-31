@@ -57,6 +57,13 @@ export class SignedIn extends Message<SignedIn> {
    */
   accountId = "";
 
+  /**
+   * CrazyGames' username; empty for a provider that gives no name to show.
+   *
+   * @generated from field: string identity_name = 3;
+   */
+  identityName = "";
+
   constructor(data?: PartialMessage<SignedIn>) {
     super();
     proto3.util.initPartial(data, this);
@@ -67,6 +74,7 @@ export class SignedIn extends Message<SignedIn> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "previous_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "identity_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SignedIn {

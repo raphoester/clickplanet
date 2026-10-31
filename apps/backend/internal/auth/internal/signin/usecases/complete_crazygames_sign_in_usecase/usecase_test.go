@@ -43,7 +43,7 @@ func setUp(t *testing.T, providers func(*signin.FakeTokenProvider) signin.TokenP
 		arrivals:   inmemory_arrival_store.New(),
 		outbox:     &cpatomic.FakeOutbox{},
 	}
-	f.crazyGames.Sign("nova's token", accounts.ClaimOf("cg-nova", "", false))
+	f.crazyGames.Sign("nova's token", accounts.ClaimOf("cg-nova", "", false).WithName("Nova.42"))
 	f.crazyGames.Sign("vega's token", accounts.ClaimOf("cg-vega", "", false))
 	register := arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{})
 	admitter := signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, register, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
@@ -94,7 +94,7 @@ func TestAGuestKeepsItsAccountAndItsProgress(t *testing.T) {
 	assert.Equal(t, accounts.AccountID{15: 7}, identity.Account())
 	assert.Empty(t, identity.Email())
 	require.Len(t, f.outbox.Recorded(), 1)
-	assert.True(t, proto.Equal(&authv1.SignedIn{AccountId: out.Account().String(), PreviousAccountId: out.Account().String()}, f.outbox.Recorded()[0]))
+	assert.True(t, proto.Equal(&authv1.SignedIn{AccountId: out.Account().String(), PreviousAccountId: out.Account().String(), IdentityName: "Nova.42"}, f.outbox.Recorded()[0]))
 	kept, err := f.arrivals.Of(t.Context(), out.Account())
 	require.NoError(t, err)
 	assert.Empty(t, kept, "the guest's arrival was kept when the guest was made")

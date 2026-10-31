@@ -12,7 +12,7 @@ import (
 )
 
 type Names interface {
-	Assign(ctx context.Context, account players.AccountID, at time.Time) (bool, error)
+	Assign(ctx context.Context, account players.AccountID, suggested string, at time.Time) (bool, error)
 }
 
 type Profiles interface {
@@ -33,9 +33,9 @@ func New(
 	return &UseCase{transactioner: transactioner, names: names, profiles: profiles, outbox: outbox, clock: clock}
 }
 
-func (u *UseCase) Execute(ctx context.Context, account players.AccountID) (players.Profile, error) {
+func (u *UseCase) Execute(ctx context.Context, account players.AccountID, suggested string) (players.Profile, error) {
 	err := u.transactioner.InTx(ctx, func(ctx context.Context) error {
-		created, err := u.names.Assign(ctx, account, u.clock.Now())
+		created, err := u.names.Assign(ctx, account, suggested, u.clock.Now())
 		if err != nil {
 			return fmt.Errorf("failed to name the account: %w", err)
 		}

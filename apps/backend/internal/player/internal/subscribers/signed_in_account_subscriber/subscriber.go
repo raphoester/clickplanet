@@ -10,7 +10,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, account players.AccountID) (players.Profile, error)
+	Execute(ctx context.Context, account players.AccountID, suggested string) (players.Profile, error)
 }
 
 func New(useCase UseCase) Subscriber {
@@ -32,6 +32,6 @@ func (s Subscriber) Handle(ctx context.Context, event *authv1.SignedIn) error {
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	_, err = s.useCase.Execute(ctx, account)
+	_, err = s.useCase.Execute(ctx, account, event.GetIdentityName())
 	return err //nolint:wrapcheck // the use case named it.
 }

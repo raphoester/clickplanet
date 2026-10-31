@@ -22,7 +22,9 @@ frontend build, the same API, the same map and players as clickplanet.lol.
   CrazyGames' list are masked in the chat and in player names as the page draws them; the build fetches the list
   (the frontend's [word filter](../apps/frontend/docs/crazygames.md#the-word-filter)).
 - **Backend**: `CompleteCrazyGamesSignIn` checks the SDK's token against CrazyGames' keys and links the account
-  (`auth.crazyGames.gameId`); arrivals are tagged `crazygames`.
+  (`auth.crazyGames.gameId`); arrivals are tagged `crazygames`. A new player's name is its CrazyGames username, made a
+  valid one (`.` becomes `_`, 15 characters at most), or a generated name when that one is refused or taken (the
+  backend's [Player](../apps/backend/docs/player.md)). No avatar.
 - **Deploy**: `CRAZYGAMES_ORIGIN` in `deploy/vps/env.public` is the second origin Caddy answers CORS for, with
   `X-Account-Session` allowed and exposed; `crazygames.clickplanet.lol` is in `auth.turnstile.hostnames`.
 

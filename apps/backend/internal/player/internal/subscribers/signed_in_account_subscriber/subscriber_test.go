@@ -39,6 +39,20 @@ func TestTheAccountSignedInToIsNamedWhetherOrNotTheBrowserHadOne(t *testing.T) {
 	}
 }
 
+func TestTheAccountIsNamedAfterTheIdentitysName(t *testing.T) {
+	store := inmemory_player_store.New()
+
+	err := subscriber(store).Handle(t.Context(),
+		&authv1.SignedIn{AccountId: "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11", IdentityName: "Nova.42"})
+
+	require.NoError(t, err)
+	account, err := players.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
+	require.NoError(t, err)
+	profile, err := store.Profile(t.Context(), account)
+	require.NoError(t, err)
+	assert.Equal(t, players.Name("Nova_42"), profile.TakeSnapshot().Name)
+}
+
 func TestAnEventWithNoAccountIsRefused(t *testing.T) {
 	err := subscriber(inmemory_player_store.New()).Handle(t.Context(), &authv1.SignedIn{})
 

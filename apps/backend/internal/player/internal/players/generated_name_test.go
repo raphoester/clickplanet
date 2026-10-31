@@ -18,10 +18,10 @@ func TestAssignGivesANamelessAccountAGeneratedName(t *testing.T) {
 	store := inmemory_player_store.New()
 	names := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42", "SlyOtter17"))
 
-	created, err := names.Assign(t.Context(), players.AccountID{15: 1}, namedAt)
+	created, err := names.Assign(t.Context(), players.AccountID{15: 1}, "", namedAt)
 	require.NoError(t, err)
 	assert.True(t, created)
-	created, err = names.Assign(t.Context(), players.AccountID{15: 1}, namedAt.Add(time.Hour))
+	created, err = names.Assign(t.Context(), players.AccountID{15: 1}, "", namedAt.Add(time.Hour))
 	require.NoError(t, err)
 	assert.False(t, created, "the profile was there")
 
@@ -36,7 +36,7 @@ func TestAssignLeavesAChosenNameAlone(t *testing.T) {
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(players.AccountID{15: 1}, "Ada", namedAt)))
 
 	created, err := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42")).
-		Assign(t.Context(), players.AccountID{15: 1}, namedAt.Add(time.Hour))
+		Assign(t.Context(), players.AccountID{15: 1}, "Nova.42", namedAt.Add(time.Hour))
 	require.NoError(t, err)
 	assert.False(t, created)
 
@@ -45,13 +45,61 @@ func TestAssignLeavesAChosenNameAlone(t *testing.T) {
 	assert.Equal(t, players.Name("Ada"), profile.TakeSnapshot().Name)
 }
 
+func TestAssignGivesTheSuggestedNameMadeAUsername(t *testing.T) {
+	for suggested, want := range map[string]players.Name{
+		"Nova.42":          "Nova_42",
+		"the.longest.user": "the_longest_use",
+		"Ελληνικό.όνομα12": "Ελληνικό_όνομα1",
+	} {
+		store := inmemory_player_store.New()
+		names := players.NewRepeatedNames("BraveFox42")
+
+		created, err := players.NewGeneratedNames(store, names).Assign(t.Context(), players.AccountID{15: 1}, suggested, namedAt)
+		require.NoError(t, err)
+		assert.True(t, created)
+
+		profile, err := store.Profile(t.Context(), players.AccountID{15: 1})
+		require.NoError(t, err)
+		assert.Equal(t, want, profile.TakeSnapshot().Name, suggested)
+		assert.Zero(t, names.Drawn(), suggested)
+	}
+}
+
+func TestAssignDrawsANameWhenTheSuggestedOneIsNoUsername(t *testing.T) {
+	for _, suggested := range []string{"", "ab", "guest.nova", "nova♥42"} {
+		store := inmemory_player_store.New()
+
+		_, err := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42")).
+			Assign(t.Context(), players.AccountID{15: 1}, suggested, namedAt)
+		require.NoError(t, err)
+
+		profile, err := store.Profile(t.Context(), players.AccountID{15: 1})
+		require.NoError(t, err)
+		assert.Equal(t, players.Name("BraveFox42"), profile.TakeSnapshot().Name, suggested)
+	}
+}
+
+func TestAssignDrawsANameWhenTheSuggestedOneIsTaken(t *testing.T) {
+	store := inmemory_player_store.New()
+	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(players.AccountID{15: 1}, "nova_42", namedAt)))
+
+	created, err := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42")).
+		Assign(t.Context(), players.AccountID{15: 2}, "Nova.42", namedAt)
+	require.NoError(t, err)
+	assert.True(t, created)
+
+	profile, err := store.Profile(t.Context(), players.AccountID{15: 2})
+	require.NoError(t, err)
+	assert.Equal(t, players.Name("BraveFox42"), profile.TakeSnapshot().Name)
+}
+
 func TestAssignDrawsAgainWhenTheNameIsTaken(t *testing.T) {
 	store := inmemory_player_store.New()
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(players.AccountID{15: 1}, "bravefox42", namedAt)))
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(players.AccountID{15: 3}, "SlyOtter17", namedAt)))
 
 	created, err := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42", "SlyOtter17", "IronOwl55")).
-		Assign(t.Context(), players.AccountID{15: 2}, namedAt)
+		Assign(t.Context(), players.AccountID{15: 2}, "", namedAt)
 	require.NoError(t, err)
 	assert.True(t, created)
 
@@ -65,7 +113,7 @@ func TestAssignDrawsTenTimesAtMost(t *testing.T) {
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(players.AccountID{15: 1}, "BraveFox42", namedAt)))
 	names := players.NewRepeatedNames("BraveFox42")
 
-	_, err := players.NewGeneratedNames(store, names).Assign(t.Context(), players.AccountID{15: 2}, namedAt)
+	_, err := players.NewGeneratedNames(store, names).Assign(t.Context(), players.AccountID{15: 2}, "", namedAt)
 
 	require.ErrorIs(t, err, players.ErrNoFreeName)
 	assert.Equal(t, 10, names.Drawn())
@@ -78,6 +126,6 @@ func TestAssigningANameFailsWhenTheStoreDoes(t *testing.T) {
 	store.FailWith(errors.New("boom"))
 
 	_, err := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42")).
-		Assign(t.Context(), players.AccountID{15: 1}, namedAt)
+		Assign(t.Context(), players.AccountID{15: 1}, "", namedAt)
 	require.Error(t, err)
 }
