@@ -23,7 +23,7 @@ the bonus box are drawn after it (their groups are at `renderOrder` 1, which thr
 sorts after everything at 0), so they keep their own colours.
 
 **A battle turns the air to ember**: `paintHalo` swaps the colour of the rim and
-the halo. See [Battles](battle.md).
+the halo. See [Battles](battle.md). Halloween turns it violet (`haunt`, see [Halloween](halloween.md)).
 
 **It used to be a light in each shader, with HD graphics only.** #254 lit the
 earth, the tiles and the halo, each in its own shader, and that or the pixel ratio

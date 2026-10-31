@@ -1,6 +1,6 @@
 import {Seasons} from "./season.ts"
 
-export type TurnKind = "battle" | "plain"
+export type TurnKind = "battle" | "plain" | "halloween"
 
 export type Turn = {
     kind: TurnKind

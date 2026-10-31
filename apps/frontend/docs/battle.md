@@ -6,7 +6,7 @@ schedule of rule-set entries, and each entry has a kind (the backend's
 name, only the kind of the entry that plays, from `gamemaster.v1.GamemasterService/ListenForEvents`:
 `battle` or `plain`, since when, when the running entry ends, the entry's id, the
 battle's round and times, the battles to come, and the last debrief (a day, a battle
-or a season scoring scored). A battle is the one kind with a look.
+or a season scoring scored). A battle has a look, and so has Halloween (see [Halloween](halloween.md)).
 
 ## Reading what plays
 

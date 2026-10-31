@@ -57,6 +57,11 @@ export class FakeTurnBackend implements TurnBackend {
         return roundId
     }
 
+    public startHalloween(entryId: string, since: number, endsAt: number): void {
+        this.current = {...PLAIN_TURN, kind: "halloween", since, endsAt, entryId}
+        for (const listener of this.listeners) listener.onTurn(this.current)
+    }
+
     public endBattle(): void {
         this.current = PLAIN_TURN
         for (const listener of this.listeners) listener.onTurn(this.current)

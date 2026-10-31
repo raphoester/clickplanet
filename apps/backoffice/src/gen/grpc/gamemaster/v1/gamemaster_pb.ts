@@ -9,7 +9,7 @@ import { BattleEnded, DayEnded, SeasonEnded } from "./events_pb.js";
 
 /**
  * What an entry is to the players. The game client reads the kind that plays and gives it a look: a battle has one,
- * a plain entry none.
+ * Halloween another, a plain entry none.
  *
  * @generated from enum gamemaster.v1.EntryKind
  */
@@ -30,12 +30,20 @@ export enum EntryKind {
    * @generated from enum value: ENTRY_KIND_BATTLE = 2;
    */
   BATTLE = 2,
+
+  /**
+   * A plain entry the client dresses for Halloween. It scores nothing, as a plain one.
+   *
+   * @generated from enum value: ENTRY_KIND_HALLOWEEN = 3;
+   */
+  HALLOWEEN = 3,
 }
 // Retrieve enum metadata with: proto3.getEnumType(EntryKind)
 proto3.util.setEnumType(EntryKind, "gamemaster.v1.EntryKind", [
   { no: 0, name: "ENTRY_KIND_UNSPECIFIED" },
   { no: 1, name: "ENTRY_KIND_PLAIN" },
   { no: 2, name: "ENTRY_KIND_BATTLE" },
+  { no: 3, name: "ENTRY_KIND_HALLOWEEN" },
 ]);
 
 /**

@@ -133,6 +133,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             globe.takeReward(fake.grantBomb())
             return "💣 in your inventory — aim it from there"
         },
+        giveBox: () => fake.offerBox()
+            ? "a box is flying round the globe — catch it"
+            : "every stack is full: no box flies",
         giveQuiz: () => {
             fake.offerQuiz()
             return "a quiz is up — press it, then you have 8 seconds"
@@ -190,6 +193,11 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         endBattle: () => {
             fakeTurn.endBattle()
             return "the battle is over: closeBattle() or closeFinale() sends its results"
+        },
+        startHalloween: (minutes = 120) => {
+            const since = Date.now()
+            fakeTurn.startHalloween(crypto.randomUUID(), since, since + minutes * 60_000)
+            return "Halloween is on: endBattle() ends it"
         },
         offerSignIn: () => {
             fakeAccount.offerSignIn()

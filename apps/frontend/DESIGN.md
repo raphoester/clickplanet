@@ -160,7 +160,7 @@ feature goes in one of them; there is no fifth panel and no new fold.
 ## Moods
 
 **A mood is the same look with a few tokens redefined**, under one attribute:
-`[data-mood="battle"]` in `tokens.css`. A component never asks which mood is
+`[data-mood="battle"]` or `[data-mood="halloween"]` in `tokens.css`. A component never asks which mood is
 on; it reads its tokens. `useMood` (`app/battle/`) writes the attribute on the
 root from what the schedule plays (see [Battles](docs/battle.md)). One element
 may wear it alone, for itself and what it holds: the Final Battle's teaser and
@@ -173,6 +173,12 @@ the home page's Final Battle panel.
   or a progress fill looks the same in a battle. The sky stays. The globe's halo
   turns to ember in `app/viewer/atmosphere.ts`, outside the system as the rest
   of the globe is.
+- **Halloween**: the panels go night purple and the secondary button violet.
+  Its props are drawn art on the zones' edges, in `app/halloween/`, never over
+  the middle of the screen; what stands on the dock is its crown
+  (`--dock-crown`), which the rest keeps clear of. The bonus box flies as a
+  jack-o'-lantern. The globe's halo turns
+  violet. See [Halloween](docs/halloween.md).
 
 ## Motion
 

@@ -1,6 +1,7 @@
 import {Entry, GetScheduleResponse, GetSeasonsResponse} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {wordOf} from "./schedule.ts"
 
 export type Lane = "seasons" | "rules" | "battles" | "days"
 
@@ -129,10 +130,14 @@ function detailOf(playing: Playing): string {
         case "finale":
             return `Season ${playing.season}'s final battle`
         case "entry":
-            return playing.kind === EntryKind.BATTLE ? "Battle entry" : "Plain entry"
+            return `${capitalized(wordOf(playing.kind ?? EntryKind.PLAIN))} entry`
         case "default":
             return ""
     }
+}
+
+function capitalized(word: string): string {
+    return word.charAt(0).toUpperCase() + word.slice(1)
 }
 
 function toneOf(playing: Playing, frozen: Set<string>): Tone {

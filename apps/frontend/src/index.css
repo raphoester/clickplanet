@@ -4,6 +4,7 @@
     --tab-bar-height: 66px;
     --dock-width: 620px;
     --dock-height: 92px;
+    --dock-crown: 0px;
     --chat-lift: 0px;
     --chat-width: max(300px, min(var(--chat-wanted-width, 360px), calc(50vw - var(--dock-width) / 2 - 32px)));
     --chat-height: min(calc(100vh - 32px - var(--chat-lift)), max(280px, var(--chat-wanted-height, 520px)));
@@ -18,7 +19,7 @@
 
 @media only screen and (min-width: 769px) and (max-width: 1099px) {
     :root {
-        --chat-lift: calc(var(--dock-height) + 16px);
+        --chat-lift: calc(var(--dock-height) + var(--dock-crown) + 16px);
     }
 }
 

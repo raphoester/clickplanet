@@ -13,8 +13,9 @@ import (
 
 func TestEveryKindTheWireNamesIsReadAndWrittenBack(t *testing.T) {
 	for wire, kept := range map[gamemasterv1.EntryKind]schedule.Kind{
-		gamemasterv1.EntryKind_ENTRY_KIND_BATTLE: schedule.Battle,
-		gamemasterv1.EntryKind_ENTRY_KIND_PLAIN:  schedule.Plain,
+		gamemasterv1.EntryKind_ENTRY_KIND_BATTLE:    schedule.Battle,
+		gamemasterv1.EntryKind_ENTRY_KIND_PLAIN:     schedule.Plain,
+		gamemasterv1.EntryKind_ENTRY_KIND_HALLOWEEN: schedule.Halloween,
 	} {
 		draft, err := schedulemessage.DraftOf("rush", wire, "Triple points.", nil, nil, 1, 3)
 		require.NoError(t, err)

@@ -171,6 +171,8 @@ function kindOf(kind: EntryKind): TurnKind {
             return "battle"
         case EntryKind.PLAIN:
             return "plain"
+        case EntryKind.HALLOWEEN:
+            return "halloween"
         case EntryKind.UNSPECIFIED:
             throw new Error("the turn has no kind")
         default:

@@ -75,6 +75,9 @@ finale: its end moves to after it, and the countdowns say "Final Battle in".
 `startFinale(description, times = 3)` plays the finale at once, to the season's end,
 under its round `season-0/finale`: the chip and the start moment say "Final Battle". `moveSeasonEnd(inMinutes)` moves Season 0's end, as an operator's
 edit of the season does: every season countdown follows (the home page has these four alone).
+`startHalloween(minutes = 120)` plays a Halloween entry at once: the mood, the violet halo, the props and the
+jack-o'-lantern box (see [Halloween](halloween.md)); `endBattle()` ends it too. `giveBox()` flies a bonus box at once,
+unless every stack is full.
 `endBattle()` ends the turn and leaves the battle's round undebriefed, so the line says
 the results are coming. `closeBattle()` scores the round with its numbers (its points at
 its times, the tiles each flag took, its top players, drawn with a little luck) and the

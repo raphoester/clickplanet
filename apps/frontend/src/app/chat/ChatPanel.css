@@ -296,7 +296,7 @@
     --balloon-ink: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-ink-lightness));
     position: fixed;
     left: 16px;
-    bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom, 0px) + 72px + 22px);
+    bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom, 0px) + 72px + var(--dock-crown) + 22px);
     z-index: 125;
     display: flex;
     flex-direction: column;

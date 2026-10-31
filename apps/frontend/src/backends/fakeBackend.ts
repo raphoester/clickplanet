@@ -185,22 +185,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         this.timers.push(setInterval(() => this.flushUpdates(), batchUpdateDurationMs))
 
-        const offerable = this.tilePositions ? BONUS_KINDS : BONUS_KINDS.filter((kind) => kind !== "bomb")
+        const offerable = this.offerable()
 
-        this.timers.push(setInterval(() => {
-            const kinds = offerable.filter((kind) => !this.full(kind))
-            if (kinds.length === 0) return
-
-            const offer: BonusOffer = {
-                token: UUIDv4(),
-                seed: Math.floor(Math.random() * 0xffffffff),
-                reward: rewardOfKind(kinds[Math.floor(Math.random() * kinds.length)]),
-                expiresAt: budgetNow() + BONUS_OFFER_TTL_MS,
-            }
-
-            this.offered = offer
-            this.bonusCallbacks.forEach(handlers => handlers.onOffered(offer))
-        }, BONUS_EVERY_MS))
+        this.timers.push(setInterval(() => this.offerBox(), BONUS_EVERY_MS))
 
         this.timers.push(setInterval(() => {
             if (this.quiz || offerable.every((kind) => this.full(kind))) return
@@ -658,6 +645,27 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.bonusCallbacks.forEach(handlers => handlers.onTaken({countryId, quizSubject: quiz.asked.subject}))
 
         return {correct: true, correctChoice: quiz.asked.correct, reward}
+    }
+
+    // A box flies at once, unless every stack is full.
+    public offerBox(): BonusOffer | undefined {
+        const kinds = this.offerable().filter((kind) => !this.full(kind))
+        if (kinds.length === 0) return undefined
+
+        const offer: BonusOffer = {
+            token: UUIDv4(),
+            seed: Math.floor(Math.random() * 0xffffffff),
+            reward: rewardOfKind(kinds[Math.floor(Math.random() * kinds.length)]),
+            expiresAt: budgetNow() + BONUS_OFFER_TTL_MS,
+        }
+
+        this.offered = offer
+        this.bonusCallbacks.forEach(handlers => handlers.onOffered(offer))
+        return offer
+    }
+
+    private offerable() {
+        return this.tilePositions ? BONUS_KINDS : BONUS_KINDS.filter((kind) => kind !== "bomb")
     }
 
     public offerQuiz(): QuizOffer {
