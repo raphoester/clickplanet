@@ -27,8 +27,9 @@ export default function SignInPitchModal({state, store, multiplier, onClose}: Si
                     your own. Guests on one network share one bank.
                 </li>
                 <li>
-                    <strong>Your name.</strong> Pick a username. The chat and the player list show it in
-                    place of {GUEST_PREFIX}….
+                    <strong>Your name.</strong> {state.offered.includes("crazygames")
+                        ? "The chat and the player list show your CrazyGames username in place of"
+                        : "Pick a username. The chat and the player list show it in place of"} {GUEST_PREFIX}….
                 </li>
                 <li>
                     <strong>Your color.</strong> Choose the color of your name. Everyone sees it. Guests

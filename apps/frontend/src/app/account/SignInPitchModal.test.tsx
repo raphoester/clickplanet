@@ -9,9 +9,9 @@ import SignInPitchModal from "./SignInPitchModal.tsx"
 
 afterEach(cleanup)
 
-async function guest() {
+async function guest(providers: Provider[] = ["google", "discord"]) {
     const backend = {
-        signInOptions: vi.fn(async (): Promise<Provider[]> => ["google", "discord"]),
+        signInOptions: vi.fn(async (): Promise<Provider[]> => providers),
         me: vi.fn(async () => ({linked: []})),
         startSignIn: vi.fn(async () => "https://discord.example/authorize"),
         completeSignIn: vi.fn(async () => "signedIn" as const),
@@ -31,7 +31,10 @@ async function guest() {
         wearTitle: vi.fn(async () => undefined),
     } satisfies PlayerBackend
     const navigate = vi.fn()
-    const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
+    const crazyGames = providers.includes("crazygames")
+        ? {token: vi.fn(async () => undefined), prompt: vi.fn(async () => true), listenForSignIn: vi.fn(() => () => undefined)}
+        : undefined
+    const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn(), crazyGames})
 
     await store.load()
     const state = store.state()
@@ -62,6 +65,14 @@ describe("SignInPitchModal", () => {
             "Your place on the board.",
             "Your streak flame.",
         ])
+    })
+
+    it("promises the CrazyGames username on CrazyGames, not a pick", async () => {
+        const {store, state} = await guest(["crazygames"])
+        render(<SignInPitchModal state={state} store={store} multiplier={2} onClose={vi.fn()}/>)
+
+        expect(screen.getByText(/show your CrazyGames username in place of guest_/)).toBeDefined()
+        expect(screen.queryByText(/Pick a username/)).toBeNull()
     })
 
     it("signs in with the provider pressed", async () => {

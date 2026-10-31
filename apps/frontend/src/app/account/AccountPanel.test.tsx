@@ -83,6 +83,14 @@ describe("UsernameForm", () => {
         expect((screen.getByLabelText("Username") as HTMLInputElement).disabled).toBe(true)
         expect(screen.queryByRole("alert")).toBeNull()
     })
+
+    it("is not offered to a CrazyGames account: its CrazyGames username stays its name", async () => {
+        await signedIn({accountId: "account-1", name: "Nova_42", color: NameColor.UNSPECIFIED}, async (name) => ({accountId: "account-1", name}), "crazygames")
+
+        expect(screen.queryByLabelText("Username")).toBeNull()
+        expect(screen.queryByRole("button", {name: "Save"})).toBeNull()
+        expect(screen.getAllByText("Nova_42").length).toBeGreaterThan(0)
+    })
 })
 
 describe("AccountSettings", () => {

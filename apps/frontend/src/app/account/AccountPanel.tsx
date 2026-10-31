@@ -80,8 +80,9 @@ function AccountSettings({state, store, onDelete, linkedMultiplier, clips}: Acco
     const linked = state.me.linked
     const toLink = state.offered.filter((p) => !linked.includes(p))
     const buttons = toLink.filter((p) => p !== "email")
-    // CrazyGames signs the player in and out itself.
-    const leavable = linked.length > 0 && !linked.includes("crazygames")
+    // CrazyGames signs the player in and out itself, and names it.
+    const crazyGames = linked.includes("crazygames")
+    const leavable = linked.length > 0 && !crazyGames
 
     return <div className="account-panel" aria-busy={busy}>
         {linked.length === 0
@@ -92,7 +93,7 @@ function AccountSettings({state, store, onDelete, linkedMultiplier, clips}: Acco
             </p>
             : <p className="account-text">Signed in with {providerList(linked)}.</p>}
 
-        {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
+        {linked.length > 0 && !crazyGames && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
         {linked.length > 0 && state.username !== undefined && <ColorPicker name={state.username} state={state} store={store}/>}
         {linked.length > 0 && state.username !== undefined && clips && <ClipsSwitch key={state.accountId} clips={clips}/>}
 

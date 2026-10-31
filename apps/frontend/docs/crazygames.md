@@ -22,6 +22,10 @@ says why a host of its own and what the owner sets up.
   call.
 - **No sign-out and no link.** `AccountPanel` hides Sign out and Sign out everywhere for an account linked to
   CrazyGames; Delete account stays.
+- **The CrazyGames username is the name.** The server names a new CrazyGames account after it (the backend's
+  [Player](../../backend/docs/player.md)), so friends know each other. `AccountPanel` has no username form for an
+  account linked to CrazyGames: the name shows, and only its color may change. The sign-in pitch promises that
+  username, not a pick, when `crazygames` is offered.
 - **The session is carried in a header** (`carriedFetch`, `localAccountCarrier`): see [Sessions](sessions.md).
 - **Every new account is tagged `cg`** (`crazyGamesLanding`), whatever the link said: see [Arrivals](arrivals.md).
 - **CrazyGames' settings win.** `useCrazyGames` follows `disableChat` (no chat panel, no chat tab) and `muteAudio`

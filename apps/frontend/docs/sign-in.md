@@ -90,7 +90,8 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
    delete that account, then link it here.
 
 **A signed-in player is given a username when it signs in** (the server draws
-one, see the backend's [Player](../../backend/docs/player.md)), **and may pick another** in `AccountPanel`: 3 to 15
+one, or takes a CrazyGames account's username, see the backend's [Player](../../backend/docs/player.md)), **and may pick
+another** in `AccountPanel`, except on a CrazyGames account ([CrazyGames](crazygames.md)): 3 to 15
 code points of letters of any script, digits, `_` and single spaces, not
 starting with `guest_` in any case, unique ignoring case (the server's rule is
 `players.NameOf`, see the backend's [Player](../../backend/docs/player.md)). `usernameOf` puts the draft in
