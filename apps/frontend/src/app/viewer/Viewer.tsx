@@ -76,6 +76,7 @@ import {useSignInRefill} from "../account/useSignInRefill.ts";
 import {LeaderboardEntry, rankOf} from "../../domain/leaderboard.ts";
 import {useSeason} from "../season/useSeason.ts";
 import SeasonChip, {ChampionChip, SeasonDetails} from "../season/SeasonChip.tsx";
+import {HallOfFameSeasons} from "../season/HallOfFame.tsx";
 import {useCompact} from "../compact.ts";
 import Sheet from "../hud/Sheet.tsx";
 import StatusBar from "../hud/StatusBar.tsx";
@@ -376,6 +377,10 @@ export default function Viewer(props: ViewerProps) {
         view: boardView,
         onView: setBoardView,
     }
+    const teased = season ?? schedule.seasons.next
+    const hallOfFame: HallOfFameSeasons | undefined = props.standings && props.turn && (teased || schedule.seasons.ended.length > 0)
+        ? {teased, ended: schedule.seasons.ended, standings: props.standings, turn: props.turn}
+        : undefined
 
     const board = {
         country: countryState,
@@ -391,6 +396,7 @@ export default function Viewer(props: ViewerProps) {
         onCountryOrder: setCountryOrder,
         guided: boardGuide.guided,
         onGuided: boardGuide.markGuided,
+        hallOfFame,
     }
     const missionsState = useMissions(props.missions, allegiance?.countryId, accepted.listenForClicks)
     const seenMissions = useSeenMissions()

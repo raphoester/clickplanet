@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package planet.v1;
+
+// What the ledger holds between two times: how many acts of each kind, and how many accounts made them.
+message LedgerTotals {
+  uint64 takes = 1;
+  uint64 strikes = 2;
+  uint64 spreads = 3;
+  uint64 encloses = 4;
+  uint64 bombs = 5;
+  uint64 shields = 6;
+  uint64 fortifies = 7;
+  uint64 accounts = 8;
+}

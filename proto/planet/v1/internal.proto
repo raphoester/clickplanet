@@ -2,8 +2,10 @@ syntax = "proto3";
 
 package planet.v1;
 
+import "google/protobuf/timestamp.proto";
 import "planet/v1/ledger.proto";
 import "planet/v1/planet.proto";
+import "planet/v1/totals.proto";
 
 service InternalService {
   // AdminService/GetLedger, for the clips module's cast: who took which tile.
@@ -12,6 +14,12 @@ service InternalService {
   }
 
   rpc GetTakesByCountry(GetTakesByCountryRequest) returns (GetTakesByCountryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
+  // keeps the answer. InvalidArgument unless since is before until.
+  rpc GetLedgerTotals(GetLedgerTotalsRequest) returns (GetLedgerTotalsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
@@ -30,6 +38,15 @@ service InternalService {
   rpc GetRuleSetNames(GetRuleSetNamesRequest) returns (GetRuleSetNamesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+}
+
+message GetLedgerTotalsRequest {
+  google.protobuf.Timestamp since = 1;
+  google.protobuf.Timestamp until = 2;
+}
+
+message GetLedgerTotalsResponse {
+  LedgerTotals totals = 1;
 }
 
 message GetTakesByCountryRequest {

@@ -1,4 +1,4 @@
-import {Day, Season, Seasons} from "./season.ts"
+import {Day, Season, Seasons, SeasonTotals} from "./season.ts"
 import {BattleEnded, BattleToCome, Debrief, PLAIN_TURN, Turn, TurnBackend, TurnListener} from "./turn.ts"
 
 const MINUTE = 60_000
@@ -10,6 +10,11 @@ export const SEASON_ZERO: Season = {
     startsAt: Date.UTC(2026, 9, 8),
     endsAt: Date.UTC(2026, 9, 31, 23),
     bookId: "season-0",
+    finaleRoundId: "season-0/finale",
+}
+
+const FAKE_TOTALS: SeasonTotals = {
+    takes: 1_284_310, strikes: 18_402, spreads: 6_115, encloses: 1_207, bombs: 9_864, shields: 22_530, fortifies: 3_048, players: 2_416,
 }
 
 export class FakeTurnBackend implements TurnBackend {
@@ -21,8 +26,8 @@ export class FakeTurnBackend implements TurnBackend {
     private battlesEnded = 0
     private readonly listeners = new Set<TurnListener>()
 
-    constructor(current: Season | undefined = SEASON_ZERO, private readonly now: () => number = Date.now) {
-        this.seasons = {current, today: current && dayOf(current, now())}
+    constructor(current: Season | undefined = SEASON_ZERO, private readonly now: () => number = Date.now, ended: Season[] = []) {
+        this.seasons = {current, today: current && dayOf(current, now()), ended}
     }
 
     public follow(listener: TurnListener): () => void {
@@ -34,6 +39,10 @@ export class FakeTurnBackend implements TurnBackend {
         return () => {
             this.listeners.delete(listener)
         }
+    }
+
+    public async seasonTotals(season: number): Promise<SeasonTotals | undefined> {
+        return this.seasons.ended.some((ended) => ended.number === season) ? FAKE_TOTALS : undefined
     }
 
     public today(): Day | undefined {
@@ -152,6 +161,7 @@ export class FakeTurnBackend implements TurnBackend {
         const number = (ended?.number ?? -1) + 1
         this.seasons = {
             next: {number, startsAt: nextStartsAt, endsAt: nextStartsAt + days * DAY_MS, bookId: `season-${number}`},
+            ended: ended ? [...this.seasons.ended, ended] : this.seasons.ended,
         }
         for (const listener of this.listeners) listener.onSeasons(this.seasons)
     }

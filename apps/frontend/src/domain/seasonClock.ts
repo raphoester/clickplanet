@@ -90,3 +90,19 @@ export function endsLine(season: Season, timeZone?: string): string {
 
     return `${part("weekday")} ${part("day")} ${part("month")} · ${part("hour")}:${part("minute")}`
 }
+
+// "8 Oct – 31 Oct 2026", in the player's time.
+export function spanLine(season: Season, timeZone?: string): string {
+    const start = dateOf(season.startsAt, timeZone)
+    const end = dateOf(season.endsAt, timeZone)
+    const from = start.year === end.year ? `${start.day} ${start.month}` : `${start.day} ${start.month} ${start.year}`
+
+    return `${from} – ${end.day} ${end.month} ${end.year}`
+}
+
+function dateOf(ms: number, timeZone?: string): {day: string, month: string, year: string} {
+    const parts = new Intl.DateTimeFormat("en-GB", {day: "numeric", month: "short", year: "numeric", timeZone}).formatToParts(ms)
+    const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
+
+    return {day: part("day"), month: part("month"), year: part("year")}
+}

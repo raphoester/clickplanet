@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {countdownsOf, endClock, endsLine} from "./seasonClock.ts"
+import {countdownsOf, endClock, endsLine, spanLine} from "./seasonClock.ts"
 
 const SECOND = 1000
 const MINUTE = 60 * SECOND
@@ -85,5 +85,17 @@ describe("endsLine", () => {
         expect(endsLine(season, "Europe/Paris")).toBe("Sun 1 Nov · 00:00")
         expect(endsLine(season, "UTC")).toBe("Sat 31 Oct · 23:00")
         expect(endsLine(season, "America/New_York")).toBe("Sat 31 Oct · 19:00")
+    })
+})
+
+describe("spanLine", () => {
+    it("says the season's first and last dates in the player's own time", () => {
+        expect(spanLine(season, "UTC")).toBe("3 Oct – 31 Oct 2026")
+        expect(spanLine(season, "Europe/Paris")).toBe("3 Oct – 1 Nov 2026")
+    })
+
+    it("says both years when the season runs into a new one", () => {
+        expect(spanLine({...season, startsAt: Date.UTC(2026, 11, 20), endsAt: Date.UTC(2027, 0, 17)}, "UTC"))
+            .toBe("20 Dec 2026 – 17 Jan 2027")
     })
 })

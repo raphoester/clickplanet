@@ -96,6 +96,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler/landmass_query/inmemory_tile_holders"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler/changes_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_totals_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_totals_handler/totals_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_names_handler"
@@ -371,6 +373,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			internalService := planetv1controller.InternalService{
 				GetLedgerHandler:         getLedger,
+				GetLedgerTotalsHandler:   get_ledger_totals_handler.New(totals_query.NewPostgresQuery(db)),
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
 				GetCountrySizesHandler:   get_country_sizes_handler.New(borders),

@@ -17,6 +17,7 @@ var (
 	ErrUnknownSeason = errors.New("no season has this number")
 	ErrStarted       = errors.New("this season has started")
 	ErrEnded         = errors.New("this season has ended")
+	ErrNotEnded      = errors.New("no season of this number has ended")
 	ErrNotLast       = errors.New("only the last season is deleted")
 )
 

@@ -103,6 +103,9 @@ export interface StandingsBackend {
 
     mySeason(bookId: string, countryCode: string): Promise<MySeason | undefined>
 
+    // The book's top 10 players, of every flag.
+    board(bookId: string): Promise<Standing[]>
+
     // None for a round never opened.
     round(roundId: string): Promise<Round | undefined>
 

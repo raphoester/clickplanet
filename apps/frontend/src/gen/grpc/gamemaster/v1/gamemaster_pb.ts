@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { LedgerTotals } from "../../planet/v1/totals_pb.js";
 import { BattleEnded, DayEnded, SeasonEnded } from "./events_pb.js";
 
 /**
@@ -45,6 +46,80 @@ proto3.util.setEnumType(EntryKind, "gamemaster.v1.EntryKind", [
   { no: 2, name: "ENTRY_KIND_BATTLE" },
   { no: 3, name: "ENTRY_KIND_HALLOWEEN" },
 ]);
+
+/**
+ * @generated from message gamemaster.v1.GetSeasonTotalsRequest
+ */
+export class GetSeasonTotalsRequest extends Message<GetSeasonTotalsRequest> {
+  /**
+   * @generated from field: uint32 season = 1;
+   */
+  season = 0;
+
+  constructor(data?: PartialMessage<GetSeasonTotalsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.GetSeasonTotalsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "season", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSeasonTotalsRequest {
+    return new GetSeasonTotalsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSeasonTotalsRequest {
+    return new GetSeasonTotalsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSeasonTotalsRequest {
+    return new GetSeasonTotalsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSeasonTotalsRequest | PlainMessage<GetSeasonTotalsRequest> | undefined, b: GetSeasonTotalsRequest | PlainMessage<GetSeasonTotalsRequest> | undefined): boolean {
+    return proto3.util.equals(GetSeasonTotalsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message gamemaster.v1.GetSeasonTotalsResponse
+ */
+export class GetSeasonTotalsResponse extends Message<GetSeasonTotalsResponse> {
+  /**
+   * @generated from field: planet.v1.LedgerTotals totals = 1;
+   */
+  totals?: LedgerTotals;
+
+  constructor(data?: PartialMessage<GetSeasonTotalsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.GetSeasonTotalsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "totals", kind: "message", T: LedgerTotals },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSeasonTotalsResponse {
+    return new GetSeasonTotalsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSeasonTotalsResponse {
+    return new GetSeasonTotalsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSeasonTotalsResponse {
+    return new GetSeasonTotalsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSeasonTotalsResponse | PlainMessage<GetSeasonTotalsResponse> | undefined, b: GetSeasonTotalsResponse | PlainMessage<GetSeasonTotalsResponse> | undefined): boolean {
+    return proto3.util.equals(GetSeasonTotalsResponse, a, b);
+  }
+}
 
 /**
  * @generated from message gamemaster.v1.GetTurnRequest
@@ -260,6 +335,13 @@ export class Timeline extends Message<Timeline> {
    */
   today?: Day;
 
+  /**
+   * The seasons that ended, by number.
+   *
+   * @generated from field: repeated gamemaster.v1.Season ended = 5;
+   */
+  ended: Season[] = [];
+
   constructor(data?: PartialMessage<Timeline>) {
     super();
     proto3.util.initPartial(data, this);
@@ -272,6 +354,7 @@ export class Timeline extends Message<Timeline> {
     { no: 2, name: "current", kind: "message", T: Season },
     { no: 3, name: "next", kind: "message", T: Season },
     { no: 4, name: "today", kind: "message", T: Day },
+    { no: 5, name: "ended", kind: "message", T: Season, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Timeline {
@@ -377,6 +460,13 @@ export class Season extends Message<Season> {
    */
   bookId = "";
 
+  /**
+   * Its finale's round in scoring's books; empty when it has no finale.
+   *
+   * @generated from field: string finale_round_id = 5;
+   */
+  finaleRoundId = "";
+
   constructor(data?: PartialMessage<Season>) {
     super();
     proto3.util.initPartial(data, this);
@@ -389,6 +479,7 @@ export class Season extends Message<Season> {
     { no: 2, name: "starts_at", kind: "message", T: Timestamp },
     { no: 3, name: "ends_at", kind: "message", T: Timestamp },
     { no: 4, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "finale_round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Season {

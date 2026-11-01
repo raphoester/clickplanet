@@ -39,6 +39,9 @@ const (
 	// InternalServiceGetTakesByCountryProcedure is the fully-qualified name of the InternalService's
 	// GetTakesByCountry RPC.
 	InternalServiceGetTakesByCountryProcedure = "/planet.v1.InternalService/GetTakesByCountry"
+	// InternalServiceGetLedgerTotalsProcedure is the fully-qualified name of the InternalService's
+	// GetLedgerTotals RPC.
+	InternalServiceGetLedgerTotalsProcedure = "/planet.v1.InternalService/GetLedgerTotals"
 	// InternalServiceGetTerritoriesProcedure is the fully-qualified name of the InternalService's
 	// GetTerritories RPC.
 	InternalServiceGetTerritoriesProcedure = "/planet.v1.InternalService/GetTerritories"
@@ -58,6 +61,9 @@ type InternalServiceClient interface {
 	// AdminService/GetLedger, for the clips module's cast: who took which tile.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
+	// The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
+	// keeps the answer. InvalidArgument unless since is before until.
+	GetLedgerTotals(context.Context, *connect.Request[v1.GetLedgerTotalsRequest]) (*connect.Response[v1.GetLedgerTotalsResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)
 	GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error)
@@ -86,6 +92,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+InternalServiceGetTakesByCountryProcedure,
 			connect.WithSchema(internalServiceMethods.ByName("GetTakesByCountry")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getLedgerTotals: connect.NewClient[v1.GetLedgerTotalsRequest, v1.GetLedgerTotalsResponse](
+			httpClient,
+			baseURL+InternalServiceGetLedgerTotalsProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetLedgerTotals")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
@@ -124,6 +137,7 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type internalServiceClient struct {
 	getLedger         *connect.Client[v1.GetLedgerRequest, v1.GetLedgerResponse]
 	getTakesByCountry *connect.Client[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse]
+	getLedgerTotals   *connect.Client[v1.GetLedgerTotalsRequest, v1.GetLedgerTotalsResponse]
 	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
 	getCountrySizes   *connect.Client[v1.GetCountrySizesRequest, v1.GetCountrySizesResponse]
 	getAllegianceOf   *connect.Client[v1.GetAllegianceOfRequest, v1.GetAllegianceOfResponse]
@@ -138,6 +152,11 @@ func (c *internalServiceClient) GetLedger(ctx context.Context, req *connect.Requ
 // GetTakesByCountry calls planet.v1.InternalService.GetTakesByCountry.
 func (c *internalServiceClient) GetTakesByCountry(ctx context.Context, req *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error) {
 	return c.getTakesByCountry.CallUnary(ctx, req)
+}
+
+// GetLedgerTotals calls planet.v1.InternalService.GetLedgerTotals.
+func (c *internalServiceClient) GetLedgerTotals(ctx context.Context, req *connect.Request[v1.GetLedgerTotalsRequest]) (*connect.Response[v1.GetLedgerTotalsResponse], error) {
+	return c.getLedgerTotals.CallUnary(ctx, req)
 }
 
 // GetTerritories calls planet.v1.InternalService.GetTerritories.
@@ -165,6 +184,9 @@ type InternalServiceHandler interface {
 	// AdminService/GetLedger, for the clips module's cast: who took which tile.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
+	// The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
+	// keeps the answer. InvalidArgument unless since is before until.
+	GetLedgerTotals(context.Context, *connect.Request[v1.GetLedgerTotalsRequest]) (*connect.Response[v1.GetLedgerTotalsResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)
 	GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error)
@@ -189,6 +211,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		InternalServiceGetTakesByCountryProcedure,
 		svc.GetTakesByCountry,
 		connect.WithSchema(internalServiceMethods.ByName("GetTakesByCountry")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceGetLedgerTotalsHandler := connect.NewUnaryHandler(
+		InternalServiceGetLedgerTotalsProcedure,
+		svc.GetLedgerTotals,
+		connect.WithSchema(internalServiceMethods.ByName("GetLedgerTotals")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -226,6 +255,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetLedgerHandler.ServeHTTP(w, r)
 		case InternalServiceGetTakesByCountryProcedure:
 			internalServiceGetTakesByCountryHandler.ServeHTTP(w, r)
+		case InternalServiceGetLedgerTotalsProcedure:
+			internalServiceGetLedgerTotalsHandler.ServeHTTP(w, r)
 		case InternalServiceGetTerritoriesProcedure:
 			internalServiceGetTerritoriesHandler.ServeHTTP(w, r)
 		case InternalServiceGetCountrySizesProcedure:
@@ -249,6 +280,10 @@ func (UnimplementedInternalServiceHandler) GetLedger(context.Context, *connect.R
 
 func (UnimplementedInternalServiceHandler) GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetTakesByCountry is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetLedgerTotals(context.Context, *connect.Request[v1.GetLedgerTotalsRequest]) (*connect.Response[v1.GetLedgerTotalsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetLedgerTotals is not implemented"))
 }
 
 func (UnimplementedInternalServiceHandler) GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {

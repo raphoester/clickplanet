@@ -66,6 +66,16 @@ export class ConnectStandingsBackend implements StandingsBackend {
         }
     }
 
+    public async board(bookId: string): Promise<Standing[]> {
+        try {
+            const res = await retrying(() => this.client.getBoard({bookId, countryId: ""}), "GetBoard")
+            return res.standings.map(standingOf)
+        } catch (e) {
+            if (absent(e)) return []
+            throw e
+        }
+    }
+
     public async round(roundId: string): Promise<Round | undefined> {
         try {
             const res = await retrying(() => this.client.getRound({roundId}), "GetRound")

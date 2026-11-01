@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GamemasterEvent, GetTurnRequest, GetTurnResponse, ListenForEventsRequest } from "./gamemaster_pb.js";
+import { GamemasterEvent, GetSeasonTotalsRequest, GetSeasonTotalsResponse, GetTurnRequest, GetTurnResponse, ListenForEventsRequest } from "./gamemaster_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -36,6 +36,19 @@ export const GamemasterService = {
       I: ListenForEventsRequest,
       O: GamemasterEvent,
       kind: MethodKind.ServerStreaming,
+    },
+    /**
+     * What the players did on the map during a season that ended, from planet's ledger. NotFound for a season that has
+     * not ended.
+     *
+     * @generated from rpc gamemaster.v1.GamemasterService.GetSeasonTotals
+     */
+    getSeasonTotals: {
+      name: "GetSeasonTotals",
+      I: GetSeasonTotalsRequest,
+      O: GetSeasonTotalsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

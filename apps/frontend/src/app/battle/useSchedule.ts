@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react"
-import {Seasons} from "../../backends/season.ts"
+import {NO_SEASONS, Seasons} from "../../backends/season.ts"
 import {BattleToCome, Debrief, Turn, TurnBackend} from "../../backends/turn.ts"
 
 export type Schedule = {
@@ -12,7 +12,7 @@ export type Schedule = {
 export function useSchedule(backend: TurnBackend | undefined): Schedule {
     const [turn, setTurn] = useState<Turn>()
     const [battles, setBattles] = useState<BattleToCome[]>([])
-    const [seasons, setSeasons] = useState<Seasons>({})
+    const [seasons, setSeasons] = useState<Seasons>(NO_SEASONS)
     const [debrief, setDebrief] = useState<Debrief>()
 
     useEffect(() => backend?.follow({

@@ -39,6 +39,9 @@ const (
 	// GamemasterServiceListenForEventsProcedure is the fully-qualified name of the GamemasterService's
 	// ListenForEvents RPC.
 	GamemasterServiceListenForEventsProcedure = "/gamemaster.v1.GamemasterService/ListenForEvents"
+	// GamemasterServiceGetSeasonTotalsProcedure is the fully-qualified name of the GamemasterService's
+	// GetSeasonTotals RPC.
+	GamemasterServiceGetSeasonTotalsProcedure = "/gamemaster.v1.GamemasterService/GetSeasonTotals"
 )
 
 // GamemasterServiceClient is a client for the gamemaster.v1.GamemasterService service.
@@ -47,6 +50,9 @@ type GamemasterServiceClient interface {
 	// The turn now, the timeline and the last debrief, as the first events, then each change of any within a second; a
 	// heartbeat every 30 s meanwhile.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.GamemasterEvent], error)
+	// What the players did on the map during a season that ended, from planet's ledger. NotFound for a season that has
+	// not ended.
+	GetSeasonTotals(context.Context, *connect.Request[v1.GetSeasonTotalsRequest]) (*connect.Response[v1.GetSeasonTotalsResponse], error)
 }
 
 // NewGamemasterServiceClient constructs a client for the gamemaster.v1.GamemasterService service.
@@ -73,6 +79,13 @@ func NewGamemasterServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(gamemasterServiceMethods.ByName("ListenForEvents")),
 			connect.WithClientOptions(opts...),
 		),
+		getSeasonTotals: connect.NewClient[v1.GetSeasonTotalsRequest, v1.GetSeasonTotalsResponse](
+			httpClient,
+			baseURL+GamemasterServiceGetSeasonTotalsProcedure,
+			connect.WithSchema(gamemasterServiceMethods.ByName("GetSeasonTotals")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -80,6 +93,7 @@ func NewGamemasterServiceClient(httpClient connect.HTTPClient, baseURL string, o
 type gamemasterServiceClient struct {
 	getTurn         *connect.Client[v1.GetTurnRequest, v1.GetTurnResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.GamemasterEvent]
+	getSeasonTotals *connect.Client[v1.GetSeasonTotalsRequest, v1.GetSeasonTotalsResponse]
 }
 
 // GetTurn calls gamemaster.v1.GamemasterService.GetTurn.
@@ -92,12 +106,20 @@ func (c *gamemasterServiceClient) ListenForEvents(ctx context.Context, req *conn
 	return c.listenForEvents.CallServerStream(ctx, req)
 }
 
+// GetSeasonTotals calls gamemaster.v1.GamemasterService.GetSeasonTotals.
+func (c *gamemasterServiceClient) GetSeasonTotals(ctx context.Context, req *connect.Request[v1.GetSeasonTotalsRequest]) (*connect.Response[v1.GetSeasonTotalsResponse], error) {
+	return c.getSeasonTotals.CallUnary(ctx, req)
+}
+
 // GamemasterServiceHandler is an implementation of the gamemaster.v1.GamemasterService service.
 type GamemasterServiceHandler interface {
 	GetTurn(context.Context, *connect.Request[v1.GetTurnRequest]) (*connect.Response[v1.GetTurnResponse], error)
 	// The turn now, the timeline and the last debrief, as the first events, then each change of any within a second; a
 	// heartbeat every 30 s meanwhile.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.GamemasterEvent]) error
+	// What the players did on the map during a season that ended, from planet's ledger. NotFound for a season that has
+	// not ended.
+	GetSeasonTotals(context.Context, *connect.Request[v1.GetSeasonTotalsRequest]) (*connect.Response[v1.GetSeasonTotalsResponse], error)
 }
 
 // NewGamemasterServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -120,12 +142,21 @@ func NewGamemasterServiceHandler(svc GamemasterServiceHandler, opts ...connect.H
 		connect.WithSchema(gamemasterServiceMethods.ByName("ListenForEvents")),
 		connect.WithHandlerOptions(opts...),
 	)
+	gamemasterServiceGetSeasonTotalsHandler := connect.NewUnaryHandler(
+		GamemasterServiceGetSeasonTotalsProcedure,
+		svc.GetSeasonTotals,
+		connect.WithSchema(gamemasterServiceMethods.ByName("GetSeasonTotals")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/gamemaster.v1.GamemasterService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case GamemasterServiceGetTurnProcedure:
 			gamemasterServiceGetTurnHandler.ServeHTTP(w, r)
 		case GamemasterServiceListenForEventsProcedure:
 			gamemasterServiceListenForEventsHandler.ServeHTTP(w, r)
+		case GamemasterServiceGetSeasonTotalsProcedure:
+			gamemasterServiceGetSeasonTotalsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -141,4 +172,8 @@ func (UnimplementedGamemasterServiceHandler) GetTurn(context.Context, *connect.R
 
 func (UnimplementedGamemasterServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.GamemasterEvent]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("gamemaster.v1.GamemasterService.ListenForEvents is not implemented"))
+}
+
+func (UnimplementedGamemasterServiceHandler) GetSeasonTotals(context.Context, *connect.Request[v1.GetSeasonTotalsRequest]) (*connect.Response[v1.GetSeasonTotalsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("gamemaster.v1.GamemasterService.GetSeasonTotals is not implemented"))
 }

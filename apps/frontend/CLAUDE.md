@@ -62,6 +62,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Halloween](docs/halloween.md) — an entry of kind `halloween` dresses the game: the mood, a violet halo, pumpkins
   and a skeleton on the zones' edges, the dock's crown that the rest keeps clear of, and the bonus box as a carved
   jack-o'-lantern with the box's question marks.
+- [The Hall of Fame](docs/hall-of-fame.md) — the board's gold button, and the modal's carousel of seasons: each
+  ended one's podium, then the "?" of the one that runs; View opens a season's slides (flags, players, the Final
+  Battle, the numbers).
 - [The cutoff, revealed](docs/cutoff.md) — the full-screen reveal when a day closes, and the season's results after
   the Final Battle's debrief.
 - [The flag played for](docs/flag.md) — `PledgeAllegiance`, one flag an hour, and the lock a battle's rule set puts

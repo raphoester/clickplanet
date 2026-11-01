@@ -65,6 +65,9 @@ func (q *PostgresQuery) Now(ctx context.Context) (*gamemasterv1.GetTurnResponse,
 	if today, ok := plan.DayAt(now); ok {
 		timeline.Today = seasonmessage.DayOf(today)
 	}
+	for _, ended := range seasons.EndedBy(now) {
+		timeline.Ended = append(timeline.Ended, seasonmessage.SeasonOf(ended))
+	}
 	debrief, err := q.debrief(ctx, plan)
 	if err != nil {
 		return nil, err

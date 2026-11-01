@@ -19,7 +19,7 @@ afterEach(cleanup)
 describe("useSchedule", () => {
     it("knows no turn and no battle with no backend", () => {
         render(<Harness/>)
-        expect(latest).toEqual({turn: undefined, battles: [], seasons: {}, debrief: undefined})
+        expect(latest).toEqual({turn: undefined, battles: [], seasons: {ended: []}, debrief: undefined})
     })
 
     it("holds the turn, the battles, the seasons and the day the backend sends first", () => {
@@ -30,6 +30,7 @@ describe("useSchedule", () => {
             seasons: {
                 current: SEASON_ZERO,
                 today: {number: 21, startsAt: Date.UTC(2026, 9, 27, 21), endsAt: Date.UTC(2026, 9, 28, 21), roundId: "season-0/day-21"},
+                ended: [],
             },
             debrief: undefined,
         })

@@ -2,7 +2,8 @@
 
 **The season and its days are the gamemaster's**: `backends/season.ts` is `Season`
 (`number`, `startsAt`, `endsAt`, `bookId`), `Day` (`number`, `startsAt`, `endsAt`,
-`roundId`) and `Seasons` (`current`, `next`, `today`), which the gamemaster's
+`roundId`) and `Seasons` (`current`, `next`, `today`, and the seasons that `ended`, for the [Hall of
+Fame](hall-of-fame.md)), which the gamemaster's
 `Timeline` carries and `TurnBackend.follow` hands on (`onSeasons`, see
 [Battles](battle.md#reading-what-plays)). An end the operator moves reaches the page
 within a second. A server without the gamemaster reads as no season. **Scoring only

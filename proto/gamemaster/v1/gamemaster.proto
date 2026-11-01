@@ -4,6 +4,7 @@ package gamemaster.v1;
 
 import "google/protobuf/timestamp.proto";
 import "gamemaster/v1/events.proto";
+import "planet/v1/totals.proto";
 
 // What the schedule plays now, in the players' words: the kind of the running entry, never a rule set's name, which
 // is the operator's. On the public router.
@@ -15,6 +16,20 @@ service GamemasterService {
   // The turn now, the timeline and the last debrief, as the first events, then each change of any within a second; a
   // heartbeat every 30 s meanwhile.
   rpc ListenForEvents(ListenForEventsRequest) returns (stream GamemasterEvent);
+
+  // What the players did on the map during a season that ended, from planet's ledger. NotFound for a season that has
+  // not ended.
+  rpc GetSeasonTotals(GetSeasonTotalsRequest) returns (GetSeasonTotalsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetSeasonTotalsRequest {
+  uint32 season = 1;
+}
+
+message GetSeasonTotalsResponse {
+  planet.v1.LedgerTotals totals = 1;
 }
 
 // What an entry is to the players. The game client reads the kind that plays and gives it a look: a battle has one,
@@ -68,6 +83,8 @@ message Timeline {
   Season next = 3;
   // The day in progress; unset between two seasons, and from the season's last cutoff to its end.
   Day today = 4;
+  // The seasons that ended, by number.
+  repeated Season ended = 5;
 }
 
 // A day of a season: a round scored at the daily cutoff.
@@ -86,6 +103,8 @@ message Season {
   google.protobuf.Timestamp ends_at = 3;
   // The season's book in scoring.
   string book_id = 4;
+  // Its finale's round in scoring's books; empty when it has no finale.
+  string finale_round_id = 5;
 }
 
 message Battle {
