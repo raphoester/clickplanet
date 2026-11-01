@@ -5,6 +5,8 @@ package rules
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"sync"
 
 	"google.golang.org/protobuf/proto"
@@ -34,15 +36,29 @@ func (m *MemoryStore) Set(_ context.Context, name SetName) (Set, error) {
 	if m.failing != nil {
 		return Set{}, m.failing
 	}
+	defaults, ok := m.sets[Default]
+	if !ok {
+		return Set{}, fmt.Errorf("%q: %w", Default, ErrUnknownSet)
+	}
 	kept, ok := m.sets[name]
 	if !ok {
 		return Set{}, fmt.Errorf("%q: %w", name, ErrUnknownSet)
 	}
-	set, err := kept.Restore(m.parts)
+	set, err := kept.Restore(m.parts, defaults)
 	if err != nil {
 		return Set{}, fmt.Errorf("the rule set %q kept cannot play: %w", name, err)
 	}
 	return set, nil
+}
+
+func (m *MemoryStore) Names(context.Context) ([]SetName, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return nil, m.failing
+	}
+	return slices.Sorted(maps.Keys(m.sets)), nil
 }
 
 func (m *MemoryStore) Save(_ context.Context, set Set) error {

@@ -47,7 +47,7 @@ func (w *witness) Forget(time.Time) {}
 func TestTheLastFlushWaitsForWhatTheFeedsStillHandle(t *testing.T) {
 	handled := &atomic.Bool{}
 	seen := &witness{handled: handled}
-	set, err := rules.Seeded().Restore(guard.Parts())
+	set, err := rules.Seeded().Restore(guard.Parts(), rules.Seeded())
 	require.NoError(t, err)
 	inForce := rules.NewInForce()
 	inForce.Enforce(set)

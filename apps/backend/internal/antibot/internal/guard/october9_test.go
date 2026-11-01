@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -23,10 +25,10 @@ func withTheBoundsOfOctober9(config *guard.Config, set *antibotv1.Rules) {
 	set.Metronome.MaxGap = durationpb.New(7 * time.Second)
 	set.Metronome.MaxSpread = durationpb.New(400 * time.Millisecond)
 
-	set.Defender.Enabled = true
+	set.Defender.Enabled = proto.Bool(true)
 	set.Defender.RetakeWindow = durationpb.New(2 * time.Minute)
-	set.Defender.MinClicks = 40
-	set.Defender.MinShare = 0.6
+	set.Defender.MinClicks = proto.Uint32(40)
+	set.Defender.MinShare = proto.Float64(0.6)
 	config.Defender.TrackWindow = 10 * time.Minute
 }
 

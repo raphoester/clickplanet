@@ -4,6 +4,7 @@ import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-libr
 import {afterEach, describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
+import {Rules} from "../gen/grpc/antibot/v1/rules_pb.ts"
 import {AntibotRulesPanel} from "./AntibotRulesPanel.tsx"
 
 afterEach(cleanup)
@@ -19,6 +20,14 @@ const saveButton = () => screen.getByRole("button", {name: "Save"}) as HTMLButto
 const save = () => {
     fireEvent.click(saveButton())
     fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
+}
+
+// A set that holds only a bigger crowd, and judges with default's for the rest.
+function withCrowd(): FakeAdmin {
+    const admin = new FakeAdmin()
+    const crowd = new RuleSet({name: "crowd", rules: Rules.fromJson({cohort: {certainMembers: 50}})})
+    admin.antibotRules = new GetRulesResponse({sets: [admin.antibotRules.sets[0], crowd], playing: "default"})
+    return admin
 }
 
 // default plays; calm does not, with its defender on.
@@ -63,7 +72,7 @@ describe("the antibot rules page", () => {
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
         expect((screen.getByLabelText("Name") as HTMLInputElement).disabled).toBe(true)
         expect(saveButton().disabled).toBe(true)
-        fireEvent.click(screen.getByLabelText("Defender · Enabled"))
+        type("Defender · Enabled", "on")
         type("Bans · Reflag interval", "600")
         expect(screen.getByText("2 changes")).toBeTruthy()
         expect(screen.getByText("10 min · was 5 min")).toBeTruthy()
@@ -110,14 +119,32 @@ describe("the antibot rules page", () => {
         await waitFor(() => expect(within(rowOf("rush")).getByText("50 scopes")).toBeTruthy())
     })
 
-    it("sends nothing while a value is no number, and says which", async () => {
+    it("sends nothing while default lacks a value it held, and says which", async () => {
         const admin = withCalm()
         render(<AntibotRulesPanel antibot={admin.antibot}/>)
-        fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
+        fireEvent.click(await screen.findByRole("button", {name: "Edit default"}))
         type("Cohort · Certain members", "")
-        expect(screen.getByRole("alert").textContent).toBe("Cohort · Certain members: a number is needed.")
+        expect(screen.getByRole("alert").textContent).toBe("Cohort · Certain members: default needs a value.")
         expect(saveButton().disabled).toBe(true)
         expect(admin.askedFor("saveRuleSet")).toEqual([])
+    })
+
+    it("lists a set as it judges, and edits it with default's values shown where it holds none", async () => {
+        const admin = withCrowd()
+        render(<AntibotRulesPanel antibot={admin.antibot}/>)
+        await screen.findByRole("button", {name: "Edit crowd"})
+        expect(within(rowOf("crowd")).getByText("Enforced")).toBeTruthy()
+        expect(within(rowOf("crowd")).getByText("defender")).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Edit crowd"}))
+        expect((screen.getByLabelText("Cohort · Min members") as HTMLInputElement).placeholder).toBe("2")
+        expect((screen.getByLabelText("Bans · Enforce") as HTMLSelectElement).value).toBe("default")
+        type("Bans · Enforce", "off")
+        type("Jury · Min suspects", "3")
+        fireEvent.click(screen.getByRole("button", {name: "Cohort · Certain members: use default"}))
+        save()
+        await waitFor(() => expect(admin.askedFor("saveRuleSet")).toHaveLength(1))
+        const [asked] = admin.askedFor("saveRuleSet") as {set: RuleSet}[]
+        expect(asked.set.rules?.toJson()).toEqual({bans: {enforce: false}, jury: {minSuspects: 3}})
     })
 
     it("quotes the server's refusal and keeps the form", async () => {

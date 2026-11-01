@@ -122,7 +122,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				InspectPlayerHandler: inspect_player_handler.New(inspect_player_usecase.New(watchdogs)),
 				GetRulesHandler:      get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
 				SaveRuleSetHandler: save_rule_set_handler.New(
-					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, parts, playRules), props.Logger)),
+					audit_save_rule_set.New(save_rule_set_usecase.New(db, ruleSets, parts, playRules), props.Logger)),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

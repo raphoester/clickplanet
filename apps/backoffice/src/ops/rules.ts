@@ -4,6 +4,7 @@ import {Change} from "../components/Changes.tsx"
 import {secondsWord} from "../components/time.ts"
 import {RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {BoxPace, ClickRules, Rules} from "../gen/grpc/planet/v1/rules_pb.ts"
+import {overlay} from "./overlay.ts"
 
 export const DEFAULT_SET = "default"
 
@@ -97,32 +98,40 @@ const FIELDS = GROUPS.flatMap(group => group.fields)
 // A toll step as the form edits it: the share in percent.
 export type TollStep = {share: string, slowdown: string}
 
-// A set as the form edits it: every value as typed.
+// A set as the form edits it: every value as typed. Outside default, "" and undefined are default's value.
 export type Draft = {
-    name: string, values: Record<string, string>, quiz: boolean, signInRefill: boolean, frozen: boolean,
-    allegianceLocked: boolean, toll: TollStep[]
+    name: string, values: Record<string, string>, quiz?: boolean, signInRefill?: boolean, frozen?: boolean,
+    allegianceLocked?: boolean, toll?: TollStep[]
 }
 
 export function draftOf(set: RuleSet): Draft {
     const rules = set.rules ?? new Rules()
-    const json = rules.toJson({emitDefaultValues: true}) as JsonObject
+    const json = rules.toJson() as JsonObject
 
     return {
         name: set.name,
         values: Object.fromEntries(FIELDS.map(field => [field.path, textOf(valueAt(json, field.path))])),
-        quiz: rules.bonuses?.quiz?.enabled ?? false,
-        signInRefill: rules.bonuses?.signInRefill ?? false,
+        quiz: rules.bonuses?.quiz?.enabled,
+        signInRefill: rules.bonuses?.signInRefill,
         frozen: rules.frozen,
         allegianceLocked: rules.allegianceLocked,
-        toll: (rules.toll?.steps ?? []).map(step => ({
+        toll: rules.toll?.steps.map(step => ({
             share: String(Number((step.share * 100).toPrecision(12))), slowdown: String(step.slowdown),
         })),
     }
 }
 
-// The rules in force change only through the schedule: a new set starts as a copy of another, with no name.
+// The rules in force change only through the schedule: a new set starts as a copy of another, with no name. A copy of
+// default holds nothing of its own, so it follows default.
 export function copyOf(set: RuleSet): Draft {
-    return {...draftOf(set), name: ""}
+    return set.name === DEFAULT_SET ? {name: "", values: {}} : {...draftOf(set), name: ""}
+}
+
+// Every value the set plays: its own, and default's for the rest. The toll is one value.
+export function playedOf(set: RuleSet, defaults: RuleSet | undefined): RuleSet {
+    if (defaults === undefined || set.name === DEFAULT_SET) return set
+    const base = defaults.rules?.toJson() ?? {}
+    return new RuleSet({name: set.name, rules: Rules.fromJson(overlay(base, set.rules?.toJson() ?? {}))})
 }
 
 function valueAt(json: JsonObject, path: string): JsonValue | undefined {
@@ -139,36 +148,46 @@ function textOf(value: JsonValue | undefined): string {
     return ""
 }
 
-// Every value a number and a name typed; the server holds the rules a set must keep.
+// A name typed, and every value a number; default holds every value. The server holds the rules a set must keep.
 export function complete(draft: Draft): boolean {
-    const numbers = [...Object.values(draft.values), ...draft.toll.flatMap(step => [step.share, step.slowdown])]
-    return draft.name.trim() !== "" && numbers.every(value => value.trim() !== "" && Number.isFinite(Number(value)))
+    const all = draft.name.trim() === DEFAULT_SET
+    const typed = FIELDS.map(field => (draft.values[field.path] ?? "").trim())
+    const steps = (draft.toll ?? []).flatMap(step => [step.share.trim(), step.slowdown.trim()])
+    return draft.name.trim() !== ""
+        && typed.every(value => (value === "" && !all) || (value !== "" && Number.isFinite(Number(value))))
+        && steps.every(value => value !== "" && Number.isFinite(Number(value)))
 }
+
+export const SWITCHES = [
+    {key: "frozen", label: "Frozen"},
+    {key: "allegianceLocked", label: "Flags locked"},
+    {key: "quiz", label: "Quizzes on"},
+    {key: "signInRefill", label: "Refill at first sign-in"},
+] as const
 
 // Every value the draft holds otherwise than `before`, the set it started from.
 export function changesOf(before: Draft, after: Draft): Change[] {
     const changes: Change[] = []
-    if (before.frozen !== after.frozen) changes.push({label: "Frozen", before: yesOf(before.frozen), after: yesOf(after.frozen)})
-    if (before.allegianceLocked !== after.allegianceLocked) {
-        changes.push({label: "Flags locked", before: yesOf(before.allegianceLocked), after: yesOf(after.allegianceLocked)})
-    }
-    if (before.quiz !== after.quiz) changes.push({label: "Quizzes on", before: yesOf(before.quiz), after: yesOf(after.quiz)})
-    if (before.signInRefill !== after.signInRefill) {
-        changes.push({label: "Refill at first sign-in", before: yesOf(before.signInRefill), after: yesOf(after.signInRefill)})
+    for (const {key, label} of SWITCHES) {
+        if (before[key] !== after[key]) changes.push({label, before: yesOf(before[key]), after: yesOf(after[key])})
     }
     for (const group of GROUPS) {
         for (const field of group.fields) {
             if (sameNumber(before.values[field.path], after.values[field.path])) continue
             changes.push({
                 label: `${group.title} · ${field.label}`,
-                before: shownOf(field, before.values[field.path]),
-                after: shownOf(field, after.values[field.path]),
+                before: shownOf(field, before.values[field.path]) || "default",
+                after: shownOf(field, after.values[field.path]) || "default",
             })
         }
     }
-    const tollOf = (draft: Draft) => draft.toll.map(step => `${step.share}% ×${step.slowdown}`).join(", ")
-    if (tollOf(before) !== tollOf(after)) changes.push({label: "Toll", before: tollOf(before), after: tollOf(after)})
+    if (tollOf(before.toll) !== tollOf(after.toll)) changes.push({label: "Toll", before: tollOf(before.toll), after: tollOf(after.toll)})
     return changes
+}
+
+export function tollOf(steps: TollStep[] | undefined): string {
+    if (steps === undefined) return "default"
+    return steps.length === 0 ? "none" : steps.map(step => `${step.share}% ×${step.slowdown}`).join(", ")
 }
 
 // Whether a field holds otherwise than `before`: "3" and "3.0" are one value.
@@ -188,20 +207,27 @@ function sameNumber(a: string | undefined, b: string | undefined): boolean {
     return x === y || (x !== "" && y !== "" && Number(x) === Number(y))
 }
 
-function yesOf(on: boolean): string {
-    return on ? "yes" : "no"
+export function yesOf(on: boolean | undefined): string {
+    return on === undefined ? "default" : on ? "yes" : "no"
 }
 
+// The values the set holds, and none of default's.
 export function ruleSetOf(draft: Draft): RuleSet {
-    const json: JsonObject = {
-        bonuses: {quiz: {enabled: draft.quiz}, signInRefill: draft.signInRefill},
-        frozen: draft.frozen,
-        allegianceLocked: draft.allegianceLocked,
+    const json: JsonObject = {}
+    const switches = {
+        "frozen": draft.frozen, "allegianceLocked": draft.allegianceLocked, "bonuses.quiz.enabled": draft.quiz,
+        "bonuses.signInRefill": draft.signInRefill,
+    }
+    for (const [path, on] of Object.entries(switches)) {
+        if (on !== undefined) put(json, path, on)
     }
     for (const field of FIELDS) {
-        put(json, field.path, jsonOf(Number(draft.values[field.path]), field))
+        const typed = (draft.values[field.path] ?? "").trim()
+        if (typed !== "") put(json, field.path, jsonOf(Number(typed), field))
     }
-    json.toll = {steps: draft.toll.map(step => ({share: Number(step.share) / 100, slowdown: Number(step.slowdown)}))}
+    if (draft.toll !== undefined) {
+        json.toll = {steps: draft.toll.map(step => ({share: Number(step.share) / 100, slowdown: Number(step.slowdown)}))}
+    }
 
     return new RuleSet({name: draft.name.trim(), rules: Rules.fromJson(json)})
 }

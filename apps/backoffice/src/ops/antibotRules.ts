@@ -4,14 +4,14 @@ import {Change} from "../components/Changes.tsx"
 import {secondsWord} from "../components/time.ts"
 import {RuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Rules} from "../gen/grpc/antibot/v1/rules_pb.ts"
+import {overlay} from "./overlay.ts"
 
-// A value of a set, by its path in the set's protojson. A duration is typed in seconds; an optional bound or a
-// duration left empty is left unset.
+// A value of a set, by its path in the set's protojson. A duration is typed in seconds. A value left empty is left
+// unset: a set other than default plays default's.
 export type Leaf = {
     path: string
     label: string
     kind: "switch" | "number" | "whole" | "seconds" | "secondsList"
-    optional: boolean
 }
 
 // A part of the set: a watchdog, the bans, the jury, or a part of one. Its `enabled` is its switch, shown first.
@@ -37,9 +37,9 @@ function leavesOf(type: MessageType, prefix: string): Leaf[] {
         switch (field.kind) {
             case "message":
                 if (!isDuration(field)) return []
-                return [{path, label, kind: field.repeated ? "secondsList" : "seconds", optional: true}]
+                return [{path, label, kind: field.repeated ? "secondsList" : "seconds"}]
             case "scalar":
-                return [{path, label, kind: kindOf(field.T), optional: field.opt}]
+                return [{path, label, kind: kindOf(field.T)}]
             case "enum":
             case "map":
                 throw new Error(`antibot.v1.Rules gained a ${field.kind} at ${path}: the form has no field for it`)
@@ -91,29 +91,39 @@ export function placeOf(leaf: Leaf): string {
     return leaf.path.split(".").map(labelOf).join(" · ")
 }
 
-export type Value = string | boolean | string[]
+export const DEFAULT_SET = "default"
+
+// A switch left unset is undefined, a number or a duration "", a ladder [].
+export type Value = string | boolean | string[] | undefined
 
 // A set as the form edits it: every value as typed, by its path.
 export type Draft = {name: string, values: Record<string, Value>}
 
 export function draftOf(set: RuleSet): Draft {
-    const json = (set.rules ?? new Rules()).toJson({emitDefaultValues: true}) as JsonObject
+    const json = (set.rules ?? new Rules()).toJson() as JsonObject
     return {name: set.name, values: Object.fromEntries(LEAVES.map(leaf => [leaf.path, typedOf(leaf, valueAt(json, leaf.path))]))}
 }
 
-// The rules in force change only through the schedule: a new set starts as a copy of another, with no name.
+// The rules in force change only through the schedule: a new set starts as a copy of another, with no name. A copy of
+// default holds nothing of its own, so it follows default.
 export function copyOf(set: RuleSet): Draft {
-    return {...draftOf(set), name: ""}
+    return {...draftOf(set.name === DEFAULT_SET ? new RuleSet() : set), name: ""}
+}
+
+// Every value the set judges with: its own, and default's for the rest.
+export function playedOf(set: RuleSet, defaults: RuleSet | undefined): RuleSet {
+    if (defaults === undefined || set.name === DEFAULT_SET) return set
+    const base = defaults.rules?.toJson() ?? {}
+    return new RuleSet({name: set.name, rules: Rules.fromJson(overlay(base, set.rules?.toJson() ?? {}))})
 }
 
 function typedOf(leaf: Leaf, value: JsonValue | undefined): Value {
     switch (leaf.kind) {
         case "switch":
-            return value === true
+            return typeof value === "boolean" ? value : undefined
         case "number":
         case "whole":
-            // A part the set leaves unset holds zeros, as proto3 reads it; an optional bound stays unset.
-            return typeof value === "number" ? String(value) : leaf.optional ? "" : "0"
+            return typeof value === "number" ? String(value) : ""
         case "seconds":
             return typeof value === "string" ? value.replace(/s$/, "") : ""
         case "secondsList":
@@ -129,21 +139,24 @@ function valueAt(json: JsonObject, path: string): JsonValue | undefined {
     return value
 }
 
-// Why the draft is no set, or undefined when it is one. The server holds the bounds a set must keep.
-export function flawOf(draft: Draft): string | undefined {
+// Why the draft is no set, or undefined when it is one. Default keeps every value it held when the form opened (`kept`);
+// the server holds the bounds a set must keep.
+export function flawOf(draft: Draft, kept: Draft): string | undefined {
+    const all = draft.name.trim() === DEFAULT_SET
     for (const leaf of LEAVES) {
         const value = draft.values[leaf.path]
         const typed = Array.isArray(value) ? value : typeof value === "string" ? [value] : []
         if (leaf.kind === "secondsList" && typed.some(each => each.trim() === "")) return `${placeOf(leaf)}: a step is empty.`
+        if (all && !unset(kept.values[leaf.path]) && unset(value)) return `${placeOf(leaf)}: default needs a value.`
         for (const each of typed) {
-            if (each.trim() === "") {
-                if (!leaf.optional) return `${placeOf(leaf)}: a number is needed.`
-            } else if (!Number.isFinite(Number(each))) {
-                return `${placeOf(leaf)}: ${each} is not a number.`
-            }
+            if (each.trim() !== "" && !Number.isFinite(Number(each))) return `${placeOf(leaf)}: ${each} is not a number.`
         }
     }
     return undefined
+}
+
+export function unset(value: Value): boolean {
+    return value === undefined || (typeof value === "string" && value.trim() === "") || (Array.isArray(value) && value.length === 0)
 }
 
 export function rulesOf(draft: Draft): Rules {
@@ -155,10 +168,10 @@ export function rulesOf(draft: Draft): Rules {
     return Rules.fromJson(json)
 }
 
-function jsonOf(leaf: Leaf, value: Value | undefined): JsonValue | undefined {
+function jsonOf(leaf: Leaf, value: Value): JsonValue | undefined {
     switch (leaf.kind) {
         case "switch":
-            return value === true
+            return typeof value === "boolean" ? value : undefined
         case "number":
         case "whole": {
             const typed = typeof value === "string" ? value.trim() : ""
@@ -170,7 +183,7 @@ function jsonOf(leaf: Leaf, value: Value | undefined): JsonValue | undefined {
             return typed === "" ? undefined : `${Number(typed)}s`
         }
         case "secondsList":
-            return (Array.isArray(value) ? value : []).map(each => `${Number(each)}s`)
+            return Array.isArray(value) && value.length > 0 ? value.map(each => `${Number(each)}s`) : undefined
     }
 }
 
@@ -184,11 +197,11 @@ function put(json: JsonObject, path: string, value: JsonValue) {
     at[keys[keys.length - 1]] = value
 }
 
-// A value as the operator reads it: a duration in the unit it reads best in.
-export function shownOf(leaf: Leaf, value: Value | undefined): string {
+// A value as the operator reads it: a duration in the unit it reads best in. A value unset reads "".
+export function shownOf(leaf: Leaf, value: Value): string {
     switch (leaf.kind) {
         case "switch":
-            return value === true ? "on" : "off"
+            return value === undefined ? "" : value ? "on" : "off"
         case "number":
         case "whole":
             return typeof value === "string" ? numberOf(value) : ""
@@ -212,9 +225,11 @@ function secondsOf(typed: string): string {
 
 // Every value the draft holds otherwise than `before`, the set it started from.
 export function changesOf(before: Draft, after: Draft): Change[] {
+    const unsetWord = after.name.trim() === DEFAULT_SET ? "unset" : "default"
+    const shown = (leaf: Leaf, value: Value) => shownOf(leaf, value) || unsetWord
     return LEAVES
         .filter(leaf => changedAt(before, after, leaf))
-        .map(leaf => ({label: placeOf(leaf), before: shownOf(leaf, before.values[leaf.path]), after: shownOf(leaf, after.values[leaf.path])}))
+        .map(leaf => ({label: placeOf(leaf), before: shown(leaf, before.values[leaf.path]), after: shown(leaf, after.values[leaf.path])}))
 }
 
 export function changedAt(before: Draft, after: Draft, leaf: Leaf): boolean {

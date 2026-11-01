@@ -18,8 +18,8 @@ import (
 
 func TestTheSetsComeDefaultFirstThenByNameAsKept(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
-	rush := rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = 3 })
-	set, err := rush.Restore(parts.All())
+	rush := rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = proto.Float64(3) })
+	set, err := rush.Restore(parts.All(), rules.Seeded())
 	require.NoError(t, err)
 	require.NoError(t, postgres_rule_set_store.New(db, parts.All()).Save(t.Context(), set))
 	_, err = db.On(t.Context()).ExecContext(t.Context(), `

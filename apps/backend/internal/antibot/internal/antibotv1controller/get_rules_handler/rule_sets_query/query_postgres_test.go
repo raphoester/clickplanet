@@ -19,9 +19,9 @@ import (
 func TestTheSetsComeDefaultFirstThenByNameWithTheirValues(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "antibot", migrations.FS)
 	store := postgres_rule_set_store.New(db, guard.Parts())
-	rush := rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 50 })
+	rush := rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = proto.Uint32(50) })
 	for _, kept := range []rules.Snapshot{rush, rules.Named("calm", rules.AsIs)} {
-		set, err := kept.Restore(guard.Parts())
+		set, err := kept.Restore(guard.Parts(), rules.Seeded())
 		require.NoError(t, err)
 		require.NoError(t, store.Save(t.Context(), set))
 	}

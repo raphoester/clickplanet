@@ -34,14 +34,14 @@ func keeping(t *testing.T, kept ...rules.Snapshot) *rules.MemoryStore {
 
 	store := rules.NewMemoryStore(parts.All())
 	for _, each := range kept {
-		set, err := each.Restore(parts.All())
+		set, err := each.Restore(parts.All(), rules.Seeded())
 		require.NoError(t, err)
 		require.NoError(t, store.Save(t.Context(), set))
 	}
 	return store
 }
 
-var rush = rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = 3 })
+var rush = rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = proto.Float64(3) })
 
 func booted(t *testing.T, sets *rules.MemoryStore, choices *rules.MemoryChoices) (*play_rules_usecase.UseCase, *enforced) {
 	t.Helper()
@@ -133,7 +133,7 @@ func TestASetPlanetDoesNotKeepIsRefusedAndTheRulesInForceStay(t *testing.T) {
 
 func TestAKeptSetThatCannotPlayIsRefused(t *testing.T) {
 	sets := keeping(t, rules.Seeded())
-	sets.Keep(rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Burst = 0 }))
+	sets.Keep(rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Burst = proto.Uint32(0) }))
 	useCase, inForce := booted(t, sets, rules.NewMemoryChoices())
 
 	_, _, err := useCase.Play(t.Context(), rules.Choice{Set: "rush", DecidedAt: finale})
@@ -176,7 +176,7 @@ func TestAChangeOfTheSetInForceIsTakenAtTheNextExecute(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, took, "unchanged, it is not taken again")
 
-	sets.Keep(rules.Named(rules.Default, func(r *planetv1.Rules) { r.Clicks.NewAccountClicks = 60 }))
+	sets.Keep(rules.Named(rules.Default, func(r *planetv1.Rules) { r.Clicks.NewAccountClicks = proto.Float64(60) }))
 	_, took, err = useCase.Execute(t.Context())
 
 	require.NoError(t, err)

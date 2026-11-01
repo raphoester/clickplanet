@@ -22,8 +22,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Every value a player feels, all written: none falls back to another set or to a default. Postgres keeps it as
-// protojson (planet.rule_sets.rules).
+// Every value a player feels. "default" holds every value; another set holds the values it changes, and plays default's
+// for every value it leaves unset. Postgres keeps it as protojson (planet.rule_sets.rules).
 type Rules struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Clicks  *ClickRules            `protobuf:"bytes,1,opt,name=clicks,proto3" json:"clicks,omitempty"`
@@ -31,10 +31,10 @@ type Rules struct {
 	Bonuses *BonusRules            `protobuf:"bytes,3,opt,name=bonuses,proto3" json:"bonuses,omitempty"`
 	// The map takes no play: Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz are refused. The
 	// map still loads and streams.
-	Frozen bool `protobuf:"varint,4,opt,name=frozen,proto3" json:"frozen,omitempty"`
+	Frozen *bool `protobuf:"varint,4,opt,name=frozen,proto3,oneof" json:"frozen,omitempty"`
 	// No account changes its flag: PledgeAllegiance refuses another flag to an account that holds one. A first flag is
 	// still taken.
-	AllegianceLocked bool `protobuf:"varint,5,opt,name=allegiance_locked,json=allegianceLocked,proto3" json:"allegiance_locked,omitempty"`
+	AllegianceLocked *bool `protobuf:"varint,5,opt,name=allegiance_locked,json=allegianceLocked,proto3,oneof" json:"allegiance_locked,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -91,15 +91,15 @@ func (x *Rules) GetBonuses() *BonusRules {
 }
 
 func (x *Rules) GetFrozen() bool {
-	if x != nil {
-		return x.Frozen
+	if x != nil && x.Frozen != nil {
+		return *x.Frozen
 	}
 	return false
 }
 
 func (x *Rules) GetAllegianceLocked() bool {
-	if x != nil {
-		return x.AllegianceLocked
+	if x != nil && x.AllegianceLocked != nil {
+		return *x.AllegianceLocked
 	}
 	return false
 }
@@ -107,19 +107,19 @@ func (x *Rules) GetAllegianceLocked() bool {
 type ClickRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// How many times faster than per_second every bucket refills.
-	Tempo float64 `protobuf:"fixed64,1,opt,name=tempo,proto3" json:"tempo,omitempty"`
+	Tempo *float64 `protobuf:"fixed64,1,opt,name=tempo,proto3,oneof" json:"tempo,omitempty"`
 	// One account's refill, a click a second, and its bank.
-	PerSecond float64 `protobuf:"fixed64,2,opt,name=per_second,json=perSecond,proto3" json:"per_second,omitempty"`
-	Burst     uint32  `protobuf:"varint,3,opt,name=burst,proto3" json:"burst,omitempty"`
+	PerSecond *float64 `protobuf:"fixed64,2,opt,name=per_second,json=perSecond,proto3,oneof" json:"per_second,omitempty"`
+	Burst     *uint32  `protobuf:"varint,3,opt,name=burst,proto3,oneof" json:"burst,omitempty"`
 	// The address's bucket, in accounts; an IPv6 /64's has its own.
-	ScopeMultiplier   float64 `protobuf:"fixed64,4,opt,name=scope_multiplier,json=scopeMultiplier,proto3" json:"scope_multiplier,omitempty"`
-	V6ScopeMultiplier float64 `protobuf:"fixed64,5,opt,name=v6_scope_multiplier,json=v6ScopeMultiplier,proto3" json:"v6_scope_multiplier,omitempty"`
+	ScopeMultiplier   *float64 `protobuf:"fixed64,4,opt,name=scope_multiplier,json=scopeMultiplier,proto3,oneof" json:"scope_multiplier,omitempty"`
+	V6ScopeMultiplier *float64 `protobuf:"fixed64,5,opt,name=v6_scope_multiplier,json=v6ScopeMultiplier,proto3,oneof" json:"v6_scope_multiplier,omitempty"`
 	// The bucket every guest behind an address shares, in accounts.
-	GuestScopeMultiplier float64 `protobuf:"fixed64,6,opt,name=guest_scope_multiplier,json=guestScopeMultiplier,proto3" json:"guest_scope_multiplier,omitempty"`
+	GuestScopeMultiplier *float64 `protobuf:"fixed64,6,opt,name=guest_scope_multiplier,json=guestScopeMultiplier,proto3,oneof" json:"guest_scope_multiplier,omitempty"`
 	// How many times as fast a signed-in account refills.
-	LinkedMultiplier float64 `protobuf:"fixed64,7,opt,name=linked_multiplier,json=linkedMultiplier,proto3" json:"linked_multiplier,omitempty"`
+	LinkedMultiplier *float64 `protobuf:"fixed64,7,opt,name=linked_multiplier,json=linkedMultiplier,proto3,oneof" json:"linked_multiplier,omitempty"`
 	// What a new account's bank holds when it is made; it earns the rest at per_second.
-	NewAccountClicks float64 `protobuf:"fixed64,8,opt,name=new_account_clicks,json=newAccountClicks,proto3" json:"new_account_clicks,omitempty"`
+	NewAccountClicks *float64 `protobuf:"fixed64,8,opt,name=new_account_clicks,json=newAccountClicks,proto3,oneof" json:"new_account_clicks,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -155,64 +155,65 @@ func (*ClickRules) Descriptor() ([]byte, []int) {
 }
 
 func (x *ClickRules) GetTempo() float64 {
-	if x != nil {
-		return x.Tempo
+	if x != nil && x.Tempo != nil {
+		return *x.Tempo
 	}
 	return 0
 }
 
 func (x *ClickRules) GetPerSecond() float64 {
-	if x != nil {
-		return x.PerSecond
+	if x != nil && x.PerSecond != nil {
+		return *x.PerSecond
 	}
 	return 0
 }
 
 func (x *ClickRules) GetBurst() uint32 {
-	if x != nil {
-		return x.Burst
+	if x != nil && x.Burst != nil {
+		return *x.Burst
 	}
 	return 0
 }
 
 func (x *ClickRules) GetScopeMultiplier() float64 {
-	if x != nil {
-		return x.ScopeMultiplier
+	if x != nil && x.ScopeMultiplier != nil {
+		return *x.ScopeMultiplier
 	}
 	return 0
 }
 
 func (x *ClickRules) GetV6ScopeMultiplier() float64 {
-	if x != nil {
-		return x.V6ScopeMultiplier
+	if x != nil && x.V6ScopeMultiplier != nil {
+		return *x.V6ScopeMultiplier
 	}
 	return 0
 }
 
 func (x *ClickRules) GetGuestScopeMultiplier() float64 {
-	if x != nil {
-		return x.GuestScopeMultiplier
+	if x != nil && x.GuestScopeMultiplier != nil {
+		return *x.GuestScopeMultiplier
 	}
 	return 0
 }
 
 func (x *ClickRules) GetLinkedMultiplier() float64 {
-	if x != nil {
-		return x.LinkedMultiplier
+	if x != nil && x.LinkedMultiplier != nil {
+		return *x.LinkedMultiplier
 	}
 	return 0
 }
 
 func (x *ClickRules) GetNewAccountClicks() float64 {
-	if x != nil {
-		return x.NewAccountClicks
+	if x != nil && x.NewAccountClicks != nil {
+		return *x.NewAccountClicks
 	}
 	return 0
 }
 
 type TollRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower. None is no toll.
+	// Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower. None is no toll. A
+	// set that holds `toll` holds every step.
 	Steps         []*TollStep `protobuf:"bytes,1,rep,name=steps,proto3" json:"steps,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -271,7 +272,7 @@ type BonusRules struct {
 	Welcome      *WelcomeRules        `protobuf:"bytes,10,opt,name=welcome,proto3" json:"welcome,omitempty"`
 	Quiz         *QuizRules           `protobuf:"bytes,11,opt,name=quiz,proto3" json:"quiz,omitempty"`
 	// A guest's first sign-in earns a refill, once per account.
-	SignInRefill  bool `protobuf:"varint,12,opt,name=sign_in_refill,json=signInRefill,proto3" json:"sign_in_refill,omitempty"`
+	SignInRefill  *bool `protobuf:"varint,12,opt,name=sign_in_refill,json=signInRefill,proto3,oneof" json:"sign_in_refill,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -384,8 +385,8 @@ func (x *BonusRules) GetQuiz() *QuizRules {
 }
 
 func (x *BonusRules) GetSignInRefill() bool {
-	if x != nil {
-		return x.SignInRefill
+	if x != nil && x.SignInRefill != nil {
+		return *x.SignInRefill
 	}
 	return false
 }
@@ -394,7 +395,7 @@ type BoxPace struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	MinInterval       *durationpb.Duration   `protobuf:"bytes,1,opt,name=min_interval,json=minInterval,proto3" json:"min_interval,omitempty"`
 	MaxInterval       *durationpb.Duration   `protobuf:"bytes,2,opt,name=max_interval,json=maxInterval,proto3" json:"max_interval,omitempty"`
-	MaxChargesPerHour uint32                 `protobuf:"varint,3,opt,name=max_charges_per_hour,json=maxChargesPerHour,proto3" json:"max_charges_per_hour,omitempty"`
+	MaxChargesPerHour *uint32                `protobuf:"varint,3,opt,name=max_charges_per_hour,json=maxChargesPerHour,proto3,oneof" json:"max_charges_per_hour,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -444,8 +445,8 @@ func (x *BoxPace) GetMaxInterval() *durationpb.Duration {
 }
 
 func (x *BoxPace) GetMaxChargesPerHour() uint32 {
-	if x != nil {
-		return x.MaxChargesPerHour
+	if x != nil && x.MaxChargesPerHour != nil {
+		return *x.MaxChargesPerHour
 	}
 	return 0
 }
@@ -453,11 +454,11 @@ func (x *BoxPace) GetMaxChargesPerHour() uint32 {
 // What a box is drawn as: a kind's chance is its weight over the sum of the kinds it may be.
 type KindWeights struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Refill        float64                `protobuf:"fixed64,1,opt,name=refill,proto3" json:"refill,omitempty"`
-	SpreadClicks  float64                `protobuf:"fixed64,2,opt,name=spread_clicks,json=spreadClicks,proto3" json:"spread_clicks,omitempty"`
-	EncloseClicks float64                `protobuf:"fixed64,3,opt,name=enclose_clicks,json=encloseClicks,proto3" json:"enclose_clicks,omitempty"`
-	Bomb          float64                `protobuf:"fixed64,4,opt,name=bomb,proto3" json:"bomb,omitempty"`
-	Shields       float64                `protobuf:"fixed64,5,opt,name=shields,proto3" json:"shields,omitempty"`
+	Refill        *float64               `protobuf:"fixed64,1,opt,name=refill,proto3,oneof" json:"refill,omitempty"`
+	SpreadClicks  *float64               `protobuf:"fixed64,2,opt,name=spread_clicks,json=spreadClicks,proto3,oneof" json:"spread_clicks,omitempty"`
+	EncloseClicks *float64               `protobuf:"fixed64,3,opt,name=enclose_clicks,json=encloseClicks,proto3,oneof" json:"enclose_clicks,omitempty"`
+	Bomb          *float64               `protobuf:"fixed64,4,opt,name=bomb,proto3,oneof" json:"bomb,omitempty"`
+	Shields       *float64               `protobuf:"fixed64,5,opt,name=shields,proto3,oneof" json:"shields,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -493,36 +494,36 @@ func (*KindWeights) Descriptor() ([]byte, []int) {
 }
 
 func (x *KindWeights) GetRefill() float64 {
-	if x != nil {
-		return x.Refill
+	if x != nil && x.Refill != nil {
+		return *x.Refill
 	}
 	return 0
 }
 
 func (x *KindWeights) GetSpreadClicks() float64 {
-	if x != nil {
-		return x.SpreadClicks
+	if x != nil && x.SpreadClicks != nil {
+		return *x.SpreadClicks
 	}
 	return 0
 }
 
 func (x *KindWeights) GetEncloseClicks() float64 {
-	if x != nil {
-		return x.EncloseClicks
+	if x != nil && x.EncloseClicks != nil {
+		return *x.EncloseClicks
 	}
 	return 0
 }
 
 func (x *KindWeights) GetBomb() float64 {
-	if x != nil {
-		return x.Bomb
+	if x != nil && x.Bomb != nil {
+		return *x.Bomb
 	}
 	return 0
 }
 
 func (x *KindWeights) GetShields() float64 {
-	if x != nil {
-		return x.Shields
+	if x != nil && x.Shields != nil {
+		return *x.Shields
 	}
 	return 0
 }
@@ -530,8 +531,8 @@ func (x *KindWeights) GetShields() float64 {
 type SpreadRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The pool a hand holds at most.
-	Clicks        uint32 `protobuf:"varint,1,opt,name=clicks,proto3" json:"clicks,omitempty"`
-	MaxPerBox     uint32 `protobuf:"varint,2,opt,name=max_per_box,json=maxPerBox,proto3" json:"max_per_box,omitempty"`
+	Clicks        *uint32 `protobuf:"varint,1,opt,name=clicks,proto3,oneof" json:"clicks,omitempty"`
+	MaxPerBox     *uint32 `protobuf:"varint,2,opt,name=max_per_box,json=maxPerBox,proto3,oneof" json:"max_per_box,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -567,15 +568,15 @@ func (*SpreadRules) Descriptor() ([]byte, []int) {
 }
 
 func (x *SpreadRules) GetClicks() uint32 {
-	if x != nil {
-		return x.Clicks
+	if x != nil && x.Clicks != nil {
+		return *x.Clicks
 	}
 	return 0
 }
 
 func (x *SpreadRules) GetMaxPerBox() uint32 {
-	if x != nil {
-		return x.MaxPerBox
+	if x != nil && x.MaxPerBox != nil {
+		return *x.MaxPerBox
 	}
 	return 0
 }
@@ -583,7 +584,7 @@ func (x *SpreadRules) GetMaxPerBox() uint32 {
 type BombRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The blast's radius, in tile spacings.
-	Rings         float64 `protobuf:"fixed64,1,opt,name=rings,proto3" json:"rings,omitempty"`
+	Rings         *float64 `protobuf:"fixed64,1,opt,name=rings,proto3,oneof" json:"rings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -619,18 +620,18 @@ func (*BombRules) Descriptor() ([]byte, []int) {
 }
 
 func (x *BombRules) GetRings() float64 {
-	if x != nil {
-		return x.Rings
+	if x != nil && x.Rings != nil {
+		return *x.Rings
 	}
 	return 0
 }
 
 type EncloseRules struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
-	MaxTiles uint32                 `protobuf:"varint,1,opt,name=max_tiles,json=maxTiles,proto3" json:"max_tiles,omitempty"`
+	MaxTiles *uint32                `protobuf:"varint,1,opt,name=max_tiles,json=maxTiles,proto3,oneof" json:"max_tiles,omitempty"`
 	// The stack a hand holds at most.
-	Held          uint32 `protobuf:"varint,2,opt,name=held,proto3" json:"held,omitempty"`
-	MaxPerBox     uint32 `protobuf:"varint,3,opt,name=max_per_box,json=maxPerBox,proto3" json:"max_per_box,omitempty"`
+	Held          *uint32 `protobuf:"varint,2,opt,name=held,proto3,oneof" json:"held,omitempty"`
+	MaxPerBox     *uint32 `protobuf:"varint,3,opt,name=max_per_box,json=maxPerBox,proto3,oneof" json:"max_per_box,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -666,22 +667,22 @@ func (*EncloseRules) Descriptor() ([]byte, []int) {
 }
 
 func (x *EncloseRules) GetMaxTiles() uint32 {
-	if x != nil {
-		return x.MaxTiles
+	if x != nil && x.MaxTiles != nil {
+		return *x.MaxTiles
 	}
 	return 0
 }
 
 func (x *EncloseRules) GetHeld() uint32 {
-	if x != nil {
-		return x.Held
+	if x != nil && x.Held != nil {
+		return *x.Held
 	}
 	return 0
 }
 
 func (x *EncloseRules) GetMaxPerBox() uint32 {
-	if x != nil {
-		return x.MaxPerBox
+	if x != nil && x.MaxPerBox != nil {
+		return *x.MaxPerBox
 	}
 	return 0
 }
@@ -689,11 +690,11 @@ func (x *EncloseRules) GetMaxPerBox() uint32 {
 type ShieldRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The stack a hand holds at most.
-	Held      uint32 `protobuf:"varint,1,opt,name=held,proto3" json:"held,omitempty"`
-	MinPerBox uint32 `protobuf:"varint,2,opt,name=min_per_box,json=minPerBox,proto3" json:"min_per_box,omitempty"`
-	MaxPerBox uint32 `protobuf:"varint,3,opt,name=max_per_box,json=maxPerBox,proto3" json:"max_per_box,omitempty"`
+	Held      *uint32 `protobuf:"varint,1,opt,name=held,proto3,oneof" json:"held,omitempty"`
+	MinPerBox *uint32 `protobuf:"varint,2,opt,name=min_per_box,json=minPerBox,proto3,oneof" json:"min_per_box,omitempty"`
+	MaxPerBox *uint32 `protobuf:"varint,3,opt,name=max_per_box,json=maxPerBox,proto3,oneof" json:"max_per_box,omitempty"`
 	// At most 255.
-	PerTile       uint32 `protobuf:"varint,4,opt,name=per_tile,json=perTile,proto3" json:"per_tile,omitempty"`
+	PerTile       *uint32 `protobuf:"varint,4,opt,name=per_tile,json=perTile,proto3,oneof" json:"per_tile,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -729,29 +730,29 @@ func (*ShieldRules) Descriptor() ([]byte, []int) {
 }
 
 func (x *ShieldRules) GetHeld() uint32 {
-	if x != nil {
-		return x.Held
+	if x != nil && x.Held != nil {
+		return *x.Held
 	}
 	return 0
 }
 
 func (x *ShieldRules) GetMinPerBox() uint32 {
-	if x != nil {
-		return x.MinPerBox
+	if x != nil && x.MinPerBox != nil {
+		return *x.MinPerBox
 	}
 	return 0
 }
 
 func (x *ShieldRules) GetMaxPerBox() uint32 {
-	if x != nil {
-		return x.MaxPerBox
+	if x != nil && x.MaxPerBox != nil {
+		return *x.MaxPerBox
 	}
 	return 0
 }
 
 func (x *ShieldRules) GetPerTile() uint32 {
-	if x != nil {
-		return x.PerTile
+	if x != nil && x.PerTile != nil {
+		return *x.PerTile
 	}
 	return 0
 }
@@ -811,15 +812,15 @@ func (x *WelcomeRules) GetBoxAfter() *durationpb.Duration {
 
 type QuizRules struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
-	Enabled      bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Enabled      *bool                  `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
 	MinInterval  *durationpb.Duration   `protobuf:"bytes,2,opt,name=min_interval,json=minInterval,proto3" json:"min_interval,omitempty"`
 	MaxInterval  *durationpb.Duration   `protobuf:"bytes,3,opt,name=max_interval,json=maxInterval,proto3" json:"max_interval,omitempty"`
 	MissRetry    *durationpb.Duration   `protobuf:"bytes,4,opt,name=miss_retry,json=missRetry,proto3" json:"miss_retry,omitempty"`
 	OfferTtl     *durationpb.Duration   `protobuf:"bytes,5,opt,name=offer_ttl,json=offerTtl,proto3" json:"offer_ttl,omitempty"`
 	AnswerWindow *durationpb.Duration   `protobuf:"bytes,6,opt,name=answer_window,json=answerWindow,proto3" json:"answer_window,omitempty"`
 	// How much a question leans to the countries that hold the most; 0 is a flat draw.
-	LeaderBias        float64 `protobuf:"fixed64,7,opt,name=leader_bias,json=leaderBias,proto3" json:"leader_bias,omitempty"`
-	MaxChargesPerHour uint32  `protobuf:"varint,8,opt,name=max_charges_per_hour,json=maxChargesPerHour,proto3" json:"max_charges_per_hour,omitempty"`
+	LeaderBias        *float64 `protobuf:"fixed64,7,opt,name=leader_bias,json=leaderBias,proto3,oneof" json:"leader_bias,omitempty"`
+	MaxChargesPerHour *uint32  `protobuf:"varint,8,opt,name=max_charges_per_hour,json=maxChargesPerHour,proto3,oneof" json:"max_charges_per_hour,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -855,8 +856,8 @@ func (*QuizRules) Descriptor() ([]byte, []int) {
 }
 
 func (x *QuizRules) GetEnabled() bool {
-	if x != nil {
-		return x.Enabled
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
 	}
 	return false
 }
@@ -897,15 +898,15 @@ func (x *QuizRules) GetAnswerWindow() *durationpb.Duration {
 }
 
 func (x *QuizRules) GetLeaderBias() float64 {
-	if x != nil {
-		return x.LeaderBias
+	if x != nil && x.LeaderBias != nil {
+		return *x.LeaderBias
 	}
 	return 0
 }
 
 func (x *QuizRules) GetMaxChargesPerHour() uint32 {
-	if x != nil {
-		return x.MaxChargesPerHour
+	if x != nil && x.MaxChargesPerHour != nil {
+		return *x.MaxChargesPerHour
 	}
 	return 0
 }
@@ -914,26 +915,36 @@ var File_planet_v1_rules_proto protoreflect.FileDescriptor
 
 const file_planet_v1_rules_proto_rawDesc = "" +
 	"\n" +
-	"\x15planet/v1/rules.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x16planet/v1/planet.proto\"\xd6\x01\n" +
+	"\x15planet/v1/rules.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x16planet/v1/planet.proto\"\x81\x02\n" +
 	"\x05Rules\x12-\n" +
 	"\x06clicks\x18\x01 \x01(\v2\x15.planet.v1.ClickRulesR\x06clicks\x12(\n" +
 	"\x04toll\x18\x02 \x01(\v2\x14.planet.v1.TollRulesR\x04toll\x12/\n" +
-	"\abonuses\x18\x03 \x01(\v2\x15.planet.v1.BonusRulesR\abonuses\x12\x16\n" +
-	"\x06frozen\x18\x04 \x01(\bR\x06frozen\x12+\n" +
-	"\x11allegiance_locked\x18\x05 \x01(\bR\x10allegianceLocked\"\xc3\x02\n" +
+	"\abonuses\x18\x03 \x01(\v2\x15.planet.v1.BonusRulesR\abonuses\x12\x1b\n" +
+	"\x06frozen\x18\x04 \x01(\bH\x00R\x06frozen\x88\x01\x01\x120\n" +
+	"\x11allegiance_locked\x18\x05 \x01(\bH\x01R\x10allegianceLocked\x88\x01\x01B\t\n" +
+	"\a_frozenB\x14\n" +
+	"\x12_allegiance_locked\"\x83\x04\n" +
 	"\n" +
-	"ClickRules\x12\x14\n" +
-	"\x05tempo\x18\x01 \x01(\x01R\x05tempo\x12\x1d\n" +
+	"ClickRules\x12\x19\n" +
+	"\x05tempo\x18\x01 \x01(\x01H\x00R\x05tempo\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"per_second\x18\x02 \x01(\x01R\tperSecond\x12\x14\n" +
-	"\x05burst\x18\x03 \x01(\rR\x05burst\x12)\n" +
-	"\x10scope_multiplier\x18\x04 \x01(\x01R\x0fscopeMultiplier\x12.\n" +
-	"\x13v6_scope_multiplier\x18\x05 \x01(\x01R\x11v6ScopeMultiplier\x124\n" +
-	"\x16guest_scope_multiplier\x18\x06 \x01(\x01R\x14guestScopeMultiplier\x12+\n" +
-	"\x11linked_multiplier\x18\a \x01(\x01R\x10linkedMultiplier\x12,\n" +
-	"\x12new_account_clicks\x18\b \x01(\x01R\x10newAccountClicks\"6\n" +
+	"per_second\x18\x02 \x01(\x01H\x01R\tperSecond\x88\x01\x01\x12\x19\n" +
+	"\x05burst\x18\x03 \x01(\rH\x02R\x05burst\x88\x01\x01\x12.\n" +
+	"\x10scope_multiplier\x18\x04 \x01(\x01H\x03R\x0fscopeMultiplier\x88\x01\x01\x123\n" +
+	"\x13v6_scope_multiplier\x18\x05 \x01(\x01H\x04R\x11v6ScopeMultiplier\x88\x01\x01\x129\n" +
+	"\x16guest_scope_multiplier\x18\x06 \x01(\x01H\x05R\x14guestScopeMultiplier\x88\x01\x01\x120\n" +
+	"\x11linked_multiplier\x18\a \x01(\x01H\x06R\x10linkedMultiplier\x88\x01\x01\x121\n" +
+	"\x12new_account_clicks\x18\b \x01(\x01H\aR\x10newAccountClicks\x88\x01\x01B\b\n" +
+	"\x06_tempoB\r\n" +
+	"\v_per_secondB\b\n" +
+	"\x06_burstB\x13\n" +
+	"\x11_scope_multiplierB\x16\n" +
+	"\x14_v6_scope_multiplierB\x19\n" +
+	"\x17_guest_scope_multiplierB\x14\n" +
+	"\x12_linked_multiplierB\x15\n" +
+	"\x13_new_account_clicks\"6\n" +
 	"\tTollRules\x12)\n" +
-	"\x05steps\x18\x01 \x03(\v2\x13.planet.v1.TollStepR\x05steps\"\xd6\x04\n" +
+	"\x05steps\x18\x01 \x03(\v2\x13.planet.v1.TollStepR\x05steps\"\xee\x04\n" +
 	"\n" +
 	"BonusRules\x12(\n" +
 	"\x05boxes\x18\x01 \x01(\v2\x12.planet.v1.BoxPaceR\x05boxes\x12,\n" +
@@ -948,46 +959,69 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x06shield\x18\t \x01(\v2\x16.planet.v1.ShieldRulesR\x06shield\x121\n" +
 	"\awelcome\x18\n" +
 	" \x01(\v2\x17.planet.v1.WelcomeRulesR\awelcome\x12(\n" +
-	"\x04quiz\x18\v \x01(\v2\x14.planet.v1.QuizRulesR\x04quiz\x12$\n" +
-	"\x0esign_in_refill\x18\f \x01(\bR\fsignInRefill\"\xb6\x01\n" +
+	"\x04quiz\x18\v \x01(\v2\x14.planet.v1.QuizRulesR\x04quiz\x12)\n" +
+	"\x0esign_in_refill\x18\f \x01(\bH\x00R\fsignInRefill\x88\x01\x01B\x11\n" +
+	"\x0f_sign_in_refill\"\xd4\x01\n" +
 	"\aBoxPace\x12<\n" +
 	"\fmin_interval\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\vminInterval\x12<\n" +
-	"\fmax_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\vmaxInterval\x12/\n" +
-	"\x14max_charges_per_hour\x18\x03 \x01(\rR\x11maxChargesPerHour\"\x9f\x01\n" +
-	"\vKindWeights\x12\x16\n" +
-	"\x06refill\x18\x01 \x01(\x01R\x06refill\x12#\n" +
-	"\rspread_clicks\x18\x02 \x01(\x01R\fspreadClicks\x12%\n" +
-	"\x0eenclose_clicks\x18\x03 \x01(\x01R\rencloseClicks\x12\x12\n" +
-	"\x04bomb\x18\x04 \x01(\x01R\x04bomb\x12\x18\n" +
-	"\ashields\x18\x05 \x01(\x01R\ashields\"E\n" +
-	"\vSpreadRules\x12\x16\n" +
-	"\x06clicks\x18\x01 \x01(\rR\x06clicks\x12\x1e\n" +
-	"\vmax_per_box\x18\x02 \x01(\rR\tmaxPerBox\"!\n" +
-	"\tBombRules\x12\x14\n" +
-	"\x05rings\x18\x01 \x01(\x01R\x05rings\"_\n" +
-	"\fEncloseRules\x12\x1b\n" +
-	"\tmax_tiles\x18\x01 \x01(\rR\bmaxTiles\x12\x12\n" +
-	"\x04held\x18\x02 \x01(\rR\x04held\x12\x1e\n" +
-	"\vmax_per_box\x18\x03 \x01(\rR\tmaxPerBox\"|\n" +
-	"\vShieldRules\x12\x12\n" +
-	"\x04held\x18\x01 \x01(\rR\x04held\x12\x1e\n" +
-	"\vmin_per_box\x18\x02 \x01(\rR\tminPerBox\x12\x1e\n" +
-	"\vmax_per_box\x18\x03 \x01(\rR\tmaxPerBox\x12\x19\n" +
-	"\bper_tile\x18\x04 \x01(\rR\aperTile\"y\n" +
+	"\fmax_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\vmaxInterval\x124\n" +
+	"\x14max_charges_per_hour\x18\x03 \x01(\rH\x00R\x11maxChargesPerHour\x88\x01\x01B\x17\n" +
+	"\x15_max_charges_per_hour\"\xfd\x01\n" +
+	"\vKindWeights\x12\x1b\n" +
+	"\x06refill\x18\x01 \x01(\x01H\x00R\x06refill\x88\x01\x01\x12(\n" +
+	"\rspread_clicks\x18\x02 \x01(\x01H\x01R\fspreadClicks\x88\x01\x01\x12*\n" +
+	"\x0eenclose_clicks\x18\x03 \x01(\x01H\x02R\rencloseClicks\x88\x01\x01\x12\x17\n" +
+	"\x04bomb\x18\x04 \x01(\x01H\x03R\x04bomb\x88\x01\x01\x12\x1d\n" +
+	"\ashields\x18\x05 \x01(\x01H\x04R\ashields\x88\x01\x01B\t\n" +
+	"\a_refillB\x10\n" +
+	"\x0e_spread_clicksB\x11\n" +
+	"\x0f_enclose_clicksB\a\n" +
+	"\x05_bombB\n" +
+	"\n" +
+	"\b_shields\"j\n" +
+	"\vSpreadRules\x12\x1b\n" +
+	"\x06clicks\x18\x01 \x01(\rH\x00R\x06clicks\x88\x01\x01\x12#\n" +
+	"\vmax_per_box\x18\x02 \x01(\rH\x01R\tmaxPerBox\x88\x01\x01B\t\n" +
+	"\a_clicksB\x0e\n" +
+	"\f_max_per_box\"0\n" +
+	"\tBombRules\x12\x19\n" +
+	"\x05rings\x18\x01 \x01(\x01H\x00R\x05rings\x88\x01\x01B\b\n" +
+	"\x06_rings\"\x95\x01\n" +
+	"\fEncloseRules\x12 \n" +
+	"\tmax_tiles\x18\x01 \x01(\rH\x00R\bmaxTiles\x88\x01\x01\x12\x17\n" +
+	"\x04held\x18\x02 \x01(\rH\x01R\x04held\x88\x01\x01\x12#\n" +
+	"\vmax_per_box\x18\x03 \x01(\rH\x02R\tmaxPerBox\x88\x01\x01B\f\n" +
+	"\n" +
+	"_max_tilesB\a\n" +
+	"\x05_heldB\x0e\n" +
+	"\f_max_per_box\"\xc6\x01\n" +
+	"\vShieldRules\x12\x17\n" +
+	"\x04held\x18\x01 \x01(\rH\x00R\x04held\x88\x01\x01\x12#\n" +
+	"\vmin_per_box\x18\x02 \x01(\rH\x01R\tminPerBox\x88\x01\x01\x12#\n" +
+	"\vmax_per_box\x18\x03 \x01(\rH\x02R\tmaxPerBox\x88\x01\x01\x12\x1e\n" +
+	"\bper_tile\x18\x04 \x01(\rH\x03R\aperTile\x88\x01\x01B\a\n" +
+	"\x05_heldB\x0e\n" +
+	"\f_min_per_boxB\x0e\n" +
+	"\f_max_per_boxB\v\n" +
+	"\t_per_tile\"y\n" +
 	"\fWelcomeRules\x121\n" +
 	"\x06within\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x06within\x126\n" +
-	"\tbox_after\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bboxAfter\"\xa5\x03\n" +
-	"\tQuizRules\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\x12<\n" +
+	"\tbox_after\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bboxAfter\"\xe9\x03\n" +
+	"\tQuizRules\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12<\n" +
 	"\fmin_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\vminInterval\x12<\n" +
 	"\fmax_interval\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\vmaxInterval\x128\n" +
 	"\n" +
 	"miss_retry\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\tmissRetry\x126\n" +
 	"\toffer_ttl\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\bofferTtl\x12>\n" +
-	"\ranswer_window\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\fanswerWindow\x12\x1f\n" +
-	"\vleader_bias\x18\a \x01(\x01R\n" +
-	"leaderBias\x12/\n" +
-	"\x14max_charges_per_hour\x18\b \x01(\rR\x11maxChargesPerHourB\xb2\x01\n" +
+	"\ranswer_window\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\fanswerWindow\x12$\n" +
+	"\vleader_bias\x18\a \x01(\x01H\x01R\n" +
+	"leaderBias\x88\x01\x01\x124\n" +
+	"\x14max_charges_per_hour\x18\b \x01(\rH\x02R\x11maxChargesPerHour\x88\x01\x01B\n" +
+	"\n" +
+	"\b_enabledB\x0e\n" +
+	"\f_leader_biasB\x17\n" +
+	"\x15_max_charges_per_hourB\xb2\x01\n" +
 	"\rcom.planet.v1B\n" +
 	"RulesProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
@@ -1059,6 +1093,16 @@ func file_planet_v1_rules_proto_init() {
 		return
 	}
 	file_planet_v1_planet_proto_init()
+	file_planet_v1_rules_proto_msgTypes[0].OneofWrappers = []any{}
+	file_planet_v1_rules_proto_msgTypes[1].OneofWrappers = []any{}
+	file_planet_v1_rules_proto_msgTypes[3].OneofWrappers = []any{}
+	file_planet_v1_rules_proto_msgTypes[4].OneofWrappers = []any{}
+	file_planet_v1_rules_proto_msgTypes[5].OneofWrappers = []any{}
+	file_planet_v1_rules_proto_msgTypes[6].OneofWrappers = []any{}
+	file_planet_v1_rules_proto_msgTypes[7].OneofWrappers = []any{}
+	file_planet_v1_rules_proto_msgTypes[8].OneofWrappers = []any{}
+	file_planet_v1_rules_proto_msgTypes[9].OneofWrappers = []any{}
+	file_planet_v1_rules_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

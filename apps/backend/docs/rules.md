@@ -8,23 +8,33 @@ Which set each plays is the schedule's (see [The gamemaster module](gamemaster.m
 
 ## A rule set
 
-**A set is a name and every rule value, all written.** No value falls back to another set, to a default in Go, or to
-one in SQL. Its snapshot is the wire's message: `rules.Snapshot{Name, Rules *planetv1.Rules}`, which the store keeps,
-the operator's calls carry and the log lines print as it is. `Snapshot.Restore(parts)` is the one check.
+**`default` holds every value; every other set holds only the values it changes, and plays default's for the rest**
+(the user's rule, 2026-10-31). Until then a set held every value: a change to `default` reached no other set, and
+each rule added took a migration into every set. Every value of `planet.v1.Rules` is `optional`, so a set can hold a
+zero or a `false` of its own; nothing falls back to a default in Go or in SQL. Its snapshot is the wire's message:
+`rules.Snapshot{Name, Rules *planetv1.Rules}`, which the store keeps and the operator's calls carry.
+`Snapshot.Restore(parts, defaults)` is the one check.
+
+- **What a set plays is default's values with its own written over them** (`cpproto.Overlay`). A message it holds is
+  overlaid value by value. A list, a `Duration` and a message of lists only are one value each: a set that holds `toll`
+  holds every step, and `toll: {}` is no toll. `default` plays alone, whatever `defaults` it is restored with.
+- **`Set.TakeSnapshot()` is what the set holds**: what is kept and edited. `TakePlayedSnapshot()` is what it plays,
+  which the log lines print. `Set.Equal` compares what two sets play.
 
 - **Each part is read by the package that plays it.** `clicks` owns two parts, `clicks` (`Throttle`) and `toll`
   (`TollSteps`); `bonuses` owns `bonuses` (`Rules`). Each part has its `Validate`, its `…Of(message)` (`message.go`)
   and a `Part` (`rules.PartOf[R]{Key, Read}`). The `rules` package names none of them.
 - **`parts.All()` is the one list of parts** (`rules/parts`). A concept that reads the rules adds its field to
   `planet.v1.Rules`, its part, and one line there; nothing in `rules`, the store or the handlers changes.
-- **`Restore` reads and validates every part**, and keeps each part's rules, so a read never converts again. It
-  refuses a set any part refuses, with every reason, each named by its path as `planet.v1.Rules` writes it:
-  `clicks.burst is 0, under one click (1); bonuses.quiz.answerWindow is 0s, and must be above 0`. A part left out of
-  the message reads as zeros, which its `Validate` refuses.
+- **`Restore` reads and validates every part of what the set plays**, and keeps each part's rules, so a read never
+  converts again. It refuses a set any part refuses, with every reason, each named by its path as `planet.v1.Rules`
+  writes it: `clicks.burst is 0, under one click (1); bonuses.quiz.answerWindow is 0s, and must be above 0`. A value
+  neither the set nor `default` holds reads as zero, which its `Validate` refuses. A set's own value is checked against
+  default's too: a shortest box wait over default's longest is refused.
 - **The name** is a lowercase letter, then up to 31 of a-z, 0-9, `-` and `_`.
 - **`default`** is seeded by migration `20261026210000_rule_sets` with production's values of that day, the ones
   `deploy/vps/backend.yaml` held. `TestTheMigrationSeedsDefaultWithProductionsRules` compares it with `rules.Seeded()`,
-  the fixture the tests share (`rules.Named(name, change)` changes it).
+  the fixture the tests share (`rules.Named(name, change)` is a set that holds every value, `Seeded()`'s changed).
 
 ### The rules, by part
 
@@ -74,22 +84,30 @@ operator call freezes the map at once.
   GetBudget sets it), and a set taking over sends `rules_changed`, so an open tab reads it again within a second.
 - **Boxes and quizzes are offered on a timer** to a caller who clicked within `bonuses.activeWithin`, so one may still
   be offered in the first minutes of a freeze: claiming or answering it is refused, and it lapses.
-- **The antibot needs a set of the same name** for the entry to be scheduled (a copy of `default` does).
+- **The antibot needs a set of the same name** for the entry to be scheduled (an empty one does: it judges with
+  default's).
 
 ## Where it is kept
 
-**One row per set, the rules as one `jsonb` document**: `planet.rule_sets(name, rules)`, the document a
-`planet.v1.Rules` as protojson writes it, its zeros too (`EmitUnpopulated`). About forty values, a list (the toll) and
-a map (the kinds) would be forty columns and a child table. The proto message is already the wire's, so the store,
-the RPC and the page read one shape.
+**One row per set, the rules as one `jsonb` document**: `planet.rule_sets(name, rules)`, the values the set holds as
+protojson writes a `planet.v1.Rules`: a value held is written, a zero too; a value left unset is not. A key present is a
+value the set holds. About forty values and a list (the toll) would be forty columns and a child table. The proto
+message is already the wire's, so the store, the RPC and the page read one shape.
 
 - **The store answers sets, never snapshots** (`rules.Store`, the user's rule of 2026-10-26).
-  `postgres_rule_set_store` is built with the parts: it reads a document into a snapshot and restores it, so a kept
-  set that cannot play is `ErrInvalidSet` with every reason; it saves a set's snapshot. The snapshot never leaves the
+  `postgres_rule_set_store` is built with the parts: `Set(name)` reads the set's document and default's and restores the
+  one over the other, so a kept set that cannot play is `ErrInvalidSet` with every reason, and a set with no `default`
+  kept is `ErrUnknownSet`; `Names` lists the sets kept; `Save` writes a set's snapshot. The snapshot never leaves the
   adapter. `rules.MemoryStore` is the fake (`Keep` puts in a snapshot as a hand edit in SQL would), and
   `rules.StoreContractSuite` runs on both. A key the proto no longer has is ignored on read.
-- **A rule added later needs a migration** that writes its value into every set (`jsonb_set`). Without one, the set
-  reads the value as zero; where zero cannot play, the set no longer restores, and the next boot is refused.
+- **A rule added later needs a migration** that writes its value into `default` (`jsonb_set`); every other set plays
+  it from there. Without one, default reads the value as zero; where zero cannot play, no set restores, and the next
+  boot is refused.
+- **Migration `20261031180000_rule_sets_inherit_default`** made every set but `default` hold only what it changes. A
+  value equal to default's was dropped; a value it left out or kept as `null`, which it read as zero, was written as
+  that zero. So each set played the same before and after; only a later change to `default` now reaches it. It also
+  wrote `frozen: false` into `default`, written before the map could freeze. The down migration writes default's values
+  back into each set, for a build from before.
 
 ## The rules in force
 
@@ -110,8 +128,9 @@ The readers call it where they use the rules, not when they are built: a set tak
   `commands/play_rule_set_handler`). A missing or broken set at boot refuses the boot. Each time it reads the set to
   play from the store and enforces it when its values changed (`Set.Equal`), one play at a time under a lock. A failed
   read, or a kept set that cannot play, keeps the rules in force, and `log_play_rules` logs it; each set taken is
-  logged at Warn (`rules in force`, `set`, `rules` as protojson). A hand edit in SQL takes effect at the next play or
-  boot.
+  logged at Warn (`rules in force`, `set`, `rules`: every value it plays, as protojson). A save of `default` changes
+  what the set in force plays when it leaves the value unset, so it is enforced again. A hand edit in SQL takes effect
+  at the next play or boot.
 - **The choice is kept** in `planet.rule_set_choice` (`rules.Choice`: the set and when the schedule decided it, one
   row, `postgres_choice_store`): a later decision overrules it, and an older one or one sent again changes nothing. A
   set planet keeps none of is refused, the choice is not kept, and the command is dropped.
@@ -161,8 +180,12 @@ YAML file's planet keys with unused keys refused: a rule left in a file would be
 
 - **`GetRules`** answers every set postgres keeps, `default` first, as kept (one that cannot play too, so it can be
   mended), and `playing`, the name of the set in force (`rule_sets_query` beside the name `InForce` holds).
-- **`SaveRuleSet{set}`** makes a set or replaces its values: `save_rule_set_usecase` restores the snapshot the call
-  carries, and hands the store the set. A set `Restore` refuses is `InvalidArgument`, with every reason. **Then it plays the set chosen last again**
+- **`SaveRuleSet{set}`** makes a set or replaces the values it holds: `save_rule_set_usecase` restores the snapshot the
+  call carries over the `default` kept, and hands the store the set. A set `Restore` refuses is `InvalidArgument`, with
+  every reason. **A save of `default` is refused while another set cannot play over it**, each such set named with its
+  reasons, so a battle's set never fails when the schedule picks it; the check reads every set in the save's
+  transaction, so nothing is kept. A set that already could not play blocks a save of `default` until it is mended.
+  **Then it plays the set chosen last again**
   (`play_rules_usecase.Execute`, through `log_play_rules`): a save of the set in force takes over at once, and a save of
   another set changes nothing. A play that fails after the save is an error; the set stays kept and plays at the next
   play or boot.

@@ -8,8 +8,8 @@ import { Duration, Message, proto3 } from "@bufbuild/protobuf";
 import { TollStep } from "./planet_pb.js";
 
 /**
- * Every value a player feels, all written: none falls back to another set or to a default. Postgres keeps it as
- * protojson (planet.rule_sets.rules).
+ * Every value a player feels. "default" holds every value; another set holds the values it changes, and plays default's
+ * for every value it leaves unset. Postgres keeps it as protojson (planet.rule_sets.rules).
  *
  * @generated from message planet.v1.Rules
  */
@@ -33,17 +33,17 @@ export class Rules extends Message<Rules> {
    * The map takes no play: Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz are refused. The
    * map still loads and streams.
    *
-   * @generated from field: bool frozen = 4;
+   * @generated from field: optional bool frozen = 4;
    */
-  frozen = false;
+  frozen?: boolean;
 
   /**
    * No account changes its flag: PledgeAllegiance refuses another flag to an account that holds one. A first flag is
    * still taken.
    *
-   * @generated from field: bool allegiance_locked = 5;
+   * @generated from field: optional bool allegiance_locked = 5;
    */
-  allegianceLocked = false;
+  allegianceLocked?: boolean;
 
   constructor(data?: PartialMessage<Rules>) {
     super();
@@ -56,8 +56,8 @@ export class Rules extends Message<Rules> {
     { no: 1, name: "clicks", kind: "message", T: ClickRules },
     { no: 2, name: "toll", kind: "message", T: TollRules },
     { no: 3, name: "bonuses", kind: "message", T: BonusRules },
-    { no: 4, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "allegiance_locked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 5, name: "allegiance_locked", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rules {
@@ -84,54 +84,54 @@ export class ClickRules extends Message<ClickRules> {
   /**
    * How many times faster than per_second every bucket refills.
    *
-   * @generated from field: double tempo = 1;
+   * @generated from field: optional double tempo = 1;
    */
-  tempo = 0;
+  tempo?: number;
 
   /**
    * One account's refill, a click a second, and its bank.
    *
-   * @generated from field: double per_second = 2;
+   * @generated from field: optional double per_second = 2;
    */
-  perSecond = 0;
+  perSecond?: number;
 
   /**
-   * @generated from field: uint32 burst = 3;
+   * @generated from field: optional uint32 burst = 3;
    */
-  burst = 0;
+  burst?: number;
 
   /**
    * The address's bucket, in accounts; an IPv6 /64's has its own.
    *
-   * @generated from field: double scope_multiplier = 4;
+   * @generated from field: optional double scope_multiplier = 4;
    */
-  scopeMultiplier = 0;
+  scopeMultiplier?: number;
 
   /**
-   * @generated from field: double v6_scope_multiplier = 5;
+   * @generated from field: optional double v6_scope_multiplier = 5;
    */
-  v6ScopeMultiplier = 0;
+  v6ScopeMultiplier?: number;
 
   /**
    * The bucket every guest behind an address shares, in accounts.
    *
-   * @generated from field: double guest_scope_multiplier = 6;
+   * @generated from field: optional double guest_scope_multiplier = 6;
    */
-  guestScopeMultiplier = 0;
+  guestScopeMultiplier?: number;
 
   /**
    * How many times as fast a signed-in account refills.
    *
-   * @generated from field: double linked_multiplier = 7;
+   * @generated from field: optional double linked_multiplier = 7;
    */
-  linkedMultiplier = 0;
+  linkedMultiplier?: number;
 
   /**
    * What a new account's bank holds when it is made; it earns the rest at per_second.
    *
-   * @generated from field: double new_account_clicks = 8;
+   * @generated from field: optional double new_account_clicks = 8;
    */
-  newAccountClicks = 0;
+  newAccountClicks?: number;
 
   constructor(data?: PartialMessage<ClickRules>) {
     super();
@@ -141,14 +141,14 @@ export class ClickRules extends Message<ClickRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.ClickRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "tempo", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 2, name: "per_second", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 3, name: "burst", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 4, name: "scope_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 5, name: "v6_scope_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 6, name: "guest_scope_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 7, name: "linked_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 8, name: "new_account_clicks", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 1, name: "tempo", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 2, name: "per_second", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 3, name: "burst", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 4, name: "scope_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 5, name: "v6_scope_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 6, name: "guest_scope_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 7, name: "linked_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 8, name: "new_account_clicks", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickRules {
@@ -173,7 +173,8 @@ export class ClickRules extends Message<ClickRules> {
  */
 export class TollRules extends Message<TollRules> {
   /**
-   * Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower. None is no toll.
+   * Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower. None is no toll. A
+   * set that holds `toll` holds every step.
    *
    * @generated from field: repeated planet.v1.TollStep steps = 1;
    */
@@ -273,9 +274,9 @@ export class BonusRules extends Message<BonusRules> {
   /**
    * A guest's first sign-in earns a refill, once per account.
    *
-   * @generated from field: bool sign_in_refill = 12;
+   * @generated from field: optional bool sign_in_refill = 12;
    */
-  signInRefill = false;
+  signInRefill?: boolean;
 
   constructor(data?: PartialMessage<BonusRules>) {
     super();
@@ -296,7 +297,7 @@ export class BonusRules extends Message<BonusRules> {
     { no: 9, name: "shield", kind: "message", T: ShieldRules },
     { no: 10, name: "welcome", kind: "message", T: WelcomeRules },
     { no: 11, name: "quiz", kind: "message", T: QuizRules },
-    { no: 12, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 12, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BonusRules {
@@ -331,9 +332,9 @@ export class BoxPace extends Message<BoxPace> {
   maxInterval?: Duration;
 
   /**
-   * @generated from field: uint32 max_charges_per_hour = 3;
+   * @generated from field: optional uint32 max_charges_per_hour = 3;
    */
-  maxChargesPerHour = 0;
+  maxChargesPerHour?: number;
 
   constructor(data?: PartialMessage<BoxPace>) {
     super();
@@ -345,7 +346,7 @@ export class BoxPace extends Message<BoxPace> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "min_interval", kind: "message", T: Duration },
     { no: 2, name: "max_interval", kind: "message", T: Duration },
-    { no: 3, name: "max_charges_per_hour", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "max_charges_per_hour", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BoxPace {
@@ -372,29 +373,29 @@ export class BoxPace extends Message<BoxPace> {
  */
 export class KindWeights extends Message<KindWeights> {
   /**
-   * @generated from field: double refill = 1;
+   * @generated from field: optional double refill = 1;
    */
-  refill = 0;
+  refill?: number;
 
   /**
-   * @generated from field: double spread_clicks = 2;
+   * @generated from field: optional double spread_clicks = 2;
    */
-  spreadClicks = 0;
+  spreadClicks?: number;
 
   /**
-   * @generated from field: double enclose_clicks = 3;
+   * @generated from field: optional double enclose_clicks = 3;
    */
-  encloseClicks = 0;
+  encloseClicks?: number;
 
   /**
-   * @generated from field: double bomb = 4;
+   * @generated from field: optional double bomb = 4;
    */
-  bomb = 0;
+  bomb?: number;
 
   /**
-   * @generated from field: double shields = 5;
+   * @generated from field: optional double shields = 5;
    */
-  shields = 0;
+  shields?: number;
 
   constructor(data?: PartialMessage<KindWeights>) {
     super();
@@ -404,11 +405,11 @@ export class KindWeights extends Message<KindWeights> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.KindWeights";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "refill", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 2, name: "spread_clicks", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 3, name: "enclose_clicks", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 4, name: "bomb", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 5, name: "shields", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 1, name: "refill", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 2, name: "spread_clicks", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 3, name: "enclose_clicks", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 4, name: "bomb", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 5, name: "shields", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KindWeights {
@@ -435,14 +436,14 @@ export class SpreadRules extends Message<SpreadRules> {
   /**
    * The pool a hand holds at most.
    *
-   * @generated from field: uint32 clicks = 1;
+   * @generated from field: optional uint32 clicks = 1;
    */
-  clicks = 0;
+  clicks?: number;
 
   /**
-   * @generated from field: uint32 max_per_box = 2;
+   * @generated from field: optional uint32 max_per_box = 2;
    */
-  maxPerBox = 0;
+  maxPerBox?: number;
 
   constructor(data?: PartialMessage<SpreadRules>) {
     super();
@@ -452,8 +453,8 @@ export class SpreadRules extends Message<SpreadRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.SpreadRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 2, name: "max_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 1, name: "clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 2, name: "max_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SpreadRules {
@@ -480,9 +481,9 @@ export class BombRules extends Message<BombRules> {
   /**
    * The blast's radius, in tile spacings.
    *
-   * @generated from field: double rings = 1;
+   * @generated from field: optional double rings = 1;
    */
-  rings = 0;
+  rings?: number;
 
   constructor(data?: PartialMessage<BombRules>) {
     super();
@@ -492,7 +493,7 @@ export class BombRules extends Message<BombRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.BombRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "rings", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 1, name: "rings", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BombRules {
@@ -517,21 +518,21 @@ export class BombRules extends Message<BombRules> {
  */
 export class EncloseRules extends Message<EncloseRules> {
   /**
-   * @generated from field: uint32 max_tiles = 1;
+   * @generated from field: optional uint32 max_tiles = 1;
    */
-  maxTiles = 0;
+  maxTiles?: number;
 
   /**
    * The stack a hand holds at most.
    *
-   * @generated from field: uint32 held = 2;
+   * @generated from field: optional uint32 held = 2;
    */
-  held = 0;
+  held?: number;
 
   /**
-   * @generated from field: uint32 max_per_box = 3;
+   * @generated from field: optional uint32 max_per_box = 3;
    */
-  maxPerBox = 0;
+  maxPerBox?: number;
 
   constructor(data?: PartialMessage<EncloseRules>) {
     super();
@@ -541,9 +542,9 @@ export class EncloseRules extends Message<EncloseRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.EncloseRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 2, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "max_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 1, name: "max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 2, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 3, name: "max_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EncloseRules {
@@ -570,26 +571,26 @@ export class ShieldRules extends Message<ShieldRules> {
   /**
    * The stack a hand holds at most.
    *
-   * @generated from field: uint32 held = 1;
+   * @generated from field: optional uint32 held = 1;
    */
-  held = 0;
+  held?: number;
 
   /**
-   * @generated from field: uint32 min_per_box = 2;
+   * @generated from field: optional uint32 min_per_box = 2;
    */
-  minPerBox = 0;
+  minPerBox?: number;
 
   /**
-   * @generated from field: uint32 max_per_box = 3;
+   * @generated from field: optional uint32 max_per_box = 3;
    */
-  maxPerBox = 0;
+  maxPerBox?: number;
 
   /**
    * At most 255.
    *
-   * @generated from field: uint32 per_tile = 4;
+   * @generated from field: optional uint32 per_tile = 4;
    */
-  perTile = 0;
+  perTile?: number;
 
   constructor(data?: PartialMessage<ShieldRules>) {
     super();
@@ -599,10 +600,10 @@ export class ShieldRules extends Message<ShieldRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.ShieldRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 2, name: "min_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "max_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 4, name: "per_tile", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 1, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 2, name: "min_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 3, name: "max_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 4, name: "per_tile", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ShieldRules {
@@ -672,9 +673,9 @@ export class WelcomeRules extends Message<WelcomeRules> {
  */
 export class QuizRules extends Message<QuizRules> {
   /**
-   * @generated from field: bool enabled = 1;
+   * @generated from field: optional bool enabled = 1;
    */
-  enabled = false;
+  enabled?: boolean;
 
   /**
    * @generated from field: google.protobuf.Duration min_interval = 2;
@@ -704,14 +705,14 @@ export class QuizRules extends Message<QuizRules> {
   /**
    * How much a question leans to the countries that hold the most; 0 is a flat draw.
    *
-   * @generated from field: double leader_bias = 7;
+   * @generated from field: optional double leader_bias = 7;
    */
-  leaderBias = 0;
+  leaderBias?: number;
 
   /**
-   * @generated from field: uint32 max_charges_per_hour = 8;
+   * @generated from field: optional uint32 max_charges_per_hour = 8;
    */
-  maxChargesPerHour = 0;
+  maxChargesPerHour?: number;
 
   constructor(data?: PartialMessage<QuizRules>) {
     super();
@@ -721,14 +722,14 @@ export class QuizRules extends Message<QuizRules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.QuizRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 2, name: "min_interval", kind: "message", T: Duration },
     { no: 3, name: "max_interval", kind: "message", T: Duration },
     { no: 4, name: "miss_retry", kind: "message", T: Duration },
     { no: 5, name: "offer_ttl", kind: "message", T: Duration },
     { no: 6, name: "answer_window", kind: "message", T: Duration },
-    { no: 7, name: "leader_bias", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 8, name: "max_charges_per_hour", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 7, name: "leader_bias", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 8, name: "max_charges_per_hour", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): QuizRules {

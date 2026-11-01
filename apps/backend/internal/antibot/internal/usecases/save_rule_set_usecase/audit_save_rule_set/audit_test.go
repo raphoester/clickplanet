@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -19,7 +21,7 @@ type stubUseCase struct{ err error }
 
 func (s stubUseCase) Execute(context.Context, rules.Snapshot) error { return s.err }
 
-var rush = rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 50 })
+var rush = rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = proto.Uint32(50) })
 
 func TestASaveIsLoggedWithTheSetItKept(t *testing.T) {
 	var logs bytes.Buffer

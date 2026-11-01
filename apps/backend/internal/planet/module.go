@@ -360,7 +360,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetTerritoriesHandler: getTerritories,
 				GetRulesHandler:       get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
 				SaveRuleSetHandler: save_rule_set_handler.New(
-					audit_save_rule_set.New(save_rule_set_usecase.New(ruleSets, ruleParts, playRules), props.Logger)),
+					audit_save_rule_set.New(save_rule_set_usecase.New(db, ruleSets, ruleParts, playRules), props.Logger)),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

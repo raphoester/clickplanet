@@ -16,7 +16,7 @@ import (
 
 func TestTheNamesAreEverySetKeptByName(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
-	rush, err := rules.Named("rush", rules.AsIs).Restore(parts.All())
+	rush, err := rules.Named("rush", rules.AsIs).Restore(parts.All(), rules.Seeded())
 	require.NoError(t, err)
 	require.NoError(t, postgres_rule_set_store.New(db, parts.All()).Save(t.Context(), rush))
 

@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -44,7 +46,7 @@ func TestAPlayThatTookNothingLogsNothing(t *testing.T) {
 
 func TestTheSetTakenIsLoggedWithItsRules(t *testing.T) {
 	logs, err := run(t.Context(), stubExecutor{
-		taken: rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = 3 }), took: true,
+		taken: rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = proto.Float64(3) }), took: true,
 	})
 
 	require.NoError(t, err)

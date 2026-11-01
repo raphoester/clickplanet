@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -23,24 +25,24 @@ func withTheWeekOfSeptember23(config *guard.Config, set *antibotv1.Rules) {
 	set.Metronome.MaxGap = durationpb.New(7 * time.Second)
 	set.Metronome.MaxSpread = durationpb.New(400 * time.Millisecond)
 	set.Metronome.Shape.MaxGap = durationpb.New(10 * time.Second)
-	set.Metronome.Shape.Clicks = 500
-	set.Metronome.Shape.CertainClicks = 1000
+	set.Metronome.Shape.Clicks = proto.Uint32(500)
+	set.Metronome.Shape.CertainClicks = proto.Uint32(1000)
 	set.Metronome.Clock.Period = durationpb.New(time.Second)
-	set.Metronome.Clock.Clicks = 120
+	set.Metronome.Clock.Clicks = proto.Uint32(120)
 	set.Metronome.Clock.MinCoherence = bound(0.6)
-	set.Metronome.Clock.CertainClicks = 600
+	set.Metronome.Clock.CertainClicks = proto.Uint32(600)
 	set.Metronome.Clock.CertainFor = durationpb.New(30 * time.Minute)
 	set.Metronome.Clock.CertainCoherence = bound(0.5)
 
 	config.Catcher.TrackWindow = time.Hour
 	set.Catcher.Foreign.Window = durationpb.New(time.Hour)
-	set.Catcher.Foreign.MinClaims = 5
-	set.Catcher.Foreign.CertainClaims = 10
+	set.Catcher.Foreign.MinClaims = proto.Uint32(5)
+	set.Catcher.Foreign.CertainClaims = proto.Uint32(10)
 
-	set.Defender.Enabled = true
+	set.Defender.Enabled = proto.Bool(true)
 	set.Defender.RetakeWindow = durationpb.New(2 * time.Minute)
-	set.Defender.MinClicks = 40
-	set.Defender.MinShare = 0.6
+	set.Defender.MinClicks = proto.Uint32(40)
+	set.Defender.MinShare = proto.Float64(0.6)
 	config.Defender.TrackWindow = 10 * time.Minute
 }
 

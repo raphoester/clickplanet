@@ -80,12 +80,12 @@ func newStack(t *testing.T, options ...option) *stack {
 
 	set := rules.Seeded().Rules
 	set.Bans.BanDurations = []*durationpb.Duration{durationpb.New(time.Hour)}
-	set.Retaker.MinReactions = 12
+	set.Retaker.MinReactions = proto.Uint32(12)
 	set.Retaker.MaxSpread = durationpb.New(120 * time.Millisecond)
-	set.Retaker.MinTiles = 0
+	set.Retaker.MinTiles = proto.Uint32(0)
 	set.Metronome.MaxGap = durationpb.New(3 * time.Second)
 	set.Metronome.MaxSpread = durationpb.New(120 * time.Millisecond)
-	set.Defender.Enabled = false
+	set.Defender.Enabled = proto.Bool(false)
 
 	for _, option := range options {
 		option(&config, set)
@@ -100,7 +100,7 @@ func newStack(t *testing.T, options ...option) *stack {
 
 func (s *stack) play(kept *antibotv1.Rules) {
 	s.t.Helper()
-	set, err := rules.Snapshot{Name: rules.Default, Rules: kept}.Restore(guard.Parts())
+	set, err := rules.Snapshot{Name: rules.Default, Rules: kept}.Restore(guard.Parts(), rules.Seeded())
 	require.NoError(s.t, err)
 	s.inForce.Enforce(set)
 }
@@ -256,7 +256,7 @@ func TestTheOvernightSweepIsCaught(t *testing.T) {
 }
 
 func TestASetTakenJudgesFromTheNextClick(t *testing.T) {
-	s := newStack(t, func(_ *guard.Config, set *antibotv1.Rules) { set.Jury.MinSuspects = 3 })
+	s := newStack(t, func(_ *guard.Config, set *antibotv1.Rules) { set.Jury.MinSuspects = proto.Uint32(3) })
 
 	tile := uint32(180000)
 	for range 150 {
@@ -266,7 +266,7 @@ func TestASetTakenJudgesFromTheNextClick(t *testing.T) {
 	}
 
 	strict := proto.CloneOf(s.set)
-	strict.Jury.MinSuspects = 2
+	strict.Jury.MinSuspects = proto.Uint32(2)
 	s.play(strict)
 
 	s.clock.Advance(time.Second)
@@ -467,16 +467,16 @@ func TestATileWarBansNeither(t *testing.T) {
 }
 
 func productionRetakes(config *guard.Config, set *antibotv1.Rules) {
-	set.Defender.Enabled = true
+	set.Defender.Enabled = proto.Bool(true)
 	set.Defender.RetakeWindow = durationpb.New(2 * time.Minute)
-	set.Defender.MinClicks = 40
-	set.Defender.MinShare = 0.6
-	set.Defender.CertainClicks = 200
+	set.Defender.MinClicks = proto.Uint32(40)
+	set.Defender.MinShare = proto.Float64(0.6)
+	set.Defender.CertainClicks = proto.Uint32(200)
 	config.Defender.TrackWindow = 10 * time.Minute
 
-	set.Retaker.MinReactions = 20
+	set.Retaker.MinReactions = proto.Uint32(20)
 	set.Retaker.MaxSpread = durationpb.New(300 * time.Millisecond)
-	set.Retaker.MinTiles = 15
+	set.Retaker.MinTiles = proto.Uint32(15)
 	set.Retaker.RoamMedian = durationpb.New(600 * time.Millisecond)
 	config.Retaker.TrackWindow = 15 * time.Minute
 }

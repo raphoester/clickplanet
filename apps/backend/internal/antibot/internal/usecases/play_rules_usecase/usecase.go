@@ -81,10 +81,10 @@ func (u *UseCase) Play(ctx context.Context, choice rules.Choice) (rules.Snapshot
 
 	set, err := u.sets.Set(ctx, choice.Set)
 	if err != nil {
-		return u.taken.TakeSnapshot(), false, fmt.Errorf("could not play the rule set %q: %w", choice.Set, err)
+		return u.taken.TakePlayedSnapshot(), false, fmt.Errorf("could not play the rule set %q: %w", choice.Set, err)
 	}
 	if err := u.choices.Save(ctx, choice); err != nil {
-		return u.taken.TakeSnapshot(), false, fmt.Errorf("could not keep the choice of the rule set %q: %w", choice.Set, err)
+		return u.taken.TakePlayedSnapshot(), false, fmt.Errorf("could not keep the choice of the rule set %q: %w", choice.Set, err)
 	}
 	u.chosen = choice
 
@@ -104,10 +104,10 @@ func (u *UseCase) take(ctx context.Context, set rules.Set) (rules.Snapshot, bool
 func (u *UseCase) restate(ctx context.Context, set rules.Set, took bool) (rules.Snapshot, bool, error) {
 	if u.untold {
 		if err := u.bans.Restate(ctx); err != nil {
-			return set.TakeSnapshot(), took, fmt.Errorf("could not tell planet the running bans under the rule set %q: %w",
+			return set.TakePlayedSnapshot(), took, fmt.Errorf("could not tell planet the running bans under the rule set %q: %w",
 				set.TakeSnapshot().Name, err)
 		}
 		u.untold = false
 	}
-	return set.TakeSnapshot(), took, nil
+	return set.TakePlayedSnapshot(), took, nil
 }

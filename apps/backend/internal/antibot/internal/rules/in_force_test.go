@@ -3,6 +3,8 @@ package rules_test
 import (
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -20,9 +22,9 @@ func TestAReaderReadsItsPartOfTheSetEnforcedLast(t *testing.T) {
 
 	for _, kept := range []rules.Snapshot{
 		rules.Seeded(),
-		rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 50 }),
+		rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = proto.Uint32(50) }),
 	} {
-		set, err := kept.Restore(guard.Parts())
+		set, err := kept.Restore(guard.Parts(), rules.Seeded())
 		require.NoError(t, err)
 		inForce.Enforce(set)
 	}
