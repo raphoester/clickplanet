@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales/inmemory_fight_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/podiums/inmemory_podium_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/award_titles_usecase"
@@ -47,7 +48,7 @@ func (f fixture) award(t *testing.T, catalog titles.Catalog) error {
 func (f fixture) awarded(t *testing.T, catalog titles.Catalog) (titles.IDs, error) {
 	t.Helper()
 
-	useCase := award_titles_usecase.New(f.stats, titles.NewCareers(f.accounts, f.fights), titles.NewBook(f.titles, catalog), cptime.NewFixedClock(monday))
+	useCase := award_titles_usecase.New(f.stats, titles.NewCareers(f.accounts, f.fights, inmemory_podium_store.New()), titles.NewBook(f.titles, catalog), cptime.NewFixedClock(monday))
 	return useCase.Execute(t.Context(), ada) //nolint:wrapcheck // the tests read the use case's error.
 }
 

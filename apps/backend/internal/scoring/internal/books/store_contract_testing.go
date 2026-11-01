@@ -250,7 +250,8 @@ func (s *TakesContractSuite) TestARoundCountsEachTakeOnce() {
 	at := contractBattle.StartsAt
 	both := []RoundID{contractDay.ID, contractBattle.ID}
 
-	s.count(both,
+	s.count(
+		both,
 		Take{Account: contractPlayer, Country: "fr", At: at, Position: 2},
 		Take{Account: contractPlayer, Country: "fr", At: at, Position: 3},
 		Take{Account: contractPlayer, Country: "fr", At: at, Position: 3},
@@ -293,7 +294,8 @@ func (s *TakesContractSuite) TestATakeInNoRoundCountsNothing() {
 
 func (s *TakesContractSuite) TestAnAccountDeletedIsForgottenAndItsFlagKeepsItsTiles() {
 	both := []RoundID{contractBattle.ID}
-	s.count(both,
+	s.count(
+		both,
 		Take{Account: contractPlayer, Country: "fr", At: contractBattle.StartsAt, Position: 1},
 		Take{Account: contractOther, Country: "fr", At: contractBattle.StartsAt, Position: 2},
 	)

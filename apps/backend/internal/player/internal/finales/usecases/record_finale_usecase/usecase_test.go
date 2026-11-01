@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales/usecases/record_finale_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/podiums/inmemory_podium_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/award_titles_usecase"
@@ -69,7 +70,7 @@ func (f fixture) record(t *testing.T, scoring stubScoring) error {
 	t.Helper()
 
 	award := award_titles_usecase.New(
-		f.stats, titles.NewCareers(f.accounts, f.fights), titles.NewBook(f.titles, titles.NewCatalog()), cptime.NewFixedClock(end),
+		f.stats, titles.NewCareers(f.accounts, f.fights, inmemory_podium_store.New()), titles.NewBook(f.titles, titles.NewCatalog()), cptime.NewFixedClock(end),
 	)
 	return record_finale_usecase.New(scoring, f.fights, award).Execute(t.Context(), seasonEnd) //nolint:wrapcheck // the tests read the use case's error.
 }
@@ -117,9 +118,9 @@ func TestEachSignedInFighterIsAwardedItsTitlesAndAGuestNone(t *testing.T) {
 
 	require.NoError(t, f.record(t, finalNight))
 
-	assert.Equal(t, titles.IDs{"season_0_gold", "season_0_top_3", "season_0_veteran"}, f.held(t, ada))
-	assert.Equal(t, titles.IDs{"season_0_top_2", "season_0_veteran"}, f.held(t, bob))
-	assert.Equal(t, titles.IDs{"season_0_top_3", "season_0_veteran"}, f.held(t, carol))
+	assert.Equal(t, titles.IDs{"season_0_gold", "season_0_battle_top_3", "season_0_veteran"}, f.held(t, ada))
+	assert.Equal(t, titles.IDs{"season_0_battle_top_2", "season_0_veteran"}, f.held(t, bob))
+	assert.Equal(t, titles.IDs{"season_0_battle_top_3", "season_0_veteran"}, f.held(t, carol))
 	assert.Empty(t, f.held(t, guest), "first by tiles, but a guest earns nothing yet")
 }
 
@@ -129,8 +130,8 @@ func TestTheSeasonToldAgainChangesNothing(t *testing.T) {
 
 	require.NoError(t, f.record(t, finalNight))
 
-	assert.Equal(t, titles.IDs{"season_0_gold", "season_0_top_3", "season_0_veteran"}, f.held(t, ada))
-	assert.Equal(t, titles.IDs{"season_0_top_2", "season_0_veteran"}, f.held(t, bob))
+	assert.Equal(t, titles.IDs{"season_0_gold", "season_0_battle_top_3", "season_0_veteran"}, f.held(t, ada))
+	assert.Equal(t, titles.IDs{"season_0_battle_top_2", "season_0_veteran"}, f.held(t, bob))
 }
 
 func TestTheSeasonToldAgainRanksTheFightsRecordedBeforeTheRankWasKept(t *testing.T) {
@@ -144,7 +145,7 @@ func TestTheSeasonToldAgainRanksTheFightsRecordedBeforeTheRankWasKept(t *testing
 	found, err := f.fights.Fights(t.Context(), []players.AccountID{bob})
 	require.NoError(t, err)
 	assert.Equal(t, uint32(2), found[bob][0].TakeSnapshot().TilesRank)
-	assert.Equal(t, titles.IDs{"season_0_top_2", "season_0_veteran"}, f.held(t, bob))
+	assert.Equal(t, titles.IDs{"season_0_battle_top_2", "season_0_veteran"}, f.held(t, bob))
 }
 
 func TestAScoringFailureRecordsNothing(t *testing.T) {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/podiums"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
@@ -17,7 +18,7 @@ import (
 var member = players.AccountOf(true, time.Time{})
 
 func careerOf(stats players.StatsSnapshot) titles.Career {
-	return titles.CareerOf(stats.Restore(), member, nil)
+	return titles.CareerOf(stats.Restore(), member, nil, nil)
 }
 
 func tiles(n uint64) titles.Career { return careerOf(players.StatsSnapshot{TilesTaken: n}) }
@@ -87,8 +88,8 @@ func TestAStreakTitleCountsTheBestStreakNotTheCurrentOne(t *testing.T) {
 func TestAnAccountMadeBeforeNovemberIsOG(t *testing.T) {
 	november := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 
-	assert.True(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november.Add(-time.Millisecond)), nil)))
-	assert.False(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november), nil)))
+	assert.True(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november.Add(-time.Millisecond)), nil, nil)))
+	assert.False(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november), nil, nil)))
 	assert.False(t, titles.OG{}.EarnedBy(titles.Career{}), "an account auth does not know has no date")
 }
 
@@ -97,7 +98,7 @@ func fought(t *testing.T, season finales.Season, rank uint32) titles.Career {
 
 	fight, err := finales.FightSnapshot{Season: season, Country: "fr", Rank: rank}.Restore()
 	require.NoError(t, err)
-	return titles.CareerOf(players.Stats{}, member, finales.Fights{fight})
+	return titles.CareerOf(players.Stats{}, member, finales.Fights{fight}, nil)
 }
 
 func TestEachSeasonZeroTitleGoesToWhoFoughtItsFinaleForAFlagThatPlacedSo(t *testing.T) {
@@ -125,23 +126,50 @@ func TestEachSeasonZeroTitleGoesToWhoFoughtItsFinaleForAFlagThatPlacedSo(t *test
 	}
 }
 
-func TestEachSeasonZeroTopTitleGoesToWhoTookThatManyTilesInItsFinale(t *testing.T) {
+func TestEachSeasonZeroBattleTopTitleGoesToWhoTookThatManyTilesInItsFinale(t *testing.T) {
 	ranked := func(season finales.Season, tilesRank uint32) titles.Career {
 		fight, err := finales.FightSnapshot{Season: season, Country: "fr", Rank: 7, TilesRank: tilesRank}.Restore()
 		require.NoError(t, err)
-		return titles.CareerOf(players.Stats{}, member, finales.Fights{fight})
+		return titles.CareerOf(players.Stats{}, member, finales.Fights{fight}, nil)
 	}
 
 	for _, c := range []struct {
 		career titles.Career
 		earned titles.IDs
 	}{
-		{ranked(0, 1), titles.IDs{"season_0_top_1"}},
-		{ranked(0, 2), titles.IDs{"season_0_top_2"}},
-		{ranked(0, 3), titles.IDs{"season_0_top_3"}},
+		{ranked(0, 1), titles.IDs{"season_0_battle_top_1"}},
+		{ranked(0, 2), titles.IDs{"season_0_battle_top_2"}},
+		{ranked(0, 3), titles.IDs{"season_0_battle_top_3"}},
 		{ranked(0, 4), nil},
 		{ranked(0, 0), nil},
 		{ranked(1, 1), nil},
+	} {
+		var earned titles.IDs
+		for _, title := range []titles.Title{titles.Season0BattleTop1{}, titles.Season0BattleTop2{}, titles.Season0BattleTop3{}} {
+			if title.EarnedBy(c.career) {
+				earned = append(earned, title.ID())
+			}
+		}
+		assert.Equal(t, c.earned, earned, "%+v", c.career)
+	}
+}
+
+func TestEachSeasonZeroTopTitleGoesToWhoStoodOnThatStepOfItsPodium(t *testing.T) {
+	stood := func(season finales.Season, rank uint32) titles.Career {
+		place, err := podiums.PlaceSnapshot{Season: season, Rank: rank}.Restore()
+		require.NoError(t, err)
+		return titles.CareerOf(players.Stats{}, member, nil, podiums.Places{place})
+	}
+
+	for _, c := range []struct {
+		career titles.Career
+		earned titles.IDs
+	}{
+		{stood(0, 1), titles.IDs{"season_0_top_1"}},
+		{stood(0, 2), titles.IDs{"season_0_top_2"}},
+		{stood(0, 3), titles.IDs{"season_0_top_3"}},
+		{stood(1, 1), nil},
+		{careerOf(players.StatsSnapshot{}), nil},
 	} {
 		var earned titles.IDs
 		for _, title := range []titles.Title{titles.Season0Top1{}, titles.Season0Top2{}, titles.Season0Top3{}} {
@@ -186,7 +214,7 @@ func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
 				TilesTaken: n, StreakBest: uint32(n), MessagesSent: n,
 				BombsDropped: n, TilesFortified: n, BonusesClaimed: n, RightAnswers: n, MissionsDone: n,
 			}.Restore()
-			assert.True(t, rank.EarnedBy(titles.CareerOf(reached, players.Account{}, nil)),
+			assert.True(t, rank.EarnedBy(titles.CareerOf(reached, players.Account{}, nil, nil)),
 				"%s: %s is earned at its threshold", track.ID(), rank.ID())
 			previous = rank.Threshold()
 		}
@@ -195,7 +223,7 @@ func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
 	career := titles.CareerOf(players.StatsSnapshot{
 		TilesTaken: 14_468, Streak: players.StreakOf(4, players.Day{}), StreakBest: 7, MessagesSent: 312,
 		TilesFortified: 2_046, BombsDropped: 9, BonusesClaimed: 61, RightAnswers: 23, MissionsDone: 17,
-	}.Restore(), players.Account{}, nil)
+	}.Restore(), players.Account{}, nil, nil)
 	assert.Equal(t, uint64(14_468), titles.Conquest{}.Progress(career))
 	assert.Equal(t, uint64(4), titles.Devotion{}.Progress(career), "the streak a player is on now, not its best")
 	assert.Equal(t, uint64(312), titles.Chatter{}.Progress(career))
@@ -221,25 +249,28 @@ func TestEveryTitleHasItsOwnIDTheStoreTakesAndAName(t *testing.T) {
 func TestEachTitleSaysHowItWasEarned(t *testing.T) {
 	catalog := titles.NewCatalog()
 	for id, feat := range map[titles.ID]string{
-		"og":               "Joined before November 2026",
-		"season_0_gold":    "Fought the Final Battle for the flag in 1st place",
-		"season_0_silver":  "Fought the Final Battle for the flag in 2nd place",
-		"season_0_bronze":  "Fought the Final Battle for the flag in 3rd place",
-		"season_0_top_1":   "Took the most tiles in the Final Battle",
-		"season_0_top_2":   "Took the 2nd most tiles in the Final Battle",
-		"season_0_top_3":   "Took the 3rd most tiles in the Final Battle",
-		"season_0_veteran": "Fought the Final Battle",
-		"halloween_2026":   "Played on Halloween 2026",
-		"warmaster":        "Took 1,000,000 tiles",
-		"loyal":            "Played 7 days in a row",
-		"talker":           "Sent 10 messages",
-		"guard":            "Fortified 100 tiles",
-		"bomber":           "Dropped 1 bomb",
-		"blaster":          "Dropped 10 bombs",
-		"looter":           "Caught 10 bonus boxes",
-		"student":          "Answered 10 quizzes right",
-		"rookie":           "Completed 1 mission",
-		"agent":            "Completed 25 missions",
+		"og":                    "Joined before November 2026",
+		"season_0_gold":         "Fought the Final Battle for the flag in 1st place",
+		"season_0_silver":       "Fought the Final Battle for the flag in 2nd place",
+		"season_0_bronze":       "Fought the Final Battle for the flag in 3rd place",
+		"season_0_top_1":        "Ranked 1st of all players in Season 0",
+		"season_0_top_2":        "Ranked 2nd of all players in Season 0",
+		"season_0_top_3":        "Ranked 3rd of all players in Season 0",
+		"season_0_battle_top_1": "Took the most tiles in the Final Battle",
+		"season_0_battle_top_2": "Took the 2nd most tiles in the Final Battle",
+		"season_0_battle_top_3": "Took the 3rd most tiles in the Final Battle",
+		"season_0_veteran":      "Fought the Final Battle",
+		"halloween_2026":        "Played on Halloween 2026",
+		"warmaster":             "Took 1,000,000 tiles",
+		"loyal":                 "Played 7 days in a row",
+		"talker":                "Sent 10 messages",
+		"guard":                 "Fortified 100 tiles",
+		"bomber":                "Dropped 1 bomb",
+		"blaster":               "Dropped 10 bombs",
+		"looter":                "Caught 10 bonus boxes",
+		"student":               "Answered 10 quizzes right",
+		"rookie":                "Completed 1 mission",
+		"agent":                 "Completed 25 missions",
 	} {
 		standing, ok := catalog.StandingOf(id)
 		require.True(t, ok, id)

@@ -101,7 +101,7 @@ func TestAGuestEarnsNothing(t *testing.T) {
 	guest := titles.CareerOf(players.StatsSnapshot{
 		TilesTaken: 1_000_000, StreakBest: 1_000, MessagesSent: 1_000_000, BombsDropped: 1_000_000,
 		TilesFortified: 1_000_000, BonusesClaimed: 1_000_000, RightAnswers: 1_000_000, MissionsDone: 1_000_000,
-	}.Restore(), players.Account{}, nil)
+	}.Restore(), players.Account{}, nil, nil)
 
 	assert.Empty(t, catalog.EarnedBy(guest))
 	assert.Empty(t, titles.NewCatalog().EarnedBy(guest))
@@ -110,7 +110,7 @@ func TestAGuestEarnsNothing(t *testing.T) {
 func TestTheReconciliationGrantsWhatIsEarnedAndRevokesWhatIsNot(t *testing.T) {
 	career := func(account byte, taken uint64, linked bool) titles.Career {
 		return titles.CareerOf(players.StatsSnapshot{Account: players.AccountID{15: account}, TilesTaken: taken}.Restore(),
-			players.AccountOf(linked, time.Time{}), nil)
+			players.AccountOf(linked, time.Time{}), nil, nil)
 	}
 
 	reconciliation := catalog.ReconciliationOf([]titles.Career{
@@ -134,7 +134,7 @@ func TestTheReconciliationNeverRevokesAKeepsake(t *testing.T) {
 	career := func(account byte, days uint32, lastDay time.Time) titles.Career {
 		return titles.CareerOf(players.StatsSnapshot{
 			Account: players.AccountID{15: account}, TilesTaken: 1, Streak: players.StreakOf(days, players.DayOf(lastDay)),
-		}.Restore(), players.AccountOf(true, time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)), nil)
+		}.Restore(), players.AccountOf(true, time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)), nil, nil)
 	}
 	catalog := titles.CatalogOf([]titles.Standalone{titles.Halloween2026{}})
 

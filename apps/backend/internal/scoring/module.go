@@ -156,13 +156,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			OpenRound:  log_command.New("open_round", open_round_usecase.New(bookStore, roundStore), props.Logger),
 			CloseRound: log_command.New("close_round", close_round_usecase.New(db, territories, roundStore, outbox), props.Logger),
 			CloseBook:  log_command.New("close_book", close_book_usecase.New(db, bookStore, roundStore, grantStore, outbox), props.Logger),
-		}), props.Logger)))
+		}), props.Logger,
+	)))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to handle scoring.v1.ScoringCommand: %w", err)
 	}
 	grants, err := cpredis.Handle(ctx, streams, scoring_command_handler.New(log_subscriber.New[*scoringv1.GrantPoints](
-		grant_points_handler.New(log_command.New("grant_points", grant_points_usecase.New(grantStore), props.Logger)), props.Logger)))
+		grant_points_handler.New(log_command.New("grant_points", grant_points_usecase.New(grantStore), props.Logger)), props.Logger,
+	)))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to handle scoring.v1.GrantPoints: %w", err)
@@ -182,8 +184,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		takes, deletions, roundTakes, roundDeletions, commands, grants, cpoutbox.NewRelay("scoring-outbox", db, streams, props.Logger))))
 
 	getRound := get_round_handler.New(roundQuery)
+	getBoard := get_board_handler.New(boardQuery)
 	service := scoringv1controller.ScoringService{
-		GetBoardHandler:       get_board_handler.New(boardQuery),
+		GetBoardHandler:       getBoard,
 		GetMyTallyHandler:     get_my_tally_handler.New(my_tally_query.NewPostgresQuery(db, tally_authors.New(player), countries)),
 		GetRoundHandler:       getRound,
 		GetScoresHandler:      get_scores_handler.New(scoresQuery),
@@ -193,9 +196,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		}, countries, props.Server.StreamHeartbeat),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
-	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
-		return scoringv1connect.NewScoringServiceHandler(service, options...)
-	}, scoringv1controller.NewCacheInterceptor(),
+	if err := props.RPC.Mount(
+		func(options ...connect.HandlerOption) (string, http.Handler) {
+			return scoringv1connect.NewScoringServiceHandler(service, options...)
+		}, scoringv1controller.NewCacheInterceptor(),
 		scoringv1controller.NewSessionInterceptor(verifier, clock, props.Metrics),
 	); err != nil {
 		return fmt.Errorf("failed to mount scoring.v1.ScoringService: %w", err)
@@ -205,6 +209,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetRoundHandler:        getRound,
 		GetTableHandler:        get_table_handler.New(scoresQuery),
 		GetRoundPlayersHandler: get_round_players_handler.New(round_players_query.NewPostgresQuery(db)),
+		GetBoardHandler:        getBoard,
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return scoringv1connect.NewInternalServiceHandler(internalService, options...)

@@ -29,7 +29,8 @@ func seed(t *testing.T, db *cppg.Postgres, statements ...string) {
 
 func TestARoundClosedOnItsAverageKeepsItsResultsWithItsAverageShareAndTheRoundInProgressStaysOpen(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "scoring", cppg.MigrationsBefore(t, migrations.FS, "20261027180000"))
-	seed(t, db,
+	seed(
+		t, db,
 		`INSERT INTO rounds (season, ends_at, finale, samples, map_tiles, closed) VALUES
 			(0, '2026-10-26T21:00:00Z', false, 2, 100, true), (0, '2026-10-27T21:00:00Z', false, 1, 100, false)`,
 		`INSERT INTO round_holdings (season, ends_at, country, tiles) VALUES
@@ -74,7 +75,8 @@ const battle = "0192f5a0-7c00-7000-8000-000000000031"
 func TestSeasonZeroBecomesABookAndItsRoundsKeepTheirDayNumbersAndTheirResults(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "scoring", cppg.MigrationsBefore(t, migrations.FS, "20261028130000"))
 	account := uuid.MustParse("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
-	seed(t, db,
+	seed(
+		t, db,
 		`INSERT INTO rounds (season, ends_at, own, finale, starts_at, times, closed, counted_takes_below) VALUES
 			(0, '2026-10-26T21:00:00Z', false, false, NULL, 1, true, 0),
 			(0, '2026-10-27T21:00:00Z', false, false, NULL, 1, true, 0),
@@ -148,7 +150,8 @@ func TestSeasonZeroBecomesABookAndItsRoundsKeepTheirDayNumbersAndTheirResults(t 
 
 func TestASeasonEndedIsABookClosedWithItsFinaleAsTheTiebreak(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "scoring", cppg.MigrationsBefore(t, migrations.FS, "20261028130000"))
-	seed(t, db,
+	seed(
+		t, db,
 		`INSERT INTO rounds (season, ends_at, own, finale, starts_at, times, closed) VALUES
 			(0, '2026-10-31T21:00:00Z', false, false, NULL, 1, true),
 			(0, '2026-10-31T23:00:00Z', true, true, '2026-10-31T21:00:00Z', 3, true)`,

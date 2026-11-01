@@ -17,6 +17,10 @@ service InternalService {
   rpc GetRoundPlayers(GetRoundPlayersRequest) returns (GetRoundPlayersResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc GetBoard(GetBoardRequest) returns (GetBoardResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetRoundPlayersRequest {

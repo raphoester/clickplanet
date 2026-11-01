@@ -59,10 +59,13 @@ describe("TitleEmblem", () => {
         expect(fills).toContain("var(--season-enamel)")
     })
 
-    it("draws a top fighter's place as #2, in the season's frame", () => {
-        const {container} = render(<TitleEmblem title={{id: "season_0_top_2", name: "Season 0 Top 2"}} size={56} ribbon/>)
+    it("draws a battle's top fighter as #2 and a season's top player as a star and 2, in the season's frame", () => {
+        const texts = (id: string) => [...render(<TitleEmblem title={{id, name: id}} size={56} ribbon/>).container
+            .querySelectorAll("text")].map((text) => text.textContent)
 
-        expect([...container.querySelectorAll("text")].map((text) => text.textContent)).toEqual(["#2", "S", "0"])
+        expect(texts("season_0_battle_top_2")).toEqual(["#2", "S", "0"])
+        expect(texts("season_0_top_2")).toEqual(["2", "S", "0"])
+        const {container} = render(<TitleEmblem title={{id: "season_0_top_2", name: "Season 0 Top 2"}} size={56} ribbon/>)
         expect([...container.querySelectorAll("path, circle")].map((shape) => (shape as SVGElement).style.fill))
             .toContain("var(--season-enamel)")
     })

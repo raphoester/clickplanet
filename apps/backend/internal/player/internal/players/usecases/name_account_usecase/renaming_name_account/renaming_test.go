@@ -33,7 +33,8 @@ func setup() (*inmemory_player_store.Store, *inmemory_visit_storage.Storage, *re
 	visits.Record(presence.NewVisit(ada, guest, "aaaaaa", "fr", now))
 	names := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42"))
 	return store, visits, renaming_name_account.New(
-		name_account_usecase.New(cpatomic.FakeTransactioner{}, names, store, &cpatomic.FakeOutbox{}, clock), visits)
+		name_account_usecase.New(cpatomic.FakeTransactioner{}, names, store, &cpatomic.FakeOutbox{}, clock), visits,
+	)
 }
 
 func TestAGeneratedNameShowsOnTheRosterAtOnce(t *testing.T) {

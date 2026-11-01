@@ -26,7 +26,8 @@ func setUp() (scoring_command_handler.Handler[*scoringv1.GrantPoints], *inmemory
 	store := inmemory_grant_store.New()
 	logger := slog.New(slog.DiscardHandler)
 	return scoring_command_handler.New(log_subscriber.New[*scoringv1.GrantPoints](
-		grant_points_handler.New(log_command.New("grant_points", grant_points_usecase.New(store), logger)), logger)), store
+		grant_points_handler.New(log_command.New("grant_points", grant_points_usecase.New(store), logger)), logger,
+	)), store
 }
 
 func grantPoints(id, country string, points uint32) *scoringv1.GrantPoints {

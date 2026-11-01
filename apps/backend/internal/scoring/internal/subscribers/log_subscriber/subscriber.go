@@ -21,7 +21,8 @@ type Logged[T proto.Message] struct {
 func (l *Logged[T]) Handle(ctx context.Context, event T) error {
 	err := l.inner.Handle(ctx, event)
 	if err != nil {
-		l.logger.Error("the scoring module refused an event",
+		l.logger.Error(
+			"the scoring module refused an event",
 			slog.String("event", string(event.ProtoReflect().Descriptor().FullName())),
 			slog.Any("error", err),
 		)
