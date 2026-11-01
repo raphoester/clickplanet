@@ -55,7 +55,9 @@ address>`), so Back goes to the list, as it was.
   default), Unban (`UnbanPlayer`, which forgets the latest offence and pardons the key, and says until when;
   `not_found` is no ban left), Revert (`RevertPlayer`, dry run first), and for an account alone Mute (`Mute`), Unmute
   (`Unmute`, which ends every mute given to the account and says until when it was muted; `not_found` is no mute of
-  its own: a mute on its network given to another account is lifted from that account's page) and
+  its own: a mute on its network given to another account is lifted from that account's page),
   Charges (`GrantCharges`: a refill, a bomb, enclosures, spread clicks, shields; the answer says what the account
-  held before and after, since the caps hold). **Max out** sends every charge at the form's ceiling (`MAX_GRANT`) in
-  one tap, and the server's caps make it a full inventory.
+  held before and after, since the caps hold) and Flag (`FlagPanel`, `ReleaseAllegiance`: the hour of wait after a
+  change of flag is lifted, so the player's next pick goes at once; the answer says when a battle's lock still holds
+  it). **Max out** sends every charge at the form's ceiling (`MAX_GRANT`) in one tap, and the server's caps make it a
+  full inventory.

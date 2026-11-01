@@ -38,6 +38,9 @@ service AdminService {
 
   rpc GrantCharges(GrantChargesRequest) returns (GrantChargesResponse);
 
+  // Lifts the account's hour of wait, so its next change of flag goes at once. A lock of the rules in force still holds.
+  rpc ReleaseAllegiance(ReleaseAllegianceRequest) returns (ReleaseAllegianceResponse);
+
   rpc GetReplay(GetReplayRequest) returns (GetReplayResponse);
 
   // Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
@@ -87,6 +90,15 @@ message GrantChargesResponse {
   string account_id = 1;
   ChargesHeld before = 2;
   ChargesHeld after = 3;
+}
+
+message ReleaseAllegianceRequest {
+  string account_id = 1;
+}
+
+message ReleaseAllegianceResponse {
+  // The rules in force lock every flag: the change waits for them to end.
+  bool locked = 1;
 }
 
 message PaintRandomTilesRequest {

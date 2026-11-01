@@ -45,6 +45,8 @@ import {
     Player,
     ReassignCountryRequest,
     ReassignCountryResponse,
+    ReleaseAllegianceRequest,
+    ReleaseAllegianceResponse,
     RevertPlayerRequest,
     RevertPlayerResponse,
     RuleSet,
@@ -147,6 +149,8 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     private readonly holds = new Map<string, Promise<void>>()
     // What GetMute answers: no mute, unless a test sets one.
     muting = new GetMuteResponse()
+    // Whether the rules in force lock every flag, as ReleaseAllegiance answers.
+    flagsLocked = false
     message = new GetMessageResponse({
         messageId: "message-1", accountId: "account-reported", text: "you all suck",
         sentAt: Timestamp.fromDate(AT), countryId: "fr",
@@ -448,6 +452,10 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             before: new ChargesHeld({enclosures: 2}),
             after: new ChargesHeld({bomb: true, enclosures: 3}),
         }))
+    }
+
+    releaseAllegiance(request: PartialMessage<ReleaseAllegianceRequest>): Promise<ReleaseAllegianceResponse> {
+        return this.answer("releaseAllegiance", request, new ReleaseAllegianceResponse({locked: this.flagsLocked}))
     }
 
     topPlayers(request: PartialMessage<TopPlayersRequest>): Promise<TopPlayersResponse> {

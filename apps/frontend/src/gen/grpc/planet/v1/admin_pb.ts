@@ -272,6 +272,82 @@ export class GrantChargesResponse extends Message<GrantChargesResponse> {
 }
 
 /**
+ * @generated from message planet.v1.ReleaseAllegianceRequest
+ */
+export class ReleaseAllegianceRequest extends Message<ReleaseAllegianceRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<ReleaseAllegianceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ReleaseAllegianceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReleaseAllegianceRequest {
+    return new ReleaseAllegianceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReleaseAllegianceRequest {
+    return new ReleaseAllegianceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReleaseAllegianceRequest {
+    return new ReleaseAllegianceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReleaseAllegianceRequest | PlainMessage<ReleaseAllegianceRequest> | undefined, b: ReleaseAllegianceRequest | PlainMessage<ReleaseAllegianceRequest> | undefined): boolean {
+    return proto3.util.equals(ReleaseAllegianceRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.ReleaseAllegianceResponse
+ */
+export class ReleaseAllegianceResponse extends Message<ReleaseAllegianceResponse> {
+  /**
+   * The rules in force lock every flag: the change waits for them to end.
+   *
+   * @generated from field: bool locked = 1;
+   */
+  locked = false;
+
+  constructor(data?: PartialMessage<ReleaseAllegianceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ReleaseAllegianceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "locked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReleaseAllegianceResponse {
+    return new ReleaseAllegianceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReleaseAllegianceResponse {
+    return new ReleaseAllegianceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReleaseAllegianceResponse {
+    return new ReleaseAllegianceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReleaseAllegianceResponse | PlainMessage<ReleaseAllegianceResponse> | undefined, b: ReleaseAllegianceResponse | PlainMessage<ReleaseAllegianceResponse> | undefined): boolean {
+    return proto3.util.equals(ReleaseAllegianceResponse, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.PaintRandomTilesRequest
  */
 export class PaintRandomTilesRequest extends Message<PaintRandomTilesRequest> {

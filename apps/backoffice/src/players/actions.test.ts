@@ -15,6 +15,7 @@ import {
     mutingOf,
     NO_GRANT,
     refusalOf,
+    release,
     revert,
     topPlayers,
     unban,
@@ -163,6 +164,17 @@ describe("grant", () => {
         expect(grantsAnything(NO_GRANT)).toBe(false)
         expect(grantsAnything({...NO_GRANT, shields: 1})).toBe(true)
         expect(grantsAnything({...NO_GRANT, refill: true})).toBe(true)
+    })
+})
+
+describe("release", () => {
+    it("releases the account and says whether the rules lock every flag", async () => {
+        const admin = new FakeAdmin()
+        expect(await release(admin, "account-reported")).toEqual({locked: false})
+
+        admin.flagsLocked = true
+        expect(await release(admin, "account-reported")).toEqual({locked: true})
+        expect(admin.askedFor("releaseAllegiance")).toEqual([{accountId: "account-reported"}, {accountId: "account-reported"}])
     })
 })
 

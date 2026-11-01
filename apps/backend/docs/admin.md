@@ -45,6 +45,17 @@ Measured on a copy of production's map, before postgres: 22,040 tiles in 4.4s, a
 - **An account id, never a scope**: a charge is an account's (`bonuses.ParseHolder`). A grant of nothing is `InvalidArgument` (`ErrNothingToGrant`). Planet does not know which accounts exist, so an id nobody holds gets a row nobody reads.
 - **Nothing pushes it**: the player sees it on the next `GetCharges`, at its next page load.
 
+## `ReleaseAllegiance`
+
+`ReleaseAllegiance(account_id)` is `allegiances.Book.Release`, wrapped in `audit_release`: it lifts the account's
+hour of wait after a change of flag (see [Allegiance](allegiance.md)), so its next change goes at once.
+
+- **The flag stays**: the player picks the new one, and that change starts a new wait.
+- **A lock of the rules in force still holds.** The answer says `locked`, so the operator knows the change waits for
+  the battle's set to end.
+- **An id that is no account is `InvalidArgument`.** An account with no flag keeps no row: its first flag is free
+  anyway.
+
 ## `GetReplay`
 
 `GetReplay(since, until)` runs `ledger/usecases/replay_usecase`: the map as it was at `since` (`opening`, a

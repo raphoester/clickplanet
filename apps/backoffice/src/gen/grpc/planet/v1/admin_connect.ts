@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, ReleaseAllegianceRequest, ReleaseAllegianceResponse, RevertPlayerRequest, RevertPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
@@ -104,6 +104,17 @@ export const AdminService = {
       name: "GrantCharges",
       I: GrantChargesRequest,
       O: GrantChargesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lifts the account's hour of wait, so its next change of flag goes at once. A lock of the rules in force still holds.
+     *
+     * @generated from rpc planet.v1.AdminService.ReleaseAllegiance
+     */
+    releaseAllegiance: {
+      name: "ReleaseAllegiance",
+      I: ReleaseAllegianceRequest,
+      O: ReleaseAllegianceResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -43,6 +43,28 @@ func TestAnAccountIsHeldToItsFlagForAnHourAfterAChange(t *testing.T) {
 	assert.Equal(t, allegiances.Snapshot{Flag: "fr", ChangedAt: at.Add(time.Hour)}, store.Kept(alice))
 }
 
+func TestAReleasedAccountChangesItsFlagAtOnce(t *testing.T) {
+	b, store, clock := book()
+	payer := clicks.Payer{Account: alice}
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), payer, "de"))
+	clock.Advance(time.Minute)
+
+	require.NoError(t, b.Release(t.Context(), alice))
+	assert.Equal(t, allegiances.Snapshot{Flag: "de"}, store.Kept(alice))
+
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	assert.Equal(t, allegiances.Snapshot{Flag: "fr", ChangedAt: at.Add(time.Minute)}, store.Kept(alice))
+}
+
+func TestReleasingAnAccountWithNoFlagKeepsNothing(t *testing.T) {
+	b, store, _ := book()
+
+	require.NoError(t, b.Release(t.Context(), bob))
+
+	assert.Equal(t, allegiances.Snapshot{}, store.Kept(bob))
+}
+
 func unlocked() allegiances.Lock { return false }
 
 func TestNoAccountChangesItsFlagWhileTheRulesLockThem(t *testing.T) {
@@ -117,4 +139,5 @@ func TestAStoreThatFailsFailsThePledge(t *testing.T) {
 
 	assert.ErrorIs(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, "fr"), down)
 	assert.ErrorIs(t, b.PlayError(t.Context(), clicks.Payer{Account: alice}, "fr"), down)
+	assert.ErrorIs(t, b.Release(t.Context(), alice), down)
 }
