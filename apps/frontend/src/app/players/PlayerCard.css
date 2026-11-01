@@ -67,6 +67,15 @@
     align-items: center;
     gap: 6px;
     width: 88px;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+}
+
+button.player-card-held {
+    cursor: help;
 }
 
 .player-card-held-name {
@@ -78,13 +87,6 @@
     overflow-wrap: anywhere;
     color: var(--text);
     text-shadow: var(--text-drop);
-}
-
-.player-card-held-feat {
-    font-size: var(--text-xs);
-    line-height: 1.25;
-    text-align: center;
-    color: var(--text-muted);
 }
 
 .player-card .stat-tiles,

@@ -1,9 +1,10 @@
-import {useState} from "react"
+import {useCallback, useEffect, useId, useRef, useState} from "react"
 import {PlayerInfo, PlayerInfoBackend, PlayerLine, PlayerTitle} from "../../backends/player.ts"
 import {PlayerReporter} from "../../backends/support.ts"
 import {Countries} from "../../domain/countries.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
+import Bubble, {BUBBLE_MS} from "../components/Bubble.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import Modal from "../components/Modal.tsx"
 import {StatTile, StatTiles} from "../components/StatTiles.tsx"
@@ -83,12 +84,43 @@ function PlayerTitles({titles}: {titles: PlayerTitle[]}) {
     if (titles.length === 0) return null
 
     return <ul className="player-card-titles" aria-label="Titles">
-        {titles.map((title) => <li key={title.id} className="player-card-held">
-            <TitleEmblem title={title} size={48} ribbon/>
-            <span className="player-card-held-name">{title.name}</span>
-            {title.feat && <span className="player-card-held-feat">{title.feat}</span>}
-        </li>)}
+        {titles.map((title) => <li key={title.id}><HeldTitle title={title}/></li>)}
     </ul>
+}
+
+type Shown = "pressed" | "hovered"
+
+function HeldTitle({title}: {title: PlayerTitle}) {
+    const button = useRef<HTMLButtonElement>(null)
+    const described = useId()
+    const [shown, setShown] = useState<Shown | undefined>()
+    const hide = useCallback(() => setShown(undefined), [])
+
+    useEffect(() => {
+        if (shown !== "pressed") return
+        const timer = setTimeout(hide, BUBBLE_MS)
+        return () => clearTimeout(timer)
+    }, [shown, hide])
+
+    const medal = <>
+        <TitleEmblem title={title} size={48} ribbon/>
+        <span className="player-card-held-name">{title.name}</span>
+    </>
+    if (!title.feat) return <div className="player-card-held">{medal}</div>
+
+    return <>
+        <button type="button"
+                ref={button}
+                className="player-card-held"
+                aria-describedby={described}
+                onClick={() => setShown((now) => now === "pressed" ? undefined : "pressed")}
+                onPointerEnter={(event) => event.pointerType === "mouse" && setShown((now) => now ?? "hovered")}
+                onPointerLeave={(event) => event.pointerType === "mouse" && setShown((now) => now === "hovered" ? undefined : now)}>
+            {medal}
+            <span id={described} hidden>{title.feat}</span>
+        </button>
+        {shown && <Bubble anchor={button} onLost={hide}>{title.feat}</Bubble>}
+    </>
 }
 
 export function PlayerStats({info}: {info: PlayerInfo}) {

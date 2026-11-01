@@ -66,7 +66,8 @@ describe("PlayerCard", () => {
         expect(document.querySelector(".player-card.title-frame-gold")).not.toBeNull()
     })
 
-    it("says under each medal how its title was earned", async () => {
+    it("says how a title was earned in a bubble over its medal, on a hover or a press", async () => {
+        const user = userEvent.setup()
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({
                                name: "Ana", guest: false, tilesTaken: 1_000, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED,
@@ -79,9 +80,18 @@ describe("PlayerCard", () => {
                            }))}
                            onClose={() => {}}/>)
 
-        const titles = await screen.findByRole("list", {name: "Titles"})
-        expect(within(titles).getAllByRole("listitem").map((item) => item.querySelector(".player-card-held-feat")?.textContent))
-            .toEqual(["Played on Halloween 2026", "Took 1,000 tiles", undefined])
+        const raider = await screen.findByRole("button", {name: /Raider/, description: "Took 1,000 tiles"})
+        expect(screen.queryByText("Took 1,000 tiles", {selector: ".bubble"})).toBeNull()
+
+        await user.hover(raider)
+        expect(screen.getByText("Took 1,000 tiles", {selector: ".bubble"})).toBeDefined()
+        await user.unhover(raider)
+        expect(screen.queryByText("Took 1,000 tiles", {selector: ".bubble"})).toBeNull()
+
+        await user.pointer({keys: "[TouchA]", target: screen.getByRole("button", {name: /Halloween 2026/})})
+        expect(screen.getByText("Played on Halloween 2026", {selector: ".bubble"})).toBeDefined()
+
+        expect(screen.queryByRole("button", {name: /New title/})).toBeNull()
     })
 
     it("stamps OG beside the name of a player who holds it", async () => {
