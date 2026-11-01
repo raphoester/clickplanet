@@ -25,7 +25,7 @@ func (s *stubUseCase) Execute(_ context.Context, in rules.Snapshot) error {
 	return s.err
 }
 
-var rush = rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = 3 })
+var rush = rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = proto.Float64(3) })
 
 func save(t *testing.T, useCase *stubUseCase) error {
 	t.Helper()

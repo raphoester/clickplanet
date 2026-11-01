@@ -36,6 +36,7 @@ import {
     TopPlayersRequest,
     TopPlayersResponse,
 } from "../gen/grpc/planet/v1/admin_pb.ts"
+import {Rules as AntibotRules} from "../gen/grpc/antibot/v1/rules_pb.ts"
 import {Rules as PlanetRules} from "../gen/grpc/planet/v1/rules_pb.ts"
 import {
     CreateVideoUploadRequest,
@@ -211,26 +212,20 @@ export class DemoAdmin extends FakeAdmin {
             })),
         ].sort((a, b) => Number((b.createdAt?.seconds ?? 0n) - (a.createdAt?.seconds ?? 0n)))
 
-        // The sets the schedule names, in both modules: calm plays now.
+        // The sets the schedule names, in both modules: calm plays now. Each holds what it changes from default.
         const [planetDefault] = this.rules.sets
         const [antibotDefault] = this.antibotRules.sets
-        const variant = (rules: PlanetRules, change: (rules: PlanetRules) => void) => {
-            const copy = rules.clone()
-            change(copy)
-            return copy
-        }
         this.rules = new GetRulesResponse({playing: "calm", sets: [
             planetDefault,
-            new RuleSet({name: "calm", rules: variant(planetDefault.rules ?? new PlanetRules(), rules => {
-                if (rules.clicks !== undefined) rules.clicks.tempo = 0.5
-            })}),
-            new RuleSet({name: "frozen", rules: variant(planetDefault.rules ?? new PlanetRules(), rules => rules.frozen = true)}),
-            new RuleSet({name: "rush", rules: variant(planetDefault.rules ?? new PlanetRules(), rules => {
-                if (rules.clicks !== undefined) rules.clicks.tempo = 3
-            })}),
+            new RuleSet({name: "calm", rules: PlanetRules.fromJson({clicks: {tempo: 0.5}})}),
+            new RuleSet({name: "frozen", rules: PlanetRules.fromJson({frozen: true})}),
+            new RuleSet({name: "rush", rules: PlanetRules.fromJson({clicks: {tempo: 3}, allegianceLocked: true})}),
         ]})
-        this.antibotRules = new AntibotGetRulesResponse({playing: "calm", sets: ["default", "calm", "frozen", "rush"].map(name =>
-            new AntibotRuleSet({name, rules: antibotDefault.rules?.clone()}))})
+        this.antibotRules = new AntibotGetRulesResponse({playing: "calm", sets: [
+            antibotDefault,
+            ...["calm", "frozen"].map(name => new AntibotRuleSet({name})),
+            new AntibotRuleSet({name: "rush", rules: AntibotRules.fromJson({cohort: {certainMembers: 50}})}),
+        ]})
 
         // Their files are not in the demo: the page says it cannot play them.
         this.videos = VIDEOS.map(({name, caption, hours, mb}, n) => new Video({

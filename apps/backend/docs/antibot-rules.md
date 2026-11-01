@@ -7,24 +7,32 @@ Battle the operator needs a looser crowd for one evening, from the page.
 
 ## A rule set
 
-**A set is a name and every rule value, all written.** No value falls back to another set, to a default in Go, or to
-one in SQL. Its snapshot is the wire's message: `rules.Snapshot{Name, Rules *antibotv1.Rules}`, which postgres keeps
-as a document, the operator's calls carry and the log lines print as it is. `Snapshot.Restore(parts)` is the one check.
+**`default` holds every value; every other set holds only the values it changes, and judges with default's for the
+rest** (2026-10-31, as planet's: see [Rules](rules.md#a-rule-set)). Every value of `antibot.v1.Rules` is `optional`,
+so a set can hold a zero or an `enabled: false` of its own. Its snapshot is the wire's message:
+`rules.Snapshot{Name, Rules *antibotv1.Rules}`, which postgres keeps as a document and the operator's calls carry.
+`Snapshot.Restore(parts, defaults)` is the one check.
+
+- **What a set judges with is default's values with its own written over them** (`cpproto.Overlay`), value by value.
+  `bans.banDurations` is one value, held when it has a step: a set with none plays default's ladder. `default` plays
+  alone. `TakeSnapshot()` is what the set holds; `TakePlayedSnapshot()`, what it judges with, is what the log prints.
+- **An unset bound** (`shape` and `clock`, below) never reads in `default`; in another set it is default's. No set can
+  unset a bound `default` holds.
 
 - **Each part is read by the package that judges with it.** A watchdog, the jury and the ban book each own their
   `Rules`, its `Validate`, its `RulesOf(*antibotv1.XRules)` and a `Part` (`rules.PartOf[Rules]{Key, Read}`) that takes
   it out of the set's message. The `rules` package names none of them.
 - **`guard.Parts()` is the one list of parts**, beside the code that builds every watchdog. A new watchdog adds its
   field to `antibot.v1.Rules`, its package, and one line there; nothing in `rules`, the store or the handlers changes.
-- **`Restore` reads and validates every part**, and keeps each part's `Rules`, so a read never converts again. It
-  refuses a set any part refuses, with every reason, each named by its path as `antibot.v1.Rules` writes it:
-  `cohort.certainMembers is 1, under minMembers (2); rotator.maxShare is 0, and must be above 0`. A part left out of
-  the message reads as zeros, which its `Validate` refuses. Each `Validate` refuses what the watchdog's `withDefaults`
-  used to repair: a zero that meant "the default", a certain bound under its suspect bound, a sample count over what
-  the watchdog keeps.
+- **`Restore` reads and validates every part of what the set judges with**, and keeps each part's `Rules`, so a read
+  never converts again. It refuses a set any part refuses, with every reason, each named by its path as
+  `antibot.v1.Rules` writes it: `cohort.certainMembers is 1, under minMembers (2); rotator.maxShare is 0, and must be
+  above 0`. A value neither the set nor `default` holds reads as zero, which its `Validate` refuses. Each `Validate`
+  refuses what the watchdog's `withDefaults` used to repair: a zero that meant "the default", a certain bound under its
+  suspect bound, a sample count over what the watchdog keeps.
 - **A zero that never reads is a rule of its own** where it was one before: `defender.minShare`,
   `retaker.minTiles`, `rotator.minSlots`, the churner's bounds, `stamina.minBusy`. The four bounds of `shape` and `clock`
-  are unset rather than zero (`optional` in the proto, a pointer in Go): 0 is a skew.
+  are unset in `default` rather than zero (a pointer in Go, as every value now): 0 is a skew.
 - **The name** is a lowercase letter, then up to 31 of a-z, 0-9, `-` and `_`: the names planet's rule sets take.
 - **`default`** is seeded by migration `20261026230000_rule_sets` with production's values of that day:
   `deploy/vps/backend.yaml`, plus what each watchdog's `withDefaults` filled in for the keys it left out (the catcher's
@@ -72,20 +80,24 @@ as a document, the operator's calls carry and the log lines print as it is. `Sna
 
 ## Where it is kept
 
-**One row per set, the rules as one `jsonb` document**: `antibot.rule_sets(name, rules)`, the document an
-`antibot.v1.Rules` as protojson writes it, its zeros too (`EmitUnpopulated`). About 85 values in a dozen parts would be
-a column each, and a migration for every rule added. The proto message is already the wire's, so the store, the RPC and
-the page read one shape.
+**One row per set, the rules as one `jsonb` document**: `antibot.rule_sets(name, rules)`, the values the set holds as
+protojson writes an `antibot.v1.Rules`: a value held is written, a zero too; a value left unset is not. About 85 values
+in a dozen parts would be a column each, and a migration for every rule added. The proto message is already the
+wire's, so the store, the RPC and the page read one shape.
 
-- **The store answers sets, never snapshots** (`rules.Store`: `Set(ctx, name) (Set, error)`, `Save(ctx, Set)`).
-  `postgres_rule_set_store` is built with `guard.Parts()`: it finds a set by name and restores it, and upserts a set's
-  snapshot. The snapshot never leaves the store. A set kept that cannot play, after a hand edit in SQL or a rule added
-  with no migration, is an error that wraps `rules.ErrInvalidSet` and names the set. `rules.MemoryStore` is the fake
-  (its `Keep` writes a set that cannot play), and `rules.StoreContractSuite` runs on both. A key the proto no longer has
-  is ignored on read.
-- **A rule added later needs a migration** that writes its value into every set (`jsonb_set`). Without one, the set
-  reads the value as zero; where zero cannot be judged with, the set no longer restores, the antibot keeps the rules
-  in force, and the next boot is refused.
+- **The store answers sets, never snapshots** (`rules.Store`: `Set(ctx, name) (Set, error)`, `Names(ctx)`, `Save(ctx, Set)`).
+  `postgres_rule_set_store` is built with `guard.Parts()`: it finds a set and `default` by name and restores the one
+  over the other, lists the names kept (`Names`), and upserts a set's snapshot. The snapshot never leaves the store. A
+  set kept that cannot play, after a hand edit in SQL or a rule added with no migration, is an error that wraps
+  `rules.ErrInvalidSet` and names the set. `rules.MemoryStore` is the fake (its `Keep` writes a set that cannot play),
+  and `rules.StoreContractSuite` runs on both. A key the proto no longer has is ignored on read.
+- **A rule added later needs a migration** that writes its value into `default` (`jsonb_set`); every other set judges
+  with it from there. Without one, default reads the value as zero; where zero cannot be judged with, no set restores,
+  the antibot keeps the rules in force, and the next boot is refused.
+- **Migration `20261031180000_rule_sets_inherit_default`** made every set but `default` hold only what it changes, as
+  planet's did: a value equal to default's dropped, one left out or `null` written as the zero it read as. It stops
+  with an error if a set left unset a bound (`maxSkew`, `certainSkew`, `minCoherence`, `certainCoherence`) that
+  `default` holds, since no set can say "unset" over it. The down migration writes default's values back.
 
 ## The rules in force
 
@@ -130,9 +142,10 @@ on its own, so planet never hears of a crowd, and the antibot never follows plan
 - **The antibot has no switch of its own for which set plays.** No operator call picks the set in force.
 - **`antibot.v1.InternalService/GetRuleSetNames`** answers the names of the sets postgres keeps, so the gamemaster module
   refuses an entry of a set the antibot lacks.
-- **For the Final Battle** (Sat 31 Oct 2026, 21:00–23:00 UTC), an entry plays `rush`. An antibot set `rush`
-  with `cohort.certainMembers` 50 makes the crowd bound 50 for the evening. It must be saved before 21:00: while `rush`
-  plays, a save of `rush` is refused, and an antibot with no `rush` refuses the command and keeps `default`.
+- **For the Final Battle** (Sat 31 Oct 2026, 21:00–23:00 UTC), an entry plays `rush`. An antibot set `rush` that holds
+  `cohort.certainMembers` 50 makes the crowd bound 50 for the evening, and judges with default's for the rest. It must
+  be saved before 21:00: while `rush` plays, a save of `rush` is refused, and an antibot with no `rush` refuses the
+  command and keeps `default`.
 
 ## The machine, in the YAML
 
@@ -160,8 +173,10 @@ in a file would be read by nothing.
 - **`GetRules`** answers every set postgres keeps, `default` first, as kept (one that cannot play too, so it can be
   mended), and `playing`, the name of the set in force. It is a query (`rule_sets_query`) beside the name `InForce`
   holds: it reads the documents, not the store, which refuses a set that cannot play.
-- **`SaveRuleSet{set}`** makes a set or replaces its values. A set `Restore` refuses is `InvalidArgument`, with every
-  reason. `audit_save_rule_set` logs every save at Warn (`admin antibot rule set saved` or `refused`, with the rules).
+- **`SaveRuleSet{set}`** makes a set or replaces the values it holds, checked over the `default` kept. A set `Restore`
+  refuses is `InvalidArgument`, with every reason. A save of `default` is refused while another set cannot judge over
+  it, each such set named, in one transaction (see [Rules](rules.md#the-operator)). `audit_save_rule_set` logs every
+  save at Warn (`admin antibot rule set saved` or `refused`, with the rules).
 - **No operator call picks the set in force.** What plays is the schedule, with its priorities; an operator never
   overrides it, here or anywhere (the user's rule, 2026-10-26). **A save of the set in force takes over at once**
   (2026-10-28): `SaveRuleSet` keeps the set, then `play_rules_usecase.Execute` plays the set chosen last again, under

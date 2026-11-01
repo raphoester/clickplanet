@@ -9,11 +9,12 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpproto"
 )
 
 type SetName string
 
-// Default is the set the migration keeps production's rules in, and the one played when no set has the name asked.
+// Default is the set that holds every value: each other set plays default's for every value it leaves unset.
 const Default SetName = "default"
 
 var (
@@ -24,20 +25,26 @@ var (
 var namePattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
 
 type Set struct {
-	name    SetName
-	message *antibotv1.Rules
-	parts   map[string]any
+	name   SetName
+	own    *antibotv1.Rules
+	played *antibotv1.Rules
+	parts  map[string]any
 }
 
 func (s Set) TakeSnapshot() Snapshot {
-	return Snapshot{Name: s.name, Rules: proto.CloneOf(s.message)}
+	return Snapshot{Name: s.name, Rules: proto.CloneOf(s.own)}
+}
+
+// TakePlayedSnapshot is the set's values over default's.
+func (s Set) TakePlayedSnapshot() Snapshot {
+	return Snapshot{Name: s.name, Rules: proto.CloneOf(s.played)}
 }
 
 func (s Set) Is(name SetName) bool { return s.name == name }
 
-// Equal is true when both sets have one name and judge alike.
+// Equal is true when both sets have one name and play alike.
 func (s Set) Equal(other Set) bool {
-	return s.name == other.name && proto.Equal(s.message, other.message)
+	return s.name == other.name && proto.Equal(s.played, other.played)
 }
 
 type Snapshot struct {
@@ -45,17 +52,20 @@ type Snapshot struct {
 	Rules *antibotv1.Rules
 }
 
-// Restore refuses a set any part refuses: a value left out reads as zero, and nothing falls back to a default.
-func (s Snapshot) Restore(parts Parts) (Set, error) {
+// Restore plays defaults' value wherever the set holds none; default plays alone, as it holds every value.
+func (s Snapshot) Restore(parts Parts, defaults Snapshot) (Set, error) {
 	if !namePattern.MatchString(string(s.Name)) {
 		return Set{}, fmt.Errorf("%w: a name is a lowercase letter, then up to 31 of a-z, 0-9, - and _", ErrInvalidSet)
 	}
 
-	message := proto.CloneOf(s.Rules)
+	played := proto.CloneOf(orEmpty(s.Rules))
+	if s.Name != Default {
+		played = cpproto.Overlay(orEmpty(defaults.Rules), played)
+	}
 	read := make(map[string]any, len(parts))
 	var reasons []string
 	for _, part := range parts {
-		rules, err := part.read(message)
+		rules, err := part.read(played)
 		reasons = append(reasons, reasonsOf(part.key(), err)...)
 		read[part.key()] = rules
 	}
@@ -63,7 +73,14 @@ func (s Snapshot) Restore(parts Parts) (Set, error) {
 		return Set{}, fmt.Errorf("%w: %s", ErrInvalidSet, strings.Join(reasons, "; "))
 	}
 
-	return Set{name: s.Name, message: message, parts: read}, nil
+	return Set{name: s.Name, own: proto.CloneOf(orEmpty(s.Rules)), played: played, parts: read}, nil
+}
+
+func orEmpty(rules *antibotv1.Rules) *antibotv1.Rules {
+	if rules == nil {
+		return &antibotv1.Rules{}
+	}
+	return rules
 }
 
 // Each reason names its value by its path in the set, as antibot.v1.Rules writes it.

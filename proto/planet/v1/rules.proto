@@ -5,39 +5,40 @@ package planet.v1;
 import "google/protobuf/duration.proto";
 import "planet/v1/planet.proto";
 
-// Every value a player feels, all written: none falls back to another set or to a default. Postgres keeps it as
-// protojson (planet.rule_sets.rules).
+// Every value a player feels. "default" holds every value; another set holds the values it changes, and plays default's
+// for every value it leaves unset. Postgres keeps it as protojson (planet.rule_sets.rules).
 message Rules {
   ClickRules clicks = 1;
   TollRules toll = 2;
   BonusRules bonuses = 3;
   // The map takes no play: Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz are refused. The
   // map still loads and streams.
-  bool frozen = 4;
+  optional bool frozen = 4;
   // No account changes its flag: PledgeAllegiance refuses another flag to an account that holds one. A first flag is
   // still taken.
-  bool allegiance_locked = 5;
+  optional bool allegiance_locked = 5;
 }
 
 message ClickRules {
   // How many times faster than per_second every bucket refills.
-  double tempo = 1;
+  optional double tempo = 1;
   // One account's refill, a click a second, and its bank.
-  double per_second = 2;
-  uint32 burst = 3;
+  optional double per_second = 2;
+  optional uint32 burst = 3;
   // The address's bucket, in accounts; an IPv6 /64's has its own.
-  double scope_multiplier = 4;
-  double v6_scope_multiplier = 5;
+  optional double scope_multiplier = 4;
+  optional double v6_scope_multiplier = 5;
   // The bucket every guest behind an address shares, in accounts.
-  double guest_scope_multiplier = 6;
+  optional double guest_scope_multiplier = 6;
   // How many times as fast a signed-in account refills.
-  double linked_multiplier = 7;
+  optional double linked_multiplier = 7;
   // What a new account's bank holds when it is made; it earns the rest at per_second.
-  double new_account_clicks = 8;
+  optional double new_account_clicks = 8;
 }
 
 message TollRules {
-  // Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower. None is no toll.
+  // Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower. None is no toll. A
+  // set that holds `toll` holds every step.
   repeated TollStep steps = 1;
 }
 
@@ -56,49 +57,49 @@ message BonusRules {
   WelcomeRules welcome = 10;
   QuizRules quiz = 11;
   // A guest's first sign-in earns a refill, once per account.
-  bool sign_in_refill = 12;
+  optional bool sign_in_refill = 12;
 }
 
 message BoxPace {
   google.protobuf.Duration min_interval = 1;
   google.protobuf.Duration max_interval = 2;
-  uint32 max_charges_per_hour = 3;
+  optional uint32 max_charges_per_hour = 3;
 }
 
 // What a box is drawn as: a kind's chance is its weight over the sum of the kinds it may be.
 message KindWeights {
-  double refill = 1;
-  double spread_clicks = 2;
-  double enclose_clicks = 3;
-  double bomb = 4;
-  double shields = 5;
+  optional double refill = 1;
+  optional double spread_clicks = 2;
+  optional double enclose_clicks = 3;
+  optional double bomb = 4;
+  optional double shields = 5;
 }
 
 message SpreadRules {
   // The pool a hand holds at most.
-  uint32 clicks = 1;
-  uint32 max_per_box = 2;
+  optional uint32 clicks = 1;
+  optional uint32 max_per_box = 2;
 }
 
 message BombRules {
   // The blast's radius, in tile spacings.
-  double rings = 1;
+  optional double rings = 1;
 }
 
 message EncloseRules {
-  uint32 max_tiles = 1;
+  optional uint32 max_tiles = 1;
   // The stack a hand holds at most.
-  uint32 held = 2;
-  uint32 max_per_box = 3;
+  optional uint32 held = 2;
+  optional uint32 max_per_box = 3;
 }
 
 message ShieldRules {
   // The stack a hand holds at most.
-  uint32 held = 1;
-  uint32 min_per_box = 2;
-  uint32 max_per_box = 3;
+  optional uint32 held = 1;
+  optional uint32 min_per_box = 2;
+  optional uint32 max_per_box = 3;
   // At most 255.
-  uint32 per_tile = 4;
+  optional uint32 per_tile = 4;
 }
 
 // An account younger than `within` gets its first box `box_after` it was made, and a quiz when its bank runs dry. 0s is off.
@@ -108,13 +109,13 @@ message WelcomeRules {
 }
 
 message QuizRules {
-  bool enabled = 1;
+  optional bool enabled = 1;
   google.protobuf.Duration min_interval = 2;
   google.protobuf.Duration max_interval = 3;
   google.protobuf.Duration miss_retry = 4;
   google.protobuf.Duration offer_ttl = 5;
   google.protobuf.Duration answer_window = 6;
   // How much a question leans to the countries that hold the most; 0 is a flat draw.
-  double leader_bias = 7;
-  uint32 max_charges_per_hour = 8;
+  optional double leader_bias = 7;
+  optional uint32 max_charges_per_hour = 8;
 }

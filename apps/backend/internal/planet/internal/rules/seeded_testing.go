@@ -5,6 +5,7 @@ package rules
 import (
 	"time"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -13,35 +14,38 @@ import (
 // Seeded is the set the migrations keep as default: production's rules on 26 October 2026, and the sign-in refill.
 func Seeded() Snapshot {
 	d := durationpb.New
+	f, n, on := proto.Float64, proto.Uint32, proto.Bool
 	return Snapshot{
 		Name: Default,
 		Rules: &planetv1.Rules{
 			Clicks: &planetv1.ClickRules{
-				Tempo: 1, PerSecond: 0.2, Burst: 60,
-				ScopeMultiplier: 10, V6ScopeMultiplier: 4, GuestScopeMultiplier: 1, LinkedMultiplier: 2,
-				NewAccountClicks: 10,
+				Tempo: f(1), PerSecond: f(0.2), Burst: n(60),
+				ScopeMultiplier: f(10), V6ScopeMultiplier: f(4), GuestScopeMultiplier: f(1), LinkedMultiplier: f(2),
+				NewAccountClicks: f(10),
 			},
 			Toll: &planetv1.TollRules{Steps: []*planetv1.TollStep{
 				{Share: 0.1, Slowdown: 1.5}, {Share: 0.2, Slowdown: 2.5}, {Share: 0.3, Slowdown: 4},
 			}},
 			Bonuses: &planetv1.BonusRules{
-				Boxes:        &planetv1.BoxPace{MinInterval: d(4 * time.Minute), MaxInterval: d(8 * time.Minute), MaxChargesPerHour: 12},
-				Kinds:        &planetv1.KindWeights{Refill: 5, SpreadClicks: 3, EncloseClicks: 2, Bomb: 1, Shields: 3},
+				Boxes:        &planetv1.BoxPace{MinInterval: d(4 * time.Minute), MaxInterval: d(8 * time.Minute), MaxChargesPerHour: n(12)},
+				Kinds:        &planetv1.KindWeights{Refill: f(5), SpreadClicks: f(3), EncloseClicks: f(2), Bomb: f(1), Shields: f(3)},
 				OfferTtl:     d(15 * time.Second),
 				MissRetry:    d(2 * time.Minute),
 				ActiveWithin: d(2 * time.Minute),
-				Spread:       &planetv1.SpreadRules{Clicks: 8, MaxPerBox: 4},
-				Bomb:         &planetv1.BombRules{Rings: 4},
-				Enclose:      &planetv1.EncloseRules{MaxTiles: 25, Held: 3, MaxPerBox: 3},
-				Shield:       &planetv1.ShieldRules{Held: 30, MinPerBox: 5, MaxPerBox: 20, PerTile: 10},
+				Spread:       &planetv1.SpreadRules{Clicks: n(8), MaxPerBox: n(4)},
+				Bomb:         &planetv1.BombRules{Rings: f(4)},
+				Enclose:      &planetv1.EncloseRules{MaxTiles: n(25), Held: n(3), MaxPerBox: n(3)},
+				Shield:       &planetv1.ShieldRules{Held: n(30), MinPerBox: n(5), MaxPerBox: n(20), PerTile: n(10)},
 				Welcome:      &planetv1.WelcomeRules{Within: d(10 * time.Minute), BoxAfter: d(time.Minute)},
 				Quiz: &planetv1.QuizRules{
-					Enabled: true, MinInterval: d(4 * time.Minute), MaxInterval: d(8 * time.Minute),
+					Enabled: on(true), MinInterval: d(4 * time.Minute), MaxInterval: d(8 * time.Minute),
 					MissRetry: d(2 * time.Minute), OfferTtl: d(25 * time.Second), AnswerWindow: d(8 * time.Second),
-					LeaderBias: 1, MaxChargesPerHour: 12,
+					LeaderBias: f(1), MaxChargesPerHour: n(12),
 				},
-				SignInRefill: true,
+				SignInRefill: on(true),
 			},
+			Frozen:           on(false),
+			AllegianceLocked: on(false),
 		},
 	}
 }

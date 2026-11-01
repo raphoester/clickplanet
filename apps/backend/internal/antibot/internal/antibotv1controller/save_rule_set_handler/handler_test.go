@@ -26,7 +26,7 @@ func (s *stubUseCase) Execute(_ context.Context, in rules.Snapshot) error {
 	return s.err
 }
 
-var rush = rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 50 })
+var rush = rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = proto.Uint32(50) })
 
 func save(t *testing.T, useCase *stubUseCase) error {
 	t.Helper()

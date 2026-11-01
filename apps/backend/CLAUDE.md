@@ -61,8 +61,8 @@ and says what is in it. Read the doc before you change its area.
 - [VPN blocklist](docs/vpn-blocklist.md) — `Click` refused from vendored VPN ranges, before the rate limiter.
 - [Allegiance](docs/allegiance.md) — an account plays for one flag, and may change it once an hour; a battle's rule
   set locks it.
-- [Rules](docs/rules.md) — every game rule, in rule sets kept in postgres; the set in force in one atomic pointer;
-  what a change does to what is already there; a frozen set, which takes no play.
+- [Rules](docs/rules.md) — every game rule, in rule sets kept in postgres; `default` holds every value, another set only
+  what it changes; the set in force in one atomic pointer; what a change does to what is already there; a frozen set.
 - [Shields](docs/shields.md) — a charge on a tile; each shield takes one foreign click.
 - [Fortify](docs/fortify.md) — a take that makes a landmass whole gives every tile of it a shield.
 - [Who holds the tiles](docs/tile-holders.md) — each tile keeps the account whose take holds it; `GetLandmass`
@@ -85,8 +85,8 @@ and says what is in it. Read the doc before you change its area.
   and the referrer's host; kept by `auth` when it makes the account, anonymized when the account goes; the query.
 - [Anti-bot](docs/antibot.md) — a module that hears planet's facts about callers, judges them, and asks planet to
   refuse the ones it bans; what survives a restart, and the parts that are easy to get wrong.
-- [The antibot's rules](docs/antibot-rules.md) — every bound is a rule set in postgres, edited from the backoffice;
-  the pointer the watchdogs read, which set plays, and what stays in the YAML.
+- [The antibot's rules](docs/antibot-rules.md) — every bound is a rule set in postgres, edited from the backoffice, that
+  judges with default's where it holds none; the pointer the watchdogs read, which set plays, what stays in the YAML.
 
 ## The other contexts
 

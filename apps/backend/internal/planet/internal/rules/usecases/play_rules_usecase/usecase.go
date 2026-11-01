@@ -70,15 +70,15 @@ func (u *UseCase) Play(ctx context.Context, choice rules.Choice) (rules.Snapshot
 	defer u.mu.Unlock()
 
 	if !choice.Overrules(u.chosen) {
-		return u.taken.TakeSnapshot(), false, nil
+		return u.taken.TakePlayedSnapshot(), false, nil
 	}
 
 	set, err := u.sets.Set(ctx, choice.Set)
 	if err != nil {
-		return u.taken.TakeSnapshot(), false, fmt.Errorf("could not play the rule set %q: %w", choice.Set, err)
+		return u.taken.TakePlayedSnapshot(), false, fmt.Errorf("could not play the rule set %q: %w", choice.Set, err)
 	}
 	if err := u.choices.Save(ctx, choice); err != nil {
-		return u.taken.TakeSnapshot(), false, fmt.Errorf("could not keep the choice of the rule set %q: %w", choice.Set, err)
+		return u.taken.TakePlayedSnapshot(), false, fmt.Errorf("could not keep the choice of the rule set %q: %w", choice.Set, err)
 	}
 	u.chosen = choice
 
@@ -91,5 +91,5 @@ func (u *UseCase) take(set rules.Set) (rules.Snapshot, bool, error) {
 		u.inForce.Enforce(set)
 		u.taken = set
 	}
-	return set.TakeSnapshot(), took, nil
+	return set.TakePlayedSnapshot(), took, nil
 }

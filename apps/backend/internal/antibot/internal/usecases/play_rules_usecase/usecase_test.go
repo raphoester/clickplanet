@@ -41,7 +41,7 @@ func (t *told) Times() int {
 	return t.times
 }
 
-var rush = rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 50 })
+var rush = rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = proto.Uint32(50) })
 
 var finale = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 
@@ -115,7 +115,7 @@ func TestAChangeOfTheSetInForceIsTakenAtTheNextExecute(t *testing.T) {
 	h := newHarness(t, rules.Seeded())
 	h.execute()
 
-	h.sets.Keep(rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Bans.Enforce = false }))
+	h.sets.Keep(rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Bans.Enforce = proto.Bool(false) }))
 	taken, took := h.execute()
 
 	require.True(t, took)
@@ -188,7 +188,7 @@ func TestAKeptSetThatCannotPlayKeepsTheRulesInForce(t *testing.T) {
 	h := newHarness(t, rules.Seeded())
 	h.execute()
 
-	h.sets.Keep(rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Jury.MinSuspects = 0 }))
+	h.sets.Keep(rules.Named(rules.Default, func(r *antibotv1.Rules) { r.Jury.MinSuspects = proto.Uint32(0) }))
 	_, took, err := h.useCase.Execute(t.Context())
 
 	require.ErrorIs(t, err, rules.ErrInvalidSet)

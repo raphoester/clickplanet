@@ -3,7 +3,7 @@ import {FakeAdmin} from "../fakeAdmin.ts"
 import {RuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Rules} from "../gen/grpc/antibot/v1/rules_pb.ts"
 import {
-    bansOf, changesOf, copyOf, crowdOf, draftOf, flawOf, LEAVES, offOf, PARTS, rulesOf, saveRuleSet,
+    bansOf, changesOf, copyOf, crowdOf, draftOf, flawOf, LEAVES, offOf, PARTS, playedOf, rulesOf, saveRuleSet,
 } from "./antibotRules.ts"
 
 const rush = new RuleSet({
@@ -33,15 +33,15 @@ describe("the antibot rules", () => {
             "Hopper", "Rotator",
         ])
         const metronome = PARTS.find(part => part.label === "Metronome")
-        expect(metronome?.leaves[0]).toEqual({path: "metronome.enabled", label: "Enabled", kind: "switch", optional: false})
+        expect(metronome?.leaves[0]).toEqual({path: "metronome.enabled", label: "Enabled", kind: "switch"})
         expect(metronome?.groups.map(group => group.label)).toEqual(["Shape", "Clock", "Stamina"])
-        expect(LEAVES.find(leaf => leaf.path === "metronome.shape.maxSkew")).toMatchObject({kind: "number", optional: true})
+        expect(LEAVES.find(leaf => leaf.path === "metronome.shape.maxSkew")).toMatchObject({kind: "number"})
         expect(LEAVES.find(leaf => leaf.path === "bans.banDurations")).toMatchObject({kind: "secondsList"})
-        expect(LEAVES.find(leaf => leaf.path === "cohort.certainMembers")).toMatchObject({kind: "whole", optional: false})
+        expect(LEAVES.find(leaf => leaf.path === "cohort.certainMembers")).toMatchObject({kind: "whole"})
         expect(LEAVES).toHaveLength(94)
     })
 
-    it("edits a set's values as typed: durations in seconds, an unset bound empty, an unset part as zeros", () => {
+    it("edits a set's values as typed: durations in seconds, a value it leaves unset empty", () => {
         const draft = draftOf(rush)
         expect(draft.name).toBe("rush")
         expect(draft.values["bans.enforce"]).toBe(false)
@@ -50,11 +50,11 @@ describe("the antibot rules", () => {
         expect(draft.values["metronome.shape.maxSkew"]).toBe("0.25")
         expect(draft.values["metronome.shape.certainSkew"]).toBe("")
         expect(draft.values["metronome.maxSpread"]).toBe("")
-        expect(draft.values["cohort.minMembers"]).toBe("0")
-        expect(draft.values["hopper.minShare"]).toBe("0")
+        expect(draft.values["cohort.minMembers"]).toBe("")
+        expect(draft.values["hopper.enabled"]).toBeUndefined()
     })
 
-    it("gives back the set it was read from, a part it left unset as zeros", () => {
+    it("gives back the set it was read from, and nothing it leaves unset", () => {
         const draft = draftOf(rush)
         const back = rulesOf(draft)
         expect(draftOf(new RuleSet({name: "rush", rules: back})).values).toEqual(draft.values)
@@ -62,6 +62,8 @@ describe("the antibot rules", () => {
         expect(back.metronome?.shape?.maxSkew).toBe(0.25)
         expect(back.metronome?.shape?.certainSkew).toBeUndefined()
         expect(back.metronome?.maxSpread).toBeUndefined()
+        expect(back.cohort?.minMembers).toBeUndefined()
+        expect(back.hopper).toBeUndefined()
         const copy = copyOf(rush)
         expect(copy.name).toBe("")
         expect(copy.values).toEqual(draft.values)
@@ -85,11 +87,32 @@ describe("the antibot rules", () => {
 
     it("says why a draft is no set, and nothing when it is one", () => {
         const draft = draftOf(rush)
-        expect(flawOf(draft)).toBeUndefined()
-        expect(flawOf({...draft, values: {...draft.values, "cohort.minMembers": ""}})).toBe("Cohort · Min members: a number is needed.")
-        expect(flawOf({...draft, values: {...draft.values, "metronome.maxGap": "soon"}})).toBe("Metronome · Max gap: soon is not a number.")
-        expect(flawOf({...draft, values: {...draft.values, "bans.banDurations": ["86400", ""]}})).toBe("Bans · Ban durations: a step is empty.")
-        expect(flawOf({...draft, values: {...draft.values, "metronome.shape.maxSkew": ""}})).toBeUndefined()
+        expect(flawOf(draft, draft)).toBeUndefined()
+        expect(flawOf({...draft, values: {...draft.values, "cohort.certainMembers": ""}}, draft)).toBeUndefined()
+        expect(flawOf({...draft, values: {...draft.values, "metronome.maxGap": "soon"}}, draft)).toBe("Metronome · Max gap: soon is not a number.")
+        expect(flawOf({...draft, values: {...draft.values, "bans.banDurations": ["86400", ""]}}, draft)).toBe("Bans · Ban durations: a step is empty.")
+    })
+
+    it("keeps in default every value it holds, and lets one it leaves unset stay so", () => {
+        const kept = draftOf(new FakeAdmin().antibotRules.sets[0])
+        expect(flawOf({...kept, values: {...kept.values, "cohort.minMembers": ""}}, kept)).toBe("Cohort · Min members: default needs a value.")
+        expect(flawOf({...kept, values: {...kept.values, "bans.enforce": undefined}}, kept)).toBe("Bans · Enforce: default needs a value.")
+        expect(flawOf({...kept, values: {...kept.values, "metronome.shape.maxSkew": ""}}, kept)).toBeUndefined()
+    })
+
+    it("judges with default's values where a set holds none", () => {
+        const defaults = new FakeAdmin().antibotRules.sets[0]
+
+        const played = playedOf(rush, defaults)
+
+        expect(crowdOf(played)).toBe("50 scopes")
+        expect(played.rules?.cohort?.minMembers).toBe(2)
+        expect(played.rules?.bans?.banDurations.map(duration => Number(duration.seconds))).toEqual([86400, 604800])
+        expect(offOf(played)).toBe("defender")
+    })
+
+    it("copies default as a set that holds nothing", () => {
+        expect(rulesOf(copyOf(new FakeAdmin().antibotRules.sets[0])).equals(new Rules())).toBe(true)
     })
 
     it("saves a set as the form holds it", async () => {

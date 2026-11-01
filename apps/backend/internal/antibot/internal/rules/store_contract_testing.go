@@ -20,31 +20,59 @@ type StoreContractSuite struct {
 
 func (s *StoreContractSuite) SetupTest() {
 	s.store = s.NewStore()
+	s.save(Seeded())
 }
 
 func (s *StoreContractSuite) save(kept Snapshot) {
-	set, err := kept.Restore(s.Parts)
+	set, err := kept.Restore(s.Parts, Seeded())
 	s.Require().NoError(err)
 	s.Require().NoError(s.store.Save(s.T().Context(), set))
 }
 
-func (s *StoreContractSuite) requireKept(want Snapshot) {
-	set, err := s.store.Set(s.T().Context(), want.Name)
+func (s *StoreContractSuite) set(name SetName) Set {
+	set, err := s.store.Set(s.T().Context(), name)
 	s.Require().NoError(err)
-	kept := set.TakeSnapshot()
+	return set
+}
+
+func (s *StoreContractSuite) requireKept(want Snapshot) {
+	kept := s.set(want.Name).TakeSnapshot()
 	s.Equal(want.Name, kept.Name)
 	s.True(proto.Equal(want.Rules, kept.Rules), "%v", kept.Rules)
 }
 
-func (s *StoreContractSuite) TestASetIsReadAsItWasKept() {
-	rush := Named("rush", func(r *antibotv1.Rules) {
-		r.Cohort.CertainMembers = 50
-		r.Metronome.Clock.MinCoherence = proto.Float64(0.9)
-		r.Bans.Enforce = false
-	})
-	s.save(rush)
+func rush() Snapshot {
+	return Snapshot{Name: "rush", Rules: &antibotv1.Rules{
+		Cohort:    &antibotv1.CohortRules{CertainMembers: proto.Uint32(50)},
+		Metronome: &antibotv1.MetronomeRules{Clock: &antibotv1.ClockRules{MinCoherence: proto.Float64(0.9)}},
+		Bans:      &antibotv1.BanRules{Enforce: proto.Bool(false)},
+	}}
+}
 
-	s.requireKept(rush)
+func (s *StoreContractSuite) TestASetIsReadAsItWasKept() {
+	s.save(rush())
+
+	s.requireKept(rush())
+}
+
+func (s *StoreContractSuite) TestASetJudgesWithDefaultsValuesForThoseItLeavesUnset() {
+	s.save(rush())
+
+	played := Named("rush", func(r *antibotv1.Rules) {
+		r.Cohort.CertainMembers = proto.Uint32(50)
+		r.Metronome.Clock.MinCoherence = proto.Float64(0.9)
+		r.Bans.Enforce = proto.Bool(false)
+	})
+	s.True(proto.Equal(played.Rules, s.set("rush").TakePlayedSnapshot().Rules))
+}
+
+func (s *StoreContractSuite) TestASetFollowsDefaultWhereItHoldsNothing() {
+	s.save(rush())
+	s.save(Named(Default, func(r *antibotv1.Rules) { r.Jury.MinSuspects = proto.Uint32(3) }))
+
+	played := s.set("rush").TakePlayedSnapshot().Rules
+	s.Equal(uint32(50), played.GetCohort().GetCertainMembers())
+	s.Equal(uint32(3), played.GetJury().GetMinSuspects())
 }
 
 func (s *StoreContractSuite) TestASetNeverKeptIsUnknown() {
@@ -53,9 +81,17 @@ func (s *StoreContractSuite) TestASetNeverKeptIsUnknown() {
 }
 
 func (s *StoreContractSuite) TestASetKeptAgainReplacesItsValues() {
-	s.save(Named("rush", AsIs))
-	calmer := Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = 20 })
+	s.save(rush())
+	calmer := Snapshot{Name: "rush", Rules: &antibotv1.Rules{Cohort: &antibotv1.CohortRules{CertainMembers: proto.Uint32(20)}}}
 	s.save(calmer)
 
 	s.requireKept(calmer)
+}
+
+func (s *StoreContractSuite) TestNamesAreEverySetKept() {
+	s.save(Snapshot{Name: "rush", Rules: &antibotv1.Rules{}})
+
+	names, err := s.store.Names(s.T().Context())
+	s.Require().NoError(err)
+	s.Equal([]SetName{Default, "rush"}, names)
 }

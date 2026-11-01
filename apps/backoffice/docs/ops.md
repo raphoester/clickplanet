@@ -17,14 +17,22 @@
 `src/ops/`: `ReconcileTitles` (`TitlesPanel`, after a deploy that adds a title or changes a rule). It asks first, and
 it is harmless twice.
 
-**Both rule pages edit a set the same way.** The list of sets marks the one playing ("Playing now"). **Edit** opens a
-set, its name fixed, the one playing too; **Copy** opens a copy of a set, with no name. A save of the set playing takes
+**Both rule pages edit a set the same way.** The list of sets marks the one playing ("Playing now") and shows each set
+as it plays: its own values, and `default`'s for the rest (`playedOf`, `overlay.ts`, as the backend plays them).
+**Edit** opens a set, its name fixed, the one playing too; **Copy** opens a copy of a set, with no name. A copy of
+`default` holds nothing of its own, so it plays as `default` until a value is typed. A save of the set playing takes
 over at once, and the save's question says so ("It plays now: it takes over at once."), for an Edit and for a Copy
 given its name. The form takes the page's place, with "← All sets" back.
 
 - **What the form changes shows as it is typed** (`changesOf`, `components/Changes`): a value changed is outlined and
   says what it was ("2 min · was 4 min"), and the bar at the bottom of the window counts the changes. A duration says
   what it reads as beside its seconds ("240" → "4 min", `secondsWord`); "3" and "3.0" are one value.
+- **`default` holds every value; another set holds only what it changes** (the backend's
+  [Rules](../../backend/docs/rules.md#a-rule-set)). In a set other than `default`, an empty field plays default's value,
+  which the field shows ("default: 60", and as its placeholder), and "Use default" empties a field the set holds; a
+  switch is a choice of "Default (yes)", "Yes" and "No"; the toll is default's until "A toll of its own" is ticked,
+  which starts from default's steps. A save sends only what the set holds, zeros included. In `default`, a switch is a
+  box and every value it holds stays needed.
 - **Save** sits in that bar, always in reach. It asks first (`ConfirmAction`) with **the list of changes**, each
   value's place, what it held and what it will hold. It is off until the set has a name and every value is a number,
   and, for an Edit, until something changed; a Copy may save as it came, under its new name. The server holds the
@@ -58,10 +66,12 @@ off the proto, so a new one shows with no edit here.
   reactions", the whole place as the field's name: "Metronome · Min reactions"), and its inner parts (Shape, Clock…)
   framed. A value the proto gains shows with no edit here; a kind of value the form has no field for (an enum, a map,
   a string) fails loud.
-- **A value as it is typed**: a bool is a box, a count is rounded to a whole one, a duration is in seconds, and the
-  ban ladder (`bans.banDurations`) is steps to add and remove. An optional bound (`metronome.shape.maxSkew`) or a
-  duration left empty is left unset; any other value must be a number, and the form says which is not
-  (`flawOf`). A part the set leaves unset reads as zeros, as proto3 reads it.
+- **A value as it is typed**: a bool is a box in `default` and a choice with "Default" elsewhere, a count is rounded
+  to a whole one, a duration is in seconds, and the ban ladder (`bans.banDurations`) is steps to add and remove. A value
+  left empty is left unset: another set judges with default's, which the field shows. In `default`, a value it held
+  stays needed, and one it left unset (`metronome.shape.maxSkew`, which then never reads) may stay so; the form says
+  which value is missing or no number (`flawOf`). A part's line shows its switch as the set plays it, "(default)" when
+  it is default's.
 
 **Rule schedule** (`SchedulePanel`, `schedule.ts`) is `gamemaster.v1.AdminService` (the backend's
 [gamemaster module](../../backend/docs/gamemaster.md)), with planet's and the antibot's `GetRules` beside it:

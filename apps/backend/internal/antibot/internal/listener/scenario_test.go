@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -35,10 +37,10 @@ func watch(t *testing.T) watched {
 	kept := rules.Seeded()
 	only := kept.Rules
 	only.Bans.BanDurations = []*durationpb.Duration{durationpb.New(24 * time.Hour)}
-	only.Retaker.Enabled, only.Sequencer.Enabled, only.Defender.Enabled = false, false, false
-	only.Catcher.Enabled, only.Cohort.Enabled, only.Scraper.Enabled = false, false, false
-	only.Churner.Enabled, only.Hopper.Enabled, only.Rotator.Enabled = false, false, false
-	set, err := kept.Restore(guard.Parts())
+	only.Retaker.Enabled, only.Sequencer.Enabled, only.Defender.Enabled = proto.Bool(false), proto.Bool(false), proto.Bool(false)
+	only.Catcher.Enabled, only.Cohort.Enabled, only.Scraper.Enabled = proto.Bool(false), proto.Bool(false), proto.Bool(false)
+	only.Churner.Enabled, only.Hopper.Enabled, only.Rotator.Enabled = proto.Bool(false), proto.Bool(false), proto.Bool(false)
+	set, err := kept.Restore(guard.Parts(), rules.Seeded())
 	require.NoError(t, err)
 	inForce := rules.NewInForce()
 	inForce.Enforce(set)
