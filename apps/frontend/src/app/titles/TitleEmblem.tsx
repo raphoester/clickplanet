@@ -1,6 +1,6 @@
 import {ReactNode, useId} from "react"
 import {PlayerTitle} from "../../backends/player.ts"
-import {BANDS, enamelOf, METALS, metalOf, ribbonOf} from "./titleArt.ts"
+import {BANDS, enamelOf, METALS, metalOf, ribbonOf, seasonOf} from "./titleArt.ts"
 
 const INK = "var(--ink)"
 const LIGHT = "var(--text)"
@@ -38,6 +38,9 @@ const MAP = "M29 37 L42 32 L58 38 L71 33 V63 L58 68 L42 62 L29 67 Z"
 const SCOPE = "M31 50 A19 19 0 1 0 69 50 A19 19 0 1 0 31 50"
 const PUMPKIN = "M50 41 C40 37 28 44 28 56 C28 68 39 73 50 71 C61 73 72 68 72 56 C72 44 60 37 50 41 Z"
 const PUMPKIN_FACE = "M38 55 L45 55 L41.5 48 Z M55 55 L62 55 L58.5 48 Z M37 60 L43 64.5 L47 61.5 L50 66 L53 61.5 L57 64.5 L63 60 Q50 72 37 60 Z"
+// Above the disc, in the room only a season medal's smaller disc leaves.
+const CROWN = "M31 13 L27 -5 L41 3 L50 -9 L59 3 L73 -5 L69 13 Z"
+const CROWN_JEWELS = [[27, -5], [50, -9], [73, -5]]
 const STEM = "var(--halloween)"
 const GLOW = "var(--pumpkin-glow)"
 const SMALLER = "translate(50 49) scale(0.9) translate(-50 -49)"
@@ -51,6 +54,33 @@ const RIVETS = Array.from({length: 12}, (_, i) => {
     const angle = i * Math.PI / 6 + Math.PI / 12
     return {x: 50 + 40 * Math.cos(angle), y: 50 + 40 * Math.sin(angle)}
 })
+
+const SEASON_DISC = "translate(50 50) scale(0.72) translate(-50 -50)"
+const LAUREL_RADIUS = 38.5
+const LAUREL_FROM = 100
+const LAUREL_TO = 250
+
+function point(degrees: number, radius: number, along = 0, across = 0): string {
+    const angle = degrees * Math.PI / 180
+    const [cos, sin] = [Math.cos(angle), Math.sin(angle)]
+    return `${(50 + (radius + across) * cos - along * sin).toFixed(2)} ${(50 + (radius + across) * sin + along * cos).toFixed(2)}`
+}
+
+function leaf(degrees: number, tilt: number): string {
+    const at = (along: number, across: number) => point(degrees, LAUREL_RADIUS, along, across)
+    const t = tilt * Math.PI / 180
+    const [dx, dy] = [Math.cos(t), Math.sin(t)]
+    const side = (width: number) => at(7 * dx - width * dy, 7 * dy + width * dx)
+    return `M${at(0, 0)} Q${side(6)} ${at(14 * dx, 14 * dy)} Q${side(-6)} ${at(0, 0)} Z`
+}
+
+const LAUREL_STEM = `M${point(LAUREL_FROM, LAUREL_RADIUS)} A${LAUREL_RADIUS} ${LAUREL_RADIUS} 0 0 1 ${point(LAUREL_TO, LAUREL_RADIUS)}`
+const LAUREL_OUTER = [...Array.from({length: 6}, (_, i) => leaf(LAUREL_FROM + 6 + i * 26, 40)), leaf(LAUREL_TO - 4, 0)].join(" ")
+const LAUREL_INNER = Array.from({length: 5}, (_, i) => leaf(LAUREL_FROM + 19 + i * 26, -40)).join(" ")
+const MIRROR = "translate(100 0) scale(-1 1)"
+const SCROLL = "M17 70 Q50 79 83 70 V84 Q50 93 17 84 Z"
+const LETTERING = {stroke: INK, paintOrder: "stroke", fontFamily: "var(--font-display)"}
+const SCROLL_ENDS = ["M22 75 H8 L13 82.5 L8 90 H24 Z", "M78 75 H92 L87 82.5 L92 90 H76 Z"]
 
 function Line({d, color, width = 4}: {d: string, color: string, width?: number}) {
     return <>
@@ -84,14 +114,26 @@ function Target({accent, cream, x = 50, y = 50, r = 20}: {accent: string, cream:
     </>
 }
 
+function Trophy({place, accent, cream}: {place: string, accent: string, cream: string}) {
+    return <>
+        <Line d="M35 30 C24 30 25 48 40 50 M65 30 C76 30 75 48 60 50" color={accent} width={3}/>
+        <Shape d="M40 68 H60 L63 76 H37 Z" color={accent}/>
+        <Shape d="M45.5 56 H54.5 V68 H45.5 Z" color={accent} width={2.5}/>
+        <Shape d="M33 24 H67 V35 C67 50 59 58 50 58 C41 58 33 50 33 35 Z" color={accent}/>
+        <path d="M38 29 V36 C38 42 40 47 43 51" style={{stroke: LIGHT}} strokeOpacity="0.85" strokeWidth="3"
+              strokeLinecap="round" fill="none"/>
+        <Letters text={place} color={cream} y={51} size={24}/>
+    </>
+}
+
 function Meridians() {
     return <path d="M50 31 C41 37 41 63 50 69 M50 31 C59 37 59 63 50 69 M31 50 H69" style={{stroke: INK}}
                  strokeWidth="2.5" fill="none"/>
 }
 
-function Letters({text, color}: {text: string, color: string}) {
-    return <text x="50" y="63" textAnchor="middle" fontSize="32" strokeWidth="5" strokeLinejoin="round"
-                 style={{fill: color, stroke: INK, paintOrder: "stroke", fontFamily: "var(--font-display)"}}>{text}</text>
+function Letters({text, color, y = 63, size = 32}: {text: string, color: string, y?: number, size?: number}) {
+    return <text x="50" y={y} textAnchor="middle" fontSize={size} strokeWidth="5" strokeLinejoin="round"
+                 style={{...LETTERING, fill: color}}>{text}</text>
 }
 
 function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
@@ -99,13 +141,21 @@ function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
         case "og":
             return <Letters text="OG" color={accent}/>
         case "season_0_gold":
-            return <Letters text="1" color={accent}/>
+            return <>
+                <Shape d={CROWN} color={accent}/>
+                {CROWN_JEWELS.map(([x, y]) => <circle key={x} cx={x} cy={y} r="3.2" style={{fill: cream, stroke: INK}} strokeWidth="2.5"/>)}
+                <Trophy place="1" accent={accent} cream={cream}/>
+            </>
         case "season_0_silver":
-            return <Letters text="2" color={accent}/>
+            return <Trophy place="2" accent={accent} cream={cream}/>
         case "season_0_bronze":
-            return <Letters text="3" color={accent}/>
+            return <Trophy place="3" accent={accent} cream={cream}/>
         case "season_0_veteran":
-            return <Shape d={STAR} color={accent} width={1.6} transform="translate(50 50) scale(2) translate(-50 -43)"/>
+            return <>
+                <Line d="M38 62 L67 33 M62 62 L33 33" color={cream} width={4.5}/>
+                <Line d="M31 69 L38 62 M69 69 L62 62 M33 57 L43 67 M67 57 L57 67" color={accent} width={4}/>
+                <Shape d={STAR} color={accent} width={1.6} transform="translate(50 47) scale(1.7) translate(-50 -43)"/>
+            </>
         case "halloween_2026":
             return <>
                 <Shape d="M48 42 L47 32 Q51 28 56 31 L53 42 Z" color={STEM} width={2.5}/>
@@ -307,6 +357,33 @@ function Bands({colors}: {colors: readonly string[]}) {
     </>
 }
 
+function Laurel({color}: {color: string}) {
+    return <>
+        {[undefined, MIRROR].map((transform) => <g key={transform ?? "left"} transform={transform}>
+            <path d={LAUREL_OUTER} style={{fill: INK}} transform="translate(0 2.5)"/>
+            <Line d={LAUREL_STEM} color={color} width={2.5}/>
+            <Shape d={LAUREL_INNER} color={color} width={2.5}/>
+            <path d={LAUREL_INNER} style={{fill: INK}} fillOpacity="0.28"/>
+            <Shape d={LAUREL_OUTER} color={color} width={2.5}/>
+        </g>)}
+    </>
+}
+
+function Scroll({season, color}: {season: string, color: string}) {
+    return <>
+        {SCROLL_ENDS.map((d) => <g key={d}>
+            <Shape d={d} color={color} width={2.5}/>
+            <path d={d} style={{fill: INK}} fillOpacity="0.3"/>
+        </g>)}
+        <path d={SCROLL} style={{fill: INK}} transform="translate(0 3)"/>
+        <Shape d={SCROLL} color={color}/>
+        <text x="49" y="87.5" textAnchor="end" fontSize="15" strokeWidth="4" strokeLinejoin="round"
+              style={{...LETTERING, fill: CREAM}}>S</text>
+        <text textAnchor="start" fontSize="15" strokeWidth="4" strokeLinejoin="round" style={{...LETTERING, fill: CREAM}}
+              transform="translate(50 87.5) scale(0.72 1)">{season}</text>
+    </>
+}
+
 function Padlock() {
     const shackle = "M74 79 V75.5 A5 5 0 0 1 84 75.5 V79"
     return <>
@@ -330,6 +407,7 @@ export default function TitleEmblem({title, size, locked = false, ribbon = false
     const ring = locked ? LOCKED.ring : METALS[metal]
     const accent = locked ? LOCKED.accent : METALS[metal]
     const bands = locked ? undefined : BANDS[metal]
+    const season = seasonOf(title)
     const viewHeight = ribbon || locked ? 114 : 102
 
     return <svg className={locked ? "title-emblem title-emblem-locked" : "title-emblem"}
@@ -351,17 +429,20 @@ export default function TitleEmblem({title, size, locked = false, ribbon = false
             {RIBBONS.map((d) => <path key={`drop ${d}`} d={d} style={{fill: INK}} transform="translate(0 4)"/>)}
             {RIBBONS.map((d) => <path key={d} d={d} style={{fill: ribbonOf(title), stroke: INK}} strokeWidth="3" strokeLinejoin="round"/>)}
         </>}
-        <circle cx="50" cy="55" r="46" style={{fill: INK}}/>
-        <circle cx="50" cy="50" r="45" style={{fill: ring}}/>
-        {bands && <Bands colors={bands}/>}
-        <circle cx="50" cy="50" r="45" style={{fill: INK}} fillOpacity="0.28" mask={`url(#${id}-shade)`}/>
-        <circle cx="50" cy="50" r="45" style={{fill: LIGHT}} fillOpacity="0.45" mask={`url(#${id}-light)`}/>
-        {RIVETS.map((rivet, i) => <circle key={i} cx={rivet.x} cy={rivet.y} r="1.8" style={{fill: INK}} fillOpacity="0.3"/>)}
-        <circle cx="50" cy="50" r="45" fill="none" style={{stroke: INK}} strokeWidth="4"/>
-        <circle cx="50" cy="50" r="33" style={{fill: locked ? LOCKED.enamel : enamelOf(title), stroke: INK}} strokeWidth="3.5"/>
-        {icon(title, accent, locked ? LOCKED.cream : CREAM)}
-        {locked
-            ? <Padlock/>
-            : <path d="M14 37 A39 39 0 0 1 28 18" style={{stroke: LIGHT}} strokeWidth="4.5" strokeLinecap="round" fill="none"/>}
+        {season && <Laurel color={ring}/>}
+        <g transform={season && SEASON_DISC}>
+            <circle cx="50" cy="55" r="46" style={{fill: INK}}/>
+            <circle cx="50" cy="50" r="45" style={{fill: ring}}/>
+            {bands && <Bands colors={bands}/>}
+            <circle cx="50" cy="50" r="45" style={{fill: INK}} fillOpacity="0.28" mask={`url(#${id}-shade)`}/>
+            <circle cx="50" cy="50" r="45" style={{fill: LIGHT}} fillOpacity="0.45" mask={`url(#${id}-light)`}/>
+            {RIVETS.map((rivet, i) => <circle key={i} cx={rivet.x} cy={rivet.y} r="1.8" style={{fill: INK}} fillOpacity="0.3"/>)}
+            <circle cx="50" cy="50" r="45" fill="none" style={{stroke: INK}} strokeWidth="4"/>
+            <circle cx="50" cy="50" r="33" style={{fill: locked ? LOCKED.enamel : enamelOf(title), stroke: INK}} strokeWidth="3.5"/>
+            {icon(title, accent, locked ? LOCKED.cream : CREAM)}
+            {!locked && <path d="M14 37 A39 39 0 0 1 28 18" style={{stroke: LIGHT}} strokeWidth="4.5" strokeLinecap="round" fill="none"/>}
+        </g>
+        {season && <Scroll season={season} color={locked ? LOCKED.ring : ribbonOf(title)}/>}
+        {locked && <Padlock/>}
     </svg>
 }

@@ -131,6 +131,10 @@ Every title is a medal, and the medals obey the same rules as everything else:
   Loot plum and pink, Quiz green and blue, Missions olive and lime, OG violet. A
   standalone title may have a look of its own: Halloween is a night-green center and
   a stem-green ribbon.
+- **A season's title is the one medal with a frame**: a laurel wreath in its metal
+  around a smaller disc, a crimson center and ribbon, and a crimson scroll with the
+  season ("S0"). Nothing else gets a wreath or a scroll, so a season medal stands out
+  even at chat size.
 - **The icon** is in the metal and `--cream`, outlined in ink. The Halloween
   pumpkin is the one exception: a green stem and a face lit in `--pumpkin-glow`.
 - **A locked medal** is a grey ring, a sunk center and a padlock.

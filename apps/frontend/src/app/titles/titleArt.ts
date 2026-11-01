@@ -4,10 +4,17 @@ export type Metal = "bronze" | "silver" | "gold" | "platinum" | "prism" | "holo"
 
 const TRACKS = ["conquest", "chatter", "devotion", "defense", "bombs", "loot", "quiz", "missions"] as const
 
-type Track = typeof TRACKS[number] | "og" | "halloween"
+type Track = typeof TRACKS[number] | "og" | "halloween" | "season"
 
 const STANDALONE_LOOKS: Partial<Record<string, Track>> = {
     halloween_2026: "halloween",
+}
+
+const SEASONS: Partial<Record<string, string>> = {
+    season_0_gold: "0",
+    season_0_silver: "0",
+    season_0_bronze: "0",
+    season_0_veteran: "0",
 }
 
 export const METALS: Record<Metal, string> = {
@@ -71,8 +78,12 @@ export function metalOf(title: PlayerTitle): Metal {
     return TITLE_METALS[title.id] ?? "silver"
 }
 
+export function seasonOf(title: PlayerTitle): string | undefined {
+    return SEASONS[title.id]
+}
+
 function trackOf(title: PlayerTitle): Track {
-    if (!title.rank) return STANDALONE_LOOKS[title.id] ?? "og"
+    if (!title.rank) return seasonOf(title) ? "season" : STANDALONE_LOOKS[title.id] ?? "og"
     return TRACKS.find((track) => track === title.rank?.trackId) ?? "conquest"
 }
 
