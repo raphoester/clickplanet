@@ -194,3 +194,79 @@ func TestNoHostIsRefused(t *testing.T) {
 
 	require.ErrorContains(t, err, "the ssh host is empty")
 }
+
+func (f fakeSSH) raw(t *testing.T, n int) ([]string, string) {
+	t.Helper()
+
+	args, err := os.ReadFile(filepath.Join(f.folder, fmt.Sprintf("args-%d", n)))
+	require.NoError(t, err)
+	body, err := os.ReadFile(filepath.Join(f.folder, fmt.Sprintf("body-%d", n)))
+	require.NoError(t, err)
+	return strings.Split(strings.TrimSuffix(string(args), "\n"), "\n"), string(body)
+}
+
+func documentOf(t *testing.T, row stats.Row) string {
+	t.Helper()
+
+	document, err := json.Marshal(row)
+	require.NoError(t, err)
+	quoted, err := json.Marshal(string(document))
+	require.NoError(t, err)
+	return string(quoted)
+}
+
+func TestTheLastSnapshotIsItsRowsEveryPageOfThem(t *testing.T) {
+	youtube := stats.Row{
+		Version: stats.RowVersion, TakenAt: takenAt, PostID: "post-1", Platform: "youtube", PlatformPostID: "abc",
+		Retention: &stats.Retention{HTTPStatus: 200, Body: json.RawMessage(`{"retentionCurve":[{}]}`), ReadAt: takenAt, AgeHours: 50},
+	}
+	fake := ssh(t, []string{
+		`{"snapshots":[{"takenAt":"2026-10-25T05:41:07Z"}]}`,
+		`{"rows":[{"postId":"post-0","platform":"tiktok","document":` + documentOf(t, rows(1)[0]) + `}],"nextPage":"p2"}`,
+		`{"rows":[{"postId":"post-1","platform":"youtube","document":` + documentOf(t, youtube) + `}]}`,
+	}, "", 0)
+	store, err := ssh_stats_store.New("deploy@vps.example", fake.client)
+	require.NoError(t, err)
+
+	last, err := store.Last(t.Context())
+
+	require.NoError(t, err)
+	require.Len(t, last, 2)
+	assert.Equal(t, stats.PostID("post-0"), last[0].PostID)
+	assert.True(t, last[1].Retention.Curve())
+	assert.InDelta(t, 50, last[1].Retention.AgeHours, 0.001)
+
+	args, body := fake.raw(t, 1)
+	assert.True(t, strings.HasSuffix(args[2], "/clips.v1.AdminService/ListSnapshots"))
+	assert.JSONEq(t, `{"limit":1}`, body)
+	args, body = fake.raw(t, 2)
+	assert.True(t, strings.HasSuffix(args[2], "/clips.v1.AdminService/ListRows"))
+	assert.JSONEq(t, `{"since":"2026-10-25T05:41:07Z","until":"2026-10-25T05:41:08Z","limit":2000}`, body, "that snapshot alone")
+	_, body = fake.raw(t, 3)
+	assert.JSONEq(t, `{"since":"2026-10-25T05:41:07Z","until":"2026-10-25T05:41:08Z","limit":2000,"page":"p2"}`, body)
+}
+
+func TestBeforeTheFirstSnapshotThereIsNoLastOne(t *testing.T) {
+	fake := ssh(t, []string{`{}`}, "", 0)
+	store, err := ssh_stats_store.New("deploy@vps.example", fake.client)
+	require.NoError(t, err)
+
+	last, err := store.Last(t.Context())
+
+	require.NoError(t, err)
+	assert.Empty(t, last)
+	assert.Equal(t, 1, fake.calls(t))
+}
+
+func TestALastRowThatIsNoRowFailsTheRead(t *testing.T) {
+	fake := ssh(t, []string{
+		`{"snapshots":[{"takenAt":"2026-10-25T05:41:07Z"}]}`,
+		`{"rows":[{"postId":"post-0","platform":"tiktok","document":"[1]"}]}`,
+	}, "", 0)
+	store, err := ssh_stats_store.New("deploy@vps.example", fake.client)
+	require.NoError(t, err)
+
+	_, err = store.Last(t.Context())
+
+	require.ErrorContains(t, err, "the row of post-0 on tiktok is not a row")
+}

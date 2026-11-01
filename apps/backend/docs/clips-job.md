@@ -72,7 +72,8 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   (`.github/workflows/clips-stats.yml`), so the experiments can be read from them: a row for each platform of each
   post, with what the post was beside it, **sent over ssh to the server's clips module**, which keeps it in
   postgres, and the backoffice makes the table (below, "`stats/` is what became of the posts"). `CLICKPLANET_SSH`
-  stands in for `-ssh`, as for `fetch`. It exits 1 when a post could not be read whole, after keeping the others.
+  stands in for `-ssh`, as for `fetch`. It exits 1 when a post's analytics could not be read, after keeping the
+  others; a YouTube retention curve that could not be read fails nothing (below, "YouTube's retention").
 - **`cmd/clips` is three stages, and `run` only names them**: parse, work, display (see [A command's `run` is a
   table of contents](command-run.md)). `main.go` holds no stage.
   - **`flags.Parse`** (`cmd/clips/internal/flags`) answers one typed `flags.Config`: the command, its files, and
@@ -585,14 +586,35 @@ for good:
   days. **Any answer is kept as it came** (`Retention`: its status and its body), up to 100 points with
   `audienceWatchRatio` and `relativeRetentionPerformance`, or the 412 `youtube_analytics_scope_missing` that asks
   for the channel to be connected again, which the summary says plainly. YouTube has no curve for a video with few
-  views or under 2 to 3 days old: an empty one is `empty`. **A curve refused as busy for longer than the `Backoff`
-  waits stops the curves of the run** (the quota spent, until midnight Pacific): the videos after it are not asked,
-  each in `Unread` as `not asked` with the refusal that stopped them, and their rows, analytics included, are kept.
+  views or under 2 to 3 days old: an empty one is `empty`.
+- **A curve is asked for at two ages, not every day** (`stats.RetentionDue`): once the video is past 2 days, and
+  once past 7, each until a curve comes. It is aggregated over the video's whole life, so a curve read on day 3 says
+  what a read on day 5 would, and **YouTube's analytics quota is spent by a Pacific day's reads**: on 2026-10-25 the
+  backfill of the afternoon (`-since 2026-10-13`) and the daily run, both in one Pacific day, asked every video's
+  curve, and the run got a 429 for each. Under 2 days nothing is asked; an empty curve, a refusal or a failure is
+  asked again the next run. At about 14 posts a day, 8 of them to YouTube (`dailyBudget`), that is 2 or 3 calls a
+  video in its life, **about 16 to 24 a day**, where every YouTube video of the last 4 weeks every day was about 70.
+- **A row carries the curve last read until the next is due**: `retention.readAt` and `retention.ageHours` say when
+  it was read and how old the video was then, not the row's own. So the newest snapshot holds each video's newest
+  curve, and the run reads it (`Store.Last`, the rows of the newest snapshot) to know what is due. A row from before
+  this (2026-10-26) has neither, and was read with its row (`stats.HeldRetentions`). A new read with no curve where
+  one was held keeps the old curve and says why (`stats.RetentionAfter`): an older curve is still true to its day.
+- **A curve that could not be read loses nothing else.** The row is kept with its answer, its metrics and its
+  metadata, and `retentionMissing` says why (an error, or the quota). The post is not `Unread` and the run does not
+  fail on it: `log_take_snapshot` warns (`a retention curve due was not read`), and the next run asks again. Until
+  2026-10-26 it was `Unread`, so 40 posts were logged as lost, the run went red, and nothing said the rest was kept.
+- **YouTube's quota spent stops the asking for the run**: each curve after it would be a call refused at once.
+  `posts/zernio` reads a 429 whose error or code names a quota, with no `Retry-After` or one past the hour, as
+  `stats.ErrRetentionQuota`: it is not waited out, and each curve due after it is `retentionMissing: "youtube's
+  daily analytics quota is spent"`, with no call. A curve refused as busy for longer than the `Backoff` waits stops
+  them the same way, each after it `not asked:` with the refusal. A 429 that names no quota, or comes back within
+  the hour, is busy and is tried again after the `Backoff`. Zernio's words, 2026-10-25: "YouTube Analytics daily
+  quota exhausted. Analytics requests succeed again after midnight Pacific Time."
 - **No analytics, no snapshot.** They need Zernio's Analytics add-on: `GET /v1/accounts` says
   `hasAnalyticsAccess`, and **false fails the run before any post is read, and nothing is written**
   (`stats.ErrNoAnalyticsAccess`, which says to turn it on). A 402 on a post's analytics is the same error, and
-  fails the run whole. Any other post that cannot be read (a 404 for a post deleted, a service busy past the
-  `Backoff`) is in the report's `Unread`: the others are kept, then the run fails.
+  fails the run whole. Any other post whose analytics cannot be read (a 404 for a post deleted, a service busy past
+  the `Backoff`) is in the report's `Unread`: the others are kept, then the run fails. A curve is never `Unread`.
 - **Is TikTok's business lane live?** The snapshot keeps it for each TikTok account, and the backoffice shows it: `tiktokAccountType` (what
   TikTok said the account was when it was connected to Zernio: `business`, `personal`, `unknown`), how many of its
   rows of the snapshot hold a business metric (`Row.BusinessMetrics`: a completion rate, a profile view or a watch
@@ -606,7 +628,9 @@ for good:
   and it holds what Zernio wrote, which no shell should read. **A snapshot goes in parts of 200 rows** (about 3 KB
   a row), each with the whole snapshot's summary; the backend keeps a row again (snapshot, post, platform) and a
   summary again as one, so a run made again or a part sent twice keeps one snapshot. A part the backend kept less
-  of than it was sent fails the run. The row goes as the job wrote it (`clips.v1.StatsRow.document`, the JSON of
+  of than it was sent fails the run. **It reads the last snapshot the same way** (`Store.Last`: `ListSnapshots` for
+  the newest, then its rows from `ListRows`, 2000 a page), before any post is read; a read that fails fails the run,
+  since the keep that follows would too. The row goes as the job wrote it (`clips.v1.StatsRow.document`, the JSON of
   `stats.Row`), so a metric Zernio adds is kept with no change to the proto or the table. See
   [Clip stats](clip-stats.md) for what the backend does with it, and the backoffice's
   [Clip stats](../../backoffice/docs/clip-stats.md), for the table.
@@ -615,20 +639,22 @@ for good:
   admin gate, and the workflow uploads no artifact and writes no summary. **The log carries counts and states, never
   a metric**: rows kept, posts not out, rows syncing, each TikTok account's lane, the posts lost with why, and why
   YouTube gave no curve (a warning for `youtube_analytics_scope_missing`, which asks for the channel to be connected
-  again in Zernio).
+  again in Zernio), the curves asked and held, and why each curve due is missing (a warning).
 - **The workflow** runs every day at 08:17 UTC, just after midnight Pacific in summer (07:00 UTC) and in winter
   (08:00), and by hand with `since`. **Midnight Pacific is when YouTube's Analytics quota starts again**, which every
   curve of retention draws on: at 05:41 UTC (22:41 Pacific) it was spent before the run began, and on Oct 25 and 26
   every curve was refused (`429`, "YouTube Analytics daily quota exhausted. Analytics requests succeed again after
   midnight Pacific Time"), about 8 seconds in; the one run that read them, by hand at 13:20 Pacific, had none
-  refused. Our own reads are about 70 a day, one a YouTube video of the last 4 weeks. A run by hand late in the
-  Pacific day may find the quota spent again. It is one job: it holds the Zernio key
+  refused. Our own reads were about 70 a day, one a YouTube video of the last 4 weeks, and are now 16 to 24 (above).
+  A run by hand late in the Pacific day may find the quota spent again, and the curves it could not read are asked by
+  the next run. It is one job: it holds the Zernio key
   and the VPS's (`VPS_*`, as `fetch`) and runs no npm, as the clips workflow's jobs do. A snapshot that lost a post
   is still kept, then the run is red.
 - `take_snapshot_usecase` reads, then keeps the rows with the report, `log_take_snapshot` logs each TikTok lane and
-  each post lost, and the adapter of Zernio is `posts/zernio`'s `Service` again (`stats.go`): the one package that
-  knows the service. Its tests run it against `httptest` with the answers of Zernio's document, the use case's
-  against a scripted source, and `ssh_stats_store`'s against a fake `ssh` that keeps its standard input.
+  each post lost and each curve missing, and the adapter of Zernio is `posts/zernio`'s `Service` again (`stats.go`):
+  the one package that knows the service. Its tests run it against `httptest` with the answers of Zernio's document,
+  the use case's against a scripted source, and `ssh_stats_store`'s against a fake `ssh` that keeps its standard
+  input.
 
 `posts/generator_output/` reads the generator's files (`protojson`, unknown fields dropped, so the generator can
 add one first), and both use cases log in a decorator

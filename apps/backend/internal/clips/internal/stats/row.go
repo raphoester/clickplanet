@@ -29,13 +29,14 @@ type Row struct {
 	// The platform's entry of the answer as it came, every metric in it. Null when the answer had none for it.
 	Analytics json.RawMessage `json:"analytics"`
 	// YouTube's alone.
-	Retention *Retention `json:"retention,omitempty"`
+	Retention        *Retention `json:"retention,omitempty"`
+	RetentionMissing string     `json:"retentionMissing,omitempty"`
 	// The post's metadata as it came: its story key, its countries, its call to act and its record.
 	Metadata json.RawMessage `json:"metadata"`
 }
 
 // A row for each of the post's targets that is out. retentions: by the target's platform post id.
-func RowsOf(post Post, answer Answer, retentions map[string]*Retention, takenAt time.Time) []Row {
+func RowsOf(post Post, answer Answer, retentions map[string]RetentionState, takenAt time.Time) []Row {
 	rows := make([]Row, 0, len(post.Targets))
 	for _, target := range post.Targets {
 		if !target.Out() {
@@ -49,15 +50,21 @@ func RowsOf(post Post, answer Answer, retentions map[string]*Retention, takenAt 
 		if metadata == nil {
 			metadata = json.RawMessage("null")
 		}
+		retention := retentions[target.PlatformPostID]
 		rows = append(rows, Row{
 			Version: RowVersion, TakenAt: takenAt.UTC(),
 			PostID: post.ID, Platform: target.Platform, AccountID: target.AccountID,
 			PlatformPostID: target.PlatformPostID, URL: target.URL, PublishedAt: target.PublishedAt.UTC(),
 			AgeHours: ageOf(target.PublishedAt, takenAt),
-			Answer:   answer, Analytics: analytics, Retention: retentions[target.PlatformPostID], Metadata: metadata,
+			Answer:   answer, Analytics: analytics, Metadata: metadata,
+			Retention: retention.Retention, RetentionMissing: retention.Missing,
 		})
 	}
 	return rows
+}
+
+func (r Row) RetentionRead() bool {
+	return r.Retention != nil && r.Retention.ReadAt.Equal(r.TakenAt)
 }
 
 // In hours, to the hundredth.

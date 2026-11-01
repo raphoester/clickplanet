@@ -3,6 +3,7 @@ package stats
 import (
 	"encoding/json"
 	"strconv"
+	"time"
 )
 
 // What the service answered to the analytics of one post: a 200, a 202 while a platform still syncs, a 424 when every
@@ -37,6 +38,8 @@ func (a Answer) entryOf(target Target) json.RawMessage {
 type Retention struct {
 	HTTPStatus int             `json:"httpStatus"`
 	Body       json.RawMessage `json:"body"`
+	ReadAt     time.Time       `json:"readAt"`
+	AgeHours   float64         `json:"ageHours"`
 }
 
 // Whether it holds a curve with at least one point.

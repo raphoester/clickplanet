@@ -42,9 +42,12 @@ type Document = {
     publishedAt?: string, ageHours?: number,
     answer?: {httpStatus?: number, status?: string, syncStatus?: string},
     analytics?: {syncStatus?: string, errorMessage?: string | null, analytics?: unknown} | null,
-    retention?: {httpStatus?: number, body?: unknown},
+    retention?: Retention,
+    retentionMissing?: string,
     metadata?: unknown,
 }
+
+type Retention = {httpStatus?: number, body?: unknown, readAt?: string, ageHours?: number}
 
 function cellsOf(text: string): Cells {
     const row = JSON.parse(text) as Document
@@ -65,13 +68,16 @@ function cellsOf(text: string): Cells {
     }
     flatten(cells, "meta", row.metadata)
     if (row.retention !== undefined) retentionCells(cells, row.retention)
+    if (row.retentionMissing) cells.set("youtube.retentionMissing", row.retentionMissing)
     return cells
 }
 
 type Point = {relativeRetentionPerformance?: number}
 
-function retentionCells(cells: Cells, retention: {httpStatus?: number, body?: unknown}) {
+function retentionCells(cells: Cells, retention: Retention) {
     cells.set("youtube.retentionStatus", textOf(retention.httpStatus))
+    if (retention.readAt) cells.set("youtube.retentionReadAt", retention.readAt)
+    if (retention.ageHours !== undefined) cells.set("youtube.retentionAgeHours", textOf(retention.ageHours))
     const body = retention.body
     if (body === null || typeof body !== "object" || Array.isArray(body)) return
 
