@@ -3,6 +3,7 @@ import {Duration} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {afterEach, describe, expect, it} from "vitest"
+import {clockOf, localOf, timeOf} from "../components/time.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {AddSeasonRequest, EditSeasonRequest} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {SeasonsPanel} from "./SeasonsPanel.tsx"
@@ -10,6 +11,7 @@ import {SeasonsPanel} from "./SeasonsPanel.tsx"
 afterEach(cleanup)
 
 const DAY = 24 * 3600
+const HOUR = 3600
 
 const rowOf = (number: number) =>
     screen.getAllByRole("row").find(row => row.querySelector("strong")?.textContent === String(number)) as HTMLElement
@@ -17,14 +19,21 @@ const rowOf = (number: number) =>
 const type = (label: string, value: string) =>
     fireEvent.change(screen.getByLabelText(label), {target: {value}})
 
-const endOf = (admin: FakeAdmin, number: number) => admin.seasons.seasons[number].season?.endsAt?.toDate() as Date
+const field = (label: string) => screen.getByLabelText(label) as HTMLInputElement
 
-// The window the form shows, as the times' dateTime.
-const windowShown = () =>
-    Array.from(within(screen.getByRole("region", {name: /season/})).getByText(/^From/).querySelectorAll("time")).map(time => time.getAttribute("dateTime"))
+const startOf = (admin: FakeAdmin, number: number) => admin.seasons.seasons[number].season?.startsAt?.toDate() as Date
+const endOf = (admin: FakeAdmin, number: number) => admin.seasons.seasons[number].season?.endsAt?.toDate() as Date
+const later = (date: Date, seconds: number) => new Date(date.getTime() + seconds * 1000)
+
+const alerts = () => screen.queryAllByRole("alert").map(alert => alert.textContent)
 
 function show(admin: FakeAdmin) {
-    render(<SeasonsPanel gamemaster={admin.gamemaster}/>)
+    render(<SeasonsPanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot}/>)
+}
+
+async function edit(number: number) {
+    await screen.findByRole("table")
+    fireEvent.click(within(rowOf(number)).getByRole("button", {name: "Edit"}))
 }
 
 describe("the seasons page", () => {
@@ -55,60 +64,58 @@ describe("the seasons page", () => {
         expect(within(rowOf(2)).getByRole("button", {name: "Delete"})).toBeTruthy()
     })
 
-    it("adds a season of 28 days after the last one by default, its window shown, once confirmed", async () => {
+    it("starts a new season as the last one ends, for 28 days, in the operator's own time", async () => {
         const admin = new FakeAdmin()
         show(admin)
 
         fireEvent.click(await screen.findByRole("button", {name: "Add a season"}))
-        const startsAt = endOf(admin, 2)
-        expect(windowShown()).toEqual([startsAt.toISOString(), new Date(startsAt.getTime() + 28 * DAY * 1000).toISOString()])
-        type("Length, days", "30")
+        expect(field("Starts").value).toBe(localOf(endOf(admin, 2)))
+        expect(field("Ends").value).toBe(localOf(later(endOf(admin, 2), 28 * DAY)))
+        expect(screen.getByText("28 d long, starting as season 2 ends.")).toBeTruthy()
+        expect(screen.getByText(`Times are in ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`)).toBeTruthy()
+    })
+
+    it("adds a season from the times picked, as the break and the length they give, once confirmed", async () => {
+        const admin = new FakeAdmin()
+        show(admin)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Add a season"}))
+        const startsAt = later(endOf(admin, 2), 16 * HOUR)
+        const endsAt = later(startsAt, 30 * DAY)
+        type("Starts", localOf(startsAt))
+        type("Ends", localOf(endsAt))
+        expect(screen.getByText("30 d long, starting 16 h after season 2 ends.")).toBeTruthy()
         fireEvent.click(screen.getByRole("button", {name: "Add"}))
-        expect(screen.getByText(/^Add a season: a break of 0 h, then 30 d, from /)).toBeTruthy()
+        expect(screen.getByText(`Add season 3 from ${timeOf(startsAt)} to ${timeOf(endsAt)} (30 d long, starting 16 h after season 2 ends), with no final battle?`))
+            .toBeTruthy()
         fireEvent.click(screen.getByRole("button", {name: "Yes, add"}))
 
         await waitFor(() => expect(screen.queryByRole("region", {name: "New season"})).toBeNull())
         const [asked] = admin.askedFor("addSeason") as AddSeasonRequest[]
-        expect(asked.breakBefore?.seconds).toBe(0n)
+        expect(asked.breakBefore?.seconds).toBe(BigInt(16 * HOUR))
         expect(asked.length?.seconds).toBe(BigInt(30 * DAY))
         expect(admin.askedFor("getSeasons")).toHaveLength(2)
         expect(await screen.findByText("3")).toBeTruthy()
     })
 
-    it("shows the window the durations give as they are typed", async () => {
-        const admin = new FakeAdmin()
-        show(admin)
-
-        await screen.findByRole("table")
-        fireEvent.click(within(rowOf(2)).getByRole("button", {name: "Edit"}))
-        type("Break, days", "2")
-        type("Break, hours", "6")
-        type("Length, days", "10")
-
-        const startsAt = new Date(endOf(admin, 1).getTime() + (2 * DAY + 6 * 3600) * 1000)
-        expect(windowShown()).toEqual([startsAt.toISOString(), new Date(startsAt.getTime() + 10 * DAY * 1000).toISOString()])
-    })
-
-    it("keeps the break of a running season and moves its length once confirmed, and the seasons after it", async () => {
+    it("keeps the start of a running season and moves its end once confirmed, and the seasons after it", async () => {
         const admin = new FakeAdmin()
         const before = endOf(admin, 2)
         show(admin)
 
-        await screen.findByRole("table")
-        fireEvent.click(within(rowOf(1)).getByRole("button", {name: "Edit"}))
-        expect((screen.getByLabelText("Break, days") as HTMLInputElement).disabled).toBe(true)
-        expect((screen.getByLabelText("Break, hours") as HTMLInputElement).disabled).toBe(true)
-        type("Length, days", "40000")
-        type("Length, hours", "0")
+        await edit(1)
+        expect(field("Starts").disabled).toBe(true)
+        const endsAt = new Date("2099-01-01T21:00:00Z")
+        type("Ends", localOf(endsAt))
         fireEvent.click(screen.getByRole("button", {name: "Save"}))
-        expect(screen.getByText(/^Run season 1: /)).toBeTruthy()
+        expect(screen.getByText(/^Run season 1 from /)).toBeTruthy()
         fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
 
         await waitFor(() => expect(admin.askedFor("editSeason")).toHaveLength(1))
         const [asked] = admin.askedFor("editSeason") as EditSeasonRequest[]
         expect(asked.number).toBe(1)
         expect(asked.breakBefore?.seconds).toBe(BigInt(DAY))
-        expect(asked.length?.seconds).toBe(BigInt(40000 * DAY))
+        expect(asked.length?.seconds).toBe(BigInt((endsAt.getTime() - startOf(admin, 1).getTime()) / 1000))
         expect(endOf(admin, 2)).not.toEqual(before)
     })
 
@@ -118,17 +125,90 @@ describe("the seasons page", () => {
         admin.seasons.seasons[2].length = kept
         show(admin)
 
-        await screen.findByRole("table")
-        fireEvent.click(within(rowOf(2)).getByRole("button", {name: "Edit"}))
-        expect((screen.getByLabelText("Break, days") as HTMLInputElement).disabled).toBe(false)
-        type("Break, days", "1")
+        await edit(2)
+        type("Description", "Four times the points.")
+        fireEvent.click(screen.getByRole("button", {name: "Save"}))
+        fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
+
+        await waitFor(() => expect(admin.askedFor("editSeason")).toHaveLength(1))
+        const [asked] = admin.askedFor("editSeason") as EditSeasonRequest[]
+        expect(asked.length?.equals(kept)).toBe(true)
+        expect(asked.breakBefore?.seconds).toBe(0n)
+    })
+
+    it("moves the end alone when only the start moves", async () => {
+        const admin = new FakeAdmin()
+        show(admin)
+
+        await edit(2)
+        type("Starts", localOf(later(startOf(admin, 2), DAY)))
         fireEvent.click(screen.getByRole("button", {name: "Save"}))
         fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
 
         await waitFor(() => expect(admin.askedFor("editSeason")).toHaveLength(1))
         const [asked] = admin.askedFor("editSeason") as EditSeasonRequest[]
         expect(asked.breakBefore?.seconds).toBe(BigInt(DAY))
-        expect(asked.length?.equals(kept)).toBe(true)
+        expect(asked.length?.seconds).toBe(BigInt(89 * DAY))
+    })
+
+    it("says when days end, in the operator's own time", async () => {
+        const admin = new FakeAdmin()
+        show(admin)
+
+        await edit(2)
+        const cutoff = new Date(Date.UTC(endOf(admin, 2).getUTCFullYear(), endOf(admin, 2).getUTCMonth(), endOf(admin, 2).getUTCDate(), 21))
+        expect(screen.getByText(`Days end at ${clockOf(cutoff)}.`)).toBeTruthy()
+    })
+
+    it("shows each season's final battle with its times, and keeps it on an edit of the rest", async () => {
+        const admin = new FakeAdmin()
+        show(admin)
+
+        await screen.findByRole("table")
+        expect(within(rowOf(2)).getByText(/2 h, rush × 3/)).toBeTruthy()
+        expect(within(rowOf(1)).getByText("none")).toBeTruthy()
+        fireEvent.click(within(rowOf(2)).getByRole("button", {name: "Edit"}))
+        expect(field("Ends with a final battle").checked).toBe(true)
+        expect(field("Final battle, hours").value).toBe("2")
+        const shown = Array.from(screen.getByText(/^Final battle from/).querySelectorAll("time")).map(time => time.getAttribute("dateTime"))
+        expect(shown).toEqual([later(endOf(admin, 2), -2 * HOUR).toISOString(), endOf(admin, 2).toISOString()])
+        type("Starts", localOf(later(startOf(admin, 2), DAY)))
+        fireEvent.click(screen.getByRole("button", {name: "Save"}))
+        expect(screen.getByText(/ending with a final battle of 2 h, rush × 3 from .+\?$/)).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
+
+        await waitFor(() => expect(admin.askedFor("editSeason")).toHaveLength(1))
+        const [asked] = admin.askedFor("editSeason") as EditSeasonRequest[]
+        expect(asked.finale?.ruleSet).toBe("rush")
+        expect(asked.finale?.times).toBe(3)
+        expect(asked.finale?.description).toBe("Triple points.")
+        expect(asked.finale?.length).toBe(admin.seasons.seasons[2].finale?.length)
+    })
+
+    it("warns of a final battle that neither starts nor ends when a day ends, and of nothing once it ends then", async () => {
+        const admin = new FakeAdmin()
+        show(admin)
+
+        await edit(2)
+        const end = endOf(admin, 2)
+        const cutoff = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate(), 21))
+        expect(alerts()).toEqual([
+            `The final battle runs ${clockOf(later(end, -2 * HOUR))} to ${clockOf(end)}: it must start or end at ${clockOf(cutoff)}, when a day ends.`,
+        ])
+        type("Ends", localOf(cutoff))
+        expect(alerts()).toEqual([])
+    })
+
+    it("warns of a season that starts before the one before ends, or ends before it starts", async () => {
+        const admin = new FakeAdmin()
+        show(admin)
+
+        await edit(2)
+        type("Starts", localOf(later(endOf(admin, 1), -HOUR)))
+        expect(alerts()).toContain(`It starts before season 1 ends, at ${timeOf(endOf(admin, 1))}.`)
+        type("Ends", localOf(later(endOf(admin, 1), -2 * HOUR)))
+        expect(alerts()).toContain("It ends before it starts.")
+        expect((screen.getByRole("button", {name: "Save"}) as HTMLButtonElement).disabled).toBe(false)
     })
 
     it("deletes the last season to come once confirmed", async () => {
@@ -156,36 +236,17 @@ describe("the seasons page", () => {
         expect(screen.getByRole("region", {name: "New season"})).toBeTruthy()
     })
 
-    it("shows each season's final battle, and keeps it on an edit of the rest", async () => {
-        const admin = new FakeAdmin()
-        show(admin)
-
-        await screen.findByRole("table")
-        expect(within(rowOf(2)).getByText(/2 h, rush × 3/)).toBeTruthy()
-        expect(within(rowOf(1)).getByText("none")).toBeTruthy()
-        fireEvent.click(within(rowOf(2)).getByRole("button", {name: "Edit"}))
-        expect((screen.getByLabelText("Ends with a final battle") as HTMLInputElement).checked).toBe(true)
-        type("Break, days", "1")
-        fireEvent.click(screen.getByRole("button", {name: "Save"}))
-        expect(screen.getByText(/ending with a final battle of 2 h, rush × 3\?$/)).toBeTruthy()
-        fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
-
-        await waitFor(() => expect(admin.askedFor("editSeason")).toHaveLength(1))
-        const [asked] = admin.askedFor("editSeason") as EditSeasonRequest[]
-        expect(asked.finale?.ruleSet).toBe("rush")
-        expect(asked.finale?.times).toBe(3)
-        expect(asked.finale?.description).toBe("Triple points.")
-        expect(asked.finale?.length).toBe(admin.seasons.seasons[2].finale?.length)
-    })
-
-    it("adds a season with a final battle once its set and times are filled", async () => {
+    it("adds a season with a final battle once its set, among the ones every module keeps, and its times are picked", async () => {
         const admin = new FakeAdmin()
         show(admin)
 
         fireEvent.click(await screen.findByRole("button", {name: "Add a season"}))
         fireEvent.click(screen.getByLabelText("Ends with a final battle"))
         expect((screen.getByRole("button", {name: "Add"}) as HTMLButtonElement).disabled).toBe(true)
-        type("Rule set", "rush")
+        expect(within(screen.getByLabelText("Rule set")).getAllByRole("option").map(option => option.textContent))
+            .toEqual(["Pick a set", "default"])
+        type("Rule set", "default")
+        type("Final battle, hours", "4")
         type("Times", "3")
         type("Description", "Triple points.")
         fireEvent.click(screen.getByRole("button", {name: "Add"}))
@@ -193,8 +254,8 @@ describe("the seasons page", () => {
 
         await waitFor(() => expect(admin.askedFor("addSeason")).toHaveLength(1))
         const [asked] = admin.askedFor("addSeason") as AddSeasonRequest[]
-        expect(asked.finale?.length?.seconds).toBe(BigInt(2 * 3600))
-        expect(asked.finale?.ruleSet).toBe("rush")
+        expect(asked.finale?.length?.seconds).toBe(BigInt(4 * HOUR))
+        expect(asked.finale?.ruleSet).toBe("default")
         expect(asked.finale?.times).toBe(3)
     })
 })

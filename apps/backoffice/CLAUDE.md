@@ -35,5 +35,6 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [Ops](docs/ops.md) — the Timeline: what the gamemaster does next, drawn from its reads; `ReconcileTitles`, after a
   deploy; Game rules: planet's sets, made and edited; the antibot's rule sets, in a form read off the proto; both show
   what a save changes; the rule schedule: which set plays when, a battle's points' times, entries to come added and
-  changed, and each season's Final Battle among them; the seasons: their breaks, lengths and Final Battles, added,
-  moved and deleted.
+  changed, and each season's Final Battle among them; the seasons: picked by their start and end times, with their
+  Final Battles, added, moved and deleted; every time in the operator's own zone, and what the server will refuse in
+  red as it is typed.

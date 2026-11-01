@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
-import {failureOf, wordsOf} from "./refusal.ts"
+import {clockOf, timeOf} from "./components/time.ts"
+import {failureOf, localized, wordsOf} from "./refusal.ts"
 
 describe("failureOf", () => {
     it("reads no session as signed out", () => {
@@ -51,5 +52,23 @@ describe("wordsOf", () => {
 
     it("says any other failure with its message", () => {
         expect(wordsOf(new TypeError("Failed to fetch"))).toBe("The call failed: Failed to fetch")
+    })
+
+    it("says the server's UTC times in the operator's own", () => {
+        expect(wordsOf(new ConnectError("it starts at 2026-11-28T15:00:00Z, not after now", Code.InvalidArgument)))
+            .toBe(`The server refused it: it starts at ${timeOf(new Date("2026-11-28T15:00:00Z"))}, not after now`)
+    })
+})
+
+describe("localized", () => {
+    it("says a stamp and a time of day in UTC in the operator's time, the time of day on the stamp's day", () => {
+        const message = "a battle starts or ends at the daily cutoff, 21:00 UTC: season 1's finale, from " +
+            "2026-07-28T15:00:00Z to 2026-07-28T19:00:00.5Z"
+        expect(localized(message)).toBe(`a battle starts or ends at the daily cutoff, ${clockOf(new Date("2026-07-28T21:00:00Z"))}: ` +
+            `season 1's finale, from ${timeOf(new Date("2026-07-28T15:00:00Z"))} to ${timeOf(new Date("2026-07-28T19:00:00.5Z"))}`)
+    })
+
+    it("says a time of day alone on today's day", () => {
+        expect(localized("at 21:00 UTC", new Date("2026-01-05T08:00:00Z"))).toBe(`at ${clockOf(new Date("2026-01-05T21:00:00Z"))}`)
     })
 })

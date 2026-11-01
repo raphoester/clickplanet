@@ -15,7 +15,9 @@
   what its `not_found` and `failed_precondition` mean): `not_found` is a message or a report no longer kept, or no
   ban left to lift; `failed_precondition` is the antibot off (no ban, unban or inspection); `invalid_argument`
   quotes the server (an unknown country, a grant of nothing); `deadline_exceeded` says the call may have done part
-  of its work; a session that ended says to sign in again.
+  of its work; a session that ended says to sign in again. **A time the server quotes is in the operator's own time**
+  (`localized`): each UTC stamp (`2026-11-28T15:00:00Z`) and each time of day in UTC (`21:00 UTC`, on the day of the
+  first stamp), so no refusal asks the operator to convert.
 - **The long calls take `LONG_CALL_MS`** (`api.ts`, 2 minutes) instead of the transport's 10s: a revert, a
   reassign and a paint are paced on the server, a replay is MBs, and the two ops runs page through every player.
 - **Every page takes its clients** (`clients.ts`: `AntibotAdmin`, `ChatAdmin`, `PlanetAdmin`, `PlayerAdmin`, `GamemasterAdmin`, `SupportAdmin`,

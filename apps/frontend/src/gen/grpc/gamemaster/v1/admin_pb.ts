@@ -646,6 +646,13 @@ export class GetSeasonsResponse extends Message<GetSeasonsResponse> {
    */
   seasons: ScheduledSeason[] = [];
 
+  /**
+   * The time of day, from midnight UTC, at which a day ends. A battle, a season's finale too, starts or ends at it.
+   *
+   * @generated from field: google.protobuf.Duration daily_cutoff = 2;
+   */
+  dailyCutoff?: Duration;
+
   constructor(data?: PartialMessage<GetSeasonsResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -655,6 +662,7 @@ export class GetSeasonsResponse extends Message<GetSeasonsResponse> {
   static readonly typeName = "gamemaster.v1.GetSeasonsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "seasons", kind: "message", T: ScheduledSeason, repeated: true },
+    { no: 2, name: "daily_cutoff", kind: "message", T: Duration },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSeasonsResponse {

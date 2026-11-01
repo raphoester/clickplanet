@@ -75,9 +75,11 @@ off the proto, so a new one shows with no edit here.
 - **Only an entry to come has Edit and Delete.** A running entry runs to its end; to change what plays, add an entry
   at a higher priority. There is no button that changes which set plays at once; the set playing is edited on its rules page.
 - **Add an entry** opens a form: the set (only the ones both modules keep), its kind, a battle's times, its description, its start and
-  end (`datetime-local`, the operator's own time) and its priority (the higher plays). Add, Save and Delete ask first
-  (`ConfirmAction`); the server's refusal is quoted (a set a module lacks, an entry that started, a start in the past),
-  and the form stays.
+  end (`datetime-local`, in the operator's own time zone, named above the fields) and its priority (the higher plays).
+  For a battle, the form says when days end ("Days end at 23:00.", from `GetSeasons.daily_cutoff`) and warns in red of
+  one that neither starts nor ends then (`offCutoffOf`); Add stays on. Add, Save and Delete ask first
+  (`ConfirmAction`); the server's refusal is quoted, its times in the operator's own (a set a module lacks, an entry
+  that started, a start in the past), and the form stays.
 - **The description is the entry's words for the players**, plain text the game client shows behind the battle chip
   ("Triple points. A bonus box every minute."): the client cannot know a set's values, so the operator writes them.
   At most 300 characters (`MAX_DESCRIPTION`, the server's bound, which the field and `complete` hold too); it may be
@@ -97,17 +99,31 @@ off the proto, so a new one shows with no edit here.
   only planet and the antibot play the schedule's set.
 
 **Seasons** (`SeasonsPanel`, `seasons.ts`) is `gamemaster.v1.AdminService/GetSeasons`, `AddSeason`, `EditSeason` and
-`DeleteSeason`. The operator plans a season by its break and its length; the server works out its window.
+`DeleteSeason`, with planet's and the antibot's `GetRules` beside it. **The operator picks times, never durations**
+(the owner, 2026-11-01: "I don't want to have to do mental calculations"): the page turns them into the break and the
+length the server keeps.
 
 - **Every season, by number**, with its break, start, length, end and Final Battle ("2 h, rush × 3 from …", or none),
   and whether it is done, running or to come; the running one marked, a done one muted.
-- **The form edits the season's Final Battle** (`FinaleDraft`): "Ends with a final battle", then its length in days and
-  hours, its rule set, its times (1 to 10) and its words for the players. Add and Save are off until the set is named
-  and the times are whole. **Every Save sends the finale the form holds**, so an edit of the length keeps it; unticked,
-  the season has none. Once it started, the length and the finale are locked: the server refuses them
-  (`FailedPrecondition`).
-- **The form takes the break and the length in days and hours** and shows, as they are typed, the window they give
-  (`windowOf`: after the season before's end, or season 0's own start). A new season has no break and 28 days.
-- **A season that has not ended has Edit**; a running one keeps its break (the fields are locked). A duration left as
-  it was is sent as kept, to the nanosecond. **Only the last season, before it starts, has Delete.**
-- Add, Save and Delete ask first (`ConfirmAction`); the server's refusal is quoted, and the form stays.
+- **The form takes the season's start and end** (`datetime-local`, in the operator's own time zone, named above the
+  fields), and says what they give as they are typed: "27 d 6 h long, starting 16 h after season 0 ends"
+  (`spansOf`). The break is the start less the end of the season before (season 0's own start less its break); the
+  length is the end less the start. **A time left as it was sends its duration as kept, to the nanosecond**; a start
+  moved alone keeps the end where it was. A new season starts as the last one ends, and lasts 28 days.
+- **"Days end at 23:00."**: the daily cutoff in the operator's time on the season's end day, from
+  `GetSeasons.daily_cutoff` (`cutoff.ts`). A server that sends none shows no line and no cutoff warning.
+- **The form edits the season's Final Battle** (`FinaleDraft`): "Ends with a final battle", its length in hours, its
+  rule set (a list of the sets both modules keep, `playable`, as the schedule's), its times (1 to 10) and its words for
+  the players, then **its times as they are typed** ("Final battle from … to …", `finaleWindowOf`). Add and Save are
+  off until both times are filled, the set is picked and the times are whole. **Every Save sends the finale the form
+  holds**, so an edit of the end keeps it; unticked, the season has none.
+- **What the server will refuse shows in red as it is typed** (`flawsOf`): a start before the season before ends, a
+  start or a moved end before now, an end before the start, a Final Battle longer than the season, and **a Final
+  Battle that neither starts nor ends at the cutoff** ("The final battle runs 15:00 to 19:00: it must start or end at
+  23:00, when a day ends."). Save stays on: the server holds the rules.
+- **A season that has not ended has Edit**; a running one keeps its start (the field is locked). Once its Final
+  Battle started, the end and the finale are locked: the server refuses them (`FailedPrecondition`). **Only the last
+  season, before it starts, has Delete.**
+- Add, Save and Delete ask first (`ConfirmAction`), with the times in the operator's time ("Run season 1 from … to …
+  (27 d 6 h long, starting 16 h after season 0 ends), ending with a final battle of 4 h, urf × 3 from …?"); the
+  server's refusal is quoted, its times in the operator's own, and the form stays.

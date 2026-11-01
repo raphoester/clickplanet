@@ -688,6 +688,7 @@ const DAY = 24 * 3600
 function seasonsOf(first: Date, plans: Plan[]): GetSeasonsResponse {
     let end: Date | undefined
     return new GetSeasonsResponse({
+        dailyCutoff: new Duration({seconds: BigInt(CUTOFF_HOUR * 3600)}),
         seasons: plans.map((plan, number) => {
             const startsAt = end === undefined ? first : new Date(end.getTime() + Number(plan.breakBefore.seconds) * 1000)
             end = new Date(startsAt.getTime() + Number(plan.length.seconds) * 1000)
@@ -699,12 +700,14 @@ function seasonsOf(first: Date, plans: Plan[]): GetSeasonsResponse {
     })
 }
 
+const CUTOFF_HOUR = 21
+
 // A season's days at a 21:00 UTC cutoff, as the server works them out; none for a season that runs for years.
 function daysOf(startsAt: Date, endsAt: Date): Day[] {
     if (endsAt.getTime() - startsAt.getTime() > 120 * DAY * 1000) return []
     const days: Day[] = []
     let start = startsAt
-    let end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate(), 21))
+    let end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate(), CUTOFF_HOUR))
     if (end <= start) end = new Date(end.getTime() + DAY * 1000)
     while (end <= endsAt) {
         days.push(new Day({number: days.length + 1, startsAt: Timestamp.fromDate(start), endsAt: Timestamp.fromDate(end)}))

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/seasonmessage"
@@ -36,7 +37,7 @@ func (q *PostgresQuery) Seasons(ctx context.Context) (*gamemasterv1.GetSeasonsRe
 		return nil, err
 	}
 	plan := moments.NewPlan(seasons, q.cutoff, nil, entries...)
-	answer := &gamemasterv1.GetSeasonsResponse{}
+	answer := &gamemasterv1.GetSeasonsResponse{DailyCutoff: durationpb.New(time.Duration(q.cutoff))}
 	planned := seasons.TakeSnapshot()
 	for i, window := range seasons.Windows() {
 		answer.Seasons = append(answer.Seasons, seasonmessage.ScheduledOf(planned[i], window, plan.DaysOf(window.Number)))
