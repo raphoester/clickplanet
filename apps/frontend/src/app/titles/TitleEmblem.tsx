@@ -136,20 +136,6 @@ function Letters({text, color, y = 63, size = 32}: {text: string, color: string,
                  style={{...LETTERING, fill: color}}>{text}</text>
 }
 
-function Swords({accent, cream}: {accent: string, cream: string}) {
-    return <>
-        <Line d="M38 62 L67 33 M62 62 L33 33" color={cream} width={4.5}/>
-        <Line d="M31 69 L38 62 M69 69 L62 62 M33 57 L43 67 M67 57 L57 67" color={accent} width={4}/>
-    </>
-}
-
-function Fighter({place, accent, cream}: {place: string, accent: string, cream: string}) {
-    return <>
-        <Swords accent={accent} cream={cream}/>
-        <Letters text={place} color={accent} y={61} size={36}/>
-    </>
-}
-
 function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
     switch (title.id) {
         case "og":
@@ -165,14 +151,15 @@ function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
         case "season_0_bronze":
             return <Trophy place="3" accent={accent} cream={cream}/>
         case "season_0_top_1":
-            return <Fighter place="1" accent={accent} cream={cream}/>
+            return <Letters text="#1" color={accent} y={62} size={34}/>
         case "season_0_top_2":
-            return <Fighter place="2" accent={accent} cream={cream}/>
+            return <Letters text="#2" color={accent} y={62} size={34}/>
         case "season_0_top_3":
-            return <Fighter place="3" accent={accent} cream={cream}/>
+            return <Letters text="#3" color={accent} y={62} size={34}/>
         case "season_0_veteran":
             return <>
-                <Swords accent={accent} cream={cream}/>
+                <Line d="M38 62 L67 33 M62 62 L33 33" color={cream} width={4.5}/>
+                <Line d="M31 69 L38 62 M69 69 L62 62 M33 57 L43 67 M67 57 L57 67" color={accent} width={4}/>
                 <Shape d={STAR} color={accent} width={1.6} transform="translate(50 47) scale(1.7) translate(-50 -43)"/>
             </>
         case "halloween_2026":
