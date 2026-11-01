@@ -18,6 +18,7 @@ func NewCacheInterceptor() connect.Interceptor {
 	maxAge := map[string]int{
 		gamemasterv1connect.GamemasterServiceGetTurnProcedure:         turnMaxAge,
 		gamemasterv1connect.GamemasterServiceGetSeasonTotalsProcedure: seasonTotalsMaxAge,
+		gamemasterv1connect.GamemasterServiceGetSeasonReplayProcedure: seasonTotalsMaxAge,
 	}
 
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {

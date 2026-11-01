@@ -21,6 +21,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/edit_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_schedule_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_schedule_handler/schedule_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_season_replay_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_season_replay_handler/season_replay_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_season_totals_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_season_totals_handler/season_totals_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_seasons_handler"
@@ -185,6 +187,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		ListenForEventsHandler: listen_for_events_handler.New(turnFeed, props.Server.StreamHeartbeat),
 		GetSeasonTotalsHandler: get_season_totals_handler.New(
 			season_totals_query.New(seasons, planetv1connect.NewInternalServiceClient(internal, baseURL), clock)),
+		GetSeasonReplayHandler: get_season_replay_handler.New(
+			season_replay_query.New(seasons, planetv1connect.NewInternalServiceClient(internal, baseURL), clock)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return gamemasterv1connect.NewGamemasterServiceHandler(public, options...)

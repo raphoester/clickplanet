@@ -181,6 +181,9 @@ id that is not one is `InvalidArgument`.
   A GET, `public, max-age=10`.
 - **`GetScores(book_id)`** (`scores_query`): the book's countries with points, grants included, ranked by
   `Book.Table`. A GET, `public, max-age=10`. A book never opened has none.
+- **`GetBookHistory(book_id)`** (`scores_query.History`): each scored round of the book by end, every country it ranked
+  with its share and points (`round_results`), and the book's table after it, counted as `Around` counts it. A GET,
+  `public, max-age=10`.
 - **`InternalService/GetTable(book_id)`**: the same table with each tiebreak's points, and `closed`; NotFound for a book
   never opened.
 - **`InternalService/GetRoundPlayers(round_id)`** (`round_players_query`): every account that took tiles in the round,

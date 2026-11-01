@@ -21,6 +21,10 @@ than the others (720px): it is the one place that shows every season.
 the top goes back to the plaques. The slides are a row that scrolls sideways and snaps on each, so a phone swipes them;
 Previous, Next, a dot per slide and the arrow keys move between them.
 
+0. **The race**: the flags first at the season's end, one line each, their points after every round or their share
+   of the map at each round's end (`raceOf`, from scoring's `GetBookHistory`, `StandingsBackend.bookHistory`). The
+   lines draw themselves over 5 s each time the slide shows, a flag riding each line's head, the day and the leader
+   under it (`RaceChart`); Play again redraws them; under `prefers-reduced-motion` they are drawn at once.
 1. **Top flags**: the book's table (`GetScores`), the first ten, each with its points and the days it won.
 2. **Top players**: the book's board (`GetBoard`, `StandingsBackend.board`), each name in its colour with its title.
 3. **Final Battle, top flags**: its round (`GetRound` by the season's `finaleRoundId`), the flags that scored, their

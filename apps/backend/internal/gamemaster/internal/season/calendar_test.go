@@ -138,4 +138,10 @@ func TestTheEndedSeasonsAreTheOnesOverAtATime(t *testing.T) {
 	assert.Empty(t, calendar.EndedBy(now))
 	assert.Equal(t, []season.Window{{Number: 0, StartsAt: season.Origin, EndsAt: seasonZeroEnds}}, calendar.EndedBy(seasonZeroEnds))
 	assert.Len(t, calendar.EndedBy(seasonZeroEnds.Add(29*day)), 2)
+
+	ended, err := calendar.Ended(0, seasonZeroEnds)
+	require.NoError(t, err)
+	assert.Equal(t, seasonZeroEnds, ended.EndsAt)
+	_, err = calendar.Ended(1, seasonZeroEnds)
+	require.ErrorIs(t, err, season.ErrNotEnded)
 }

@@ -86,6 +86,21 @@ func (s *testSuite) TestTheScoresAroundARoundAreBeforeItAndThroughIt() {
 	s.True(proto.Equal(&scoringv1.Score{Rank: 1, CountryId: "fr", Points: 25, RoundsWon: 1}, after[0]), after[0])
 }
 
+func (s *testSuite) TestTheHistoryIsEachRoundsResultsAndTheTableAfterIt() {
+	history, err := s.query.History(s.T().Context(), seasonZero.ID)
+
+	s.Require().NoError(err)
+	s.Require().Len(history, 2)
+	s.True(proto.Equal(&scoringv1.BookStep{
+		RoundId: "season-0/day-24", EndedAtUnixMs: utc(31, 21).UnixMilli(),
+		Results: []*scoringv1.RoundStanding{
+			{Rank: 1, CountryId: "fr", Share: 0.75, Points: 25}, {Rank: 2, CountryId: "de", Share: 0.25, Points: 18},
+		},
+		Table: []*scoringv1.Score{{Rank: 1, CountryId: "fr", Points: 25, RoundsWon: 1}, {Rank: 2, CountryId: "de", Points: 18}},
+	}, history[0]), "%v", history[0])
+	s.True(proto.Equal(&scoringv1.Score{Rank: 1, CountryId: "de", Points: 93, RoundsWon: 1}, history[1].GetTable()[0]), "%v", history[1])
+}
+
 func (s *testSuite) TestTheScoresCountTheBooksGrantsAndAroundARoundTheOnesBeforeItsEnd() {
 	grants := postgres_grant_store.New(s.db)
 	for _, grant := range []books.Grant{

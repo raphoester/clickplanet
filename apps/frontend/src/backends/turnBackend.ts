@@ -13,6 +13,8 @@ import {
 } from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {BattleEnded as BattleEndedMessage} from "../gen/grpc/gamemaster/v1/events_pb.ts"
 import {LedgerTotals} from "../gen/grpc/planet/v1/totals_pb.ts"
+import {MapHistory as MapHistoryMessage} from "../gen/grpc/planet/v1/history_pb.ts"
+import {MapHistory} from "../domain/mapHistory.ts"
 import {Day, NO_SEASONS, Season, Seasons, SeasonTotals} from "./season.ts"
 import {Config, NO_TIMEOUT, openStream, pageWakeups, Wakeups} from "./transport.ts"
 import {BattleEnded, BattleToCome, Debrief, PLAIN_TURN, Turn, TurnBackend, TurnKind, TurnListener} from "./turn.ts"
@@ -29,6 +31,9 @@ export function newGamemasterServiceClient(config: Config): PromiseClient<typeof
 
 // A season's first read scans planet's ledger for seconds.
 const TOTALS_TIMEOUT_MS = 60_000
+
+// Its first read replays planet's whole ledger.
+const REPLAY_TIMEOUT_MS = 5 * 60_000
 
 export class ConnectTurnBackend implements TurnBackend {
     constructor(
@@ -79,6 +84,16 @@ export class ConnectTurnBackend implements TurnBackend {
         return () => stop()
     }
 
+    public async seasonReplay(season: number, finale: boolean): Promise<MapHistory | undefined> {
+        try {
+            const res = await this.client.getSeasonReplay({season, finale}, {timeoutMs: REPLAY_TIMEOUT_MS})
+            return res.history && historyOf(res.history)
+        } catch (e) {
+            if (e instanceof ConnectError && (e.code === Code.Unimplemented || e.code === Code.NotFound)) return undefined
+            throw e
+        }
+    }
+
     public async seasonTotals(season: number): Promise<SeasonTotals | undefined> {
         try {
             const res = await this.client.getSeasonTotals({season}, {timeoutMs: TOTALS_TIMEOUT_MS})
@@ -87,6 +102,17 @@ export class ConnectTurnBackend implements TurnBackend {
             if (e instanceof ConnectError && (e.code === Code.Unimplemented || e.code === Code.NotFound)) return undefined
             throw e
         }
+    }
+}
+
+export function historyOf(history: MapHistoryMessage): MapHistory {
+    return {
+        frames: history.frames.map((frame) => ({
+            at: frame.at?.toDate().getTime() ?? 0,
+            tiles: Uint32Array.from(frame.owners, (owner) => owner.tile),
+            owners: frame.owners.map((owner) => owner.countryId),
+        })),
+        hits: new Map(history.hits.map((hits) => [hits.tile, hits.hits])),
     }
 }
 

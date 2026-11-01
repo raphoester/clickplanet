@@ -42,9 +42,14 @@
 
 /* The teaser holds an empty one, so every podium stands on the same line. */
 .hall-of-fame-view {
+    display: flex;
     flex-shrink: 0;
-    width: 100%;
+    gap: var(--space-2);
     height: 36px;
+}
+
+.hall-of-fame-view > .button {
+    flex: 1;
 }
 
 /* The slot still to be filled. */

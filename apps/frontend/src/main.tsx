@@ -15,7 +15,10 @@ import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeMissionsBackend} from "./backends/fakeMissionsBackend.ts"
 import {newScoringServiceClient} from "./backends/scoringBackend.ts"
 import {closedOf} from "./domain/debrief.ts"
-import {battleCommands, FakeTurnBackend} from "./backends/fakeTurnBackend.ts"
+import {battleCommands, FakeTurnBackend, SEASON_ZERO} from "./backends/fakeTurnBackend.ts"
+import {TurnBackend} from "./backends/turn.ts"
+import SeasonMap from "./app/archive/SeasonMap.tsx"
+import {ARCHIVE_PARAM} from "./app/archive/archiveLink.ts"
 import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
 import {ConnectionHealth, connectionInterceptor, followBrowser} from "./backends/connection.ts"
@@ -89,7 +92,24 @@ function followCrazyGames(page: CrazyGamesPage | undefined, account: AccountStor
     void account.followCrazyGames()
 }
 
-if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
+// The map of a season that ended, browsed alone: no game, no stream.
+const archived = page.searchParams.get(ARCHIVE_PARAM)
+
+if (archived !== null) {
+    const borders = loadBorders(BORDERS_URL)
+    const geometry = () => Promise.all([loadPointGeometryData(), borders]).then(([{positions}, {assignment, codes}]) => ({
+        positions, landmasses: {assignment, count: codes.length},
+    }))
+    let turn: TurnBackend = new ConnectTurnBackend(newGamemasterServiceClient(config))
+    if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
+        const fakeTurn = new FakeTurnBackend(undefined, Date.now, [SEASON_ZERO])
+        fakeTurn.replayOn(() => borders.then(({assignment, codes}) => new Map(
+            [...assignment].flatMap((land, i) => land && codes[land] ? [[i + 1, codes[land]] as const] : []),
+        )))
+        turn = fakeTurn
+    }
+    root.render(<StrictMode><SeasonMap season={Number(archived)} turn={turn} geometry={geometry}/></StrictMode>)
+} else if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const borders = loadBorders(BORDERS_URL)
     const fake = new FakeBackend(100, {
         tilePositions: () => loadPointGeometryData().then((data) => data.positions),

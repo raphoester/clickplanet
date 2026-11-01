@@ -4,6 +4,7 @@ package gamemaster.v1;
 
 import "google/protobuf/timestamp.proto";
 import "gamemaster/v1/events.proto";
+import "planet/v1/history.proto";
 import "planet/v1/totals.proto";
 
 // What the schedule plays now, in the players' words: the kind of the running entry, never a rule set's name, which
@@ -22,6 +23,21 @@ service GamemasterService {
   rpc GetSeasonTotals(GetSeasonTotalsRequest) returns (GetSeasonTotalsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // The map during a season that ended, or during its finale, from planet's ledger: every 30 minutes over the season,
+  // every 10 seconds over the finale. NotFound for a season that has not ended, or a finale it did not have.
+  rpc GetSeasonReplay(GetSeasonReplayRequest) returns (GetSeasonReplayResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetSeasonReplayRequest {
+  uint32 season = 1;
+  bool finale = 2;
+}
+
+message GetSeasonReplayResponse {
+  planet.v1.MapHistory history = 1;
 }
 
 message GetSeasonTotalsRequest {

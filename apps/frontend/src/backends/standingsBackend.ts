@@ -8,7 +8,7 @@ import {
     Standing as StandingPb,
 } from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
-import {MySeason, RaceListener, Round, RoundStanding, Score, Standing, StandingsBackend} from "./standings.ts"
+import {BookStep, MySeason, RaceListener, Round, RoundStanding, Score, Standing, StandingsBackend} from "./standings.ts"
 import {titleOf} from "./title.ts"
 import {NO_TIMEOUT, openStream, retrying} from "./transport.ts"
 
@@ -82,6 +82,21 @@ export class ConnectStandingsBackend implements StandingsBackend {
             return res.round && roundOf(res.round)
         } catch (e) {
             if (absent(e)) return undefined
+            throw e
+        }
+    }
+
+    public async bookHistory(bookId: string): Promise<BookStep[]> {
+        try {
+            const res = await retrying(() => this.client.getBookHistory({bookId}), "GetBookHistory")
+            return res.steps.map((step) => ({
+                roundId: step.roundId,
+                endedAt: Number(step.endedAtUnixMs),
+                results: step.results.map(roundStandingOf),
+                table: step.table.map(scoreOf),
+            }))
+        } catch (e) {
+            if (absent(e)) return []
             throw e
         }
     }

@@ -52,9 +52,9 @@ func (q *Query) Totals(ctx context.Context, number season.Number) (*planetv1.Led
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the seasons: %w", err)
 	}
-	window, err := endedWindowOf(calendar, number, q.clock.Now())
+	window, err := calendar.Ended(number, q.clock.Now())
 	if err != nil {
-		return nil, err
+		return nil, err //nolint:wrapcheck // the calendar names the season.
 	}
 
 	asked := q.asking.DoChan(strconv.FormatUint(uint64(number), 10), func() (any, error) {
@@ -83,15 +83,6 @@ func (q *Query) ask(ctx context.Context, window season.Window) (*planetv1.Ledger
 	}
 	q.keep(window.Number, res.Msg.GetTotals())
 	return res.Msg.GetTotals(), nil
-}
-
-func endedWindowOf(calendar season.Calendar, number season.Number, now time.Time) (season.Window, error) {
-	for _, window := range calendar.EndedBy(now) {
-		if window.Number == number {
-			return window, nil
-		}
-	}
-	return season.Window{}, fmt.Errorf("season %d: %w", number, season.ErrNotEnded)
 }
 
 func (q *Query) keptTotals(number season.Number) (*planetv1.LedgerTotals, bool) {

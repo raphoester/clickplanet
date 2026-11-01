@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { MapHistory } from "../../planet/v1/history_pb.js";
 import { LedgerTotals } from "../../planet/v1/totals_pb.js";
 import { BattleEnded, DayEnded, SeasonEnded } from "./events_pb.js";
 
@@ -46,6 +47,86 @@ proto3.util.setEnumType(EntryKind, "gamemaster.v1.EntryKind", [
   { no: 2, name: "ENTRY_KIND_BATTLE" },
   { no: 3, name: "ENTRY_KIND_HALLOWEEN" },
 ]);
+
+/**
+ * @generated from message gamemaster.v1.GetSeasonReplayRequest
+ */
+export class GetSeasonReplayRequest extends Message<GetSeasonReplayRequest> {
+  /**
+   * @generated from field: uint32 season = 1;
+   */
+  season = 0;
+
+  /**
+   * @generated from field: bool finale = 2;
+   */
+  finale = false;
+
+  constructor(data?: PartialMessage<GetSeasonReplayRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.GetSeasonReplayRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "season", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "finale", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSeasonReplayRequest {
+    return new GetSeasonReplayRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSeasonReplayRequest {
+    return new GetSeasonReplayRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSeasonReplayRequest {
+    return new GetSeasonReplayRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSeasonReplayRequest | PlainMessage<GetSeasonReplayRequest> | undefined, b: GetSeasonReplayRequest | PlainMessage<GetSeasonReplayRequest> | undefined): boolean {
+    return proto3.util.equals(GetSeasonReplayRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message gamemaster.v1.GetSeasonReplayResponse
+ */
+export class GetSeasonReplayResponse extends Message<GetSeasonReplayResponse> {
+  /**
+   * @generated from field: planet.v1.MapHistory history = 1;
+   */
+  history?: MapHistory;
+
+  constructor(data?: PartialMessage<GetSeasonReplayResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.GetSeasonReplayResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "history", kind: "message", T: MapHistory },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSeasonReplayResponse {
+    return new GetSeasonReplayResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSeasonReplayResponse {
+    return new GetSeasonReplayResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSeasonReplayResponse {
+    return new GetSeasonReplayResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSeasonReplayResponse | PlainMessage<GetSeasonReplayResponse> | undefined, b: GetSeasonReplayResponse | PlainMessage<GetSeasonReplayResponse> | undefined): boolean {
+    return proto3.util.equals(GetSeasonReplayResponse, a, b);
+  }
+}
 
 /**
  * @generated from message gamemaster.v1.GetSeasonTotalsRequest

@@ -25,6 +25,11 @@ service ScoringService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
+  // Each scored round of a book, by end: its results, and the book's table after it, grants included.
+  rpc GetBookHistory(GetBookHistoryRequest) returns (GetBookHistoryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
   // A book's board and scores, and the rounds asked for, then each change; a heartbeat meanwhile.
   rpc ListenForEvents(ListenForEventsRequest) returns (stream ScoringEvent);
 }
@@ -122,6 +127,23 @@ message Score {
   string country_id = 2;
   uint32 points = 3;
   uint32 rounds_won = 4;
+}
+
+message GetBookHistoryRequest {
+  string book_id = 1;
+}
+
+message GetBookHistoryResponse {
+  repeated BookStep steps = 1;
+}
+
+message BookStep {
+  string round_id = 1;
+  int64 ended_at_unix_ms = 2;
+  // Every country the round ranked, with its share of the map: at the round's end, or its average over the round for
+  // the rounds scored before 2026-10-27.
+  repeated RoundStanding results = 3;
+  repeated Score table = 4;
 }
 
 // A closed book's place: the tiebreak too.

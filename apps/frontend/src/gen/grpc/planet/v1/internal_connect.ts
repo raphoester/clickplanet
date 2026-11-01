@@ -5,7 +5,7 @@
 
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 
 /**
  * @generated from service planet.v1.InternalService
@@ -45,6 +45,20 @@ export const InternalService = {
       name: "GetLedgerTotals",
       I: GetLedgerTotalsRequest,
       O: GetLedgerTotalsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The map every step from since to until, replayed from the ledger's first event, for the gamemaster's season replay.
+     * A read of the whole ledger: the caller keeps the answer. InvalidArgument unless since is before until, and the step
+     * makes 5,000 frames at most.
+     *
+     * @generated from rpc planet.v1.InternalService.GetMapHistory
+     */
+    getMapHistory: {
+      name: "GetMapHistory",
+      I: GetMapHistoryRequest,
+      O: GetMapHistoryResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

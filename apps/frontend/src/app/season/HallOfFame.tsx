@@ -8,6 +8,7 @@ import CountryFlag from "../components/CountryFlag.tsx"
 import Modal from "../components/Modal.tsx"
 import {TrophyIcon} from "../components/icons.tsx"
 import SeasonStats, {SeasonStatsProps} from "./SeasonStats.tsx"
+import {archiveUrlOf} from "../archive/archiveLink.ts"
 import "./HallOfFame.css"
 
 export type HallOfFameSeasons = {
@@ -54,9 +55,10 @@ function Plaques({teased, ended, standings, onView}: Pick<HallOfFameSeasons, "te
     return <ol ref={seasons} className="hall-of-fame-seasons">
         {ended.map((season) => <Plaque key={season.number} season={season}>
             <EndedPodium standings={standings} season={season}/>
-            <button type="button" className="button button-mini button-secondary hall-of-fame-view" onClick={() => onView(season)}>
-                View
-            </button>
+            <span className="hall-of-fame-view">
+                <button type="button" className="button button-mini button-secondary" onClick={() => onView(season)}>View</button>
+                <a className="button button-mini button-secondary" href={archiveUrlOf(season.number)}>Map</a>
+            </span>
         </Plaque>)}
         {teased && <Plaque season={teased} teased>
             <TeasedPodium/>
