@@ -66,7 +66,9 @@ func (f *Finales) Fighters(ctx context.Context, round finales.RoundID) ([]finale
 		if err != nil {
 			return nil, fmt.Errorf("scoring answered a player of round %q: %w", round, err)
 		}
-		fighters = append(fighters, finales.Fighter{Account: account, Country: finales.Country(player.GetCountryId())})
+		fighters = append(fighters, finales.Fighter{
+			Account: account, Country: finales.Country(player.GetCountryId()), Tiles: player.GetTiles(),
+		})
 	}
 	return fighters, nil
 }

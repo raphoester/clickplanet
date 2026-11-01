@@ -40,10 +40,9 @@ func (s *Store) Record(_ context.Context, fights []finales.Fight) error {
 	}
 	for _, fight := range fights {
 		snapshot := fight.TakeSnapshot()
-		kept := s.kept[snapshot.Account]
-		if slices.ContainsFunc(kept, func(each finales.FightSnapshot) bool { return each.Season == snapshot.Season }) {
-			continue
-		}
+		kept := slices.DeleteFunc(s.kept[snapshot.Account], func(each finales.FightSnapshot) bool {
+			return each.Season == snapshot.Season
+		})
 		kept = append(kept, snapshot)
 		slices.SortFunc(kept, func(a, b finales.FightSnapshot) int { return int(a.Season) - int(b.Season) })
 		s.kept[snapshot.Account] = kept

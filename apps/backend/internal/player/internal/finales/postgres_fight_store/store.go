@@ -28,9 +28,9 @@ func (s *Store) Record(ctx context.Context, fights []finales.Fight) error {
 	}
 
 	var (
-		seasons, ranks []int64
-		accounts       []string
-		countries      []string
+		seasons, ranks, tilesRanks []int64
+		accounts                   []string
+		countries                  []string
 	)
 	for _, fight := range fights {
 		snapshot := fight.TakeSnapshot()
@@ -38,13 +38,15 @@ func (s *Store) Record(ctx context.Context, fights []finales.Fight) error {
 		accounts = append(accounts, snapshot.Account.String())
 		countries = append(countries, string(snapshot.Country))
 		ranks = append(ranks, int64(snapshot.Rank))
+		tilesRanks = append(tilesRanks, int64(snapshot.TilesRank))
 	}
 
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO finale_fights (season, account_id, country, flag_rank)
-		SELECT * FROM unnest($1::integer[], $2::uuid[], $3::text[], $4::integer[])
-		ON CONFLICT (season, account_id) DO NOTHING
-	`, pq.Array(seasons), pq.Array(accounts), pq.Array(countries), pq.Array(ranks)); err != nil {
+		INSERT INTO finale_fights (season, account_id, country, flag_rank, tiles_rank)
+		SELECT * FROM unnest($1::integer[], $2::uuid[], $3::text[], $4::integer[], $5::integer[])
+		ON CONFLICT (season, account_id) DO UPDATE
+		SET country = EXCLUDED.country, flag_rank = EXCLUDED.flag_rank, tiles_rank = EXCLUDED.tiles_rank
+	`, pq.Array(seasons), pq.Array(accounts), pq.Array(countries), pq.Array(ranks), pq.Array(tilesRanks)); err != nil {
 		return fmt.Errorf("failed to record the fights: %w", err)
 	}
 	return nil
@@ -62,7 +64,7 @@ func (s *Store) Fights(ctx context.Context, accounts []players.AccountID) (map[p
 	}
 
 	rows, err := s.db.On(ctx).QueryContext(ctx, `
-		SELECT account_id, season, country, flag_rank FROM finale_fights
+		SELECT account_id, season, country, flag_rank, tiles_rank FROM finale_fights
 		WHERE account_id = ANY($1::uuid[])
 		ORDER BY account_id, season
 	`, pq.Array(ids))
@@ -73,18 +75,19 @@ func (s *Store) Fights(ctx context.Context, accounts []players.AccountID) (map[p
 
 	for rows.Next() {
 		var (
-			account      uuid.UUID
-			season, rank int64
-			country      string
+			account                 uuid.UUID
+			season, rank, tilesRank int64
+			country                 string
 		)
-		if err := rows.Scan(&account, &season, &country, &rank); err != nil {
+		if err := rows.Scan(&account, &season, &country, &rank, &tilesRank); err != nil {
 			return nil, fmt.Errorf("failed to read a fight: %w", err)
 		}
 		fight, err := finales.FightSnapshot{
-			Account: players.AccountID(account),
-			Season:  finales.Season(season), //nolint:gosec // CHECK (season >= 0).
-			Country: finales.Country(country),
-			Rank:    uint32(rank), //nolint:gosec // CHECK (flag_rank >= 0).
+			Account:   players.AccountID(account),
+			Season:    finales.Season(season), //nolint:gosec // CHECK (season >= 0).
+			Country:   finales.Country(country),
+			Rank:      uint32(rank),      //nolint:gosec // CHECK (flag_rank >= 0).
+			TilesRank: uint32(tilesRank), //nolint:gosec // CHECK (tiles_rank >= 0).
 		}.Restore()
 		if err != nil {
 			return nil, fmt.Errorf("failed to restore a fight: %w", err)

@@ -150,6 +150,12 @@ function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
             return <Trophy place="2" accent={accent} cream={cream}/>
         case "season_0_bronze":
             return <Trophy place="3" accent={accent} cream={cream}/>
+        case "season_0_top_1":
+            return <Letters text="#1" color={accent} y={62} size={34}/>
+        case "season_0_top_2":
+            return <Letters text="#2" color={accent} y={62} size={34}/>
+        case "season_0_top_3":
+            return <Letters text="#3" color={accent} y={62} size={34}/>
         case "season_0_veteran":
             return <>
                 <Line d="M38 62 L67 33 M62 62 L33 33" color={cream} width={4.5}/>

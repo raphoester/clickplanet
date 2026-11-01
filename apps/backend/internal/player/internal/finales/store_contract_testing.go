@@ -50,24 +50,27 @@ var (
 
 func (s *StoreContractSuite) TestRecordedFightsReadBackByAccountInSeasonOrder() {
 	s.record(
-		FightSnapshot{Account: ada, Season: 1, Country: "de", Rank: 4},
-		FightSnapshot{Account: ada, Season: 0, Country: "fr", Rank: 1},
-		FightSnapshot{Account: bob, Season: 0, Country: "tv", Rank: 0},
+		FightSnapshot{Account: ada, Season: 1, Country: "de", Rank: 4, TilesRank: 7},
+		FightSnapshot{Account: ada, Season: 0, Country: "fr", Rank: 1, TilesRank: 2},
+		FightSnapshot{Account: bob, Season: 0, Country: "tv", Rank: 0, TilesRank: 1},
 	)
 
 	s.Equal(map[players.AccountID][]FightSnapshot{
-		ada: {{Account: ada, Season: 0, Country: "fr", Rank: 1}, {Account: ada, Season: 1, Country: "de", Rank: 4}},
-		bob: {{Account: bob, Season: 0, Country: "tv", Rank: 0}},
+		ada: {
+			{Account: ada, Season: 0, Country: "fr", Rank: 1, TilesRank: 2},
+			{Account: ada, Season: 1, Country: "de", Rank: 4, TilesRank: 7},
+		},
+		bob: {{Account: bob, Season: 0, Country: "tv", Rank: 0, TilesRank: 1}},
 	}, s.fights(ada, bob))
 }
 
-func (s *StoreContractSuite) TestAFightRecordedAgainKeepsTheFirst() {
+func (s *StoreContractSuite) TestAFightRecordedAgainTakesTheNewResult() {
 	s.record(FightSnapshot{Account: ada, Season: 0, Country: "fr", Rank: 1})
 
-	s.record(FightSnapshot{Account: ada, Season: 0, Country: "de", Rank: 2})
+	s.record(FightSnapshot{Account: ada, Season: 0, Country: "fr", Rank: 1, TilesRank: 2})
 
 	s.Equal(map[players.AccountID][]FightSnapshot{
-		ada: {{Account: ada, Season: 0, Country: "fr", Rank: 1}},
+		ada: {{Account: ada, Season: 0, Country: "fr", Rank: 1, TilesRank: 2}},
 	}, s.fights(ada))
 }
 

@@ -59,6 +59,14 @@ describe("TitleEmblem", () => {
         expect(fills).toContain("var(--season-enamel)")
     })
 
+    it("draws a top fighter's place as #2, in the season's frame", () => {
+        const {container} = render(<TitleEmblem title={{id: "season_0_top_2", name: "Season 0 Top 2"}} size={56} ribbon/>)
+
+        expect([...container.querySelectorAll("text")].map((text) => text.textContent)).toEqual(["#2", "S", "0"])
+        expect([...container.querySelectorAll("path, circle")].map((shape) => (shape as SVGElement).style.fill))
+            .toContain("var(--season-enamel)")
+    })
+
     it("greys a locked medal and hangs a padlock on it, with no ribbon", () => {
         const {container} = render(<TitleEmblem title={{id: "warlord", name: "Warlord"}} size={56} locked ribbon/>)
 
