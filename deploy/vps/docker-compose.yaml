@@ -6,6 +6,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    # Go listens with MPTCP by default; Cloudflare connects with plain TCP, so MPTCP only adds kernel code to reach.
+    sysctls:
+      net.mptcp.enabled: 0
     env_file: .env.caddy
     volumes:
       # The directory, not the file: a file bind mount keeps the old inode after git pull.
