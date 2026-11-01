@@ -92,10 +92,9 @@ export default function RaceChart({steps, active}: {steps: BookStep[], active: b
                                             onMouseEnter={() => setFocus(line.countryCode)}
                                             onMouseLeave={() => setFocus(undefined)}>
                 <span className="race-key-rank">{rank + 1}</span>
-                <span className="race-key-swatch" aria-hidden="true"/>
-                <CountryFlag code={line.countryCode}/>
+                <span className="race-key-flag"><CountryFlag code={line.countryCode}/></span>
                 <span className="race-key-name">{nameOf(line.countryCode)}</span>
-                <span className="race-key-value">{valueLine(line.value, measure)}</span>
+                <span className="race-key-value">{shortValue(line.value, measure)}</span>
             </li>)}
         </ol>
 
@@ -121,6 +120,10 @@ function pointLine(code: string, at: number, value: number, gain: number, measur
 
 function valueLine(value: number, measure: RaceMeasure): string {
     return measure === "points" ? `${Math.round(value)} points` : `${(value * 100).toFixed(1)}% of the map`
+}
+
+function shortValue(value: number, measure: RaceMeasure): string {
+    return measure === "points" ? `${Math.round(value)}` : `${(value * 100).toFixed(1)}%`
 }
 
 function gainOf(values: number[], step: number): number {

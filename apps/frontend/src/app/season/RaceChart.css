@@ -6,6 +6,7 @@
 
 .race-bar {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2);
 }
@@ -19,6 +20,7 @@
 }
 
 .race-choice {
+    white-space: nowrap;
     padding: 5px var(--space-3) 3px;
     border: none;
     border-radius: var(--radius-pill);
@@ -36,6 +38,7 @@
 
 .race-day {
     flex-grow: 1;
+    white-space: nowrap;
     text-align: right;
     font-family: var(--font-display);
     font-size: var(--display-s);
@@ -110,18 +113,24 @@ g.race-line {
 
 .race-legend {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: var(--space-1) var(--space-3);
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: var(--space-1) var(--space-2);
     margin: 0;
     padding: 0;
     list-style: none;
 }
 
+/* The line's colour is the row's edge, so a colour and its flag are one thing. */
 .race-key {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: var(--space-2);
     min-width: 0;
+    height: 30px;
+    padding: 0 var(--space-2);
+    border-left: 4px solid hsl(var(--author-hue) var(--author-saturation) var(--author-name-lightness));
+    border-radius: var(--radius-s);
+    background: var(--panel-raised);
     transition: opacity 0.12s ease;
     cursor: default;
 }
@@ -130,43 +139,44 @@ g.race-line {
     opacity: 0.35;
 }
 
-.race-key .country-flag {
-    margin: 0;
-}
-
 .race-key-rank {
+    flex: none;
     width: 1.2em;
-    font-family: var(--font-display);
-    font-size: var(--display-s);
-    color: var(--gold);
+    text-align: right;
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-s);
+    color: var(--text-muted);
 }
 
-.race-key-swatch {
+.race-key-flag {
+    display: flex;
     flex: none;
-    width: 14px;
-    height: 4px;
-    align-self: center;
-    border-radius: var(--radius-pill);
-    background: hsl(var(--author-hue) var(--author-saturation) var(--author-name-lightness));
+    font-size: 18px;
+}
+
+.race-key-flag .country-flag {
+    margin: 0;
 }
 
 .race-key-name {
     flex-grow: 1;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-family: var(--font-display);
-    font-size: var(--display-s);
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-s);
     color: var(--text);
 }
 
 .race-key-value {
     flex: none;
-    white-space: nowrap;
     font-family: var(--font-text);
     font-weight: 700;
-    font-size: var(--text-xs);
-    color: var(--text-soft);
+    font-size: var(--text-s);
+    color: var(--gold);
 }
 
 .race-bubble {
