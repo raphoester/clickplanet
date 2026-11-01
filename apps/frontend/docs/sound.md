@@ -50,7 +50,8 @@ them, normalises loudness, trims the silence so the loop has no gap, and writes
 `static/anthems/<code>-<hash>.m4a` plus `anthemsAsset.ts`, which pairs each file
 with the anthem's title (`TITLES` in the script, written by hand: Wikidata's
 labels mix titles with "National Anthem of X"). It needs ffmpeg.
-Territories share their country's file (`SHARES` in the script); a country with
+Territories share their country's file (`SHARES` in the script), and so does Cyprus,
+whose anthem is Greece's and which the band never recorded; a country with
 no recording shows the player with its play button off.
 
 - `domain/anthemLeader.ts` — `followLeader`: a new leader must hold first place

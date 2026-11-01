@@ -48,6 +48,7 @@ export const ANTHEMS: Readonly<Record<string, {url: string, title: string}>> = {
     "cv": {url: "/static/anthems/cv-a4b3d570.m4a", title: "Cântico da Liberdade"},
     "cw": {url: "/static/anthems/cw-8172b8bd.m4a", title: "Anthem of the Netherlands Antilles"},
     "cx": {url: "/static/anthems/au-68ff95e9.m4a", title: "Advance Australia Fair"},
+    "cy": {url: "/static/anthems/gr-28fb4ac7.m4a", title: "Hymn to Liberty"},
     "cz": {url: "/static/anthems/cz-7332c19a.m4a", title: "Kde domov můj"},
     "de": {url: "/static/anthems/de-e6f5662c.m4a", title: "Das Lied der Deutschen"},
     "dj": {url: "/static/anthems/dj-f753be44.m4a", title: "Djibouti"},

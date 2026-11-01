@@ -143,6 +143,7 @@ const SHARES = {
     cw: ["sx"],
     fi: ["ax"],
     cn: ["hk", "mo"],
+    gr: ["cy"],
 }
 
 
