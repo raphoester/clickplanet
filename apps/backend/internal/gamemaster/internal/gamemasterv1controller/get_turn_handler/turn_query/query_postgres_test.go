@@ -154,10 +154,13 @@ func TestTheTimelineCarriesTheRunningSeasonAndTheNextOne(t *testing.T) {
 		Number: 1, StartsAt: timestamppb.New(battleEnds.Add(time.Hour)), EndsAt: timestamppb.New(battleEnds.Add(time.Hour + 30*24*time.Hour)),
 		BookId: "season-1",
 	}, timeline.GetNext()), "%v", timeline)
+	assert.Empty(t, timeline.GetEnded())
 
 	between := nowAt(t, db, battleEnds).GetTimeline()
 	assert.Nil(t, between.GetCurrent(), "a season is over at its end")
 	assert.Equal(t, uint32(1), between.GetNext().GetNumber())
+	require.Len(t, between.GetEnded(), 1)
+	assert.True(t, proto.Equal(seasonZero, between.GetEnded()[0]), "%v", between)
 }
 
 func TestTodayIsTheDayInProgressAndNoneFromTheLastCutoffToTheSeasonsEnd(t *testing.T) {

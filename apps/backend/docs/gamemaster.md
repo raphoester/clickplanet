@@ -379,8 +379,9 @@ description, its `times`, its `round_id` when it is a round, and `ends_season` f
 may still be moved or deleted; the stream sends each change within a second, so a countdown is fixed at once (the user
 lifted the rule "no entry to come crosses", 2026-10-27). **The timeline carries the seasons and the day too**:
 `current`, the season that runs (unset between two), `next`, the first that has not started, each a
-`Season{number, starts_at, ends_at, book_id}`, and `today`, the day in progress (`Day{number, starts_at, ends_at,
-round_id}`; unset between two seasons and from a season's last cutoff to its end).
+`Season{number, starts_at, ends_at, book_id}`, `ended`, every season over, by number (`Calendar.EndedBy`), for the
+client's Hall of Fame, and `today`, the day in progress (`Day{number, starts_at, ends_at, round_id}`; unset between
+two seasons and from a season's last cutoff to its end).
 
 **The `Debrief` is the last moment scoring scored**: the latest row of `scored_rounds` and `closed_books` by its end, a
 book first at one time (it closes after its rounds), as the `DayEnded`, `BattleEnded` or `SeasonEnded` the outbox

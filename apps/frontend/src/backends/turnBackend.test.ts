@@ -57,10 +57,14 @@ describe("ConnectTurnBackend", () => {
                 next: {number: 1, startsAt: at(endsAt + 3_600_000), endsAt: at(Date.UTC(2026, 10, 30, 23)), bookId: "season-1"},
                 today: {number: 21, startsAt: at(Date.UTC(2026, 9, 27, 21)), endsAt: at(Date.UTC(2026, 9, 28, 21)), roundId: "season-0/day-21"},
             })}})
+            yield new GamemasterEvent({event: {case: "timeline", value: new Timeline({
+                next: {number: 1, startsAt: at(endsAt + 3_600_000), endsAt: at(Date.UTC(2026, 10, 30, 23)), bookId: "season-1"},
+                ended: [{number: 0, startsAt: at(Date.UTC(2026, 9, 8)), endsAt: at(endsAt), bookId: "season-0"}],
+            })}})
             yield new GamemasterEvent({event: {case: "timeline", value: new Timeline()}})
             await new Promise(() => {})
         })
-        await vi.waitFor(() => expect(followed.seasons).toHaveLength(2))
+        await vi.waitFor(() => expect(followed.seasons).toHaveLength(3))
         followed.stop()
 
         expect(followed.seasons).toEqual([
@@ -68,8 +72,15 @@ describe("ConnectTurnBackend", () => {
                 current: {number: 0, startsAt: Date.UTC(2026, 9, 8), endsAt, bookId: "season-0"},
                 next: {number: 1, startsAt: endsAt + 3_600_000, endsAt: Date.UTC(2026, 10, 30, 23), bookId: "season-1"},
                 today: {number: 21, startsAt: Date.UTC(2026, 9, 27, 21), endsAt: Date.UTC(2026, 9, 28, 21), roundId: "season-0/day-21"},
+                ended: [],
             },
-            {current: undefined, next: undefined, today: undefined},
+            {
+                current: undefined,
+                next: {number: 1, startsAt: endsAt + 3_600_000, endsAt: Date.UTC(2026, 10, 30, 23), bookId: "season-1"},
+                today: undefined,
+                ended: [{number: 0, startsAt: Date.UTC(2026, 9, 8), endsAt, bookId: "season-0"}],
+            },
+            {current: undefined, next: undefined, today: undefined, ended: []},
         ])
     })
 
@@ -118,7 +129,7 @@ describe("ConnectTurnBackend", () => {
 
             expect(onTurn.mock.calls).toEqual([[{kind: "plain", description: "", entryId: "", roundId: "", times: 0, endsSeason: false}]])
             expect(onBattles.mock.calls).toEqual([[[]]])
-            expect(onSeasons.mock.calls).toEqual([[{}]])
+            expect(onSeasons.mock.calls).toEqual([[{ended: []}]])
             expect(onDebrief.mock.calls).toEqual([[undefined]])
             expect(listenForEvents).toHaveBeenCalledTimes(1)
         }

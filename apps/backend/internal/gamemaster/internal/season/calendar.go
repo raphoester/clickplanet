@@ -109,6 +109,16 @@ func (c Calendar) NextAfter(at time.Time) (Window, bool) {
 	return Window{}, false
 }
 
+func (c Calendar) EndedBy(at time.Time) []Window {
+	var ended []Window
+	for _, window := range c.Windows() {
+		if window.Ended(at) {
+			ended = append(ended, window)
+		}
+	}
+	return ended
+}
+
 func (c Calendar) TakeSnapshot() []Snapshot {
 	snapshots := make([]Snapshot, 0, len(c.seasons))
 	for _, season := range c.seasons {

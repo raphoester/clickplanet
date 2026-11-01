@@ -68,6 +68,8 @@ message Timeline {
   Season next = 3;
   // The day in progress; unset between two seasons, and from the season's last cutoff to its end.
   Day today = 4;
+  // The seasons that ended, by number.
+  repeated Season ended = 5;
 }
 
 // A day of a season: a round scored at the daily cutoff.

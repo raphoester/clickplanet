@@ -1,4 +1,4 @@
-import {ClosedRound, RoundStanding} from "../backends/standings.ts"
+import {ClosedRound, RoundStanding, Score} from "../backends/standings.ts"
 import {Battle} from "./battle.ts"
 import {debriefedFor, debriefScreensOf} from "./battleBrief.ts"
 
@@ -80,6 +80,10 @@ export function revealsDue(closed: ClosedRound | undefined, now: number, seen: s
 
 export function podiumOf(closed: ClosedRound): RoundStanding[] {
     return closed.standings.filter((standing) => standing.rank <= PODIUM && standing.points > 0).slice(0, PODIUM)
+}
+
+export function tablePodiumOf(table: Score[]): Score[] {
+    return table.filter((score) => score.rank <= PODIUM && score.points > 0).slice(0, PODIUM)
 }
 
 export type Placing = {rank: number, points: number}

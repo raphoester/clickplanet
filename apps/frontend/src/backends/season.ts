@@ -21,4 +21,8 @@ export type Seasons = {
     next?: Season
     // None between two seasons, and from the season's last cutoff to its end.
     today?: Day
+    // By number.
+    ended: Season[]
 }
+
+export const NO_SEASONS: Seasons = {ended: []}

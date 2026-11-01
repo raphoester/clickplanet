@@ -295,7 +295,9 @@ type Timeline struct {
 	// The first season that has not started; unset when none is scheduled.
 	Next *Season `protobuf:"bytes,3,opt,name=next,proto3" json:"next,omitempty"`
 	// The day in progress; unset between two seasons, and from the season's last cutoff to its end.
-	Today         *Day `protobuf:"bytes,4,opt,name=today,proto3" json:"today,omitempty"`
+	Today *Day `protobuf:"bytes,4,opt,name=today,proto3" json:"today,omitempty"`
+	// The seasons that ended, by number.
+	Ended         []*Season `protobuf:"bytes,5,rep,name=ended,proto3" json:"ended,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -354,6 +356,13 @@ func (x *Timeline) GetNext() *Season {
 func (x *Timeline) GetToday() *Day {
 	if x != nil {
 		return x.Today
+	}
+	return nil
+}
+
+func (x *Timeline) GetEnded() []*Season {
+	if x != nil {
+		return x.Ended
 	}
 	return nil
 }
@@ -898,12 +907,13 @@ const file_gamemaster_v1_gamemaster_proto_rawDesc = "" +
 	"\bround_id\x18\x06 \x01(\tR\aroundId\x12\x14\n" +
 	"\x05times\x18\a \x01(\rR\x05times\x12\x1f\n" +
 	"\vends_season\x18\b \x01(\bR\n" +
-	"endsSeason\"\xc1\x01\n" +
+	"endsSeason\"\xee\x01\n" +
 	"\bTimeline\x12/\n" +
 	"\abattles\x18\x01 \x03(\v2\x15.gamemaster.v1.BattleR\abattles\x12/\n" +
 	"\acurrent\x18\x02 \x01(\v2\x15.gamemaster.v1.SeasonR\acurrent\x12)\n" +
 	"\x04next\x18\x03 \x01(\v2\x15.gamemaster.v1.SeasonR\x04next\x12(\n" +
-	"\x05today\x18\x04 \x01(\v2\x12.gamemaster.v1.DayR\x05today\"\xa6\x01\n" +
+	"\x05today\x18\x04 \x01(\v2\x12.gamemaster.v1.DayR\x05today\x12+\n" +
+	"\x05ended\x18\x05 \x03(\v2\x15.gamemaster.v1.SeasonR\x05ended\"\xa6\x01\n" +
 	"\x03Day\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\rR\x06number\x127\n" +
 	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
@@ -989,28 +999,29 @@ var file_gamemaster_v1_gamemaster_proto_depIdxs = []int32{
 	6,  // 7: gamemaster.v1.Timeline.current:type_name -> gamemaster.v1.Season
 	6,  // 8: gamemaster.v1.Timeline.next:type_name -> gamemaster.v1.Season
 	5,  // 9: gamemaster.v1.Timeline.today:type_name -> gamemaster.v1.Day
-	12, // 10: gamemaster.v1.Day.starts_at:type_name -> google.protobuf.Timestamp
-	12, // 11: gamemaster.v1.Day.ends_at:type_name -> google.protobuf.Timestamp
-	12, // 12: gamemaster.v1.Season.starts_at:type_name -> google.protobuf.Timestamp
-	12, // 13: gamemaster.v1.Season.ends_at:type_name -> google.protobuf.Timestamp
-	12, // 14: gamemaster.v1.Battle.starts_at:type_name -> google.protobuf.Timestamp
-	12, // 15: gamemaster.v1.Battle.ends_at:type_name -> google.protobuf.Timestamp
-	13, // 16: gamemaster.v1.Debrief.day:type_name -> gamemaster.v1.DayEnded
-	14, // 17: gamemaster.v1.Debrief.battle:type_name -> gamemaster.v1.BattleEnded
-	15, // 18: gamemaster.v1.Debrief.season:type_name -> gamemaster.v1.SeasonEnded
-	3,  // 19: gamemaster.v1.GamemasterEvent.turn:type_name -> gamemaster.v1.Turn
-	11, // 20: gamemaster.v1.GamemasterEvent.heartbeat:type_name -> gamemaster.v1.Heartbeat
-	4,  // 21: gamemaster.v1.GamemasterEvent.timeline:type_name -> gamemaster.v1.Timeline
-	8,  // 22: gamemaster.v1.GamemasterEvent.debrief:type_name -> gamemaster.v1.Debrief
-	1,  // 23: gamemaster.v1.GamemasterService.GetTurn:input_type -> gamemaster.v1.GetTurnRequest
-	9,  // 24: gamemaster.v1.GamemasterService.ListenForEvents:input_type -> gamemaster.v1.ListenForEventsRequest
-	2,  // 25: gamemaster.v1.GamemasterService.GetTurn:output_type -> gamemaster.v1.GetTurnResponse
-	10, // 26: gamemaster.v1.GamemasterService.ListenForEvents:output_type -> gamemaster.v1.GamemasterEvent
-	25, // [25:27] is the sub-list for method output_type
-	23, // [23:25] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	6,  // 10: gamemaster.v1.Timeline.ended:type_name -> gamemaster.v1.Season
+	12, // 11: gamemaster.v1.Day.starts_at:type_name -> google.protobuf.Timestamp
+	12, // 12: gamemaster.v1.Day.ends_at:type_name -> google.protobuf.Timestamp
+	12, // 13: gamemaster.v1.Season.starts_at:type_name -> google.protobuf.Timestamp
+	12, // 14: gamemaster.v1.Season.ends_at:type_name -> google.protobuf.Timestamp
+	12, // 15: gamemaster.v1.Battle.starts_at:type_name -> google.protobuf.Timestamp
+	12, // 16: gamemaster.v1.Battle.ends_at:type_name -> google.protobuf.Timestamp
+	13, // 17: gamemaster.v1.Debrief.day:type_name -> gamemaster.v1.DayEnded
+	14, // 18: gamemaster.v1.Debrief.battle:type_name -> gamemaster.v1.BattleEnded
+	15, // 19: gamemaster.v1.Debrief.season:type_name -> gamemaster.v1.SeasonEnded
+	3,  // 20: gamemaster.v1.GamemasterEvent.turn:type_name -> gamemaster.v1.Turn
+	11, // 21: gamemaster.v1.GamemasterEvent.heartbeat:type_name -> gamemaster.v1.Heartbeat
+	4,  // 22: gamemaster.v1.GamemasterEvent.timeline:type_name -> gamemaster.v1.Timeline
+	8,  // 23: gamemaster.v1.GamemasterEvent.debrief:type_name -> gamemaster.v1.Debrief
+	1,  // 24: gamemaster.v1.GamemasterService.GetTurn:input_type -> gamemaster.v1.GetTurnRequest
+	9,  // 25: gamemaster.v1.GamemasterService.ListenForEvents:input_type -> gamemaster.v1.ListenForEventsRequest
+	2,  // 26: gamemaster.v1.GamemasterService.GetTurn:output_type -> gamemaster.v1.GetTurnResponse
+	10, // 27: gamemaster.v1.GamemasterService.ListenForEvents:output_type -> gamemaster.v1.GamemasterEvent
+	26, // [26:28] is the sub-list for method output_type
+	24, // [24:26] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_gamemaster_v1_gamemaster_proto_init() }

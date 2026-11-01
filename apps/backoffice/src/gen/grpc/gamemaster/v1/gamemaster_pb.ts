@@ -260,6 +260,13 @@ export class Timeline extends Message<Timeline> {
    */
   today?: Day;
 
+  /**
+   * The seasons that ended, by number.
+   *
+   * @generated from field: repeated gamemaster.v1.Season ended = 5;
+   */
+  ended: Season[] = [];
+
   constructor(data?: PartialMessage<Timeline>) {
     super();
     proto3.util.initPartial(data, this);
@@ -272,6 +279,7 @@ export class Timeline extends Message<Timeline> {
     { no: 2, name: "current", kind: "message", T: Season },
     { no: 3, name: "next", kind: "message", T: Season },
     { no: 4, name: "today", kind: "message", T: Day },
+    { no: 5, name: "ended", kind: "message", T: Season, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Timeline {

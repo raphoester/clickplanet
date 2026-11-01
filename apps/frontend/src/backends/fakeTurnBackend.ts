@@ -21,8 +21,8 @@ export class FakeTurnBackend implements TurnBackend {
     private battlesEnded = 0
     private readonly listeners = new Set<TurnListener>()
 
-    constructor(current: Season | undefined = SEASON_ZERO, private readonly now: () => number = Date.now) {
-        this.seasons = {current, today: current && dayOf(current, now())}
+    constructor(current: Season | undefined = SEASON_ZERO, private readonly now: () => number = Date.now, ended: Season[] = []) {
+        this.seasons = {current, today: current && dayOf(current, now()), ended}
     }
 
     public follow(listener: TurnListener): () => void {
@@ -152,6 +152,7 @@ export class FakeTurnBackend implements TurnBackend {
         const number = (ended?.number ?? -1) + 1
         this.seasons = {
             next: {number, startsAt: nextStartsAt, endsAt: nextStartsAt + days * DAY_MS, bookId: `season-${number}`},
+            ended: ended ? [...this.seasons.ended, ended] : this.seasons.ended,
         }
         for (const listener of this.listeners) listener.onSeasons(this.seasons)
     }

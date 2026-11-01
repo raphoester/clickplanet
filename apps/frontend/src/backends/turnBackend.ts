@@ -12,7 +12,7 @@ import {
     Turn as TurnMessage,
 } from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {BattleEnded as BattleEndedMessage} from "../gen/grpc/gamemaster/v1/events_pb.ts"
-import {Day, Season, Seasons} from "./season.ts"
+import {Day, NO_SEASONS, Season, Seasons} from "./season.ts"
 import {Config, NO_TIMEOUT, openStream, pageWakeups, Wakeups} from "./transport.ts"
 import {BattleEnded, BattleToCome, Debrief, PLAIN_TURN, Turn, TurnBackend, TurnKind, TurnListener} from "./turn.ts"
 
@@ -43,7 +43,7 @@ export class ConnectTurnBackend implements TurnBackend {
                     if (e instanceof ConnectError && (e.code === Code.Unimplemented || e.code === Code.NotFound)) {
                         onTurn(PLAIN_TURN)
                         onBattles([])
-                        onSeasons({})
+                        onSeasons(NO_SEASONS)
                         onDebrief(undefined)
                         stop()
                         return
@@ -103,7 +103,12 @@ export function battlesOf(timeline: Timeline): BattleToCome[] {
 }
 
 export function seasonsOf(timeline: Timeline): Seasons {
-    return {current: seasonOf(timeline.current), next: seasonOf(timeline.next), today: dayOf(timeline.today)}
+    return {
+        current: seasonOf(timeline.current),
+        next: seasonOf(timeline.next),
+        today: dayOf(timeline.today),
+        ended: timeline.ended.flatMap((season) => seasonOf(season) ?? []),
+    }
 }
 
 function seasonOf(season: SeasonMessage | undefined): Season | undefined {

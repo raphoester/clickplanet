@@ -28,6 +28,7 @@ import BoardViews, {BoardHeading, BoardStandings} from "./standings/BoardViews.t
 import Sheet from "./hud/Sheet.tsx"
 import {ListenForClicks} from "./viewer/acceptedClicks.ts"
 import {useNow} from "./season/useNow.ts"
+import {HallOfFameButton, HallOfFameSeasons} from "./season/HallOfFame.tsx"
 import "./Menu.css"
 
 export type MenuTab = "board" | "missions" | "you" | "share" | "invite" | "settings"
@@ -46,6 +47,7 @@ export type BoardPlaceProps = {
     onCountryOrder?: (order: CountryOrder) => void,
     guided?: boolean,
     onGuided?: () => void,
+    hallOfFame?: HallOfFameSeasons,
 }
 
 export type YouPlaceProps = {
@@ -229,14 +231,20 @@ export function BoardPlace(props: BoardPlaceProps & {headless?: boolean}) {
                                    guided={props.guided}
                                    onGuided={props.onGuided}/>
 
+    const hallOfFame = props.hallOfFame && <HallOfFameButton {...props.hallOfFame}/>
+
     if (props.standings) {
-        return <BoardViews {...props.standings}
-                           country={props.country}
-                           countries={countries}
-                           order={order}
-                           headless={props.headless}/>
+        return <>
+            {hallOfFame}
+            <BoardViews {...props.standings}
+                        country={props.country}
+                        countries={countries}
+                        order={order}
+                        headless={props.headless}/>
+        </>
     }
     return <>
+        {hallOfFame}
         {order && <div className="board-heading">{order}</div>}
         {countries}
     </>

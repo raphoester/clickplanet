@@ -209,7 +209,7 @@ refused is a bug the player sees.
   fortresses are read again, as after a restart.
 - **In fake mode** `freezeMap()` and `thawMap()` on the console freeze and thaw the
   fake planet, and `startBreak(nextInMinutes = 960)` ends the fake season with the
-  next one to come, so the countdown shows.
+  next one to come, so the countdown shows, and adds it to the ended seasons.
 
 **The globe sends no click the counter cannot pay** (`canClick`). It paints
 nothing, plays the refusal and shakes the meter, as a 429 would. A painted tile

@@ -13,6 +13,7 @@ import {
     revealRowsOf,
     revealsDue,
     roundOverLine,
+    tablePodiumOf,
 } from "./roundReveal.ts"
 
 const result = (rank: number, countryCode: string, points: number): RoundStanding => ({rank, countryCode, share: 0.1, points})
@@ -108,6 +109,18 @@ describe("podiumOf", () => {
 
     it("is empty when nobody scored", () => {
         expect(podiumOf({...DAY, standings: []})).toEqual([])
+    })
+})
+
+describe("tablePodiumOf", () => {
+    it("is the three countries first in a book's table, a tie kept and never more than three", () => {
+        expect(tablePodiumOf(DAY.after).map((place) => place.countryCode)).toEqual(["de", "fr", "br"])
+        expect(tablePodiumOf([score(1, "de", 90), score(1, "fr", 90), score(3, "br", 40), score(3, "es", 40)])
+            .map((place) => `${place.rank} ${place.countryCode}`)).toEqual(["1 de", "1 fr", "3 br"])
+    })
+
+    it("is empty in a book nobody scored in", () => {
+        expect(tablePodiumOf([])).toEqual([])
     })
 })
 
