@@ -1,8 +1,39 @@
+// @vitest-environment jsdom
 import {describe, expect, it} from "vitest"
-import {BLAST_TIMELINE} from "../../domain/blast.ts"
-import {flashAt, incomingAt} from "./blasts.ts"
+import * as THREE from "three"
+import {BLAST_TIMELINE, MAX_BLASTS} from "../../domain/blast.ts"
+import {blastUniforms, createBlasts, flashAt, incomingAt} from "./blasts.ts"
 
 const RADIUS = 0.06
+
+// The debris shader's LIFETIME: past it, a point draws nothing.
+const DEBRIS_LIFETIME = 1.6
+
+describe("createBlasts", () => {
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10)
+
+    it("primes by drawing every effect for one frame, unseen, then hides them", () => {
+        const blasts = createBlasts(blastUniforms(false), {value: 1000}, {value: 1})
+        const shown = () => blasts.object.children.filter((o) => o.visible)
+
+        blasts.prime()
+        expect(blasts.update(1, camera)).toBe(true)
+
+        expect(shown()).toHaveLength(MAX_BLASTS * 3)
+        for (const object of shown()) {
+            if (object instanceof THREE.Sprite) expect(object.material.opacity).toBe(0)
+            else if (object instanceof THREE.Points) {
+                const {start, time} = (object.material as THREE.ShaderMaterial).uniforms
+                expect(time.value - start.value).toBeGreaterThan(DEBRIS_LIFETIME)
+            } else expect((object as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>).material.uniforms.opacity.value).toBe(0)
+        }
+
+        blasts.update(1.02, camera)
+        expect(shown()).toHaveLength(0)
+
+        blasts.dispose()
+    })
+})
 
 describe("incomingAt", () => {
     it("closes in on the target and brightens while the bomb falls", () => {
