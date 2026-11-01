@@ -108,6 +108,16 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         if (kind === "bomb") fake.grantBomb()
         else fake.grantBonus(kind)
     }, fake)
+    const endDayAt = (endedAt: number) => {
+        const today = fakeTurn.today()
+        if (!today) return "no day runs"
+        const round = fakeStandings.closeRound(today.roundId)
+        const debrief = fakeTurn.endDay(endedAt)
+        if (debrief) fakeChat.announceRound(closedOf(debrief, round))
+        return `day ${today.number} is over`
+    }
+    // As the gamemaster: a battle ends the day at its start, and scoring's debrief of it comes after the turn.
+    const endDayAfterTurn = (since: number) => setTimeout(() => endDayAt(since), 1000)
     Object.assign(window, {
         fakeBackend: fake,
         connection,
@@ -154,14 +164,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fakeMissions.prime()
             return "every mission is one tile from done: take a tile for your flag to finish and get them"
         },
-        closeDay: () => {
-            const today = fakeTurn.today()
-            if (!today) return "no day runs"
-            const round = fakeStandings.closeRound(today.roundId)
-            const debrief = fakeTurn.endDay()
-            if (debrief) fakeChat.announceRound(closedOf(debrief, round))
-            return `day ${today.number} is over`
-        },
+        closeDay: () => endDayAt(Date.now()),
         closeBattle: () => {
             const round = fakeStandings.closeBattle()
             const debrief = fakeTurn.endBattleRound(round.roundId, round.times, round.endedAt, false)
@@ -182,12 +185,14 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             const entryId = crypto.randomUUID()
             fakeStandings.openBattle(entryId, since, times)
             fakeTurn.startBattle(entryId, since, endsAt, description, times)
+            endDayAfterTurn(since)
             return `a battle is on, at ×${times}`
         },
         startFinale: (description?: string, times = 3) => {
             const since = Date.now()
             const roundId = fakeTurn.startFinale(since, description, times)
             fakeStandings.openBattle(roundId, since, times)
+            endDayAfterTurn(since)
             return `the final battle is on, at ×${times}`
         },
         endBattle: () => {

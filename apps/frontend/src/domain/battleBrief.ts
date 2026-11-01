@@ -50,3 +50,11 @@ export function briefDescriptionOf(seen: Battle | undefined, closed: ClosedRound
 export function briefAwaited(over: Battle, debrief: Debrief | undefined): boolean {
     return over.roundId !== "" && debriefRoundOf(debrief) !== over.roundId
 }
+
+// Scoring may be down: a battle's start waits no longer than this for the day it ended.
+export const DAY_BRIEF_WAIT_MS = 10_000
+
+// A battle that is a round starts as a day ends, and that day's debrief, once read, plays before the battle's start.
+export function dayBriefAwaited(battle: Battle, closed: ClosedRound | undefined): boolean {
+    return battle.roundId !== "" && (closed === undefined || closed.endedAt < battle.since)
+}

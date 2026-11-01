@@ -55,7 +55,8 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
 - **It takes its turn in the announcements queue** (see
   [Battles](battle.md#the-announcements-queue)): `Viewer` announces the round
   closed when it is due, and shows it once the map is loaded and once whatever
-  arrived before it, a title unlocked or a battle's start, was closed.
+  arrived before it, a title unlocked for one, was closed. A battle's start waits for the day it ended, so the day
+  plays first (see [Battles](battle.md#the-start-moment-and-the-end)).
 - It looks like the unlock: a portal on the body, the `title-reveal` classes of
   `TitleUnlocked.css`, and the `title` sound. Under
   `prefers-reduced-motion: reduce` the rows do not slide and the steps only fade

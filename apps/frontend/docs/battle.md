@@ -118,6 +118,14 @@ colour, the description and when it ends, then "To the globe" once it settled
 so a reload does not play it again; a player who arrives mid-battle sees it, since
 the battle is on. It plays through the announcements queue (below).
 
+**The start waits for the day the battle ended.** A battle that is a round starts as a day ends (the backend's
+[gamemaster](../../backend/docs/gamemaster.md#a-battle-and-the-days)), and the turn reaches the page about a second
+before that day's debrief. So `useBattleReveal` holds the start until the last debrief read (`closed`) ended at or after
+the battle's start (`dayBriefAwaited`): the day's reveal is queued first, and the start follows it. Until 2026-11-01
+the start came first, and the Final Battle's start played before the day it ended. A battle with no round waits for
+nothing, and none waits more than `DAY_BRIEF_WAIT_MS` (10 s): scoring may be down, and a battle at a season's start
+ends no day.
+
 **At the end** the mood goes, the halo turns blue again, and one line in the moments
 zone says "The battle is over" (`BattleOver`, `useBattleOver`, 5 s), only when the
 battle ended while the page was open. **When the battle has a round, its results
@@ -171,7 +179,8 @@ the season's results, a clip that names the player (see [In a clip](clip-appeara
 the map is loaded, and the next starts when the player closes the current one. An
 announcement is queued once, by its key. So a round that closes while the player
 reads a battle's screens waits its turn, the season's results wait for the debrief
-queued before them, and nothing is drawn over anything.
+queued before them, and nothing is drawn over anything. The one fact queued later than it arrives is a battle's start,
+held for the day it ended (above).
 
 The round's "once per browser" and the battle's keep their own rule (`useRoundReveal`,
 `useBattleReveal`): the queue only orders what is due.
@@ -179,8 +188,8 @@ The round's "once per browser" and the battle's keep their own rule (`useRoundRe
 ## In fake mode
 
 `startBattle(minutes = 120, description, times = 3)`, `startFinale(description, times = 3)` and `endBattle()` on the console
-(see [Commands](commands.md)): the mood, the halo, the chip, the moment and the
-board's battle column follow at once. `endBattle()` leaves the battle's round
+(see [Commands](commands.md)): the mood, the halo, the chip and the
+board's battle column follow at once, and the day that runs ends a second later, so its reveal plays, then the moment. `endBattle()` leaves the battle's round
 undebriefed, so "The results are coming" stays; `closeBattle()` scores it and the fake
 gamemaster debriefs it, so the debrief plays; `closeFinale()` debriefs it as the Final
 Battle, then the season, and the season's results follow. `scheduleFinale(inMinutes, minutes)` plans one: under
