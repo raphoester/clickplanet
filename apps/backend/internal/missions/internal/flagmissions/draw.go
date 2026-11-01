@@ -11,26 +11,36 @@ import (
 )
 
 const (
-	fewestPoints = 1
-	mostPoints   = 3
+	fewestPoints = 3
+	mostPoints   = 10
 	goalStep     = 10
 )
 
 // A pace is what a goal asks for its points: a share of what the flag did the day before, and never less than least.
 type pace struct {
-	percent uint64
-	least   uint32
+	percent span
+	least   span
 }
 
-func (p pace) goal(yesterday uint64) uint32 {
-	share := yesterday * p.percent / 100
-	share -= share % goalStep
-	return max(p.least, uint32(min(share, uint64(^uint32(0))))) //nolint:gosec // capped just above.
+// From its value for the fewest points to its value for the most, evenly.
+type span struct {
+	fewest uint64
+	most   uint64
+}
+
+func (s span) at(points uint32) uint64 {
+	return s.fewest + (s.most-s.fewest)*uint64(points-fewestPoints)/(mostPoints-fewestPoints)
+}
+
+func (p pace) goal(points uint32, yesterday uint64) uint32 {
+	goal := max(p.least.at(points), yesterday*p.percent.at(points)/100)
+	goal -= goal % goalStep
+	return uint32(min(goal, uint64(^uint32(0)))) //nolint:gosec // capped just above.
 }
 
 var (
-	conquerPaces = [mostPoints]pace{{percent: 50, least: 1_000}, {percent: 75, least: 1_500}, {percent: 100, least: 2_000}}
-	shieldPaces  = [mostPoints]pace{{percent: 50, least: 300}, {percent: 75, least: 450}, {percent: 100, least: 600}}
+	conquerPace = pace{percent: span{fewest: 50, most: 100}, least: span{fewest: 1_000, most: 2_000}}
+	shieldPace  = pace{percent: span{fewest: 50, most: 100}, least: span{fewest: 300, most: 600}}
 )
 
 var drawnSpace = uuid.MustParse("466c6167-4d69-4373-8000-696f6e66c167")
@@ -46,11 +56,11 @@ func Draw(day days.Day, flag string, world missions.World, yesterday Day) Day {
 	var orders []Order
 	if grounds := world.GroundsOf(flag); len(grounds) > 0 {
 		orders = append(orders, TakeIn{
-			Ground: grounds[random.IntN(len(grounds))], Goal: conquerPaces[points-1].goal(yesterday.takes),
+			Ground: grounds[random.IntN(len(grounds))], Goal: conquerPace.goal(points, yesterday.takes),
 		})
 	}
 	if rivals := world.RivalsOf(flag); len(rivals) > 0 {
-		orders = append(orders, BreakShields{Flag: byGround(random, rivals), Goal: shieldPaces[points-1].goal(yesterday.strikes)})
+		orders = append(orders, BreakShields{Flag: byGround(random, rivals), Goal: shieldPace.goal(points, yesterday.strikes)})
 	}
 	if len(orders) == 0 {
 		return Day{}
