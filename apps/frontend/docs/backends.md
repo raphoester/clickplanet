@@ -49,6 +49,17 @@ reconnect, which is the whole reason `openStream` exists. The backoff resets on
 a received message rather than on connect, because a connection is only known to
 work once something has come down it.
 
+**A message the handler throws on is dropped, and the stream stays.** Each reconnect
+sends the same message again, so a reconnect only loops on it. On 2026-10-31 a new
+`EntryKind` made `kindOf` throw in tabs opened before the deploy: each one reconnected
+every 500 ms, since the message had reset the backoff, until the server swapped. The
+error goes to the console.
+
+**An attempt that ends is aborted.** connect-es drops `return()` from a stream's
+iterator, so leaving the `for await` on an error leaves the fetch open, and the
+server's heartbeats keep its end alive. `openStream` aborts each attempt's signal when
+its loop ends, whatever ended it.
+
 **A reopened stream has a gap, and nothing replays it.** A phone that locks, or
 a tab the browser freezes, loses its connection, and whatever the server sent in
 the meantime is gone. So `openStream` calls `onResumed` on the first message of

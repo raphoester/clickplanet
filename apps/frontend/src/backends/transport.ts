@@ -190,11 +190,19 @@ export function openStream<T>(
                     if (wasLive) onResumed?.()
                     wasLive = true
                 }
-                onMessage(message)
+                // Every reconnect sends the same message again: a reconnect would loop on it.
+                try {
+                    onMessage(message)
+                } catch (e) {
+                    console.error(`${what} message dropped`, e)
+                }
             }
         } catch (e) {
             if (stopped || attempt.signal.aborted) return
             console.error(`${what} stream failed`, e)
+        } finally {
+            // connect-es drops return() from a stream's iterator: leaving the loop leaves the fetch open.
+            attempt.abort()
         }
 
         if (controller !== attempt) return
