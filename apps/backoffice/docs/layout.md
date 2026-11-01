@@ -7,7 +7,8 @@ src/
   fakeAdmin.ts      FakeAdmin, every admin method for the tests
   demo/             npm run demo: api.ts, the clients over DemoAdmin (demoAdmin.ts) and a made-up bucket, served in
                     place of ../api.ts
-  refusal.ts        a page's error → signedOut, notOperator, startAgain or failed; an action's in words (wordsOf)
+  refusal.ts        a page's error → signedOut, notOperator, startAgain or failed; an action's in words (wordsOf),
+                    the server's UTC times in the operator's own (localized)
   useCall.ts        one call's state, run on mount
   useAction.ts      one read's state, run on a click
   useRoute.ts       the page shown and what is open on it, kept in the address bar
@@ -18,7 +19,8 @@ src/
   App.tsx           the callback, or WhoAmI first, then the page the menu picked
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
   components/       Menu and Sidebar, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
-                    Fact, Person, When and Ago, Fold (a panel read once opened), ChangeList (what a form changes)
+                    Fact, Person, When and Ago, Fold (a panel read once opened), ChangeList (what a form changes);
+                    time.ts (a time in words, as a datetime-local holds it, the operator's time zone)
   home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over ledger.ts (the counts),
                     heat.ts (the picture), places.ts (the tile coordinates) and activity.ts
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
@@ -30,7 +32,7 @@ src/
   clips/            Clip stats: ClipStatsPage, actions.ts (the CSV's file), table.ts (its columns)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)
   ops/              Reconcile titles, Game rules, Anti-bot rules (a form read off the proto), Rule schedule, Seasons,
-                    Timeline
+                    Timeline; cutoff.ts (the daily cutoff: when days end, a battle off it)
   gen/grpc/         generated from ../../proto, committed
   gen/map/          the tile coordinates, copied from ../../map, committed
 ```

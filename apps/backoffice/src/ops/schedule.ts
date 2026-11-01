@@ -1,9 +1,11 @@
 import {proto3, Timestamp} from "@bufbuild/protobuf"
 import {GamemasterAdmin} from "../clients.ts"
+import {localOf} from "../components/time.ts"
 import {GetRulesResponse as AntibotRules} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Entry, GetScheduleResponse, ScheduledFinale} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
+import {Cutoff, offCutoffWords} from "./cutoff.ts"
 
 // A line of the schedule: an entry and its times.
 export type Row = {entry: Entry, startsAt?: Date, endsAt?: Date}
@@ -95,16 +97,20 @@ export function draftOf(entry: Entry | undefined, sets: string[]): Draft {
     }
 }
 
-export function localOf(date: Date | undefined): string {
-    if (date === undefined) return ""
-    const pad = (n: number) => String(n).padStart(2, "0")
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
 // The server holds the rest: a start after now, an end after it, a set every module keeps.
 export function complete(draft: Draft): boolean {
     return timesFit(draft) && draft.set !== "" && draft.kind !== EntryKind.UNSPECIFIED && [...draft.description].length <= MAX_DESCRIPTION &&
         draft.startsAt !== "" && draft.endsAt !== "" && Number.isInteger(Number(draft.priority)) && Number(draft.priority) >= 0
+}
+
+// Why the server will refuse a battle that neither starts nor ends at the cutoff, or undefined.
+export function offCutoffOf(draft: Draft, cutoff: Cutoff | undefined): string | undefined {
+    const startsAt = new Date(draft.startsAt)
+    const endsAt = new Date(draft.endsAt)
+    if (draft.kind !== EntryKind.BATTLE || cutoff === undefined || Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+        return undefined
+    }
+    return offCutoffWords("The battle", startsAt, endsAt, cutoff)
 }
 
 function timesFit(draft: Draft): boolean {

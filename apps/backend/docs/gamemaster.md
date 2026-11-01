@@ -229,7 +229,8 @@ commands go one way, gamemaster to scoring; scoring never asks back.
   (`ErrEnded`); **an end moves only to a time after now**. Only the last season, before it starts, is deleted
   (`ErrNotLast`): numbers keep counting with no gap, and scoring never heard of it.
 - **The operator** calls `GetSeasons` (each season's break, length, finale, window, and its days by `Window.Days` at
-  the daily cutoff, which the backoffice's Timeline draws), `AddSeason{break_before, length,
+  the daily cutoff, which the backoffice's Timeline draws; and `daily_cutoff`, the cutoff itself, so the backoffice
+  says when days end in the operator's own time and warns of a battle off it), `AddSeason{break_before, length,
   finale}`, `EditSeason` and `DeleteSeason` on `gamemaster.v1.AdminService`, from the backoffice's Seasons page; each
   change is logged at Warn by its audit decorator (`admin season added`, `edited`, `deleted`, or `refused`, with the
   finale's fields). A refusal is `InvalidArgument`, `FailedPrecondition` or `NotFound` (`seasonmessage.Refusal`). An

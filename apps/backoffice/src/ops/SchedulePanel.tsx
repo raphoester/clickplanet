@@ -3,22 +3,24 @@ import {useCallback, useState} from "react"
 import {AntibotAdmin, PlanetAdmin, GamemasterAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
+import {zoneOf} from "../components/time.ts"
 import {When} from "../components/When.tsx"
 import {Entry, GetScheduleResponse} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
-import {wordsOf} from "../refusal.ts"
+import {localized, wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
+import {Cutoff, cutoffOf, daysEndWords} from "./cutoff.ts"
 import {
     addEntry, changeable, complete, deleteEntry, Draft, draftOf, editEntry, ended, kinds, lacking, MAX_DESCRIPTION, MAX_TIMES, Modules, playable,
-    FinaleRow, linesOf, questionOf, Row, shortOf, wordOf,
+    FinaleRow, linesOf, offCutoffOf, questionOf, Row, shortOf, wordOf,
 } from "./schedule.ts"
 
-type Read = Modules & {schedule: GetScheduleResponse}
+type Read = Modules & {schedule: GetScheduleResponse, cutoff: Cutoff | undefined}
 
 // The server says which module lacks the set, or since when the entry runs.
 const refusal = (err: unknown) => {
     const error = ConnectError.from(err)
-    if (error.code === Code.FailedPrecondition) return `The server refused it: ${error.rawMessage}`
+    if (error.code === Code.FailedPrecondition) return `The server refused it: ${localized(error.rawMessage)}`
     return wordsOf(err, {notFound: "This entry is no longer kept."})
 }
 
@@ -29,10 +31,11 @@ export function SchedulePanel({gamemaster, planet, antibot}: {
     gamemaster: GamemasterAdmin, planet: PlanetAdmin, antibot: AntibotAdmin,
 }) {
     const read = useCallback(async (signal: AbortSignal): Promise<Read> => {
-        const [schedule, planetRules, antibotRules] = await Promise.all([
-            gamemaster.getSchedule({}, {signal}), planet.getRules({}, {signal}), antibot.getRules({}, {signal}),
+        const [schedule, seasons, planetRules, antibotRules] = await Promise.all([
+            gamemaster.getSchedule({}, {signal}), gamemaster.getSeasons({}, {signal}), planet.getRules({}, {signal}),
+            antibot.getRules({}, {signal}),
         ])
-        return {schedule, planet: planetRules, antibot: antibotRules}
+        return {schedule, cutoff: cutoffOf(seasons.dailyCutoff), planet: planetRules, antibot: antibotRules}
     }, [gamemaster, planet, antibot])
     const [state, again] = useCall(read)
     const [editing, setEditing] = useState<Editing | undefined>(undefined)
@@ -66,6 +69,7 @@ export function SchedulePanel({gamemaster, planet, antibot}: {
                             gamemaster={gamemaster}
                             entry={editing.entry}
                             sets={playable(state.value)}
+                            cutoff={state.value.cutoff}
                             onCancel={() => setEditing(undefined)}
                             onDone={changed}
                         />
@@ -189,17 +193,21 @@ function EntryActions({row, gamemaster, onEdit, onDeleted}: {
     )
 }
 
-function EntryForm({gamemaster, entry, sets, onCancel, onDone}: {
-    gamemaster: GamemasterAdmin, entry: Entry | undefined, sets: string[], onCancel: () => void, onDone: () => void,
+function EntryForm({gamemaster, entry, sets, cutoff, onCancel, onDone}: {
+    gamemaster: GamemasterAdmin, entry: Entry | undefined, sets: string[], cutoff: Cutoff | undefined, onCancel: () => void,
+    onDone: () => void,
 }) {
     const [draft, setDraft] = useState(() => draftOf(entry, sets))
     const change = (part: Partial<Draft>) => setDraft(was => ({...was, ...part}))
     const title = entry === undefined ? "New entry" : `Edit the entry ${entry.ruleSet}`
     const options = sets.includes(draft.set) || draft.set === "" ? sets : [draft.set, ...sets]
+    const offCutoff = offCutoffOf(draft, cutoff)
+    const endsAt = new Date(draft.endsAt)
 
     return (
         <section className="panel" aria-label={title}>
             <h2>{title}</h2>
+            <p className="hint">Times are in {zoneOf()}.</p>
             <div className="fields">
                 <label className="field">
                     <span className="muted">Set</span>
@@ -239,6 +247,10 @@ function EntryForm({gamemaster, entry, sets, onCancel, onDone}: {
                         onChange={e => change({priority: e.target.value})}/>
                 </label>
             </div>
+            {draft.kind === EntryKind.BATTLE && cutoff !== undefined && (
+                <p className="hint">{daysEndWords(Number.isNaN(endsAt.getTime()) ? new Date() : endsAt, cutoff)}</p>
+            )}
+            {offCutoff !== undefined && <p className="action-refused" role="alert">{offCutoff}</p>}
             <ConfirmAction
                 label={entry === undefined ? "Add" : "Save"}
                 disabled={!complete(draft)}

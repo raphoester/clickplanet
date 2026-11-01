@@ -127,6 +127,8 @@ message GetSeasonsRequest {}
 
 message GetSeasonsResponse {
   repeated ScheduledSeason seasons = 1;
+  // The time of day, from midnight UTC, at which a day ends. A battle, a season's finale too, starts or ends at it.
+  google.protobuf.Duration daily_cutoff = 2;
 }
 
 // A season as the operator plans it: its break and its length. Its window follows from the seasons before it.

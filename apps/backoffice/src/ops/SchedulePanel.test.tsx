@@ -2,6 +2,7 @@
 import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {afterEach, describe, expect, it} from "vitest"
+import {clockOf, localOf} from "../components/time.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {GetRulesResponse as AntibotRules, RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
@@ -151,6 +152,25 @@ describe("the rule schedule page", () => {
         const [asked] = admin.askedFor("addEntry") as AddEntryRequest[]
         expect(asked.kind).toBe(EntryKind.BATTLE)
         expect(asked.times).toBe(5)
+    })
+
+    it("warns of a battle that neither starts nor ends when a day ends, in the operator's own time, and not of a plain entry", async () => {
+        show(keeping())
+
+        fireEvent.click(await screen.findByRole("button", {name: "Add an entry"}))
+        const startsAt = new Date("2099-10-31T18:00:00Z")
+        const endsAt = new Date("2099-10-31T20:00:00Z")
+        const cutoff = new Date("2099-10-31T21:00:00Z")
+        type("Starts", localOf(startsAt))
+        type("Ends", localOf(endsAt))
+        expect(screen.getByText(`Days end at ${clockOf(cutoff)}.`)).toBeTruthy()
+        expect(screen.getByRole("alert").textContent)
+            .toBe(`The battle runs ${clockOf(startsAt)} to ${clockOf(endsAt)}: it must start or end at ${clockOf(cutoff)}, when a day ends.`)
+        type("Ends", localOf(cutoff))
+        expect(screen.queryByRole("alert")).toBeNull()
+        type("Ends", localOf(endsAt))
+        type("Kind", String(EntryKind.PLAIN))
+        expect(screen.queryByRole("alert")).toBeNull()
     })
 
     it("offers only the sets both modules keep", async () => {

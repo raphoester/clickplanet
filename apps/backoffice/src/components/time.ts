@@ -11,6 +11,18 @@ export function clockOf(date: Date): string {
     return CLOCK.format(date)
 }
 
+// A time as a datetime-local field holds it, in the operator's own time; "" for none.
+export function localOf(date: Date | undefined): string {
+    if (date === undefined) return ""
+    const pad = (n: number) => String(n).padStart(2, "0")
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+// The operator's own time zone, which every time on the page is in: "Europe/Sofia".
+export function zoneOf(): string {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
 // How long ago, as a list reads it: "just now", "12 min ago", "3 h ago", "2 d ago".
 export function agoOf(date: Date, now: Date = new Date()): string {
     const minutes = Math.floor((now.getTime() - date.getTime()) / 60_000)
