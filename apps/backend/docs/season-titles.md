@@ -1,13 +1,18 @@
-# Season titles: who fought the Final Battle, where their flag placed, and who took the most tiles
+# Season titles: the season's best players, who fought the Final Battle, and where their flag placed
 
-**Season 0 gives seven titles, and only to the players who fought its Final Battle** (the owner, 2026-10-31 and
-2026-11-01):
+**Season 0 gives ten titles** (the owner, 2026-10-31 and 2026-11-01). Seven go only to the players who fought its Final
+Battle:
 
 - `Season 0 Gold`, `Season 0 Silver` and `Season 0 Bronze`: a fighter whose flag placed 1st, 2nd or 3rd on season 0's
   table;
-- `Season 0 Top 1`, `Season 0 Top 2` and `Season 0 Top 3`: the fighters who took the most, the 2nd most and the 3rd
+- `Season 0 Battle Top 1`, `Battle Top 2` and `Battle Top 3`: the fighters who took the most, the 2nd most and the 3rd
   most tiles in the battle, whatever their flag;
 - `Season 0 Veteran`: every fighter, whatever its flag's place. A gold fighter holds both.
+
+Three go to the season's best players, fighters or not:
+
+- `Season 0 Top 1`, `Top 2` and `Top 3`: the players 1st, 2nd and 3rd on season 0's board of players, the one the
+  Hall of Fame shows (see [The season's best players](#the-seasons-best-players)).
 
 **A fighter is an account that took at least one tile in the finale's round** (`season-0/finale`), under the flag it
 took the most tiles for there. A battle's rule set locks the flags (see [Allegiance](allegiance.md)), so a fighter has
@@ -20,7 +25,7 @@ fighters are Veterans only.
 
 **The tiles rank is the fighter's place among all the fighters by the tiles it took in the round**, ties shared the
 same way. The flags are locked, so the tiles under its flag are all the tiles it took. A guest is ranked too: a guest
-first leaves `Top 1` to nobody until it signs in.
+first leaves `Battle Top 1` to nobody until it signs in.
 
 ## How the titles are given
 
@@ -57,15 +62,26 @@ A new consumer group reads its stream from the start, and the stream's trim keep
 so `SeasonEnded` is still there for a group's first subscribe, even days later. Scoring keeps `round_players` for good
 (only a deleted account leaves it).
 
-**The Top titles came after season 0 was recorded.** Its fights had no tiles rank (`tiles_rank` 0, migration
+**The Battle Top titles came after season 0 was recorded.** Its fights had no tiles rank (`tiles_rank` 0, migration
 `20261101150000_finale_tiles_rank`). The subscriber's group was renamed from `player-finales` to `player-finale-fights`,
 so the new group reads season 0's `SeasonEnded` again: the record fills each fight's tiles rank, and the award gives the
-Top titles, live. Once that release is out, `XGROUP DESTROY events:gamemaster.v1.SeasonEnded player-finales` removes
+Battle Top titles, live. Once that release is out, `XGROUP DESTROY events:gamemaster.v1.SeasonEnded player-finales` removes
 the old group.
+
+**The battle's tops were renamed once the season's came.** Season 0's battle tops were given as `season_0_top_N`;
+migration `20261101180100_battle_top_titles` renames them, held and worn, to `season_0_battle_top_N`, and
+`season_0_top_N` is the season's.
 
 **A take scoring counts after `SeasonEnded` is handled is no fight.** Scoring counts the round's takes from
 `planet.v1.TileTaken` on its own, so a take in the battle's last second could, in theory, be counted after player read
 the round. The hops between the round's close and `SeasonEnded` take seconds; a deploy after the battle has no such race.
+
+## The season's best players
+
+**Season 0's tops were given once, by hand, after it ended.** Its board is closed and will not change, so nothing
+records it: the operator read its first three (scoring's `GetBoard` for `season-0`) and wrote their three rows in
+`player.titles`. `Season0Top1`, `Top2` and `Top3` are keepsakes no career earns (`EarnedBy` is false), so the award
+never gives them and the reconciliation never takes them back.
 
 ## A later season
 

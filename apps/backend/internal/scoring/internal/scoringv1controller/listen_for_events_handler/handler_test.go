@@ -80,7 +80,8 @@ func serve(t *testing.T, feeds feeds, heartbeat time.Duration) scoringv1connect.
 	}, cpcountries.New(), heartbeat)
 	mux := http.NewServeMux()
 	mux.Handle(scoringv1connect.ScoringServiceListenForEventsProcedure, connect.NewServerStreamHandler(
-		scoringv1connect.ScoringServiceListenForEventsProcedure, handler.ListenForEvents))
+		scoringv1connect.ScoringServiceListenForEventsProcedure, handler.ListenForEvents,
+	))
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	return scoringv1connect.NewScoringServiceClient(server.Client(), server.URL)

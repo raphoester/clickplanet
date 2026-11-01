@@ -17,6 +17,9 @@ const SEASONS: Partial<Record<string, string>> = {
     season_0_top_1: "0",
     season_0_top_2: "0",
     season_0_top_3: "0",
+    season_0_battle_top_1: "0",
+    season_0_battle_top_2: "0",
+    season_0_battle_top_3: "0",
     season_0_veteran: "0",
 }
 
@@ -44,6 +47,9 @@ const TITLE_METALS: Partial<Record<string, Metal>> = {
     season_0_top_1: "gold",
     season_0_top_2: "silver",
     season_0_top_3: "bronze",
+    season_0_battle_top_1: "gold",
+    season_0_battle_top_2: "silver",
+    season_0_battle_top_3: "bronze",
     season_0_veteran: "platinum",
     halloween_2026: "pumpkin",
     settler: "bronze",

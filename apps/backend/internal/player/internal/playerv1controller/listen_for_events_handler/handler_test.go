@@ -70,7 +70,8 @@ func routes(roster stubRoster, earner stubTitles) http.Handler {
 	handler := listen_for_events_handler.New(roster, earner)
 	mux := http.NewServeMux()
 	mux.Handle(playerv1connect.PlayerServiceListenForEventsProcedure, connect.NewServerStreamHandler(
-		playerv1connect.PlayerServiceListenForEventsProcedure, handler.ListenForEvents))
+		playerv1connect.PlayerServiceListenForEventsProcedure, handler.ListenForEvents,
+	))
 	return mux
 }
 

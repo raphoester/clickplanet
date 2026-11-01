@@ -125,7 +125,7 @@ func TestEachSeasonZeroTitleGoesToWhoFoughtItsFinaleForAFlagThatPlacedSo(t *test
 	}
 }
 
-func TestEachSeasonZeroTopTitleGoesToWhoTookThatManyTilesInItsFinale(t *testing.T) {
+func TestEachSeasonZeroBattleTopTitleGoesToWhoTookThatManyTilesInItsFinale(t *testing.T) {
 	ranked := func(season finales.Season, tilesRank uint32) titles.Career {
 		fight, err := finales.FightSnapshot{Season: season, Country: "fr", Rank: 7, TilesRank: tilesRank}.Restore()
 		require.NoError(t, err)
@@ -136,20 +136,29 @@ func TestEachSeasonZeroTopTitleGoesToWhoTookThatManyTilesInItsFinale(t *testing.
 		career titles.Career
 		earned titles.IDs
 	}{
-		{ranked(0, 1), titles.IDs{"season_0_top_1"}},
-		{ranked(0, 2), titles.IDs{"season_0_top_2"}},
-		{ranked(0, 3), titles.IDs{"season_0_top_3"}},
+		{ranked(0, 1), titles.IDs{"season_0_battle_top_1"}},
+		{ranked(0, 2), titles.IDs{"season_0_battle_top_2"}},
+		{ranked(0, 3), titles.IDs{"season_0_battle_top_3"}},
 		{ranked(0, 4), nil},
 		{ranked(0, 0), nil},
 		{ranked(1, 1), nil},
 	} {
 		var earned titles.IDs
-		for _, title := range []titles.Title{titles.Season0Top1{}, titles.Season0Top2{}, titles.Season0Top3{}} {
+		for _, title := range []titles.Title{titles.Season0BattleTop1{}, titles.Season0BattleTop2{}, titles.Season0BattleTop3{}} {
 			if title.EarnedBy(c.career) {
 				earned = append(earned, title.ID())
 			}
 		}
 		assert.Equal(t, c.earned, earned, "%+v", c.career)
+	}
+}
+
+func TestTheSeasonZeroTopsAreGivenOnceAndNoCareerEarnsOrLosesThem(t *testing.T) {
+	best := careerOf(players.StatsSnapshot{TilesTaken: 1_000_000, StreakBest: 100})
+
+	for _, title := range []titles.Title{titles.Season0Top1{}, titles.Season0Top2{}, titles.Season0Top3{}} {
+		assert.False(t, title.EarnedBy(best), title.ID())
+		assert.Implements(t, (*titles.Keepsake)(nil), title, title.ID())
 	}
 }
 
@@ -221,25 +230,28 @@ func TestEveryTitleHasItsOwnIDTheStoreTakesAndAName(t *testing.T) {
 func TestEachTitleSaysHowItWasEarned(t *testing.T) {
 	catalog := titles.NewCatalog()
 	for id, feat := range map[titles.ID]string{
-		"og":               "Joined before November 2026",
-		"season_0_gold":    "Fought the Final Battle for the flag in 1st place",
-		"season_0_silver":  "Fought the Final Battle for the flag in 2nd place",
-		"season_0_bronze":  "Fought the Final Battle for the flag in 3rd place",
-		"season_0_top_1":   "Took the most tiles in the Final Battle",
-		"season_0_top_2":   "Took the 2nd most tiles in the Final Battle",
-		"season_0_top_3":   "Took the 3rd most tiles in the Final Battle",
-		"season_0_veteran": "Fought the Final Battle",
-		"halloween_2026":   "Played on Halloween 2026",
-		"warmaster":        "Took 1,000,000 tiles",
-		"loyal":            "Played 7 days in a row",
-		"talker":           "Sent 10 messages",
-		"guard":            "Fortified 100 tiles",
-		"bomber":           "Dropped 1 bomb",
-		"blaster":          "Dropped 10 bombs",
-		"looter":           "Caught 10 bonus boxes",
-		"student":          "Answered 10 quizzes right",
-		"rookie":           "Completed 1 mission",
-		"agent":            "Completed 25 missions",
+		"og":                    "Joined before November 2026",
+		"season_0_gold":         "Fought the Final Battle for the flag in 1st place",
+		"season_0_silver":       "Fought the Final Battle for the flag in 2nd place",
+		"season_0_bronze":       "Fought the Final Battle for the flag in 3rd place",
+		"season_0_top_1":        "Ranked 1st of all players in Season 0",
+		"season_0_top_2":        "Ranked 2nd of all players in Season 0",
+		"season_0_top_3":        "Ranked 3rd of all players in Season 0",
+		"season_0_battle_top_1": "Took the most tiles in the Final Battle",
+		"season_0_battle_top_2": "Took the 2nd most tiles in the Final Battle",
+		"season_0_battle_top_3": "Took the 3rd most tiles in the Final Battle",
+		"season_0_veteran":      "Fought the Final Battle",
+		"halloween_2026":        "Played on Halloween 2026",
+		"warmaster":             "Took 1,000,000 tiles",
+		"loyal":                 "Played 7 days in a row",
+		"talker":                "Sent 10 messages",
+		"guard":                 "Fortified 100 tiles",
+		"bomber":                "Dropped 1 bomb",
+		"blaster":               "Dropped 10 bombs",
+		"looter":                "Caught 10 bonus boxes",
+		"student":               "Answered 10 quizzes right",
+		"rookie":                "Completed 1 mission",
+		"agent":                 "Completed 25 missions",
 	} {
 		standing, ok := catalog.StandingOf(id)
 		require.True(t, ok, id)

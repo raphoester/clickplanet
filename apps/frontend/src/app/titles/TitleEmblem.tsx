@@ -126,13 +126,20 @@ function Trophy({place, accent, cream}: {place: string, accent: string, cream: s
     </>
 }
 
+function StarPlayer({place, accent}: {place: string, accent: string}) {
+    return <>
+        <Shape d={STAR} color={accent} width={2.2} transform="translate(36 50) scale(1.35) translate(-50 -43)"/>
+        <Letters text={place} color={accent} x={61} y={62} size={34}/>
+    </>
+}
+
 function Meridians() {
     return <path d="M50 31 C41 37 41 63 50 69 M50 31 C59 37 59 63 50 69 M31 50 H69" style={{stroke: INK}}
                  strokeWidth="2.5" fill="none"/>
 }
 
-function Letters({text, color, y = 63, size = 32}: {text: string, color: string, y?: number, size?: number}) {
-    return <text x="50" y={y} textAnchor="middle" fontSize={size} strokeWidth="5" strokeLinejoin="round"
+function Letters({text, color, x = 50, y = 63, size = 32}: {text: string, color: string, x?: number, y?: number, size?: number}) {
+    return <text x={x} y={y} textAnchor="middle" fontSize={size} strokeWidth="5" strokeLinejoin="round"
                  style={{...LETTERING, fill: color}}>{text}</text>
 }
 
@@ -151,10 +158,16 @@ function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
         case "season_0_bronze":
             return <Trophy place="3" accent={accent} cream={cream}/>
         case "season_0_top_1":
-            return <Letters text="#1" color={accent} y={62} size={34}/>
+            return <StarPlayer place="1" accent={accent}/>
         case "season_0_top_2":
-            return <Letters text="#2" color={accent} y={62} size={34}/>
+            return <StarPlayer place="2" accent={accent}/>
         case "season_0_top_3":
+            return <StarPlayer place="3" accent={accent}/>
+        case "season_0_battle_top_1":
+            return <Letters text="#1" color={accent} y={62} size={34}/>
+        case "season_0_battle_top_2":
+            return <Letters text="#2" color={accent} y={62} size={34}/>
+        case "season_0_battle_top_3":
             return <Letters text="#3" color={accent} y={62} size={34}/>
         case "season_0_veteran":
             return <>

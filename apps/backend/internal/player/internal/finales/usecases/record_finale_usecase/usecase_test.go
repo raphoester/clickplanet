@@ -117,9 +117,9 @@ func TestEachSignedInFighterIsAwardedItsTitlesAndAGuestNone(t *testing.T) {
 
 	require.NoError(t, f.record(t, finalNight))
 
-	assert.Equal(t, titles.IDs{"season_0_gold", "season_0_top_3", "season_0_veteran"}, f.held(t, ada))
-	assert.Equal(t, titles.IDs{"season_0_top_2", "season_0_veteran"}, f.held(t, bob))
-	assert.Equal(t, titles.IDs{"season_0_top_3", "season_0_veteran"}, f.held(t, carol))
+	assert.Equal(t, titles.IDs{"season_0_gold", "season_0_battle_top_3", "season_0_veteran"}, f.held(t, ada))
+	assert.Equal(t, titles.IDs{"season_0_battle_top_2", "season_0_veteran"}, f.held(t, bob))
+	assert.Equal(t, titles.IDs{"season_0_battle_top_3", "season_0_veteran"}, f.held(t, carol))
 	assert.Empty(t, f.held(t, guest), "first by tiles, but a guest earns nothing yet")
 }
 
@@ -129,8 +129,8 @@ func TestTheSeasonToldAgainChangesNothing(t *testing.T) {
 
 	require.NoError(t, f.record(t, finalNight))
 
-	assert.Equal(t, titles.IDs{"season_0_gold", "season_0_top_3", "season_0_veteran"}, f.held(t, ada))
-	assert.Equal(t, titles.IDs{"season_0_top_2", "season_0_veteran"}, f.held(t, bob))
+	assert.Equal(t, titles.IDs{"season_0_gold", "season_0_battle_top_3", "season_0_veteran"}, f.held(t, ada))
+	assert.Equal(t, titles.IDs{"season_0_battle_top_2", "season_0_veteran"}, f.held(t, bob))
 }
 
 func TestTheSeasonToldAgainRanksTheFightsRecordedBeforeTheRankWasKept(t *testing.T) {
@@ -144,7 +144,7 @@ func TestTheSeasonToldAgainRanksTheFightsRecordedBeforeTheRankWasKept(t *testing
 	found, err := f.fights.Fights(t.Context(), []players.AccountID{bob})
 	require.NoError(t, err)
 	assert.Equal(t, uint32(2), found[bob][0].TakeSnapshot().TilesRank)
-	assert.Equal(t, titles.IDs{"season_0_top_2", "season_0_veteran"}, f.held(t, bob))
+	assert.Equal(t, titles.IDs{"season_0_battle_top_2", "season_0_veteran"}, f.held(t, bob))
 }
 
 func TestAScoringFailureRecordsNothing(t *testing.T) {

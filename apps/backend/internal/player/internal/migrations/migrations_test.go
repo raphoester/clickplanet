@@ -49,3 +49,40 @@ func TestUnicodeUsernamesCutTheLongNamesAndDeleteTheOnesACutWouldTake(t *testing
 	require.NoError(t, rows.Err())
 	assert.Equal(t, []string{"Ada", "Ada_Lovelace_18", "Bob_the_builder", "Carol_Carolyn_C"}, kept)
 }
+
+func TestTheBattleTopsAlreadyGivenAreRenamedAndKeepTheirHolders(t *testing.T) {
+	server := cppg.StartTestServer(t)
+	db := server.OpenSchema(t, "player", cppg.MigrationsBefore(t, migrations.FS, "20261101180100"))
+	at := time.Date(2026, 11, 1, 14, 30, 0, 0, time.UTC)
+	for _, row := range []struct{ account, title string }{
+		{"00000000-0000-0000-0000-000000000001", "season_0_top_1"},
+		{"00000000-0000-0000-0000-000000000001", "season_0_gold"},
+		{"00000000-0000-0000-0000-000000000002", "season_0_top_3"},
+	} {
+		_, err := db.On(t.Context()).ExecContext(t.Context(),
+			`INSERT INTO titles (account_id, title, earned_at) VALUES ($1, $2, $3)`, row.account, row.title, at)
+		require.NoError(t, err)
+	}
+	_, err := db.On(t.Context()).ExecContext(t.Context(),
+		`INSERT INTO worn_titles (account_id, title, worn_at) VALUES ($1, 'season_0_top_1', $2)`,
+		"00000000-0000-0000-0000-000000000001", at)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), `SELECT title FROM titles ORDER BY account_id, title`)
+	require.NoError(t, err)
+	defer func() { _ = rows.Close() }()
+	var held []string
+	for rows.Next() {
+		var title string
+		require.NoError(t, rows.Scan(&title))
+		held = append(held, title)
+	}
+	require.NoError(t, rows.Err())
+	assert.Equal(t, []string{"season_0_battle_top_1", "season_0_gold", "season_0_battle_top_3"}, held)
+
+	var worn string
+	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT title FROM worn_titles`).Scan(&worn))
+	assert.Equal(t, "season_0_battle_top_1", worn)
+}

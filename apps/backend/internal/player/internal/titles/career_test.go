@@ -23,7 +23,8 @@ func TestEachCareerIsItsStatsWhatAuthSaysOfItsAccountAndTheFinalesItFought(t *te
 	fight, err := finales.FightSnapshot{Account: players.AccountID{15: 1}, Season: 0, Country: "fr", Rank: 1}.Restore()
 	require.NoError(t, err)
 
-	careers := titles.CareersOf(page,
+	careers := titles.CareersOf(
+		page,
 		map[players.AccountID]players.Account{{15: 1}: known},
 		map[players.AccountID]finales.Fights{{15: 1}: {fight}},
 	)
