@@ -144,22 +144,23 @@ internal/missions/internal/
 
 ## The flag's mission
 
-**One mission a day for the whole flag, the same for each of its players: done once, it gives the flag 1 to 3 season
+**One mission a day for the whole flag, the same for each of its players: done once, it gives the flag 3 to 10 season
 points.** It is hard on purpose, since every player of the flag counts on it. A new concept with its own lifecycle (a
 day and a flag), so it has its own package and store (`flagmissions`).
 
-- **`Draw(day, flag, world, yesterday)` is the mission**, seeded by the day and the flag: **its points**, 1 to 3, evenly,
+- **`Draw(day, flag, world, yesterday)` is the mission**, seeded by the day and the flag: **its points**, 3 to 10, evenly,
   then **its kind**, evenly between the ones the map allows: `TakeIn{Ground, Goal}`, tiles taken for the flag on a big
   ground (`World.GroundsOf`, the grounds of the player missions), or `BreakShields{Flag, Goal}`, shields of a rival broken
   (`World.RivalsOf`, drawn by the ground it holds, so the leaders share the heat). A map with neither gives a day with
   no mission.
 - **The goal is the team's whole day before**, all on the one target, so a busy flag gets a big goal and a small one a
-  small one (the user's choice, 2026-10-28): for a ground, of all the tiles its players took anywhere (50%, 75% or 100%
-  for 1, 2 or 3 points, and at least 1,000, 1,500 or 2,000); for shields, of all the shields they broke on anyone (the
-  same shares, at least 300, 450 or 600). Rounded down to 10 (`pace`). **Never a solo-sized goal**: until 2026-10-29
-  it was 20% to 40%, at least 300 tiles or 100 shields, which one player's own missions reach on their own; the first
-  day after the deploy, with no day before, every flag got "break 150 shields" for 2 points (the owner: "the WHOLE
-  TEAM works for it").
+  small one (the user's choice, 2026-10-28): for a ground, of all the tiles its players took anywhere (50% for 3 points to
+  100% for 10, and at least 1,000 to 2,000); for shields, of all the shields they broke on anyone (the same shares, at
+  least 300 to 600). The points between ask for a pace between, evenly (`span`), and the goal is rounded down to 10
+  (`pace`). Until 2026-11-01 a mission gave 1 to 3 points, for the same goals (the owner: "1 to 3 is ridiculous").
+  **Never a solo-sized goal**: until 2026-10-29 it was 20% to 40%, at least 300 tiles or 100 shields, which one
+  player's own missions reach on their own; the first day after the deploy, with no day before, every flag got "break
+  150 shields" for 2 points (the owner: "the WHOLE TEAM works for it").
 - **A flag's day counts what all its players did** (`Day`): every take for it (`takes`) and every shield it broke
   (`strikes`), for the next day's goal, and the mission's progress, one counter from 0. **`Briefing.Of(day, flag)`
   draws once and keeps it**, at the flag's first take, shield broken or read of the day, from the map then and the day

@@ -47,14 +47,14 @@ func drawn(t *testing.T, count int, flag string, yesterday flagmissions.Day) []f
 	return statuses
 }
 
-func TestADayHasOneMissionOfEitherKindWorthOneToThreePoints(t *testing.T) {
+func TestADayHasOneMissionOfEitherKindWorthThreeToTenPoints(t *testing.T) {
 	points, kinds := cpcolls.NewSet[uint32](), cpcolls.NewSet[string]()
 	for _, status := range drawn(t, 60, "fr", flagmissions.Day{}) {
 		points.Add(status.Mission.Points)
 		kinds.Add(fmt.Sprintf("%T", status.Mission.Order))
 	}
 
-	assert.Equal(t, cpcolls.NewSet[uint32](1, 2, 3), points)
+	assert.Equal(t, cpcolls.NewSet[uint32](3, 4, 5, 6, 7, 8, 9, 10), points)
 	assert.Equal(t, cpcolls.NewSet("flagmissions.TakeIn", "flagmissions.BreakShields"), kinds)
 }
 
@@ -93,8 +93,8 @@ func goalOf(order flagmissions.Order) uint32 {
 func TestTheGoalIsAShareOfWhatTheFlagDidYesterdayByItsPoints(t *testing.T) {
 	busy := dayOf(t, flagmissions.DaySnapshot{Takes: 10_005, Strikes: 1_009})
 	want := map[string]map[uint32]uint32{
-		"flagmissions.TakeIn":       {1: 5_000, 2: 7_500, 3: 10_000},
-		"flagmissions.BreakShields": {1: 500, 2: 750, 3: 1_000},
+		"flagmissions.TakeIn":       {3: 5_000, 4: 5_700, 5: 6_400, 6: 7_100, 7: 7_800, 8: 8_500, 9: 9_200, 10: 10_000},
+		"flagmissions.BreakShields": {3: 500, 4: 570, 5: 640, 6: 710, 7: 780, 8: 850, 9: 920, 10: 1_000},
 	}
 
 	for _, status := range drawn(t, 60, "fr", busy) {
@@ -105,8 +105,8 @@ func TestTheGoalIsAShareOfWhatTheFlagDidYesterdayByItsPoints(t *testing.T) {
 
 func TestAFlagThatDidLittleYesterdayHasTheLeastGoal(t *testing.T) {
 	want := map[string]map[uint32]uint32{
-		"flagmissions.TakeIn":       {1: 1_000, 2: 1_500, 3: 2_000},
-		"flagmissions.BreakShields": {1: 300, 2: 450, 3: 600},
+		"flagmissions.TakeIn":       {3: 1_000, 4: 1_140, 5: 1_280, 6: 1_420, 7: 1_570, 8: 1_710, 9: 1_850, 10: 2_000},
+		"flagmissions.BreakShields": {3: 300, 4: 340, 5: 380, 6: 420, 7: 470, 8: 510, 9: 550, 10: 600},
 	}
 
 	for _, status := range drawn(t, 60, "fr", dayOf(t, flagmissions.DaySnapshot{Takes: 40, Strikes: 3})) {
