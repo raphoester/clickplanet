@@ -244,6 +244,19 @@ nc -z -w 5 YOUR_IP 443 && echo open || echo filtered
 `filtered` is correct. On the box, `iptables -nvL clickplanet-origin` counts the
 dropped packets.
 
+### Caddy listens with plain TCP
+
+Go opens every listener with MPTCP when the kernel allows it. Cloudflare
+connects to the origin with plain TCP, so MPTCP only gives an attacker more
+kernel code to reach. `docker-compose.yaml` sets `net.mptcp.enabled=0` in
+Caddy's network namespace, and Go falls back to TCP. To check:
+
+```bash
+ssh root@YOUR_IP 'nsenter -t $(docker inspect -f "{{.State.Pid}}" cp-caddy) -n ss -Mltn'
+```
+
+No `mptcp` line is correct.
+
 ## 4. Frontend on Cloudflare Pages
 
 Create a Pages project from the GitHub repo:
