@@ -23,7 +23,7 @@ var now = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 func subscriber(stats *inmemory_player_store.Store, held *inmemory_title_store.Store, linked players.AccountID) stats_changed_subscriber.Subscriber {
 	accounts := titles.NewFakeAccounts()
 	accounts.Create(linked, players.AccountOf(true, now))
-	book := titles.NewBook(held, titles.CatalogOf([]titles.Title{titles.FakeTitle{Key: "first", Tiles: 1}}))
+	book := titles.NewBook(held, titles.CatalogOf([]titles.Standalone{titles.FakeTitle{Key: "first", Tiles: 1}}))
 	careers := titles.NewCareers(accounts, inmemory_fight_store.New())
 	return stats_changed_subscriber.New(award_titles_usecase.New(stats, careers, book, cptime.NewFixedClock(now)))
 }

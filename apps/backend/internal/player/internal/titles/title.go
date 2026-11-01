@@ -14,6 +14,12 @@ type Title interface {
 	EarnedBy(career Career) bool
 }
 
+// A rank's feat is its track's, at its threshold.
+type Standalone interface {
+	Title
+	Feat() string
+}
+
 // Never revoked: the career may no longer show the moment it marks.
 type Keepsake interface {
 	Title
@@ -65,10 +71,13 @@ func (p Place) Ranked() bool { return p.count > 0 }
 type Standing struct {
 	title Title
 	place Place
+	feat  string
 }
 
 func (s Standing) Title() Title { return s.title }
 
 func (s Standing) Place() Place { return s.place }
+
+func (s Standing) Feat() string { return s.feat }
 
 func (s Standing) Empty() bool { return s.title == nil }

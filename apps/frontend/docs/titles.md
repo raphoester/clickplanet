@@ -26,7 +26,9 @@ is the player's own view.
   since an SVG presentation attribute does not resolve `var()`.
 - **The public card** wears the worn title: a banner (`TitleBanner`, the rank line
   and the name), and a ring of its metal inside the card's ink border
-  (`title-frame-<metal>` on the `Modal`). Under it, one medal per title shown.
+  (`title-frame-<metal>` on the `Modal`). Under it, one medal per title shown, with its name. A hover or a press on a
+  medal says in a `Bubble` how it was earned (`feat`, the server's words: "Took 1,000 tiles"), as the streak flame
+  does. A title the server sends no feat for is not a button.
   OG is also a stamp beside the name (`OgStamp`).
 - **The Progress tab** is the worn title (a compact banner) and the stats, then
   three folds (`components/Fold.tsx`, a bar that opens what is under it). Titles

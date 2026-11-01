@@ -16,11 +16,13 @@ var (
 	catalog = inprocess_title_catalog.New(titles.NewCatalog())
 	raider  = &playerv1.Title{
 		Id: "raider", Name: "Raider", Rank: &playerv1.Rank{TrackId: "conquest", TrackName: "Conquest", Number: 2, Count: 5},
+		Feat: "Took 1,000 tiles",
 	}
 	loyal = &playerv1.Title{
 		Id: "loyal", Name: "Loyal", Rank: &playerv1.Rank{TrackId: "devotion", TrackName: "Devotion", Number: 1, Count: 3},
+		Feat: "Played 7 days in a row",
 	}
-	og = &playerv1.Title{Id: "og", Name: "OG"}
+	og = &playerv1.Title{Id: "og", Name: "OG", Feat: "Joined before November 2026"}
 )
 
 func TestShownIsEachStandaloneTitleThenTheHighestRankOfEachTrack(t *testing.T) {

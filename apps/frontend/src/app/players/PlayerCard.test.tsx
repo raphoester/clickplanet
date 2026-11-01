@@ -66,6 +66,34 @@ describe("PlayerCard", () => {
         expect(document.querySelector(".player-card.title-frame-gold")).not.toBeNull()
     })
 
+    it("says how a title was earned in a bubble over its medal, on a hover or a press", async () => {
+        const user = userEvent.setup()
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({
+                               name: "Ana", guest: false, tilesTaken: 1_000, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED,
+                               titles: [
+                                   {id: "halloween_2026", name: "Halloween 2026", feat: "Played on Halloween 2026"},
+                                   {id: "raider", name: "Raider", rank: {trackId: "conquest", trackName: "Conquest", number: 2, count: 5}, feat: "Took 1,000 tiles"},
+                                   {id: "new_title", name: "New title"},
+                               ],
+                               playsFor: [], playsAgainst: [],
+                           }))}
+                           onClose={() => {}}/>)
+
+        const raider = await screen.findByRole("button", {name: /Raider/, description: "Took 1,000 tiles"})
+        expect(screen.queryByText("Took 1,000 tiles", {selector: ".bubble"})).toBeNull()
+
+        await user.hover(raider)
+        expect(screen.getByText("Took 1,000 tiles", {selector: ".bubble"})).toBeDefined()
+        await user.unhover(raider)
+        expect(screen.queryByText("Took 1,000 tiles", {selector: ".bubble"})).toBeNull()
+
+        await user.pointer({keys: "[TouchA]", target: screen.getByRole("button", {name: /Halloween 2026/})})
+        expect(screen.getByText("Played on Halloween 2026", {selector: ".bubble"})).toBeDefined()
+
+        expect(screen.queryByRole("button", {name: /New title/})).toBeNull()
+    })
+
     it("stamps OG beside the name of a player who holds it", async () => {
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({

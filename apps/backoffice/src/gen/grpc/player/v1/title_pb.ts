@@ -25,6 +25,11 @@ export class Title extends Message<Title> {
    */
   rank?: Rank;
 
+  /**
+   * @generated from field: string feat = 4;
+   */
+  feat = "";
+
   constructor(data?: PartialMessage<Title>) {
     super();
     proto3.util.initPartial(data, this);
@@ -36,6 +41,7 @@ export class Title extends Message<Title> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "rank", kind: "message", T: Rank },
+    { no: 4, name: "feat", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Title {

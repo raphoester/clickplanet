@@ -41,7 +41,7 @@ func Title(standing titles.Standing) *playerv1.Title {
 		return nil
 	}
 
-	title := &playerv1.Title{Id: string(standing.Title().ID()), Name: standing.Title().Name()}
+	title := &playerv1.Title{Id: string(standing.Title().ID()), Name: standing.Title().Name(), Feat: standing.Feat()}
 	if place := standing.Place(); place.Ranked() {
 		title.Rank = &playerv1.Rank{
 			TrackId:   string(place.Track()),
