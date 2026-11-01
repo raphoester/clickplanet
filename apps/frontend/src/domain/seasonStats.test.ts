@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {Season, SeasonTotals} from "../backends/season.ts"
 import {BookStep, Round, Score} from "../backends/standings.ts"
-import {battleFlagRowsOf, bigNumbersOf, firstsOf, raceOf, seasonFlagRowsOf, slidesOf} from "./seasonStats.ts"
+import {battleFlagRowsOf, bigNumbersOf, firstsOf, headsOf, raceOf, seasonFlagRowsOf, slidesOf} from "./seasonStats.ts"
 
 const SEASON: Season = {
     number: 0, startsAt: Date.UTC(2026, 9, 8), endsAt: Date.UTC(2026, 9, 31, 23), bookId: "season-0", finaleRoundId: "season-0/finale",
@@ -92,5 +92,17 @@ describe("firstsOf", () => {
     it("is every country first in the table", () => {
         expect(firstsOf([score(1, "de", 9), score(1, "fr", 9), score(3, "jp", 4)])).toEqual(["de", "fr"])
         expect(firstsOf([])).toEqual([])
+    })
+})
+
+describe("headsOf", () => {
+    it("moves the flags at the lines' ends apart by the gap, and keeps them in the chart", () => {
+        const heads = headsOf([{countryCode: "br", y: 100}, {countryCode: "ie", y: 104}, {countryCode: "ps", y: 108}, {countryCode: "pw", y: 2}], 17, 10, 270)
+
+        expect(heads.map((head) => [head.countryCode, head.y])).toEqual([["pw", 10], ["br", 100], ["ie", 117], ["ps", 134]])
+    })
+
+    it("pushes them back up from the bottom", () => {
+        expect(headsOf([{y: 268}, {y: 270}], 17, 10, 270).map((head) => head.y)).toEqual([253, 270])
     })
 })

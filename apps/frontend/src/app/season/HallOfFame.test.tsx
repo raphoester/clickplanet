@@ -47,7 +47,7 @@ describe("HallOfFame", () => {
         expect(within(plaques()[0]).getByText("8 Oct – 31 Oct 2026")).toBeDefined()
         expect(within(plaques()[2]).getByText("?")).toBeDefined()
         expect(within(plaques()[2]).queryByRole("button", {name: "View"})).toBeNull()
-        expect(within(plaques()[0]).getByRole("link", {name: "Map"}).getAttribute("href")).toBe("/play?archive=0")
+        expect(within(plaques()[0]).getByRole("link", {name: "Map"}).getAttribute("href")).toBe("/archive")
     })
 
     it("shows each ended season's winner by its flag, every country level at the top", async () => {

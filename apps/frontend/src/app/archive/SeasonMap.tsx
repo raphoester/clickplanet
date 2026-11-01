@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useRef, useState} from "react"
 import {ReplayLandmasses} from "../../backends/replayBackend.ts"
 import {HistoryBackend} from "../../backends/historyBackend.ts"
+import {Season} from "../../backends/season.ts"
 import {TurnBackend} from "../../backends/turn.ts"
 import {Countries} from "../../domain/countries.ts"
 import {LeaderboardEntry} from "../../domain/leaderboard.ts"
@@ -12,8 +13,7 @@ import {drawHeat, lookOfThePage} from "./heatmap.ts"
 import "./SeasonMap.css"
 
 export type SeasonMapProps = {
-    season: number
-    turn: Pick<TurnBackend, "seasonReplay">
+    turn: Pick<TurnBackend, "follow" | "seasonReplay">
     geometry: () => Promise<{positions: Float32Array, landmasses: ReplayLandmasses}>
 }
 
@@ -23,27 +23,33 @@ type View = "replay" | "heat"
 // Frames a second while it plays: a season of 30-minute frames in about 48 s, a finale of 10-second frames in 30 s.
 const FPS = 24
 
-export default function SeasonMap({season, turn, geometry}: SeasonMapProps) {
+// Opens on the latest season that ended; a switch picks another once there are several.
+export default function SeasonMap({turn, geometry}: SeasonMapProps) {
+    const ended = useEnded(turn)
+    const [picked, setPicked] = useState<number>()
+    const season = picked ?? ended?.at(-1)?.number
     const [part, setPart] = useState<Part>("season")
     const [view, setView] = useState<View>("replay")
     const [geometryRead, setGeometryRead] = useState<{positions: Float32Array, landmasses: ReplayLandmasses}>()
-    const [read, setRead] = useState<{part: Part, history?: MapHistory}>()
-    const history = read?.part === part ? read.history : undefined
-    const loading = read?.part !== part
+    const [read, setRead] = useState<{key: string, history?: MapHistory}>()
+    const key = `${season}/${part}`
+    const history = read?.key === key ? read.history : undefined
+    const loading = season !== undefined && read?.key !== key
 
     useEffect(() => {
         void geometry().then(setGeometryRead)
     }, [geometry])
 
     useEffect(() => {
+        if (season === undefined) return
         let stale = false
         turn.seasonReplay(season, part === "finale").then(
             (answer) => {
-                if (!stale) setRead({part, history: answer})
+                if (!stale) setRead({key: `${season}/${part}`, history: answer})
             },
             (e) => {
                 console.error("Could not read the season's replay", e)
-                if (!stale) setRead({part})
+                if (!stale) setRead({key: `${season}/${part}`})
             },
         )
         return () => {
@@ -57,18 +63,36 @@ export default function SeasonMap({season, turn, geometry}: SeasonMapProps) {
     return <div className="season-map">
         <header className="panel season-map-head">
             <a className="button button-mini button-secondary" href="/play">Back to the game</a>
-            <h1 className="season-map-title">Season {season}</h1>
+            {ended && ended.length > 1 && season !== undefined
+                ? <Switch label="Season" value={String(season)} onChange={(value) => setPicked(Number(value))}
+                          choices={ended.map((kept) => [String(kept.number), `Season ${kept.number}`])}/>
+                : <h1 className="season-map-title">{season === undefined ? "Archive" : `Season ${season}`}</h1>}
             <Switch label="Window" value={part} onChange={setPart} choices={[["season", "Season"], ["finale", "Final Battle"]]}/>
             <Switch label="View" value={view} onChange={setView} choices={[["replay", "Replay"], ["heat", "Heatmap"]]}/>
         </header>
 
         <div className="season-map-stage">
+            {ended?.length === 0 && <p className="season-map-note">No season has ended yet</p>}
             {loading && <p className="season-map-note">Rebuilding the map…</p>}
-            {!loading && !history && <p className="season-map-note">No replay for this season</p>}
-            {reel && geometryRead && view === "replay" && <Replay key={part} reel={reel} landmasses={geometryRead.landmasses}/>}
-            {history && geometryRead && view === "heat" && <Heat positions={geometryRead.positions} hits={history.hits}/>}
+            {season !== undefined && !loading && !history && <p className="season-map-note">No replay for this season</p>}
+            {reel && geometryRead && view === "replay" && <Replay key={key} reel={reel} landmasses={geometryRead.landmasses}/>}
+            {history && geometryRead && view === "heat" && <Heat key={key} positions={geometryRead.positions} hits={history.hits}/>}
         </div>
     </div>
+}
+
+// The seasons that ended, from the gamemaster's timeline; none known before it answers.
+function useEnded(turn: Pick<TurnBackend, "follow">): Season[] | undefined {
+    const [ended, setEnded] = useState<Season[]>()
+
+    useEffect(() => turn.follow({
+        onTurn: () => {},
+        onBattles: () => {},
+        onSeasons: (seasons) => setEnded(seasons.ended),
+        onDebrief: () => {},
+    }), [turn])
+
+    return ended
 }
 
 function Switch<T extends string>({label, value, onChange, choices}: {
@@ -174,14 +198,65 @@ function Replay({reel, landmasses}: {reel: MapReel, landmasses: ReplayLandmasses
     </>
 }
 
+const HEAT_WIDTH = 4096
+const HEAT_HEIGHT = 2048
+
+// Three copies side by side, the middle one shown: the scroll jumps a whole map at either edge, so it goes round
+// forever. It opens on longitude 0. A drag or the wheel scrolls it sideways.
 function Heat({positions, hits}: {positions: Float32Array, hits: ReadonlyMap<number, number>}) {
-    const canvas = useRef<HTMLCanvasElement>(null)
+    const scroller = useRef<HTMLDivElement>(null)
+    const copies = [useRef<HTMLCanvasElement>(null), useRef<HTMLCanvasElement>(null), useRef<HTMLCanvasElement>(null)]
+    const [first, second, third] = copies
 
     useEffect(() => {
-        if (canvas.current) drawHeat(canvas.current, positions, hits, lookOfThePage())
-    }, [positions, hits])
+        const drawn = first.current
+        if (!drawn) return
+        drawHeat(drawn, positions, hits, lookOfThePage())
+        for (const copy of [second.current, third.current]) copy?.getContext("2d")?.drawImage(drawn, 0, 0)
+        const list = scroller.current
+        if (list) list.scrollLeft = drawn.clientWidth * 1.5 - list.clientWidth / 2
+    }, [positions, hits, first, second, third])
 
-    return <canvas ref={canvas} className="season-map-heat" width={2048} height={1024} aria-label="Where the tiles were fought over"/>
+    useEffect(() => {
+        const list = scroller.current
+        if (!list) return
+        const onWheel = (event: WheelEvent) => {
+            if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
+            event.preventDefault()
+            list.scrollLeft += event.deltaY
+        }
+        list.addEventListener("wheel", onWheel, {passive: false})
+        return () => list.removeEventListener("wheel", onWheel)
+    }, [])
+
+    const wrap = () => {
+        const list = scroller.current, map = first.current?.clientWidth ?? 0
+        if (!list || map === 0) return
+        if (list.scrollLeft < map * 0.5) list.scrollLeft += map
+        else if (list.scrollLeft > map * 1.5) list.scrollLeft -= map
+    }
+    const drag = useDrag(scroller)
+
+    return <div ref={scroller} className="season-map-heat" onScroll={wrap} {...drag}
+                role="img" aria-label="Where the tiles were fought over">
+        {copies.map((copy, i) => <canvas key={i} ref={copy} width={HEAT_WIDTH} height={HEAT_HEIGHT}/>)}
+    </div>
+}
+
+function useDrag(scroller: React.RefObject<HTMLDivElement>) {
+    const from = useRef<{x: number, left: number}>()
+    return {
+        onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+            from.current = {x: event.clientX, left: scroller.current?.scrollLeft ?? 0}
+            event.currentTarget.setPointerCapture(event.pointerId)
+        },
+        onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
+            if (from.current && scroller.current) scroller.current.scrollLeft = from.current.left - (event.clientX - from.current.x)
+        },
+        onPointerUp: () => {
+            from.current = undefined
+        },
+    }
 }
 
 // "Sat 31 Oct · 21:34", in the player's time.

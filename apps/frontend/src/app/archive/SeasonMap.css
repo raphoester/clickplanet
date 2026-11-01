@@ -74,9 +74,28 @@
 }
 
 .season-map-heat {
-    width: min(100%, 200vh);
-    max-height: 100%;
-    object-fit: contain;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    cursor: grab;
+    touch-action: pan-x;
+}
+
+.season-map-heat::-webkit-scrollbar {
+    display: none;
+}
+
+.season-map-heat:active {
+    cursor: grabbing;
+}
+
+.season-map-heat canvas {
+    flex: none;
+    height: 100%;
+    width: auto;
 }
 
 .season-map-leaders {
