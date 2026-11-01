@@ -21,7 +21,7 @@ import (
 var (
 	monday  = time.Date(2026, 9, 14, 20, 0, 0, 0, time.UTC)
 	ada     = players.AccountID{15: 1}
-	catalog = titles.CatalogOf([]titles.Title{titles.FakeTitle{Key: "first", Tiles: 1}, titles.FakeTitle{Key: "third", Tiles: 3}})
+	catalog = titles.CatalogOf([]titles.Standalone{titles.FakeTitle{Key: "first", Tiles: 1}, titles.FakeTitle{Key: "third", Tiles: 3}})
 )
 
 type fixture struct {

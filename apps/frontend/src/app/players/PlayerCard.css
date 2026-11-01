@@ -80,6 +80,13 @@
     text-shadow: var(--text-drop);
 }
 
+.player-card-held-feat {
+    font-size: var(--text-xs);
+    line-height: 1.25;
+    text-align: center;
+    color: var(--text-muted);
+}
+
 .player-card .stat-tiles,
 .player-card .player-fronts {
     margin-bottom: var(--space-5);

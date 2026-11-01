@@ -86,6 +86,7 @@ function PlayerTitles({titles}: {titles: PlayerTitle[]}) {
         {titles.map((title) => <li key={title.id} className="player-card-held">
             <TitleEmblem title={title} size={48} ribbon/>
             <span className="player-card-held-name">{title.name}</span>
+            {title.feat && <span className="player-card-held-feat">{title.feat}</span>}
         </li>)}
     </ul>
 }

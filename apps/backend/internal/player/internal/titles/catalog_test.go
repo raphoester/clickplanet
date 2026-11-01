@@ -189,3 +189,34 @@ func TestEveryTitleHasItsOwnIDTheStoreTakesAndAName(t *testing.T) {
 		seen.Add(title.ID())
 	}
 }
+
+func TestEachTitleSaysHowItWasEarned(t *testing.T) {
+	catalog := titles.NewCatalog()
+	for id, feat := range map[titles.ID]string{
+		"og":               "Joined before November 2026",
+		"season_0_gold":    "Fought the Final Battle for the flag in 1st place",
+		"season_0_silver":  "Fought the Final Battle for the flag in 2nd place",
+		"season_0_bronze":  "Fought the Final Battle for the flag in 3rd place",
+		"season_0_veteran": "Fought the Final Battle",
+		"halloween_2026":   "Played on Halloween 2026",
+		"warmaster":        "Took 1,000,000 tiles",
+		"loyal":            "Played 7 days in a row",
+		"talker":           "Sent 10 messages",
+		"guard":            "Fortified 100 tiles",
+		"bomber":           "Dropped 1 bomb",
+		"blaster":          "Dropped 10 bombs",
+		"looter":           "Caught 10 bonus boxes",
+		"student":          "Answered 10 quizzes right",
+		"rookie":           "Completed 1 mission",
+		"agent":            "Completed 25 missions",
+	} {
+		standing, ok := catalog.StandingOf(id)
+		require.True(t, ok, id)
+		assert.Equal(t, feat, standing.Feat(), id)
+	}
+
+	for _, title := range catalog.Titles() {
+		standing, _ := catalog.StandingOf(title.ID())
+		assert.NotEmpty(t, standing.Feat(), title.ID())
+	}
+}

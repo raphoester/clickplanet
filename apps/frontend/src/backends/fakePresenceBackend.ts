@@ -21,22 +21,24 @@ const OWN_KEY = "0"
 
 type FakeRank = {id: string, name: string, threshold: number}
 
-const TRACKS: {id: string, name: string, measure: "tiles" | "streak", ranks: FakeRank[]}[] = [
-    {id: "conquest", name: "Conquest", measure: "tiles", ranks: [
+const amount = new Intl.NumberFormat("en")
+
+const TRACKS: {id: string, name: string, measure: "tiles" | "streak", feat: (n: string) => string, ranks: FakeRank[]}[] = [
+    {id: "conquest", name: "Conquest", measure: "tiles", feat: (n) => `Took ${n} tiles`, ranks: [
         {id: "settler", name: "Settler", threshold: 100},
         {id: "raider", name: "Raider", threshold: 1_000},
         {id: "warlord", name: "Warlord", threshold: 10_000},
         {id: "conqueror", name: "Conqueror", threshold: 100_000},
         {id: "warmaster", name: "Warmaster", threshold: 1_000_000},
     ]},
-    {id: "devotion", name: "Devotion", measure: "streak", ranks: [
+    {id: "devotion", name: "Devotion", measure: "streak", feat: (n) => `Played ${n} days in a row`, ranks: [
         {id: "loyal", name: "Loyal", threshold: 7},
         {id: "devoted", name: "Devoted", threshold: 30},
         {id: "unbroken", name: "Unbroken", threshold: 100},
     ]},
 ]
 
-const OG_TITLE: PlayerTitle = {id: "og", name: "OG"}
+const OG_TITLE: PlayerTitle = {id: "og", name: "OG", feat: "Joined before November 2026"}
 
 function rankedTitle(trackIndex: number, rankIndex: number): PlayerTitle {
     const track = TRACKS[trackIndex]
@@ -45,6 +47,7 @@ function rankedTitle(trackIndex: number, rankIndex: number): PlayerTitle {
         id: rank.id,
         name: rank.name,
         rank: {trackId: track.id, trackName: track.name, number: rankIndex + 1, count: track.ranks.length},
+        feat: track.feat(amount.format(rank.threshold)),
     }
 }
 

@@ -54,7 +54,7 @@ func TestEachLineSaysWhoIsPlayingAndPlayersComeBeforeGuests(t *testing.T) {
 		{
 			Key: "2", AccountId: players.AccountID{15: 2}.String(), Name: "Zed", CountryId: "de", Admin: true,
 			Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 4,
-			WornTitle: &playerv1.Title{Id: "og", Name: "OG"},
+			WornTitle: &playerv1.Title{Id: "og", Name: "OG", Feat: "Joined before November 2026"},
 		},
 		{Key: "1", AccountId: players.AccountID{15: 1}.String(), Name: "guest_a1b2c3", CountryId: "fr", Guest: true},
 	}, inmemory_roster.New(visits, clock).Lines())

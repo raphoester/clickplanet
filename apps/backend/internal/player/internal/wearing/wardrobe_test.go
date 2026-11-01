@@ -26,7 +26,7 @@ var (
 	other   = titles.FakeTitle{Key: "other", Tiles: 4}
 	ladder  = titles.FakeTrack{Key: "ladder", Steps: []titles.Rank{low, mid, high}}
 	side    = titles.FakeTrack{Key: "side", Steps: []titles.Rank{other}}
-	catalog = titles.CatalogOf([]titles.Title{badge}, ladder, side)
+	catalog = titles.CatalogOf([]titles.Standalone{badge}, ladder, side)
 )
 
 func standing(id titles.ID) titles.Standing {

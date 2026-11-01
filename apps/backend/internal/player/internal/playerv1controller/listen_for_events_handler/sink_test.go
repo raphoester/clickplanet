@@ -50,6 +50,7 @@ func TestEachFrameIsItsCaseOfTheEnvelope(t *testing.T) {
 		{Event: &playerv1.PlayerEvent_Heartbeat{Heartbeat: &playerv1.Heartbeat{}}},
 		{Event: &playerv1.PlayerEvent_TitleEarned{TitleEarned: &playerv1.TitleEarned{Title: &playerv1.Title{
 			Id: "conqueror", Name: "Conqueror", Rank: &playerv1.Rank{TrackId: "conquest", TrackName: "Conquest", Number: 4, Count: 5},
+			Feat: "Took 100,000 tiles",
 		}}}},
 	}
 	require.Len(t, stream.sent, len(want))

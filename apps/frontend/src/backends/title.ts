@@ -11,6 +11,7 @@ export type PlayerTitle = {
     id: string
     name: string
     rank?: TitleRank
+    feat?: string
 }
 
 export function titleOf(title: TitlePb | undefined): PlayerTitle | undefined {
@@ -23,5 +24,6 @@ export function titleOf(title: TitlePb | undefined): PlayerTitle | undefined {
         rank: rank && rank.count > 0
             ? {trackId: rank.trackId, trackName: rank.trackName, number: rank.number, count: rank.count}
             : undefined,
+        feat: title.feat || undefined,
     }
 }

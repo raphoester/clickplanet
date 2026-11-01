@@ -13,7 +13,7 @@ import (
 var (
 	first   = titles.FakeTitle{Key: "first", Tiles: 1}
 	third   = titles.FakeTitle{Key: "third", Tiles: 3}
-	catalog = titles.CatalogOf([]titles.Title{first, third})
+	catalog = titles.CatalogOf([]titles.Standalone{first, third})
 
 	badge  = titles.FakeTitle{Key: "badge", Tiles: 0}
 	low    = titles.FakeTitle{Key: "low", Tiles: 2}
@@ -22,7 +22,7 @@ var (
 	other  = titles.FakeTitle{Key: "other", Tiles: 4}
 	ladder = titles.FakeTrack{Key: "ladder", Steps: []titles.Rank{low, mid, high}}
 	side   = titles.FakeTrack{Key: "side", Steps: []titles.Rank{other}}
-	tracks = titles.CatalogOf([]titles.Title{badge}, ladder, side)
+	tracks = titles.CatalogOf([]titles.Standalone{badge}, ladder, side)
 )
 
 type standingView struct {
@@ -31,19 +31,26 @@ type standingView struct {
 	TrackName string
 	Number    int
 	Count     int
+	Feat      string
 }
 
 func alone(title titles.FakeTitle) standingView {
-	return standingView{ID: title.Key}
+	return standingView{ID: title.Key, Feat: title.Feat()}
 }
 
 func ranked(title titles.FakeTitle, track titles.FakeTrack, number int) standingView {
-	return standingView{ID: title.Key, Track: track.Key, TrackName: track.Name(), Number: number, Count: len(track.Steps)}
+	return standingView{
+		ID: title.Key, Track: track.Key, TrackName: track.Name(), Number: number, Count: len(track.Steps),
+		Feat: track.Feat(title.Tiles),
+	}
 }
 
 func viewOf(standing titles.Standing) standingView {
 	place := standing.Place()
-	view := standingView{Track: place.Track(), TrackName: place.TrackName(), Number: place.Number(), Count: place.Count()}
+	view := standingView{
+		Track: place.Track(), TrackName: place.TrackName(), Number: place.Number(), Count: place.Count(),
+		Feat: standing.Feat(),
+	}
 	if !standing.Empty() {
 		view.ID = standing.Title().ID()
 	}
@@ -86,7 +93,7 @@ func tracksOf(progress []titles.TrackProgress) []trackView {
 func TestTheCatalogNamesTheTitlesStatsEarnInItsOrder(t *testing.T) {
 	assert.Empty(t, catalog.EarnedBy(titles.Career{}))
 	assert.Equal(t, titles.IDs{"first"}, catalog.EarnedBy(tiles(2)))
-	assert.Equal(t, titles.IDs{"third", "first"}, titles.CatalogOf([]titles.Title{third, first}).EarnedBy(tiles(3)))
+	assert.Equal(t, titles.IDs{"third", "first"}, titles.CatalogOf([]titles.Standalone{third, first}).EarnedBy(tiles(3)))
 	assert.Equal(t, titles.IDs{"badge", "low", "mid", "other"}, tracks.EarnedBy(tiles(5)), "standalone first, then each track in order")
 }
 
@@ -129,7 +136,7 @@ func TestTheReconciliationNeverRevokesAKeepsake(t *testing.T) {
 			Account: players.AccountID{15: account}, TilesTaken: 1, Streak: players.StreakOf(days, players.DayOf(lastDay)),
 		}.Restore(), players.AccountOf(true, time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC)), nil)
 	}
-	catalog := titles.CatalogOf([]titles.Title{titles.Halloween2026{}})
+	catalog := titles.CatalogOf([]titles.Standalone{titles.Halloween2026{}})
 
 	reconciliation := catalog.ReconciliationOf([]titles.Career{
 		career(1, 1, halloween),

@@ -26,6 +26,7 @@ type Title struct {
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Rank          *Rank                  `protobuf:"bytes,3,opt,name=rank,proto3" json:"rank,omitempty"`
+	Feat          string                 `protobuf:"bytes,4,opt,name=feat,proto3" json:"feat,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -79,6 +80,13 @@ func (x *Title) GetRank() *Rank {
 		return x.Rank
 	}
 	return nil
+}
+
+func (x *Title) GetFeat() string {
+	if x != nil {
+		return x.Feat
+	}
+	return ""
 }
 
 type Rank struct {
@@ -153,11 +161,12 @@ var File_player_v1_title_proto protoreflect.FileDescriptor
 
 const file_player_v1_title_proto_rawDesc = "" +
 	"\n" +
-	"\x15player/v1/title.proto\x12\tplayer.v1\"P\n" +
+	"\x15player/v1/title.proto\x12\tplayer.v1\"d\n" +
 	"\x05Title\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
-	"\x04rank\x18\x03 \x01(\v2\x0f.player.v1.RankR\x04rank\"n\n" +
+	"\x04rank\x18\x03 \x01(\v2\x0f.player.v1.RankR\x04rank\x12\x12\n" +
+	"\x04feat\x18\x04 \x01(\tR\x04feat\"n\n" +
 	"\x04Rank\x12\x19\n" +
 	"\btrack_id\x18\x01 \x01(\tR\atrackId\x12\x1d\n" +
 	"\n" +

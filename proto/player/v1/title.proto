@@ -6,6 +6,7 @@ message Title {
   string id = 1;
   string name = 2;
   Rank rank = 3;
+  string feat = 4;
 }
 
 message Rank {

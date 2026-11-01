@@ -9,23 +9,26 @@ import (
 )
 
 type Catalog struct {
-	standalone []Title
+	standalone []Standalone
 	tracks     []Track
 }
 
 func NewCatalog() Catalog {
 	return CatalogOf(
-		[]Title{OG{}, Season0Gold{}, Season0Silver{}, Season0Bronze{}, Season0Veteran{}, Halloween2026{}},
+		[]Standalone{OG{}, Season0Gold{}, Season0Silver{}, Season0Bronze{}, Season0Veteran{}, Halloween2026{}},
 		Conquest{}, Devotion{}, Chatter{}, Defense{}, Bombs{}, Loot{}, Quiz{}, Missions{},
 	)
 }
 
-func CatalogOf(standalone []Title, tracks ...Track) Catalog {
+func CatalogOf(standalone []Standalone, tracks ...Track) Catalog {
 	return Catalog{standalone: standalone, tracks: tracks}
 }
 
 func (c Catalog) Titles() []Title {
-	titles := slices.Clone(c.standalone)
+	titles := make([]Title, 0, len(c.standalone))
+	for _, title := range c.standalone {
+		titles = append(titles, title)
+	}
 	for _, track := range c.tracks {
 		for _, rank := range track.Ranks() {
 			titles = append(titles, rank)
@@ -76,14 +79,13 @@ func (c Catalog) keepsakes() IDs {
 func (c Catalog) StandingOf(id ID) (Standing, bool) {
 	for _, title := range c.standalone {
 		if title.ID() == id {
-			return Standing{title: title}, true
+			return standingAlone(title), true
 		}
 	}
 	for _, track := range c.tracks {
-		ranks := track.Ranks()
-		for i, rank := range ranks {
+		for i, rank := range track.Ranks() {
 			if rank.ID() == id {
-				return Standing{title: rank, place: placeOf(track, i)}, true
+				return standingOn(track, i), true
 			}
 		}
 	}
@@ -94,14 +96,14 @@ func (c Catalog) Shown(held IDs) []Standing {
 	var shown []Standing
 	for _, title := range c.standalone {
 		if slices.Contains(held, title.ID()) {
-			shown = append(shown, Standing{title: title})
+			shown = append(shown, standingAlone(title))
 		}
 	}
 	for _, track := range c.tracks {
 		ranks := track.Ranks()
 		for i := len(ranks) - 1; i >= 0; i-- {
 			if slices.Contains(held, ranks[i].ID()) {
-				shown = append(shown, Standing{title: ranks[i], place: placeOf(track, i)})
+				shown = append(shown, standingOn(track, i))
 				break
 			}
 		}
@@ -143,7 +145,7 @@ func (c Catalog) Progress(career Career, held IDs) []TrackProgress {
 		steps := make([]Step, 0, len(ranks))
 		for i, rank := range ranks {
 			steps = append(steps, Step{
-				standing:  Standing{title: rank, place: placeOf(track, i)},
+				standing:  standingOn(track, i),
 				threshold: rank.Threshold(),
 				earned:    slices.Contains(held, rank.ID()),
 			})
@@ -153,8 +155,17 @@ func (c Catalog) Progress(career Career, held IDs) []TrackProgress {
 	return progress
 }
 
-func placeOf(track Track, index int) Place {
-	return Place{track: track.ID(), trackName: track.Name(), number: index + 1, count: len(track.Ranks())}
+func standingAlone(title Standalone) Standing {
+	return Standing{title: title, feat: title.Feat()}
+}
+
+func standingOn(track Track, index int) Standing {
+	ranks := track.Ranks()
+	return Standing{
+		title: ranks[index],
+		place: Place{track: track.ID(), trackName: track.Name(), number: index + 1, count: len(ranks)},
+		feat:  track.Feat(ranks[index].Threshold()),
+	}
 }
 
 var ogCutoff = time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
@@ -164,6 +175,8 @@ type OG struct{}
 func (OG) ID() ID { return "og" }
 
 func (OG) Name() string { return "OG" }
+
+func (OG) Feat() string { return "Joined before " + ogCutoff.Format("January 2006") }
 
 func (OG) EarnedBy(career Career) bool {
 	return !career.account.CreatedAt().IsZero() && career.account.CreatedAt().Before(ogCutoff)
@@ -177,6 +190,8 @@ func (Season0Gold) ID() ID { return "season_0_gold" }
 
 func (Season0Gold) Name() string { return "Season 0 Gold" }
 
+func (Season0Gold) Feat() string { return "Fought the Final Battle for the flag in 1st place" }
+
 func (Season0Gold) EarnedBy(career Career) bool { return career.fights.PlacedIn(seasonZero, 1) }
 
 type Season0Silver struct{}
@@ -184,6 +199,8 @@ type Season0Silver struct{}
 func (Season0Silver) ID() ID { return "season_0_silver" }
 
 func (Season0Silver) Name() string { return "Season 0 Silver" }
+
+func (Season0Silver) Feat() string { return "Fought the Final Battle for the flag in 2nd place" }
 
 func (Season0Silver) EarnedBy(career Career) bool { return career.fights.PlacedIn(seasonZero, 2) }
 
@@ -193,6 +210,8 @@ func (Season0Bronze) ID() ID { return "season_0_bronze" }
 
 func (Season0Bronze) Name() string { return "Season 0 Bronze" }
 
+func (Season0Bronze) Feat() string { return "Fought the Final Battle for the flag in 3rd place" }
+
 func (Season0Bronze) EarnedBy(career Career) bool { return career.fights.PlacedIn(seasonZero, 3) }
 
 type Season0Veteran struct{}
@@ -200,6 +219,8 @@ type Season0Veteran struct{}
 func (Season0Veteran) ID() ID { return "season_0_veteran" }
 
 func (Season0Veteran) Name() string { return "Season 0 Veteran" }
+
+func (Season0Veteran) Feat() string { return "Fought the Final Battle" }
 
 func (Season0Veteran) EarnedBy(career Career) bool { return career.fights.FoughtIn(seasonZero) }
 
@@ -210,6 +231,8 @@ type Halloween2026 struct{}
 func (Halloween2026) ID() ID { return "halloween_2026" }
 
 func (Halloween2026) Name() string { return "Halloween 2026" }
+
+func (Halloween2026) Feat() string { return "Played on Halloween 2026" }
 
 func (Halloween2026) EarnedBy(career Career) bool { return career.stats.Streak().Covers(halloween2026) }
 

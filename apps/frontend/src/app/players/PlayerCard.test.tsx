@@ -66,6 +66,24 @@ describe("PlayerCard", () => {
         expect(document.querySelector(".player-card.title-frame-gold")).not.toBeNull()
     })
 
+    it("says under each medal how its title was earned", async () => {
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({
+                               name: "Ana", guest: false, tilesTaken: 1_000, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED,
+                               titles: [
+                                   {id: "halloween_2026", name: "Halloween 2026", feat: "Played on Halloween 2026"},
+                                   {id: "raider", name: "Raider", rank: {trackId: "conquest", trackName: "Conquest", number: 2, count: 5}, feat: "Took 1,000 tiles"},
+                                   {id: "new_title", name: "New title"},
+                               ],
+                               playsFor: [], playsAgainst: [],
+                           }))}
+                           onClose={() => {}}/>)
+
+        const titles = await screen.findByRole("list", {name: "Titles"})
+        expect(within(titles).getAllByRole("listitem").map((item) => item.querySelector(".player-card-held-feat")?.textContent))
+            .toEqual(["Played on Halloween 2026", "Took 1,000 tiles", undefined])
+    })
+
     it("stamps OG beside the name of a player who holds it", async () => {
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({
