@@ -56,5 +56,6 @@ the round. The hops between the round's close and `SeasonEnded` take seconds; a 
 
 Each season's titles are types of their own in `titles/catalog.go`, beside `Season0Gold` and the others, listed in
 `NewCatalog`. A title id may hold digits since migration `20261031130000_title_digits` (`^[a-z0-9_]+$`, on
-`player.titles` and `player.worn_titles`). The client draws `season_0_gold`, `season_0_silver` and `season_0_bronze` as
-their place number in their metal, and `season_0_veteran` as a star in platinum.
+`player.titles` and `player.worn_titles`). The client draws them in a frame
+of their own (see the frontend's [Titles](../../frontend/docs/titles.md)); a later season's ids need a line in its
+`SEASONS` and their icons.
