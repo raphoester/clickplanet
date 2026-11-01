@@ -12,7 +12,8 @@ import {
     Turn as TurnMessage,
 } from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {BattleEnded as BattleEndedMessage} from "../gen/grpc/gamemaster/v1/events_pb.ts"
-import {Day, NO_SEASONS, Season, Seasons} from "./season.ts"
+import {LedgerTotals} from "../gen/grpc/planet/v1/totals_pb.ts"
+import {Day, NO_SEASONS, Season, Seasons, SeasonTotals} from "./season.ts"
 import {Config, NO_TIMEOUT, openStream, pageWakeups, Wakeups} from "./transport.ts"
 import {BattleEnded, BattleToCome, Debrief, PLAIN_TURN, Turn, TurnBackend, TurnKind, TurnListener} from "./turn.ts"
 
@@ -21,9 +22,13 @@ export function newGamemasterServiceClient(config: Config): PromiseClient<typeof
         baseUrl: config.baseUrl,
         interceptors: config.interceptors,
         useBinaryFormat: true,
+        useHttpGet: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,
     }))
 }
+
+// A season's first read scans planet's ledger for seconds.
+const TOTALS_TIMEOUT_MS = 60_000
 
 export class ConnectTurnBackend implements TurnBackend {
     constructor(
@@ -73,6 +78,29 @@ export class ConnectTurnBackend implements TurnBackend {
         )
         return () => stop()
     }
+
+    public async seasonTotals(season: number): Promise<SeasonTotals | undefined> {
+        try {
+            const res = await this.client.getSeasonTotals({season}, {timeoutMs: TOTALS_TIMEOUT_MS})
+            return res.totals && totalsOf(res.totals)
+        } catch (e) {
+            if (e instanceof ConnectError && (e.code === Code.Unimplemented || e.code === Code.NotFound)) return undefined
+            throw e
+        }
+    }
+}
+
+function totalsOf(totals: LedgerTotals): SeasonTotals {
+    return {
+        takes: Number(totals.takes),
+        strikes: Number(totals.strikes),
+        spreads: Number(totals.spreads),
+        encloses: Number(totals.encloses),
+        bombs: Number(totals.bombs),
+        shields: Number(totals.shields),
+        fortifies: Number(totals.fortifies),
+        players: Number(totals.accounts),
+    }
 }
 
 export function turnOf(turn: TurnMessage): Turn {
@@ -118,6 +146,7 @@ function seasonOf(season: SeasonMessage | undefined): Season | undefined {
         startsAt: season.startsAt.toDate().getTime(),
         endsAt: season.endsAt.toDate().getTime(),
         bookId: season.bookId,
+        finaleRoundId: season.finaleRoundId || undefined,
     }
 }
 

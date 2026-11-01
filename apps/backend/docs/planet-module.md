@@ -55,6 +55,9 @@ internal/planet/internal/
   (`takes_query`): an account's tiles by the flag they were taken for and by the flag that held them, counting a
   take's own row and each tile in a spread's or an enclose's payload, as `Taking.Replay` does. A parity test runs
   every kind of event through both. It is what `player` shows as "plays for" and "plays against".
+  **`InternalService/GetLedgerTotals(since, until)` reads it there too** (`totals_query`): the events of each kind in
+  the window and the accounts that made them, in one scan of `taken_at` (no index on it: seconds over a season). The
+  gamemaster asks it once per ended season and keeps the answer (see [The gamemaster](gamemaster.md)).
   **`ClickService/GetTileHolder(tile_id)` reads it there too** (`holder_query`): the last change `Taking.Replay`
   makes of the tile (a take, a tile a spread or an enclose took, a bomb's clear), as `{account_id, country_id,
   taken_at_unix_ms}`. A clear is no holder. **A take with no account still holds the tile**, with no `account_id`:

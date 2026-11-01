@@ -378,8 +378,8 @@ export default function Viewer(props: ViewerProps) {
         onView: setBoardView,
     }
     const teased = season ?? schedule.seasons.next
-    const hallOfFame: HallOfFameSeasons | undefined = props.standings && (teased || schedule.seasons.ended.length > 0)
-        ? {teased, ended: schedule.seasons.ended, backend: props.standings}
+    const hallOfFame: HallOfFameSeasons | undefined = props.standings && props.turn && (teased || schedule.seasons.ended.length > 0)
+        ? {teased, ended: schedule.seasons.ended, standings: props.standings, turn: props.turn}
         : undefined
 
     const board = {

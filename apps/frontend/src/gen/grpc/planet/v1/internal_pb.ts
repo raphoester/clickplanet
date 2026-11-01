@@ -4,8 +4,89 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { LedgerTotals } from "./totals_pb.js";
 import { Allegiance } from "./planet_pb.js";
+
+/**
+ * @generated from message planet.v1.GetLedgerTotalsRequest
+ */
+export class GetLedgerTotalsRequest extends Message<GetLedgerTotalsRequest> {
+  /**
+   * @generated from field: google.protobuf.Timestamp since = 1;
+   */
+  since?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp until = 2;
+   */
+  until?: Timestamp;
+
+  constructor(data?: PartialMessage<GetLedgerTotalsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetLedgerTotalsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "since", kind: "message", T: Timestamp },
+    { no: 2, name: "until", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLedgerTotalsRequest {
+    return new GetLedgerTotalsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetLedgerTotalsRequest {
+    return new GetLedgerTotalsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetLedgerTotalsRequest {
+    return new GetLedgerTotalsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetLedgerTotalsRequest | PlainMessage<GetLedgerTotalsRequest> | undefined, b: GetLedgerTotalsRequest | PlainMessage<GetLedgerTotalsRequest> | undefined): boolean {
+    return proto3.util.equals(GetLedgerTotalsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetLedgerTotalsResponse
+ */
+export class GetLedgerTotalsResponse extends Message<GetLedgerTotalsResponse> {
+  /**
+   * @generated from field: planet.v1.LedgerTotals totals = 1;
+   */
+  totals?: LedgerTotals;
+
+  constructor(data?: PartialMessage<GetLedgerTotalsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetLedgerTotalsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "totals", kind: "message", T: LedgerTotals },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLedgerTotalsResponse {
+    return new GetLedgerTotalsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetLedgerTotalsResponse {
+    return new GetLedgerTotalsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetLedgerTotalsResponse {
+    return new GetLedgerTotalsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetLedgerTotalsResponse | PlainMessage<GetLedgerTotalsResponse> | undefined, b: GetLedgerTotalsResponse | PlainMessage<GetLedgerTotalsResponse> | undefined): boolean {
+    return proto3.util.equals(GetLedgerTotalsResponse, a, b);
+  }
+}
 
 /**
  * @generated from message planet.v1.GetTakesByCountryRequest

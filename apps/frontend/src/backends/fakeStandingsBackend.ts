@@ -83,6 +83,10 @@ export class FakeStandingsBackend implements StandingsBackend {
         })
     }
 
+    public async board(): Promise<Standing[]> {
+        return this.top("")
+    }
+
     public async round(roundId: string): Promise<Round | undefined> {
         return this.scored.get(roundId)
     }

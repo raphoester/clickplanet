@@ -65,10 +65,14 @@ func ScheduledFinaleOf(window season.Window) *gamemasterv1.ScheduledFinale {
 }
 
 func SeasonOf(window season.Window) *gamemasterv1.Season {
-	return &gamemasterv1.Season{
+	answer := &gamemasterv1.Season{
 		Number: uint32(window.Number), StartsAt: timestamppb.New(window.StartsAt), EndsAt: timestamppb.New(window.EndsAt),
 		BookId: string(moments.BookOf(window.Number)),
 	}
+	if window.Finale.Planned() {
+		answer.FinaleRoundId = string(moments.FinaleRoundOf(window.Number))
+	}
+	return answer
 }
 
 // Refusal is the code of what the calendar refused, and the error as it is for anything else.

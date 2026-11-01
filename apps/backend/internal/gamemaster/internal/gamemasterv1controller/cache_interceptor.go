@@ -12,9 +12,12 @@ import (
 // The client reads the turn again at the entry's end: a cached answer lies for at most this long.
 const turnMaxAge = 5
 
+const seasonTotalsMaxAge = 24 * 60 * 60
+
 func NewCacheInterceptor() connect.Interceptor {
 	maxAge := map[string]int{
-		gamemasterv1connect.GamemasterServiceGetTurnProcedure: turnMaxAge,
+		gamemasterv1connect.GamemasterServiceGetTurnProcedure:         turnMaxAge,
+		gamemasterv1connect.GamemasterServiceGetSeasonTotalsProcedure: seasonTotalsMaxAge,
 	}
 
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {

@@ -29,7 +29,7 @@ var (
 	madeAt     = finale.Add(-time.Hour)
 	seasonZero = &gamemasterv1.Season{
 		Number: 0, StartsAt: timestamppb.New(time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)), EndsAt: timestamppb.New(battleEnds),
-		BookId: "season-0",
+		BookId: "season-0", FinaleRoundId: "season-0/finale",
 	}
 	early     = uuid.UUID{15: 1}.String()
 	earlyAt   = finale.Add(-27 * time.Hour)

@@ -73,6 +73,7 @@ return []bootstrap.Module{
 | `clips` | `planet.v1.InternalService/GetLedger` | who took which tile in a run's window, page after page, on each `MakeCast` | `casts/rpc_planet_ledger` |
 | `clips` | `player.v1.InternalService/GetAuthors` | the name each of those accounts may be shown under in the clips, on each `MakeCast` | `casts/rpc_player_names` |
 | `gamemaster` | `planet.v1.InternalService/GetRuleSetNames` and `antibot.v1.InternalService/GetRuleSetNames` | the rule sets each module keeps, on each schedule entry an operator adds or edits | `schedule/rpc_planet_rule_sets`, `schedule/rpc_antibot_rule_sets` |
+| `gamemaster` | `planet.v1.InternalService/GetLedgerTotals` | the ledger's totals over an ended season's window, once per season and process, on the first `GetSeasonTotals` | `get_season_totals_handler/season_totals_query` |
 | `chat` | `scoring.v1.InternalService/GetRound` and `GetTable` | a round's results or a book's table, by the id a gamemaster event names, to announce a podium or a champion | chat's rpc scoring adapter |
 
 A module cannot import another's interior, so the key client all five need is `shared/cpsessionverifier` rather than a copy in each.

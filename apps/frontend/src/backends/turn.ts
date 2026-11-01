@@ -1,4 +1,4 @@
-import {Seasons} from "./season.ts"
+import {Seasons, SeasonTotals} from "./season.ts"
 
 export type TurnKind = "battle" | "plain" | "halloween"
 
@@ -56,4 +56,7 @@ export type TurnListener = {
 export interface TurnBackend {
     // The turn, the battles to come, the seasons and the last debrief at once, then each change of any.
     follow(listener: TurnListener): () => void
+
+    // None for a season that has not ended.
+    seasonTotals(season: number): Promise<SeasonTotals | undefined>
 }

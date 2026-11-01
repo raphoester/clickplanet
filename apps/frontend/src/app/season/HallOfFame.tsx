@@ -1,19 +1,21 @@
 import {ReactNode, useEffect, useLayoutEffect, useRef, useState} from "react"
 import {Season} from "../../backends/season.ts"
-import {Score, StandingsBackend} from "../../backends/standings.ts"
+import {Score} from "../../backends/standings.ts"
 import {Countries} from "../../domain/countries.ts"
 import {tablePodiumOf} from "../../domain/roundReveal.ts"
 import {spanLine} from "../../domain/seasonClock.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import Modal from "../components/Modal.tsx"
 import {TrophyIcon} from "../components/icons.tsx"
+import SeasonStats, {SeasonStatsProps} from "./SeasonStats.tsx"
 import "./HallOfFame.css"
 
 export type HallOfFameSeasons = {
     // The season that runs, or else the next one.
     teased?: Season
     ended: Season[]
-    backend: Pick<StandingsBackend, "scores">
+    standings: SeasonStatsProps["standings"]
+    turn: SeasonStatsProps["turn"]
 }
 
 export function HallOfFameButton(props: HallOfFameSeasons) {
@@ -28,8 +30,20 @@ export function HallOfFameButton(props: HallOfFameSeasons) {
     </>
 }
 
+export default function HallOfFame({teased, ended, standings, turn, onClose}: HallOfFameSeasons & {onClose: () => void}) {
+    const [viewing, setViewing] = useState<Season>()
+
+    return <Modal title={viewing ? `Season ${viewing.number}` : "Hall of Fame"} className="hall-of-fame" onClose={onClose}>
+        {viewing
+            ? <SeasonStats season={viewing} standings={standings} turn={turn} onBack={() => setViewing(undefined)}/>
+            : <Plaques teased={teased} ended={ended} standings={standings} onView={setViewing}/>}
+    </Modal>
+}
+
 // Oldest first, opened on the newest.
-export default function HallOfFame({teased, ended, backend, onClose}: HallOfFameSeasons & {onClose: () => void}) {
+function Plaques({teased, ended, standings, onView}: Pick<HallOfFameSeasons, "teased" | "ended" | "standings"> & {
+    onView: (season: Season) => void,
+}) {
     const seasons = useRef<HTMLOListElement>(null)
 
     useLayoutEffect(() => {
@@ -37,16 +51,18 @@ export default function HallOfFame({teased, ended, backend, onClose}: HallOfFame
         if (list) list.scrollLeft = list.scrollWidth
     }, [])
 
-    return <Modal title="Hall of Fame" className="hall-of-fame" onClose={onClose}>
-        <ol ref={seasons} className="hall-of-fame-seasons">
-            {ended.map((season) => <Plaque key={season.number} season={season}>
-                <EndedPodium backend={backend} season={season}/>
-            </Plaque>)}
-            {teased && <Plaque season={teased} teased>
-                <TeasedPodium/>
-            </Plaque>}
-        </ol>
-    </Modal>
+    return <ol ref={seasons} className="hall-of-fame-seasons">
+        {ended.map((season) => <Plaque key={season.number} season={season}>
+            <EndedPodium standings={standings} season={season}/>
+            <button type="button" className="button button-mini button-secondary hall-of-fame-view" onClick={() => onView(season)}>
+                View
+            </button>
+        </Plaque>)}
+        {teased && <Plaque season={teased} teased>
+            <TeasedPodium/>
+            <span className="hall-of-fame-view" aria-hidden="true"/>
+        </Plaque>}
+    </ol>
 }
 
 function Plaque({season, teased, children}: {season: Season, teased?: boolean, children: ReactNode}) {
@@ -59,8 +75,8 @@ function Plaque({season, teased, children}: {season: Season, teased?: boolean, c
     </li>
 }
 
-function EndedPodium({backend, season}: {backend: HallOfFameSeasons["backend"], season: Season}) {
-    const podium = usePodium(backend, season)
+function EndedPodium({standings, season}: {standings: HallOfFameSeasons["standings"], season: Season}) {
+    const podium = usePodium(standings, season)
     if (podium === "reading") return null
     if (podium.length === 0) return <span className="hall-of-fame-nobody">No winner</span>
 
@@ -90,12 +106,12 @@ function TeasedPodium() {
     </>
 }
 
-function usePodium(backend: HallOfFameSeasons["backend"], season: Season): Score[] | "reading" {
+function usePodium(standings: HallOfFameSeasons["standings"], season: Season): Score[] | "reading" {
     const [read, setRead] = useState<{bookId: string, podium: Score[]}>()
 
     useEffect(() => {
         let stale = false
-        backend.scores(season.bookId).then(
+        standings.scores(season.bookId).then(
             (table) => {
                 if (!stale) setRead({bookId: season.bookId, podium: tablePodiumOf(table)})
             },
@@ -104,7 +120,7 @@ function usePodium(backend: HallOfFameSeasons["backend"], season: Season): Score
         return () => {
             stale = true
         }
-    }, [backend, season.bookId])
+    }, [standings, season.bookId])
 
     return read?.bookId === season.bookId ? read.podium : "reading"
 }

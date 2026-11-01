@@ -1,4 +1,4 @@
-import {Day, Season, Seasons} from "./season.ts"
+import {Day, Season, Seasons, SeasonTotals} from "./season.ts"
 import {BattleEnded, BattleToCome, Debrief, PLAIN_TURN, Turn, TurnBackend, TurnListener} from "./turn.ts"
 
 const MINUTE = 60_000
@@ -10,6 +10,11 @@ export const SEASON_ZERO: Season = {
     startsAt: Date.UTC(2026, 9, 8),
     endsAt: Date.UTC(2026, 9, 31, 23),
     bookId: "season-0",
+    finaleRoundId: "season-0/finale",
+}
+
+const FAKE_TOTALS: SeasonTotals = {
+    takes: 1_284_310, strikes: 18_402, spreads: 6_115, encloses: 1_207, bombs: 9_864, shields: 22_530, fortifies: 3_048, players: 2_416,
 }
 
 export class FakeTurnBackend implements TurnBackend {
@@ -34,6 +39,10 @@ export class FakeTurnBackend implements TurnBackend {
         return () => {
             this.listeners.delete(listener)
         }
+    }
+
+    public async seasonTotals(season: number): Promise<SeasonTotals | undefined> {
+        return this.seasons.ended.some((ended) => ended.number === season) ? FAKE_TOTALS : undefined
     }
 
     public today(): Day | undefined {

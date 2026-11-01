@@ -379,9 +379,10 @@ description, its `times`, its `round_id` when it is a round, and `ends_season` f
 may still be moved or deleted; the stream sends each change within a second, so a countdown is fixed at once (the user
 lifted the rule "no entry to come crosses", 2026-10-27). **The timeline carries the seasons and the day too**:
 `current`, the season that runs (unset between two), `next`, the first that has not started, each a
-`Season{number, starts_at, ends_at, book_id}`, `ended`, every season over, by number (`Calendar.EndedBy`), for the
-client's Hall of Fame, and `today`, the day in progress (`Day{number, starts_at, ends_at, round_id}`; unset between
-two seasons and from a season's last cutoff to its end).
+`Season{number, starts_at, ends_at, book_id, finale_round_id}` (the finale's round empty for a season with none),
+`ended`, every season over, by number (`Calendar.EndedBy`), for the client's Hall of Fame, and `today`, the day in
+progress (`Day{number, starts_at, ends_at, round_id}`; unset between two seasons and from a season's last cutoff to its
+end).
 
 **The `Debrief` is the last moment scoring scored**: the latest row of `scored_rounds` and `closed_books` by its end, a
 book first at one time (it closes after its rounds), as the `DayEnded`, `BattleEnded` or `SeasonEnded` the outbox
@@ -403,6 +404,13 @@ context ends, so the drain ends it cleanly.
 is `NO_SIDE_EFFECTS`, so Connect sends it as an HTTP GET, and `gamemasterv1controller.NewCacheInterceptor` sets
 `Cache-Control: public, max-age=5, s-maxage=5` on the answer (the map's pattern, see [The map load](map-load.md)):
 an answer read within five seconds of a change may still say the turn before it.
+
+**`GetSeasonTotals(season)` is what the players did on the map during a season that ended**, for the Hall of Fame's
+numbers: planet's `LedgerTotals` (takes, strikes, spreads, encloses, bombs, shields, fortifies, accounts) over the
+season's window, asked through `planet.v1.InternalService/GetLedgerTotals` (`season_totals_query`). NotFound for a
+season that has not ended (`season.ErrNotEnded`), so the public can name no other window. Planet scans the window in
+seconds: the query asks once per season and process (`singleflight`, a caller that leaves does not stop it, 2 minutes at
+most) and keeps the answer, since an ended season no longer changes; the cache interceptor lets a browser keep it a day.
 
 ## Tests
 
