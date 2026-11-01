@@ -26,8 +26,12 @@ Previous, Next, a dot per slide and the arrow keys move between them.
    in a list that scrolls inside the slide, so the other slides keep their height.
 2. **The race**: the flags first at the season's end, one line each, their points after every round or their share
    of the map at each round's end (`raceOf`, from scoring's `GetBookHistory`, `StandingsBackend.bookHistory`). The
-   lines draw themselves in 1 s each time the slide shows, a flag riding each line's head, the day and the leader
-   under it (`RaceChart`); Play again redraws them; under `prefers-reduced-motion` they are drawn at once.
+   lines draw themselves in 1 s each time the slide shows (`RaceChart`); Play again redraws them; under
+   `prefers-reduced-motion` they are drawn at once. Each line's end holds a dot of its colour and its flag, moved apart
+   so none hides another (`headsOf`). Under the chart, the legend: every flag ranked by its value at that moment, with
+   its line's colour. Hovering a legend entry, or any point of a line, brings that line forward and dims the others;
+   each point is a button that opens a `Bubble` on the flag, when its round ended and its value (with the points that
+   round added).
 3. **Top players**: the book's board (`GetBoard`, `StandingsBackend.board`), each name in its colour with its title.
 4. **Final Battle, top flags**: its round (`GetRound` by the season's `finaleRoundId`), the flags that scored, their
    points (×times in the head) and the tiles their players took (`takes`, which the debrief no longer shows).

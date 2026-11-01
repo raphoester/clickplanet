@@ -6,6 +6,7 @@
 
 .race-bar {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2);
 }
@@ -19,6 +20,7 @@
 }
 
 .race-choice {
+    white-space: nowrap;
     padding: 5px var(--space-3) 3px;
     border: none;
     border-radius: var(--radius-pill);
@@ -36,13 +38,19 @@
 
 .race-day {
     flex-grow: 1;
+    white-space: nowrap;
     text-align: right;
     font-family: var(--font-display);
     font-size: var(--display-s);
     color: var(--gold);
 }
 
+.race-plot {
+    position: relative;
+}
+
 .race-chart {
+    display: block;
     width: 100%;
     height: auto;
     overflow: visible;
@@ -61,6 +69,136 @@
     stroke-width: 3;
     stroke-linecap: round;
     stroke-linejoin: round;
+    transition: opacity 0.12s ease, stroke-width 0.12s ease;
+}
+
+g.race-line {
+    stroke-width: 1.5;
+}
+
+.race-line--on {
+    stroke-width: 5;
+}
+
+.race-line--off {
+    opacity: 0.18;
+}
+
+.race-leader-line {
+    stroke: color-mix(in srgb, var(--text) 35%, transparent);
+}
+
+.race-head-dot,
+.race-dot {
+    fill: hsl(var(--author-hue) var(--author-saturation) var(--author-name-lightness));
+    stroke: var(--ink);
+    stroke-width: 1.5;
+}
+
+.race-point {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: none;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+}
+
+.race-point:focus-visible {
+    outline: var(--outline-thin) solid var(--gold);
+}
+
+.race-legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: var(--space-1) var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* The line's colour is the row's edge, so a colour and its flag are one thing. */
+.race-key {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    height: 30px;
+    padding: 0 var(--space-2);
+    border-left: 4px solid hsl(var(--author-hue) var(--author-saturation) var(--author-name-lightness));
+    border-radius: var(--radius-s);
+    background: var(--panel-raised);
+    transition: opacity 0.12s ease;
+    cursor: default;
+}
+
+.race-key--off {
+    opacity: 0.35;
+}
+
+.race-key-rank {
+    flex: none;
+    width: 1.2em;
+    text-align: right;
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-s);
+    color: var(--text-muted);
+}
+
+.race-key-flag {
+    display: flex;
+    flex: none;
+    font-size: 18px;
+}
+
+.race-key-flag .country-flag {
+    margin: 0;
+}
+
+.race-key-name {
+    flex-grow: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-s);
+    color: var(--text);
+}
+
+.race-key-value {
+    flex: none;
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-s);
+    color: var(--gold);
+}
+
+.race-bubble {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+}
+
+.race-bubble-who {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    font-weight: 700;
+}
+
+.race-bubble-who .country-flag {
+    margin: 0;
+}
+
+.race-bubble-value {
+    font-weight: 700;
 }
 
 .race-head {
@@ -72,20 +210,4 @@
 .race-head .country-flag {
     margin: 0;
     filter: drop-shadow(0 1px 0 var(--ink));
-}
-
-.race-leader {
-    display: flex;
-    align-items: baseline;
-    justify-content: center;
-    gap: var(--space-2);
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--display-l);
-    color: var(--text);
-    text-shadow: var(--text-drop);
-}
-
-.race-leader .country-flag {
-    margin: 0;
 }

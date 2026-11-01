@@ -1,12 +1,13 @@
 # Pages and routes
 
-Two pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
+Three pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
 `vite.config.ts`):
 
 | Path | File | What |
 |---|---|---|
 | `/` | `index.html` | The home page. Plain HTML, and one small module for the season's countdown and the next battle's. |
-| `/play` | `play.html` | The game. With `?archive=N`, the map of season N instead (see [A season's map](season-map.md)). |
+| `/play` | `play.html` | The game. |
+| `/archive` | `archive.html` | The map of the seasons that ended (see [A season's map](season-map.md)). The `archiveRoute` plugin serves it at that path in `npm run dev`. |
 | `/auth/callback` | `auth/callback.html` | The game again, for the sign-in callback. |
 | `/privacy`, `/terms` | `privacy.html`, `terms.html` | Plain pages, no bundle. |
 | anything else | `index.html` | `not_found_handling` fallback. |

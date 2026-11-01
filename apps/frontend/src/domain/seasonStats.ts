@@ -79,6 +79,16 @@ export function raceOf(steps: BookStep[], measure: RaceMeasure, shown = RACE_SHO
     return {lines, most: Math.max(measure === "points" ? 1 : 0.01, ...lines.flatMap((line) => line.values))}
 }
 
+// The flags at the lines' ends, moved apart by at least a gap and kept between top and bottom.
+export function headsOf<T extends {y: number}>(heads: T[], gap: number, top: number, bottom: number): T[] {
+    const spread = [...heads].sort((a, b) => a.y - b.y).map((head) => ({...head}))
+    spread.forEach((head, i) => {
+        head.y = Math.max(head.y, i === 0 ? top : spread[i - 1].y + gap)
+    })
+    for (let i = spread.length - 1; i >= 0; i--) spread[i].y = Math.min(spread[i].y, i === spread.length - 1 ? bottom : spread[i + 1].y - gap)
+    return spread
+}
+
 function barred<T>(rows: T[], value: (row: T) => number): Barred<T>[] {
     const most = Math.max(1, ...rows.map(value))
     return rows.map((row) => ({...row, width: value(row) / most}))

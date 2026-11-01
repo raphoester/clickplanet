@@ -66,8 +66,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   ended one's winner flag, then the "?" of the one that runs; View opens a season's slides: the podium and the whole
   table, the race (each flag's points or map share round by round, drawn as a timelapse), players, the Final Battle,
   the numbers.
-- [A season's map, browsed](docs/season-map.md) — `/play?archive=0`: the season or its Final Battle replayed on the
-  globe with a time cursor, and the heatmap of where the tiles were fought over.
+- [A season's map, browsed](docs/season-map.md) — `/archive`: the season or its Final Battle replayed on the globe
+  with a time cursor, and the heatmap of where the tiles were fought over, a map that goes round.
 - [The cutoff, revealed](docs/cutoff.md) — the full-screen reveal when a day closes, and the season's results after
   the Final Battle's debrief.
 - [The flag played for](docs/flag.md) — `PledgeAllegiance`, one flag an hour, and the lock a battle's rule set puts
