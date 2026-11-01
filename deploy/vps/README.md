@@ -227,8 +227,8 @@ ssh root@YOUR_IP 'docker info | grep EnableUserlandProxy; ss -tn src 172.18.0.1 
 ### Caddy's ports are filtered in DOCKER-USER, not only in ufw
 
 Docker forwards a published port to its container before ufw's input rules see
-the packet. So ufw's Cloudflare rules alone do not cover Caddy's 80/443: on
-2026-11-01 both answered from any address. `bootstrap.sh` puts the same
+the packet. So ufw's Cloudflare rules alone do not cover Caddy's 80/443.
+`bootstrap.sh` puts the same
 Cloudflare ranges in a `clickplanet-origin` chain, jumped to from `DOCKER-USER`
 for 80/443 on the public interface, in a marked block at the end of
 `/etc/ufw/after.rules`. ufw loads that file at boot, before Docker starts, and
