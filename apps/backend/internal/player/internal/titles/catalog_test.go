@@ -10,7 +10,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/podiums"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
@@ -18,7 +17,7 @@ import (
 var member = players.AccountOf(true, time.Time{})
 
 func careerOf(stats players.StatsSnapshot) titles.Career {
-	return titles.CareerOf(stats.Restore(), member, nil, nil)
+	return titles.CareerOf(stats.Restore(), member, nil)
 }
 
 func tiles(n uint64) titles.Career { return careerOf(players.StatsSnapshot{TilesTaken: n}) }
@@ -88,8 +87,8 @@ func TestAStreakTitleCountsTheBestStreakNotTheCurrentOne(t *testing.T) {
 func TestAnAccountMadeBeforeNovemberIsOG(t *testing.T) {
 	november := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 
-	assert.True(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november.Add(-time.Millisecond)), nil, nil)))
-	assert.False(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november), nil, nil)))
+	assert.True(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november.Add(-time.Millisecond)), nil)))
+	assert.False(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november), nil)))
 	assert.False(t, titles.OG{}.EarnedBy(titles.Career{}), "an account auth does not know has no date")
 }
 
@@ -98,7 +97,7 @@ func fought(t *testing.T, season finales.Season, rank uint32) titles.Career {
 
 	fight, err := finales.FightSnapshot{Season: season, Country: "fr", Rank: rank}.Restore()
 	require.NoError(t, err)
-	return titles.CareerOf(players.Stats{}, member, finales.Fights{fight}, nil)
+	return titles.CareerOf(players.Stats{}, member, finales.Fights{fight})
 }
 
 func TestEachSeasonZeroTitleGoesToWhoFoughtItsFinaleForAFlagThatPlacedSo(t *testing.T) {
@@ -130,7 +129,7 @@ func TestEachSeasonZeroBattleTopTitleGoesToWhoTookThatManyTilesInItsFinale(t *te
 	ranked := func(season finales.Season, tilesRank uint32) titles.Career {
 		fight, err := finales.FightSnapshot{Season: season, Country: "fr", Rank: 7, TilesRank: tilesRank}.Restore()
 		require.NoError(t, err)
-		return titles.CareerOf(players.Stats{}, member, finales.Fights{fight}, nil)
+		return titles.CareerOf(players.Stats{}, member, finales.Fights{fight})
 	}
 
 	for _, c := range []struct {
@@ -154,30 +153,12 @@ func TestEachSeasonZeroBattleTopTitleGoesToWhoTookThatManyTilesInItsFinale(t *te
 	}
 }
 
-func TestEachSeasonZeroTopTitleGoesToWhoStoodOnThatStepOfItsPodium(t *testing.T) {
-	stood := func(season finales.Season, rank uint32) titles.Career {
-		place, err := podiums.PlaceSnapshot{Season: season, Rank: rank}.Restore()
-		require.NoError(t, err)
-		return titles.CareerOf(players.Stats{}, member, nil, podiums.Places{place})
-	}
+func TestTheSeasonZeroTopsAreGivenOnceAndNoCareerEarnsOrLosesThem(t *testing.T) {
+	best := careerOf(players.StatsSnapshot{TilesTaken: 1_000_000, StreakBest: 100})
 
-	for _, c := range []struct {
-		career titles.Career
-		earned titles.IDs
-	}{
-		{stood(0, 1), titles.IDs{"season_0_top_1"}},
-		{stood(0, 2), titles.IDs{"season_0_top_2"}},
-		{stood(0, 3), titles.IDs{"season_0_top_3"}},
-		{stood(1, 1), nil},
-		{careerOf(players.StatsSnapshot{}), nil},
-	} {
-		var earned titles.IDs
-		for _, title := range []titles.Title{titles.Season0Top1{}, titles.Season0Top2{}, titles.Season0Top3{}} {
-			if title.EarnedBy(c.career) {
-				earned = append(earned, title.ID())
-			}
-		}
-		assert.Equal(t, c.earned, earned, "%+v", c.career)
+	for _, title := range []titles.Title{titles.Season0Top1{}, titles.Season0Top2{}, titles.Season0Top3{}} {
+		assert.False(t, title.EarnedBy(best), title.ID())
+		assert.Implements(t, (*titles.Keepsake)(nil), title, title.ID())
 	}
 }
 
@@ -214,7 +195,7 @@ func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
 				TilesTaken: n, StreakBest: uint32(n), MessagesSent: n,
 				BombsDropped: n, TilesFortified: n, BonusesClaimed: n, RightAnswers: n, MissionsDone: n,
 			}.Restore()
-			assert.True(t, rank.EarnedBy(titles.CareerOf(reached, players.Account{}, nil, nil)),
+			assert.True(t, rank.EarnedBy(titles.CareerOf(reached, players.Account{}, nil)),
 				"%s: %s is earned at its threshold", track.ID(), rank.ID())
 			previous = rank.Threshold()
 		}
@@ -223,7 +204,7 @@ func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
 	career := titles.CareerOf(players.StatsSnapshot{
 		TilesTaken: 14_468, Streak: players.StreakOf(4, players.Day{}), StreakBest: 7, MessagesSent: 312,
 		TilesFortified: 2_046, BombsDropped: 9, BonusesClaimed: 61, RightAnswers: 23, MissionsDone: 17,
-	}.Restore(), players.Account{}, nil, nil)
+	}.Restore(), players.Account{}, nil)
 	assert.Equal(t, uint64(14_468), titles.Conquest{}.Progress(career))
 	assert.Equal(t, uint64(4), titles.Devotion{}.Progress(career), "the streak a player is on now, not its best")
 	assert.Equal(t, uint64(312), titles.Chatter{}.Progress(career))

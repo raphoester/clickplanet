@@ -14,7 +14,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales/usecases/record_finale_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/podiums/inmemory_podium_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/award_titles_usecase"
@@ -70,7 +69,7 @@ func (f fixture) record(t *testing.T, scoring stubScoring) error {
 	t.Helper()
 
 	award := award_titles_usecase.New(
-		f.stats, titles.NewCareers(f.accounts, f.fights, inmemory_podium_store.New()), titles.NewBook(f.titles, titles.NewCatalog()), cptime.NewFixedClock(end),
+		f.stats, titles.NewCareers(f.accounts, f.fights), titles.NewBook(f.titles, titles.NewCatalog()), cptime.NewFixedClock(end),
 	)
 	return record_finale_usecase.New(scoring, f.fights, award).Execute(t.Context(), seasonEnd) //nolint:wrapcheck // the tests read the use case's error.
 }

@@ -12,7 +12,7 @@ Battle:
 Three go to the season's best players, fighters or not:
 
 - `Season 0 Top 1`, `Top 2` and `Top 3`: the players 1st, 2nd and 3rd on season 0's board of players, the one the
-  Hall of Fame shows (see [The season's podium](#the-seasons-podium)).
+  Hall of Fame shows (see [The season's best players](#the-seasons-best-players)).
 
 **A fighter is an account that took at least one tile in the finale's round** (`season-0/finale`), under the flag it
 took the most tiles for there. A battle's rule set locks the flags (see [Allegiance](allegiance.md)), so a fighter has
@@ -76,23 +76,12 @@ migration `20261101180100_battle_top_titles` renames them, held and worn, to `se
 `planet.v1.TileTaken` on its own, so a take in the battle's last second could, in theory, be counted after player read
 the round. The hops between the round's close and `SeasonEnded` take seconds; a deploy after the battle has no such race.
 
-## The season's podium
+## The season's best players
 
-**The podium is the first three of the book's board** (scoring's `GetBoard` with no flag, which `InternalService` serves
-too): every signed-in player by the tiles it took for its main flag, ties sharing a rank, so two players level first are
-both `Top 1`. A guest is not on that board, so it gets no place, even if it signs in later.
-
-1. The `player-season-podiums` subscriber (`season_podium_subscriber`) hears the same `SeasonEnded`, finale or not, and
-   runs `record_podium_usecase`: it asks scoring for the book's board (`rpc_scoring_podiums`), keeps its ranks 1 to 3
-   (`podiums.Board.Places`), and awards each of those players.
-2. The places are kept in `player.podium_places` (`season`, `account_id`, `rank` 1 to 3; one row per season and account,
-   a place recorded again takes the new rank), by `postgres_podium_store`.
-3. `titles.Career` holds the account's `podiums.Places`; `Places.RankedIn(season, rank)` is the whole rule of each
-   `Top` title. An account deleted loses its places (`player-podiums-accounts`, `forget_podiums_usecase`).
-
-**Season 0's podium came after it ended.** `player-season-podiums` is a new group, so it reads season 0's `SeasonEnded`
-at its first start, records the podium and gives the titles, live. A player deleted since then has left the board, and
-the ones below it move up.
+**Season 0's tops were given once, by hand, after it ended.** Its board is closed and will not change, so nothing
+records it: the operator read its first three (scoring's `GetBoard` for `season-0`) and wrote their three rows in
+`player.titles`. `Season0Top1`, `Top2` and `Top3` are keepsakes no career earns (`EarnedBy` is false), so the award
+never gives them and the reconciliation never takes them back.
 
 ## A later season
 

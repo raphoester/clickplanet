@@ -63,10 +63,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/wear_title_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/podiums/postgres_podium_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/podiums/rpc_scoring_podiums"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/podiums/usecases/forget_podiums_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/podiums/usecases/record_podium_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/forget_visit_usecase"
@@ -81,7 +77,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/missions_paid_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/quiz_answered_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/season_ended_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/season_podium_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_account_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
@@ -134,9 +129,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	auth := authv1connect.NewInternalServiceClient(internal, baseURL)
 	fronts := rpc_planet_fronts.New(planetv1connect.NewInternalServiceClient(internal, baseURL))
-	scoringClient := scoringv1connect.NewInternalServiceClient(internal, baseURL)
-	scoring := rpc_scoring_finales.New(scoringClient)
-	boards := rpc_scoring_podiums.New(scoringClient)
+	scoring := rpc_scoring_finales.New(scoringv1connect.NewInternalServiceClient(internal, baseURL))
 
 	tagSalt := config.TagSalt
 	if tagSalt == "" {
@@ -172,8 +165,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	accounts := rpc_account_reader.New(auth)
 	fightStore := postgres_fight_store.New(db)
-	podiumStore := postgres_podium_store.New(db)
-	careers := titles.NewCareers(accounts, fightStore, podiumStore)
+	careers := titles.NewCareers(accounts, fightStore)
 	titleStore := postgres_title_store.New(db)
 	catalog := titles.NewCatalog()
 	titleBook := titles.NewBook(titleStore, catalog)
@@ -244,12 +236,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to gamemaster.v1.SeasonEnded: %w", err)
 	}
-	seasonPodiums, err := cpredis.Subscribe(ctx, streams, "player-season-podiums",
-		log_subscriber.New(season_podium_subscriber.New(record_podium_usecase.New(boards, podiumStore, award)), props.Logger))
-	if err != nil {
-		closeStores()
-		return fmt.Errorf("failed to subscribe the podiums to gamemaster.v1.SeasonEnded: %w", err)
-	}
 	deletions, err := cpredis.Subscribe(ctx, streams, "player-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(store)), props.Logger))
 	if err != nil {
@@ -273,12 +259,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the finales fought to auth.v1.AccountDeleted: %w", err)
-	}
-	forgottenPodiums, err := cpredis.Subscribe(ctx, streams, "player-podiums-accounts",
-		log_subscriber.New(account_deleted_subscriber.New(forget_podiums_usecase.New(podiumStore)), props.Logger))
-	if err != nil {
-		closeStores()
-		return fmt.Errorf("failed to subscribe the podium places to auth.v1.AccountDeleted: %w", err)
 	}
 
 	forgetVisit := forget_visit_usecase.New(visits)
@@ -310,8 +290,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-		takes, posts, bombs, fortifies, claims, answers, missionsPaid, awards, seasonEnds, seasonPodiums, deletions, forgottenTitles,
-		forgottenChoices, forgottenFights, forgottenPodiums, signIns, namings, signOuts, gone,
+		takes, posts, bombs, fortifies, claims, answers, missionsPaid, awards, seasonEnds, deletions, forgottenTitles,
+		forgottenChoices, forgottenFights, signIns, namings, signOuts, gone,
 		cpoutbox.NewRelay("player-outbox", db, streams, props.Logger))))
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))

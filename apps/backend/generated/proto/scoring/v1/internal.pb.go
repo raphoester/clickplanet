@@ -288,12 +288,11 @@ const file_scoring_v1_internal_proto_rawDesc = "" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\"X\n" +
 	"\x10GetTableResponse\x12,\n" +
 	"\x05table\x18\x01 \x03(\v2\x16.scoring.v1.TablePlaceR\x05table\x12\x16\n" +
-	"\x06closed\x18\x02 \x01(\bR\x06closed2\xd6\x02\n" +
+	"\x06closed\x18\x02 \x01(\bR\x06closed2\x8a\x02\n" +
 	"\x0fInternalService\x12J\n" +
 	"\bGetRound\x12\x1b.scoring.v1.GetRoundRequest\x1a\x1c.scoring.v1.GetRoundResponse\"\x03\x90\x02\x01\x12J\n" +
 	"\bGetTable\x12\x1b.scoring.v1.GetTableRequest\x1a\x1c.scoring.v1.GetTableResponse\"\x03\x90\x02\x01\x12_\n" +
-	"\x0fGetRoundPlayers\x12\".scoring.v1.GetRoundPlayersRequest\x1a#.scoring.v1.GetRoundPlayersResponse\"\x03\x90\x02\x01\x12J\n" +
-	"\bGetBoard\x12\x1b.scoring.v1.GetBoardRequest\x1a\x1c.scoring.v1.GetBoardResponse\"\x03\x90\x02\x01B\xbc\x01\n" +
+	"\x0fGetRoundPlayers\x12\".scoring.v1.GetRoundPlayersRequest\x1a#.scoring.v1.GetRoundPlayersResponse\"\x03\x90\x02\x01B\xbc\x01\n" +
 	"\x0ecom.scoring.v1B\rInternalProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1;scoringv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Scoring.V1\xca\x02\n" +
 	"Scoring\\V1\xe2\x02\x16Scoring\\V1\\GPBMetadata\xea\x02\vScoring::V1b\x06proto3"
@@ -319,9 +318,7 @@ var file_scoring_v1_internal_proto_goTypes = []any{
 	(*GetTableResponse)(nil),        // 4: scoring.v1.GetTableResponse
 	(*TablePlace)(nil),              // 5: scoring.v1.TablePlace
 	(*GetRoundRequest)(nil),         // 6: scoring.v1.GetRoundRequest
-	(*GetBoardRequest)(nil),         // 7: scoring.v1.GetBoardRequest
-	(*GetRoundResponse)(nil),        // 8: scoring.v1.GetRoundResponse
-	(*GetBoardResponse)(nil),        // 9: scoring.v1.GetBoardResponse
+	(*GetRoundResponse)(nil),        // 7: scoring.v1.GetRoundResponse
 }
 var file_scoring_v1_internal_proto_depIdxs = []int32{
 	2, // 0: scoring.v1.GetRoundPlayersResponse.players:type_name -> scoring.v1.RoundPlayer
@@ -329,13 +326,11 @@ var file_scoring_v1_internal_proto_depIdxs = []int32{
 	6, // 2: scoring.v1.InternalService.GetRound:input_type -> scoring.v1.GetRoundRequest
 	3, // 3: scoring.v1.InternalService.GetTable:input_type -> scoring.v1.GetTableRequest
 	0, // 4: scoring.v1.InternalService.GetRoundPlayers:input_type -> scoring.v1.GetRoundPlayersRequest
-	7, // 5: scoring.v1.InternalService.GetBoard:input_type -> scoring.v1.GetBoardRequest
-	8, // 6: scoring.v1.InternalService.GetRound:output_type -> scoring.v1.GetRoundResponse
-	4, // 7: scoring.v1.InternalService.GetTable:output_type -> scoring.v1.GetTableResponse
-	1, // 8: scoring.v1.InternalService.GetRoundPlayers:output_type -> scoring.v1.GetRoundPlayersResponse
-	9, // 9: scoring.v1.InternalService.GetBoard:output_type -> scoring.v1.GetBoardResponse
-	6, // [6:10] is the sub-list for method output_type
-	2, // [2:6] is the sub-list for method input_type
+	7, // 5: scoring.v1.InternalService.GetRound:output_type -> scoring.v1.GetRoundResponse
+	4, // 6: scoring.v1.InternalService.GetTable:output_type -> scoring.v1.GetTableResponse
+	1, // 7: scoring.v1.InternalService.GetRoundPlayers:output_type -> scoring.v1.GetRoundPlayersResponse
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name

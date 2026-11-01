@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetBoardRequest, GetBoardResponse, GetRoundRequest, GetRoundResponse } from "./scoring_pb.js";
+import { GetRoundRequest, GetRoundResponse } from "./scoring_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { GetRoundPlayersRequest, GetRoundPlayersResponse, GetTableRequest, GetTableResponse } from "./internal_pb.js";
 
@@ -42,16 +42,6 @@ export const InternalService = {
       name: "GetRoundPlayers",
       I: GetRoundPlayersRequest,
       O: GetRoundPlayersResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
-    },
-    /**
-     * @generated from rpc scoring.v1.InternalService.GetBoard
-     */
-    getBoard: {
-      name: "GetBoard",
-      I: GetBoardRequest,
-      O: GetBoardResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

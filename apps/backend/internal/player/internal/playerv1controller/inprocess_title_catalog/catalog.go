@@ -8,7 +8,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/podiums"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
@@ -40,7 +39,7 @@ func (c Catalog) Tracks(held []string, career playerread.Career) []*playerv1.Tra
 		RightAnswers:   career.RightAnswers,
 		MissionsDone:   career.MissionsDone,
 	}.Restore()
-	progress := c.catalog.Progress(titles.CareerOf(stats, players.AccountOf(false, time.Time{}), finales.Fights{}, podiums.Places{}), idsOf(held))
+	progress := c.catalog.Progress(titles.CareerOf(stats, players.AccountOf(false, time.Time{}), finales.Fights{}), idsOf(held))
 
 	tracks := make([]*playerv1.Track, 0, len(progress))
 	for _, track := range progress {

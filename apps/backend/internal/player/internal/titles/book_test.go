@@ -37,7 +37,7 @@ func TestAGuestEarnsNothingAndNoStoreIsRead(t *testing.T) {
 	store := inmemory_title_store.New()
 	store.FailWith(errors.New("postgres is down"))
 
-	unheld, err := titles.NewBook(store, catalog).Unheld(t.Context(), ada, titles.CareerOf(players.StatsSnapshot{TilesTaken: 3}.Restore(), players.Account{}, nil, nil))
+	unheld, err := titles.NewBook(store, catalog).Unheld(t.Context(), ada, titles.CareerOf(players.StatsSnapshot{TilesTaken: 3}.Restore(), players.Account{}, nil))
 
 	require.NoError(t, err)
 	assert.Empty(t, unheld)

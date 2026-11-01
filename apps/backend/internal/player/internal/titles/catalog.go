@@ -235,7 +235,9 @@ func (Season0Top1) Name() string { return "Season 0 Top 1" }
 
 func (Season0Top1) Feat() string { return "Ranked 1st of all players in Season 0" }
 
-func (Season0Top1) EarnedBy(career Career) bool { return career.places.RankedIn(seasonZero, 1) }
+func (Season0Top1) EarnedBy(Career) bool { return false }
+
+func (Season0Top1) Keepsake() {}
 
 type Season0Top2 struct{}
 
@@ -245,7 +247,9 @@ func (Season0Top2) Name() string { return "Season 0 Top 2" }
 
 func (Season0Top2) Feat() string { return "Ranked 2nd of all players in Season 0" }
 
-func (Season0Top2) EarnedBy(career Career) bool { return career.places.RankedIn(seasonZero, 2) }
+func (Season0Top2) EarnedBy(Career) bool { return false }
+
+func (Season0Top2) Keepsake() {}
 
 type Season0Top3 struct{}
 
@@ -255,7 +259,9 @@ func (Season0Top3) Name() string { return "Season 0 Top 3" }
 
 func (Season0Top3) Feat() string { return "Ranked 3rd of all players in Season 0" }
 
-func (Season0Top3) EarnedBy(career Career) bool { return career.places.RankedIn(seasonZero, 3) }
+func (Season0Top3) EarnedBy(Career) bool { return false }
+
+func (Season0Top3) Keepsake() {}
 
 type Season0BattleTop1 struct{}
 

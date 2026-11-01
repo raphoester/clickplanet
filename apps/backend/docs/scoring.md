@@ -168,8 +168,7 @@ id that is not one is `InvalidArgument`.
   of every player who took tiles for `country_id` by those tiles: rank, account id, name, color, worn title, flag and
   tiles. **Only a signed-in player is ranked**: Go skips what `GetAuthors` answers as a guest or not at all; a tie
   shares the rank. Rows come 200 at a time from a keyset on `(tiles, account_id)`, one `GetAuthors` a page, until 10
-  are named. A country that is not one is `InvalidArgument`. A GET, `public, max-age=15`. `InternalService` serves it
-  too, for player's season podium (see [Season titles](season-titles.md)).
+  are named. A country that is not one is `InvalidArgument`. A GET, `public, max-age=15`.
 - **`GetMyTally(book_id, country_id)`** (`my_tally_query`): the caller's main flag, tiles and rank among every player,
   and its tiles and rank on `country_id`'s board, and the title it wears; 0 for a guest's ranks. Behind
   `NewSessionInterceptor`, always enforcing, on the identity token (`scoring_session_checks{verdict}`).
