@@ -58,6 +58,9 @@ const (
 	// AdminServiceGrantChargesProcedure is the fully-qualified name of the AdminService's GrantCharges
 	// RPC.
 	AdminServiceGrantChargesProcedure = "/planet.v1.AdminService/GrantCharges"
+	// AdminServiceReleaseAllegianceProcedure is the fully-qualified name of the AdminService's
+	// ReleaseAllegiance RPC.
+	AdminServiceReleaseAllegianceProcedure = "/planet.v1.AdminService/ReleaseAllegiance"
 	// AdminServiceGetReplayProcedure is the fully-qualified name of the AdminService's GetReplay RPC.
 	AdminServiceGetReplayProcedure = "/planet.v1.AdminService/GetReplay"
 	// AdminServiceGetLedgerProcedure is the fully-qualified name of the AdminService's GetLedger RPC.
@@ -92,6 +95,8 @@ type AdminServiceClient interface {
 	// Deprecated: do not use.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
+	// Lifts the account's hour of wait, so its next change of flag goes at once. A lock of the rules in force still holds.
+	ReleaseAllegiance(context.Context, *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error)
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
 	// Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
 	// time.
@@ -168,6 +173,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("GrantCharges")),
 			connect.WithClientOptions(opts...),
 		),
+		releaseAllegiance: connect.NewClient[v1.ReleaseAllegianceRequest, v1.ReleaseAllegianceResponse](
+			httpClient,
+			baseURL+AdminServiceReleaseAllegianceProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ReleaseAllegiance")),
+			connect.WithClientOptions(opts...),
+		),
 		getReplay: connect.NewClient[v1.GetReplayRequest, v1.GetReplayResponse](
 			httpClient,
 			baseURL+AdminServiceGetReplayProcedure,
@@ -203,20 +214,21 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	reassignCountry  *connect.Client[v1.ReassignCountryRequest, v1.ReassignCountryResponse]
-	findPlayers      *connect.Client[v1.FindPlayersRequest, v1.FindPlayersResponse]
-	topPlayers       *connect.Client[v1.TopPlayersRequest, v1.TopPlayersResponse]
-	banPlayer        *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
-	unbanPlayer      *connect.Client[v1.UnbanPlayerRequest, v1.UnbanPlayerResponse]
-	revertPlayer     *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
-	paintRandomTiles *connect.Client[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse]
-	inspectPlayer    *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
-	grantCharges     *connect.Client[v1.GrantChargesRequest, v1.GrantChargesResponse]
-	getReplay        *connect.Client[v1.GetReplayRequest, v1.GetReplayResponse]
-	getLedger        *connect.Client[v1.GetLedgerRequest, v1.GetLedgerResponse]
-	getTerritories   *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
-	getRules         *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
-	saveRuleSet      *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
+	reassignCountry   *connect.Client[v1.ReassignCountryRequest, v1.ReassignCountryResponse]
+	findPlayers       *connect.Client[v1.FindPlayersRequest, v1.FindPlayersResponse]
+	topPlayers        *connect.Client[v1.TopPlayersRequest, v1.TopPlayersResponse]
+	banPlayer         *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
+	unbanPlayer       *connect.Client[v1.UnbanPlayerRequest, v1.UnbanPlayerResponse]
+	revertPlayer      *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
+	paintRandomTiles  *connect.Client[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse]
+	inspectPlayer     *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
+	grantCharges      *connect.Client[v1.GrantChargesRequest, v1.GrantChargesResponse]
+	releaseAllegiance *connect.Client[v1.ReleaseAllegianceRequest, v1.ReleaseAllegianceResponse]
+	getReplay         *connect.Client[v1.GetReplayRequest, v1.GetReplayResponse]
+	getLedger         *connect.Client[v1.GetLedgerRequest, v1.GetLedgerResponse]
+	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
+	getRules          *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
+	saveRuleSet       *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
 }
 
 // ReassignCountry calls planet.v1.AdminService.ReassignCountry.
@@ -270,6 +282,11 @@ func (c *adminServiceClient) GrantCharges(ctx context.Context, req *connect.Requ
 	return c.grantCharges.CallUnary(ctx, req)
 }
 
+// ReleaseAllegiance calls planet.v1.AdminService.ReleaseAllegiance.
+func (c *adminServiceClient) ReleaseAllegiance(ctx context.Context, req *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error) {
+	return c.releaseAllegiance.CallUnary(ctx, req)
+}
+
 // GetReplay calls planet.v1.AdminService.GetReplay.
 func (c *adminServiceClient) GetReplay(ctx context.Context, req *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error) {
 	return c.getReplay.CallUnary(ctx, req)
@@ -315,6 +332,8 @@ type AdminServiceHandler interface {
 	// Deprecated: do not use.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
+	// Lifts the account's hour of wait, so its next change of flag goes at once. A lock of the rules in force still holds.
+	ReleaseAllegiance(context.Context, *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error)
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
 	// Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
 	// time.
@@ -387,6 +406,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("GrantCharges")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceReleaseAllegianceHandler := connect.NewUnaryHandler(
+		AdminServiceReleaseAllegianceProcedure,
+		svc.ReleaseAllegiance,
+		connect.WithSchema(adminServiceMethods.ByName("ReleaseAllegiance")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceGetReplayHandler := connect.NewUnaryHandler(
 		AdminServiceGetReplayProcedure,
 		svc.GetReplay,
@@ -437,6 +462,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceInspectPlayerHandler.ServeHTTP(w, r)
 		case AdminServiceGrantChargesProcedure:
 			adminServiceGrantChargesHandler.ServeHTTP(w, r)
+		case AdminServiceReleaseAllegianceProcedure:
+			adminServiceReleaseAllegianceHandler.ServeHTTP(w, r)
 		case AdminServiceGetReplayProcedure:
 			adminServiceGetReplayHandler.ServeHTTP(w, r)
 		case AdminServiceGetLedgerProcedure:
@@ -490,6 +517,10 @@ func (UnimplementedAdminServiceHandler) InspectPlayer(context.Context, *connect.
 
 func (UnimplementedAdminServiceHandler) GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GrantCharges is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ReleaseAllegiance(context.Context, *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.ReleaseAllegiance is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error) {

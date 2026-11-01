@@ -52,6 +52,10 @@ func (a Allegiance) Pledged(flag string, at time.Time, lock Lock) (Allegiance, e
 	return Allegiance{flag: flag, change: ChangedAt(at)}, nil
 }
 
+func (a Allegiance) Released() Allegiance {
+	return Allegiance{flag: a.flag}
+}
+
 func (a Allegiance) PlayError(flag string, lock Lock) error {
 	switch a.flag {
 	case flag:

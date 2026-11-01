@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/paint_random_tiles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/release_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
@@ -28,6 +29,7 @@ type AdminService struct {
 	revert_player_handler.RevertPlayerHandler
 	paint_random_tiles_handler.PaintRandomTilesHandler
 	grant_charges_handler.GrantChargesHandler
+	release_allegiance_handler.ReleaseAllegianceHandler
 	get_replay_handler.GetReplayHandler
 	get_ledger_handler.GetLedgerHandler
 	get_territories_handler.GetTerritoriesHandler

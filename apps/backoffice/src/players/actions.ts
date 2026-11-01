@@ -27,6 +27,7 @@ export type Unbanned = {offence: number, until: Date | undefined, pardonedUntil:
 export type Reverted = {touched: number, held: number, restored: number}
 export type Grant = {refill: boolean, bomb: boolean, enclosures: number, spreadClicks: number, shields: number}
 export type Granted = {before: ChargesHeld, after: ChargesHeld}
+export type Released = {locked: boolean}
 export type Players = {players: Player[], total: number}
 export type Authors = Map<string, Author>
 // Who each account is. `unnamed` says why there are no names, when they could not be read.
@@ -99,6 +100,12 @@ export async function grant(planet: PlanetAdmin, accountId: string, charges: Gra
     return {before: answer.before ?? new ChargesHeld(), after: answer.after ?? new ChargesHeld()}
 }
 
+// Lifts the hour of wait after a change of flag. A lock of the rules in force still holds.
+export async function release(planet: PlanetAdmin, accountId: string): Promise<Released> {
+    const answer = await planet.releaseAllegiance({accountId})
+    return {locked: answer.locked}
+}
+
 export function grantsAnything(charges: Grant): boolean {
     return charges.refill || charges.bomb || charges.enclosures > 0 || charges.spreadClicks > 0 || charges.shields > 0
 }
@@ -157,7 +164,7 @@ export function bannedWords(banned: Banned): string {
         + (banned.enforced ? "" : " Not enforced: the antibot only watches on this server.")
 }
 
-export type Action = "mute" | "unmute" | "ban" | "unban" | "revert" | "inspect" | "grant" | "list"
+export type Action = "mute" | "unmute" | "ban" | "unban" | "revert" | "inspect" | "grant" | "release" | "list"
 
 export const ANTIBOT_OFF = "The antibot is off on this server, so it cannot ban, unban or inspect."
 export const NOT_BANNED = "This player has no ban left to lift."
@@ -171,6 +178,7 @@ const MEANINGS: Record<Action, Meanings> = {
     revert: {},
     inspect: {unimplemented: ANTIBOT_OFF},
     grant: {},
+    release: {},
     list: {},
 }
 

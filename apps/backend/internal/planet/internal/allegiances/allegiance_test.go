@@ -62,6 +62,26 @@ func TestAChangeAnHourLaterIsAllowedAndStartsTheWaitAgain(t *testing.T) {
 	assert.Equal(t, allegiances.Snapshot{Flag: "fr", ChangedAt: at.Add(time.Hour)}, changed.TakeSnapshot())
 }
 
+func TestAReleasedFlagChangesAtOnceAndStartsTheWaitAgain(t *testing.T) {
+	released := allegiances.Snapshot{Flag: "de", ChangedAt: at}.Restore().Released()
+	assert.Equal(t, allegiances.Snapshot{Flag: "de"}, released.TakeSnapshot())
+
+	changed, err := released.Pledged("fr", at.Add(time.Minute), open)
+	require.NoError(t, err)
+	assert.Equal(t, allegiances.Snapshot{Flag: "fr", ChangedAt: at.Add(time.Minute)}, changed.TakeSnapshot())
+
+	_, err = changed.Pledged("de", at.Add(2*time.Minute), open)
+	require.ErrorIs(t, err, allegiances.ErrChangedTooSoon)
+}
+
+func TestAReleaseDoesNotLiftALock(t *testing.T) {
+	released := allegiances.Snapshot{Flag: "de", ChangedAt: at}.Restore().Released()
+
+	_, err := released.Pledged("fr", at, locked)
+
+	require.ErrorIs(t, err, allegiances.ErrLocked)
+}
+
 func TestALockRefusesAChangeLongAfterTheWait(t *testing.T) {
 	kept := allegiances.Snapshot{Flag: "de", ChangedAt: at}.Restore()
 

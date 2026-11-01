@@ -48,6 +48,16 @@ func (b Book) Pledge(ctx context.Context, payer clicks.Payer, flag string) error
 	return nil
 }
 
+func (b Book) Release(ctx context.Context, account Account) error {
+	if err := b.store.Change(ctx, account, func(allegiance Allegiance) (Allegiance, error) {
+		return allegiance.Released(), nil
+	}); err != nil {
+		return fmt.Errorf("could not release account %s from its wait: %w", account, err)
+	}
+
+	return nil
+}
+
 func (b Book) PlayError(ctx context.Context, payer clicks.Payer, flag string) error {
 	account := AccountOf(payer)
 	if account == NoAccount || !b.countries.CheckCountry(flag) {

@@ -114,6 +114,6 @@ and says what is in it. Read the doc before you change its area.
 ## Operator tools and jobs
 
 - [Operator tools (`AdminService`)](docs/admin.md) — the console and admin listeners; `GrantCharges`,
-  `GetReplay`, `GetLedger`, `PaintRandomTiles`, manual bans.
+  `ReleaseAllegiance`, `GetReplay`, `GetLedger`, `PaintRandomTiles`, manual bans.
 - [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them; its
   experiments, the model editor and the stats.

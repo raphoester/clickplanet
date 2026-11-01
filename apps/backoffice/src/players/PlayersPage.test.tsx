@@ -355,6 +355,25 @@ describe("one player", () => {
         }])
     })
 
+    it("lets an account change flag at once, and says when the rules lock every flag", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={account}/>)
+
+        tool("Flag")
+        fireEvent.click(screen.getByRole("button", {name: "Allow a change now"}))
+        expect(screen.getByText("Let BraveFox42 change flag now, without the hour of wait?")).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Yes, allow a change now"}))
+        expect(await screen.findByText("Done. The next change of flag goes at once.")).toBeTruthy()
+        expect(admin.askedFor("releaseAllegiance")).toEqual([{accountId: ACCOUNT}])
+        cleanup()
+
+        admin.flagsLocked = true
+        render(<Page admin={admin} first={account}/>)
+        tool("Flag")
+        confirm("Allow a change now", "Yes, allow a change now")
+        expect(await screen.findByText("Done, but the rules in force lock every flag: the change waits for them to end.")).toBeTruthy()
+    })
+
     it("mutes an account, and offers neither a mute nor charges to an address", async () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin} first={account}/>)
