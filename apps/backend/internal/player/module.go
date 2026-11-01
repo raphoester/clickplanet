@@ -230,7 +230,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to player.v1.StatsChanged: %w", err)
 	}
-	seasonEnds, err := cpredis.Subscribe(ctx, streams, "player-finales",
+	seasonEnds, err := cpredis.Subscribe(ctx, streams, "player-finale-fights",
 		log_subscriber.New(season_ended_subscriber.New(record_finale_usecase.New(scoring, fightStore, award)), props.Logger))
 	if err != nil {
 		closeStores()

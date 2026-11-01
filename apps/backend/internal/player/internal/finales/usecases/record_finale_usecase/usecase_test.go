@@ -85,7 +85,10 @@ func (f fixture) held(t *testing.T, account players.AccountID) titles.IDs {
 var finalNight = stubScoring{
 	table: []finales.Place{{Country: "fr", Rank: 1}, {Country: "de", Rank: 2}, {Country: "it", Rank: 3}, {Country: "es", Rank: 4}},
 	fighters: []finales.Fighter{
-		{Account: ada, Country: "fr"}, {Account: bob, Country: "es"}, {Account: carol, Country: "tv"}, {Account: guest, Country: "fr"},
+		{Account: ada, Country: "fr", Tiles: 50},
+		{Account: bob, Country: "es", Tiles: 80},
+		{Account: carol, Country: "tv", Tiles: 50},
+		{Account: guest, Country: "fr", Tiles: 200},
 	},
 }
 
@@ -102,10 +105,10 @@ func TestEveryFighterIsRecordedUnderItsFlagsPlace(t *testing.T) {
 		snapshots[account] = fights[0].TakeSnapshot()
 	}
 	assert.Equal(t, map[players.AccountID]finales.FightSnapshot{
-		ada:   {Account: ada, Season: 0, Country: "fr", Rank: 1},
-		bob:   {Account: bob, Season: 0, Country: "es", Rank: 4},
-		carol: {Account: carol, Season: 0, Country: "tv", Rank: 0},
-		guest: {Account: guest, Season: 0, Country: "fr", Rank: 1},
+		ada:   {Account: ada, Season: 0, Country: "fr", Rank: 1, TilesRank: 3},
+		bob:   {Account: bob, Season: 0, Country: "es", Rank: 4, TilesRank: 2},
+		carol: {Account: carol, Season: 0, Country: "tv", Rank: 0, TilesRank: 3},
+		guest: {Account: guest, Season: 0, Country: "fr", Rank: 1, TilesRank: 1},
 	}, snapshots, "a flag off the table has no place, and a guest's fight is kept for when it signs in")
 }
 
@@ -114,22 +117,34 @@ func TestEachSignedInFighterIsAwardedItsTitlesAndAGuestNone(t *testing.T) {
 
 	require.NoError(t, f.record(t, finalNight))
 
-	assert.Equal(t, titles.IDs{"season_0_gold", "season_0_veteran"}, f.held(t, ada))
-	assert.Equal(t, titles.IDs{"season_0_veteran"}, f.held(t, bob))
-	assert.Equal(t, titles.IDs{"season_0_veteran"}, f.held(t, carol))
-	assert.Empty(t, f.held(t, guest))
+	assert.Equal(t, titles.IDs{"season_0_gold", "season_0_top_3", "season_0_veteran"}, f.held(t, ada))
+	assert.Equal(t, titles.IDs{"season_0_top_2", "season_0_veteran"}, f.held(t, bob))
+	assert.Equal(t, titles.IDs{"season_0_top_3", "season_0_veteran"}, f.held(t, carol))
+	assert.Empty(t, f.held(t, guest), "first by tiles, but a guest earns nothing yet")
 }
 
 func TestTheSeasonToldAgainChangesNothing(t *testing.T) {
 	f := setUp(t)
 	require.NoError(t, f.record(t, finalNight))
 
-	moved := finalNight
-	moved.table = []finales.Place{{Country: "es", Rank: 1}}
-	require.NoError(t, f.record(t, moved))
+	require.NoError(t, f.record(t, finalNight))
 
-	assert.Equal(t, titles.IDs{"season_0_gold", "season_0_veteran"}, f.held(t, ada))
-	assert.Equal(t, titles.IDs{"season_0_veteran"}, f.held(t, bob))
+	assert.Equal(t, titles.IDs{"season_0_gold", "season_0_top_3", "season_0_veteran"}, f.held(t, ada))
+	assert.Equal(t, titles.IDs{"season_0_top_2", "season_0_veteran"}, f.held(t, bob))
+}
+
+func TestTheSeasonToldAgainRanksTheFightsRecordedBeforeTheRankWasKept(t *testing.T) {
+	f := setUp(t)
+	before, err := finales.FightSnapshot{Account: bob, Season: 0, Country: "es", Rank: 4}.Restore()
+	require.NoError(t, err)
+	require.NoError(t, f.fights.Record(t.Context(), []finales.Fight{before}))
+
+	require.NoError(t, f.record(t, finalNight))
+
+	found, err := f.fights.Fights(t.Context(), []players.AccountID{bob})
+	require.NoError(t, err)
+	assert.Equal(t, uint32(2), found[bob][0].TakeSnapshot().TilesRank)
+	assert.Equal(t, titles.IDs{"season_0_top_2", "season_0_veteran"}, f.held(t, bob))
 }
 
 func TestAScoringFailureRecordsNothing(t *testing.T) {

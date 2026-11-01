@@ -48,6 +48,7 @@ type Place struct {
 type Fighter struct {
 	Account players.AccountID
 	Country Country
+	Tiles   uint64
 }
 
 type Result struct {
@@ -61,6 +62,7 @@ func (r Result) Fights() ([]Fight, error) {
 	for _, fighter := range r.Fighters {
 		fight, err := FightSnapshot{
 			Account: fighter.Account, Season: r.Season, Country: fighter.Country, Rank: r.rankOf(fighter.Country),
+			TilesRank: r.tilesRankOf(fighter),
 		}.Restore()
 		if err != nil {
 			return nil, err
@@ -78,12 +80,24 @@ func (r Result) rankOf(country Country) uint32 {
 	return r.Table[at].Rank
 }
 
+func (r Result) tilesRankOf(fighter Fighter) uint32 {
+	var rank uint32 = 1
+	for _, other := range r.Fighters {
+		if other.Tiles > fighter.Tiles {
+			rank++
+		}
+	}
+	return rank
+}
+
 type FightSnapshot struct {
 	Account players.AccountID
 	Season  Season
 	Country Country
 	// The flag's place on the season's table; 0 when it is not on it.
 	Rank uint32
+	// The fighter's place among the finale's fighters by tiles taken; 0 for a fight recorded before it was kept.
+	TilesRank uint32
 }
 
 func (s FightSnapshot) Restore() (Fight, error) {
@@ -111,5 +125,11 @@ func (f Fights) FoughtIn(season Season) bool {
 func (f Fights) PlacedIn(season Season, rank uint32) bool {
 	return slices.ContainsFunc(f, func(fight Fight) bool {
 		return fight.snapshot.Season == season && fight.snapshot.Rank == rank
+	})
+}
+
+func (f Fights) RankedByTilesIn(season Season, rank uint32) bool {
+	return slices.ContainsFunc(f, func(fight Fight) bool {
+		return fight.snapshot.Season == season && fight.snapshot.TilesRank == rank
 	})
 }

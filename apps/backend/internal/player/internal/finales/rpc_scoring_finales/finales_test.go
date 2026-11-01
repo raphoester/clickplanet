@@ -73,7 +73,7 @@ func TestThePlayersOfTheRoundAreItsFighters(t *testing.T) {
 	fighters, err := finalesOf(t, scoring).Fighters(t.Context(), "season-0/finale")
 
 	require.NoError(t, err)
-	assert.Equal(t, []finales.Fighter{{Account: ada, Country: "fr"}}, fighters)
+	assert.Equal(t, []finales.Fighter{{Account: ada, Country: "fr", Tiles: 3}}, fighters)
 }
 
 func TestAPlayerWithNoAccountIDIsAnError(t *testing.T) {

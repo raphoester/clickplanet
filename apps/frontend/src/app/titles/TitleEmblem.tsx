@@ -94,6 +94,21 @@ function Letters({text, color}: {text: string, color: string}) {
                  style={{fill: color, stroke: INK, paintOrder: "stroke", fontFamily: "var(--font-display)"}}>{text}</text>
 }
 
+const LAUREL = "M45 71 C35 67 29 58 31 35"
+const LAUREL_LEAVES = [[36, 66, -60], [30, 58, -35], [28, 48, -10], [29, 38, 15]]
+
+function Laurel({place, accent, cream}: {place: string, accent: string, cream: string}) {
+    return <>
+        {["", "translate(100 0) scale(-1 1)"].map((mirror) => <g key={mirror} transform={mirror || undefined}>
+            <Line d={LAUREL} color={cream} width={2.5}/>
+            {LAUREL_LEAVES.map(([x, y, turn]) => <ellipse key={y} cx={x} cy={y} rx="3.4" ry="6.2"
+                                                         transform={`rotate(${turn} ${x} ${y})`}
+                                                         style={{fill: cream, stroke: INK}} strokeWidth="2"/>)}
+        </g>)}
+        <Letters text={place} color={accent}/>
+    </>
+}
+
 function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
     switch (title.id) {
         case "og":
@@ -104,6 +119,12 @@ function icon(title: PlayerTitle, accent: string, cream: string): ReactNode {
             return <Letters text="2" color={accent}/>
         case "season_0_bronze":
             return <Letters text="3" color={accent}/>
+        case "season_0_top_1":
+            return <Laurel place="1" accent={accent} cream={cream}/>
+        case "season_0_top_2":
+            return <Laurel place="2" accent={accent} cream={cream}/>
+        case "season_0_top_3":
+            return <Laurel place="3" accent={accent} cream={cream}/>
         case "season_0_veteran":
             return <Shape d={STAR} color={accent} width={1.6} transform="translate(50 50) scale(2) translate(-50 -43)"/>
         case "halloween_2026":

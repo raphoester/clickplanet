@@ -125,6 +125,34 @@ func TestEachSeasonZeroTitleGoesToWhoFoughtItsFinaleForAFlagThatPlacedSo(t *test
 	}
 }
 
+func TestEachSeasonZeroTopTitleGoesToWhoTookThatManyTilesInItsFinale(t *testing.T) {
+	ranked := func(season finales.Season, tilesRank uint32) titles.Career {
+		fight, err := finales.FightSnapshot{Season: season, Country: "fr", Rank: 7, TilesRank: tilesRank}.Restore()
+		require.NoError(t, err)
+		return titles.CareerOf(players.Stats{}, member, finales.Fights{fight})
+	}
+
+	for _, c := range []struct {
+		career titles.Career
+		earned titles.IDs
+	}{
+		{ranked(0, 1), titles.IDs{"season_0_top_1"}},
+		{ranked(0, 2), titles.IDs{"season_0_top_2"}},
+		{ranked(0, 3), titles.IDs{"season_0_top_3"}},
+		{ranked(0, 4), nil},
+		{ranked(0, 0), nil},
+		{ranked(1, 1), nil},
+	} {
+		var earned titles.IDs
+		for _, title := range []titles.Title{titles.Season0Top1{}, titles.Season0Top2{}, titles.Season0Top3{}} {
+			if title.EarnedBy(c.career) {
+				earned = append(earned, title.ID())
+			}
+		}
+		assert.Equal(t, c.earned, earned, "%+v", c.career)
+	}
+}
+
 func TestHalloween2026GoesToWhoTookATileOnOctober31UTC(t *testing.T) {
 	played := func(days uint32, lastDay time.Time) titles.Career {
 		return careerOf(players.StatsSnapshot{TilesTaken: 1, Streak: players.StreakOf(days, players.DayOf(lastDay))})
@@ -197,6 +225,9 @@ func TestEachTitleSaysHowItWasEarned(t *testing.T) {
 		"season_0_gold":    "Fought the Final Battle for the flag in 1st place",
 		"season_0_silver":  "Fought the Final Battle for the flag in 2nd place",
 		"season_0_bronze":  "Fought the Final Battle for the flag in 3rd place",
+		"season_0_top_1":   "Took the most tiles in the Final Battle",
+		"season_0_top_2":   "Took the 2nd most tiles in the Final Battle",
+		"season_0_top_3":   "Took the 3rd most tiles in the Final Battle",
 		"season_0_veteran": "Fought the Final Battle",
 		"halloween_2026":   "Played on Halloween 2026",
 		"warmaster":        "Took 1,000,000 tiles",

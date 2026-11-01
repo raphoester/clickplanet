@@ -15,7 +15,17 @@ type Catalog struct {
 
 func NewCatalog() Catalog {
 	return CatalogOf(
-		[]Standalone{OG{}, Season0Gold{}, Season0Silver{}, Season0Bronze{}, Season0Veteran{}, Halloween2026{}},
+		[]Standalone{
+			OG{},
+			Season0Gold{},
+			Season0Silver{},
+			Season0Bronze{},
+			Season0Top1{},
+			Season0Top2{},
+			Season0Top3{},
+			Season0Veteran{},
+			Halloween2026{},
+		},
 		Conquest{}, Devotion{}, Chatter{}, Defense{}, Bombs{}, Loot{}, Quiz{}, Missions{},
 	)
 }
@@ -213,6 +223,36 @@ func (Season0Bronze) Name() string { return "Season 0 Bronze" }
 func (Season0Bronze) Feat() string { return "Fought the Final Battle for the flag in 3rd place" }
 
 func (Season0Bronze) EarnedBy(career Career) bool { return career.fights.PlacedIn(seasonZero, 3) }
+
+type Season0Top1 struct{}
+
+func (Season0Top1) ID() ID { return "season_0_top_1" }
+
+func (Season0Top1) Name() string { return "Season 0 Top 1" }
+
+func (Season0Top1) Feat() string { return "Took the most tiles in the Final Battle" }
+
+func (Season0Top1) EarnedBy(career Career) bool { return career.fights.RankedByTilesIn(seasonZero, 1) }
+
+type Season0Top2 struct{}
+
+func (Season0Top2) ID() ID { return "season_0_top_2" }
+
+func (Season0Top2) Name() string { return "Season 0 Top 2" }
+
+func (Season0Top2) Feat() string { return "Took the 2nd most tiles in the Final Battle" }
+
+func (Season0Top2) EarnedBy(career Career) bool { return career.fights.RankedByTilesIn(seasonZero, 2) }
+
+type Season0Top3 struct{}
+
+func (Season0Top3) ID() ID { return "season_0_top_3" }
+
+func (Season0Top3) Name() string { return "Season 0 Top 3" }
+
+func (Season0Top3) Feat() string { return "Took the 3rd most tiles in the Final Battle" }
+
+func (Season0Top3) EarnedBy(career Career) bool { return career.fights.RankedByTilesIn(seasonZero, 3) }
 
 type Season0Veteran struct{}
 
