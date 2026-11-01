@@ -8,8 +8,9 @@ is the player's own view.
   number, how many ranks). Conquest counts tiles taken, Devotion the streak,
   Chatter messages, Defense fortified tiles, Bombs bombs dropped, Loot boxes
   caught, Quiz right answers and Missions the missions done; OG stands alone, and so do the season titles
-  (Season 0 Gold, Silver and Bronze, drawn as their place number in their metal, Season 0 Top 1, 2 and 3, the
-  same in a laurel, and Season 0 Veteran, a star in platinum), and Halloween 2026, a lit jack-o'-lantern in a look of its own: the ribbed pumpkin metal, a
+  (Season 0 Gold, Silver and Bronze, a trophy with the place number in their metal, Gold crowned, Season 0 Top 1, 2
+  and 3, the place number over crossed swords in the same metals, and Season 0 Veteran, a star over crossed swords in
+  platinum), and Halloween 2026, a lit jack-o'-lantern in a look of its own: the ribbed pumpkin metal, a
   night-green center and a green ribbon (`STANDALONE_LOOKS` in `titleArt.ts`). A track this build does
   not know is drawn in Conquest's colors, and its steps as bare numbers. **Only the highest rank of each track is ever shown or worn**, so
   the client never filters: it draws what the server sends, in its order.
@@ -17,7 +18,10 @@ is the player's own view.
   medal rules of [`DESIGN.md`](../DESIGN.md), in the metal `titleArt.ts` gives it
   (`TITLE_METALS`, bronze up to prism) and the colors of its track (`enamelOf`,
   `ribbonOf`). An id this build has no picture for gets the first letter of its
-  name in silver, so a new title shows before its art ships. `locked` greys it
+  name in silver, so a new title shows before its art ships. A season's title (`SEASONS` in `titleArt.ts`, the
+  season's number) has a frame of its own, so it stands out from every track: a smaller disc in a laurel wreath of
+  its metal, a crimson center and ribbon (`--season`), and a scroll across the bottom that reads "S0". The zero is
+  drawn narrower than the S, so Luckiest Guy's round 0 does not read as "SO". `locked` greys it
   with a padlock, for a rank not held. Each medal names its masks with `useId`:
   two on one page cannot share one. Its colors are tokens set through `style`,
   since an SVG presentation attribute does not resolve `var()`.
