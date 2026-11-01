@@ -173,7 +173,8 @@ Everything else is one command from your laptop:
 It copies itself to the box over SSH and re-runs there as root, then: installs
 Docker and turns off its userland proxy (see below), creates the `deploy` user, generates and installs a CI keypair
 (`~/.ssh/clickplanet_ci`, private half never leaves your laptop), restricts ufw
-to SSH plus Cloudflare's ranges on 80/443, clones the repo to
+to SSH plus Cloudflare's ranges on 80/443 (and Docker's forwarded 80/443, see
+below), clones the repo to
 `/opt/clickplanet`, renders the three env files, builds
 Caddy with the Cloudflare DNS plugin, and starts the stack. It finishes by
 printing the `gh secret set` commands for step 5.
@@ -222,6 +223,26 @@ ssh root@YOUR_IP 'docker info | grep EnableUserlandProxy; ss -tn src 172.18.0.1 
 ```
 
 `false` and an empty socket list means every request keeps its real address.
+
+### Caddy's ports are filtered in DOCKER-USER, not only in ufw
+
+Docker forwards a published port to its container before ufw's input rules see
+the packet. So ufw's Cloudflare rules alone do not cover Caddy's 80/443: on
+2026-11-01 both answered from any address. `bootstrap.sh` puts the same
+Cloudflare ranges in a `clickplanet-origin` chain, jumped to from `DOCKER-USER`
+for 80/443 on the public interface, in a marked block at the end of
+`/etc/ufw/after.rules`. ufw loads that file at boot, before Docker starts, and
+Docker keeps what is in `DOCKER-USER`. A re-run writes the block again with
+fresh ranges, and `--open-origin` empties it.
+
+From your laptop, or any address that is not Cloudflare's:
+
+```bash
+nc -z -w 5 YOUR_IP 443 && echo open || echo filtered
+```
+
+`filtered` is correct. On the box, `iptables -nvL clickplanet-origin` counts the
+dropped packets.
 
 ## 4. Frontend on Cloudflare Pages
 
