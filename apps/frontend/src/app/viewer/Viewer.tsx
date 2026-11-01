@@ -214,7 +214,7 @@ export default function Viewer(props: ViewerProps) {
     const mood = moodOf(schedule.turn, clickBudget)
     const halloween = schedule.turn?.kind === "halloween"
     useMood(mood)
-    const battleReveal = useBattleReveal(battle)
+    const battleReveal = useBattleReveal(battle, closed)
     const battleOver = useBattleOver(battle, schedule.debrief)
     const seenBattle = useSeenBattle(battle)
     const reveal = useRoundReveal(closed, seenBattle)

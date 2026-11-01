@@ -68,12 +68,12 @@ export class FakeTurnBackend implements TurnBackend {
     }
 
     // Scoring scored today's round: the gamemaster tells of it, and the next day runs.
-    public endDay(): Debrief | undefined {
+    public endDay(endedAt = this.now()): Debrief | undefined {
         const {current, today} = this.seasons
         if (!current || !today) return undefined
-        const debrief: Debrief = {kind: "day", season: current.number, number: today.number, roundId: today.roundId, endedAt: this.now()}
+        const debrief: Debrief = {kind: "day", season: current.number, number: today.number, roundId: today.roundId, endedAt}
         const next = today.number + 1
-        this.seasons = {...this.seasons, today: {...today, number: next, startsAt: this.now(), roundId: dayRoundOf(current, next)}}
+        this.seasons = {...this.seasons, today: {...today, number: next, startsAt: endedAt, roundId: dayRoundOf(current, next)}}
         for (const listener of this.listeners) listener.onSeasons(this.seasons)
         this.debrief(debrief)
         return debrief

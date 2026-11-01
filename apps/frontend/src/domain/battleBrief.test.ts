@@ -3,7 +3,7 @@ import {NameColor} from "../backends/player.ts"
 import {ClosedRound, Standing} from "../backends/standings.ts"
 import {Debrief} from "../backends/turn.ts"
 import {Battle} from "./battle.ts"
-import {briefAwaited, briefDescriptionOf, debriefedFor, debriefScreensOf, pointsRowsOf} from "./battleBrief.ts"
+import {briefAwaited, briefDescriptionOf, dayBriefAwaited, debriefedFor, debriefScreensOf, pointsRowsOf} from "./battleBrief.ts"
 
 const STARTED_AT = Date.UTC(2026, 9, 31, 21)
 const ENDED_AT = Date.UTC(2026, 9, 31, 23)
@@ -100,5 +100,20 @@ describe("briefAwaited", () => {
         expect(briefAwaited(battle, ended("entry-final"))).toBe(false)
         expect(briefAwaited(battle, seasonEnded("entry-final"))).toBe(false)
         expect(briefAwaited({...battle, roundId: ""}, undefined)).toBe(false)
+    })
+})
+
+describe("dayBriefAwaited", () => {
+    const day = (endedAt: number): ClosedRound =>
+        ({...BATTLE_ROUND, moment: "day", number: 24, roundId: "season-0/day-24", endedAt, finale: false, times: 1, entryId: ""})
+
+    it("waits while the day the battle ended is not debriefed and read", () => {
+        expect(dayBriefAwaited(battle, undefined)).toBe(true)
+        expect(dayBriefAwaited(battle, day(STARTED_AT - 24 * 60 * 60 * 1000))).toBe(true)
+    })
+
+    it("waits for nothing once that day is read, or for a battle with no round", () => {
+        expect(dayBriefAwaited(battle, day(STARTED_AT))).toBe(false)
+        expect(dayBriefAwaited({...battle, roundId: ""}, undefined)).toBe(false)
     })
 })
