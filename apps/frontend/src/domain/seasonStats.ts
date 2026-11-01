@@ -5,20 +5,26 @@ export const STATS_SHOWN = 10
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export type Slide = "race" | "flags" | "players" | "battleFlags" | "battlePlayers" | "numbers"
+export type Slide = "table" | "race" | "players" | "battleFlags" | "battlePlayers" | "numbers"
 
 // The Final Battle's two slides only for a season that had one.
 export function slidesOf(season: Season): Slide[] {
     return season.finaleRoundId
-        ? ["race", "flags", "players", "battleFlags", "battlePlayers", "numbers"]
-        : ["race", "flags", "players", "numbers"]
+        ? ["table", "race", "players", "battleFlags", "battlePlayers", "numbers"]
+        : ["table", "race", "players", "numbers"]
+}
+
+// Every country first in a book's table: level on everything, they won together.
+export function firstsOf(table: Score[]): string[] {
+    return table.filter((score) => score.rank === 1).map((score) => score.countryCode)
 }
 
 // width is the row's value against the first one's, for its bar.
 export type Barred<T> = T & {width: number}
 
+// Every country of the table, not ten: the season's ranking is the slide's.
 export function seasonFlagRowsOf(table: Score[]): Barred<Score>[] {
-    return barred(table.slice(0, STATS_SHOWN), (score) => score.points)
+    return barred(table, (score) => score.points)
 }
 
 export function playerRowsOf(players: Standing[]): Barred<Standing>[] {

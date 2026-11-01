@@ -33,14 +33,14 @@
     flex: none;
     flex-direction: column;
     gap: var(--space-3);
-    width: 300px;
+    width: 240px;
     max-width: 85%;
     padding: var(--space-3);
     box-sizing: border-box;
     scroll-snap-align: center;
 }
 
-/* The teaser holds an empty one, so every podium stands on the same line. */
+/* The teaser holds an empty one, so every plaque is as tall. */
 .hall-of-fame-view {
     display: flex;
     flex-shrink: 0;
@@ -79,97 +79,29 @@
 }
 
 .hall-of-fame-nobody {
-    margin: auto 0;
-    padding-bottom: var(--space-3);
     font-family: var(--font-text);
     font-size: var(--text-m);
     color: var(--text-muted);
 }
 
-.hall-of-fame-podium {
+.hall-of-fame-winner {
     display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    gap: var(--space-1);
-    margin: auto 0 0;
-    padding: 0;
-    border-bottom: var(--outline-thin) solid var(--ink);
-    list-style: none;
-}
-
-.hall-of-fame-step {
-    --step: 36px;
-    --step-color: var(--bronze);
-    --step-shade: var(--bronze-shade);
-    display: flex;
-    flex: 1 1 0;
-    flex-direction: column;
+    flex-grow: 1;
     align-items: center;
-    min-width: 0;
-}
-
-.hall-of-fame-step-1 {
-    --step: 76px;
-    --step-color: var(--gold);
-    --step-shade: var(--gold-shade);
-}
-
-.hall-of-fame-step-2 {
-    --step: 54px;
-    --step-color: var(--silver);
-    --step-shade: var(--silver-shade);
-}
-
-.hall-of-fame-flag {
-    font-size: 32px;
-    line-height: 1;
-}
-
-.hall-of-fame-step-1 .hall-of-fame-flag {
-    font-size: 44px;
-}
-
-.hall-of-fame-flag .country-flag {
-    margin: 0;
-    filter: drop-shadow(0 2px 0 var(--ink));
-}
-
-.hall-of-fame-country {
-    max-width: 100%;
-    margin: var(--space-1) 0 var(--space-2);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-family: var(--font-display);
-    font-size: var(--display-s);
-    color: var(--text);
-    text-shadow: var(--text-drop);
-}
-
-.hall-of-fame-block {
-    display: flex;
-    align-items: flex-start;
     justify-content: center;
-    width: 100%;
-    height: var(--step);
-    padding-top: var(--space-2);
-    box-sizing: border-box;
-    border: var(--outline-thin) solid var(--ink);
-    border-bottom: none;
-    border-radius: var(--radius-m) var(--radius-m) 0 0;
-    background: var(--step-color);
-    box-shadow: inset -4px 0 0 var(--step-shade);
-    font-family: var(--font-display);
-    font-size: var(--display-l);
+    gap: var(--space-3);
+    min-height: calc(2 * var(--display-xxl));
+    font-size: calc(2 * var(--display-xxl));
     line-height: 1;
-    color: var(--cream);
-    text-shadow: var(--text-outline);
+}
+
+.hall-of-fame-winner .country-flag {
+    margin: 0;
+    filter: drop-shadow(0 3px 0 var(--ink));
 }
 
 .hall-of-fame-unknown {
-    margin-bottom: var(--space-1);
     font-family: var(--font-display);
-    font-size: calc(2 * var(--display-xxl));
     line-height: 1;
     color: var(--gold);
     text-shadow: var(--text-outline-l);

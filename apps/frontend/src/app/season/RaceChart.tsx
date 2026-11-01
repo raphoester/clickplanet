@@ -6,7 +6,7 @@ import CountryFlag from "../components/CountryFlag.tsx"
 import {PlayIcon} from "../components/icons.tsx"
 import "./RaceChart.css"
 
-const DURATION_MS = 5000
+const DURATION_MS = 1000
 const WIDTH = 600
 const HEIGHT = 280
 const PAD = {left: 8, right: 40, top: 14, bottom: 8}

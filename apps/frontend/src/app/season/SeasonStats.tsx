@@ -22,6 +22,8 @@ import {BackIcon} from "../components/icons.tsx"
 import TitleBadge from "../titles/TitleBadge.tsx"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
 import RaceChart from "./RaceChart.tsx"
+import Podium from "./Podium.tsx"
+import {tablePodiumOf} from "../../domain/roundReveal.ts"
 import "./SeasonStats.css"
 
 export type SeasonStatsProps = {
@@ -114,11 +116,14 @@ function SlideOf({slide, season, table, board, finale, totals, history, active}:
             return <Frame kicker="Season" head="The race">
                 {history && <RaceChart steps={history} active={active}/>}
             </Frame>
-        case "flags":
-            return <Frame kicker="Season" head="Top flags" unit="Points">
-                {table && <FlagRows rows={seasonFlagRowsOf(table)}
-                                    value={(row) => row.points}
-                                    aside={(row) => row.roundsWon > 0 ? `${row.roundsWon} ${row.roundsWon === 1 ? "day" : "days"} won` : ""}/>}
+        case "table":
+            return <Frame kicker="Season" head="Final table" unit="Points">
+                {table && table.length > 0 && <Podium places={tablePodiumOf(table)}/>}
+                {table && <div className="season-stats-ranking">
+                    <FlagRows rows={seasonFlagRowsOf(table)}
+                              value={(row) => row.points}
+                              aside={(row) => row.roundsWon > 0 ? `${row.roundsWon} ${row.roundsWon === 1 ? "day" : "days"} won` : ""}/>
+                </div>}
             </Frame>
         case "players":
             return <Frame kicker="Season" head="Top players" unit="Tiles">
