@@ -136,6 +136,40 @@ describe("openStream", () => {
         expect(source.opened).toHaveLength(2)
     })
 
+    it("aborts a stream that failed, so its fetch does not stay open", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+
+        const source = fakeSource<string>()
+        openStream(source.open, () => {}, "test")
+        await settle()
+
+        source.latest().fail(new Error("protocol error"))
+        await settle()
+
+        expect(source.opened[0].signal.aborted).toBe(true)
+    })
+
+    it("drops a message it cannot handle and keeps the stream", async () => {
+        const errors = vi.spyOn(console, "error").mockImplementation(() => {})
+
+        const source = fakeSource<string>()
+        const received: string[] = []
+        openStream(source.open, m => {
+            if (m === "unknown kind") throw new Error("the turn has a kind this build does not know: 3")
+            received.push(m)
+        }, "test")
+        await settle()
+
+        source.latest().push("unknown kind")
+        source.latest().push("heartbeat")
+        await vi.advanceTimersByTimeAsync(30_000)
+
+        expect(received).toEqual(["heartbeat"])
+        expect(source.opened).toHaveLength(1)
+        expect(source.latest().signal.aborted).toBe(false)
+        expect(errors).toHaveBeenCalledOnce()
+    })
+
     it("backs off exponentially while the backend stays down", async () => {
         const source = fakeSource<string>()
         openStream(source.open, () => {}, "test")
