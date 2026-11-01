@@ -40,6 +40,12 @@ blast (`blasts`, `blastRadii`, up to `MAX_BLASTS` at once), so a blast costs a
 uniform write per frame and nothing per tile. Each blast slot also owns a flash
 sprite and 140 GPU-animated debris points, allocated once and reused.
 
+**The effects are ready before the first bomb.** Built and first drawn when the first bomb a tab saw landed, they
+froze the page for about 0.8 s, even on a fast laptop (measured 2026-11-01, after players said the Final Battle
+lagged). The globe compiles the whole scene at load (`renderer.compileAsync`), then `Blasts.prime` draws every
+flash, debris and ring once at zero opacity, so the graphics driver also finishes its part at load. The first bomb
+now draws like any other.
+
 **The clear waits for the explosion.** `BombDrop.cleared` arrives in one event,
 and the globe holds it for `IMPACT_DELAY` so the ground goes when the bomb hits,
 not when the message lands. Two things keep that honest:

@@ -1087,6 +1087,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     })
 
     const atmosphere = addDisplayObjects(scene, field.displayPoints, graphics, sphere)
+    // A bomb's effects built and first drawn at its drop froze the page for ~0.8 s: both happen at load.
+    void renderer.compileAsync(scene, camera).then(() => blasts.prime())
 
     let captureRequests: CaptureRequest[] = []
 
