@@ -1,3 +1,4 @@
+import {MapHistory} from "../domain/mapHistory.ts"
 import {Seasons, SeasonTotals} from "./season.ts"
 
 export type TurnKind = "battle" | "plain" | "halloween"
@@ -59,4 +60,8 @@ export interface TurnBackend {
 
     // None for a season that has not ended.
     seasonTotals(season: number): Promise<SeasonTotals | undefined>
+
+    // The map during a season that ended, or during its finale; none for a season that has not ended or a finale it did
+    // not have.
+    seasonReplay(season: number, finale: boolean): Promise<MapHistory | undefined>
 }

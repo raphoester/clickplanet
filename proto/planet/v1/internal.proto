@@ -2,7 +2,9 @@ syntax = "proto3";
 
 package planet.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "planet/v1/history.proto";
 import "planet/v1/ledger.proto";
 import "planet/v1/planet.proto";
 import "planet/v1/totals.proto";
@@ -23,6 +25,13 @@ service InternalService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
+  // The map every step from since to until, replayed from the ledger's first event, for the gamemaster's season replay.
+  // A read of the whole ledger: the caller keeps the answer. InvalidArgument unless since is before until, and the step
+  // makes 5,000 frames at most.
+  rpc GetMapHistory(GetMapHistoryRequest) returns (GetMapHistoryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
   rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -38,6 +47,16 @@ service InternalService {
   rpc GetRuleSetNames(GetRuleSetNamesRequest) returns (GetRuleSetNamesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+}
+
+message GetMapHistoryRequest {
+  google.protobuf.Timestamp since = 1;
+  google.protobuf.Timestamp until = 2;
+  google.protobuf.Duration step = 3;
+}
+
+message GetMapHistoryResponse {
+  MapHistory history = 1;
 }
 
 message GetLedgerTotalsRequest {

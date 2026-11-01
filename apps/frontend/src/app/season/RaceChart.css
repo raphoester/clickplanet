@@ -1,0 +1,91 @@
+.race {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.race-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.race-switch {
+    display: flex;
+    padding: 3px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: var(--panel-sunk);
+}
+
+.race-choice {
+    padding: 5px var(--space-3) 3px;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: none;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--text-soft);
+    cursor: pointer;
+}
+
+.race-choice--on {
+    color: var(--text);
+    background: var(--secondary);
+}
+
+.race-day {
+    flex-grow: 1;
+    text-align: right;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--gold);
+}
+
+.race-chart {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    border-radius: var(--radius-m);
+    background: var(--panel-sunk);
+}
+
+.race-grid {
+    stroke: color-mix(in srgb, var(--text) 10%, transparent);
+    stroke-width: 1;
+}
+
+.race-line {
+    fill: none;
+    stroke: hsl(var(--author-hue) var(--author-saturation) var(--author-name-lightness));
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.race-head {
+    display: block;
+    font-size: 16px;
+    line-height: 18px;
+}
+
+.race-head .country-flag {
+    margin: 0;
+    filter: drop-shadow(0 1px 0 var(--ink));
+}
+
+.race-leader {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: var(--space-2);
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--display-l);
+    color: var(--text);
+    text-shadow: var(--text-drop);
+}
+
+.race-leader .country-flag {
+    margin: 0;
+}

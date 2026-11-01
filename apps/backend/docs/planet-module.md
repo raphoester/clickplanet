@@ -58,6 +58,11 @@ internal/planet/internal/
   **`InternalService/GetLedgerTotals(since, until)` reads it there too** (`totals_query`): the events of each kind in
   the window and the accounts that made them, in one scan of `taken_at` (no index on it: seconds over a season). The
   gamemaster asks it once per ended season and keeps the answer (see [The gamemaster](gamemaster.md)).
+  **`InternalService/GetMapHistory(since, until, step)` replays it from its first event** (`history_query`,
+  `ledger.History`): the map at each step, the first frame every tile held at `since`, each next one the tiles whose
+  owner changed, and each tile's changes and shield hits in the window, by `Event.Replay` and `Event.Strikes`, so no kind
+  is asked. The read stops at the first event at or after `until`, since positions follow time, and the map's resets
+  (`map_resets`, which write no event) wipe it at their time. What a reassign, a paint or a revert wrote is not in it.
   **`ClickService/GetTileHolder(tile_id)` reads it there too** (`holder_query`): the last change `Taking.Replay`
   makes of the tile (a take, a tile a spread or an enclose took, a bomb's clear), as `{account_id, country_id,
   taken_at_unix_ms}`. A clear is no holder. **A take with no account still holds the tile**, with no `account_id`:

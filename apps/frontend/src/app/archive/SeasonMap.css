@@ -1,0 +1,166 @@
+.season-map {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--ground);
+}
+
+.season-map-head {
+    position: absolute;
+    z-index: 2;
+    top: var(--space-3);
+    right: var(--space-3);
+    left: var(--space-3);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-3);
+    width: fit-content;
+    margin: 0 auto;
+    padding: var(--space-2) var(--space-3);
+    box-sizing: border-box;
+}
+
+.season-map-title {
+    margin: 0;
+    padding-top: 3px;
+    font-size: var(--display-l);
+    color: var(--gold);
+    text-shadow: var(--text-drop);
+}
+
+.season-map-switch {
+    display: flex;
+    padding: 3px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: var(--panel-sunk);
+}
+
+.season-map-choice {
+    padding: 6px var(--space-3) 4px;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: none;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--text-soft);
+    cursor: pointer;
+}
+
+.season-map-choice--on {
+    color: var(--text);
+    background: var(--secondary);
+}
+
+.season-map-stage {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.season-map-globe {
+    position: absolute;
+    inset: 0;
+}
+
+.season-map-note {
+    font-family: var(--font-display);
+    font-size: var(--display-m);
+    color: var(--text-soft);
+}
+
+.season-map-heat {
+    width: min(100%, 200vh);
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.season-map-leaders {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    left: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 220px;
+    margin: 0;
+    padding: var(--space-3);
+    list-style: none;
+    transform: translateY(-50%);
+}
+
+.season-map-leader {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+}
+
+.season-map-leader .country-flag {
+    margin: 0;
+}
+
+.season-map-rank {
+    width: 1.2em;
+    font-family: var(--font-display);
+    color: var(--gold);
+}
+
+.season-map-leader-name {
+    flex-grow: 1;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--text);
+}
+
+.season-map-leader-tiles {
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-s);
+    color: var(--text-soft);
+}
+
+.season-map-controls {
+    position: absolute;
+    z-index: 2;
+    bottom: var(--space-3);
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: min(720px, calc(100% - 2 * var(--space-3)));
+    padding: var(--space-2) var(--space-3);
+    box-sizing: border-box;
+    transform: translateX(-50%);
+}
+
+.season-map-cursor {
+    flex-grow: 1;
+    accent-color: var(--gold);
+}
+
+.season-map-time {
+    min-width: 128px;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--gold);
+    text-align: right;
+}
+
+@media (max-width: 768px), (max-height: 600px) {
+    .season-map-leaders {
+        top: auto;
+        bottom: 84px;
+        min-width: 0;
+        padding: var(--space-2);
+        transform: none;
+    }
+
+    .season-map-leader:nth-child(n + 4) {
+        display: none;
+    }
+}

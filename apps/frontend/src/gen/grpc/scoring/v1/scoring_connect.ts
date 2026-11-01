@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetBoardRequest, GetBoardResponse, GetMyTallyRequest, GetMyTallyResponse, GetRoundRequest, GetRoundResponse, GetScoresRequest, GetScoresResponse, ListenForEventsRequest, ScoringEvent } from "./scoring_pb.js";
+import { GetBoardRequest, GetBoardResponse, GetBookHistoryRequest, GetBookHistoryResponse, GetMyTallyRequest, GetMyTallyResponse, GetRoundRequest, GetRoundResponse, GetScoresRequest, GetScoresResponse, ListenForEventsRequest, ScoringEvent } from "./scoring_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -58,6 +58,18 @@ export const ScoringService = {
       name: "GetScores",
       I: GetScoresRequest,
       O: GetScoresResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Each scored round of a book, by end: its results, and the book's table after it, grants included.
+     *
+     * @generated from rpc scoring.v1.ScoringService.GetBookHistory
+     */
+    getBookHistory: {
+      name: "GetBookHistory",
+      I: GetBookHistoryRequest,
+      O: GetBookHistoryResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

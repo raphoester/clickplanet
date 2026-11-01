@@ -2,13 +2,14 @@ import {fakeAccountId} from "./fakeAccounts.ts"
 import {STANDINGS_SHOWN} from "../domain/standings.ts"
 import {TileClicker} from "./backend.ts"
 import {NameColor, PlayerTitle} from "./player.ts"
-import {MySeason, RaceListener, Round, RoundStanding, RoundTakes, Score, Standing, StandingsBackend} from "./standings.ts"
+import {BookStep, MySeason, RaceListener, Round, RoundStanding, RoundTakes, Score, Standing, StandingsBackend} from "./standings.ts"
 
 export type FakePlayer = Pick<Standing, "name" | "color" | "wornTitle"> & {tiles: Record<string, number>}
 
 const conquest = (id: string, name: string, number: number): PlayerTitle =>
     ({id, name, rank: {trackId: "conquest", trackName: "Conquest", number, count: 5}})
 
+const FAKE_DAYS = 24
 const WARLORD = conquest("warlord", "Warlord", 3)
 const RAIDER = conquest("raider", "Raider", 2)
 const SETTLER = conquest("settler", "Settler", 1)
@@ -85,6 +86,24 @@ export class FakeStandingsBackend implements StandingsBackend {
 
     public async board(): Promise<Standing[]> {
         return this.top("")
+    }
+
+    // A made-up race of 24 days to the table now: each flag gets its points on a curve of its own, so lines cross.
+    public async bookHistory(): Promise<BookStep[]> {
+        const final = this.table()
+        const bends = new Map(final.map((score, i) => [score.countryCode, 0.5 + ((i * 7) % 11) / 8]))
+        return Array.from({length: FAKE_DAYS}, (_, i) => {
+            const done = (i + 1) / FAKE_DAYS
+            const points = final.map((score) => ({...score, points: Math.round(score.points * done ** (bends.get(score.countryCode) ?? 1))}))
+            const table = points.sort((a, b) => b.points - a.points).map((score, rank) => ({...score, rank: rank + 1}))
+            const held = table.reduce((sum, score) => sum + score.points, 0) || 1
+            return {
+                roundId: `season-0/day-${i + 1}`,
+                endedAt: Date.UTC(2026, 9, 8, 21) + i * 86_400_000,
+                results: table.map((score) => ({rank: score.rank, countryCode: score.countryCode, share: score.points / held, points: 0})),
+                table,
+            }
+        })
     }
 
     public async round(roundId: string): Promise<Round | undefined> {

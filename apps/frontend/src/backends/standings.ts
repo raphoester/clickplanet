@@ -83,6 +83,14 @@ export type ClosedRound = {
     players: Standing[]
 }
 
+// A scored round of a book: every country it ranked, with its share of the map, and the book's table after it.
+export type BookStep = {
+    roundId: string
+    endedAt: number
+    results: RoundStanding[]
+    table: Score[]
+}
+
 export type RaceListener = {
     onScores: (scores: Score[]) => void
     onRound: (round: Round) => void
@@ -105,6 +113,9 @@ export interface StandingsBackend {
 
     // The book's top 10 players, of every flag.
     board(bookId: string): Promise<Standing[]>
+
+    // Each scored round of the book, by end.
+    bookHistory(bookId: string): Promise<BookStep[]>
 
     // None for a round never opened.
     round(roundId: string): Promise<Round | undefined>

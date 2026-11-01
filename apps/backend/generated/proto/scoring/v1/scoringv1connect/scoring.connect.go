@@ -43,6 +43,9 @@ const (
 	// ScoringServiceGetScoresProcedure is the fully-qualified name of the ScoringService's GetScores
 	// RPC.
 	ScoringServiceGetScoresProcedure = "/scoring.v1.ScoringService/GetScores"
+	// ScoringServiceGetBookHistoryProcedure is the fully-qualified name of the ScoringService's
+	// GetBookHistory RPC.
+	ScoringServiceGetBookHistoryProcedure = "/scoring.v1.ScoringService/GetBookHistory"
 	// ScoringServiceListenForEventsProcedure is the fully-qualified name of the ScoringService's
 	// ListenForEvents RPC.
 	ScoringServiceListenForEventsProcedure = "/scoring.v1.ScoringService/ListenForEvents"
@@ -58,6 +61,8 @@ type ScoringServiceClient interface {
 	GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error)
 	// A book's countries, by points.
 	GetScores(context.Context, *connect.Request[v1.GetScoresRequest]) (*connect.Response[v1.GetScoresResponse], error)
+	// Each scored round of a book, by end: its results, and the book's table after it, grants included.
+	GetBookHistory(context.Context, *connect.Request[v1.GetBookHistoryRequest]) (*connect.Response[v1.GetBookHistoryResponse], error)
 	// A book's board and scores, and the rounds asked for, then each change; a heartbeat meanwhile.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.ScoringEvent], error)
 }
@@ -100,6 +105,13 @@ func NewScoringServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getBookHistory: connect.NewClient[v1.GetBookHistoryRequest, v1.GetBookHistoryResponse](
+			httpClient,
+			baseURL+ScoringServiceGetBookHistoryProcedure,
+			connect.WithSchema(scoringServiceMethods.ByName("GetBookHistory")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		listenForEvents: connect.NewClient[v1.ListenForEventsRequest, v1.ScoringEvent](
 			httpClient,
 			baseURL+ScoringServiceListenForEventsProcedure,
@@ -115,6 +127,7 @@ type scoringServiceClient struct {
 	getMyTally      *connect.Client[v1.GetMyTallyRequest, v1.GetMyTallyResponse]
 	getRound        *connect.Client[v1.GetRoundRequest, v1.GetRoundResponse]
 	getScores       *connect.Client[v1.GetScoresRequest, v1.GetScoresResponse]
+	getBookHistory  *connect.Client[v1.GetBookHistoryRequest, v1.GetBookHistoryResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.ScoringEvent]
 }
 
@@ -138,6 +151,11 @@ func (c *scoringServiceClient) GetScores(ctx context.Context, req *connect.Reque
 	return c.getScores.CallUnary(ctx, req)
 }
 
+// GetBookHistory calls scoring.v1.ScoringService.GetBookHistory.
+func (c *scoringServiceClient) GetBookHistory(ctx context.Context, req *connect.Request[v1.GetBookHistoryRequest]) (*connect.Response[v1.GetBookHistoryResponse], error) {
+	return c.getBookHistory.CallUnary(ctx, req)
+}
+
 // ListenForEvents calls scoring.v1.ScoringService.ListenForEvents.
 func (c *scoringServiceClient) ListenForEvents(ctx context.Context, req *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.ScoringEvent], error) {
 	return c.listenForEvents.CallServerStream(ctx, req)
@@ -153,6 +171,8 @@ type ScoringServiceHandler interface {
 	GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error)
 	// A book's countries, by points.
 	GetScores(context.Context, *connect.Request[v1.GetScoresRequest]) (*connect.Response[v1.GetScoresResponse], error)
+	// Each scored round of a book, by end: its results, and the book's table after it, grants included.
+	GetBookHistory(context.Context, *connect.Request[v1.GetBookHistoryRequest]) (*connect.Response[v1.GetBookHistoryResponse], error)
 	// A book's board and scores, and the rounds asked for, then each change; a heartbeat meanwhile.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.ScoringEvent]) error
 }
@@ -191,6 +211,13 @@ func NewScoringServiceHandler(svc ScoringServiceHandler, opts ...connect.Handler
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	scoringServiceGetBookHistoryHandler := connect.NewUnaryHandler(
+		ScoringServiceGetBookHistoryProcedure,
+		svc.GetBookHistory,
+		connect.WithSchema(scoringServiceMethods.ByName("GetBookHistory")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	scoringServiceListenForEventsHandler := connect.NewServerStreamHandler(
 		ScoringServiceListenForEventsProcedure,
 		svc.ListenForEvents,
@@ -207,6 +234,8 @@ func NewScoringServiceHandler(svc ScoringServiceHandler, opts ...connect.Handler
 			scoringServiceGetRoundHandler.ServeHTTP(w, r)
 		case ScoringServiceGetScoresProcedure:
 			scoringServiceGetScoresHandler.ServeHTTP(w, r)
+		case ScoringServiceGetBookHistoryProcedure:
+			scoringServiceGetBookHistoryHandler.ServeHTTP(w, r)
 		case ScoringServiceListenForEventsProcedure:
 			scoringServiceListenForEventsHandler.ServeHTTP(w, r)
 		default:
@@ -232,6 +261,10 @@ func (UnimplementedScoringServiceHandler) GetRound(context.Context, *connect.Req
 
 func (UnimplementedScoringServiceHandler) GetScores(context.Context, *connect.Request[v1.GetScoresRequest]) (*connect.Response[v1.GetScoresResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.ScoringService.GetScores is not implemented"))
+}
+
+func (UnimplementedScoringServiceHandler) GetBookHistory(context.Context, *connect.Request[v1.GetBookHistoryRequest]) (*connect.Response[v1.GetBookHistoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.ScoringService.GetBookHistory is not implemented"))
 }
 
 func (UnimplementedScoringServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.ScoringEvent]) error {

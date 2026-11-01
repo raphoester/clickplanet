@@ -413,6 +413,12 @@ season that has not ended (`season.ErrNotEnded`), so the public can name no othe
 seconds: the query asks once per season and process (`singleflight`, a caller that leaves does not stop it, 2 minutes at
 most) and keeps the answer, since an ended season no longer changes; the cache interceptor lets a browser keep it a day.
 
+**`GetSeasonReplay(season, finale)` is the map during a season that ended, or during its finale**, for the client's
+season map: planet's `MapHistory` through `planet.v1.InternalService/GetMapHistory` (`season_replay_query`), every 30
+minutes over the season, every 10 seconds from the finale's start (`Window.FinaleStartsAt`) to the season's end.
+NotFound for a season that has not ended, or a finale it did not have (`ErrNoFinale`). Planet replays its whole ledger
+for it: asked once per season, part and process, as the totals are, 10 minutes at most.
+
 ## Tests
 
 The rule is pinned by `schedule_test.go` (priorities, ties, the end, since when, two entries of one set, the turn's

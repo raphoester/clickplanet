@@ -85,6 +85,14 @@
     color: var(--text-muted);
 }
 
+/* Every country: it scrolls inside the slide, so the other slides keep their height. */
+.season-stats-ranking {
+    max-height: 300px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: var(--space-1);
+}
+
 .season-stats-none {
     margin: auto;
     font-family: var(--font-text);

@@ -18,9 +18,10 @@ const (
 
 func NewCacheInterceptor() connect.Interceptor {
 	maxAge := map[string]int{
-		scoringv1connect.ScoringServiceGetBoardProcedure:  boardMaxAge,
-		scoringv1connect.ScoringServiceGetRoundProcedure:  roundMaxAge,
-		scoringv1connect.ScoringServiceGetScoresProcedure: scoresMaxAge,
+		scoringv1connect.ScoringServiceGetBoardProcedure:       boardMaxAge,
+		scoringv1connect.ScoringServiceGetRoundProcedure:       roundMaxAge,
+		scoringv1connect.ScoringServiceGetScoresProcedure:      scoresMaxAge,
+		scoringv1connect.ScoringServiceGetBookHistoryProcedure: scoresMaxAge,
 	}
 
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {

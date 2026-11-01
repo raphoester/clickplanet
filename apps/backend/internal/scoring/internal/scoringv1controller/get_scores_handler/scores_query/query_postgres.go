@@ -61,6 +61,65 @@ func (q *PostgresQuery) Around(ctx context.Context, book books.BookID, endedAt t
 	return scoresOf(ledger.book.Table(before, granted)), scoresOf(ledger.book.Table(after, granted)), nil
 }
 
+// History is each scored round of the book, by end: every country it ranked, and the book's table after it, as Around
+// counts it.
+func (q *PostgresQuery) History(ctx context.Context, book books.BookID) ([]*scoringv1.BookStep, error) {
+	ledger, err := q.ledger(ctx, book)
+	if err != nil {
+		return nil, err
+	}
+	results, err := q.results(ctx, book)
+	if err != nil {
+		return nil, err
+	}
+	steps := make([]*scoringv1.BookStep, 0, len(ledger.rounds))
+	for i, round := range ledger.rounds {
+		var granted []books.Grant
+		for _, grant := range ledger.grants {
+			if grant.At.Before(round.Round.EndsAt) {
+				granted = append(granted, grant)
+			}
+		}
+		steps = append(steps, &scoringv1.BookStep{
+			RoundId: string(round.Round.ID), EndedAtUnixMs: round.Round.EndsAt.UnixMilli(),
+			Results: results[round.Round.ID], Table: scoresOf(ledger.book.Table(ledger.rounds[:i+1], granted)),
+		})
+	}
+	return steps, nil
+}
+
+func (q *PostgresQuery) results(ctx context.Context, book books.BookID) (map[books.RoundID][]*scoringv1.RoundStanding, error) {
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
+		SELECT result.round_id, result.country, result.rank, result.share, result.points
+		FROM round_results AS result
+		JOIN rounds AS round USING (round_id)
+		WHERE round.book_id = $1
+		ORDER BY result.round_id, result.rank, result.country
+	`, string(book))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the book's results: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	results := map[books.RoundID][]*scoringv1.RoundStanding{}
+	for rows.Next() {
+		var (
+			round        string
+			standing     = &scoringv1.RoundStanding{}
+			rank, points int64
+		)
+		if err := rows.Scan(&round, &standing.CountryId, &rank, &standing.Share, &points); err != nil {
+			return nil, fmt.Errorf("failed to read a result: %w", err)
+		}
+		standing.Rank, standing.Points = uint32(rank), uint32(points) //nolint:gosec // a few hundred countries, 250 points a round at most.
+		results[books.RoundID(round)] = append(results[books.RoundID(round)], standing)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the book's results: %w", err)
+	}
+	return results, nil
+}
+
 func (q *PostgresQuery) Table(ctx context.Context, book books.BookID) (*scoringv1.GetTableResponse, error) {
 	ledger, err := q.ledger(ctx, book)
 	if err != nil {

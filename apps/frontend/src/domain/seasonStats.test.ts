@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {Season, SeasonTotals} from "../backends/season.ts"
-import {Round, Score} from "../backends/standings.ts"
-import {battleFlagRowsOf, bigNumbersOf, seasonFlagRowsOf, slidesOf} from "./seasonStats.ts"
+import {BookStep, Round, Score} from "../backends/standings.ts"
+import {battleFlagRowsOf, bigNumbersOf, firstsOf, raceOf, seasonFlagRowsOf, slidesOf} from "./seasonStats.ts"
 
 const SEASON: Season = {
     number: 0, startsAt: Date.UTC(2026, 9, 8), endsAt: Date.UTC(2026, 9, 31, 23), bookId: "season-0", finaleRoundId: "season-0/finale",
@@ -21,20 +21,20 @@ const FINALE: Round = {
 
 describe("slidesOf", () => {
     it("shows the Final Battle's flags and players between the season's and the numbers", () => {
-        expect(slidesOf(SEASON)).toEqual(["flags", "players", "battleFlags", "battlePlayers", "numbers"])
+        expect(slidesOf(SEASON)).toEqual(["table", "race", "players", "battleFlags", "battlePlayers", "numbers"])
     })
 
     it("skips the Final Battle for a season that had none", () => {
-        expect(slidesOf({...SEASON, finaleRoundId: undefined})).toEqual(["flags", "players", "numbers"])
+        expect(slidesOf({...SEASON, finaleRoundId: undefined})).toEqual(["table", "race", "players", "numbers"])
     })
 })
 
 describe("seasonFlagRowsOf", () => {
-    it("is the table's first ten, each with its bar against the first", () => {
+    it("is every country of the table, each with its bar against the first", () => {
         const table = Array.from({length: 12}, (_, i) => score(i + 1, `c${i}`, 120 - i * 10))
         const rows = seasonFlagRowsOf(table)
 
-        expect(rows).toHaveLength(10)
+        expect(rows).toHaveLength(12)
         expect(rows[0].width).toBe(1)
         expect(rows[1].width).toBeCloseTo(110 / 120)
     })
@@ -64,5 +64,33 @@ describe("bigNumbersOf", () => {
 
     it("leaves out what was not read", () => {
         expect(bigNumbersOf(SEASON, undefined, undefined, undefined)).toEqual([{label: "Days", value: 24}])
+    })
+})
+
+describe("raceOf", () => {
+    const steps: BookStep[] = [
+        {roundId: "day-1", endedAt: 1, results: [{rank: 1, countryCode: "fr", share: 0.4, points: 25}, {rank: 2, countryCode: "de", share: 0.3, points: 18}],
+            table: [score(1, "fr", 25), score(2, "de", 18)]},
+        {roundId: "day-2", endedAt: 2, results: [{rank: 1, countryCode: "de", share: 0.5, points: 25}, {rank: 2, countryCode: "fr", share: 0.2, points: 18}],
+            table: [score(1, "fr", 43), score(2, "de", 43)]},
+    ]
+
+    it("follows each flag first at the end by its points after every round", () => {
+        expect(raceOf(steps, "points")).toEqual({lines: [{countryCode: "fr", values: [25, 43]}, {countryCode: "de", values: [18, 43]}], most: 43})
+    })
+
+    it("or by its share of the map at each round's end, ordered by the last share", () => {
+        expect(raceOf(steps, "share").lines).toEqual([{countryCode: "de", values: [0.3, 0.5]}, {countryCode: "fr", values: [0.4, 0.2]}])
+    })
+
+    it("keeps the first few flags only", () => {
+        expect(raceOf(steps, "points", 1).lines.map((line) => line.countryCode)).toEqual(["fr"])
+    })
+})
+
+describe("firstsOf", () => {
+    it("is every country first in the table", () => {
+        expect(firstsOf([score(1, "de", 9), score(1, "fr", 9), score(3, "jp", 4)])).toEqual(["de", "fr"])
+        expect(firstsOf([])).toEqual([])
     })
 })

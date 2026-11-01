@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GamemasterEvent, GetSeasonTotalsRequest, GetSeasonTotalsResponse, GetTurnRequest, GetTurnResponse, ListenForEventsRequest } from "./gamemaster_pb.js";
+import { GamemasterEvent, GetSeasonReplayRequest, GetSeasonReplayResponse, GetSeasonTotalsRequest, GetSeasonTotalsResponse, GetTurnRequest, GetTurnResponse, ListenForEventsRequest } from "./gamemaster_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -47,6 +47,19 @@ export const GamemasterService = {
       name: "GetSeasonTotals",
       I: GetSeasonTotalsRequest,
       O: GetSeasonTotalsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The map during a season that ended, or during its finale, from planet's ledger: every 30 minutes over the season,
+     * every 10 seconds over the finale. NotFound for a season that has not ended, or a finale it did not have.
+     *
+     * @generated from rpc gamemaster.v1.GamemasterService.GetSeasonReplay
+     */
+    getSeasonReplay: {
+      name: "GetSeasonReplay",
+      I: GetSeasonReplayRequest,
+      O: GetSeasonReplayResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

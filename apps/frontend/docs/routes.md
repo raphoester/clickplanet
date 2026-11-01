@@ -6,7 +6,7 @@ Two pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
 | Path | File | What |
 |---|---|---|
 | `/` | `index.html` | The home page. Plain HTML, and one small module for the season's countdown and the next battle's. |
-| `/play` | `play.html` | The game. |
+| `/play` | `play.html` | The game. With `?archive=N`, the map of season N instead (see [A season's map](season-map.md)). |
 | `/auth/callback` | `auth/callback.html` | The game again, for the sign-in callback. |
 | `/privacy`, `/terms` | `privacy.html`, `terms.html` | Plain pages, no bundle. |
 | anything else | `index.html` | `not_found_handling` fallback. |

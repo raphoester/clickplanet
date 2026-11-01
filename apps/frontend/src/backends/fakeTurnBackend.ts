@@ -1,7 +1,12 @@
+import {MapHistory} from "../domain/mapHistory.ts"
+import {fakeHistoryOf} from "./fakeHistory.ts"
 import {Day, Season, Seasons, SeasonTotals} from "./season.ts"
 import {BattleEnded, BattleToCome, Debrief, PLAIN_TURN, Turn, TurnBackend, TurnListener} from "./turn.ts"
 
 const MINUTE = 60_000
+// As the gamemaster's steps: half an hour over a season of 24 days, ten seconds over a finale of two hours.
+const SEASON_FRAMES = 1150
+const FINALE_FRAMES = 720
 const DAY_MS = 24 * 60 * MINUTE
 const CUTOFF_UTC_HOUR = 21
 
@@ -25,6 +30,7 @@ export class FakeTurnBackend implements TurnBackend {
     private made = 0
     private battlesEnded = 0
     private readonly listeners = new Set<TurnListener>()
+    private map: () => Promise<ReadonlyMap<number, string>> = async () => new Map()
 
     constructor(current: Season | undefined = SEASON_ZERO, private readonly now: () => number = Date.now, ended: Season[] = []) {
         this.seasons = {current, today: current && dayOf(current, now()), ended}
@@ -43,6 +49,18 @@ export class FakeTurnBackend implements TurnBackend {
 
     public async seasonTotals(season: number): Promise<SeasonTotals | undefined> {
         return this.seasons.ended.some((ended) => ended.number === season) ? FAKE_TOTALS : undefined
+    }
+
+    // The map a made-up replay ends on.
+    public replayOn(map: () => Promise<ReadonlyMap<number, string>>) {
+        this.map = map
+    }
+
+    public async seasonReplay(season: number, finale: boolean): Promise<MapHistory | undefined> {
+        const ended = this.seasons.ended.find((kept) => kept.number === season)
+        if (!ended || (finale && !ended.finaleRoundId)) return undefined
+        const since = finale ? ended.endsAt - 120 * MINUTE : ended.startsAt
+        return fakeHistoryOf(await this.map(), since, ended.endsAt, finale ? FINALE_FRAMES : SEASON_FRAMES)
     }
 
     public today(): Day | undefined {

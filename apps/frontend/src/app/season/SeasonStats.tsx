@@ -1,6 +1,6 @@
 import {CSSProperties, ReactNode, useEffect, useRef, useState} from "react"
 import {Season, SeasonTotals} from "../../backends/season.ts"
-import {Round, Score, Standing, StandingsBackend} from "../../backends/standings.ts"
+import {BookStep, Round, Score, Standing, StandingsBackend} from "../../backends/standings.ts"
 import {TurnBackend} from "../../backends/turn.ts"
 import {Countries} from "../../domain/countries.ts"
 import {spanLine} from "../../domain/seasonClock.ts"
@@ -21,11 +21,14 @@ import RankCoin from "../components/RankCoin.tsx"
 import {BackIcon} from "../components/icons.tsx"
 import TitleBadge from "../titles/TitleBadge.tsx"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
+import RaceChart from "./RaceChart.tsx"
+import Podium from "./Podium.tsx"
+import {tablePodiumOf} from "../../domain/roundReveal.ts"
 import "./SeasonStats.css"
 
 export type SeasonStatsProps = {
     season: Season
-    standings: Pick<StandingsBackend, "scores" | "board" | "round">
+    standings: Pick<StandingsBackend, "scores" | "board" | "round" | "bookHistory">
     turn: Pick<TurnBackend, "seasonTotals">
     onBack: () => void
 }
@@ -37,6 +40,7 @@ export default function SeasonStats({season, standings, turn, onBack}: SeasonSta
     const board = useAnswer(`board:${season.bookId}`, () => standings.board(season.bookId))
     const finale = useAnswer(`finale:${season.finaleRoundId}`, async () => season.finaleRoundId ? standings.round(season.finaleRoundId) : undefined)
     const totals = useAnswer(`totals:${season.number}`, () => turn.seasonTotals(season.number))
+    const history = useAnswer(`history:${season.bookId}`, () => standings.bookHistory(season.bookId))
     const slides = slidesOf(season)
     const track = useRef<HTMLOListElement>(null)
     const [shown, setShown] = useState(0)
@@ -71,7 +75,8 @@ export default function SeasonStats({season, standings, turn, onBack}: SeasonSta
                                           aria-roledescription="slide"
                                           aria-label={`${i + 1} of ${slides.length}`}
                                           aria-hidden={i !== shown}>
-                <SlideOf slide={slide} season={season} table={table} board={board} finale={finale} totals={totals}/>
+                <SlideOf slide={slide} season={season} table={table} board={board} finale={finale} totals={totals} history={history}
+                         active={i === shown}/>
             </li>)}
         </ol>
 
@@ -101,15 +106,24 @@ type SlideProps = {
     board?: Standing[]
     finale?: Round
     totals?: SeasonTotals
+    history?: BookStep[]
+    active: boolean
 }
 
-function SlideOf({slide, season, table, board, finale, totals}: SlideProps) {
+function SlideOf({slide, season, table, board, finale, totals, history, active}: SlideProps) {
     switch (slide) {
-        case "flags":
-            return <Frame kicker="Season" head="Top flags" unit="Points">
-                {table && <FlagRows rows={seasonFlagRowsOf(table)}
-                                    value={(row) => row.points}
-                                    aside={(row) => row.roundsWon > 0 ? `${row.roundsWon} ${row.roundsWon === 1 ? "day" : "days"} won` : ""}/>}
+        case "race":
+            return <Frame kicker="Season" head="The race">
+                {history && <RaceChart steps={history} active={active}/>}
+            </Frame>
+        case "table":
+            return <Frame kicker="Season" head="Final table" unit="Points">
+                {table && table.length > 0 && <Podium places={tablePodiumOf(table)}/>}
+                {table && <div className="season-stats-ranking">
+                    <FlagRows rows={seasonFlagRowsOf(table)}
+                              value={(row) => row.points}
+                              aside={(row) => row.roundsWon > 0 ? `${row.roundsWon} ${row.roundsWon === 1 ? "day" : "days"} won` : ""}/>
+                </div>}
             </Frame>
         case "players":
             return <Frame kicker="Season" head="Top players" unit="Tiles">

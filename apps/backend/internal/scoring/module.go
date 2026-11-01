@@ -34,6 +34,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler/board_query"
 	board_authors "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler/board_query/rpc_player_authors"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_book_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler/my_tally_query"
 	tally_authors "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler/my_tally_query/rpc_player_authors"
@@ -182,10 +183,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	getRound := get_round_handler.New(roundQuery)
 	service := scoringv1controller.ScoringService{
-		GetBoardHandler:   get_board_handler.New(boardQuery),
-		GetMyTallyHandler: get_my_tally_handler.New(my_tally_query.NewPostgresQuery(db, tally_authors.New(player), countries)),
-		GetRoundHandler:   getRound,
-		GetScoresHandler:  get_scores_handler.New(scoresQuery),
+		GetBoardHandler:       get_board_handler.New(boardQuery),
+		GetMyTallyHandler:     get_my_tally_handler.New(my_tally_query.NewPostgresQuery(db, tally_authors.New(player), countries)),
+		GetRoundHandler:       getRound,
+		GetScoresHandler:      get_scores_handler.New(scoresQuery),
+		GetBookHistoryHandler: get_book_history_handler.New(scoresQuery),
 		ListenForEventsHandler: listen_for_events_handler.New(listen_for_events_handler.Feeds{
 			Boards: boards, Scores: scores, Rounds: rounds,
 		}, countries, props.Server.StreamHeartbeat),

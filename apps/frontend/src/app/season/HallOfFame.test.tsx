@@ -29,11 +29,12 @@ const books = (tables: Record<string, Score[]>) => ({
     scores: async (bookId: string) => tables[bookId] ?? [],
     board: async () => [player(1, "Nova", "de", 9000), player(2, "Kai", "jp", 7000)],
     round: async (roundId: string) => roundId === FINALE.roundId ? FINALE : undefined,
+    bookHistory: async () => [{roundId: "season-0/day-1", endedAt: Date.UTC(2026, 9, 8, 21), results: [], table: [score(1, "de", 25)]}],
 })
 const gamemaster = {seasonTotals: async () => TOTALS}
 
 const plaques = () => [...document.querySelectorAll(".hall-of-fame-plaque")] as HTMLElement[]
-const steps = (plaque: HTMLElement) => [...plaque.querySelectorAll(".hall-of-fame-step")].map((step) => step.textContent)
+const steps = () => [...document.querySelectorAll(".podium-step")].map((step) => step.textContent)
 
 afterEach(cleanup)
 
@@ -46,26 +47,30 @@ describe("HallOfFame", () => {
         expect(within(plaques()[0]).getByText("8 Oct – 31 Oct 2026")).toBeDefined()
         expect(within(plaques()[2]).getByText("?")).toBeDefined()
         expect(within(plaques()[2]).queryByRole("button", {name: "View"})).toBeNull()
+        expect(within(plaques()[0]).getByRole("link", {name: "Map"}).getAttribute("href")).toBe("/play?archive=0")
     })
 
-    it("stands each ended season's top three on a podium, 2nd, 1st and 3rd", async () => {
+    it("shows each ended season's winner by its flag, every country level at the top", async () => {
+        render(<HallOfFame ended={[SEASON_ZERO, SEASON_ONE]}
+                           standings={books({"season-0": [score(1, "de", 365), score(2, "fr", 354)], "season-1": [score(1, "fr", 300), score(1, "jp", 300)]})}
+                           turn={gamemaster}
+                           onClose={vi.fn()}/>)
+
+        expect(await within(plaques()[0]).findByRole("img", {name: "Germany"})).toBeDefined()
+        expect(await within(plaques()[1]).findByRole("img", {name: "France and Japan"})).toBeDefined()
+    })
+
+    it("opens View on the podium, 2nd, 1st and 3rd, then every country of the table", async () => {
         render(<HallOfFame ended={[SEASON_ZERO]}
                            standings={books({"season-0": [score(1, "de", 365), score(2, "fr", 354), score(3, "jp", 300), score(4, "br", 10)]})}
                            turn={gamemaster}
                            onClose={vi.fn()}/>)
 
-        await screen.findByText("Germany")
-        expect(steps(plaques()[0])).toEqual(["France2", "Germany1", "Japan3"])
-    })
+        fireEvent.click(screen.getByRole("button", {name: "View"}))
 
-    it("keeps countries level on a step of the same rank", async () => {
-        render(<HallOfFame ended={[SEASON_ZERO]}
-                           standings={books({"season-0": [score(1, "de", 365), score(1, "fr", 365), score(3, "jp", 300)]})}
-                           turn={gamemaster}
-                           onClose={vi.fn()}/>)
-
-        await screen.findByText("Germany")
-        expect(screen.getAllByLabelText("Rank 1")).toHaveLength(2)
+        await screen.findAllByText("Brazil")
+        expect(steps()).toEqual(["France2", "Germany1", "Japan3"])
+        expect(document.querySelectorAll(".season-stats-ranking .season-stats-row")).toHaveLength(4)
     })
 
     it("says so when nobody scored in an ended season", async () => {
@@ -81,7 +86,7 @@ describe("HallOfFame", () => {
         fireEvent.click(screen.getByRole("button", {name: "View"}))
 
         expect(screen.getByRole("dialog", {name: "Season 0"})).toBeDefined()
-        expect(screen.getAllByRole("button", {name: /^Slide \d of 5$/})).toHaveLength(5)
+        expect(screen.getAllByRole("button", {name: /^Slide \d of 6$/})).toHaveLength(6)
         expect(await screen.findByText("Nova")).toBeDefined()
         expect(await screen.findByText("Ana")).toBeDefined()
         expect(await screen.findByText("4,200 tiles")).toBeDefined()

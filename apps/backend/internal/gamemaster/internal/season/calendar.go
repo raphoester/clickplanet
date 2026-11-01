@@ -119,6 +119,15 @@ func (c Calendar) EndedBy(at time.Time) []Window {
 	return ended
 }
 
+func (c Calendar) Ended(number Number, at time.Time) (Window, error) {
+	for _, window := range c.EndedBy(at) {
+		if window.Number == number {
+			return window, nil
+		}
+	}
+	return Window{}, fmt.Errorf("season %d: %w", number, ErrNotEnded)
+}
+
 func (c Calendar) TakeSnapshot() []Snapshot {
 	snapshots := make([]Snapshot, 0, len(c.seasons))
 	for _, season := range c.seasons {

@@ -724,6 +724,138 @@ export class Score extends Message<Score> {
 }
 
 /**
+ * @generated from message scoring.v1.GetBookHistoryRequest
+ */
+export class GetBookHistoryRequest extends Message<GetBookHistoryRequest> {
+  /**
+   * @generated from field: string book_id = 1;
+   */
+  bookId = "";
+
+  constructor(data?: PartialMessage<GetBookHistoryRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.GetBookHistoryRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBookHistoryRequest {
+    return new GetBookHistoryRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBookHistoryRequest {
+    return new GetBookHistoryRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBookHistoryRequest {
+    return new GetBookHistoryRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBookHistoryRequest | PlainMessage<GetBookHistoryRequest> | undefined, b: GetBookHistoryRequest | PlainMessage<GetBookHistoryRequest> | undefined): boolean {
+    return proto3.util.equals(GetBookHistoryRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message scoring.v1.GetBookHistoryResponse
+ */
+export class GetBookHistoryResponse extends Message<GetBookHistoryResponse> {
+  /**
+   * @generated from field: repeated scoring.v1.BookStep steps = 1;
+   */
+  steps: BookStep[] = [];
+
+  constructor(data?: PartialMessage<GetBookHistoryResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.GetBookHistoryResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "steps", kind: "message", T: BookStep, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBookHistoryResponse {
+    return new GetBookHistoryResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBookHistoryResponse {
+    return new GetBookHistoryResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBookHistoryResponse {
+    return new GetBookHistoryResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBookHistoryResponse | PlainMessage<GetBookHistoryResponse> | undefined, b: GetBookHistoryResponse | PlainMessage<GetBookHistoryResponse> | undefined): boolean {
+    return proto3.util.equals(GetBookHistoryResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message scoring.v1.BookStep
+ */
+export class BookStep extends Message<BookStep> {
+  /**
+   * @generated from field: string round_id = 1;
+   */
+  roundId = "";
+
+  /**
+   * @generated from field: int64 ended_at_unix_ms = 2;
+   */
+  endedAtUnixMs = protoInt64.zero;
+
+  /**
+   * Every country the round ranked, with its share of the map: at the round's end, or its average over the round for
+   * the rounds scored before 2026-10-27.
+   *
+   * @generated from field: repeated scoring.v1.RoundStanding results = 3;
+   */
+  results: RoundStanding[] = [];
+
+  /**
+   * @generated from field: repeated scoring.v1.Score table = 4;
+   */
+  table: Score[] = [];
+
+  constructor(data?: PartialMessage<BookStep>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.BookStep";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "ended_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "results", kind: "message", T: RoundStanding, repeated: true },
+    { no: 4, name: "table", kind: "message", T: Score, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BookStep {
+    return new BookStep().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BookStep {
+    return new BookStep().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BookStep {
+    return new BookStep().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BookStep | PlainMessage<BookStep> | undefined, b: BookStep | PlainMessage<BookStep> | undefined): boolean {
+    return proto3.util.equals(BookStep, a, b);
+  }
+}
+
+/**
  * A closed book's place: the tiebreak too.
  *
  * @generated from message scoring.v1.TablePlace

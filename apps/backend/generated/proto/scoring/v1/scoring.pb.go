@@ -887,6 +887,164 @@ func (x *Score) GetRoundsWon() uint32 {
 	return 0
 }
 
+type GetBookHistoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBookHistoryRequest) Reset() {
+	*x = GetBookHistoryRequest{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBookHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBookHistoryRequest) ProtoMessage() {}
+
+func (x *GetBookHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBookHistoryRequest.ProtoReflect.Descriptor instead.
+func (*GetBookHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetBookHistoryRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+type GetBookHistoryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Steps         []*BookStep            `protobuf:"bytes,1,rep,name=steps,proto3" json:"steps,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBookHistoryResponse) Reset() {
+	*x = GetBookHistoryResponse{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBookHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBookHistoryResponse) ProtoMessage() {}
+
+func (x *GetBookHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBookHistoryResponse.ProtoReflect.Descriptor instead.
+func (*GetBookHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetBookHistoryResponse) GetSteps() []*BookStep {
+	if x != nil {
+		return x.Steps
+	}
+	return nil
+}
+
+type BookStep struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoundId       string                 `protobuf:"bytes,1,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
+	EndedAtUnixMs int64                  `protobuf:"varint,2,opt,name=ended_at_unix_ms,json=endedAtUnixMs,proto3" json:"ended_at_unix_ms,omitempty"`
+	// Every country the round ranked, with its share of the map: at the round's end, or its average over the round for
+	// the rounds scored before 2026-10-27.
+	Results       []*RoundStanding `protobuf:"bytes,3,rep,name=results,proto3" json:"results,omitempty"`
+	Table         []*Score         `protobuf:"bytes,4,rep,name=table,proto3" json:"table,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BookStep) Reset() {
+	*x = BookStep{}
+	mi := &file_scoring_v1_scoring_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BookStep) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BookStep) ProtoMessage() {}
+
+func (x *BookStep) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_scoring_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BookStep.ProtoReflect.Descriptor instead.
+func (*BookStep) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *BookStep) GetRoundId() string {
+	if x != nil {
+		return x.RoundId
+	}
+	return ""
+}
+
+func (x *BookStep) GetEndedAtUnixMs() int64 {
+	if x != nil {
+		return x.EndedAtUnixMs
+	}
+	return 0
+}
+
+func (x *BookStep) GetResults() []*RoundStanding {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+func (x *BookStep) GetTable() []*Score {
+	if x != nil {
+		return x.Table
+	}
+	return nil
+}
+
 // A closed book's place: the tiebreak too.
 type TablePlace struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
@@ -901,7 +1059,7 @@ type TablePlace struct {
 
 func (x *TablePlace) Reset() {
 	*x = TablePlace{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[14]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -913,7 +1071,7 @@ func (x *TablePlace) String() string {
 func (*TablePlace) ProtoMessage() {}
 
 func (x *TablePlace) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[14]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -926,7 +1084,7 @@ func (x *TablePlace) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TablePlace.ProtoReflect.Descriptor instead.
 func (*TablePlace) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{14}
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *TablePlace) GetCountryId() string {
@@ -975,7 +1133,7 @@ type ListenForEventsRequest struct {
 
 func (x *ListenForEventsRequest) Reset() {
 	*x = ListenForEventsRequest{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[15]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -987,7 +1145,7 @@ func (x *ListenForEventsRequest) String() string {
 func (*ListenForEventsRequest) ProtoMessage() {}
 
 func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[15]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1000,7 +1158,7 @@ func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{15}
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListenForEventsRequest) GetBookId() string {
@@ -1039,7 +1197,7 @@ type ScoringEvent struct {
 
 func (x *ScoringEvent) Reset() {
 	*x = ScoringEvent{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[16]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1051,7 +1209,7 @@ func (x *ScoringEvent) String() string {
 func (*ScoringEvent) ProtoMessage() {}
 
 func (x *ScoringEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[16]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1064,7 +1222,7 @@ func (x *ScoringEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScoringEvent.ProtoReflect.Descriptor instead.
 func (*ScoringEvent) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{16}
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ScoringEvent) GetEvent() isScoringEvent_Event {
@@ -1148,7 +1306,7 @@ type Board struct {
 
 func (x *Board) Reset() {
 	*x = Board{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[17]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1160,7 +1318,7 @@ func (x *Board) String() string {
 func (*Board) ProtoMessage() {}
 
 func (x *Board) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[17]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1173,7 +1331,7 @@ func (x *Board) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Board.ProtoReflect.Descriptor instead.
 func (*Board) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{17}
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Board) GetBookId() string {
@@ -1198,7 +1356,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_scoring_v1_scoring_proto_msgTypes[18]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1210,7 +1368,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_scoring_proto_msgTypes[18]
+	mi := &file_scoring_v1_scoring_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1223,7 +1381,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{18}
+	return file_scoring_v1_scoring_proto_rawDescGZIP(), []int{21}
 }
 
 var File_scoring_v1_scoring_proto protoreflect.FileDescriptor
@@ -1303,7 +1461,16 @@ const file_scoring_v1_scoring_proto_rawDesc = "" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12\x16\n" +
 	"\x06points\x18\x03 \x01(\rR\x06points\x12\x1d\n" +
 	"\n" +
-	"rounds_won\x18\x04 \x01(\rR\troundsWon\"\x9f\x01\n" +
+	"rounds_won\x18\x04 \x01(\rR\troundsWon\"0\n" +
+	"\x15GetBookHistoryRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\"D\n" +
+	"\x16GetBookHistoryResponse\x12*\n" +
+	"\x05steps\x18\x01 \x03(\v2\x14.scoring.v1.BookStepR\x05steps\"\xac\x01\n" +
+	"\bBookStep\x12\x19\n" +
+	"\bround_id\x18\x01 \x01(\tR\aroundId\x12'\n" +
+	"\x10ended_at_unix_ms\x18\x02 \x01(\x03R\rendedAtUnixMs\x123\n" +
+	"\aresults\x18\x03 \x03(\v2\x19.scoring.v1.RoundStandingR\aresults\x12'\n" +
+	"\x05table\x18\x04 \x03(\v2\x11.scoring.v1.ScoreR\x05table\"\x9f\x01\n" +
 	"\n" +
 	"TablePlace\x12\x1d\n" +
 	"\n" +
@@ -1327,13 +1494,14 @@ const file_scoring_v1_scoring_proto_rawDesc = "" +
 	"\x05Board\x12\x17\n" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\x122\n" +
 	"\tstandings\x18\x02 \x03(\v2\x14.scoring.v1.StandingR\tstandings\"\v\n" +
-	"\tHeartbeat2\x97\x03\n" +
+	"\tHeartbeat2\xf5\x03\n" +
 	"\x0eScoringService\x12J\n" +
 	"\bGetBoard\x12\x1b.scoring.v1.GetBoardRequest\x1a\x1c.scoring.v1.GetBoardResponse\"\x03\x90\x02\x01\x12K\n" +
 	"\n" +
 	"GetMyTally\x12\x1d.scoring.v1.GetMyTallyRequest\x1a\x1e.scoring.v1.GetMyTallyResponse\x12J\n" +
 	"\bGetRound\x12\x1b.scoring.v1.GetRoundRequest\x1a\x1c.scoring.v1.GetRoundResponse\"\x03\x90\x02\x01\x12M\n" +
-	"\tGetScores\x12\x1c.scoring.v1.GetScoresRequest\x1a\x1d.scoring.v1.GetScoresResponse\"\x03\x90\x02\x01\x12Q\n" +
+	"\tGetScores\x12\x1c.scoring.v1.GetScoresRequest\x1a\x1d.scoring.v1.GetScoresResponse\"\x03\x90\x02\x01\x12\\\n" +
+	"\x0eGetBookHistory\x12!.scoring.v1.GetBookHistoryRequest\x1a\".scoring.v1.GetBookHistoryResponse\"\x03\x90\x02\x01\x12Q\n" +
 	"\x0fListenForEvents\x12\".scoring.v1.ListenForEventsRequest\x1a\x18.scoring.v1.ScoringEvent0\x01B\xbb\x01\n" +
 	"\x0ecom.scoring.v1B\fScoringProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1;scoringv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Scoring.V1\xca\x02\n" +
@@ -1351,7 +1519,7 @@ func file_scoring_v1_scoring_proto_rawDescGZIP() []byte {
 	return file_scoring_v1_scoring_proto_rawDescData
 }
 
-var file_scoring_v1_scoring_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_scoring_v1_scoring_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_scoring_v1_scoring_proto_goTypes = []any{
 	(*GetBoardRequest)(nil),        // 0: scoring.v1.GetBoardRequest
 	(*GetBoardResponse)(nil),       // 1: scoring.v1.GetBoardResponse
@@ -1367,19 +1535,22 @@ var file_scoring_v1_scoring_proto_goTypes = []any{
 	(*GetScoresResponse)(nil),      // 11: scoring.v1.GetScoresResponse
 	(*Scores)(nil),                 // 12: scoring.v1.Scores
 	(*Score)(nil),                  // 13: scoring.v1.Score
-	(*TablePlace)(nil),             // 14: scoring.v1.TablePlace
-	(*ListenForEventsRequest)(nil), // 15: scoring.v1.ListenForEventsRequest
-	(*ScoringEvent)(nil),           // 16: scoring.v1.ScoringEvent
-	(*Board)(nil),                  // 17: scoring.v1.Board
-	(*Heartbeat)(nil),              // 18: scoring.v1.Heartbeat
-	(v1.NameColor)(0),              // 19: player.v1.NameColor
-	(*v1.Title)(nil),               // 20: player.v1.Title
+	(*GetBookHistoryRequest)(nil),  // 14: scoring.v1.GetBookHistoryRequest
+	(*GetBookHistoryResponse)(nil), // 15: scoring.v1.GetBookHistoryResponse
+	(*BookStep)(nil),               // 16: scoring.v1.BookStep
+	(*TablePlace)(nil),             // 17: scoring.v1.TablePlace
+	(*ListenForEventsRequest)(nil), // 18: scoring.v1.ListenForEventsRequest
+	(*ScoringEvent)(nil),           // 19: scoring.v1.ScoringEvent
+	(*Board)(nil),                  // 20: scoring.v1.Board
+	(*Heartbeat)(nil),              // 21: scoring.v1.Heartbeat
+	(v1.NameColor)(0),              // 22: player.v1.NameColor
+	(*v1.Title)(nil),               // 23: player.v1.Title
 }
 var file_scoring_v1_scoring_proto_depIdxs = []int32{
 	2,  // 0: scoring.v1.GetBoardResponse.standings:type_name -> scoring.v1.Standing
-	19, // 1: scoring.v1.Standing.color:type_name -> player.v1.NameColor
-	20, // 2: scoring.v1.Standing.worn_title:type_name -> player.v1.Title
-	20, // 3: scoring.v1.GetMyTallyResponse.worn_title:type_name -> player.v1.Title
+	22, // 1: scoring.v1.Standing.color:type_name -> player.v1.NameColor
+	23, // 2: scoring.v1.Standing.worn_title:type_name -> player.v1.Title
+	23, // 3: scoring.v1.GetMyTallyResponse.worn_title:type_name -> player.v1.Title
 	7,  // 4: scoring.v1.GetRoundResponse.round:type_name -> scoring.v1.Round
 	8,  // 5: scoring.v1.Round.standings:type_name -> scoring.v1.RoundStanding
 	9,  // 6: scoring.v1.Round.takes:type_name -> scoring.v1.RoundTakes
@@ -1388,26 +1559,31 @@ var file_scoring_v1_scoring_proto_depIdxs = []int32{
 	13, // 9: scoring.v1.Round.after:type_name -> scoring.v1.Score
 	12, // 10: scoring.v1.GetScoresResponse.scores:type_name -> scoring.v1.Scores
 	13, // 11: scoring.v1.Scores.scores:type_name -> scoring.v1.Score
-	17, // 12: scoring.v1.ScoringEvent.board:type_name -> scoring.v1.Board
-	18, // 13: scoring.v1.ScoringEvent.heartbeat:type_name -> scoring.v1.Heartbeat
-	12, // 14: scoring.v1.ScoringEvent.scores:type_name -> scoring.v1.Scores
-	7,  // 15: scoring.v1.ScoringEvent.round:type_name -> scoring.v1.Round
-	2,  // 16: scoring.v1.Board.standings:type_name -> scoring.v1.Standing
-	0,  // 17: scoring.v1.ScoringService.GetBoard:input_type -> scoring.v1.GetBoardRequest
-	3,  // 18: scoring.v1.ScoringService.GetMyTally:input_type -> scoring.v1.GetMyTallyRequest
-	5,  // 19: scoring.v1.ScoringService.GetRound:input_type -> scoring.v1.GetRoundRequest
-	10, // 20: scoring.v1.ScoringService.GetScores:input_type -> scoring.v1.GetScoresRequest
-	15, // 21: scoring.v1.ScoringService.ListenForEvents:input_type -> scoring.v1.ListenForEventsRequest
-	1,  // 22: scoring.v1.ScoringService.GetBoard:output_type -> scoring.v1.GetBoardResponse
-	4,  // 23: scoring.v1.ScoringService.GetMyTally:output_type -> scoring.v1.GetMyTallyResponse
-	6,  // 24: scoring.v1.ScoringService.GetRound:output_type -> scoring.v1.GetRoundResponse
-	11, // 25: scoring.v1.ScoringService.GetScores:output_type -> scoring.v1.GetScoresResponse
-	16, // 26: scoring.v1.ScoringService.ListenForEvents:output_type -> scoring.v1.ScoringEvent
-	22, // [22:27] is the sub-list for method output_type
-	17, // [17:22] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	16, // 12: scoring.v1.GetBookHistoryResponse.steps:type_name -> scoring.v1.BookStep
+	8,  // 13: scoring.v1.BookStep.results:type_name -> scoring.v1.RoundStanding
+	13, // 14: scoring.v1.BookStep.table:type_name -> scoring.v1.Score
+	20, // 15: scoring.v1.ScoringEvent.board:type_name -> scoring.v1.Board
+	21, // 16: scoring.v1.ScoringEvent.heartbeat:type_name -> scoring.v1.Heartbeat
+	12, // 17: scoring.v1.ScoringEvent.scores:type_name -> scoring.v1.Scores
+	7,  // 18: scoring.v1.ScoringEvent.round:type_name -> scoring.v1.Round
+	2,  // 19: scoring.v1.Board.standings:type_name -> scoring.v1.Standing
+	0,  // 20: scoring.v1.ScoringService.GetBoard:input_type -> scoring.v1.GetBoardRequest
+	3,  // 21: scoring.v1.ScoringService.GetMyTally:input_type -> scoring.v1.GetMyTallyRequest
+	5,  // 22: scoring.v1.ScoringService.GetRound:input_type -> scoring.v1.GetRoundRequest
+	10, // 23: scoring.v1.ScoringService.GetScores:input_type -> scoring.v1.GetScoresRequest
+	14, // 24: scoring.v1.ScoringService.GetBookHistory:input_type -> scoring.v1.GetBookHistoryRequest
+	18, // 25: scoring.v1.ScoringService.ListenForEvents:input_type -> scoring.v1.ListenForEventsRequest
+	1,  // 26: scoring.v1.ScoringService.GetBoard:output_type -> scoring.v1.GetBoardResponse
+	4,  // 27: scoring.v1.ScoringService.GetMyTally:output_type -> scoring.v1.GetMyTallyResponse
+	6,  // 28: scoring.v1.ScoringService.GetRound:output_type -> scoring.v1.GetRoundResponse
+	11, // 29: scoring.v1.ScoringService.GetScores:output_type -> scoring.v1.GetScoresResponse
+	15, // 30: scoring.v1.ScoringService.GetBookHistory:output_type -> scoring.v1.GetBookHistoryResponse
+	19, // 31: scoring.v1.ScoringService.ListenForEvents:output_type -> scoring.v1.ScoringEvent
+	26, // [26:32] is the sub-list for method output_type
+	20, // [20:26] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_scoring_v1_scoring_proto_init() }
@@ -1415,7 +1591,7 @@ func file_scoring_v1_scoring_proto_init() {
 	if File_scoring_v1_scoring_proto != nil {
 		return
 	}
-	file_scoring_v1_scoring_proto_msgTypes[16].OneofWrappers = []any{
+	file_scoring_v1_scoring_proto_msgTypes[19].OneofWrappers = []any{
 		(*ScoringEvent_Board)(nil),
 		(*ScoringEvent_Heartbeat)(nil),
 		(*ScoringEvent_Scores)(nil),
@@ -1427,7 +1603,7 @@ func file_scoring_v1_scoring_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scoring_v1_scoring_proto_rawDesc), len(file_scoring_v1_scoring_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
