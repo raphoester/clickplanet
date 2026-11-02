@@ -3,7 +3,7 @@ import {ReactNode} from "react"
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import Menu, {BoardSheet} from "./Menu.tsx"
+import Menu, {BoardSheet, YouPlace} from "./Menu.tsx"
 import {Countries} from "../domain/countries.ts"
 import type {LeaderboardEntry} from "../domain/leaderboard.ts"
 import type {CountryOrder} from "../domain/race.ts"
@@ -32,6 +32,7 @@ const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, 
 
 afterEach(() => {
     cleanup()
+    localStorage.clear()
     vi.useRealTimers()
 })
 
@@ -50,6 +51,54 @@ const button = (name: string | RegExp) => screen.getByRole("button", {name})
 const tab = (name: string) => screen.getByRole("tab", {name})
 
 describe("Menu", () => {
+    it("folds the panel away on its hide button, and opens it again on a place", async () => {
+        const {user} = setup([entry("fr", 500)])
+
+        await user.click(button("Hide the panel"))
+
+        expect(board()).toBeNull()
+        expect(screen.getAllByRole("tab").every((t) => t.getAttribute("aria-selected") === "false")).toBe(true)
+        expect(button("Change")).toBeDefined()
+        expect(localStorage.getItem("clickplanet-menu-open")).toBe("false")
+
+        await user.click(tab("Board"))
+
+        expect(board()).not.toBeNull()
+        expect(tab("Board").getAttribute("aria-selected")).toBe("true")
+    })
+
+    it("folds the panel away when its place is pressed again", async () => {
+        const {user} = setup([entry("fr", 500)])
+
+        await user.click(tab("Board"))
+
+        expect(board()).toBeNull()
+    })
+
+    it("opens folded when the player left it folded", () => {
+        localStorage.setItem("clickplanet-menu-open", "false")
+        setup([entry("fr", 500)])
+
+        expect(board()).toBeNull()
+    })
+
+    it("opens the panel on the country picker from the folded flag", async () => {
+        localStorage.setItem("clickplanet-menu-open", "false")
+        const {user} = setup()
+
+        await user.click(button("Change"))
+
+        expect(countryPanel()).not.toBeNull()
+    })
+
+    it("offers the Hall of Fame as an icon in the board's header", () => {
+        render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+                     hallOfFame={{ended: [], standings: {} as never, turn: {} as never}}/>)
+
+        expect(button("Hall of Fame").className).toContain("icon-button")
+        expect(screen.queryByText("Hall of Fame")).toBeNull()
+    })
+
     it("counts the missions not seen yet on their tab", () => {
         render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                      missions={{state: {kind: "loading"}}} missionsNews={3}/>)
@@ -324,13 +373,13 @@ describe("Menu", () => {
             expect(countryPanel()).not.toBeNull()
         })
 
-        it("replaces the places and their tabs", async () => {
+        it("replaces the place, and keeps the rail of places beside it", async () => {
             const {user} = setup([entry("fr", 500)])
 
             await user.click(button("Change"))
 
             expect(board()).toBeNull()
-            expect(screen.queryByRole("tab")).toBeNull()
+            expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "Share", "Settings"])
         })
 
         it("walks back up on the back arrow, and offers no other way out", async () => {
@@ -682,7 +731,7 @@ describe("Menu", () => {
             }],
         })
 
-        const withAccount = (offered: Provider[], me: Me, username = "", linkedMultiplier?: number, playerInfo?: PlayerInfoBackend, clicks?: AcceptedClicks) => {
+        const withAccount = (offered: Provider[], me: Me, username = "", linkedMultiplier?: number, playerInfo?: PlayerInfoBackend, clicks?: AcceptedClicks, phone = false) => {
             const backend = {
                 signInOptions: vi.fn(async () => offered),
                 me: vi.fn(async () => me),
@@ -705,27 +754,43 @@ describe("Menu", () => {
                 wearTitle: vi.fn(async (): Promise<PlayerTitle | undefined> => undefined),
             } satisfies PlayerBackend
             const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
-            const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
-                                      account={store} linkedMultiplier={linkedMultiplier} playerInfo={playerInfo}
-                                      listenForClicks={clicks?.listenForClicks}/>)
+            const view = render(phone
+                ? <YouPlace account={store} playerInfo={playerInfo} listenForClicks={clicks?.listenForClicks}/>
+                : <Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+                        account={store} linkedMultiplier={linkedMultiplier} playerInfo={playerInfo}
+                        listenForClicks={clicks?.listenForClicks}/>)
             const user = userEvent.setup()
             const openSettings = async () => {
-                await user.click(await screen.findByRole("tab", {name: "You"}))
-                await user.click(screen.getByRole("tab", {name: "Account"}))
+                await user.click(await screen.findByRole("button", {name: "You"}))
             }
             return {...view, backend, player, navigate, user, openSettings}
         }
 
-        it("puts the account between the board and Share", async () => {
+        it("puts the account at the foot of the rail, out of the places", async () => {
             withAccount(["google"], {linked: ["google"]}, "ana")
 
-            await screen.findByRole("tab", {name: "You"})
-            expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "You", "Share", "Settings"])
+            const you = await screen.findByRole("button", {name: "You"})
+            expect(you.getAttribute("aria-haspopup")).toBe("dialog")
+            expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "Share", "Settings"])
+        })
+
+        it("opens a signed-in player's progress and account side by side, in one dialog", async () => {
+            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
+            player.titles.mockResolvedValue(dashboard(140))
+
+            await user.click(await screen.findByRole("button", {name: "You"}))
+
+            const profile = screen.getByRole("dialog", {name: "ana"})
+            expect(within(profile).getByRole("region", {name: "Progress"})).toBeDefined()
+            expect(within(profile).getByRole("region", {name: "Account"})).toBeDefined()
+            expect(await within(profile).findByText("860 tiles to Raider")).toBeDefined()
+            expect(within(profile).getByLabelText("Username")).toBeDefined()
+            expect(screen.queryByRole("tablist", {name: "Account"})).toBeNull()
         })
 
         it("offers no sign-in without an account store", () => {
             setup()
-            expect(screen.queryByRole("tab", {name: "Sign in"})).toBeNull()
+            expect(screen.queryByRole("button", {name: "Sign in"})).toBeNull()
         })
 
         it("offers no sign-in while no provider is offered", async () => {
@@ -733,13 +798,13 @@ describe("Menu", () => {
 
             await vi.waitFor(() => expect(backend.me).toHaveBeenCalled())
 
-            expect(screen.queryByRole("tab", {name: "Sign in"})).toBeNull()
+            expect(screen.queryByRole("button", {name: "Sign in"})).toBeNull()
         })
 
         it("offers only the providers the server offers, with the privacy policy", async () => {
             const {user} = withAccount(["google"], {linked: []})
 
-            await user.click(await screen.findByRole("tab", {name: "Sign in"}))
+            await user.click(await screen.findByRole("button", {name: "Sign in"}))
 
             expect(screen.getByRole("button", {name: "Sign in with Google"})).toBeDefined()
             expect(screen.queryByRole("button", {name: "Sign in with Discord"})).toBeNull()
@@ -749,7 +814,7 @@ describe("Menu", () => {
         it("tells a guest how much faster a signed-in player clicks, as the server said", async () => {
             const {user} = withAccount(["google"], {linked: []}, "", 2)
 
-            await user.click(await screen.findByRole("tab", {name: "Sign in"}))
+            await user.click(await screen.findByRole("button", {name: "Sign in"}))
 
             expect(screen.getByText(/Sign in to click 2× faster/)).toBeDefined()
             expect(screen.getByText(/You do not need an account to play/)).toBeDefined()
@@ -758,7 +823,7 @@ describe("Menu", () => {
         it("promises no speed a server did not report", async () => {
             const {user} = withAccount(["google"], {linked: []})
 
-            await user.click(await screen.findByRole("tab", {name: "Sign in"}))
+            await user.click(await screen.findByRole("button", {name: "Sign in"}))
 
             expect(screen.queryByText(/faster/)).toBeNull()
         })
@@ -766,7 +831,7 @@ describe("Menu", () => {
         it("leaves for the provider", async () => {
             const {user, navigate, backend} = withAccount(["google"], {linked: []})
 
-            await user.click(await screen.findByRole("tab", {name: "Sign in"}))
+            await user.click(await screen.findByRole("button", {name: "Sign in"}))
             await user.click(button("Sign in with Google"))
 
             expect(backend.startSignIn).toHaveBeenCalledWith("google", "signIn")
@@ -798,13 +863,12 @@ describe("Menu", () => {
             const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
             player.titles.mockResolvedValue(dashboard(140))
 
-            await user.click(await screen.findByRole("tab", {name: "You"}))
-            expect(screen.getByRole("tab", {name: "Progress"}).getAttribute("aria-selected")).toBe("true")
+            await user.click(await screen.findByRole("button", {name: "You"}))
             expect(await screen.findByText("860 tiles to Raider")).toBeDefined()
 
             player.titles.mockResolvedValue(dashboard(400))
-            await user.click(screen.getByRole("tab", {name: "Board"}))
-            await user.click(screen.getByRole("tab", {name: "You"}))
+            await user.click(button("Close"))
+            await user.click(button("You"))
             expect(await screen.findByText("600 tiles to Raider")).toBeDefined()
             expect(player.titles).toHaveBeenCalledTimes(2)
         })
@@ -819,7 +883,7 @@ describe("Menu", () => {
             const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, playerInfo)
             player.titles.mockResolvedValue(dashboard(140))
 
-            await user.click(await screen.findByRole("tab", {name: "You"}))
+            await user.click(await screen.findByRole("button", {name: "You"}))
 
             expect(await screen.findByText("14,212")).toBeDefined()
             expect(playerInfo.playerInfo).toHaveBeenCalledWith("account-1")
@@ -835,7 +899,7 @@ describe("Menu", () => {
             const clicks = acceptedClicks()
             const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, playerInfo, clicks)
             player.titles.mockResolvedValue(dashboard(140))
-            await user.click(await screen.findByRole("tab", {name: "You"}))
+            await user.click(await screen.findByRole("button", {name: "You"}))
             expect(await screen.findByText("860 tiles to Raider")).toBeDefined()
             expect(await screen.findByText("14,212")).toBeDefined()
 
@@ -857,26 +921,22 @@ describe("Menu", () => {
             expect(playerInfo.playerInfo).toHaveBeenCalledTimes(1)
         })
 
-        it("folds every country a signed-in player fought for and against, and reads them again once its clicks settle", async () => {
+        it("shows every country a signed-in player fought for and against at once, and reads them again once its clicks settle", async () => {
             const clicks = acceptedClicks()
             const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, undefined, clicks)
             player.titles.mockResolvedValue(dashboard(140))
             const against = ["de", "es", "it", "pt", "be"].map((countryCode, i) => ({countryCode, tiles: 50 - i}))
             player.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 500}], playsAgainst: against})
 
-            await user.click(await screen.findByRole("tab", {name: "You"}))
+            await user.click(await screen.findByRole("button", {name: "You"}))
 
             const foughtAgainst = await screen.findByRole("region", {name: "Fought against"})
             const foughtFor = screen.getByRole("region", {name: "Fought for"})
-            expect(within(foughtAgainst).queryByRole("list")).toBeNull()
-            expect(within(foughtFor).queryByRole("list")).toBeNull()
-            expect(screen.getByRole("button", {name: "Titles"}).getAttribute("aria-expanded")).toBe("true")
-
-            await user.click(within(foughtAgainst).getByRole("button", {name: "Fought against, 5 countries"}))
-            await user.click(within(foughtFor).getByRole("button", {name: "Fought for, 1 country"}))
             expect(within(foughtAgainst).getAllByRole("listitem").map((row) => row.textContent))
                 .toEqual(["Germany50", "Spain49", "Italy48", "Portugal47", "Belgium46"])
             expect(within(foughtFor).getAllByRole("listitem")).toHaveLength(1)
+            expect(screen.getByRole("heading", {name: "Titles", level: 3})).toBeDefined()
+            expect(screen.queryByRole("button", {expanded: false})).toBeNull()
 
             vi.useFakeTimers()
             player.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 501}], playsAgainst: against})
@@ -888,12 +948,26 @@ describe("Menu", () => {
             expect(await screen.findByText("501")).toBeDefined()
         })
 
+        it("folds the countries fought for and against in a phone's narrow sheet", async () => {
+            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, undefined, undefined, true)
+            player.titles.mockResolvedValue(dashboard(140))
+            const against = ["de", "es", "it", "pt", "be"].map((countryCode, i) => ({countryCode, tiles: 50 - i}))
+            player.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 500}], playsAgainst: against})
+
+            const foughtAgainst = await screen.findByRole("region", {name: "Fought against"})
+            expect(within(foughtAgainst).queryByRole("list")).toBeNull()
+            expect(screen.getByRole("button", {name: "Titles"}).getAttribute("aria-expanded")).toBe("true")
+
+            await user.click(within(foughtAgainst).getByRole("button", {name: "Fought against, 5 countries"}))
+            expect(within(foughtAgainst).getAllByRole("listitem")).toHaveLength(5)
+        })
+
         it("wears the title pressed, and shows it worn", async () => {
             const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
             player.titles.mockResolvedValueOnce(dashboard(140)).mockResolvedValue({...dashboard(140), worn: og})
             player.wearTitle.mockResolvedValue(og)
 
-            await user.click(await screen.findByRole("tab", {name: "You"}))
+            await user.click(await screen.findByRole("button", {name: "You"}))
             const wear = await screen.findByRole("radiogroup", {name: "Wear a title"})
             expect(within(wear).getByRole("radio", {name: "Settler"}).getAttribute("aria-checked")).toBe("true")
 
@@ -907,7 +981,7 @@ describe("Menu", () => {
         it("shows a guest no tabs, and reads no titles", async () => {
             const {user, player} = withAccount(["google"], {linked: []})
 
-            await user.click(await screen.findByRole("tab", {name: "Sign in"}))
+            await user.click(await screen.findByRole("button", {name: "Sign in"}))
 
             expect(screen.queryByRole("tablist", {name: "Account"})).toBeNull()
             expect(player.titles).not.toHaveBeenCalled()
@@ -968,7 +1042,7 @@ describe("Menu", () => {
         it("offers no username to a guest", async () => {
             const {user} = withAccount(["google"], {linked: []})
 
-            await user.click(await screen.findByRole("tab", {name: "Sign in"}))
+            await user.click(await screen.findByRole("button", {name: "Sign in"}))
 
             expect(screen.queryByLabelText("Username")).toBeNull()
         })
@@ -985,7 +1059,7 @@ describe("Menu", () => {
 
             await user.click(within(dialog).getByRole("button", {name: "Delete"}))
 
-            await vi.waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+            await vi.waitFor(() => expect(screen.queryByRole("dialog", {name: "Delete your account?"})).toBeNull())
             expect(backend.deleteAccount).toHaveBeenCalledTimes(1)
             expect(button("Sign in with Google")).toBeDefined()
         })
@@ -997,7 +1071,8 @@ describe("Menu", () => {
             await user.click(button("Delete account"))
             await user.click(button("Cancel"))
 
-            expect(screen.queryByRole("dialog")).toBeNull()
+            expect(screen.queryByRole("dialog", {name: "Delete your account?"})).toBeNull()
+            expect(button("Delete account")).toBeDefined()
             expect(backend.deleteAccount).not.toHaveBeenCalled()
         })
     })

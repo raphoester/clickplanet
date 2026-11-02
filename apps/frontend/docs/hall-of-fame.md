@@ -1,7 +1,8 @@
 # The Hall of Fame
 
-**A gold "Hall of Fame" button heads the board place** (`HallOfFameButton`, `app/season/HallOfFame.tsx`), above
-the leaderboard's heading on a desktop and under "Playing for" in the phone's Board sheet. It opens a `Modal`, wider
+**The Hall of Fame opens from the board** (`HallOfFameButton`, `app/season/HallOfFame.tsx`): on a desktop a gold
+crown, an icon button in the panel's header beside the board's heading (`icon`); in the phone's Board sheet a gold
+button under "Playing for". The desktop's was that full-width gold button too, and it shouted over the board. It opens a `Modal`, wider
 than the others (720px): it is the one place that shows every season.
 
 - **One plaque per season, in a carousel**: a row that scrolls sideways and snaps on each plaque, oldest first, and

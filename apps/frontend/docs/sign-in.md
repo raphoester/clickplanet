@@ -34,8 +34,9 @@ whoever CrazyGames says is signed in: see [CrazyGames](crazygames.md).
   the action in flight and the last failure, and the username with its own save
   in flight and its own failure. No DOM and no network of its own, like
   `SessionClient`, so every transition is under test.
-- `app/account/` — the rest is React: `AccountPanel` (the menu's You tab, named
-  "Sign in" for a guest; a sheet on a phone), `DeleteAccountModal`,
+- `app/account/` — the rest is React: `AccountPanel` (the phone's You sheet, named
+  "Sign in" for a guest), `ProfileModal` (the same on a desktop: the progress and the account side by side in one
+  dialog, opened from the rail's foot), `DeleteAccountModal`,
   `SignInCallback` and `SignInGate`.
 
 **The buttons come from `GetSignInOptions`**, which answers the providers the
@@ -196,8 +197,10 @@ is treated as done. Delete sits behind a dialog that lists what goes.
 **The fake has no sign-in flow, only a signed-in account.** `VITE_FAKE_BACKEND` wires `AccountStore` over
 `FakeAccountBackend`, which offers no provider until `offerSignIn()` on the console, so the menu offers no
 sign-in there. `signIn("Nova")` on the console links it as a finished sign-in would (`completeSignIn`, with the
-name as the code), and from a guest the fake grants the refill a second later: the You tab, the username, the color and the clips
-switch, and Sign out in the panel undoes it. To try the flow locally, run the backend with `auth.enabled`,
+name as the code), and from a guest the fake grants the refill a second later: your profile, the username, the color and the clips
+switch, and Sign out in the panel undoes it. The signed-in player has a made-up career (`FakePresenceBackend`'s
+`ownDashboard` and `ownFronts`, handed to `FakeAccountBackend`): its stats, titles, tracks and fronts, so the profile
+is not empty. To try the flow locally, run the backend with `auth.enabled`,
 `auth.turnstile.enabled: false`, `auth.signIn.enabled` and any Google
 `clientId`, and the dev server with Turnstile's always-passing test sitekey:
 

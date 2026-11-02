@@ -16,10 +16,10 @@ that does not.
 
 | Zone | Phone | Desktop |
 |---|---|---|
-| **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end (`BattleChip` while a battle plays) | `Menu`'s header and "playing for", `SeasonChip` at the top centre (`BattleChip` while a battle plays) |
+| **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end (`BattleChip` while a battle plays) | `Menu`'s "playing for" (a pill beside the rail while the panel is folded), `SeasonChip` at the top centre (`BattleChip` while a battle plays) |
 | **Moments** | under the status bar (`--status-bottom`) | under the season chip |
 | **Play** | the dock (`ClickBudgetMeter` + `Inventory`) above the tab bar, the chat's peek above it | the dock at the bottom centre |
-| **Places** | `hud/TabBar` (Board, Missions, Chat, Sign in / You, Share, Settings), each a `hud/Sheet` | `Menu`'s tabs (Board, Missions, You, Share, Settings) on the left, the chat on the right |
+| **Places** | `hud/TabBar` (Board, Missions, Chat, Sign in / You, Share, Settings), each a `hud/Sheet` | `Menu`'s rail (logo, Board, Missions, Share or Invite, Settings, and Sign in / You at its foot) on the left with the open place beside it, the chat on the right |
 
 - **One sheet at a time on a phone.** `Viewer` holds which (`sheet`): the five
   tabs, and the season and "Your clicks", which the status bar and the dock open.
@@ -44,9 +44,24 @@ that does not.
 - **A sheet sits above the tab bar** and is as tall as what it holds, up to the
   room under the status bar; the chat's is that tall always, for its log to
   scroll. It covers the dock: a sheet is for reading, the dock for playing.
-- **The desktop menu is as tall as what it holds**, up to the screen (less the
-  dock under 1444px, where the two would meet): a short place makes a short
-  panel, and only the board, or the account, scrolls inside it.
+- **The desktop menu is a rail and a panel that folds.** The rail is the
+  places as a vertical `tablist`; the panel beside it shows the open one,
+  headed by its title (the board's Countries / Players heading on the board,
+  with the Hall of Fame's crown and the order switch), a hide button, and
+  "playing for". The hide button, or the open place pressed again, folds the
+  panel away: the rail stays, with the flag, its rank and Change as a pill
+  beside it, and any place opens the panel again. Folded or open is kept in
+  `localStorage` (`clickplanet-menu-open`) from one visit to the next.
+- **You is not a place on a desktop.** It sits at the rail's foot and opens
+  `account/ProfileModal`: the player's progress (`ProgressTab`) and its account
+  (`AccountSettings`: the username, the color, the linked providers, sign out,
+  delete) side by side, with nothing folded (`ProgressTab`'s `flat`) in one dialog, 860px wide, stacked under 900px. A guest
+  sees the account side alone, which is the sign-in. The phone keeps its You
+  sheet (`YouPlace`, Progress and Account tabs).
+- **The desktop menu is as tall as what it holds**, up to the screen less the
+  dock and its crown, at every width: a short place makes a short panel, and
+  only the board, or the place, scrolls inside it. It once kept clear of the
+  dock only under 1444px, and ran under it on a short window wider than that.
 - **Escape closes the innermost** (`useEscape` keeps a stack): a sub-panel such
   as the country picker steps back, then the sheet closes. A modal dialog
   still takes Escape first.

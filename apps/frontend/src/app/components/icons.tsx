@@ -26,6 +26,13 @@ export function BackIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function HideIcon({size = 20}: IconProps) {
+    return <svg {...base(size)}>
+        <path d="M11.5 6.5 6 12l5.5 5.5"/>
+        <path d="M18 6.5 12.5 12l5.5 5.5"/>
+    </svg>
+}
+
 export function CloseIcon({size = 18}: IconProps) {
     return <svg {...base(size)}>
         <path d="M6 6 18 18"/>

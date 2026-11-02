@@ -75,7 +75,7 @@ export default function AccountPanel(props: AccountPanelProps) {
     </div>
 }
 
-function AccountSettings({state, store, onDelete, linkedMultiplier, clips}: AccountPanelProps) {
+export function AccountSettings({state, store, onDelete, linkedMultiplier, clips}: AccountPanelProps) {
     const busy = state.busy !== undefined
     const linked = state.me.linked
     const toLink = state.offered.filter((p) => !linked.includes(p))

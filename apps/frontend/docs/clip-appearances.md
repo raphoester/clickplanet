@@ -22,7 +22,7 @@ them, so they watch it and share it, and lets them keep their name out.
 - **A link is the video, or the channel until the video's address is known** (`watchLinksOf`):
   `TIKTOK_PROFILE` and `YOUTUBE_CHANNEL` from `links.ts`. One button per platform; a platform this build
   does not know is dropped at the wire (`platformOf` in `clipsBackend.ts`).
-- **The switch is "Show my name in clips"**, `app/clips/ClipsSwitch.tsx`, in the Account tab under the name
+- **The switch is "Show my name in clips"**, `app/clips/ClipsSwitch.tsx`, in the account (the phone's Account tab, the desktop profile's Account side) under the name
   color, for a player with a username only. **It is the clips service's, not the player's**: it reads
   `GetAppearances`' `name_shown` when it mounts, shows nothing until then, and sends `SetNameShown`. It shows
   the choice at once and keeps what the server answers, or the old choice and a line on a failure. It is keyed

@@ -1,8 +1,9 @@
-import {fakeAccountId} from "./fakeAccounts.ts"
+import {FAKE_YOU, fakeAccountId} from "./fakeAccounts.ts"
 import {OWN_GUEST_NAME} from "./fakeChatBackend.ts"
 import {compareRosterEntries} from "../domain/roster.ts"
 import {
     CountryTiles,
+    Fronts,
     NameColor,
     PlayerInfo,
     PlayerInfoBackend,
@@ -11,6 +12,7 @@ import {
     PresenceBackend,
     RosterEntry,
     RosterEvent,
+    TitleDashboard,
 } from "./player.ts"
 
 const SHIFT_MS = 25_000
@@ -60,6 +62,23 @@ function shownTitles(tilesTaken: number, streakBest: number, createdAt: number):
     })
     return shown
 }
+
+// The tracks as the dashboard of a player that reached tilesTaken and streakBest, every rank earned up to there.
+function dashboardOf(tilesTaken: number, streakBest: number, titles: PlayerTitle[]): TitleDashboard {
+    const tracks = TRACKS.map((track, trackIndex) => {
+        const reached = track.measure === "tiles" ? tilesTaken : streakBest
+        return {
+            id: track.id, name: track.name, progress: reached,
+            steps: track.ranks.map((rank, rankIndex) => ({
+                title: rankedTitle(trackIndex, rankIndex), threshold: rank.threshold, earned: reached >= rank.threshold,
+            })),
+        }
+    })
+    return {worn: titles.find((title) => title.rank) ?? titles[0], wearable: titles, tracks}
+}
+
+// The signed-in player of the fake: not in the roster, but with a career, so its profile has something to show.
+const YOU: RosterEntry = {key: "you", accountId: FAKE_YOU, name: "you", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 9}
 
 const PLAYERS: RosterEntry[] = [
     {key: "1", accountId: fakeAccountId("Ana"), name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12},
@@ -148,7 +167,7 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
     }
 
     public async playerInfo(accountId: string): Promise<PlayerInfo | undefined> {
-        const player = PLAYERS.find((p) => p.accountId === accountId)
+        const player = accountId === FAKE_YOU ? YOU : PLAYERS.find((p) => p.accountId === accountId)
         if (!player) return undefined
         if (player.guest) {
             return {
@@ -168,6 +187,16 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
             admin: player.admin,
             color: player.color,
         }
+    }
+
+    public ownDashboard(): TitleDashboard {
+        const career = this.career(YOU)
+        return dashboardOf(career.tilesTaken, career.streakBest, career.titles)
+    }
+
+    public ownFronts(): Fronts {
+        const {playsFor, playsAgainst} = this.career(YOU)
+        return {playsFor, playsAgainst}
     }
 
     private career(player: RosterEntry) {

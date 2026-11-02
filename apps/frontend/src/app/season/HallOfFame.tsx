@@ -5,7 +5,7 @@ import {firstsOf} from "../../domain/seasonStats.ts"
 import {spanLine} from "../../domain/seasonClock.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import Modal from "../components/Modal.tsx"
-import {TrophyIcon} from "../components/icons.tsx"
+import {CrownIcon, TrophyIcon} from "../components/icons.tsx"
 import SeasonStats, {SeasonStatsProps} from "./SeasonStats.tsx"
 import {ARCHIVE_PATH} from "../archive/archiveLink.ts"
 import "./HallOfFame.css"
@@ -18,14 +18,24 @@ export type HallOfFameSeasons = {
     turn: SeasonStatsProps["turn"]
 }
 
-export function HallOfFameButton(props: HallOfFameSeasons) {
+// icon: the square button of a panel's header, beside its title, rather than a gold button over the board.
+export function HallOfFameButton({icon, ...props}: HallOfFameSeasons & {icon?: boolean}) {
     const [open, setOpen] = useState(false)
 
     return <>
-        <button type="button" className="button button-mini button-gold hall-of-fame-button" onClick={() => setOpen(true)}>
-            <TrophyIcon size={16}/>
-            <span>Hall of Fame</span>
-        </button>
+        {icon
+            ? <button type="button"
+                      className="icon-button hall-of-fame-icon"
+                      aria-label="Hall of Fame"
+                      title="Hall of Fame"
+                      aria-haspopup="dialog"
+                      onClick={() => setOpen(true)}>
+                <CrownIcon size={20}/>
+            </button>
+            : <button type="button" className="button button-mini button-gold hall-of-fame-button" onClick={() => setOpen(true)}>
+                <TrophyIcon size={16}/>
+                <span>Hall of Fame</span>
+            </button>}
         {open && <HallOfFame {...props} onClose={() => setOpen(false)}/>}
     </>
 }
