@@ -54,7 +54,7 @@ function FrontFold({title, countries}: {title: string, countries: CountryTiles[]
     </Fold>
 }
 
-function FrontList({countries}: {countries: CountryTiles[]}) {
+export function FrontList({countries}: {countries: CountryTiles[]}) {
     const most = Math.max(...countries.map((country) => country.tiles))
     return <ol className="player-front-list">
         {countries.map(({countryCode, tiles}) => {

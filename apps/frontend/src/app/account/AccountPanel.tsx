@@ -140,7 +140,7 @@ const MAX_INPUT_LENGTH = MAX_USERNAME_LENGTH * 2
 
 const renameDate = new Intl.DateTimeFormat(undefined, {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"})
 
-function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
+export function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
     const current = state.username ?? ""
     const [draft, setDraft] = useState(current)
     const inputId = useId()
@@ -189,7 +189,7 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
     </form>
 }
 
-function ColorPicker({name, state, store}: {name: string, state: Ready, store: AccountStore}) {
+export function ColorPicker({name, state, store}: {name: string, state: Ready, store: AccountStore}) {
     const labelId = useId()
     const words = useWordFilter()
     const chosen = state.color

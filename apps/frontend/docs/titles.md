@@ -31,7 +31,7 @@ is the player's own view.
   medal says in a `Bubble` how it was earned (`feat`, the server's words: "Took 1,000 tiles"), as the streak flame
   does. A title the server sends no feat for is not a button.
   OG is also a stamp beside the name (`OgStamp`).
-- **The Progress tab** (the left half of the desktop's profile dialog, where nothing folds: `flat`, Titles under a heading and the fronts shown as on a player's card) is the worn title (a compact banner) and the stats, then
+- **The Progress tab** (the phone's; the desktop's profile lays the same out wide, see [The screen](screen.md)) is the worn title (a compact banner) and the stats, then
   three folds (`components/Fold.tsx`, a bar that opens what is under it). Titles
   is open first and holds "Wear a title" (a
   `radiogroup` of the titles that can be worn; a press sends `WearTitle` and reads

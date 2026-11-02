@@ -1,82 +1,32 @@
-import {useEffect, useId, useState} from "react"
+import {useId, useState} from "react"
 import {Me} from "../../backends/account.ts"
-import {Fronts, PlayerInfoBackend, TitleDashboard} from "../../backends/player.ts"
+import {PlayerInfoBackend} from "../../backends/player.ts"
 import TitleBanner from "../titles/TitleBanner.tsx"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
 import TrackPath from "../titles/TrackPath.tsx"
 import {PlayerStats} from "../players/PlayerCard.tsx"
-import PlayerFronts, {FrontFolds} from "../players/PlayerFronts.tsx"
+import {FrontFolds} from "../players/PlayerFronts.tsx"
 import Fold from "../components/Fold.tsx"
 import {usePlayerInfo} from "../players/usePlayerInfo.ts"
 import {takenCount} from "../../domain/standings.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
-import {useOwnTakes, useReadsAfterClicks} from "../viewer/useAcceptedClicks.ts"
+import {useOwnTakes} from "../viewer/useAcceptedClicks.ts"
 import {AccountStore} from "./accountStore.ts"
-
-type Titles =
-    | {kind: "loading"}
-    | {kind: "failed"}
-    | {kind: "ready", dashboard: TitleDashboard}
-
-function useTitles(store: AccountStore, me: Me, listenForClicks: ListenForClicks | undefined): [Titles, () => void] {
-    const [titles, setTitles] = useState<Titles>({kind: "loading"})
-    const [read, setRead] = useState(0)
-    const reads = useReadsAfterClicks(listenForClicks)
-
-    useEffect(() => {
-        let stale = false
-        store.titles().then(
-            (dashboard) => {
-                if (!stale) setTitles({kind: "ready", dashboard})
-            },
-            (e) => {
-                console.error("Could not read the titles", e)
-                if (!stale) setTitles((current) => current.kind === "ready" ? current : {kind: "failed"})
-            },
-        )
-        return () => {
-            stale = true
-        }
-    }, [store, me, read, reads])
-
-    return [titles, () => setRead((n) => n + 1)]
-}
-
-function useFronts(store: AccountStore, me: Me, listenForClicks: ListenForClicks | undefined): Fronts | undefined {
-    const [fronts, setFronts] = useState<Fronts>()
-    const reads = useReadsAfterClicks(listenForClicks)
-
-    useEffect(() => {
-        let stale = false
-        store.fronts().then(
-            (read) => {
-                if (!stale) setFronts(read)
-            },
-            (e) => console.error("Could not read the countries played for and against", e),
-        )
-        return () => {
-            stale = true
-        }
-    }, [store, me, reads])
-
-    return fronts
-}
+import {useFronts, useTitles} from "./useProgress.ts"
 
 export type ProgressTabProps = {
     store: AccountStore
     me: Me
     stats?: {backend: PlayerInfoBackend, accountId: string}
     listenForClicks?: ListenForClicks
-    // The desktop's profile dialog has the room a phone's sheet lacks: everything shows at once, nothing folds.
-    flat?: boolean
 }
 
-export default function ProgressTab({store, me, stats, listenForClicks, flat}: ProgressTabProps) {
+// The phone's You sheet. The desktop shows the same in ProfileModal, laid out for its room.
+export default function ProgressTab({store, me, stats, listenForClicks}: ProgressTabProps) {
     const [titles, reread] = useTitles(store, me, listenForClicks)
     const fronts = useFronts(store, me, listenForClicks)
     const [wearing, setWearing] = useState<string>()
     const labelId = useId()
-    const titlesId = useId()
 
     if (titles.kind === "loading") return <p className="account-text" role="status">Loading…</p>
     if (titles.kind === "failed") return <p className="account-failure" role="alert">Your titles could not be loaded.</p>
@@ -119,14 +69,9 @@ export default function ProgressTab({store, me, stats, listenForClicks, flat}: P
 
         {stats && <OwnStats {...stats} listenForClicks={listenForClicks}/>}
 
-        {flat
-            ? <section className="account-titles" aria-labelledby={titlesId}>
-                <h3 className="menu-section-title" id={titlesId}>Titles</h3>
-                {titlesBody}
-            </section>
-            : <Fold title="Titles" startOpen>{titlesBody}</Fold>}
+        <Fold title="Titles" startOpen>{titlesBody}</Fold>
 
-        {fronts && (flat ? <PlayerFronts {...fronts}/> : <FrontFolds {...fronts}/>)}
+        {fronts && <FrontFolds {...fronts}/>}
     </div>
 }
 

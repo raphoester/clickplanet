@@ -99,6 +99,12 @@ describe("Menu", () => {
         expect(screen.queryByText("Hall of Fame")).toBeNull()
     })
 
+    it("leads back to the home page from the logo", () => {
+        setup()
+
+        expect(screen.getByRole("link", {name: "ClickPlanet home page"}).getAttribute("href")).toBe("/#home")
+    })
+
     it("counts the missions not seen yet on their tab", () => {
         render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                      missions={{state: {kind: "loading"}}} missionsNews={3}/>)
@@ -781,8 +787,8 @@ describe("Menu", () => {
             await user.click(await screen.findByRole("button", {name: "You"}))
 
             const profile = screen.getByRole("dialog", {name: "ana"})
-            expect(within(profile).getByRole("region", {name: "Progress"})).toBeDefined()
             expect(within(profile).getByRole("region", {name: "Account"})).toBeDefined()
+            expect(within(profile).getByRole("region", {name: "Title tracks"})).toBeDefined()
             expect(await within(profile).findByText("860 tiles to Raider")).toBeDefined()
             expect(within(profile).getByLabelText("Username")).toBeDefined()
             expect(screen.queryByRole("tablist", {name: "Account"})).toBeNull()
@@ -852,7 +858,7 @@ describe("Menu", () => {
 
             await openSettings()
 
-            expect(screen.getByText("Signed in with Google.")).toBeDefined()
+            expect(within(screen.getByRole("list", {name: "Signed in with"})).getAllByRole("listitem")[0].textContent).toBe("Google")
             expect(button("Link Discord")).toBeDefined()
             expect(screen.queryByRole("button", {name: "Link Google"})).toBeNull()
             expect(button("Sign out")).toBeDefined()
@@ -921,7 +927,7 @@ describe("Menu", () => {
             expect(playerInfo.playerInfo).toHaveBeenCalledTimes(1)
         })
 
-        it("shows every country a signed-in player fought for and against at once, and reads them again once its clicks settle", async () => {
+        it("shows the first countries a signed-in player fought for and against, the rest on demand, and reads them again once its clicks settle", async () => {
             const clicks = acceptedClicks()
             const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, undefined, clicks)
             player.titles.mockResolvedValue(dashboard(140))
@@ -933,10 +939,12 @@ describe("Menu", () => {
             const foughtAgainst = await screen.findByRole("region", {name: "Fought against"})
             const foughtFor = screen.getByRole("region", {name: "Fought for"})
             expect(within(foughtAgainst).getAllByRole("listitem").map((row) => row.textContent))
-                .toEqual(["Germany50", "Spain49", "Italy48", "Portugal47", "Belgium46"])
+                .toEqual(["Germany50", "Spain49", "Italy48"])
             expect(within(foughtFor).getAllByRole("listitem")).toHaveLength(1)
-            expect(screen.getByRole("heading", {name: "Titles", level: 3})).toBeDefined()
-            expect(screen.queryByRole("button", {expanded: false})).toBeNull()
+            expect(within(foughtFor).queryByRole("button")).toBeNull()
+
+            await user.click(within(foughtAgainst).getByRole("button", {name: "See all 5"}))
+            expect(within(foughtAgainst).getAllByRole("listitem")).toHaveLength(5)
 
             vi.useFakeTimers()
             player.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 501}], playsAgainst: against})
@@ -960,6 +968,20 @@ describe("Menu", () => {
 
             await user.click(within(foughtAgainst).getByRole("button", {name: "Fought against, 5 countries"}))
             expect(within(foughtAgainst).getAllByRole("listitem")).toHaveLength(5)
+        })
+
+        it("shows each track as a card, its every rank on demand", async () => {
+            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
+            player.titles.mockResolvedValue(dashboard(140))
+
+            await user.click(await screen.findByRole("button", {name: "You"}))
+            const tracks = await screen.findByRole("region", {name: "Title tracks"})
+            expect(within(tracks).getByText("Conquest · rank 1 of 2")).toBeDefined()
+            expect(within(tracks).queryByRole("region", {name: "Conquest"})).toBeNull()
+
+            await user.click(within(tracks).getByRole("button", {name: "Every rank of Conquest"}))
+
+            expect(within(tracks).getByRole("region", {name: "Conquest"})).toBeDefined()
         })
 
         it("wears the title pressed, and shows it worn", async () => {
