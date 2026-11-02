@@ -27,6 +27,8 @@ type LeaderboardProps = {
 
 const NAME_MAX_LENGTH = 18
 
+const count = new Intl.NumberFormat()
+
 const ORDERS: {order: CountryOrder, label: string}[] = [
     {order: "season", label: "Season"},
     {order: "territory", label: "Territory"},
@@ -119,14 +121,14 @@ export default function Leaderboard(props: LeaderboardProps) {
                             {truncate(line.country.name, NAME_MAX_LENGTH)}
                         </td>
                         <td className={tilesClass(delta?.net)}>
-                            {line.tiles}
+                            {count.format(line.tiles)}
                             <DeltaBadge delta={delta}/>
                         </td>
                         <td className="leaderboard-table-number leaderboard-table-share">
                             {share(line.tiles, props.tilesCount)}
                         </td>
                         {race && <>
-                            <td className="leaderboard-table-number leaderboard-table-points">{line.points}</td>
+                            <td className="leaderboard-table-number leaderboard-table-points">{count.format(line.points)}</td>
                             <td className="leaderboard-table-today"><Today points={line.today} battle={battle !== undefined}/></td>
                         </>}
                     </tr>
@@ -176,14 +178,14 @@ function LeaderFrame({line, scored, battle, tilesCount, delta, isPlayer, anthem,
                         <Hint {...hint("share")}>{share(line.tiles, tilesCount)}% of map</Hint>
                     </span>}
                     <span className={tilesClass(delta?.net, "leader-frame-tiles")}>
-                        {line.tiles} tiles
+                        {count.format(line.tiles)} tiles
                         <DeltaBadge delta={delta}/>
                     </span>
                 </span>
             </span>
             {scored
                 ? <Hint {...hint("points")} className="leader-frame-share">
-                    <span>{line.points}<Today points={line.today} battle={battle}/></span>
+                    <span>{count.format(line.points)}<Today points={line.today} battle={battle}/></span>
                     <span className="leader-frame-share-unit">points</span>
                 </Hint>
                 : <Hint {...hint("share")} className="leader-frame-share">

@@ -800,8 +800,6 @@ button.chat-quote:hover {
     font-family: var(--font-text);
     font-weight: 700;
     font-size: var(--text-xs);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
 }
 
 .chat-unseen::before,

@@ -4,6 +4,7 @@ import {cleanup, render, screen} from "@testing-library/react"
 import App from "./App.tsx"
 import type {OwnershipsGetter, TileClicker, UpdatesListener} from "../backends/backend.ts"
 import {NO_FILTER} from "../domain/wordFilter.ts"
+import {COUNTRY_STORAGE_KEY} from "./countryPreference.ts"
 
 vi.mock("./viewer/Viewer.tsx", () => ({default: () => <div data-testid="viewer"/>}))
 
@@ -14,10 +15,16 @@ const backends = {
     words: NO_FILTER,
 }
 
-const modalShown = () => screen.queryByText("Do you like ClickPlanet ?") !== null
+const modalShown = () => screen.queryByText("It's free and open source.") !== null
 
-beforeEach(() => vi.restoreAllMocks())
-afterEach(cleanup)
+beforeEach(() => {
+    vi.restoreAllMocks()
+    localStorage.setItem(COUNTRY_STORAGE_KEY, JSON.stringify({code: "fr", name: "France"}))
+})
+afterEach(() => {
+    cleanup()
+    localStorage.clear()
+})
 
 describe("App", () => {
     it("always renders the globe", () => {

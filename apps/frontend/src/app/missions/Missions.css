@@ -42,7 +42,6 @@
     margin: 0;
     font-size: var(--text-s);
     font-weight: 700;
-    text-transform: uppercase;
     color: var(--gold);
 }
 
