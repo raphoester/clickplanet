@@ -118,6 +118,9 @@ export const AuthService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Signs the account out everywhere and hides it from the other players. It is erased after a grace period, unless a
+     * sign-in to it brings it back first.
+     *
      * @generated from rpc auth.v1.AuthService.DeleteAccount
      */
     deleteAccount: {

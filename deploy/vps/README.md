@@ -1258,6 +1258,27 @@ a name can change hands, an id cannot. `operator = false` takes it back, and
 ends any admin session at once. The flag is not the chat crown:
 `player.profiles.admin` stays a display flag.
 
+### Delete an account at once
+
+The game keeps an account its player deleted for 30 days, so a sign-in can bring
+it back. The privacy policy promises to delete it at once when its player emails
+from the address it signed in with. Find the account by that address, check its
+deletion was asked for (`deletion_requested_at` is set; if it is not, ask the
+player to press Delete account first), then move the mark past the 30 days:
+
+```bash
+docker compose exec postgres psql -U clickplanet -c \
+  "SELECT account_id, provider, deletion_requested_at FROM auth.identities
+   JOIN auth.accounts ON accounts.id = identities.account_id
+   WHERE lower(email) = lower('player@example.com')"
+docker compose exec postgres psql -U clickplanet -c \
+  "UPDATE auth.accounts SET deletion_requested_at = now() - interval '31 days'
+   WHERE id = '<account_id>' AND deletion_requested_at IS NOT NULL"
+```
+
+The purge runs every hour (`auth.deletion.interval`) and deletes it with
+everything every module keeps about it, as it would on day 30.
+
 ### Give one country's tiles to another
 
 Dry run first. It changes nothing and says how many tiles each side holds:

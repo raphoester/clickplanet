@@ -11,6 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures/postgres_departure_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
@@ -142,6 +144,22 @@ func (s *testSuite) TestAnAccountTheGameNeverNamedIsNoPlayer() {
 
 		s.ErrorIs(err, player_query.ErrNoPlayer, "%s", account)
 	}
+}
+
+func (s *testSuite) TestAnAccountAskedToBeDeletedIsNoPlayerUntilItComesBack() {
+	store := postgres_departure_store.New(s.db)
+	decide := func(decision departures.Decision) {
+		s.Require().NoError(store.Change(s.T().Context(), ada,
+			func(d departures.Departure) departures.Departure { return d.Decided(decision) }))
+	}
+	decide(departures.Leaves(monday))
+
+	_, err := s.query().Player(s.T().Context(), ada)
+	s.Require().ErrorIs(err, player_query.ErrNoPlayer, "its card reads as a deleted player's")
+
+	decide(departures.Returns(monday.Add(time.Hour)))
+
+	s.Equal("Ada_L", s.player(ada).GetName())
 }
 
 func (s *testSuite) TestAnAdminIsSaidToBeOne() {

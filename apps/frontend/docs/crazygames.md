@@ -24,6 +24,13 @@ says why a host of its own and what the owner sets up.
   call.
 - **No sign-out and no link.** `AccountPanel` hides Sign out and Sign out everywhere for an account linked to
   CrazyGames; Delete account stays.
+- **A deleted account does not come back at the next start.** The server keeps an account asked deleted for 30
+  days, and a sign-in to it brings it back; here the page signs in at every start, which would undo the delete at
+  once. So `AccountStore.deleteAccount` remembers on the device who asked (`LeaverStore`, `localLeaverStore` in local
+  storage: the `userId` of CrazyGames' token, `crazyGamesUserOf`, and when), and `followCrazyGames` leaves that
+  player a guest while `leaving` says the 30 days run. Another player of the device signs in as usual. The Sign in
+  button is the player asking: `promptCrazyGames` forgets the device's memory, signs in, and the account comes back.
+  The backend knows nothing of this: to it, coming back is a sign-in.
 - **The session is carried in a header** (`carriedFetch`, `localAccountCarrier`): see [Sessions](sessions.md).
 - **Every new account is tagged `cg`** (`crazyGamesLanding`), whatever the link said: see [Arrivals](arrivals.md).
 - **CrazyGames' settings win.** `useCrazyGames` follows `disableChat` (no chat panel, no chat tab) and `muteAudio`

@@ -18,7 +18,7 @@ export function messageOf(failure: AuthFailure, provider?: Provider): string {
         case "linkedElsewhere": {
             const name = provider ? PROVIDER_NAMES[provider] : "This"
             return `This ${name} account is already used by another ClickPlanet account. `
-                + "To move it here: sign in with it, delete that account, then link it here."
+                + "To move it here: sign in with it and delete that account. Once it is gone for good, 30 days later, link it here."
         }
         case "alreadyLinked":
             return `Your account already has a ${provider ? PROVIDER_NAMES[provider] : "different"} account. You can link only one of each.`

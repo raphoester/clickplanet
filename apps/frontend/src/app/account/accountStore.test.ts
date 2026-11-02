@@ -14,6 +14,7 @@ import {
 import {SessionProvider} from "../../backends/session.ts"
 import {AccountStore} from "./accountStore.ts"
 import {CrazyGamesUser} from "../../backends/crazyGames.ts"
+import {Leaver, LeaverStore} from "../../domain/crazyGames.ts"
 
 type Fake = {[K in keyof AccountBackend]: ReturnType<typeof vi.fn>}
 
@@ -53,12 +54,12 @@ const refusingName = (failure: PlayerFailure) => async () => {
     throw new PlayerError(failure)
 }
 
-function setup(backend: Fake, player: FakePlayer = fakePlayer(), crazyGames?: CrazyGamesUser) {
+function setup(backend: Fake, player: FakePlayer = fakePlayer(), crazyGames?: CrazyGamesUser, leavers?: LeaverStore) {
     const session: SessionProvider = {token: vi.fn(async () => "token"), held: vi.fn(() => "token"), identity: vi.fn(async () => "token"), heldIdentity: vi.fn(() => "token"), invalidate: vi.fn()}
     const navigate = vi.fn()
     const remember = vi.fn()
     const store = new AccountStore(
-        backend as unknown as AccountBackend, player as unknown as PlayerBackend, session, {navigate, remember, crazyGames})
+        backend as unknown as AccountBackend, player as unknown as PlayerBackend, session, {navigate, remember, crazyGames, leavers})
     return {store, session, navigate, remember, player}
 }
 
@@ -300,6 +301,34 @@ describe("AccountStore", () => {
                 await store.completeSignIn("code", "state")
 
                 expect(store.state(), outcome).not.toHaveProperty("guestLinked")
+            }
+        })
+
+        it("marks an account it brought back, until the player is told", async () => {
+            const backend = fakeBackend()
+            backend.completeSignIn.mockResolvedValue("restored")
+            backend.me.mockImplementation(async () => ({linked: ["google"]}))
+            const {store} = setup(backend)
+
+            await store.completeSignIn("code", "state")
+            expect(store.state()).toMatchObject({kind: "ready", me: {linked: ["google"]}, restored: true})
+            expect(store.state()).not.toHaveProperty("guestLinked")
+
+            store.welcomedBack()
+            expect(store.state()).toMatchObject({kind: "ready", me: {linked: ["google"]}})
+            expect(store.state()).not.toHaveProperty("restored", true)
+        })
+
+        it("marks no other sign-in as one that brought an account back", async () => {
+            for (const outcome of ["linked", "signedIn", "created"] as const) {
+                const backend = fakeBackend()
+                backend.completeSignIn.mockResolvedValue(outcome)
+                backend.me.mockImplementation(async () => ({linked: ["google"]}))
+                const {store} = setup(backend)
+
+                await store.completeSignIn("code", "state")
+
+                expect(store.state(), outcome).not.toHaveProperty("restored", true)
             }
         })
 
@@ -898,6 +927,79 @@ describe("AccountStore", () => {
 
             expect(backend.completeCrazyGamesSignIn).not.toHaveBeenCalled()
             expect(store.state()).toEqual({kind: "ready", offered: ["crazygames"], me: {linked: []}})
+        })
+
+        describe("an account its player asked to delete on this device", () => {
+            const token = (userId: string) => `header.${btoa(JSON.stringify({userId}))}.signature`
+
+            function leavers(kept?: Leaver): LeaverStore & {kept?: Leaver} {
+                const store: LeaverStore & {kept?: Leaver} = {
+                    kept,
+                    read: () => store.kept,
+                    write: (leaver) => {
+                        store.kept = leaver
+                    },
+                }
+                return store
+            }
+
+            it("remembers who asked, from CrazyGames' token", async () => {
+                const backend = fakeBackend(["crazygames"], {linked: ["crazygames"]})
+                const kept = leavers()
+                const {store} = setup(backend, fakePlayer(), crazyGamesUser(token("cg-42")), kept)
+                await store.load()
+
+                await store.deleteAccount()
+
+                expect(kept.kept).toMatchObject({user: "cg-42"})
+                expect(Math.abs((kept.kept?.at ?? 0) - Date.now())).toBeLessThan(1000)
+            })
+
+            it("remembers nobody when the server refused the deletion", async () => {
+                const backend = fakeBackend(["crazygames"], {linked: ["crazygames"]})
+                backend.deleteAccount.mockImplementation(refusing("failed"))
+                const kept = leavers()
+                const {store} = setup(backend, fakePlayer(), crazyGamesUser(token("cg-42")), kept)
+                await store.load()
+
+                await store.deleteAccount()
+
+                expect(kept.kept).toBeUndefined()
+            })
+
+            it("is left a guest by the sign-in at every start, so it does not come back at once", async () => {
+                const backend = fakeBackend(["crazygames"])
+                const {store} = setup(backend, fakePlayer(), crazyGamesUser(token("cg-42")), leavers({user: "cg-42", at: Date.now()}))
+
+                await store.followCrazyGames()
+
+                expect(backend.completeCrazyGamesSignIn).not.toHaveBeenCalled()
+                expect(store.state()).toMatchObject({kind: "ready", me: {linked: []}})
+            })
+
+            it("leaves another player of the device signed in as usual", async () => {
+                const backend = fakeBackend(["crazygames"])
+                const {store} = setup(backend, fakePlayer(), crazyGamesUser(token("cg-7")), leavers({user: "cg-42", at: Date.now()}))
+
+                await store.followCrazyGames()
+
+                expect(backend.completeCrazyGamesSignIn).toHaveBeenCalled()
+            })
+
+            it("comes back when the player signs in from the button", async () => {
+                const backend = fakeBackend(["crazygames"])
+                backend.completeCrazyGamesSignIn.mockResolvedValue("restored")
+                backend.me.mockResolvedValueOnce({linked: []}).mockResolvedValue({linked: ["crazygames"]})
+                const kept = leavers({user: "cg-42", at: Date.now()})
+                const {store} = setup(backend, fakePlayer(), crazyGamesUser(token("cg-42")), kept)
+                await store.load()
+
+                await store.signIn("crazygames")
+
+                expect(backend.completeCrazyGamesSignIn).toHaveBeenCalled()
+                expect(kept.kept).toBeUndefined()
+                expect(store.state()).toMatchObject({kind: "ready", me: {linked: ["crazygames"]}, restored: true})
+            })
         })
 
         it("says so when the server refuses the token", async () => {

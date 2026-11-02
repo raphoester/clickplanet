@@ -36,9 +36,10 @@ import (
 )
 
 const (
-	callerIP    = "203.0.113.7"
-	adminOrigin = "https://backoffice.clickplanet.lol"
-	mapTiles    = 262119
+	deletionGrace = 3 * time.Second
+	callerIP      = "203.0.113.7"
+	adminOrigin   = "https://backoffice.clickplanet.lol"
+	mapTiles      = 262119
 )
 
 type gameStack struct {
@@ -70,6 +71,9 @@ func startGame(t *testing.T) gameStack {
 	}
 	authConfig.RateLimiter.PerSecond = 100
 	authConfig.RateLimiter.Burst = 100
+	// Short enough for a test to see an account purged, long enough to see it kept first.
+	authConfig.Deletion.Grace = deletionGrace
+	authConfig.Deletion.Interval = 50 * time.Millisecond
 
 	planetConfig := planet.Config{Database: postgres.ConfigFor("planet"), Redis: redis}
 	clickAtWill(t, planetConfig.Database)

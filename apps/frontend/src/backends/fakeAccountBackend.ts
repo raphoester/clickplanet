@@ -18,6 +18,8 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
     private linked: Provider[] = []
     private name = ""
     private color = NameColor.UNSPECIFIED
+    // The account deleteAccount() asked to delete: the next sign-in brings it back, as the server would within 30 days.
+    private leaving?: {linked: Provider[], name: string, color: NameColor}
 
     public offerSignIn(): void {
         this.offered = ["google", "discord", "email", "crazygames"]
@@ -36,6 +38,7 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
     }
 
     public async completeSignIn(name: string): Promise<SignInOutcome> {
+        if (this.restore()) return "restored"
         const outcome = this.linked.length === 0 ? "linked" : "signedIn"
         this.linked = ["google"]
         this.name = name
@@ -51,6 +54,7 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
     }
 
     public async completeCrazyGamesSignIn(): Promise<SignInOutcome> {
+        if (this.restore()) return "restored"
         const outcome = this.linked.length === 0 ? "linked" : "signedIn"
         this.linked = ["crazygames"]
         this.name ||= "Crazy Nova"
@@ -66,6 +70,7 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
     }
 
     public async deleteAccount(): Promise<void> {
+        this.leaving = {linked: this.linked, name: this.name, color: this.color}
         this.forget()
     }
 
@@ -99,6 +104,16 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
 
     private requireSignedIn() {
         if (this.linked.length === 0) throw new PlayerError("guest")
+    }
+
+    private restore(): boolean {
+        const leaving = this.leaving
+        if (!leaving) return false
+        this.linked = leaving.linked
+        this.name = leaving.name
+        this.color = leaving.color
+        this.leaving = undefined
+        return true
     }
 
     private forget() {

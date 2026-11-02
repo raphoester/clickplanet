@@ -109,6 +109,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.email.cloudflare.apiToken` — `env://CLOUDFLARE_EMAIL_TOKEN` in `deploy/vps/backend.yaml`; it or the account id empty, with email on and `delivery: cloudflare`, refuses the boot
 - `auth.email.sendLimiter.*` — the per-address throttle on codes, same shape as `rateLimiter` (default 3, then one every 20 minutes)
 - `auth.prune.idleFor`, `auth.prune.interval` — how long a guest goes unused before it is deleted (default `guestTTL`, never less), and how often the prune runs (1h)
+- `auth.deletion.grace`, `auth.deletion.interval` — how long an account whose player asked to delete it is kept for a sign-in to bring it back (default 30 days, which the privacy policy names), and how often the purge runs (1h)
 - `chat.database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the chat module's postgres, same shape as `database`; any of them but `password` and `pool` empty refuses the boot. `chat.database.password` belongs in the environment
 - `chat.storage.historySize`, `chat.storage.retention`, `chat.storage.pruneInterval`, `chat.storage.subscriberBuffer`
 - `chat.service.maxTextLength` — the bound on a message in runes (280)

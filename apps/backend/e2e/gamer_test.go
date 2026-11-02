@@ -74,9 +74,20 @@ func (p *gamer) auth() authv1connect.AuthServiceClient {
 func (p *gamer) link(subject string) {
 	p.t.Helper()
 
-	start := connect.NewRequest(&authv1.StartSignInRequest{
-		Provider: authv1.Provider_PROVIDER_GOOGLE, Intent: authv1.SignInIntent_SIGN_IN_INTENT_LINK,
-	})
+	completed := p.signInAs(subject, authv1.SignInIntent_SIGN_IN_INTENT_LINK)
+	require.Equal(p.t, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED, completed.GetOutcome())
+}
+
+func (p *gamer) signIn(subject string) *authv1.CompleteSignInResponse {
+	p.t.Helper()
+
+	return p.signInAs(subject, authv1.SignInIntent_SIGN_IN_INTENT_SIGN_IN)
+}
+
+func (p *gamer) signInAs(subject string, intent authv1.SignInIntent) *authv1.CompleteSignInResponse {
+	p.t.Helper()
+
+	start := connect.NewRequest(&authv1.StartSignInRequest{Provider: authv1.Provider_PROVIDER_GOOGLE, Intent: intent})
 	p.send(start.Header())
 	started, err := p.auth().StartSignIn(p.t.Context(), start)
 	require.NoError(p.t, err)
@@ -91,7 +102,6 @@ func (p *gamer) link(subject string) {
 	complete.Header().Set("Cookie", p.cookie+"; "+flow.Name+"="+flow.Value)
 	completed, err := p.auth().CompleteSignIn(p.t.Context(), complete)
 	require.NoError(p.t, err)
-	require.Equal(p.t, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED, completed.Msg.GetOutcome())
 
 	for _, line := range completed.Header().Values("Set-Cookie") {
 		cookie, err := http.ParseSetCookie(line)
@@ -106,6 +116,18 @@ func (p *gamer) link(subject string) {
 	minted, err := p.auth().CreateSession(p.t.Context(), mint)
 	require.NoError(p.t, err)
 	p.token = minted.Msg.GetToken()
+	return completed.Msg
+}
+
+// The card another player opens on an account, and the error a deleted one answers.
+func (p *gamer) playerCard(account string) (*playerv1.Player, error) {
+	p.t.Helper()
+
+	res, err := p.players().GetPlayer(p.t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{AccountId: account}))
+	if err != nil {
+		return nil, err //nolint:wrapcheck // the test reads the code.
+	}
+	return res.Msg.GetPlayer(), nil
 }
 
 func (p *gamer) me() *authv1.GetMeResponse {

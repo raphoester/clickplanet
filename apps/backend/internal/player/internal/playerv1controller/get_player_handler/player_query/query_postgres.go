@@ -67,7 +67,9 @@ const player = `
 	LEFT JOIN guest_codes ON guest_codes.account_id = asked.account_id
 	LEFT JOIN stats ON stats.account_id = asked.account_id
 	LEFT JOIN worn_titles ON worn_titles.account_id = asked.account_id
-	WHERE profiles.account_id IS NOT NULL OR guest_codes.account_id IS NOT NULL
+	WHERE (profiles.account_id IS NOT NULL OR guest_codes.account_id IS NOT NULL)
+	  -- An account its player asked to delete reads as deleted until a sign-in brings it back.
+	  AND NOT EXISTS (SELECT 1 FROM departures WHERE departures.account_id = asked.account_id AND departures.leaving)
 `
 
 func (q *PostgresQuery) Player(ctx context.Context, account cpsession.AccountID) (*playerv1.GetPlayerResponse, error) {

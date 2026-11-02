@@ -4,9 +4,12 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
+ * The account is gone, and everything another module keeps about it goes too: a guest idle too long, or an account
+ * whose deletion was asked for longer ago than the grace period.
+ *
  * @generated from message auth.v1.AccountDeleted
  */
 export class AccountDeleted extends Message<AccountDeleted> {
@@ -40,6 +43,98 @@ export class AccountDeleted extends Message<AccountDeleted> {
 
   static equals(a: AccountDeleted | PlainMessage<AccountDeleted> | undefined, b: AccountDeleted | PlainMessage<AccountDeleted> | undefined): boolean {
     return proto3.util.equals(AccountDeleted, a, b);
+  }
+}
+
+/**
+ * The player asked to delete the account. It is kept, whole, for the grace period, and the other players see it as
+ * deleted: AccountDeleted ends it, or AccountRestored brings it back. The two are on two streams, so a receiver keeps
+ * the later of them by requested_at and restored_at.
+ *
+ * @generated from message auth.v1.AccountDeletionRequested
+ */
+export class AccountDeletionRequested extends Message<AccountDeletionRequested> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp requested_at = 2;
+   */
+  requestedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<AccountDeletionRequested>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.AccountDeletionRequested";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "requested_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AccountDeletionRequested {
+    return new AccountDeletionRequested().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AccountDeletionRequested {
+    return new AccountDeletionRequested().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AccountDeletionRequested {
+    return new AccountDeletionRequested().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AccountDeletionRequested | PlainMessage<AccountDeletionRequested> | undefined, b: AccountDeletionRequested | PlainMessage<AccountDeletionRequested> | undefined): boolean {
+    return proto3.util.equals(AccountDeletionRequested, a, b);
+  }
+}
+
+/**
+ * A sign-in landed on an account whose deletion was asked for, within the grace period: it is back as it was.
+ *
+ * @generated from message auth.v1.AccountRestored
+ */
+export class AccountRestored extends Message<AccountRestored> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp restored_at = 2;
+   */
+  restoredAt?: Timestamp;
+
+  constructor(data?: PartialMessage<AccountRestored>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.AccountRestored";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "restored_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AccountRestored {
+    return new AccountRestored().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AccountRestored {
+    return new AccountRestored().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AccountRestored {
+    return new AccountRestored().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AccountRestored | PlainMessage<AccountRestored> | undefined, b: AccountRestored | PlainMessage<AccountRestored> | undefined): boolean {
+    return proto3.util.equals(AccountRestored, a, b);
   }
 }
 

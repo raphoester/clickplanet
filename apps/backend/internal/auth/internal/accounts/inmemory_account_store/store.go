@@ -22,22 +22,24 @@ type identityKey struct {
 }
 
 type Store struct {
-	mu         sync.Mutex
-	created    map[accounts.AccountID]time.Time
-	lastSeen   map[accounts.AccountID]time.Time
-	identities map[identityKey]accounts.Identity
-	sessions   map[string]accounts.Session
-	failWith   error
+	mu                sync.Mutex
+	created           map[accounts.AccountID]time.Time
+	lastSeen          map[accounts.AccountID]time.Time
+	deletionRequested map[accounts.AccountID]time.Time
+	identities        map[identityKey]accounts.Identity
+	sessions          map[string]accounts.Session
+	failWith          error
 }
 
 var _ accounts.Store = (*Store)(nil)
 
 func New() *Store {
 	return &Store{
-		created:    map[accounts.AccountID]time.Time{},
-		lastSeen:   map[accounts.AccountID]time.Time{},
-		identities: map[identityKey]accounts.Identity{},
-		sessions:   map[string]accounts.Session{},
+		created:           map[accounts.AccountID]time.Time{},
+		lastSeen:          map[accounts.AccountID]time.Time{},
+		deletionRequested: map[accounts.AccountID]time.Time{},
+		identities:        map[identityKey]accounts.Identity{},
+		sessions:          map[string]accounts.Session{},
 	}
 }
 
@@ -131,7 +133,7 @@ func (s *Store) Account(_ context.Context, account accounts.AccountID) (*account
 		return nil, accounts.ErrAccountNotFound
 	}
 
-	return accounts.AccountOf(account, s.created[account], s.identitiesOf(account)), nil
+	return s.accountOf(account), nil
 }
 
 func (s *Store) Identity(_ context.Context, provider string, subject string) (*accounts.Identity, error) {
@@ -169,7 +171,7 @@ func (s *Store) AccountOfEmail(_ context.Context, address string) (*accounts.Acc
 	oldest := slices.MinFunc(holders, func(a, b accounts.Identity) int {
 		return cmp.Or(a.LinkedAt().Compare(b.LinkedAt()), cmp.Compare(a.Provider(), b.Provider()))
 	})
-	return accounts.AccountOf(oldest.Account(), s.created[oldest.Account()], s.identitiesOf(oldest.Account())), nil
+	return s.accountOf(oldest.Account()), nil
 }
 
 func (s *Store) SaveSignIn(_ context.Context, signIn accounts.SignIn) error {
@@ -199,8 +201,24 @@ func (s *Store) SaveSignIn(_ context.Context, signIn accounts.SignIn) error {
 	if replaces := signIn.Replaces(); replaces != nil {
 		delete(s.sessions, string(replaces))
 	}
+	if signIn.Restores() {
+		delete(s.deletionRequested, account)
+	}
 	s.sessions[string(session.TokenHash())] = *session
 	s.lastSeen[account] = session.ExtendedAt()
+	return nil
+}
+
+func (s *Store) RequestDeletion(_ context.Context, account accounts.AccountID, at time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.failWith != nil {
+		return s.failWith
+	}
+
+	if _, found := s.lastSeen[account]; found {
+		s.deletionRequested[account] = at
+	}
 	return nil
 }
 
@@ -237,9 +255,38 @@ func (s *Store) PruneGuests(_ context.Context, idleSince time.Time, limit int) (
 	return pruned, nil
 }
 
+func (s *Store) PurgeDeletions(_ context.Context, requestedBefore time.Time, limit int) ([]accounts.AccountID, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+
+	var purged []accounts.AccountID
+	for account, requested := range s.deletionRequested {
+		if len(purged) == limit {
+			break
+		}
+		if requested.Before(requestedBefore) {
+			s.deleteAccount(account)
+			purged = append(purged, account)
+		}
+	}
+	return purged, nil
+}
+
+func (s *Store) accountOf(account accounts.AccountID) *accounts.Account {
+	found := accounts.AccountOf(account, s.created[account], s.identitiesOf(account))
+	if requested, requestedFound := s.deletionRequested[account]; requestedFound {
+		return found.WithDeletionRequestedAt(requested)
+	}
+	return found
+}
+
 func (s *Store) deleteAccount(account accounts.AccountID) {
 	delete(s.created, account)
 	delete(s.lastSeen, account)
+	delete(s.deletionRequested, account)
 	for key, identity := range s.identities {
 		if identity.Account() == account {
 			delete(s.identities, key)

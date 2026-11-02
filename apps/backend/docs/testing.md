@@ -12,7 +12,7 @@ Tests use `testify`. **A postgres store's own tests need Docker**, and so do `s3
 - a player posts, another reads the message under its name, and player counts it (`MessageSent`);
 - a guest uploads a screenshot to the bucket and reports a bug, and the operator opens it from the console listener; three calls with no session before it spend none of the address's allowance, since the session check is the outer interceptor;
 - a signed-in player does its flag's first mission and is paid: missions draws the day from planet's map, hears the takes over Redis, and commands planet to grant the shields (`GrantCharges`, through its outbox);
-- a deleted account is forgotten by player, scoring, chat, support, missions and planet (auth's outbox, then one `AccountDeleted` subscriber in each);
+- an account asked deleted is hidden from the other players at once and kept whole, then forgotten by player, scoring, chat, support, missions and planet once the purge deletes it (`auth.deletion.grace` is 3s there; auth's outbox, then one `AccountDeleted` subscriber in each), and a sign-in within the grace period brings it back;
 - an operator signs in on the admin listener and grants itself a bomb, which the game session alone cannot;
 - an operator bans a guest's account on `antibot.v1`, and planet refuses its click with a `BanRefusal` once the command
   came through the antibot's outbox and Redis; an unban on the old `planet.v1` path, which the antibot answers, admits

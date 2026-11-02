@@ -680,6 +680,13 @@ export class CompleteSignInResponse extends Message<CompleteSignInResponse> {
    */
   outcome = SignInOutcome.UNSPECIFIED;
 
+  /**
+   * The account had asked to be deleted, and this sign-in brought it back.
+   *
+   * @generated from field: bool restored = 3;
+   */
+  restored = false;
+
   constructor(data?: PartialMessage<CompleteSignInResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -690,6 +697,7 @@ export class CompleteSignInResponse extends Message<CompleteSignInResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "outcome", kind: "enum", T: proto3.getEnumType(SignInOutcome) },
+    { no: 3, name: "restored", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteSignInResponse {
@@ -883,6 +891,13 @@ export class CompleteEmailSignInResponse extends Message<CompleteEmailSignInResp
    */
   outcome = SignInOutcome.UNSPECIFIED;
 
+  /**
+   * The account had asked to be deleted, and this sign-in brought it back.
+   *
+   * @generated from field: bool restored = 3;
+   */
+  restored = false;
+
   constructor(data?: PartialMessage<CompleteEmailSignInResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -893,6 +908,7 @@ export class CompleteEmailSignInResponse extends Message<CompleteEmailSignInResp
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "outcome", kind: "enum", T: proto3.getEnumType(SignInOutcome) },
+    { no: 3, name: "restored", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteEmailSignInResponse {
@@ -971,6 +987,13 @@ export class CompleteCrazyGamesSignInResponse extends Message<CompleteCrazyGames
    */
   outcome = SignInOutcome.UNSPECIFIED;
 
+  /**
+   * The account had asked to be deleted, and this sign-in brought it back.
+   *
+   * @generated from field: bool restored = 3;
+   */
+  restored = false;
+
   constructor(data?: PartialMessage<CompleteCrazyGamesSignInResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -981,6 +1004,7 @@ export class CompleteCrazyGamesSignInResponse extends Message<CompleteCrazyGames
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "outcome", kind: "enum", T: proto3.getEnumType(SignInOutcome) },
+    { no: 3, name: "restored", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteCrazyGamesSignInResponse {

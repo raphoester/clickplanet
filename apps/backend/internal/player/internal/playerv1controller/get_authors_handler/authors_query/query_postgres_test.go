@@ -10,6 +10,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures/postgres_departure_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
@@ -142,6 +144,21 @@ func (s *testSuite) TestADeletedAccountCanNoLongerBeNamed() {
 	s.Require().NoError(s.players.DeleteAccount(s.T().Context(), ada))
 
 	s.Empty(s.authors(ada), "what a caller shows in its place is the caller's to decide")
+}
+
+func (s *testSuite) decide(account players.AccountID, decision departures.Decision) {
+	s.Require().NoError(postgres_departure_store.New(s.db).Change(s.T().Context(), account,
+		func(d departures.Departure) departures.Departure { return d.Decided(decision) }))
+}
+
+func (s *testSuite) TestAnAccountAskedToBeDeletedReadsAsDeletedUntilItComesBack() {
+	s.decide(ada, departures.Leaves(today))
+
+	s.Equal(map[string]string{bob.String(): "Bob"}, names(s.authors(ada, bob)), "the other players see it gone")
+
+	s.decide(ada, departures.Returns(today.Add(time.Hour)))
+
+	s.Equal(map[string]string{ada.String(): "Ada", bob.String(): "Bob"}, names(s.authors(ada, bob)), "back under its name")
 }
 
 func (s *testSuite) TestAskingAboutNobodyAnswersNobody() {

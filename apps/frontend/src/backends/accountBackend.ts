@@ -37,6 +37,10 @@ const OUTCOMES: Record<WireOutcome, SignInOutcome> = {
     [WireOutcome.CREATED]: "created",
 }
 
+function outcomeOf(res: {outcome: WireOutcome, restored: boolean}): SignInOutcome {
+    return res.restored ? "restored" : OUTCOMES[res.outcome]
+}
+
 const INTENTS: Record<Intent, SignInIntent> = {
     signIn: SignInIntent.SIGN_IN,
     link: SignInIntent.LINK,
@@ -114,7 +118,7 @@ export class ConnectAccountBackend implements AccountBackend {
 
     public async completeSignIn(code: string, state: string): Promise<SignInOutcome> {
         const res = await mapped(() => this.client.completeSignIn({code, state, landing: this.landing}))
-        return OUTCOMES[res.outcome]
+        return outcomeOf(res)
     }
 
     public async startEmailSignIn(email: string, intent: Intent): Promise<void> {
@@ -125,12 +129,12 @@ export class ConnectAccountBackend implements AccountBackend {
     public async completeEmailSignIn(code: string): Promise<SignInOutcome> {
         const res = await mapped(() => this.client.completeEmailSignIn({code, landing: this.landing}),
             {[Code.InvalidArgument]: "wrongCode", [Code.FailedPrecondition]: "newCode"})
-        return OUTCOMES[res.outcome]
+        return outcomeOf(res)
     }
 
     public async completeCrazyGamesSignIn(token: string): Promise<SignInOutcome> {
         const res = await mapped(() => this.client.completeCrazyGamesSignIn({token, landing: this.landing}))
-        return OUTCOMES[res.outcome]
+        return outcomeOf(res)
     }
 
     public async signOut(): Promise<void> {

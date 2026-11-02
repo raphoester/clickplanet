@@ -84,6 +84,8 @@ type AuthServiceClient interface {
 	CompleteCrazyGamesSignIn(context.Context, *connect.Request[v1.CompleteCrazyGamesSignInRequest]) (*connect.Response[v1.CompleteCrazyGamesSignInResponse], error)
 	SignOut(context.Context, *connect.Request[v1.SignOutRequest]) (*connect.Response[v1.SignOutResponse], error)
 	SignOutEverywhere(context.Context, *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error)
+	// Signs the account out everywhere and hides it from the other players. It is erased after a grace period, unless a
+	// sign-in to it brings it back first.
 	DeleteAccount(context.Context, *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error)
 }
 
@@ -265,6 +267,8 @@ type AuthServiceHandler interface {
 	CompleteCrazyGamesSignIn(context.Context, *connect.Request[v1.CompleteCrazyGamesSignInRequest]) (*connect.Response[v1.CompleteCrazyGamesSignInResponse], error)
 	SignOut(context.Context, *connect.Request[v1.SignOutRequest]) (*connect.Response[v1.SignOutResponse], error)
 	SignOutEverywhere(context.Context, *connect.Request[v1.SignOutEverywhereRequest]) (*connect.Response[v1.SignOutEverywhereResponse], error)
+	// Signs the account out everywhere and hides it from the other players. It is erased after a grace period, unless a
+	// sign-in to it brings it back first.
 	DeleteAccount(context.Context, *connect.Request[v1.DeleteAccountRequest]) (*connect.Response[v1.DeleteAccountResponse], error)
 }
 

@@ -101,6 +101,15 @@ describe("ConnectAccountBackend", () => {
         }
     })
 
+    it("says a sign-in brought back an account its player had asked to delete, whichever way it came", async () => {
+        const restored = vi.fn(async () => ({outcome: WireOutcome.SIGNED_IN, restored: true}))
+        const backend = backendWith({completeSignIn: restored, completeEmailSignIn: restored, completeCrazyGamesSignIn: restored})
+
+        expect(await backend.completeSignIn("code", "state")).toBe("restored")
+        expect(await backend.completeEmailSignIn("123456")).toBe("restored")
+        expect(await backend.completeCrazyGamesSignIn("the-jwt")).toBe("restored")
+    })
+
     it("maps each refusal to its failure", async () => {
         const cases: [Code, string][] = [
             [Code.Unimplemented, "off"],

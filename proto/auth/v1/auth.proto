@@ -28,6 +28,8 @@ service AuthService {
 
   rpc SignOutEverywhere(SignOutEverywhereRequest) returns (SignOutEverywhereResponse);
 
+  // Signs the account out everywhere and hides it from the other players. It is erased after a grace period, unless a
+  // sign-in to it brings it back first.
   rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
 }
 
@@ -124,6 +126,9 @@ message CompleteSignInResponse {
   string account_id = 1;
 
   SignInOutcome outcome = 2;
+
+  // The account had asked to be deleted, and this sign-in brought it back.
+  bool restored = 3;
 }
 
 message LinkRefusal {
@@ -156,6 +161,9 @@ message CompleteEmailSignInResponse {
   string account_id = 1;
 
   SignInOutcome outcome = 2;
+
+  // The account had asked to be deleted, and this sign-in brought it back.
+  bool restored = 3;
 }
 
 message CompleteCrazyGamesSignInRequest {
@@ -169,6 +177,9 @@ message CompleteCrazyGamesSignInResponse {
   string account_id = 1;
 
   SignInOutcome outcome = 2;
+
+  // The account had asked to be deleted, and this sign-in brought it back.
+  bool restored = 3;
 }
 
 message EmailRefusal {

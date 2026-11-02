@@ -53,6 +53,20 @@ func TestTheAccountAndOutcomeAreAnsweredWithTheSessionCookieAndTheFlowCleared(t 
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
 }
 
+func TestAnAccountBroughtBackIsSaidRestored(t *testing.T) {
+	res, err := completeSignIn(&stubUseCase{out: signin.AdmissionOf(accounts.AccountID{15: 1}, accounts.SignedIn, "cp_sid=token-1").WithRestored()})
+	require.NoError(t, err)
+
+	assert.True(t, res.Msg.GetRestored())
+}
+
+func TestASignInThatBroughtNothingBackIsNotSaidRestored(t *testing.T) {
+	res, err := completeSignIn(&stubUseCase{out: signin.AdmissionOf(accounts.AccountID{15: 1}, accounts.SignedIn, "cp_sid=token-1")})
+	require.NoError(t, err)
+
+	assert.False(t, res.Msg.GetRestored())
+}
+
 func TestEachOutcomeIsAnsweredOnTheWire(t *testing.T) {
 	for name, tc := range map[string]struct {
 		outcome accounts.Outcome

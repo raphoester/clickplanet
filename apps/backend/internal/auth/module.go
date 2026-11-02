@@ -23,6 +23,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/delete_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase/log_prune_guests"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/purge_deletions_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/purge_deletions_usecase/log_purge_deletions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/resume_session_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_everywhere_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_usecase"
@@ -299,6 +301,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	// Not closers: closers run before the outbox's last send.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
 		prune_guests_usecase.NewRunner(config.Prune, log_prune_guests.New(prune_guests_usecase.New(config.Prune, db, store, outbox, clock), props.Logger)),
+		purge_deletions_usecase.NewRunner(config.Deletion,
+			log_purge_deletions.New(purge_deletions_usecase.New(config.Deletion, db, store, outbox, clock), props.Logger)),
 		cpredis.CloseAfter(streams, props.Logger, cpoutbox.NewRelay("auth-outbox", db, streams, props.Logger), arrivalDeletions)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		path, handler := authv1connect.NewAuthServiceHandler(authService, options...)
@@ -360,6 +364,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		slog.String("emailDelivery", config.Email.Delivery),
 		slog.Int("disposableDomains", blocklist.Size()),
 		slog.Duration("pruneIdleFor", config.Prune.IdleFor),
+		slog.Duration("deletionGrace", config.Deletion.Grace),
 	)
 
 	return nil
@@ -403,6 +408,9 @@ type Config struct {
 
 	Prune prune_guests_usecase.Config
 
+	// How long an account whose deletion its player asked for is kept, for a sign-in to bring it back.
+	Deletion purge_deletions_usecase.Config
+
 	Admin AdminConfig
 }
 
@@ -436,6 +444,7 @@ func (c Config) withDefaults() Config {
 		c.Prune.IdleFor = c.Sessions.GuestTTL
 	}
 	c.Prune = c.Prune.WithDefaults()
+	c.Deletion = c.Deletion.WithDefaults()
 	if c.Email.SendLimiter.Burst <= 0 {
 		c.Email.SendLimiter.Burst = 3
 	}

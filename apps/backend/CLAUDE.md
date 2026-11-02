@@ -80,7 +80,8 @@ and says what is in it. Read the doc before you change its area.
 - [Sessions](docs/sessions.md) — the click token that makes clicking cost something; the click token and the
   identity token.
 - [Auth](docs/auth.md) — Turnstile, guest and signed-in accounts (Google, Discord, emailed code, CrazyGames), the
-  session a framed page carries in a header, operators, sign-out, deletion and pruning.
+  session a framed page carries in a header, operators, sign-out, deletion with its 30-day grace period and the purge,
+  a sign-in that brings an account back, and pruning.
 - [Arrivals](docs/arrivals.md) — how each new account came: a player's link, the YouTube link, CrazyGames, or unknown,
   and the referrer's host; kept by `auth` when it makes the account, anonymized when the account goes; the query.
 - [Anti-bot](docs/antibot.md) — a module that hears planet's facts about callers, judges them, and asks planet to
@@ -91,7 +92,8 @@ and says what is in it. Read the doc before you change its area.
 ## The other contexts
 
 - [Chat](docs/chat.md) — messages, announcements, mutes, removals, replies, reactions, and what each account saw.
-- [Player](docs/player.md) — names and guest codes, stats, streaks, titles, and who is playing now.
+- [Player](docs/player.md) — names and guest codes, stats, streaks, titles, who is playing now, and an account asked
+  deleted, hidden from the other players until it is purged or comes back.
 - [Season titles](docs/season-titles.md) — Season 0 Gold, Silver, Bronze, Battle Top 1-3 and Veteran: who fought the
   Final Battle, where its flag placed and who took the most tiles there, read from scoring when the gamemaster tells
   `SeasonEnded`; Season 0 Top 1-3, its best players, given once by hand.

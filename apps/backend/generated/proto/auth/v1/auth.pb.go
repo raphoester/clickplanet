@@ -904,9 +904,11 @@ func (x *CompleteSignInRequest) GetLanding() *Landing {
 }
 
 type CompleteSignInResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Outcome       SignInOutcome          `protobuf:"varint,2,opt,name=outcome,proto3,enum=auth.v1.SignInOutcome" json:"outcome,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Outcome   SignInOutcome          `protobuf:"varint,2,opt,name=outcome,proto3,enum=auth.v1.SignInOutcome" json:"outcome,omitempty"`
+	// The account had asked to be deleted, and this sign-in brought it back.
+	Restored      bool `protobuf:"varint,3,opt,name=restored,proto3" json:"restored,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -953,6 +955,13 @@ func (x *CompleteSignInResponse) GetOutcome() SignInOutcome {
 		return x.Outcome
 	}
 	return SignInOutcome_SIGN_IN_OUTCOME_UNSPECIFIED
+}
+
+func (x *CompleteSignInResponse) GetRestored() bool {
+	if x != nil {
+		return x.Restored
+	}
+	return false
 }
 
 type LinkRefusal struct {
@@ -1148,9 +1157,11 @@ func (x *CompleteEmailSignInRequest) GetLanding() *Landing {
 }
 
 type CompleteEmailSignInResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Outcome       SignInOutcome          `protobuf:"varint,2,opt,name=outcome,proto3,enum=auth.v1.SignInOutcome" json:"outcome,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Outcome   SignInOutcome          `protobuf:"varint,2,opt,name=outcome,proto3,enum=auth.v1.SignInOutcome" json:"outcome,omitempty"`
+	// The account had asked to be deleted, and this sign-in brought it back.
+	Restored      bool `protobuf:"varint,3,opt,name=restored,proto3" json:"restored,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1197,6 +1208,13 @@ func (x *CompleteEmailSignInResponse) GetOutcome() SignInOutcome {
 		return x.Outcome
 	}
 	return SignInOutcome_SIGN_IN_OUTCOME_UNSPECIFIED
+}
+
+func (x *CompleteEmailSignInResponse) GetRestored() bool {
+	if x != nil {
+		return x.Restored
+	}
+	return false
 }
 
 type CompleteCrazyGamesSignInRequest struct {
@@ -1253,9 +1271,11 @@ func (x *CompleteCrazyGamesSignInRequest) GetLanding() *Landing {
 }
 
 type CompleteCrazyGamesSignInResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Outcome       SignInOutcome          `protobuf:"varint,2,opt,name=outcome,proto3,enum=auth.v1.SignInOutcome" json:"outcome,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Outcome   SignInOutcome          `protobuf:"varint,2,opt,name=outcome,proto3,enum=auth.v1.SignInOutcome" json:"outcome,omitempty"`
+	// The account had asked to be deleted, and this sign-in brought it back.
+	Restored      bool `protobuf:"varint,3,opt,name=restored,proto3" json:"restored,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1302,6 +1322,13 @@ func (x *CompleteCrazyGamesSignInResponse) GetOutcome() SignInOutcome {
 		return x.Outcome
 	}
 	return SignInOutcome_SIGN_IN_OUTCOME_UNSPECIFIED
+}
+
+func (x *CompleteCrazyGamesSignInResponse) GetRestored() bool {
+	if x != nil {
+		return x.Restored
+	}
+	return false
 }
 
 type EmailRefusal struct {
@@ -1599,11 +1626,12 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x15CompleteSignInRequest\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12*\n" +
-	"\alanding\x18\x03 \x01(\v2\x10.auth.v1.LandingR\alanding\"i\n" +
+	"\alanding\x18\x03 \x01(\v2\x10.auth.v1.LandingR\alanding\"\x85\x01\n" +
 	"\x16CompleteSignInResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x120\n" +
-	"\aoutcome\x18\x02 \x01(\x0e2\x16.auth.v1.SignInOutcomeR\aoutcome\"A\n" +
+	"\aoutcome\x18\x02 \x01(\x0e2\x16.auth.v1.SignInOutcomeR\aoutcome\x12\x1a\n" +
+	"\brestored\x18\x03 \x01(\bR\brestored\"A\n" +
 	"\vLinkRefusal\x122\n" +
 	"\x06reason\x18\x01 \x01(\x0e2\x1a.auth.v1.LinkRefusalReasonR\x06reason\"\x8b\x01\n" +
 	"\x17StartEmailSignInRequest\x12\x14\n" +
@@ -1613,18 +1641,20 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x18StartEmailSignInResponse\"\\\n" +
 	"\x1aCompleteEmailSignInRequest\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12*\n" +
-	"\alanding\x18\x02 \x01(\v2\x10.auth.v1.LandingR\alanding\"n\n" +
+	"\alanding\x18\x02 \x01(\v2\x10.auth.v1.LandingR\alanding\"\x8a\x01\n" +
 	"\x1bCompleteEmailSignInResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x120\n" +
-	"\aoutcome\x18\x02 \x01(\x0e2\x16.auth.v1.SignInOutcomeR\aoutcome\"c\n" +
+	"\aoutcome\x18\x02 \x01(\x0e2\x16.auth.v1.SignInOutcomeR\aoutcome\x12\x1a\n" +
+	"\brestored\x18\x03 \x01(\bR\brestored\"c\n" +
 	"\x1fCompleteCrazyGamesSignInRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12*\n" +
-	"\alanding\x18\x02 \x01(\v2\x10.auth.v1.LandingR\alanding\"s\n" +
+	"\alanding\x18\x02 \x01(\v2\x10.auth.v1.LandingR\alanding\"\x8f\x01\n" +
 	" CompleteCrazyGamesSignInResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x120\n" +
-	"\aoutcome\x18\x02 \x01(\x0e2\x16.auth.v1.SignInOutcomeR\aoutcome\"C\n" +
+	"\aoutcome\x18\x02 \x01(\x0e2\x16.auth.v1.SignInOutcomeR\aoutcome\x12\x1a\n" +
+	"\brestored\x18\x03 \x01(\bR\brestored\"C\n" +
 	"\fEmailRefusal\x123\n" +
 	"\x06reason\x18\x01 \x01(\x0e2\x1b.auth.v1.EmailRefusalReasonR\x06reason\"\x10\n" +
 	"\x0eSignOutRequest\"\x11\n" +

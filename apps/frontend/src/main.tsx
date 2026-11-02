@@ -39,6 +39,7 @@ import {FakeAccountBackend} from "./backends/fakeAccountBackend.ts"
 import {SHARE_FLAG_PARAM, sharedCountry, withoutSharedFlag} from "./domain/shareCard.ts"
 import {firstLanding, landingOf, SOURCE_TAG_PARAM, withoutLanding} from "./domain/landing.ts"
 import {localLandingStore} from "./backends/landingStore.ts"
+import {localLeaverStore} from "./backends/leaverStore.ts"
 import {ON_CRAZYGAMES} from "./platform.ts"
 import {connectCrazyGames} from "./backends/crazyGamesSdk.ts"
 import {localAccountCarrier} from "./backends/accountCarrier.ts"
@@ -111,6 +112,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
         crazyGames: crazyGames?.user,
+        leavers: crazyGames && localLeaverStore(),
     })
     followCrazyGames(crazyGames, account)
     const alerts = discordAlertsOf(new FakeAlertsBackend())
@@ -294,6 +296,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
         crazyGames: crazyGames?.user,
+        leavers: crazyGames && localLeaverStore(),
     })
     followCrazyGames(crazyGames, account)
 

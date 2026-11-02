@@ -1076,7 +1076,7 @@ describe("Menu", () => {
             await user.click(button("Delete account"))
 
             const dialog = screen.getByRole("dialog", {name: "Delete your account?"})
-            expect(within(dialog).getByText(/cannot undo/)).toBeDefined()
+            expect(within(dialog).getByText(/within 30 days/)).toBeDefined()
             expect(backend.deleteAccount).not.toHaveBeenCalled()
 
             await user.click(within(dialog).getByRole("button", {name: "Delete"}))
