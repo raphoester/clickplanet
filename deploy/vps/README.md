@@ -498,7 +498,6 @@ which is already registered. You do not make a second application.
    itself), and turn **View Channel** and **Send Messages** on for it. You do not make that role: Discord made it
    when the bot joined in step 2, with the four permissions you ticked. It shows in **Server Settings** > **Roles**
    with the application's name.
-3. Server name > **Server Settings** > **AutoMod**: turn on the spam rules.
 
 #### 4. Copy the three ids
 
