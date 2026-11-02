@@ -493,8 +493,11 @@ which is already registered. You do not make a second application.
 
 1. In your server, click **+** next to **Text Channels** and make `alerts`. Do the same for `battles`.
 2. For each one: right-click it > **Edit Channel** > **Permissions**. For **@everyone**, turn **Send Messages** off
-   (so players read the pings and talk elsewhere). Add the bot's role and turn **View Channel** and **Send Messages**
-   on for it.
+   (so players read the pings and talk elsewhere). That also stops the bot, so let it back in: **Add members or
+   roles** (the **+** next to Roles/Members), type the application's name, pick the role with that name (or the bot
+   itself), and turn **View Channel** and **Send Messages** on for it. You do not make that role: Discord made it
+   when the bot joined in step 2, with the four permissions you ticked. It shows in **Server Settings** > **Roles**
+   with the application's name.
 3. Server name > **Server Settings** > **AutoMod**: turn on the spam rules.
 
 #### 4. Copy the three ids
