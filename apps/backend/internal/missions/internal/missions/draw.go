@@ -109,8 +109,14 @@ func (w World) RivalsOf(flag string) []Holding {
 	return rivals
 }
 
+// A country's land, and how many of its tiles a flag does not hold.
+type Ground struct {
+	Country string
+	Open    uint32
+}
+
 // The countries of groundAtLeast tiles or more but the flag, with openAtLeast tiles the flag does not hold, by code.
-func (w World) GroundsOf(flag string) []string {
+func (w World) GroundsOf(flag string) []Ground {
 	held := make(map[string]uint32)
 	for _, territory := range w.Territories {
 		if territory.Flag != flag {
@@ -121,13 +127,13 @@ func (w World) GroundsOf(flag string) []string {
 		}
 	}
 
-	var grounds []string
+	var grounds []Ground
 	for _, size := range w.CountrySizes {
 		if size.Country != flag && size.Tiles >= groundAtLeast && size.Tiles >= held[size.Country]+openAtLeast {
-			grounds = append(grounds, size.Country)
+			grounds = append(grounds, Ground{Country: size.Country, Open: size.Tiles - held[size.Country]})
 		}
 	}
-	slices.Sort(grounds)
+	slices.SortFunc(grounds, func(a, b Ground) int { return cmp.Compare(a.Country, b.Country) })
 	return grounds
 }
 
@@ -185,7 +191,7 @@ func (d draw) ranked(rivals []Holding) []string {
 }
 
 // The bank, a rival and a ground.
-func (d draw) takes(rivals, grounds []string) []Order {
+func (d draw) takes(rivals []string, grounds []Ground) []Order {
 	orders := []Order{TakeFor{Flag: d.flag, Goal: d.goal(bankGoal)}}
 	if len(rivals) == 0 {
 		orders = append(orders, TakeFor{Flag: d.flag, Goal: 2 * d.goal(rivalGoal)})
@@ -195,11 +201,11 @@ func (d draw) takes(rivals, grounds []string) []Order {
 	if len(grounds) == 0 {
 		return append(orders, TakeFor{Flag: d.flag, Goal: d.goal(groundGoal)})
 	}
-	return append(orders, TakeIn{Ground: grounds[d.random.IntN(len(grounds))], Goal: d.goal(groundGoal)})
+	return append(orders, TakeIn{Ground: grounds[d.random.IntN(len(grounds))].Country, Goal: d.goal(groundGoal)})
 }
 
 // Then what the day gives of the other kinds, each once at most, drawn evenly.
-func (d draw) feats(grounds []string, raids []raid, count int) []Order {
+func (d draw) feats(grounds []Ground, raids []raid, count int) []Order {
 	feats := []Order{
 		CatchBoxes{Goal: d.goal(boxGoal)},
 		AnswerQuizzes{Goal: d.goal(answerGoal)},
@@ -207,7 +213,7 @@ func (d draw) feats(grounds []string, raids []raid, count int) []Order {
 		FortifyTiles{Goal: d.goal(fortifyGoal)},
 	}
 	if len(grounds) > 0 {
-		feats = append(feats, BombIn{Ground: grounds[d.random.IntN(len(grounds))], Goal: d.goal(bombGoal)})
+		feats = append(feats, BombIn{Ground: grounds[d.random.IntN(len(grounds))].Country, Goal: d.goal(bombGoal)})
 	}
 	if len(raids) > 0 {
 		drawn := raids[d.random.IntN(len(raids))]

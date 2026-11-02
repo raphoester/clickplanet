@@ -17,7 +17,7 @@ internal/missions/internal/
     inmemory_day_store/             the same port in a map, behind the testing tag
     usecases/keep_day_usecase/
   missions/                         AccountID, Fact (one type per kind) and Counted, MissionID,
-                                    Order (one type per kind), Mission, Brief, Draw and World, Sheet (an account's day), Briefing;
+                                    Order (one type per kind), Mission, Brief, Draw, World and Ground, Sheet (an account's day), Briefing;
                                     the Store port and its contract suite
     postgres_mission_store/         the Store over missions.mission_briefs, mission_sheets, mission_progress and mission_payments;
                                     records.go is the jsonb format of a mission, one payload per kind
@@ -153,6 +153,11 @@ day and a flag), so it has its own package and store (`flagmissions`).
   ground (`World.GroundsOf`, the grounds of the player missions), or `BreakShields{Flag, Goal}`, shields of a rival broken
   (`World.RivalsOf`, drawn by the ground it holds, so the leaders share the heat). A map with neither gives a day with
   no mission.
+- **A ground has room for its goal** (`conquest`): its room is its tiles the flag does not hold (`Ground.Open`), and the
+  ground is drawn evenly among those with room for the goal, so a busy flag is sent to Russia, Antarctica, the US, China,
+  Canada, Brazil or Australia, and a quiet one anywhere big. With none, the ground with the most room, and the goal cut
+  to it, rounded down to 10. Until 2026-11-02 the ground was drawn among all seventeen whatever the goal: France was
+  told to take 8,000 tiles in Sudan, which has 3,536 (the owner: "this is ridiculous").
 - **The goal is the team's whole day before**, all on the one target, so a busy flag gets a big goal and a small one a
   small one (the user's choice, 2026-10-28): for a ground, of all the tiles its players took anywhere (50% for 3 points to
   100% for 10, and at least 1,000 to 2,000); for shields, of all the shields they broke on anyone (the same shares, at
