@@ -44,7 +44,8 @@ tells a link from a sign-in by what it started (see the frontend's
 | `ResourceExhausted` | `alerts.rateLimiter`, on start and complete: 6 at once, one every 30 s |
 
 `GetDiscordLink` answers `offered` (true: a server that answers at all offers it), `linked`, and the server's page.
-It reads `links` straight (a query).
+It reads `links` straight (a query). The public route, `/alerts.v1.AlertsService/*`, is listed in
+`deploy/vps/caddy/Caddyfile`: without it Caddy answers 404, and the game shows no button.
 
 ## The roles (`roles/`)
 
