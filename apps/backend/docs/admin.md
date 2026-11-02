@@ -56,6 +56,12 @@ hour of wait after a change of flag (see [Allegiance](allegiance.md)), so its ne
 - **An id that is no account is `InvalidArgument`.** An account with no flag keeps no row: its first flag is free
   anyway.
 
+## A player's Discord link: `alerts.v1.AdminService`
+
+`GetPlayerLink(account_id)` reads the account's Discord link, and `UnlinkPlayer(account_id)` forgets it and takes the
+flag's role off the Discord user, who stays in the server: the game then offers that account to join Discord again,
+which is how the offer is tried. Served only while the alerts module is on. See [Discord pings](alerts.md).
+
 ## `GetReplay`
 
 `GetReplay(since, until)` runs `ledger/usecases/replay_usecase`: the map as it was at `since` (`opening`, a

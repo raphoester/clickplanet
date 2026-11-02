@@ -170,6 +170,14 @@ export class AccountStore {
         this.settle(offered, ready.me, {...named(ready), failure, code})
     }
 
+    // Discord's sign-in joins the game's server too. An account signed in already links it, so the player stays on it;
+    // a guest signs in, and moves to the account that Discord user has, if any. Refused, it throws, and changes nothing.
+    public connectDiscord(): Promise<void> {
+        const ready = this.current
+        const intent: Intent = ready.kind === "ready" && ready.me.linked.length > 0 ? "link" : "signIn"
+        return this.leaveFor("discord", intent)
+    }
+
     public async leaveFor(provider: OAuthProvider, intent: Intent): Promise<void> {
         const url = await this.backend.startSignIn(provider, intent)
         this.options.remember(provider, intent)

@@ -331,8 +331,8 @@ func TestTheExampleConfigReachesTheAlertsBlockOff(t *testing.T) {
 
 	assert.False(t, config.Alerts.Enabled)
 	assert.Equal(t, "alerts", config.Alerts.Database.Schema)
-	assert.Equal(t, "1549822806420885616", config.Alerts.Discord.ClientID)
-	assert.Equal(t, 6, config.Alerts.RateLimiter.Burst)
+	assert.Equal(t, "https://clickplanet.lol/play", config.Alerts.GameURL)
+	assert.False(t, config.Auth.Discord.JoinServer, "a sign-in joins no server while the alerts are off")
 	require.NoError(t, config.Alerts.Validate())
 }
 
@@ -452,7 +452,7 @@ func TestTheProductionAlertsAreWhole(t *testing.T) {
 
 	require.True(t, config.Alerts.Enabled)
 	assert.Equal(t, "alerts", config.Alerts.Database.Schema)
-	assert.Equal(t, config.Auth.Discord.ClientID, config.Alerts.Discord.ClientID, "the sign-in's application")
+	assert.True(t, config.Auth.Discord.JoinServer, "a Discord sign-in joins the server")
 	assert.Equal(t, "1310907949106860032", config.Alerts.Discord.GuildID, "an id, not a number YAML rounded")
 	require.NoError(t, config.Alerts.Validate())
 }

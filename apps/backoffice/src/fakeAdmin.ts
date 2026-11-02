@@ -30,6 +30,13 @@ import {
     UnbanPlayerResponse,
 } from "./gen/grpc/antibot/v1/admin_pb.ts"
 import {Rules} from "./gen/grpc/antibot/v1/rules_pb.ts"
+import {
+    DiscordLink,
+    GetPlayerLinkRequest,
+    GetPlayerLinkResponse,
+    UnlinkPlayerRequest,
+    UnlinkPlayerResponse,
+} from "./gen/grpc/alerts/v1/admin_pb.ts"
 import {Rules as PlanetRules} from "./gen/grpc/planet/v1/rules_pb.ts"
 import {
     FindPlayersRequest,
@@ -123,7 +130,7 @@ import {
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
 import {
-    AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin,
+    AlertsAdmin, AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin,
 } from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
@@ -143,6 +150,7 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
 export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
     readonly kind = "fake admin"
     readonly antibot: FakeAntibot = new FakeAntibot(this)
+    readonly alerts: FakeAlerts = new FakeAlerts(this)
     readonly gamemaster: FakeGamemaster = new FakeGamemaster(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
@@ -151,6 +159,10 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     muting = new GetMuteResponse()
     // Whether the rules in force lock every flag, as ReleaseAllegiance answers.
     flagsLocked = false
+    // The account's Discord link, as GetPlayerLink answers; UnlinkPlayer forgets it.
+    discordLink: DiscordLink | undefined = new DiscordLink({
+        discordUserId: "80351110224678912", countryId: "fr", linkedAtUnixMs: BigInt(AT.getTime()),
+    })
     message = new GetMessageResponse({
         messageId: "message-1", accountId: "account-reported", text: "you all suck",
         sentAt: Timestamp.fromDate(AT), countryId: "fr",
@@ -329,7 +341,8 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     clients(): Clients {
         return {
-            antibot: this.antibot, chat: this, planet: this, player: this, gamemaster: this.gamemaster, support: this, clips: this,
+            alerts: this.alerts, antibot: this.antibot, chat: this, planet: this, player: this, gamemaster: this.gamemaster,
+            support: this, clips: this,
         }
     }
 
@@ -556,6 +569,22 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     decideReport(request: PartialMessage<DecideReportRequest>): Promise<DecideReportResponse> {
         return this.answer("decideReport", request, new DecideReportResponse({decidedAt: Timestamp.fromDate(AT)}))
+    }
+}
+
+// alerts.v1's calls, asked of the same fake.
+export class FakeAlerts implements AlertsAdmin {
+    constructor(private readonly admin: FakeAdmin) {}
+
+    getPlayerLink(request: PartialMessage<GetPlayerLinkRequest>): Promise<GetPlayerLinkResponse> {
+        return this.admin.answer("getPlayerLink", request, new GetPlayerLinkResponse({link: this.admin.discordLink}))
+    }
+
+    unlinkPlayer(request: PartialMessage<UnlinkPlayerRequest>): Promise<UnlinkPlayerResponse> {
+        const unlinked = this.admin.discordLink !== undefined
+        const answer = this.admin.answer("unlinkPlayer", request, new UnlinkPlayerResponse({unlinked}))
+        if (!this.admin.refusals.has("unlinkPlayer")) this.admin.discordLink = undefined
+        return answer
     }
 }
 

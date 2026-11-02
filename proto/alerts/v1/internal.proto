@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package alerts.v1;
+
+// What auth asks alerts, on the internal listener alone.
+service InternalService {
+  // A Discord sign-in or link just proved this Discord user, and traded a token that may join the server (scope
+  // guilds.join). Adds the user to the server with the role of the flag the account plays for, and keeps the link. An
+  // account already linked to this user changes nothing, so a user who left the server stays out.
+  rpc JoinServer(JoinServerRequest) returns (JoinServerResponse);
+}
+
+message JoinServerRequest {
+  string account_id = 1;
+  string discord_user_id = 2;
+  // Used once, to add the user, and never kept.
+  string access_token = 3;
+}
+
+message JoinServerResponse {}

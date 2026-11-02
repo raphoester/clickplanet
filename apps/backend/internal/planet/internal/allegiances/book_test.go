@@ -20,10 +20,16 @@ const (
 )
 
 func book() (allegiances.Book, *allegiances.MemoryStore, *cptime.FixedClock) {
+	b, store, clock, _ := bookTelling()
+	return b, store, clock
+}
+
+func bookTelling() (allegiances.Book, *allegiances.MemoryStore, *cptime.FixedClock, *allegiances.RecordedPledges) {
 	store := allegiances.NewMemoryStore()
 	clock := cptime.NewFixedClock(at)
+	told := &allegiances.RecordedPledges{}
 
-	return allegiances.NewBook(store, cpcountries.New(), unlocked, clock), store, clock
+	return allegiances.NewBook(store, cpcountries.New(), unlocked, clock, told), store, clock, told
 }
 
 func TestAnAccountIsHeldToItsFlagForAnHourAfterAChange(t *testing.T) {
@@ -70,7 +76,7 @@ func unlocked() allegiances.Lock { return false }
 func TestNoAccountChangesItsFlagWhileTheRulesLockThem(t *testing.T) {
 	var lock allegiances.Lock
 	store := allegiances.NewMemoryStore()
-	b := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return lock }, cptime.NewFixedClock(at))
+	b := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return lock }, cptime.NewFixedClock(at), &allegiances.RecordedPledges{})
 	payer := clicks.Payer{Account: alice}
 	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
 
@@ -140,4 +146,31 @@ func TestAStoreThatFailsFailsThePledge(t *testing.T) {
 	assert.ErrorIs(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, "fr"), down)
 	assert.ErrorIs(t, b.PlayError(t.Context(), clicks.Payer{Account: alice}, "fr"), down)
 	assert.ErrorIs(t, b.Release(t.Context(), alice), down)
+}
+
+func TestEachFlagSetOrChangedIsToldOnceWritten(t *testing.T) {
+	b, _, clock, told := bookTelling()
+	payer := clicks.Payer{Account: alice}
+
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), payer, "de"))
+	require.ErrorIs(t, b.Pledge(t.Context(), payer, "it"), allegiances.ErrChangedTooSoon)
+	clock.Advance(time.Hour)
+	require.NoError(t, b.Pledge(t.Context(), payer, "it"))
+
+	assert.Equal(t, []allegiances.RecordedPledge{
+		{Account: alice, Flag: "fr"},
+		{Account: alice, Flag: "de", Previous: "fr"},
+		{Account: alice, Flag: "it", Previous: "de"},
+	}, told.Told())
+}
+
+func TestAReleaseTellsNothing(t *testing.T) {
+	b, _, _, told := bookTelling()
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, "fr"))
+
+	require.NoError(t, b.Release(t.Context(), alice))
+
+	assert.Len(t, told.Told(), 1)
 }

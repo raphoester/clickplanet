@@ -30,7 +30,7 @@ import {ConnectAccountBackend} from "./backends/accountBackend.ts"
 import {ConnectPlayerBackend, newKeepalivePlayerServiceClient, newPlayerServiceClient} from "./backends/playerBackend.ts"
 import {ConnectMissionsBackend, newMissionServiceClient} from "./backends/missionsBackend.ts"
 import {AccountStore} from "./app/account/accountStore.ts"
-import {rememberDiscordLink, rememberSignIn} from "./app/account/rememberedSignIn.ts"
+import {rememberSignIn} from "./app/account/rememberedSignIn.ts"
 import SignInGate from "./app/account/SignInGate.tsx"
 import {callbackOf, CALLBACK_PATH} from "./domain/signInCallback.ts"
 import {ConnectClipsBackend, newClipsServiceClient} from "./backends/clipsBackend.ts"
@@ -87,10 +87,11 @@ const root = createRoot(document.getElementById('root')!)
 // Planet hears player's PlayerCreated over Redis, and player's outbox sends once a second.
 const FAKE_GRANT_LANDS_MS = 1_200
 
-// The link leaves for Discord and comes back on clickplanet.lol, out of CrazyGames' frame and its carried session.
-function discordAlertsOf(backend: AlertsBackend): DiscordAlerts | undefined {
+// Discord's sign-in leaves for Discord and comes back on clickplanet.lol, out of CrazyGames' frame and its carried
+// session: and CrazyGames allows no sign-in but its own.
+function discordAlertsOf(backend: AlertsBackend, account: AccountStore): DiscordAlerts | undefined {
     if (crazyGames) return undefined
-    return new DiscordAlerts(backend, {navigate: (url) => window.location.assign(url), remember: rememberDiscordLink})
+    return new DiscordAlerts(backend, () => account.connectDiscord())
 }
 
 function followCrazyGames(page: CrazyGamesPage | undefined, account: AccountStore) {
@@ -113,7 +114,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         crazyGames: crazyGames?.user,
     })
     followCrazyGames(crazyGames, account)
-    const alerts = discordAlertsOf(new FakeAlertsBackend())
+    const alerts = discordAlertsOf(new FakeAlertsBackend(async () => (await fakeAccount.me()).linked.length > 0), account)
     const fakeClips = new FakeClipsBackend()
     const fakeMissions = new FakeMissionsBackend((kind) => {
         if (kind === "bomb") fake.grantBomb()
@@ -247,7 +248,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 
     void words.then((filter) => root.render(
         <StrictMode>
-            <SignInGate callback={callback} account={account} alerts={alerts}>
+            <SignInGate callback={callback} account={account}>
                 <App
                     sharedCountry={shared}
                     ownershipsGetter={fake}
@@ -289,17 +290,17 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const missions = new ConnectMissionsBackend(newMissionServiceClient(config), session)
     const support = new ConnectSupportBackend(newSupportServiceClient(config), session)
     const clips = new ConnectClipsBackend(newClipsServiceClient(config), session)
-    const alerts = discordAlertsOf(new ConnectAlertsBackend(newAlertsServiceClient(config), session))
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest, landing), player, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
         crazyGames: crazyGames?.user,
     })
     followCrazyGames(crazyGames, account)
+    const alerts = discordAlertsOf(new ConnectAlertsBackend(newAlertsServiceClient(config), session), account)
 
     void words.then((filter) => root.render(
         <StrictMode>
-            <SignInGate callback={callback} account={account} alerts={alerts}>
+            <SignInGate callback={callback} account={account}>
                 <App
                     sharedCountry={shared}
                     ownershipsGetter={backend}

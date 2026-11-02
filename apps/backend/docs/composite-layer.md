@@ -72,7 +72,8 @@ return []bootstrap.Module{
 | `missions` | `planet.v1.InternalService/GetTerritories` and `GetCountrySizes` | what each flag holds and where, and how many tiles of land each country has, once per account and day and once per flag and day, to draw the missions | `missions/rpc_planet_world` |
 | `missions` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per account and day, to draw its missions, and on each `GetMissions`, for its flag's mission | `missions/rpc_planet_allegiance` |
 | `missions` | `auth.v1.InternalService/GetAccount` | whether an account is signed in, when a take finishes one of its missions | `missions/rpc_auth_accounts` |
-| `alerts` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per `CompleteDiscordLink`, for the role it joins the server with | `links/rpc_planet_allegiance` |
+| `alerts` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per `JoinServer` of an account not linked yet, for the role it joins the server with | `links/rpc_planet_allegiance` |
+| `auth` | `alerts.v1.InternalService/JoinServer` | the account, the Discord user and the token a Discord sign-in traded, once it is saved, to join the game's Discord server; only with `auth.discord.joinServer` on | `signin/rpc_alerts_server` |
 | `clips` | `planet.v1.InternalService/GetLedger` | who took which tile in a run's window, page after page, on each `MakeCast` | `casts/rpc_planet_ledger` |
 | `clips` | `player.v1.InternalService/GetAuthors` | the name each of those accounts may be shown under in the clips, on each `MakeCast` | `casts/rpc_player_names` |
 | `gamemaster` | `planet.v1.InternalService/GetRuleSetNames` and `antibot.v1.InternalService/GetRuleSetNames` | the rule sets each module keeps, on each schedule entry an operator adds or edits | `schedule/rpc_planet_rule_sets`, `schedule/rpc_antibot_rule_sets` |
@@ -144,10 +145,10 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `commands:scoring.v1.ScoringCommand` (scoring's `handler`) | each command names its book or round: a book or round opened twice is one, a round closed twice is scored once, a book closed twice is ranked once, and a close of a round never opened scores nothing |
 | `commands:planet.v1.PlayRuleSet`, `commands:antibot.v1.PlayRuleSet` (each module's `handler`) | each command names when it was decided; the module keeps the latest choice (`rules.Choice.Overrules`, `rule_set_choice`), so a command sent again, or an older one, changes nothing |
 | `commands:planet.v1.ResetMap` (`handler`) | planet keeps each reset id in `map_resets`, in the wipe's transaction, so a reset told again wipes nothing |
-| `alerts-flags` | moves a link's role only when the take's flag is not the role's already; a second delivery finds it moved |
+| `alerts-allegiances` | moves a link's role only when the pledged flag is not the role's already; a second delivery finds it moved |
 | `alerts-attacks` | the watch forgets the attacker's takes once it found an attack, and a flag is pinged once in 3 hours (`attack_pings`), so a take told again finds no second attack |
 | `alerts-battles`, `alerts-seasons` | keeps each start pinged by its round's or book's id (`start_pings`), in the transaction of the post |
-| `alerts-accounts` | deletes the link and the flow, which is nothing the second time |
+| `alerts-accounts` | deletes the link, which is nothing the second time |
 | `gamemaster-rounds`, `gamemaster-books` | the gamemaster keeps each round scored and each book closed it heard (`scored_rounds`, `closed_books`, inserted once), and records its own event only for a new one |
 
 The marks need each source in order per account, which is why the map facts come from the ledger relay and not from each click: two clicks of one account could reach Redis in the other order. **What stays uncertain, on purpose**: two messages, boxes or answers of one account in the same microsecond, or a clock that jumps back, count once.

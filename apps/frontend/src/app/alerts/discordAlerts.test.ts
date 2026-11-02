@@ -1,39 +1,25 @@
 import {describe, expect, it, vi} from "vitest"
-import {AlertsBackend, AlertsError} from "../../backends/alerts.ts"
+import {AlertsBackend} from "../../backends/alerts.ts"
 import {DiscordAlerts} from "./discordAlerts.ts"
 
-function backendLeavingFor(url: string): AlertsBackend {
-    return {
-        discordLink: vi.fn(async () => ({offered: true, linked: false})),
-        startDiscordLink: vi.fn(async () => url),
-        completeDiscordLink: vi.fn(async () => "https://discord.com/channels/1"),
-    }
+const backend: AlertsBackend = {
+    discordLink: vi.fn(async () => ({offered: true, linked: false, serverUrl: "https://discord.com/channels/1/2"})),
 }
 
 describe("DiscordAlerts", () => {
-    it("remembers the trip, then sends the browser to Discord's page", async () => {
-        const steps: string[] = []
-        const alerts = new DiscordAlerts(backendLeavingFor("https://discord.com/oauth2/authorize?x"), {
-            remember: () => steps.push("remember"),
-            navigate: (url) => steps.push(`go ${url}`),
-        })
+    it("reads the link from the alerts", async () => {
+        const alerts = new DiscordAlerts(backend, vi.fn(async () => undefined))
 
-        await alerts.leave()
-
-        expect(steps).toEqual(["remember", "go https://discord.com/oauth2/authorize?x"])
+        expect(await alerts.read()).toEqual({offered: true, linked: false, serverUrl: "https://discord.com/channels/1/2"})
     })
 
-    it("remembers nothing and stays when the start is refused", async () => {
-        const backend = backendLeavingFor("unused")
-        backend.startDiscordLink = vi.fn(async () => {
-            throw new AlertsError("tooManyTries")
+    it("connects by Discord's sign-in, and says why it could not", async () => {
+        const signIn = vi.fn(async () => {
+            throw new Error("refused")
         })
-        const remember = vi.fn()
-        const navigate = vi.fn()
 
-        await expect(new DiscordAlerts(backend, {remember, navigate}).leave()).rejects.toMatchObject({failure: "tooManyTries"})
+        await expect(new DiscordAlerts(backend, signIn).connect()).rejects.toThrow("refused")
 
-        expect(remember).not.toHaveBeenCalled()
-        expect(navigate).not.toHaveBeenCalled()
+        expect(signIn).toHaveBeenCalledTimes(1)
     })
 })

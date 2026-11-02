@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package alerts.v1;
+
+// The operator's view of a player's Discord link.
+service AdminService {
+  rpc GetPlayerLink(GetPlayerLinkRequest) returns (GetPlayerLinkResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Forgets the link and takes the flag's role off the Discord user, who stays in the server: the game offers that
+  // account to connect Discord again, and its next Discord sign-in joins it again.
+  rpc UnlinkPlayer(UnlinkPlayerRequest) returns (UnlinkPlayerResponse);
+}
+
+message GetPlayerLinkRequest {
+  string account_id = 1;
+}
+
+message GetPlayerLinkResponse {
+  // Unset: the account is not linked.
+  DiscordLink link = 1;
+}
+
+message DiscordLink {
+  string discord_user_id = 1;
+  // The flag whose role the user holds, empty when the account never pledged one.
+  string country_id = 2;
+  int64 linked_at_unix_ms = 3;
+}
+
+message UnlinkPlayerRequest {
+  string account_id = 1;
+}
+
+message UnlinkPlayerResponse {
+  // False: the account was not linked, and nothing changed.
+  bool unlinked = 1;
+}

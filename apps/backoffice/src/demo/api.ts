@@ -1,4 +1,5 @@
 import {createPromiseClient, createRouterTransport} from "@connectrpc/connect"
+import {AdminService as AlertsAdmin} from "../gen/grpc/alerts/v1/admin_connect.ts"
 import {AdminService as AntibotAdmin} from "../gen/grpc/antibot/v1/admin_connect.ts"
 import {AdminService as AuthAdmin} from "../gen/grpc/auth/v1/admin_connect.ts"
 import {AdminService as ChatAdmin} from "../gen/grpc/chat/v1/admin_connect.ts"
@@ -13,6 +14,7 @@ import {DemoAdmin, OPERATOR} from "./demoAdmin.ts"
 const admin = new DemoAdmin()
 
 const transport = createRouterTransport(router => {
+    router.service(AlertsAdmin, admin.demoAlerts)
     router.service(AntibotAdmin, admin.demoAntibot)
     router.service(AuthAdmin, {whoAmI: () => ({accountId: OPERATOR}), signOut: () => ({})})
     router.service(ChatAdmin, admin)
@@ -23,6 +25,7 @@ const transport = createRouterTransport(router => {
     router.service(SupportAdmin, admin)
 })
 
+export const alertsAdmin = createPromiseClient(AlertsAdmin, transport)
 export const antibotAdmin = createPromiseClient(AntibotAdmin, transport)
 export const authAdmin = createPromiseClient(AuthAdmin, transport)
 export const chatAdmin = createPromiseClient(ChatAdmin, transport)

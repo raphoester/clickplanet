@@ -1,4 +1,4 @@
-package complete_link_usecase
+package join_server_usecase
 
 import (
 	"context"
@@ -14,15 +14,12 @@ import (
 )
 
 type Store interface {
-	FlowOf(ctx context.Context, account links.AccountID) (links.Flow, error)
-	SaveFlow(ctx context.Context, flow links.Flow) error
+	LinkOf(ctx context.Context, account links.AccountID) (links.Link, error)
 	LinkOfUser(ctx context.Context, user discord.UserID) (links.Link, error)
 	SaveLinks(ctx context.Context, links ...links.Link) error
 }
 
 type Discord interface {
-	Exchange(ctx context.Context, code string, verifier string) (discord.AccessToken, error)
-	UserOf(ctx context.Context, token discord.AccessToken) (discord.UserID, error)
 	Join(ctx context.Context, user discord.UserID, token discord.AccessToken, roles []discord.RoleID) error
 }
 
@@ -34,10 +31,11 @@ type Roles interface {
 	Ensure(ctx context.Context, role roles.Role) (discord.RoleID, error)
 }
 
+// What a Discord sign-in proved: the account it signed in to, the Discord user, and a token that may join the server.
 type In struct {
 	Account links.AccountID
-	Code    string
-	State   string
+	User    discord.UserID
+	Token   discord.AccessToken
 }
 
 const timeout = 15 * time.Second
@@ -54,48 +52,39 @@ type UseCase struct {
 	roles       Roles
 }
 
+// An account linked to this user already changes nothing: a user who left the server since is not added back by
+// every sign-in. A user linked from another account moves here.
 func (u *UseCase) Execute(ctx context.Context, in In) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	flow, err := u.store.FlowOf(ctx, in.Account)
-	if errors.Is(err, links.ErrNoFlow) {
-		return links.ErrFlowInvalid
-	}
-	if err != nil {
-		return fmt.Errorf("failed to read the link flow: %w", err)
-	}
-	now := u.clock.Now()
-	verifier, err := flow.Spend(in.State, now)
-	if err != nil {
-		return err //nolint:wrapcheck // the flow named it.
-	}
-	if err := u.store.SaveFlow(ctx, flow); err != nil {
-		return fmt.Errorf("failed to spend the link flow: %w", err)
+	kept, err := u.store.LinkOf(ctx, in.Account)
+	switch {
+	case errors.Is(err, links.ErrNoLink):
+	case err != nil:
+		return fmt.Errorf("failed to read the account's link: %w", err)
+	case kept.Joins(in.Account, in.User):
+		return nil
 	}
 
-	token, err := u.discord.Exchange(ctx, in.Code, verifier)
-	if err != nil {
-		return err //nolint:wrapcheck // the client named it.
-	}
-	user, err := u.discord.UserOf(ctx, token)
-	if err != nil {
-		return err //nolint:wrapcheck // the client named it.
-	}
 	flag, err := u.allegiances.FlagOf(ctx, in.Account)
 	if err != nil {
 		return err //nolint:wrapcheck // the adapter named it.
 	}
-	granted, err := u.rolesOf(ctx, flag)
-	if err != nil {
-		return err
+	var granted []discord.RoleID
+	if flag != "" {
+		role, err := u.roles.Ensure(ctx, roles.Nation(flag))
+		if err != nil {
+			return err //nolint:wrapcheck // the book named it.
+		}
+		granted = append(granted, role)
 	}
-	if err := u.discord.Join(ctx, user, token, granted); err != nil {
+	if err := u.discord.Join(ctx, in.User, in.Token, granted); err != nil {
 		return err //nolint:wrapcheck // the client named it.
 	}
 
-	saved := []links.Link{links.NewLink(in.Account, user, flag, now)}
-	earlier, err := u.store.LinkOfUser(ctx, user)
+	saved := []links.Link{links.NewLink(in.Account, in.User, flag, u.clock.Now())}
+	earlier, err := u.store.LinkOfUser(ctx, in.User)
 	switch {
 	case errors.Is(err, links.ErrNoLink):
 	case err != nil:
@@ -108,20 +97,4 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		return fmt.Errorf("failed to keep the link: %w", err)
 	}
 	return nil
-}
-
-func (u *UseCase) rolesOf(ctx context.Context, flag nations.Flag) ([]discord.RoleID, error) {
-	wanted := []roles.Role{roles.Battles()}
-	if flag != "" {
-		wanted = append(wanted, roles.Nation(flag))
-	}
-	granted := make([]discord.RoleID, 0, len(wanted))
-	for _, role := range wanted {
-		id, err := u.roles.Ensure(ctx, role)
-		if err != nil {
-			return nil, err //nolint:wrapcheck // the book named it.
-		}
-		granted = append(granted, id)
-	}
-	return granted, nil
 }

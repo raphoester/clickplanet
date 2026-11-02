@@ -1097,6 +1097,77 @@ func (x *ForeignBoxClaimed) GetClaimedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// The flag an account plays for, set or changed by PledgeAllegiance. A pledge of the flag it already plays for tells
+// nothing.
+type AllegiancePledged struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Country   string                 `protobuf:"bytes,2,opt,name=country,proto3" json:"country,omitempty"`
+	// Empty for the account's first flag.
+	Previous      string                 `protobuf:"bytes,3,opt,name=previous,proto3" json:"previous,omitempty"`
+	PledgedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=pledged_at,json=pledgedAt,proto3" json:"pledged_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AllegiancePledged) Reset() {
+	*x = AllegiancePledged{}
+	mi := &file_planet_v1_events_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AllegiancePledged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AllegiancePledged) ProtoMessage() {}
+
+func (x *AllegiancePledged) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_events_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AllegiancePledged.ProtoReflect.Descriptor instead.
+func (*AllegiancePledged) Descriptor() ([]byte, []int) {
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *AllegiancePledged) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *AllegiancePledged) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
+}
+
+func (x *AllegiancePledged) GetPrevious() string {
+	if x != nil {
+		return x.Previous
+	}
+	return ""
+}
+
+func (x *AllegiancePledged) GetPledgedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PledgedAt
+	}
+	return nil
+}
+
 var File_planet_v1_events_proto protoreflect.FileDescriptor
 
 const file_planet_v1_events_proto_rawDesc = "" +
@@ -1195,7 +1266,14 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\x11ForeignBoxClaimed\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x129\n" +
 	"\n" +
-	"claimed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tclaimedAt*\x88\x02\n" +
+	"claimed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tclaimedAt\"\xa3\x01\n" +
+	"\x11AllegiancePledged\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x18\n" +
+	"\acountry\x18\x02 \x01(\tR\acountry\x12\x1a\n" +
+	"\bprevious\x18\x03 \x01(\tR\bprevious\x129\n" +
+	"\n" +
+	"pledged_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tpledgedAt*\x88\x02\n" +
 	"\fClickOutcome\x12\x1d\n" +
 	"\x19CLICK_OUTCOME_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13CLICK_OUTCOME_TAKEN\x10\x01\x12\x18\n" +
@@ -1222,7 +1300,7 @@ func file_planet_v1_events_proto_rawDescGZIP() []byte {
 }
 
 var file_planet_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_planet_v1_events_proto_goTypes = []any{
 	(ClickOutcome)(0),             // 0: planet.v1.ClickOutcome
 	(*TileTaken)(nil),             // 1: planet.v1.TileTaken
@@ -1238,33 +1316,35 @@ var file_planet_v1_events_proto_goTypes = []any{
 	(*BoxCaught)(nil),             // 11: planet.v1.BoxCaught
 	(*BoxLapsed)(nil),             // 12: planet.v1.BoxLapsed
 	(*ForeignBoxClaimed)(nil),     // 13: planet.v1.ForeignBoxClaimed
-	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
-	(*GlobePoint)(nil),            // 15: planet.v1.GlobePoint
-	(*durationpb.Duration)(nil),   // 16: google.protobuf.Duration
+	(*AllegiancePledged)(nil),     // 14: planet.v1.AllegiancePledged
+	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
+	(*GlobePoint)(nil),            // 16: planet.v1.GlobePoint
+	(*durationpb.Duration)(nil),   // 17: google.protobuf.Duration
 }
 var file_planet_v1_events_proto_depIdxs = []int32{
-	14, // 0: planet.v1.TileTaken.taken_at:type_name -> google.protobuf.Timestamp
-	14, // 1: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
-	14, // 2: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
-	14, // 3: planet.v1.ShieldPlaced.placed_at:type_name -> google.protobuf.Timestamp
-	14, // 4: planet.v1.ShieldStruck.struck_at:type_name -> google.protobuf.Timestamp
-	14, // 5: planet.v1.BonusClaimed.claimed_at:type_name -> google.protobuf.Timestamp
-	14, // 6: planet.v1.QuizAnswered.answered_at:type_name -> google.protobuf.Timestamp
-	14, // 7: planet.v1.ClickTried.account_created_at:type_name -> google.protobuf.Timestamp
-	14, // 8: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
+	15, // 0: planet.v1.TileTaken.taken_at:type_name -> google.protobuf.Timestamp
+	15, // 1: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
+	15, // 2: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
+	15, // 3: planet.v1.ShieldPlaced.placed_at:type_name -> google.protobuf.Timestamp
+	15, // 4: planet.v1.ShieldStruck.struck_at:type_name -> google.protobuf.Timestamp
+	15, // 5: planet.v1.BonusClaimed.claimed_at:type_name -> google.protobuf.Timestamp
+	15, // 6: planet.v1.QuizAnswered.answered_at:type_name -> google.protobuf.Timestamp
+	15, // 7: planet.v1.ClickTried.account_created_at:type_name -> google.protobuf.Timestamp
+	15, // 8: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
 	0,  // 9: planet.v1.ClickTried.outcome:type_name -> planet.v1.ClickOutcome
-	15, // 10: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
-	14, // 11: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
-	14, // 12: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
-	16, // 13: planet.v1.BoxCaught.after:type_name -> google.protobuf.Duration
-	14, // 14: planet.v1.BoxCaught.caught_at:type_name -> google.protobuf.Timestamp
-	14, // 15: planet.v1.BoxLapsed.lapsed_at:type_name -> google.protobuf.Timestamp
-	14, // 16: planet.v1.ForeignBoxClaimed.claimed_at:type_name -> google.protobuf.Timestamp
-	17, // [17:17] is the sub-list for method output_type
-	17, // [17:17] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	16, // 10: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
+	15, // 11: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
+	15, // 12: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
+	17, // 13: planet.v1.BoxCaught.after:type_name -> google.protobuf.Duration
+	15, // 14: planet.v1.BoxCaught.caught_at:type_name -> google.protobuf.Timestamp
+	15, // 15: planet.v1.BoxLapsed.lapsed_at:type_name -> google.protobuf.Timestamp
+	15, // 16: planet.v1.ForeignBoxClaimed.claimed_at:type_name -> google.protobuf.Timestamp
+	15, // 17: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_events_proto_init() }
@@ -1279,7 +1359,7 @@ func file_planet_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_events_proto_rawDesc), len(file_planet_v1_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   13,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -62,9 +62,9 @@ func (s *InMemoryStore) SaveStartPing(ctx context.Context, key StartKey, at time
 }
 
 type Post struct {
-	Channel discord.ChannelID
-	Text    string
-	Mention discord.RoleID
+	Channel  discord.ChannelID
+	Text     string
+	Audience discord.Audience
 }
 
 type RecordedPoster struct {
@@ -73,12 +73,12 @@ type RecordedPoster struct {
 	Err   error
 }
 
-func (p *RecordedPoster) Post(_ context.Context, channel discord.ChannelID, text string, mention discord.RoleID) error {
+func (p *RecordedPoster) Post(_ context.Context, channel discord.ChannelID, text string, audience discord.Audience) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.Err != nil {
 		return p.Err
 	}
-	p.Posts = append(p.Posts, Post{Channel: channel, Text: text, Mention: mention})
+	p.Posts = append(p.Posts, Post{Channel: channel, Text: text, Audience: audience})
 	return nil
 }

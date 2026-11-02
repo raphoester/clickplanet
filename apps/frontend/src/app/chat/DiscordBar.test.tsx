@@ -2,7 +2,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {AlertsError} from "../../backends/alerts.ts"
+import {AuthError} from "../../backends/account.ts"
 import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../../links.ts"
 import DiscordBar from "./DiscordBar.tsx"
 import {DISCORD_BAR_RETURNS_AFTER_MS, DISCORD_BAR_STORAGE_KEY} from "./discordBar.ts"
@@ -63,32 +63,40 @@ describe("DiscordBar", () => {
         expect(link()).not.toBeNull()
     })
 
-    it("offers the pings in place of the invite, and leaves for Discord when pressed", async () => {
-        const onPing = vi.fn(async () => undefined)
-        render(<DiscordBar onPing={onPing}/>)
+    it("joins by Discord's sign-in in place of the invite, and says what for", async () => {
+        const connect = vi.fn(async () => undefined)
+        render(<DiscordBar discord={{connect}} flagName="France"/>)
 
         expect(link()).toBeNull()
-        const ping = screen.getByRole("button", {name: "Get pinged on Discord"})
-        expect(ping.textContent).toBe("Get pinged")
+        const join = screen.getByRole("button", {name: "Join Discord and get pinged when France is attacked"})
+        expect(join.textContent).toBe("Join Discord")
+        expect(screen.getByText("Get pinged when France is attacked")).toBeDefined()
 
-        await userEvent.setup().click(ping)
+        await userEvent.setup().click(join)
 
-        expect(onPing).toHaveBeenCalledTimes(1)
-        expect(ping.hasAttribute("disabled")).toBe(true)
+        expect(connect).toHaveBeenCalledTimes(1)
+        expect(join.hasAttribute("disabled")).toBe(true)
     })
 
-    it("says to wait when the start was refused for too many tries, and takes another press", async () => {
-        const onPing = vi.fn(async () => {
-            throw new AlertsError("tooManyTries")
+    it("says to wait when the sign-in was refused for too many tries, and takes another press", async () => {
+        const connect = vi.fn(async () => {
+            throw new AuthError("tooManyTries")
         })
-        render(<DiscordBar onPing={onPing}/>)
+        render(<DiscordBar discord={{connect}} flagName="France"/>)
 
-        await userEvent.setup().click(screen.getByRole("button", {name: "Get pinged on Discord"}))
+        await userEvent.setup().click(screen.getByRole("button", {name: "Join Discord and get pinged when France is attacked"}))
 
         const again = await screen.findByRole("button", {name: "Wait a minute"})
         expect(again.hasAttribute("disabled")).toBe(false)
         await userEvent.setup().click(again)
-        expect(onPing).toHaveBeenCalledTimes(2)
+        expect(connect).toHaveBeenCalledTimes(2)
+    })
+
+    it("opens the server's page for a player already in it", () => {
+        render(<DiscordBar discord={{serverUrl: "https://discord.com/channels/1/2"}} flagName="France"/>)
+
+        expect(link()).toBeNull()
+        expect(screen.getByRole("link", {name: "Open Discord"}).getAttribute("href")).toBe("https://discord.com/channels/1/2")
     })
 
     it("still goes in a browser that keeps nothing", async () => {

@@ -199,7 +199,8 @@ export default function Viewer(props: ViewerProps) {
     const ownAccountId = account.kind === 'ready' ? account.accountId : undefined
     const color = account.kind === 'ready' ? account.color : undefined
     const linked = account.kind === 'ready' && account.me.linked.length > 0
-    const discordPing = useDiscordAlerts(props.alerts, ownAccountId)
+    const discordConnectable = account.kind === 'ready' && account.offered.includes("discord")
+    const discord = useDiscordAlerts(props.alerts, ownAccountId, discordConnectable)
 
     usePresence(props.presence, {countryCode: countryState.code, username, color})
 
@@ -335,7 +336,7 @@ export default function Viewer(props: ViewerProps) {
         const timer = setTimeout(() => setFortifyCard(lastFortified.fortified), FORTIFY_CARD_DELAY_MS)
         return () => clearTimeout(timer)
     }, [lastFortified, fortifyGuide.seen])
-    const underAttack = useUnderAttack(discordPing !== undefined, countryState.code, tileDeltas, accepted.listenForClicks)
+    const underAttack = useUnderAttack(discord.connect !== undefined, countryState.code, tileDeltas, accepted.listenForClicks)
     // Moments show one at a time: the newest of them.
     const newest = [lastBomb, lastFortified, lastClose, underAttack.moment].reduce<{at: number} | undefined>(
         (latest, moment) => moment && (!latest || moment.at > latest.at) ? moment : latest, undefined)
@@ -535,7 +536,7 @@ export default function Viewer(props: ViewerProps) {
             open={compact ? sheet === "chat" : undefined}
             onOpenChange={compact ? (open) => setSheet(open ? "chat" : undefined) : undefined}
             onUnread={setUnread}
-            onDiscordPing={discordPing}
+            discord={discord}
         />}
 
         {ready && compact && <>
@@ -722,10 +723,10 @@ export default function Viewer(props: ViewerProps) {
             onDone={dismissBomb}
         />}
 
-        {underAttack.moment && newest === underAttack.moment && discordPing && <UnderAttack
+        {underAttack.moment && newest === underAttack.moment && discord.connect && <UnderAttack
             key={`attack-${underAttack.moment.at}`}
             flag={countryState.code}
-            leave={discordPing}
+            connect={discord.connect}
             lowered={quiz.state.phase !== 'idle'}
             onDone={underAttack.dismiss}
         />}

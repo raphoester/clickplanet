@@ -1,8 +1,6 @@
 package links_test
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
 	"testing"
 	"time"
 
@@ -19,45 +17,7 @@ var (
 	account = links.AccountID(uuid.MustParse("01a19416-ad77-72b3-8c34-8bbbaec97d8b"))
 )
 
-func flow(t *testing.T) links.Flow {
-	t.Helper()
-	flow, err := links.NewFlow(account, &links.SequentialSecrets{}, now)
-	require.NoError(t, err)
-	return flow
-}
-
-func TestAFlowAsksForTheChallengeOfItsVerifier(t *testing.T) {
-	authorization := flow(t).Authorization()
-
-	sum := sha256.Sum256([]byte("secret-2"))
-	assert.Equal(t, links.Authorization{State: "secret-1", Challenge: base64.RawURLEncoding.EncodeToString(sum[:])},
-		authorization)
-}
-
-func TestAFlowIsSpentOnceWithItsStateBeforeItExpires(t *testing.T) {
-	spent := flow(t)
-
-	verifier, err := spent.Spend("secret-1", now.Add(links.FlowTTL-time.Second))
-	require.NoError(t, err)
-	assert.Equal(t, "secret-2", verifier)
-
-	_, err = spent.Spend("secret-1", now)
-	assert.ErrorIs(t, err, links.ErrFlowInvalid)
-	assert.True(t, spent.TakeSnapshot().Spent)
-}
-
-func TestAFlowRefusesAnotherStateOrALateTrade(t *testing.T) {
-	other := flow(t)
-	_, err := other.Spend("secret-2", now)
-	require.ErrorIs(t, err, links.ErrFlowInvalid)
-	assert.False(t, other.TakeSnapshot().Spent)
-
-	late := flow(t)
-	_, err = late.Spend("secret-1", now.Add(links.FlowTTL))
-	assert.ErrorIs(t, err, links.ErrFlowInvalid)
-}
-
-func TestALinkFollowsTheFlagItsPlayerTakesFor(t *testing.T) {
+func TestALinkFollowsTheFlagItsPlayerPledged(t *testing.T) {
 	link := links.NewLink(account, "42", "", now)
 
 	move, moved := link.Follow("ie")
@@ -71,6 +31,21 @@ func TestALinkFollowsTheFlagItsPlayerTakesFor(t *testing.T) {
 	require.True(t, moved)
 	assert.Equal(t, links.Move{User: "42", From: "ie", To: "gb"}, move)
 	assert.Equal(t, nations.Flag("gb"), link.TakeSnapshot().Flag)
+}
+
+func TestAForgottenLinkTakesItsFlagsRoleOffTheUser(t *testing.T) {
+	link := links.NewLink(account, "42", "ie", now)
+
+	assert.Equal(t, links.Move{User: "42", From: "ie"}, link.Forget())
+	assert.True(t, link.TakeSnapshot().Forgotten)
+}
+
+func TestAJoinAgainOfTheSameUserChangesNothing(t *testing.T) {
+	link := links.NewLink(account, "42", "ie", now)
+
+	assert.True(t, link.Joins(account, "42"))
+	assert.False(t, link.Joins(account, "43"))
+	assert.False(t, link.Joins(links.AccountID(uuid.MustParse("01a193de-df90-7637-9d85-7256584024a6")), "42"))
 }
 
 func TestAnAccountIsAUUID(t *testing.T) {

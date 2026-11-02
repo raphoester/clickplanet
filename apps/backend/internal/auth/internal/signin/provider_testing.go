@@ -118,3 +118,29 @@ func (s *SequentialSecrets) NewSecret() (string, error) {
 	s.next++
 	return fmt.Sprintf("secret-%d", s.next), nil
 }
+
+type Joined struct {
+	Account accounts.AccountID
+	User    string
+	Token   string
+}
+
+// Every join asked, in order.
+type RecordedServer struct {
+	mu     sync.Mutex
+	joined []Joined
+}
+
+var _ Server = (*RecordedServer)(nil)
+
+func (s *RecordedServer) Join(_ context.Context, account accounts.AccountID, user string, token string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.joined = append(s.joined, Joined{Account: account, User: user, Token: token})
+}
+
+func (s *RecordedServer) Joined() []Joined {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]Joined(nil), s.joined...)
+}

@@ -100,6 +100,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.signIn.redirectUrl` — the frontend callback page, registered with every provider exactly (production `https://clickplanet.lol/auth/callback`); not an absolute URL, or one with a query, refuses the boot
 - `auth.google.clientId`, `auth.discord.clientId` — a provider is offered once its id is set
 - `auth.google.clientSecret`, `auth.discord.clientSecret` — from the environment; empty beside a set `clientId` refuses the boot
+- `auth.discord.joinServer` — every Discord sign-in also asks `guilds.join` and joins the game's Discord server, which the alerts module keeps; off by default (see [Discord pings](alerts.md))
 - `auth.crazyGames.gameId` — the game's id in the CrazyGames developer portal; every token must name it. Set, and
   `auth.signIn.enabled` on, `CompleteCrazyGamesSignIn` is offered; unset, it answers `Unimplemented`. Not a secret.
 - `auth.email.enabled` — off, `StartEmailSignIn` and `CompleteEmailSignIn` answer `Unimplemented` (404) and `GetSignInOptions` does not list email. Apart from `auth.signIn`: it needs no provider
@@ -124,7 +125,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
   to under 24h. A day is a round the gamemaster tells scoring to score, and tells missions as it starts (see [The gamemaster module](gamemaster.md))
 - `gamemaster.database.*` — the rule schedule's entries, the seasons, same shape as `database`, schema `gamemaster`; required. `gamemaster.database.password` belongs in the environment. See [The gamemaster module](gamemaster.md)
 - `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment
-- `alerts.enabled`, `alerts.database.*` (schema `alerts`), `alerts.redis.*`, `alerts.gameUrl`, `alerts.rateLimiter.*`, `alerts.discord.*` — the game's Discord server: off, nothing is read. On, `clientId`, `clientSecret` (`env://DISCORD_CLIENT_SECRET`), `botToken` (`env://DISCORD_BOT_TOKEN`), `redirectUrl` and the three Discord ids are required. See [Discord pings](alerts.md)
+- `alerts.enabled`, `alerts.database.*` (schema `alerts`), `alerts.redis.*`, `alerts.gameUrl`, `alerts.discord.*` — the game's Discord server: off, nothing is read. On, `botToken` (`env://DISCORD_BOT_TOKEN`, the bot of `auth.discord`'s application) and the three Discord ids are required. `auth.discord.joinServer` makes every Discord sign-in join it. See [Discord pings](alerts.md)
 - `clips.database.*` — the daily snapshots of the clips' numbers, the casts and who each post names, same shape as `database`, schema `clips`; required. `clips.database.password` belongs in the environment
 - `support.retention`, `support.pruneInterval` — how long a note keeps its sender (default 90 days; the text is kept after) and how long a report is kept, and how often the prune runs (1h)
 - `support.rateLimiter.*` — the per-IP throttle on the notes and the reports, same shape as `rateLimiter` (default one a minute, three in hand)

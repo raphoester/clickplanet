@@ -36,21 +36,11 @@ const (
 	// AlertsServiceGetDiscordLinkProcedure is the fully-qualified name of the AlertsService's
 	// GetDiscordLink RPC.
 	AlertsServiceGetDiscordLinkProcedure = "/alerts.v1.AlertsService/GetDiscordLink"
-	// AlertsServiceStartDiscordLinkProcedure is the fully-qualified name of the AlertsService's
-	// StartDiscordLink RPC.
-	AlertsServiceStartDiscordLinkProcedure = "/alerts.v1.AlertsService/StartDiscordLink"
-	// AlertsServiceCompleteDiscordLinkProcedure is the fully-qualified name of the AlertsService's
-	// CompleteDiscordLink RPC.
-	AlertsServiceCompleteDiscordLinkProcedure = "/alerts.v1.AlertsService/CompleteDiscordLink"
 )
 
 // AlertsServiceClient is a client for the alerts.v1.AlertsService service.
 type AlertsServiceClient interface {
 	GetDiscordLink(context.Context, *connect.Request[v1.GetDiscordLinkRequest]) (*connect.Response[v1.GetDiscordLinkResponse], error)
-	// The Discord page that asks the player to let the game add them to its server.
-	StartDiscordLink(context.Context, *connect.Request[v1.StartDiscordLinkRequest]) (*connect.Response[v1.StartDiscordLinkResponse], error)
-	// With what Discord sent back to the redirect page: joins the player to the server, with its flag's role.
-	CompleteDiscordLink(context.Context, *connect.Request[v1.CompleteDiscordLinkRequest]) (*connect.Response[v1.CompleteDiscordLinkResponse], error)
 }
 
 // NewAlertsServiceClient constructs a client for the alerts.v1.AlertsService service. By default,
@@ -71,26 +61,12 @@ func NewAlertsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
-		startDiscordLink: connect.NewClient[v1.StartDiscordLinkRequest, v1.StartDiscordLinkResponse](
-			httpClient,
-			baseURL+AlertsServiceStartDiscordLinkProcedure,
-			connect.WithSchema(alertsServiceMethods.ByName("StartDiscordLink")),
-			connect.WithClientOptions(opts...),
-		),
-		completeDiscordLink: connect.NewClient[v1.CompleteDiscordLinkRequest, v1.CompleteDiscordLinkResponse](
-			httpClient,
-			baseURL+AlertsServiceCompleteDiscordLinkProcedure,
-			connect.WithSchema(alertsServiceMethods.ByName("CompleteDiscordLink")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
 // alertsServiceClient implements AlertsServiceClient.
 type alertsServiceClient struct {
-	getDiscordLink      *connect.Client[v1.GetDiscordLinkRequest, v1.GetDiscordLinkResponse]
-	startDiscordLink    *connect.Client[v1.StartDiscordLinkRequest, v1.StartDiscordLinkResponse]
-	completeDiscordLink *connect.Client[v1.CompleteDiscordLinkRequest, v1.CompleteDiscordLinkResponse]
+	getDiscordLink *connect.Client[v1.GetDiscordLinkRequest, v1.GetDiscordLinkResponse]
 }
 
 // GetDiscordLink calls alerts.v1.AlertsService.GetDiscordLink.
@@ -98,23 +74,9 @@ func (c *alertsServiceClient) GetDiscordLink(ctx context.Context, req *connect.R
 	return c.getDiscordLink.CallUnary(ctx, req)
 }
 
-// StartDiscordLink calls alerts.v1.AlertsService.StartDiscordLink.
-func (c *alertsServiceClient) StartDiscordLink(ctx context.Context, req *connect.Request[v1.StartDiscordLinkRequest]) (*connect.Response[v1.StartDiscordLinkResponse], error) {
-	return c.startDiscordLink.CallUnary(ctx, req)
-}
-
-// CompleteDiscordLink calls alerts.v1.AlertsService.CompleteDiscordLink.
-func (c *alertsServiceClient) CompleteDiscordLink(ctx context.Context, req *connect.Request[v1.CompleteDiscordLinkRequest]) (*connect.Response[v1.CompleteDiscordLinkResponse], error) {
-	return c.completeDiscordLink.CallUnary(ctx, req)
-}
-
 // AlertsServiceHandler is an implementation of the alerts.v1.AlertsService service.
 type AlertsServiceHandler interface {
 	GetDiscordLink(context.Context, *connect.Request[v1.GetDiscordLinkRequest]) (*connect.Response[v1.GetDiscordLinkResponse], error)
-	// The Discord page that asks the player to let the game add them to its server.
-	StartDiscordLink(context.Context, *connect.Request[v1.StartDiscordLinkRequest]) (*connect.Response[v1.StartDiscordLinkResponse], error)
-	// With what Discord sent back to the redirect page: joins the player to the server, with its flag's role.
-	CompleteDiscordLink(context.Context, *connect.Request[v1.CompleteDiscordLinkRequest]) (*connect.Response[v1.CompleteDiscordLinkResponse], error)
 }
 
 // NewAlertsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -131,26 +93,10 @@ func NewAlertsServiceHandler(svc AlertsServiceHandler, opts ...connect.HandlerOp
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
-	alertsServiceStartDiscordLinkHandler := connect.NewUnaryHandler(
-		AlertsServiceStartDiscordLinkProcedure,
-		svc.StartDiscordLink,
-		connect.WithSchema(alertsServiceMethods.ByName("StartDiscordLink")),
-		connect.WithHandlerOptions(opts...),
-	)
-	alertsServiceCompleteDiscordLinkHandler := connect.NewUnaryHandler(
-		AlertsServiceCompleteDiscordLinkProcedure,
-		svc.CompleteDiscordLink,
-		connect.WithSchema(alertsServiceMethods.ByName("CompleteDiscordLink")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/alerts.v1.AlertsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AlertsServiceGetDiscordLinkProcedure:
 			alertsServiceGetDiscordLinkHandler.ServeHTTP(w, r)
-		case AlertsServiceStartDiscordLinkProcedure:
-			alertsServiceStartDiscordLinkHandler.ServeHTTP(w, r)
-		case AlertsServiceCompleteDiscordLinkProcedure:
-			alertsServiceCompleteDiscordLinkHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -162,12 +108,4 @@ type UnimplementedAlertsServiceHandler struct{}
 
 func (UnimplementedAlertsServiceHandler) GetDiscordLink(context.Context, *connect.Request[v1.GetDiscordLinkRequest]) (*connect.Response[v1.GetDiscordLinkResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("alerts.v1.AlertsService.GetDiscordLink is not implemented"))
-}
-
-func (UnimplementedAlertsServiceHandler) StartDiscordLink(context.Context, *connect.Request[v1.StartDiscordLinkRequest]) (*connect.Response[v1.StartDiscordLinkResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("alerts.v1.AlertsService.StartDiscordLink is not implemented"))
-}
-
-func (UnimplementedAlertsServiceHandler) CompleteDiscordLink(context.Context, *connect.Request[v1.CompleteDiscordLinkRequest]) (*connect.Response[v1.CompleteDiscordLinkResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("alerts.v1.AlertsService.CompleteDiscordLink is not implemented"))
 }

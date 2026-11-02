@@ -5,37 +5,43 @@ import {AlertsBackend, DiscordLink} from "../../backends/alerts.ts"
 import {DiscordAlerts} from "./discordAlerts.ts"
 import {useDiscordAlerts} from "./useDiscordAlerts.ts"
 
+const SERVER = "https://discord.com/channels/1/2"
+
 function alertsReading(read: () => Promise<DiscordLink>): {alerts: DiscordAlerts, backend: AlertsBackend} {
-    const backend: AlertsBackend = {
-        discordLink: vi.fn(read),
-        startDiscordLink: vi.fn(async () => "https://discord.com/oauth2/authorize"),
-        completeDiscordLink: vi.fn(async () => "https://discord.com/channels/1"),
-    }
-    return {alerts: new DiscordAlerts(backend, {navigate: vi.fn(), remember: vi.fn()}), backend}
+    const backend: AlertsBackend = {discordLink: vi.fn(read)}
+    return {alerts: new DiscordAlerts(backend, vi.fn(async () => undefined)), backend}
 }
 
 afterEach(() => vi.restoreAllMocks())
 
 describe("useDiscordAlerts", () => {
-    it("offers the link while it is offered and not made", async () => {
-        const {alerts} = alertsReading(async () => ({offered: true, linked: false}))
+    it("offers to connect while the server is offered and this account is not in it", async () => {
+        const {alerts} = alertsReading(async () => ({offered: true, linked: false, serverUrl: SERVER}))
 
-        const {result} = renderHook(() => useDiscordAlerts(alerts, undefined))
+        const {result} = renderHook(() => useDiscordAlerts(alerts, undefined, true))
 
-        await waitFor(() => expect(result.current).toBe(alerts.leave))
+        await waitFor(() => expect(result.current).toEqual({connect: alerts.connect}))
     })
 
-    it.each<[string, DiscordLink]>([
-        ["not offered", {offered: false, linked: false}],
-        ["already made", {offered: true, linked: true}],
-    ])("offers nothing when the link is %s", async (_, link) => {
-        const {alerts, backend} = alertsReading(async () => link)
+    it("offers the server's page once this account is in it", async () => {
+        const {alerts} = alertsReading(async () => ({offered: true, linked: true, serverUrl: SERVER}))
 
-        const {result} = renderHook(() => useDiscordAlerts(alerts, undefined))
+        const {result} = renderHook(() => useDiscordAlerts(alerts, undefined, true))
 
-        await waitFor(() => expect(backend.discordLink).toHaveBeenCalled())
+        await waitFor(() => expect(result.current).toEqual({serverUrl: SERVER}))
+    })
+
+    it("offers nothing when the server is not offered, or Discord's sign-in is not", async () => {
+        const off = alertsReading(async () => ({offered: false, linked: false, serverUrl: ""}))
+        const noSignIn = alertsReading(async () => ({offered: true, linked: false, serverUrl: SERVER}))
+
+        const first = renderHook(() => useDiscordAlerts(off.alerts, undefined, true))
+        const second = renderHook(() => useDiscordAlerts(noSignIn.alerts, undefined, false))
+
+        await waitFor(() => expect(noSignIn.backend.discordLink).toHaveBeenCalled())
         await Promise.resolve()
-        expect(result.current).toBeUndefined()
+        expect(first.result.current).toEqual({})
+        expect(second.result.current).toEqual({})
     })
 
     it("offers nothing when the read fails", async () => {
@@ -45,22 +51,22 @@ describe("useDiscordAlerts", () => {
             throw new Error("down")
         })
 
-        const {result} = renderHook(() => useDiscordAlerts(alerts, undefined))
+        const {result} = renderHook(() => useDiscordAlerts(alerts, undefined, true))
 
         await waitFor(() => expect(console.error).toHaveBeenCalled())
-        expect(result.current).toBeUndefined()
+        expect(result.current).toEqual({})
     })
 
-    it("reads again when the account changes, and drops an offer the new account has made", async () => {
-        const reads = [{offered: true, linked: false}, {offered: true, linked: true}]
+    it("reads again when the account changes, and shows the page once the new account is in", async () => {
+        const reads: DiscordLink[] = [{offered: true, linked: false, serverUrl: SERVER}, {offered: true, linked: true, serverUrl: SERVER}]
         const {alerts, backend} = alertsReading(async () => reads.shift()!)
 
-        const {result, rerender} = renderHook(({account}) => useDiscordAlerts(alerts, account), {initialProps: {account: "guest-1"}})
-        await waitFor(() => expect(result.current).toBe(alerts.leave))
+        const {result, rerender} = renderHook(({account}) => useDiscordAlerts(alerts, account, true), {initialProps: {account: "guest-1"}})
+        await waitFor(() => expect(result.current.connect).toBe(alerts.connect))
 
         rerender({account: "account-2"})
 
-        await waitFor(() => expect(result.current).toBeUndefined())
+        await waitFor(() => expect(result.current).toEqual({serverUrl: SERVER}))
         expect(backend.discordLink).toHaveBeenCalledTimes(2)
     })
 })

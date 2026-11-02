@@ -140,3 +140,13 @@ message ForeignBoxClaimed {
   string scope = 1;
   google.protobuf.Timestamp claimed_at = 2;
 }
+
+// The flag an account plays for, set or changed by PledgeAllegiance. A pledge of the flag it already plays for tells
+// nothing.
+message AllegiancePledged {
+  string account_id = 1;
+  string country = 2;
+  // Empty for the account's first flag.
+  string previous = 3;
+  google.protobuf.Timestamp pledged_at = 4;
+}

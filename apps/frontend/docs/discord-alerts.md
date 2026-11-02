@@ -1,58 +1,56 @@
 # Discord pings
 
-**A player can get pinged on Discord.** One press joins them to the game's Discord server with the role of the flag
-they play for, and Discord pings that role when the flag is attacked and when a battle starts. The server does the
-pinging (the backend's `alerts` module); the page only offers the link and finishes it.
+**A player joins the game's Discord server by signing in with Discord.** One trip: Discord asks the player to let
+ClickPlanet sign them in and add them to the server, and the server gives them the role of the flag they play for.
+Discord pings that role when the flag is attacked, and everybody in the server when a battle starts. The server does
+the joining and the pinging (the backend's `auth` and `alerts` modules); the page only offers it.
 
-- `backends/alerts.ts` — the contract: `AlertsBackend` (`discordLink`, `startDiscordLink`, `completeDiscordLink`),
-  `DiscordLink` (`offered`, `linked`) and `AlertsError`, whose `failure` says why the server said no.
-- `backends/alertsBackend.ts` — `ConnectAlertsBackend`, over `alerts.v1.AlertsService`. It sends the click token
-  with every call and sends a call refused `unauthenticated` once more with a fresh session, as the player backend
-  does. **Only the read is retried**: a retried `CompleteDiscordLink` would spend a code that is good once.
-- `app/alerts/discordAlerts.ts` — `DiscordAlerts`: `read`, `leave` (start, remember the trip, go to Discord) and
-  `complete`. `main.tsx` builds it with `window.location.assign` and `rememberDiscordLink`.
-- `backends/fakeAlertsBackend.ts` — in fake mode the link is offered and not made; Start comes straight back to
-  `/auth/callback` with a fake code, and Complete makes it.
+There used to be a second Discord trip of its own, "Get pinged", beside "Sign in with Discord": two consents on the
+same application, which nobody could tell apart. Now any Discord sign-in, from the menu or from an offer below, is the
+connection.
+
+- `backends/alerts.ts` — the contract: `AlertsBackend.discordLink()`, `DiscordLink` (`offered`, `linked`,
+  `serverUrl`, the server's `#alerts` page).
+- `backends/alertsBackend.ts` — `ConnectAlertsBackend`, over `alerts.v1.AlertsService`. It sends the click token,
+  and sends a read refused `unauthenticated` once more with a fresh session, as the player backend does. A 404 or
+  `unimplemented` reads as not offered.
+- `app/alerts/discordAlerts.ts` — `DiscordAlerts`: `read`, and `connect`, which is `AccountStore.connectDiscord`.
+  `main.tsx` builds it, except on CrazyGames.
+- `AccountStore.connectDiscord()` — a Discord sign-in: **a link** for an account signed in already (with Google, an
+  email or Discord), so the player stays on it; **a sign-in** for a guest, which moves to the account that Discord user
+  has, if any. It goes the way every sign-in goes (`leaveFor`, then `/auth/callback`, see [Sign-in](sign-in.md)), and
+  throws a refusal for the button that asked.
+- `backends/fakeAlertsBackend.ts` — in fake mode the server is offered, and linked once the fake account signed in.
+  `offerSignIn()` in the console offers Discord, the offer starts the fake's sign-in, which comes straight back to
+  `/auth/callback`, and the bar then says "Open Discord".
 
 ## What the player sees
 
-**Nothing unless the server offers it and this account has not taken it.** `useDiscordAlerts` (in `Viewer`) reads
-`GetDiscordLink` at load and again when the account changes. A 404, `unimplemented` or any other failure reads as
-not offered, as `GetSignInOptions` is read.
+`useDiscordAlerts` (in `Viewer`) reads `GetDiscordLink` at load and again when the account changes, and answers a
+`DiscordOffer`: `connect` while the server is offered, the account is not in it and the server offers Discord's
+sign-in; `serverUrl` once it is in; neither otherwise. Any failure of the read is no offer.
 
-- **The chat's Discord bar** (`DiscordBar`): "Get pinged" with the Discord logo takes the place of "Join Discord",
-  named "Get pinged on Discord". A linked player keeps "Join Discord". A refused start puts the reason on the
-  button ("Wait a minute", "Try again"), and a press tries again.
-- **A moment when the flag is under attack** (`UnderAttack`, `useUnderAttack`): "France is under attack" and the
-  same button, for 8 s, in the Moments zone. **Once a page**, the first time the flag the player took a tile for in
-  this page loses ground on the board (its badge in `tileDeltas` goes below 0). A player who has not taken a tile
-  sees nothing: a first visit would see it before it played.
+- **The chat's Discord bar** (`DiscordBar`), on every page with the chat, until the player hides it (it comes back
+  the next day):
+  - **Not in the server**: "Join Discord", as it always was, with "Get pinged when France is attacked" on a line of its
+    own under it. The button is the Discord sign-in, named "Join Discord and get pinged when France is attacked". A
+    refused start puts the reason on the button ("Wait a minute", "Not available", "Try again"), and a press tries
+    again.
+  - **In the server**: "Open Discord", the server's `#alerts` page.
+  - **Nothing offered** (the alerts off, a failed read, no Discord sign-in, CrazyGames): "Join Discord", the plain
+    invite (`DISCORD_INVITE`).
+- **A moment when the flag is under attack** (`UnderAttack`, `useUnderAttack`): "France is under attack" and "Get
+  pinged", the same sign-in, for 8 s, in the Moments zone. **Once a page**, the first time the flag the player took a
+  tile for in this page loses ground on the board (its badge in `tileDeltas` goes below 0), and only while `connect` is
+  offered. A player who has not taken a tile sees nothing: a first visit would see it before it played.
 - **Not on CrazyGames**: the trip leaves its frame and comes back on clickplanet.lol, where its carried session is
-  not.
+  not; and CrazyGames allows no sign-in but its own.
 
 ## The trip
 
-**Discord sends the browser back to sign-in's redirect URI**, `/auth/callback?code=…&state=…`: the owner registers
-no new URL. So before it leaves, the page remembers that this trip is a Discord link (`rememberDiscordLink`,
-`clickplanet-callback-trip` in session storage), and `rememberSignIn` forgets it. On `/auth/callback`, `SignInGate`
-renders `DiscordLinkCallback` instead of `SignInCallback` when that is what was remembered. The page keeps the
-callback page's protections against a leaked code (see [Sign-in](sign-in.md)): the same path, the same
-`no-referrer`, the query taken out before anything renders.
+**It is the sign-in's**: `/auth/callback`, `SignInCallback`, `CompleteSignIn`, and the game swapped in place (see
+[Sign-in](sign-in.md)). The backend joins the server inside `CompleteSignIn`, so the page that comes back reads the
+account as linked. A join that failed signs the player in all the same, and the bar offers to join again.
 
-`DiscordLinkCallback` calls `CompleteDiscordLink` **once** (a ref guards it, as StrictMode runs the effect twice),
-on the sign-in callback's card:
-
-- **Done**: "You are in!", "Open Discord" (the server's page, in a new tab) and "Back to the game".
-- **Refused**: "Not linked" and one line. Every failure but `off` has "Try again", which starts a new trip.
-
-| Code | `failure` | Line |
-|---|---|---|
-| `failed_precondition` | `startAgain` | This link is too old, or it started in a different browser. Start again. |
-| `permission_denied` | `refused` | Discord did not accept it. Try again. |
-| `unauthenticated` | `notSignedIn` | We could not check who you are. Try again. |
-| `resource_exhausted` | `tooManyTries` | Too many tries from your network. Wait one minute, then try again. |
-| `unimplemented` | `off` | Discord pings are not available now. |
-| anything else | `failed` | Something went wrong. Try again. |
-
-- **Said no on Discord** (`?error=`): "You did not link Discord". **A link with a part missing**: "This link is not
-  complete". Both offer "Try again" and the way back.
+**To try the offer again**, an operator unlinks the account on the backoffice's player page (the Discord tool): the
+next load offers "Join Discord" again. A player cannot unlink: leaving the server is how they stop the pings.

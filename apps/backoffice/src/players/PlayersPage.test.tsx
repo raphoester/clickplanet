@@ -12,6 +12,7 @@ import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles} from "../gen/grpc/player/v1/player_pb.ts"
 import {Opened} from "../navigation.ts"
+import {ALERTS_OFF} from "./actions.ts"
 import {PlayersPage} from "./PlayersPage.tsx"
 import {NO_PROFILE} from "./ProfilePanel.tsx"
 
@@ -372,6 +373,31 @@ describe("one player", () => {
         tool("Flag")
         confirm("Allow a change now", "Yes, allow a change now")
         expect(await screen.findByText("Done, but the rules in force lock every flag: the change waits for them to end.")).toBeTruthy()
+    })
+
+    it("shows an account's Discord link, unlinks it, and says it is not linked any more", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={account}/>)
+
+        tool("Discord")
+        expect(await screen.findByText("80351110224678912")).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Unlink Discord"}))
+        expect(screen.getByText(/^Unlink BraveFox42 from Discord\?/)).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Yes, unlink discord"}))
+
+        expect(await screen.findByText(/Not linked: the game offers BraveFox42 to join Discord/)).toBeTruthy()
+        expect(admin.askedFor("unlinkPlayer")).toEqual([{accountId: ACCOUNT}])
+        expect(admin.askedFor("getPlayerLink")).toEqual([{accountId: ACCOUNT}, {accountId: ACCOUNT}])
+    })
+
+    it("says Discord pings are off when the alerts module is", async () => {
+        const admin = new FakeAdmin()
+        admin.refuse("getPlayerLink", Code.Unimplemented)
+        render(<Page admin={admin} first={account}/>)
+
+        tool("Discord")
+
+        expect(await screen.findByText(ALERTS_OFF)).toBeTruthy()
     })
 
     it("mutes an account, and offers neither a mute nor charges to an address", async () => {

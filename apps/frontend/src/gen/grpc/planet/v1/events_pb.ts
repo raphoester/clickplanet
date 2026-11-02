@@ -899,3 +899,63 @@ export class ForeignBoxClaimed extends Message<ForeignBoxClaimed> {
   }
 }
 
+/**
+ * The flag an account plays for, set or changed by PledgeAllegiance. A pledge of the flag it already plays for tells
+ * nothing.
+ *
+ * @generated from message planet.v1.AllegiancePledged
+ */
+export class AllegiancePledged extends Message<AllegiancePledged> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string country = 2;
+   */
+  country = "";
+
+  /**
+   * Empty for the account's first flag.
+   *
+   * @generated from field: string previous = 3;
+   */
+  previous = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp pledged_at = 4;
+   */
+  pledgedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<AllegiancePledged>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.AllegiancePledged";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "previous", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "pledged_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AllegiancePledged {
+    return new AllegiancePledged().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AllegiancePledged {
+    return new AllegiancePledged().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AllegiancePledged {
+    return new AllegiancePledged().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AllegiancePledged | PlainMessage<AllegiancePledged> | undefined, b: AllegiancePledged | PlainMessage<AllegiancePledged> | undefined): boolean {
+    return proto3.util.equals(AllegiancePledged, a, b);
+  }
+}
+

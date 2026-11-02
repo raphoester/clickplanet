@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/allegiance_facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/audit_release"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/postgres_allegiance_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
@@ -297,7 +298,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			pricer := clicks.NewToll(rules.Reader(inForce, clicks.TollPart), tilesStorage)
 
-			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, lock, clock)
+			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, lock, clock, allegiance_facts.New(told))
 
 			writer := ledger.NewRecording(tilesStorage,
 				clicks.NewClaiming(tilesStorage, func() int { return game().Shield.PerTile }), takings, clock)

@@ -14,19 +14,20 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/alerts/v1/alertsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/complete_discord_link_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_discord_link_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_discord_link_handler/link_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/start_discord_link_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_player_link_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_player_link_handler/player_link_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/join_server_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/unlink_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord/rest_discord"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/postgres_link_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/random_secret_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/rpc_planet_allegiance"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/complete_link_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/follow_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/forget_link_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/start_link_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/join_server_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/unlink_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/postgres_ping_store"
@@ -34,15 +35,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/usecases/hear_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles/postgres_role_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles/tidy_roles_runner"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/account_deleted_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/allegiance_pledged_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/battle_started_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/flag_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/season_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -104,7 +105,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 				hear_take_usecase.New(pings.NewWatch(), clock, pingStore, herald, db)), props.Logger))
 		},
 		func() (cpbootstrap.Runner, error) {
-			return cpredis.Subscribe(ctx, streams, "alerts-flags", log_subscriber.New(flag_subscriber.New(
+			return cpredis.Subscribe(ctx, streams, "alerts-allegiances", log_subscriber.New(allegiance_pledged_subscriber.New(
 				follow_flag_usecase.New(linkStore, book, server)), props.Logger))
 		},
 		func() (cpbootstrap.Runner, error) {
@@ -130,26 +131,38 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger, subscriptions...)))
+	props.Runners.Add(tidy_roles_runner.New(book, props.Logger))
 
-	limiter := cpratelimit.New("alerts-limiter", config.RateLimiter, clock)
-	props.Runners.Add(limiter)
-
-	serverURL := config.Discord.serverURL()
 	service := alertsv1controller.AlertsService{
-		GetDiscordLinkHandler: get_discord_link_handler.New(link_query.NewPostgresQuery(db), serverURL),
-		StartDiscordLinkHandler: start_discord_link_handler.New(
-			start_link_usecase.New(random_secret_generator.Generator{}, clock, linkStore, server)),
-		CompleteDiscordLinkHandler: complete_discord_link_handler.New(
-			complete_link_usecase.New(clock, linkStore, server, rpc_planet_allegiance.New(planet), book), serverURL),
+		GetDiscordLinkHandler: get_discord_link_handler.New(link_query.NewPostgresQuery(db), config.Discord.serverURL()),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return alertsv1connect.NewAlertsServiceHandler(service, options...)
 	},
 		alertsv1controller.NewSessionInterceptor(verifier, clock, props.Metrics),
-		alertsv1controller.NewRateLimitInterceptor(limiter),
 	); err != nil {
 		return fmt.Errorf("failed to mount alerts.v1.AlertsService: %w", err)
+	}
+
+	internalService := alertsv1controller.InternalService{
+		JoinServerHandler: join_server_handler.New(
+			join_server_usecase.New(clock, linkStore, server, rpc_planet_allegiance.New(planet), book)),
+	}
+	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return alertsv1connect.NewInternalServiceHandler(internalService, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount alerts.v1.InternalService: %w", err)
+	}
+
+	adminService := alertsv1controller.AdminService{
+		GetPlayerLinkHandler: get_player_link_handler.New(player_link_query.NewPostgresQuery(db)),
+		UnlinkPlayerHandler:  unlink_player_handler.New(unlink_player_usecase.New(linkStore, book, server)),
+	}
+	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return alertsv1connect.NewAdminServiceHandler(adminService, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount alerts.v1.AdminService: %w", err)
 	}
 
 	props.Logger.Info("alerts built",
@@ -159,7 +172,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 }
 
 type Config struct {
-	// Off, the service is not served: the game offers no link and pings nobody.
+	// Off, the service is not served: the game offers no link, a Discord sign-in joins no server, and nobody is
+	// pinged.
 	Enabled bool
 
 	Database cppg.Config
@@ -168,17 +182,11 @@ type Config struct {
 	Discord DiscordConfig
 	// The page each ping links to.
 	GameURL string
-
-	RateLimiter cpratelimit.Config
 }
 
-// The game's Discord application, the one players sign in with, and its bot in the server.
+// The bot of the game's Discord application, the one players sign in with, in the game's server.
 type DiscordConfig struct {
-	ClientID     string
-	ClientSecret string
-	BotToken     string
-	// The sign-in's own: the page tells a link from a sign-in by what it started.
-	RedirectURL string
+	BotToken string
 
 	GuildID          string
 	AlertsChannelID  string
@@ -186,10 +194,7 @@ type DiscordConfig struct {
 }
 
 func (c DiscordConfig) app() rest_discord.App {
-	return rest_discord.App{
-		ClientID: c.ClientID, ClientSecret: c.ClientSecret, BotToken: c.BotToken, RedirectURL: c.RedirectURL,
-		Guild: discord.GuildID(c.GuildID),
-	}
+	return rest_discord.App{BotToken: c.BotToken, Guild: discord.GuildID(c.GuildID)}
 }
 
 func (c DiscordConfig) channels() pings.Channels {
@@ -200,22 +205,11 @@ func (c DiscordConfig) serverURL() string {
 	return "https://discord.com/channels/" + c.GuildID + "/" + c.AlertsChannelID
 }
 
-const (
-	defaultGameURL = "https://clickplanet.lol/play"
-	// A start and a complete per link, and a try again.
-	defaultBurst     = 6
-	defaultPerSecond = 1.0 / 30
-)
+const defaultGameURL = "https://clickplanet.lol/play"
 
 func (c Config) withDefaults() Config {
 	if c.GameURL == "" {
 		c.GameURL = defaultGameURL
-	}
-	if c.RateLimiter.PerSecond <= 0 {
-		c.RateLimiter.PerSecond = defaultPerSecond
-	}
-	if c.RateLimiter.Burst <= 0 {
-		c.RateLimiter.Burst = defaultBurst
 	}
 	return c
 }
@@ -231,12 +225,8 @@ func (c Config) Validate() error {
 	if err := c.Redis.Validate(); err != nil {
 		errs = append(errs, fmt.Errorf("alerts.redis: %w", err))
 	}
-	for name, value := range map[string]string{
-		"clientId": c.Discord.ClientID, "clientSecret": c.Discord.ClientSecret, "botToken": c.Discord.BotToken,
-	} {
-		if value == "" {
-			errs = append(errs, fmt.Errorf("alerts.discord.%s is empty", name))
-		}
+	if c.Discord.BotToken == "" {
+		errs = append(errs, errors.New("alerts.discord.botToken is empty"))
 	}
 	for name, id := range map[string]string{
 		"guildId": c.Discord.GuildID, "alertsChannelId": c.Discord.AlertsChannelID, "battlesChannelId": c.Discord.BattlesChannelID,
@@ -245,10 +235,13 @@ func (c Config) Validate() error {
 			errs = append(errs, fmt.Errorf("alerts.discord.%s: %w", name, err))
 		}
 	}
-	for name, page := range map[string]string{"discord.redirectUrl": c.Discord.RedirectURL, "gameUrl": c.withDefaults().GameURL} {
-		if parsed, err := url.Parse(page); err != nil || parsed.Scheme != "https" || parsed.Host == "" {
-			errs = append(errs, fmt.Errorf("alerts.%s is %q, and must be an https page", name, page))
-		}
+	if page := c.withDefaults().GameURL; !isHTTPSPage(page) {
+		errs = append(errs, fmt.Errorf("alerts.gameUrl is %q, and must be an https page", page))
 	}
 	return errors.Join(errs...)
+}
+
+func isHTTPSPage(page string) bool {
+	parsed, err := url.Parse(page)
+	return err == nil && parsed.Scheme == "https" && parsed.Host != ""
 }

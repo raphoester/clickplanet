@@ -207,6 +207,8 @@ auth:
   discord:
     clientId: ""
     clientSecret: ""
+    # Every Discord sign-in also joins the game's Discord server: needs the alerts module on.
+    joinServer: false
   email:
     enabled: false
     delivery: log
@@ -318,7 +320,8 @@ support:
       accessKeyId: ""
       secretAccessKey: ""
 
-# The game's Discord server: a player's link, its flag's role, and the pings. Off, nothing is served or pinged.
+# The game's Discord server: a player's link, its flag's role, and the pings. Off, nothing is served or pinged, and a
+# Discord sign-in joins no server. A player joins by signing in with Discord: see auth.discord.joinServer.
 alerts:
   enabled: false
   database:
@@ -335,14 +338,9 @@ alerts:
     address: localhost:6379
     password: ""
   gameUrl: https://clickplanet.lol/play
-  rateLimiter:
-    perSecond: 0.0333
-    burst: 6
+  # The bot of auth.discord's application.
   discord:
-    clientId: "1549822806420885616"
-    clientSecret: ""
     botToken: ""
-    redirectUrl: http://localhost:5173/auth/callback
     guildId: ""
     alertsChannelId: ""
     battlesChannelId: ""

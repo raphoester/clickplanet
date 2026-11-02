@@ -18,8 +18,13 @@ type CountryChecker interface {
 	CheckCountry(country string) bool
 }
 
-func NewBook(store Store, countries CountryChecker, lock func() Lock, clock cptime.Clock) Book {
-	return Book{store: store, countries: countries, lock: lock, clock: clock}
+// Tells the other modules a flag an account set or changed, once it is written: no previous for a first flag.
+type Teller interface {
+	Pledged(account Account, flag string, previous string)
+}
+
+func NewBook(store Store, countries CountryChecker, lock func() Lock, clock cptime.Clock, teller Teller) Book {
+	return Book{store: store, countries: countries, lock: lock, clock: clock, teller: teller}
 }
 
 type Book struct {
@@ -27,6 +32,7 @@ type Book struct {
 	countries CountryChecker
 	lock      func() Lock
 	clock     cptime.Clock
+	teller    Teller
 }
 
 func (b Book) Pledge(ctx context.Context, payer clicks.Payer, flag string) error {
@@ -39,12 +45,19 @@ func (b Book) Pledge(ctx context.Context, payer clicks.Payer, flag string) error
 	}
 
 	at, lock := b.clock.Now(), b.lock()
+	var previous string
+	changed := false
 	if err := b.store.Change(ctx, account, func(allegiance Allegiance) (Allegiance, error) {
-		return allegiance.Pledged(flag, at, lock)
+		pledged, err := allegiance.Pledged(flag, at, lock)
+		previous, changed = allegiance.flag, err == nil && pledged.flag != allegiance.flag
+		return pledged, err
 	}); err != nil {
 		return fmt.Errorf("account %s may not play for %q: %w", account, flag, err)
 	}
 
+	if changed {
+		b.teller.Pledged(account, flag, previous)
+	}
 	return nil
 }
 

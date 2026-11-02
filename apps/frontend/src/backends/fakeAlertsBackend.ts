@@ -1,21 +1,12 @@
 import {DISCORD_INVITE} from "../links.ts"
 import {AlertsBackend, DiscordLink} from "./alerts.ts"
-import {CALLBACK_PATH} from "../domain/signInCallback.ts"
 
-// Offered and not linked. Start comes straight back to the callback page, as Discord would after the player agreed.
+// Offered, and linked once the fake account signed in with a provider: in fake mode every sign-in is the Discord one.
 export class FakeAlertsBackend implements AlertsBackend {
-    private linked = false
+    constructor(private readonly signedIn: () => Promise<boolean>) {
+    }
 
     public async discordLink(): Promise<DiscordLink> {
-        return {offered: true, linked: this.linked}
-    }
-
-    public async startDiscordLink(): Promise<string> {
-        return `${CALLBACK_PATH}?code=fake-discord&state=fake`
-    }
-
-    public async completeDiscordLink(): Promise<string> {
-        this.linked = true
-        return DISCORD_INVITE
+        return {offered: true, linked: await this.signedIn(), serverUrl: DISCORD_INVITE}
     }
 }
