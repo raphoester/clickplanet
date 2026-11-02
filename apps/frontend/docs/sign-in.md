@@ -91,7 +91,9 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
    and offers only "Back to the game": the same identity would be refused
    again. The server changed nothing, so the player is still on their account.
    `linkedElsewhere` tells them how to move the identity: sign in with it,
-   delete that account, then link it here.
+   delete that account, then link it here once it is gone for good, 30 days
+   later (the server keeps an account asked deleted, and its identities, that
+   long).
 
 **A signed-in player is given a username when it signs in** (the server draws
 one, see the backend's [Player](../../backend/docs/player.md)), **and may pick another** in `AccountPanel`: 3 to 15
@@ -195,7 +197,19 @@ fresh click token, which is linked, so it fills the account's own bank.
 **Every way out of an account invalidates the click token too**: sign out, sign
 out everywhere, and delete. The player plays on, and the next click mints a new
 guest. `unauthenticated` on one of these means the account was already gone, and
-is treated as done. Delete sits behind a dialog that lists what goes.
+is treated as done. Delete sits behind a dialog (`DeleteAccountModal`) that says
+what happens: the account is signed out everywhere and hidden from the other
+players at once, a sign-in within 30 days brings it back as it was, and after
+30 days it is deleted for good (the backend's
+[Auth](../../backend/docs/auth.md#signing-out-deleting-pruning)).
+
+**A sign-in that brings an account back says so.** The server answers
+`restored` on any of the three completions; `ConnectAccountBackend` reads it as
+the outcome `"restored"`, whatever the outcome on the wire was (a known identity,
+or another provider with the same verified address). The store marks the state
+`restored`, and `Viewer` shows `WelcomeBackModal` until the player closes it
+(`AccountStore.welcomedBack`). The fake's `deleteAccount` keeps what it forgets,
+and its next sign-in brings it back as `"restored"`.
 
 **The fake has no sign-in flow, only a signed-in account.** `VITE_FAKE_BACKEND` wires `AccountStore` over
 `FakeAccountBackend`, which offers no provider until `offerSignIn()` on the console, so the menu offers no

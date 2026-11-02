@@ -223,6 +223,9 @@ auth:
   prune:
     idleFor: 2160h
     interval: 1h
+  deletion:
+    grace: 720h
+    interval: 1h
 
 player:
   database:

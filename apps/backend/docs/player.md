@@ -42,6 +42,11 @@ internal/player/internal/
     inmemory_worn_title_store/      the same port in maps, behind the testing tag
     usecases/wear_title_usecase/  forget_worn_title_usecase/
       wear_title_usecase/dressing_wear_title/   shows a title worn on the roster at once
+  departures/                       Departure (Decided, Leaving), Decision (Leaves, Returns): an account its player asked to delete,
+                                    hidden from the others; the Store port and its contract suite
+    postgres_departure_store/       the Store over player.departures, under an advisory lock per account
+    inmemory_departure_store/       the same port in maps, behind the testing tag
+    usecases/decide_departure_usecase/  forget_departure_usecase/
   presence/                         Visit, Entry, RosterOf, TTL: who is playing
     inmemory_visit_storage/         the last visit of each account, capped, keyed, pruned every 5s (a Runner), and each change to its subscribers
     usecases/announce_usecase/  listen_for_events_usecase/  move_visit_usecase/  forget_visit_usecase/
@@ -68,7 +73,8 @@ internal/player/internal/
   subscribers/                      the edge for events, as the controller is for the wire
     tile_taken_subscriber/  message_sent_subscriber/  bomb_landed_subscriber/  fortified_subscriber/  bonus_claimed_subscriber/
     quiz_answered_subscriber/  missions_paid_subscriber/  account_deleted_subscriber/  signed_in_subscriber/  signed_out_subscriber/
-    stats_changed_subscriber/  signed_in_account_subscriber/
+    stats_changed_subscriber/  signed_in_account_subscriber/  deletion_requested_subscriber/  restored_subscriber/
+    deletion_requested_account_subscriber/
     log_subscriber/
   migrations/
 ```
@@ -148,7 +154,7 @@ internal/player/internal/
   - **Sorted**: players with a username first, then guests; each group by name ignoring case, then by key.
   - **Caps, against a script minting accounts** (`inmemory_visit_storage`): at most 10 accounts per tag, where a new account pushes out the tag's oldest visit, and 10,000 in all, where a new account is not recorded. The mint throttle already bounds how fast one address makes accounts.
   - An unknown country is `InvalidArgument`; a failed profile read is the error net's `internal`, and nothing is recorded.
-  - **A sign-in, a new name, a sign-out and a deletion change the roster at once, with no announce.** The client drops its click token on each of these, and a new one waits for a click, so waiting for its next announce left a guest line on the roster, or two lines, for up to 90s. So: `auth.v1.SignedIn` moves the browser's visit to the account it is on now, under that account's name (its username, or its own guest code), over any visit the account held (`move_visit_usecase`, `Storage.Move`; one account before and after changes nothing, and reads nothing). `SetName` renames the caller's visit once the name is kept (`renaming_set_name`, `Storage.Rename`). `auth.v1.SignedOut` and `auth.v1.AccountDeleted` take the account off (`forget_visit_usecase`, `Storage.Forget`); another device still signed in announces again within 30s. An account with no visit is left off by all of them: its browser never announced.
+  - **A sign-in, a new name, a sign-out and a deletion change the roster at once, with no announce.** The client drops its click token on each of these, and a new one waits for a click, so waiting for its next announce left a guest line on the roster, or two lines, for up to 90s. So: `auth.v1.SignedIn` moves the browser's visit to the account it is on now, under that account's name (its username, or its own guest code), over any visit the account held (`move_visit_usecase`, `Storage.Move`; one account before and after changes nothing, and reads nothing). `SetName` renames the caller's visit once the name is kept (`renaming_set_name`, `Storage.Rename`). `auth.v1.SignedOut`, `auth.v1.AccountDeletionRequested` (`player-presence-deletions`) and `auth.v1.AccountDeleted` take the account off (`forget_visit_usecase`, `Storage.Forget`); another device still signed in announces again within 30s. An account with no visit is left off by all of them: its browser never announced.
 - **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles: the takes of one spread share a position and each has its own index. A strike on a shield takes no tile and is never published. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today: a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. The rule is `Stats.AsOf` for the commands and the same `CASE` in each query's SQL; `stats_test.go` and the queries' tests pin it across UTC midnight.
 - **Messages sent come from `chat.v1.MessageSent`**, one event per message kept (`Stats.WithMessage`, `stats.messages_sent`, migration `20261003140000_messages_sent`). Every message counts: the chat's own rate limit is the only bound. A message is no take, so it neither starts nor extends a streak, and a row made by a message alone has no `streak_last_day` (the migration made it nullable). It is not on the wire as a stat: the `Chatter` track's progress is where a player sees it. Counting started with that migration; messages sent before it are not replayed.
 - **What a player did with the bonuses comes from planet's events**, one counter each in `player.stats` (migration `20261025120000_title_tracks`): `bombs_dropped` from `planet.v1.BombLanded` (`Stats.WithBomb`), `tiles_fortified` from `planet.v1.Fortified`, the landmass's whole size (`Stats.WithFortify`), so a 1-tile island taken back and forth is worth one tile each time, `bonuses_claimed` from `planet.v1.BonusClaimed`, a caught box (`Stats.WithBonus`), and `right_answers` from `planet.v1.QuizAnswered` when `correct` (`Stats.WithRightAnswer`). A bomb or a fortify with no account counts for nobody. None is a take, so none touches the streak, and none is on the wire as a stat: each is a track's progress. Counting started with that migration. Bombs and fortifies before it were brought in once from planet's ledger, on 2026-10-25, by an operator call since removed; boxes and quizzes before it are nowhere.
@@ -211,3 +217,28 @@ internal/player/internal/
 - **The pool closes after the subscribers stop** (`cppg.CloseAfter`), so what they read before the shutdown is still written.
 - **No foreign key to `auth.accounts`**: the schemas are each module's own, and the event is how a deletion crosses.
 - **If takes ever outgrow one transaction each**, the subscriber can batch them; nothing else changes.
+
+## An account asked deleted
+
+**Auth keeps an account its player asked to delete for 30 days, and to every other player it is deleted at once.**
+See [Auth](auth.md#signing-out-deleting-pruning). `player` is where that is decided, since every name another player
+reads comes from here: `GetAuthors` (the boards and rounds of scoring, the chat's history and reactions, the clips'
+casts), `GetPlayer` (the card on a tile, a territory, a standing or a chat line) and the roster.
+
+- **`departures`** keeps, per account, whether it is leaving and when that was decided (`player.departures`, migration
+  `20261102150000_departures`). `auth.v1.AccountDeletionRequested` decides it leaves
+  (`player-departures-requests`, `departures.Leaves(requested_at)`), and `auth.v1.AccountRestored` that it returns
+  (`player-departures-restores`, `departures.Returns(restored_at)`), both through `decide_departure_usecase`.
+- **The latest decision wins** (`Departure.Decided`): the two events come on two streams, so a restore can be heard
+  before the request it undoes, and either can come twice. A decision with no time is refused (`ErrNoTime`), so a
+  broken event is buried rather than read as the oldest one.
+- **`GetAuthors` and `GetPlayer` leave a leaving account out** (`NOT EXISTS` on `departures` in `authors_query` and
+  `player_query`), exactly as they leave out a deleted one: the callers already show a player nobody can name as
+  deleted ("[deleted]" in the chat, "This player is gone." on a card, no row on a board). Nothing is deleted, so a
+  restore shows it again as it was. `GetAuthor` (a post's own author), `GetProfile` and `GetStats` (the caller's own)
+  and the operator's `AdminService/GetPlayer` and `SearchPlayers` still read it; `AdminService/GetAuthors` is the same
+  handler as the internal one, so the operator's lists of messages and reports show it unnamed meanwhile.
+- **The roster drops it** at the request (`player-presence-deletions`, `forget_visit_usecase`): its sessions are gone,
+  so it would only age out.
+- **`auth.v1.AccountDeleted` forgets the departure** (`player-departures-accounts`, `forget_departure_usecase`), with the
+  rest of the account.

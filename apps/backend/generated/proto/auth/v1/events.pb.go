@@ -9,6 +9,7 @@ package authv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -21,6 +22,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// The account is gone, and everything another module keeps about it goes too: a guest idle too long, or an account
+// whose deletion was asked for longer ago than the grace period.
 type AccountDeleted struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
@@ -65,6 +68,114 @@ func (x *AccountDeleted) GetAccountId() string {
 	return ""
 }
 
+// The player asked to delete the account. It is kept, whole, for the grace period, and the other players see it as
+// deleted: AccountDeleted ends it, or AccountRestored brings it back. The two are on two streams, so a receiver keeps
+// the later of them by requested_at and restored_at.
+type AccountDeletionRequested struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	RequestedAt   *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AccountDeletionRequested) Reset() {
+	*x = AccountDeletionRequested{}
+	mi := &file_auth_v1_events_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AccountDeletionRequested) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AccountDeletionRequested) ProtoMessage() {}
+
+func (x *AccountDeletionRequested) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_events_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AccountDeletionRequested.ProtoReflect.Descriptor instead.
+func (*AccountDeletionRequested) Descriptor() ([]byte, []int) {
+	return file_auth_v1_events_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *AccountDeletionRequested) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *AccountDeletionRequested) GetRequestedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RequestedAt
+	}
+	return nil
+}
+
+// A sign-in landed on an account whose deletion was asked for, within the grace period: it is back as it was.
+type AccountRestored struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	RestoredAt    *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=restored_at,json=restoredAt,proto3" json:"restored_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AccountRestored) Reset() {
+	*x = AccountRestored{}
+	mi := &file_auth_v1_events_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AccountRestored) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AccountRestored) ProtoMessage() {}
+
+func (x *AccountRestored) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_events_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AccountRestored.ProtoReflect.Descriptor instead.
+func (*AccountRestored) Descriptor() ([]byte, []int) {
+	return file_auth_v1_events_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *AccountRestored) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *AccountRestored) GetRestoredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RestoredAt
+	}
+	return nil
+}
+
 type SignedIn struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	PreviousAccountId string                 `protobuf:"bytes,1,opt,name=previous_account_id,json=previousAccountId,proto3" json:"previous_account_id,omitempty"`
@@ -77,7 +188,7 @@ type SignedIn struct {
 
 func (x *SignedIn) Reset() {
 	*x = SignedIn{}
-	mi := &file_auth_v1_events_proto_msgTypes[1]
+	mi := &file_auth_v1_events_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -89,7 +200,7 @@ func (x *SignedIn) String() string {
 func (*SignedIn) ProtoMessage() {}
 
 func (x *SignedIn) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_events_proto_msgTypes[1]
+	mi := &file_auth_v1_events_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -102,7 +213,7 @@ func (x *SignedIn) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignedIn.ProtoReflect.Descriptor instead.
 func (*SignedIn) Descriptor() ([]byte, []int) {
-	return file_auth_v1_events_proto_rawDescGZIP(), []int{1}
+	return file_auth_v1_events_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SignedIn) GetPreviousAccountId() string {
@@ -135,7 +246,7 @@ type SignedOut struct {
 
 func (x *SignedOut) Reset() {
 	*x = SignedOut{}
-	mi := &file_auth_v1_events_proto_msgTypes[2]
+	mi := &file_auth_v1_events_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -147,7 +258,7 @@ func (x *SignedOut) String() string {
 func (*SignedOut) ProtoMessage() {}
 
 func (x *SignedOut) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_events_proto_msgTypes[2]
+	mi := &file_auth_v1_events_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -160,7 +271,7 @@ func (x *SignedOut) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignedOut.ProtoReflect.Descriptor instead.
 func (*SignedOut) Descriptor() ([]byte, []int) {
-	return file_auth_v1_events_proto_rawDescGZIP(), []int{2}
+	return file_auth_v1_events_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SignedOut) GetAccountId() string {
@@ -174,10 +285,19 @@ var File_auth_v1_events_proto protoreflect.FileDescriptor
 
 const file_auth_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x14auth/v1/events.proto\x12\aauth.v1\"/\n" +
+	"\x14auth/v1/events.proto\x12\aauth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"/\n" +
 	"\x0eAccountDeleted\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\"~\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"x\n" +
+	"\x18AccountDeletionRequested\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12=\n" +
+	"\frequested_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vrequestedAt\"m\n" +
+	"\x0fAccountRestored\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12;\n" +
+	"\vrestored_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"restoredAt\"~\n" +
 	"\bSignedIn\x12.\n" +
 	"\x13previous_account_id\x18\x01 \x01(\tR\x11previousAccountId\x12\x1d\n" +
 	"\n" +
@@ -200,18 +320,23 @@ func file_auth_v1_events_proto_rawDescGZIP() []byte {
 	return file_auth_v1_events_proto_rawDescData
 }
 
-var file_auth_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_auth_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_auth_v1_events_proto_goTypes = []any{
-	(*AccountDeleted)(nil), // 0: auth.v1.AccountDeleted
-	(*SignedIn)(nil),       // 1: auth.v1.SignedIn
-	(*SignedOut)(nil),      // 2: auth.v1.SignedOut
+	(*AccountDeleted)(nil),           // 0: auth.v1.AccountDeleted
+	(*AccountDeletionRequested)(nil), // 1: auth.v1.AccountDeletionRequested
+	(*AccountRestored)(nil),          // 2: auth.v1.AccountRestored
+	(*SignedIn)(nil),                 // 3: auth.v1.SignedIn
+	(*SignedOut)(nil),                // 4: auth.v1.SignedOut
+	(*timestamppb.Timestamp)(nil),    // 5: google.protobuf.Timestamp
 }
 var file_auth_v1_events_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	5, // 0: auth.v1.AccountDeletionRequested.requested_at:type_name -> google.protobuf.Timestamp
+	5, // 1: auth.v1.AccountRestored.restored_at:type_name -> google.protobuf.Timestamp
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_events_proto_init() }
@@ -225,7 +350,7 @@ func file_auth_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_events_proto_rawDesc), len(file_auth_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

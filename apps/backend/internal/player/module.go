@@ -14,6 +14,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures/postgres_departure_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures/usecases/decide_departure_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures/usecases/forget_departure_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales/postgres_fight_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales/rpc_scoring_finales"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/finales/usecases/forget_fights_usecase"
@@ -71,11 +74,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/bonus_claimed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/deletion_requested_account_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/deletion_requested_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/message_sent_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/missions_paid_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/quiz_answered_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/restored_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/season_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_account_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
@@ -165,6 +171,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	accounts := rpc_account_reader.New(auth)
 	fightStore := postgres_fight_store.New(db)
+	departureStore := postgres_departure_store.New(db)
 	careers := titles.NewCareers(accounts, fightStore)
 	titleStore := postgres_title_store.New(db)
 	catalog := titles.NewCatalog()
@@ -261,6 +268,26 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe the finales fought to auth.v1.AccountDeleted: %w", err)
 	}
 
+	decideDeparture := decide_departure_usecase.New(departureStore)
+	requests, err := cpredis.Subscribe(ctx, streams, "player-departures-requests",
+		log_subscriber.New(deletion_requested_subscriber.New(decideDeparture), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeletionRequested: %w", err)
+	}
+	restores, err := cpredis.Subscribe(ctx, streams, "player-departures-restores",
+		log_subscriber.New(restored_subscriber.New(decideDeparture), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to auth.v1.AccountRestored: %w", err)
+	}
+	forgottenDepartures, err := cpredis.Subscribe(ctx, streams, "player-departures-accounts",
+		log_subscriber.New(account_deleted_subscriber.New(forget_departure_usecase.New(departureStore)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the departures to auth.v1.AccountDeleted: %w", err)
+	}
+
 	forgetVisit := forget_visit_usecase.New(visits)
 	signIns, err := cpredis.Subscribe(ctx, streams, "player-presence-sign-ins",
 		log_subscriber.New(signed_in_subscriber.New(move_visit_usecase.New(authors, visits)), props.Logger))
@@ -288,10 +315,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the roster to auth.v1.AccountDeleted: %w", err)
 	}
+	leaving, err := cpredis.Subscribe(ctx, streams, "player-presence-deletions",
+		log_subscriber.New(deletion_requested_account_subscriber.New(forgetVisit), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the roster to auth.v1.AccountDeletionRequested: %w", err)
+	}
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
 		takes, posts, bombs, fortifies, claims, answers, missionsPaid, awards, seasonEnds, deletions, forgottenTitles,
-		forgottenChoices, forgottenFights, signIns, namings, signOuts, gone,
+		forgottenChoices, forgottenFights, requests, restores, forgottenDepartures, signIns, namings, signOuts, gone, leaving,
 		cpoutbox.NewRelay("player-outbox", db, streams, props.Logger))))
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))

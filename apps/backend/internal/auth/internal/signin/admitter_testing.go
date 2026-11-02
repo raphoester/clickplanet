@@ -7,3 +7,9 @@ import "github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/acc
 func AdmissionOf(account accounts.AccountID, outcome accounts.Outcome, setCookie string) *Admission {
 	return &Admission{account: account, outcome: outcome, setCookie: setCookie}
 }
+
+func (a *Admission) WithRestored() *Admission {
+	restored := *a
+	restored.restored = true
+	return &restored
+}

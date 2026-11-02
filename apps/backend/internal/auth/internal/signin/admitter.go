@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
@@ -81,6 +84,7 @@ func (a *Admitter) Visitor(ctx context.Context, cookieHeader string, landing arr
 type Admission struct {
 	account   accounts.AccountID
 	outcome   accounts.Outcome
+	restored  bool
 	setCookie string
 }
 
@@ -90,6 +94,11 @@ func (a *Admission) Account() accounts.AccountID {
 
 func (a *Admission) Outcome() accounts.Outcome {
 	return a.outcome
+}
+
+// The account had asked to be deleted, and this sign-in brought it back.
+func (a *Admission) Restored() bool {
+	return a.restored
 }
 
 func (a *Admission) SetCookie() string {
@@ -132,19 +141,27 @@ func (a *Admitter) admit(
 	if err != nil {
 		return nil, fmt.Errorf("failed to link %s: %w", provider, err)
 	}
-	var account accounts.AccountID
+	var (
+		account accounts.AccountID
+		target  *accounts.Account
+	)
 	switch outcome {
 	case accounts.SignedIn:
 		account = known.Account()
+		if target, err = a.store.Account(ctx, account); err != nil {
+			return nil, fmt.Errorf("failed to find the identity's account: %w", err)
+		}
 	case accounts.Linked:
-		account = current.ID()
+		account, target = current.ID(), current
 	case accounts.Joined:
-		account = owner.ID()
+		account, target = owner.ID(), owner
 	case accounts.Created:
 		if account, err = a.ids.NewID(); err != nil {
 			return nil, fmt.Errorf("failed to get an account id: %w", err)
 		}
 	}
+	// Coming back within the grace period undoes the deletion, whichever identity the player came back with.
+	restored := target != nil && target.DeletionRequested()
 
 	token, err := a.tokens.NewToken()
 	if err != nil {
@@ -158,10 +175,17 @@ func (a *Admitter) admit(
 	if outcome != accounts.SignedIn {
 		signIn = signIn.WithIdentity(accounts.NewIdentity(provider, claim, account, now))
 	}
+	if restored {
+		signIn = signIn.WithRestored()
+	}
 
 	signedIn := &authv1.SignedIn{AccountId: account.String(), IdentityName: claim.Name()}
 	if current != nil {
 		signedIn.PreviousAccountId = current.ID().String()
+	}
+	events := []proto.Message{signedIn}
+	if restored {
+		events = []proto.Message{&authv1.AccountRestored{AccountId: account.String(), RestoredAt: timestamppb.New(now)}, signedIn}
 	}
 	err = a.transactioner.InTx(ctx, func(ctx context.Context) error {
 		if err := a.store.SaveSignIn(ctx, signIn); err != nil {
@@ -172,7 +196,7 @@ func (a *Admitter) admit(
 				return fmt.Errorf("failed to record the new account's arrival: %w", err)
 			}
 		}
-		if err := a.outbox.Record(ctx, signedIn); err != nil {
+		if err := a.outbox.Record(ctx, events...); err != nil {
 			return fmt.Errorf("failed to record the sign-in: %w", err)
 		}
 		return nil
@@ -181,5 +205,5 @@ func (a *Admitter) admit(
 		return nil, err
 	}
 
-	return &Admission{account: account, outcome: outcome, setCookie: session.Cookie(token, now)}, nil
+	return &Admission{account: account, outcome: outcome, restored: restored, setCookie: session.Cookie(token, now)}, nil
 }

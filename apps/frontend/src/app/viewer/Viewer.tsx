@@ -40,6 +40,7 @@ import {isFirstWin} from "../../domain/bonusGuide.ts";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import BannedModal from "../components/BannedModal.tsx";
+import WelcomeBackModal from "../account/WelcomeBackModal.tsx";
 import SharePlace from "../share/SharePlace.tsx";
 import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
@@ -740,6 +741,8 @@ export default function Viewer(props: ViewerProps) {
 
         {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
         {bannedUntil !== undefined && <BannedModal until={bannedUntil} onClose={dismissBanned}/>}
+        {account.kind === 'ready' && account.restored && props.account &&
+            <WelcomeBackModal onClose={() => props.account?.welcomedBack()}/>}
 
         {sessionUnavailable && <SessionUnavailableModal onClose={dismissSessionUnavailable}/>}
     </>

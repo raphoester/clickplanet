@@ -14,6 +14,7 @@ internal/auth/internal/
     usecases/create_anonymous_session_usecase/   deprecated: attest, mint with no account
     usecases/sign_out_usecase/  sign_out_everywhere_usecase/  delete_account_usecase/
     usecases/prune_guests_usecase/         deletes idle guests: Executor, Runner, and log_prune_guests
+    usecases/purge_deletions_usecase/      deletes the accounts asked deleted past the grace period: Executor, Runner, and log_purge_deletions
   arrivals/                                Arrival (Snapshot), Landing (tag, referrer), Source, Register, Guests (a guest and its arrival); the Store port — see Arrivals
     postgres_arrival_store/  inmemory_arrival_store/  uuid_id_provider/
     usecases/anonymize_arrivals_usecase/   blanks the account of a deleted account's arrival
@@ -80,7 +81,7 @@ internal/auth/internal/
 - **`accounts.OutcomeOf` decides, and one verified address is one player.** To sign in: an identity already linked signs in to its account (`SignedIn`); a new one whose verified address another identity already holds joins that account, and the browser moves there (`Joined`, `SIGNED_IN` on the wire); otherwise it links to the account the browser is on (`Linked`); no account, or one that already holds a user of that provider, gets a new account (`Created`). The guest a browser leaves is left as it was — nothing is merged, and the prune deletes it later.
 - **The owner of an address is `Store.AccountOfEmail`**: the account of the oldest identity holding it verified, ignoring case (index `identities_email` on `lower(email)`). `signin.Admitter` asks only for a new identity with a verified address, so it covers all three ways in alike: an email code finds a Google or Discord account, and Google or Discord finds an email account or each other. **An owner that already has a user of this provider is not joined** — a second Google on one account is refused everywhere else too — and the old rule applies. Accounts that already hold the same address apart, made before this rule, stay apart: a known identity outranks the address.
 - **A link of an address another account holds is refused** (`ErrIdentityLinkedElsewhere`), as a link of an identity another account holds is.
-- **A link never moves the browser.** A new identity links to the account; one already on this account is `SignedIn` and changes nothing but the session token; one on **another** account is `ErrIdentityLinkedElsewhere`; an account that already has a user of that provider is `ErrProviderAlreadyLinked`. A refusal writes nothing and keeps `cp_sid`: only `cp_oauth` is cleared. The handler answers `AlreadyExists` with a `LinkRefusal` detail, which is what the client matches. Before this, a link to an identity another account used moved the browser to that account, and the two accounts could never be joined. To move an identity, the player signs in with it, deletes that account, then links it — there is no merge.
+- **A link never moves the browser.** A new identity links to the account; one already on this account is `SignedIn` and changes nothing but the session token; one on **another** account is `ErrIdentityLinkedElsewhere`; an account that already has a user of that provider is `ErrProviderAlreadyLinked`. A refusal writes nothing and keeps `cp_sid`: only `cp_oauth` is cleared. The handler answers `AlreadyExists` with a `LinkRefusal` detail, which is what the client matches. Before this, a link to an identity another account used moved the browser to that account, and the two accounts could never be joined. To move an identity, the player signs in with it, deletes that account, then links it once the purge has deleted it, 30 days later — there is no merge. An account asked deleted still holds its identities and its addresses, so a link of one is refused like any other: that is rare enough to stay a refusal.
 - **`accounts.SignIn` is written in one transaction**: the new account if any, the identity if new, the new session, and the deletion of the browser's previous session. The session token changes on every sign-in. Two browsers linking the same new identity at once: the second insert finds it taken (`ErrIdentityTaken`), and the use case runs once more with the identity known — a sign-in moves, a link is refused.
 - **An email is kept only when the provider says it is verified** (`accounts.NewIdentity`, `Claim.VerifiedEmail`), and it is `NULL` otherwise. An unverified address finds no account and is found by none.
 - **`identities.provider` is the type `identity_provider`** (`google`, `discord`, `email`, `crazygames`). A new provider is a migration that adds its value, beside its `signin` constant, its `authv1.Provider` and its name in `me_query`; `TestEveryProviderTheProtoNamesIsAnsweredAsTheOneStartSignInNamed` saves each one through the store. Identities linked at the same time are ordered by `provider::text`, the name, in the store and in `GetMe`: without the cast they come in the order the type declares, and the contract suite fails.
@@ -193,6 +194,34 @@ chat crown: `player.profiles.admin` is a display flag, and holding one never gra
 ## Signing out, deleting, pruning
 
 - **`SignOut`** deletes this browser's session and clears the cookie; a browser with no session succeeds too. **`SignOutEverywhere`** deletes every session of the account and answers `Unauthenticated` with none. Neither touches the account. Both publish **`auth.v1.SignedOut`** once a session was deleted; `SignOut` reads the session first, expired or not, to name its account.
-- **`DeleteAccount`** deletes the account row, and its identities and sessions go with it by cascade, then publishes **`auth.v1.AccountDeleted`**. `player` hears it and deletes the profile and the stats. `planet` hears it and takes the account off every take postgres keeps: the takes stay, with their tile, flag and time (see [Durability](durability.md)). The ledger in memory keeps the id until it ages out (72h at most), as do the revert marks; the chat log ages out.
+- **`DeleteAccount` asks for the account's deletion, and a grace period lets the player change their mind.** Players
+  delete in a rage and come back, so a signed-in account is not deleted at once: `delete_account_usecase` marks it
+  (`accounts.deletion_requested_at`, migration `20261102150000_account_deletion_requested`), deletes every session of
+  it, and records **`auth.v1.AccountDeletionRequested`** with the time, all in one transaction. Nothing else is
+  deleted: its identities, its addresses and everything the other modules keep stay whole. To the other players it is
+  deleted at once: `player` hears the request and stops naming it ([Player](player.md#an-account-asked-deleted)), so
+  every board, card, chat line and clip cast that names players through it leaves it out, and the roster drops it.
+- **A guest is deleted at once** (`Account.Restorable`: no identity): nothing could ever sign in to it again. The
+  account row goes, its sessions with it by cascade, and **`auth.v1.AccountDeleted`** is recorded in the same
+  transaction. The game offers Delete to a signed-in account only, so this is a caller of the RPC by hand.
+- **A sign-in within the grace period brings the account back** (`signin.Admitter`, so all three ways in): the account a
+  sign-in lands on — the identity's (`SignedIn`), the address's owner (`Joined`), or the browser's (`Linked`) — is
+  restored when its deletion was asked for (`Account.DeletionRequested`). `SignIn.WithRestored` clears the mark in
+  `SaveSignIn`, and **`auth.v1.AccountRestored`** is recorded with the time, before `SignedIn`, in the same
+  transaction. The answer says `restored`, which the client tells the player. A known identity, or another provider
+  with the same verified address, both bring it back; a CrazyGames token carries no address, so only the same
+  CrazyGames account does. **Coming back is a sign-in, nothing else**: the client decides when to sign in (the
+  CrazyGames page, which signs in on its own at every start, keeps that decision to itself — see the frontend's
+  [CrazyGames](../../frontend/docs/crazygames.md)).
+- **`purge_deletions_usecase` deletes an account once the grace period is over**: every `auth.deletion.interval` (1h),
+  1000 rows a statement, the accounts whose `deletion_requested_at` is older than `auth.deletion.grace` (30 days), with
+  `auth.v1.AccountDeleted` recorded for each in the same transaction (`PurgeDeletions` answers the ids it deleted).
+  `log_purge_deletions` logs it. **The privacy policy names the 30 days**: a change of `grace` is a change of the
+  policy. To delete one at once, an operator moves its mark back past the grace period (`deploy/vps/README.md`,
+  "Delete an account at once"), and the next purge takes it.
+- **`AccountDeleted` is the end, from the purge, the guest's deletion and the prune alike.** `player` hears it and
+  deletes the profile and the stats. `planet` hears it and takes the account off every take postgres keeps: the takes
+  stay, with their tile, flag and time (see [Durability](durability.md)). The ledger in memory keeps the id until it
+  ages out (72h at most), as do the revert marks; the chat log ages out.
 - **No unlink RPC.** When one comes, a linked account must keep its last provider: without one it is a guest holding an email.
 - **`prune_guests_usecase`** is an `Executor` and a `Runner` that calls it; `log_prune_guests` is the decorator that logs, so the loop holds no log line. Every `auth.prune.interval` (1h) it deletes, 1000 rows a statement, the accounts with no identity whose `last_seen_at` is older than `auth.prune.idleFor`, and records `auth.v1.AccountDeleted` for each in the same transaction (`PruneGuests` answers the ids it deleted). That defaults to `guestTTL`, and less refuses the boot: `last_seen_at` moves when a session is extended, so a guest idle that long has no live cookie left.

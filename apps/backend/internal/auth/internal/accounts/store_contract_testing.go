@@ -251,6 +251,89 @@ func (s *StoreContractSuite) TestADeletedAccountTakesItsIdentitiesAndSessions() 
 	s.Equal(other, s.stored(other.tokenHash))
 }
 
+func (s *StoreContractSuite) TestAnAccountWhoseDeletionIsRequestedKeepsItsIdentities() {
+	s.signIn(1, "google", "google-user", "a-token")
+	s.Require().False(s.account(1).DeletionRequested())
+
+	s.Require().NoError(s.store.RequestDeletion(s.T().Context(), AccountID{15: 1}, contractStart.Add(time.Hour)))
+
+	account := s.account(1)
+	s.True(account.DeletionRequested())
+	s.Equal(contractStart.Add(time.Hour), account.DeletionRequestedAt())
+	s.Equal([]string{"google"}, account.Providers())
+	identity, err := s.store.Identity(s.T().Context(), "google", "google-user")
+	s.Require().NoError(err)
+	s.Equal(AccountID{15: 1}, identity.account)
+}
+
+func (s *StoreContractSuite) TestTheAccountOfAnAddressSaysItsDeletionWasRequested() {
+	s.signInWith(1, "discord", contractClaim, "token-1", contractStart)
+	s.Require().NoError(s.store.RequestDeletion(s.T().Context(), AccountID{15: 1}, contractStart.Add(time.Hour)))
+
+	found, err := s.store.AccountOfEmail(s.T().Context(), contractClaim.email)
+
+	s.Require().NoError(err)
+	s.Equal(AccountID{15: 1}, found.id)
+	s.Equal(contractStart.Add(time.Hour), found.DeletionRequestedAt())
+}
+
+func (s *StoreContractSuite) TestASignInThatRestoresClearsTheRequest() {
+	s.signIn(1, "google", "google-user", "a-token")
+	s.Require().NoError(s.store.RequestDeletion(s.T().Context(), AccountID{15: 1}, contractStart.Add(time.Hour)))
+
+	session := LinkedSession(AccountID{15: 1}, TokenOf("back-token"), contractLifetime, contractStart.Add(2*time.Hour))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), NewSignIn(session).WithRestored()))
+
+	s.False(s.account(1).DeletionRequested())
+	s.Equal(session, s.stored(session.tokenHash))
+}
+
+func (s *StoreContractSuite) TestASignInThatDoesNotRestoreKeepsTheRequest() {
+	s.signIn(1, "google", "google-user", "a-token")
+	s.Require().NoError(s.store.RequestDeletion(s.T().Context(), AccountID{15: 1}, contractStart.Add(time.Hour)))
+
+	session := LinkedSession(AccountID{15: 1}, TokenOf("back-token"), contractLifetime, contractStart.Add(2*time.Hour))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), NewSignIn(session)))
+
+	s.True(s.account(1).DeletionRequested())
+}
+
+func (s *StoreContractSuite) TestThePurgeDeletesOnlyTheAccountsWhoseRequestIsOlderThanItsLimit() {
+	s.signIn(1, "google", "old-user", "token-1")
+	s.signIn(2, "google", "recent-user", "token-2")
+	s.signIn(3, "google", "staying-user", "token-3")
+	guest := s.createGuest(4, "guest-token")
+	s.Require().NoError(s.store.RequestDeletion(s.T().Context(), AccountID{15: 1}, contractStart))
+	s.Require().NoError(s.store.RequestDeletion(s.T().Context(), AccountID{15: 2}, contractStart.Add(time.Hour)))
+
+	purged, err := s.store.PurgeDeletions(s.T().Context(), contractStart.Add(time.Minute), 100)
+
+	s.Require().NoError(err)
+	s.Equal([]AccountID{{15: 1}}, purged)
+	_, err = s.store.Account(s.T().Context(), AccountID{15: 1})
+	s.Require().ErrorIs(err, ErrAccountNotFound)
+	_, err = s.store.Identity(s.T().Context(), "google", "old-user")
+	s.Require().ErrorIs(err, ErrIdentityNotFound, "the identity goes with it")
+	s.True(s.account(2).DeletionRequested())
+	s.account(3)
+	s.Equal(guest, s.stored(guest.tokenHash), "an idle guest is the prune's, not the purge's")
+}
+
+func (s *StoreContractSuite) TestThePurgeStopsAtItsLimit() {
+	for account := range byte(3) {
+		s.signIn(account+1, "google", string(rune('a'+account)), string(rune('a'+account)))
+		s.Require().NoError(s.store.RequestDeletion(s.T().Context(), AccountID{15: account + 1}, contractStart))
+	}
+
+	purged, err := s.store.PurgeDeletions(s.T().Context(), contractStart.Add(time.Minute), 2)
+	s.Require().NoError(err)
+	s.Len(purged, 2)
+
+	purged, err = s.store.PurgeDeletions(s.T().Context(), contractStart.Add(time.Minute), 2)
+	s.Require().NoError(err)
+	s.Len(purged, 1)
+}
+
 func (s *StoreContractSuite) TestThePruneDeletesIdleGuestsOnly() {
 	idle := s.createGuest(1, "idle-token")
 	s.signIn(2, "google", "google-user", "linked-token")

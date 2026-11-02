@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
@@ -258,6 +259,76 @@ func TestAGoogleSignInJoinsTheDiscordAccountWithItsVerifiedAddress(t *testing.T)
 	joined, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"discord", "google"}, joined.Providers())
+}
+
+func TestASignInToAnAccountWhoseDeletionWasRequestedBringsItBack(t *testing.T) {
+	f := setUp(t)
+	f.linkedAccount(t, 1, signin.Google, claim.Subject(), "old-browser")
+	require.NoError(t, f.store.RequestDeletion(t.Context(), accounts.AccountID{15: 1}, start))
+	f.guest(t, 7, "guest-token")
+	f.clock.Advance(time.Hour)
+
+	out, err := f.complete(t, "cp_sid=guest-token")
+	require.NoError(t, err)
+
+	assert.Equal(t, accounts.AccountID{15: 1}, out.Account())
+	assert.Equal(t, accounts.SignedIn, out.Outcome())
+	assert.True(t, out.Restored())
+	account, err := f.store.Account(t.Context(), accounts.AccountID{15: 1})
+	require.NoError(t, err)
+	assert.False(t, account.DeletionRequested(), "the purge will not delete it")
+	f.assertPublished(
+		t,
+		&authv1.AccountRestored{AccountId: accounts.AccountID{15: 1}.String(), RestoredAt: timestamppb.New(start.Add(time.Hour))},
+		&authv1.SignedIn{PreviousAccountId: accounts.AccountID{15: 7}.String(), AccountId: accounts.AccountID{15: 1}.String()},
+	)
+}
+
+func TestASignInWithAnotherIdentityOfTheSameAddressBringsTheAccountBack(t *testing.T) {
+	f := setUp(t)
+	identity := accounts.NewIdentity("discord", accounts.ClaimOf("discord-user", claim.VerifiedEmail(), true), accounts.AccountID{15: 7}, start)
+	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("discord"), lifetime, start)
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
+	require.NoError(t, f.store.RequestDeletion(t.Context(), accounts.AccountID{15: 7}, start))
+	f.seeded = len(f.outbox.Recorded())
+
+	out, err := f.complete(t, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, accounts.Joined, out.Outcome())
+	assert.Equal(t, accounts.AccountID{15: 7}, out.Account())
+	assert.True(t, out.Restored())
+	joined, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
+	require.NoError(t, err)
+	assert.False(t, joined.DeletionRequested())
+	assert.Equal(t, []string{"discord", "google"}, joined.Providers())
+}
+
+func TestASignInToAnAccountNobodyAskedToDeleteRestoresNothing(t *testing.T) {
+	f := setUp(t)
+	f.linkedAccount(t, 1, signin.Google, claim.Subject(), "old-browser")
+
+	out, err := f.complete(t, "")
+	require.NoError(t, err)
+
+	assert.False(t, out.Restored())
+	f.assertPublished(t, &authv1.SignedIn{AccountId: accounts.AccountID{15: 1}.String()})
+}
+
+func TestLinkingAnIdentityOfAnAccountWhoseDeletionWasRequestedIsRefused(t *testing.T) {
+	f := setUp(t)
+	f.linkedAccount(t, 1, signin.Google, claim.Subject(), "old-browser")
+	require.NoError(t, f.store.RequestDeletion(t.Context(), accounts.AccountID{15: 1}, start))
+	f.linkedAccount(t, 7, signin.Discord, "discord-user", "discord-token")
+
+	out, err := f.link(t, "cp_sid=discord-token", claim)
+
+	require.ErrorIs(t, err, accounts.ErrIdentityLinkedElsewhere)
+	assert.Nil(t, out)
+	account, err := f.store.Account(t.Context(), accounts.AccountID{15: 1})
+	require.NoError(t, err)
+	assert.True(t, account.DeletionRequested(), "still on its way out")
+	assert.Empty(t, f.outbox.Recorded()[f.seeded:])
 }
 
 func TestLinkingANewIdentityLinksItToTheAccountTheBrowserIsOn(t *testing.T) {

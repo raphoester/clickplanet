@@ -185,7 +185,19 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 	require.NotZero(t, leaving.history().GetSeenUntilUnixMs())
 	require.Equal(t, leaving.account(), s.game.noteOf(t, "a bug before leaving").GetAccountId())
 
+	account := leaving.account()
+	watcher := s.game.newPlayer(t)
+	card, err := watcher.playerCard(account)
+	require.NoError(t, err)
+	require.Equal(t, "Leaving", card.GetName())
+
 	leaving.deleteAccount()
+
+	assert.Equal(t, uint64(1), leaving.stats().GetTilesTaken(), "kept whole for the grace period")
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		_, err := watcher.playerCard(account)
+		assert.Equal(c, connect.CodeNotFound, connect.CodeOf(err), "the other players see it deleted at once")
+	}, deletionGrace, 20*time.Millisecond, "auth's outbox tells player of the request")
 
 	holders := planetv1connect.NewClickServiceClient(http.DefaultClient, s.game.baseURL, connect.WithHTTPGet())
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -201,7 +213,34 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 		require.NoError(c, err)
 		assert.Equal(c, "es", holder.Msg.GetHolder().GetCountryId(), "planet keeps the take")
 		assert.Empty(c, holder.Msg.GetHolder().GetAccountId(), "and names no account")
-	}, 5*time.Second, 20*time.Millisecond, "auth's outbox tells every module")
+	}, deletionGrace+5*time.Second, 20*time.Millisecond, "the purge deletes it once the grace period ends, and auth's outbox tells every module")
+}
+
+func (s *testSuite) TestAnAccountSignedInToWithinTheGracePeriodComesBack() {
+	t := s.T()
+	leaving := s.game.namedPlayer(t, "google-coming-back", "Back")
+	account := leaving.account()
+	watcher := s.game.newPlayer(t)
+
+	leaving.deleteAccount()
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		_, err := watcher.playerCard(account)
+		assert.Equal(c, connect.CodeNotFound, connect.CodeOf(err))
+	}, deletionGrace, 20*time.Millisecond, "hidden first")
+
+	back := s.game.newPlayer(t).signIn("google-coming-back")
+
+	assert.True(t, back.GetRestored())
+	assert.Equal(t, account, back.GetAccountId())
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		card, err := watcher.playerCard(account)
+		require.NoError(c, err)
+		assert.Equal(c, "Back", card.GetName())
+	}, 5*time.Second, 20*time.Millisecond, "the other players see it again")
+	assert.Never(t, func() bool {
+		_, err := watcher.playerCard(account)
+		return err != nil
+	}, deletionGrace+time.Second, 50*time.Millisecond, "and the purge leaves it alone")
 }
 
 func (s *testSuite) TestAnOperatorSignsInOnTheAdminPageAndGrantsItselfABomb() {

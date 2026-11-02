@@ -64,7 +64,7 @@ func (h CompleteEmailSignInHandler) CompleteEmailSignIn(
 		return nil, fmt.Errorf("failed to complete the email sign-in: %w", err)
 	}
 
-	res := connect.NewResponse(&authv1.CompleteEmailSignInResponse{AccountId: out.Account().String(), Outcome: outcomes[out.Outcome()]})
+	res := connect.NewResponse(&authv1.CompleteEmailSignInResponse{AccountId: out.Account().String(), Outcome: outcomes[out.Outcome()], Restored: out.Restored()})
 	res.Header().Set("Cache-Control", "no-store")
 	res.Header().Add("Set-Cookie", out.SetCookie())
 	res.Header().Add("Set-Cookie", signin.ExpiredChallengeCookie())

@@ -90,8 +90,13 @@ func (s *Store) DeleteSessions(ctx context.Context, account accounts.AccountID) 
 }
 
 func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accounts.Account, error) {
-	var createdAt time.Time
-	err := s.db.On(ctx).QueryRowContext(ctx, `SELECT created_at FROM accounts WHERE id = $1`, uuid.UUID(account)).Scan(&createdAt)
+	var (
+		createdAt           time.Time
+		deletionRequestedAt sql.NullTime
+	)
+	err := s.db.On(ctx).QueryRowContext(ctx, `
+		SELECT created_at, deletion_requested_at FROM accounts WHERE id = $1
+	`, uuid.UUID(account)).Scan(&createdAt, &deletionRequestedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, accounts.ErrAccountNotFound
 	}
@@ -119,7 +124,11 @@ func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accou
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read the account's identities: %w", err)
 	}
-	return accounts.AccountOf(account, createdAt.UTC(), identities), nil
+	found := accounts.AccountOf(account, createdAt.UTC(), identities)
+	if deletionRequestedAt.Valid {
+		found = found.WithDeletionRequestedAt(deletionRequestedAt.Time.UTC())
+	}
+	return found, nil
 }
 
 func (s *Store) Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error) {
@@ -168,11 +177,27 @@ func (s *Store) SaveSignIn(ctx context.Context, signIn accounts.SignIn) error {
 				return fmt.Errorf("failed to delete the replaced session: %w", err)
 			}
 		}
+		if signIn.Restores() {
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE accounts SET deletion_requested_at = NULL WHERE id = $1
+			`, uuid.UUID(session.Account())); err != nil {
+				return fmt.Errorf("failed to restore the account: %w", err)
+			}
+		}
 		if err := insertSession(ctx, tx, session); err != nil {
 			return err
 		}
 		return markSeen(ctx, tx, session.Account(), session.ExtendedAt())
 	})
+}
+
+func (s *Store) RequestDeletion(ctx context.Context, account accounts.AccountID, at time.Time) error {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
+		UPDATE accounts SET deletion_requested_at = $2 WHERE id = $1
+	`, uuid.UUID(account), at.UTC()); err != nil {
+		return fmt.Errorf("failed to mark the account's deletion requested: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) DeleteAccount(ctx context.Context, account accounts.AccountID) error {
@@ -199,20 +224,37 @@ func pruneGuests(ctx context.Context, tx cppg.Querier, idleSince time.Time, limi
 	if err != nil {
 		return nil, fmt.Errorf("failed to prune the idle guests: %w", err)
 	}
+	return deletedIDs(rows, "pruned guest")
+}
+
+func (s *Store) PurgeDeletions(ctx context.Context, requestedBefore time.Time, limit int) ([]accounts.AccountID, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
+		DELETE FROM accounts WHERE id IN (
+			SELECT id FROM accounts WHERE deletion_requested_at < $1 LIMIT $2
+		)
+		RETURNING id
+	`, requestedBefore.UTC(), limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to purge the accounts whose deletion was requested: %w", err)
+	}
+	return deletedIDs(rows, "purged account")
+}
+
+func deletedIDs(rows *sql.Rows, what string) ([]accounts.AccountID, error) {
 	defer func() { _ = rows.Close() }()
 
-	var pruned []accounts.AccountID
+	var deleted []accounts.AccountID
 	for rows.Next() {
 		var id uuid.UUID
 		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("failed to read a pruned guest: %w", err)
+			return nil, fmt.Errorf("failed to read a %s: %w", what, err)
 		}
-		pruned = append(pruned, accounts.AccountID(id))
+		deleted = append(deleted, accounts.AccountID(id))
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the pruned guests: %w", err)
+		return nil, fmt.Errorf("failed to read the %ss: %w", what, err)
 	}
-	return pruned, nil
+	return deleted, nil
 }
 
 func insertAccount(ctx context.Context, tx cppg.Querier, account accounts.AccountID, at time.Time) error {

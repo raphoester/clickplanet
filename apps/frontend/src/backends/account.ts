@@ -17,7 +17,8 @@ export const CODE_LENGTH = 6
 
 export type Intent = "signIn" | "link"
 
-export type SignInOutcome = "signedIn" | "linked" | "created"
+// "restored": the sign-in landed on an account its player had asked to delete, within the grace period, and brought it back.
+export type SignInOutcome = "signedIn" | "linked" | "created" | "restored"
 
 export type Me = {
     linked: Provider[]
