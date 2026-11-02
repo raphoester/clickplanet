@@ -9,6 +9,7 @@ import {describeEnd} from "../domain/endTime.ts";
 import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx";
 import CountryPicker from "./CountryPicker.tsx";
 import MenuPanel from "./components/MenuPanel.tsx";
+import HomeLogo from "./components/HomeLogo.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
 import {HideIcon, LockIcon, SettingsIcon, ShareIcon, SwapIcon, TargetIcon, TrophyIcon, UserIcon, UsersIcon} from "./components/icons.tsx";
 import SettingsPlace, {SettingsPlaceProps} from "./settings/SettingsPlace.tsx";
@@ -112,11 +113,7 @@ export default function Menu(props: MenuProps) {
     return <div className="menu-shell">
         <nav className="menu-rail panel" aria-label="Places">
             <h1 className="sr-only">ClickPlanet</h1>
-            <img alt="ClickPlanet logo"
-                 src="/static/logo.svg"
-                 className="menu-rail-logo"
-                 width="40px"
-                 height="40px"/>
+            <HomeLogo size={40} className="menu-rail-logo"/>
             <div className="menu-rail-tabs" role="tablist" aria-label="Menu" aria-orientation="vertical">
                 {places.map((p) => <button key={p.id}
                                            type="button"

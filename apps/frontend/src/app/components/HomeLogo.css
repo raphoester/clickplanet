@@ -1,0 +1,20 @@
+.home-logo {
+    display: flex;
+    flex-shrink: 0;
+    border-radius: var(--radius-pill);
+    transition: transform 0.12s ease-out;
+}
+
+.home-logo:hover {
+    transform: scale(1.08);
+}
+
+.home-logo:active {
+    transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .home-logo {
+        transition: none;
+    }
+}

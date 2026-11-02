@@ -99,6 +99,12 @@ describe("Menu", () => {
         expect(screen.queryByText("Hall of Fame")).toBeNull()
     })
 
+    it("leads back to the home page from the logo", () => {
+        setup()
+
+        expect(screen.getByRole("link", {name: "ClickPlanet home page"}).getAttribute("href")).toBe("/#home")
+    })
+
     it("counts the missions not seen yet on their tab", () => {
         render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                      missions={{state: {kind: "loading"}}} missionsNews={3}/>)
