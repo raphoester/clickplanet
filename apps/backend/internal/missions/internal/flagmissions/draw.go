@@ -1,8 +1,10 @@
 package flagmissions
 
 import (
+	"cmp"
 	"hash/fnv"
 	"math/rand/v2"
+	"slices"
 
 	"github.com/google/uuid"
 
@@ -46,7 +48,7 @@ var (
 var drawnSpace = uuid.MustParse("466c6167-4d69-4373-8000-696f6e66c167")
 
 // One mission for the whole flag: a big ground to take tiles on, or a rival's shields to break, evenly; the more
-// points, the bigger the share of yesterday it asks.
+// points, the bigger the share of yesterday it asks, and never more tiles than a ground has that the flag does not hold.
 func Draw(day days.Day, flag string, world missions.World, yesterday Day) Day {
 	seed := fnv.New64a()
 	_, _ = seed.Write([]byte(day.String() + "/" + flag))
@@ -55,9 +57,7 @@ func Draw(day days.Day, flag string, world missions.World, yesterday Day) Day {
 	points := fewestPoints + random.Uint32N(mostPoints-fewestPoints+1)
 	var orders []Order
 	if grounds := world.GroundsOf(flag); len(grounds) > 0 {
-		orders = append(orders, TakeIn{
-			Ground: grounds[random.IntN(len(grounds))], Goal: conquerPace.goal(points, yesterday.takes),
-		})
+		orders = append(orders, conquest(random, grounds, conquerPace.goal(points, yesterday.takes)))
 	}
 	if rivals := world.RivalsOf(flag); len(rivals) > 0 {
 		orders = append(orders, BreakShields{Flag: byGround(random, rivals), Goal: shieldPace.goal(points, yesterday.strikes)})
@@ -68,6 +68,23 @@ func Draw(day days.Day, flag string, world missions.World, yesterday Day) Day {
 
 	id := MissionID(uuid.NewSHA1(drawnSpace, []byte(day.String()+"/"+flag)))
 	return Day{mission: &MissionSnapshot{ID: id, Order: orders[random.IntN(len(orders))], Points: points}}
+}
+
+// A ground with room for the goal, the tiles the flag does not hold there, drawn evenly; with none, the ground with the
+// most room, and the goal cut to it.
+func conquest(random *rand.Rand, grounds []missions.Ground, goal uint32) TakeIn {
+	var roomy []missions.Ground
+	for _, ground := range grounds {
+		if ground.Open >= goal {
+			roomy = append(roomy, ground)
+		}
+	}
+	if len(roomy) > 0 {
+		return TakeIn{Ground: roomy[random.IntN(len(roomy))].Country, Goal: goal}
+	}
+
+	widest := slices.MaxFunc(grounds, func(a, b missions.Ground) int { return cmp.Compare(a.Open, b.Open) })
+	return TakeIn{Ground: widest.Country, Goal: widest.Open - widest.Open%goalStep}
 }
 
 // A rival drawn by the ground it holds, so the leaders share the heat.

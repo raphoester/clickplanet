@@ -18,7 +18,7 @@ var monday = time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
 
 var world = missions.World{
 	Territories:  []missions.Territory{{Flag: "dz", Tiles: 60_000}, {Flag: "pw", Tiles: 30_000}, {Flag: "us", Tiles: 10_000}},
-	CountrySizes: []missions.Holding{{Country: "br", Tiles: 9_000}, {Country: "in", Tiles: 4_000}, {Country: "is", Tiles: 2_999}},
+	CountrySizes: []missions.Holding{{Country: "br", Tiles: 12_000}, {Country: "in", Tiles: 4_000}, {Country: "is", Tiles: 2_999}},
 }
 
 func dayOf(t *testing.T, snapshot flagmissions.DaySnapshot) flagmissions.Day {
@@ -63,6 +63,45 @@ func TestAConquestIsOnABigGroundThatIsNotTheFlags(t *testing.T) {
 		if order, ok := status.Mission.Order.(flagmissions.TakeIn); ok {
 			assert.Equal(t, "in", order.Ground, "Iceland is under 3,000 tiles, and Brazil is the flag's own")
 		}
+	}
+}
+
+func groundsOf(t *testing.T, world missions.World, yesterday flagmissions.Day) *cpcolls.Set[string] {
+	t.Helper()
+
+	grounds := cpcolls.NewSet[string]()
+	for n := range 60 {
+		status := statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), "fr", world, yesterday))
+		if order, ok := status.Mission.Order.(flagmissions.TakeIn); ok {
+			grounds.Add(order.Ground)
+		}
+	}
+	return grounds
+}
+
+func TestAConquestIsOnAGroundWithRoomForItsGoalBesideTheTilesTheFlagHoldsThere(t *testing.T) {
+	held := missions.World{
+		Territories:  []missions.Territory{{Flag: "fr", Tiles: 5_000, Grounds: []missions.Holding{{Country: "cn", Tiles: 5_000}}}},
+		CountrySizes: []missions.Holding{{Country: "br", Tiles: 12_000}, {Country: "cn", Tiles: 9_000}, {Country: "sd", Tiles: 3_536}},
+	}
+
+	assert.Equal(t, cpcolls.NewSet("br"), groundsOf(t, held, dayOf(t, flagmissions.DaySnapshot{Takes: 10_005})),
+		"goals of 5,000 to 10,000: Sudan has 3,536 tiles, and France holds 5,000 of China's 9,000")
+	assert.Equal(t, cpcolls.NewSet("br", "cn", "sd"), groundsOf(t, held, flagmissions.Day{}),
+		"goals of 1,000 to 2,000 fit on each")
+}
+
+func TestWithNoGroundRoomyEnoughTheGoalIsTheMostRoomThereIs(t *testing.T) {
+	held := missions.World{
+		Territories:  []missions.Territory{{Flag: "fr", Tiles: 1_000, Grounds: []missions.Holding{{Country: "sd", Tiles: 1_000}}}},
+		CountrySizes: []missions.Holding{{Country: "dz", Tiles: 3_568}, {Country: "sd", Tiles: 3_536}},
+	}
+	busy := dayOf(t, flagmissions.DaySnapshot{Takes: 10_005})
+
+	for n := range 30 {
+		status := statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), "fr", held, busy))
+		assert.Equal(t, flagmissions.TakeIn{Ground: "dz", Goal: 3_560}, status.Mission.Order,
+			"France holds 1,000 of Sudan's 3,536 tiles, none of Algeria's 3,568, rounded down to 10")
 	}
 }
 
