@@ -31,6 +31,13 @@ have no storage and read the home page. `homePage.test.ts` pins the key in the
 script to the constant. **`/#home` does not redirect**: it is the "Home page"
 link at the bottom of the About modal.
 
+**The CrazyGames page never shows it.** On `crazygames.clickplanet.lol` the same
+script sends every visitor to `/play`, with no storage read and `#home` too, so
+`/`, `/play/` and every other path that falls back to the home page reach the
+game. A reviewer comes with no storage: on Oct 30 2026, the day the game was
+sent to CrazyGames, four outside visitors there got the home page and never
+pressed Play, and CrazyGames refused the game. The test runs the script.
+
 **A first visit keeps the query too.** `home.ts` copies `location.search` onto
 every Play link (`app/home/playLinks.ts`), so a newcomer who opened a share link
 reaches the game with its flag rather than with their time zone's.

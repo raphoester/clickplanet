@@ -4,7 +4,8 @@
     <meta charset="UTF-8"/>
     <script>
         try {
-            if (location.hash !== "#home" && localStorage.getItem("clickplanet-country") !== null) {
+            if (location.hostname === "crazygames.clickplanet.lol"
+                || (location.hash !== "#home" && localStorage.getItem("clickplanet-country") !== null)) {
                 location.replace("/play" + location.search + location.hash)
             }
         } catch (e) {
