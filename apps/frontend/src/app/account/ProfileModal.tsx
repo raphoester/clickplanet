@@ -59,7 +59,8 @@ export default function ProfileModal({account: store, linkedMultiplier, playerIn
                              stats={playerInfo && name && account.accountId
                                  ? {backend: playerInfo, accountId: account.accountId}
                                  : undefined}
-                             listenForClicks={listenForClicks}/>
+                             listenForClicks={listenForClicks}
+                             flat/>
             </section>
             <section className="panel-box profile-modal-account" aria-labelledby={accountTitle}>
                 <h3 className="menu-section-title" id={accountTitle}>Account</h3>

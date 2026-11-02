@@ -96,7 +96,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         landmasses: () => borders.then(({assignment, codes}) => ({assignment, count: codes.length})),
     })
     const fakePresence = new FakePresenceBackend()
-    const fakeAccount = new FakeAccountBackend()
+    const fakeAccount = new FakeAccountBackend(fakePresence)
     const account = new AccountStore(fakeAccount, fakeAccount, new NoSession(), {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,

@@ -198,7 +198,9 @@ is treated as done. Delete sits behind a dialog that lists what goes.
 `FakeAccountBackend`, which offers no provider until `offerSignIn()` on the console, so the menu offers no
 sign-in there. `signIn("Nova")` on the console links it as a finished sign-in would (`completeSignIn`, with the
 name as the code), and from a guest the fake grants the refill a second later: your profile, the username, the color and the clips
-switch, and Sign out in the panel undoes it. To try the flow locally, run the backend with `auth.enabled`,
+switch, and Sign out in the panel undoes it. The signed-in player has a made-up career (`FakePresenceBackend`'s
+`ownDashboard` and `ownFronts`, handed to `FakeAccountBackend`): its stats, titles, tracks and fronts, so the profile
+is not empty. To try the flow locally, run the backend with `auth.enabled`,
 `auth.turnstile.enabled: false`, `auth.signIn.enabled` and any Google
 `clientId`, and the dev server with Turnstile's always-passing test sitekey:
 

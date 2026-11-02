@@ -55,7 +55,7 @@ that does not.
 - **You is not a place on a desktop.** It sits at the rail's foot and opens
   `account/ProfileModal`: the player's progress (`ProgressTab`) and its account
   (`AccountSettings`: the username, the color, the linked providers, sign out,
-  delete) side by side in one dialog, 860px wide, stacked under 900px. A guest
+  delete) side by side, with nothing folded (`ProgressTab`'s `flat`) in one dialog, 860px wide, stacked under 900px. A guest
   sees the account side alone, which is the sign-in. The phone keeps its You
   sheet (`YouPlace`, Progress and Account tabs).
 - **The desktop menu is as tall as what it holds**, up to the screen less the

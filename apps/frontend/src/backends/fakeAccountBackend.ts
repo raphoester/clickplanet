@@ -4,7 +4,16 @@ import {ColoredProfile, Fronts, NameColor, PlayerBackend, PlayerError, PlayerTit
 
 // Offers no provider until offerSignIn(). completeSignIn takes the code for the name to sign in with: the console's
 // signIn() calls it, as the callback page would.
+// What the signed-in player has earned: the fake's presence makes it up, the same career its card shows.
+export type FakeCareer = {
+    ownDashboard(): TitleDashboard
+    ownFronts(): Fronts
+}
+
 export class FakeAccountBackend implements AccountBackend, PlayerBackend {
+    constructor(private readonly career?: FakeCareer) {
+    }
+
     private offered: Provider[] = []
     private linked: Provider[] = []
     private name = ""
@@ -77,7 +86,7 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
     }
 
     public async titles(): Promise<TitleDashboard> {
-        return {wearable: [], tracks: []}
+        return this.career?.ownDashboard() ?? {wearable: [], tracks: []}
     }
 
     public async wearTitle(): Promise<PlayerTitle | undefined> {
@@ -85,7 +94,7 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
     }
 
     public async fronts(): Promise<Fronts> {
-        return {playsFor: [], playsAgainst: []}
+        return this.career?.ownFronts() ?? {playsFor: [], playsAgainst: []}
     }
 
     private requireSignedIn() {

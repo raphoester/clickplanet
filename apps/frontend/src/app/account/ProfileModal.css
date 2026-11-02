@@ -39,3 +39,14 @@
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+.account-titles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.profile-modal-progress .menu-section-title {
+    margin: 0;
+    padding: 0;
+}

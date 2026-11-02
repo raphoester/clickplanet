@@ -3,7 +3,7 @@ import {ReactNode} from "react"
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import Menu, {BoardSheet} from "./Menu.tsx"
+import Menu, {BoardSheet, YouPlace} from "./Menu.tsx"
 import {Countries} from "../domain/countries.ts"
 import type {LeaderboardEntry} from "../domain/leaderboard.ts"
 import type {CountryOrder} from "../domain/race.ts"
@@ -731,7 +731,7 @@ describe("Menu", () => {
             }],
         })
 
-        const withAccount = (offered: Provider[], me: Me, username = "", linkedMultiplier?: number, playerInfo?: PlayerInfoBackend, clicks?: AcceptedClicks) => {
+        const withAccount = (offered: Provider[], me: Me, username = "", linkedMultiplier?: number, playerInfo?: PlayerInfoBackend, clicks?: AcceptedClicks, phone = false) => {
             const backend = {
                 signInOptions: vi.fn(async () => offered),
                 me: vi.fn(async () => me),
@@ -754,9 +754,11 @@ describe("Menu", () => {
                 wearTitle: vi.fn(async (): Promise<PlayerTitle | undefined> => undefined),
             } satisfies PlayerBackend
             const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
-            const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
-                                      account={store} linkedMultiplier={linkedMultiplier} playerInfo={playerInfo}
-                                      listenForClicks={clicks?.listenForClicks}/>)
+            const view = render(phone
+                ? <YouPlace account={store} playerInfo={playerInfo} listenForClicks={clicks?.listenForClicks}/>
+                : <Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+                        account={store} linkedMultiplier={linkedMultiplier} playerInfo={playerInfo}
+                        listenForClicks={clicks?.listenForClicks}/>)
             const user = userEvent.setup()
             const openSettings = async () => {
                 await user.click(await screen.findByRole("button", {name: "You"}))
@@ -919,7 +921,7 @@ describe("Menu", () => {
             expect(playerInfo.playerInfo).toHaveBeenCalledTimes(1)
         })
 
-        it("folds every country a signed-in player fought for and against, and reads them again once its clicks settle", async () => {
+        it("shows every country a signed-in player fought for and against at once, and reads them again once its clicks settle", async () => {
             const clicks = acceptedClicks()
             const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, undefined, clicks)
             player.titles.mockResolvedValue(dashboard(140))
@@ -930,15 +932,11 @@ describe("Menu", () => {
 
             const foughtAgainst = await screen.findByRole("region", {name: "Fought against"})
             const foughtFor = screen.getByRole("region", {name: "Fought for"})
-            expect(within(foughtAgainst).queryByRole("list")).toBeNull()
-            expect(within(foughtFor).queryByRole("list")).toBeNull()
-            expect(screen.getByRole("button", {name: "Titles"}).getAttribute("aria-expanded")).toBe("true")
-
-            await user.click(within(foughtAgainst).getByRole("button", {name: "Fought against, 5 countries"}))
-            await user.click(within(foughtFor).getByRole("button", {name: "Fought for, 1 country"}))
             expect(within(foughtAgainst).getAllByRole("listitem").map((row) => row.textContent))
                 .toEqual(["Germany50", "Spain49", "Italy48", "Portugal47", "Belgium46"])
             expect(within(foughtFor).getAllByRole("listitem")).toHaveLength(1)
+            expect(screen.getByRole("heading", {name: "Titles", level: 3})).toBeDefined()
+            expect(screen.queryByRole("button", {expanded: false})).toBeNull()
 
             vi.useFakeTimers()
             player.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 501}], playsAgainst: against})
@@ -948,6 +946,20 @@ describe("Menu", () => {
 
             expect(player.fronts).toHaveBeenCalledTimes(2)
             expect(await screen.findByText("501")).toBeDefined()
+        })
+
+        it("folds the countries fought for and against in a phone's narrow sheet", async () => {
+            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, undefined, undefined, true)
+            player.titles.mockResolvedValue(dashboard(140))
+            const against = ["de", "es", "it", "pt", "be"].map((countryCode, i) => ({countryCode, tiles: 50 - i}))
+            player.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 500}], playsAgainst: against})
+
+            const foughtAgainst = await screen.findByRole("region", {name: "Fought against"})
+            expect(within(foughtAgainst).queryByRole("list")).toBeNull()
+            expect(screen.getByRole("button", {name: "Titles"}).getAttribute("aria-expanded")).toBe("true")
+
+            await user.click(within(foughtAgainst).getByRole("button", {name: "Fought against, 5 countries"}))
+            expect(within(foughtAgainst).getAllByRole("listitem")).toHaveLength(5)
         })
 
         it("wears the title pressed, and shows it worn", async () => {

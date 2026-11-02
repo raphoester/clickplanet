@@ -5,7 +5,7 @@ import TitleBanner from "../titles/TitleBanner.tsx"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
 import TrackPath from "../titles/TrackPath.tsx"
 import {PlayerStats} from "../players/PlayerCard.tsx"
-import {FrontFolds} from "../players/PlayerFronts.tsx"
+import PlayerFronts, {FrontFolds} from "../players/PlayerFronts.tsx"
 import Fold from "../components/Fold.tsx"
 import {usePlayerInfo} from "../players/usePlayerInfo.ts"
 import {takenCount} from "../../domain/standings.ts"
@@ -67,13 +67,16 @@ export type ProgressTabProps = {
     me: Me
     stats?: {backend: PlayerInfoBackend, accountId: string}
     listenForClicks?: ListenForClicks
+    // The desktop's profile dialog has the room a phone's sheet lacks: everything shows at once, nothing folds.
+    flat?: boolean
 }
 
-export default function ProgressTab({store, me, stats, listenForClicks}: ProgressTabProps) {
+export default function ProgressTab({store, me, stats, listenForClicks, flat}: ProgressTabProps) {
     const [titles, reread] = useTitles(store, me, listenForClicks)
     const fronts = useFronts(store, me, listenForClicks)
     const [wearing, setWearing] = useState<string>()
     const labelId = useId()
+    const titlesId = useId()
 
     if (titles.kind === "loading") return <p className="account-text" role="status">Loading…</p>
     if (titles.kind === "failed") return <p className="account-failure" role="alert">Your titles could not be loaded.</p>
@@ -86,37 +89,44 @@ export default function ProgressTab({store, me, stats, listenForClicks}: Progres
             .finally(() => setWearing(undefined))
     }
 
+    const titlesBody = <>
+        {wearable.length > 0 && <div className="account-wear">
+            <span className="menu-label" id={labelId}>Wear a title</span>
+            <div className="account-wear-options" role="radiogroup" aria-labelledby={labelId}>
+                {wearable.map((title) => {
+                    const checked = title.id === worn?.id
+                    return <button key={title.id}
+                                   type="button"
+                                   role="radio"
+                                   aria-checked={checked}
+                                   className="panel-box account-wear-option"
+                                   disabled={wearing !== undefined}
+                                   onClick={() => {
+                                       if (!checked) wear(title.id)
+                                   }}>
+                        <TitleEmblem title={title} size={44} ribbon/>
+                        <span className="account-wear-name">{title.name}</span>
+                    </button>
+                })}
+            </div>
+        </div>}
+
+        {tracks.map((track) => <TrackPath key={track.id} track={track}/>)}
+    </>
+
     return <div className="account-progress">
         {worn && <TitleBanner title={worn} compact/>}
 
         {stats && <OwnStats {...stats} listenForClicks={listenForClicks}/>}
 
-        <Fold title="Titles" startOpen>
-            {wearable.length > 0 && <div className="account-wear">
-                <span className="menu-label" id={labelId}>Wear a title</span>
-                <div className="account-wear-options" role="radiogroup" aria-labelledby={labelId}>
-                    {wearable.map((title) => {
-                        const checked = title.id === worn?.id
-                        return <button key={title.id}
-                                       type="button"
-                                       role="radio"
-                                       aria-checked={checked}
-                                       className="panel-box account-wear-option"
-                                       disabled={wearing !== undefined}
-                                       onClick={() => {
-                                           if (!checked) wear(title.id)
-                                       }}>
-                            <TitleEmblem title={title} size={44} ribbon/>
-                            <span className="account-wear-name">{title.name}</span>
-                        </button>
-                    })}
-                </div>
-            </div>}
+        {flat
+            ? <section className="account-titles" aria-labelledby={titlesId}>
+                <h3 className="menu-section-title" id={titlesId}>Titles</h3>
+                {titlesBody}
+            </section>
+            : <Fold title="Titles" startOpen>{titlesBody}</Fold>}
 
-            {tracks.map((track) => <TrackPath key={track.id} track={track}/>)}
-        </Fold>
-
-        {fronts && <FrontFolds {...fronts}/>}
+        {fronts && (flat ? <PlayerFronts {...fronts}/> : <FrontFolds {...fronts}/>)}
     </div>
 }
 
