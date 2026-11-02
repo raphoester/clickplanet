@@ -82,6 +82,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [In a clip](docs/clip-appearances.md) — "You are in a clip!" with links to watch it, and the switch that keeps
   a name out of the clips.
 - [Sound](docs/sound.md) — every sound built with Web Audio, no audio file; the leader's anthem.
+- [Discord pings](docs/discord-alerts.md) — "Get pinged" in the chat's Discord bar and once a page when the flag is
+  under attack; the trip back through `/auth/callback`, told from a sign-in by what was remembered.
 
 ## The globe (`src/app/viewer/`)
 

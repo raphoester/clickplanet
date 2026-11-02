@@ -2,6 +2,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import {AlertsError} from "../../backends/alerts.ts"
 import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../../links.ts"
 import DiscordBar from "./DiscordBar.tsx"
 import {DISCORD_BAR_RETURNS_AFTER_MS, DISCORD_BAR_STORAGE_KEY} from "./discordBar.ts"
@@ -60,6 +61,34 @@ describe("DiscordBar", () => {
         render(<DiscordBar/>)
 
         expect(link()).not.toBeNull()
+    })
+
+    it("offers the pings in place of the invite, and leaves for Discord when pressed", async () => {
+        const onPing = vi.fn(async () => undefined)
+        render(<DiscordBar onPing={onPing}/>)
+
+        expect(link()).toBeNull()
+        const ping = screen.getByRole("button", {name: "Get pinged on Discord"})
+        expect(ping.textContent).toBe("Get pinged")
+
+        await userEvent.setup().click(ping)
+
+        expect(onPing).toHaveBeenCalledTimes(1)
+        expect(ping.hasAttribute("disabled")).toBe(true)
+    })
+
+    it("says to wait when the start was refused for too many tries, and takes another press", async () => {
+        const onPing = vi.fn(async () => {
+            throw new AlertsError("tooManyTries")
+        })
+        render(<DiscordBar onPing={onPing}/>)
+
+        await userEvent.setup().click(screen.getByRole("button", {name: "Get pinged on Discord"}))
+
+        const again = await screen.findByRole("button", {name: "Wait a minute"})
+        expect(again.hasAttribute("disabled")).toBe(false)
+        await userEvent.setup().click(again)
+        expect(onPing).toHaveBeenCalledTimes(2)
     })
 
     it("still goes in a browser that keeps nothing", async () => {

@@ -26,7 +26,8 @@ internal/gamemaster/
   internal/
     migrations/                     schedule_entries, entry_kind, entry_description, seasons (season 0 seeded),
                                     entry_times, scored_moments (scored_rounds, opened_rounds, closed_books, outbox),
-                                    season_finales (season 0's Final Battle seeded)
+                                    season_finales (season 0's Final Battle seeded), told_days,
+                                    told_battles_and_seasons
     schedule/                       EntryID, SetName, Kind, Description, Times, Priority, Draft, Entry (NewEntry, Edited,
                                     Changeable), Schedule (New, With, TurnAt, SinceAt, BattlesAfter), Finale, Turn; the
                                     Store, Keeper and IDProvider ports, Playable; the store's contract suite; FakeKeeper and
@@ -54,13 +55,14 @@ internal/gamemaster/
       usecases/edit_season_usecase/    audit_edit_season/
       usecases/delete_season_usecase/  audit_delete_season/
     moments/                        BookID, RoundID (BookOf, DayRoundOf, FinaleRoundOf, BattleRoundOf, SeasonOf, NamedOf),
-                                    Battle, Book (Tiebreak, FinaleBattle), Plan (DueAt, BookAt, DayAt, DaysOf, BattleOf,
-                                    FinaleAt, FinalesAfter, RoundEnded, BookClosed, Clashes), Planner (Plan, With),
-                                    Command, Action,
-                                    Key, Moment (DayStarted, DayEnded, BattleEnded, SeasonEnded), ToldDay; the Store and
-                                    Events ports, the store's contract suite
+                                    Battle, Book (Tiebreak, FinaleBattle), Plan (DueAt, BookAt, DayAt, BattleAt, DaysOf,
+                                    BattleOf, FinaleAt, FinalesAfter, RoundEnded, BookClosed, Clashes), Planner (Plan,
+                                    With), Command, Action,
+                                    Key, Moment (SeasonStarted, DayStarted, BattleStarted, DayEnded, BattleEnded,
+                                    SeasonEnded), ToldDay; the Store and Events ports, the store's contract suite
       inmemory_moment_store/        the Store in maps, behind the testing tag
-      postgres_moment_store/        the Store over gamemaster.scored_rounds, closed_books, opened_rounds and told_days
+      postgres_moment_store/        the Store over gamemaster.scored_rounds, closed_books, opened_rounds, told_days,
+                                    told_battles and told_seasons
       momentmessage/                DebriefOf and EventOf: a moment in gamemaster.v1's words
       outbox_moment_events/         Events, into the gamemaster outbox
       redis_scoring_commands/       one scoring.v1.ScoringCommand per command, on scoring's command stream
@@ -68,8 +70,9 @@ internal/gamemaster/
       book_closed_subscriber/       hears scoring.v1.BookClosed (gamemaster-books)
       usecases/play_scoring_usecase/ each command whose time has come, once per process; Runner
         log_play_scoring/           logs each command sent, and a failure
-      usecases/tell_day_usecase/    the day that runs, told once and again when its end moved; Runner
-        log_tell_day/               logs each day told, and a failure
+      usecases/tell_starts_usecase/ the season, the day and the battle that run, each told once as it starts, and a
+                                    day again when its end moved; Runner
+        log_tell_starts/            logs each season, day and battle told, and a failure
       usecases/hear_round_usecase/  keeps a scored round, and records its day's or battle's end once; log_hear_round/
       usecases/hear_book_usecase/   keeps a closed book, and records its season's end once; log_hear_book/
     finalnight/                     a test alone: season 0's last day and its Final Battle, second by second
@@ -334,17 +337,30 @@ once Redis took it.
   after it; it breaks no tie. A running battle entry is cut at the new end the same way, and is no finale. The runner
   keeps each round it opens in `opened_rounds` before it sends the open, so a boot still knows the cut day.
 
-## Telling the days
+## Telling what starts
 
-**The gamemaster tells each day as it starts, so no other module keeps a clock of its own** (the owner, 2026-10-29:
-missions had its own cutoff, which only happened to match `dailyCutoff`). `tell_day_usecase` runs every second
-(`gamemaster-days`): it plans the books, takes the day that runs now (`Plan.DayAt`), and in one transaction keeps it in
-`told_days` (`round_id`, `ends_at`) and, **only when it is new or its end moved**, records
-`gamemaster.v1.DayStarted{season, day, round_id, book_id, starts_at, ends_at}` in the outbox. **Level-triggered**: a
-boot tells the day that runs if it was never told, as the day that ran when the event shipped. **A moved season end that
-cuts the day** tells it again with the new end. No day runs between two seasons, nor from a season's last cutoff to its
-end, so nothing is told then. `log_tell_day` logs each day told at Info (`day told`). Missions hears it (see
-[Missions](missions.md)).
+**The gamemaster tells each season, day and battle as it starts, so no other module keeps a clock of its own** (the
+owner, 2026-10-29: missions had its own cutoff, which only happened to match `dailyCutoff`). `tell_starts_usecase` runs
+every second (`gamemaster-starts`): it plans the books, takes what runs now, and in one transaction keeps each in its
+table and, **only when it is new** (or a day whose end moved), records its event in the outbox, in this order:
+
+- the season that runs (`Plan.BookAt`), kept in `told_seasons` (`book_id`):
+  `gamemaster.v1.SeasonStarted{season, book_id, starts_at, ends_at}`, **once**: a moved end tells nothing;
+- the day that runs (`Plan.DayAt`), kept in `told_days` (`round_id`, `ends_at`):
+  `gamemaster.v1.DayStarted{season, day, round_id, book_id, starts_at, ends_at}`, and **again when its end moved**: a
+  moved season end that cuts the day, or a battle added or moved during it, tells it again with the new end;
+- the battle that runs (`Plan.BattleAt`), an entry of kind battle that is a round of the season's book or the season's
+  finale, kept in `told_battles` (`round_id`): `gamemaster.v1.BattleStarted{season, number, entry_id, times,
+  ends_season, round_id, starts_at, ends_at}`, **once**; as in `BattleEnded`, `ends_season` is the finale's alone, and
+  its `entry_id` is empty. A battle that starts in a break is no round, and is not told.
+
+**Level-triggered**: a boot tells what runs if it was never told, late (so the first boot with `told_seasons` tells the
+season that runs then); **never what ended**: a season, a day or a battle that started and ended while the server was
+down is not told. No day runs between two seasons, nor from a season's last cutoff to its end, nor while a battle runs,
+so no day is told then. `log_tell_starts` logs each one told at Info (`season told` with its `book`, `day told` and
+`battle told` with their `round`; each with `starts_at` and `ends_at`), and a failure at Error (`failed to tell what
+starts`). Missions hears `DayStarted` (see [Missions](missions.md)). Migration `20261102120000_told_battles_and_seasons`
+adds the two tables and the outbox's `gamemaster.v1.BattleStarted` and `gamemaster.v1.SeasonStarted`.
 
 ## Hearing scoring
 
@@ -427,9 +443,10 @@ reason, a kind nobody knows, a battle's times 1 to 10 and a plain entry's none).
 the memory and postgres stores. `finale_test.go` pins the finale's window, its rules, an end that stays once it
 started, and a moved end that moves it. `season`'s tests pin the calendar's rules and the days (season 0's day 1 ends
 2026-10-08 21:00, day 24 2026-10-31 21:00, none from 21:00 to 23:00), and `season.StoreContractSuite` runs on both
-stores. `moments`' tests pin the ids read back, a day cut by a battle at its end and one at its start, the battles that
-fit (season 0's Final Battle, battles at a cutoff, a plain entry under the finale, a battle that ended) and each clash;
-`moments.StoreContractSuite` (each round and book kept once) runs on both stores. The entry and season use cases' tests
+stores. `moments`' tests pin the ids read back, a day cut by a battle at its end and one at its start, the battle that
+runs at a time (the finale included), the battles that fit (season 0's Final Battle, battles at a cutoff, a plain entry
+under the finale, a battle that ended) and each clash; `moments.StoreContractSuite` (each round and book kept once, each
+season and battle told once, a day told again when its end moves) runs on both stores. The entry and season use cases' tests
 pin a battle over the finale refused, a moved battle judged in place of the one kept, and a finale at no cutoff
 refused.
 
@@ -451,6 +468,13 @@ the season's second battle that ends it, the season's end with its finale and it
 an unknown id dropped (`season-1/finale` of a season with none included), and a failed keep. `play_schedule_usecase`'s
 test pins a finale's set played over its window and above an entry at the highest priority. `redis_scoring_commands`' test pins each command in scoring's words, and
 `redis_rule_set_commands`' that scoring hears no rule set.
+
+`tell_starts_usecase`'s test pins a season and a battle each told once as it starts, and not again on the next tick nor
+after a second boot; the Final Battle told with `ends_season`, no entry id and its number among the season's battles; a
+boot after a battle ended that tells the day after it and not the battle; a boot between two seasons that tells nothing
+of the season that ended; and a failed keep that tells nothing. It keeps the day's tests: a boot tells the day that runs
+once, the next day at the cutoff, none after the season's last cutoff, and a day cut by a moved season end told again
+with its new end, while its season is told once.
 
 `turn_query`'s test pins the public read while a battle runs (its id and round among it), after the last one ended and
 before any, the timeline (a battle to come in the players' words with its times, round and finale, no plain entry, none

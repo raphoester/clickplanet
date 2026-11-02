@@ -325,6 +325,17 @@ func TestTheSupportModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "support.database")
 }
 
+func TestTheExampleConfigReachesTheAlertsBlockOff(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.False(t, config.Alerts.Enabled)
+	assert.Equal(t, "alerts", config.Alerts.Database.Schema)
+	assert.Equal(t, "1549822806420885616", config.Alerts.Discord.ClientID)
+	assert.Equal(t, 6, config.Alerts.RateLimiter.Burst)
+	require.NoError(t, config.Alerts.Validate())
+}
+
 func TestTheExampleConfigReachesTheClipsBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
@@ -428,11 +439,22 @@ func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 		"auth": config.Auth.Redis, "chat": config.Chat.Redis, "player": config.Player.Redis,
 		"scoring": config.Scoring.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
 		"antiBot": config.AntiBot.Redis, "gamemaster": config.Gamemaster.Redis, "clips": config.Clips.Redis,
+		"alerts": config.Alerts.Redis,
 	} {
 		assert.Equal(t, config.Planet.Redis, redis, "%s.redis is the planet's block", name)
 	}
 	assert.Equal(t, "redis:6379", config.Planet.Redis.Address)
 	assert.Equal(t, "a-secret", config.Planet.Redis.Password, "from REDIS_PASSWORD")
+}
+
+func TestTheProductionAlertsAreWhole(t *testing.T) {
+	config := productionConfig(t)
+
+	require.True(t, config.Alerts.Enabled)
+	assert.Equal(t, "alerts", config.Alerts.Database.Schema)
+	assert.Equal(t, config.Auth.Discord.ClientID, config.Alerts.Discord.ClientID, "the sign-in's application")
+	assert.Equal(t, "1310907949106860032", config.Alerts.Discord.GuildID, "an id, not a number YAML rounded")
+	require.NoError(t, config.Alerts.Validate())
 }
 
 func TestTheAntibotKeepsItsKeysOutsideThePlanetsBlock(t *testing.T) {

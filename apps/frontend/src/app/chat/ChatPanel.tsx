@@ -37,6 +37,7 @@ export type ChatPanelProps = {
     open?: boolean
     onOpenChange?: (open: boolean) => void
     onUnread?: (unread: number) => void
+    onDiscordPing?: () => Promise<void>
 }
 
 type View = "chat" | "online"
@@ -217,7 +218,7 @@ export default function ChatPanel(props: ChatPanelProps) {
     const body: ReactNode = view === "online" && players
         ? <div className="chat-players"><PlayersPanel entries={players} onOpenPlayer={props.onOpenPlayer}/></div>
         : <>
-            <DiscordBar/>
+            <DiscordBar onPing={props.onDiscordPing}/>
 
             <ChatLog messages={messages}
                      announcements={announcements}

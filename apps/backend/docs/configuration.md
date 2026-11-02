@@ -124,6 +124,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
   to under 24h. A day is a round the gamemaster tells scoring to score, and tells missions as it starts (see [The gamemaster module](gamemaster.md))
 - `gamemaster.database.*` — the rule schedule's entries, the seasons, same shape as `database`, schema `gamemaster`; required. `gamemaster.database.password` belongs in the environment. See [The gamemaster module](gamemaster.md)
 - `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment
+- `alerts.enabled`, `alerts.database.*` (schema `alerts`), `alerts.redis.*`, `alerts.gameUrl`, `alerts.rateLimiter.*`, `alerts.discord.*` — the game's Discord server: off, nothing is read. On, `clientId`, `clientSecret` (`env://DISCORD_CLIENT_SECRET`), `botToken` (`env://DISCORD_BOT_TOKEN`), `redirectUrl` and the three Discord ids are required. See [Discord pings](alerts.md)
 - `clips.database.*` — the daily snapshots of the clips' numbers, the casts and who each post names, same shape as `database`, schema `clips`; required. `clips.database.password` belongs in the environment
 - `support.retention`, `support.pruneInterval` — how long a note keeps its sender (default 90 days; the text is kept after) and how long a report is kept, and how often the prune runs (1h)
 - `support.rateLimiter.*` — the per-IP throttle on the notes and the reports, same shape as `rateLimiter` (default one a minute, three in hand)

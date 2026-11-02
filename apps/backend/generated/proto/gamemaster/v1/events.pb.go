@@ -108,6 +108,179 @@ func (x *DayStarted) GetEndsAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// A battle, the season's finale included, told once as it starts.
+type BattleStarted struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Season uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
+	// The battle's place among the season's battles.
+	Number uint32 `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
+	// Empty for the season's finale, which is the season's and no entry's.
+	EntryId string `protobuf:"bytes,3,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	Times   uint32 `protobuf:"varint,4,opt,name=times,proto3" json:"times,omitempty"`
+	// The battle is the season's finale.
+	EndsSeason    bool                   `protobuf:"varint,5,opt,name=ends_season,json=endsSeason,proto3" json:"ends_season,omitempty"`
+	RoundId       string                 `protobuf:"bytes,6,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
+	StartsAt      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
+	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BattleStarted) Reset() {
+	*x = BattleStarted{}
+	mi := &file_gamemaster_v1_events_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BattleStarted) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BattleStarted) ProtoMessage() {}
+
+func (x *BattleStarted) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_events_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BattleStarted.ProtoReflect.Descriptor instead.
+func (*BattleStarted) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_events_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *BattleStarted) GetSeason() uint32 {
+	if x != nil {
+		return x.Season
+	}
+	return 0
+}
+
+func (x *BattleStarted) GetNumber() uint32 {
+	if x != nil {
+		return x.Number
+	}
+	return 0
+}
+
+func (x *BattleStarted) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+func (x *BattleStarted) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
+}
+
+func (x *BattleStarted) GetEndsSeason() bool {
+	if x != nil {
+		return x.EndsSeason
+	}
+	return false
+}
+
+func (x *BattleStarted) GetRoundId() string {
+	if x != nil {
+		return x.RoundId
+	}
+	return ""
+}
+
+func (x *BattleStarted) GetStartsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartsAt
+	}
+	return nil
+}
+
+func (x *BattleStarted) GetEndsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndsAt
+	}
+	return nil
+}
+
+// A season, told once as it starts.
+type SeasonStarted struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Season        uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
+	BookId        string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	StartsAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
+	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SeasonStarted) Reset() {
+	*x = SeasonStarted{}
+	mi := &file_gamemaster_v1_events_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SeasonStarted) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeasonStarted) ProtoMessage() {}
+
+func (x *SeasonStarted) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_events_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeasonStarted.ProtoReflect.Descriptor instead.
+func (*SeasonStarted) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_events_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SeasonStarted) GetSeason() uint32 {
+	if x != nil {
+		return x.Season
+	}
+	return 0
+}
+
+func (x *SeasonStarted) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *SeasonStarted) GetStartsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartsAt
+	}
+	return nil
+}
+
+func (x *SeasonStarted) GetEndsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndsAt
+	}
+	return nil
+}
+
 type DayEnded struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Season uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
@@ -121,7 +294,7 @@ type DayEnded struct {
 
 func (x *DayEnded) Reset() {
 	*x = DayEnded{}
-	mi := &file_gamemaster_v1_events_proto_msgTypes[1]
+	mi := &file_gamemaster_v1_events_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -133,7 +306,7 @@ func (x *DayEnded) String() string {
 func (*DayEnded) ProtoMessage() {}
 
 func (x *DayEnded) ProtoReflect() protoreflect.Message {
-	mi := &file_gamemaster_v1_events_proto_msgTypes[1]
+	mi := &file_gamemaster_v1_events_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -146,7 +319,7 @@ func (x *DayEnded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DayEnded.ProtoReflect.Descriptor instead.
 func (*DayEnded) Descriptor() ([]byte, []int) {
-	return file_gamemaster_v1_events_proto_rawDescGZIP(), []int{1}
+	return file_gamemaster_v1_events_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *DayEnded) GetSeason() uint32 {
@@ -195,7 +368,7 @@ type BattleEnded struct {
 
 func (x *BattleEnded) Reset() {
 	*x = BattleEnded{}
-	mi := &file_gamemaster_v1_events_proto_msgTypes[2]
+	mi := &file_gamemaster_v1_events_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -207,7 +380,7 @@ func (x *BattleEnded) String() string {
 func (*BattleEnded) ProtoMessage() {}
 
 func (x *BattleEnded) ProtoReflect() protoreflect.Message {
-	mi := &file_gamemaster_v1_events_proto_msgTypes[2]
+	mi := &file_gamemaster_v1_events_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -220,7 +393,7 @@ func (x *BattleEnded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BattleEnded.ProtoReflect.Descriptor instead.
 func (*BattleEnded) Descriptor() ([]byte, []int) {
-	return file_gamemaster_v1_events_proto_rawDescGZIP(), []int{2}
+	return file_gamemaster_v1_events_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *BattleEnded) GetSeason() uint32 {
@@ -287,7 +460,7 @@ type SeasonEnded struct {
 
 func (x *SeasonEnded) Reset() {
 	*x = SeasonEnded{}
-	mi := &file_gamemaster_v1_events_proto_msgTypes[3]
+	mi := &file_gamemaster_v1_events_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -299,7 +472,7 @@ func (x *SeasonEnded) String() string {
 func (*SeasonEnded) ProtoMessage() {}
 
 func (x *SeasonEnded) ProtoReflect() protoreflect.Message {
-	mi := &file_gamemaster_v1_events_proto_msgTypes[3]
+	mi := &file_gamemaster_v1_events_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -312,7 +485,7 @@ func (x *SeasonEnded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SeasonEnded.ProtoReflect.Descriptor instead.
 func (*SeasonEnded) Descriptor() ([]byte, []int) {
-	return file_gamemaster_v1_events_proto_rawDescGZIP(), []int{3}
+	return file_gamemaster_v1_events_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SeasonEnded) GetSeason() uint32 {
@@ -362,7 +535,22 @@ const file_gamemaster_v1_events_proto_rawDesc = "" +
 	"\bround_id\x18\x03 \x01(\tR\aroundId\x12\x17\n" +
 	"\abook_id\x18\x04 \x01(\tR\x06bookId\x127\n" +
 	"\tstarts_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
-	"\aends_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"\x86\x01\n" +
+	"\aends_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"\x9a\x02\n" +
+	"\rBattleStarted\x12\x16\n" +
+	"\x06season\x18\x01 \x01(\rR\x06season\x12\x16\n" +
+	"\x06number\x18\x02 \x01(\rR\x06number\x12\x19\n" +
+	"\bentry_id\x18\x03 \x01(\tR\aentryId\x12\x14\n" +
+	"\x05times\x18\x04 \x01(\rR\x05times\x12\x1f\n" +
+	"\vends_season\x18\x05 \x01(\bR\n" +
+	"endsSeason\x12\x19\n" +
+	"\bround_id\x18\x06 \x01(\tR\aroundId\x127\n" +
+	"\tstarts_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
+	"\aends_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"\xae\x01\n" +
+	"\rSeasonStarted\x12\x16\n" +
+	"\x06season\x18\x01 \x01(\rR\x06season\x12\x17\n" +
+	"\abook_id\x18\x02 \x01(\tR\x06bookId\x127\n" +
+	"\tstarts_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
+	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"\x86\x01\n" +
 	"\bDayEnded\x12\x16\n" +
 	"\x06season\x18\x01 \x01(\rR\x06season\x12\x10\n" +
 	"\x03day\x18\x02 \x01(\rR\x03day\x12\x19\n" +
@@ -397,26 +585,32 @@ func file_gamemaster_v1_events_proto_rawDescGZIP() []byte {
 	return file_gamemaster_v1_events_proto_rawDescData
 }
 
-var file_gamemaster_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_gamemaster_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_gamemaster_v1_events_proto_goTypes = []any{
 	(*DayStarted)(nil),            // 0: gamemaster.v1.DayStarted
-	(*DayEnded)(nil),              // 1: gamemaster.v1.DayEnded
-	(*BattleEnded)(nil),           // 2: gamemaster.v1.BattleEnded
-	(*SeasonEnded)(nil),           // 3: gamemaster.v1.SeasonEnded
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*BattleStarted)(nil),         // 1: gamemaster.v1.BattleStarted
+	(*SeasonStarted)(nil),         // 2: gamemaster.v1.SeasonStarted
+	(*DayEnded)(nil),              // 3: gamemaster.v1.DayEnded
+	(*BattleEnded)(nil),           // 4: gamemaster.v1.BattleEnded
+	(*SeasonEnded)(nil),           // 5: gamemaster.v1.SeasonEnded
+	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
 }
 var file_gamemaster_v1_events_proto_depIdxs = []int32{
-	4, // 0: gamemaster.v1.DayStarted.starts_at:type_name -> google.protobuf.Timestamp
-	4, // 1: gamemaster.v1.DayStarted.ends_at:type_name -> google.protobuf.Timestamp
-	4, // 2: gamemaster.v1.DayEnded.ended_at:type_name -> google.protobuf.Timestamp
-	4, // 3: gamemaster.v1.BattleEnded.ended_at:type_name -> google.protobuf.Timestamp
-	4, // 4: gamemaster.v1.SeasonEnded.ended_at:type_name -> google.protobuf.Timestamp
-	2, // 5: gamemaster.v1.SeasonEnded.finale_battle:type_name -> gamemaster.v1.BattleEnded
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	6,  // 0: gamemaster.v1.DayStarted.starts_at:type_name -> google.protobuf.Timestamp
+	6,  // 1: gamemaster.v1.DayStarted.ends_at:type_name -> google.protobuf.Timestamp
+	6,  // 2: gamemaster.v1.BattleStarted.starts_at:type_name -> google.protobuf.Timestamp
+	6,  // 3: gamemaster.v1.BattleStarted.ends_at:type_name -> google.protobuf.Timestamp
+	6,  // 4: gamemaster.v1.SeasonStarted.starts_at:type_name -> google.protobuf.Timestamp
+	6,  // 5: gamemaster.v1.SeasonStarted.ends_at:type_name -> google.protobuf.Timestamp
+	6,  // 6: gamemaster.v1.DayEnded.ended_at:type_name -> google.protobuf.Timestamp
+	6,  // 7: gamemaster.v1.BattleEnded.ended_at:type_name -> google.protobuf.Timestamp
+	6,  // 8: gamemaster.v1.SeasonEnded.ended_at:type_name -> google.protobuf.Timestamp
+	4,  // 9: gamemaster.v1.SeasonEnded.finale_battle:type_name -> gamemaster.v1.BattleEnded
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_gamemaster_v1_events_proto_init() }
@@ -430,7 +624,7 @@ func file_gamemaster_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_gamemaster_v1_events_proto_rawDesc), len(file_gamemaster_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

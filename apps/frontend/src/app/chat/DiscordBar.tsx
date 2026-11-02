@@ -1,19 +1,26 @@
 import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../../links.ts"
 import {CloseIcon, DiscordIcon, InstagramIcon, TikTokIcon, YouTubeIcon} from "../components/icons.tsx"
+import {usePing} from "../alerts/usePing.ts"
 import {useDiscordBar} from "./useDiscordBar.ts"
 
-export default function DiscordBar() {
+export type DiscordBarProps = {
+    onPing?: () => Promise<void>
+}
+
+export default function DiscordBar({onPing}: DiscordBarProps) {
     const {hidden, hide} = useDiscordBar()
     if (hidden) return null
 
     return <div className="chat-discord">
-        <a href={DISCORD_INVITE}
-           target="_blank"
-           rel="noopener noreferrer"
-           className="chat-discord-link">
-            <DiscordIcon size={24}/>
-            <span className="chat-discord-label">Join Discord</span>
-        </a>
+        {onPing
+            ? <PingButton leave={onPing}/>
+            : <a href={DISCORD_INVITE}
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 className="chat-discord-link">
+                <DiscordIcon size={24}/>
+                <span className="chat-discord-label">Join Discord</span>
+            </a>}
         <a href={TIKTOK_PROFILE}
            target="_blank"
            rel="noopener noreferrer"
@@ -42,4 +49,18 @@ export default function DiscordBar() {
             <CloseIcon size={16}/>
         </button>
     </div>
+}
+
+function PingButton({leave}: {leave: () => Promise<void>}) {
+    const ping = usePing(leave)
+
+    return <button type="button"
+                   className="chat-discord-link chat-discord-ping"
+                   aria-label={ping.name}
+                   aria-busy={ping.busy}
+                   disabled={ping.busy}
+                   onClick={ping.press}>
+        <DiscordIcon size={24}/>
+        <span className="chat-discord-label">{ping.label}</span>
+    </button>
 }

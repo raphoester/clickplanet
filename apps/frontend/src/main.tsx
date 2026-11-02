@@ -30,7 +30,7 @@ import {ConnectAccountBackend} from "./backends/accountBackend.ts"
 import {ConnectPlayerBackend, newKeepalivePlayerServiceClient, newPlayerServiceClient} from "./backends/playerBackend.ts"
 import {ConnectMissionsBackend, newMissionServiceClient} from "./backends/missionsBackend.ts"
 import {AccountStore} from "./app/account/accountStore.ts"
-import {rememberSignIn} from "./app/account/rememberedSignIn.ts"
+import {rememberDiscordLink, rememberSignIn} from "./app/account/rememberedSignIn.ts"
 import SignInGate from "./app/account/SignInGate.tsx"
 import {callbackOf, CALLBACK_PATH} from "./domain/signInCallback.ts"
 import {ConnectClipsBackend, newClipsServiceClient} from "./backends/clipsBackend.ts"
@@ -46,6 +46,10 @@ import {crazyGamesLanding} from "./domain/crazyGames.ts"
 import {CrazyGamesPage} from "./backends/crazyGames.ts"
 import {CRAZYGAMES_WORDS_URL, crazyGamesWords} from "./backends/crazyGamesWords.ts"
 import {NO_FILTER, WordFilter} from "./domain/wordFilter.ts"
+import {AlertsBackend} from "./backends/alerts.ts"
+import {ConnectAlertsBackend, newAlertsServiceClient} from "./backends/alertsBackend.ts"
+import {FakeAlertsBackend} from "./backends/fakeAlertsBackend.ts"
+import {DiscordAlerts} from "./app/alerts/discordAlerts.ts"
 
 // Strip the OAuth code and state from the URL before anything else can read or leak them.
 const callback = callbackOf(new URL(window.location.href))
@@ -83,6 +87,12 @@ const root = createRoot(document.getElementById('root')!)
 // Planet hears player's PlayerCreated over Redis, and player's outbox sends once a second.
 const FAKE_GRANT_LANDS_MS = 1_200
 
+// The link leaves for Discord and comes back on clickplanet.lol, out of CrazyGames' frame and its carried session.
+function discordAlertsOf(backend: AlertsBackend): DiscordAlerts | undefined {
+    if (crazyGames) return undefined
+    return new DiscordAlerts(backend, {navigate: (url) => window.location.assign(url), remember: rememberDiscordLink})
+}
+
 function followCrazyGames(page: CrazyGamesPage | undefined, account: AccountStore) {
     if (!page) return
     page.user.listenForSignIn(() => void account.followCrazyGames())
@@ -103,6 +113,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         crazyGames: crazyGames?.user,
     })
     followCrazyGames(crazyGames, account)
+    const alerts = discordAlertsOf(new FakeAlertsBackend())
     const fakeClips = new FakeClipsBackend()
     const fakeMissions = new FakeMissionsBackend((kind) => {
         if (kind === "bomb") fake.grantBomb()
@@ -236,7 +247,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 
     void words.then((filter) => root.render(
         <StrictMode>
-            <SignInGate callback={callback} account={account}>
+            <SignInGate callback={callback} account={account} alerts={alerts}>
                 <App
                     sharedCountry={shared}
                     ownershipsGetter={fake}
@@ -263,6 +274,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     account={account}
                     clips={fakeClips}
                     crazyGames={crazyGames}
+                    alerts={alerts}
                     words={filter}
                 />
             </SignInGate>
@@ -277,6 +289,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const missions = new ConnectMissionsBackend(newMissionServiceClient(config), session)
     const support = new ConnectSupportBackend(newSupportServiceClient(config), session)
     const clips = new ConnectClipsBackend(newClipsServiceClient(config), session)
+    const alerts = discordAlertsOf(new ConnectAlertsBackend(newAlertsServiceClient(config), session))
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest, landing), player, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
@@ -286,7 +299,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 
     void words.then((filter) => root.render(
         <StrictMode>
-            <SignInGate callback={callback} account={account}>
+            <SignInGate callback={callback} account={account} alerts={alerts}>
                 <App
                     sharedCountry={shared}
                     ownershipsGetter={backend}
@@ -313,6 +326,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     chargesRefresher={backend}
                     clips={clips}
                     crazyGames={crazyGames}
+                    alerts={alerts}
                     words={filter}
                 />
             </SignInGate>

@@ -88,6 +88,23 @@ func TestTheFinaleIsTheSeasonsBattleNamedByItsSeason(t *testing.T) {
 	}, closed)
 }
 
+func TestTheBattleAtATimeIsTheOneThatRunsTheFinaleIncluded(t *testing.T) {
+	plan := moments.NewPlan(calendar(rush), cutoff, nil, battle(early, at(30, 18), at(30, 21)))
+
+	_, ok := plan.BattleAt(at(30, 18).Add(-time.Second))
+	assert.False(t, ok, "it has not started")
+	running, ok := plan.BattleAt(at(30, 18))
+	require.True(t, ok)
+	assert.Equal(t, moments.RoundID(early.String()), running.Round())
+	_, ok = plan.BattleAt(at(30, 21))
+	assert.False(t, ok, "it ended")
+	finale, ok := plan.BattleAt(seasonEnds.Add(-time.Second))
+	require.True(t, ok)
+	assert.Equal(t, moments.RoundID("season-0/finale"), finale.Round())
+	_, ok = plan.BattleAt(seasonEnds)
+	assert.False(t, ok, "the season ended")
+}
+
 func TestTheFinaleOfASeasonWithNoneNamesNothing(t *testing.T) {
 	_, err := moments.NewPlan(calendar(season.Finale{}), cutoff, nil).RoundEnded("season-0/finale", seasonEnds)
 

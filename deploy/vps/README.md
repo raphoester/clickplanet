@@ -442,6 +442,105 @@ frontend has the button and the privacy policy page is live: we store email.
 4. Set `auth.signIn.enabled: true` and deploy. A client id with no secret
    refuses the boot.
 
+### Discord pings
+
+Off in `backend.yaml` (`alerts.enabled: false`). On, a player's "Get pinged" adds them to the game's Discord server
+with the role of their flag, and the server pings that role when their flag is attacked, and every linked player
+when a battle or a season starts.
+
+**It is the same Discord application as the sign-in** (client id `1549822806420885616`): the application gets a bot,
+and the bot joins your server. The link reuses the sign-in's redirect URI, `https://clickplanet.lol/auth/callback`,
+which is already registered. You do not make a second application.
+
+#### 1. Give the application a bot, and copy its token
+
+1. Open <https://discord.com/developers/applications> and sign in with the Discord account that owns the game.
+2. Click the application whose **Application ID** (on **General Information**) is `1549822806420885616`.
+3. In the left menu, click **Installation**. Under **Install Link**, choose **None**, then **Save Changes**. The
+   portal refuses to make a bot private while it has an install link.
+4. In the left menu, click **Bot**. Set these, then **Save Changes**:
+   - **Public Bot**: off. Only you can add it to a server.
+   - **Requires OAuth2 Code Grant**: off. On, the link in step 2 does not work.
+   - **Privileged Gateway Intents** (Presence, Server Members, Message Content): all off. The bot only calls the API;
+     it never connects to the gateway.
+5. Still on **Bot**, under **Token**, click **Reset Token**, confirm, and type your 2FA code if asked. Click **Copy**.
+   Discord shows the token once; if you lose it, reset it again (the old one stops working).
+6. Store it as an Actions secret, on your laptop. `gh` asks for it and hides what you paste:
+
+   ```bash
+   read -rsp 'Discord bot token: ' s && echo && printf '%s' "$s" | gh secret set DISCORD_BOT_TOKEN --repo raphoester/clickplanet && unset s
+   ```
+
+#### 2. Add the bot to your server
+
+1. In the left menu, click **OAuth2**. Check that **Redirects** lists `https://clickplanet.lol/auth/callback` (the
+   sign-in added it). Add nothing.
+2. Further down, in **OAuth2 URL Generator**, tick the scope **bot** only. A **Bot Permissions** box appears below it.
+   Tick these four, and nothing else:
+   - **Manage Roles**: the bot makes the `Battles` role and one role per flag, and gives them to players.
+   - **Create Instant Invite**: Discord needs it to add a player to the server.
+   - **View Channels**
+   - **Send Messages**
+3. Leave **Integration Type** on **Guild Install**. Copy the **Generated URL** at the bottom and open it in your
+   browser.
+4. Pick the game's server under **Add to server**, click **Continue**, keep the four permissions ticked, and click
+   **Authorize**.
+5. In Discord, the bot is now in the server's member list, offline. That is normal: it only posts through the API.
+   It also has a role of its own with the application's name. The roles the bot makes go below that role, so leave
+   the bot's role where it is or above.
+
+#### 3. Make the two channels
+
+1. In your server, click **+** next to **Text Channels** and make `alerts`. Do the same for `battles`.
+2. For each one: right-click it > **Edit Channel** > **Permissions**. For **@everyone**, turn **Send Messages** off
+   (so players read the pings and talk elsewhere). That also stops the bot, so let it back in: **Add members or
+   roles** (the **+** next to Roles/Members), type the application's name, pick the role with that name (or the bot
+   itself), and turn **View Channel** and **Send Messages** on for it. You do not make that role: Discord made it
+   when the bot joined in step 2, with the four permissions you ticked. It shows in **Server Settings** > **Roles**
+   with the application's name.
+
+#### 4. Copy the three ids
+
+1. In Discord, **User Settings** (the gear) > **Advanced** > turn **Developer Mode** on.
+2. Right-click the server's icon > **Copy Server ID**. That is `guildId`.
+3. Right-click `#alerts` > **Copy Channel ID** (`alertsChannelId`), and `#battles` the same way (`battlesChannelId`).
+
+#### 5. Turn it on
+
+In `deploy/vps/backend.yaml`, make the `alerts.discord` block whole and set `enabled: true`:
+
+```yaml
+alerts:
+  enabled: true
+  # database and redis stay as they are
+  discord:
+    clientId: "1549822806420885616"
+    clientSecret: env://DISCORD_CLIENT_SECRET
+    botToken: env://DISCORD_BOT_TOKEN
+    redirectUrl: https://clickplanet.lol/auth/callback
+    guildId: "<the server id>"
+    alertsChannelId: "<the #alerts id>"
+    battlesChannelId: "<the #battles id>"
+```
+
+Keep the quotes around the ids: they are long numbers, and YAML would read them as numbers otherwise. Merge to main:
+a change under `deploy/vps/` runs the deploy workflow, which passes the secrets and restarts the backend. A missing
+secret or id refuses the boot, so set the secret (step 1) before you merge.
+
+#### 6. Check it
+
+1. Open the game, then press **Get pinged** in the chat's Discord bar. Discord asks to let ClickPlanet add you to
+   the server: **Authorize**. The game says "You are in!".
+2. In the server, you now have the `Battles` role and your flag's role. The bot made both on the first link.
+3. The backend log says why a link or a ping failed:
+
+   ```bash
+   ssh root@64.225.102.150 'journalctl CONTAINER_TAG=cp-backend --since "10 min ago" -o cat | grep -i "alerts\|discord"'
+   ```
+
+   `Missing Permissions` (50013) means a permission from step 2 is missing, or a role the bot must give is above the
+   bot's own role.
+
 ### Sign-in by email
 
 Off in `backend.yaml` (`auth.email.enabled: false`). The server sends a

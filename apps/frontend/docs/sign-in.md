@@ -72,6 +72,10 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
 4. `SignInGate` renders `SignInCallback` instead of the game. It calls
    `CompleteSignIn` **once** — a ref guards it, since StrictMode runs the effect
    twice and a second trade would fail and hide the first one's success.
+   **Discord pings come back to the same page**: when the trip remembered is a
+   Discord link (`rememberedTrip`), the gate renders `DiscordLinkCallback`
+   instead, which calls `CompleteDiscordLink`. `rememberSignIn` forgets that
+   trip, so a sign-in after it is a sign-in. See [Discord pings](discord-alerts.md).
 5. On success, `AccountStore.completeSignIn` **invalidates the click token** and
    reads the account again, and the gate swaps in the game in place, at `/play`,
    with no reload. The next click mints a token that carries the new account.

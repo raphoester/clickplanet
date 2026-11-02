@@ -318,6 +318,35 @@ support:
       accessKeyId: ""
       secretAccessKey: ""
 
+# The game's Discord server: a player's link, its flag's role, and the pings. Off, nothing is served or pinged.
+alerts:
+  enabled: false
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: alerts
+    pool:
+      maxOpenConns: 2
+  redis:
+    address: localhost:6379
+    password: ""
+  gameUrl: https://clickplanet.lol/play
+  rateLimiter:
+    perSecond: 0.0333
+    burst: 6
+  discord:
+    clientId: "1549822806420885616"
+    clientSecret: ""
+    botToken: ""
+    redirectUrl: http://localhost:5173/auth/callback
+    guildId: ""
+    alertsChannelId: ""
+    battlesChannelId: ""
+
 # The numbers of the clips the clips job posted: `clips stats` sends a snapshot a day over ssh, the backoffice reads them.
 # And who each clip names: `clips fetch` makes a run's cast, `clips schedule` keeps who each post names.
 clips:
