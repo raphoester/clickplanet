@@ -214,7 +214,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                 const state = account.state()
                 if (state.kind === "ready" && state.guestLinked) setTimeout(() => fake.grantBonus("refill"), FAKE_GRANT_LANDS_MS)
             })
-            return `signed in as ${name}: sign out from the Account tab`
+            return `signed in as ${name}: sign out from your profile (You, at the foot of the rail)`
         },
         giveClip: (headline?: string) => {
             const clip = fakeClips.giveClip(headline)

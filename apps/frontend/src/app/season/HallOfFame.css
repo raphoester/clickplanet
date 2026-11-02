@@ -4,6 +4,11 @@
     margin-bottom: var(--space-3);
 }
 
+/* Gold on a plain square: it says "reward" without shouting over the board. */
+.hall-of-fame-icon {
+    color: var(--gold);
+}
+
 .modal-content.hall-of-fame {
     max-width: 720px;
 }

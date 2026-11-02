@@ -10,11 +10,12 @@ import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx";
 import CountryPicker from "./CountryPicker.tsx";
 import MenuPanel from "./components/MenuPanel.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
-import {LockIcon, SwapIcon} from "./components/icons.tsx";
+import {HideIcon, LockIcon, SettingsIcon, ShareIcon, SwapIcon, TargetIcon, TrophyIcon, UserIcon, UsersIcon} from "./components/icons.tsx";
 import SettingsPlace, {SettingsPlaceProps} from "./settings/SettingsPlace.tsx";
 import {AccountStore} from "./account/accountStore.ts";
 import {useAccount} from "./account/useAccount.ts";
 import AccountPanel from "./account/AccountPanel.tsx";
+import ProfileModal from "./account/ProfileModal.tsx";
 import MissionsPlace, {MissionsPlaceProps} from "./missions/MissionsPlace.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerInfoBackend} from "../backends/player.ts";
@@ -31,6 +32,7 @@ import {useNow} from "./season/useNow.ts"
 import {HallOfFameButton, HallOfFameSeasons} from "./season/HallOfFame.tsx"
 import "./Menu.css"
 
+// "you" is a phone sheet only: on a desktop the rail opens the profile as a modal.
 export type MenuTab = "board" | "missions" | "you" | "share" | "invite" | "settings"
 
 export type BoardPlaceProps = {
@@ -66,76 +68,159 @@ export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & O
     onTab?: (tab: MenuTab) => void,
 }
 
+const OPEN_KEY = "clickplanet-menu-open"
+
+type Place = {id: MenuTab, label: string, title: string, icon: ReactNode, news?: number}
+
 export default function Menu(props: MenuProps) {
     const [ownTab, setOwnTab] = useState<MenuTab>("board")
     const tab = props.tab ?? ownTab
-    const pickTab = (next: MenuTab) => props.onTab ? props.onTab(next) : setOwnTab(next)
+    const setTab = (next: MenuTab) => props.onTab ? props.onTab(next) : setOwnTab(next)
     const account = useAccount(props.account)
     const tabsId = useId()
+    const panelId = useId()
+    const [open, setOpen] = useMenuOpen()
+    const [profileOpen, setProfileOpen] = useState(false)
     const picker = usePicker()
 
-    const tabs: {id: MenuTab, label: string, news?: number}[] = [
-        {id: "board", label: "Board"},
-        ...props.missions ? [{id: "missions" as const, label: "Missions", news: props.missionsNews}] : [],
-        ...account.kind === "ready" ? [{id: "you" as const, label: youLabel(account.me.linked.length > 0)}] : [],
-        props.invite ? {id: "invite", label: "Invite"} : {id: "share", label: "Share"},
-        {id: "settings", label: "Settings"},
+    const places: Place[] = [
+        {id: "board", label: "Board", title: "Leaderboard", icon: <TrophyIcon/>},
+        ...props.missions ? [{id: "missions" as const, label: "Missions", title: "Missions", icon: <TargetIcon/>, news: props.missionsNews}] : [],
+        props.invite
+            ? {id: "invite", label: "Invite", title: "Invite friends", icon: <UsersIcon/>}
+            : {id: "share", label: "Share", title: "Share", icon: <ShareIcon size={22}/>},
+        {id: "settings", label: "Settings", title: "Settings", icon: <SettingsIcon/>},
     ]
-    const shown = tabs.some((t) => t.id === tab) ? tab : "board"
+    const shown = places.find((p) => p.id === tab) ?? places[0]
+    const linked = account.kind === "ready" && account.me.linked.length > 0
 
-    return <aside className="menu panel" aria-label="Menu">
-        <div className="menu-header">
+    // A place pressed again folds the panel away, as a tab does on a phone.
+    const pickPlace = (next: MenuTab) => {
+        picker.close()
+        if (open && next === shown.id) {
+            setOpen(false)
+            return
+        }
+        setTab(next)
+        setOpen(true)
+    }
+    const change = () => {
+        setOpen(true)
+        picker.open()
+    }
+
+    return <div className="menu-shell">
+        <nav className="menu-rail panel" aria-label="Places">
+            <h1 className="sr-only">ClickPlanet</h1>
             <img alt="ClickPlanet logo"
                  src="/static/logo.svg"
-                 className="menu-header-logo"
+                 className="menu-rail-logo"
                  width="40px"
                  height="40px"/>
-            <h1>ClickPlanet</h1>
-        </div>
+            <div className="menu-rail-tabs" role="tablist" aria-label="Menu" aria-orientation="vertical">
+                {places.map((p) => <button key={p.id}
+                                           type="button"
+                                           role="tab"
+                                           id={`${tabsId}-${p.id}`}
+                                           aria-selected={open && shown.id === p.id}
+                                           aria-controls={open ? panelId : undefined}
+                                           className={open && shown.id === p.id ? "menu-rail-item menu-rail-item--on" : "menu-rail-item"}
+                                           aria-label={p.news ? `${p.label}, ${p.news} new` : undefined}
+                                           onClick={() => pickPlace(p.id)}>
+                    {p.icon}
+                    <span className="menu-rail-label">{p.label}</span>
+                    {!!p.news && <span className="chip menu-tab-badge" key={p.news} aria-hidden="true">{p.news}</span>}
+                </button>)}
+            </div>
+            {account.kind === "ready" && <button type="button"
+                                                 className="menu-rail-item menu-rail-you"
+                                                 aria-haspopup="dialog"
+                                                 onClick={() => setProfileOpen(true)}>
+                <UserIcon/>
+                <span className="menu-rail-label">{youLabel(linked)}</span>
+            </button>}
+        </nav>
 
-        <PlayingFor country={props.country}
-                    allegiance={props.allegiance}
-                    rank={rankShown(props)}
-                    changeRef={picker.opener}
-                    onChange={picker.open}/>
+        {open
+            ? <aside className="menu panel" id={panelId} aria-label={shown.title}>
+                {picker.picking
+                    ? <MenuPanel title="Change country" onClose={picker.close}>
+                        <CountryPicker country={props.country} allegiance={props.allegiance} setCountry={async (country) => {
+                            await props.setCountry(country)
+                            picker.close()
+                        }}/>
+                    </MenuPanel>
+                    : <>
+                        <div className="menu-header">
+                            {shown.id === "board" && props.standings
+                                ? <BoardHeading view={props.standings.view}
+                                                onView={props.standings.onView}
+                                                country={props.country}
+                                                order={orderOf(props)}/>
+                                : <h2 className="menu-title">{shown.title}</h2>}
+                            {shown.id === "board" && props.hallOfFame && <HallOfFameButton {...props.hallOfFame} icon/>}
+                            <button type="button"
+                                    className="icon-button menu-hide"
+                                    aria-label="Hide the panel"
+                                    aria-expanded={true}
+                                    aria-controls={panelId}
+                                    onClick={() => setOpen(false)}>
+                                <HideIcon/>
+                            </button>
+                        </div>
 
-        {picker.picking
-            ? <MenuPanel title="Change country" onClose={picker.close}>
-                <CountryPicker country={props.country} allegiance={props.allegiance} setCountry={async (country) => {
-                    await props.setCountry(country)
-                    picker.close()
-                }}/>
-            </MenuPanel>
-            : <>
-                <div className="menu-tabs" role="tablist" aria-label="Menu">
-                    {tabs.map((t) => <button key={t.id}
-                                             type="button"
-                                             role="tab"
-                                             id={`${tabsId}-${t.id}`}
-                                             aria-selected={shown === t.id}
-                                             aria-controls={`${tabsId}-panel`}
-                                             className={shown === t.id ? "menu-tab menu-tab--on" : "menu-tab"}
-                                             aria-label={t.news ? `${t.label}, ${t.news} new` : undefined}
-                                             onClick={() => pickTab(t.id)}>
-                        {t.label}
-                        {!!t.news && <span className="chip menu-tab-badge" key={t.news} aria-hidden="true">{t.news}</span>}
-                    </button>)}
-                </div>
-                <div className="menu-body"
-                     role="tabpanel"
-                     id={`${tabsId}-panel`}
-                     aria-labelledby={`${tabsId}-${shown}`}>
-                    {shown === "board" && <BoardPlace {...props}/>}
-                    {shown === "missions" && props.missions && <MissionsPlace {...props.missions}/>}
-                    {shown === "you" && <YouPlace {...props}/>}
-                    {shown === "share" && <SharePlace stats={shareStats(linesShown(props), props.country)}
-                                                      onTakePicture={props.onTakePicture}
-                                                      taking={props.taking}/>}
-                    {shown === "invite" && props.invite && <InviteFriends country={props.country} invite={props.invite}/>}
-                    {shown === "settings" && <SettingsPlace {...props}/>}
-                </div>
-            </>}
-    </aside>
+                        <PlayingFor country={props.country}
+                                    allegiance={props.allegiance}
+                                    rank={rankShown(props)}
+                                    changeRef={picker.opener}
+                                    onChange={change}/>
+
+                        <div className="menu-body"
+                             role="tabpanel"
+                             aria-labelledby={`${tabsId}-${shown.id}`}>
+                            {shown.id === "board" && <BoardPlace {...props} hallOfFame={undefined} headless={props.standings !== undefined}/>}
+                            {shown.id === "missions" && props.missions && <MissionsPlace {...props.missions}/>}
+                            {shown.id === "share" && <SharePlace stats={shareStats(linesShown(props), props.country)}
+                                                                 onTakePicture={props.onTakePicture}
+                                                                 taking={props.taking}/>}
+                            {shown.id === "invite" && props.invite && <InviteFriends country={props.country} invite={props.invite}/>}
+                            {shown.id === "settings" && <SettingsPlace {...props}/>}
+                        </div>
+                    </>}
+            </aside>
+            : <PlayingFor country={props.country}
+                          allegiance={props.allegiance}
+                          rank={rankShown(props)}
+                          changeRef={picker.opener}
+                          onChange={change}
+                          pill/>}
+
+        {profileOpen && <ProfileModal account={props.account}
+                                      linkedMultiplier={props.linkedMultiplier}
+                                      playerInfo={props.playerInfo}
+                                      listenForClicks={props.listenForClicks}
+                                      clips={props.clips}
+                                      onClose={() => setProfileOpen(false)}/>}
+    </div>
+}
+
+// The panel stays as the player left it, folded or open, from one visit to the next.
+function useMenuOpen(): [boolean, (open: boolean) => void] {
+    const [open, setOpen] = useState(() => {
+        try {
+            return localStorage.getItem(OPEN_KEY) !== "false"
+        } catch {
+            return true
+        }
+    })
+    return [open, (next: boolean) => {
+        setOpen(next)
+        try {
+            localStorage.setItem(OPEN_KEY, String(next))
+        } catch {
+            // A browser that keeps nothing folds the panel for this visit only.
+        }
+    }]
 }
 
 function usePicker() {
@@ -167,12 +252,17 @@ type PlayingForProps = {
     changeRef: React.Ref<HTMLButtonElement>,
     onChange: () => void,
     slim?: boolean,
+    // The panel folded away: the flag stays in sight, beside the rail.
+    pill?: boolean,
 }
 
-function PlayingFor({country, allegiance, rank, changeRef, onChange, slim}: PlayingForProps) {
-    return <div className={slim ? "menu-playing menu-playing--slim" : "menu-playing panel-box"}>
+function PlayingFor({country, allegiance, rank, changeRef, onChange, slim, pill}: PlayingForProps) {
+    const className = slim ? "menu-playing menu-playing--slim"
+        : pill ? "menu-playing menu-playing--pill panel"
+            : "menu-playing panel-box"
+    return <div className={className}>
         <div className="menu-playing-what">
-            <span className="menu-label">{slim ? "Playing for" : "You’re playing for"}</span>
+            <span className="menu-label">{slim || pill ? "Playing for" : "You’re playing for"}</span>
             <span className="menu-playing-name">
                 <CountryFlag code={country.code}/>
                 <span className="menu-playing-country">{country.name}</span>

@@ -19,7 +19,7 @@ A Halloween entry scores nothing, as a plain one, and has no chip, no moment and
   and a bat on the chat's top edge. None takes a pointer. **Nothing is drawn on the globe's surface**: flat sprites
   there were tried, and they cut into the sphere.
 - **What stands on the dock is its crown, `--dock-crown`** (`index.css`, 0 by default, 44px under the mood). What
-  keeps clear of the dock keeps clear of it too: the menu's height below 1444px, the chat that sits above the dock
+  keeps clear of the dock keeps clear of it too: the menu's height, the chat that sits above the dock
   from 769px to 1099px, and the phone's chat toast. So a toast pops up above the pumpkin, and the props never hide.
 
 ## The bonus box

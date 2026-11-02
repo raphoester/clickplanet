@@ -1,0 +1,41 @@
+/* Two columns: the player's progress on the left, the account it is kept in on the right. */
+.modal-content.profile-modal {
+    max-width: 860px;
+}
+
+.modal-content.profile-modal--guest {
+    max-width: 440px;
+}
+
+.profile-modal-name {
+    overflow-wrap: anywhere;
+    font-family: var(--font-text);
+    font-weight: 700;
+    color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
+}
+
+.profile-modal-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-5);
+}
+
+.profile-modal-account {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+}
+
+.profile-modal-account .menu-section-title {
+    margin: 0;
+    padding: 0;
+}
+
+/* A window too narrow for two columns stacks them: the progress first, the account under it. */
+@media only screen and (max-width: 900px) {
+    .profile-modal-columns {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
