@@ -47,7 +47,8 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 - `clicks.newAccountClicks` — what a new account's bank holds; it earns the rest at `clicks.perSecond` (10)
 - `toll.steps` — rising `{share, slowdown}`: from `share` of the map, a country refills `slowdown` times slower (10%
   1.5×, 20% 2.5×, 30% 4×). No step is no toll. See [A big country refills slower](rate-limiting.md#a-big-country-refills-slower-clickstoll)
-- `bonuses.boxes.minInterval`, `maxInterval`, `maxChargesPerHour` — a box's wait and the hourly cap (4–8 min, 12)
+- `bonuses.boxes.minInterval`, `maxInterval`, `maxChargesPerHour` — a box's wait and the hourly cap (4–8 min, 12).
+  Half the shorter of this `minInterval` and the quiz's is how far a box and a quiz keep apart (see [Quizzes](quizzes.md))
 - `bonuses.kinds.*` — what a box is drawn as: a weight per kind, `refill`, `spreadClicks`, `encloseClicks`, `bomb`,
   `shields` (5, 3, 2, 1, 3). 0 is never offered
 - `bonuses.offerTtl` — how long a box flies; **it must outlast the flight the client draws**, or a box caught on its

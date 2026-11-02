@@ -24,6 +24,10 @@ the first box and quiz came 4-8 minutes in, so they never saw one.
 - **Once per account**: `Registry.newcomers` remembers each young account until it is no longer
   young, so neither a second click nor a second empty bank pulls anything forward again. It is
   memory only, so a restart can welcome an account a second time while it is still young.
+- **A welcome waits only for the other to be gone.** A box and a quiz keep `spacing` apart (see
+  [Quizzes](quizzes.md)), but a welcome is not held for it, since its moment is the point: it is held only while the
+  other is out, at most a box's 15s flight or a banner's 25s and its 8s. An ordinary box or quiz beside a welcome is
+  held for the spacing as any is.
 - Everything else is the ordinary offer: the stream must be open, the entrant active, the
   hourly caps not reached, and the guests behind a scope share one entrant, so a private tab a
   minute buys no more than the caps.

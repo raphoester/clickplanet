@@ -161,7 +161,7 @@ func (r *Registry) quizDue(entry *caller, rules Rules, now time.Time) bool {
 		return false
 	}
 
-	return true
+	return !near(entry.outstanding, entry.lastOfferAt, entry.owedQuiz, rules, now)
 }
 
 func (r *Registry) offerQuiz(entrant Entrant, entry *caller, rules Rules, now time.Time, kind Kind) {
@@ -183,6 +183,7 @@ func (r *Registry) offerQuiz(entrant Entrant, entry *caller, rules Rules, now ti
 	}
 
 	entry.outstandingQuiz = token
+	entry.lastQuizAt = now
 	entry.nextQuizAt = offer.ExpiresAt.Add(rules.Quiz.AnswerWindow).Add(quizWait(rules))
 
 	entry.send(Event{Quiz: &offer})
