@@ -35,7 +35,7 @@ whoever CrazyGames says is signed in: see [CrazyGames](crazygames.md).
   in flight and its own failure. No DOM and no network of its own, like
   `SessionClient`, so every transition is under test.
 - `app/account/` — the rest is React: `AccountPanel` (the phone's You sheet, named
-  "Sign in" for a guest), `ProfileModal` (the same on a desktop: the progress and the account side by side in one
+  "Sign in" for a guest), `ProfileModal` and `ProfileAccount` (the same on a desktop: the player's own card and the account beside it, in one
   dialog, opened from the rail's foot), `DeleteAccountModal`,
   `SignInCallback` and `SignInGate`.
 

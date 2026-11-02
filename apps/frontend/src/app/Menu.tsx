@@ -197,6 +197,7 @@ export default function Menu(props: MenuProps) {
                                       playerInfo={props.playerInfo}
                                       listenForClicks={props.listenForClicks}
                                       clips={props.clips}
+                                      country={props.country}
                                       onClose={() => setProfileOpen(false)}/>}
     </div>
 }

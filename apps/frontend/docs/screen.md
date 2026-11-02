@@ -53,11 +53,27 @@ that does not.
   beside it, and any place opens the panel again. Folded or open is kept in
   `localStorage` (`clickplanet-menu-open`) from one visit to the next.
 - **You is not a place on a desktop.** It sits at the rail's foot and opens
-  `account/ProfileModal`: the player's progress (`ProgressTab`) and its account
-  (`AccountSettings`: the username, the color, the linked providers, sign out,
-  delete) side by side, with nothing folded (`ProgressTab`'s `flat`) in one dialog, 860px wide, stacked under 900px. A guest
-  sees the account side alone, which is the sign-in. The phone keeps its You
-  sheet (`YouPlace`, Progress and Account tabs).
+  `account/ProfileModal`, the player's own card at up to 1200px wide (the
+  screen less 64px), read at a glance:
+  - **the hero**: the worn medal at 112px, its name and rank, the flag played
+    for, and four stats (tiles taken, streak and best streak with the flame,
+    playing since);
+  - **the medals earned**, at 76px: a press wears one (`WearTitle`), the worn
+    one ringed in gold;
+  - **one card per track**, side by side: the current rank's medal, the next
+    one locked, one bar to it and what is left. "All ranks" opens the track's
+    whole `TrackPath` under the cards;
+  - **the fronts**, side by side: the first three countries fought for and
+    against, "See all" for the rest;
+  - **the account** in a 340px column beside them (`ProfileAccount`): the
+    username, the color, the providers as chips ("+ Discord" links one, "+ Email"
+    opens its form), the clips switch, and sign out, sign out everywhere and
+    delete as small buttons at its foot.
+
+  Under 1100px the hero wraps and the account goes under the card. A guest gets
+  the sign-in alone, at a modal's width. The phone keeps its You sheet
+  (`YouPlace`: Progress and Account tabs, with folds, which a narrow sheet needs).
+  Both read the titles and fronts through `account/useProgress.ts`.
 - **The desktop menu is as tall as what it holds**, up to the screen less the
   dock and its crown, at every width: a short place makes a short panel, and
   only the board, or the place, scrolls inside it. It once kept clear of the
