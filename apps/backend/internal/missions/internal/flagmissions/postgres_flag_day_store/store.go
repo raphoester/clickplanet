@@ -77,21 +77,17 @@ func (s *Store) KeepDay(
 	snapshot := drawn.Snapshot()
 	if err := s.db.InTx(ctx, func(ctx context.Context) error {
 		tx := s.db.On(ctx)
-		kept, err := tx.ExecContext(ctx, `
+		// A day kept already keeps its counts, and takes the mission if it has none.
+		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO flag_days (day, flag, takes, counted_takes_below, counted_takes_below_index, strikes,
 				counted_strikes_below, counted_strikes_below_index)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (day, flag) DO NOTHING
 		`, day.String(), flag, int64(snapshot.Takes), int64(snapshot.TakesBelow.Position), //nolint:gosec // counts fit in int64.
 			int64(snapshot.TakesBelow.Index), int64(snapshot.Strikes), int64(snapshot.StrikesBelow.Position), //nolint:gosec // as above.
-			int64(snapshot.StrikesBelow.Index))
-		if err != nil {
+			int64(snapshot.StrikesBelow.Index)); err != nil {
 			return fmt.Errorf("failed to keep %s's day: %w", flag, err)
 		}
-		first, err := kept.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("failed to keep %s's day: %w", flag, err)
-		}
-		if first == 0 || snapshot.Mission == nil {
+		if snapshot.Mission == nil {
 			return nil
 		}
 
@@ -101,7 +97,7 @@ func (s *Store) KeepDay(
 		}
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO flag_missions (day, flag, mission_id, kind, payload, points, progress, done)
-			VALUES ($1, $2, $3, $4::flag_mission_kind, $5::jsonb, $6, $7, $8)
+			VALUES ($1, $2, $3, $4::flag_mission_kind, $5::jsonb, $6, $7, $8) ON CONFLICT DO NOTHING
 		`, day.String(), flag, uuid.UUID(snapshot.Mission.ID), kind, payload, int64(snapshot.Mission.Points),
 			int64(snapshot.Progress), snapshot.Done); err != nil {
 			return fmt.Errorf("failed to keep %s's mission: %w", flag, err)

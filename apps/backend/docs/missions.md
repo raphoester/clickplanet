@@ -157,7 +157,11 @@ day and a flag), so it has its own package and store (`flagmissions`).
   ground is drawn evenly among those with room for the goal, so a busy flag is sent to Russia, Antarctica, the US, China,
   Canada, Brazil or Australia, and a quiet one anywhere big. With none, the ground with the most room, and the goal cut
   to it, rounded down to 10. Until 2026-11-02 the ground was drawn among all seventeen whatever the goal: France was
-  told to take 8,000 tiles in Sudan, which has 3,536 (the owner: "this is ridiculous").
+  told to take 8,000 tiles in Sudan, which has 3,536 (the owner: "this is ridiculous"). **That day was drawn again**:
+  migration `20261102070000_redraw_conquests` deleted the conquests not done of the day that ran on 2 Nov at 06:00 UTC,
+  so each of those flags drew again with the room at its next take or read, from 0 progress, keeping what its day had
+  counted (the owner's choice: tile missions only, and tomorrow's goal sized from the whole day). A conquest done kept its
+  points, and a shield mission, which the bug never touched, stayed.
 - **The goal is the team's whole day before**, all on the one target, so a busy flag gets a big goal and a small one a
   small one (the user's choice, 2026-10-28): for a ground, of all the tiles its players took anywhere (50% for 3 points to
   100% for 10, and at least 1,000 to 2,000); for shields, of all the shields they broke on anyone (the same shares, at
@@ -170,7 +174,11 @@ day and a flag), so it has its own package and store (`flagmissions`).
   (`strikes`), for the next day's goal, and the mission's progress, one counter from 0. **`Briefing.Of(day, flag)`
   draws once and keeps it**, at the flag's first take, shield broken or read of the day, from the map then and the day
   before (`days.Store.DayBefore`, the day told that ended as this one started, since the gamemaster chains a season's
-  days); a season's first day has none, so its goal is the least. The store's first `KeepDay` wins. `OfPlayer` is the day of the flag the account plays now
+  days); a season's first day has none, so its goal is the least. The store's first `KeepDay` wins. **A day kept with
+  no mission is drawn again** at its next take, strike or read, and `KeepDay` gives it the first mission kept after,
+  with the counts it already kept: that is how an operator's fix redraws a day, by deleting its `flag_missions` row
+  (2026-11-02). Only a map with nothing to aim at draws no mission, and today's map always has a big ground the flag
+  does not hold, so this costs no read of the map per take. `OfPlayer` is the day of the flag the account plays now
   (`GetAllegianceOf`), none with no flag.
 - **Counted from two facts, each in its own group**: `TileTaken` (`missions-flag-takes`, `flag_tile_taken_subscriber`,
   `record_flag_take_usecase`), and `ShieldStruck` (`missions-flag-strikes`, `shield_struck_subscriber`,
