@@ -447,6 +447,16 @@ func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 	assert.Equal(t, "a-secret", config.Planet.Redis.Password, "from REDIS_PASSWORD")
 }
 
+func TestTheProductionAlertsAreWhole(t *testing.T) {
+	config := productionConfig(t)
+
+	require.True(t, config.Alerts.Enabled)
+	assert.Equal(t, "alerts", config.Alerts.Database.Schema)
+	assert.Equal(t, config.Auth.Discord.ClientID, config.Alerts.Discord.ClientID, "the sign-in's application")
+	assert.Equal(t, "1310907949106860032", config.Alerts.Discord.GuildID, "an id, not a number YAML rounded")
+	require.NoError(t, config.Alerts.Validate())
+}
+
 func TestTheAntibotKeepsItsKeysOutsideThePlanetsBlock(t *testing.T) {
 	config := productionConfig(t)
 

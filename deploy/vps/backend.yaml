@@ -315,10 +315,9 @@ clips:
       accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
       secretAccessKey: env://MEDIA_BUCKET_SECRET
 
-# The game's Discord server: a player's link, its flag's role, and the pings. Off until the bot is in the server and
-# its token is a secret: see deploy/vps/README.md, "Discord pings".
+# The game's Discord server: a player's link, its flag's role, and the pings. See deploy/vps/README.md, "Discord pings".
 alerts:
-  enabled: false
+  enabled: true
   database:
     host: postgres
     password: env://POSTGRES_PASSWORD
@@ -334,4 +333,9 @@ alerts:
     password: env://REDIS_PASSWORD
   discord:
     clientId: "1549822806420885616"
+    clientSecret: env://DISCORD_CLIENT_SECRET
+    botToken: env://DISCORD_BOT_TOKEN
     redirectUrl: https://clickplanet.lol/auth/callback
+    guildId: "1310907949106860032"
+    alertsChannelId: "1566864909709607044"
+    battlesChannelId: "1566864959739011324"
