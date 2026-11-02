@@ -93,6 +93,7 @@ type caller struct {
 	scope string
 
 	nextOfferAt time.Time
+	lastOfferAt time.Time
 	lastSeen    time.Time
 	lastClickAt time.Time
 
@@ -106,6 +107,7 @@ type caller struct {
 	owedBox Kind
 
 	nextQuizAt      time.Time
+	lastQuizAt      time.Time
 	outstandingQuiz string
 	quizMisses      int
 	quizGrants      []time.Time
@@ -458,7 +460,7 @@ func (r *Registry) due(entry *caller, rules Rules, now time.Time) bool {
 		return false
 	}
 
-	return true
+	return !near(entry.outstandingQuiz, entry.lastQuizAt, entry.owedBox, rules, now)
 }
 
 func (r *Registry) offerable(ctx context.Context, entry *caller, rules Rules, now time.Time) *cpcolls.Set[Kind] {
@@ -528,6 +530,7 @@ func (r *Registry) offer(entrant Entrant, entry *caller, rules Rules, now time.T
 	}
 
 	entry.outstanding = token
+	entry.lastOfferAt = now
 	entry.nextOfferAt = offer.ExpiresAt.Add(boxWait(rules))
 
 	entry.send(Event{Offer: &offer})
@@ -579,6 +582,23 @@ func (r *Registry) forgetStale(now time.Time) {
 
 		delete(r.callers, entrant)
 	}
+}
+
+// A box and a quiz keep this far apart: half the shorter of their shortest waits, so one falls between two of the other
+// rather than beside one.
+func spacing(rules Rules) time.Duration {
+	return min(rules.Boxes.MinInterval, rules.Quiz.MinInterval) / 2
+}
+
+// near says the other of the two, out still or offered at offeredAt, is too close for this one to be offered now. It
+// is held, not redrawn, so it comes the moment the other is far enough. A welcome owed has its own moment, so it waits
+// only for the other to be gone.
+func near(out string, offeredAt time.Time, owed Kind, rules Rules, now time.Time) bool {
+	if out != "" {
+		return true
+	}
+
+	return owed == "" && now.Sub(offeredAt) < spacing(rules)
 }
 
 func boxWait(rules Rules) time.Duration {

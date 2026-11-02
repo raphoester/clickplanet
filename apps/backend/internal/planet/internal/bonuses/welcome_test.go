@@ -30,7 +30,8 @@ func newWelcomingRegistry(t *testing.T, kinds map[Kind]float64, welcome WelcomeR
 		rules.Kinds = kinds
 		rules.Welcome = welcome
 		rules.Boxes = Pace{MinInterval: ordinaryWindow, MaxInterval: ordinaryWindow, MaxChargesPerHour: 6}
-		rules.Quiz = quizzing(ordinaryWindow)
+		// Twice the box's, so the ordinary quiz never comes due beside the box these tests watch, and holds it.
+		rules.Quiz = quizzing(2 * ordinaryWindow)
 	})
 }
 

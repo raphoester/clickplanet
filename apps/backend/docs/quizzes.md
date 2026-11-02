@@ -8,12 +8,25 @@ caught box is. A wrong one, and running out of time, cost nothing.
 clock (the rule set's `bonuses.quiz.minInterval` / `maxInterval`; see [Rules](rules.md)), its own banner lifetime, its
 own `bonuses.quiz.missRetry`, and its own `bonuses.quiz.maxChargesPerHour` on top of
 the boxes'. The miss rule is the box's: a banner that lapses, opened or not,
-brings the next one forward once, and an answer, right or wrong, clears it. A
-caller can be holding an unopened banner and a flying box at the same time. What
+brings the next one forward once, and an answer, right or wrong, clears it. What
 it *does* share with a box is the reward: the kind is drawn at offer time from
 `bonuses.kinds`, filtered by `offerable` exactly as a box's is, so nobody is ever
 asked a question for a bomb they already hold, and a caller with nothing to gain
 is asked nothing.
+
+**A box and a quiz keep apart** (`near` and `spacing` in `bonuses/bonus.go`). The two clocks drew their waits knowing
+nothing of each other, both at 4-8 min, so a quiz came within 30s of a box one time in six and within a minute one
+time in three (the real registry, simulated on the production pace, 2026-11-02): two things to catch at once, then a
+long stretch with neither. Now neither is offered **while the other is out** (a box flying, a banner up, a question
+open), nor **less than `spacing` after the other was offered**: half the shorter of `bonuses.boxes.minInterval` and
+`bonuses.quiz.minInterval`, 2 min in production, so one falls between two of the other rather than beside one.
+
+- **The one due too close is held, not redrawn**: it comes the moment the other is far enough, so a clock loses at most
+  `spacing` and each comes about 4% less often an hour. On the same simulation no two came within 2 min, the median gap
+  stayed 3 min, and the longest stretch with nothing in an hour fell from 6.2 to 5.4 min.
+- **Both due at the same sweep**: the quiz goes first (`sweepQuizzes` runs before the boxes) and the box waits.
+- **A welcome keeps its own moment** ([A newcomer's first box and first quiz](welcome-bonus.md)): it waits for the
+  other to be gone, not for `spacing`.
 
 **The schedule lives in `bonuses`, the content in `quizzes`.** A caller is one
 thing — the streams it has open, when it last clicked, which accounts play
