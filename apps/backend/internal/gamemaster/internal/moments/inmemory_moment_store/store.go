@@ -16,17 +16,20 @@ var _ moments.Store = (*Store)(nil)
 func New() *Store {
 	return &Store{
 		rounds: map[moments.RoundID]moments.ScoredRound{}, books: map[moments.BookID]moments.ClosedBook{},
-		opened: cpcolls.NewSet[moments.RoundID](), told: map[moments.RoundID]time.Time{},
+		opened: cpcolls.NewSet[moments.RoundID](), toldSeasons: cpcolls.NewSet[moments.BookID](),
+		toldDays: map[moments.RoundID]time.Time{}, toldBattles: cpcolls.NewSet[moments.RoundID](),
 	}
 }
 
 type Store struct {
-	mu       sync.Mutex
-	rounds   map[moments.RoundID]moments.ScoredRound
-	books    map[moments.BookID]moments.ClosedBook
-	opened   *cpcolls.Set[moments.RoundID]
-	told     map[moments.RoundID]time.Time
-	failWith error
+	mu          sync.Mutex
+	rounds      map[moments.RoundID]moments.ScoredRound
+	books       map[moments.BookID]moments.ClosedBook
+	opened      *cpcolls.Set[moments.RoundID]
+	toldSeasons *cpcolls.Set[moments.BookID]
+	toldDays    map[moments.RoundID]time.Time
+	toldBattles *cpcolls.Set[moments.RoundID]
+	failWith    error
 }
 
 func (s *Store) KeepRound(_ context.Context, scored moments.ScoredRound) (bool, error) {
@@ -68,17 +71,45 @@ func (s *Store) KeepOpened(_ context.Context, round moments.RoundID) error {
 	return nil
 }
 
-func (s *Store) KeepTold(_ context.Context, day moments.ToldDay) (bool, error) {
+func (s *Store) KeepToldSeason(_ context.Context, book moments.BookID) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
 		return false, s.failWith
 	}
-	if told, ok := s.told[day.Round]; ok && told.Equal(day.EndsAt) {
+	if s.toldSeasons.Contains(book) {
 		return false, nil
 	}
-	s.told[day.Round] = day.EndsAt
+	s.toldSeasons.Add(book)
+	return true, nil
+}
+
+func (s *Store) KeepToldDay(_ context.Context, day moments.ToldDay) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return false, s.failWith
+	}
+	if told, ok := s.toldDays[day.Round]; ok && told.Equal(day.EndsAt) {
+		return false, nil
+	}
+	s.toldDays[day.Round] = day.EndsAt
+	return true, nil
+}
+
+func (s *Store) KeepToldBattle(_ context.Context, round moments.RoundID) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return false, s.failWith
+	}
+	if s.toldBattles.Contains(round) {
+		return false, nil
+	}
+	s.toldBattles.Add(round)
 	return true, nil
 }
 

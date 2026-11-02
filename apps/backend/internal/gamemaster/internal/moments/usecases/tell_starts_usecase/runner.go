@@ -1,4 +1,4 @@
-package tell_day_usecase
+package tell_starts_usecase
 
 import (
 	"context"
@@ -14,7 +14,7 @@ func NewRunner(interval time.Duration, executor Executor) *Runner {
 	return &Runner{interval: interval, executor: executor}
 }
 
-func (r *Runner) Name() string { return "gamemaster-days" }
+func (r *Runner) Name() string { return "gamemaster-starts" }
 
 func (r *Runner) Run(ctx context.Context) {
 	ticker := time.NewTicker(r.interval)

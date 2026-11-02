@@ -56,20 +56,46 @@ func (s *StoreContractSuite) TestTheRoundsOpenedAreReadAsKeptOnce() {
 	s.ElementsMatch([]RoundID{"season-0/day-24", "season-0/day-25"}, opened)
 }
 
+func (s *StoreContractSuite) TestASeasonIsToldOnce() {
+	first, err := s.store.KeepToldSeason(s.T().Context(), "season-1")
+	s.Require().NoError(err)
+	again, err := s.store.KeepToldSeason(s.T().Context(), "season-1")
+	s.Require().NoError(err)
+	next, err := s.store.KeepToldSeason(s.T().Context(), "season-2")
+	s.Require().NoError(err)
+
+	s.True(first)
+	s.False(again)
+	s.True(next)
+}
+
 func (s *StoreContractSuite) TestADayIsToldOnceAndAgainWhenItsEndMoves() {
 	day := ToldDay{Round: "season-0/day-24", EndsAt: contractEnd}
 	cut := ToldDay{Round: "season-0/day-24", EndsAt: contractEnd.Add(-time.Hour)}
 
-	first, err := s.store.KeepTold(s.T().Context(), day)
+	first, err := s.store.KeepToldDay(s.T().Context(), day)
 	s.Require().NoError(err)
-	again, err := s.store.KeepTold(s.T().Context(), day)
+	again, err := s.store.KeepToldDay(s.T().Context(), day)
 	s.Require().NoError(err)
-	moved, err := s.store.KeepTold(s.T().Context(), cut)
+	moved, err := s.store.KeepToldDay(s.T().Context(), cut)
 	s.Require().NoError(err)
 
 	s.True(first)
 	s.False(again)
 	s.True(moved, "a moved season end cut the day")
+}
+
+func (s *StoreContractSuite) TestABattleIsToldOnce() {
+	first, err := s.store.KeepToldBattle(s.T().Context(), "season-0/finale")
+	s.Require().NoError(err)
+	again, err := s.store.KeepToldBattle(s.T().Context(), "season-0/finale")
+	s.Require().NoError(err)
+	next, err := s.store.KeepToldBattle(s.T().Context(), "season-1/finale")
+	s.Require().NoError(err)
+
+	s.True(first)
+	s.False(again)
+	s.True(next)
 }
 
 func (s *StoreContractSuite) TestARoundAndABookOfOneSeasonAreEachKept() {

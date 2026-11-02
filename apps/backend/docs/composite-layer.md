@@ -32,10 +32,12 @@ return []bootstrap.Module{
 	gamemaster.NewModule(config.Gamemaster),
 	missions.NewModule(config.Missions),
 	support.NewModule(config.Support),
+	clips.NewModule(config.Clips),
+	alerts.NewModule(config.Alerts),
 }
 ```
 
-**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet`, `chat`, `player`, `scoring` and `support` have no switch and are always on; `auth` and `antibot` have one. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
+**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet`, `chat`, `player`, `scoring` and `support` have no switch and are always on; `auth`, `antibot` and `alerts` have one. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
 
 ## What two contexts need, without either handing it to the other
 
@@ -56,7 +58,7 @@ return []bootstrap.Module{
 
 | caller | asks | for | through |
 |---|---|---|---|
-| `planet`, `player`, `chat`, `scoring`, `support`, `missions` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | `shared/cpsessionverifier` |
+| `planet`, `player`, `chat`, `scoring`, `support`, `missions`, `alerts` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | `shared/cpsessionverifier` |
 | `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer` and each title award (`StatsChanged`); both, on each operator's `AdminService/GetPlayer` | `players/rpc_account_reader` |
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
@@ -70,6 +72,7 @@ return []bootstrap.Module{
 | `missions` | `planet.v1.InternalService/GetTerritories` and `GetCountrySizes` | what each flag holds and where, and how many tiles of land each country has, once per account and day and once per flag and day, to draw the missions | `missions/rpc_planet_world` |
 | `missions` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per account and day, to draw its missions, and on each `GetMissions`, for its flag's mission | `missions/rpc_planet_allegiance` |
 | `missions` | `auth.v1.InternalService/GetAccount` | whether an account is signed in, when a take finishes one of its missions | `missions/rpc_auth_accounts` |
+| `alerts` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per `CompleteDiscordLink`, for the role it joins the server with | `links/rpc_planet_allegiance` |
 | `clips` | `planet.v1.InternalService/GetLedger` | who took which tile in a run's window, page after page, on each `MakeCast` | `casts/rpc_planet_ledger` |
 | `clips` | `player.v1.InternalService/GetAuthors` | the name each of those accounts may be shown under in the clips, on each `MakeCast` | `casts/rpc_player_names` |
 | `gamemaster` | `planet.v1.InternalService/GetRuleSetNames` and `antibot.v1.InternalService/GetRuleSetNames` | the rule sets each module keeps, on each schedule entry an operator adds or edits | `schedule/rpc_planet_rule_sets`, `schedule/rpc_antibot_rule_sets` |
@@ -141,6 +144,10 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `commands:scoring.v1.ScoringCommand` (scoring's `handler`) | each command names its book or round: a book or round opened twice is one, a round closed twice is scored once, a book closed twice is ranked once, and a close of a round never opened scores nothing |
 | `commands:planet.v1.PlayRuleSet`, `commands:antibot.v1.PlayRuleSet` (each module's `handler`) | each command names when it was decided; the module keeps the latest choice (`rules.Choice.Overrules`, `rule_set_choice`), so a command sent again, or an older one, changes nothing |
 | `commands:planet.v1.ResetMap` (`handler`) | planet keeps each reset id in `map_resets`, in the wipe's transaction, so a reset told again wipes nothing |
+| `alerts-flags` | moves a link's role only when the take's flag is not the role's already; a second delivery finds it moved |
+| `alerts-attacks` | the watch forgets the attacker's takes once it found an attack, and a flag is pinged once in 3 hours (`attack_pings`), so a take told again finds no second attack |
+| `alerts-battles`, `alerts-seasons` | keeps each start pinged by its round's or book's id (`start_pings`), in the transaction of the post |
+| `alerts-accounts` | deletes the link and the flow, which is nothing the second time |
 | `gamemaster-rounds`, `gamemaster-books` | the gamemaster keeps each round scored and each book closed it heard (`scored_rounds`, `closed_books`, inserted once), and records its own event only for a new one |
 
 The marks need each source in order per account, which is why the map facts come from the ledger relay and not from each click: two clicks of one account could reach Redis in the other order. **What stays uncertain, on purpose**: two messages, boxes or answers of one account in the same microsecond, or a clock that jumps back, count once.
@@ -155,6 +162,7 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
 - `scoring.v1.RoundScored` and `BookClosed`: the round is scored once and the book closed once, so a lost one is never sent again and the gamemaster never tells that day, battle or season ended. Scoring records each in the transaction that scores the round or closes the book, only when this call did it.
 - `gamemaster.v1.DayEnded`, `BattleEnded` and `SeasonEnded`: the gamemaster records each in the transaction that keeps what it heard from scoring, only when it is new, so the chat announces each podium and champion once.
 - `gamemaster.v1.DayStarted`: the gamemaster records it in the transaction that keeps the day told (`told_days`), only when the day is new or its end moved, so missions keeps each day once.
+- `gamemaster.v1.SeasonStarted` and `BattleStarted`: the gamemaster records each in the same transaction, keeping the season and the battle told (`told_seasons`, `told_battles`), only when new, so the alerts ping each start once.
 - `player.v1.PlayerCreated`: a lost one is a new player that never gets its refill, since the profile is made once. `name_account_usecase` and `set_name_usecase` record it in the transaction that makes the profile.
 - `planet.v1.GrantCharges`, a command: a lost one is a mission paid that planet never granted. `missions`' `payroll` records it with the payment.
 - `missions.v1.MissionsPaid`: it is told with the payment it counts, so it shares the grant's transaction. The relay sends the grants as commands and it as an event (`redis_outbox_sender`), from one outbox.
@@ -204,7 +212,7 @@ The events today:
 
 | event | published by | when | heard by |
 |---|---|---|---|
-| `planet.v1.TileTaken{account_id, tile_id, country, taken_at, position, previous, ground, index}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each take the ledger flushed with an account: a click, a spread or an enclose, one event per tile, in ledger order; `previous` is the flag that held it, `ground` the country it is on (`clicks.Borders`); `index` is the take's place in its ledger event, from 0, since a spread's or an enclose's takes share one `position` | `player`, for the stats; `scoring`, for the books' boards and each round's takes and players; `missions`, for each account's day and each flag's |
+| `planet.v1.TileTaken{account_id, tile_id, country, taken_at, position, previous, ground, index}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each take the ledger flushed with an account: a click, a spread or an enclose, one event per tile, in ledger order; `previous` is the flag that held it, `ground` the country it is on (`clicks.Borders`); `index` is the take's place in its ledger event, from 0, since a spread's or an enclose's takes share one `position` | `player`, for the stats; `scoring`, for the books' boards and each round's takes and players; `missions`, for each account's day and each flag's; `alerts`, for the attacks and the role of a linked account's flag |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at, account_id, position, landmass_id}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each bomb the ledger flushed, on land or in the sea; a refused drop is not in the ledger | `chat`, which announces it; `player`, for the stats |
 | `planet.v1.Fortified{country, landmass_id, tiles, ground, fortified_at, account_id, position}` | `planet`, `ledger/usecases/relay_ledger_usecase` | each landmass a take fortified (see [Fortify](fortify.md)); `account_id` is the account that took the last tile, empty for a click with no account | `chat`, which announces the ones of 50 tiles or more; `player`, for the stats |
 | `planet.v1.BonusClaimed{account_id, claimed_at}` | `planet`, `claim_bonus_usecase` | after a caught box's charge is held; a refused claim, or a caller with no account, publishes nothing | `player`, for the stats |
@@ -213,7 +221,7 @@ The events today:
 | `planet.v1.MapRead{scope, maps, off_map, read_at}` | `planet`, `get_map_usecase`, through `facts.Relay` | each map batch read, as a share of the map, and whether a bound lies off it | `antibot`, for the `scraper` |
 | `planet.v1.StreamOpened{scope, opened_at}` | `planet`, `listen_for_events_usecase`, through `facts.Relay` | each live stream opened, even one that fails | `antibot`, for the `scraper` |
 | `planet.v1.BoxCaught{scope, after, caught_at}`, `BoxLapsed{scope, lapsed_at}`, `ForeignBoxClaimed{scope, claimed_at}` | `planet`, the box registry's report, through `bonuses/box_facts` and `facts.Relay` | a box claimed by the scope it was offered to, a box nobody claimed, and a claim of a box offered to another scope | `antibot`, for the `catcher` |
-| `auth.v1.AccountDeleted{account_id}` | `auth`, through its outbox, from `delete_account_usecase` and `prune_guests_usecase` | with the account row's deletion; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `scoring`, which forgets the account's tallies and its takes in the rounds; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark; `support`, which takes the account off the notes it sent and deletes the reports that name it; `missions`, which forgets the account's sheets and collections |
+| `auth.v1.AccountDeleted{account_id}` | `auth`, through its outbox, from `delete_account_usecase` and `prune_guests_usecase` | with the account row's deletion; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `scoring`, which forgets the account's tallies and its takes in the rounds; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark; `support`, which takes the account off the notes it sent and deletes the reports that name it; `missions`, which forgets the account's sheets and collections; `alerts`, which forgets the Discord link and its flow |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, through its outbox, from `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | with a sign-in or a link; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none; `missions`, which pays the day's missions the account finished as a guest |
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
@@ -223,7 +231,8 @@ The events today:
 | `player.v1.StatsChanged{account_id}` | `player`, `record_stats_usecase` | after each take, message, bomb, fortify, box, right answer or missions paid is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
 | `scoring.v1.RoundScored{round_id, book_id, ended_at, results}` | `scoring`, through its outbox | a round closed: scored from the map then, its points times its times | `gamemaster`, which tells which day or battle it was |
 | `scoring.v1.BookClosed{book_id, ended_at, table}` | `scoring`, through its outbox | a book closed: its table, the champion first | `gamemaster`, which tells which season it was |
-| `gamemaster.v1.DayStarted{season, day, round_id, book_id, starts_at, ends_at}` | `gamemaster`, through its outbox, from `tell_day_usecase` | the day that runs, once as it starts (a boot tells it if it was never told), and again when a moved season end moves its end | `missions`, which keeps it: a fact counts in the day that runs at its time |
+| `gamemaster.v1.DayStarted{season, day, round_id, book_id, starts_at, ends_at}` | `gamemaster`, through its outbox, from `tell_starts_usecase` | the day that runs, once as it starts (a boot tells it if it was never told), and again when a moved season end moves its end | `missions`, which keeps it: a fact counts in the day that runs at its time |
+| `gamemaster.v1.SeasonStarted{season, book_id, starts_at, ends_at}`, `BattleStarted{season, number, entry_id, times, ends_season, round_id, starts_at, ends_at}` | `gamemaster`, through its outbox, from `tell_starts_usecase` | the season and the battle (the finale too) that run, once as each starts; a boot tells one that runs if it was never told, never one that ended | `alerts`, which pings the server |
 | `gamemaster.v1.DayEnded{season, day, round_id, ended_at}`, `BattleEnded{season, number, entry_id, times, ends_season, round_id, ended_at}`, `SeasonEnded{season, book_id, ended_at, finale_round_id}` | `gamemaster`, through its outbox, once scoring scored it | a day, a battle or a season ended, in the game's words, with the ids to read its numbers by | `chat`, which reads the numbers from scoring and announces the podium or the champion |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.

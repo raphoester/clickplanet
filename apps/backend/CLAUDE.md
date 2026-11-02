@@ -21,8 +21,8 @@ and says what is in it. Read the doc before you change its area.
 
 ## How the code is shaped
 
-- [Nine bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, scoring, support,
-  missions, antibot, gamemaster.
+- [Ten bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, scoring, support,
+  missions, antibot, gamemaster, alerts.
   A module publishes its root package and hides the rest.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
   calls another one, how it tells the others what happened and asks one to change something: Redis Streams,
@@ -99,12 +99,15 @@ and says what is in it. Read the doc before you change its area.
   by the gamemaster's commands, each round scored from the map when it closes; no season, day, battle or clock.
 - [The gamemaster](docs/gamemaster.md) — every moment of the game: the rule schedule that commands planet and the
   antibot, the seasons, days and battles it opens and closes in scoring's books, each season's finale (the Final
-  Battle), the events in the game's words (each day as it starts), and the steps before the Final Battle.
+  Battle), the events in the game's words (each season, day and battle as it starts), and the steps before the Final
+  Battle.
 - [Missions](docs/missions.md) — four or five missions a day per player, in the days the gamemaster tells
   (`DayStarted`), counted from planet's facts (takes, boxes, right answers, bombs, shields, fortifies), paid once done
   with a `GrantCharges` command to planet; one flag mission a day per flag, worth season points (`GrantPoints` to
   scoring); why progress is not read from the ledger.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
+- [Discord pings](docs/alerts.md) — a player's Discord link, its flag's role in the game's server, and the pings when
+  its flag is attacked or a battle or a season starts; off by default.
 - [Clip stats](docs/clip-stats.md) — where the posted clips' daily numbers are kept, for the backoffice.
 - [Clip videos](docs/clip-videos.md) — the videos the operator posts by hand: uploaded and downloaded on the backoffice,
   the files in the bucket under `clips/videos/`, a row each in `clips.videos`.

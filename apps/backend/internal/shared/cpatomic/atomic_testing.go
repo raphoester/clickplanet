@@ -61,3 +61,13 @@ func (o *FakeOutbox) Recorded() []proto.Message {
 
 	return slices.Clone(o.committed)
 }
+
+// OnCommit keeps an in-memory store's write until the fake transaction ctx carries commits, and makes it at once outside
+// one: the store then keeps nothing a failed do wrote.
+func OnCommit(ctx context.Context, write func()) {
+	if inTx, open := ctx.Value(pendingKey{}).(*pending); open {
+		inTx.commits = append(inTx.commits, write)
+		return
+	}
+	write()
+}

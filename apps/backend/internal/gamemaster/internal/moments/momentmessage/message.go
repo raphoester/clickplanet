@@ -26,8 +26,12 @@ func DebriefOf(moment moments.Moment) (*gamemasterv1.Debrief, error) {
 // EventOf is a moment as the gamemaster.v1 event the other modules hear.
 func EventOf(moment moments.Moment) (proto.Message, error) {
 	switch told := moment.(type) {
+	case moments.SeasonStarted:
+		return seasonStarted(told), nil
 	case moments.DayStarted:
 		return dayStarted(told), nil
+	case moments.BattleStarted:
+		return battleStarted(told), nil
 	case moments.DayEnded:
 		return dayEnded(told), nil
 	case moments.BattleEnded:
@@ -38,11 +42,26 @@ func EventOf(moment moments.Moment) (proto.Message, error) {
 	return nil, fmt.Errorf("no event tells %T", moment)
 }
 
+func seasonStarted(told moments.SeasonStarted) *gamemasterv1.SeasonStarted {
+	return &gamemasterv1.SeasonStarted{
+		Season: uint32(told.Window.Number), BookId: string(moments.BookOf(told.Window.Number)),
+		StartsAt: timestamppb.New(told.Window.StartsAt), EndsAt: timestamppb.New(told.Window.EndsAt),
+	}
+}
+
 func dayStarted(told moments.DayStarted) *gamemasterv1.DayStarted {
 	return &gamemasterv1.DayStarted{
 		Season: uint32(told.Day.Season), Day: uint32(told.Day.Number), RoundId: string(moments.DayRoundOf(told.Day)),
 		BookId: string(moments.BookOf(told.Day.Season)), StartsAt: timestamppb.New(told.Day.StartsAt),
 		EndsAt: timestamppb.New(told.Day.EndsAt),
+	}
+}
+
+func battleStarted(told moments.BattleStarted) *gamemasterv1.BattleStarted {
+	return &gamemasterv1.BattleStarted{
+		Season: uint32(told.Battle.Season), Number: told.Battle.Number, EntryId: EntryIDOf(told.Battle),
+		Times: uint32(told.Battle.Times), EndsSeason: told.Battle.EndsSeason, RoundId: string(told.Battle.Round()),
+		StartsAt: timestamppb.New(told.Battle.StartsAt), EndsAt: timestamppb.New(told.Battle.EndsAt),
 	}
 }
 

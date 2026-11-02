@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
@@ -36,6 +37,8 @@ type Config struct {
 	Support    support.Config
 	// The numbers of the clips the clips job posted.
 	Clips clips.ModuleConfig
+	// The game's Discord server: a player's link, its flag's role, and the pings.
+	Alerts alerts.Config
 }
 
 func main() {
@@ -81,6 +84,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 		missions.NewModule(config.Missions),
 		support.NewModule(config.Support),
 		clips.NewModule(config.Clips),
+		alerts.NewModule(config.Alerts),
 	}
 }
 
@@ -106,5 +110,6 @@ func (c Config) Validate() error {
 		c.Missions.Validate(),
 		c.Support.Validate(),
 		c.Clips.Validate(),
+		c.Alerts.Validate(),
 	)
 }

@@ -128,6 +128,10 @@ import {useCrazyGames, useGameplay, useInvites, useRoom} from "../crazygames/use
 import InvitedModal from "../crazygames/InvitedModal.tsx";
 import InviteFriends from "../share/InviteFriends.tsx";
 import {MUTED_SOUND_SETTINGS} from "../../domain/soundSettings.ts";
+import {DiscordAlerts} from "../alerts/discordAlerts.ts";
+import {useDiscordAlerts} from "../alerts/useDiscordAlerts.ts";
+import {useUnderAttack} from "../alerts/useUnderAttack.ts";
+import UnderAttack from "../alerts/UnderAttack.tsx";
 import {Halo} from "./atmosphere.ts";
 import "../halloween/Halloween.css"
 import "./Viewer.css"
@@ -165,6 +169,7 @@ export type ViewerProps = {
     chargesRefresher?: ChargesRefresher
     clips?: ClipsBackend & ClipsNameBackend
     crazyGames?: CrazyGamesPage
+    alerts?: DiscordAlerts
 }
 
 // Planet grants a mission's reward from a command, after the read that says it is paid.
@@ -194,6 +199,7 @@ export default function Viewer(props: ViewerProps) {
     const ownAccountId = account.kind === 'ready' ? account.accountId : undefined
     const color = account.kind === 'ready' ? account.color : undefined
     const linked = account.kind === 'ready' && account.me.linked.length > 0
+    const discordPing = useDiscordAlerts(props.alerts, ownAccountId)
 
     usePresence(props.presence, {countryCode: countryState.code, username, color})
 
@@ -329,8 +335,9 @@ export default function Viewer(props: ViewerProps) {
         const timer = setTimeout(() => setFortifyCard(lastFortified.fortified), FORTIFY_CARD_DELAY_MS)
         return () => clearTimeout(timer)
     }, [lastFortified, fortifyGuide.seen])
+    const underAttack = useUnderAttack(discordPing !== undefined, countryState.code, tileDeltas, accepted.listenForClicks)
     // Moments show one at a time: the newest of them.
-    const newest = [lastBomb, lastFortified, lastClose].reduce<{at: number} | undefined>(
+    const newest = [lastBomb, lastFortified, lastClose, underAttack.moment].reduce<{at: number} | undefined>(
         (latest, moment) => moment && (!latest || moment.at > latest.at) ? moment : latest, undefined)
 
     const refiller = props.refiller
@@ -528,6 +535,7 @@ export default function Viewer(props: ViewerProps) {
             open={compact ? sheet === "chat" : undefined}
             onOpenChange={compact ? (open) => setSheet(open ? "chat" : undefined) : undefined}
             onUnread={setUnread}
+            onDiscordPing={discordPing}
         />}
 
         {ready && compact && <>
@@ -712,6 +720,14 @@ export default function Viewer(props: ViewerProps) {
             land={lastBomb.land}
             lowered={quiz.state.phase !== 'idle'}
             onDone={dismissBomb}
+        />}
+
+        {underAttack.moment && newest === underAttack.moment && discordPing && <UnderAttack
+            key={`attack-${underAttack.moment.at}`}
+            flag={countryState.code}
+            leave={discordPing}
+            lowered={quiz.state.phase !== 'idle'}
+            onDone={underAttack.dismiss}
         />}
 
         {battleOver.over && <BattleOver key={battleKeyOf(battleOver.over)}

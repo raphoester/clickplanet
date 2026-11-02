@@ -442,6 +442,28 @@ frontend has the button and the privacy policy page is live: we store email.
 4. Set `auth.signIn.enabled: true` and deploy. A client id with no secret
    refuses the boot.
 
+### Discord pings
+
+Off in `backend.yaml` (`alerts.enabled: false`). On, a player's "Get pinged on Discord" adds them to the game's
+Discord server with the role of their flag, and the server pings that role when their flag is attacked and every
+linked player when a battle or a season starts. It uses the sign-in's Discord application and redirect URI; nothing
+changes there.
+
+1. Developer portal > the application > Bot: reset the token and copy it. Store it:
+
+   ```bash
+   read -rsp 'Discord bot token: ' s && echo && printf '%s' "$s" | gh secret set DISCORD_BOT_TOKEN --repo raphoester/clickplanet && unset s
+   ```
+
+2. OAuth2 > URL Generator: scope `bot`, permissions **Manage Roles**, **Create Instant Invite**, **View Channels** and
+   **Send Messages**. Open the URL and add the bot to the server. The bot makes each role (`Battles`, then one per
+   flag) the first time it needs it, below its own role.
+3. In the server, make an `#alerts` and a `#battles` channel the bot can write in. Turn on AutoMod.
+4. In Discord, Settings > Advanced > Developer Mode, then right-click the server and each channel > Copy ID.
+5. In `backend.yaml`, under `alerts`: `enabled: true`, and under `alerts.discord` add
+   `clientSecret: env://DISCORD_CLIENT_SECRET`, `botToken: env://DISCORD_BOT_TOKEN`, `guildId`, `alertsChannelId`
+   and `battlesChannelId`. Deploy. A missing one refuses the boot.
+
 ### Sign-in by email
 
 Off in `backend.yaml` (`auth.email.enabled: false`). The server sends a

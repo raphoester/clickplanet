@@ -247,6 +247,20 @@ func (p Plan) DayAt(at time.Time) (season.Day, bool) {
 	return season.Day{}, false
 }
 
+// BattleAt is the battle that runs at a time, the season's finale included.
+func (p Plan) BattleAt(at time.Time) (Battle, bool) {
+	book, ok := p.BookAt(at)
+	if !ok {
+		return Battle{}, false
+	}
+	for _, battle := range book.Battles {
+		if battle.runs(at) {
+			return battle, true
+		}
+	}
+	return Battle{}, false
+}
+
 func (p Plan) DaysOf(number season.Number) []season.Day {
 	for _, book := range p.books {
 		if book.Window.Number == number {

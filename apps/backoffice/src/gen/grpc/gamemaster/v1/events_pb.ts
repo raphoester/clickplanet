@@ -78,6 +78,150 @@ export class DayStarted extends Message<DayStarted> {
 }
 
 /**
+ * A battle, the season's finale included, told once as it starts.
+ *
+ * @generated from message gamemaster.v1.BattleStarted
+ */
+export class BattleStarted extends Message<BattleStarted> {
+  /**
+   * @generated from field: uint32 season = 1;
+   */
+  season = 0;
+
+  /**
+   * The battle's place among the season's battles.
+   *
+   * @generated from field: uint32 number = 2;
+   */
+  number = 0;
+
+  /**
+   * Empty for the season's finale, which is the season's and no entry's.
+   *
+   * @generated from field: string entry_id = 3;
+   */
+  entryId = "";
+
+  /**
+   * @generated from field: uint32 times = 4;
+   */
+  times = 0;
+
+  /**
+   * The battle is the season's finale.
+   *
+   * @generated from field: bool ends_season = 5;
+   */
+  endsSeason = false;
+
+  /**
+   * @generated from field: string round_id = 6;
+   */
+  roundId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 7;
+   */
+  startsAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 8;
+   */
+  endsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<BattleStarted>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.BattleStarted";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "season", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "entry_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "ends_season", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 8, name: "ends_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BattleStarted {
+    return new BattleStarted().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BattleStarted {
+    return new BattleStarted().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BattleStarted {
+    return new BattleStarted().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BattleStarted | PlainMessage<BattleStarted> | undefined, b: BattleStarted | PlainMessage<BattleStarted> | undefined): boolean {
+    return proto3.util.equals(BattleStarted, a, b);
+  }
+}
+
+/**
+ * A season, told once as it starts.
+ *
+ * @generated from message gamemaster.v1.SeasonStarted
+ */
+export class SeasonStarted extends Message<SeasonStarted> {
+  /**
+   * @generated from field: uint32 season = 1;
+   */
+  season = 0;
+
+  /**
+   * @generated from field: string book_id = 2;
+   */
+  bookId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 3;
+   */
+  startsAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 4;
+   */
+  endsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<SeasonStarted>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.SeasonStarted";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "season", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 4, name: "ends_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SeasonStarted {
+    return new SeasonStarted().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SeasonStarted {
+    return new SeasonStarted().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SeasonStarted {
+    return new SeasonStarted().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SeasonStarted | PlainMessage<SeasonStarted> | undefined, b: SeasonStarted | PlainMessage<SeasonStarted> | undefined): boolean {
+    return proto3.util.equals(SeasonStarted, a, b);
+  }
+}
+
+/**
  * @generated from message gamemaster.v1.DayEnded
  */
 export class DayEnded extends Message<DayEnded> {

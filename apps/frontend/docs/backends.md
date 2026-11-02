@@ -20,7 +20,7 @@ Beside them: `session.ts` (the click token, see [Sessions](sessions.md)),
 playing](who-is-playing.md)). `playerBackend.ts` implements both against
 `player.v1.PlayerService`. `support.ts` is what a player sends the operator —
 see [Support](support.md). `clips.ts` is the clips that name the player — see [In a
-clip](clip-appearances.md).
+clip](clip-appearances.md). `alerts.ts` is the link to the Discord pings — see [Discord pings](discord-alerts.md).
 
 `transport.ts` holds what both contexts need and neither owns: `retrying`,
 `retryingAtOnce`, `NO_TIMEOUT`, and `openStream`, which follows a

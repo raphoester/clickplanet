@@ -391,6 +391,21 @@
     text-decoration: none;
 }
 
+.chat-discord-ping {
+    padding-top: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.chat-discord-ping:disabled {
+    cursor: default;
+}
+
 .chat-discord-link svg {
     flex-shrink: 0;
 }
