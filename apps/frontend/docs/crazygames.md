@@ -7,6 +7,8 @@ says why a host of its own and what the owner sets up.
 
 ## What changes there
 
+- **Every path is the game.** The home page sends the CrazyGames host to `/play` before it paints, whatever the
+  storage holds (see [Pages and routes](routes.md)).
 - **`/play` is the game at once, as a guest.** No donation popup (`DonationModal`), no Buy Me a Coffee, no Share tab,
   no recruit link, and About keeps the community links but not the author's: CrazyGames forbids a link to another
   place to play, and payments outside its own. The Invite tab and the frozen map's Invite copy CrazyGames' own link
