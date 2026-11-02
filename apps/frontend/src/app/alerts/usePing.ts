@@ -1,28 +1,26 @@
 import {useState} from "react"
-import {AlertsFailure, alertsFailureOf} from "../../backends/alerts.ts"
-import {PING_NAME, pingLabelOf} from "./alertsMessages.ts"
+import {AuthFailure, failureOf} from "../../backends/account.ts"
 
 export type Ping = {
-    label: string
-    name: string
     busy: boolean
+    failure?: AuthFailure
     press: () => void
 }
 
-export function usePing(leave: () => Promise<void>): Ping {
+// The press leaves for Discord: busy until the page goes, or the failure that kept it.
+export function usePing(connect: () => Promise<void>): Ping {
     const [busy, setBusy] = useState(false)
-    const [failure, setFailure] = useState<AlertsFailure>()
+    const [failure, setFailure] = useState<AuthFailure>()
 
     const press = () => {
         if (busy) return
         setBusy(true)
         setFailure(undefined)
-        leave().catch((e) => {
-            setFailure(alertsFailureOf(e))
+        connect().catch((e) => {
+            setFailure(failureOf(e))
             setBusy(false)
         })
     }
 
-    const label = pingLabelOf(failure)
-    return {label, name: failure ? label : PING_NAME, busy, press}
+    return {busy, failure, press}
 }

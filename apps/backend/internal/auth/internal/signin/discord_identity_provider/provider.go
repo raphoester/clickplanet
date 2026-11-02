@@ -28,12 +28,22 @@ type Provider struct {
 	redirectURL string
 	endpoints   Endpoints
 	http        *http.Client
+	joinServer  bool
 }
 
 var _ signin.Provider = (*Provider)(nil)
 
-func New(client signin.Client, redirectURL string, endpoints Endpoints, httpClient *http.Client) *Provider {
-	return &Provider{client: client, redirectURL: redirectURL, endpoints: endpoints, http: httpClient}
+// joinServer: every sign-in also asks leave to add the user to the game's Discord server (guilds.join), and its claim
+// carries the token that may.
+func New(client signin.Client, redirectURL string, endpoints Endpoints, httpClient *http.Client, joinServer bool) *Provider {
+	return &Provider{client: client, redirectURL: redirectURL, endpoints: endpoints, http: httpClient, joinServer: joinServer}
+}
+
+func (p *Provider) scope() string {
+	if p.joinServer {
+		return "identify email guilds.join"
+	}
+	return "identify email"
 }
 
 func (p *Provider) AuthorizationURL(flow *signin.Flow) string {
@@ -41,7 +51,7 @@ func (p *Provider) AuthorizationURL(flow *signin.Flow) string {
 		"client_id":             {p.client.ClientID},
 		"redirect_uri":          {p.redirectURL},
 		"response_type":         {"code"},
-		"scope":                 {"identify email"},
+		"scope":                 {p.scope()},
 		"state":                 {flow.State()},
 		"code_challenge":        {flow.Challenge()},
 		"code_challenge_method": {"S256"},
@@ -75,5 +85,8 @@ func (p *Provider) Exchange(ctx context.Context, code string, flow *signin.Flow)
 		return nil, fmt.Errorf("%w: discord named no user", signin.ErrProviderRefused)
 	}
 	claim := accounts.ClaimOf(me.ID, me.Email, me.Verified)
+	if p.joinServer {
+		claim = claim.WithServerToken(token.AccessToken)
+	}
 	return &claim, nil
 }

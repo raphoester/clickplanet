@@ -3,12 +3,14 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteDiscordLinkRequest, CompleteDiscordLinkResponse, GetDiscordLinkRequest, GetDiscordLinkResponse, StartDiscordLinkRequest, StartDiscordLinkResponse } from "./alerts_pb.js";
+import { GetDiscordLinkRequest, GetDiscordLinkResponse } from "./alerts_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * A player's Discord account, in the game's Discord server, with the role of the flag it plays for: the server pings
- * that role when its flag is attacked, and every linked player when a battle or a season starts.
+ * The game's Discord server. A player connected to it is pinged by its flag's role when its flag is attacked, and
+ * everybody in the server is pinged when a battle or a season starts. There is no link of its own to start here: a
+ * player connects Discord by signing in with it or linking it (auth.v1.AuthService/StartSignIn), and that one trip
+ * joins the server too (InternalService/JoinServer).
  *
  * @generated from service alerts.v1.AlertsService
  */
@@ -24,28 +26,6 @@ export const AlertsService = {
       O: GetDiscordLinkResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
-    },
-    /**
-     * The Discord page that asks the player to let the game add them to its server.
-     *
-     * @generated from rpc alerts.v1.AlertsService.StartDiscordLink
-     */
-    startDiscordLink: {
-      name: "StartDiscordLink",
-      I: StartDiscordLinkRequest,
-      O: StartDiscordLinkResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * With what Discord sent back to the redirect page: joins the player to the server, with its flag's role.
-     *
-     * @generated from rpc alerts.v1.AlertsService.CompleteDiscordLink
-     */
-    completeDiscordLink: {
-      name: "CompleteDiscordLink",
-      I: CompleteDiscordLinkRequest,
-      O: CompleteDiscordLinkResponse,
-      kind: MethodKind.Unary,
     },
   }
 } as const;

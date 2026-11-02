@@ -27,25 +27,6 @@ var (
 func TestTheStoresKeepWhatTheyAreGiven(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "alerts", migrations.FS)
 
-	t.Run("a flow until it is spent", func(t *testing.T) {
-		store := postgres_link_store.New(db)
-		_, err := store.FlowOf(t.Context(), first)
-		require.ErrorIs(t, err, links.ErrNoFlow)
-
-		flow, err := links.NewFlow(first, &links.SequentialSecrets{}, now)
-		require.NoError(t, err)
-		require.NoError(t, store.SaveFlow(t.Context(), flow))
-		kept, err := store.FlowOf(t.Context(), first)
-		require.NoError(t, err)
-		assert.Equal(t, flow.TakeSnapshot(), kept.TakeSnapshot())
-
-		_, err = kept.Spend("secret-1", now)
-		require.NoError(t, err)
-		require.NoError(t, store.SaveFlow(t.Context(), kept))
-		_, err = store.FlowOf(t.Context(), first)
-		assert.ErrorIs(t, err, links.ErrNoFlow)
-	})
-
 	t.Run("a link, by account and by user, with or without a flag", func(t *testing.T) {
 		store := postgres_link_store.New(db)
 		_, err := store.LinkOf(t.Context(), first)
@@ -73,15 +54,25 @@ func TestTheStoresKeepWhatTheyAreGiven(t *testing.T) {
 		assert.Equal(t, moved.TakeSnapshot(), byUser.TakeSnapshot())
 	})
 
-	t.Run("a role by its key", func(t *testing.T) {
+	t.Run("a role by its key, with its color, until it is forgotten", func(t *testing.T) {
 		store := postgres_role_store.New(db)
-		_, err := store.RoleOf(t.Context(), roles.Battles().Key)
+		ireland := roles.Nation("ie").Key
+		_, err := store.RoleOf(t.Context(), ireland)
 		require.ErrorIs(t, err, roles.ErrNoRole)
 
-		require.NoError(t, store.SaveRole(t.Context(), roles.Battles().Key, "77"))
-		id, err := store.RoleOf(t.Context(), roles.Battles().Key)
+		require.NoError(t, store.SaveRole(t.Context(), ireland, roles.Kept{ID: "77"}))
+		require.NoError(t, store.SaveRole(t.Context(), "battles", roles.Kept{ID: "78"}))
+		require.NoError(t, store.SaveRole(t.Context(), ireland, roles.Kept{ID: "77", Color: 0x169b62}))
+		kept, err := store.RoleOf(t.Context(), ireland)
 		require.NoError(t, err)
-		assert.Equal(t, "77", string(id))
+		assert.Equal(t, roles.Kept{ID: "77", Color: 0x169b62}, kept)
+
+		keys, err := store.Keys(t.Context())
+		require.NoError(t, err)
+		assert.Equal(t, []roles.Key{"battles", ireland}, keys)
+		require.NoError(t, store.ForgetRole(t.Context(), "battles"))
+		_, err = store.RoleOf(t.Context(), "battles")
+		assert.ErrorIs(t, err, roles.ErrNoRole)
 	})
 
 	t.Run("the pings", func(t *testing.T) {

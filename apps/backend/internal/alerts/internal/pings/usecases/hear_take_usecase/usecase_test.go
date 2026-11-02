@@ -52,7 +52,7 @@ func TestAnAttackOnALinkedFlagPingsItsRole(t *testing.T) {
 
 	require.Len(t, f.poster.Posts, 1)
 	assert.Equal(t, discord.ChannelID("100"), f.poster.Posts[0].Channel)
-	assert.Equal(t, role, f.poster.Posts[0].Mention)
+	assert.Equal(t, discord.RoleAudience(role), f.poster.Posts[0].Audience)
 	history, err := f.store.AttackPingsOf(t.Context(), "ie", now.Add(-pings.Day))
 	require.NoError(t, err)
 	assert.Equal(t, pings.History{now}, history)

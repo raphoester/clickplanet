@@ -3,11 +3,27 @@ package links
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
+
+type AccountID = cpsession.AccountID
+
+var ErrInvalidAccount = errors.New("not an account id")
+
+func AccountIDOf(value string) (AccountID, error) {
+	id, err := uuid.Parse(value)
+	if err != nil || id == uuid.Nil {
+		return AccountID{}, fmt.Errorf("%w: %q", ErrInvalidAccount, value)
+	}
+	return AccountID(id), nil
+}
 
 var ErrNoLink = errors.New("this account has no Discord link")
 
@@ -25,7 +41,7 @@ func NewLink(account AccountID, user discord.UserID, flag nations.Flag, now time
 	return Link{account: account, user: user, flag: flag, linkedAt: now}
 }
 
-// The roles the user's flag changes: no From when it had none.
+// The roles the user's flag changes: no From when it had none, no To when it holds none after.
 type Move struct {
 	User discord.UserID
 	From nations.Flag
@@ -41,12 +57,19 @@ func (l *Link) Follow(flag nations.Flag) (Move, bool) {
 	return move, true
 }
 
-func (l *Link) Forget() {
+// The flag's role leaves the user with the link.
+func (l *Link) Forget() Move {
 	l.forgotten = true
+	return Move{User: l.user, From: l.flag}
 }
 
 func (l Link) BelongsTo(account AccountID) bool {
 	return l.account == account
+}
+
+// The same account with the same Discord user: a join again changes nothing.
+func (l Link) Joins(account AccountID, user discord.UserID) bool {
+	return l.account == account && l.user == user
 }
 
 type LinkSnapshot struct {
@@ -66,8 +89,6 @@ func (s LinkSnapshot) Restore() Link {
 }
 
 type Store interface {
-	FlowOf(ctx context.Context, account AccountID) (Flow, error)
-	SaveFlow(ctx context.Context, flow Flow) error
 	LinkOf(ctx context.Context, account AccountID) (Link, error)
 	LinkOfUser(ctx context.Context, user discord.UserID) (Link, error)
 	SaveLinks(ctx context.Context, links ...Link) error

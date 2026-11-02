@@ -1,4 +1,4 @@
-package flag_subscriber
+package allegiance_pledged_subscriber
 
 import (
 	"context"
@@ -23,12 +23,9 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpredis.Handler[*planetv1.TileTaken] = Subscriber{}
+var _ cpredis.Handler[*planetv1.AllegiancePledged] = Subscriber{}
 
-func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error {
-	if event.GetAccountId() == "" {
-		return nil
-	}
+func (s Subscriber) Handle(ctx context.Context, event *planetv1.AllegiancePledged) error {
 	account, err := links.AccountIDOf(event.GetAccountId())
 	if err != nil {
 		return err //nolint:wrapcheck // the rule named it.

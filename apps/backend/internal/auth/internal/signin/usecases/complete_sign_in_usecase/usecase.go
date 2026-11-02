@@ -24,11 +24,14 @@ type UseCase struct {
 	providers signin.Providers
 	sealer    signin.Sealer
 	admitter  *signin.Admitter
+	server    signin.Server
 	clock     cptime.Clock
 }
 
-func New(providers signin.Providers, sealer signin.Sealer, admitter *signin.Admitter, clock cptime.Clock) *UseCase {
-	return &UseCase{providers: providers, sealer: sealer, admitter: admitter, clock: clock}
+func New(
+	providers signin.Providers, sealer signin.Sealer, admitter *signin.Admitter, server signin.Server, clock cptime.Clock,
+) *UseCase {
+	return &UseCase{providers: providers, sealer: sealer, admitter: admitter, server: server, clock: clock}
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
@@ -58,6 +61,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 	admission, err := u.admitter.Admit(ctx, flow.Provider(), flow.Intent(), *claim, visitor, now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign in: %w", err)
+	}
+	if token := claim.ServerToken(); token != "" {
+		u.server.Join(ctx, admission.Account(), claim.Subject(), token)
 	}
 	return admission, nil
 }

@@ -12,6 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/alerts/v1/alertsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1/sessionv1connect"
 
@@ -78,6 +79,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/log_mailer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/random_code_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/random_secret_generator"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/rpc_alerts_server"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_crazygames_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_sign_in_usecase"
@@ -118,6 +120,18 @@ func NewModule(config Config) cpbootstrap.Module {
 
 const providerTimeout = 10 * time.Second
 
+// The alerts module keeps the server: a Discord sign-in hands it the token that may join, over the internal listener.
+func discordServer(config DiscordConfig, props cpbootstrap.Props) (signin.Server, error) {
+	if !config.JoinServer {
+		return signin.NoServer{}, nil
+	}
+	internal, baseURL, err := props.Internal.Dial()
+	if err != nil {
+		return nil, fmt.Errorf("the auth module asks the alerts module to join a Discord sign-in to the server: %w", err)
+	}
+	return rpc_alerts_server.New(alertsv1connect.NewInternalServiceClient(internal, baseURL), props.Logger), nil
+}
+
 func newProviders(config Config) signin.Providers {
 	providers := signin.Providers{}
 	if !config.SignIn.Enabled {
@@ -130,8 +144,8 @@ func newProviders(config Config) signin.Providers {
 			google_identity_provider.Production, httpClient, cptime.SystemClock{})
 	}
 	if config.Discord.Configured() {
-		providers[signin.Discord] = discord_identity_provider.New(config.Discord, config.SignIn.RedirectURL,
-			discord_identity_provider.Production, httpClient)
+		providers[signin.Discord] = discord_identity_provider.New(config.Discord.Client, config.SignIn.RedirectURL,
+			discord_identity_provider.Production, httpClient, config.Discord.JoinServer)
 	}
 	return providers
 }
@@ -252,6 +266,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	register := arrivals.NewRegister(arrivalStore, arrival_ids.Provider{})
 	admitter := signin.NewAdmitter(db, store, outbox, register, uuid_id_provider.Provider{}, random_token_generator.Generator{},
 		config.Sessions)
+	server, err := discordServer(config.Discord, props)
+	if err != nil {
+		return err
+	}
 	challenges := signin.NewChallenges(config.Email.Enabled, random_secret_generator.Generator{}, mail.codes, sealer, attemptLimiter)
 	post := signin.NewPost(blocklist, sendLimiter, mail.mailer)
 
@@ -277,7 +295,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 			start_sign_in_usecase.New(providers, store, random_secret_generator.Generator{}, sealer, clock),
 		),
 		CompleteSignInHandler: complete_sign_in_handler.New(
-			complete_sign_in_usecase.New(providers, sealer, admitter, clock),
+			complete_sign_in_usecase.New(providers, sealer, admitter, server, clock),
 			props.Logger,
 		),
 		StartEmailSignInHandler: start_email_sign_in_handler.New(
@@ -395,7 +413,7 @@ type Config struct {
 	SignIn signin.Config
 
 	Google  signin.Client
-	Discord signin.Client
+	Discord DiscordConfig
 
 	CrazyGames CrazyGamesConfig
 
@@ -404,6 +422,14 @@ type Config struct {
 	Prune prune_guests_usecase.Config
 
 	Admin AdminConfig
+}
+
+type DiscordConfig struct {
+	signin.Client `koanf:",squash"`
+
+	// Every Discord sign-in also joins the game's Discord server, which the alerts module keeps: the player is pinged
+	// there. Discord asks the player for that leave (guilds.join) on the same page.
+	JoinServer bool
 }
 
 type CrazyGamesConfig struct {
@@ -485,7 +511,7 @@ func (c Config) signInError() error {
 	}
 
 	offered := 0
-	for name, client := range map[string]signin.Client{"google": c.Google, "discord": c.Discord} {
+	for name, client := range map[string]signin.Client{"google": c.Google, "discord": c.Discord.Client} {
 		if !client.Configured() {
 			continue
 		}

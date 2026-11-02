@@ -176,6 +176,33 @@ describe("AccountStore", () => {
             })
         })
 
+        it.each<[string, Me, "signIn" | "link"]>([
+            ["a guest signs in with it", {linked: []}, "signIn"],
+            ["an account signed in with Google links it", {linked: ["google"]}, "link"],
+            ["an account signed in with Discord links it again", {linked: ["discord"]}, "link"],
+        ])("connects Discord, which joins the server: %s", async (_, me, intent) => {
+            const backend = fakeBackend(["google", "discord"], me)
+            const {store, navigate, remember} = setup(backend)
+            await store.load()
+
+            await store.connectDiscord()
+
+            expect(backend.startSignIn).toHaveBeenCalledWith("discord", intent)
+            expect(remember).toHaveBeenCalledWith("discord", intent)
+            expect(navigate).toHaveBeenCalledWith("https://discord.example/authorize")
+        })
+
+        it("throws a refused Discord connection, for the button that asked, and keeps the panel as it was", async () => {
+            const backend = fakeBackend()
+            backend.startSignIn.mockImplementation(refusing("tooManyTries"))
+            const {store} = setup(backend)
+            await store.load()
+
+            await expect(store.connectDiscord()).rejects.toMatchObject({failure: "tooManyTries"})
+
+            expect(store.state()).toEqual({kind: "ready", offered: ["google", "discord"], me: {linked: []}})
+        })
+
         it("leaves from the callback page without a load, and throws there", async () => {
             const backend = fakeBackend()
             const {store, navigate} = setup(backend)

@@ -42,13 +42,15 @@ export class GetDiscordLinkRequest extends Message<GetDiscordLinkRequest> {
  */
 export class GetDiscordLinkResponse extends Message<GetDiscordLinkResponse> {
   /**
-   * False: this server pings nobody, and offers no link.
+   * False: this server pings nobody, and a Discord sign-in joins no server.
    *
    * @generated from field: bool offered = 1;
    */
   offered = false;
 
   /**
+   * The caller's account is in the server with its flag's role.
+   *
    * @generated from field: bool linked = 2;
    */
   linked = false;
@@ -87,154 +89,6 @@ export class GetDiscordLinkResponse extends Message<GetDiscordLinkResponse> {
 
   static equals(a: GetDiscordLinkResponse | PlainMessage<GetDiscordLinkResponse> | undefined, b: GetDiscordLinkResponse | PlainMessage<GetDiscordLinkResponse> | undefined): boolean {
     return proto3.util.equals(GetDiscordLinkResponse, a, b);
-  }
-}
-
-/**
- * @generated from message alerts.v1.StartDiscordLinkRequest
- */
-export class StartDiscordLinkRequest extends Message<StartDiscordLinkRequest> {
-  constructor(data?: PartialMessage<StartDiscordLinkRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "alerts.v1.StartDiscordLinkRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartDiscordLinkRequest {
-    return new StartDiscordLinkRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartDiscordLinkRequest {
-    return new StartDiscordLinkRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartDiscordLinkRequest {
-    return new StartDiscordLinkRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: StartDiscordLinkRequest | PlainMessage<StartDiscordLinkRequest> | undefined, b: StartDiscordLinkRequest | PlainMessage<StartDiscordLinkRequest> | undefined): boolean {
-    return proto3.util.equals(StartDiscordLinkRequest, a, b);
-  }
-}
-
-/**
- * @generated from message alerts.v1.StartDiscordLinkResponse
- */
-export class StartDiscordLinkResponse extends Message<StartDiscordLinkResponse> {
-  /**
-   * @generated from field: string authorization_url = 1;
-   */
-  authorizationUrl = "";
-
-  constructor(data?: PartialMessage<StartDiscordLinkResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "alerts.v1.StartDiscordLinkResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "authorization_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StartDiscordLinkResponse {
-    return new StartDiscordLinkResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StartDiscordLinkResponse {
-    return new StartDiscordLinkResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StartDiscordLinkResponse {
-    return new StartDiscordLinkResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: StartDiscordLinkResponse | PlainMessage<StartDiscordLinkResponse> | undefined, b: StartDiscordLinkResponse | PlainMessage<StartDiscordLinkResponse> | undefined): boolean {
-    return proto3.util.equals(StartDiscordLinkResponse, a, b);
-  }
-}
-
-/**
- * @generated from message alerts.v1.CompleteDiscordLinkRequest
- */
-export class CompleteDiscordLinkRequest extends Message<CompleteDiscordLinkRequest> {
-  /**
-   * @generated from field: string code = 1;
-   */
-  code = "";
-
-  /**
-   * @generated from field: string state = 2;
-   */
-  state = "";
-
-  constructor(data?: PartialMessage<CompleteDiscordLinkRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "alerts.v1.CompleteDiscordLinkRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "state", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteDiscordLinkRequest {
-    return new CompleteDiscordLinkRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CompleteDiscordLinkRequest {
-    return new CompleteDiscordLinkRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CompleteDiscordLinkRequest {
-    return new CompleteDiscordLinkRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: CompleteDiscordLinkRequest | PlainMessage<CompleteDiscordLinkRequest> | undefined, b: CompleteDiscordLinkRequest | PlainMessage<CompleteDiscordLinkRequest> | undefined): boolean {
-    return proto3.util.equals(CompleteDiscordLinkRequest, a, b);
-  }
-}
-
-/**
- * @generated from message alerts.v1.CompleteDiscordLinkResponse
- */
-export class CompleteDiscordLinkResponse extends Message<CompleteDiscordLinkResponse> {
-  /**
-   * @generated from field: string server_url = 1;
-   */
-  serverUrl = "";
-
-  constructor(data?: PartialMessage<CompleteDiscordLinkResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "alerts.v1.CompleteDiscordLinkResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "server_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteDiscordLinkResponse {
-    return new CompleteDiscordLinkResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CompleteDiscordLinkResponse {
-    return new CompleteDiscordLinkResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CompleteDiscordLinkResponse {
-    return new CompleteDiscordLinkResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: CompleteDiscordLinkResponse | PlainMessage<CompleteDiscordLinkResponse> | undefined, b: CompleteDiscordLinkResponse | PlainMessage<CompleteDiscordLinkResponse> | undefined): boolean {
-    return proto3.util.equals(CompleteDiscordLinkResponse, a, b);
   }
 }
 

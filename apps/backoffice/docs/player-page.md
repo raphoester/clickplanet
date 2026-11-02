@@ -57,7 +57,12 @@ address>`), so Back goes to the list, as it was.
   (`Unmute`, which ends every mute given to the account and says until when it was muted; `not_found` is no mute of
   its own: a mute on its network given to another account is lifted from that account's page),
   Charges (`GrantCharges`: a refill, a bomb, enclosures, spread clicks, shields; the answer says what the account
-  held before and after, since the caps hold) and Flag (`FlagPanel`, `ReleaseAllegiance`: the hour of wait after a
+  held before and after, since the caps hold), Flag (`FlagPanel`, `ReleaseAllegiance`: the hour of wait after a
   change of flag is lifted, so the player's next pick goes at once; the answer says when a battle's lock still holds
-  it). **Max out** sends every charge at the form's ceiling (`MAX_GRANT`) in one tap, and the server's caps make it a
-  full inventory.
+  it), and Discord (`DiscordPanel`, `alerts.v1.AdminService`). **Max out** sends every charge at the form's ceiling
+  (`MAX_GRANT`) in one tap, and the server's caps make it a full inventory.
+- **The Discord tool** reads the account's link when opened (`GetPlayerLink`): the Discord user (with Copy), the flag
+  whose role it holds, and since when; "Not linked" otherwise; the alerts module off (`unimplemented`) says so.
+  **Unlink Discord** (`UnlinkPlayer`) forgets the link and takes the flag's role off the user, who stays in the
+  server, then reads it again. The game then offers that account "Join Discord" again: this is how the operator tries
+  the offer on their own account. See the backend's [Discord pings](../../backend/docs/alerts.md).

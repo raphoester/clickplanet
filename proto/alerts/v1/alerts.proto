@@ -2,41 +2,23 @@ syntax = "proto3";
 
 package alerts.v1;
 
-// A player's Discord account, in the game's Discord server, with the role of the flag it plays for: the server pings
-// that role when its flag is attacked, and every linked player when a battle or a season starts.
+// The game's Discord server. A player connected to it is pinged by its flag's role when its flag is attacked, and
+// everybody in the server is pinged when a battle or a season starts. There is no link of its own to start here: a
+// player connects Discord by signing in with it or linking it (auth.v1.AuthService/StartSignIn), and that one trip
+// joins the server too (InternalService/JoinServer).
 service AlertsService {
   rpc GetDiscordLink(GetDiscordLinkRequest) returns (GetDiscordLinkResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-
-  // The Discord page that asks the player to let the game add them to its server.
-  rpc StartDiscordLink(StartDiscordLinkRequest) returns (StartDiscordLinkResponse);
-
-  // With what Discord sent back to the redirect page: joins the player to the server, with its flag's role.
-  rpc CompleteDiscordLink(CompleteDiscordLinkRequest) returns (CompleteDiscordLinkResponse);
 }
 
 message GetDiscordLinkRequest {}
 
 message GetDiscordLinkResponse {
-  // False: this server pings nobody, and offers no link.
+  // False: this server pings nobody, and a Discord sign-in joins no server.
   bool offered = 1;
+  // The caller's account is in the server with its flag's role.
   bool linked = 2;
   // The server's page in Discord, where the pings are. Empty when not offered.
   string server_url = 3;
-}
-
-message StartDiscordLinkRequest {}
-
-message StartDiscordLinkResponse {
-  string authorization_url = 1;
-}
-
-message CompleteDiscordLinkRequest {
-  string code = 1;
-  string state = 2;
-}
-
-message CompleteDiscordLinkResponse {
-  string server_url = 1;
 }

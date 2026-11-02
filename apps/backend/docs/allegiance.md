@@ -23,6 +23,11 @@ player could paint for one country and defend another click to click. **Only
   time, in the store's `Change`: one transaction under `pg_advisory_xact_lock` on the
   account, so two tabs pledging two flags at once cannot both change it. A caller with
   no account is `ErrNoAccount`, and a flag that is no country `clicks.ErrUnknownCountry`.
+  **A pledge that sets or changes the flag is told**, once written: `Teller.Pledged`, which
+  `allegiance_facts` tells as `planet.v1.AllegiancePledged` (the account, the flag, the
+  flag it left, empty for a first one) through the facts log, as the other facts go. The
+  same flag again, a refusal and a release tell nothing. `alerts` hears it to move the
+  player's Discord role (see [Discord pings](alerts.md)).
   **`Book.PlayError(ctx, payer, flag)`** reads the store and asks `PlayError`. A caller
   with no account (the deprecated mint, `auth` off) is held to nothing, and a flag that
   is no country is left to the click use case, which refuses it.

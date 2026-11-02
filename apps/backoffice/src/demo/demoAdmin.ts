@@ -37,6 +37,12 @@ import {
     TopPlayersResponse,
 } from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Rules as AntibotRules} from "../gen/grpc/antibot/v1/rules_pb.ts"
+import {
+    GetPlayerLinkRequest,
+    GetPlayerLinkResponse,
+    UnlinkPlayerRequest,
+    UnlinkPlayerResponse,
+} from "../gen/grpc/alerts/v1/admin_pb.ts"
 import {Rules as PlanetRules} from "../gen/grpc/planet/v1/rules_pb.ts"
 import {
     CreateVideoUploadRequest,
@@ -400,6 +406,22 @@ export class DemoAdmin extends FakeAdmin {
         })
         this.inspections.set(key, fresh)
         return fresh
+    }
+
+    // Every account is linked to Discord until the page unlinks it.
+    private readonly unlinkedFromDiscord = new Set<string>()
+
+    readonly demoAlerts = {
+        getPlayerLink: (request: PartialMessage<GetPlayerLinkRequest>) => this.answer("getPlayerLink", request,
+            new GetPlayerLinkResponse({
+                link: this.unlinkedFromDiscord.has(request.accountId ?? "") ? undefined : this.discordLink,
+            })),
+        unlinkPlayer: (request: PartialMessage<UnlinkPlayerRequest>) => {
+            const accountId = request.accountId ?? ""
+            const unlinked = !this.unlinkedFromDiscord.has(accountId)
+            this.unlinkedFromDiscord.add(accountId)
+            return this.answer("unlinkPlayer", request, new UnlinkPlayerResponse({unlinked}))
+        },
     }
 
     readonly demoAntibot = {

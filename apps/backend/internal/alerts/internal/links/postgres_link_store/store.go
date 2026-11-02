@@ -25,40 +25,6 @@ type Store struct {
 
 var _ links.Store = (*Store)(nil)
 
-func (s *Store) FlowOf(ctx context.Context, account links.AccountID) (links.Flow, error) {
-	kept := links.FlowSnapshot{Account: account}
-	err := s.db.On(ctx).QueryRowContext(ctx, `
-		SELECT state, verifier, expires_at FROM link_flows WHERE account_id = $1
-	`, uuid.UUID(account)).Scan(&kept.State, &kept.Verifier, &kept.ExpiresAt)
-	if errors.Is(err, sql.ErrNoRows) {
-		return links.Flow{}, links.ErrNoFlow
-	}
-	if err != nil {
-		return links.Flow{}, fmt.Errorf("failed to read the link flow: %w", err)
-	}
-	kept.ExpiresAt = kept.ExpiresAt.UTC()
-	return kept.Restore(), nil
-}
-
-func (s *Store) SaveFlow(ctx context.Context, flow links.Flow) error {
-	kept := flow.TakeSnapshot()
-	if kept.Spent {
-		if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM link_flows WHERE account_id = $1`,
-			uuid.UUID(kept.Account)); err != nil {
-			return fmt.Errorf("failed to delete a spent link flow: %w", err)
-		}
-		return nil
-	}
-	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO link_flows (account_id, state, verifier, expires_at) VALUES ($1, $2, $3, $4)
-		ON CONFLICT (account_id) DO UPDATE SET
-			state = EXCLUDED.state, verifier = EXCLUDED.verifier, expires_at = EXCLUDED.expires_at
-	`, uuid.UUID(kept.Account), kept.State, kept.Verifier, kept.ExpiresAt.UTC()); err != nil {
-		return fmt.Errorf("failed to upsert a link flow: %w", err)
-	}
-	return nil
-}
-
 func (s *Store) LinkOf(ctx context.Context, account links.AccountID) (links.Link, error) {
 	return s.restored(ctx, `
 		SELECT account_id, discord_user, flag, linked_at FROM links WHERE account_id = $1

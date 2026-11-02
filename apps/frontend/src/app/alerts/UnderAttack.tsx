@@ -2,6 +2,7 @@ import {useEffect, useRef} from "react"
 import {Countries} from "../../domain/countries.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {DiscordIcon} from "../components/icons.tsx"
+import {pingFailureOf, pingNameOf} from "./alertsMessages.ts"
 import {usePing} from "./usePing.ts"
 import "../components/BombNews.css"
 import "./UnderAttack.css"
@@ -10,14 +11,15 @@ export const UNDER_ATTACK_MS = 8000
 
 export type UnderAttackProps = {
     flag: string
-    leave: () => Promise<void>
+    connect: () => Promise<void>
     lowered?: boolean
     onDone: () => void
 }
 
-export default function UnderAttack({flag, leave, lowered, onDone}: UnderAttackProps) {
-    const ping = usePing(leave)
+export default function UnderAttack({flag, connect, lowered, onDone}: UnderAttackProps) {
+    const ping = usePing(connect)
     const name = Countries.get(flag)?.name ?? flag
+    const label = ping.failure ? pingFailureOf(ping.failure) : "Get pinged"
 
     const done = useRef(onDone)
     useEffect(() => {
@@ -37,12 +39,12 @@ export default function UnderAttack({flag, leave, lowered, onDone}: UnderAttackP
             </span>
             <button type="button"
                     className="button button-mini under-attack-ping"
-                    aria-label={ping.name}
+                    aria-label={ping.failure ? label : pingNameOf(name)}
                     aria-busy={ping.busy}
                     disabled={ping.busy}
                     onClick={ping.press}>
                 <DiscordIcon size={18}/>
-                {ping.label}
+                {label}
             </button>
         </div>
     </div>

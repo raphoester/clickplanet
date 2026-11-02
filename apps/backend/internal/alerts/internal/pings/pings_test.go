@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
@@ -88,13 +89,13 @@ func TestTheHeraldCallsTheVictimsRoleToDefend(t *testing.T) {
 	require.NoError(t, herald.CallToDefend(t.Context(), pings.Attack{Victim: "ie", Attacker: "gb", Ground: "us", Tiles: 240}))
 
 	assert.Equal(t, []pings.Post{{
-		Channel: "100",
-		Text:    "<@&1> 🇬🇧 United Kingdom took 240 of your tiles in 🇺🇸 United States in 5 minutes. https://clickplanet.lol/play",
-		Mention: role,
+		Channel:  "100",
+		Text:     "<@&1> 🇬🇧 United Kingdom took 240 of your tiles in 🇺🇸 United States in 5 minutes. https://clickplanet.lol/play",
+		Audience: discord.RoleAudience(role),
 	}}, poster.Posts)
 }
 
-func TestTheHeraldCallsEveryoneToBattle(t *testing.T) {
+func TestTheHeraldCallsEverybodyInTheServerToBattle(t *testing.T) {
 	poster := &pings.RecordedPoster{}
 	herald, _ := herald(poster)
 	ends := time.Unix(1793570400, 0)
@@ -109,8 +110,8 @@ func TestTheHeraldCallsEveryoneToBattle(t *testing.T) {
 	require.ErrorIs(t, herald.CallToBattle(t.Context(), pings.Start{}), pings.ErrUnknownStart)
 
 	assert.Equal(t, []pings.Post{
-		{Channel: "200", Mention: "1", Text: "<@&1> ⚔️ The battle is on: 2x points until <t:1793570400:t>. https://clickplanet.lol/play"},
-		{Channel: "200", Mention: "1", Text: "<@&1> ⚔️ The Final Battle of season 1 is on: 3x points until <t:1793570400:t>. https://clickplanet.lol/play"},
-		{Channel: "200", Mention: "1", Text: "<@&1> 🌍 Season 2 has started on a blank map. https://clickplanet.lol/play"},
+		{Channel: "200", Audience: discord.Everybody(), Text: "@everyone ⚔️ The battle is on: 2x points until <t:1793570400:t>. https://clickplanet.lol/play"},
+		{Channel: "200", Audience: discord.Everybody(), Text: "@everyone ⚔️ The Final Battle of season 1 is on: 3x points until <t:1793570400:t>. https://clickplanet.lol/play"},
+		{Channel: "200", Audience: discord.Everybody(), Text: "@everyone 🌍 Season 2 has started on a blank map. https://clickplanet.lol/play"},
 	}, poster.Posts)
 }

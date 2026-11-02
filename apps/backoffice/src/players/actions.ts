@@ -1,7 +1,8 @@
 import {Duration} from "@bufbuild/protobuf"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {LONG_CALL_MS} from "../api.ts"
-import {AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAdmin} from "../clients.ts"
+import {AlertsAdmin, AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAdmin} from "../clients.ts"
+import {DiscordLink} from "../gen/grpc/alerts/v1/admin_pb.ts"
 import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {ChargesHeld} from "../gen/grpc/planet/v1/planet_pb.ts"
@@ -106,6 +107,25 @@ export async function release(planet: PlanetAdmin, accountId: string): Promise<R
     return {locked: answer.locked}
 }
 
+export type Linking = {on: false} | {on: true, link: DiscordLink | undefined}
+
+// The account's Discord link, if any. The alerts module off (its service absent) reads as such, not as a failure.
+export async function linkingOf(alerts: AlertsAdmin, accountId: string, signal?: AbortSignal): Promise<Linking> {
+    try {
+        const answer = await alerts.getPlayerLink({accountId}, {signal})
+        return {on: true, link: answer.link}
+    } catch (err) {
+        if (ConnectError.from(err).code === Code.Unimplemented) return {on: false}
+        throw err
+    }
+}
+
+// Forgets the link and takes the flag's role off the Discord user, who stays in the server. False: it was not linked.
+export async function unlink(alerts: AlertsAdmin, accountId: string): Promise<boolean> {
+    const answer = await alerts.unlinkPlayer({accountId})
+    return answer.unlinked
+}
+
 export function grantsAnything(charges: Grant): boolean {
     return charges.refill || charges.bomb || charges.enclosures > 0 || charges.spreadClicks > 0 || charges.shields > 0
 }
@@ -164,11 +184,12 @@ export function bannedWords(banned: Banned): string {
         + (banned.enforced ? "" : " Not enforced: the antibot only watches on this server.")
 }
 
-export type Action = "mute" | "unmute" | "ban" | "unban" | "revert" | "inspect" | "grant" | "release" | "list"
+export type Action = "mute" | "unmute" | "ban" | "unban" | "revert" | "inspect" | "grant" | "release" | "unlink" | "list"
 
 export const ANTIBOT_OFF = "The antibot is off on this server, so it cannot ban, unban or inspect."
 export const NOT_BANNED = "This player has no ban left to lift."
 export const NOT_MUTED = "This player has no mute of its own to lift."
+export const ALERTS_OFF = "Discord pings are off on this server, so no account is linked to Discord."
 
 const MEANINGS: Record<Action, Meanings> = {
     mute: {},
@@ -179,6 +200,7 @@ const MEANINGS: Record<Action, Meanings> = {
     inspect: {unimplemented: ANTIBOT_OFF},
     grant: {},
     release: {},
+    unlink: {unimplemented: ALERTS_OFF},
     list: {},
 }
 

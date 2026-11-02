@@ -422,6 +422,22 @@
     text-shadow: var(--text-drop);
 }
 
+.chat-discord--connect {
+    flex-wrap: wrap;
+}
+
+/* Under the row: the icon is 24px and the gap 10px. */
+.chat-discord-hint {
+    order: 1;
+    flex: 1 0 100%;
+    margin: -6px 0 0;
+    padding: 0 var(--space-3) var(--space-2) calc(var(--space-3) + 34px);
+    font-size: var(--text-s);
+    font-weight: 600;
+    line-height: 1.25;
+    color: color-mix(in srgb, var(--text) 85%, var(--discord));
+}
+
 .chat-discord-other {
     display: flex;
     align-items: center;

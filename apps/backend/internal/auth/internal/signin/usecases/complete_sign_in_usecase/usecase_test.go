@@ -34,6 +34,7 @@ var (
 type fixture struct {
 	sealer     *aes_flow_sealer.Sealer
 	google     *signin.FakeProvider
+	server     *signin.RecordedServer
 	store      *inmemory_account_store.Store
 	arrivals   *inmemory_arrival_store.Store
 	outbox     *cpatomic.FakeOutbox
@@ -48,10 +49,10 @@ func setUp(t *testing.T) *fixture {
 
 	sealer, err := aes_flow_sealer.New(bytes.Repeat([]byte{1}, 32))
 	require.NoError(t, err)
-	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), store: inmemory_account_store.New(), arrivals: inmemory_arrival_store.New(), outbox: &cpatomic.FakeOutbox{}, clock: cptime.NewFixedClock(start)}
+	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), server: &signin.RecordedServer{}, store: inmemory_account_store.New(), arrivals: inmemory_arrival_store.New(), outbox: &cpatomic.FakeOutbox{}, clock: cptime.NewFixedClock(start)}
 	providers := signin.Providers{signin.Google: f.google}
 	f.start = start_sign_in_usecase.New(providers, f.store, &signin.SequentialSecrets{}, sealer, f.clock)
-	f.completion = complete_sign_in_usecase.New(providers, sealer, f.admitter(), f.clock)
+	f.completion = complete_sign_in_usecase.New(providers, sealer, f.admitter(), f.server, f.clock)
 	return f
 }
 
@@ -389,7 +390,7 @@ func TestAStoreFailureFailsTheSignIn(t *testing.T) {
 
 func TestSignInOffCompletesNothing(t *testing.T) {
 	f := setUp(t)
-	useCase := complete_sign_in_usecase.New(signin.Providers{}, f.sealer, f.admitter(), f.clock)
+	useCase := complete_sign_in_usecase.New(signin.Providers{}, f.sealer, f.admitter(), f.server, f.clock)
 
 	_, err := useCase.Execute(t.Context(), complete_sign_in_usecase.In{Code: "the-code", State: "state"})
 
@@ -417,4 +418,41 @@ func TestASignInToAnAccountThatExistsKeepsNoArrival(t *testing.T) {
 
 	require.Equal(t, accounts.Linked, out.Outcome())
 	assert.Empty(t, f.arrivals.Kept(), "the guest's arrival was kept when the guest was made")
+}
+
+func TestASignInThatMayJoinTheServerJoinsTheAccountItSignedInTo(t *testing.T) {
+	f := setUp(t)
+	f.guest(t, 7, "guest-token")
+	f.linkedAccount(t, 3, signin.Google, claim.Subject(), "elsewhere")
+
+	out, err := f.finish(t, accounts.IntentSignIn, "cp_sid=guest-token", claim.WithServerToken("the-access-token"))
+	require.NoError(t, err)
+
+	assert.Equal(t, accounts.AccountID{15: 3}, out.Account(), "the browser moved to the identity's account")
+	assert.Equal(t, []signin.Joined{{Account: accounts.AccountID{15: 3}, User: claim.Subject(), Token: "the-access-token"}},
+		f.server.Joined())
+}
+
+func TestALinkAgainOfTheAccountsOwnIdentityJoinsToo(t *testing.T) {
+	f := setUp(t)
+	f.linkedAccount(t, 7, signin.Google, claim.Subject(), "google-token")
+
+	_, err := f.link(t, "cp_sid=google-token", claim.WithServerToken("the-access-token"))
+	require.NoError(t, err)
+
+	assert.Equal(t, []signin.Joined{{Account: accounts.AccountID{15: 7}, User: claim.Subject(), Token: "the-access-token"}},
+		f.server.Joined())
+}
+
+func TestARefusedLinkOrASignInThatMayNotJoinJoinsNobody(t *testing.T) {
+	f := setUp(t)
+	f.linkedAccount(t, 1, signin.Google, claim.Subject(), "other-browser")
+	f.linkedAccount(t, 7, signin.Discord, "discord-user", "discord-token")
+
+	_, err := f.link(t, "cp_sid=discord-token", claim.WithServerToken("the-access-token"))
+	require.ErrorIs(t, err, accounts.ErrIdentityLinkedElsewhere)
+	_, err = f.complete(t, "")
+	require.NoError(t, err)
+
+	assert.Empty(t, f.server.Joined())
 }

@@ -17,6 +17,7 @@ import ChatComposer from "./ChatComposer.tsx";
 import ChatLog from "./ChatLog.tsx";
 import ReportMessageModal from "../support/ReportMessageModal.tsx";
 import DiscordBar from "./DiscordBar.tsx";
+import {DiscordOffer} from "../alerts/useDiscordAlerts.ts";
 import {useChat} from "./useChat.ts";
 import {useChatIdentity} from "./useChatIdentity.ts";
 import {useChatSize} from "./useChatSize.ts";
@@ -37,7 +38,7 @@ export type ChatPanelProps = {
     open?: boolean
     onOpenChange?: (open: boolean) => void
     onUnread?: (unread: number) => void
-    onDiscordPing?: () => Promise<void>
+    discord?: DiscordOffer
 }
 
 type View = "chat" | "online"
@@ -218,7 +219,7 @@ export default function ChatPanel(props: ChatPanelProps) {
     const body: ReactNode = view === "online" && players
         ? <div className="chat-players"><PlayersPanel entries={players} onOpenPlayer={props.onOpenPlayer}/></div>
         : <>
-            <DiscordBar onPing={props.onDiscordPing}/>
+            <DiscordBar discord={props.discord} flagName={props.country.name}/>
 
             <ChatLog messages={messages}
                      announcements={announcements}

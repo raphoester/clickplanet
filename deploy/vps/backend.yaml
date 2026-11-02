@@ -155,6 +155,8 @@ auth:
   discord:
     clientId: "1549822806420885616"
     clientSecret: env://DISCORD_CLIENT_SECRET
+    # Every Discord sign-in also joins the game's Discord server, which the alerts module keeps.
+    joinServer: true
   # The origin comes from ADMIN_ORIGIN, through docker-compose.yaml.
   admin:
     redirectUrl: https://backoffice.clickplanet.lol/auth/callback
@@ -315,7 +317,8 @@ clips:
       accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
       secretAccessKey: env://MEDIA_BUCKET_SECRET
 
-# The game's Discord server: a player's link, its flag's role, and the pings. See deploy/vps/README.md, "Discord pings".
+# The game's Discord server: a player's link, its flag's role, and the pings. A player joins it by signing in with
+# Discord (auth.discord.joinServer). See deploy/vps/README.md, "Discord pings".
 alerts:
   enabled: true
   database:
@@ -331,11 +334,9 @@ alerts:
   redis:
     address: redis:6379
     password: env://REDIS_PASSWORD
+  # The bot of auth.discord's application.
   discord:
-    clientId: "1549822806420885616"
-    clientSecret: env://DISCORD_CLIENT_SECRET
     botToken: env://DISCORD_BOT_TOKEN
-    redirectUrl: https://clickplanet.lol/auth/callback
     guildId: "1310907949106860032"
     alertsChannelId: "1566864909709607044"
     battlesChannelId: "1566864959739011324"

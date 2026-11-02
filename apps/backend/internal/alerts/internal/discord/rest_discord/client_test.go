@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"sync"
 	"testing"
 
@@ -54,53 +53,8 @@ func client(t *testing.T, answers map[string]func(w http.ResponseWriter)) (*rest
 	fake := &fakeDiscord{answers: answers}
 	server := httptest.NewServer(fake)
 	t.Cleanup(server.Close)
-	return rest_discord.New(rest_discord.App{
-		ClientID: "the-client", ClientSecret: "the-secret", BotToken: "the-bot", RedirectURL: "https://clickplanet.lol/auth/callback",
-		Guild: "900",
-	}, rest_discord.Endpoints{Authorize: server.URL + "/authorize", Token: server.URL + "/token", API: server.URL + "/api"},
-		server.Client()), fake
-}
-
-func TestTheAuthorizationAsksToJoinTheServerWithPKCE(t *testing.T) {
-	c, _ := client(t, nil)
-
-	asked, err := url.Parse(c.AuthorizationURL("the-state", "the-challenge"))
-	require.NoError(t, err)
-
-	assert.Equal(t, "/authorize", asked.Path)
-	assert.Equal(t, url.Values{
-		"client_id": {"the-client"}, "redirect_uri": {"https://clickplanet.lol/auth/callback"}, "response_type": {"code"},
-		"scope": {"identify guilds.join"}, "state": {"the-state"}, "code_challenge": {"the-challenge"},
-		"code_challenge_method": {"S256"},
-	}, asked.Query())
-}
-
-func TestACodeIsTradedForTheUser(t *testing.T) {
-	c, fake := client(t, map[string]func(w http.ResponseWriter){
-		"POST /token":        answering(http.StatusOK, `{"access_token":"the-token"}`),
-		"GET /api/users/@me": answering(http.StatusOK, `{"id":"4242"}`),
-	})
-
-	token, err := c.Exchange(t.Context(), "the-code", "the-verifier")
-	require.NoError(t, err)
-	user, err := c.UserOf(t.Context(), token)
-	require.NoError(t, err)
-
-	assert.Equal(t, discord.UserID("4242"), user)
-	form, err := url.ParseQuery(fake.calls[0].Body)
-	require.NoError(t, err)
-	assert.Equal(t, "the-verifier", form.Get("code_verifier"))
-	assert.Equal(t, "the-code", form.Get("code"))
-	assert.Equal(t, "Bearer the-token", fake.calls[1].Authorization)
-}
-
-func TestARefusedCodeIsARefusal(t *testing.T) {
-	c, _ := client(t, map[string]func(w http.ResponseWriter){
-		"POST /token": answering(http.StatusBadRequest, `{"error":"invalid_grant"}`),
-	})
-
-	_, err := c.Exchange(t.Context(), "the-code", "the-verifier")
-	assert.ErrorIs(t, err, discord.ErrRefused)
+	return rest_discord.New(rest_discord.App{BotToken: "the-bot", Guild: "900"},
+		rest_discord.Endpoints{API: server.URL + "/api"}, server.Client()), fake
 }
 
 func TestANewMemberJoinsWithItsRoles(t *testing.T) {
@@ -141,16 +95,35 @@ func TestAUserWhoLeftTheServerIsNoMember(t *testing.T) {
 	assert.ErrorIs(t, c.Grant(t.Context(), "4242", "2"), discord.ErrRefused)
 }
 
-func TestARoleIsMadeMentionable(t *testing.T) {
+func TestARoleIsMadeMentionableInItsColor(t *testing.T) {
 	c, fake := client(t, map[string]func(w http.ResponseWriter){
 		"POST /api/guilds/900/roles": answering(http.StatusOK, `{"id":"77"}`),
 	})
 
-	role, err := c.MakeRole(t.Context(), "Ireland")
+	role, err := c.MakeRole(t.Context(), "Ireland", 0x169b62)
 	require.NoError(t, err)
 
 	assert.Equal(t, discord.RoleID("77"), role)
-	assert.JSONEq(t, `{"name":"Ireland","mentionable":true}`, fake.calls[0].Body)
+	assert.JSONEq(t, `{"name":"Ireland","color":1481570,"mentionable":true}`, fake.calls[0].Body)
+}
+
+func TestARoleIsPainted(t *testing.T) {
+	c, fake := client(t, nil)
+
+	require.NoError(t, c.PaintRole(t.Context(), "77", 0x169b62))
+
+	assert.Equal(t, "PATCH /api/guilds/900/roles/77", fake.calls[0].Method+" "+fake.calls[0].Path)
+	assert.JSONEq(t, `{"color":1481570}`, fake.calls[0].Body)
+}
+
+func TestARoleDeletedByHandIsNoRoleToPaintAndDeletedAlready(t *testing.T) {
+	c, _ := client(t, map[string]func(w http.ResponseWriter){
+		"PATCH /api/guilds/900/roles/77":  answering(http.StatusNotFound, `{"code":10011,"message":"Unknown Role"}`),
+		"DELETE /api/guilds/900/roles/77": answering(http.StatusNotFound, `{"code":10011,"message":"Unknown Role"}`),
+	})
+
+	assert.ErrorIs(t, c.PaintRole(t.Context(), "77", 0x169b62), discord.ErrNoRole)
+	assert.NoError(t, c.DeleteRole(t.Context(), "77"))
 }
 
 func TestAPostPingsItsRoleAlone(t *testing.T) {
@@ -158,7 +131,7 @@ func TestAPostPingsItsRoleAlone(t *testing.T) {
 		"POST /api/channels/100/messages": answering(http.StatusOK, `{"id":"1"}`),
 	})
 
-	require.NoError(t, c.Post(t.Context(), "100", "<@&77> @everyone go", "77"))
+	require.NoError(t, c.Post(t.Context(), "100", "<@&77> @everyone go", discord.RoleAudience("77")))
 
 	var sent map[string]any
 	require.NoError(t, json.Unmarshal([]byte(fake.calls[0].Body), &sent))
@@ -168,12 +141,24 @@ func TestAPostPingsItsRoleAlone(t *testing.T) {
 	}, sent)
 }
 
+func TestAPostToEverybodyPingsEverybody(t *testing.T) {
+	c, fake := client(t, map[string]func(w http.ResponseWriter){
+		"POST /api/channels/100/messages": answering(http.StatusOK, `{"id":"1"}`),
+	})
+
+	require.NoError(t, c.Post(t.Context(), "100", "@everyone go", discord.Everybody()))
+
+	var sent map[string]any
+	require.NoError(t, json.Unmarshal([]byte(fake.calls[0].Body), &sent))
+	assert.Equal(t, map[string]any{"parse": []any{"everyone"}}, sent["allowed_mentions"])
+}
+
 func TestABusyDiscordIsAFailureToTryAgain(t *testing.T) {
 	c, _ := client(t, map[string]func(w http.ResponseWriter){
 		"POST /api/channels/100/messages": answering(http.StatusTooManyRequests, `{"retry_after":1}`),
 	})
 
-	err := c.Post(t.Context(), "100", "go", "77")
+	err := c.Post(t.Context(), "100", "go", discord.RoleAudience("77"))
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, discord.ErrRefused)
 }

@@ -33,6 +33,11 @@ type discord struct {
 
 func (d *discord) provider(t *testing.T) *discord_identity_provider.Provider {
 	t.Helper()
+	return d.joining(t, false)
+}
+
+func (d *discord) joining(t *testing.T, joinServer bool) *discord_identity_provider.Provider {
+	t.Helper()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /token", func(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +54,7 @@ func (d *discord) provider(t *testing.T) *discord_identity_provider.Provider {
 	t.Cleanup(server.Close)
 
 	endpoints := discord_identity_provider.Endpoints{Authorize: "https://discord.example/authorize", Token: server.URL + "/token", Me: server.URL + "/me"}
-	return discord_identity_provider.New(client, redirect, endpoints, server.Client())
+	return discord_identity_provider.New(client, redirect, endpoints, server.Client(), joinServer)
 }
 
 func TestTheAuthorizationURLAsksForIdentifyAndEmailWithPKCE(t *testing.T) {
@@ -60,6 +65,24 @@ func TestTheAuthorizationURLAsksForIdentifyAndEmailWithPKCE(t *testing.T) {
 		"client_id": {"the-client"}, "redirect_uri": {redirect}, "response_type": {"code"}, "scope": {"identify email"},
 		"state": {"the-state"}, "code_challenge": {flow.Challenge()}, "code_challenge_method": {"S256"},
 	}, authorization.Query())
+}
+
+func TestJoiningTheServerAsksLeaveToAndCarriesTheTokenThatMay(t *testing.T) {
+	d := &discord{
+		tokenStatus: http.StatusOK,
+		token:       map[string]any{"access_token": "the-access-token"},
+		me:          map[string]any{"id": "80351110224678912", "email": "a@example.com", "verified": true},
+	}
+	provider := d.joining(t, true)
+
+	authorization, err := url.Parse(provider.AuthorizationURL(flow))
+	require.NoError(t, err)
+	claim, err := provider.Exchange(t.Context(), "the-code", flow)
+	require.NoError(t, err)
+
+	assert.Equal(t, "identify email guilds.join", authorization.Query().Get("scope"))
+	assert.Equal(t, "the-access-token", claim.ServerToken())
+	assert.Equal(t, "80351110224678912", claim.Subject())
 }
 
 func TestTheCodeIsTradedForTheUserBehindIt(t *testing.T) {

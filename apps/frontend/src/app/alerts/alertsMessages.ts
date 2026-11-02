@@ -1,36 +1,22 @@
-import {AlertsFailure} from "../../backends/alerts.ts"
+import {AuthFailure} from "../../backends/account.ts"
 
-export const PING_NAME = "Get pinged on Discord"
+export function pingNameOf(flagName: string | undefined): string {
+    return flagName ? `Join Discord and get pinged when ${flagName} is attacked` : "Join Discord and get pinged"
+}
 
-export function pingLabelOf(failure?: AlertsFailure): string {
+export function pingHintOf(flagName: string | undefined): string {
+    return flagName ? `Get pinged when ${flagName} is attacked` : "Get pinged for every battle"
+}
+
+// What the button says once Discord's sign-in could not start.
+export function pingFailureOf(failure: AuthFailure): string {
     switch (failure) {
-        case undefined:
-            return "Get pinged"
         case "tooManyTries":
             return "Wait a minute"
         case "off":
+        case "notOffered":
             return "Not available"
-        case "startAgain":
-        case "refused":
-        case "notSignedIn":
-        case "failed":
+        default:
             return "Try again"
-    }
-}
-
-export function linkMessageOf(failure: AlertsFailure): string {
-    switch (failure) {
-        case "off":
-            return "Discord pings are not available now."
-        case "tooManyTries":
-            return "Too many tries from your network. Wait one minute, then try again."
-        case "startAgain":
-            return "This link is too old, or it started in a different browser. Start again."
-        case "refused":
-            return "Discord did not accept it. Try again."
-        case "notSignedIn":
-            return "We could not check who you are. Try again."
-        case "failed":
-            return "Something went wrong. Try again."
     }
 }

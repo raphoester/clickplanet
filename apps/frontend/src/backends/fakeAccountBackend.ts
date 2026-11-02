@@ -1,4 +1,5 @@
-import {AccountBackend, AuthError, Me, Provider, SignInOutcome} from "./account.ts"
+import {AccountBackend, AuthError, Me, OAuthProvider, Provider, SignInOutcome} from "./account.ts"
+import {CALLBACK_PATH} from "../domain/signInCallback.ts"
 import {FAKE_YOU} from "./fakeAccounts.ts"
 import {ColoredProfile, Fronts, NameColor, PlayerBackend, PlayerError, PlayerTitle, Profile, TitleDashboard} from "./player.ts"
 
@@ -31,8 +32,10 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
         return {linked: [...this.linked]}
     }
 
-    public async startSignIn(): Promise<string> {
-        throw new AuthError("off")
+    // Straight back to the callback page, as the provider would after the player agreed.
+    public async startSignIn(provider: OAuthProvider): Promise<string> {
+        if (!this.offered.includes(provider)) throw new AuthError("off")
+        return `${CALLBACK_PATH}?code=${encodeURIComponent("Fake Nova")}&state=fake`
     }
 
     public async completeSignIn(name: string): Promise<SignInOutcome> {

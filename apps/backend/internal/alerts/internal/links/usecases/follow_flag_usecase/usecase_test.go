@@ -48,7 +48,7 @@ func setUp(t *testing.T) (*links.InMemoryStore, *fakeMembers, *follow_flag_useca
 	return store, members, follow_flag_usecase.New(store, book, members)
 }
 
-func TestTheRoleFollowsTheFlagALinkedPlayerTakesFor(t *testing.T) {
+func TestTheRoleFollowsTheFlagALinkedPlayerPledged(t *testing.T) {
 	store, members, useCase := setUp(t)
 	require.NoError(t, store.SaveLinks(t.Context(), links.NewLink(account, "4242", "ie", now)))
 

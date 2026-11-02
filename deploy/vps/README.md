@@ -444,13 +444,13 @@ frontend has the button and the privacy policy page is live: we store email.
 
 ### Discord pings
 
-Off in `backend.yaml` (`alerts.enabled: false`). On, a player's "Get pinged" adds them to the game's Discord server
-with the role of their flag, and the server pings that role when their flag is attacked, and every linked player
-when a battle or a season starts.
+Off in `backend.yaml` (`alerts.enabled: false`). On, signing in with Discord also adds the player to the game's
+Discord server with the role of their flag ("Join Discord" in the game's chat is that sign-in), and the server pings
+that role when their flag is attacked, and everybody (`@everyone`) when a battle or a season starts.
 
 **It is the same Discord application as the sign-in** (client id `1549822806420885616`): the application gets a bot,
-and the bot joins your server. The link reuses the sign-in's redirect URI, `https://clickplanet.lol/auth/callback`,
-which is already registered. You do not make a second application.
+and the bot joins your server. There is no second trip and no new redirect URI: the sign-in asks Discord for the
+leave to add the player to the server (`guilds.join`) when `auth.discord.joinServer` is on.
 
 #### 1. Give the application a bot, and copy its token
 
@@ -476,14 +476,16 @@ which is already registered. You do not make a second application.
 1. In the left menu, click **OAuth2**. Check that **Redirects** lists `https://clickplanet.lol/auth/callback` (the
    sign-in added it). Add nothing.
 2. Further down, in **OAuth2 URL Generator**, tick the scope **bot** only. A **Bot Permissions** box appears below it.
-   Tick these four, and nothing else:
-   - **Manage Roles**: the bot makes the `Battles` role and one role per flag, and gives them to players.
+   Tick these five, and nothing else:
+   - **Manage Roles**: the bot makes one role per flag, paints it, and gives it to players.
    - **Create Instant Invite**: Discord needs it to add a player to the server.
    - **View Channels**
    - **Send Messages**
+   - **Mention @everyone, @here, and All Roles**: a battle pings everybody. Without it Discord posts the battle and
+     pings nobody.
 3. Leave **Integration Type** on **Guild Install**. Copy the **Generated URL** at the bottom and open it in your
    browser.
-4. Pick the game's server under **Add to server**, click **Continue**, keep the four permissions ticked, and click
+4. Pick the game's server under **Add to server**, click **Continue**, keep the five permissions ticked, and click
    **Authorize**.
 5. In Discord, the bot is now in the server's member list, offline. That is normal: it only posts through the API.
    It also has a role of its own with the application's name. The roles the bot makes go below that role, so leave
@@ -496,7 +498,7 @@ which is already registered. You do not make a second application.
    (so players read the pings and talk elsewhere). That also stops the bot, so let it back in: **Add members or
    roles** (the **+** next to Roles/Members), type the application's name, pick the role with that name (or the bot
    itself), and turn **View Channel** and **Send Messages** on for it. You do not make that role: Discord made it
-   when the bot joined in step 2, with the four permissions you ticked. It shows in **Server Settings** > **Roles**
+   when the bot joined in step 2, with the permissions you ticked. It shows in **Server Settings** > **Roles**
    with the application's name.
 
 #### 4. Copy the three ids
@@ -507,17 +509,21 @@ which is already registered. You do not make a second application.
 
 #### 5. Turn it on
 
-In `deploy/vps/backend.yaml`, make the `alerts.discord` block whole and set `enabled: true`:
+In `deploy/vps/backend.yaml`, make the `alerts.discord` block whole, set `enabled: true`, and let the Discord
+sign-in join the server:
 
 ```yaml
+auth:
+  discord:
+    clientId: "1549822806420885616"
+    clientSecret: env://DISCORD_CLIENT_SECRET
+    joinServer: true
+
 alerts:
   enabled: true
   # database and redis stay as they are
   discord:
-    clientId: "1549822806420885616"
-    clientSecret: env://DISCORD_CLIENT_SECRET
     botToken: env://DISCORD_BOT_TOKEN
-    redirectUrl: https://clickplanet.lol/auth/callback
     guildId: "<the server id>"
     alertsChannelId: "<the #alerts id>"
     battlesChannelId: "<the #battles id>"
@@ -529,10 +535,14 @@ secret or id refuses the boot, so set the secret (step 1) before you merge.
 
 #### 6. Check it
 
-1. Open the game, then press **Get pinged** in the chat's Discord bar. Discord asks to let ClickPlanet add you to
-   the server: **Authorize**. The game says "You are in!".
-2. In the server, you now have the `Battles` role and your flag's role. The bot made both on the first link.
-3. The backend log says why a link or a ping failed:
+1. Open the game, then press **Join Discord** in the chat's Discord bar (or sign in with Discord from the menu).
+   Discord asks to let ClickPlanet sign you in and join servers for you: **Authorize**. You are back in the game,
+   signed in, and the bar says **Open Discord**.
+2. In the server, you now have your flag's role, in a color of its own. Change flag in the game: the role follows.
+3. To see the offer again, unlink your account on the backoffice: **Players**, open yours, the **Discord** tool,
+   **Unlink Discord**. The bot takes the flag's role off you, you stay in the server, and the game offers **Join
+   Discord** again on the next load.
+4. The backend log says why a join or a ping failed:
 
    ```bash
    ssh root@64.225.102.150 'journalctl CONTAINER_TAG=cp-backend --since "10 min ago" -o cat | grep -i "alerts\|discord"'
@@ -540,6 +550,13 @@ secret or id refuses the boot, so set the secret (step 1) before you merge.
 
    `Missing Permissions` (50013) means a permission from step 2 is missing, or a role the bot must give is above the
    bot's own role.
+
+#### A server set up before the one connection (November 2026)
+
+1. Give the bot's role the new permission: **Server Settings** > **Roles** > the role with the application's name >
+   **Permissions** > turn **Mention @everyone, @here, and All Roles** on > **Save Changes**.
+2. Nothing else by hand: the first boot deletes the `Battles` role the bot made, and paints each flag's role in its
+   color. The log says `Discord roles tidied`, or why not.
 
 ### Sign-in by email
 

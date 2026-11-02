@@ -59,9 +59,10 @@ func (*GetDiscordLinkRequest) Descriptor() ([]byte, []int) {
 
 type GetDiscordLinkResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// False: this server pings nobody, and offers no link.
+	// False: this server pings nobody, and a Discord sign-in joins no server.
 	Offered bool `protobuf:"varint,1,opt,name=offered,proto3" json:"offered,omitempty"`
-	Linked  bool `protobuf:"varint,2,opt,name=linked,proto3" json:"linked,omitempty"`
+	// The caller's account is in the server with its flag's role.
+	Linked bool `protobuf:"varint,2,opt,name=linked,proto3" json:"linked,omitempty"`
 	// The server's page in Discord, where the pings are. Empty when not offered.
 	ServerUrl     string `protobuf:"bytes,3,opt,name=server_url,json=serverUrl,proto3" json:"server_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -119,182 +120,6 @@ func (x *GetDiscordLinkResponse) GetServerUrl() string {
 	return ""
 }
 
-type StartDiscordLinkRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StartDiscordLinkRequest) Reset() {
-	*x = StartDiscordLinkRequest{}
-	mi := &file_alerts_v1_alerts_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StartDiscordLinkRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StartDiscordLinkRequest) ProtoMessage() {}
-
-func (x *StartDiscordLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_alerts_v1_alerts_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StartDiscordLinkRequest.ProtoReflect.Descriptor instead.
-func (*StartDiscordLinkRequest) Descriptor() ([]byte, []int) {
-	return file_alerts_v1_alerts_proto_rawDescGZIP(), []int{2}
-}
-
-type StartDiscordLinkResponse struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	AuthorizationUrl string                 `protobuf:"bytes,1,opt,name=authorization_url,json=authorizationUrl,proto3" json:"authorization_url,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *StartDiscordLinkResponse) Reset() {
-	*x = StartDiscordLinkResponse{}
-	mi := &file_alerts_v1_alerts_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StartDiscordLinkResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StartDiscordLinkResponse) ProtoMessage() {}
-
-func (x *StartDiscordLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_alerts_v1_alerts_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StartDiscordLinkResponse.ProtoReflect.Descriptor instead.
-func (*StartDiscordLinkResponse) Descriptor() ([]byte, []int) {
-	return file_alerts_v1_alerts_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *StartDiscordLinkResponse) GetAuthorizationUrl() string {
-	if x != nil {
-		return x.AuthorizationUrl
-	}
-	return ""
-}
-
-type CompleteDiscordLinkRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
-	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CompleteDiscordLinkRequest) Reset() {
-	*x = CompleteDiscordLinkRequest{}
-	mi := &file_alerts_v1_alerts_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CompleteDiscordLinkRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CompleteDiscordLinkRequest) ProtoMessage() {}
-
-func (x *CompleteDiscordLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_alerts_v1_alerts_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CompleteDiscordLinkRequest.ProtoReflect.Descriptor instead.
-func (*CompleteDiscordLinkRequest) Descriptor() ([]byte, []int) {
-	return file_alerts_v1_alerts_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *CompleteDiscordLinkRequest) GetCode() string {
-	if x != nil {
-		return x.Code
-	}
-	return ""
-}
-
-func (x *CompleteDiscordLinkRequest) GetState() string {
-	if x != nil {
-		return x.State
-	}
-	return ""
-}
-
-type CompleteDiscordLinkResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ServerUrl     string                 `protobuf:"bytes,1,opt,name=server_url,json=serverUrl,proto3" json:"server_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CompleteDiscordLinkResponse) Reset() {
-	*x = CompleteDiscordLinkResponse{}
-	mi := &file_alerts_v1_alerts_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CompleteDiscordLinkResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CompleteDiscordLinkResponse) ProtoMessage() {}
-
-func (x *CompleteDiscordLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_alerts_v1_alerts_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CompleteDiscordLinkResponse.ProtoReflect.Descriptor instead.
-func (*CompleteDiscordLinkResponse) Descriptor() ([]byte, []int) {
-	return file_alerts_v1_alerts_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *CompleteDiscordLinkResponse) GetServerUrl() string {
-	if x != nil {
-		return x.ServerUrl
-	}
-	return ""
-}
-
 var File_alerts_v1_alerts_proto protoreflect.FileDescriptor
 
 const file_alerts_v1_alerts_proto_rawDesc = "" +
@@ -305,20 +130,9 @@ const file_alerts_v1_alerts_proto_rawDesc = "" +
 	"\aoffered\x18\x01 \x01(\bR\aoffered\x12\x16\n" +
 	"\x06linked\x18\x02 \x01(\bR\x06linked\x12\x1d\n" +
 	"\n" +
-	"server_url\x18\x03 \x01(\tR\tserverUrl\"\x19\n" +
-	"\x17StartDiscordLinkRequest\"G\n" +
-	"\x18StartDiscordLinkResponse\x12+\n" +
-	"\x11authorization_url\x18\x01 \x01(\tR\x10authorizationUrl\"F\n" +
-	"\x1aCompleteDiscordLinkRequest\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\tR\x04code\x12\x14\n" +
-	"\x05state\x18\x02 \x01(\tR\x05state\"<\n" +
-	"\x1bCompleteDiscordLinkResponse\x12\x1d\n" +
-	"\n" +
-	"server_url\x18\x01 \x01(\tR\tserverUrl2\xae\x02\n" +
+	"server_url\x18\x03 \x01(\tR\tserverUrl2k\n" +
 	"\rAlertsService\x12Z\n" +
-	"\x0eGetDiscordLink\x12 .alerts.v1.GetDiscordLinkRequest\x1a!.alerts.v1.GetDiscordLinkResponse\"\x03\x90\x02\x01\x12[\n" +
-	"\x10StartDiscordLink\x12\".alerts.v1.StartDiscordLinkRequest\x1a#.alerts.v1.StartDiscordLinkResponse\x12d\n" +
-	"\x13CompleteDiscordLink\x12%.alerts.v1.CompleteDiscordLinkRequest\x1a&.alerts.v1.CompleteDiscordLinkResponseB\xb3\x01\n" +
+	"\x0eGetDiscordLink\x12 .alerts.v1.GetDiscordLinkRequest\x1a!.alerts.v1.GetDiscordLinkResponse\"\x03\x90\x02\x01B\xb3\x01\n" +
 	"\rcom.alerts.v1B\vAlertsProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/alerts/v1;alertsv1\xa2\x02\x03AXX\xaa\x02\tAlerts.V1\xca\x02\tAlerts\\V1\xe2\x02\x15Alerts\\V1\\GPBMetadata\xea\x02\n" +
 	"Alerts::V1b\x06proto3"
 
@@ -334,24 +148,16 @@ func file_alerts_v1_alerts_proto_rawDescGZIP() []byte {
 	return file_alerts_v1_alerts_proto_rawDescData
 }
 
-var file_alerts_v1_alerts_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_alerts_v1_alerts_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_alerts_v1_alerts_proto_goTypes = []any{
-	(*GetDiscordLinkRequest)(nil),       // 0: alerts.v1.GetDiscordLinkRequest
-	(*GetDiscordLinkResponse)(nil),      // 1: alerts.v1.GetDiscordLinkResponse
-	(*StartDiscordLinkRequest)(nil),     // 2: alerts.v1.StartDiscordLinkRequest
-	(*StartDiscordLinkResponse)(nil),    // 3: alerts.v1.StartDiscordLinkResponse
-	(*CompleteDiscordLinkRequest)(nil),  // 4: alerts.v1.CompleteDiscordLinkRequest
-	(*CompleteDiscordLinkResponse)(nil), // 5: alerts.v1.CompleteDiscordLinkResponse
+	(*GetDiscordLinkRequest)(nil),  // 0: alerts.v1.GetDiscordLinkRequest
+	(*GetDiscordLinkResponse)(nil), // 1: alerts.v1.GetDiscordLinkResponse
 }
 var file_alerts_v1_alerts_proto_depIdxs = []int32{
 	0, // 0: alerts.v1.AlertsService.GetDiscordLink:input_type -> alerts.v1.GetDiscordLinkRequest
-	2, // 1: alerts.v1.AlertsService.StartDiscordLink:input_type -> alerts.v1.StartDiscordLinkRequest
-	4, // 2: alerts.v1.AlertsService.CompleteDiscordLink:input_type -> alerts.v1.CompleteDiscordLinkRequest
-	1, // 3: alerts.v1.AlertsService.GetDiscordLink:output_type -> alerts.v1.GetDiscordLinkResponse
-	3, // 4: alerts.v1.AlertsService.StartDiscordLink:output_type -> alerts.v1.StartDiscordLinkResponse
-	5, // 5: alerts.v1.AlertsService.CompleteDiscordLink:output_type -> alerts.v1.CompleteDiscordLinkResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
+	1, // 1: alerts.v1.AlertsService.GetDiscordLink:output_type -> alerts.v1.GetDiscordLinkResponse
+	1, // [1:2] is the sub-list for method output_type
+	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -368,7 +174,7 @@ func file_alerts_v1_alerts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_alerts_v1_alerts_proto_rawDesc), len(file_alerts_v1_alerts_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

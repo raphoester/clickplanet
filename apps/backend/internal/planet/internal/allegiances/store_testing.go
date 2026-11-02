@@ -60,3 +60,29 @@ func (m *MemoryStore) FailWith(err error) {
 
 	m.failing = err
 }
+
+// Every flag told, in order.
+type RecordedPledges struct {
+	mu   sync.Mutex
+	told []RecordedPledge
+}
+
+type RecordedPledge struct {
+	Account  Account
+	Flag     string
+	Previous string
+}
+
+var _ Teller = (*RecordedPledges)(nil)
+
+func (r *RecordedPledges) Pledged(account Account, flag string, previous string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.told = append(r.told, RecordedPledge{Account: account, Flag: flag, Previous: previous})
+}
+
+func (r *RecordedPledges) Told() []RecordedPledge {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]RecordedPledge(nil), r.told...)
+}

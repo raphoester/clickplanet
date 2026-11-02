@@ -11,6 +11,7 @@ import {Opened} from "../navigation.ts"
 import {useCall} from "../useCall.ts"
 import {ANTIBOT_OFF, mutingOf, Profile, profileOf, readingOf} from "./actions.ts"
 import {Caller, idOf, isAccount, whoOf} from "./caller.ts"
+import {DiscordPanel} from "./DiscordPanel.tsx"
 import {FlagPanel} from "./FlagPanel.tsx"
 import {GrantPanel} from "./GrantPanel.tsx"
 import {Inspection} from "./InspectPanel.tsx"
@@ -28,7 +29,7 @@ type Props = {
     onOpen: (opened: Opened) => void
 }
 
-type Tool = "ban" | "unban" | "mute" | "unmute" | "revert" | "charges" | "flag"
+type Tool = "ban" | "unban" | "mute" | "unmute" | "revert" | "charges" | "flag" | "discord"
 
 // One player, by account or by address: who it is and where it stands, the tools that take it, then what the game
 // and the antibot keep about it, and what it said.
@@ -119,7 +120,10 @@ function Tools({clients, caller, who, onBanned, onMuted}: ToolsProps) {
         {key: "unban", label: "Unban"},
         ...(isAccount(caller) ? [{key: "mute" as const, label: "Mute"}, {key: "unmute" as const, label: "Unmute"}] : []),
         {key: "revert", label: "Revert"},
-        ...(isAccount(caller) ? [{key: "charges" as const, label: "Charges"}, {key: "flag" as const, label: "Flag"}] : []),
+        ...(isAccount(caller) ? [
+            {key: "charges" as const, label: "Charges"}, {key: "flag" as const, label: "Flag"},
+            {key: "discord" as const, label: "Discord"},
+        ] : []),
     ]
     return (
         <section className="panel tools" aria-label="Tools">
@@ -157,6 +161,9 @@ function Tools({clients, caller, who, onBanned, onMuted}: ToolsProps) {
                 {tool === "revert" && <RevertPanel planet={clients.planet} caller={caller} who={who}/>}
                 {tool === "charges" && isAccount(caller) && <GrantPanel planet={clients.planet} accountId={caller.accountId} who={who}/>}
                 {tool === "flag" && isAccount(caller) && <FlagPanel planet={clients.planet} accountId={caller.accountId} who={who}/>}
+                {tool === "discord" && isAccount(caller) && (
+                    <DiscordPanel alerts={clients.alerts} accountId={caller.accountId} who={who}/>
+                )}
             </div>
         </section>
     )
