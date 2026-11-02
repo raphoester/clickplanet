@@ -120,6 +120,18 @@
 		}
 	}
 
+	handle /clips.v1.ClipsService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
+	handle /alerts.v1.AlertsService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
 	handle @admin {
 		reverse_proxy backend:8083
 	}
