@@ -57,8 +57,16 @@ func (s *Store) KeepDay(_ context.Context, day days.Day, flag string, drawn flag
 	defer s.mu.Unlock()
 
 	at := key{day: day.String(), flag: flag}
-	if _, ok := s.days[at]; !ok && s.failWith == nil {
-		s.days[at] = drawn.Snapshot()
+	if s.failWith != nil {
+		return s.read(at)
+	}
+	kept, ok := s.days[at]
+	switch fresh := drawn.Snapshot(); {
+	case !ok:
+		s.days[at] = fresh
+	case kept.Mission == nil && fresh.Mission != nil:
+		kept.Mission, kept.Progress, kept.Done = fresh.Mission, fresh.Progress, fresh.Done
+		s.days[at] = kept
 	}
 	return s.read(at)
 }

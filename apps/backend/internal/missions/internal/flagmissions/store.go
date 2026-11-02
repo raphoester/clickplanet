@@ -13,7 +13,8 @@ var ErrNoDay = errors.New("no day was drawn for the flag")
 
 type Store interface {
 	Day(ctx context.Context, day days.Day, flag string) (Day, error)
-	// The first day kept for the day and the flag wins, and is the answer.
+	// The first day kept for the day and the flag wins, and is the answer. A day kept with no mission takes the
+	// mission of the first one kept after, and keeps its own counts.
 	KeepDay(ctx context.Context, day days.Day, flag string, drawn Day) (Day, error)
 	// A day never kept is ErrNoDay.
 	ChangeDay(ctx context.Context, day days.Day, flag string, change func(Day) Day) error
@@ -34,10 +35,11 @@ type Briefing struct {
 	allegiances missions.Allegiances
 }
 
-// Drawn once a day, from the map then and what the flag did the day before.
+// Drawn once a day, from the map then and what the flag did the day before. A day kept with no mission, as one an
+// operator's fix cleared, is drawn again.
 func (b Briefing) Of(ctx context.Context, day days.Day, flag string) (Day, error) {
 	kept, err := b.store.Day(ctx, day, flag)
-	if !errors.Is(err, ErrNoDay) {
+	if err == nil && kept.mission != nil || err != nil && !errors.Is(err, ErrNoDay) {
 		return kept, err //nolint:wrapcheck // the store named it.
 	}
 

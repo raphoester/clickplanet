@@ -72,6 +72,25 @@ func (s *StoreContractSuite) TestTheFirstDayKeptForADayAndFlagWins() {
 	s.Equal(first.Snapshot(), s.keep(contractDay, "fr", s.drawn(2, BreakShields{Flag: "dz", Goal: 150})))
 }
 
+func (s *StoreContractSuite) TestADayKeptWithNoMissionTakesTheFirstMissionKeptAfterAndKeepsItsCounts() {
+	s.keep(contractDay, "fr", Day{})
+	s.Require().NoError(s.store.ChangeDay(s.T().Context(), contractDay, "fr", func(Day) Day {
+		return Day{
+			takes: 7, takesBelow: missions.LedgerMark{Position: 8, Index: 1}, strikes: 2,
+			strikesBelow: missions.LedgerMark{Position: 9, Index: 2},
+		}
+	}))
+	conquest := s.drawn(1, TakeIn{Ground: "br", Goal: 300})
+	want := DaySnapshot{
+		Mission: conquest.Snapshot().Mission, Takes: 7, TakesBelow: missions.LedgerMark{Position: 8, Index: 1}, Strikes: 2,
+		StrikesBelow: missions.LedgerMark{Position: 9, Index: 2},
+	}
+
+	s.Equal(want, s.keep(contractDay, "fr", conquest))
+	s.Equal(want, s.keep(contractDay, "fr", s.drawn(2, BreakShields{Flag: "dz", Goal: 150})), "the first mission kept wins")
+	s.Equal(want, s.day(contractDay, "fr"))
+}
+
 func (s *StoreContractSuite) TestDaysAreKeptByDayAndFlag() {
 	s.keep(contractDay, "fr", s.drawn(1, TakeIn{Ground: "br", Goal: 300}))
 

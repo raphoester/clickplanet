@@ -82,6 +82,27 @@ func TestTheTakeThatFinishesTheMissionGivesTheFlagItsPointsOnce(t *testing.T) {
 	}, outbox.Recorded()[0]))
 }
 
+func TestADayClearedOfItsMissionIsDrawnAgainAndKeepsWhatItCounted(t *testing.T) {
+	planet := &countingPlanet{}
+	useCase, store, _ := setUp(planet)
+	cleared, err := flagmissions.DayOf(flagmissions.DaySnapshot{Takes: 40, TakesBelow: missions.LedgerMark{Position: 40, Index: 1}})
+	require.NoError(t, err)
+	_, err = store.KeepDay(t.Context(), today, "fr", cleared)
+	require.NoError(t, err)
+
+	require.NoError(t, useCase.Execute(t.Context(), take(41)))
+	require.NoError(t, useCase.Execute(t.Context(), take(42)))
+
+	assert.Equal(t, 1, planet.asked, "drawn once")
+	world, err := planet.World(t.Context())
+	require.NoError(t, err)
+	day, err := store.Day(t.Context(), today, "fr")
+	require.NoError(t, err)
+	assert.Equal(t, flagmissions.Draw(today, "fr", world, flagmissions.Day{}).Snapshot().Mission, day.Snapshot().Mission)
+	assert.Equal(t, uint64(42), day.Snapshot().Takes)
+	assert.Equal(t, uint32(2), day.Snapshot().Progress, "only the takes after the draw count on the mission")
+}
+
 func TestAMapThatCannotBeReadCountsNothing(t *testing.T) {
 	useCase, store, _ := setUp(&countingPlanet{err: errors.New("down")})
 

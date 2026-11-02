@@ -15,6 +15,7 @@ const (
 	briefsPerAccount = "20261028120000"
 	countedFacts     = "20261028200000"
 	gamemasterDays   = "20261029110000"
+	redrawConquests  = "20261102070000"
 )
 
 func TestEachRowKeptBeforeGamemasterDaysNamesItsDayByItsRound(t *testing.T) {
@@ -86,4 +87,49 @@ func TestEachSheetKeptBeforeBriefsPerAccountKeepsItsFlagsBrief(t *testing.T) {
 		`SELECT (SELECT count(*) FROM mission_briefs), (SELECT count(*) FROM mission_progress)`).Scan(&briefs, &progress))
 	assert.Equal(t, 1, briefs, "Germany's brief has no player")
 	assert.Equal(t, 1, progress, "the progress stays")
+}
+
+func TestTheConquestsNotDoneOfTheBrokenDayGoAndTheirDaysKeepTheirCounts(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "missions", cppg.MigrationsBefore(t, migrations.FS, redrawConquests))
+	seed := func(query string, args ...any) {
+		_, err := db.On(t.Context()).ExecContext(t.Context(), query, args...)
+		require.NoError(t, err)
+	}
+	seed(`INSERT INTO mission_days (day_id, starts_at, ends_at) VALUES
+		('season-1/day-2', '2026-11-01 21:00:00+00', '2026-11-02 21:00:00+00'),
+		('season-1/day-1', '2026-10-31 21:00:00+00', '2026-11-01 21:00:00+00')`)
+	for n, row := range []struct {
+		day, flag, kind string
+		done            bool
+	}{
+		{"season-1/day-2", "fr", "take_in", false},
+		{"season-1/day-2", "de", "take_in", true},
+		{"season-1/day-2", "dz", "break_shields", false},
+		{"season-1/day-1", "fr", "take_in", false},
+	} {
+		seed(`INSERT INTO flag_days (day, flag, takes, counted_takes_below, counted_takes_below_index, strikes,
+				counted_strikes_below, counted_strikes_below_index) VALUES ($1, $2, 40, 41, 1, 3, 4, 1)`, row.day, row.flag)
+		seed(`INSERT INTO flag_missions (day, flag, mission_id, kind, payload, points, progress, done)
+			VALUES ($1, $2, $3, $4::flag_mission_kind, '{}', 5, 12, $5)`, row.day, row.flag, uuid.UUID{15: byte(n + 1)}, row.kind, row.done)
+	}
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), `SELECT day || '/' || flag FROM flag_missions ORDER BY day, flag`)
+	require.NoError(t, err)
+	defer func() { _ = rows.Close() }()
+	var missions []string
+	for rows.Next() {
+		var mission string
+		require.NoError(t, rows.Scan(&mission))
+		missions = append(missions, mission)
+	}
+	require.NoError(t, rows.Err())
+	assert.Equal(t, []string{"season-1/day-1/fr", "season-1/day-2/de", "season-1/day-2/dz"}, missions,
+		"France's conquest of the day that ran on 2 Nov at 06:00 goes; one done, a shield mission and a day before stay")
+
+	var days, takes int
+	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(),
+		`SELECT count(*), sum(takes) FROM flag_days`).Scan(&days, &takes))
+	assert.Equal(t, []int{4, 160}, []int{days, takes}, "every day keeps what it counted")
 }
