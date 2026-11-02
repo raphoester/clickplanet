@@ -80,7 +80,9 @@ It runs headless Chrome under a throwaway profile, so it never disturbs the
 browser you have open. `--eval` evaluates in the page (top-level `await` works)
 and prints the result — measuring boxes with `getBoundingClientRect()` beats
 eyeballing a screenshot. `--headed`, `--w/--h/--dpr`, `--full` and `--settle`
-cover the rest; `npm run mobile -- --help` lists them.
+cover the rest; `npm run mobile -- --help` lists them. It is a touch phone at every
+`--w`: at 1440 wide, what shows only on hover (the chat's message buttons) shows as on
+a phone. Judge a mouse desktop in the browser pane.
 
 Chrome's emulation does not reproduce one iOS behaviour that has bitten this
 page: **Safari zooms the whole page in when a text field under 16px takes
@@ -96,6 +98,6 @@ drag that pulled the page to refresh. Size a full-screen layer with
 `position: fixed; inset: 0` instead. `overscroll-behavior: none` on the root
 stops pull-to-refresh everywhere.
 
-`--open-menu` dismisses the donation modal and opens the Board sheet:
-`DonationModal` rolls a coin on **every** load (`SHOW_PROBABILITY`), so without
-it you will screenshot the donation modal half the time.
+`--open-menu` opens the Board sheet. The donation modal never shows there:
+`DonationModal` skips a browser's first visit (no stored country), and the throwaway
+profile is always one.

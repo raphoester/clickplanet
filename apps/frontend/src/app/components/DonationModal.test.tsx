@@ -3,11 +3,18 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import DonationModal from "./DonationModal.tsx"
+import {COUNTRY_STORAGE_KEY} from "../countryPreference.ts"
 
-const shown = () => screen.queryByText("Do you like ClickPlanet ?")
+const shown = () => screen.queryByText("It's free and open source.")
 
-beforeEach(() => vi.restoreAllMocks())
-afterEach(cleanup)
+beforeEach(() => {
+    vi.restoreAllMocks()
+    localStorage.setItem(COUNTRY_STORAGE_KEY, JSON.stringify({code: "fr", name: "France"}))
+})
+afterEach(() => {
+    cleanup()
+    localStorage.clear()
+})
 
 describe("DonationModal", () => {
     it("appears on a high roll and takes the whole screen", () => {
@@ -20,6 +27,13 @@ describe("DonationModal", () => {
 
     it("stays away on a low roll", () => {
         vi.spyOn(Math, "random").mockReturnValue(0.1)
+        render(<DonationModal/>)
+        expect(shown()).toBeNull()
+    })
+
+    it("stays away on a browser's first visit, whatever the roll", () => {
+        localStorage.clear()
+        vi.spyOn(Math, "random").mockReturnValue(0.9)
         render(<DonationModal/>)
         expect(shown()).toBeNull()
     })
@@ -38,7 +52,7 @@ describe("DonationModal", () => {
         const user = userEvent.setup()
         render(<DonationModal/>)
 
-        await user.click(screen.getByText("Do you like ClickPlanet ?"))
+        await user.click(screen.getByText("It's free and open source."))
         expect(shown()).not.toBeNull()
 
         await user.click(document.querySelector(".modal")!)
@@ -49,7 +63,7 @@ describe("DonationModal", () => {
         vi.spyOn(Math, "random").mockReturnValue(0.9)
         render(<DonationModal/>)
 
-        const dialog = screen.getByRole("dialog", {name: "Dear earthlings"})
+        const dialog = screen.getByRole("dialog", {name: "Like ClickPlanet?"})
         expect(dialog.getAttribute("aria-modal")).toBe("true")
     })
 
