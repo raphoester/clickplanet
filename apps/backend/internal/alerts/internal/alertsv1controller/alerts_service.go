@@ -5,6 +5,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_discord_link_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_player_link_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/join_server_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/link_members_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/unlink_player_handler"
 )
 
@@ -23,6 +24,7 @@ var _ alertsv1connect.InternalServiceHandler = InternalService{}
 type AdminService struct {
 	get_player_link_handler.GetPlayerLinkHandler
 	unlink_player_handler.UnlinkPlayerHandler
+	link_members_handler.LinkMembersHandler
 }
 
 var _ alertsv1connect.AdminServiceHandler = AdminService{}

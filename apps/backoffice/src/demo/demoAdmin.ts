@@ -40,6 +40,8 @@ import {Rules as AntibotRules} from "../gen/grpc/antibot/v1/rules_pb.ts"
 import {
     GetPlayerLinkRequest,
     GetPlayerLinkResponse,
+    LinkMembersRequest,
+    LinkMembersResponse,
     UnlinkPlayerRequest,
     UnlinkPlayerResponse,
 } from "../gen/grpc/alerts/v1/admin_pb.ts"
@@ -410,6 +412,8 @@ export class DemoAdmin extends FakeAdmin {
 
     // Every account is linked to Discord until the page unlinks it.
     private readonly unlinkedFromDiscord = new Set<string>()
+    // Players signed in with Discord before it joined the server, and in it by the invite: the first LinkMembers links them.
+    private discordMembersWaiting = 4
 
     readonly demoAlerts = {
         getPlayerLink: (request: PartialMessage<GetPlayerLinkRequest>) => this.answer("getPlayerLink", request,
@@ -421,6 +425,13 @@ export class DemoAdmin extends FakeAdmin {
             const unlinked = !this.unlinkedFromDiscord.has(accountId)
             this.unlinkedFromDiscord.add(accountId)
             return this.answer("unlinkPlayer", request, new UnlinkPlayerResponse({unlinked}))
+        },
+        // An account the page unlinked stayed in the server, so a run links it again; 9 players never joined it.
+        linkMembers: (request: PartialMessage<LinkMembersRequest>) => {
+            const linked = this.discordMembersWaiting + this.unlinkedFromDiscord.size
+            this.discordMembersWaiting = 0
+            this.unlinkedFromDiscord.clear()
+            return this.answer("linkMembers", request, new LinkMembersResponse({linked, outside: 9}))
         },
     }
 
