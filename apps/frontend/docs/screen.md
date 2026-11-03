@@ -60,9 +60,14 @@ that does not.
     playing since);
   - **the medals earned**, at 76px: a press wears one (`WearTitle`), the worn
     one ringed in gold;
-  - **one card per track**, side by side: the current rank's medal, the next
-    one locked, one bar to it and what is left. "All ranks" opens the track's
-    whole `TrackPath` under the cards;
+  - **the tracks** (`ProfileTracks`), a list and a detail side by side: on the
+    left one tab per track (the current rank's medal, its name, a bar to the next
+    rank), on the right every rank of the track picked, top to bottom, a bar down
+    the medals filled up to the progress, and what is left in its header. The
+    first track is picked when the profile opens. The detail stays in view while
+    the list scrolls. It replaced cards in a grid whose "All ranks" opened the
+    path under the last row, far from the card pressed once a player had 8
+    tracks;
   - **the fronts**, side by side: the first three countries fought for and
     against, "See all" for the rest;
   - **the account** in a 340px column beside them (`ProfileAccount`): the
