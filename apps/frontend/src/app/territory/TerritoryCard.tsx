@@ -84,7 +84,7 @@ export default function TerritoryCard({shown, flag, players, now = Date.now(), o
         {top.length > 0 && <section className="territory-card-players" aria-labelledby={`territory-players-${shown.id}`}>
             <h4 id={`territory-players-${shown.id}`} className="territory-card-heading">Top players</h4>
             <ol className="territory-card-player-list">
-                {top.map(({line, tiles}) => <li key={line.accountId} className="territory-card-player" style={authorStyle(line)}>
+                {top.map(({line, tiles}) => <li key={`${line.accountId}:${line.countryCode}`} className="territory-card-player" style={authorStyle(line)}>
                     <CountryFlag code={line.countryCode}/>
                     <PlayerName line={line} onOpen={onOpen}/>
                     <span className="territory-card-tiles">{count.format(tiles)}</span>
