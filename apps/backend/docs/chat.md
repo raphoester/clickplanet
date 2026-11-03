@@ -263,6 +263,32 @@ while it was away: the badge counts it, and the lines light up as the chat opens
 - `TestAnIdentityTokenNamesTheReaderAndTheSeenMarkOnly` pins the identity path, the history query's
   `TestTheSeenMarkOnlyMovesForward` the mark, and `TestADeletedSeenMarkIsGoneAndOnlyThatOne` the deletion.
 
+## GIFs
+
+**A message shows a text or a GIF, never both**, and the contract says so: `oneof body { text, gif }` on
+`SendMessageRequest`, `ChatMessage`, `Quote`, and the operator's `GetMessageResponse`, `KeptMessage` and
+`KeptQuote`. `text` kept its field number when it moved into the oneof, so the bytes did not change and an older
+client reads and sends a text as before. A removed message has no body at all. The client finds the GIF on KLIPY
+itself (see the frontend's [Live chat](../../frontend/docs/chat.md#gifs)); the server only checks and keeps what it
+was sent.
+
+- **`messages.Gif` is KLIPY's address and size**, kept as KLIPY gave it: its terms forbid rewriting or caching the
+  address. `Limits.Body` refuses a GIF with a text, an address that is not `https` on `static.klipy.com`,
+  `static1.klipy.com` or `static2.klipy.com` (no user name, no port), and a side of 0 or over 2000:
+  `ErrInvalidMessage`. So no player makes a reader's browser load an address it chose.
+- **A guest sends no GIF**: `Message.SentBy(author)` refuses it with `ErrGuestGif`, `PermissionDenied`, once the
+  author is known and before anything is kept. A guest account is free and a private tab is a new one, so a mute
+  does not stop a guest who posts GIFs; the same reason a guest's address is not a link. The player module says who
+  is a guest: `GetAuthorResponse.guest`, and `rpc_player_authors` answers `messages.GuestOf`.
+- **Kept in `chat.gifs`**, one row per message that shows one (`message_seq` → `messages.seq`, `url`, `width`,
+  `height`; migration `20261104120000_gifs`): a text has no row, so no column stands empty on it. `Append` writes the
+  message and its GIF in one statement (a data-modifying CTE). The row goes with its message (`ON DELETE CASCADE`),
+  so the prune needs no step of its own.
+- **Every read joins it**: the history, the message a reply or a reaction is checked against (so a reply quotes the
+  GIF), and the operator's `GetMessage` and `ListMessages`. **A removed message shows no GIF**, nor its quote, as it
+  shows no text; the operator still reads it.
+- The store's contract suite keeps and reads one back; the history query's suite pins the quote and the removal.
+
 ## Rooms
 
 **Each flag has a room of its own beside the chat everyone reads**: only the accounts that play for that flag read

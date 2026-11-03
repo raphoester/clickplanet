@@ -20,6 +20,22 @@ func NewLimits(maxText int) Limits {
 	return Limits{maxText: maxText}
 }
 
+// A text or a GIF, never both.
+func (l Limits) Body(text string, gif Gif) (string, Gif, error) {
+	if gif.None() {
+		cleaned, err := l.Text(text)
+		return cleaned, Gif{}, err
+	}
+	if text != "" {
+		return "", Gif{}, fmt.Errorf("%w: a GIF with a text", ErrInvalidMessage)
+	}
+	checked, err := gif.checked()
+	if err != nil {
+		return "", Gif{}, fmt.Errorf("%w: GIF: %w", ErrInvalidMessage, err)
+	}
+	return "", checked, nil
+}
+
 func (l Limits) Text(value string) (string, error) {
 	text, err := clean(value, l.maxText)
 	if err != nil {

@@ -12,6 +12,13 @@ export function countRunes(value: string): number {
     return [...value].length
 }
 
+// At the address KLIPY gave: its terms forbid rewriting it.
+export type Gif = {
+    url: string
+    width: number
+    height: number
+}
+
 export type ChatMessage = {
     id: string
     sentAt: number
@@ -27,6 +34,8 @@ export type ChatMessage = {
     reactionsVersion: number
     replyTo?: ChatQuote
     removed?: boolean
+    // A message shows a text or a GIF, never both.
+    gif?: Gif
 }
 
 export type ChatQuote = {
@@ -35,6 +44,7 @@ export type ChatQuote = {
     authorColor: NameColor
     text: string
     removed?: boolean
+    gif?: Gif
 }
 
 export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | RoundAnnouncement | FortifyAnnouncement | ChampionAnnouncement
@@ -123,6 +133,7 @@ export type OutgoingMessage = {
     countryCode: string
     text: string
     replyTo?: string
+    gif?: Gif
 }
 
 export interface ChatSender {

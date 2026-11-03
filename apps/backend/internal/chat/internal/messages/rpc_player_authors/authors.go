@@ -39,6 +39,9 @@ func (a *Authors) Author(ctx context.Context, account messages.AccountID) (messa
 		return messages.Author{}, fmt.Errorf("failed to ask the player module who posts: %w", err)
 	}
 
+	if res.Msg.GetGuest() {
+		return messages.GuestOf(res.Msg.GetName(), res.Msg.GetStreak()), nil
+	}
 	return messages.AuthorOf(res.Msg.GetName(), res.Msg.GetAdmin(), int32(res.Msg.GetColor()), res.Msg.GetStreak(), titleOf(res.Msg.GetWornTitle())), nil
 }
 

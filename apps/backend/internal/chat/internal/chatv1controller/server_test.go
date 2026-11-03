@@ -101,7 +101,7 @@ func sendWithToken(server *httptest.Server, ip string, token string) error {
 	req := connect.NewRequest(&chatv1.SendMessageRequest{
 		AuthorId:  "some-uuid",
 		CountryId: "fr",
-		Text:      "hello",
+		Body:      &chatv1.SendMessageRequest_Text{Text: "hello"},
 	})
 	req.Header().Set("X-Real-IP", ip)
 	if token != "" {

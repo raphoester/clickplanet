@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chat.v1;
 
+import "chat/v1/chat.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -71,7 +72,10 @@ message GetMessageResponse {
   string message_id = 1;
   // Empty for a message kept before accounts, or of a deleted account.
   string account_id = 2;
-  string text = 3;
+  oneof body {
+    string text = 3;
+    Gif gif = 8;
+  }
   google.protobuf.Timestamp sent_at = 4;
   string country_id = 5;
   // Unset while the message is shown.
@@ -103,7 +107,10 @@ message KeptMessage {
   string account_id = 2;
   // Its author's name now: the name it was sent under for a message kept before accounts, [deleted] for an account nobody can name any more.
   string author_name = 3;
-  string text = 4;
+  oneof body {
+    string text = 4;
+    Gif gif = 10;
+  }
   google.protobuf.Timestamp sent_at = 5;
   string country_id = 6;
   // Unset while the message is shown.
@@ -119,7 +126,10 @@ message KeptQuote {
   string message_id = 1;
   // As KeptMessage.author_name.
   string author_name = 2;
-  string text = 3;
+  oneof body {
+    string text = 3;
+    Gif gif = 5;
+  }
   // Unset while the message is shown.
   google.protobuf.Timestamp removed_at = 4;
 }

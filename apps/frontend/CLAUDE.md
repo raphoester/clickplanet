@@ -47,8 +47,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 
 ## Features
 
-- [Live chat](docs/chat.md) — the World and the flag's room, replies, removed messages, reactions, announcements,
-  delivery, and what was missed.
+- [Live chat](docs/chat.md) — the World and the flag's room, GIFs from KLIPY, replies, removed messages, reactions,
+  announcements, delivery, and what was missed.
 - [The front, for a first visit](docs/front-guide.md) — a browser's first visit opens on its own country, flies to
   its flag's nearest fight once the tiles are read, and rings the tiles it can take, until it has taken 50.
 - [Ghosts, for a quiet first visit](docs/ghosts.md) — while fewer than 7 play, a guided page sees fake raids near it,

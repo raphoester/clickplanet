@@ -29,9 +29,11 @@ type PostgresQuery struct {
 }
 
 const message = `
-	SELECT messages.account_id, messages.text, messages.sent_at, messages.country, messages.room, removals.removed_at
+	SELECT messages.account_id, messages.text, messages.sent_at, messages.country, messages.room, removals.removed_at,
+		COALESCE(gifs.url, ''), COALESCE(gifs.width, 0), COALESCE(gifs.height, 0)
 	FROM messages
 	LEFT JOIN removals ON removals.message_id = messages.id
+	LEFT JOIN gifs ON gifs.message_seq = messages.seq
 	WHERE messages.id = $1 AND messages.sent_at >= $2
 	ORDER BY messages.seq DESC
 	LIMIT 1
@@ -45,9 +47,10 @@ func (q *PostgresQuery) Message(ctx context.Context, id string) (*chatv1.GetMess
 		country   string
 		room      string
 		removedAt sql.NullTime
+		gif       = &chatv1.Gif{}
 	)
 	err := q.db.On(ctx).QueryRowContext(ctx, message, id, q.clock.Now().Add(-q.retention)).
-		Scan(&account, &text, &sentAt, &country, &room, &removedAt)
+		Scan(&account, &text, &sentAt, &country, &room, &removedAt, &gif.Url, &gif.Width, &gif.Height)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%w: %q", ErrNoMessage, id)
 	}
@@ -57,7 +60,6 @@ func (q *PostgresQuery) Message(ctx context.Context, id string) (*chatv1.GetMess
 
 	answer := &chatv1.GetMessageResponse{
 		MessageId: id,
-		Text:      text,
 		SentAt:    timestamppb.New(sentAt),
 		CountryId: country,
 	}
@@ -69,6 +71,11 @@ func (q *PostgresQuery) Message(ctx context.Context, id string) (*chatv1.GetMess
 	}
 	if removedAt.Valid {
 		answer.RemovedAt = timestamppb.New(removedAt.Time)
+	}
+	if gif.GetUrl() != "" {
+		answer.Body = &chatv1.GetMessageResponse_Gif{Gif: gif}
+	} else {
+		answer.Body = &chatv1.GetMessageResponse_Text{Text: text}
 	}
 	return answer, nil
 }

@@ -45,6 +45,7 @@ func TestTheUsernameIsAnswered(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "Ada_L", res.Msg.GetName())
+	assert.False(t, res.Msg.GetGuest())
 	assert.False(t, res.Msg.GetAdmin())
 	assert.Equal(t, playerv1.NameColor_NAME_COLOR_TEAL, res.Msg.GetColor())
 	assert.Equal(t, uint32(1), res.Msg.GetStreak())
@@ -57,6 +58,7 @@ func TestAGuestIsAnsweredWithItsCode(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "guest_000001", res.Msg.GetName())
+	assert.True(t, res.Msg.GetGuest())
 	assert.Nil(t, res.Msg.GetWornTitle())
 }
 

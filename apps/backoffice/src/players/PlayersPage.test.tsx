@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import {textBody} from "../chat/said.ts"
 import {Timestamp} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
@@ -25,7 +26,7 @@ function Page({admin, first}: {admin: FakeAdmin, first?: Opened}) {
 
 function said(n: number, accountId = ACCOUNT, authorName = "BraveFox42") {
     return new KeptMessage({
-        messageId: `${accountId}-${n}`, accountId, authorName, text: `${authorName} ${n}`,
+        messageId: `${accountId}-${n}`, accountId, authorName, body: textBody(`${authorName} ${n}`),
         sentAt: Timestamp.fromDate(new Date(AT.getTime() + n * 60_000)), countryId: "fr",
     })
 }

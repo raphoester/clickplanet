@@ -93,14 +93,19 @@ const (
 	projection = `)
 	SELECT
 		page.id, page.account_id, page.name, page.text, page.sent_at, page.country, page.room, removals.removed_at,
+		COALESCE(gifs.url, ''), COALESCE(gifs.width, 0), COALESCE(gifs.height, 0),
 		COALESCE(quoted.id, ''), quoted.account_id, COALESCE(quoted.name, ''), COALESCE(quoted.text, ''),
-		quoted.removed_at
+		quoted.removed_at,
+		COALESCE(quoted.url, ''), COALESCE(quoted.width, 0), COALESCE(quoted.height, 0)
 	FROM page
 	LEFT JOIN removals ON removals.message_id = page.id
+	LEFT JOIN gifs ON gifs.message_seq = page.seq
 	LEFT JOIN LATERAL (
-		SELECT messages.id, messages.account_id, messages.name, messages.text, removals.removed_at
+		SELECT messages.id, messages.account_id, messages.name, messages.text, removals.removed_at,
+			gifs.url, gifs.width, gifs.height
 		FROM messages
 		LEFT JOIN removals ON removals.message_id = messages.id
+		LEFT JOIN gifs ON gifs.message_seq = messages.seq
 		WHERE messages.id = page.reply_to AND messages.sent_at >= $1
 		ORDER BY messages.seq DESC
 		LIMIT 1
@@ -214,15 +219,20 @@ func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any)
 			account         uuid.NullUUID
 			sentAt          time.Time
 			room            string
+			text            string
 			removedAt       sql.NullTime
+			gif             = &chatv1.Gif{}
 			quote           = &chatv1.KeptQuote{}
 			quotedAccount   uuid.NullUUID
+			quotedText      string
 			quotedRemovedAt sql.NullTime
+			quotedGif       = &chatv1.Gif{}
 		)
 		if err := found.Scan(
-			&each.message.MessageId, &account, &each.author.name, &each.message.Text, &sentAt,
-			&each.message.CountryId, &room, &removedAt,
-			&quote.MessageId, &quotedAccount, &each.quoted.name, &quote.Text, &quotedRemovedAt,
+			&each.message.MessageId, &account, &each.author.name, &text, &sentAt,
+			&each.message.CountryId, &room, &removedAt, &gif.Url, &gif.Width, &gif.Height,
+			&quote.MessageId, &quotedAccount, &each.quoted.name, &quotedText, &quotedRemovedAt,
+			&quotedGif.Url, &quotedGif.Width, &quotedGif.Height,
 		); err != nil {
 			return nil, fmt.Errorf("failed to read a message of a page: %w", err)
 		}
@@ -238,12 +248,22 @@ func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any)
 		if removedAt.Valid {
 			each.message.RemovedAt = timestamppb.New(removedAt.Time)
 		}
+		if gif.GetUrl() != "" {
+			each.message.Body = &chatv1.KeptMessage_Gif{Gif: gif}
+		} else {
+			each.message.Body = &chatv1.KeptMessage_Text{Text: text}
+		}
 		if quote.GetMessageId() != "" {
 			if quotedAccount.Valid {
 				each.quoted.account = cpsession.AccountID(quotedAccount.UUID)
 			}
 			if quotedRemovedAt.Valid {
 				quote.RemovedAt = timestamppb.New(quotedRemovedAt.Time)
+			}
+			if quotedGif.GetUrl() != "" {
+				quote.Body = &chatv1.KeptQuote_Gif{Gif: quotedGif}
+			} else {
+				quote.Body = &chatv1.KeptQuote_Text{Text: quotedText}
 			}
 			each.message.ReplyTo = quote
 		}

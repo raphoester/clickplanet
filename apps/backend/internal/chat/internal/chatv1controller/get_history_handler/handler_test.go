@@ -40,7 +40,7 @@ const ada = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
 var rooms = messages.NewRooms(messages.FakeFlags{messages.AccountIDOf(ada): "fr"})
 
 func TestGetHistoryAnswersWhatTheQueryReadsForTheCaller(t *testing.T) {
-	history := &chatv1.GetHistoryResponse{Messages: []*chatv1.ChatMessage{{Id: "message-1", Text: "hello"}}}
+	history := &chatv1.GetHistoryResponse{Messages: []*chatv1.ChatMessage{{Id: "message-1", Body: &chatv1.ChatMessage_Text{Text: "hello"}}}}
 	viewer := new(messages.AccountID)
 
 	res, err := get_history_handler.New(stubQuery{history: history, viewer: viewer}, rooms).

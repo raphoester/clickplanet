@@ -4,6 +4,7 @@ import {Ago} from "../components/When.tsx"
 import {Report, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
 import {outcomeLabel, reasonLabel} from "../support/labels.ts"
 import {useCall} from "../useCall.ts"
+import {wordsIn} from "../chat/said.ts"
 
 type Props = {
     chat: ChatAdmin
@@ -64,5 +65,5 @@ function ReportedText({chat, messageId, fallback}: {chat: ChatAdmin, messageId: 
     const [message] = useCall(read)
     if (message.state !== "done") return fallback === "" ? null : <span className="row-text">{fallback}</span>
     const removed = message.value.removedAt !== undefined
-    return <q className={removed ? "row-text line-removed" : "row-text"}>{message.value.text}</q>
+    return <q className={removed ? "row-text line-removed" : "row-text"}>{wordsIn(message.value.body)}</q>
 }

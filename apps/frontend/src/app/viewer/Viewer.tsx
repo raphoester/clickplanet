@@ -27,6 +27,7 @@ import {useConnection} from "./useConnection.ts";
 import Quiz from "../quiz/Quiz.tsx";
 import {useQuiz} from "../quiz/useQuiz.ts";
 import {ChatRooms} from "../../backends/chat.ts";
+import {GifSearch} from "../../backends/gifs.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu, {BoardSheet, MenuTab, YouPlace} from "../Menu.tsx";
 import {youLabel} from "../youLabel.ts";
@@ -159,6 +160,7 @@ export type ViewerProps = {
     clips?: ClipsBackend & ClipsNameBackend
     crazyGames?: CrazyGamesPage
     alerts?: DiscordAlerts
+    gifs?: GifSearch
 }
 
 export default function Viewer(props: ViewerProps) {
@@ -508,6 +510,7 @@ export default function Viewer(props: ViewerProps) {
             onOpenChange={compact ? (open) => setSheet(open ? "chat" : undefined) : undefined}
             onUnread={setUnread}
             discord={discord}
+            gifs={props.gifs}
         />}
 
         {ready && compact && <>

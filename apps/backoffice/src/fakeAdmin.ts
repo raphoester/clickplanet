@@ -1,3 +1,4 @@
+import {textBody} from "./chat/said.ts"
 import {Duration, PartialMessage, Timestamp} from "@bufbuild/protobuf"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
@@ -166,27 +167,27 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         discordUserId: "80351110224678912", countryId: "fr", linkedAtUnixMs: BigInt(AT.getTime()),
     })
     message = new GetMessageResponse({
-        messageId: "message-1", accountId: "account-reported", text: "you all suck",
+        messageId: "message-1", accountId: "account-reported", body: textBody("you all suck"),
         sentAt: Timestamp.fromDate(AT), countryId: "fr",
     })
     // The chat ListMessages pages through, the reported message among it: Bob baits, Cleo answers him, Ana insults,
     // then Bob again, in Germany's room.
     chat = [
         new KeptMessage({
-            messageId: "message-before-1", accountId: "account-reporter", authorName: "Bob", text: "come at me",
+            messageId: "message-before-1", accountId: "account-reporter", authorName: "Bob", body: textBody("come at me"),
             sentAt: Timestamp.fromDate(new Date(AT.getTime() - 120_000)), countryId: "de",
         }),
         new KeptMessage({
-            messageId: "message-before-2", accountId: "account-cleo", authorName: "Cleo", text: "calm down",
+            messageId: "message-before-2", accountId: "account-cleo", authorName: "Cleo", body: textBody("calm down"),
             sentAt: Timestamp.fromDate(new Date(AT.getTime() - 60_000)), countryId: "it",
-            replyTo: new KeptQuote({messageId: "message-before-1", authorName: "Bob", text: "come at me"}),
+            replyTo: new KeptQuote({messageId: "message-before-1", authorName: "Bob", body: textBody("come at me")}),
         }),
         new KeptMessage({
-            messageId: "message-1", accountId: "account-reported", authorName: "Ana", text: "you all suck",
+            messageId: "message-1", accountId: "account-reported", authorName: "Ana", body: textBody("you all suck"),
             sentAt: Timestamp.fromDate(AT), countryId: "fr",
         }),
         new KeptMessage({
-            messageId: "message-after-1", accountId: "account-reporter", authorName: "Bob", text: "so rude",
+            messageId: "message-after-1", accountId: "account-reporter", authorName: "Bob", body: textBody("so rude"),
             sentAt: Timestamp.fromDate(new Date(AT.getTime() + 60_000)), countryId: "de", flagRoom: "de",
         }),
     ]

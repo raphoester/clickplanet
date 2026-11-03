@@ -249,6 +249,33 @@ in `QuoteLine.tsx`), in italics. So does the quote of every reply to it.
 - In fake mode `fakeChat.remove()` in the console removes the newest line, and
   `fakeChat.remove(id)` a given one.
 
+## GIFs
+
+**A message can show a GIF from KLIPY instead of a text.** The "GIF" button beside Send opens `GifPicker` above the
+composer: what is trending, a search field, and a grid of results. A click sends the GIF at once, alone (the server
+refuses a GIF with a text; see the backend's [Chat](../../backend/docs/chat.md#gifs)), as a reply when one is open,
+and leaves what was typed in the box. Escape or the cross closes it.
+
+- **The browser asks KLIPY itself** (`backends/klipyGifs.ts`, behind `GifSearch` in `gifs.ts`): KLIPY's terms forbid a
+  server between the player and it, any cache, and any change to a media address. Trending with no words, a search
+  350 ms after the typing pauses (`useGifSearch`), 24 a page, the next page once the grid's end comes near. It sends
+  `content_filter=medium` (G and PG), the flag's country as `locale`, and the chat id (`chatIdentity.ts`) as
+  `customer_id`. Once the message is sent, `markShared` tells KLIPY which GIF and which words (its share trigger).
+- **Each result is KLIPY's small size**: the `sm` webp, else the `sm` GIF, about 220 px wide, the one the grid
+  shows and the message keeps. An ad (`type: "ad"`) is never shown: ads are off for the key, and a result that is
+  one anyway is left out.
+- **The search field says "Search KLIPY"**: KLIPY's attribution asks for that placeholder.
+- **A guest is asked to sign in** ("Sign in to send GIFs", `onSignIn`, as for the flag's room), and nothing is
+  searched.
+- **Off on the CrazyGames page** (`gifsOf` in `main.tsx`): its word list cannot read the words in a GIF. Off too
+  with no `VITE_KLIPY_KEY` at build: no button.
+- **In the log a GIF is an image** in the balloon's outline and corners, at its size fitted in 200×200
+  (`fitted`, `domain/gifs.ts`), so its line holds its place before it loads. Where only words fit (a quote, the
+  peek, the toast, a report) it reads "GIF" (`wordsOf`, `domain/chatLog.ts`). A removed GIF is a removed message:
+  `withRemoved` drops it from the message and every quote.
+- **In a short panel the grid gives way, never the log**: the log keeps its 120 px and the grid shrinks to one row.
+- In fake mode `FakeGifs` draws coloured SVGs; "nothing" finds nothing and "fail" fails.
+
 ## Reactions
 
 A message carries reactions from a fixed set, `chat.v1.Reaction`: the proto enum
