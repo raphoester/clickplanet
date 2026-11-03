@@ -252,6 +252,7 @@ export type Globe = {
     setClickHue(hue: number | undefined): void
     territoryOf(landmass: number): Territory
     showTerritory(landmass: number | undefined): void
+    flyToLastLoss(): void
     capture(): Promise<CapturedFrame>
     graphics(): GraphicsReport
     dispose(): void
@@ -480,7 +481,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
+    // The flag's last tile taken by someone else: the under-attack moment flies there.
+    let lost: number | undefined
+
     const ghostTook = (take: GhostTake) => {
+        if (shownOwnerOf(take.tile) === country.code) lost = take.tile
         ghosts.take(take)
         saveGhostTakes(ghosts.snapshot())
         repaint([take.tile])
@@ -636,6 +641,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (to) fly(to)
     }
 
+    const flyDown = (tile: number) => {
+        const {most} = flownZoomsOf(renderer.domElement.height / renderer.getPixelRatio())
+        fly({direction: pointOf(geometryData.positions, tile), zoom: Math.min(most, MAX_ZOOM)})
+    }
+
     const pilot: Pilot = {
         shotAt: (seconds) => {
             if (!flight) return undefined
@@ -685,9 +695,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         lightFront(front.follow(country.code))
         if (taken || !homeShot) return
         const nearest = front.nearestTo(homeShot.direction)
-        if (nearest === undefined) return
-        const {most} = flownZoomsOf(renderer.domElement.height / renderer.getPixelRatio())
-        fly({direction: pointOf(geometryData.positions, nearest), zoom: Math.min(most, MAX_ZOOM)})
+        if (nearest !== undefined) flyDown(nearest)
     }
 
     const highlight = (orbit: boolean) => {
@@ -787,6 +795,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // A later change of a tile wins over the clear, by its version, however long the clear waited.
     const land = ({cleared, struck, version}: BombDrop) => {
         releaseGhosts([...cleared, ...struck.map(({tile}) => tile)])
+        lost = cleared.find((tile) => ownership.ownerOf(tile) === country.code) ?? lost
         const changes = noChanges()
         tiles.applyBlast(cleared, struck, version, changes)
         applyChanges(changes.owners)
@@ -1111,6 +1120,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         const seconds = performance.now() / 1000
         for (const {tile, clicked, previousCountry, newCountry} of updates) {
+            if (previousCountry === country.code && newCountry !== country.code) lost = tile
             if (!clicked || previousCountry === newCountry || ownClicks.has(tile, country.code, seconds)) continue
             plainClicks.playClick(tile, camera)
         }
@@ -1321,6 +1331,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         setCountry: (newCountry: Country) => {
             const changed = newCountry.code !== country.code
             country = newCountry
+            if (changed) lost = undefined
             if (front && changed) lightFront(front.follow(newCountry.code))
         },
         setCrowd: (count: number | undefined) => {
@@ -1359,6 +1370,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }),
         showTerritory: (landmass: number | undefined) => {
             shownLandmass = landmass
+        },
+        flyToLastLoss: () => {
+            if (lost !== undefined) flyDown(lost)
         },
         capture: () => new Promise<CapturedFrame>((resolve, reject) => {
             if (lifetime.signal.aborted) {

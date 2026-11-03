@@ -254,6 +254,7 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const territoryOf = useCallback((landmass: number): Territory | undefined => globeRef.current?.territoryOf(landmass), [])
     const showTerritory = useCallback((landmass: number | undefined) => globeRef.current?.showTerritory(landmass), [])
+    const flyToLastLoss = useCallback(() => globeRef.current?.flyToLastLoss(), [])
 
     const dismissAward = useCallback(() => setAward(undefined), [])
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
@@ -299,6 +300,7 @@ export function useGlobe(options: UseGlobeOptions) {
         pointingTerritory,
         territoryOf,
         showTerritory,
+        flyToLastLoss,
     }
 }
 
