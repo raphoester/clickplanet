@@ -121,7 +121,8 @@ void main() {
         float r = length(coordinates);
         float ring = smoothstep(0.31, 0.38, r) * (1.0 - smoothstep(0.46, 0.5, r));
         vec3 gold = vec3(1.0, 0.8, 0.22);
-        colour.rgb = mix(colour.rgb, gold, ring * (0.5 + 0.5 * beat));
+        vec3 tint = mod(vPulse, 2.0) > 0.5 ? gold : vec3(1.0);
+        colour.rgb = mix(colour.rgb, tint, ring * (0.5 + 0.5 * beat));
         colour.a = max(colour.a, ring * (0.6 + 0.4 * beat));
     }
 

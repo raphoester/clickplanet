@@ -70,7 +70,9 @@ import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {Peek, Peeked, Point, TilePeek} from "../../domain/tilePeek.ts";
 import {rankHoldings, Territory, TerritoryPeek} from "../../domain/territory.ts";
 import {FLIGHT_SECONDS, flightAt, territoryShotOf} from "../../domain/flight.ts";
-import {pointOf} from "../../domain/clip/geometry.ts";
+import {dot, pointOf} from "../../domain/clip/geometry.ts";
+import {Front, FrontChanges} from "../../domain/front.ts";
+import {Neighbours} from "../../domain/neighbours.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
 import {ShieldChange, outcomeOf, placementOf} from "../../domain/shields.ts";
 import {Landmasses} from "../../domain/landmasses.ts";
@@ -185,6 +187,8 @@ export type GlobeOptions = {
     clickBudget?: ClickBudgetSource
     container: HTMLElement
     linkedShot?: Shot
+    // A first visit: the camera starts on the flag's own country, flies to its front once the tiles are read, and the front is lit.
+    showFront?: boolean
     country: Country
     mapView: MapView
     rendering: Rendering
@@ -254,6 +258,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         clickBudget,
         container: eventTarget,
         linkedShot,
+        showFront = false,
         country: initialCountry,
         mapView: initialMapView,
         rendering,
@@ -428,18 +433,29 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
     }
 
+    let front: Front | undefined
+
+    const lightFront = ({on, off}: FrontChanges) => {
+        if (on.length === 0 && off.length === 0) return
+        field.setFront(off, false)
+        field.setFront(on, true)
+        invalidate()
+    }
+
     const pulsing = (camera: THREE.Camera) => {
         for (const landmass of targets.landmasses()) {
             const at = landmass * 5
             const along = camera.position.x * borders.frames[at] + camera.position.y * borders.frames[at + 1] + camera.position.z * borders.frames[at + 2]
             if (along > 0) return true
         }
-        return false
+        const lit = front?.nearestTo(camera.position)
+        return lit !== undefined && dot(pointOf(geometryData.positions, lit), camera.position) > 0
     }
 
     const applyChanges = (changes: OwnerChange[], live = true) => {
         if (changes.length === 0) return
         field.setOwners(changes)
+        if (front) lightFront(front.touch(changes.map(({tile}) => tile)))
         if (tracking) {
             const entered = targets.touch(changes.map(({tile}) => tile))
             if (live) announceClose(entered)
@@ -548,14 +564,16 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     let flight: Flight | undefined
+    let taken = false
 
-    const flyTo = (landmass: number | undefined) => {
-        if (landmass === undefined) return
+    const territoryShot = (landmass: number) => {
         const {width, height} = renderer.domElement
         const {least, most} = flownZoomsOf(height / renderer.getPixelRatio())
         const points = Array.from(landmasses.tilesOf(landmass), (tile) => pointOf(geometryData.positions, tile))
-        const to = territoryShotOf(points, width / height, least, Math.min(most, MAX_ZOOM))
-        if (!to) return
+        return territoryShotOf(points, width / height, least, Math.min(most, MAX_ZOOM))
+    }
+
+    const fly = (to: Shot) => {
         const {x, y, z} = camera.position.clone().normalize()
         flight = {
             from: {direction: {x, y, z}, zoom: camera.zoom},
@@ -563,6 +581,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             since: performance.now() / 1000,
             seconds: prefersReducedMotion() ? 0 : FLIGHT_SECONDS,
         }
+    }
+
+    const flyTo = (landmass: number | undefined) => {
+        if (landmass === undefined) return
+        const to = territoryShot(landmass)
+        if (to) fly(to)
     }
 
     const pilot: Pilot = {
@@ -575,7 +599,32 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
         cancel: () => {
             flight = undefined
+            taken = true
         },
+    }
+
+    // The flag's own country is its biggest landmass.
+    const homeOf = (code: string) => {
+        let home: number | undefined
+        for (let landmass = 1; landmass < borders.codes.length; landmass++) {
+            if (borders.codes[landmass] !== code) continue
+            if (home === undefined || landmasses.tilesOf(landmass).length > landmasses.tilesOf(home).length) home = landmass
+        }
+        return home
+    }
+
+    const home = showFront && !linkedShot ? homeOf(country.code) : undefined
+    const homeShot = home === undefined ? undefined : territoryShot(home)
+    if (homeShot) aim(camera, homeShot)
+
+    const goToFront = () => {
+        front = new Front(new Neighbours(geometryData.positions), (tile) => ownership.ownerOf(tile), geometryData.positions)
+        lightFront(front.follow(country.code))
+        if (taken || !homeShot) return
+        const nearest = front.nearestTo(homeShot.direction)
+        if (nearest === undefined) return
+        const {most} = flownZoomsOf(renderer.domElement.height / renderer.getPixelRatio())
+        fly({direction: pointOf(geometryData.positions, nearest), zoom: Math.min(most, MAX_ZOOM)})
     }
 
     const highlight = (orbit: boolean) => {
@@ -1015,6 +1064,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (share === 1) {
                 loaded = true
                 tilesWereRead()
+                if (showFront) goToFront()
             }
         }
     }
@@ -1158,7 +1208,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         tilesCount: field.size,
         tilesRead,
         setCountry: (newCountry: Country) => {
+            const changed = newCountry.code !== country.code
             country = newCountry
+            if (front && changed) lightFront(front.follow(newCountry.code))
         },
         setMapView: (view: MapView) => {
             if (view === mapView) return

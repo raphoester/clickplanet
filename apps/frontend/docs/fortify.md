@@ -25,8 +25,9 @@ A landmass is a row of the borders blob's table.
 - **Close to fortifying** (`domain/fortifyTarget.ts`, `domain/fortifyTargets.ts`): a flag
   holding more than half of a landmass and `CLOSE_TILES` (25) or fewer from all of it,
   and not the flag that fortified it last. The target comes from the server's counts
-  (`recount` when they change); the tiles it still misses pulse gold (a `pulse`
-  attribute, a ring in the fragment shader), for everyone, but only a tile whose owner
+  (`recount` when they change); the tiles it still misses pulse gold (bit 1 of a `pulse`
+  attribute, a ring in the fragment shader; bit 2 is the first visit's front, see [The front, for a first
+  visit](front-guide.md)), for everyone, but only a tile whose owner
   is read: a batch that lands `touch`es its tiles. The locks come from
   `GetFortresses` at load and after a gap, then from the events; nothing pulses before
   they are read. **The pulse is drawn at `AMBIENT_FRAME_MS` (20 fps), and only while a
