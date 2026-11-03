@@ -17,6 +17,8 @@ import ChatComposer from "./ChatComposer.tsx";
 import ChatLog from "./ChatLog.tsx";
 import ReportMessageModal from "../support/ReportMessageModal.tsx";
 import DiscordBar from "./DiscordBar.tsx";
+import LockedRoom from "./LockedRoom.tsx";
+import {newMessages} from "./newMessages.ts";
 import {DiscordOffer} from "../alerts/useDiscordAlerts.ts";
 import {ChatRoomState, useChatRoom} from "./useChatRoom.ts";
 import {useChatIdentity} from "./useChatIdentity.ts";
@@ -45,6 +47,7 @@ export type ChatPanelProps = {
     onOpenChange?: (open: boolean) => void
     onUnread?: (unread: number) => void
     discord?: DiscordOffer
+    onSignIn?: () => void
 }
 
 type View = "world" | "flag" | "online"
@@ -74,26 +77,28 @@ export default function ChatPanel(props: ChatPanelProps) {
     const panel = useRef<HTMLElement>(null)
     const {startResize, resetSize} = useChatSize(panel)
 
-    const {accountId, username, playSound, flagRoom} = props
+    const {accountId, username, playSound, flagRoom, onSignIn} = props
+    const locked = onSignIn !== undefined
     const world = useChatRoom({
         backend: props.backend, accountId, username, playSound,
         seeing: looking && (view === "world" || (view === "online" && !players)),
     })
     const flag = useChatRoom({
-        backend: flagRoom?.backend, accountId, username, playSound, onLeft: props.onLeftRoom,
-        seeing: looking && view === "flag",
+        backend: flagRoom?.backend, accountId, username, playSound: locked ? undefined : playSound, onLeft: props.onLeftRoom,
+        seeing: looking && view === "flag" && !locked,
     })
     const words = useWordFilter()
     const identity = useChatIdentity()
 
     const flagOpen = flagRoom !== undefined && flag.status !== 'unavailable'
+    const flagRead = flagOpen && !locked
     const shown: View = view === "flag" && !flagOpen ? "world" : view
 
     useEffect(() => {
         if (view === "flag" && !flagOpen) setView("world")
     }, [view, flagOpen])
 
-    const unread = world.unread + (flagOpen ? flag.unread : 0)
+    const unread = world.unread + (flagRead ? flag.unread : 0)
 
     const {onUnread} = props
     useEffect(() => {
@@ -135,7 +140,7 @@ export default function ChatPanel(props: ChatPanelProps) {
         <RoomTab on={shown === "world"} name={flagOpen ? "World" : "Chat"} unread={world.unread}
                  onClick={() => choose("world")}/>
         {flagOpen && <RoomTab on={shown === "flag"} name={flagRoom.country.name} flag={flagRoom.country.code}
-                              unread={flag.unread} onClick={() => choose("flag")}/>}
+                              unread={flag.unread} locked={locked} onClick={() => choose("flag")}/>}
         {players && <button type="button"
                             role="tab"
                             aria-selected={shown === "online"}
@@ -148,6 +153,8 @@ export default function ChatPanel(props: ChatPanelProps) {
 
     const body: ReactNode = shown === "online" && players
         ? <div className="chat-players"><PlayersPanel entries={players} onOpenPlayer={props.onOpenPlayer}/></div>
+        : shown === "flag" && flagRoom && onSignIn
+        ? <LockedRoom country={flagRoom.country} unread={flag.unread} onSignIn={onSignIn}/>
         : <>
             <DiscordBar discord={props.discord} flagName={props.country.name}/>
 
@@ -182,7 +189,7 @@ export default function ChatPanel(props: ChatPanelProps) {
                                                           onClose={() => setReporting(undefined)}/>}
         </>
 
-    const toast = newest(world.toast, flagOpen ? flag.toast : undefined)
+    const toast = newest(world.toast, flagRead ? flag.toast : undefined)
 
     if (props.compact) {
         if (isOpen) {
@@ -209,7 +216,7 @@ export default function ChatPanel(props: ChatPanelProps) {
 
     const latest = newest(
         world.unread > 0 ? world.messages[world.messages.length - 1] : undefined,
-        flagOpen && flag.unread > 0 ? flag.messages[flag.messages.length - 1] : undefined,
+        flagRead && flag.unread > 0 ? flag.messages[flag.messages.length - 1] : undefined,
     )
     const waiting = !isOpen && unread > 0
 
@@ -272,11 +279,12 @@ type RoomTabProps = {
     name: string
     flag?: string
     unread: number
+    locked?: boolean
     onClick: () => void
 }
 
-function RoomTab({on, name, flag, unread, onClick}: RoomTabProps) {
-    const missed = !on && unread > 0
+function RoomTab({on, name, flag, unread, locked, onClick}: RoomTabProps) {
+    const missed = (!on || locked === true) && unread > 0
 
     return <button type="button"
                    role="tab"
@@ -293,10 +301,6 @@ function RoomTab({on, name, flag, unread, onClick}: RoomTabProps) {
 function newest(...messages: (ChatMessage | undefined)[]): ChatMessage | undefined {
     return messages.reduce<ChatMessage | undefined>(
         (latest, message) => message && (!latest || message.sentAt > latest.sentAt) ? message : latest, undefined)
-}
-
-function newMessages(unread: number): string {
-    return unread === 1 ? "1 new message" : `${unread} new messages`
 }
 
 function badgeCount(unread: number): string {

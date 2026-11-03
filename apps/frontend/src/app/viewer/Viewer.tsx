@@ -532,6 +532,7 @@ export default function Viewer(props: ViewerProps) {
         {ready && crazyGames.chat && <ChatPanel
             backend={props.chatBackend}
             flagRoom={flagRoom}
+            onSignIn={clickBudget?.linkedMultiplier ? openPitch : undefined}
             onLeftRoom={() => void props.allegiance?.refreshAllegiance().catch((e) => console.error("could not read the flag played for", e))}
             country={countryState}
             playSound={sound.play}

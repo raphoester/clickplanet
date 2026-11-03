@@ -18,6 +18,9 @@ the unread count up through `onUnread`, for the tab's badge.
 **The chat and who is online share the panel**: with a roster wired, its header
 is two tabs, Chat and "Online · N" (see [Who is playing](who-is-playing.md)),
 and three when the player holds a flag: World, the flag's room, and "Online · N".
+**Each tab is as wide as its words, and the room left is shared out evenly**:
+equal widths cramped World and "Online · N" beside a long flag name. Only the
+flag's tab gives way in a narrow panel, its name cut, then hidden under 280px.
 A room's tab wears its own unread badge while another tab is shown: its log is
 not on screen, so nothing is marked seen, and the open panel has no other badge.
 
@@ -163,6 +166,13 @@ for it read and write. The server checks the flag on every call (the backend's
   flag picked: a visitor who never pledged has no room, and no tab. It hands
   `ChatPanel` the room (`flagRoom`: the country and its backend), memoized on the
   flag, so a new flag is a new room.
+- **A guest's flag tab is locked, to sell the sign-in** (`onSignIn`, which
+  `Viewer` sets for a guest it can show `SignInPitchModal` to). The room still
+  loads, so its tab wears its count, even while it is shown. `LockedRoom` shows
+  no line of it: grey balloon shapes under a dark veil, the count, and "Sign in
+  to join". The room plays no sound, gives no peek, and stays out of the folded
+  panel's badge and the phone's Chat tab: a guest cannot read it, so that badge
+  would never clear. The server still lets a guest read and post there.
 - **Each room is a `useChatRoom`**: `useChat` and `useSeenMark` with the seen
   mark, the unread count, the flash, the peek and the sound of its own log.
   `ChatPanel` keeps two, always mounted, and shows one. The folded panel's badge

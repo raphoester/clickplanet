@@ -31,6 +31,9 @@ export default function SignInPitchModal({state, store, multiplier, onClose}: Si
                     place of {GUEST_PREFIX}….
                 </li>
                 <li>
+                    <strong>Your team chat.</strong> Talk with the other players of your flag.
+                </li>
+                <li>
                     <strong>Your color.</strong> Choose the color of your name. Everyone sees it. Guests
                     are grey.
                 </li>
