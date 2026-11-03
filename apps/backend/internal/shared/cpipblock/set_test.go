@@ -2,6 +2,9 @@ package cpipblock_test
 
 import (
 	"io"
+	"net/netip"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -122,6 +125,98 @@ func TestNilSetContainsNothing(t *testing.T) {
 
 	assert.Equal(t, 0, set.Len())
 	assert.False(t, set.Contains("10.0.0.1"))
+}
+
+func TestSetDifferenceCutsAHole(t *testing.T) {
+	set := parse(t, "10.0.0.0/24\n").Difference(parse(t, "10.0.0.64/26\n"))
+
+	assert.Equal(t, 2, set.Len())
+	assert.True(t, set.Contains("10.0.0.63"))
+	assert.False(t, set.Contains("10.0.0.64"))
+	assert.False(t, set.Contains("10.0.0.127"))
+	assert.True(t, set.Contains("10.0.0.128"))
+}
+
+func TestSetDifferenceDropsAWhollyRemovedRange(t *testing.T) {
+	set := parse(t, "10.0.0.0/24\n10.0.2.0/24\n").Difference(parse(t, "10.0.0.0/16\n"))
+
+	assert.Equal(t, 0, set.Len())
+}
+
+func TestSetDifferenceLetsOneRemovalSpanSeveralRanges(t *testing.T) {
+	set := parse(t, "10.0.0.0/24\n10.0.2.0/24\n").Difference(parse(t, "10.0.0.128/25\n10.0.1.0/24\n10.0.2.0/25\n"))
+
+	assert.Equal(t, 2, set.Len())
+	assert.True(t, set.Contains("10.0.0.127"))
+	assert.False(t, set.Contains("10.0.0.128"))
+	assert.False(t, set.Contains("10.0.2.127"))
+	assert.True(t, set.Contains("10.0.2.128"))
+}
+
+func TestSetDifferenceTakesSeveralRemovalsOutOfOneRange(t *testing.T) {
+	set := parse(t, "10.0.0.0/24\n").Difference(parse(t, "9.0.0.0/8\n10.0.0.10/32\n10.0.0.20/32\n11.0.0.0/8\n"))
+
+	assert.Equal(t, 3, set.Len())
+	assert.True(t, set.Contains("10.0.0.0"))
+	assert.False(t, set.Contains("10.0.0.10"))
+	assert.True(t, set.Contains("10.0.0.15"))
+	assert.False(t, set.Contains("10.0.0.20"))
+	assert.True(t, set.Contains("10.0.0.255"))
+}
+
+func TestSetDifferenceKeepsTheFamiliesApart(t *testing.T) {
+	set := parse(t, "10.0.0.0/8\n2001:db8::/32\n").Difference(parse(t, "::/0\n"))
+
+	assert.True(t, set.Contains("10.1.2.3"))
+	assert.False(t, set.Contains("2001:db8::1"))
+}
+
+func TestSetDifferenceHandlesTheTopOfEachFamily(t *testing.T) {
+	set := parse(t, "255.255.255.0/24\nffff:ffff:ffff:ffff:ffff:ffff:ffff:ff00/120\n").
+		Difference(parse(t, "255.255.255.255/32\nffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128\n"))
+
+	assert.True(t, set.Contains("255.255.255.254"))
+	assert.False(t, set.Contains("255.255.255.255"))
+	assert.True(t, set.Contains("ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe"))
+	assert.False(t, set.Contains("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"))
+}
+
+func TestSetPrefixesAreTheFewestThatTileEachRange(t *testing.T) {
+	set := parse(t, "10.0.0.1/32\n10.0.0.2/31\n10.0.0.4/31\n10.0.0.6/32\n10.1.0.0/25\n10.1.0.128/25\n")
+
+	assert.Equal(t, prefixes("10.0.0.1/32", "10.0.0.2/31", "10.0.0.4/31", "10.0.0.6/32", "10.1.0.0/24"), set.Prefixes())
+}
+
+func TestSetPrefixesWriteEachFamilyInItsOwnForm(t *testing.T) {
+	set := parse(t, "0.0.0.0/0\n2001:db8::/33\n2001:db8:8000::/33\n")
+
+	assert.Equal(t, prefixes("0.0.0.0/0", "2001:db8::/32"), set.Prefixes())
+}
+
+func TestSetPrefixesReachTheTopOfEachFamily(t *testing.T) {
+	set := parse(t, "255.255.255.254/31\nffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe/127\n")
+
+	assert.Equal(t, prefixes("255.255.255.254/31", "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe/127"), set.Prefixes())
+}
+
+func TestParseFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "prefixes.txt")
+	require.NoError(t, os.WriteFile(path, []byte("10.0.0.0/24\n"), 0o600))
+
+	set, err := cpipblock.ParseFile(path)
+	require.NoError(t, err)
+	assert.True(t, set.Contains("10.0.0.1"))
+
+	_, err = cpipblock.ParseFile(filepath.Join(t.TempDir(), "missing.txt"))
+	require.Error(t, err)
+}
+
+func prefixes(texts ...string) []netip.Prefix {
+	out := make([]netip.Prefix, 0, len(texts))
+	for _, text := range texts {
+		out = append(out, netip.MustParsePrefix(text))
+	}
+	return out
 }
 
 func parse(t *testing.T, lists ...string) *cpipblock.Set {

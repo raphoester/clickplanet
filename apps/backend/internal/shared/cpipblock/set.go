@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"os"
 	"slices"
 	"strings"
 )
@@ -48,6 +49,33 @@ func Parse(readers ...io.Reader) (*Set, error) {
 	}
 
 	return &Set{v4: merge(v4), v6: merge(v6)}, nil
+}
+
+func ParseFile(path string) (*Set, error) {
+	file, err := os.Open(path) //nolint:gosec // the file the operator of the tool named.
+	if err != nil {
+		return nil, fmt.Errorf("failed to open %s: %w", path, err)
+	}
+	defer func() { _ = file.Close() }()
+
+	return Parse(file)
+}
+
+func (s *Set) Difference(other *Set) *Set {
+	return &Set{v4: difference(s.v4, other.v4), v6: difference(s.v6, other.v6)}
+}
+
+func (s *Set) Prefixes() []netip.Prefix {
+	var prefixes []netip.Prefix
+	for _, r := range s.v4 {
+		for _, p := range r.prefixes() {
+			prefixes = append(prefixes, netip.PrefixFrom(p.Addr().Unmap(), p.Bits()-96))
+		}
+	}
+	for _, r := range s.v6 {
+		prefixes = append(prefixes, r.prefixes()...)
+	}
+	return prefixes
 }
 
 func (s *Set) Contains(ip string) bool {
@@ -137,6 +165,66 @@ func merge(ranges []addrRange) []addrRange {
 	}
 
 	return slices.Clip(merged)
+}
+
+func difference(keep, remove []addrRange) []addrRange {
+	var kept []addrRange
+	j := 0
+	for _, r := range keep {
+		for j < len(remove) && bytes.Compare(remove[j].hi[:], r.lo[:]) < 0 {
+			j++
+		}
+
+		lo, removedToTheEnd := r.lo, false
+		for k := j; k < len(remove) && bytes.Compare(remove[k].lo[:], r.hi[:]) <= 0; k++ {
+			if bytes.Compare(remove[k].lo[:], lo[:]) > 0 {
+				kept = append(kept, addrRange{lo: lo, hi: previous(remove[k].lo)})
+			}
+			if bytes.Compare(remove[k].hi[:], r.hi[:]) >= 0 {
+				removedToTheEnd = true
+				break
+			}
+			lo = next(remove[k].hi)
+		}
+
+		if !removedToTheEnd {
+			kept = append(kept, addrRange{lo: lo, hi: r.hi})
+		}
+	}
+	return kept
+}
+
+func (r addrRange) prefixes() []netip.Prefix {
+	var prefixes []netip.Prefix
+	for lo := r.lo; ; {
+		bits := 128
+		for bits > 0 {
+			wider := rangeOf(netip.PrefixFrom(netip.AddrFrom16(lo), bits-1))
+			if wider.lo != lo || bytes.Compare(wider.hi[:], r.hi[:]) > 0 {
+				break
+			}
+			bits--
+		}
+
+		block := netip.PrefixFrom(netip.AddrFrom16(lo), bits)
+		prefixes = append(prefixes, block)
+
+		hi := rangeOf(block).hi
+		if hi == r.hi {
+			return prefixes
+		}
+		lo = next(hi)
+	}
+}
+
+func previous(addr [16]byte) [16]byte {
+	for i := 15; i >= 0; i-- {
+		addr[i]--
+		if addr[i] != 0xff {
+			return addr
+		}
+	}
+	return addr
 }
 
 func next(addr [16]byte) [16]byte {
