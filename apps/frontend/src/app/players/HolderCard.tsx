@@ -60,8 +60,8 @@ export default function HolderCard({holder, now = Date.now(), onHold, onOpenPlay
             </button>}
         </div>
         <p className="pointer-card-foot holder-card-take">
-            <span role="img" aria-label={country} title={country}><CountryFlag code={line.countryCode}/></span>
-            {mine ? "You took it" : "Took it"} {agoOf(takenAt, now)}
+            <CountryFlag code={line.countryCode}/>
+            {mine ? "You took it" : "Took it"} for {country} {agoOf(takenAt, now)}
         </p>
     </PointerCard>
 }
