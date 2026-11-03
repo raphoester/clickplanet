@@ -2,7 +2,9 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, fireEvent, render, screen} from "@testing-library/react"
 import MissionsPlace from "./MissionsPlace.tsx"
+import {useSeenMissions} from "./seenMissionsStore.ts"
 import {DayMissions, Mission} from "../../backends/missions.ts"
+import {seenNow} from "../../domain/missions.ts"
 
 const now = Date.UTC(2026, 9, 26, 12, 0)
 
@@ -24,6 +26,8 @@ const day = (...missions: Mission[]): {kind: "ready", day: DayMissions} => ({
 
 afterEach(() => {
     cleanup()
+    localStorage.clear()
+    useSeenMissions.setState({seen: {}})
     vi.useRealTimers()
 })
 
@@ -104,15 +108,14 @@ describe("MissionsPlace", () => {
     })
 
     it("tells what it showed, so the badge forgets it", () => {
-        const onSeen = vi.fn()
         const shown = day(mission({}), mission({...doneBank, id: "rival"}))
 
-        render(<MissionsPlace state={{kind: "loading"}} onSeen={onSeen}/>)
-        expect(onSeen).not.toHaveBeenCalled()
+        render(<MissionsPlace state={{kind: "loading"}}/>)
+        expect(useSeenMissions.getState().seen).toEqual({})
         cleanup()
-        render(<MissionsPlace state={shown} onSeen={onSeen}/>)
+        render(<MissionsPlace state={shown}/>)
 
-        expect(onSeen).toHaveBeenCalledWith(shown.day.missions)
+        expect(useSeenMissions.getState().seen).toEqual(seenNow(shown.day.missions))
     })
 
     it("says so when the missions could not be read", () => {

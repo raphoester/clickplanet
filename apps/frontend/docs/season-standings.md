@@ -51,8 +51,8 @@ With no book there are no boards. `app/standings/` draws it.
   figures are buttons that show a `Bubble`: with a mouse, for as long as it is
   over them, a click included; after a tap or a key, for `TAP_HINT_MS` (7s), long
   enough to read. **The first time the board shows points, it says what they are
-  on its own** (`GUIDE_MS`, 10s), once per browser: `useBoardGuide`, the
-  `clickplanet-board-guide` key. The bubble renders beside its button, not inside:
+  on its own** (`GUIDE_MS`, 10s), once per browser: the store `useBoardGuide`
+  (`boardGuideStore.ts`), which the board reads, in the `clickplanet-board-guide` key. The bubble renders beside its button, not inside:
   inside, it mounts before the button's ref is set and has nothing to sit on.
 - **The desktop menu is `clamp(380px, 34vw, 460px)` wide**, every tab alike, for the
   six columns. It stops at 380px below about 1120px so it stays clear of the season

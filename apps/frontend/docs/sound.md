@@ -8,11 +8,12 @@ from oscillators and noise with the Web Audio API at the moment it plays, in
   `MIN_GAP_MS` (fast clicks and a busy chat would otherwise be one long buzz),
   nothing in a hidden tab. Its context, synths and clock are injectable, so it is
   tested without audio.
-- `useSound.ts` — the settings in `clickplanet-sound-settings`
-  (`domain/soundSettings.ts` parses them; a sound added later starts on) and
-  the one player. **`play` never changes identity** and reads the settings
-  through a ref: `useGlobe` rebuilds the globe when an option changes, and a
-  toggle must not do that.
+- `soundSettingsStore.ts` — the store `useSoundSettings` (see [Stores](stores.md)): the settings, in
+  `clickplanet-sound-settings` (`domain/soundSettings.ts` parses them; a sound added later starts on).
+  The switches and the anthem's controls read it and change it.
+- `useSound.ts` — the one player. **`play` never changes identity** and reads the settings with
+  `getState` when it plays: `useGlobe` rebuilds the globe when an option changes, and a toggle must
+  not do that.
 - `SoundSettingsPanel.tsx` — the switches, in the Settings place
   (`settings/SettingsPlace.tsx`). Turning a sound on previews it.
 

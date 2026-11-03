@@ -34,8 +34,7 @@ import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
 import ClicksPanel from "../components/ClicksPanel.tsx";
 import Inventory from "../components/Inventory.tsx";
-import {useBonusGuide} from "../components/useBonusGuide.ts";
-import {useBoardGuide} from "../useBoardGuide.ts";
+import {useBonusGuide} from "../components/bonusGuideStore.ts";
 import {isFirstWin} from "../../domain/bonusGuide.ts";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
@@ -88,7 +87,7 @@ import {useMissions} from "../missions/useMissions.ts";
 import {Mission, MissionsBackend} from "../../backends/missions.ts";
 import {unseen} from "../../domain/missions.ts";
 import MissionsDone from "../missions/MissionsDone.tsx";
-import {useSeenMissions} from "../missions/useSeenMissions.ts";
+import {useSeenMissions} from "../missions/seenMissionsStore.ts";
 import {usePaidMissions} from "../missions/usePaidMissions.ts";
 import {boardsOf, StandingsBackend} from "../../backends/standings.ts";
 import {SupportBackend} from "../../backends/support.ts";
@@ -130,7 +129,6 @@ import {CrazyGamesPage} from "../../backends/crazyGames.ts";
 import {useCrazyGames, useGameplay, useInvites, useRoom} from "../crazygames/useCrazyGames.ts";
 import InvitedModal from "../crazygames/InvitedModal.tsx";
 import InviteFriends from "../share/InviteFriends.tsx";
-import {MUTED_SOUND_SETTINGS} from "../../domain/soundSettings.ts";
 import {DiscordAlerts} from "../alerts/discordAlerts.ts";
 import {useDiscordAlerts} from "../alerts/useDiscordAlerts.ts";
 import {useUnderAttack} from "../alerts/useUnderAttack.ts";
@@ -251,7 +249,6 @@ export default function Viewer(props: ViewerProps) {
     }, [announce, clipNotice.appearance])
     const champion = reigningChampionOf(season, closed)
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
-    const boardGuide = useBoardGuide()
     const [pitchOpen, setPitchOpen] = useState(false)
     const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
     const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
@@ -337,11 +334,12 @@ export default function Viewer(props: ViewerProps) {
     useGameplay(props.crazyGames, status.state === 'ready')
     useRoom(props.crazyGames, status.state === 'ready', countryState.code)
 
+    const firstWin = useBonusGuide((bonus) => award !== undefined && isFirstWin(bonus.guide, award.kind))
+    const markWon = useBonusGuide((bonus) => bonus.markWon)
+
     const tileHolder = useTileHolder(props.tileHolders, props.playerInfo, pointing, ownAccountId)
     const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
     const territoryPlayers = useTerritoryPlayers(props.landmasses, props.playerInfo, territoryCard.shown?.territory.landmass)
-
-    const bonusGuide = useBonusGuide()
 
     const fortifyGuide = useFortifyGuide()
     const [fortifyCard, setFortifyCard] = useState<Fortified | undefined>()
@@ -376,7 +374,7 @@ export default function Viewer(props: ViewerProps) {
 
     const order = shownOrder(race, countryOrder)
     const lines = countryLines(leaderboard, race, order)
-    const anthem = useAnthem(status.state === 'ready' ? lines : NO_LEADERBOARD, order, crazyGames.silenced ? MUTED_SOUND_SETTINGS : sound.settings)
+    const anthem = useAnthem(status.state === 'ready' ? lines : NO_LEADERBOARD, order, crazyGames.silenced)
 
     const stats = shareStats(lines, countryState)
     const {shot, taking, take, discard} = useSharePicture(capture, stats)
@@ -411,17 +409,14 @@ export default function Viewer(props: ViewerProps) {
         leaderboard,
         tileDeltas,
         tilesCount,
-        anthem: <AnthemControls anthem={anthem} settings={sound.settings} onChange={sound.setSettings}/>,
+        anthem: <AnthemControls anthem={anthem}/>,
         standings,
         race,
         countryOrder,
         onCountryOrder: setCountryOrder,
-        guided: boardGuide.guided,
-        onGuided: boardGuide.markGuided,
         hallOfFame,
     }
     const missionsState = useMissions(props.missions, ownAccountId, allegiance?.countryId, accepted.listenForClicks)
-    const seenMissions = useSeenMissions()
     const [missionsDone, setMissionsDone] = useState<Mission[]>()
     usePaidMissions(missionsState, setMissionsDone)
     useFlagMissionDone(missionsState, (mission) => {
@@ -430,9 +425,8 @@ export default function Viewer(props: ViewerProps) {
     const missions: MissionsPlaceProps | undefined = props.missions && {
         state: missionsState,
         onSignIn: guest ? openPitch ?? (() => setSheet("you")) : undefined,
-        onSeen: seenMissions.markSeen,
     }
-    const missionsNews = missionsState.kind === "ready" ? unseen(missionsState.day.missions, seenMissions.seen) : 0
+    const missionsNews = useSeenMissions((seenMissions) => missionsState.kind === "ready" ? unseen(missionsState.day.missions, seenMissions.seen) : 0)
 
     const you = {
         account: props.account,
@@ -449,7 +443,7 @@ export default function Viewer(props: ViewerProps) {
         taking,
     }
     const settings = {
-        sound: {settings: sound.settings, onChange: sound.setSettings, preview: sound.preview},
+        sound: {preview: sound.preview},
         support: props.support,
         pageContext: () => pageContextOf(window, graphics(), connection === "down"),
     }
@@ -526,9 +520,7 @@ export default function Viewer(props: ViewerProps) {
                                                onToggleBomb={props.bomber ? toggleBomb : undefined}
                                                onUseRefill={spendRefill}
                                                onToggleShield={props.shielder ? () => toggleSwitch("shield") : undefined}
-                                               notice={notice}
-                                               guide={bonusGuide.guide}
-                                               onUsed={bonusGuide.markUsed}/>}
+                                               notice={notice}/>}
         </ClickBudgetMeter>}
 
         {ready && crazyGames.chat && <ChatPanel
@@ -699,9 +691,9 @@ export default function Viewer(props: ViewerProps) {
                                                 onDone={() => setMissionsDone(undefined)}/>}
 
         {award && <BonusAward reward={award}
-                              kept={isFirstWin(bonusGuide.guide, award.kind)}
+                              kept={firstWin}
                               onDone={() => {
-                                  bonusGuide.markWon(award.kind)
+                                  markWon(award.kind)
                                   dismissAward()
                               }}/>}
 

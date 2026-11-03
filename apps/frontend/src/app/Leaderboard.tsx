@@ -12,6 +12,7 @@ import ScrollArea from "./components/ScrollArea.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
 import {SwordsIcon} from "./components/icons.tsx";
 import RankCoin from "./components/RankCoin.tsx";
+import {useBoardGuide} from "./boardGuideStore.ts";
 
 type LeaderboardProps = {
     tilesCount: number,
@@ -21,8 +22,6 @@ type LeaderboardProps = {
     anthem?: ReactNode,
     race?: Race,
     order?: CountryOrder,
-    guided?: boolean,
-    onGuided?: () => void,
 }
 
 const NAME_MAX_LENGTH = 18
@@ -44,16 +43,16 @@ export default function Leaderboard(props: LeaderboardProps) {
     const [leader, ...rest] = countryLines(props.data, race, shownOrder(race, props.order))
     const [shown, setShown] = useState<Shown>()
     const [guiding, setGuiding] = useState(false)
+    const {guided, markGuided} = useBoardGuide()
 
-    if (race && rest.length > 0 && props.guided === false && !guiding) {
+    if (race && rest.length > 0 && !guided && !guiding) {
         setGuiding(true)
         setShown({figure: "points", at: "head", ms: GUIDE_MS})
     }
 
-    const onGuided = props.onGuided
     useEffect(() => {
-        if (guiding) onGuided?.()
-    }, [guiding, onGuided])
+        if (guiding) markGuided()
+    }, [guiding, markGuided])
 
     useEffect(() => {
         if (shown?.ms === undefined) return

@@ -7,10 +7,12 @@ again on a change, and was passed down by hand to the components that showed it.
 A store is a [Zustand](https://zustand.docs.pmnd.rs) store, in the feature's folder, named `<feature>Store.ts`. It
 exports one hook, `use<Feature>`, made with `create`. It holds the state and the verbs that change it
 (`setMapView`), and saves itself where it must (a `subscribe` that writes `localStorage`, in the format the page read
-before). The first is [`app/settings/displaySettingsStore.ts`](../src/app/settings/displaySettingsStore.ts).
+before). For example [`app/settings/displaySettingsStore.ts`](../src/app/settings/displaySettingsStore.ts).
 
 - **The component that shows the state reads the store itself.** `Viewer` does not read a store to pass its value
-  down. `SettingsPlace` reads the display settings; `Viewer` reads only the two fields it hands the globe.
+  down. `SettingsPlace` reads the display settings, and the board reads its guide. `Viewer` reads a store only for
+  what it uses itself: the two display fields it hands the globe, the missions badge it counts from its own
+  missions, the award it shows.
 - **A selector returns a field or a plain value**: `useDisplaySettings((settings) => settings.mapView)`. A selector
   that builds a new object or array on each call makes React render without end; build it in the component with
   `useMemo`, or wrap the selector in Zustand's `useShallow`.
@@ -24,4 +26,4 @@ before). The first is [`app/settings/displaySettingsStore.ts`](../src/app/settin
 - **A test sets a store with `use<Feature>.setState(...)` and puts it back in `afterEach`**, since the store lives as
   long as the module.
 
-A feature leaves `Viewer` for a store when it is changed for another reason, one feature per change.
+The features still held in `Viewer` move to stores the same way.

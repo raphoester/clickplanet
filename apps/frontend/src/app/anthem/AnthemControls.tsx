@@ -1,8 +1,9 @@
 import {useEffect, useRef} from "react";
 import {Countries} from "../../domain/countries.ts";
-import {isAnthemAudible, SoundSettings} from "../../domain/soundSettings.ts";
+import {isAnthemAudible} from "../../domain/soundSettings.ts";
 import CountryFlag from "../components/CountryFlag.tsx";
 import {PauseIcon, PlayIcon} from "../components/icons.tsx";
+import {useSoundSettings} from "../sound/soundSettingsStore.ts";
 import {Anthem} from "./useAnthem.ts";
 import "./AnthemControls.css"
 
@@ -10,11 +11,10 @@ const PROGRESS_MS = 250
 
 export type AnthemControlsProps = {
     anthem: Anthem
-    settings: SoundSettings
-    onChange: (settings: SoundSettings) => void
 }
 
-export default function AnthemControls({anthem, settings, onChange}: AnthemControlsProps) {
+export default function AnthemControls({anthem}: AnthemControlsProps) {
+    const {settings, setSettings} = useSoundSettings()
     const progress = useRef<HTMLDivElement>(null)
     const recorded = anthem.title !== undefined
     const playing = isAnthemAudible(settings) && recorded
@@ -34,7 +34,7 @@ export default function AnthemControls({anthem, settings, onChange}: AnthemContr
 
     const country = Countries.get(code)?.name ?? code.toUpperCase()
 
-    const toggle = () => onChange(playing
+    const toggle = () => setSettings(playing
         ? {...settings, anthem: {...settings.anthem, on: false}}
         : {
             ...settings,
@@ -43,7 +43,7 @@ export default function AnthemControls({anthem, settings, onChange}: AnthemContr
         })
 
     const setVolume = (volume: number) =>
-        onChange({...settings, anthem: {on: volume > 0 || settings.anthem.on, volume}})
+        setSettings({...settings, anthem: {on: volume > 0 || settings.anthem.on, volume}})
 
     return <section className={playing ? "anthem anthem--playing" : "anthem"} aria-label="National anthem">
         <button type="button"
