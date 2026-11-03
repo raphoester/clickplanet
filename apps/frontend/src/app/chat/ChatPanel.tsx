@@ -92,11 +92,12 @@ export default function ChatPanel(props: ChatPanelProps) {
 
     const flagOpen = flagRoom !== undefined && flag.status !== 'unavailable'
     const flagRead = flagOpen && !locked
-    const shown: View = view === "flag" && !flagOpen ? "world" : view
+    const flagCountry = locked ? flagRoom?.country ?? props.country : flagOpen ? flagRoom.country : undefined
+    const shown: View = view === "flag" && !flagCountry ? "world" : view
 
     useEffect(() => {
-        if (view === "flag" && !flagOpen) setView("world")
-    }, [view, flagOpen])
+        if (view === "flag" && !flagCountry) setView("world")
+    }, [view, flagCountry])
 
     const unread = world.unread + (flagRead ? flag.unread : 0)
 
@@ -136,11 +137,11 @@ export default function ChatPanel(props: ChatPanelProps) {
         return failed === undefined
     }
 
-    const tabs = (players || flagOpen) && <div className="chat-tabs" role="tablist" aria-label="Chat">
-        <RoomTab on={shown === "world"} name={flagOpen ? "World" : "Chat"} unread={world.unread}
+    const tabs = (players || flagCountry) && <div className="chat-tabs" role="tablist" aria-label="Chat">
+        <RoomTab on={shown === "world"} name={flagCountry ? "World" : "Chat"} unread={world.unread}
                  onClick={() => choose("world")}/>
-        {flagOpen && <RoomTab on={shown === "flag"} name={flagRoom.country.name} flag={flagRoom.country.code}
-                              unread={flag.unread} locked={locked} onClick={() => choose("flag")}/>}
+        {flagCountry && <RoomTab on={shown === "flag"} name={flagCountry.name} flag={flagCountry.code}
+                                 unread={flag.unread} locked={locked} onClick={() => choose("flag")}/>}
         {players && <button type="button"
                             role="tab"
                             aria-selected={shown === "online"}
@@ -153,8 +154,8 @@ export default function ChatPanel(props: ChatPanelProps) {
 
     const body: ReactNode = shown === "online" && players
         ? <div className="chat-players"><PlayersPanel entries={players} onOpenPlayer={props.onOpenPlayer}/></div>
-        : shown === "flag" && flagRoom && onSignIn
-        ? <LockedRoom country={flagRoom.country} unread={flag.unread} onSignIn={onSignIn}/>
+        : shown === "flag" && flagCountry && onSignIn
+        ? <LockedRoom country={flagCountry} unread={flag.unread} onSignIn={onSignIn}/>
         : <>
             <DiscordBar discord={props.discord} flagName={props.country.name}/>
 

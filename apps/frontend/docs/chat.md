@@ -163,7 +163,7 @@ for it read and write. The server checks the flag on every call (the backend's
 - **A flag room's stream carries the identity token** (`identity()`, never a
   mint), as its history does. The World's stream carries none.
 - **`Viewer` makes the room from the flag held** (`useAllegiance`), not from the
-  flag picked: a visitor who never pledged has no room, and no tab. It hands
+  flag picked: a visitor who never pledged has no room. It hands
   `ChatPanel` the room (`flagRoom`: the country and its backend), memoized on the
   flag, so a new flag is a new room.
 - **A guest's flag tab is locked, to sell the sign-in** (`onSignIn`, which
@@ -173,6 +173,10 @@ for it read and write. The server checks the flag on every call (the backend's
   to join". The room plays no sound, gives no peek, and stays out of the folded
   panel's badge and the phone's Chat tab: a guest cannot read it, so that badge
   would never clear. The server still lets a guest read and post there.
+  **A guest with no flag held gets the tab too**, named after the flag it plays
+  for (`country`), with no count: a first visit has no account before its first
+  click, so nothing can read the room for it. That visitor is the one the tab
+  is for: a private window showed it no country tab at all.
 - **Each room is a `useChatRoom`**: `useChat` and `useSeenMark` with the seen
   mark, the unread count, the flash, the peek and the sound of its own log.
   `ChatPanel` keeps two, always mounted, and shows one. The folded panel's badge

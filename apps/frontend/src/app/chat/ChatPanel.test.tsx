@@ -1550,6 +1550,20 @@ describe("ChatPanel's flag room", () => {
         expect(screen.queryByRole("textbox")).toBeNull()
     })
 
+    it("gives a guest that holds no flag yet the locked tab of the flag it plays for", async () => {
+        const {world} = rooms()
+        const onSignIn = vi.fn()
+        const user = userEvent.setup()
+        render(<ChatPanel backend={world.backend} country={france} onSignIn={onSignIn}/>)
+        await screen.findByText("hello world")
+
+        await user.click(screen.getByRole("tab", {name: "France"}))
+        await user.click(screen.getByRole("button", {name: "Sign in to join"}))
+
+        expect(onSignIn).toHaveBeenCalledOnce()
+        expect(screen.queryByText("hello world")).toBeNull()
+    })
+
     it("counts on a guest's flag tab what lands there, even while it is shown, and nowhere else", async () => {
         const {world, flag} = rooms()
         const onUnread = vi.fn()
