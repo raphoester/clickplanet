@@ -10,12 +10,16 @@ its edge for the wire. A read is a query under its handler: see [Reads are queri
 internal/chat/internal/
   messages/                             Message (Snapshot, Restore, TakeSnapshot, Named, Answering), MessageID, Quote,
                                         Drafts, Thread, Record (RecordSnapshot), Limits, AccountID, Author, Title, Rank,
-                                        ErrNoAccount, ErrNotShown, Window, the Storage and IDProvider ports, the
-                                        StorageContractSuite, SequentialIDs and Restored
+                                        Room (World, FlagRoom, RoomOf), Rooms (EntryError), Showing,
+                                        ErrNoAccount, ErrNotShown, ErrNotInRoom, Window, the Storage, Flags and
+                                        IDProvider ports, the StorageContractSuite, SequentialIDs, Restored and
+                                        FakeFlags
     postgres_message_store/             Storage, over chat.messages
     inmemory_message_storage/           Storage in a slice — behind the testing tag, tests only
     rpc_player_authors/                 who an account is, from player.v1.InternalService/GetAuthor(s): one on
                                         each post, the people under a message on each reaction
+    rpc_planet_flags/                   Flags: the flag an account plays for, from
+                                        planet.v1.InternalService/GetAllegianceOf, on each call to a flag's room
     log_authors/                        logs a caller, or a page of them, it could not name
     uuid_id_provider/                   IDProvider: a random UUID, as text
     usecases/send_message_usecase/      drafts, replies, names, appends, publishes — Appender, Publisher, Authors, Drafts,
@@ -61,10 +65,12 @@ internal/chat/internal/
     usecases/remove_message_usecase/    takes a kept message out of what anybody is shown, then tells the streams —
                                         Messages, Saver, Publisher
       audit_remove/                     logs every removal at Warn
-  feed/                                 Update: a message sent, a message's new reactions, an announcement, or a
-                                        message removed (MessageSent, ReactionsChanged, Announced, MessageRemoved)
+  feed/                                 Update: a message sent, a message's new reactions, an announcement, a
+                                        message removed, or an account that left a flag's room (MessageSent,
+                                        ReactionsChanged, Announced, MessageRemoved, RoomLeft); For(room)
     inprocess_feed/                     the fanout to every open stream, in this process
-    usecases/listen_for_events_usecase/ one client's feed, heartbeat   — UpdatesSubscriber
+    usecases/listen_for_events_usecase/ one client's feed of one room, heartbeat   — UpdatesSubscriber, Rooms
+    usecases/leave_room_usecase/        ends an account's streams of the room it left — Publisher
   chatv1controller/                     ChatService and AdminService (bags), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
     mute_handler/  unmute_handler/  get_mute_handler/  remove_message_handler/  get_message_handler/
@@ -89,6 +95,7 @@ internal/chat/internal/
     battle_ended_subscriber/            gamemaster.v1.BattleEnded → announce_round_usecase, as a BattleOf
     season_ended_subscriber/            gamemaster.v1.SeasonEnded → announce_champion_usecase
     account_deleted_subscriber/         auth.v1.AccountDeleted → forget_seen_usecase
+    allegiance_pledged_subscriber/      planet.v1.AllegiancePledged → leave_room_usecase, for the flag left
     log_subscriber/                     logs an event a subscriber refused (player's, copied)
   migrations/                           the chat schema
 ```

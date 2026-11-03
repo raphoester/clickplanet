@@ -118,6 +118,14 @@ describe("ReportDetail", () => {
         expect(within(shown[2]).getByText("Ana")).toBeTruthy()
     })
 
+    it("says the flag room a line was said in, and nothing for the world chat", async () => {
+        open(new FakeAdmin())
+
+        const shown = await lines()
+        expect(within(shown[3]).getByText("Germany room")).toBeTruthy()
+        expect(shown.slice(0, 3).some(line => line.textContent?.includes(" room"))).toBe(false)
+    })
+
     it("pages back and forth from the reported message, on asking", async () => {
         const admin = new FakeAdmin()
         const said = (side: string, n: number) => new KeptMessage({

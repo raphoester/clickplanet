@@ -1,6 +1,7 @@
 package messages
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -15,13 +16,14 @@ type Drafts struct {
 	clock     cptime.Clock
 	limits    Limits
 	countries Countries
+	rooms     Rooms
 }
 
-func NewDrafts(ids IDProvider, clock cptime.Clock, limits Limits, countries Countries) Drafts {
-	return Drafts{ids: ids, clock: clock, limits: limits, countries: countries}
+func NewDrafts(ids IDProvider, clock cptime.Clock, limits Limits, countries Countries, rooms Rooms) Drafts {
+	return Drafts{ids: ids, clock: clock, limits: limits, countries: countries, rooms: rooms}
 }
 
-func (d Drafts) Draft(account AccountID, country string, text string) (Message, error) {
+func (d Drafts) Draft(ctx context.Context, account AccountID, room Room, country string, text string) (Message, error) {
 	cleaned, err := d.limits.Text(text)
 	if err != nil {
 		return Message{}, fmt.Errorf("failed to check the message: %w", err)
@@ -29,11 +31,14 @@ func (d Drafts) Draft(account AccountID, country string, text string) (Message, 
 	if !d.countries.CheckCountry(country) {
 		return Message{}, fmt.Errorf("%w: invalid country code %q", ErrInvalidMessage, country)
 	}
+	if err := d.rooms.EntryError(ctx, account, room); err != nil {
+		return Message{}, err
+	}
 
 	id, err := d.ids.NewID()
 	if err != nil {
 		return Message{}, fmt.Errorf("failed to draw a message id: %w", err)
 	}
 
-	return Snapshot{ID: id, SentAt: d.clock.Now(), Account: account, Country: country, Text: cleaned}.Restore()
+	return Snapshot{ID: id, SentAt: d.clock.Now(), Account: account, Room: room, Country: country, Text: cleaned}.Restore()
 }

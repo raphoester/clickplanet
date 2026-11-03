@@ -37,6 +37,7 @@ func (s stubUseCase) Execute(_ context.Context, in send_message_usecase.In) (mes
 		ID:      "message-1",
 		SentAt:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		Author:  messages.AuthorOf("guest_0b1c2d", false, 0, 0, messages.Title{}),
+		Room:    in.Room,
 		Country: in.CountryID,
 		Text:    in.Text,
 		Quote: messages.Quote{
@@ -75,6 +76,7 @@ func TestSendMessageMapsTheRequest(t *testing.T) {
 	assert.Equal(t, send_message_usecase.In{
 		Account:   cpsession.NoAccount,
 		AuthorID:  "some-uuid",
+		Room:      messages.World,
 		CountryID: "fr",
 		Text:      "hello planet",
 		ReplyTo:   "message-0",
@@ -157,4 +159,20 @@ func TestAnUnexpectedFailureIsLeftForTheErrorNet(t *testing.T) {
 
 	require.ErrorIs(t, err, assert.AnError)
 	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
+}
+
+func TestAMessageForAFlagsRoomGoesToThatRoom(t *testing.T) {
+	var in send_message_usecase.In
+	req := connect.NewRequest(&chatv1.SendMessageRequest{CountryId: "fr", Text: "north at 8", FlagRoom: "fr"})
+
+	_, err := send_message_handler.New(stubUseCase{in: &in}).SendMessage(t.Context(), req)
+
+	require.NoError(t, err)
+	assert.Equal(t, messages.FlagRoom("fr"), in.Room)
+}
+
+func TestASenderThatDoesNotPlayForTheFlagOfTheRoomIsAFailedPrecondition(t *testing.T) {
+	_, err := send(stubUseCase{in: &send_message_usecase.In{}, err: fmt.Errorf("%w: \"de\"", messages.ErrNotInRoom)})
+
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 }

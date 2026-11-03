@@ -5,6 +5,7 @@ package chat.v1;
 import "player/v1/color.proto";
 import "player/v1/title.proto";
 
+// A request for a flag's room is FailedPrecondition when the caller does not play for that flag.
 service ChatService {
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
 
@@ -83,6 +84,9 @@ message SendMessageRequest {
   string country_id = 3;
   string text = 4;
   string reply_to_message_id = 5;
+  // The flag whose room it goes to: only the accounts that play for that flag read and write there. Empty for the chat
+  // everyone reads.
+  string flag_room = 6;
 }
 
 message SendMessageResponse {
@@ -93,7 +97,10 @@ message MuteRefusal {
   int64 muted_until_unix_ms = 1;
 }
 
-message GetHistoryRequest {}
+message GetHistoryRequest {
+  // As SendMessageRequest.flag_room. A flag's room has no announcements.
+  string flag_room = 1;
+}
 
 message Announcement {
   string id = 1;
@@ -112,6 +119,8 @@ message GetHistoryResponse {
 
 message MarkSeenRequest {
   int64 seen_until_unix_ms = 1;
+  // As SendMessageRequest.flag_room: each room keeps its own mark.
+  string flag_room = 2;
 }
 
 message MarkSeenResponse {}
@@ -127,7 +136,10 @@ message ReactResponse {
   uint64 version = 2;
 }
 
-message ListenForEventsRequest {}
+message ListenForEventsRequest {
+  // As SendMessageRequest.flag_room. A flag's stream ends, FailedPrecondition, once the caller pledges another flag.
+  string flag_room = 1;
+}
 
 message ChatEvent {
   oneof event {

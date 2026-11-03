@@ -4,6 +4,7 @@ package messages
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -27,9 +28,7 @@ func (s *StorageContractSuite) SetupTest() {
 var contractAccount = AccountID{15: 1}
 
 func (s *StorageContractSuite) message(snapshot Snapshot) Message {
-	message, err := snapshot.Restore()
-	s.Require().NoError(err)
-	return message
+	return Restored(s.T(), snapshot)
 }
 
 func (s *StorageContractSuite) keep(message Message, ip string) {
@@ -47,9 +46,12 @@ func (s *StorageContractSuite) append(texts ...string) {
 }
 
 func (s *StorageContractSuite) shown(text string, since time.Time, limit int) bool {
-	shown, err := s.storage.Shown(context.Background(), MessageID("id-"+text), since, limit)
+	_, err := s.storage.Message(context.Background(), MessageID("id-"+text), since, limit)
+	if errors.Is(err, ErrNotShown) {
+		return false
+	}
 	s.Require().NoError(err)
-	return shown
+	return true
 }
 
 func (s *StorageContractSuite) TestAnEmptyStorageShowsNothing() {
@@ -93,13 +95,14 @@ func (s *StorageContractSuite) kept(id MessageID) Snapshot {
 func (s *StorageContractSuite) TestAShownMessageIsReadBackAsItWasKept() {
 	s.append("hello")
 
-	s.Equal(Snapshot{ID: "id-hello", SentAt: contractStart, Account: contractAccount, Country: "fr", Text: "hello"},
+	s.Equal(Snapshot{ID: "id-hello", SentAt: contractStart, Account: contractAccount, Room: World, Country: "fr", Text: "hello"},
 		s.kept("id-hello"))
 }
 
 func (s *StorageContractSuite) TestAMessageFromBeforeAccountsIsReadBackUnderTheNameItCarries() {
 	legacy := Snapshot{
-		ID: "id-legacy", SentAt: contractStart, Author: AuthorOf("guest_Bob", true, 0, 0, Title{}), Country: "fr", Text: "legacy",
+		ID: "id-legacy", SentAt: contractStart, Author: AuthorOf("guest_Bob", true, 0, 0, Title{}), Room: World, Country: "fr",
+		Text: "legacy",
 	}
 	s.keep(s.message(legacy), "203.0.113.7")
 
@@ -108,7 +111,9 @@ func (s *StorageContractSuite) TestAMessageFromBeforeAccountsIsReadBackUnderTheN
 
 func (s *StorageContractSuite) TestAReplyIsReadBackWithTheIDOfWhatItAnswersAndNothingOfWhatThatSaid() {
 	question := s.sent("question", contractStart).Named(AuthorOf("Ada", false, 0, 0, Title{}))
-	s.keep(s.sent("answer", contractStart).Answering(question), "203.0.113.7")
+	answer, err := s.sent("answer", contractStart).Answering(question)
+	s.Require().NoError(err)
+	s.keep(answer, "203.0.113.7")
 
 	s.Equal(Quote{MessageID: "id-question"}, s.kept("id-answer").Quote)
 }
@@ -127,7 +132,6 @@ func (s *StorageContractSuite) TestAMessageIsReadOnlyWhileItIsShown() {
 		_, err := s.storage.Message(context.Background(), MessageID("id-"+text), window.since, window.limit)
 
 		s.Require().ErrorIs(err, ErrNotShown, text)
-		s.False(s.shown(text, window.since, window.limit), "%s: a message nobody may react to is not answered either", text)
 	}
 }
 
@@ -171,4 +175,15 @@ func (s *StorageContractSuite) TestDeleteBeforeRemovesOnlyOlderMessages() {
 	s.Equal(int64(1), deleted)
 	s.True(s.shown("recent", contractStart, 10))
 	s.False(s.shown("ancient", contractStart, 10))
+}
+
+func (s *StorageContractSuite) TestAMessageIsShownAmongTheNewestOfItsOwnRoom() {
+	s.keep(s.message(Snapshot{
+		ID: "id-plan", SentAt: contractStart, Account: contractAccount, Room: FlagRoom("fr"), Country: "fr", Text: "plan",
+	}), "203.0.113.7")
+	s.append("old", "middle", "new")
+
+	s.True(s.shown("plan", contractStart, 2), "the newer ones are in another room")
+	s.False(s.shown("old", contractStart, 2))
+	s.Equal(FlagRoom("fr"), s.kept("id-plan").Room)
 }

@@ -23,7 +23,7 @@ Refusal reasons are logged, never returned: a sender learns *that* they were ref
 
 The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*cpipblock.Blocklist` type, built by `cpipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (build the list in `describeModules` and hand it to both modules, the way `shared/cpcountries` already is), not a second list to write.
 
-**Every message is a row in `chat.messages`**, inserted before it is broadcast: `seq` (the order it was accepted in), `id`, `sent_at`, `account_id` (who sent it), `country`, `ip`, `user_agent`, `text`, `reply_to` (the id of the message a reply answers) — plus `name`, `author_admin` and `author_id`, of which the first two are only ever read, for rows written before `account_id` existed, and the third is a UUID the client made up and nothing trusts. **Postgres is the chat's only copy.** There is no cache in front of it, nothing loaded at boot and nothing flushed: chat is low volume (one message per 3s per address), so every write is one statement and every read one query. `send_message_usecase` inserts (5s timeout) and only then publishes to `inprocess_feed`; `GetHistory` reads the newest `chat.storage.historySize` rows within `retention`, straight from the table: the same window `React` checks a message against (`messages.Window`), and a parity test pins the two. A stream can therefore see two messages sent at the same instant in the other order than `seq`; the client sorts by time.
+**Every message is a row in `chat.messages`**, inserted before it is broadcast: `seq` (the order it was accepted in), `id`, `sent_at`, `account_id` (who sent it), `room` (see [Rooms](#rooms)), `country`, `ip`, `user_agent`, `text`, `reply_to` (the id of the message a reply answers) — plus `name`, `author_admin` and `author_id`, of which the first two are only ever read, for rows written before `account_id` existed, and the third is a UUID the client made up and nothing trusts. **Postgres is the chat's only copy.** There is no cache in front of it, nothing loaded at boot and nothing flushed: chat is low volume (one message per 3s per address), so every write is one statement and every read one query. `send_message_usecase` inserts (5s timeout) and only then publishes to `inprocess_feed`; `GetHistory` reads the newest `chat.storage.historySize` rows within `retention`, straight from the table: the same window `React` checks a message against (`messages.Window`), and a parity test pins the two. A stream can therefore see two messages sent at the same instant in the other order than `seq`; the client sorts by time.
 
 **The fanout is not storage.** `feed/inprocess_feed` keeps nothing: it hands each update to every open stream and closes one too slow to keep up (`chat.storage.subscriberBuffer`, a key kept from before), never skips an update on it. A client reads the history again each time its stream reopens, which covers whatever it was not listening for.
 
@@ -241,7 +241,7 @@ name and color, its text), which the client draws above the reply.
 **The chat keeps, per account, until when it was seen**, so a player who comes back is shown what was said
 while it was away: the badge counts it, and the lines light up as the chat opens.
 
-- **A time, not a message id.** `chat.seen` is one row per account, `seen_until`. Messages and announcements are
+- **A time, not a message id.** `chat.seen` is one row per account and room, `seen_until`. Messages and announcements are
   two tables with two kinds of id, and a message's id is the client's text and not unique; one time covers both,
   and still means something once the prune deleted the line it was taken from.
 - **The client sends the time of the newest line it showed**, never "now": a message landing during the call
@@ -262,6 +262,42 @@ while it was away: the badge counts it, and the lines light up as the chat opens
   There is no prune: a row lives as long as its account, and auth's guest prune deletes the guests.
 - `TestAnIdentityTokenNamesTheReaderAndTheSeenMarkOnly` pins the identity path, the history query's
   `TestTheSeenMarkOnlyMovesForward` the mark, and `TestADeletedSeenMarkIsGoneAndOnlyThatOne` the deletion.
+
+## Rooms
+
+**Each flag has a room of its own beside the chat everyone reads**: only the accounts that play for that flag read
+and write there. A `messages.Room` is `World` (stored `world`) or a flag's room, stored as the flag (`fr`). On the
+wire each request says its room in `flag_room`: empty for the world, a country for its room (`messages.RoomOf`).
+
+- **Who plays for which flag is planet's**, asked on each call to a flag's room:
+  `planet.v1.InternalService/GetAllegianceOf`, with one second to answer (`rpc_planet_flags`). The chat keeps no copy,
+  so a new flag counts at once. A call to the world asks nothing.
+- **`messages.Rooms.EntryError` is the rule**: nil for the world; `ErrNoAccount` with no account; `ErrNotInRoom` for an
+  account that plays for another flag, or for none. A failure to ask planet is the error net's.
+- **Every call to a flag's room checks it**: `Drafts.Draft` before it draws an id (a post), `Showing.Message` once it
+  read the message's room (a reaction), `get_history_handler` before it reads, `mark_seen_usecase`, and
+  `listen_for_events_usecase` once it has subscribed, so a pledge in between is read or heard. `ErrNotInRoom` is
+  `FailedPrecondition`, and the client reads its flag again.
+- **Every row of `chat.messages` has its room** (migration `20261103120000_rooms`: the rows from before are the
+  world's), with an index on `(room, seq)`. **Each room has its own window**: the newest `historySize` of that room, so
+  a busy world never pushes a flag's room out. `Storage.Message` reads a message within the window of its own room.
+- **A reply stays in its room**: `Message.Answering` refuses a message of another room as `ErrNotShown`.
+- **A flag's room has no announcements.** Bombs, rounds, mutes, fortifies and champions are the world's.
+- **A stream is one room's.** `ListenForEvents` reads the identity token (`Identified`), as `GetHistory` does.
+  `feed.Update.For(room)` says what goes to it: a message, or the tally of a message, of that room; an announcement to
+  the world; a removal to every room, since it carries an id alone.
+- **A pledge of another flag ends the stream of the room left.** `chat-rooms` hears `planet.v1.AllegiancePledged`, and
+  `leave_room_usecase` publishes `feed.RoomLeft` with the room of the flag left. That account's stream of that room ends
+  with `ErrNotInRoom`. A first flag leaves nothing. The client must not open it again: see its
+  [Live chat](../../frontend/docs/chat.md).
+- **Each room has its own seen mark**: `chat.seen` is keyed by `(account_id, room)`; `MarkSeen` and `GetHistory` take
+  the room.
+- **Mutes, the throttle, removals, reports and the retention are the same in every room.** `GetMessage` and
+  `ListMessages` say a message's room (`flag_room`, empty for the world); `ListMessages` pages through every room in one
+  list.
+- **A room is not secret.** A new guest in a private tab can pick a flag and read its room.
+- `room_test.go` pins the rule, the history query's suite the windows, the announcements and the marks of each room,
+  and `listen_for_events_usecase`'s tests what each stream carries and when it ends.
 
 **Chat has its own stream**, `ChatService.ListenForEvents` — see [The live streams](live-streams.md). It replaced a `/ws/chat` websocket that had to be kept apart from the tile one because frames carried a bare protobuf message with no type tag: a second payload on either socket would have been indistinguishable from the first. The `oneof` envelope is exactly what removes that constraint.
 

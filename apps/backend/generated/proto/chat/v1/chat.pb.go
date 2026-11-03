@@ -414,8 +414,11 @@ type SendMessageRequest struct {
 	CountryId        string                 `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	Text             string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
 	ReplyToMessageId string                 `protobuf:"bytes,5,opt,name=reply_to_message_id,json=replyToMessageId,proto3" json:"reply_to_message_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The flag whose room it goes to: only the accounts that play for that flag read and write there. Empty for the chat
+	// everyone reads.
+	FlagRoom      string `protobuf:"bytes,6,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SendMessageRequest) Reset() {
@@ -472,6 +475,13 @@ func (x *SendMessageRequest) GetText() string {
 func (x *SendMessageRequest) GetReplyToMessageId() string {
 	if x != nil {
 		return x.ReplyToMessageId
+	}
+	return ""
+}
+
+func (x *SendMessageRequest) GetFlagRoom() string {
+	if x != nil {
+		return x.FlagRoom
 	}
 	return ""
 }
@@ -565,7 +575,9 @@ func (x *MuteRefusal) GetMutedUntilUnixMs() int64 {
 }
 
 type GetHistoryRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As SendMessageRequest.flag_room. A flag's room has no announcements.
+	FlagRoom      string `protobuf:"bytes,1,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -598,6 +610,13 @@ func (x *GetHistoryRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetHistoryRequest.ProtoReflect.Descriptor instead.
 func (*GetHistoryRequest) Descriptor() ([]byte, []int) {
 	return file_chat_v1_chat_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetHistoryRequest) GetFlagRoom() string {
+	if x != nil {
+		return x.FlagRoom
+	}
+	return ""
 }
 
 type Announcement struct {
@@ -731,8 +750,10 @@ func (x *GetHistoryResponse) GetSeenUntilUnixMs() int64 {
 type MarkSeenRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	SeenUntilUnixMs int64                  `protobuf:"varint,1,opt,name=seen_until_unix_ms,json=seenUntilUnixMs,proto3" json:"seen_until_unix_ms,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// As SendMessageRequest.flag_room: each room keeps its own mark.
+	FlagRoom      string `protobuf:"bytes,2,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MarkSeenRequest) Reset() {
@@ -770,6 +791,13 @@ func (x *MarkSeenRequest) GetSeenUntilUnixMs() int64 {
 		return x.SeenUntilUnixMs
 	}
 	return 0
+}
+
+func (x *MarkSeenRequest) GetFlagRoom() string {
+	if x != nil {
+		return x.FlagRoom
+	}
+	return ""
 }
 
 type MarkSeenResponse struct {
@@ -921,7 +949,9 @@ func (x *ReactResponse) GetVersion() uint64 {
 }
 
 type ListenForEventsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As SendMessageRequest.flag_room. A flag's stream ends, FailedPrecondition, once the caller pledges another flag.
+	FlagRoom      string `protobuf:"bytes,1,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -954,6 +984,13 @@ func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
 	return file_chat_v1_chat_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ListenForEventsRequest) GetFlagRoom() string {
+	if x != nil {
+		return x.FlagRoom
+	}
+	return ""
 }
 
 type ChatEvent struct {
@@ -1263,18 +1300,20 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"authorName\x127\n" +
 	"\fauthor_color\x18\x03 \x01(\x0e2\x14.player.v1.NameColorR\vauthorColor\x12\x12\n" +
 	"\x04text\x18\x04 \x01(\tR\x04text\x12\x18\n" +
-	"\aremoved\x18\x05 \x01(\bR\aremoved\"\xa6\x01\n" +
+	"\aremoved\x18\x05 \x01(\bR\aremoved\"\xc3\x01\n" +
 	"\x12SendMessageRequest\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\tR\bauthorId\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x03 \x01(\tR\tcountryId\x12\x12\n" +
 	"\x04text\x18\x04 \x01(\tR\x04text\x12-\n" +
-	"\x13reply_to_message_id\x18\x05 \x01(\tR\x10replyToMessageIdJ\x04\b\x01\x10\x02R\vauthor_name\"E\n" +
+	"\x13reply_to_message_id\x18\x05 \x01(\tR\x10replyToMessageId\x12\x1b\n" +
+	"\tflag_room\x18\x06 \x01(\tR\bflagRoomJ\x04\b\x01\x10\x02R\vauthor_name\"E\n" +
 	"\x13SendMessageResponse\x12.\n" +
 	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageR\amessage\"<\n" +
 	"\vMuteRefusal\x12-\n" +
-	"\x13muted_until_unix_ms\x18\x01 \x01(\x03R\x10mutedUntilUnixMs\"\x13\n" +
-	"\x11GetHistoryRequest\"}\n" +
+	"\x13muted_until_unix_ms\x18\x01 \x01(\x03R\x10mutedUntilUnixMs\"0\n" +
+	"\x11GetHistoryRequest\x12\x1b\n" +
+	"\tflag_room\x18\x01 \x01(\tR\bflagRoom\"}\n" +
 	"\fAnnouncement\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12/\n" +
 	"\x14announced_at_unix_ms\x18\x02 \x01(\x03R\x11announcedAtUnixMs\x12\x12\n" +
@@ -1283,9 +1322,10 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\x12GetHistoryResponse\x120\n" +
 	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.ChatMessageR\bmessages\x12;\n" +
 	"\rannouncements\x18\x02 \x03(\v2\x15.chat.v1.AnnouncementR\rannouncements\x12+\n" +
-	"\x12seen_until_unix_ms\x18\x03 \x01(\x03R\x0fseenUntilUnixMs\">\n" +
+	"\x12seen_until_unix_ms\x18\x03 \x01(\x03R\x0fseenUntilUnixMs\"[\n" +
 	"\x0fMarkSeenRequest\x12+\n" +
-	"\x12seen_until_unix_ms\x18\x01 \x01(\x03R\x0fseenUntilUnixMs\"\x12\n" +
+	"\x12seen_until_unix_ms\x18\x01 \x01(\x03R\x0fseenUntilUnixMs\x12\x1b\n" +
+	"\tflag_room\x18\x02 \x01(\tR\bflagRoom\"\x12\n" +
 	"\x10MarkSeenResponse\"l\n" +
 	"\fReactRequest\x12\x1d\n" +
 	"\n" +
@@ -1294,8 +1334,9 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\x02on\x18\x03 \x01(\bR\x02on\"_\n" +
 	"\rReactResponse\x124\n" +
 	"\treactions\x18\x01 \x03(\v2\x16.chat.v1.ReactionCountR\treactions\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\x04R\aversion\"\x18\n" +
-	"\x16ListenForEventsRequest\"\xb6\x02\n" +
+	"\aversion\x18\x02 \x01(\x04R\aversion\"5\n" +
+	"\x16ListenForEventsRequest\x12\x1b\n" +
+	"\tflag_room\x18\x01 \x01(\tR\bflagRoom\"\xb6\x02\n" +
 	"\tChatEvent\x120\n" +
 	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageH\x00R\amessage\x122\n" +
 	"\theartbeat\x18\x02 \x01(\v2\x12.chat.v1.HeartbeatH\x00R\theartbeat\x129\n" +

@@ -24,7 +24,13 @@ type Authors interface {
 }
 
 type Drafts interface {
-	Draft(account messages.AccountID, country string, text string) (messages.Message, error)
+	Draft(
+		ctx context.Context,
+		account messages.AccountID,
+		room messages.Room,
+		country string,
+		text string,
+	) (messages.Message, error)
 }
 
 type Thread interface {
@@ -36,6 +42,7 @@ const writeTimeout = 5 * time.Second
 type In struct {
 	Account   messages.AccountID
 	AuthorID  string
+	Room      messages.Room
 	CountryID string
 	Text      string
 	ReplyTo   messages.MessageID
@@ -71,7 +78,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 		return messages.Message{}, messages.ErrNoAccount
 	}
 
-	draft, err := u.drafts.Draft(in.Account, in.CountryID, in.Text)
+	draft, err := u.drafts.Draft(ctx, in.Account, in.Room, in.CountryID, in.Text)
 	if err != nil {
 		return messages.Message{}, fmt.Errorf("failed to draft the message: %w", err)
 	}

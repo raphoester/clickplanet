@@ -401,6 +401,13 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
    */
   removedAt?: Timestamp;
 
+  /**
+   * The flag whose room it was said in. Empty for the chat everyone reads.
+   *
+   * @generated from field: string flag_room = 7;
+   */
+  flagRoom = "";
+
   constructor(data?: PartialMessage<GetMessageResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -415,6 +422,7 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
     { no: 4, name: "sent_at", kind: "message", T: Timestamp },
     { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "removed_at", kind: "message", T: Timestamp },
+    { no: 7, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageResponse {
@@ -590,6 +598,13 @@ export class KeptMessage extends Message<KeptMessage> {
    */
   replyTo?: KeptQuote;
 
+  /**
+   * The flag whose room it was said in. Empty for the chat everyone reads.
+   *
+   * @generated from field: string flag_room = 9;
+   */
+  flagRoom = "";
+
   constructor(data?: PartialMessage<KeptMessage>) {
     super();
     proto3.util.initPartial(data, this);
@@ -606,6 +621,7 @@ export class KeptMessage extends Message<KeptMessage> {
     { no: 6, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "removed_at", kind: "message", T: Timestamp },
     { no: 8, name: "reply_to", kind: "message", T: KeptQuote },
+    { no: 9, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeptMessage {

@@ -13,6 +13,7 @@ import (
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -47,28 +48,35 @@ type PostgresQuery struct {
 	retention time.Duration
 }
 
-func (q *PostgresQuery) History(ctx context.Context, viewer cpsession.AccountID) (*chatv1.GetHistoryResponse, error) {
+// A flag's room has no announcements.
+func (q *PostgresQuery) History(
+	ctx context.Context,
+	viewer cpsession.AccountID,
+	room messages.Room,
+) (*chatv1.GetHistoryResponse, error) {
 	since := q.clock.Now().Add(-q.retention)
 
 	var (
 		shown     []*chatv1.ChatMessage
-		announced []*chatv1.Announcement
+		announced = make([]*chatv1.Announcement, 0)
 		seenUntil int64
 	)
 	group, ctx := errgroup.WithContext(ctx)
 	group.Go(func() error {
 		var err error
-		shown, err = q.shown(ctx, since, viewer)
+		shown, err = q.shown(ctx, since, room, viewer)
 		return err
 	})
+	if room == messages.World {
+		group.Go(func() error {
+			var err error
+			announced, err = q.announced(ctx, since)
+			return err
+		})
+	}
 	group.Go(func() error {
 		var err error
-		announced, err = q.announced(ctx, since)
-		return err
-	})
-	group.Go(func() error {
-		var err error
-		seenUntil, err = q.seenUntil(ctx, viewer)
+		seenUntil, err = q.seenUntil(ctx, viewer, room)
 		return err
 	})
 	if err := group.Wait(); err != nil {
@@ -81,16 +89,16 @@ func (q *PostgresQuery) History(ctx context.Context, viewer cpsession.AccountID)
 const seenMark = `
 	SELECT floor(extract(epoch FROM seen_until) * 1000)::bigint
 	FROM seen
-	WHERE account_id = $1
+	WHERE account_id = $1 AND room = $2
 `
 
-func (q *PostgresQuery) seenUntil(ctx context.Context, viewer cpsession.AccountID) (int64, error) {
+func (q *PostgresQuery) seenUntil(ctx context.Context, viewer cpsession.AccountID, room messages.Room) (int64, error) {
 	if viewer == cpsession.NoAccount {
 		return 0, nil
 	}
 
 	var until int64
-	err := q.db.On(ctx).QueryRowContext(ctx, seenMark, uuid.UUID(viewer)).Scan(&until)
+	err := q.db.On(ctx).QueryRowContext(ctx, seenMark, uuid.UUID(viewer), string(room)).Scan(&until)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
 	}
@@ -104,7 +112,7 @@ const inWindow = `
 	SELECT seq, id, sent_at, account_id, name, author_admin, country, text, reply_to,
 		EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id) AS removed
 	FROM messages
-	WHERE sent_at >= $1
+	WHERE room = $3 AND sent_at >= $1
 	ORDER BY seq DESC
 	LIMIT $2
 `
@@ -148,7 +156,7 @@ const shownMessages = `
 			SELECT
 				reaction,
 				count(*) AS count,
-				COALESCE(bool_or(reactor = 'account:' || $3::uuid), false) AS mine,
+				COALESCE(bool_or(reactor = 'account:' || $4::uuid), false) AS mine,
 				min(reacted_at) AS first_at,
 				COALESCE(
 					array_agg(substr(reactor, 9)::uuid ORDER BY reacted_at, reactor) FILTER (WHERE reactor LIKE 'account:%'),
@@ -194,9 +202,10 @@ type count struct {
 func (q *PostgresQuery) shown(
 	ctx context.Context,
 	since time.Time,
+	room messages.Room,
 	viewer cpsession.AccountID,
 ) ([]*chatv1.ChatMessage, error) {
-	rows, err := q.rows(ctx, since, viewer)
+	rows, err := q.rows(ctx, since, room, viewer)
 	if err != nil {
 		return nil, err
 	}
@@ -213,8 +222,13 @@ func (q *PostgresQuery) shown(
 	return shown, nil
 }
 
-func (q *PostgresQuery) rows(ctx context.Context, since time.Time, viewer cpsession.AccountID) ([]row, error) {
-	result, err := q.db.On(ctx).QueryContext(ctx, shownMessages, since, q.size, nullable(viewer))
+func (q *PostgresQuery) rows(
+	ctx context.Context,
+	since time.Time,
+	room messages.Room,
+	viewer cpsession.AccountID,
+) ([]row, error) {
+	result, err := q.db.On(ctx).QueryContext(ctx, shownMessages, since, q.size, string(room), nullable(viewer))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the chat history: %w", err)
 	}
@@ -402,7 +416,7 @@ const shownAnnouncements = `
 `
 
 func (q *PostgresQuery) announced(ctx context.Context, since time.Time) ([]*chatv1.Announcement, error) {
-	result, err := q.db.On(ctx).QueryContext(ctx, shownAnnouncements, since, q.size)
+	result, err := q.db.On(ctx).QueryContext(ctx, shownAnnouncements, since, q.size, string(messages.World))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the chat announcements: %w", err)
 	}

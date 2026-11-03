@@ -7,6 +7,7 @@ import {
     ChatMessageGoneError,
     ChatMutedError,
     ChatNoSessionError,
+    ChatNotInRoomError,
     ChatRateLimitedError,
     ChatRejectedError,
     OutgoingMessage,
@@ -34,11 +35,12 @@ export type UseChatOptions = {
     backend?: ChatBackend
     accountId?: string
     username?: string
+    onLeft?: () => void
 }
 
 const NOTHING_SENT: ReadonlySet<string> = new Set()
 
-export function useChat({backend, accountId, username}: UseChatOptions) {
+export function useChat({backend, accountId, username, onLeft}: UseChatOptions) {
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [announcements, setAnnouncements] = useState<ChatAnnouncement[]>([])
     const [status, setStatus] = useState<ChatStatus>(backend ? 'loading' : 'unavailable')
@@ -54,6 +56,13 @@ export function useChat({backend, accountId, username}: UseChatOptions) {
 
     const named = useRef(displayName)
     named.current = displayName
+
+    const leaving = useRef(onLeft)
+    leaving.current = onLeft
+    const leave = useCallback(() => {
+        setStatus('unavailable')
+        leaving.current?.()
+    }, [])
 
     const receive = useCallback((incoming: ChatMessage[]) => {
         setMessages(current => addMessages(current, incoming))
@@ -90,6 +99,9 @@ export function useChat({backend, accountId, username}: UseChatOptions) {
             announcement => setAnnouncements(current => addAnnouncements(current, [announcement])),
             () => void catchUp(),
             messageId => setMessages(current => withRemoved(current, messageId)),
+            () => {
+                if (!abort.signal.aborted) leave()
+            },
         )
 
         backend.getHistory(abort.signal)
@@ -104,6 +116,10 @@ export function useChat({backend, accountId, username}: UseChatOptions) {
             })
             .catch(e => {
                 if (abort.signal.aborted) return
+                if (e instanceof ChatNotInRoomError) {
+                    leave()
+                    return
+                }
                 console.error("The chat history could not be loaded", e)
                 setStatus('unavailable')
             })
@@ -112,7 +128,7 @@ export function useChat({backend, accountId, username}: UseChatOptions) {
             abort.abort()
             stopListening()
         }
-    }, [backend, receive])
+    }, [backend, receive, leave])
 
     const send = useCallback(async (message: OutgoingMessage): Promise<ChatSendFailure | undefined> => {
         if (!backend) return 'failed'
@@ -127,11 +143,12 @@ export function useChat({backend, accountId, username}: UseChatOptions) {
         } catch (e) {
             console.error("The message could not be sent", e)
             if (e instanceof ChatMutedError) setMutedUntil(e.until)
+            if (e instanceof ChatNotInRoomError) leave()
             const failed = failureOf(e)
             setFailure(failed)
             return failed
         }
-    }, [backend, receive])
+    }, [backend, receive, leave])
 
     const react = useCallback(async (reaction: OutgoingReaction) => {
         if (!backend) return
@@ -151,8 +168,9 @@ export function useChat({backend, accountId, username}: UseChatOptions) {
                 setMutedUntil(e.until)
                 setFailure('muted')
             }
+            if (e instanceof ChatNotInRoomError) leave()
         }
-    }, [backend])
+    }, [backend, leave])
 
     return {messages, announcements, mine, own, displayName, seenAtLoad, status, failure, mutedUntil, send, react}
 }

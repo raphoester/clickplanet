@@ -2,22 +2,24 @@
 
 The client for the backend's second bounded context: `chat.ts` declares
 `ChatSender`, `ChatHistoryGetter`, `ChatListener`, `ChatReactor` and
-`ChatSeenMarker` (plus `ChatBackend`, the five together), `chatBackend.ts`
+`ChatSeenMarker` (plus `ChatBackend`, the five together, for one room, and
+`ChatRooms`, the World's that also opens a flag's room), `chatBackend.ts`
 implements them against `/chat.v1.ChatService/` alone — `SendMessage`,
 `GetHistory`, `React`, `MarkSeen` and the `ListenForEvents` stream — and
 `fakeChatBackend.ts` is the dev stand-in. On a desktop `ChatPanel` is the
 right-hand column, folded and unfolded from its own header. On a phone it is the
 Chat tab's sheet, and `Viewer` holds whether it is open (`open`,
 `onOpenChange`); see [The screen](screen.md). **It is always
-mounted**, open or not, on both: it owns the history load, the stream, the unread
-count and the sound. **A resumed stream reads the history again**: `addMessages`
+mounted**, open or not, on both: it owns each room's history load, stream, unread
+count and sound (see [Rooms](#rooms)). **A resumed stream reads the history again**: `addMessages`
 takes what it missed, and `withNewerReactions` the reactions that moved meanwhile. Closed on a phone it draws only the peek (below) and hands
 the unread count up through `onUnread`, for the tab's badge.
 
 **The chat and who is online share the panel**: with a roster wired, its header
-is two tabs, Chat and "Online · N" (see [Who is playing](who-is-playing.md)).
-While the list is shown, the Chat tab wears the unread badge: the log is not on
-screen, so nothing is marked seen, and the open panel has no other badge.
+is two tabs, Chat and "Online · N" (see [Who is playing](who-is-playing.md)),
+and three when the player holds a flag: World, the flag's room, and "Online · N".
+A room's tab wears its own unread badge while another tab is shown: its log is
+not on screen, so nothing is marked seen, and the open panel has no other badge.
 
 **A Discord bar sits over the log** (`DiscordBar`), on a desktop and in the
 phone's sheet: one call to action, Discord, for the alert when the flag is under
@@ -144,6 +146,45 @@ The composer **clears the box when the send starts, not when it lands**, and put
 the text back only if the box is still empty when a refusal comes in. Clearing on
 success instead wipes whatever was typed while the message was in flight, which
 is exactly what a fast typer does.
+
+## Rooms
+
+**Beside the World chat, each flag has a room** that only the accounts playing
+for it read and write. The server checks the flag on every call (the backend's
+[Rooms](../../backend/docs/chat.md#rooms)); the client only picks the room.
+
+- **One `ChatBackend` is one room.** `ChatServiceBackend.flagRoom(flag)` is the
+  same client for that flag's room: it names the flag (`flag_room`) on
+  `SendMessage`, `GetHistory`, `MarkSeen` and `ListenForEvents`. The World names
+  none. `React` needs none: the server reads the message's room.
+- **A flag room's stream carries the identity token** (`identity()`, never a
+  mint), as its history does. The World's stream carries none.
+- **`Viewer` makes the room from the flag held** (`useAllegiance`), not from the
+  flag picked: a visitor who never pledged has no room, and no tab. It hands
+  `ChatPanel` the room (`flagRoom`: the country and its backend), memoized on the
+  flag, so a new flag is a new room.
+- **Each room is a `useChatRoom`**: `useChat` and `useSeenMark` with the seen
+  mark, the unread count, the flash, the peek and the sound of its own log.
+  `ChatPanel` keeps two, always mounted, and shows one. The folded panel's badge
+  and the phone's Chat tab count both rooms; the folded line, the phone's peek
+  and the sound come from either. The composer posts to the room shown, and a
+  reply being written is dropped when another tab is picked.
+- **The seen mark is per room**: `MarkSeen` and `GetHistory` name the room, and
+  `useSeenMark` starts again from zero for a new one.
+- **A flag room has no announcements**: the bombs, rounds and mutes are the
+  World's.
+- **`FailedPrecondition` is `ChatNotInRoomError`**: the player does not play for
+  that flag any more, most often after a pledge on another device. Its stream
+  ends with it too. **The stream then stops for good** (`openStream`'s
+  `stopsOn`): a reconnect would only be refused again, and a reconnect loop from
+  old tabs once overloaded the server (Oct 31 2026). `useChat` goes
+  `unavailable`, which takes the tab away (the World is shown again), and tells
+  `Viewer` (`onLeftRoom`), which reads the flag again
+  (`AllegianceSource.refreshAllegiance`). A new flag brings a new room; the same
+  flag leaves the room closed until the next load.
+- In fake mode `FakeChatBackend.flagRoom(flag)` keeps a log per flag, with two
+  opening lines and a slower chatter. `fakeChat.leave()` in the console makes
+  every flag room refuse the player, as a pledge elsewhere would.
 
 ## Replies
 

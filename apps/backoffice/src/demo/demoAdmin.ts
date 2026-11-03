@@ -163,7 +163,8 @@ export class DemoAdmin extends FakeAdmin {
             row.bannedUntil = at(NOW + 5 * 24 * HOUR)
         }
 
-        // The chat of the last day and a half, a line every few minutes, now and then an insult.
+        // The chat of the last day and a half, a line every few minutes, now and then an insult, one in five in the
+        // author's flag room.
         const chatty = this.accounts.filter(account => account.name !== "").slice(0, 30)
         let sentAt = NOW - 36 * HOUR
         this.chat = []
@@ -173,6 +174,7 @@ export class DemoAdmin extends FakeAdmin {
             const previous = this.chat[this.chat.length - 1]
             this.chat.push(new KeptMessage({
                 messageId: `m-${n}`, accountId: author.id, authorName: author.name, countryId: author.flag,
+                flagRoom: n % 5 === 4 ? author.flag : "",
                 text: abusive ? pick(ABUSE) : pick(BANTER), sentAt: at(sentAt),
                 replyTo: previous !== undefined && roll() < 0.2
                     ? new KeptQuote({messageId: previous.messageId, authorName: previous.authorName, text: previous.text})
@@ -306,7 +308,7 @@ export class DemoAdmin extends FakeAdmin {
         if (kept === undefined) return this.refuseLater("getMessage", request, "no message kept under this id", Code.NotFound)
         return this.answer("getMessage", request, new GetMessageResponse({
             messageId: kept.messageId, accountId: kept.accountId, text: kept.text, sentAt: kept.sentAt,
-            countryId: kept.countryId, removedAt: kept.removedAt,
+            countryId: kept.countryId, removedAt: kept.removedAt, flagRoom: kept.flagRoom,
         }))
     }
 

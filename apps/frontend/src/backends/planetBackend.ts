@@ -516,6 +516,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
+    public async refreshAllegiance(): Promise<void> {
+        await this.readAllegiance(this.streamToken ?? this.session.heldIdentity())
+    }
+
     public async pledgeAllegiance(countryId: string): Promise<void> {
         const token = await this.session.identity()
         if (token) await this.pledge(token, countryId)

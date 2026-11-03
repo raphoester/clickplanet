@@ -13,6 +13,7 @@ import (
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -62,28 +63,28 @@ const keptSeq = `
 // $1 is the start of the retention, $2 the limit, $3 the cursor's seq and $4 the one author, when there is one.
 const (
 	older = `
-		SELECT seq, id, account_id, name, text, sent_at, country, reply_to
+		SELECT seq, id, account_id, name, text, sent_at, country, room, reply_to
 		FROM messages
 		WHERE sent_at >= $1 AND seq < $3
 		ORDER BY seq DESC
 		LIMIT $2
 	`
 	newer = `
-		SELECT seq, id, account_id, name, text, sent_at, country, reply_to
+		SELECT seq, id, account_id, name, text, sent_at, country, room, reply_to
 		FROM messages
 		WHERE sent_at >= $1 AND seq > $3
 		ORDER BY seq
 		LIMIT $2
 	`
 	olderOfOne = `
-		SELECT seq, id, account_id, name, text, sent_at, country, reply_to
+		SELECT seq, id, account_id, name, text, sent_at, country, room, reply_to
 		FROM messages
 		WHERE sent_at >= $1 AND seq < $3 AND account_id = $4
 		ORDER BY seq DESC
 		LIMIT $2
 	`
 	newerOfOne = `
-		SELECT seq, id, account_id, name, text, sent_at, country, reply_to
+		SELECT seq, id, account_id, name, text, sent_at, country, room, reply_to
 		FROM messages
 		WHERE sent_at >= $1 AND seq > $3 AND account_id = $4
 		ORDER BY seq
@@ -91,7 +92,7 @@ const (
 	`
 	projection = `)
 	SELECT
-		page.id, page.account_id, page.name, page.text, page.sent_at, page.country, removals.removed_at,
+		page.id, page.account_id, page.name, page.text, page.sent_at, page.country, page.room, removals.removed_at,
 		COALESCE(quoted.id, ''), quoted.account_id, COALESCE(quoted.name, ''), COALESCE(quoted.text, ''),
 		quoted.removed_at
 	FROM page
@@ -212,6 +213,7 @@ func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any)
 			each            = row{message: &chatv1.KeptMessage{}}
 			account         uuid.NullUUID
 			sentAt          time.Time
+			room            string
 			removedAt       sql.NullTime
 			quote           = &chatv1.KeptQuote{}
 			quotedAccount   uuid.NullUUID
@@ -219,13 +221,16 @@ func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any)
 		)
 		if err := found.Scan(
 			&each.message.MessageId, &account, &each.author.name, &each.message.Text, &sentAt,
-			&each.message.CountryId, &removedAt,
+			&each.message.CountryId, &room, &removedAt,
 			&quote.MessageId, &quotedAccount, &each.quoted.name, &quote.Text, &quotedRemovedAt,
 		); err != nil {
 			return nil, fmt.Errorf("failed to read a message of a page: %w", err)
 		}
 
 		each.message.SentAt = timestamppb.New(sentAt)
+		if messages.Room(room) != messages.World {
+			each.message.FlagRoom = room
+		}
 		if account.Valid {
 			each.author.account = cpsession.AccountID(account.UUID)
 			each.message.AccountId = account.UUID.String()

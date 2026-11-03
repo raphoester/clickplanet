@@ -455,7 +455,9 @@ type GetMessageResponse struct {
 	SentAt    *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
 	CountryId string                 `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	// Unset while the message is shown.
-	RemovedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
+	RemovedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
+	// The flag whose room it was said in. Empty for the chat everyone reads.
+	FlagRoom      string `protobuf:"bytes,7,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -530,6 +532,13 @@ func (x *GetMessageResponse) GetRemovedAt() *timestamppb.Timestamp {
 		return x.RemovedAt
 	}
 	return nil
+}
+
+func (x *GetMessageResponse) GetFlagRoom() string {
+	if x != nil {
+		return x.FlagRoom
+	}
+	return ""
 }
 
 type ListMessagesRequest struct {
@@ -663,7 +672,9 @@ type KeptMessage struct {
 	// Unset while the message is shown.
 	RemovedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
 	// The message it answers. Unset for none, and for one past the retention.
-	ReplyTo       *KeptQuote `protobuf:"bytes,8,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
+	ReplyTo *KeptQuote `protobuf:"bytes,8,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
+	// The flag whose room it was said in. Empty for the chat everyone reads.
+	FlagRoom      string `protobuf:"bytes,9,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -752,6 +763,13 @@ func (x *KeptMessage) GetReplyTo() *KeptQuote {
 		return x.ReplyTo
 	}
 	return nil
+}
+
+func (x *KeptMessage) GetFlagRoom() string {
+	if x != nil {
+		return x.FlagRoom
+	}
+	return ""
 }
 
 // The message a reply answers, as it was sent, removed or not.
@@ -859,7 +877,7 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"removed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\"2\n" +
 	"\x11GetMessageRequest\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x01 \x01(\tR\tmessageId\"\xf5\x01\n" +
+	"message_id\x18\x01 \x01(\tR\tmessageId\"\x92\x02\n" +
 	"\x12GetMessageResponse\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1d\n" +
@@ -870,7 +888,8 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x05 \x01(\tR\tcountryId\x129\n" +
 	"\n" +
-	"removed_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\"\xa0\x01\n" +
+	"removed_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\x12\x1b\n" +
+	"\tflag_room\x18\a \x01(\tR\bflagRoom\"\xa0\x01\n" +
 	"\x13ListMessagesRequest\x12*\n" +
 	"\x11before_message_id\x18\x01 \x01(\tR\x0fbeforeMessageId\x12(\n" +
 	"\x10after_message_id\x18\x02 \x01(\tR\x0eafterMessageId\x12\x14\n" +
@@ -878,7 +897,7 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x04 \x01(\tR\taccountId\"H\n" +
 	"\x14ListMessagesResponse\x120\n" +
-	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.KeptMessageR\bmessages\"\xbe\x02\n" +
+	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.KeptMessageR\bmessages\"\xdb\x02\n" +
 	"\vKeptMessage\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1d\n" +
@@ -892,7 +911,8 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"country_id\x18\x06 \x01(\tR\tcountryId\x129\n" +
 	"\n" +
 	"removed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\x12-\n" +
-	"\breply_to\x18\b \x01(\v2\x12.chat.v1.KeptQuoteR\areplyTo\"\x9a\x01\n" +
+	"\breply_to\x18\b \x01(\v2\x12.chat.v1.KeptQuoteR\areplyTo\x12\x1b\n" +
+	"\tflag_room\x18\t \x01(\tR\bflagRoom\"\x9a\x01\n" +
 	"\tKeptQuote\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1f\n" +

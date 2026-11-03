@@ -2,6 +2,7 @@ import {useCallback, useLayoutEffect, useRef, useState} from "react"
 import {ChatAdmin} from "../clients.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {clockOf, timeOf} from "../components/time.ts"
+import {countryLabel} from "../countries.ts"
 import {KeptMessage, KeptQuote} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {useOpenPlayer} from "../navigation.ts"
 import {wordsOf} from "../refusal.ts"
@@ -170,6 +171,7 @@ export function LineBody({line, parties, day, mark, removedAt}: LineProps) {
                 {mark !== undefined && <span className="badge badge-report">{mark}</span>}
                 <Author name={line.authorName} accountId={line.accountId}/>
                 {party !== undefined && <span className={`tag tag-${party}`}>{party}</span>}
+                {line.flagRoom !== "" && <span className="tag tag-room">{countryLabel(line.flagRoom)} room</span>}
                 <span className="muted">
                     {line.countryId !== "" && <>{line.countryId.toUpperCase()} · </>}
                     <Sent at={line.sentAt?.toDate()} day={day}/>

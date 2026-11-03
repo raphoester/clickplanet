@@ -255,6 +255,40 @@
     vertical-align: 1px;
 }
 
+.chat-tabs:has(.chat-tab--flag) .chat-tab:not(.chat-tab--flag) {
+    flex: 0 0 auto;
+}
+
+.chat-tab--flag {
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+}
+
+.chat-tab--flag .country-flag,
+.chat-tab--flag .chat-badge {
+    flex-shrink: 0;
+    margin-left: 0;
+}
+
+.chat-tab-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-tabs:has(.chat-tab--flag) {
+    container-type: inline-size;
+}
+
+@container (max-width: 279px) {
+    .chat-tab-name {
+        display: none;
+    }
+}
+
 .chat-fold {
     flex-shrink: 0;
     margin-left: auto;

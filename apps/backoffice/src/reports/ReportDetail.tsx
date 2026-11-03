@@ -201,5 +201,6 @@ function keptOf(message: GetMessageResponse, report: Report): KeptMessage {
         sentAt: message.sentAt,
         countryId: message.countryId,
         removedAt: message.removedAt,
+        flagRoom: message.flagRoom,
     })
 }

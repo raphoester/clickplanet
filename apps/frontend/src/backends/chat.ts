@@ -140,6 +140,7 @@ export interface ChatListener {
         onAnnouncement?: (announcement: ChatAnnouncement) => void,
         onResumed?: () => void,
         onRemoved?: (messageId: string) => void,
+        onLeft?: () => void,
     ): () => void
 }
 
@@ -152,6 +153,19 @@ export interface ChatSeenMarker {
 }
 
 export type ChatBackend = ChatSender & ChatHistoryGetter & ChatListener & ChatReactor & ChatSeenMarker
+
+export interface ChatFlagRooms {
+    flagRoom(flag: string): ChatBackend
+}
+
+export type ChatRooms = ChatBackend & ChatFlagRooms
+
+export class ChatNotInRoomError extends Error {
+    constructor(options?: {cause?: unknown}) {
+        super("this player does not play for the room's flag", options)
+        this.name = "ChatNotInRoomError"
+    }
+}
 
 export class ChatRateLimitedError extends Error {
     constructor(options?: {cause?: unknown}) {
