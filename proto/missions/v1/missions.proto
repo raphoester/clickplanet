@@ -6,9 +6,23 @@ import "planet/v1/planet.proto";
 
 service MissionService {
   rpc GetMissions(GetMissionsRequest) returns (GetMissionsResponse);
+
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream MissionEvent);
 }
 
 message GetMissionsRequest {}
+
+message ListenForEventsRequest {}
+
+message MissionEvent {
+  oneof event {
+    // The caller's day as GetMissions answers it: once as the stream opens, then each time missions are paid to it.
+    GetMissionsResponse day = 1;
+    Heartbeat heartbeat = 2;
+  }
+}
+
+message Heartbeat {}
 
 // The caller's own missions of the day, drawn at its first read or take for the flag it played then.
 message GetMissionsResponse {

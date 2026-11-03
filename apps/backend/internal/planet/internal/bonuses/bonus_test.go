@@ -808,6 +808,27 @@ func TestAClosedShapeReachesEveryoneAndOnlyItsCloserIsToldItIsTheirs(t *testing.
 	assert.Equal(t, []uint32{7, 8}, seen.Wall)
 }
 
+func TestAGrantReachesOnlyTheSignedInAccountsOwnStreams(t *testing.T) {
+	registry, _ := newTestRegistry()
+	mine := attend(t, registry, EntrantOf(clicks.Payer{Scope: "scope-a", Account: "acc-1", Linked: true}))
+	sameAddress := attend(t, registry, EntrantOf(clicks.Payer{Scope: "scope-a", Account: "acc-1"}))
+	other := attend(t, registry, EntrantOf(clicks.Payer{Scope: "scope-b", Account: "acc-2", Linked: true}))
+
+	registry.PublishGranted("acc-1", Held{Bomb: true, Shields: 12})
+
+	granted := (<-mine).Granted
+	require.NotNil(t, granted)
+	assert.Equal(t, Held{Bomb: true, Shields: 12}, *granted)
+	assert.Empty(t, sameAddress, "a guest's stream is its address's, which others share")
+	assert.Empty(t, other)
+}
+
+func TestAGrantToAnAccountWithNoStreamIsDropped(t *testing.T) {
+	registry, _ := newTestRegistry()
+
+	assert.NotPanics(t, func() { registry.PublishGranted("acc-1", Held{Bomb: true}) })
+}
+
 func TestABoxGivesAFewEnclosuresSpreadClicksOrShieldsAndOneOfTheRest(t *testing.T) {
 	seen := map[Kind]*cpcolls.Set[int]{}
 	for _, kind := range Kinds {

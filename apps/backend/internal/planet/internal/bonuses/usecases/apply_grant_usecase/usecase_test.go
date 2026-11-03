@@ -27,6 +27,19 @@ func (g grants) Record(_ context.Context, grant bonuses.GrantID, _ time.Time) (b
 	return true, nil
 }
 
+type told struct {
+	holder bonuses.Holder
+	held   bonuses.Held
+}
+
+type recordingStreams struct {
+	told []told
+}
+
+func (s *recordingStreams) PublishGranted(holder bonuses.Holder, held bonuses.Held) {
+	s.told = append(s.told, told{holder: holder, held: held})
+}
+
 const ada = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
 
 var config = func() bonuses.Rules {
@@ -35,10 +48,11 @@ var config = func() bonuses.Rules {
 	return rules
 }()
 
-func setUp() (*apply_grant_usecase.UseCase, bonuses.Charges) {
+func setUp() (*apply_grant_usecase.UseCase, bonuses.Charges, *recordingStreams) {
 	charges := bonuses.NewCharges(bonuses.NewMemoryStore(), func() bonuses.Rules { return config })
+	streams := &recordingStreams{}
 	return apply_grant_usecase.New(cpatomic.FakeTransactioner{}, grants{recorded: cpcolls.NewSet[bonuses.GrantID]()}, charges,
-		cptime.NewFixedClock(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))), charges
+		streams, cptime.NewFixedClock(time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC))), charges, streams
 }
 
 func held(t *testing.T, charges bonuses.Charges) bonuses.Held {
@@ -51,18 +65,31 @@ func held(t *testing.T, charges bonuses.Charges) bonuses.Held {
 	return held
 }
 
-func TestAGrantToldTwiceIsGrantedOnce(t *testing.T) {
-	useCase, charges := setUp()
+func TestAGrantToldTwiceIsGrantedAndToldToTheStreamsOnce(t *testing.T) {
+	useCase, charges, streams := setUp()
 	in := apply_grant_usecase.In{Grant: bonuses.GrantID{15: 1}, Account: ada, Kind: bonuses.KindShields, Amount: 10}
 
 	require.NoError(t, useCase.Execute(t.Context(), in))
 	require.NoError(t, useCase.Execute(t.Context(), in))
 
 	assert.Equal(t, 10, held(t, charges).Shields)
+	assert.Equal(t, []told{{holder: bonuses.Holder(ada), held: bonuses.Held{Shields: 10}}}, streams.told)
+}
+
+func TestTheStreamsAreToldAllTheAccountHoldsNotTheGrant(t *testing.T) {
+	useCase, _, streams := setUp()
+
+	for n, kind := range []bonuses.Kind{bonuses.KindBomb, bonuses.KindShields} {
+		require.NoError(t, useCase.Execute(t.Context(),
+			apply_grant_usecase.In{Grant: bonuses.GrantID{15: byte(n)}, Account: ada, Kind: kind, Amount: 10}))
+	}
+
+	require.Len(t, streams.told, 2)
+	assert.Equal(t, bonuses.Held{Bomb: true, Shields: 10}, streams.told[1].held)
 }
 
 func TestWhatDoesNotFitTheStackIsNotGranted(t *testing.T) {
-	useCase, charges := setUp()
+	useCase, charges, _ := setUp()
 
 	for n := range byte(3) {
 		require.NoError(t, useCase.Execute(t.Context(),
@@ -72,13 +99,14 @@ func TestWhatDoesNotFitTheStackIsNotGranted(t *testing.T) {
 	assert.Equal(t, config.Shield.Held, held(t, charges).Shields)
 }
 
-func TestAGrantToNoAccountOrOfNothingIsRefused(t *testing.T) {
-	useCase, _ := setUp()
+func TestAGrantToNoAccountOrOfNothingIsRefusedAndToldToNobody(t *testing.T) {
+	useCase, _, streams := setUp()
 
 	for name, in := range map[string]apply_grant_usecase.In{
 		"no account": {Grant: bonuses.GrantID{15: 1}, Account: "nope", Kind: bonuses.KindShields, Amount: 1},
 		"nothing":    {Grant: bonuses.GrantID{15: 1}, Account: ada, Kind: bonuses.KindShields},
 	} {
-		assert.Error(t, useCase.Execute(t.Context(), in), name)
+		require.Error(t, useCase.Execute(t.Context(), in), name)
 	}
+	assert.Empty(t, streams.told)
 }

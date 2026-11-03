@@ -28,19 +28,22 @@ internal/missions/internal/
     payroll/                        pays each mission done once: the payments and their grants, in one transaction
     planetgrant/                    a payment as the planet.v1.GrantCharges command
     redis_outbox_sender/            what the outbox relay sends with: the grants as commands, MissionsPaid as an event
+    inprocess_payment_feed/         wakes the account's open streams when MissionsPaid is heard, in this process
     usecases/record_fact_usecase/  get_missions_usecase/  pay_signed_in_usecase/  forget_account_usecase/
+              listen_for_events_usecase/
   flagmissions/                     Take and Strike, Order (TakeIn, BreakShields), MissionID, Day (a flag's day), Done, Draw,
                                     Briefing; the Store port and its contract suite
     postgres_flag_day_store/        the Store over missions.flag_days and flag_missions
     inmemory_flag_day_store/        the same port in a map, behind the testing tag
     scoringgrant/                   a flag mission done as the scoring.v1.GrantPoints command
     usecases/record_flag_take_usecase/  record_strike_usecase/
-  missionsv1controller/             MissionService (a bag), the session interceptor, the caller, missionmessage
-    get_missions_handler/
+  missionsv1controller/             MissionService (a bag), the session interceptors, the caller, missionmessage
+    get_missions_handler/  listen_for_events_handler/
   subscribers/                      tile_taken_subscriber/  bonus_claimed_subscriber/  quiz_answered_subscriber/
                                     bomb_landed_subscriber/  shield_placed_subscriber/  fortified_subscriber/
                                     day_started_subscriber/  flag_tile_taken_subscriber/  shield_struck_subscriber/
-                                    sign_in_subscriber/  account_deleted_subscriber/  log_subscriber/
+                                    sign_in_subscriber/  account_deleted_subscriber/  missions_paid_subscriber/
+                                    log_subscriber/
   migrations/
 ```
 
@@ -135,11 +138,23 @@ internal/missions/internal/
     `player` keeps it for the Missions title track. A running total, not one event per mission: told twice or late it
     changes nothing, and the first one brings every payment before it. So one outbox holds a command and an event, and
     `redis_outbox_sender` sends each on its own kind of stream.
+  - **The player hears the payment on a stream, with no read** (`MissionService.ListenForEvents`, `stream MissionEvent`).
+    The stream sends the caller's day as `GetMissions` answers it (`day`, `missionmessage.Day`) as it opens, then
+    again each time missions are paid to it, and a `heartbeat` every `httpServer.streamHeartbeat`. Missions hears its
+    own `MissionsPaid` (`missions-streams`, `missions_paid_subscriber`), so the day is read once the payment is
+    committed, and the same relay pass sends the grant to planet: the card and the charges come within about a second
+    of each other, about 2 to 4 s after the act that finished the mission, whatever its kind. `inprocess_payment_feed`
+    wakes each open stream of the account; payments told while a stream reads its day are one more read, not one each
+    (`listen_for_events_usecase`). Delivery is at most once, and a stream that opens again starts from the whole day.
+    Until 2026-11-03 the client read `GetMissions` after each run of clicks and 3 s later, and nothing after a box, a
+    quiz, a shield or a bomb: a mission those finished showed paid only after the next run of clicks, up to a minute
+    later (the owner: "it's perceived as a bug"). The stream needs an account: `NewStreamSessionReader` reads the token,
+    since the unary session interceptor does not wrap streams, and a stream with none is refused `Unauthenticated`.
   - **A guest's progress counts and is kept, and its pay waits for sign-in.** `payroll` asks auth whether the account
     is signed in (`rpc_auth_accounts`) only when a take finishes a mission. `auth.v1.SignedIn` (`missions-sign-ins`,
     `pay_signed_in_usecase`) pays the day's missions done, so a guest who signs in that day gets them; a day that
     ended unpaid stays unpaid.
-  - **`GetMissions` is `Identified`**, and says which missions are paid. `auth.v1.AccountDeleted` deletes the account's
+  - **`GetMissions` and `ListenForEvents` are `Identified`**, and say which missions are paid. `auth.v1.AccountDeleted` deletes the account's
     briefs, sheets, progress and payments (`missions-accounts`).
 
 ## The flag's mission

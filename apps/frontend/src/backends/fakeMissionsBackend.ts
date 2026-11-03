@@ -12,6 +12,7 @@ export class FakeMissionsBackend implements MissionsBackend {
     private primed = false
     private finished = false
     private readonly paid = new Set<string>()
+    private readonly followers = new Set<(day: DayMissions) => void>()
 
     constructor(
         private readonly grant: (kind: ChargeKind) => void,
@@ -41,6 +42,16 @@ export class FakeMissionsBackend implements MissionsBackend {
     }
 
     public async missions(): Promise<DayMissions> {
+        return this.day()
+    }
+
+    public follow(onDay: (day: DayMissions) => void): () => void {
+        this.followers.add(onDay)
+        onDay(this.day())
+        return () => this.followers.delete(onDay)
+    }
+
+    private day(): DayMissions {
         this.flag ??= this.pledged
         if (!this.flag) return {endsAt: this.endOfDay(), missions: []}
         return {endsAt: this.endOfDay(), missions: this.brief(this.flag), flagMission: this.flagMission(this.flag)}
@@ -48,11 +59,16 @@ export class FakeMissionsBackend implements MissionsBackend {
 
     private payDone(): void {
         if (!this.flag) return
+        let paid = false
         for (const mission of this.brief(this.flag)) {
             if (!mission.done || this.paid.has(mission.id)) continue
             this.paid.add(mission.id)
             this.grant(mission.reward.kind)
+            paid = true
         }
+        if (!paid) return
+        const day = this.day()
+        this.followers.forEach((onDay) => onDay(day))
     }
 
     private counted(goal: number, share: number): number {

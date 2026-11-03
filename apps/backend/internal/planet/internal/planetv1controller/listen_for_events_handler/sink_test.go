@@ -250,6 +250,22 @@ func TestASinkFramesASpreadClick(t *testing.T) {
 	assert.Equal(t, []uint32{99, 101}, spread.GetSpreadTileIds())
 }
 
+func TestASinkFramesEverythingAGrantLeftHeld(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Granted: &bonuses.Held{Bomb: true, Enclosures: 2, SpreadClicks: 4, Shields: 20},
+	}))
+
+	charges := stream.sent[0].GetChargesGranted().GetCharges()
+	require.NotNil(t, charges)
+	assert.True(t, charges.GetBomb())
+	assert.False(t, charges.GetRefill())
+	assert.Equal(t, uint32(2), charges.GetEnclosures())
+	assert.Equal(t, uint32(4), charges.GetSpreadClicksLeft())
+	assert.Equal(t, uint32(20), charges.GetShields())
+}
+
 func TestAHeartbeatStillWinsOverEverything(t *testing.T) {
 	stream := &recorder{}
 

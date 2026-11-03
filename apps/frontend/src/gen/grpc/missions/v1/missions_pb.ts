@@ -39,6 +39,120 @@ export class GetMissionsRequest extends Message<GetMissionsRequest> {
 }
 
 /**
+ * @generated from message missions.v1.ListenForEventsRequest
+ */
+export class ListenForEventsRequest extends Message<ListenForEventsRequest> {
+  constructor(data?: PartialMessage<ListenForEventsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.ListenForEventsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListenForEventsRequest {
+    return new ListenForEventsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListenForEventsRequest {
+    return new ListenForEventsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListenForEventsRequest {
+    return new ListenForEventsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListenForEventsRequest | PlainMessage<ListenForEventsRequest> | undefined, b: ListenForEventsRequest | PlainMessage<ListenForEventsRequest> | undefined): boolean {
+    return proto3.util.equals(ListenForEventsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message missions.v1.MissionEvent
+ */
+export class MissionEvent extends Message<MissionEvent> {
+  /**
+   * @generated from oneof missions.v1.MissionEvent.event
+   */
+  event: {
+    /**
+     * The caller's day as GetMissions answers it: once as the stream opens, then each time missions are paid to it.
+     *
+     * @generated from field: missions.v1.GetMissionsResponse day = 1;
+     */
+    value: GetMissionsResponse;
+    case: "day";
+  } | {
+    /**
+     * @generated from field: missions.v1.Heartbeat heartbeat = 2;
+     */
+    value: Heartbeat;
+    case: "heartbeat";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<MissionEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.MissionEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "day", kind: "message", T: GetMissionsResponse, oneof: "event" },
+    { no: 2, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MissionEvent {
+    return new MissionEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MissionEvent {
+    return new MissionEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MissionEvent {
+    return new MissionEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MissionEvent | PlainMessage<MissionEvent> | undefined, b: MissionEvent | PlainMessage<MissionEvent> | undefined): boolean {
+    return proto3.util.equals(MissionEvent, a, b);
+  }
+}
+
+/**
+ * @generated from message missions.v1.Heartbeat
+ */
+export class Heartbeat extends Message<Heartbeat> {
+  constructor(data?: PartialMessage<Heartbeat>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.Heartbeat";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Heartbeat {
+    return new Heartbeat().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Heartbeat {
+    return new Heartbeat().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Heartbeat {
+    return new Heartbeat().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Heartbeat | PlainMessage<Heartbeat> | undefined, b: Heartbeat | PlainMessage<Heartbeat> | undefined): boolean {
+    return proto3.util.equals(Heartbeat, a, b);
+  }
+}
+
+/**
  * The caller's own missions of the day, drawn at its first read or take for the flag it played then.
  *
  * @generated from message missions.v1.GetMissionsResponse

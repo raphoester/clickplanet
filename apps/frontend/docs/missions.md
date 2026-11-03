@@ -25,12 +25,14 @@ itself, with nothing to press.
   the page tells nothing), so a player who stopped clicking sees it at the next run of clicks. It plays through the
   announcements queue (see [Battles](battle.md#the-announcements-queue)). Until 2026-10-29 nothing said it, and the
   owner, who finished France's, could not tell if the points were granted.
-- **`useMissions` lives in `Viewer`, not in the place**, so the badge is right with the tab closed. It reads `GetMissions` at load, on a change of the pledged flag (`useAllegiance`), after
-  each run of clicks (`useReadsAfterClicks`) and once more `FOLLOW_UP_MS` (3 s) later, and once the day ends.
-  The read after clicks comes 2 s after the last one, and the backend counts a take one to three seconds
-  after it answered it (the ledger's flush, its relay, the missions' handler): the second read is what
-  catches the take that finished a mission when the player stopped clicking, as one does who just
-  spent a bank.
+- **`useMissions` lives in `Viewer`, not in the place**, so the badge is right with the tab closed. It reads `GetMissions` at load, on a change of the account or of the pledged flag (`useAllegiance`), after
+  each run of clicks (`useReadsAfterClicks`, 2 s after the last one, for the bars), and once the day ends.
+  **A mission paid comes on the missions stream** (`MissionsBackend.follow`, `MissionService.ListenForEvents`),
+  followed while the account is known and again when it changes: the stream sends the whole day as it opens and
+  each time missions are paid, whatever finished them (a take, a box, a quiz, a shield, a bomb). A read that
+  started before a streamed day is dropped (`streamed`), or it could put a paid mission back to unpaid and show
+  its card twice. Until 2026-11-03 a second read 3 s after the clicks was what caught a mission finished: a box,
+  a quiz, a shield or a bomb read nothing, and its reward showed up to a minute late.
 - **The badge counts what is news**, as the chat's counts what was missed: on the phone's tab
   (`TabBar`) and the desktop menu's tab (`Menu`, `missionsNews`), "Missions, 3 new". A mission is news
   each time it moves on a stage, drawn, then done, then paid (`stageOf`), and the badge counts the ones
@@ -40,10 +42,10 @@ itself, with nothing to press.
 - **A mission paid has its own card**, `MissionsDone`: "Mission done", or "3 missions done" for a
   burst, then each order with its flag and the reward it paid. One card for all the missions of a read,
   never a card each; it goes by itself like a box's card (`usePassing`, 2.9 s). `usePaidMissions`
-  compares each read with the one before (`newlyPaid`; the first read of the page tells nothing).
-  `Viewer` asks planet for the charges at once and again `GRANT_LANDS_MS` (2 s) later: planet grants
-  from a command, after the read that says the mission is paid, and no stream says so. The charge's
-  own card (`BonusAward`) is for a box or a quiz, not a mission.
+  compares each day with the one before (`newlyPaid`; the first day of the page tells nothing). The
+  charges come on planet's own stream (`charges_granted`, see [Charges](charges.md)), within about a
+  second of the card: the client reads no charges for a mission. The charge's own card (`BonusAward`)
+  is for a box or a quiz, not a mission.
 - **A `Mission` is its id, its `order`, its reward, `done` and `paid`.** The order is one shape per kind
   (`MissionOrder`: `TileOrder` and `RaidOrder` count `taken`, `BombOrder`, `ShieldOrder` and `CountOrder` count
   `reached`), and a flag mission's (`FlagMissionOrder`) is a `TileOrder` or a `BreakOrder`, which counts `reached`
@@ -51,6 +53,6 @@ itself, with nothing to press.
   not know.
 - `backends/missions.ts` is the contract, `ConnectMissionsBackend` (`missions.v1.MissionService`) the real one,
   `FakeMissionsBackend` the fake: it draws the day for the flag pledged at its first read (or its first
-  take's), with a flag mission to break a rival's shields that this tab's takes stand for, counts every take of this tab, pays each mission done at once, and `finishMissions()` in the console puts
+  take's), with a flag mission to break a rival's shields that this tab's takes stand for, counts every take of this tab, pays each mission done at once and hands its followers the day then, and `finishMissions()` in the console puts
   every mission one tile from done: the next take finishes and pays them all, as a take does on the server, and
   cheers the flag's. The fake has no missions before the tab's first take: take a tile, then call it.

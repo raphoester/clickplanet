@@ -3,7 +3,9 @@ import {createConnectTransport} from "@connectrpc/connect-web"
 import {MissionService} from "../gen/grpc/missions/v1/missions_connect.ts"
 import {
     FlagMission as FlagMissionPb,
+    GetMissionsResponse,
     Mission as MissionPb,
+    MissionEvent,
     MissionReward as MissionRewardPb,
 } from "../gen/grpc/missions/v1/missions_pb.ts"
 import {chargeKindOf} from "./bonusKind.ts"
@@ -17,7 +19,7 @@ import {
     MissionsBackend,
 } from "./missions.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
-import {Config, retrying} from "./transport.ts"
+import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
 
 export function newMissionServiceClient(config: Config): PromiseClient<typeof MissionService> {
     return createPromiseClient(MissionService, createConnectTransport({
@@ -36,13 +38,35 @@ export class ConnectMissionsBackend implements MissionsBackend {
     }
 
     public async missions(): Promise<DayMissions> {
-        const res = await this.authenticated((headers) =>
-            retrying(() => this.client.getMissions({}, {headers}), "GetMissions"))
-        return {
-            endsAt: Number(res.endsAtUnixMs),
-            missions: res.missions.flatMap((mission) => missionOf(mission) ?? []),
-            flagMission: res.flagMission && flagMissionOf(res.flagMission),
-        }
+        return dayOf(await this.authenticated((headers) =>
+            retrying(() => this.client.getMissions({}, {headers}), "GetMissions")))
+    }
+
+    public follow(onDay: (day: DayMissions) => void): () => void {
+        const client = this.client
+        const session = this.session
+        let stop = () => {}
+        stop = openStream(
+            async function* (signal) {
+                const token = await session.token()
+                if (!token) return
+                try {
+                    yield* client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT, headers: {[SESSION_HEADER]: token}})
+                } catch (e) {
+                    if (e instanceof ConnectError && (e.code === Code.Unimplemented || e.code === Code.NotFound)) {
+                        stop()
+                        return
+                    }
+                    if (e instanceof ConnectError && e.code === Code.Unauthenticated) session.invalidate()
+                    throw e
+                }
+            },
+            (event: MissionEvent) => {
+                if (event.event.case === "day") onDay(dayOf(event.event.value))
+            },
+            "missions",
+        )
+        return () => stop()
     }
 
     private async authenticated<T>(call: (headers: Headers) => Promise<T>): Promise<T> {
@@ -62,6 +86,14 @@ export class ConnectMissionsBackend implements MissionsBackend {
         const headers = new Headers()
         if (token) headers.set(SESSION_HEADER, token)
         return headers
+    }
+}
+
+function dayOf(res: GetMissionsResponse): DayMissions {
+    return {
+        endsAt: Number(res.endsAtUnixMs),
+        missions: res.missions.flatMap((mission) => missionOf(mission) ?? []),
+        flagMission: res.flagMission && flagMissionOf(res.flagMission),
     }
 }
 

@@ -403,12 +403,21 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     return
                 }
 
+                const granted = grantedOf(event)
+                if (granted) {
+                    this.holdCharges(granted)
+                    return
+                }
+
                 const spread = spreadOf(event)
                 if (spread) this.bonusCallbacks.forEach(handlers => handlers.onSpread(spread))
             },
             "planet events",
-            // A gap in the stream may have hidden a rulesChanged.
-            {onResumed: () => this.readRulesInForce()},
+            // A gap in the stream may have hidden a rulesChanged or a grant.
+            {onResumed: () => {
+                this.readRulesInForce()
+                void this.refreshCharges()
+            }},
         )
     }
 
@@ -903,6 +912,12 @@ export function spreadOf(event: PlanetEvent): SpreadClick | undefined {
 
     const spread = event.event.value
     return {countryId: spread.countryId, tile: spread.tileId, spread: [...spread.spreadTileIds]}
+}
+
+export function grantedOf(event: PlanetEvent): Charges | undefined {
+    if (event.event.case !== "chargesGranted") return undefined
+
+    return chargesOfMessage(event.event.value.charges)
 }
 
 export function chargesOfMessage(held: ChargesHeld | undefined): Charges {

@@ -10,10 +10,13 @@ to 20 shields, capped at the size; the reward it announces
 is what was kept (`+2 spread clicks`), which is what the server answers in
 `ClaimBonusResponse.amount`.
 
-**`PlanetBackend` holds `Charges` (`domain/bonus.ts`) and nothing pushes them.**
-It reads `GetCharges` at load, with the token in hand and never a fresh one, and
-again when a click goes out under a new token (`followSession`): the charges are
-the account's. `ClaimBonusResponse.charges` replaces them on a claim, and
+**`PlanetBackend` holds `Charges` (`domain/bonus.ts`), and only a grant pushes them.**
+It reads `GetCharges` at load, with the token in hand and never a fresh one, again
+when a click goes out under a new token (`followSession`), and when its stream comes
+back after a gap: the charges are the account's. A grant from outside the player's
+own clicks (a mission paid, an operator's) comes on the planet stream of a signed-in
+account as `charges_granted`, all it holds now (`grantedOf`), and replaces them with
+no read. `ClaimBonusResponse.charges` replaces them on a claim, and
 `UseRefillResponse.charges` on a refill, which also brings the full budget, and
 `PlaceShieldResponse.charges` on a shield placed. Otherwise
 it follows its own calls: an accepted click **sent with spread on** takes a spread

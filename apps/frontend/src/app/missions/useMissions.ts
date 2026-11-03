@@ -1,10 +1,7 @@
-import {useEffect, useState} from "react"
+import {useEffect, useRef, useState} from "react"
 import {DayMissions, MissionsBackend} from "../../backends/missions.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import {useReadsAfterClicks} from "../viewer/useAcceptedClicks.ts"
-
-// The backend counts a take a second or two after it answered it: one more read catches it.
-export const FOLLOW_UP_MS = 3_000
 
 export type MissionsState =
     | {kind: "loading"}
@@ -13,20 +10,24 @@ export type MissionsState =
 
 export function useMissions(
     backend: MissionsBackend | undefined,
+    account: string | undefined,
     pledged: string | undefined,
     listenForClicks: ListenForClicks | undefined,
 ): MissionsState {
     const [state, setState] = useState<MissionsState>({kind: "loading"})
     const [read, setRead] = useState(0)
+    const streamed = useRef(0)
     const reads = useReadsAfterClicks(listenForClicks)
     const endsAt = state.kind === "ready" ? state.day.endsAt : undefined
 
     useEffect(() => {
         if (!backend) return
         let stale = false
+        // A day the stream sent during the read is newer: the read could put a paid mission back to unpaid.
+        const before = streamed.current
         backend.missions().then(
             (day) => {
-                if (!stale) setState({kind: "ready", day})
+                if (!stale && streamed.current === before) setState({kind: "ready", day})
             },
             (e) => {
                 console.error("Could not read the missions", e)
@@ -36,13 +37,15 @@ export function useMissions(
         return () => {
             stale = true
         }
-    }, [backend, pledged, read, reads])
+    }, [backend, account, pledged, read, reads])
 
     useEffect(() => {
-        if (reads === 0) return
-        const again = setTimeout(() => setRead((n) => n + 1), FOLLOW_UP_MS)
-        return () => clearTimeout(again)
-    }, [reads])
+        if (!backend || !account) return
+        return backend.follow((day) => {
+            streamed.current++
+            setState({kind: "ready", day})
+        })
+    }, [backend, account])
 
     useEffect(() => {
         if (endsAt === undefined) return

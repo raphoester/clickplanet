@@ -175,9 +175,6 @@ export type ViewerProps = {
     alerts?: DiscordAlerts
 }
 
-// Planet grants a mission's reward from a command, after the read that says it is paid.
-const GRANT_LANDS_MS = 2_000
-
 export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
     const {countryState, handleSetCountry} = useCountryStorage(props.sharedCountry)
@@ -410,15 +407,10 @@ export default function Viewer(props: ViewerProps) {
         onGuided: boardGuide.markGuided,
         hallOfFame,
     }
-    const missionsState = useMissions(props.missions, allegiance?.countryId, accepted.listenForClicks)
+    const missionsState = useMissions(props.missions, ownAccountId, allegiance?.countryId, accepted.listenForClicks)
     const seenMissions = useSeenMissions()
     const [missionsDone, setMissionsDone] = useState<Mission[]>()
-    usePaidMissions(missionsState, (paid) => {
-        setMissionsDone(paid)
-        const refresh = () => props.chargesRefresher?.refreshCharges().catch((e) => console.error("could not read the charges held", e))
-        refresh()
-        setTimeout(refresh, GRANT_LANDS_MS)
-    })
+    usePaidMissions(missionsState, setMissionsDone)
     useFlagMissionDone(missionsState, (mission) => {
         if (allegiance) announce({kind: "flagMission", mission, country: allegiance.countryId})
     })

@@ -230,6 +230,28 @@ func TestAQuizOfferedToTheCallerIsCarriedToTheSink(t *testing.T) {
 	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Quiz: quiz}}, sink.seen())
 }
 
+func TestAGrantToTheSignedInCallerIsCarriedToTheSink(t *testing.T) {
+	boxes := make(chan bonuses.Event, 1)
+	held := &bonuses.Held{Bomb: true, Shields: 20}
+	boxes <- bonuses.Event{Granted: held}
+
+	signedIn := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "acc-1"))
+	ctx, cancel := context.WithCancel(signedIn)
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedFeed{"account:acc-1": boxes}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Granted: held}}, sink.seen())
+}
+
 func TestAStreamOpensWithAHeartbeat(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}

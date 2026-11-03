@@ -58,6 +58,161 @@ func (*GetMissionsRequest) Descriptor() ([]byte, []int) {
 	return file_missions_v1_missions_proto_rawDescGZIP(), []int{0}
 }
 
+type ListenForEventsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListenForEventsRequest) Reset() {
+	*x = ListenForEventsRequest{}
+	mi := &file_missions_v1_missions_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListenForEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListenForEventsRequest) ProtoMessage() {}
+
+func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_missions_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{1}
+}
+
+type MissionEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Event:
+	//
+	//	*MissionEvent_Day
+	//	*MissionEvent_Heartbeat
+	Event         isMissionEvent_Event `protobuf_oneof:"event"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MissionEvent) Reset() {
+	*x = MissionEvent{}
+	mi := &file_missions_v1_missions_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MissionEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MissionEvent) ProtoMessage() {}
+
+func (x *MissionEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_missions_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MissionEvent.ProtoReflect.Descriptor instead.
+func (*MissionEvent) Descriptor() ([]byte, []int) {
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *MissionEvent) GetEvent() isMissionEvent_Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+func (x *MissionEvent) GetDay() *GetMissionsResponse {
+	if x != nil {
+		if x, ok := x.Event.(*MissionEvent_Day); ok {
+			return x.Day
+		}
+	}
+	return nil
+}
+
+func (x *MissionEvent) GetHeartbeat() *Heartbeat {
+	if x != nil {
+		if x, ok := x.Event.(*MissionEvent_Heartbeat); ok {
+			return x.Heartbeat
+		}
+	}
+	return nil
+}
+
+type isMissionEvent_Event interface {
+	isMissionEvent_Event()
+}
+
+type MissionEvent_Day struct {
+	// The caller's day as GetMissions answers it: once as the stream opens, then each time missions are paid to it.
+	Day *GetMissionsResponse `protobuf:"bytes,1,opt,name=day,proto3,oneof"`
+}
+
+type MissionEvent_Heartbeat struct {
+	Heartbeat *Heartbeat `protobuf:"bytes,2,opt,name=heartbeat,proto3,oneof"`
+}
+
+func (*MissionEvent_Day) isMissionEvent_Event() {}
+
+func (*MissionEvent_Heartbeat) isMissionEvent_Event() {}
+
+type Heartbeat struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Heartbeat) Reset() {
+	*x = Heartbeat{}
+	mi := &file_missions_v1_missions_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Heartbeat) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Heartbeat) ProtoMessage() {}
+
+func (x *Heartbeat) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_missions_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
+func (*Heartbeat) Descriptor() ([]byte, []int) {
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{3}
+}
+
 // The caller's own missions of the day, drawn at its first read or take for the flag it played then.
 type GetMissionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -75,7 +230,7 @@ type GetMissionsResponse struct {
 
 func (x *GetMissionsResponse) Reset() {
 	*x = GetMissionsResponse{}
-	mi := &file_missions_v1_missions_proto_msgTypes[1]
+	mi := &file_missions_v1_missions_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -87,7 +242,7 @@ func (x *GetMissionsResponse) String() string {
 func (*GetMissionsResponse) ProtoMessage() {}
 
 func (x *GetMissionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[1]
+	mi := &file_missions_v1_missions_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -100,7 +255,7 @@ func (x *GetMissionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMissionsResponse.ProtoReflect.Descriptor instead.
 func (*GetMissionsResponse) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{1}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{4}
 }
 
 // Deprecated: Marked as deprecated in missions/v1/missions.proto.
@@ -166,7 +321,7 @@ type Mission struct {
 
 func (x *Mission) Reset() {
 	*x = Mission{}
-	mi := &file_missions_v1_missions_proto_msgTypes[2]
+	mi := &file_missions_v1_missions_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -178,7 +333,7 @@ func (x *Mission) String() string {
 func (*Mission) ProtoMessage() {}
 
 func (x *Mission) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[2]
+	mi := &file_missions_v1_missions_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -191,7 +346,7 @@ func (x *Mission) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Mission.ProtoReflect.Descriptor instead.
 func (*Mission) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{2}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Mission) GetId() string {
@@ -380,7 +535,7 @@ type TakeFor struct {
 
 func (x *TakeFor) Reset() {
 	*x = TakeFor{}
-	mi := &file_missions_v1_missions_proto_msgTypes[3]
+	mi := &file_missions_v1_missions_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -392,7 +547,7 @@ func (x *TakeFor) String() string {
 func (*TakeFor) ProtoMessage() {}
 
 func (x *TakeFor) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[3]
+	mi := &file_missions_v1_missions_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -405,7 +560,7 @@ func (x *TakeFor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TakeFor.ProtoReflect.Descriptor instead.
 func (*TakeFor) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{3}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *TakeFor) GetCountryId() string {
@@ -441,7 +596,7 @@ type TakeFrom struct {
 
 func (x *TakeFrom) Reset() {
 	*x = TakeFrom{}
-	mi := &file_missions_v1_missions_proto_msgTypes[4]
+	mi := &file_missions_v1_missions_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -453,7 +608,7 @@ func (x *TakeFrom) String() string {
 func (*TakeFrom) ProtoMessage() {}
 
 func (x *TakeFrom) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[4]
+	mi := &file_missions_v1_missions_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -466,7 +621,7 @@ func (x *TakeFrom) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TakeFrom.ProtoReflect.Descriptor instead.
 func (*TakeFrom) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{4}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *TakeFrom) GetCountryId() string {
@@ -502,7 +657,7 @@ type TakeIn struct {
 
 func (x *TakeIn) Reset() {
 	*x = TakeIn{}
-	mi := &file_missions_v1_missions_proto_msgTypes[5]
+	mi := &file_missions_v1_missions_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -514,7 +669,7 @@ func (x *TakeIn) String() string {
 func (*TakeIn) ProtoMessage() {}
 
 func (x *TakeIn) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[5]
+	mi := &file_missions_v1_missions_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -527,7 +682,7 @@ func (x *TakeIn) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TakeIn.ProtoReflect.Descriptor instead.
 func (*TakeIn) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{5}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *TakeIn) GetCountryId() string {
@@ -564,7 +719,7 @@ type TakeFromIn struct {
 
 func (x *TakeFromIn) Reset() {
 	*x = TakeFromIn{}
-	mi := &file_missions_v1_missions_proto_msgTypes[6]
+	mi := &file_missions_v1_missions_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -576,7 +731,7 @@ func (x *TakeFromIn) String() string {
 func (*TakeFromIn) ProtoMessage() {}
 
 func (x *TakeFromIn) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[6]
+	mi := &file_missions_v1_missions_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -589,7 +744,7 @@ func (x *TakeFromIn) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TakeFromIn.ProtoReflect.Descriptor instead.
 func (*TakeFromIn) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{6}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *TakeFromIn) GetCountryId() string {
@@ -631,7 +786,7 @@ type CatchBoxes struct {
 
 func (x *CatchBoxes) Reset() {
 	*x = CatchBoxes{}
-	mi := &file_missions_v1_missions_proto_msgTypes[7]
+	mi := &file_missions_v1_missions_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -643,7 +798,7 @@ func (x *CatchBoxes) String() string {
 func (*CatchBoxes) ProtoMessage() {}
 
 func (x *CatchBoxes) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[7]
+	mi := &file_missions_v1_missions_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -656,7 +811,7 @@ func (x *CatchBoxes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CatchBoxes.ProtoReflect.Descriptor instead.
 func (*CatchBoxes) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{7}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CatchBoxes) GetGoal() uint32 {
@@ -684,7 +839,7 @@ type AnswerQuizzes struct {
 
 func (x *AnswerQuizzes) Reset() {
 	*x = AnswerQuizzes{}
-	mi := &file_missions_v1_missions_proto_msgTypes[8]
+	mi := &file_missions_v1_missions_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -696,7 +851,7 @@ func (x *AnswerQuizzes) String() string {
 func (*AnswerQuizzes) ProtoMessage() {}
 
 func (x *AnswerQuizzes) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[8]
+	mi := &file_missions_v1_missions_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -709,7 +864,7 @@ func (x *AnswerQuizzes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnswerQuizzes.ProtoReflect.Descriptor instead.
 func (*AnswerQuizzes) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{8}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AnswerQuizzes) GetGoal() uint32 {
@@ -738,7 +893,7 @@ type BombIn struct {
 
 func (x *BombIn) Reset() {
 	*x = BombIn{}
-	mi := &file_missions_v1_missions_proto_msgTypes[9]
+	mi := &file_missions_v1_missions_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -750,7 +905,7 @@ func (x *BombIn) String() string {
 func (*BombIn) ProtoMessage() {}
 
 func (x *BombIn) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[9]
+	mi := &file_missions_v1_missions_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -763,7 +918,7 @@ func (x *BombIn) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BombIn.ProtoReflect.Descriptor instead.
 func (*BombIn) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{9}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *BombIn) GetCountryId() string {
@@ -799,7 +954,7 @@ type ShieldTiles struct {
 
 func (x *ShieldTiles) Reset() {
 	*x = ShieldTiles{}
-	mi := &file_missions_v1_missions_proto_msgTypes[10]
+	mi := &file_missions_v1_missions_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -811,7 +966,7 @@ func (x *ShieldTiles) String() string {
 func (*ShieldTiles) ProtoMessage() {}
 
 func (x *ShieldTiles) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[10]
+	mi := &file_missions_v1_missions_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -824,7 +979,7 @@ func (x *ShieldTiles) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShieldTiles.ProtoReflect.Descriptor instead.
 func (*ShieldTiles) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{10}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ShieldTiles) GetShields() uint32 {
@@ -859,7 +1014,7 @@ type FortifyTiles struct {
 
 func (x *FortifyTiles) Reset() {
 	*x = FortifyTiles{}
-	mi := &file_missions_v1_missions_proto_msgTypes[11]
+	mi := &file_missions_v1_missions_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -871,7 +1026,7 @@ func (x *FortifyTiles) String() string {
 func (*FortifyTiles) ProtoMessage() {}
 
 func (x *FortifyTiles) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[11]
+	mi := &file_missions_v1_missions_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -884,7 +1039,7 @@ func (x *FortifyTiles) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FortifyTiles.ProtoReflect.Descriptor instead.
 func (*FortifyTiles) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{11}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *FortifyTiles) GetGoal() uint32 {
@@ -918,7 +1073,7 @@ type FlagMission struct {
 
 func (x *FlagMission) Reset() {
 	*x = FlagMission{}
-	mi := &file_missions_v1_missions_proto_msgTypes[12]
+	mi := &file_missions_v1_missions_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -930,7 +1085,7 @@ func (x *FlagMission) String() string {
 func (*FlagMission) ProtoMessage() {}
 
 func (x *FlagMission) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[12]
+	mi := &file_missions_v1_missions_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -943,7 +1098,7 @@ func (x *FlagMission) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FlagMission.ProtoReflect.Descriptor instead.
 func (*FlagMission) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{12}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *FlagMission) GetId() string {
@@ -1020,7 +1175,7 @@ type BreakShields struct {
 
 func (x *BreakShields) Reset() {
 	*x = BreakShields{}
-	mi := &file_missions_v1_missions_proto_msgTypes[13]
+	mi := &file_missions_v1_missions_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1032,7 +1187,7 @@ func (x *BreakShields) String() string {
 func (*BreakShields) ProtoMessage() {}
 
 func (x *BreakShields) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[13]
+	mi := &file_missions_v1_missions_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1045,7 +1200,7 @@ func (x *BreakShields) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BreakShields.ProtoReflect.Descriptor instead.
 func (*BreakShields) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{13}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *BreakShields) GetCountryId() string {
@@ -1082,7 +1237,7 @@ type MissionReward struct {
 
 func (x *MissionReward) Reset() {
 	*x = MissionReward{}
-	mi := &file_missions_v1_missions_proto_msgTypes[14]
+	mi := &file_missions_v1_missions_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1094,7 +1249,7 @@ func (x *MissionReward) String() string {
 func (*MissionReward) ProtoMessage() {}
 
 func (x *MissionReward) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[14]
+	mi := &file_missions_v1_missions_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1107,7 +1262,7 @@ func (x *MissionReward) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MissionReward.ProtoReflect.Descriptor instead.
 func (*MissionReward) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{14}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *MissionReward) GetKind() isMissionReward_Kind {
@@ -1146,7 +1301,7 @@ type Charges struct {
 
 func (x *Charges) Reset() {
 	*x = Charges{}
-	mi := &file_missions_v1_missions_proto_msgTypes[15]
+	mi := &file_missions_v1_missions_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1158,7 +1313,7 @@ func (x *Charges) String() string {
 func (*Charges) ProtoMessage() {}
 
 func (x *Charges) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_missions_proto_msgTypes[15]
+	mi := &file_missions_v1_missions_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1171,7 +1326,7 @@ func (x *Charges) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Charges.ProtoReflect.Descriptor instead.
 func (*Charges) Descriptor() ([]byte, []int) {
-	return file_missions_v1_missions_proto_rawDescGZIP(), []int{15}
+	return file_missions_v1_missions_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Charges) GetKind() v1.BonusKind {
@@ -1193,7 +1348,13 @@ var File_missions_v1_missions_proto protoreflect.FileDescriptor
 const file_missions_v1_missions_proto_rawDesc = "" +
 	"\n" +
 	"\x1amissions/v1/missions.proto\x12\vmissions.v1\x1a\x16planet/v1/planet.proto\"\x14\n" +
-	"\x12GetMissionsRequest\"\xee\x01\n" +
+	"\x12GetMissionsRequest\"\x18\n" +
+	"\x16ListenForEventsRequest\"\x85\x01\n" +
+	"\fMissionEvent\x124\n" +
+	"\x03day\x18\x01 \x01(\v2 .missions.v1.GetMissionsResponseH\x00R\x03day\x126\n" +
+	"\theartbeat\x18\x02 \x01(\v2\x16.missions.v1.HeartbeatH\x00R\theartbeatB\a\n" +
+	"\x05event\"\v\n" +
+	"\tHeartbeat\"\xee\x01\n" +
 	"\x13GetMissionsResponse\x12!\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tB\x02\x18\x01R\tcountryId\x12\x1e\n" +
@@ -1278,9 +1439,10 @@ const file_missions_v1_missions_proto_rawDesc = "" +
 	"\x04kind\"K\n" +
 	"\aCharges\x12(\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
-	"\x06amount\x18\x02 \x01(\rR\x06amount2b\n" +
+	"\x06amount\x18\x02 \x01(\rR\x06amount2\xb7\x01\n" +
 	"\x0eMissionService\x12P\n" +
-	"\vGetMissions\x12\x1f.missions.v1.GetMissionsRequest\x1a .missions.v1.GetMissionsResponseB\xc3\x01\n" +
+	"\vGetMissions\x12\x1f.missions.v1.GetMissionsRequest\x1a .missions.v1.GetMissionsResponse\x12S\n" +
+	"\x0fListenForEvents\x12#.missions.v1.ListenForEventsRequest\x1a\x19.missions.v1.MissionEvent0\x01B\xc3\x01\n" +
 	"\x0fcom.missions.v1B\rMissionsProtoP\x01ZTgithub.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1;missionsv1\xa2\x02\x03MXX\xaa\x02\vMissions.V1\xca\x02\vMissions\\V1\xe2\x02\x17Missions\\V1\\GPBMetadata\xea\x02\fMissions::V1b\x06proto3"
 
 var (
@@ -1295,50 +1457,57 @@ func file_missions_v1_missions_proto_rawDescGZIP() []byte {
 	return file_missions_v1_missions_proto_rawDescData
 }
 
-var file_missions_v1_missions_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_missions_v1_missions_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_missions_v1_missions_proto_goTypes = []any{
-	(*GetMissionsRequest)(nil),  // 0: missions.v1.GetMissionsRequest
-	(*GetMissionsResponse)(nil), // 1: missions.v1.GetMissionsResponse
-	(*Mission)(nil),             // 2: missions.v1.Mission
-	(*TakeFor)(nil),             // 3: missions.v1.TakeFor
-	(*TakeFrom)(nil),            // 4: missions.v1.TakeFrom
-	(*TakeIn)(nil),              // 5: missions.v1.TakeIn
-	(*TakeFromIn)(nil),          // 6: missions.v1.TakeFromIn
-	(*CatchBoxes)(nil),          // 7: missions.v1.CatchBoxes
-	(*AnswerQuizzes)(nil),       // 8: missions.v1.AnswerQuizzes
-	(*BombIn)(nil),              // 9: missions.v1.BombIn
-	(*ShieldTiles)(nil),         // 10: missions.v1.ShieldTiles
-	(*FortifyTiles)(nil),        // 11: missions.v1.FortifyTiles
-	(*FlagMission)(nil),         // 12: missions.v1.FlagMission
-	(*BreakShields)(nil),        // 13: missions.v1.BreakShields
-	(*MissionReward)(nil),       // 14: missions.v1.MissionReward
-	(*Charges)(nil),             // 15: missions.v1.Charges
-	(v1.BonusKind)(0),           // 16: planet.v1.BonusKind
+	(*GetMissionsRequest)(nil),     // 0: missions.v1.GetMissionsRequest
+	(*ListenForEventsRequest)(nil), // 1: missions.v1.ListenForEventsRequest
+	(*MissionEvent)(nil),           // 2: missions.v1.MissionEvent
+	(*Heartbeat)(nil),              // 3: missions.v1.Heartbeat
+	(*GetMissionsResponse)(nil),    // 4: missions.v1.GetMissionsResponse
+	(*Mission)(nil),                // 5: missions.v1.Mission
+	(*TakeFor)(nil),                // 6: missions.v1.TakeFor
+	(*TakeFrom)(nil),               // 7: missions.v1.TakeFrom
+	(*TakeIn)(nil),                 // 8: missions.v1.TakeIn
+	(*TakeFromIn)(nil),             // 9: missions.v1.TakeFromIn
+	(*CatchBoxes)(nil),             // 10: missions.v1.CatchBoxes
+	(*AnswerQuizzes)(nil),          // 11: missions.v1.AnswerQuizzes
+	(*BombIn)(nil),                 // 12: missions.v1.BombIn
+	(*ShieldTiles)(nil),            // 13: missions.v1.ShieldTiles
+	(*FortifyTiles)(nil),           // 14: missions.v1.FortifyTiles
+	(*FlagMission)(nil),            // 15: missions.v1.FlagMission
+	(*BreakShields)(nil),           // 16: missions.v1.BreakShields
+	(*MissionReward)(nil),          // 17: missions.v1.MissionReward
+	(*Charges)(nil),                // 18: missions.v1.Charges
+	(v1.BonusKind)(0),              // 19: planet.v1.BonusKind
 }
 var file_missions_v1_missions_proto_depIdxs = []int32{
-	2,  // 0: missions.v1.GetMissionsResponse.missions:type_name -> missions.v1.Mission
-	12, // 1: missions.v1.GetMissionsResponse.flag_mission:type_name -> missions.v1.FlagMission
-	14, // 2: missions.v1.Mission.reward:type_name -> missions.v1.MissionReward
-	3,  // 3: missions.v1.Mission.take_for:type_name -> missions.v1.TakeFor
-	4,  // 4: missions.v1.Mission.take_from:type_name -> missions.v1.TakeFrom
-	5,  // 5: missions.v1.Mission.take_in:type_name -> missions.v1.TakeIn
-	6,  // 6: missions.v1.Mission.take_from_in:type_name -> missions.v1.TakeFromIn
-	7,  // 7: missions.v1.Mission.catch_boxes:type_name -> missions.v1.CatchBoxes
-	8,  // 8: missions.v1.Mission.answer_quizzes:type_name -> missions.v1.AnswerQuizzes
-	9,  // 9: missions.v1.Mission.bomb_in:type_name -> missions.v1.BombIn
-	10, // 10: missions.v1.Mission.shield_tiles:type_name -> missions.v1.ShieldTiles
-	11, // 11: missions.v1.Mission.fortify_tiles:type_name -> missions.v1.FortifyTiles
-	5,  // 12: missions.v1.FlagMission.take_in:type_name -> missions.v1.TakeIn
-	13, // 13: missions.v1.FlagMission.break_shields:type_name -> missions.v1.BreakShields
-	15, // 14: missions.v1.MissionReward.charges:type_name -> missions.v1.Charges
-	16, // 15: missions.v1.Charges.kind:type_name -> planet.v1.BonusKind
-	0,  // 16: missions.v1.MissionService.GetMissions:input_type -> missions.v1.GetMissionsRequest
-	1,  // 17: missions.v1.MissionService.GetMissions:output_type -> missions.v1.GetMissionsResponse
-	17, // [17:18] is the sub-list for method output_type
-	16, // [16:17] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	4,  // 0: missions.v1.MissionEvent.day:type_name -> missions.v1.GetMissionsResponse
+	3,  // 1: missions.v1.MissionEvent.heartbeat:type_name -> missions.v1.Heartbeat
+	5,  // 2: missions.v1.GetMissionsResponse.missions:type_name -> missions.v1.Mission
+	15, // 3: missions.v1.GetMissionsResponse.flag_mission:type_name -> missions.v1.FlagMission
+	17, // 4: missions.v1.Mission.reward:type_name -> missions.v1.MissionReward
+	6,  // 5: missions.v1.Mission.take_for:type_name -> missions.v1.TakeFor
+	7,  // 6: missions.v1.Mission.take_from:type_name -> missions.v1.TakeFrom
+	8,  // 7: missions.v1.Mission.take_in:type_name -> missions.v1.TakeIn
+	9,  // 8: missions.v1.Mission.take_from_in:type_name -> missions.v1.TakeFromIn
+	10, // 9: missions.v1.Mission.catch_boxes:type_name -> missions.v1.CatchBoxes
+	11, // 10: missions.v1.Mission.answer_quizzes:type_name -> missions.v1.AnswerQuizzes
+	12, // 11: missions.v1.Mission.bomb_in:type_name -> missions.v1.BombIn
+	13, // 12: missions.v1.Mission.shield_tiles:type_name -> missions.v1.ShieldTiles
+	14, // 13: missions.v1.Mission.fortify_tiles:type_name -> missions.v1.FortifyTiles
+	8,  // 14: missions.v1.FlagMission.take_in:type_name -> missions.v1.TakeIn
+	16, // 15: missions.v1.FlagMission.break_shields:type_name -> missions.v1.BreakShields
+	18, // 16: missions.v1.MissionReward.charges:type_name -> missions.v1.Charges
+	19, // 17: missions.v1.Charges.kind:type_name -> planet.v1.BonusKind
+	0,  // 18: missions.v1.MissionService.GetMissions:input_type -> missions.v1.GetMissionsRequest
+	1,  // 19: missions.v1.MissionService.ListenForEvents:input_type -> missions.v1.ListenForEventsRequest
+	4,  // 20: missions.v1.MissionService.GetMissions:output_type -> missions.v1.GetMissionsResponse
+	2,  // 21: missions.v1.MissionService.ListenForEvents:output_type -> missions.v1.MissionEvent
+	20, // [20:22] is the sub-list for method output_type
+	18, // [18:20] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_missions_v1_missions_proto_init() }
@@ -1347,6 +1516,10 @@ func file_missions_v1_missions_proto_init() {
 		return
 	}
 	file_missions_v1_missions_proto_msgTypes[2].OneofWrappers = []any{
+		(*MissionEvent_Day)(nil),
+		(*MissionEvent_Heartbeat)(nil),
+	}
+	file_missions_v1_missions_proto_msgTypes[5].OneofWrappers = []any{
 		(*Mission_TakeFor)(nil),
 		(*Mission_TakeFrom)(nil),
 		(*Mission_TakeIn)(nil),
@@ -1357,11 +1530,11 @@ func file_missions_v1_missions_proto_init() {
 		(*Mission_ShieldTiles)(nil),
 		(*Mission_FortifyTiles)(nil),
 	}
-	file_missions_v1_missions_proto_msgTypes[12].OneofWrappers = []any{
+	file_missions_v1_missions_proto_msgTypes[15].OneofWrappers = []any{
 		(*FlagMission_TakeIn)(nil),
 		(*FlagMission_BreakShields)(nil),
 	}
-	file_missions_v1_missions_proto_msgTypes[14].OneofWrappers = []any{
+	file_missions_v1_missions_proto_msgTypes[17].OneofWrappers = []any{
 		(*MissionReward_Charges)(nil),
 	}
 	type x struct{}
@@ -1370,7 +1543,7 @@ func file_missions_v1_missions_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_missions_v1_missions_proto_rawDesc), len(file_missions_v1_missions_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
