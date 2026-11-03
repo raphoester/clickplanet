@@ -43,6 +43,8 @@ export type UseGlobeOptions = {
     // Must keep its identity: a new one rebuilds the globe.
     onClickAccepted?: (click: AcceptedClick) => void
     country: Country
+    // The players online, when known: the ghosts of a first visit raid only while few play.
+    crowd?: number
     clickHue: number | undefined
     mapView: MapView
     halo: Halo
@@ -52,7 +54,7 @@ export type UseGlobeOptions = {
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, halo, bonusLook, rendering} = options
+    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, crowd, clickHue, mapView, halo, bonusLook, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -122,6 +124,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const globeRef = useRef<Globe | null>(null)
 
     const initialCountry = useRef(country)
+    const latestCrowd = useRef(crowd)
     const latestClickHue = useRef(clickHue)
     const latestMapView = useRef(mapView)
     const latestHalo = useRef(halo)
@@ -188,6 +191,7 @@ export function useGlobe(options: UseGlobeOptions) {
             }
 
             globeRef.current = globe
+            globe.setCrowd(latestCrowd.current)
             globe.setClickHue(latestClickHue.current)
             globe.setMapView(latestMapView.current)
             globe.setHalo(latestHalo.current)
@@ -214,6 +218,11 @@ export function useGlobe(options: UseGlobeOptions) {
         initialCountry.current = country
         globeRef.current?.setCountry(country)
     }, [country])
+
+    useEffect(() => {
+        latestCrowd.current = crowd
+        globeRef.current?.setCrowd(crowd)
+    }, [crowd])
 
     useEffect(() => {
         latestClickHue.current = clickHue

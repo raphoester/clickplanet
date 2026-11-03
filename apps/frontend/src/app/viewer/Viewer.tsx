@@ -324,6 +324,7 @@ export default function Viewer(props: ViewerProps) {
         playSound: sound.play,
         onClickAccepted: accepted.record,
         country: countryState,
+        crowd: roster.kind === "ready" ? roster.entries.length : undefined,
         clickHue: hueOf(color),
         mapView: display.settings.mapView,
         halo: haloOf(battle, halloween),

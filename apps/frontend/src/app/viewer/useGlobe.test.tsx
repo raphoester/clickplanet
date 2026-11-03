@@ -23,11 +23,12 @@ const backends = () => ({
 
 function fakeGlobe(): Globe & {
     setCountry: ReturnType<typeof vi.fn>,
+    setCrowd: ReturnType<typeof vi.fn>,
     capture: ReturnType<typeof vi.fn>,
     graphics: ReturnType<typeof vi.fn>,
     dispose: ReturnType<typeof vi.fn>,
 } {
-    return {tilesCount: 257_948, tilesRead: Promise.resolve(), setCountry: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), setHalo: vi.fn(), setBonusLook: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
+    return {tilesCount: 257_948, tilesRead: Promise.resolve(), setCountry: vi.fn(), setCrowd: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), setHalo: vi.fn(), setBonusLook: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
 }
 
 function Harness(props: {country: typeof FRANCE, backends: ReturnType<typeof backends>, onResult: (r: unknown) => void}) {
@@ -180,6 +181,26 @@ describe("useGlobe", () => {
         await act(async () => {view.rerender(<Hued hue={undefined}/>)})
 
         expect(globe.setClickHue).toHaveBeenLastCalledWith(undefined)
+        expect(createGlobe).toHaveBeenCalledTimes(1)
+    })
+
+    it("tells the running globe how many play, and every change of it, without a rebuild", async () => {
+        const globe = fakeGlobe()
+        createGlobe.mockResolvedValue(globe)
+        const deps = backends()
+
+        function Crowded(props: {crowd: number | undefined}) {
+            const container = useRef<HTMLDivElement>(null)
+            useGlobe({container, ...deps, country: FRANCE, crowd: props.crowd, clickHue: undefined, mapView: "split", halo: "calm", bonusLook: "box", rendering: "sharp"})
+            return <div ref={container}/>
+        }
+
+        const view = render(<Crowded crowd={undefined}/>)
+        await waitFor(() => expect(globe.setCrowd).toHaveBeenCalledWith(undefined))
+
+        await act(async () => {view.rerender(<Crowded crowd={4}/>)})
+
+        expect(globe.setCrowd).toHaveBeenLastCalledWith(4)
         expect(createGlobe).toHaveBeenCalledTimes(1)
     })
 

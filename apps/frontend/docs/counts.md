@@ -4,7 +4,8 @@
 painted flag of each landmass (its leader and its share), the territory card's flags and the fortify target all come
 from the server's counts (`ClickService/GetHoldings`, then `holdings_changed` on the stream, at most once a second).
 The tiles a player clicks still come from the map batches (`GetMap`), but nothing is counted from them. See the
-backend's [The map's version](../../backend/docs/map-version.md).
+backend's [The map's version](../../backend/docs/map-version.md). On a guided page, the board moves each tile a ghost
+holds from its holder to the ghost: see [Ghosts](ghosts.md).
 
 ## `domain/holdings.ts`: what each flag holds
 

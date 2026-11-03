@@ -73,6 +73,8 @@
   puts the card beside the pointer. See [Who holds a tile](tile-holder.md).
 - `neighbours.ts` — `Neighbours`, the tiles touching a tile, from the positions. `front.ts` — `Front`, the tiles a
   flag can push into, kept as the owners change. See [The front, for a first visit](front-guide.md).
+- `ghosts.ts` — `Ghosts`, the tiles fake raids hold on this browser, and what the board shows with them.
+  `ghostArmy.ts` — `GhostArmy`, when and where the next fake take lands. See [Ghosts](ghosts.md).
 - `flight.ts` — `territoryShotOf`, the shot a click in orbit flies to, and `flightAt`,
   the camera on the way. See [A territory, from orbit](territory-card.md).
 - `territory.ts` — what the territory card says: `rankHoldings`, `freeTilesOf`,

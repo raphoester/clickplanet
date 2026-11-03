@@ -17,8 +17,10 @@ the players who left in their first two minutes left after fewer than 30 clicks.
   tile: it stays on its country, and its first tile there makes a front.
 - **The front is lit** (`domain/front.ts`, `Front`): every tile the flag does not hold, enemy or free, that touches one
   it holds. A white ring beats on each, as the gold one does on a tile a flag misses to fortify (see
-  [Fortify](fortify.md)). It follows every change of owner (`touch`, in `applyChanges`), and the flag played
-  (`follow`, in `setCountry`). It stays lit for the whole page, even once the count is reached.
+  [Fortify](fortify.md)). It follows every change of owner (`touch`, in `applyChanges`), a ghost's tiles included, and
+  the flag played (`follow`, in `setCountry`). It stays lit for the whole page, even once the count is reached.
+- **The map fights back** while fewer than 7 play: fake raids on the front, painted on this page only. See
+  [Ghosts](ghosts.md).
 - **Touching is a distance** (`domain/neighbours.ts`, `Neighbours`): the six around a tile are at most 0.0044 apart on
   the globe of radius 1, the next ring at least 0.0048, so two tiles touch within 0.0046. The tiles are sorted by a
   grid cell of twice that, and a tile's neighbours are in the two cells around it on each axis.
