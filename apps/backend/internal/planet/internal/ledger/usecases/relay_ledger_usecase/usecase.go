@@ -26,6 +26,10 @@ type Borders interface {
 	LandmassOf(tile uint32) clicks.LandmassID
 }
 
+type Positions interface {
+	Position(tile uint32) (clicks.Vec3, bool)
+}
+
 type Sender interface {
 	Send(ctx context.Context, events ...proto.Message) error
 }
@@ -37,16 +41,17 @@ type Executor interface {
 const Batch = 1000
 
 type UseCase struct {
-	ledger  Ledger
-	cursor  Cursor
-	borders Borders
-	events  Sender
+	ledger    Ledger
+	cursor    Cursor
+	borders   Borders
+	positions Positions
+	events    Sender
 }
 
 var _ Executor = (*UseCase)(nil)
 
-func New(ledger Ledger, cursor Cursor, borders Borders, events Sender) *UseCase {
-	return &UseCase{ledger: ledger, cursor: cursor, borders: borders, events: events}
+func New(ledger Ledger, cursor Cursor, borders Borders, positions Positions, events Sender) *UseCase {
+	return &UseCase{ledger: ledger, cursor: cursor, borders: borders, positions: positions, events: events}
 }
 
 // A crash between the send and the save sends the batch again: each fact names its position.
@@ -80,7 +85,7 @@ func (u *UseCase) factsOf(position ledger.Position, event ledger.Event) []proto.
 		if taking.Account == "" || taking.Cleared() {
 			return
 		}
-		facts = append(facts, &planetv1.TileTaken{
+		taken := &planetv1.TileTaken{
 			AccountId: taking.Account,
 			TileId:    taking.Tile,
 			Country:   taking.Country,
@@ -89,7 +94,11 @@ func (u *UseCase) factsOf(position ledger.Position, event ledger.Event) []proto.
 			Previous:  taking.Previous,
 			Ground:    u.borders.CountryOf(taking.Tile),
 			Index:     index,
-		})
+		}
+		if at, ok := u.positions.Position(taking.Tile); ok {
+			taken.Point = &planetv1.GlobePoint{X: at.X, Y: at.Y, Z: at.Z}
+		}
+		facts = append(facts, taken)
 		index++
 	})
 	var struck uint32

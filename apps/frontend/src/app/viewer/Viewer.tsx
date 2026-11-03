@@ -46,6 +46,7 @@ import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
 import {shareStats} from "../../domain/shareCard.ts";
 import {Countries, Country} from "../../domain/countries.ts";
+import {Shot} from "../../domain/clip/camera.ts";
 import {useAllegiance} from "./useAllegiance.ts";
 import {heldLine} from "../../domain/allegiance.ts";
 import {ClickBudgetSource, now as budgetNow, tokensAt} from "../../backends/clickBudget.ts";
@@ -146,6 +147,7 @@ type SheetName = "board" | "missions" | "chat" | "you" | "share" | "invite" | "s
 
 export type ViewerProps = {
     sharedCountry?: Country
+    linkedShot?: Shot
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
@@ -304,6 +306,7 @@ export default function Viewer(props: ViewerProps) {
         showTerritory,
     } = useGlobe({
         container,
+        linkedShot: props.linkedShot,
         tileClicker: props.tileClicker,
         ownershipsGetter: props.ownershipsGetter,
         updatesListener: props.updatesListener,

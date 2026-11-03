@@ -37,6 +37,7 @@ import {ConnectClipsBackend, newClipsServiceClient} from "./backends/clipsBacken
 import {FakeClipsBackend} from "./backends/fakeClipsBackend.ts"
 import {FakeAccountBackend} from "./backends/fakeAccountBackend.ts"
 import {SHARE_FLAG_PARAM, sharedCountry, withoutSharedFlag} from "./domain/shareCard.ts"
+import {linkedShot, withoutLinkedShot} from "./domain/linkedShot.ts"
 import {firstLanding, landingOf, SOURCE_TAG_PARAM, withoutLanding} from "./domain/landing.ts"
 import {localLandingStore} from "./backends/landingStore.ts"
 import {localLeaverStore} from "./backends/leaverStore.ts"
@@ -58,13 +59,14 @@ if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 
 const page = new URL(window.location.href)
 const shared = sharedCountry(page)
+const shot = linkedShot(page)
 const crazyGames = ON_CRAZYGAMES ? connectCrazyGames() : undefined
 const words: Promise<WordFilter> = ON_CRAZYGAMES ? crazyGamesWords(CRAZYGAMES_WORDS_URL) : Promise.resolve(NO_FILTER)
 const seen = landingOf(page, document.referrer)
 const landing = crazyGames ? crazyGamesLanding(seen) : firstLanding(localLandingStore(), seen)
 // CrazyGames' frame puts an invite's flag on this address as a plain ?f=, and its SDK reads it after this runs.
-if (!crazyGames && (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM))) {
-    window.history.replaceState(null, "", withoutLanding(withoutSharedFlag(page)))
+if (!crazyGames && (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM) || shot)) {
+    window.history.replaceState(null, "", withoutLinkedShot(withoutLanding(withoutSharedFlag(page))))
 }
 
 const connection = new ConnectionHealth()
@@ -253,6 +255,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             <SignInGate callback={callback} account={account}>
                 <App
                     sharedCountry={shared}
+                    linkedShot={shot}
                     ownershipsGetter={fake}
                     tileClicker={clicker}
                     updatesListener={fake}
@@ -306,6 +309,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             <SignInGate callback={callback} account={account}>
                 <App
                     sharedCountry={shared}
+                    linkedShot={shot}
                     ownershipsGetter={backend}
                     tileClicker={backend}
                     updatesListener={backend}

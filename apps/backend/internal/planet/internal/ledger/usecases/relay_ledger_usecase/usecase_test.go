@@ -47,6 +47,13 @@ func (b borders) LandmassOf(tile uint32) clicks.LandmassID {
 	return tasmania
 }
 
+type positions map[uint32]clicks.Vec3
+
+func (p positions) Position(tile uint32) (clicks.Vec3, bool) {
+	at, ok := p[tile]
+	return at, ok
+}
+
 type sender struct {
 	fails int
 	sent  []proto.Message
@@ -90,7 +97,7 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 	events := &sender{}
 	told := &cursor{}
 
-	n, err := relay_ledger_usecase.New(storage, told, borders{1: "es", 9: "au"}, events).Execute(t.Context())
+	n, err := relay_ledger_usecase.New(storage, told, borders{1: "es", 9: "au"}, positions{1: {X: 0.6, Z: 0.8}}, events).Execute(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, 5, n)
@@ -98,6 +105,7 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 	want := []proto.Message{
 		&planetv1.TileTaken{
 			AccountId: ada, TileId: 1, Country: "fr", TakenAt: timestamppb.New(at), Position: 0, Previous: "de", Ground: "es",
+			Point: &planetv1.GlobePoint{X: 0.6, Z: 0.8},
 		},
 		&planetv1.BombLanded{
 			Country: "fr", TileId: 9, Ground: "au", LandmassId: uint32(tasmania), Cleared: 2, LandedAt: timestamppb.New(at), AccountId: ada, Position: 2,
@@ -123,7 +131,7 @@ func TestEachTakeOfASpreadIsToldWithItsIndexInTheEvent(t *testing.T) {
 	)
 	events := &sender{}
 
-	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, events).Execute(t.Context())
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
 	require.NoError(t, err)
 
 	type place struct {
@@ -159,7 +167,7 @@ func TestEachShieldStruckIsToldWithWhoseItWasAndItsIndexInTheEvent(t *testing.T)
 	)
 	events := &sender{}
 
-	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, events).Execute(t.Context())
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
 	require.NoError(t, err)
 
 	var struck []proto.Message
@@ -185,7 +193,7 @@ func TestAFailedSendIsToldAgainNextTime(t *testing.T) {
 	storage := flushed(t, ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at})
 	events := &sender{fails: 1}
 	told := &cursor{}
-	relay := relay_ledger_usecase.New(storage, told, borders{}, events)
+	relay := relay_ledger_usecase.New(storage, told, borders{}, positions{}, events)
 
 	_, err := relay.Execute(t.Context())
 	require.Error(t, err)
@@ -202,7 +210,7 @@ func TestNothingNewSendsNothing(t *testing.T) {
 	events := &sender{}
 	told := &cursor{position: 1}
 
-	n, err := relay_ledger_usecase.New(storage, told, borders{}, events).Execute(t.Context())
+	n, err := relay_ledger_usecase.New(storage, told, borders{}, positions{}, events).Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.Zero(t, n)

@@ -14,6 +14,7 @@ export default function App(props: AppProps) {
 
         <Viewer
             sharedCountry={props.sharedCountry}
+            linkedShot={props.linkedShot}
             tileClicker={props.tileClicker}
             ownershipsGetter={props.ownershipsGetter}
             updatesListener={props.updatesListener}

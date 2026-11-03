@@ -125,6 +125,13 @@ export class TileTaken extends Message<TileTaken> {
    */
   index = 0;
 
+  /**
+   * Where the tile is on the globe: `position` is the ledger's.
+   *
+   * @generated from field: planet.v1.GlobePoint point = 9;
+   */
+  point?: GlobePoint;
+
   constructor(data?: PartialMessage<TileTaken>) {
     super();
     proto3.util.initPartial(data, this);
@@ -141,6 +148,7 @@ export class TileTaken extends Message<TileTaken> {
     { no: 6, name: "previous", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "index", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 9, name: "point", kind: "message", T: GlobePoint },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileTaken {

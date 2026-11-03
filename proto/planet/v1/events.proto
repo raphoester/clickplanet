@@ -16,6 +16,8 @@ message TileTaken {
   string ground = 7;
   // A spread or an enclose is one ledger event, at one position, that holds several takes: each has its index in it.
   uint32 index = 8;
+  // Where the tile is on the globe: `position` is the ledger's.
+  GlobePoint point = 9;
 }
 
 message BombLanded {
