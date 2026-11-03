@@ -181,6 +181,9 @@ buttons (`SignInButtons`, which `SignInPitchModal` uses too).
 - **Once a page.** Closed, it stays closed until the next load. Signed in by
   email inside it, it closes as the player stops being a guest.
 
+**A guest's flag tab in the chat is locked** and its "Sign in to join" opens
+`SignInPitchModal`, whose perks name the team chat (see [Rooms](chat.md#rooms)).
+
 ### The refill a first sign-in earns
 
 **The server grants a guest's first sign-in one refill, and the game spends it

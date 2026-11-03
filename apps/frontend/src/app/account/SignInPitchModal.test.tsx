@@ -50,7 +50,7 @@ describe("SignInPitchModal", () => {
         expect(screen.getByText("It is free. You do not need an account to play.")).toBeDefined()
     })
 
-    it("sells more than speed: a name, a color, a place on the board and a streak flame", async () => {
+    it("sells more than speed: a name, a team chat, a color, a place on the board and a streak flame", async () => {
         const {store, state} = await guest()
         render(<SignInPitchModal state={state} store={store} multiplier={2} onClose={vi.fn()}/>)
 
@@ -58,6 +58,7 @@ describe("SignInPitchModal", () => {
         expect(perks).toEqual([
             "Click 2× faster.",
             "Your name.",
+            "Your team chat.",
             "Your color.",
             "Your place on the board.",
             "Your streak flame.",

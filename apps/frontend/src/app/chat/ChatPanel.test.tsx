@@ -1534,4 +1534,37 @@ describe("ChatPanel's flag room", () => {
         expect(screen.queryByText("push from the east")).toBeNull()
         expect(screen.getByRole("tab", {name: "Germany"})).toBeDefined()
     })
+
+    it("shows a guest the flag's tab and none of its messages, and asks it to sign in", async () => {
+        const {world, flag} = rooms()
+        const onSignIn = vi.fn()
+        const {user} = show(world, flag, {onSignIn})
+        await screen.findByText("hello world")
+        await waitFor(() => expect(flag.backend.getHistory).toHaveBeenCalled())
+
+        await user.click(screen.getByRole("tab", {name: "France"}))
+        await user.click(screen.getByRole("button", {name: "Sign in to join"}))
+
+        expect(onSignIn).toHaveBeenCalledOnce()
+        expect(screen.queryByText("push from the east")).toBeNull()
+        expect(screen.queryByRole("textbox")).toBeNull()
+    })
+
+    it("counts on a guest's flag tab what lands there, even while it is shown, and nowhere else", async () => {
+        const {world, flag} = rooms()
+        const onUnread = vi.fn()
+        const playSound = vi.fn()
+        const {user} = show(world, flag, {onSignIn: vi.fn(), onUnread, playSound})
+        await screen.findByText("hello world")
+        await waitFor(() => expect(flag.backend.getHistory).toHaveBeenCalled())
+        await user.click(screen.getByRole("tab", {name: "France"}))
+
+        act(() => flag.broadcast(message("f2", "bomb ready", T + 1_000)))
+
+        expect(await screen.findByRole("tab", {name: "France, 1 new message"})).toBeDefined()
+        expect(screen.getByText("1 new message")).toBeDefined()
+        expect(screen.queryByText("bomb ready")).toBeNull()
+        expect(onUnread).toHaveBeenLastCalledWith(0)
+        expect(playSound).not.toHaveBeenCalled()
+    })
 })
