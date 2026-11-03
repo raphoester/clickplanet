@@ -5,7 +5,7 @@ httpServer:
   allowedOrigin: http://localhost
 
 gameMap:
-  maxIndex: 262119
+  maxIndex: 262147
 
 database:
   host: postgres

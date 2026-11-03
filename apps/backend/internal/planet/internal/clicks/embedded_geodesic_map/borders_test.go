@@ -18,7 +18,7 @@ func TestTheShippedBordersPutEveryTileInItsCountry(t *testing.T) {
 	_, asset, err := mapdata.Borders()
 	require.NoError(t, err)
 
-	assert.Equal(t, "borders-67e352b1.bin", asset)
+	assert.Equal(t, "borders-519faedb.bin", asset)
 
 	counts := map[string]int{}
 	for tile := uint32(1); tile <= tiles; tile++ {
@@ -26,9 +26,12 @@ func TestTheShippedBordersPutEveryTileInItsCountry(t *testing.T) {
 	}
 
 	assert.NotContains(t, counts, "", "every tile is in a country")
-	assert.Len(t, counts, 205, "countries with at least one tile")
-	assert.Equal(t, 1248, counts["fr"])
-	assert.Equal(t, "fr", borders.CountryOf(100336))
+	assert.Len(t, counts, 239, "countries with at least one tile")
+	assert.Equal(t, 1247, counts["fr"], "Monaco's seat is one of France's")
+	assert.Equal(t, "fr", borders.CountryOf(100338))
+	for _, seated := range []string{"va", "mc", "li", "mv", "pw", "sc"} {
+		assert.Equal(t, 1, counts[seated], "%s is smaller than a tile and has one, its seat", seated)
+	}
 	assert.Equal(t, 22885, counts["aq"], "includes the ice shelves, which are in no country polygon")
 	assert.Empty(t, borders.CountryOf(0), "tile ids start at 1")
 	assert.Empty(t, borders.CountryOf(tiles+1))
@@ -38,13 +41,13 @@ func TestTheShippedBordersSplitEachCountryIntoItsLandmasses(t *testing.T) {
 	borders, err := embedded_geodesic_map.New(tiles, nil).LoadBorders()
 	require.NoError(t, err)
 
-	assert.Equal(t, 659, borders.Landmasses(), "658 landmasses and none")
+	assert.Equal(t, 693, borders.Landmasses(), "692 landmasses and none")
 	assert.Empty(t, borders.TilesOf(clicks.NoLandmass))
-	assert.Equal(t, "borders-67e352b1.bin", borders.Asset())
+	assert.Equal(t, "borders-519faedb.bin", borders.Asset())
 
 	var us []int
 	for landmass := range borders.Landmasses() {
-		members := borders.TilesOf(clicks.LandmassID(landmass)) //nolint:gosec // 659 landmasses.
+		members := borders.TilesOf(clicks.LandmassID(landmass)) //nolint:gosec // 693 landmasses.
 		if len(members) > 0 && borders.CountryOf(members[0]) == "us" {
 			us = append(us, len(members))
 		}

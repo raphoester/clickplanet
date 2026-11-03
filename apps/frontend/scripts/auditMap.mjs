@@ -5,8 +5,9 @@ import sharp from "sharp"
 
 import {readBorders, readCoordinates, staticDir} from "./map/blob.mjs"
 import {SEA, loadGround} from "./map/ground.mjs"
-import {keyOf, lattice, lonLatOf} from "./map/lattice.mjs"
+import {DETAIL, keyOf, lattice, lonLatOf, neighbours} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
+import {REGIONS, latticeGround} from "./map/seats.mjs"
 
 const seaPixel = (r, g, b) => b > r + 18 && b > g + 8
 
@@ -17,6 +18,7 @@ async function main() {
     const borders = readBorders()
     const ground = await loadGround()
     const {count: vertices, positions, uvs} = lattice()
+    const {grounds, seated} = latticeGround(ground, {count: vertices, positions, uvs}, neighbours(DETAIL))
 
     const texture = await sharp(path.join(staticDir, "earth", earthName()))
         .raw().toBuffer({resolveWithObject: true})
@@ -45,6 +47,7 @@ async function main() {
         landWithNoTile: 0,
         iceWithNoTile: 0,
         tilesWithNoCountry: 0,
+        flagsWithNoGround: 0,
     }
     const texture_ = {landButBlue: 0, blueButLand: 0}
     const seam = {land: 0, tiles: 0}
@@ -53,8 +56,7 @@ async function main() {
     for (let i = 0; i < vertices; i++) {
         const tile = isTile.has(keyOf(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]))
         const [lon, lat] = lonLatOf(uvs[i * 2], uvs[i * 2 + 1])
-        const code = ground.groundOf(lon, lat)
-        const land = code !== SEA
+        const land = grounds[i] !== SEA
         const drawnAsLand = textureSaysLand(uvs[i * 2], uvs[i * 2 + 1])
 
         if (land) counts.groundIsLand++
@@ -81,7 +83,12 @@ async function main() {
 
     for (let t = 0; t < borders.count; t++) if (borders.landmass[t] === 0) faults.tilesWithNoCountry++
 
-    report({counts, faults, texture: texture_, seam, elsewhere, tiles, borders})
+    const flags = JSON.parse(fs.readFileSync(path.join(staticDir, "countries", "countries.json"), "utf8"))
+    const grounded = new Set(borders.codes.slice(1))
+    const groundless = Object.keys(flags).filter((code) => !REGIONS.has(code) && !grounded.has(code))
+    faults.flagsWithNoGround = groundless.length
+
+    report({counts, faults, texture: texture_, seam, elsewhere, tiles, borders, seated, groundless})
 
     const broken = Object.entries(faults).filter(([, n]) => n > 0)
     if (broken.length === 0) {
@@ -110,7 +117,7 @@ async function iceOnly() {
     })
 }
 
-function report({counts, faults, texture, seam, elsewhere, tiles, borders}) {
+function report({counts, faults, texture, seam, elsewhere, tiles, borders, seated, groundless}) {
     const pct = (n, of) => `${(n / of * 100).toFixed(2)}%`
     console.log(`Natural Earth ${NATURAL_EARTH_TAG} | ${tiles.name} | ${borders.name} | ${earthName()}`)
     console.log(`
@@ -125,6 +132,10 @@ faults between the tile set and the ground oracle
   land with no tile     ${faults.landWithNoTile}
   ice shelf with no tile ${faults.iceWithNoTile}
   tiles in no country   ${faults.tilesWithNoCountry}
+  flags with no ground  ${faults.flagsWithNoGround}${groundless.length ? `  (${groundless.join(" ")})` : ""}
+
+seats, one tile each for a country the lattice misses
+  ${seated.length} seated, ${seated.filter(({was}) => was === SEA).length} of them at sea
 
 the texture, which follows rather than decides
   land drawn as water   ${texture.landButBlue}

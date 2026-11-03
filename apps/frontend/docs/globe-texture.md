@@ -31,6 +31,14 @@ The second pass weights each pixel by whether the photo and the tile field alrea
 agree about it, and a block with no agreement left takes its colours from a
 neighbour that has some.
 
+**A block learns its land colour only from 128 pixels' worth of land it agrees about**
+(`LAND_ENOUGH`, 3% of it); with less it takes a neighbour's. The atolls of open ocean
+are what made it a rule: the photo draws them as water, a few of their pixels half
+agree, and the block learned that land here is a blue a shade off the sea's, so the
+seat of the Maldives, Tonga or the Cook Islands (see [`/map/README.md`](../../../map/README.md))
+stayed blue in its own cell. The water colour keeps the old floor: raising it too
+repainted Tibet's and the prairies' lakes.
+
 Where land and water are the same colour — under cloud, on an ice shelf — there is
 no direction to move a pixel along, and nothing is moved. `scripts/map/recolour.mjs`
 holds the rule and `recolour.test.mjs` pins every case above.

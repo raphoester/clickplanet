@@ -20,7 +20,8 @@ makes a stale copy visible by eye rather than by symptom.
 ## One question, one answer
 
 **A tile exists exactly where a country does.** `apps/frontend/scripts/map/ground.mjs` is the one
-oracle: `groundOf(lon, lat)` answers a country code or `SEA`, from Natural Earth 1:50m, and
+oracle: `groundOf(lon, lat)` answers a country code or `SEA`, from Natural Earth 1:50m, then each
+country too small for the lattice gets its seat (`latticeGround` in `scripts/map/seats.mjs`), and
 `npm run map:generate` writes both blobs from that one answer. So "is this sea or land" and "which
 country is this" cannot disagree, and **a tile in no country cannot be built**.
 
@@ -30,7 +31,8 @@ about 6,000 of the 906,012 lattice vertices, all of them on coasts and islands, 
 where anyone looks: 2,093 tiles floating on open water with no border drawn round them, 3,729 islands
 drawn in the globe's texture with nothing to click, and the Antarctic ice shelves missing whole.
 
-Three things follow from having one oracle, and they are worth knowing before changing it:
+Three things follow from having one oracle, and they are worth knowing before changing it, and one exception
+is written into it:
 
 - **The Natural Earth tag is pinned** (`NATURAL_EARTH_TAG` in `scripts/map/naturalEarth.mjs`,
   `v5.1.2`). These files decide where every tile is, so two runs a year apart have to produce the
@@ -39,6 +41,7 @@ Three things follow from having one oracle, and they are worth knowing before ch
   `ne_50m_antarctic_ice_shelves_polys` is a file of its own and is inside no country polygon, so
   before this Ross and Ronne were tileless holes in a continent the texture paints solid white.
   They are 2,633 tiles, which is about a tenth of `aq`.
+- **Every country has at least one tile: its seat.** See below.
 - **The globe's texture follows, it does not decide.** A 4096×2048 photo blends a one-tile island
   into open water, so it can never be an authority. `npm run earth` cuts it *from* the tile field
   instead — see below — and `npm run map:audit` reports what is left but enforces nothing about it.
@@ -47,6 +50,31 @@ Three things follow from having one oracle, and they are worth knowing before ch
 cd apps/frontend && npm run map:generate   # both blobs, from the oracle
 cd apps/frontend && npm run map:audit      # the three sources against each other
 ```
+
+## A seat for each country the lattice misses
+
+The lattice is 25 km apart, so a country smaller than a cell — the Vatican, Monaco, Liechtenstein — or an island
+nation whose islands all fall between vertices — the Maldives, Palau, Tuvalu, Bahrain, which is bigger than a tile
+and still misses every vertex — would have no ground at all: no tile to take, no territory, no place for a first
+visit's camera to open on. `scripts/map/seats.mjs` gives each of them **one** vertex, after Natural Earth has
+answered for the rest, so `npm run map:generate` and `npm run map:audit` read the same answer. 34 countries have one.
+
+The rule is to follow the geography as closely as a 25 km cell allows, and never to put a tile on what the globe
+draws as open sea when the country is on land:
+
+- **A country on a continent takes its neighbour's vertex** nearest it (`takes`), on the coast or inland as the
+  country is (`coast`): the Vatican and San Marino from Italy, ringed by it; Liechtenstein from Switzerland, on the
+  Austrian border; Monaco from France, on the shore by Italy; Gibraltar from Spain, rather than the vertex in the
+  strait that touches Morocco; Macao from China. The neighbour keeps the rest, in one piece.
+- **An island country is one tile, on its capital's island**, at the vertex whose cell holds the most of that
+  island's land. Never a tile per island: the Seychelles' islands spread over 1,200 km, and a tile for each would
+  draw it far past its own waters. The vertex is sea to Natural Earth, because the island is smaller than the cell;
+  the texture then paints the cell as land (see below). Two of them touch a neighbour's tile, as the islands do:
+  Anguilla touches Sint Maarten and the US Virgin Islands touch the British.
+
+A seat for a country that has ground of its own, an island seat that would land on a country's ground, or two seats on
+one vertex refuse the generation. **The audit fails on a flag with no ground**, except the four flags of a region
+inside a country's ground (England, Scotland, Wales, Brittany: `REGIONS`), which share it.
 
 **Every fault between the tile set and the oracle is zero, and the audit fails on any one of them.**
 They are not a budget that creeps: both blobs are cut from one `groundOf` call, so a tile on open sea
@@ -69,6 +97,13 @@ It writes the `.down.sql` beside it. The mapping is **monotonic** — both blobs
 in the same generation order, filtered by what each calls land — so it run-length encodes to a few
 thousand rows instead of a quarter of a million. `apps/backend/internal/planet/internal/migrations
 /migrations_test.go` runs it against a real postgres, both ways.
+
+**Every column of a tile goes with it** — its flag, shields and holder, and whatever a later migration adds —
+because the migration copies the row whole rather than naming columns. **A landmass id moves too**: it is a row of
+the borders blob's table, and a regeneration renumbers them. The migration follows each old landmass to the new one
+its tiles are on, for the same country, and moves the landmass each fortify in the ledger names (the territory card
+reads the last one by it) and copies the fortify locks to the new borders blob's name (the boot reads only those).
+A landmass that split or merged is followed to nothing, and its lock is settled at boot as any other.
 
 What the migration cannot give back: a take on a tile the new map does not have is deleted, because
 leaving it would let a revert write to an id that now means other ground.
@@ -148,8 +183,8 @@ coordinates blob) instead of downloading them. See
 | --- | --- |
 | detail | 300, so `cols = 301` |
 | full sphere | `10 * 301² + 2` = 906,012 vertices |
-| land tiles | 262,119, which is `gameMap.maxIndex` |
-| landmasses | 658, across 205 countries |
+| land tiles | 262,147, which is `gameMap.maxIndex` |
+| landmasses | 692, across 239 countries |
 | spacing | ~25 km, ~563 km² per tile |
 
 `detail` is not recorded in the generator's output. It was recovered from this file and then
@@ -175,15 +210,22 @@ already agree**, which is most of the globe. The two colours are the photo's own
 the land and over the water, so nothing is repainted in a palette somebody chose. It took the land
 the photo draws as water from 8,599 lattice vertices to 2,053, and the water it draws as land to 13.
 
+**A block learns its land colour only from 128 pixels' worth of land it agrees about**, or takes a neighbour's
+(`LAND_ENOUGH`). A block of open ocean whose only land is atolls the photo draws as water used to learn it from the
+few pixels that half agreed — a blue a shade off the sea's — and leave a one-tile island looking like open water:
+14 of the 28 island seats did. All but Nauru read as land now (Nauru is a dark green-blue dot), and the land drawn
+as water across the whole globe went down to 1,903, for 0.08% more of the image moved, all of it on coasts and
+islands.
+
 `static/earth/earth-source.jpg` is the mosaic, kept in the repo and **not deployed**;
 `static/earth/earth-<hash>.jpg` is what the globe loads.
 
 ## What is left
 
-- **225 tiles have no neighbours at all** — single-tile islands. Anything reading adjacency has to
+- **249 tiles have no neighbours at all** — single-tile islands, 26 of them seats. Anything reading adjacency has to
   have an answer for an empty neighbour set. This is not a fault: an island a tile wide is an island
   a tile wide, and there are more of them now because the small ones finally have tiles.
-- **2,053 land vertices are still drawn as water, and 13 water vertices as land.** What is left is
+- **1,903 land vertices are still drawn as water, and 15 water vertices as land.** What is left is
   where the photo gives the correction nothing to work with — land and water the same colour under
   cloud or on an ice shelf — and where the audit's own "does this pixel look blue" is stricter than
   an eye is. `npm run map:audit` is where those numbers live.

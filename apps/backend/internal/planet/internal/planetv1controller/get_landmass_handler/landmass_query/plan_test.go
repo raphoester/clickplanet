@@ -17,7 +17,7 @@ func TestTheLastFortifyIsFoundThroughItsIndex(t *testing.T) {
 		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, account, payload)
 		SELECT n,
 			CASE WHEN n % 1000 = 0 THEN 'fortify' ELSE 'take' END::ledger_event_kind,
-			n % 262119 + 1, NULL, 'fr', 'de', now(), md5((n % 500)::text)::uuid,
+			n % 262147 + 1, NULL, 'fr', 'de', now(), md5((n % 500)::text)::uuid,
 			CASE WHEN n % 1000 = 0 THEN jsonb_build_object('landmass', n % 657 + 1, 'raised', '[]'::jsonb) END
 		FROM generate_series(0, 199999) n`)
 	require.NoError(t, err)

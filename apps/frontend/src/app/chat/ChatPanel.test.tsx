@@ -261,7 +261,7 @@ describe("ChatPanel", () => {
 
     it("names the landmass a bomb hit, not the country it belongs to", async () => {
         const bomb: ChatAnnouncement = {
-            kind: "bomb", id: "boom", announcedAt: 1_700_000_000_500, country: "fr", ground: "au", landmass: 420, tile: 42, cleared: 3,
+            kind: "bomb", id: "boom", announcedAt: 1_700_000_000_500, country: "fr", ground: "au", landmass: 441, tile: 42, cleared: 3,
         }
         const {backend} = stubBackend([message("a", "before")], [bomb])
         setup(backend)
@@ -305,7 +305,7 @@ describe("ChatPanel", () => {
         setup(backend)
 
         await screen.findByText("Nobody has said anything yet. Go on.")
-        act(() => announce({kind: "fortify", id: "wall", announcedAt: Date.now(), country: "es", ground: "fr", landmass: 359, tiles: 137}))
+        act(() => announce({kind: "fortify", id: "wall", announcedAt: Date.now(), country: "es", ground: "fr", landmass: 379, tiles: 137}))
 
         const line = (await screen.findByText("fortified French Guiana", {exact: false})).closest("li")!
         expect(line.className).toBe("chat-announcement")
