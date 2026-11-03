@@ -105,7 +105,7 @@ VPN_LISTS_DIR := internal/shared/cpipblock/cpdata
 VPN_PROVIDERS_API := https://api.github.com/repos/Joe12387/open-source-vpn-ip-lists/contents/
 VPN_AZ0_URL := https://az0-vpnip-public.oooninja.com/ip.txt
 TOR_EXITS_URL := https://check.torproject.org/torbulkexitlist
-VPN_NETNAMES := MOZILLA-FIREFOX-VPN
+VPN_NETNAMES := MOZILLA-FIREFOX-VPN Interhive
 VPN_RDAP_SERVERS := https://rdap.db.ripe.net https://rdap.arin.net/registry
 WARP_NETNAME := CLOUDFLAREWARP
 WARP_RDAP_SERVER := https://rdap.db.ripe.net
@@ -131,8 +131,12 @@ vpn-lists:
 		$(TO_PREFIX) "$$tmp/tor" > $(VPN_LISTS_DIR)/tor_exits.txt; \
 		: > "$$tmp/netnames"; \
 		for name in $(VPN_NETNAMES); do for server in $(VPN_RDAP_SERVERS); do \
-			curl -sSf "$$server/ips?name=$$name" -o "$$tmp/rdap.json"; \
-			jq -r '.ipSearchResults[]?.cidr0_cidrs[]? | "\(.v4prefix // .v6prefix)/\(.length)"' "$$tmp/rdap.json" >> "$$tmp/netnames"; \
+			code=$$(curl -sS "$$server/ips?name=$$name" -o "$$tmp/rdap.json" -w '%{http_code}'); \
+			case $$code in \
+				200) jq -r '.ipSearchResults[]?.cidr0_cidrs[]? | "\(.v4prefix // .v6prefix)/\(.length)"' "$$tmp/rdap.json" >> "$$tmp/netnames";; \
+				404) ;; \
+				*) echo "$$server: $$name answered HTTP $$code" >&2; exit 1;; \
+			esac; \
 		done; done; \
 		mv "$$tmp/netnames" $(VPN_LISTS_DIR)/vpn_netnames.txt; \
 		curl -sSf "$(WARP_RDAP_SERVER)/ips?name=$(WARP_NETNAME)" -o "$$tmp/rdap.json"; \
