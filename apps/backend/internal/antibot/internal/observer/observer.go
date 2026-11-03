@@ -80,7 +80,7 @@ func New(logger *slog.Logger, registerer prometheus.Registerer) guard.Observer {
 
 	rotationShares := factory.NewHistogram(prometheus.HistogramOpts{
 		Name:    "click_rotation_share",
-		Help:    "Seconds two accounts on one scope both clicked in, over what chance gives two players as active, per pair the rotator can read per sweep",
+		Help:    "Seconds two accounts of one flag both clicked in, over what chance gives two players as active, per pair the rotator can read per sweep",
 		Buckets: []float64{0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1, 1.5, 2, 3},
 	})
 

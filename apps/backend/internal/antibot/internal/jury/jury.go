@@ -142,14 +142,14 @@ func (j *Jury) Inspect(ctx context.Context, click detect.Click) error {
 		}
 	}
 
-	if report, guilty := j.deliberate(click); guilty {
-		return j.flag(ctx, click, report)
+	if report, convicts, guilty := j.deliberate(click); guilty {
+		return j.flag(ctx, click, report, convicts)
 	}
 
 	return nil
 }
 
-func (j *Jury) flag(ctx context.Context, click detect.Click, report detect.Report) error {
+func (j *Jury) flag(ctx context.Context, click detect.Click, report detect.Report, convicts []bans.Caller) error {
 	pardoned, err := j.banner.Pardoned(ctx, callerOf(click))
 	if err != nil || pardoned {
 		return err //nolint:wrapcheck // the banner already named what failed.
@@ -157,7 +157,7 @@ func (j *Jury) flag(ctx context.Context, click detect.Click, report detect.Repor
 
 	var errs []error
 
-	for _, convict := range convictsOf(click, report) {
+	for _, convict := range convicts {
 		sentence, accepted, err := j.banner.Flag(ctx, convict)
 		errs = append(errs, err)
 		if !accepted || j.hooks.OnFlag == nil {
@@ -182,11 +182,11 @@ func callerOf(click detect.Click) bans.Caller {
 	return bans.Caller{Scope: click.Scope, Account: click.Account, SignedIn: click.SignedIn}
 }
 
-func convictsOf(click detect.Click, report detect.Report) []bans.Caller {
+func convictsOf(click detect.Click, weighed weight) []bans.Caller {
 	convicts := []bans.Caller{callerOf(click)}
 	named := cpcolls.NewSet(click.Account)
 
-	for _, opinion := range report.Opinions {
+	for _, opinion := range weighed.opinions {
 		if !opinion.Fired() {
 			continue
 		}
@@ -195,7 +195,14 @@ func convictsOf(click detect.Click, report detect.Report) []bans.Caller {
 				continue
 			}
 			named.Add(accomplice.Account)
-			convicts = append(convicts, bans.Caller{Scope: click.Scope, Account: accomplice.Account, SignedIn: accomplice.SignedIn})
+			convicts = append(convicts, bans.Caller{Scope: accomplice.Scope, Account: accomplice.Account, SignedIn: accomplice.SignedIn})
+		}
+	}
+
+	// Turns name accounts: the networks they clicked from can be a school or a VPN's exit.
+	if weighed.onTurns {
+		for i := range convicts {
+			convicts[i].Scope = ""
 		}
 	}
 
@@ -280,15 +287,15 @@ func (j *Jury) opine(click detect.Click, watchdog string, verdict detect.Verdict
 	return rises
 }
 
-func (j *Jury) deliberate(click detect.Click) (detect.Report, bool) {
+func (j *Jury) deliberate(click detect.Click) (detect.Report, []bans.Caller, bool) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
 	c := j.callerLocked(click)
 
-	opinions, _, guilty := j.weighLocked(c, click.At, j.rules())
-	if !guilty {
-		return detect.Report{}, false
+	weighed := j.weighLocked(c, click.At, j.rules())
+	if !weighed.guilty {
+		return detect.Report{}, nil, false
 	}
 
 	country, countryClicks := c.topCountry()
@@ -296,21 +303,31 @@ func (j *Jury) deliberate(click detect.Click) (detect.Report, bool) {
 	return detect.Report{
 		Scope:            click.Scope,
 		Account:          click.Account,
-		Opinions:         opinions,
+		Opinions:         weighed.opinions,
 		Clicks:           c.clicks,
 		ActiveFor:        click.At.Sub(c.firstSeen),
 		LongestGap:       c.longestGap,
 		TopCountry:       country,
 		TopCountryClicks: countryClicks,
 		Tiles:            append([]uint32(nil), c.tiles...),
-	}, true
+	}, convictsOf(click, weighed), true
 }
 
-func (j *Jury) weighLocked(c *caller, at time.Time, rules Rules) ([]detect.Opinion, int, bool) {
+type weight struct {
+	opinions []detect.Opinion
+	suspects int
+	guilty   bool
+
+	onTurns bool
+}
+
+// Turns are never a suspect: a certain reading of them bans alone, and a suspect one counts for nothing.
+func (j *Jury) weighLocked(c *caller, at time.Time, rules Rules) weight {
 	cutoff := at.Add(-rules.SuspicionWindow)
 
 	var (
 		certain  bool
+		turns    bool
 		zeal     bool
 		suspects int
 		opinions = make([]detect.Opinion, 0, len(j.watchdogs))
@@ -328,6 +345,7 @@ func (j *Jury) weighLocked(c *caller, at time.Time, rules Rules) ([]detect.Opini
 
 		switch {
 		case opinion.Evidence.Turns:
+			turns = turns || opinion.Verdict == detect.Certain
 		case opinion.Verdict == detect.Certain:
 			certain = true
 			suspects++
@@ -344,7 +362,9 @@ func (j *Jury) weighLocked(c *caller, at time.Time, rules Rules) ([]detect.Opini
 		suspects++
 	}
 
-	return opinions, suspects, certain || suspects >= rules.MinSuspects
+	guilty := certain || suspects >= rules.MinSuspects
+
+	return weight{opinions: opinions, suspects: suspects, guilty: guilty || turns, onTurns: turns && !guilty}
 }
 
 func (j *Jury) Examine(scope, account string) detect.Examination {
@@ -365,10 +385,10 @@ func (j *Jury) Examine(scope, account string) detect.Examination {
 		c = &caller{}
 	}
 
-	opinions, suspects, guilty := j.weighLocked(c, now, rules)
+	weighed := j.weighLocked(c, now, rules)
 
-	examination.Readings = make([]detect.Reading, 0, len(opinions))
-	for _, opinion := range opinions {
+	examination.Readings = make([]detect.Reading, 0, len(weighed.opinions))
+	for _, opinion := range weighed.opinions {
 		examination.Readings = append(examination.Readings, opinion.Reading())
 	}
 
@@ -379,8 +399,8 @@ func (j *Jury) Examine(scope, account string) detect.Examination {
 	country, countryClicks := c.topCountry()
 
 	examination.Tracked = true
-	examination.Suspects = suspects
-	examination.Guilty = guilty
+	examination.Suspects = weighed.suspects
+	examination.Guilty = weighed.guilty
 	examination.Clicks = c.clicks
 	examination.ActiveFor = c.lastSeen.Sub(c.firstSeen)
 	examination.LongestGap = c.longestGap

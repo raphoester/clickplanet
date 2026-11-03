@@ -628,11 +628,13 @@ left that separates it from a player is behaviour.
 - **`hopper`** — aims all over the globe: click after click a continent away from
   the last, where a hand paints where it is looking. **Suspect only**: it never
   bans alone.
-- **`rotator`** — one person on several accounts on one network, who changes
-  account each time a click bank is empty: the accounts play in the same five
-  minutes for hours and almost never in the same second. **Suspect only**: it
-  never bans alone. When the jury bans one of the accounts, it bans all of them,
-  and each ban line says `alongside` which account.
+- **`rotator`** — one person on several accounts of one flag, on one network or
+  several, who changes account each time a click bank is empty: the accounts play
+  in the same five minutes for hours and almost never in the same second. Its
+  `suspect` counts for nothing. Its `certain` (4 hours of such slots in a day, where
+  chance gives 300 shared seconds) bans the accounts alone, and no network. When
+  the jury bans one of the accounts, it bans the ones it is sure of, and each ban
+  line says `alongside` which account.
 
 Each returns `certain` or `suspect`. **`certain` bans on its own; `suspect` is a
 reading that would ban real players if it were trusted alone**, and counts only

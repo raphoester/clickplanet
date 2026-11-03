@@ -9,12 +9,13 @@ var Part = rules.PartOf[Rules]{Key: "rotator", Read: func(m *antibotv1.Rules) Ru
 
 func RulesOf(m *antibotv1.RotatorRules) Rules {
 	return Rules{
-		Enabled:      m.GetEnabled(),
-		Window:       m.GetWindow().AsDuration(),
-		MinSeconds:   int(m.GetMinSeconds()),
-		MinByChance:  m.GetMinByChance(),
-		MaxShare:     m.GetMaxShare(),
-		MinSlots:     int(m.GetMinSlots()),
-		CertainSlots: int(m.GetCertainSlots()),
+		Enabled:         m.GetEnabled(),
+		Window:          m.GetWindow().AsDuration(),
+		MinSeconds:      int(m.GetMinSeconds()),
+		MinByChance:     m.GetMinByChance(),
+		MaxShare:        m.GetMaxShare(),
+		MinSlots:        int(m.GetMinSlots()),
+		CertainSlots:    int(m.GetCertainSlots()),
+		CertainByChance: m.GetCertainByChance(),
 	}
 }
