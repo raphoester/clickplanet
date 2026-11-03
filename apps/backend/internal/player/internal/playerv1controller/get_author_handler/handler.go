@@ -43,5 +43,6 @@ func (h GetAuthorHandler) GetAuthor(
 		Color:     playermessage.Color(author.Color()),
 		Streak:    author.Streak().Days(),
 		WornTitle: playermessage.Title(author.Worn()),
+		Guest:     author.Guest(),
 	}), nil
 }

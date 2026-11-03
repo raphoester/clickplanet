@@ -268,6 +268,7 @@ Create a Pages project from the GitHub repo:
 | Output directory | `dist` |
 | Env var | `VITE_API_BASE_URL=https://api.clickplanet.lol` |
 | Env var | `VITE_TURNSTILE_SITEKEY=0x4AAAAAAEuFCQwAVFUYug8z` (see [§5](#5-turnstile-and-the-click-session)) |
+| Env var | `VITE_KLIPY_KEY=<the app key from partner.klipy.com>`: the chat's GIFs, with ads off for the key. Public: it is read off the page |
 
 Generated protobuf code is committed, so the build needs no `buf`.
 

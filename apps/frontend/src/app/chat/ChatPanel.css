@@ -621,6 +621,16 @@
     overflow-wrap: anywhere;
 }
 
+.chat-message-gif {
+    display: block;
+    max-width: 86%;
+    height: auto;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-m) var(--radius-m) var(--radius-m) var(--radius-xs);
+    background: var(--panel-sunk);
+    box-shadow: var(--drop-xs);
+}
+
 .chat-message-text a,
 .chat-message-text a:hover {
     color: inherit;
@@ -952,6 +962,17 @@ button.chat-quote:hover {
     padding: 0 4px 2px 4px;
 }
 
+/* In a short panel the GIFs give way, never the log. */
+.chat-log-shell:has(+ .chat-composer .gif-picker) {
+    flex-basis: 120px;
+    min-height: 120px;
+}
+
+.chat-composer:has(.gif-picker) {
+    flex-shrink: 1;
+    min-height: 0;
+}
+
 .chat-replying {
     display: flex;
     align-items: center;
@@ -1003,6 +1024,7 @@ button.chat-quote:hover {
     overflow-y: auto;
 }
 
+.chat-gif,
 .chat-send {
     flex-shrink: 0;
     margin-bottom: var(--space-1);

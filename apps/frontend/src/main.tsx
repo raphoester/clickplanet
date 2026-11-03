@@ -11,6 +11,9 @@ import {FakeBackend} from "./backends/fakeBackend.ts"
 import {loadBorders} from "./app/viewer/borderField.ts"
 import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
+import {FakeGifs} from "./backends/fakeGifs.ts"
+import {GifSearch} from "./backends/gifs.ts"
+import {KlipyGifs} from "./backends/klipyGifs.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeMissionsBackend} from "./backends/fakeMissionsBackend.ts"
 import {newScoringServiceClient} from "./backends/scoringBackend.ts"
@@ -81,6 +84,7 @@ const config = {
 }
 
 const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY
+const klipyKey: string | undefined = import.meta.env.VITE_KLIPY_KEY
 const authClient = newAuthServiceClient(config, crazyGames && localAccountCarrier())
 const attest = sitekey ? turnstileAttester(sitekey, "session") : async () => ""
 const session: SessionProvider = sitekey
@@ -97,6 +101,11 @@ const FAKE_GRANT_LANDS_MS = 1_200
 function discordAlertsOf(backend: AlertsBackend, account: AccountStore): DiscordAlerts | undefined {
     if (crazyGames) return undefined
     return new DiscordAlerts(backend, () => account.connectDiscord())
+}
+
+// CrazyGames' word list cannot read the words in a GIF.
+function gifsOf(search: GifSearch | undefined): GifSearch | undefined {
+    return crazyGames ? undefined : search
 }
 
 function followCrazyGames(page: CrazyGamesPage | undefined, account: AccountStore) {
@@ -284,6 +293,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     clips={fakeClips}
                     crazyGames={crazyGames}
                     alerts={alerts}
+                    gifs={gifsOf(new FakeGifs())}
                     words={filter}
                 />
             </SignInGate>
@@ -339,6 +349,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     clips={clips}
                     crazyGames={crazyGames}
                     alerts={alerts}
+                    gifs={gifsOf(klipyKey ? new KlipyGifs(klipyKey) : undefined)}
                     words={filter}
                 />
             </SignInGate>

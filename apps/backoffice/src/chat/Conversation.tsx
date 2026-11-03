@@ -8,6 +8,7 @@ import {useOpenPlayer} from "../navigation.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
 import {Page, pageOf, Parties} from "./chatPages.ts"
+import {Body, wordsIn} from "./said.ts"
 
 // How many messages the first page on each side of the reported one holds, and each page asked for after.
 const FIRST_PAGE = 10
@@ -178,7 +179,7 @@ export function LineBody({line, parties, day, mark, removedAt}: LineProps) {
                 </span>
             </div>
             {line.replyTo !== undefined && <Quote quote={line.replyTo}/>}
-            <p className={removed === undefined ? "line-text" : "line-text line-removed"}>{line.text}</p>
+            <LineWords body={line.body} removed={removed !== undefined}/>
             {removed !== undefined && mark === undefined && <p className="hint">Removed at {timeOf(removed)}.</p>}
         </>
     )
@@ -219,8 +220,29 @@ function Quote({quote}: {quote: KeptQuote}) {
     return (
         <p className="line-quote">
             In reply to <span className="name">{quote.authorName === "" ? "no name" : quote.authorName}</span>:{" "}
-            <span className={removed ? "line-removed" : undefined}>{quote.text}</span>
+            <span className={removed ? "line-removed" : undefined}>{wordsIn(quote.body)}</span>
             {removed && " (removed)"}
+        </p>
+    )
+}
+
+const GIF_BOX = 160
+
+// What a line said: its text, or the GIF it showed.
+export function LineWords({body, removed}: {body: Body, removed: boolean}) {
+    const className = removed ? "line-text line-removed" : "line-text"
+    if (body.case !== "gif") return <p className={className}>{wordsIn(body)}</p>
+
+    const gif = body.value
+    const scale = Math.min(1, GIF_BOX / gif.width, GIF_BOX / gif.height)
+    return (
+        <p className={className}>
+            <img className="line-gif"
+                 src={gif.url}
+                 width={Math.round(gif.width * scale)}
+                 height={Math.round(gif.height * scale)}
+                 alt="GIF"
+                 loading="lazy"/>
         </p>
     )
 }

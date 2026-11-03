@@ -575,6 +575,16 @@ button:disabled {
     color: var(--muted);
 }
 
+.line-gif {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.line-removed .line-gif {
+    opacity: 0.5;
+}
+
 .act {
     display: grid;
     gap: 8px;

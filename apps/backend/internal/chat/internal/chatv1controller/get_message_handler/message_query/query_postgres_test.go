@@ -76,6 +76,21 @@ func (s *testSuite) TestARemovedMessageIsStillReadWithWhenItWasRemoved() {
 	s.Equal(now.Add(-time.Minute), message.GetRemovedAt().AsTime())
 }
 
+func (s *testSuite) TestARemovedGifIsStillReadWithItsAddress() {
+	gif := messages.Gif{URL: "https://static.klipy.com/ii/935d7ab9/14/af/SE72470w.webp", Width: 220, Height: 124}
+	s.sent(messages.Snapshot{ID: "dance", SentAt: now.Add(-time.Hour), Account: bob, Country: "fr", Gif: gif})
+	s.Require().NoError(postgres_removal_store.New(s.db).Save(s.T().Context(),
+		removals.Snapshot{MessageID: "dance", RemovedAt: now.Add(-time.Minute)}))
+
+	message, err := s.query().Message(s.T().Context(), "dance")
+	s.Require().NoError(err)
+
+	s.Equal(gif.URL, message.GetGif().GetUrl(), "the operator sees what was removed")
+	s.Equal(uint32(220), message.GetGif().GetWidth())
+	s.Equal(uint32(124), message.GetGif().GetHeight())
+	s.Empty(message.GetText())
+}
+
 func (s *testSuite) TestAMessageFromBeforeAccountsNamesNoAccount() {
 	s.sent(messages.Snapshot{
 		ID: "legacy", SentAt: now.Add(-time.Hour), Author: messages.AuthorOf("Bob", false, 0, 0, messages.Title{}),

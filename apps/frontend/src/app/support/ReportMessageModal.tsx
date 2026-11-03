@@ -1,4 +1,5 @@
 import {ChatMessage} from "../../backends/chat.ts"
+import {wordsOf} from "../../domain/chatLog.ts"
 import {PlayerReporter} from "../../backends/support.ts"
 import {truncate} from "../truncate.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
@@ -25,7 +26,7 @@ export default function ReportMessageModal({message, reporter, onSent, onClose}:
                       placeholder="Optional"
                       asked={<blockquote className="support-quoted">
                           <span className="support-quoted-author">{truncate(words.masked(message.authorName), NAME_MAX_LENGTH)}</span>
-                          <span className="support-quoted-text">{words.masked(message.text)}</span>
+                          <span className="support-quoted-text">{words.masked(wordsOf(message))}</span>
                       </blockquote>}
                       ready
                       optional

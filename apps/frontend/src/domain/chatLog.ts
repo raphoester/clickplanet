@@ -1,4 +1,4 @@
-import type {ChatAnnouncement, ChatMessage, ChatQuote} from "../backends/chat.ts";
+import type {ChatAnnouncement, ChatMessage, ChatQuote, Gif} from "../backends/chat.ts";
 
 export const CHAT_LOG_LIMIT = 200
 
@@ -70,8 +70,8 @@ export function withRemoved(log: readonly ChatMessage[], id: string): ChatMessag
     if (!log.some(message => removes(message) || empties(message))) return log as ChatMessage[]
 
     return log.map(message => {
-        if (removes(message)) return {...message, text: "", reactions: [], removed: true}
-        if (empties(message)) return {...message, replyTo: {...message.replyTo!, text: "", removed: true}}
+        if (removes(message)) return {...message, text: "", gif: undefined, reactions: [], removed: true}
+        if (empties(message)) return {...message, replyTo: {...message.replyTo!, text: "", gif: undefined, removed: true}}
         return message
     })
 }
@@ -127,7 +127,15 @@ export function quoteOf(message: ChatMessage): ChatQuote {
         authorName: message.authorName,
         authorColor: message.authorColor,
         text: message.text,
+        gif: message.gif,
     }
+}
+
+export const GIF_LINE = "GIF"
+
+// What a line that has room for words alone says of a message or a quote.
+export function wordsOf(said: {text: string, gif?: Gif}): string {
+    return said.gif ? GIF_LINE : said.text
 }
 
 export const GROUP_WINDOW_MS = 4 * 60_000

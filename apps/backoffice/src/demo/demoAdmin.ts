@@ -1,3 +1,4 @@
+import {textBody, wordsIn} from "../chat/said.ts"
 import {Duration, PartialMessage, Timestamp} from "@bufbuild/protobuf"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
@@ -180,16 +181,16 @@ export class DemoAdmin extends FakeAdmin {
             this.chat.push(new KeptMessage({
                 messageId: `m-${n}`, accountId: author.id, authorName: author.name, countryId: author.flag,
                 flagRoom: n % 5 === 4 ? author.flag : "",
-                text: abusive ? pick(ABUSE) : pick(BANTER), sentAt: at(sentAt),
+                body: textBody(abusive ? pick(ABUSE) : pick(BANTER)), sentAt: at(sentAt),
                 replyTo: previous !== undefined && roll() < 0.2
-                    ? new KeptQuote({messageId: previous.messageId, authorName: previous.authorName, text: previous.text})
+                    ? new KeptQuote({messageId: previous.messageId, authorName: previous.authorName, body: previous.body})
                     : undefined,
             }))
             sentAt += Math.floor(roll() * 6 + 1) * MINUTE
         }
 
         const nameOf = (id: string) => this.accounts.find(account => account.id === id)?.name ?? ""
-        const abusive = this.chat.filter(message => ABUSE.includes(message.text)).reverse()
+        const abusive = this.chat.filter(message => ABUSE.includes(wordsIn(message.body))).reverse()
         const reporters = chatty.slice(10)
         const report = (n: number, part: PartialMessage<Report>) => new Report({
             id: `report-${n}`, reporterName: nameOf(part.reporterAccountId ?? ""),
@@ -312,7 +313,7 @@ export class DemoAdmin extends FakeAdmin {
         const kept = this.chat.find(message => message.messageId === request.messageId)
         if (kept === undefined) return this.refuseLater("getMessage", request, "no message kept under this id", Code.NotFound)
         return this.answer("getMessage", request, new GetMessageResponse({
-            messageId: kept.messageId, accountId: kept.accountId, text: kept.text, sentAt: kept.sentAt,
+            messageId: kept.messageId, accountId: kept.accountId, body: kept.body, sentAt: kept.sentAt,
             countryId: kept.countryId, removedAt: kept.removedAt, flagRoom: kept.flagRoom,
         }))
     }

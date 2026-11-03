@@ -43,6 +43,8 @@ The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
 variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
 
+`VITE_KLIPY_KEY` turns the chat's GIFs on (see [Live chat](chat.md#gifs)); fake mode needs none, it draws its own.
+
 `VITE_CRAZYGAMES=1` makes the page the CrazyGames page on any host, with the
 SDK's local mode on `localhost` (see [CrazyGames](crazygames.md)). The deployed
 build never sets it: `crazygames.clickplanet.lol` is the same build. `npm run dev` does not fetch the word list:

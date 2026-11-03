@@ -99,6 +99,18 @@ func (s *StorageContractSuite) TestAShownMessageIsReadBackAsItWasKept() {
 		s.kept("id-hello"))
 }
 
+func (s *StorageContractSuite) TestAGifIsReadBackAsItWasKept() {
+	gif := Snapshot{
+		ID: "id-gif", SentAt: contractStart, Account: contractAccount, Room: World, Country: "fr",
+		Gif: Gif{URL: "https://static.klipy.com/ii/935d7ab9/14/af/SE72470w.webp", Width: 220, Height: 124},
+	}
+	s.keep(s.message(gif), "203.0.113.7")
+	s.append("hello")
+
+	s.Equal(gif, s.kept("id-gif"))
+	s.Equal(Gif{}, s.kept("id-hello").Gif, "a text has no GIF")
+}
+
 func (s *StorageContractSuite) TestAMessageFromBeforeAccountsIsReadBackUnderTheNameItCarries() {
 	legacy := Snapshot{
 		ID: "id-legacy", SentAt: contractStart, Author: AuthorOf("guest_Bob", true, 0, 0, Title{}), Room: World, Country: "fr",

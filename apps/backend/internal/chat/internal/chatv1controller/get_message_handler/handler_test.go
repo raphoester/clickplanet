@@ -22,7 +22,7 @@ func (q stubQuery) Message(_ context.Context, id string) (*chatv1.GetMessageResp
 	if q.err != nil {
 		return nil, q.err
 	}
-	return &chatv1.GetMessageResponse{MessageId: id, Text: "the text of " + id}, nil
+	return &chatv1.GetMessageResponse{MessageId: id, Body: &chatv1.GetMessageResponse_Text{Text: "the text of " + id}}, nil
 }
 
 func TestTheMessageIsAnsweredAndNeverCached(t *testing.T) {

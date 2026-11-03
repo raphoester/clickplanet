@@ -25,6 +25,7 @@ type stubPlayer struct {
 	colors map[string]playerv1.NameColor
 	streak map[string]uint32
 	titles map[string]*playerv1.Title
+	guests map[string]bool
 	err    error
 	asked  *string
 }
@@ -43,6 +44,7 @@ func (s stubPlayer) GetAuthor(
 		Color:     s.colors[req.Msg.GetAccountId()],
 		Streak:    s.streak[req.Msg.GetAccountId()],
 		WornTitle: s.titles[req.Msg.GetAccountId()],
+		Guest:     s.guests[req.Msg.GetAccountId()],
 	}), nil
 }
 
@@ -134,4 +136,16 @@ func TestAPlayerModuleThatFailsIsAnError(t *testing.T) {
 	_, err := authors(t, player).Author(t.Context(), ada)
 
 	assert.ErrorContains(t, err, "failed to ask the player module")
+}
+
+func TestAGuestIsAnsweredAsOne(t *testing.T) {
+	player := stubPlayer{
+		names: map[string]string{ada.String(): "guest_0b1c2d"}, streak: map[string]uint32{ada.String(): 2},
+		guests: map[string]bool{ada.String(): true}, asked: new(string),
+	}
+
+	author, err := authors(t, player).Author(t.Context(), ada)
+
+	require.NoError(t, err)
+	assert.Equal(t, messages.GuestOf("guest_0b1c2d", 2), author)
 }

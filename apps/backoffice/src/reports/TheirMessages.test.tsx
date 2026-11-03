@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import {textBody} from "../chat/said.ts"
 import {Timestamp} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
@@ -30,7 +31,7 @@ function chatOf(...who: string[]): KeptMessage[] {
     return who.map((name, i) => {
         const accountId = Object.keys(AUTHORS).find(account => AUTHORS[account] === name) ?? ""
         return new KeptMessage({
-            messageId: `m${i + 1}`, accountId, authorName: name, text: `${name} ${i + 1}`,
+            messageId: `m${i + 1}`, accountId, authorName: name, body: textBody(`${name} ${i + 1}`),
             sentAt: Timestamp.fromDate(new Date(AT.getTime() + i * 60_000)), countryId: "fr",
         })
     })

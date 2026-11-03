@@ -8,7 +8,8 @@ import CountryFlag from "../components/CountryFlag.tsx";
 import StreakFlame from "../components/StreakFlame.tsx";
 import TitleBadge from "../titles/TitleBadge.tsx";
 import {ChevronIcon, ReplyIcon, ReportIcon} from "../components/icons.tsx";
-import {ChatLogEntry, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
+import {ChatLogEntry, GIF_LINE, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
+import {fitted} from "../../domain/gifs.ts";
 import {messageParts} from "../../domain/chatLinks.ts";
 import {describeBlast} from "../../domain/blast.ts";
 import {winsLine} from "../../domain/champion.ts";
@@ -37,6 +38,8 @@ export type ChatLogProps = {
 }
 
 const AUTHOR_MAX_LENGTH = 16
+
+const GIF_BOX = {width: 200, height: 200}
 
 const clock = new Intl.DateTimeFormat(undefined, {hour: "2-digit", minute: "2-digit"})
 
@@ -255,6 +258,13 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
         <div className="chat-message-line">
             {message.removed
                 ? <p className="chat-message-text chat-removed">{REMOVED_TEXT}</p>
+                : message.gif
+                ? <img className="chat-message-gif"
+                       src={message.gif.url}
+                       {...fitted(message.gif, GIF_BOX)}
+                       alt={GIF_LINE}
+                       loading="lazy"
+                       decoding="async"/>
                 : <p className="chat-message-text">
                     {messageParts(message).map((part, index) => part.kind === "link"
                         ? <a key={index} href={part.href} target="_blank" rel="noopener noreferrer nofollow ugc">{words.masked(part.text)}</a>

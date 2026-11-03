@@ -23,8 +23,15 @@ func NewDrafts(ids IDProvider, clock cptime.Clock, limits Limits, countries Coun
 	return Drafts{ids: ids, clock: clock, limits: limits, countries: countries, rooms: rooms}
 }
 
-func (d Drafts) Draft(ctx context.Context, account AccountID, room Room, country string, text string) (Message, error) {
-	cleaned, err := d.limits.Text(text)
+func (d Drafts) Draft(
+	ctx context.Context,
+	account AccountID,
+	room Room,
+	country string,
+	text string,
+	gif Gif,
+) (Message, error) {
+	cleaned, shown, err := d.limits.Body(text, gif)
 	if err != nil {
 		return Message{}, fmt.Errorf("failed to check the message: %w", err)
 	}
@@ -40,5 +47,7 @@ func (d Drafts) Draft(ctx context.Context, account AccountID, room Room, country
 		return Message{}, fmt.Errorf("failed to draw a message id: %w", err)
 	}
 
-	return Snapshot{ID: id, SentAt: d.clock.Now(), Account: account, Room: room, Country: country, Text: cleaned}.Restore()
+	return Snapshot{
+		ID: id, SentAt: d.clock.Now(), Account: account, Room: room, Country: country, Text: cleaned, Gif: shown,
+	}.Restore()
 }

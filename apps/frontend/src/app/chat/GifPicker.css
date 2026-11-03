@@ -1,0 +1,106 @@
+.gif-picker {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-m);
+    background: var(--panel-raised);
+}
+
+.gif-picker-head,
+.gif-picker-locked {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.gif-picker-locked {
+    justify-content: center;
+    padding: var(--space-2) 0;
+}
+
+.gif-picker-lock {
+    display: flex;
+    color: var(--text-muted);
+}
+
+.gif-picker-search {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 36px;
+}
+
+.gif-picker-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.gif-picker-close:hover {
+    background: var(--secondary);
+    color: var(--text);
+}
+
+.gif-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+    grid-auto-rows: 88px;
+    gap: var(--space-1);
+    min-height: 88px;
+    max-height: 232px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.gif-picker-choice {
+    padding: 0;
+    overflow: hidden;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--panel-sunk);
+    cursor: pointer;
+}
+
+.gif-picker-choice:hover,
+.gif-picker-choice:focus-visible {
+    outline: var(--outline-thin) solid var(--gold);
+}
+
+.gif-picker-choice img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.gif-picker-end {
+    grid-column: 1 / -1;
+    height: 1px;
+}
+
+.gif-picker-note {
+    margin: 0;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.gif-picker-retry {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--text);
+    text-decoration: underline;
+    cursor: pointer;
+}

@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Gif } from "./chat_pb.js";
 
 /**
  * @generated from message chat.v1.MuteRequest
@@ -380,9 +381,21 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
   accountId = "";
 
   /**
-   * @generated from field: string text = 3;
+   * @generated from oneof chat.v1.GetMessageResponse.body
    */
-  text = "";
+  body: {
+    /**
+     * @generated from field: string text = 3;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: chat.v1.Gif gif = 8;
+     */
+    value: Gif;
+    case: "gif";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
    * @generated from field: google.protobuf.Timestamp sent_at = 4;
@@ -418,7 +431,8 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
+    { no: 8, name: "gif", kind: "message", T: Gif, oneof: "body" },
     { no: 4, name: "sent_at", kind: "message", T: Timestamp },
     { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "removed_at", kind: "message", T: Timestamp },
@@ -570,9 +584,21 @@ export class KeptMessage extends Message<KeptMessage> {
   authorName = "";
 
   /**
-   * @generated from field: string text = 4;
+   * @generated from oneof chat.v1.KeptMessage.body
    */
-  text = "";
+  body: {
+    /**
+     * @generated from field: string text = 4;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: chat.v1.Gif gif = 10;
+     */
+    value: Gif;
+    case: "gif";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
    * @generated from field: google.protobuf.Timestamp sent_at = 5;
@@ -616,7 +642,8 @@ export class KeptMessage extends Message<KeptMessage> {
     { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
+    { no: 10, name: "gif", kind: "message", T: Gif, oneof: "body" },
     { no: 5, name: "sent_at", kind: "message", T: Timestamp },
     { no: 6, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "removed_at", kind: "message", T: Timestamp },
@@ -660,9 +687,21 @@ export class KeptQuote extends Message<KeptQuote> {
   authorName = "";
 
   /**
-   * @generated from field: string text = 3;
+   * @generated from oneof chat.v1.KeptQuote.body
    */
-  text = "";
+  body: {
+    /**
+     * @generated from field: string text = 3;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: chat.v1.Gif gif = 5;
+     */
+    value: Gif;
+    case: "gif";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
    * Unset while the message is shown.
@@ -681,7 +720,8 @@ export class KeptQuote extends Message<KeptQuote> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
+    { no: 5, name: "gif", kind: "message", T: Gif, oneof: "body" },
     { no: 4, name: "removed_at", kind: "message", T: Timestamp },
   ]);
 
