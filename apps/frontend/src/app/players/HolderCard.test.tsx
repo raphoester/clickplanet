@@ -40,7 +40,7 @@ describe("HolderCard", () => {
         expect(card.textContent).toContain("BraveFox42")
         expect(screen.getByRole("img", {name: "Warlord"})).toBeTruthy()
         expect(card.textContent).not.toContain("Warlord")
-        expect(screen.getByText(/Took it 3 min ago/)).toBeTruthy()
+        expect(screen.getByText(/Took it for France 3 min ago/)).toBeTruthy()
         expect(card.style.left).toBe("316px")
         expect(card.style.top).toBe("216px")
     })
@@ -48,7 +48,7 @@ describe("HolderCard", () => {
     it("says the player took the tile itself when it is its own", () => {
         show(FOX, {holder: {...shown(FOX), mine: true}})
 
-        expect(screen.getByText(/You took it 3 min ago/)).toBeTruthy()
+        expect(screen.getByText(/You took it for France 3 min ago/)).toBeTruthy()
     })
 
     it("shows the first flags the player fought for", () => {
@@ -70,7 +70,7 @@ describe("HolderCard", () => {
     it("shows a guest by its guest name alone, with no profile to open", () => {
         show(GUEST, {onOpenPlayer: vi.fn()})
 
-        expect(screen.getByRole("region", {name: "guest_91aa3d"}).textContent).toContain("Took it 3 min ago")
+        expect(screen.getByRole("region", {name: "guest_91aa3d"}).textContent).toContain("Took it for Germany 3 min ago")
         expect(screen.queryByRole("button", {name: "View profile"})).toBeNull()
         expect(screen.queryByRole("group", {name: "Fought for"})).toBeNull()
     })
@@ -79,7 +79,7 @@ describe("HolderCard", () => {
         const deleted: PlayerLine = {...GUEST, accountId: "", name: DELETED_ACCOUNT, countryCode: "tr", guest: false}
         render(<HolderCard holder={{...shown(deleted), playsFor: []}} now={NOW} onHold={() => {}} onClose={() => {}} onOpenPlayer={vi.fn()}/>)
 
-        expect(screen.getByRole("region", {name: "Deleted account"}).textContent).toContain("Took it 3 min ago")
+        expect(screen.getByRole("region", {name: "Deleted account"}).textContent).toContain("Took it for Turkey 3 min ago")
         expect(screen.queryByRole("button", {name: "View profile"})).toBeNull()
     })
 
