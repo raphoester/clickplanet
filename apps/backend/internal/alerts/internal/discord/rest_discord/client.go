@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord"
 )
@@ -33,10 +31,6 @@ const (
 	// Discord's codes for a user who is not in the server, and a role the server does not have.
 	unknownMember = 10007
 	unknownRole   = 10011
-	// A 429 that asks to wait this long or less is waited out and sent again, at most twice; a longer one is a failure
-	// the caller tries again later.
-	maxRetryAfter = 5 * time.Second
-	maxRetries    = 2
 )
 
 func New(app App, endpoints Endpoints, httpClient *http.Client) *Client {
@@ -64,18 +58,6 @@ func (c *Client) Join(ctx context.Context, user discord.UserID, token discord.Ac
 		}
 	}
 	return nil
-}
-
-// False for a user who is not in the server, or never was.
-func (c *Client) IsMember(ctx context.Context, user discord.UserID) (bool, error) {
-	_, err := c.bot(ctx, http.MethodGet, c.member(user), nil, nil)
-	switch {
-	case errors.Is(err, discord.ErrNotMember):
-		return false, nil
-	case err != nil:
-		return false, fmt.Errorf("failed to ask whether the user is in the server: %w", err)
-	}
-	return true, nil
 }
 
 func (c *Client) Grant(ctx context.Context, user discord.UserID, role discord.RoleID) error {
@@ -145,81 +127,39 @@ func (c *Client) member(user discord.UserID) string {
 }
 
 func (c *Client) bot(ctx context.Context, method string, path string, body any, answer any) (int, error) {
-	var encoded []byte
+	var payload io.Reader
 	if body != nil {
-		var err error
-		if encoded, err = json.Marshal(body); err != nil {
+		encoded, err := json.Marshal(body)
+		if err != nil {
 			return 0, fmt.Errorf("failed to encode the request: %w", err)
 		}
+		payload = bytes.NewReader(encoded)
 	}
-	for retries := 0; ; retries++ {
-		req, err := http.NewRequestWithContext(ctx, method, c.endpoints.API+path, payloadOf(encoded))
-		if err != nil {
-			return 0, fmt.Errorf("failed to build the request: %w", err)
-		}
-		req.Header.Set("Authorization", "Bot "+c.app.BotToken)
-		if body != nil {
-			req.Header.Set("Content-Type", "application/json")
-		}
-		status, wait, answered := c.status(req, answer)
-		if wait <= 0 || retries == maxRetries {
-			return status, answered
-		}
-		if err := sleep(ctx, wait); err != nil {
-			return status, fmt.Errorf("%w, and the wait it asked for was cut short: %w", answered, err)
-		}
+	req, err := http.NewRequestWithContext(ctx, method, c.endpoints.API+path, payload)
+	if err != nil {
+		return 0, fmt.Errorf("failed to build the request: %w", err)
 	}
+	req.Header.Set("Authorization", "Bot "+c.app.BotToken)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	return c.status(req, answer)
 }
 
-func payloadOf(encoded []byte) io.Reader {
-	if encoded == nil {
-		return nil
-	}
-	return bytes.NewReader(encoded)
-}
-
-func sleep(ctx context.Context, wait time.Duration) error {
-	timer := time.NewTimer(wait)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err() //nolint:wrapcheck // the caller says what was cut short.
-	case <-timer.C:
-		return nil
-	}
-}
-
-// Discord's Retry-After, in seconds, when it is short enough to wait out; 0 otherwise.
-func retryAfterOf(res *http.Response) time.Duration {
-	seconds, err := strconv.ParseFloat(res.Header.Get("Retry-After"), 64)
-	if err != nil || seconds < 0 {
-		return 0
-	}
-	wait := time.Duration(seconds * float64(time.Second))
-	if wait > maxRetryAfter {
-		return 0
-	}
-	// A 0 is a retry now: the smallest wait still says to send again.
-	return max(wait, time.Millisecond)
-}
-
-// The wait is set for a 429 that Discord asks to send again after a short wait.
-func (c *Client) status(req *http.Request, answer any) (int, time.Duration, error) {
+func (c *Client) status(req *http.Request, answer any) (int, error) {
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", userAgent)
 
 	res, err := c.http.Do(req)
 	if err != nil {
-		return 0, 0, fmt.Errorf("discord is unreachable: %w", err)
+		return 0, fmt.Errorf("discord is unreachable: %w", err)
 	}
 	defer func() { _ = res.Body.Close() }()
 	body := io.LimitReader(res.Body, maxBodyBytes)
 
 	switch {
-	case res.StatusCode == http.StatusTooManyRequests:
-		return res.StatusCode, retryAfterOf(res), fmt.Errorf("discord answered %d", res.StatusCode)
-	case res.StatusCode >= http.StatusInternalServerError:
-		return res.StatusCode, 0, fmt.Errorf("discord answered %d", res.StatusCode)
+	case res.StatusCode == http.StatusTooManyRequests || res.StatusCode >= http.StatusInternalServerError:
+		return res.StatusCode, fmt.Errorf("discord answered %d", res.StatusCode)
 	case res.StatusCode >= http.StatusBadRequest:
 		var reason struct {
 			Code    int    `json:"code"`
@@ -229,19 +169,19 @@ func (c *Client) status(req *http.Request, answer any) (int, time.Duration, erro
 		_ = json.NewDecoder(body).Decode(&reason)
 		switch reason.Code {
 		case unknownMember:
-			return res.StatusCode, 0, discord.ErrNotMember
+			return res.StatusCode, discord.ErrNotMember
 		case unknownRole:
-			return res.StatusCode, 0, discord.ErrNoRole
+			return res.StatusCode, discord.ErrNoRole
 		}
-		return res.StatusCode, 0, fmt.Errorf("%w: it answered %d (%d %s%s)", discord.ErrRefused, res.StatusCode,
+		return res.StatusCode, fmt.Errorf("%w: it answered %d (%d %s%s)", discord.ErrRefused, res.StatusCode,
 			reason.Code, reason.Message, reason.Error)
 	}
 
 	if answer == nil || res.StatusCode == http.StatusNoContent {
-		return res.StatusCode, 0, nil
+		return res.StatusCode, nil
 	}
 	if err := json.NewDecoder(body).Decode(answer); err != nil && !errors.Is(err, io.EOF) {
-		return res.StatusCode, 0, fmt.Errorf("%w: its answer is not JSON: %w", discord.ErrRefused, err)
+		return res.StatusCode, fmt.Errorf("%w: its answer is not JSON: %w", discord.ErrRefused, err)
 	}
-	return res.StatusCode, 0, nil
+	return res.StatusCode, nil
 }

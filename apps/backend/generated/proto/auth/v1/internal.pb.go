@@ -433,156 +433,6 @@ func (x *GetOperatorResponse) GetAccountId() string {
 	return ""
 }
 
-type GetDiscordUsersRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Empty: from the first account. Else the accounts after this one.
-	AfterAccountId string `protobuf:"bytes,1,opt,name=after_account_id,json=afterAccountId,proto3" json:"after_account_id,omitempty"`
-	// 0 is 500, and more is 500.
-	Limit         uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetDiscordUsersRequest) Reset() {
-	*x = GetDiscordUsersRequest{}
-	mi := &file_auth_v1_internal_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetDiscordUsersRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetDiscordUsersRequest) ProtoMessage() {}
-
-func (x *GetDiscordUsersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetDiscordUsersRequest.ProtoReflect.Descriptor instead.
-func (*GetDiscordUsersRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *GetDiscordUsersRequest) GetAfterAccountId() string {
-	if x != nil {
-		return x.AfterAccountId
-	}
-	return ""
-}
-
-func (x *GetDiscordUsersRequest) GetLimit() uint32 {
-	if x != nil {
-		return x.Limit
-	}
-	return 0
-}
-
-type GetDiscordUsersResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Users         []*DiscordUser         `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetDiscordUsersResponse) Reset() {
-	*x = GetDiscordUsersResponse{}
-	mi := &file_auth_v1_internal_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetDiscordUsersResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetDiscordUsersResponse) ProtoMessage() {}
-
-func (x *GetDiscordUsersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetDiscordUsersResponse.ProtoReflect.Descriptor instead.
-func (*GetDiscordUsersResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *GetDiscordUsersResponse) GetUsers() []*DiscordUser {
-	if x != nil {
-		return x.Users
-	}
-	return nil
-}
-
-type DiscordUser struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	DiscordUserId string                 `protobuf:"bytes,2,opt,name=discord_user_id,json=discordUserId,proto3" json:"discord_user_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DiscordUser) Reset() {
-	*x = DiscordUser{}
-	mi := &file_auth_v1_internal_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DiscordUser) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DiscordUser) ProtoMessage() {}
-
-func (x *DiscordUser) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DiscordUser.ProtoReflect.Descriptor instead.
-func (*DiscordUser) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *DiscordUser) GetAccountId() string {
-	if x != nil {
-		return x.AccountId
-	}
-	return ""
-}
-
-func (x *DiscordUser) GetDiscordUserId() string {
-	if x != nil {
-		return x.DiscordUserId
-	}
-	return ""
-}
-
 var File_auth_v1_internal_proto protoreflect.FileDescriptor
 
 const file_auth_v1_internal_proto_rawDesc = "" +
@@ -612,23 +462,13 @@ const file_auth_v1_internal_proto_rawDesc = "" +
 	"\x06cookie\x18\x01 \x01(\tR\x06cookie\"4\n" +
 	"\x13GetOperatorResponse\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\"X\n" +
-	"\x16GetDiscordUsersRequest\x12(\n" +
-	"\x10after_account_id\x18\x01 \x01(\tR\x0eafterAccountId\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\rR\x05limit\"E\n" +
-	"\x17GetDiscordUsersResponse\x12*\n" +
-	"\x05users\x18\x01 \x03(\v2\x14.auth.v1.DiscordUserR\x05users\"T\n" +
-	"\vDiscordUser\x12\x1d\n" +
-	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\x12&\n" +
-	"\x0fdiscord_user_id\x18\x02 \x01(\tR\rdiscordUserId2\xa2\x03\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId2\xc7\x02\n" +
 	"\x0fInternalService\x12T\n" +
 	"\x0fGetVerifyingKey\x12\x1f.auth.v1.GetVerifyingKeyRequest\x1a .auth.v1.GetVerifyingKeyResponse\x12E\n" +
 	"\n" +
 	"GetAccount\x12\x1a.auth.v1.GetAccountRequest\x1a\x1b.auth.v1.GetAccountResponse\x12M\n" +
 	"\vGetAccounts\x12\x1b.auth.v1.GetAccountsRequest\x1a\x1c.auth.v1.GetAccountsResponse\"\x03\x90\x02\x01\x12H\n" +
-	"\vGetOperator\x12\x1b.auth.v1.GetOperatorRequest\x1a\x1c.auth.v1.GetOperatorResponse\x12Y\n" +
-	"\x0fGetDiscordUsers\x12\x1f.auth.v1.GetDiscordUsersRequest\x1a .auth.v1.GetDiscordUsersResponse\"\x03\x90\x02\x01B\xa7\x01\n" +
+	"\vGetOperator\x12\x1b.auth.v1.GetOperatorRequest\x1a\x1c.auth.v1.GetOperatorResponseB\xa7\x01\n" +
 	"\vcom.auth.v1B\rInternalProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
 
 var (
@@ -643,7 +483,7 @@ func file_auth_v1_internal_proto_rawDescGZIP() []byte {
 	return file_auth_v1_internal_proto_rawDescData
 }
 
-var file_auth_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_auth_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_auth_v1_internal_proto_goTypes = []any{
 	(*GetVerifyingKeyRequest)(nil),  // 0: auth.v1.GetVerifyingKeyRequest
 	(*GetVerifyingKeyResponse)(nil), // 1: auth.v1.GetVerifyingKeyResponse
@@ -654,28 +494,22 @@ var file_auth_v1_internal_proto_goTypes = []any{
 	(*Account)(nil),                 // 6: auth.v1.Account
 	(*GetOperatorRequest)(nil),      // 7: auth.v1.GetOperatorRequest
 	(*GetOperatorResponse)(nil),     // 8: auth.v1.GetOperatorResponse
-	(*GetDiscordUsersRequest)(nil),  // 9: auth.v1.GetDiscordUsersRequest
-	(*GetDiscordUsersResponse)(nil), // 10: auth.v1.GetDiscordUsersResponse
-	(*DiscordUser)(nil),             // 11: auth.v1.DiscordUser
 }
 var file_auth_v1_internal_proto_depIdxs = []int32{
-	6,  // 0: auth.v1.GetAccountsResponse.accounts:type_name -> auth.v1.Account
-	11, // 1: auth.v1.GetDiscordUsersResponse.users:type_name -> auth.v1.DiscordUser
-	0,  // 2: auth.v1.InternalService.GetVerifyingKey:input_type -> auth.v1.GetVerifyingKeyRequest
-	2,  // 3: auth.v1.InternalService.GetAccount:input_type -> auth.v1.GetAccountRequest
-	4,  // 4: auth.v1.InternalService.GetAccounts:input_type -> auth.v1.GetAccountsRequest
-	7,  // 5: auth.v1.InternalService.GetOperator:input_type -> auth.v1.GetOperatorRequest
-	9,  // 6: auth.v1.InternalService.GetDiscordUsers:input_type -> auth.v1.GetDiscordUsersRequest
-	1,  // 7: auth.v1.InternalService.GetVerifyingKey:output_type -> auth.v1.GetVerifyingKeyResponse
-	3,  // 8: auth.v1.InternalService.GetAccount:output_type -> auth.v1.GetAccountResponse
-	5,  // 9: auth.v1.InternalService.GetAccounts:output_type -> auth.v1.GetAccountsResponse
-	8,  // 10: auth.v1.InternalService.GetOperator:output_type -> auth.v1.GetOperatorResponse
-	10, // 11: auth.v1.InternalService.GetDiscordUsers:output_type -> auth.v1.GetDiscordUsersResponse
-	7,  // [7:12] is the sub-list for method output_type
-	2,  // [2:7] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	6, // 0: auth.v1.GetAccountsResponse.accounts:type_name -> auth.v1.Account
+	0, // 1: auth.v1.InternalService.GetVerifyingKey:input_type -> auth.v1.GetVerifyingKeyRequest
+	2, // 2: auth.v1.InternalService.GetAccount:input_type -> auth.v1.GetAccountRequest
+	4, // 3: auth.v1.InternalService.GetAccounts:input_type -> auth.v1.GetAccountsRequest
+	7, // 4: auth.v1.InternalService.GetOperator:input_type -> auth.v1.GetOperatorRequest
+	1, // 5: auth.v1.InternalService.GetVerifyingKey:output_type -> auth.v1.GetVerifyingKeyResponse
+	3, // 6: auth.v1.InternalService.GetAccount:output_type -> auth.v1.GetAccountResponse
+	5, // 7: auth.v1.InternalService.GetAccounts:output_type -> auth.v1.GetAccountsResponse
+	8, // 8: auth.v1.InternalService.GetOperator:output_type -> auth.v1.GetOperatorResponse
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_internal_proto_init() }
@@ -689,7 +523,7 @@ func file_auth_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_internal_proto_rawDesc), len(file_auth_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

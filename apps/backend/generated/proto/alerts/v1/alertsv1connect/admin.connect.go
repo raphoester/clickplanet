@@ -39,9 +39,6 @@ const (
 	// AdminServiceUnlinkPlayerProcedure is the fully-qualified name of the AdminService's UnlinkPlayer
 	// RPC.
 	AdminServiceUnlinkPlayerProcedure = "/alerts.v1.AdminService/UnlinkPlayer"
-	// AdminServiceLinkMembersProcedure is the fully-qualified name of the AdminService's LinkMembers
-	// RPC.
-	AdminServiceLinkMembersProcedure = "/alerts.v1.AdminService/LinkMembers"
 )
 
 // AdminServiceClient is a client for the alerts.v1.AdminService service.
@@ -50,10 +47,6 @@ type AdminServiceClient interface {
 	// Forgets the link and takes the flag's role off the Discord user, who stays in the server: the game offers that
 	// account to connect Discord again, and its next Discord sign-in joins it again.
 	UnlinkPlayer(context.Context, *connect.Request[v1.UnlinkPlayerRequest]) (*connect.Response[v1.UnlinkPlayerResponse], error)
-	// Links every account signed in with Discord that has no link and whose Discord user is in the server already: it
-	// joined by the invite, or signed in before the sign-in asked to join. The bot grants it its flag's role. A user not
-	// in the server is left as it is: only its own Discord sign-in can add it. A second run links nobody twice.
-	LinkMembers(context.Context, *connect.Request[v1.LinkMembersRequest]) (*connect.Response[v1.LinkMembersResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the alerts.v1.AdminService service. By default, it
@@ -80,12 +73,6 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("UnlinkPlayer")),
 			connect.WithClientOptions(opts...),
 		),
-		linkMembers: connect.NewClient[v1.LinkMembersRequest, v1.LinkMembersResponse](
-			httpClient,
-			baseURL+AdminServiceLinkMembersProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("LinkMembers")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
@@ -93,7 +80,6 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 type adminServiceClient struct {
 	getPlayerLink *connect.Client[v1.GetPlayerLinkRequest, v1.GetPlayerLinkResponse]
 	unlinkPlayer  *connect.Client[v1.UnlinkPlayerRequest, v1.UnlinkPlayerResponse]
-	linkMembers   *connect.Client[v1.LinkMembersRequest, v1.LinkMembersResponse]
 }
 
 // GetPlayerLink calls alerts.v1.AdminService.GetPlayerLink.
@@ -106,21 +92,12 @@ func (c *adminServiceClient) UnlinkPlayer(ctx context.Context, req *connect.Requ
 	return c.unlinkPlayer.CallUnary(ctx, req)
 }
 
-// LinkMembers calls alerts.v1.AdminService.LinkMembers.
-func (c *adminServiceClient) LinkMembers(ctx context.Context, req *connect.Request[v1.LinkMembersRequest]) (*connect.Response[v1.LinkMembersResponse], error) {
-	return c.linkMembers.CallUnary(ctx, req)
-}
-
 // AdminServiceHandler is an implementation of the alerts.v1.AdminService service.
 type AdminServiceHandler interface {
 	GetPlayerLink(context.Context, *connect.Request[v1.GetPlayerLinkRequest]) (*connect.Response[v1.GetPlayerLinkResponse], error)
 	// Forgets the link and takes the flag's role off the Discord user, who stays in the server: the game offers that
 	// account to connect Discord again, and its next Discord sign-in joins it again.
 	UnlinkPlayer(context.Context, *connect.Request[v1.UnlinkPlayerRequest]) (*connect.Response[v1.UnlinkPlayerResponse], error)
-	// Links every account signed in with Discord that has no link and whose Discord user is in the server already: it
-	// joined by the invite, or signed in before the sign-in asked to join. The bot grants it its flag's role. A user not
-	// in the server is left as it is: only its own Discord sign-in can add it. A second run links nobody twice.
-	LinkMembers(context.Context, *connect.Request[v1.LinkMembersRequest]) (*connect.Response[v1.LinkMembersResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -143,20 +120,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("UnlinkPlayer")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminServiceLinkMembersHandler := connect.NewUnaryHandler(
-		AdminServiceLinkMembersProcedure,
-		svc.LinkMembers,
-		connect.WithSchema(adminServiceMethods.ByName("LinkMembers")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/alerts.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceGetPlayerLinkProcedure:
 			adminServiceGetPlayerLinkHandler.ServeHTTP(w, r)
 		case AdminServiceUnlinkPlayerProcedure:
 			adminServiceUnlinkPlayerHandler.ServeHTTP(w, r)
-		case AdminServiceLinkMembersProcedure:
-			adminServiceLinkMembersHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -172,8 +141,4 @@ func (UnimplementedAdminServiceHandler) GetPlayerLink(context.Context, *connect.
 
 func (UnimplementedAdminServiceHandler) UnlinkPlayer(context.Context, *connect.Request[v1.UnlinkPlayerRequest]) (*connect.Response[v1.UnlinkPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("alerts.v1.AdminService.UnlinkPlayer is not implemented"))
-}
-
-func (UnimplementedAdminServiceHandler) LinkMembers(context.Context, *connect.Request[v1.LinkMembersRequest]) (*connect.Response[v1.LinkMembersResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("alerts.v1.AdminService.LinkMembers is not implemented"))
 }

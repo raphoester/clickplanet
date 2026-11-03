@@ -72,8 +72,7 @@ return []bootstrap.Module{
 | `missions` | `planet.v1.InternalService/GetTerritories` and `GetCountrySizes` | what each flag holds and where, and how many tiles of land each country has, once per account and day and once per flag and day, to draw the missions | `missions/rpc_planet_world` |
 | `missions` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per account and day, to draw its missions, and on each `GetMissions`, for its flag's mission | `missions/rpc_planet_allegiance` |
 | `missions` | `auth.v1.InternalService/GetAccount` | whether an account is signed in, when a take finishes one of its missions | `missions/rpc_auth_accounts` |
-| `alerts` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per `JoinServer` of an account not linked yet, for the role it joins the server with, and once per member a `LinkMembers` links | `links/rpc_planet_allegiance` |
-| `alerts` | `auth.v1.InternalService/GetDiscordUsers` | every account signed in with Discord and its Discord user, a page of 100 at a time, on each operator's `LinkMembers` | `links/rpc_auth_discord_accounts` |
+| `alerts` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per `JoinServer` of an account not linked yet, for the role it joins the server with | `links/rpc_planet_allegiance` |
 | `auth` | `alerts.v1.InternalService/JoinServer` | the account, the Discord user and the token a Discord sign-in traded, once it is saved, to join the game's Discord server; only with `auth.discord.joinServer` on | `signin/rpc_alerts_server` |
 | `clips` | `planet.v1.InternalService/GetLedger` | who took which tile in a run's window, page after page, on each `MakeCast` | `casts/rpc_planet_ledger` |
 | `clips` | `player.v1.InternalService/GetAuthors` | the name each of those accounts may be shown under in the clips, on each `MakeCast` | `casts/rpc_player_names` |

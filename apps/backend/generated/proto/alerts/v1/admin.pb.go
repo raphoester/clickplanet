@@ -260,105 +260,6 @@ func (x *UnlinkPlayerResponse) GetUnlinked() bool {
 	return false
 }
 
-type LinkMembersRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *LinkMembersRequest) Reset() {
-	*x = LinkMembersRequest{}
-	mi := &file_alerts_v1_admin_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *LinkMembersRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*LinkMembersRequest) ProtoMessage() {}
-
-func (x *LinkMembersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_alerts_v1_admin_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use LinkMembersRequest.ProtoReflect.Descriptor instead.
-func (*LinkMembersRequest) Descriptor() ([]byte, []int) {
-	return file_alerts_v1_admin_proto_rawDescGZIP(), []int{5}
-}
-
-type LinkMembersResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// In the server, and linked now with its flag's role.
-	Linked uint32 `protobuf:"varint,1,opt,name=linked,proto3" json:"linked,omitempty"`
-	// Not in the server: the game offers them to join Discord, and their own sign-in joins them.
-	Outside uint32 `protobuf:"varint,2,opt,name=outside,proto3" json:"outside,omitempty"`
-	// Discord or the game could not be asked: a run again tries them again.
-	Failed        uint32 `protobuf:"varint,3,opt,name=failed,proto3" json:"failed,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *LinkMembersResponse) Reset() {
-	*x = LinkMembersResponse{}
-	mi := &file_alerts_v1_admin_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *LinkMembersResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*LinkMembersResponse) ProtoMessage() {}
-
-func (x *LinkMembersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_alerts_v1_admin_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use LinkMembersResponse.ProtoReflect.Descriptor instead.
-func (*LinkMembersResponse) Descriptor() ([]byte, []int) {
-	return file_alerts_v1_admin_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *LinkMembersResponse) GetLinked() uint32 {
-	if x != nil {
-		return x.Linked
-	}
-	return 0
-}
-
-func (x *LinkMembersResponse) GetOutside() uint32 {
-	if x != nil {
-		return x.Outside
-	}
-	return 0
-}
-
-func (x *LinkMembersResponse) GetFailed() uint32 {
-	if x != nil {
-		return x.Failed
-	}
-	return 0
-}
-
 var File_alerts_v1_admin_proto protoreflect.FileDescriptor
 
 const file_alerts_v1_admin_proto_rawDesc = "" +
@@ -378,16 +279,10 @@ const file_alerts_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\"2\n" +
 	"\x14UnlinkPlayerResponse\x12\x1a\n" +
-	"\bunlinked\x18\x01 \x01(\bR\bunlinked\"\x14\n" +
-	"\x12LinkMembersRequest\"_\n" +
-	"\x13LinkMembersResponse\x12\x16\n" +
-	"\x06linked\x18\x01 \x01(\rR\x06linked\x12\x18\n" +
-	"\aoutside\x18\x02 \x01(\rR\aoutside\x12\x16\n" +
-	"\x06failed\x18\x03 \x01(\rR\x06failed2\x86\x02\n" +
+	"\bunlinked\x18\x01 \x01(\bR\bunlinked2\xb8\x01\n" +
 	"\fAdminService\x12W\n" +
 	"\rGetPlayerLink\x12\x1f.alerts.v1.GetPlayerLinkRequest\x1a .alerts.v1.GetPlayerLinkResponse\"\x03\x90\x02\x01\x12O\n" +
-	"\fUnlinkPlayer\x12\x1e.alerts.v1.UnlinkPlayerRequest\x1a\x1f.alerts.v1.UnlinkPlayerResponse\x12L\n" +
-	"\vLinkMembers\x12\x1d.alerts.v1.LinkMembersRequest\x1a\x1e.alerts.v1.LinkMembersResponseB\xb2\x01\n" +
+	"\fUnlinkPlayer\x12\x1e.alerts.v1.UnlinkPlayerRequest\x1a\x1f.alerts.v1.UnlinkPlayerResponseB\xb2\x01\n" +
 	"\rcom.alerts.v1B\n" +
 	"AdminProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/alerts/v1;alertsv1\xa2\x02\x03AXX\xaa\x02\tAlerts.V1\xca\x02\tAlerts\\V1\xe2\x02\x15Alerts\\V1\\GPBMetadata\xea\x02\n" +
 	"Alerts::V1b\x06proto3"
@@ -404,26 +299,22 @@ func file_alerts_v1_admin_proto_rawDescGZIP() []byte {
 	return file_alerts_v1_admin_proto_rawDescData
 }
 
-var file_alerts_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_alerts_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_alerts_v1_admin_proto_goTypes = []any{
 	(*GetPlayerLinkRequest)(nil),  // 0: alerts.v1.GetPlayerLinkRequest
 	(*GetPlayerLinkResponse)(nil), // 1: alerts.v1.GetPlayerLinkResponse
 	(*DiscordLink)(nil),           // 2: alerts.v1.DiscordLink
 	(*UnlinkPlayerRequest)(nil),   // 3: alerts.v1.UnlinkPlayerRequest
 	(*UnlinkPlayerResponse)(nil),  // 4: alerts.v1.UnlinkPlayerResponse
-	(*LinkMembersRequest)(nil),    // 5: alerts.v1.LinkMembersRequest
-	(*LinkMembersResponse)(nil),   // 6: alerts.v1.LinkMembersResponse
 }
 var file_alerts_v1_admin_proto_depIdxs = []int32{
 	2, // 0: alerts.v1.GetPlayerLinkResponse.link:type_name -> alerts.v1.DiscordLink
 	0, // 1: alerts.v1.AdminService.GetPlayerLink:input_type -> alerts.v1.GetPlayerLinkRequest
 	3, // 2: alerts.v1.AdminService.UnlinkPlayer:input_type -> alerts.v1.UnlinkPlayerRequest
-	5, // 3: alerts.v1.AdminService.LinkMembers:input_type -> alerts.v1.LinkMembersRequest
-	1, // 4: alerts.v1.AdminService.GetPlayerLink:output_type -> alerts.v1.GetPlayerLinkResponse
-	4, // 5: alerts.v1.AdminService.UnlinkPlayer:output_type -> alerts.v1.UnlinkPlayerResponse
-	6, // 6: alerts.v1.AdminService.LinkMembers:output_type -> alerts.v1.LinkMembersResponse
-	4, // [4:7] is the sub-list for method output_type
-	1, // [1:4] is the sub-list for method input_type
+	1, // 3: alerts.v1.AdminService.GetPlayerLink:output_type -> alerts.v1.GetPlayerLinkResponse
+	4, // 4: alerts.v1.AdminService.UnlinkPlayer:output_type -> alerts.v1.UnlinkPlayerResponse
+	3, // [3:5] is the sub-list for method output_type
+	1, // [1:3] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -440,7 +331,7 @@ func file_alerts_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_alerts_v1_admin_proto_rawDesc), len(file_alerts_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
