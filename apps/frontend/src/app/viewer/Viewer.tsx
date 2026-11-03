@@ -120,6 +120,7 @@ import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
 import {endedBookOf} from "../../domain/debrief.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
+import {useGuidedTakes} from "./frontGuide.ts";
 import {ClipsBackend, ClipsNameBackend} from "../../backends/clips.ts";
 import ClipNotice from "../clips/ClipNotice.tsx";
 import FlagMissionDone from "../missions/FlagMissionDone.tsx";
@@ -148,6 +149,7 @@ type SheetName = "board" | "missions" | "chat" | "you" | "share" | "invite" | "s
 export type ViewerProps = {
     sharedCountry?: Country
     linkedShot?: Shot
+    showFront?: boolean
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
@@ -218,6 +220,7 @@ export default function Viewer(props: ViewerProps) {
     const nextBattle = nextBattleOf(schedule.battles, Date.now())
     const finale = finaleOf(schedule.battles, schedule.turn, Date.now())
     const [accepted] = useState(acceptedClicks)
+    useGuidedTakes(props.showFront ?? false, accepted.listenForClicks)
     const finaleTeaser = useFinaleTeaser(finale, Date.now(), accepted.listenForClicks)
     const mood = moodOf(schedule.turn, clickBudget)
     const halloween = schedule.turn?.kind === "halloween"
@@ -304,6 +307,7 @@ export default function Viewer(props: ViewerProps) {
     } = useGlobe({
         container,
         linkedShot: props.linkedShot,
+        showFront: props.showFront,
         tileClicker: props.tileClicker,
         ownershipsGetter: props.ownershipsGetter,
         updatesListener: props.updatesListener,

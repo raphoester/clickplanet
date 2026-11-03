@@ -29,6 +29,8 @@ export type UseGlobeOptions = {
     container: React.RefObject<HTMLElement>
     // Must keep its identity: a new one rebuilds the globe.
     linkedShot?: Shot
+    // A change rebuilds the globe: a first visit is guided to its front from the load.
+    showFront?: boolean
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
@@ -50,7 +52,7 @@ export type UseGlobeOptions = {
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, linkedShot, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, halo, bonusLook, rendering} = options
+    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, halo, bonusLook, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -142,6 +144,7 @@ export function useGlobe(options: UseGlobeOptions) {
             clickBudget,
             container: element,
             linkedShot,
+            showFront,
             country: initialCountry.current,
             mapView: latestMapView.current,
             rendering,
@@ -205,7 +208,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, linkedShot, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek, notify, recordLockedOut])
+    }, [container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek, notify, recordLockedOut])
 
     useEffect(() => {
         initialCountry.current = country

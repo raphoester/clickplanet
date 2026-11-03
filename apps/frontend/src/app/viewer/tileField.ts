@@ -17,6 +17,10 @@ const MAX_INDIVIDUAL_RANGES = 64
 
 const UNOWNED = 0
 
+// The pulse slot holds two marks: the display fragment shader reads them back with mod and a threshold.
+const FORTIFY_PULSE = 1
+const FRONT_PULSE = 2
+
 const RECTANGLE = 4
 
 const FLAGS = new Map<string, number>()
@@ -107,9 +111,11 @@ export class TileField {
     }
 
     setPulses(tiles: readonly number[], on: boolean) {
-        this.patch(this.slots.pulse, tiles, (values, at) => {
-            values[at] = on ? 1 : 0
-        })
+        this.mark(tiles, FORTIFY_PULSE, on)
+    }
+
+    setFront(tiles: readonly number[], on: boolean) {
+        this.mark(tiles, FRONT_PULSE, on)
     }
 
     setLandmasses(assignment: Uint16Array) {
@@ -138,6 +144,12 @@ export class TileField {
             points.geometry.dispose()
             disposeMaterial(points.material as THREE.Material)
         }
+    }
+
+    private mark(tiles: readonly number[], bit: number, on: boolean) {
+        this.patch(this.slots.pulse, tiles, (values, at) => {
+            values[at] = on ? values[at] | bit : values[at] & ~bit
+        })
     }
 
     private patch(slot: Slot, tiles: readonly number[], write: (values: THREE.TypedArray, at: number, i: number) => void) {
