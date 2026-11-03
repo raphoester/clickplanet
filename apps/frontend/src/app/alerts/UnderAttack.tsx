@@ -1,6 +1,7 @@
 import {useEffect, useRef} from "react"
 import {Countries} from "../../domain/countries.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
+import {quizShown, useQuiz} from "../quiz/quizStore.ts"
 import {DiscordIcon, TargetIcon} from "../components/icons.tsx"
 import {pingFailureOf, pingNameOf} from "./alertsMessages.ts"
 import {usePing} from "./usePing.ts"
@@ -13,12 +14,12 @@ export type UnderAttackProps = {
     flag: string
     connect?: () => Promise<void>
     goThere: () => void
-    lowered?: boolean
     onDone: () => void
 }
 
-export default function UnderAttack({flag, connect, goThere, lowered, onDone}: UnderAttackProps) {
+export default function UnderAttack({flag, connect, goThere, onDone}: UnderAttackProps) {
     const name = Countries.get(flag)?.name ?? flag
+    const lowered = useQuiz(quizShown)
 
     const done = useRef(onDone)
     useEffect(() => {

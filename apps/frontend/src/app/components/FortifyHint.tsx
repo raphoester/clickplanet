@@ -1,5 +1,6 @@
 import {useEffect, useRef} from 'react'
 import {CloseToFortify} from '../../domain/fortify.ts'
+import {quizShown, useQuiz} from '../quiz/quizStore.ts'
 import BonusIcon from './BonusIcon.tsx'
 import './BombNews.css'
 import './FortifyNews.css'
@@ -8,11 +9,12 @@ export const FORTIFY_HINT_MS = 4000
 
 export type FortifyHintProps = {
     close: CloseToFortify
-    lowered?: boolean
     onDone: () => void
 }
 
-export default function FortifyHint({close, lowered, onDone}: FortifyHintProps) {
+export default function FortifyHint({close, onDone}: FortifyHintProps) {
+    const lowered = useQuiz(quizShown)
+
     const done = useRef(onDone)
     useEffect(() => {
         done.current = onDone

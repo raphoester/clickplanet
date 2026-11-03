@@ -4,14 +4,8 @@ import {QuizOutcome, QuizQuestion, secondsLeft, timeLeft, untilNextSecond} from 
 import {now as budgetNow} from '../../backends/clickBudget.ts'
 import BonusIcon from '../components/BonusIcon.tsx'
 import {PlayIcon} from '../components/icons.tsx'
-import {QuizState} from './useQuiz.ts'
+import {useQuiz} from './quizStore.ts'
 import './Quiz.css'
-
-export type QuizProps = {
-    state: QuizState
-    onOpen: () => void
-    onAnswer: (choice: number) => void
-}
 
 const PRIZES: BonusReward["kind"][] = ["refill", "bomb", "spreadClicks", "encloseClicks", "shields"]
 
@@ -29,15 +23,20 @@ const CONFETTI: CSSProperties[] = Array.from({length: 14}, (_, index) => {
     } as CSSProperties
 })
 
-export default function Quiz({state, onOpen, onAnswer}: QuizProps) {
+export default function Quiz() {
+    const state = useQuiz((quiz) => quiz.state)
+    const open = useQuiz((quiz) => quiz.open)
+    const answer = useQuiz((quiz) => quiz.answer)
+
     switch (state.phase) {
         case 'idle':
             return null
         case 'offered':
         case 'opening':
-            return <Banner working={state.phase === 'opening'} onOpen={onOpen}/>
+            return <Banner working={state.phase === 'opening'} onOpen={open}/>
         case 'asking':
-            return <Question key={state.token} question={state.question} onAnswer={onAnswer}/>
+        case 'answering':
+            return <Question key={state.token} question={state.question} onAnswer={answer}/>
         case 'answered':
             return <Result question={state.question} outcome={state.outcome} chosen={state.chosen}/>
     }

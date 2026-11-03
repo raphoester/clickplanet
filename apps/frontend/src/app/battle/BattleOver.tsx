@@ -1,15 +1,17 @@
 import {useEffect, useRef, useState} from "react"
 import {BATTLE_OVER_MS} from "../../domain/battle.ts"
 import {SwordsIcon} from "../components/icons.tsx"
+import {quizShown, useQuiz} from "../quiz/quizStore.ts"
 import "./Battle.css"
 
 export type BattleOverProps = {
     awaiting: boolean
-    lowered?: boolean
     onDone: () => void
 }
 
-export default function BattleOver({awaiting, lowered, onDone}: BattleOverProps) {
+export default function BattleOver({awaiting, onDone}: BattleOverProps) {
+    const lowered = useQuiz(quizShown)
+
     const done = useRef(onDone)
     useEffect(() => {
         done.current = onDone

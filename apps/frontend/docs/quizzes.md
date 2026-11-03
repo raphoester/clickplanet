@@ -4,13 +4,21 @@ A banner at the top of the screen: press it and you get a question with three
 choices and **a short clock**. A right answer is worth a charge, the same as a
 caught box; a wrong one, and running out of time, cost nothing.
 
-`src/app/quiz/` is the whole of it — `useQuiz.ts` drives, `Quiz.tsx` draws,
-`Quiz.css` styles — plus `domain/quiz.ts` for the shapes and the two pieces of
-arithmetic a countdown needs. The backend half is `QuizMaster` in
-`backends/backend.ts`.
+`src/app/quiz/` is the whole of it — `quizStore.ts` holds the state and its
+verbs, `useQuizMaster.ts` links it to the backend, `Quiz.tsx` draws, `Quiz.css`
+styles — plus `domain/quiz.ts` for the shapes and the two pieces of arithmetic a
+countdown needs. The backend half is `QuizMaster` in `backends/backend.ts`.
+
+**The state is a [store](stores.md), `useQuiz`.** `Quiz` reads the state and
+calls `open` and `answer` itself. `Viewer` calls
+`useQuizMaster(quizMaster, country, play)` and does not read the state. Only
+the sign-in nudge it runs reads whether a quiz shows, so `Viewer` renders again
+when a quiz comes and when it goes, not at each phase. The hook gives the store
+its link (the backend, the flag played and the sound player) and subscribes to
+the feed; a new flag or player changes the link and does not subscribe again.
 
 **It never touches `globe.ts`.** A quiz is DOM at the top of the screen, not an
-object in the scene, so `useQuiz` subscribes to the feed itself rather than
+object in the scene, so `useQuizMaster` subscribes to the feed itself rather than
 being handed offers down through the globe the way a flying box is. What a right
 answer wins reaches the inventory the way every other charge does: the backend
 holds the charges and tells whoever is listening.
@@ -25,12 +33,13 @@ the first thing that says which of the three was right.
 **One state machine, `QuizState`:**
 
 ```
-idle → offered → opening → asking → answered → idle
+idle → offered → opening → asking → answering → answered → idle
 ```
 
 Each phase is a different thing on screen *and* a different thing to a player:
 `offered` is an invitation that costs nothing to ignore, `asking` is a clock
-already running. Anything that goes wrong — a token the server will not honour, a
+already running, `answering` is a pick on its way to the server, which takes no
+second answer. Anything that goes wrong — a token the server will not honour, a
 stream that dropped — falls back to `idle`, because a quiz nobody can answer
 should leave nothing behind. **The token rides through the state** rather than
 sitting beside it, so there is no way to answer one quiz with another's token
@@ -83,9 +92,12 @@ It draws the three choices again where they were, the right one green and a
 wrong pick red, **as list items and not buttons**: nothing on the result can be
 pressed, so nothing on it reacts to the pointer.
 
-**The quiz and `BombNews` both want the band at the top**, and the bomb line is
-the one that gives it up (`lowered`): four seconds of news nobody presses moves,
-a question somebody is answering does not.
+**The quiz and the lines of news all want the band at the top**, and the news
+gives it up: `BombNews`, `FortifyNews`, `FortifyHint`, `UnderAttack`,
+`BattleOver` and `ConnectionLost` each read `quizShown` from the store and move
+down under the quiz while it shows (`--lowered`). Four seconds of news nobody
+presses moves, a question somebody is answering does not. The sign-in nudge reads
+it too, so it never opens over a quiz.
 
 **Three sounds, one switch.** `quiz` when the banner arrives (the same reason
 `bonusSpawn` exists: it is at the top of the screen and the player is looking at
@@ -98,9 +110,6 @@ when the switch is turned on.
 `quizWrong` is gentle on purpose, and rounder and higher than `refused`: a wrong
 answer costs nothing, so it says "ah well" rather than "no". A sound that
 punished a guess would make guessing feel expensive when it is free.
-
-`useQuiz` takes the player and holds it in a ref, so a settings toggle does not
-resubscribe the feed; it is optional, and a page with no sound wired still works.
 
 `giveQuiz()` in the console puts one up at once against the fake backend, beside
 `giveBomb()` and `giveBonus()`. The fake's bank is three questions — it is there
