@@ -54,34 +54,6 @@ On the console and admin listeners, as every operator tool (see [Operator tools]
   link. A role Discord would not take off keeps the link (`FailedPrecondition`). Unlinked, the game offers that account
   to join again, and its next Discord sign-in joins it again: this is how the offer is tried. Players cannot unlink
   themselves; leaving the server is how they stop the pings.
-- **`LinkMembers()`**: links the players already in the server who have no link (`link_members_usecase`), and counts
-  them. See below.
-
-### The players a sign-in never joined (`LinkMembers`)
-
-**A Discord account with no link is in one of two places.** The players who signed in with Discord before the
-sign-in asked `guilds.join` (before the alerts, November 2026), or whose join failed, have a Discord identity in
-`auth` and no link here. Some of them joined the server by the plain invite; the others never did.
-
-- **In the server already: the bot links them, with no action of theirs.** `LinkMembers` asks `auth` every account
-  signed in with Discord (`auth.v1.InternalService/GetDiscordUsers`, 100 a page, in account order, an account asked
-  deleted left out), and for each one with no link asks Discord whether its user is in the server
-  (`GET /guilds/{guild}/members/{user}`, which needs no privileged intent). A member is granted its flag's role and
-  linked, as `JoinServer` would; one that never pledged is linked with no role.
-- **Not in the server: only its own sign-in can add it.** Discord adds a user to a server only with that user's own
-  token holding `guilds.join`; the old sign-ins never asked for it, and a token is never kept. The bot cannot write
-  to them either, since it shares no server with them. The game already offers them the way in: an account not
-  linked sees "Join Discord" in the chat's Discord bar and "Get pinged" when its flag is attacked, and that Discord
-  sign-in, a link of the identity it holds already, joins the server (see [Auth](auth.md)). `LinkMembers` counts them
-  (`outside`) and changes nothing.
-- **A second run links nobody twice**: an account linked already is skipped before Discord is asked, and a user linked
-  from another account is never moved. The ones outside are asked again: they may have joined since. **An account
-  the operator unlinked, still in the server, is linked again**: unlinking stops nothing once a run follows.
-- **One account that fails does not stop the others**: it is counted (`failed`) and logged with its reason
-  (`log_link_members`), and a run again tries it. The run stops only when `auth` does not answer or the call is cut
-  short. It is sequential: a few hundred accounts take a minute or two, within the backoffice's long timeout.
-- **It is an operator's run**, from the backoffice's Ops page ("Link Discord members"), not a boot runner: a boot that
-  linked every member would undo each unlink an operator made to try the offer.
 
 ## The roles (`roles/`)
 
@@ -132,13 +104,11 @@ posts the text and pings nobody.
 
 ## The Discord client (`discord/rest_discord`)
 
-The bot (`Authorization: Bot …`) on API v10: members (`Join`, `IsMember`, `Grant`, `Revoke`), roles and posts. The
-OAuth trade is `auth`'s. A `4xx` is `discord.ErrRefused` (`ErrNotMember` for `10007`, `ErrNoRole` for `10011`), a `5xx`
-a plain error that a subscriber tries again. **A `429` whose `Retry-After` is 5 s or less is waited out and sent
-again, twice at most**, so a run of `LinkMembers` rides Discord's per-route limit; a longer wait, or none named, is a
-plain error, tried again by its caller as before. The bot needs **Manage Roles**, **Create Instant Invite** (to add a
-member), **View Channels**, **Send Messages** and **Mention @everyone, @here, and All Roles**; the setup is in
-`deploy/vps/README.md`, "Discord pings".
+The bot (`Authorization: Bot …`) on API v10: members, roles and posts. The OAuth trade is `auth`'s. A `4xx` is
+`discord.ErrRefused` (`ErrNotMember` for `10007`, `ErrNoRole` for `10011`), a `429` or a `5xx` a plain error that a
+subscriber tries again. The bot needs **Manage Roles**, **Create Instant Invite** (to add a member), **View
+Channels**, **Send Messages** and **Mention @everyone, @here, and All Roles**; the setup is in `deploy/vps/README.md`,
+"Discord pings".
 
 ## Config
 

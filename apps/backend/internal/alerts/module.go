@@ -12,7 +12,6 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/alerts/v1/alertsv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_discord_link_handler"
@@ -20,18 +19,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_player_link_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_player_link_handler/player_link_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/join_server_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/link_members_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/unlink_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord/rest_discord"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/postgres_link_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/rpc_auth_discord_accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/rpc_planet_allegiance"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/follow_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/forget_link_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/join_server_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/link_members_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/link_members_usecase/log_link_members"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/unlink_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
@@ -73,12 +68,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the alerts module asks the planet module the flag a player pledged, and auth who signed in "+
-			"with Discord: %w", err)
+		return fmt.Errorf("the alerts module asks the planet module the flag a player pledged: %w", err)
 	}
 	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
-	auth := authv1connect.NewInternalServiceClient(internal, baseURL)
-	allegiances := rpc_planet_allegiance.New(planet)
 
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
@@ -155,7 +147,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internalService := alertsv1controller.InternalService{
 		JoinServerHandler: join_server_handler.New(
-			join_server_usecase.New(clock, linkStore, server, allegiances, book)),
+			join_server_usecase.New(clock, linkStore, server, rpc_planet_allegiance.New(planet), book)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return alertsv1connect.NewInternalServiceHandler(internalService, options...)
@@ -166,8 +158,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	adminService := alertsv1controller.AdminService{
 		GetPlayerLinkHandler: get_player_link_handler.New(player_link_query.NewPostgresQuery(db)),
 		UnlinkPlayerHandler:  unlink_player_handler.New(unlink_player_usecase.New(linkStore, book, server)),
-		LinkMembersHandler: link_members_handler.New(log_link_members.New(link_members_usecase.New(
-			clock, linkStore, rpc_auth_discord_accounts.New(auth), server, allegiances, book), props.Logger)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return alertsv1connect.NewAdminServiceHandler(adminService, options...)

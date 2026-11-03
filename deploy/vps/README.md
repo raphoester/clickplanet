@@ -551,22 +551,6 @@ secret or id refuses the boot, so set the secret (step 1) before you merge.
    `Missing Permissions` (50013) means a permission from step 2 is missing, or a role the bot must give is above the
    bot's own role.
 
-#### The players who signed in with Discord before the alerts
-
-Their sign-in never asked to join the server, so they have no role and get no pings. Once the backend runs with the
-alerts on, open the backoffice: **Ops** > **Link Discord members** > **Link Discord members** > **Yes**. Each of them
-already in the server (by the invite) gets their flag's role, with nothing to do on their side. The answer also says
-how many are not in the server: Discord lets nobody add them but themselves, and the game shows them **Join
-Discord** in the chat's Discord bar, one press and one **Authorize**. Run it again any time: it links nobody twice,
-but it does link again an account you unlinked to try the offer, if it is still in the server. Over SSH instead:
-
-```bash
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/alerts.v1.AdminService/LinkMembers
-```
-
-The answer is `{"linked":N,"outside":M,"failed":F}` (a count of 0 is left out). A `failed` one is in the log above
-with its reason (`failed to link a Discord member`).
-
 #### A server set up before the one connection (November 2026)
 
 1. Give the bot's role the new permission: **Server Settings** > **Roles** > the role with the application's name >

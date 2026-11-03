@@ -31,9 +31,8 @@ src/
   map/              Reassign a country, Paint random tiles, Download a replay
   clips/            Clip stats: ClipStatsPage, actions.ts (the CSV's file), table.ts (its columns)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)
-  ops/              Reconcile titles, Link Discord members (discordMembers.ts, its words), Game rules, Anti-bot rules (a
-                    form read off the proto), Rule schedule, Seasons, Timeline; cutoff.ts (the daily cutoff: when days
-                    end, a battle off it)
+  ops/              Reconcile titles, Game rules, Anti-bot rules (a form read off the proto), Rule schedule, Seasons,
+                    Timeline; cutoff.ts (the daily cutoff: when days end, a battle off it)
   gen/grpc/         generated from ../../proto, committed
   gen/map/          the tile coordinates, copied from ../../map, committed
 ```

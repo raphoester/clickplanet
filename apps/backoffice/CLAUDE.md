@@ -33,8 +33,8 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of the posted clips, and a CSV of them.
 - [Videos](docs/videos.md) — the season-end videos: uploaded from the Mac, downloaded with their caption on a phone.
 - [Ops](docs/ops.md) — the Timeline: what the gamemaster does next, drawn from its reads; `ReconcileTitles`, after a
-  deploy; Link Discord members, the players in the Discord server no sign-in linked; Game rules: planet's sets, made
-  and edited; the antibot's rule sets, in a form read off the proto; both show what a save changes; the rule schedule:
-  which set plays when, a battle's points' times, entries to come added and changed, and each season's Final Battle
-  among them; the seasons: picked by their start and end times, with their Final Battles, added, moved and deleted;
-  every time in the operator's own zone, and what the server will refuse in red as it is typed.
+  deploy; Game rules: planet's sets, made and edited; the antibot's rule sets, in a form read off the proto; both show
+  what a save changes; the rule schedule: which set plays when, a battle's points' times, entries to come added and
+  changed, and each season's Final Battle among them; the seasons: picked by their start and end times, with their
+  Final Battles, added, moved and deleted; every time in the operator's own zone, and what the server will refuse in
+  red as it is typed.

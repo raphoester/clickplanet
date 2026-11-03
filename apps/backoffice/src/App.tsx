@@ -11,7 +11,6 @@ import {ClipStatsPage} from "./clips/ClipStatsPage.tsx"
 import {OpenPlayer, Opened, PageId, titleOf} from "./navigation.ts"
 import {RulesPanel} from "./ops/RulesPanel.tsx"
 import {AntibotRulesPanel} from "./ops/AntibotRulesPanel.tsx"
-import {DiscordMembersPanel} from "./ops/DiscordMembersPanel.tsx"
 import {SchedulePanel} from "./ops/SchedulePanel.tsx"
 import {SeasonsPanel} from "./ops/SeasonsPanel.tsx"
 import {TimelinePanel} from "./ops/TimelinePanel.tsx"
@@ -102,7 +101,6 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "clips" && <ClipStatsPage clips={CLIENTS.clips}/>}
                 {page === "videos" && <VideosPage clips={CLIENTS.clips}/>}
                 {page === "titles" && <TitlesPanel player={CLIENTS.player}/>}
-                {page === "discord" && <DiscordMembersPanel alerts={CLIENTS.alerts}/>}
                 {page === "rules" && <RulesPanel planet={CLIENTS.planet}/>}
                 {page === "antibotRules" && <AntibotRulesPanel antibot={CLIENTS.antibot}/>}
                 {page === "schedule" && (
