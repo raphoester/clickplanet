@@ -95,6 +95,8 @@ const root = createRoot(document.getElementById('root')!)
 
 // Planet hears player's PlayerCreated over Redis, and player's outbox sends once a second.
 const FAKE_GRANT_LANDS_MS = 1_200
+// Alerts hears auth's DiscordJoinGranted over Redis, auth's outbox sends once a second, then alerts asks Discord.
+const FAKE_JOIN_LANDS_MS = 1_500
 
 // Discord's sign-in leaves for Discord and comes back on clickplanet.lol, out of CrazyGames' frame and its carried
 // session: and CrazyGames allows no sign-in but its own.
@@ -129,7 +131,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         leavers: crazyGames && localLeaverStore(),
     })
     followCrazyGames(crazyGames, account)
-    const alerts = discordAlertsOf(new FakeAlertsBackend(async () => (await fakeAccount.me()).linked.length > 0), account)
+    const alerts = discordAlertsOf(
+        new FakeAlertsBackend(async () => (await fakeAccount.me()).linked.length > 0, FAKE_JOIN_LANDS_MS), account)
     const fakeClips = new FakeClipsBackend()
     const fakeMissions = new FakeMissionsBackend((kind) => {
         if (kind === "bomb") fake.grantBomb()

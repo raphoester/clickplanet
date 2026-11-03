@@ -16,6 +16,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_arrival_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/open_attester"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/inmemory_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_email_sign_in_usecase"
@@ -62,7 +64,8 @@ func (f *fixture) challenges(offered bool) *signin.Challenges {
 
 func (f *fixture) useCase(offered bool) *complete_email_sign_in_usecase.UseCase {
 	register := arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{})
-	admitter := signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, register, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
+	admitter := signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, register,
+		grants.NewRegister(inmemory_grant_store.New(), &grants.SequentialIDs{}), &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 	return complete_email_sign_in_usecase.New(f.challenges(offered), admitter, f.clock)
 }
 

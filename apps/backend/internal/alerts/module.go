@@ -12,17 +12,18 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/alerts/v1/alertsv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_discord_link_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_discord_link_handler/link_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_player_link_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_player_link_handler/player_link_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/join_server_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/unlink_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord/rest_discord"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/postgres_link_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/rpc_auth_grants"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/rpc_planet_allegiance"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/follow_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/forget_link_usecase"
@@ -39,6 +40,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/allegiance_pledged_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/battle_started_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/discord_join_granted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/season_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/tile_taken_subscriber"
@@ -68,9 +70,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the alerts module asks the planet module the flag a player pledged: %w", err)
+		return fmt.Errorf("the alerts module asks the planet module the flag a player pledged, and the auth module "+
+			"what a Discord sign-in joins with: %w", err)
 	}
 	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
+	auth := authv1connect.NewInternalServiceClient(internal, baseURL)
 
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
@@ -120,6 +124,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			return cpredis.Subscribe(ctx, streams, "alerts-accounts", log_subscriber.New(account_deleted_subscriber.New(
 				forget_link_usecase.New(linkStore)), props.Logger))
 		},
+		func() (cpbootstrap.Runner, error) {
+			return cpredis.Subscribe(ctx, streams, "alerts-joins", log_subscriber.New(discord_join_granted_subscriber.New(
+				rpc_auth_grants.New(auth),
+				join_server_usecase.New(clock, linkStore, server, rpc_planet_allegiance.New(planet), book),
+				props.Logger), props.Logger))
+		},
 	} {
 		subscription, err := subscribe()
 		if err != nil {
@@ -145,16 +155,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount alerts.v1.AlertsService: %w", err)
 	}
 
-	internalService := alertsv1controller.InternalService{
-		JoinServerHandler: join_server_handler.New(
-			join_server_usecase.New(clock, linkStore, server, rpc_planet_allegiance.New(planet), book)),
-	}
-	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
-		return alertsv1connect.NewInternalServiceHandler(internalService, options...)
-	}); err != nil {
-		return fmt.Errorf("failed to mount alerts.v1.InternalService: %w", err)
-	}
-
 	adminService := alertsv1controller.AdminService{
 		GetPlayerLinkHandler: get_player_link_handler.New(player_link_query.NewPostgresQuery(db)),
 		UnlinkPlayerHandler:  unlink_player_handler.New(unlink_player_usecase.New(linkStore, book, server)),
@@ -173,7 +173,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 type Config struct {
 	// Off, the service is not served: the game offers no link, a Discord sign-in joins no server, and nobody is
-	// pinged.
+	// pinged. Keep auth.discord.joinServer off with it: nobody would hear the grants auth tells.
 	Enabled bool
 
 	Database cppg.Config

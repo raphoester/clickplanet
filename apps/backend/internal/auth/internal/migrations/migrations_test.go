@@ -58,3 +58,12 @@ func TestNoAccountKeptBeforeTheFlagIsAnOperator(t *testing.T) {
 	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT operator FROM accounts WHERE id = $1`, account).Scan(&operator))
 	assert.False(t, operator)
 }
+
+func TestTheOutboxKeepsADiscordJoinGranted(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "auth", migrations.FS)
+
+	_, err := db.On(t.Context()).ExecContext(t.Context(),
+		`INSERT INTO outbox (event, payload) VALUES ('auth.v1.DiscordJoinGranted', '')`)
+
+	require.NoError(t, err)
+}

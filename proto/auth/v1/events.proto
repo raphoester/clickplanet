@@ -36,3 +36,13 @@ message SignedIn {
 message SignedOut {
   string account_id = 1;
 }
+
+// A Discord sign-in or link just gave leave to add this Discord user to the game's Discord server (scope guilds.join).
+// Auth keeps that leave, sealed, for ten minutes: InternalService/GetDiscordGrant answers it by grant_id. The token is
+// never in an event.
+message DiscordJoinGranted {
+  string grant_id = 1;
+  string account_id = 2;
+  string discord_user_id = 3;
+  google.protobuf.Timestamp granted_at = 4;
+}

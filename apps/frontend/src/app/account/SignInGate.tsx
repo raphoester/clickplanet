@@ -27,7 +27,7 @@ export default function SignInGate(props: SignInGateProps) {
     return <SignInCallback
         callback={props.callback}
         provider={remembered?.provider}
-        complete={(code, state) => account.completeSignIn(code, state)}
+        complete={(code, state) => account.completeSignIn(code, state, remembered?.provider)}
         startAgain={remembered && (() => account.leaveFor(remembered.provider, remembered.intent))}
         onDone={onDone}/>
 }

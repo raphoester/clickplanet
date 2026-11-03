@@ -19,6 +19,10 @@ internal/auth/internal/
     postgres_arrival_store/  inmemory_arrival_store/  uuid_id_provider/
     usecases/anonymize_arrivals_usecase/   blanks the account of a deleted account's arrival
   subscribers/                             auth's own AccountDeleted, for the arrivals
+  grants/                                  Grant (Snapshot), Lifetime, Register (a grant drawn and kept with a Discord sign-in); the Store and Sealer ports
+    postgres_grant_store/  inmemory_grant_store/  aes_grant_sealer/  uuid_id_provider/
+    usecases/live_grant_usecase/           a grant while it lives, for GetDiscordGrant
+    usecases/prune_grants_usecase/         deletes the expired grants: Executor, Runner, and log_prune_grants
   signin/                                  Flow (state, PKCE verifier, nonce, intent), Provider, Providers, Offer, Sealer, the cp_oauth cookie;
                                            Admitter (signs a proven identity in, for both paths); LinkTarget;
                                            Address, Challenge, Challenges, Post, Letter, the cp_email cookie
@@ -36,6 +40,7 @@ internal/auth/internal/
     get_account_handler/account_query/     PostgresQuery: GetAccountResponse, for another module
     get_accounts_handler/accounts_query/   PostgresQuery: GetAccountsResponse, a page at once
     get_operator_handler/operator_query/   PostgresQuery: GetOperatorResponse, the cp_admin cookie's live session if it operates
+    get_discord_grant_handler/             GetDiscordGrant, for the alerts module: a grant's token, through live_grant_usecase
   adminsignin/                             the admin page's sign-in: Candidate, Session (Snapshot), Issuer, the cookies, the Store port
     postgres_admin_session_store/          the Store over identities, accounts and admin_sessions
     usecases/start_admin_sign_in_usecase/  complete_admin_sign_in_usecase/  sign_out_admin_usecase/
@@ -90,14 +95,27 @@ internal/auth/internal/
 - **The client mints again after `CompleteSignIn`**, so its click token carries the account. The old token names the old account until it expires (1h).
 - **`CompleteSignIn` publishes `auth.v1.SignedIn`** once the sign-in is saved: the account the browser was on, empty for none, the one it is on now, and the identity's name, empty but for CrazyGames. A refusal publishes nothing. `player` moves the roster line, since the client holds no token to announce with until its next click.
 - **A Discord sign-in joins the game's Discord server** when `auth.discord.joinServer` is on: one consent, one trip,
-  so "Sign in with Discord" and "Join Discord" are the same thing for a player. Once the sign-in is saved, whatever its
-  outcome (a link of an identity the account holds already too), `complete_sign_in_usecase` hands the account, the
-  Discord user and the token to `signin.Server`, whose `rpc_alerts_server` asks
-  `alerts.v1.InternalService/JoinServer` (see [Discord pings](alerts.md)). The token is in the claim
-  (`Claim.WithServerToken`) and nowhere else: never kept, never in an event. **The join never fails the sign-in**:
-  the port returns nothing, and the adapter logs a failure (without the token); the alerts module off answers 404,
-  which is no server to join. The join waits 5 s at most, well under the page's 10 s for `CompleteSignIn`, whose answer
-  carries the session cookie: a slow Discord costs the join, never the sign-in. A refused sign-in joins nobody. Off, `signin.NoServer` and the plain scope.
+  so "Sign in with Discord" and "Join Discord" are the same thing for a player. Whatever its outcome (a link of an
+  identity the account holds already too), `signin.Admitter` keeps the leave it gave, a `grants.Grant` (the account,
+  the Discord user and the access token), and records **`auth.v1.DiscordJoinGranted`** (the grant's id, the account,
+  the user, when), both in the transaction that saves the sign-in. The alerts module hears it and asks for the token
+  by the grant's id (see [Discord pings](alerts.md)). Auth names no module: it called alerts before, inside
+  `CompleteSignIn`, and the two called each other. A refused sign-in grants nothing; off, the plain scope and no grant.
+- **The token is kept sealed for ten minutes, and is never in an event** (`grants.Lifetime`): Redis keeps an event,
+  `events:dead` keeps a buried one, and any module may subscribe. Ten minutes covers the bus's four of tries again.
+  The claim carries it from the trade (`Claim.WithServerToken`) to the grant. `discord_grants` keeps it AES-256-GCM
+  (`aes_grant_sealer`), under a key derived with HKDF from `auth.secret` and a label of its own, with the grant's id
+  as the additional data, so a token moved to another row does not open. A grant goes with its account (cascade).
+- **A grant that cannot be kept fails the sign-in**, as any write of it does: one transaction. Joining never does:
+  the sign-in is saved before alerts hears of it.
+- **`InternalService/GetDiscordGrant(grant_id)`** answers the account, the Discord user and the token of a grant that
+  lives (`live_grant_usecase`, `Grant.ExpiryError`), and `NotFound` for an id that names none or one past its ten
+  minutes. It is `NO_SIDE_EFFECTS` and deletes nothing, so a join tried again reads it again. It reads through the
+  store, not a query of its own: only the store opens the token. Served on the internal listener alone, like every
+  `InternalService`.
+- **`prune_grants_usecase`** deletes the grants past their lifetime every ten minutes, 1000 a statement
+  (`PruneGrants`); nothing else keeps one, so nothing is told. `log_prune_grants` logs a failure, not a prune: every
+  grant ends there.
 - `auth.NewModuleWithFakeProviders` (behind the tag) boots the module with `signin.FakeProvider` for every provider: `Grant(code, claim)`, and the fake checks the verifier against the challenge it was shown. The smoke tests in `e2e/` link Google with it.
 
 ## Signing in by email (`internal/auth/internal/signin/`)

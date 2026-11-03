@@ -12,6 +12,12 @@ service InternalService {
 
   // Unauthenticated with no live session in the cookie, PermissionDenied for an account that does not operate.
   rpc GetOperator(GetOperatorRequest) returns (GetOperatorResponse);
+
+  // The leave a Discord sign-in gave, which DiscordJoinGranted names, while auth keeps it: ten minutes. NotFound for a
+  // grant it does not keep, or keeps no more. Reading it changes nothing, so a join tried again reads it again.
+  rpc GetDiscordGrant(GetDiscordGrantRequest) returns (GetDiscordGrantResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetVerifyingKeyRequest {}
@@ -49,4 +55,16 @@ message GetOperatorRequest {
 
 message GetOperatorResponse {
   string account_id = 1;
+}
+
+message GetDiscordGrantRequest {
+  string grant_id = 1;
+}
+
+message GetDiscordGrantResponse {
+  string account_id = 1;
+  string discord_user_id = 2;
+  // A Discord access token with the scope guilds.join: it adds the user to the game's server. The caller keeps it
+  // for that call alone.
+  string access_token = 3;
 }

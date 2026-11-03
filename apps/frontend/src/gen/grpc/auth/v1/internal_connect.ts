@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetOperatorRequest, GetOperatorResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
+import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetDiscordGrantRequest, GetDiscordGrantResponse, GetOperatorRequest, GetOperatorResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -50,6 +50,19 @@ export const InternalService = {
       I: GetOperatorRequest,
       O: GetOperatorResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * The leave a Discord sign-in gave, which DiscordJoinGranted names, while auth keeps it: ten minutes. NotFound for a
+     * grant it does not keep, or keeps no more. Reading it changes nothing, so a join tried again reads it again.
+     *
+     * @generated from rpc auth.v1.InternalService.GetDiscordGrant
+     */
+    getDiscordGrant: {
+      name: "GetDiscordGrant",
+      I: GetDiscordGrantRequest,
+      O: GetDiscordGrantResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

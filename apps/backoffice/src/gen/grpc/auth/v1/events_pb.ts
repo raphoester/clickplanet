@@ -226,3 +226,62 @@ export class SignedOut extends Message<SignedOut> {
   }
 }
 
+/**
+ * A Discord sign-in or link just gave leave to add this Discord user to the game's Discord server (scope guilds.join).
+ * Auth keeps that leave, sealed, for ten minutes: InternalService/GetDiscordGrant answers it by grant_id. The token is
+ * never in an event.
+ *
+ * @generated from message auth.v1.DiscordJoinGranted
+ */
+export class DiscordJoinGranted extends Message<DiscordJoinGranted> {
+  /**
+   * @generated from field: string grant_id = 1;
+   */
+  grantId = "";
+
+  /**
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string discord_user_id = 3;
+   */
+  discordUserId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp granted_at = 4;
+   */
+  grantedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<DiscordJoinGranted>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.DiscordJoinGranted";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "grant_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "discord_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "granted_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DiscordJoinGranted {
+    return new DiscordJoinGranted().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DiscordJoinGranted {
+    return new DiscordJoinGranted().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DiscordJoinGranted {
+    return new DiscordJoinGranted().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DiscordJoinGranted | PlainMessage<DiscordJoinGranted> | undefined, b: DiscordJoinGranted | PlainMessage<DiscordJoinGranted> | undefined): boolean {
+    return proto3.util.equals(DiscordJoinGranted, a, b);
+  }
+}
+

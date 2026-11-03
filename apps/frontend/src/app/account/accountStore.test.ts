@@ -346,6 +346,29 @@ describe("AccountStore", () => {
             expect(store.state()).not.toHaveProperty("restored", true)
         })
 
+        it("marks a Discord sign-in, which joins the server a moment after it comes back", async () => {
+            const backend = fakeBackend()
+            backend.completeSignIn.mockResolvedValue("signedIn")
+            backend.me.mockImplementation(async () => ({linked: ["discord"]}))
+            const {store} = setup(backend)
+
+            await store.completeSignIn("code", "state", "discord")
+
+            expect(store.state()).toMatchObject({kind: "ready", me: {linked: ["discord"]}, joiningDiscord: true})
+        })
+
+        it("marks no other provider's sign-in, nor one whose provider was forgotten, as Discord's", async () => {
+            for (const provider of ["google", undefined] as const) {
+                const backend = fakeBackend()
+                backend.me.mockImplementation(async () => ({linked: ["google"]}))
+                const {store} = setup(backend)
+
+                await store.completeSignIn("code", "state", provider)
+
+                expect(store.state(), provider).not.toHaveProperty("joiningDiscord")
+            }
+        })
+
         it("marks no other sign-in as one that brought an account back", async () => {
             for (const outcome of ["linked", "signedIn", "created"] as const) {
                 const backend = fakeBackend()

@@ -50,6 +50,8 @@ export type AccountState =
         guestLinked?: true
         // This browser's sign-in brought back an account its player had asked to delete, until the player is told.
         restored?: true
+        // This browser's sign-in was Discord's, which joins the game's Discord server a moment after it comes back.
+        joiningDiscord?: true
     }
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -189,18 +191,22 @@ export class AccountStore {
         this.options.navigate(url)
     }
 
-    public async completeSignIn(code: string, state: string): Promise<void> {
-        await this.signedIn(await this.backend.completeSignIn(code, state))
+    // provider: the one the browser left for, when it is remembered.
+    public async completeSignIn(code: string, state: string, provider?: OAuthProvider): Promise<void> {
+        await this.signedIn(await this.backend.completeSignIn(code, state), provider)
     }
 
-    private async signedIn(outcome: SignInOutcome): Promise<void> {
+    private async signedIn(outcome: SignInOutcome, provider?: OAuthProvider): Promise<void> {
         this.session.invalidate()
         await this.load()
 
         const ready = this.current
         if (ready.kind !== "ready") return
-        if (outcome === "linked" && ready.me.linked.length === 1) this.set({...ready, guestLinked: true})
-        if (outcome === "restored") this.set({...ready, restored: true})
+        const marked: Ready = {...ready}
+        if (outcome === "linked" && ready.me.linked.length === 1) marked.guestLinked = true
+        if (outcome === "restored") marked.restored = true
+        if (provider === "discord") marked.joiningDiscord = true
+        if (marked.guestLinked || marked.restored || marked.joiningDiscord) this.set(marked)
     }
 
     public welcomedBack(): void {

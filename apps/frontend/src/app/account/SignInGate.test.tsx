@@ -21,7 +21,7 @@ function setup() {
         </SignInGate>
     </StrictMode>)
 
-    return {completeSignIn}
+    return {completeSignIn, account}
 }
 
 beforeEach(() => window.sessionStorage.clear())
@@ -39,5 +39,23 @@ describe("SignInGate", () => {
         expect(await screen.findByText("the game")).toBeDefined()
         expect(completeSignIn).toHaveBeenCalledTimes(1)
         expect(completeSignIn).toHaveBeenCalledWith("abc", "xyz")
+    })
+
+    it("tells the account the sign-in was Discord's, which joins the server a moment later", async () => {
+        rememberSignIn("discord", "link")
+
+        const {account} = setup()
+
+        expect(await screen.findByText("the game")).toBeDefined()
+        expect(account.state()).toMatchObject({kind: "ready", joiningDiscord: true})
+    })
+
+    it("tells no other provider's sign-in as Discord's", async () => {
+        rememberSignIn("google", "signIn")
+
+        const {account} = setup()
+
+        expect(await screen.findByText("the game")).toBeDefined()
+        expect(account.state()).not.toHaveProperty("joiningDiscord")
     })
 })

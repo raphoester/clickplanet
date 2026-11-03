@@ -12,7 +12,6 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/alerts/v1/alertsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1/sessionv1connect"
 
@@ -56,6 +55,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_account_handler/account_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler/accounts_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_discord_grant_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler/me_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_operator_handler"
@@ -68,6 +68,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/who_am_i_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/aes_grant_sealer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/postgres_grant_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/usecases/live_grant_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/usecases/prune_grants_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/usecases/prune_grants_usecase/log_prune_grants"
+	grant_ids "github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionheader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionv1controller"
@@ -81,7 +88,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/log_mailer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/random_code_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/random_secret_generator"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/rpc_alerts_server"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_crazygames_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_sign_in_usecase"
@@ -121,18 +127,6 @@ func NewModule(config Config) cpbootstrap.Module {
 }
 
 const providerTimeout = 10 * time.Second
-
-// The alerts module keeps the server: a Discord sign-in hands it the token that may join, over the internal listener.
-func discordServer(config DiscordConfig, props cpbootstrap.Props) (signin.Server, error) {
-	if !config.JoinServer {
-		return signin.NoServer{}, nil
-	}
-	internal, baseURL, err := props.Internal.Dial()
-	if err != nil {
-		return nil, fmt.Errorf("the auth module asks the alerts module to join a Discord sign-in to the server: %w", err)
-	}
-	return rpc_alerts_server.New(alertsv1connect.NewInternalServiceClient(internal, baseURL), props.Logger), nil
-}
 
 func newProviders(config Config) signin.Providers {
 	providers := signin.Providers{}
@@ -253,6 +247,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	if err != nil {
 		return fmt.Errorf("failed to build the sign-in cookie sealer: %w", err)
 	}
+	grantSealer, err := aes_grant_sealer.New(seed)
+	if err != nil {
+		return fmt.Errorf("failed to build the Discord grant sealer: %w", err)
+	}
+	grantStore := postgres_grant_store.New(db, grantSealer)
 
 	blocklist := embedded_disposable_domains.New()
 	if err := blocklist.Load(); err != nil {
@@ -266,12 +265,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	outbox := cpoutbox.New(db)
 	arrivalStore := postgres_arrival_store.New(db)
 	register := arrivals.NewRegister(arrivalStore, arrival_ids.Provider{})
-	admitter := signin.NewAdmitter(db, store, outbox, register, uuid_id_provider.Provider{}, random_token_generator.Generator{},
-		config.Sessions)
-	server, err := discordServer(config.Discord, props)
-	if err != nil {
-		return err
-	}
+	admitter := signin.NewAdmitter(db, store, outbox, register, grants.NewRegister(grantStore, grant_ids.Provider{}),
+		uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions)
 	challenges := signin.NewChallenges(config.Email.Enabled, random_secret_generator.Generator{}, mail.codes, sealer, attemptLimiter)
 	post := signin.NewPost(blocklist, sendLimiter, mail.mailer)
 
@@ -297,7 +292,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 			start_sign_in_usecase.New(providers, store, random_secret_generator.Generator{}, sealer, clock),
 		),
 		CompleteSignInHandler: complete_sign_in_handler.New(
-			complete_sign_in_usecase.New(providers, sealer, admitter, server, clock),
+			complete_sign_in_usecase.New(providers, sealer, admitter, clock),
 			props.Logger,
 		),
 		StartEmailSignInHandler: start_email_sign_in_handler.New(
@@ -321,6 +316,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		prune_guests_usecase.NewRunner(config.Prune, log_prune_guests.New(prune_guests_usecase.New(config.Prune, db, store, outbox, clock), props.Logger)),
 		purge_deletions_usecase.NewRunner(config.Deletion,
 			log_purge_deletions.New(purge_deletions_usecase.New(config.Deletion, db, store, outbox, clock), props.Logger)),
+		prune_grants_usecase.NewRunner(log_prune_grants.New(prune_grants_usecase.New(grantStore, clock), props.Logger)),
 		cpredis.CloseAfter(streams, props.Logger, cpoutbox.NewRelay("auth-outbox", db, streams, props.Logger), arrivalDeletions)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		path, handler := authv1connect.NewAuthServiceHandler(authService, options...)
@@ -336,6 +332,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		GetAccountHandler:      get_account_handler.New(account_query.NewPostgresQuery(db)),
 		GetAccountsHandler:     get_accounts_handler.New(accounts_query.NewPostgresQuery(db)),
 		GetOperatorHandler:     get_operator_handler.New(operators),
+		GetDiscordGrantHandler: get_discord_grant_handler.New(live_grant_usecase.New(grantStore, clock)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewInternalServiceHandler(internalService, options...)
@@ -436,7 +433,8 @@ type DiscordConfig struct {
 	signin.Client `koanf:",squash"`
 
 	// Every Discord sign-in also joins the game's Discord server, which the alerts module keeps: the player is pinged
-	// there. Discord asks the player for that leave (guilds.join) on the same page.
+	// there. Discord asks the player for that leave (guilds.join) on the same page, and auth keeps it, sealed, for the
+	// alerts module to join with (auth.v1.DiscordJoinGranted).
 	JoinServer bool
 }
 
