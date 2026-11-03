@@ -47,6 +47,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 
 - [Live chat](docs/chat.md) — the World and the flag's room, replies, removed messages, reactions, announcements,
   delivery, and what was missed.
+- [The front, for a first visit](docs/front-guide.md) — a browser's first visit opens on its own country, flies to
+  its flag's nearest fight once the tiles are read, and rings the tiles it can take, until it has taken 50.
 - [Who is playing](docs/who-is-playing.md) — the "Online · N" list beside the chat.
 - [Who holds a tile](docs/tile-holder.md) — a rest or a long press on a tile opens a card on its holder.
 - [A territory, from orbit](docs/territory-card.md) — zoomed out, the same gestures open a card on the territory

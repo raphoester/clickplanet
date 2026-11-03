@@ -71,6 +71,8 @@
 - `tilePeek.ts` — `TilePeek`, when a pointer asks about a spot, a tile or in orbit a
   landmass: a mouse resting on one, or a finger holding one still. `cardPlacement.ts`
   puts the card beside the pointer. See [Who holds a tile](tile-holder.md).
+- `neighbours.ts` — `Neighbours`, the tiles touching a tile, from the positions. `front.ts` — `Front`, the tiles a
+  flag can push into, kept as the owners change. See [The front, for a first visit](front-guide.md).
 - `flight.ts` — `territoryShotOf`, the shot a click in orbit flies to, and `flightAt`,
   the camera on the way. See [A territory, from orbit](territory-card.md).
 - `territory.ts` — what the territory card says: `rankHoldings`, `freeTilesOf`,
