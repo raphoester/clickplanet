@@ -351,3 +351,92 @@ export class GetOperatorResponse extends Message<GetOperatorResponse> {
   }
 }
 
+/**
+ * @generated from message auth.v1.GetDiscordGrantRequest
+ */
+export class GetDiscordGrantRequest extends Message<GetDiscordGrantRequest> {
+  /**
+   * @generated from field: string grant_id = 1;
+   */
+  grantId = "";
+
+  constructor(data?: PartialMessage<GetDiscordGrantRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.GetDiscordGrantRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "grant_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetDiscordGrantRequest {
+    return new GetDiscordGrantRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetDiscordGrantRequest {
+    return new GetDiscordGrantRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetDiscordGrantRequest {
+    return new GetDiscordGrantRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetDiscordGrantRequest | PlainMessage<GetDiscordGrantRequest> | undefined, b: GetDiscordGrantRequest | PlainMessage<GetDiscordGrantRequest> | undefined): boolean {
+    return proto3.util.equals(GetDiscordGrantRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.GetDiscordGrantResponse
+ */
+export class GetDiscordGrantResponse extends Message<GetDiscordGrantResponse> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string discord_user_id = 2;
+   */
+  discordUserId = "";
+
+  /**
+   * A Discord access token with the scope guilds.join: it adds the user to the game's server. The caller keeps it
+   * for that call alone.
+   *
+   * @generated from field: string access_token = 3;
+   */
+  accessToken = "";
+
+  constructor(data?: PartialMessage<GetDiscordGrantResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.GetDiscordGrantResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "discord_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "access_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetDiscordGrantResponse {
+    return new GetDiscordGrantResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetDiscordGrantResponse {
+    return new GetDiscordGrantResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetDiscordGrantResponse {
+    return new GetDiscordGrantResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetDiscordGrantResponse | PlainMessage<GetDiscordGrantResponse> | undefined, b: GetDiscordGrantResponse | PlainMessage<GetDiscordGrantResponse> | undefined): boolean {
+    return proto3.util.equals(GetDiscordGrantResponse, a, b);
+  }
+}
+

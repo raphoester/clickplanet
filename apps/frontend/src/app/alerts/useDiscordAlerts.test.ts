@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {renderHook, waitFor} from "@testing-library/react"
+import {act, renderHook, waitFor} from "@testing-library/react"
 import {AlertsBackend, DiscordLink} from "../../backends/alerts.ts"
 import {DiscordAlerts} from "./discordAlerts.ts"
 import {useDiscordAlerts} from "./useDiscordAlerts.ts"
@@ -12,13 +12,25 @@ function alertsReading(read: () => Promise<DiscordLink>): {alerts: DiscordAlerts
     return {alerts: new DiscordAlerts(backend, vi.fn(async () => undefined)), backend}
 }
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+})
+
+const UNLINKED: DiscordLink = {offered: true, linked: false, serverUrl: SERVER}
+const LINKED: DiscordLink = {offered: true, linked: true, serverUrl: SERVER}
+
+async function waited(ms: number) {
+    await act(async () => {
+        await vi.advanceTimersByTimeAsync(ms)
+    })
+}
 
 describe("useDiscordAlerts", () => {
     it("offers to connect while the server is offered and this account is not in it", async () => {
         const {alerts} = alertsReading(async () => ({offered: true, linked: false, serverUrl: SERVER}))
 
-        const {result} = renderHook(() => useDiscordAlerts(alerts, undefined, true))
+        const {result} = renderHook(() => useDiscordAlerts(alerts, undefined, true, false))
 
         await waitFor(() => expect(result.current).toEqual({connect: alerts.connect}))
     })
@@ -26,7 +38,7 @@ describe("useDiscordAlerts", () => {
     it("offers the server's page once this account is in it", async () => {
         const {alerts} = alertsReading(async () => ({offered: true, linked: true, serverUrl: SERVER}))
 
-        const {result} = renderHook(() => useDiscordAlerts(alerts, undefined, true))
+        const {result} = renderHook(() => useDiscordAlerts(alerts, undefined, true, false))
 
         await waitFor(() => expect(result.current).toEqual({serverUrl: SERVER}))
     })
@@ -35,8 +47,8 @@ describe("useDiscordAlerts", () => {
         const off = alertsReading(async () => ({offered: false, linked: false, serverUrl: ""}))
         const noSignIn = alertsReading(async () => ({offered: true, linked: false, serverUrl: SERVER}))
 
-        const first = renderHook(() => useDiscordAlerts(off.alerts, undefined, true))
-        const second = renderHook(() => useDiscordAlerts(noSignIn.alerts, undefined, false))
+        const first = renderHook(() => useDiscordAlerts(off.alerts, undefined, true, false))
+        const second = renderHook(() => useDiscordAlerts(noSignIn.alerts, undefined, false, false))
 
         await waitFor(() => expect(noSignIn.backend.discordLink).toHaveBeenCalled())
         await Promise.resolve()
@@ -51,7 +63,7 @@ describe("useDiscordAlerts", () => {
             throw new Error("down")
         })
 
-        const {result} = renderHook(() => useDiscordAlerts(alerts, undefined, true))
+        const {result} = renderHook(() => useDiscordAlerts(alerts, undefined, true, false))
 
         await waitFor(() => expect(console.error).toHaveBeenCalled())
         expect(result.current).toEqual({})
@@ -61,12 +73,65 @@ describe("useDiscordAlerts", () => {
         const reads: DiscordLink[] = [{offered: true, linked: false, serverUrl: SERVER}, {offered: true, linked: true, serverUrl: SERVER}]
         const {alerts, backend} = alertsReading(async () => reads.shift()!)
 
-        const {result, rerender} = renderHook(({account}) => useDiscordAlerts(alerts, account, true), {initialProps: {account: "guest-1"}})
+        const {result, rerender} = renderHook(({account}) => useDiscordAlerts(alerts, account, true, false), {initialProps: {account: "guest-1"}})
         await waitFor(() => expect(result.current.connect).toBe(alerts.connect))
 
         rerender({account: "account-2"})
 
         await waitFor(() => expect(result.current).toEqual({serverUrl: SERVER}))
         expect(backend.discordLink).toHaveBeenCalledTimes(2)
+    })
+
+    describe("after a Discord sign-in, which joins the server a moment later", () => {
+        it("reads again after 1 s, then 2 s more, until the account is in the server", async () => {
+            vi.useFakeTimers()
+            const reads = [UNLINKED, UNLINKED, LINKED]
+            const {alerts, backend} = alertsReading(async () => reads.shift() ?? LINKED)
+
+            const {result} = renderHook(() => useDiscordAlerts(alerts, "account-1", true, true))
+            await waited(0)
+            expect(result.current).toEqual({connect: alerts.connect})
+
+            await waited(999)
+            expect(backend.discordLink).toHaveBeenCalledTimes(1)
+            await waited(1)
+            expect(backend.discordLink).toHaveBeenCalledTimes(2)
+            expect(result.current).toEqual({connect: alerts.connect})
+
+            await waited(2_000)
+            expect(backend.discordLink).toHaveBeenCalledTimes(3)
+            expect(result.current).toEqual({serverUrl: SERVER})
+
+            await waited(60_000)
+            expect(backend.discordLink).toHaveBeenCalledTimes(3)
+        })
+
+        it("gives up after the read 4 s after the one before", async () => {
+            vi.useFakeTimers()
+            const {alerts, backend} = alertsReading(async () => UNLINKED)
+
+            const {result} = renderHook(() => useDiscordAlerts(alerts, "account-1", true, true))
+            await waited(1_000 + 2_000 + 4_000)
+            expect(backend.discordLink).toHaveBeenCalledTimes(4)
+
+            await waited(60_000)
+            expect(backend.discordLink).toHaveBeenCalledTimes(4)
+            expect(result.current, "the bar offers to join again").toEqual({connect: alerts.connect})
+        })
+
+        it("reads once when no Discord sign-in came back, and never again once the page is gone", async () => {
+            vi.useFakeTimers()
+            const plain = alertsReading(async () => UNLINKED)
+            const gone = alertsReading(async () => UNLINKED)
+
+            renderHook(() => useDiscordAlerts(plain.alerts, "account-1", true, false))
+            const {unmount} = renderHook(() => useDiscordAlerts(gone.alerts, "account-1", true, true))
+            await waited(0)
+            unmount()
+            await waited(60_000)
+
+            expect(plain.backend.discordLink).toHaveBeenCalledTimes(1)
+            expect(gone.backend.discordLink).toHaveBeenCalledTimes(1)
+        })
     })
 })

@@ -12,6 +12,7 @@ import (
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
@@ -27,11 +28,18 @@ type ArrivalRecorder interface {
 	Record(ctx context.Context, account accounts.AccountID, landing arrivals.Landing, now time.Time) error
 }
 
+// The leave a Discord sign-in gave to join the game's Discord server, kept with the sign-in for the alerts module.
+type GrantKeeper interface {
+	NewGrant(account accounts.AccountID, user string, token string, now time.Time) (grants.Grant, error)
+	Keep(ctx context.Context, grant grants.Grant) error
+}
+
 type Admitter struct {
 	transactioner cpatomic.Transactioner
 	store         IdentityStore
 	outbox        cpatomic.Outbox
 	arrivals      ArrivalRecorder
+	grants        GrantKeeper
 	ids           accounts.IDProvider
 	tokens        accounts.TokenGenerator
 	lifetime      accounts.Lifetime
@@ -42,13 +50,14 @@ func NewAdmitter(
 	store IdentityStore,
 	outbox cpatomic.Outbox,
 	arrivals ArrivalRecorder,
+	grantKeeper GrantKeeper,
 	ids accounts.IDProvider,
 	tokens accounts.TokenGenerator,
 	lifetime accounts.Lifetime,
 ) *Admitter {
 	return &Admitter{
-		transactioner: transactioner, store: store, outbox: outbox, arrivals: arrivals, ids: ids, tokens: tokens,
-		lifetime: lifetime.WithDefaults(),
+		transactioner: transactioner, store: store, outbox: outbox, arrivals: arrivals, grants: grantKeeper, ids: ids,
+		tokens: tokens, lifetime: lifetime.WithDefaults(),
 	}
 }
 
@@ -187,6 +196,20 @@ func (a *Admitter) admit(
 	if restored {
 		events = []proto.Message{&authv1.AccountRestored{AccountId: account.String(), RestoredAt: timestamppb.New(now)}, signedIn}
 	}
+	// Whatever the outcome, a link of an identity the account holds already too: the alerts module decides whether
+	// there is anything to join.
+	var grant *grants.Grant
+	if token := claim.ServerToken(); token != "" {
+		granted, err := a.grants.NewGrant(account, claim.Subject(), token, now)
+		if err != nil {
+			return nil, fmt.Errorf("failed to grant the join: %w", err)
+		}
+		grant = &granted
+		events = append(events, &authv1.DiscordJoinGranted{
+			GrantId: granted.ID().String(), AccountId: account.String(), DiscordUserId: claim.Subject(),
+			GrantedAt: timestamppb.New(now),
+		})
+	}
 	err = a.transactioner.InTx(ctx, func(ctx context.Context) error {
 		if err := a.store.SaveSignIn(ctx, signIn); err != nil {
 			return fmt.Errorf("failed to save the sign-in: %w", err)
@@ -194,6 +217,11 @@ func (a *Admitter) admit(
 		if outcome == accounts.Created {
 			if err := a.arrivals.Record(ctx, account, visitor.landing, now); err != nil {
 				return fmt.Errorf("failed to record the new account's arrival: %w", err)
+			}
+		}
+		if grant != nil {
+			if err := a.grants.Keep(ctx, *grant); err != nil {
+				return fmt.Errorf("failed to keep the Discord grant: %w", err)
 			}
 		}
 		if err := a.outbox.Record(ctx, events...); err != nil {

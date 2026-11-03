@@ -20,13 +20,15 @@ connection.
   email or Discord), so the player stays on it; **a sign-in** for a guest, which moves to the account that Discord user
   has, if any. It goes the way every sign-in goes (`leaveFor`, then `/auth/callback`, see [Sign-in](sign-in.md)), and
   throws a refusal for the button that asked.
-- `backends/fakeAlertsBackend.ts` — in fake mode the server is offered, and linked once the fake account signed in.
-  `offerSignIn()` in the console offers Discord, the offer starts the fake's sign-in, which comes straight back to
-  `/auth/callback`, and the bar then says "Open Discord".
+- `backends/fakeAlertsBackend.ts` — in fake mode the server is offered, and linked 1.5 s after it first reads the fake
+  account signed in, as the backend joins a moment after the sign-in. `offerSignIn()` in the console offers Discord,
+  the offer starts the fake's sign-in, which comes straight back to `/auth/callback`, and the bar says "Join Discord",
+  then "Open Discord" at the read 3 s later.
 
 ## What the player sees
 
-`useDiscordAlerts` (in `Viewer`) reads `GetDiscordLink` at load and again when the account changes, and answers a
+`useDiscordAlerts` (in `Viewer`) reads `GetDiscordLink` at load and again when the account changes, and after a Discord
+sign-in or link again 1 s, 2 s and 4 s after the read before, until it reads linked (`JOIN_WAITS_MS`). It answers a
 `DiscordOffer`: `connect` while the server is offered, the account is not in it and the server offers Discord's
 sign-in; `serverUrl` once it is in; neither otherwise. Any failure of the read is no offer.
 
@@ -54,8 +56,12 @@ sign-in; `serverUrl` once it is in; neither otherwise. Any failure of the read i
 ## The trip
 
 **It is the sign-in's**: `/auth/callback`, `SignInCallback`, `CompleteSignIn`, and the game swapped in place (see
-[Sign-in](sign-in.md)). The backend joins the server inside `CompleteSignIn`, so the page that comes back reads the
-account as linked. A join that failed signs the player in all the same, and the bar offers to join again.
+[Sign-in](sign-in.md)). **The join lands a second or two after `CompleteSignIn` answers**: the backend's `auth` keeps
+the leave with the sign-in and tells it, and `alerts` hears it, then asks Discord. So the page that comes back may
+read the account as not linked yet, and a link of Discord to an account signed in already does not change the account
+the hook reads again on. `SignInGate` hands `AccountStore.completeSignIn` the provider it remembered, and a Discord one
+marks the account `joiningDiscord`, which makes `useDiscordAlerts` read again until linked. A join that failed signs
+the player in all the same, and the bar offers to join again once the reads give up, about 7 s after.
 
 **To try the offer again**, an operator unlinks the account on the backoffice's player page (the Discord tool): the
 next load offers "Join Discord" again. A player cannot unlink: leaving the server is how they stop the pings.

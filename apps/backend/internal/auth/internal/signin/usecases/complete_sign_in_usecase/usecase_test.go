@@ -18,6 +18,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_arrival_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/inmemory_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_sign_in_usecase"
@@ -35,7 +37,7 @@ var (
 type fixture struct {
 	sealer     *aes_flow_sealer.Sealer
 	google     *signin.FakeProvider
-	server     *signin.RecordedServer
+	grants     *inmemory_grant_store.Store
 	store      *inmemory_account_store.Store
 	arrivals   *inmemory_arrival_store.Store
 	outbox     *cpatomic.FakeOutbox
@@ -50,16 +52,17 @@ func setUp(t *testing.T) *fixture {
 
 	sealer, err := aes_flow_sealer.New(bytes.Repeat([]byte{1}, 32))
 	require.NoError(t, err)
-	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), server: &signin.RecordedServer{}, store: inmemory_account_store.New(), arrivals: inmemory_arrival_store.New(), outbox: &cpatomic.FakeOutbox{}, clock: cptime.NewFixedClock(start)}
+	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), grants: inmemory_grant_store.New(), store: inmemory_account_store.New(), arrivals: inmemory_arrival_store.New(), outbox: &cpatomic.FakeOutbox{}, clock: cptime.NewFixedClock(start)}
 	providers := signin.Providers{signin.Google: f.google}
 	f.start = start_sign_in_usecase.New(providers, f.store, &signin.SequentialSecrets{}, sealer, f.clock)
-	f.completion = complete_sign_in_usecase.New(providers, sealer, f.admitter(), f.server, f.clock)
+	f.completion = complete_sign_in_usecase.New(providers, sealer, f.admitter(), f.clock)
 	return f
 }
 
 func (f *fixture) admitter() *signin.Admitter {
 	register := arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{})
-	return signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, register, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
+	return signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, register,
+		grants.NewRegister(f.grants, &grants.SequentialIDs{}), &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 }
 
 func (f *fixture) guest(t *testing.T, account byte, token string) {
@@ -461,7 +464,7 @@ func TestAStoreFailureFailsTheSignIn(t *testing.T) {
 
 func TestSignInOffCompletesNothing(t *testing.T) {
 	f := setUp(t)
-	useCase := complete_sign_in_usecase.New(signin.Providers{}, f.sealer, f.admitter(), f.server, f.clock)
+	useCase := complete_sign_in_usecase.New(signin.Providers{}, f.sealer, f.admitter(), f.clock)
 
 	_, err := useCase.Execute(t.Context(), complete_sign_in_usecase.In{Code: "the-code", State: "state"})
 
@@ -491,7 +494,15 @@ func TestASignInToAnAccountThatExistsKeepsNoArrival(t *testing.T) {
 	assert.Empty(t, f.arrivals.Kept(), "the guest's arrival was kept when the guest was made")
 }
 
-func TestASignInThatMayJoinTheServerJoinsTheAccountItSignedInTo(t *testing.T) {
+var firstGrant = grants.GrantID{0: 0x9, 15: 1}
+
+func joinGranted(account accounts.AccountID, user string) *authv1.DiscordJoinGranted {
+	return &authv1.DiscordJoinGranted{
+		GrantId: firstGrant.String(), AccountId: account.String(), DiscordUserId: user, GrantedAt: timestamppb.New(start),
+	}
+}
+
+func TestASignInThatMayJoinTheServerKeepsAGrantForTheAccountItSignedInTo(t *testing.T) {
 	f := setUp(t)
 	f.guest(t, 7, "guest-token")
 	f.linkedAccount(t, 3, signin.Google, claim.Subject(), "elsewhere")
@@ -500,22 +511,44 @@ func TestASignInThatMayJoinTheServerJoinsTheAccountItSignedInTo(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, accounts.AccountID{15: 3}, out.Account(), "the browser moved to the identity's account")
-	assert.Equal(t, []signin.Joined{{Account: accounts.AccountID{15: 3}, User: claim.Subject(), Token: "the-access-token"}},
-		f.server.Joined())
+	assert.Equal(t, []grants.Snapshot{{
+		ID: firstGrant, Account: accounts.AccountID{15: 3}, User: claim.Subject(), Token: "the-access-token",
+		ExpiresAt: start.Add(grants.Lifetime),
+	}}, f.grants.Kept())
+	f.assertPublished(t,
+		&authv1.SignedIn{PreviousAccountId: accounts.AccountID{15: 7}.String(), AccountId: accounts.AccountID{15: 3}.String()},
+		joinGranted(accounts.AccountID{15: 3}, claim.Subject()))
 }
 
-func TestALinkAgainOfTheAccountsOwnIdentityJoinsToo(t *testing.T) {
+func TestTheTokenIsInNoEvent(t *testing.T) {
+	f := setUp(t)
+
+	_, err := f.finish(t, accounts.IntentSignIn, "", claim.WithServerToken("the-access-token"))
+	require.NoError(t, err)
+
+	require.NotEmpty(t, f.grants.Kept())
+	for _, event := range f.outbox.Recorded() {
+		payload, err := proto.Marshal(event)
+		require.NoError(t, err)
+		assert.NotContains(t, string(payload), "the-access-token", "%T", event)
+	}
+}
+
+func TestALinkAgainOfTheAccountsOwnIdentityGrantsToo(t *testing.T) {
 	f := setUp(t)
 	f.linkedAccount(t, 7, signin.Google, claim.Subject(), "google-token")
 
 	_, err := f.link(t, "cp_sid=google-token", claim.WithServerToken("the-access-token"))
 	require.NoError(t, err)
 
-	assert.Equal(t, []signin.Joined{{Account: accounts.AccountID{15: 7}, User: claim.Subject(), Token: "the-access-token"}},
-		f.server.Joined())
+	require.Len(t, f.grants.Kept(), 1)
+	assert.Equal(t, accounts.AccountID{15: 7}, f.grants.Kept()[0].Account)
+	f.assertPublished(t,
+		&authv1.SignedIn{PreviousAccountId: accounts.AccountID{15: 7}.String(), AccountId: accounts.AccountID{15: 7}.String()},
+		joinGranted(accounts.AccountID{15: 7}, claim.Subject()))
 }
 
-func TestARefusedLinkOrASignInThatMayNotJoinJoinsNobody(t *testing.T) {
+func TestARefusedLinkOrASignInThatMayNotJoinGrantsNothing(t *testing.T) {
 	f := setUp(t)
 	f.linkedAccount(t, 1, signin.Google, claim.Subject(), "other-browser")
 	f.linkedAccount(t, 7, signin.Discord, "discord-user", "discord-token")
@@ -525,5 +558,20 @@ func TestARefusedLinkOrASignInThatMayNotJoinJoinsNobody(t *testing.T) {
 	_, err = f.complete(t, "")
 	require.NoError(t, err)
 
-	assert.Empty(t, f.server.Joined())
+	assert.Empty(t, f.grants.Kept())
+	for _, event := range f.outbox.Recorded() {
+		assert.NotEqual(t, "auth.v1.DiscordJoinGranted", string(proto.MessageName(event)))
+	}
+}
+
+func TestAGrantThatCannotBeKeptFailsTheSignInWithItsEvents(t *testing.T) {
+	f := setUp(t)
+	f.guest(t, 7, "guest-token")
+	f.seeded = len(f.outbox.Recorded())
+	f.grants.FailWith(errors.New("postgres is down"))
+
+	_, err := f.finish(t, accounts.IntentSignIn, "cp_sid=guest-token", claim.WithServerToken("the-access-token"))
+
+	require.Error(t, err)
+	assert.Empty(t, f.outbox.Recorded()[f.seeded:], "one transaction: no SignedIn without its grant")
 }

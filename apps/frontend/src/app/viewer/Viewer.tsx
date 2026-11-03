@@ -194,7 +194,8 @@ export default function Viewer(props: ViewerProps) {
     const color = account.kind === 'ready' ? account.color : undefined
     const linked = account.kind === 'ready' && account.me.linked.length > 0
     const discordConnectable = account.kind === 'ready' && account.offered.includes("discord")
-    const discord = useDiscordAlerts(props.alerts, ownAccountId, discordConnectable)
+    const joiningDiscord = account.kind === 'ready' && account.joiningDiscord === true
+    const discord = useDiscordAlerts(props.alerts, ownAccountId, discordConnectable, joiningDiscord)
 
     usePresence(props.presence, {countryCode: countryState.code, username, color})
 

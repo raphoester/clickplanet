@@ -11,26 +11,33 @@ hear that their land is attacked. They have Discord open on their phone; a websi
 
 **One Discord connection, not two** (the owner, 2026-11-02). The first version had its own Discord trip, "Get pinged",
 beside "Sign in with Discord": two consents on the same application, and nobody could say why both were needed. Now
-the alerts module starts no trip of its own: `auth`'s Discord sign-in asks the leave to join the server too, and hands
-alerts the token (see [Auth](auth.md)).
+the alerts module starts no trip of its own: `auth`'s Discord sign-in asks the leave to join the server too, keeps it
+for ten minutes, and tells it (`auth.v1.DiscordJoinGranted`); alerts hears it and asks auth for the token (see
+[Auth](auth.md)).
 
 ## The link (`links/`)
 
-**Made by `InternalService/JoinServer(account_id, discord_user_id, access_token)`**, which `auth` calls once a Discord
-sign-in or link is saved, when `auth.discord.joinServer` is on (Discord's scope `guilds.join`). It is served on the
-internal listener alone.
+**Made when alerts hears `auth.v1.DiscordJoinGranted`** (`alerts-joins`), which `auth` records once a Discord sign-in
+or link is saved, in its transaction, when `auth.discord.joinServer` is on (Discord's scope `guilds.join`). The event
+names a grant and never holds the token: `links/rpc_auth_grants` asks `auth.v1.InternalService/GetDiscordGrant` for
+the account, the Discord user and the token, on the internal listener. Auth called alerts before (`JoinServer`, which
+waited up to 5 s inside `CompleteSignIn`): the most upstream module named a leaf, and auth and alerts called each
+other. Now auth names no module, and the join lands a second or two after the sign-in comes back.
 
 - **`join_server_usecase`** asks planet the flag the account pledged (`planet.v1.InternalService/GetAllegianceOf`),
   makes its role if needed, adds the user to the server with it (`PUT /guilds/{guild}/members/{user}`, or the role
   granted when the user is in it already), and keeps the link. An account that never pledged joins with no role: its
   first pledge gives it.
-- **An account linked to this user already changes nothing**: every sign-in calls `JoinServer`, and a user who left the
-  server since is not added back by each one.
+- **An account linked to this user already changes nothing**: every Discord sign-in grants a join, and a user who left
+  the server since is not added back by each one. A grant heard twice is the same: the second finds the link.
 - **One Discord user, one account.** A user linked from another account moves here: the first link is forgotten.
-- **The access token is never kept**: it joins the user once. A link keeps the account, the Discord user id, the flag
-  of its role, and when.
-- **A failure never fails the sign-in.** `auth` logs it (`rpc_alerts_server`), and the player is signed in, not linked:
-  the game offers to join again. `PermissionDenied` is Discord refusing the token (no `guilds.join`).
+- **Alerts never keeps the access token**: it joins the user once. Auth keeps it, sealed, ten minutes, and the bus
+  tries a join again for about four. A link keeps the account, the Discord user id, the flag of its role, and when.
+- **A failure never fails the sign-in**: the sign-in was saved before alerts heard of it. What cannot pass is logged
+  and not tried again: a grant auth keeps no more (`NotFound`, `links.ErrNoGrant`), and a token Discord refused
+  (`discord.ErrRefused`, a 4xx: no `guilds.join`). The player is signed in, not linked, and the game offers to join
+  again. What may pass (a 429 or a 5xx from Discord, auth or planet unreachable) is an error, which the bus tries again.
+  The token is in no log line and no error.
 - **The role follows the flag pledged.** `alerts-allegiances` hears `planet.v1.AllegiancePledged`, told when a pledge
   sets or changes the flag (see [Allegiance](allegiance.md)): a linked account is granted the new flag's role and loses
   the old one. Before, the role followed the flag of the next tile taken, so a player who changed flag and did not
@@ -123,10 +130,12 @@ Channels**, **Send Messages** and **Mention @everyone, @here, and All Roles**; t
 to, `https://clickplanet.lol/play` by default), and `alerts.discord.botToken`, `guildId`, `alertsChannelId`,
 `battlesChannelId`. On, any of them empty or not a Discord id refuses the boot. The bot is `auth.discord`'s
 application's: Discord adds a user to a server only with a token of the bot's own application. `auth.discord.joinServer`
-is the other half, and is on in production with this module.
+is the other half, and is on in production with this module. **Keep it off while this module is off**: nobody hears
+the grants, which wait in their stream up to `redis.maxLen`, and a group made later reads them all, each one expired.
 
 ## Tests
 
 `migrations/stores_test.go` runs the stores on postgres. The use cases run over the in-memory stores and
 `roles.FakeMaker`, `pings.RecordedPoster`; `cpatomic.OnCommit` keeps an in-memory write until the fake transaction
-commits. `rest_discord` runs against an `httptest` Discord.
+commits. `rest_discord` runs against an `httptest` Discord. `discord_join_granted_subscriber`'s test pins what is
+tried again and what is not, and that the token is not logged; `rpc_auth_grants`' what auth's answers mean.
