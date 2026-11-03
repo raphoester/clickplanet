@@ -12,7 +12,7 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
 - **The component that shows the state reads the store itself.** `Viewer` does not read a store to pass its value
   down. `SettingsPlace` reads the display settings, and the board reads its guide. `Viewer` reads a store only for
   what it uses itself: the two display fields it hands the globe, the missions badge it counts from its own
-  missions, the award it shows.
+  missions, the award it shows, and `announce` for the title and the flag's mission it hears of.
 - **A selector returns a field or a plain value**: `useDisplaySettings((settings) => settings.mapView)`. A selector
   that builds a new object or array on each call makes React render without end; build it in the component with
   `useMemo`, or wrap the selector in Zustand's `useShallow`.

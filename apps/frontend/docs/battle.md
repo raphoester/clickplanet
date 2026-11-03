@@ -172,11 +172,14 @@ screen and the rays in `--war`.
 ## The announcements queue
 
 **One full-screen moment at a time, in the order they arrive.** `domain/announcements.ts`
-and `app/announcements/useAnnouncements.ts` keep the queue: a title unlocked, a
-battle's start, the Final Battle's teaser, a day closed (the cutoff's reveal), a battle's three debrief screens,
-the season's results, a clip that names the player (see [In a clip](clip-appearances.md)), the flag's mission done
-(see [Missions](missions.md)). `Viewer` announces each as it learns of it, shows the head of the queue once
-the map is loaded, and the next starts when the player closes the current one. An
+and the store `useAnnouncements` (`app/announcements/announcementsStore.ts`, see [Stores](stores.md)) keep the
+queue: a title unlocked, a battle's start, the Final Battle's teaser, a day closed (the cutoff's reveal), a battle's
+three debrief screens, the season's results, a clip that names the player (see
+[In a clip](clip-appearances.md)), the flag's mission done (see [Missions](missions.md)).
+`app/announcements/Moments.tsx` runs the hooks that say what is due (`useRoundReveal`, `useBattleReveal`,
+`useFinaleTeaser`, `useClipNotice`) and announces each; `Viewer` announces the title and the flag's mission.
+`Moments` shows the head of the queue once the map is loaded, tells the hook it came from when the player closes
+it, and the next starts. An
 announcement is queued once, by its key. So a round that closes while the player
 reads a battle's screens waits its turn, the season's results wait for the debrief
 queued before them, and nothing is drawn over anything. The one fact queued later than it arrives is a battle's start,
