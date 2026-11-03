@@ -73,6 +73,9 @@ import {FLIGHT_SECONDS, flightAt, territoryShotOf} from "../../domain/flight.ts"
 import {dot, pointOf} from "../../domain/clip/geometry.ts";
 import {Front, FrontChanges} from "../../domain/front.ts";
 import {Neighbours} from "../../domain/neighbours.ts";
+import {GhostTake, Ghosts} from "../../domain/ghosts.ts";
+import {GhostArmy, Ground, Sight} from "../../domain/ghostArmy.ts";
+import {saveGhostTakes, savedGhostTakes} from "./ghostStore.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
 import {ShieldChange, outcomeOf, placementOf} from "../../domain/shields.ts";
 import {Landmasses} from "../../domain/landmasses.ts";
@@ -163,6 +166,14 @@ export function drawsFrame({turned, changed, ambient, at, drawnAt, interactingUn
 
 const CLAIM_MARGIN_MS = 2_000
 
+// The ghosts raid only while fewer play than this.
+const GHOSTS_BELOW = 7
+
+const GHOSTS_EVERY_SECONDS = 0.2
+
+// The share of the screen's shorter half, around its middle, that the ghosts raid: clear of the zones on its edges.
+const GHOSTS_SIGHT = 0.7
+
 const textureLoader = new THREE.TextureLoader();
 
 export type Shot = {
@@ -231,6 +242,7 @@ export type Globe = {
     // Every tile read once: a tile can be clicked from then on.
     readonly tilesRead: Promise<void>
     setCountry(country: Country): void
+    setCrowd(count: number | undefined): void
     setMapView(view: MapView): void
     setHalo(halo: Halo): void
     setBonusLook(look: BoxLook): void
@@ -366,7 +378,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const shielded = tiles.shields
     const holdings = new Holdings()
 
+    // Kept painted over the reads and the server's counts: a reload shows them until they run out.
+    const ghosts = new Ghosts(savedGhostTakes(field.size), Date.now())
+    field.setOwners(ghosts.snapshot().map(({tile, flag}) => ({tile, country: flag})))
+    const shownOwnerOf = (tile: number) => ghosts.flagOf(tile) ?? ownership.ownerOf(tile)
+
     let country: Country = initialCountry;
+    let crowd: number | undefined
 
     const bonusBox = createBonusBox()
     scene.add(bonusBox.object)
@@ -452,12 +470,41 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return lit !== undefined && dot(pointOf(geometryData.positions, lit), camera.position) > 0
     }
 
+    const publishBoard = (live: boolean) => {
+        updateLeaderboard(rankCountries(ghosts.countsOver(holdings.counts(), (tile) => ownership.ownerOf(tile))), live)
+    }
+
+    const repaint = (tiles: readonly number[]) => {
+        field.setOwners(tiles.map((tile) => ({tile, country: shownOwnerOf(tile)})))
+        if (front) lightFront(front.touch(tiles))
+        invalidate()
+    }
+
+    const ghostTook = (take: GhostTake) => {
+        ghosts.take(take)
+        saveGhostTakes(ghosts.snapshot())
+        repaint([take.tile])
+        plainClicks.playClick(take.tile, camera)
+        publishBoard(true)
+    }
+
+    const releaseGhosts = (tiles: Iterable<number>) => {
+        const freed = ghosts.release(tiles)
+        if (freed.length === 0) return
+        saveGhostTakes(ghosts.snapshot())
+        repaint(freed)
+        publishBoard(true)
+    }
+
+    // A read paints under a ghost; anything else that changes a tile is the server's, and wins over it.
     const applyChanges = (changes: OwnerChange[], live = true) => {
         if (changes.length === 0) return
-        field.setOwners(changes)
-        if (front) lightFront(front.touch(changes.map(({tile}) => tile)))
+        const tiles = changes.map(({tile}) => tile)
+        if (live) releaseGhosts(tiles)
+        field.setOwners(ghosts.size === 0 ? changes : changes.filter(({tile}) => ghosts.flagOf(tile) === undefined))
+        if (front) lightFront(front.touch(tiles))
         if (tracking) {
-            const entered = targets.touch(changes.map(({tile}) => tile))
+            const entered = targets.touch(tiles)
             if (live) announceClose(entered)
         }
         invalidate()
@@ -481,7 +528,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             }
             invalidate()
         }
-        if (countries) updateLeaderboard(rankCountries(holdings.counts()), live)
+        if (countries) publishBoard(live)
     }
 
     let holdingsAt: MapVersion | undefined
@@ -541,7 +588,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const peekAt = ({spot: tile, point, touch}: Peeked) => {
         const owner = ownership.ownerOf(tile)
-        if (!owner) return
+        if (!owner || ghosts.flagOf(tile) !== undefined) return
         peeking = tile
         onPeek({tile, countryCode: owner, point, touch})
     }
@@ -617,8 +664,24 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const homeShot = home === undefined ? undefined : territoryShot(home)
     if (homeShot) aim(camera, homeShot)
 
+    let army: GhostArmy | undefined
+
+    const ghostGround = (neighbours: Neighbours): Ground => ({
+        positions: geometryData.positions,
+        neighboursOf: (tile) => neighbours.of(tile),
+        ownerOf: (tile) => ownership.ownerOf(tile),
+        shieldsOf: (tile) => shielded.shieldsOf(tile),
+        groundOf: (tile) => {
+            const code = borders.codes[borders.assignment[tile - 1]]
+            return code && regions.get(code) ? code : undefined
+        },
+        countOf: (flag) => holdings.tilesOf(flag),
+    })
+
     const goToFront = () => {
-        front = new Front(new Neighbours(geometryData.positions), (tile) => ownership.ownerOf(tile), geometryData.positions)
+        const neighbours = new Neighbours(geometryData.positions)
+        front = new Front(neighbours, shownOwnerOf, geometryData.positions)
+        army = new GhostArmy(ghostGround(neighbours), ghosts, Math.random, Date.now())
         lightFront(front.follow(country.code))
         if (taken || !homeShot) return
         const nearest = front.nearestTo(homeShot.direction)
@@ -723,6 +786,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     // A later change of a tile wins over the clear, by its version, however long the clear waited.
     const land = ({cleared, struck, version}: BombDrop) => {
+        releaseGhosts([...cleared, ...struck.map(({tile}) => tile)])
         const changes = noChanges()
         tiles.applyBlast(cleared, struck, version, changes)
         applyChanges(changes.owners)
@@ -957,6 +1021,19 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         const owner = ownership.ownerOf(tile)
         const shields = shielded.shieldsOf(tile)
+        const ghost = ghosts.flagOf(tile)
+
+        if (ghost !== undefined && owner === country.code) {
+            if (!canClick(budget, monotonicNow())) {
+                onRateLimited()
+                playSound("refused")
+                return
+            }
+            releaseGhosts([tile])
+            playSound("click")
+            plainClicks.playOwnClick(tile, camera)
+            return
+        }
 
         if (switches.shield && shielder) {
             const placement = placementOf(owner, country.code, shields, rules?.tileShields)
@@ -976,6 +1053,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
+        if (ghost !== undefined) releaseGhosts([tile])
         const outcome = outcomeOf(owner, country.code, shields)
         const {changes, claim} = outcome === "shielded"
             ? {changes: [], claim: undefined}
@@ -1024,6 +1102,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     window.addEventListener('resize', resizeListener, listenerOptions);
 
     const cleanUpdatesListener = updatesListener.listenForUpdatesBatch((updates: Update[]) => {
+        releaseGhosts(updates.map(({tile}) => tile))
         const changes = noChanges()
         tiles.applyUpdates(updates, changes)
         applyChanges(changes.owners)
@@ -1064,6 +1143,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (share === 1) {
                 loaded = true
                 tilesWereRead()
+                releaseGhosts(ghosts.snapshot().filter(({tile}) => ownership.ownerOf(tile) === undefined).map(({tile}) => tile))
                 if (showFront) goToFront()
             }
         }
@@ -1128,6 +1208,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const stopFortifications = updatesListener.listenForFortifications((fortification) => {
         const members = landmasses.tilesOf(fortification.landmass)
+        releaseGhosts(members)
         const raised = tiles.applyFortification(members, fortification.countryId, uniforms.shieldMost.value, fortification.version)
         if (document.hidden || uniforms.motion.value === 0) showShields(raised)
         else waves.start(fortification.landmass, members, fortification.tile, performance.now() / 1000)
@@ -1151,11 +1232,41 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return waiting
     }
 
+    const ghostSight = (): Sight | undefined => {
+        const {width, height} = renderer.domElement
+        const centre = surfacePoint(width / 2, height / 2)?.normalize()
+        if (!centre) return undefined
+        const half = Math.min(camera.right - camera.left, camera.top - camera.bottom) / 2 / camera.zoom
+        const reach = Math.min(1, GHOSTS_SIGHT * half)
+        return {flag: country.code, centre: {x: centre.x, y: centre.y, z: centre.z}, least: Math.sqrt(1 - reach * reach)}
+    }
+
+    let ghostsAt = -Infinity
+
+    const driveGhosts = (seconds: number) => {
+        if (seconds < ghostsAt + GHOSTS_EVERY_SECONDS || budget?.frozen) return
+        ghostsAt = seconds
+        const now = Date.now()
+        const expired = ghosts.expire(now)
+        if (expired.length > 0) {
+            saveGhostTakes(ghosts.snapshot())
+            repaint(expired)
+            for (const tile of expired) plainClicks.playClick(tile, camera)
+            publishBoard(true)
+        }
+
+        if (!army || crowd === undefined || crowd >= GHOSTS_BELOW || orbiting()) return
+        const sight = ghostSight()
+        const take = sight && army.march(now, sight)
+        if (take) ghostTook(take)
+    }
+
     const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, director, pilot, () => mapView, () => {
         const was = dirty
         dirty = false
         return was
     }, (seconds) => {
+        driveGhosts(seconds)
         const boxed = driveBonusBox(seconds)
         const fortifying = waves.update(seconds)
         const blasting = driveBlasts(seconds) || fortifying
@@ -1211,6 +1322,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             const changed = newCountry.code !== country.code
             country = newCountry
             if (front && changed) lightFront(front.follow(newCountry.code))
+        },
+        setCrowd: (count: number | undefined) => {
+            crowd = count
         },
         setMapView: (view: MapView) => {
             if (view === mapView) return
