@@ -14,7 +14,7 @@ describe("UnderAttack", () => {
         render(<UnderAttack flag="fr" connect={connect} onDone={vi.fn()}/>)
 
         expect(screen.getByRole("status").textContent).toContain("France is under attack")
-        const ping = screen.getByRole("button", {name: "Join Discord and get an alert when France is under attack"})
+        const ping = screen.getByRole("button", {name: "Join Discord and get pinged when France is attacked"})
         expect(ping.textContent).toBe("Get pinged")
         fireEvent.click(ping)
 

@@ -22,7 +22,7 @@ screen, so nothing is marked seen, and the open panel has no other badge.
 **A Discord bar sits over the log** (`DiscordBar`), on a desktop and in the
 phone's sheet: one call to action, Discord, for the alert when the flag is under
 attack. While the game's Discord server is offered and the player is not in it,
-a `panel-box` says "Get a Discord alert when France is under attack" on its top
+a `panel-box` says "Get pinged when France is attacked" on its top
 line, with a cross beside it, and under it the "Join Discord" button
 (`button button-mini` in Discord's color) across the box: the Discord sign-in
 that joins the server (see [Discord pings](discord-alerts.md)). Otherwise the

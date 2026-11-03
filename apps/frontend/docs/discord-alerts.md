@@ -32,8 +32,8 @@ sign-in; `serverUrl` once it is in; neither otherwise. Any failure of the read i
 
 - **The chat's Discord bar** (`DiscordBar`), on every page with the chat, until the player hides it (it comes back
   the next day):
-  - **Not in the server**: "Get a Discord alert when France is under attack" on the box's top line, and "Join Discord"
-    under it. The button is the Discord sign-in, named "Join Discord and get an alert when France is under attack". A
+  - **Not in the server**: "Get pinged when France is attacked" on the box's top line, and "Join Discord"
+    under it. The button is the Discord sign-in, named "Join Discord and get pinged when France is attacked". A
     refused start puts the reason on the button ("Wait a minute", "Not available", "Try again"), and a press tries
     again.
   - **In the server**: "Open Discord", the server's `#alerts` page.

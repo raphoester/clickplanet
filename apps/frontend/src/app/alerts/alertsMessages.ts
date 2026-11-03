@@ -1,11 +1,11 @@
 import {AuthFailure} from "../../backends/account.ts"
 
 export function pingNameOf(flagName: string | undefined): string {
-    return flagName ? `Join Discord and get an alert when ${flagName} is under attack` : "Join Discord and get alerts"
+    return flagName ? `Join Discord and get pinged when ${flagName} is attacked` : "Join Discord and get pinged"
 }
 
 export function pingHintOf(flagName: string | undefined): string {
-    return flagName ? `Get a Discord alert when ${flagName} is under attack` : "Get a Discord alert when a battle starts"
+    return flagName ? `Get pinged when ${flagName} is attacked` : "Get pinged for every battle"
 }
 
 // What the button says once Discord's sign-in could not start.

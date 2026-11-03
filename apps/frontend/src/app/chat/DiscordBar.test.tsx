@@ -61,9 +61,9 @@ describe("DiscordBar", () => {
         render(<DiscordBar discord={{connect}} flagName="France"/>)
 
         expect(link()).toBeNull()
-        const join = screen.getByRole("button", {name: "Join Discord and get an alert when France is under attack"})
+        const join = screen.getByRole("button", {name: "Join Discord and get pinged when France is attacked"})
         expect(join.textContent).toBe("Join Discord")
-        expect(screen.getByText("Get a Discord alert when France is under attack")).toBeDefined()
+        expect(screen.getByText("Get pinged when France is attacked")).toBeDefined()
 
         await userEvent.setup().click(join)
 
@@ -77,7 +77,7 @@ describe("DiscordBar", () => {
         })
         render(<DiscordBar discord={{connect}} flagName="France"/>)
 
-        await userEvent.setup().click(screen.getByRole("button", {name: "Join Discord and get an alert when France is under attack"}))
+        await userEvent.setup().click(screen.getByRole("button", {name: "Join Discord and get pinged when France is attacked"}))
 
         const again = await screen.findByRole("button", {name: "Wait a minute"})
         expect(again.hasAttribute("disabled")).toBe(false)
