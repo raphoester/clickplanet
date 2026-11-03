@@ -4,7 +4,7 @@ import {useEffect} from "react"
 import {act, renderHook} from "@testing-library/react"
 import {ClosedRound} from "../../backends/standings.ts"
 import {REVEAL_SEEN_STORAGE_KEY, REVEAL_WITHIN_MS, revealKeyOf} from "../../domain/roundReveal.ts"
-import {useAnnouncements} from "../announcements/useAnnouncements.ts"
+import {useAnnouncements} from "../announcements/announcementsStore.ts"
 import {useRoundReveal} from "./useRoundReveal.ts"
 
 const NOW = Date.UTC(2026, 9, 16, 22)
@@ -24,6 +24,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+    useAnnouncements.setState({queue: []})
     vi.useRealTimers()
 })
 
@@ -91,7 +92,8 @@ describe("useRoundReveal", () => {
         const closed = finalBattleAt(NOW - 60_000)
         const {result} = renderHook(() => {
             const reveal = useRoundReveal(closed, undefined)
-            const {announce, current, dismiss} = useAnnouncements()
+            const {announce, dismiss} = useAnnouncements.getState()
+            const current = useAnnouncements((announcements) => announcements.queue[0])
             useEffect(() => {
                 for (const due of reveal.due) announce(due)
             }, [announce, reveal.due])

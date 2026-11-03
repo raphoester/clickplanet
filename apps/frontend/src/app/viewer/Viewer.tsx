@@ -67,7 +67,6 @@ import TerritoryCard from "../territory/TerritoryCard.tsx";
 import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
 import {useTerritoryPlayers} from "../territory/useTerritoryPlayers.ts";
 import {useTileHolder} from "../players/useTileHolder.ts";
-import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
@@ -95,36 +94,23 @@ import {pageContextOf} from "../support/pageContext.ts";
 import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
 import {useRace} from "../standings/useRace.ts";
 import {useDebriefed} from "../season/useDebriefed.ts";
-import RoundReveal from "../season/RoundReveal.tsx";
-import {useRoundReveal} from "../season/useRoundReveal.ts";
 import {TurnBackend} from "../../backends/turn.ts";
 import {Battle, battleKeyOf, battleOf, finaleOf, nextBattleOf} from "../../domain/battle.ts";
-import {announcementKeyOf} from "../../domain/announcements.ts";
-import {useAnnouncements} from "../announcements/useAnnouncements.ts";
+import {useAnnouncements} from "../announcements/announcementsStore.ts";
+import Moments from "../announcements/Moments.tsx";
 import {useSchedule} from "../battle/useSchedule.ts";
 import {useMood} from "../battle/useMood.ts";
 import {moodOf} from "../../domain/mood.ts";
-import {useBattleReveal} from "../battle/useBattleReveal.ts";
 import {useBattleOver} from "../battle/useBattleOver.ts";
-import {useSeenBattle} from "../battle/useSeenBattle.ts";
 import BattleChip, {BattleDetails} from "../battle/BattleChip.tsx";
-import BattleReveal from "../battle/BattleReveal.tsx";
-import FinaleTeaser from "../battle/FinaleTeaser.tsx";
-import {useFinaleTeaser} from "../battle/useFinaleTeaser.ts";
 import BattleOver from "../battle/BattleOver.tsx";
-import BattleDebrief from "../battle/BattleDebrief.tsx";
-import {briefDescriptionOf} from "../../domain/battleBrief.ts";
-import {revealFollowed} from "../../domain/roundReveal.ts";
 import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
 import {endedBookOf} from "../../domain/debrief.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
 import {useGuidedTakes} from "./frontGuide.ts";
 import {ClipsBackend, ClipsNameBackend} from "../../backends/clips.ts";
-import ClipNotice from "../clips/ClipNotice.tsx";
-import FlagMissionDone from "../missions/FlagMissionDone.tsx";
 import {useFlagMissionDone} from "../missions/useFlagMissionDone.ts";
-import {useClipNotice} from "../clips/useClipNotice.ts";
 import {CrazyGamesPage} from "../../backends/crazyGames.ts";
 import {useCrazyGames, useGameplay, useInvites, useRoom} from "../crazygames/useCrazyGames.ts";
 import InvitedModal from "../crazygames/InvitedModal.tsx";
@@ -212,8 +198,7 @@ export default function Viewer(props: ViewerProps) {
     usePresence(props.presence, {countryCode: countryState.code, username, color})
 
     const quiz = useQuiz(props.quizMaster, countryState.code, sound.play)
-    const announcements = useAnnouncements()
-    const {announce, current} = announcements
+    const announce = useAnnouncements((announcements) => announcements.announce)
     const roster = useRoster(props.presence, (title) => announce({kind: "title", title}))
     const schedule = useSchedule(props.turn)
     const season = useSeason(schedule.seasons.current)
@@ -226,27 +211,10 @@ export default function Viewer(props: ViewerProps) {
     const finale = finaleOf(schedule.battles, schedule.turn, Date.now())
     const [accepted] = useState(acceptedClicks)
     useGuidedTakes(props.showFront ?? false, accepted.listenForClicks)
-    const finaleTeaser = useFinaleTeaser(finale, Date.now(), accepted.listenForClicks)
     const mood = moodOf(schedule.turn, clickBudget)
     const halloween = schedule.turn?.kind === "halloween"
     useMood(mood)
-    const battleReveal = useBattleReveal(battle, closed)
     const battleOver = useBattleOver(battle, schedule.debrief)
-    const seenBattle = useSeenBattle(battle)
-    const reveal = useRoundReveal(closed, seenBattle)
-    useEffect(() => {
-        for (const due of reveal.due) announce(due)
-    }, [announce, reveal.due])
-    useEffect(() => {
-        if (battleReveal.battle) announce({kind: "battle", battle: battleReveal.battle})
-    }, [announce, battleReveal.battle])
-    useEffect(() => {
-        if (finaleTeaser.finale) announce({kind: "finale", finale: finaleTeaser.finale})
-    }, [announce, finaleTeaser.finale])
-    const clipNotice = useClipNotice(props.clips, linked && username !== undefined ? ownAccountId : undefined)
-    useEffect(() => {
-        if (clipNotice.appearance) announce({kind: "clip", appearance: clipNotice.appearance})
-    }, [announce, clipNotice.appearance])
     const champion = reigningChampionOf(season, closed)
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
     const [pitchOpen, setPitchOpen] = useState(false)
@@ -625,66 +593,17 @@ export default function Viewer(props: ViewerProps) {
                                                        reporter={openPlayer.accountId === ownAccountId ? undefined : props.support}
                                                        onClose={() => setOpenPlayer(undefined)}/>}
 
-        {ready && current?.kind === "title" && <TitleUnlocked key={announcementKeyOf(current)}
-                                                              title={current.title}
-                                                              play={sound.play}
-                                                              onWear={props.account?.wearTitle}
-                                                              onClose={announcements.dismiss}/>}
-
-        {ready && (current?.kind === "round" || current?.kind === "results") && <RoundReveal
-            key={announcementKeyOf(current)}
-            closed={current.closed}
-            results={current.kind === "results"}
-            countryCode={countryState.code}
-            play={sound.play}
-            onClose={() => {
-                reveal.dismiss(current)
-                announcements.dismiss()
-            }}/>}
-
-        {ready && (current?.kind === "over" || current?.kind === "points" || current?.kind === "players") && <BattleDebrief
-            key={announcementKeyOf(current)}
-            screen={current.kind}
-            closed={current.closed}
-            description={briefDescriptionOf(seenBattle, current.closed)}
-            countryCode={countryState.code}
-            accountId={ownAccountId}
-            more={revealFollowed(current, seenBattle)}
-            play={sound.play}
-            onClose={() => {
-                reveal.dismiss(current)
-                announcements.dismiss()
-            }}/>}
-
-        {ready && current?.kind === "battle" && <BattleReveal key={announcementKeyOf(current)}
-                                                              battle={current.battle}
-                                                              play={sound.play}
-                                                              onClose={() => {
-                                                                  battleReveal.dismiss()
-                                                                  announcements.dismiss()
-                                                              }}/>}
-
-        {ready && current?.kind === "finale" && <FinaleTeaser key={announcementKeyOf(current)}
-                                                              finale={current.finale}
-                                                              play={sound.play}
-                                                              onClose={() => {
-                                                                  finaleTeaser.dismiss(current.finale)
-                                                                  announcements.dismiss()
-                                                              }}/>}
-
-        {ready && current?.kind === "clip" && <ClipNotice key={announcementKeyOf(current)}
-                                                          appearance={current.appearance}
-                                                          play={sound.play}
-                                                          onClose={() => {
-                                                              clipNotice.dismiss(current.appearance)
-                                                              announcements.dismiss()
-                                                          }}/>}
-
-        {ready && current?.kind === "flagMission" && <FlagMissionDone key={announcementKeyOf(current)}
-                                                                      mission={current.mission}
-                                                                      country={current.country}
-                                                                      play={sound.play}
-                                                                      onClose={announcements.dismiss}/>}
+        <Moments shown={ready}
+                 battle={battle}
+                 closed={closed}
+                 finale={finale}
+                 listenForClicks={accepted.listenForClicks}
+                 clips={props.clips}
+                 clipsAccount={linked && username !== undefined ? ownAccountId : undefined}
+                 countryCode={countryState.code}
+                 accountId={ownAccountId}
+                 play={sound.play}
+                 onWear={props.account?.wearTitle}/>
 
         {missionsDone && rules && <MissionsDone missions={missionsDone}
                                                 rules={rules}

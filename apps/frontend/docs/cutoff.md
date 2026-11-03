@@ -53,7 +53,7 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
   The rule is the title unlock's: a player spamming the globe would close it
   unseen.
 - **It takes its turn in the announcements queue** (see
-  [Battles](battle.md#the-announcements-queue)): `Viewer` announces the round
+  [Battles](battle.md#the-announcements-queue)): `Moments` announces the round
   closed when it is due, and shows it once the map is loaded and once whatever
   arrived before it, a title unlocked for one, was closed. A battle's start waits for the day it ended, so the day
   plays first (see [Battles](battle.md#the-start-moment-and-the-end)).
