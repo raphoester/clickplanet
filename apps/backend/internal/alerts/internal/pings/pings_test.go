@@ -1,6 +1,7 @@
 package pings_test
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -42,6 +43,65 @@ func TestAnAttackIsOneFlagTakingEnoughOfAnotherWithinTheWindow(t *testing.T) {
 	assert.False(t, attacked, "the attacker starts again from nothing")
 	_, attacked = watch.Hear(take("fr", "us", 4*time.Minute))
 	assert.True(t, attacked, "another attacker's takes are kept")
+}
+
+func pointAt(lat, lon float64) pings.Point {
+	lat, lon = lat*math.Pi/180, lon*math.Pi/180
+	return pings.Point{X: -math.Cos(lat) * math.Cos(lon), Y: math.Sin(lat), Z: math.Cos(lat) * math.Sin(lon)}
+}
+
+func placed(attacker, ground nations.Flag, point pings.Point) pings.Take {
+	placed := take(attacker, ground, time.Minute)
+	placed.Point = point
+	return placed
+}
+
+// Even over a disc of the radius, as a sunflower's seeds.
+func discAround(lat, lon, radius float64, count int) []pings.Point {
+	golden := math.Pi * (3 - math.Sqrt(5))
+	points := make([]pings.Point, 0, count)
+	for i := range count {
+		r := radius * math.Sqrt((float64(i)+0.5)/float64(count))
+		angle := float64(i) * golden
+		points = append(points, pointAt(lat+r*math.Cos(angle), lon+r*math.Sin(angle)/math.Cos(lat*math.Pi/180)))
+	}
+	return points
+}
+
+func TestAnAttacksViewFramesTheAttackersTakesOnItsGround(t *testing.T) {
+	watch := pings.NewWatch()
+	_, attacked := watch.Hear(placed("fr", "us", pointAt(90, 0)))
+	require.False(t, attacked)
+	_, attacked = watch.Hear(placed("gb", "ca", pointAt(90, 0)))
+	require.False(t, attacked)
+	disc := discAround(40, -100, 5, pings.AttackTiles-1)
+	for i, point := range disc[:len(disc)-1] {
+		_, attacked = watch.Hear(placed("gb", "us", point))
+		require.False(t, attacked, i)
+	}
+
+	attack, attacked := watch.Hear(placed("gb", "us", disc[len(disc)-1]))
+	require.True(t, attacked)
+	assert.InDelta(t, 40, attack.View.Lat, 0.2)
+	assert.InDelta(t, -100, attack.View.Lon, 0.2)
+	nearest := math.Sqrt(0.9) * 5 * math.Pi / 180
+	assert.InDelta(t, 0.4/nearest, attack.View.Zoom, 0.1, "the nearest 90%% of the takes fill 40%% of the screen's half height")
+}
+
+func TestAFewStrayTakesDoNotZoomTheViewOut(t *testing.T) {
+	watch := pings.NewWatch()
+	for i := range pings.AttackTiles - 1 {
+		point := pointAt(-25, 134)
+		if i%20 == 0 {
+			point = pointAt(10, 100)
+		}
+		_, attacked := watch.Hear(placed("gb", "au", point))
+		require.False(t, attacked, i)
+	}
+
+	attack, attacked := watch.Hear(placed("gb", "au", pointAt(-25, 134)))
+	require.True(t, attacked)
+	assert.InDelta(t, 20, attack.View.Zoom, 1e-9, "as close as a view comes")
 }
 
 func TestTakesOlderThanTheWindowCountNothing(t *testing.T) {
@@ -93,6 +153,21 @@ func TestTheHeraldCallsTheVictimsRoleToDefend(t *testing.T) {
 		Text:     "<@&1> 🇬🇧 United Kingdom took 240 of your tiles in 🇺🇸 United States in 5 minutes. https://clickplanet.lol/play",
 		Audience: discord.RoleAudience(role),
 	}}, poster.Posts)
+}
+
+func TestTheHeraldLinksToTheAttacksView(t *testing.T) {
+	poster := &pings.RecordedPoster{}
+	herald, book := herald(poster)
+	_, err := book.Ensure(t.Context(), roles.Nation("ie"))
+	require.NoError(t, err)
+
+	require.NoError(t, herald.CallToDefend(t.Context(), pings.Attack{
+		Victim: "ie", Attacker: "gb", Ground: "us", Tiles: 240, View: pings.View{Lat: 40.4167, Lon: -100.0049, Zoom: 2.9849},
+	}))
+
+	require.Len(t, poster.Posts, 1)
+	assert.Equal(t, "<@&1> 🇬🇧 United Kingdom took 240 of your tiles in 🇺🇸 United States in 5 minutes. "+
+		"https://clickplanet.lol/play?lat=40.42&lon=-100.00&zoom=3.0", poster.Posts[0].Text)
 }
 
 func TestTheHeraldCallsEverybodyInTheServerToBattle(t *testing.T) {

@@ -184,6 +184,7 @@ export type GlobeOptions = {
     updatesListener: UpdatesListener
     clickBudget?: ClickBudgetSource
     container: HTMLElement
+    linkedShot?: Shot
     country: Country
     mapView: MapView
     rendering: Rendering
@@ -252,6 +253,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         updatesListener,
         clickBudget,
         container: eventTarget,
+        linkedShot,
         country: initialCountry,
         mapView: initialMapView,
         rendering,
@@ -306,6 +308,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const graphics = graphicsOf(window.location.search, rendering);
     const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget, graphics);
+    if (linkedShot) aim(camera, {...linkedShot, zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, linkedShot.zoom))})
     let mapView: MapView = initialMapView
 
     let dirty = true

@@ -76,8 +76,15 @@ and `roles` keeps its id and its color by key, `flag:<code>`. A role's name is t
 **An attack** is one flag taking 200 of another's tiles within 5 minutes (`pings.Watch`, in memory, per victim). Its
 ping goes to `#alerts`, with the victim's role, the attacker, the tiles and the country where most of them were:
 
-> @Ireland 🇬🇧 United Kingdom took 240 of your tiles in 🇺🇸 United States in 5 minutes. https://clickplanet.lol/play
+> @Ireland 🇬🇧 United Kingdom took 240 of your tiles in 🇺🇸 United States in 5 minutes.
+> https://clickplanet.lol/play?lat=40.42&lon=-100.00&zoom=3.0
 
+- **The link opens the game on the attack** (`pings.View`): `lat` and `lon` in degrees, `zoom` the globe camera's (1 at
+  rest, the whole globe; the game reads the three, see the frontend's [Discord pings](../../frontend/docs/discord-alerts.md)).
+  The view looks at the middle of the attacker's takes on the ground the ping names, each from `TileTaken.point`.
+  The 90% of them nearest that middle fill 40% of a desktop's half height, which is most of a phone's half width; the
+  10% left are stray clicks, which would zoom the view out to the whole globe. The zoom is kept between 1 and 20, where
+  a tile is about 27 px on a 900 px high screen. A battle or a season has no place: its link is the plain page.
 - **Replayed on the last week of season 0**, 200 tiles gave about ten pings a day across thirty flags, the busiest one
   a day; 50 tiles gave 75 a day, and a server that pings all day is muted.
 - **A flag is pinged at most once in 3 hours and twice a day** (`pings.History`, read from `attack_pings`).

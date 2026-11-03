@@ -105,7 +105,9 @@ type TileTaken struct {
 	Previous  string                 `protobuf:"bytes,6,opt,name=previous,proto3" json:"previous,omitempty"`
 	Ground    string                 `protobuf:"bytes,7,opt,name=ground,proto3" json:"ground,omitempty"`
 	// A spread or an enclose is one ledger event, at one position, that holds several takes: each has its index in it.
-	Index         uint32 `protobuf:"varint,8,opt,name=index,proto3" json:"index,omitempty"`
+	Index uint32 `protobuf:"varint,8,opt,name=index,proto3" json:"index,omitempty"`
+	// Where the tile is on the globe: `position` is the ledger's.
+	Point         *GlobePoint `protobuf:"bytes,9,opt,name=point,proto3" json:"point,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -194,6 +196,13 @@ func (x *TileTaken) GetIndex() uint32 {
 		return x.Index
 	}
 	return 0
+}
+
+func (x *TileTaken) GetPoint() *GlobePoint {
+	if x != nil {
+		return x.Point
+	}
+	return nil
 }
 
 type BombLanded struct {
@@ -1172,7 +1181,7 @@ var File_planet_v1_events_proto protoreflect.FileDescriptor
 
 const file_planet_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/events.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\xfa\x01\n" +
+	"\x16planet/v1/events.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\xa7\x02\n" +
 	"\tTileTaken\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x17\n" +
@@ -1182,7 +1191,8 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\bposition\x18\x05 \x01(\x04R\bposition\x12\x1a\n" +
 	"\bprevious\x18\x06 \x01(\tR\bprevious\x12\x16\n" +
 	"\x06ground\x18\a \x01(\tR\x06ground\x12\x14\n" +
-	"\x05index\x18\b \x01(\rR\x05index\"\x86\x02\n" +
+	"\x05index\x18\b \x01(\rR\x05index\x12+\n" +
+	"\x05point\x18\t \x01(\v2\x15.planet.v1.GlobePointR\x05point\"\x86\x02\n" +
 	"\n" +
 	"BombLanded\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x17\n" +
@@ -1323,28 +1333,29 @@ var file_planet_v1_events_proto_goTypes = []any{
 }
 var file_planet_v1_events_proto_depIdxs = []int32{
 	15, // 0: planet.v1.TileTaken.taken_at:type_name -> google.protobuf.Timestamp
-	15, // 1: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
-	15, // 2: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
-	15, // 3: planet.v1.ShieldPlaced.placed_at:type_name -> google.protobuf.Timestamp
-	15, // 4: planet.v1.ShieldStruck.struck_at:type_name -> google.protobuf.Timestamp
-	15, // 5: planet.v1.BonusClaimed.claimed_at:type_name -> google.protobuf.Timestamp
-	15, // 6: planet.v1.QuizAnswered.answered_at:type_name -> google.protobuf.Timestamp
-	15, // 7: planet.v1.ClickTried.account_created_at:type_name -> google.protobuf.Timestamp
-	15, // 8: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
-	0,  // 9: planet.v1.ClickTried.outcome:type_name -> planet.v1.ClickOutcome
-	16, // 10: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
-	15, // 11: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
-	15, // 12: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
-	17, // 13: planet.v1.BoxCaught.after:type_name -> google.protobuf.Duration
-	15, // 14: planet.v1.BoxCaught.caught_at:type_name -> google.protobuf.Timestamp
-	15, // 15: planet.v1.BoxLapsed.lapsed_at:type_name -> google.protobuf.Timestamp
-	15, // 16: planet.v1.ForeignBoxClaimed.claimed_at:type_name -> google.protobuf.Timestamp
-	15, // 17: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
-	18, // [18:18] is the sub-list for method output_type
-	18, // [18:18] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	16, // 1: planet.v1.TileTaken.point:type_name -> planet.v1.GlobePoint
+	15, // 2: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
+	15, // 3: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
+	15, // 4: planet.v1.ShieldPlaced.placed_at:type_name -> google.protobuf.Timestamp
+	15, // 5: planet.v1.ShieldStruck.struck_at:type_name -> google.protobuf.Timestamp
+	15, // 6: planet.v1.BonusClaimed.claimed_at:type_name -> google.protobuf.Timestamp
+	15, // 7: planet.v1.QuizAnswered.answered_at:type_name -> google.protobuf.Timestamp
+	15, // 8: planet.v1.ClickTried.account_created_at:type_name -> google.protobuf.Timestamp
+	15, // 9: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
+	0,  // 10: planet.v1.ClickTried.outcome:type_name -> planet.v1.ClickOutcome
+	16, // 11: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
+	15, // 12: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
+	15, // 13: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
+	17, // 14: planet.v1.BoxCaught.after:type_name -> google.protobuf.Duration
+	15, // 15: planet.v1.BoxCaught.caught_at:type_name -> google.protobuf.Timestamp
+	15, // 16: planet.v1.BoxLapsed.lapsed_at:type_name -> google.protobuf.Timestamp
+	15, // 17: planet.v1.ForeignBoxClaimed.claimed_at:type_name -> google.protobuf.Timestamp
+	15, // 18: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
+	19, // [19:19] is the sub-list for method output_type
+	19, // [19:19] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_events_proto_init() }

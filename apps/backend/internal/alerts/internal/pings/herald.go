@@ -42,7 +42,7 @@ func (h Herald) CallToDefend(ctx context.Context, attack Attack) error {
 	audience := discord.RoleAudience(role)
 	text := fmt.Sprintf("%s %s %s took %d of your tiles in %s %s in %d minutes. %s",
 		audience.Mention(), attack.Attacker.Emoji(), attack.Attacker.Name(), attack.Tiles,
-		attack.Ground.Emoji(), attack.Ground.Name(), int(AttackWindow.Minutes()), h.gameURL)
+		attack.Ground.Emoji(), attack.Ground.Name(), int(AttackWindow.Minutes()), attack.View.linkFrom(h.gameURL))
 	if err := h.poster.Post(ctx, h.channels.Alerts, text, audience); err != nil {
 		return fmt.Errorf("failed to call %s to defend: %w", attack.Victim, err)
 	}
