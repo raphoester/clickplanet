@@ -381,9 +381,21 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
   accountId = "";
 
   /**
-   * @generated from field: string text = 3;
+   * @generated from oneof chat.v1.GetMessageResponse.body
    */
-  text = "";
+  body: {
+    /**
+     * @generated from field: string text = 3;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: chat.v1.Gif gif = 8;
+     */
+    value: Gif;
+    case: "gif";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
    * @generated from field: google.protobuf.Timestamp sent_at = 4;
@@ -409,11 +421,6 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
    */
   flagRoom = "";
 
-  /**
-   * @generated from field: chat.v1.Gif gif = 8;
-   */
-  gif?: Gif;
-
   constructor(data?: PartialMessage<GetMessageResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -424,12 +431,12 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
+    { no: 8, name: "gif", kind: "message", T: Gif, oneof: "body" },
     { no: 4, name: "sent_at", kind: "message", T: Timestamp },
     { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "removed_at", kind: "message", T: Timestamp },
     { no: 7, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 8, name: "gif", kind: "message", T: Gif },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageResponse {
@@ -577,9 +584,21 @@ export class KeptMessage extends Message<KeptMessage> {
   authorName = "";
 
   /**
-   * @generated from field: string text = 4;
+   * @generated from oneof chat.v1.KeptMessage.body
    */
-  text = "";
+  body: {
+    /**
+     * @generated from field: string text = 4;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: chat.v1.Gif gif = 10;
+     */
+    value: Gif;
+    case: "gif";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
    * @generated from field: google.protobuf.Timestamp sent_at = 5;
@@ -612,11 +631,6 @@ export class KeptMessage extends Message<KeptMessage> {
    */
   flagRoom = "";
 
-  /**
-   * @generated from field: chat.v1.Gif gif = 10;
-   */
-  gif?: Gif;
-
   constructor(data?: PartialMessage<KeptMessage>) {
     super();
     proto3.util.initPartial(data, this);
@@ -628,13 +642,13 @@ export class KeptMessage extends Message<KeptMessage> {
     { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
+    { no: 10, name: "gif", kind: "message", T: Gif, oneof: "body" },
     { no: 5, name: "sent_at", kind: "message", T: Timestamp },
     { no: 6, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "removed_at", kind: "message", T: Timestamp },
     { no: 8, name: "reply_to", kind: "message", T: KeptQuote },
     { no: 9, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 10, name: "gif", kind: "message", T: Gif },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeptMessage {
@@ -673,9 +687,21 @@ export class KeptQuote extends Message<KeptQuote> {
   authorName = "";
 
   /**
-   * @generated from field: string text = 3;
+   * @generated from oneof chat.v1.KeptQuote.body
    */
-  text = "";
+  body: {
+    /**
+     * @generated from field: string text = 3;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: chat.v1.Gif gif = 5;
+     */
+    value: Gif;
+    case: "gif";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
    * Unset while the message is shown.
@@ -683,11 +709,6 @@ export class KeptQuote extends Message<KeptQuote> {
    * @generated from field: google.protobuf.Timestamp removed_at = 4;
    */
   removedAt?: Timestamp;
-
-  /**
-   * @generated from field: chat.v1.Gif gif = 5;
-   */
-  gif?: Gif;
 
   constructor(data?: PartialMessage<KeptQuote>) {
     super();
@@ -699,9 +720,9 @@ export class KeptQuote extends Message<KeptQuote> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
+    { no: 5, name: "gif", kind: "message", T: Gif, oneof: "body" },
     { no: 4, name: "removed_at", kind: "message", T: Timestamp },
-    { no: 5, name: "gif", kind: "message", T: Gif },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeptQuote {

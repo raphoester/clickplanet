@@ -219,17 +219,19 @@ func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any)
 			account         uuid.NullUUID
 			sentAt          time.Time
 			room            string
+			text            string
 			removedAt       sql.NullTime
 			gif             = &chatv1.Gif{}
 			quote           = &chatv1.KeptQuote{}
 			quotedAccount   uuid.NullUUID
+			quotedText      string
 			quotedRemovedAt sql.NullTime
 			quotedGif       = &chatv1.Gif{}
 		)
 		if err := found.Scan(
-			&each.message.MessageId, &account, &each.author.name, &each.message.Text, &sentAt,
+			&each.message.MessageId, &account, &each.author.name, &text, &sentAt,
 			&each.message.CountryId, &room, &removedAt, &gif.Url, &gif.Width, &gif.Height,
-			&quote.MessageId, &quotedAccount, &each.quoted.name, &quote.Text, &quotedRemovedAt,
+			&quote.MessageId, &quotedAccount, &each.quoted.name, &quotedText, &quotedRemovedAt,
 			&quotedGif.Url, &quotedGif.Width, &quotedGif.Height,
 		); err != nil {
 			return nil, fmt.Errorf("failed to read a message of a page: %w", err)
@@ -247,7 +249,9 @@ func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any)
 			each.message.RemovedAt = timestamppb.New(removedAt.Time)
 		}
 		if gif.GetUrl() != "" {
-			each.message.Gif = gif
+			each.message.Body = &chatv1.KeptMessage_Gif{Gif: gif}
+		} else {
+			each.message.Body = &chatv1.KeptMessage_Text{Text: text}
 		}
 		if quote.GetMessageId() != "" {
 			if quotedAccount.Valid {
@@ -257,7 +261,9 @@ func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any)
 				quote.RemovedAt = timestamppb.New(quotedRemovedAt.Time)
 			}
 			if quotedGif.GetUrl() != "" {
-				quote.Gif = quotedGif
+				quote.Body = &chatv1.KeptQuote_Gif{Gif: quotedGif}
+			} else {
+				quote.Body = &chatv1.KeptQuote_Text{Text: quotedText}
 			}
 			each.message.ReplyTo = quote
 		}

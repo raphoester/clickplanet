@@ -265,9 +265,12 @@ while it was away: the badge counts it, and the lines light up as the chat opens
 
 ## GIFs
 
-**A message shows a text or a GIF, never both**: `SendMessageRequest.gif` with no text, and `ChatMessage.gif` on
-the answer, the stream and the history. The client finds the GIF on KLIPY itself (see the frontend's
-[Live chat](../../frontend/docs/chat.md#gifs)); the server only checks and keeps what it was sent.
+**A message shows a text or a GIF, never both**, and the contract says so: `oneof body { text, gif }` on
+`SendMessageRequest`, `ChatMessage`, `Quote`, and the operator's `GetMessageResponse`, `KeptMessage` and
+`KeptQuote`. `text` kept its field number when it moved into the oneof, so the bytes did not change and an older
+client reads and sends a text as before. A removed message has no body at all. The client finds the GIF on KLIPY
+itself (see the frontend's [Live chat](../../frontend/docs/chat.md#gifs)); the server only checks and keeps what it
+was sent.
 
 - **`messages.Gif` is KLIPY's address and size**, kept as KLIPY gave it: its terms forbid rewriting or caching the
   address. `Limits.Body` refuses a GIF with a text, an address that is not `https` on `static.klipy.com`,
@@ -282,9 +285,8 @@ the answer, the stream and the history. The client finds the GIF on KLIPY itself
   message and its GIF in one statement (a data-modifying CTE). The row goes with its message (`ON DELETE CASCADE`),
   so the prune needs no step of its own.
 - **Every read joins it**: the history, the message a reply or a reaction is checked against (so a reply quotes the
-  GIF: `Quote.gif`), and the operator's `GetMessage` and `ListMessages` (`gif` on `GetMessageResponse`,
-  `KeptMessage` and `KeptQuote`). **A removed message shows no GIF**, nor its quote, as it shows no text; the operator
-  still reads it.
+  GIF), and the operator's `GetMessage` and `ListMessages`. **A removed message shows no GIF**, nor its quote, as it
+  shows no text; the operator still reads it.
 - The store's contract suite keeps and reads one back; the history query's suite pins the quote and the removal.
 
 ## Rooms

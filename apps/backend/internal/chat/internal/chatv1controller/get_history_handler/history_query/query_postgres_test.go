@@ -288,7 +288,8 @@ func (s *testSuite) TestAReplyCarriesWhatTheMessageItRepliesToSaidAndWhoSaidIt()
 
 	s.Nil(shown[0].GetReplyTo(), "a plain message quotes nothing")
 	s.True(proto.Equal(&chatv1.Quote{
-		MessageId: "question", AuthorName: "Bob", AuthorColor: playerv1.NameColor_NAME_COLOR_TEAL, Text: "question",
+		MessageId: "question", AuthorName: "Bob", AuthorColor: playerv1.NameColor_NAME_COLOR_TEAL,
+		Body: &chatv1.Quote_Text{Text: "question"},
 	}, shown[1].GetReplyTo()), "%v", shown[1].GetReplyTo())
 }
 
@@ -552,7 +553,7 @@ func (s *testSuite) TestARemovedMessageKeepsItsPlaceAndItsAuthorAndLosesItsTextA
 	s.Equal("insult", shown[0].GetId())
 	s.Equal("Bob", shown[0].GetAuthorName())
 	s.True(shown[0].GetRemoved())
-	s.Empty(shown[0].GetText(), "the text never leaves the server")
+	s.Nil(shown[0].GetBody(), "the text never leaves the server")
 	s.Empty(shown[0].GetReactions())
 	s.False(shown[1].GetRemoved())
 	s.Equal("last", shown[1].GetText())
@@ -599,8 +600,8 @@ func (s *testSuite) TestARemovedGifIsNotShownNorQuoted() {
 	shown := s.history(ada).GetMessages()
 
 	s.True(shown[0].GetRemoved())
-	s.Nil(shown[0].GetGif(), "the address never leaves the server")
-	s.Nil(shown[1].GetReplyTo().GetGif())
+	s.Nil(shown[0].GetBody(), "the address never leaves the server")
+	s.Nil(shown[1].GetReplyTo().GetBody())
 }
 
 func (s *testSuite) TestAFlagsRoomHoldsWhatIsSaidThereAloneAndNoAnnouncement() {

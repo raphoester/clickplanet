@@ -54,7 +54,11 @@ message ChatMessage {
   reserved 4;
   reserved "author_tag";
   string country_id = 5;
-  string text = 6;
+  // Neither once an operator removed it.
+  oneof body {
+    string text = 6;
+    Gif gif = 16;
+  }
   bool author_admin = 7;
   repeated ReactionCount reactions = 8;
   uint64 reactions_version = 9;
@@ -64,10 +68,8 @@ message ChatMessage {
   Quote reply_to = 13;
   // Empty for a message kept before accounts, and for an account that was deleted.
   string author_account_id = 14;
-  // An operator removed it: it keeps its place, with no text, no GIF and no reactions.
+  // An operator removed it: it keeps its place, with no body and no reactions.
   bool removed = 15;
-  // A message shows a text or a GIF, never both.
-  Gif gif = 16;
 }
 
 // A GIF from KLIPY, at the address KLIPY gave for it.
@@ -81,10 +83,12 @@ message Quote {
   string message_id = 1;
   string author_name = 2;
   player.v1.NameColor author_color = 3;
-  string text = 4;
-  // The message quoted was removed: no text and no GIF.
+  // Neither when the message quoted was removed.
+  oneof body {
+    string text = 4;
+    Gif gif = 6;
+  }
   bool removed = 5;
-  Gif gif = 6;
 }
 
 message SendMessageRequest {
@@ -92,13 +96,15 @@ message SendMessageRequest {
   reserved "author_name";
   string author_id = 2;
   string country_id = 3;
-  string text = 4;
+  oneof body {
+    string text = 4;
+    // Refused, PermissionDenied, from a guest.
+    Gif gif = 7;
+  }
   string reply_to_message_id = 5;
   // The flag whose room it goes to: only the accounts that play for that flag read and write there. Empty for the chat
   // everyone reads.
   string flag_room = 6;
-  // With no text. Refused, PermissionDenied, from a guest.
-  Gif gif = 7;
 }
 
 message SendMessageResponse {

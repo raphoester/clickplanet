@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import {textBody} from "../chat/said.ts"
 import {Timestamp} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
@@ -130,7 +131,7 @@ describe("ReportDetail", () => {
     it("pages back and forth from the reported message, on asking", async () => {
         const admin = new FakeAdmin()
         const said = (side: string, n: number) => new KeptMessage({
-            messageId: `${side}-${n}`, accountId: "account-cleo", authorName: "Cleo", text: `${side} ${n}`,
+            messageId: `${side}-${n}`, accountId: "account-cleo", authorName: "Cleo", body: textBody(`${side} ${n}`),
             sentAt: Timestamp.fromDate(AT),
         })
         admin.chat = [
@@ -199,7 +200,7 @@ describe("ReportDetail", () => {
     it("says when an earlier page is no longer kept", async () => {
         const admin = new FakeAdmin()
         admin.chat = [
-            ...Array.from({length: 10}, (_, n) => new KeptMessage({messageId: `before-${n}`, text: `before ${n}`})),
+            ...Array.from({length: 10}, (_, n) => new KeptMessage({messageId: `before-${n}`, body: textBody(`before ${n}`)})),
             admin.chat[2],
         ]
         open(admin)
@@ -270,8 +271,7 @@ describe("ReportDetail", () => {
 
     it("shows a reported GIF, sized to fit", async () => {
         const admin = new FakeAdmin()
-        admin.message.text = ""
-        admin.message.gif = new Gif({url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124})
+        admin.message.body = {case: "gif", value: new Gif({url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124})}
         open(admin)
 
         const gif = (await screen.findAllByRole("img", {name: "GIF"})).find(image => image.closest(".report-quote"))!

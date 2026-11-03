@@ -198,9 +198,23 @@ export class ChatMessage extends Message<ChatMessage> {
   countryId = "";
 
   /**
-   * @generated from field: string text = 6;
+   * Neither once an operator removed it.
+   *
+   * @generated from oneof chat.v1.ChatMessage.body
    */
-  text = "";
+  body: {
+    /**
+     * @generated from field: string text = 6;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: chat.v1.Gif gif = 16;
+     */
+    value: Gif;
+    case: "gif";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
    * @generated from field: bool author_admin = 7;
@@ -245,18 +259,11 @@ export class ChatMessage extends Message<ChatMessage> {
   authorAccountId = "";
 
   /**
-   * An operator removed it: it keeps its place, with no text, no GIF and no reactions.
+   * An operator removed it: it keeps its place, with no body and no reactions.
    *
    * @generated from field: bool removed = 15;
    */
   removed = false;
-
-  /**
-   * A message shows a text or a GIF, never both.
-   *
-   * @generated from field: chat.v1.Gif gif = 16;
-   */
-  gif?: Gif;
 
   constructor(data?: PartialMessage<ChatMessage>) {
     super();
@@ -270,7 +277,8 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 2, name: "sent_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 3, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 6, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
+    { no: 16, name: "gif", kind: "message", T: Gif, oneof: "body" },
     { no: 7, name: "author_admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 8, name: "reactions", kind: "message", T: ReactionCount, repeated: true },
     { no: 9, name: "reactions_version", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
@@ -280,7 +288,6 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 13, name: "reply_to", kind: "message", T: Quote },
     { no: 14, name: "author_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 15, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 16, name: "gif", kind: "message", T: Gif },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatMessage {
@@ -371,21 +378,28 @@ export class Quote extends Message<Quote> {
   authorColor = NameColor.UNSPECIFIED;
 
   /**
-   * @generated from field: string text = 4;
+   * Neither when the message quoted was removed.
+   *
+   * @generated from oneof chat.v1.Quote.body
    */
-  text = "";
+  body: {
+    /**
+     * @generated from field: string text = 4;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: chat.v1.Gif gif = 6;
+     */
+    value: Gif;
+    case: "gif";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
-   * The message quoted was removed: no text and no GIF.
-   *
    * @generated from field: bool removed = 5;
    */
   removed = false;
-
-  /**
-   * @generated from field: chat.v1.Gif gif = 6;
-   */
-  gif?: Gif;
 
   constructor(data?: PartialMessage<Quote>) {
     super();
@@ -398,9 +412,9 @@ export class Quote extends Message<Quote> {
     { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "author_color", kind: "enum", T: proto3.getEnumType(NameColor) },
-    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
+    { no: 6, name: "gif", kind: "message", T: Gif, oneof: "body" },
     { no: 5, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 6, name: "gif", kind: "message", T: Gif },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Quote {
@@ -435,9 +449,23 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
   countryId = "";
 
   /**
-   * @generated from field: string text = 4;
+   * @generated from oneof chat.v1.SendMessageRequest.body
    */
-  text = "";
+  body: {
+    /**
+     * @generated from field: string text = 4;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * Refused, PermissionDenied, from a guest.
+     *
+     * @generated from field: chat.v1.Gif gif = 7;
+     */
+    value: Gif;
+    case: "gif";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
    * @generated from field: string reply_to_message_id = 5;
@@ -452,13 +480,6 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
    */
   flagRoom = "";
 
-  /**
-   * With no text. Refused, PermissionDenied, from a guest.
-   *
-   * @generated from field: chat.v1.Gif gif = 7;
-   */
-  gif?: Gif;
-
   constructor(data?: PartialMessage<SendMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -469,10 +490,10 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 2, name: "author_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
+    { no: 7, name: "gif", kind: "message", T: Gif, oneof: "body" },
     { no: 5, name: "reply_to_message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "gif", kind: "message", T: Gif },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SendMessageRequest {

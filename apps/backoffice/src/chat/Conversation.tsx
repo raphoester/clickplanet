@@ -4,11 +4,11 @@ import {FailureNotice} from "../components/FailureNotice.tsx"
 import {clockOf, timeOf} from "../components/time.ts"
 import {countryLabel} from "../countries.ts"
 import {KeptMessage, KeptQuote} from "../gen/grpc/chat/v1/admin_pb.ts"
-import {Gif} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {useOpenPlayer} from "../navigation.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
 import {Page, pageOf, Parties} from "./chatPages.ts"
+import {Body, wordsIn} from "./said.ts"
 
 // How many messages the first page on each side of the reported one holds, and each page asked for after.
 const FIRST_PAGE = 10
@@ -179,7 +179,7 @@ export function LineBody({line, parties, day, mark, removedAt}: LineProps) {
                 </span>
             </div>
             {line.replyTo !== undefined && <Quote quote={line.replyTo}/>}
-            <LineWords text={line.text} gif={line.gif} removed={removed !== undefined}/>
+            <LineWords body={line.body} removed={removed !== undefined}/>
             {removed !== undefined && mark === undefined && <p className="hint">Removed at {timeOf(removed)}.</p>}
         </>
     )
@@ -220,7 +220,7 @@ function Quote({quote}: {quote: KeptQuote}) {
     return (
         <p className="line-quote">
             In reply to <span className="name">{quote.authorName === "" ? "no name" : quote.authorName}</span>:{" "}
-            <span className={removed ? "line-removed" : undefined}>{quote.gif === undefined ? quote.text : "a GIF"}</span>
+            <span className={removed ? "line-removed" : undefined}>{wordsIn(quote.body)}</span>
             {removed && " (removed)"}
         </p>
     )
@@ -229,10 +229,11 @@ function Quote({quote}: {quote: KeptQuote}) {
 const GIF_BOX = 160
 
 // What a line said: its text, or the GIF it showed.
-export function LineWords({text, gif, removed}: {text: string, gif: Gif | undefined, removed: boolean}) {
+export function LineWords({body, removed}: {body: Body, removed: boolean}) {
     const className = removed ? "line-text line-removed" : "line-text"
-    if (gif === undefined) return <p className={className}>{text}</p>
+    if (body.case !== "gif") return <p className={className}>{wordsIn(body)}</p>
 
+    const gif = body.value
     const scale = Math.min(1, GIF_BOX / gif.width, GIF_BOX / gif.height)
     return (
         <p className={className}>

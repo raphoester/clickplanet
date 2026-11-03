@@ -60,7 +60,6 @@ func (q *PostgresQuery) Message(ctx context.Context, id string) (*chatv1.GetMess
 
 	answer := &chatv1.GetMessageResponse{
 		MessageId: id,
-		Text:      text,
 		SentAt:    timestamppb.New(sentAt),
 		CountryId: country,
 	}
@@ -74,7 +73,9 @@ func (q *PostgresQuery) Message(ctx context.Context, id string) (*chatv1.GetMess
 		answer.RemovedAt = timestamppb.New(removedAt.Time)
 	}
 	if gif.GetUrl() != "" {
-		answer.Gif = gif
+		answer.Body = &chatv1.GetMessageResponse_Gif{Gif: gif}
+	} else {
+		answer.Body = &chatv1.GetMessageResponse_Text{Text: text}
 	}
 	return answer, nil
 }

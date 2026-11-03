@@ -333,12 +333,15 @@ func messageOf(row row, named map[cpsession.AccountID]*playerv1.Author) *chatv1.
 		Id:               row.id,
 		SentAtUnixMs:     row.sentAt,
 		CountryId:        row.country,
-		Text:             row.text,
 		Removed:          row.removed,
-		Gif:              gifOf(row.gif),
 		Reactions:        reactionsOf(row.counts, named),
 		ReactionsVersion: row.version,
 		ReplyTo:          quoteOf(row.quoted, named),
+	}
+	if gif := gifOf(row.gif); gif != nil {
+		message.Body = &chatv1.ChatMessage_Gif{Gif: gif}
+	} else if !row.removed {
+		message.Body = &chatv1.ChatMessage_Text{Text: row.text}
 	}
 
 	if row.account == cpsession.NoAccount {
@@ -367,7 +370,12 @@ func quoteOf(quoted quoted, named map[cpsession.AccountID]*playerv1.Author) *cha
 		return nil
 	}
 
-	quote := &chatv1.Quote{MessageId: quoted.id, Text: quoted.text, Removed: quoted.removed, Gif: gifOf(quoted.gif)}
+	quote := &chatv1.Quote{MessageId: quoted.id, Removed: quoted.removed}
+	if gif := gifOf(quoted.gif); gif != nil {
+		quote.Body = &chatv1.Quote_Gif{Gif: gif}
+	} else if !quoted.removed {
+		quote.Body = &chatv1.Quote_Text{Text: quoted.text}
+	}
 	if quoted.account == cpsession.NoAccount {
 		quote.AuthorName = quoted.name
 		return quote

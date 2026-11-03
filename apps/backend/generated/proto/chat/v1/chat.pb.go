@@ -182,25 +182,29 @@ func (x *ReactionCount) GetReactors() []string {
 }
 
 type ChatMessage struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	SentAtUnixMs     int64                  `protobuf:"varint,2,opt,name=sent_at_unix_ms,json=sentAtUnixMs,proto3" json:"sent_at_unix_ms,omitempty"`
-	AuthorName       string                 `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
-	CountryId        string                 `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Text             string                 `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
-	AuthorAdmin      bool                   `protobuf:"varint,7,opt,name=author_admin,json=authorAdmin,proto3" json:"author_admin,omitempty"`
-	Reactions        []*ReactionCount       `protobuf:"bytes,8,rep,name=reactions,proto3" json:"reactions,omitempty"`
-	ReactionsVersion uint64                 `protobuf:"varint,9,opt,name=reactions_version,json=reactionsVersion,proto3" json:"reactions_version,omitempty"`
-	AuthorColor      v1.NameColor           `protobuf:"varint,10,opt,name=author_color,json=authorColor,proto3,enum=player.v1.NameColor" json:"author_color,omitempty"`
-	AuthorStreak     uint32                 `protobuf:"varint,11,opt,name=author_streak,json=authorStreak,proto3" json:"author_streak,omitempty"`
-	AuthorTitle      *v1.Title              `protobuf:"bytes,12,opt,name=author_title,json=authorTitle,proto3" json:"author_title,omitempty"`
-	ReplyTo          *Quote                 `protobuf:"bytes,13,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SentAtUnixMs int64                  `protobuf:"varint,2,opt,name=sent_at_unix_ms,json=sentAtUnixMs,proto3" json:"sent_at_unix_ms,omitempty"`
+	AuthorName   string                 `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
+	CountryId    string                 `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	// Neither once an operator removed it.
+	//
+	// Types that are valid to be assigned to Body:
+	//
+	//	*ChatMessage_Text
+	//	*ChatMessage_Gif
+	Body             isChatMessage_Body `protobuf_oneof:"body"`
+	AuthorAdmin      bool               `protobuf:"varint,7,opt,name=author_admin,json=authorAdmin,proto3" json:"author_admin,omitempty"`
+	Reactions        []*ReactionCount   `protobuf:"bytes,8,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	ReactionsVersion uint64             `protobuf:"varint,9,opt,name=reactions_version,json=reactionsVersion,proto3" json:"reactions_version,omitempty"`
+	AuthorColor      v1.NameColor       `protobuf:"varint,10,opt,name=author_color,json=authorColor,proto3,enum=player.v1.NameColor" json:"author_color,omitempty"`
+	AuthorStreak     uint32             `protobuf:"varint,11,opt,name=author_streak,json=authorStreak,proto3" json:"author_streak,omitempty"`
+	AuthorTitle      *v1.Title          `protobuf:"bytes,12,opt,name=author_title,json=authorTitle,proto3" json:"author_title,omitempty"`
+	ReplyTo          *Quote             `protobuf:"bytes,13,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
 	// Empty for a message kept before accounts, and for an account that was deleted.
 	AuthorAccountId string `protobuf:"bytes,14,opt,name=author_account_id,json=authorAccountId,proto3" json:"author_account_id,omitempty"`
-	// An operator removed it: it keeps its place, with no text, no GIF and no reactions.
-	Removed bool `protobuf:"varint,15,opt,name=removed,proto3" json:"removed,omitempty"`
-	// A message shows a text or a GIF, never both.
-	Gif           *Gif `protobuf:"bytes,16,opt,name=gif,proto3" json:"gif,omitempty"`
+	// An operator removed it: it keeps its place, with no body and no reactions.
+	Removed       bool `protobuf:"varint,15,opt,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -263,11 +267,29 @@ func (x *ChatMessage) GetCountryId() string {
 	return ""
 }
 
+func (x *ChatMessage) GetBody() isChatMessage_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
 func (x *ChatMessage) GetText() string {
 	if x != nil {
-		return x.Text
+		if x, ok := x.Body.(*ChatMessage_Text); ok {
+			return x.Text
+		}
 	}
 	return ""
+}
+
+func (x *ChatMessage) GetGif() *Gif {
+	if x != nil {
+		if x, ok := x.Body.(*ChatMessage_Gif); ok {
+			return x.Gif
+		}
+	}
+	return nil
 }
 
 func (x *ChatMessage) GetAuthorAdmin() bool {
@@ -333,12 +355,21 @@ func (x *ChatMessage) GetRemoved() bool {
 	return false
 }
 
-func (x *ChatMessage) GetGif() *Gif {
-	if x != nil {
-		return x.Gif
-	}
-	return nil
+type isChatMessage_Body interface {
+	isChatMessage_Body()
 }
+
+type ChatMessage_Text struct {
+	Text string `protobuf:"bytes,6,opt,name=text,proto3,oneof"`
+}
+
+type ChatMessage_Gif struct {
+	Gif *Gif `protobuf:"bytes,16,opt,name=gif,proto3,oneof"`
+}
+
+func (*ChatMessage_Text) isChatMessage_Body() {}
+
+func (*ChatMessage_Gif) isChatMessage_Body() {}
 
 // A GIF from KLIPY, at the address KLIPY gave for it.
 type Gif struct {
@@ -406,10 +437,14 @@ type Quote struct {
 	MessageId   string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 	AuthorName  string                 `protobuf:"bytes,2,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
 	AuthorColor v1.NameColor           `protobuf:"varint,3,opt,name=author_color,json=authorColor,proto3,enum=player.v1.NameColor" json:"author_color,omitempty"`
-	Text        string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
-	// The message quoted was removed: no text and no GIF.
-	Removed       bool `protobuf:"varint,5,opt,name=removed,proto3" json:"removed,omitempty"`
-	Gif           *Gif `protobuf:"bytes,6,opt,name=gif,proto3" json:"gif,omitempty"`
+	// Neither when the message quoted was removed.
+	//
+	// Types that are valid to be assigned to Body:
+	//
+	//	*Quote_Text
+	//	*Quote_Gif
+	Body          isQuote_Body `protobuf_oneof:"body"`
+	Removed       bool         `protobuf:"varint,5,opt,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -465,11 +500,29 @@ func (x *Quote) GetAuthorColor() v1.NameColor {
 	return v1.NameColor(0)
 }
 
+func (x *Quote) GetBody() isQuote_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
 func (x *Quote) GetText() string {
 	if x != nil {
-		return x.Text
+		if x, ok := x.Body.(*Quote_Text); ok {
+			return x.Text
+		}
 	}
 	return ""
+}
+
+func (x *Quote) GetGif() *Gif {
+	if x != nil {
+		if x, ok := x.Body.(*Quote_Gif); ok {
+			return x.Gif
+		}
+	}
+	return nil
 }
 
 func (x *Quote) GetRemoved() bool {
@@ -479,24 +532,35 @@ func (x *Quote) GetRemoved() bool {
 	return false
 }
 
-func (x *Quote) GetGif() *Gif {
-	if x != nil {
-		return x.Gif
-	}
-	return nil
+type isQuote_Body interface {
+	isQuote_Body()
 }
 
+type Quote_Text struct {
+	Text string `protobuf:"bytes,4,opt,name=text,proto3,oneof"`
+}
+
+type Quote_Gif struct {
+	Gif *Gif `protobuf:"bytes,6,opt,name=gif,proto3,oneof"`
+}
+
+func (*Quote_Text) isQuote_Body() {}
+
+func (*Quote_Gif) isQuote_Body() {}
+
 type SendMessageRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	AuthorId         string                 `protobuf:"bytes,2,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
-	CountryId        string                 `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Text             string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
-	ReplyToMessageId string                 `protobuf:"bytes,5,opt,name=reply_to_message_id,json=replyToMessageId,proto3" json:"reply_to_message_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AuthorId  string                 `protobuf:"bytes,2,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	CountryId string                 `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	// Types that are valid to be assigned to Body:
+	//
+	//	*SendMessageRequest_Text
+	//	*SendMessageRequest_Gif
+	Body             isSendMessageRequest_Body `protobuf_oneof:"body"`
+	ReplyToMessageId string                    `protobuf:"bytes,5,opt,name=reply_to_message_id,json=replyToMessageId,proto3" json:"reply_to_message_id,omitempty"`
 	// The flag whose room it goes to: only the accounts that play for that flag read and write there. Empty for the chat
 	// everyone reads.
-	FlagRoom string `protobuf:"bytes,6,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
-	// With no text. Refused, PermissionDenied, from a guest.
-	Gif           *Gif `protobuf:"bytes,7,opt,name=gif,proto3" json:"gif,omitempty"`
+	FlagRoom      string `protobuf:"bytes,6,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -545,11 +609,29 @@ func (x *SendMessageRequest) GetCountryId() string {
 	return ""
 }
 
+func (x *SendMessageRequest) GetBody() isSendMessageRequest_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
 func (x *SendMessageRequest) GetText() string {
 	if x != nil {
-		return x.Text
+		if x, ok := x.Body.(*SendMessageRequest_Text); ok {
+			return x.Text
+		}
 	}
 	return ""
+}
+
+func (x *SendMessageRequest) GetGif() *Gif {
+	if x != nil {
+		if x, ok := x.Body.(*SendMessageRequest_Gif); ok {
+			return x.Gif
+		}
+	}
+	return nil
 }
 
 func (x *SendMessageRequest) GetReplyToMessageId() string {
@@ -566,12 +648,22 @@ func (x *SendMessageRequest) GetFlagRoom() string {
 	return ""
 }
 
-func (x *SendMessageRequest) GetGif() *Gif {
-	if x != nil {
-		return x.Gif
-	}
-	return nil
+type isSendMessageRequest_Body interface {
+	isSendMessageRequest_Body()
 }
+
+type SendMessageRequest_Text struct {
+	Text string `protobuf:"bytes,4,opt,name=text,proto3,oneof"`
+}
+
+type SendMessageRequest_Gif struct {
+	// Refused, PermissionDenied, from a guest.
+	Gif *Gif `protobuf:"bytes,7,opt,name=gif,proto3,oneof"`
+}
+
+func (*SendMessageRequest_Text) isSendMessageRequest_Body() {}
+
+func (*SendMessageRequest_Gif) isSendMessageRequest_Body() {}
 
 type SendMessageResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1360,15 +1452,16 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\breaction\x18\x01 \x01(\x0e2\x11.chat.v1.ReactionR\breaction\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\rR\x05count\x12\x12\n" +
 	"\x04mine\x18\x03 \x01(\bR\x04mine\x12\x1a\n" +
-	"\breactors\x18\x04 \x03(\tR\breactors\"\xd4\x04\n" +
+	"\breactors\x18\x04 \x03(\tR\breactors\"\xe0\x04\n" +
 	"\vChatMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0fsent_at_unix_ms\x18\x02 \x01(\x03R\fsentAtUnixMs\x12\x1f\n" +
 	"\vauthor_name\x18\x03 \x01(\tR\n" +
 	"authorName\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x05 \x01(\tR\tcountryId\x12\x12\n" +
-	"\x04text\x18\x06 \x01(\tR\x04text\x12!\n" +
+	"country_id\x18\x05 \x01(\tR\tcountryId\x12\x14\n" +
+	"\x04text\x18\x06 \x01(\tH\x00R\x04text\x12 \n" +
+	"\x03gif\x18\x10 \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x12!\n" +
 	"\fauthor_admin\x18\a \x01(\bR\vauthorAdmin\x124\n" +
 	"\treactions\x18\b \x03(\v2\x16.chat.v1.ReactionCountR\treactions\x12+\n" +
 	"\x11reactions_version\x18\t \x01(\x04R\x10reactionsVersion\x127\n" +
@@ -1378,30 +1471,32 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\fauthor_title\x18\f \x01(\v2\x10.player.v1.TitleR\vauthorTitle\x12)\n" +
 	"\breply_to\x18\r \x01(\v2\x0e.chat.v1.QuoteR\areplyTo\x12*\n" +
 	"\x11author_account_id\x18\x0e \x01(\tR\x0fauthorAccountId\x12\x18\n" +
-	"\aremoved\x18\x0f \x01(\bR\aremoved\x12\x1e\n" +
-	"\x03gif\x18\x10 \x01(\v2\f.chat.v1.GifR\x03gifJ\x04\b\x04\x10\x05R\n" +
+	"\aremoved\x18\x0f \x01(\bR\aremovedB\x06\n" +
+	"\x04bodyJ\x04\b\x04\x10\x05R\n" +
 	"author_tag\"E\n" +
 	"\x03Gif\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
 	"\x05width\x18\x02 \x01(\rR\x05width\x12\x16\n" +
-	"\x06height\x18\x03 \x01(\rR\x06height\"\xce\x01\n" +
+	"\x06height\x18\x03 \x01(\rR\x06height\"\xda\x01\n" +
 	"\x05Quote\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1f\n" +
 	"\vauthor_name\x18\x02 \x01(\tR\n" +
 	"authorName\x127\n" +
-	"\fauthor_color\x18\x03 \x01(\x0e2\x14.player.v1.NameColorR\vauthorColor\x12\x12\n" +
-	"\x04text\x18\x04 \x01(\tR\x04text\x12\x18\n" +
-	"\aremoved\x18\x05 \x01(\bR\aremoved\x12\x1e\n" +
-	"\x03gif\x18\x06 \x01(\v2\f.chat.v1.GifR\x03gif\"\xe3\x01\n" +
+	"\fauthor_color\x18\x03 \x01(\x0e2\x14.player.v1.NameColorR\vauthorColor\x12\x14\n" +
+	"\x04text\x18\x04 \x01(\tH\x00R\x04text\x12 \n" +
+	"\x03gif\x18\x06 \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x12\x18\n" +
+	"\aremoved\x18\x05 \x01(\bR\aremovedB\x06\n" +
+	"\x04body\"\xef\x01\n" +
 	"\x12SendMessageRequest\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\tR\bauthorId\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x03 \x01(\tR\tcountryId\x12\x12\n" +
-	"\x04text\x18\x04 \x01(\tR\x04text\x12-\n" +
+	"country_id\x18\x03 \x01(\tR\tcountryId\x12\x14\n" +
+	"\x04text\x18\x04 \x01(\tH\x00R\x04text\x12 \n" +
+	"\x03gif\x18\a \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x12-\n" +
 	"\x13reply_to_message_id\x18\x05 \x01(\tR\x10replyToMessageId\x12\x1b\n" +
-	"\tflag_room\x18\x06 \x01(\tR\bflagRoom\x12\x1e\n" +
-	"\x03gif\x18\a \x01(\v2\f.chat.v1.GifR\x03gifJ\x04\b\x01\x10\x02R\vauthor_name\"E\n" +
+	"\tflag_room\x18\x06 \x01(\tR\bflagRoomB\x06\n" +
+	"\x04bodyJ\x04\b\x01\x10\x02R\vauthor_name\"E\n" +
 	"\x13SendMessageResponse\x12.\n" +
 	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageR\amessage\"<\n" +
 	"\vMuteRefusal\x12-\n" +
@@ -1515,11 +1610,11 @@ var file_chat_v1_chat_proto_goTypes = []any{
 }
 var file_chat_v1_chat_proto_depIdxs = []int32{
 	0,  // 0: chat.v1.ReactionCount.reaction:type_name -> chat.v1.Reaction
-	1,  // 1: chat.v1.ChatMessage.reactions:type_name -> chat.v1.ReactionCount
-	20, // 2: chat.v1.ChatMessage.author_color:type_name -> player.v1.NameColor
-	21, // 3: chat.v1.ChatMessage.author_title:type_name -> player.v1.Title
-	4,  // 4: chat.v1.ChatMessage.reply_to:type_name -> chat.v1.Quote
-	3,  // 5: chat.v1.ChatMessage.gif:type_name -> chat.v1.Gif
+	3,  // 1: chat.v1.ChatMessage.gif:type_name -> chat.v1.Gif
+	1,  // 2: chat.v1.ChatMessage.reactions:type_name -> chat.v1.ReactionCount
+	20, // 3: chat.v1.ChatMessage.author_color:type_name -> player.v1.NameColor
+	21, // 4: chat.v1.ChatMessage.author_title:type_name -> player.v1.Title
+	4,  // 5: chat.v1.ChatMessage.reply_to:type_name -> chat.v1.Quote
 	20, // 6: chat.v1.Quote.author_color:type_name -> player.v1.NameColor
 	3,  // 7: chat.v1.Quote.gif:type_name -> chat.v1.Gif
 	3,  // 8: chat.v1.SendMessageRequest.gif:type_name -> chat.v1.Gif
@@ -1555,6 +1650,18 @@ func init() { file_chat_v1_chat_proto_init() }
 func file_chat_v1_chat_proto_init() {
 	if File_chat_v1_chat_proto != nil {
 		return
+	}
+	file_chat_v1_chat_proto_msgTypes[1].OneofWrappers = []any{
+		(*ChatMessage_Text)(nil),
+		(*ChatMessage_Gif)(nil),
+	}
+	file_chat_v1_chat_proto_msgTypes[3].OneofWrappers = []any{
+		(*Quote_Text)(nil),
+		(*Quote_Gif)(nil),
+	}
+	file_chat_v1_chat_proto_msgTypes[4].OneofWrappers = []any{
+		(*SendMessageRequest_Text)(nil),
+		(*SendMessageRequest_Gif)(nil),
 	}
 	file_chat_v1_chat_proto_msgTypes[15].OneofWrappers = []any{
 		(*ChatEvent_Message)(nil),

@@ -134,7 +134,7 @@ function Said({message, again}: {message: Call<Read>, again: () => void}) {
     const removed = message.value.message.removedAt
     return (
         <blockquote className="report-quote">
-            <LineWords text={message.value.message.text} gif={message.value.message.gif} removed={removed !== undefined}/>
+            <LineWords body={message.value.message.body} removed={removed !== undefined}/>
             {removed !== undefined && <p className="hint">Removed <When at={removed}/>.</p>}
         </blockquote>
     )
@@ -197,11 +197,10 @@ function keptOf(message: GetMessageResponse, report: Report): KeptMessage {
         messageId: message.messageId,
         accountId: message.accountId,
         authorName: message.accountId === "" ? "" : name ?? "",
-        text: message.text,
+        body: message.body,
         sentAt: message.sentAt,
         countryId: message.countryId,
         removedAt: message.removedAt,
         flagRoom: message.flagRoom,
-        gif: message.gif,
     })
 }

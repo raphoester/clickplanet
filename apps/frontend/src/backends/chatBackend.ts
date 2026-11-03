@@ -78,10 +78,9 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
             const res = await this.authenticated((headers) => this.client.sendMessage({
                 authorId: message.authorId,
                 countryId: message.countryCode,
-                text: message.text,
+                body: message.gif ? {case: "gif", value: message.gif} : {case: "text", value: message.text},
                 replyToMessageId: message.replyTo,
                 flagRoom: this.room,
-                gif: message.gif,
             }, {headers}))
 
             if (!res.message) throw new ChatRejectedError()
@@ -251,17 +250,28 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
         authorStreak: message.authorStreak,
         authorTitle: titleOf(message.authorTitle),
         countryCode: message.countryId,
-        text: message.text,
+        ...saidIn(message.body),
         reactions: message.reactions.map(decodedCount),
         reactionsVersion: Number(message.reactionsVersion),
         replyTo: decodedQuote(message.replyTo),
         removed: message.removed,
-        gif: decodedGif(message.gif),
     }
 }
 
-function decodedGif(gif: GifPb | undefined): Gif | undefined {
-    if (!gif || gif.url === "") return undefined
+// Neither for a removed message.
+function saidIn(body: ChatMessagePb["body"] | QuotePb["body"]): {text: string, gif?: Gif} {
+    switch (body.case) {
+        case "text":
+            return {text: body.value}
+        case "gif":
+            return {text: "", gif: decodedGif(body.value)}
+        case undefined:
+            return {text: ""}
+    }
+}
+
+function decodedGif(gif: GifPb): Gif | undefined {
+    if (gif.url === "") return undefined
 
     return {url: gif.url, width: gif.width, height: gif.height}
 }
@@ -273,9 +283,8 @@ function decodedQuote(quote: QuotePb | undefined): ChatQuote | undefined {
         messageId: quote.messageId,
         authorName: quote.authorName,
         authorColor: quote.authorColor,
-        text: quote.text,
+        ...saidIn(quote.body),
         removed: quote.removed,
-        gif: decodedGif(quote.gif),
     }
 }
 

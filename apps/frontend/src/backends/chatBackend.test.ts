@@ -66,7 +66,7 @@ const proto = () => new ChatMessagePb({
     authorStreak: 12,
     authorTitle: new TitlePb({id: "og", name: "OG"}),
     countryId: "fr",
-    text: "hello",
+    body: {case: "text", value: "hello"},
     reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]})],
     reactionsVersion: BigInt(3),
 })
@@ -113,20 +113,32 @@ describe("decodedMessage", () => {
     it("carries a GIF, and the GIF of a quoted message", () => {
         const gif = new GifPb({url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124})
         const message = proto()
-        message.text = ""
-        message.gif = gif
-        message.replyTo = new Quote({messageId: "message-0", authorName: "Bo", gif})
+        message.body = {case: "gif", value: gif}
+        message.replyTo = new Quote({messageId: "message-0", authorName: "Bo", body: {case: "gif", value: gif}})
 
         const decoded = decodedMessage(message)
 
         expect(decoded.gif).toEqual({url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124})
+        expect(decoded.text).toBe("")
         expect(decoded.replyTo?.gif).toEqual(decoded.gif)
         expect(decodedMessage(proto()).gif).toBeUndefined()
     })
 
+    it("reads a removed message, which has neither, as no text and no GIF", () => {
+        const removed = proto()
+        removed.removed = true
+        removed.body = {case: undefined}
+
+        expect(decodedMessage(removed)).toMatchObject({text: "", removed: true})
+        expect(decodedMessage(removed).gif).toBeUndefined()
+    })
+
     it("carries the message a reply quotes, and none for a plain message", () => {
         const reply = proto()
-        reply.replyTo = new Quote({messageId: "message-0", authorName: "Bo", authorColor: NameColor.PINK, text: "who holds the north"})
+        reply.replyTo = new Quote({
+            messageId: "message-0", authorName: "Bo", authorColor: NameColor.PINK,
+            body: {case: "text", value: "who holds the north"},
+        })
 
         expect(decodedMessage(reply).replyTo).toEqual({
             messageId: "message-0",
@@ -387,7 +399,7 @@ describe("ChatServiceBackend.sendMessage", () => {
         expect(client.sendMessage).toHaveBeenCalledWith({
             authorId: "author-1",
             countryId: "fr",
-            text: "hello",
+            body: {case: "text", value: "hello"},
             flagRoom: "",
         }, expect.anything())
     })
@@ -399,7 +411,7 @@ describe("ChatServiceBackend.sendMessage", () => {
         await new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, session(), unusedKeepalive)
             .sendMessage({...outgoing, text: "", gif})
 
-        expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({text: "", gif}), expect.anything())
+        expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({body: {case: "gif", value: gif}}), expect.anything())
     })
 
     it("says which message it replies to", async () => {
@@ -411,7 +423,7 @@ describe("ChatServiceBackend.sendMessage", () => {
         expect(sendMessage).toHaveBeenCalledWith({
             authorId: "author-1",
             countryId: "fr",
-            text: "hello",
+            body: {case: "text", value: "hello"},
             replyToMessageId: "message-0",
             flagRoom: "",
         }, expect.anything())

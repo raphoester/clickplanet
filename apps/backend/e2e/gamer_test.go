@@ -276,7 +276,9 @@ func (p *gamer) chat() chatv1connect.ChatServiceClient {
 func (p *gamer) post(text string) *chatv1.ChatMessage {
 	p.t.Helper()
 
-	req := connect.NewRequest(&chatv1.SendMessageRequest{AuthorId: "browser-1", CountryId: "fr", Text: text})
+	req := connect.NewRequest(&chatv1.SendMessageRequest{
+		AuthorId: "browser-1", CountryId: "fr", Body: &chatv1.SendMessageRequest_Text{Text: text},
+	})
 	p.send(req.Header())
 	res, err := p.chat().SendMessage(p.t.Context(), req)
 	require.NoError(p.t, err)
