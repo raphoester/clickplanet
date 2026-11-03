@@ -25,7 +25,7 @@ import ConnectionLost from "../components/ConnectionLost.tsx";
 import {ConnectionSource} from "../../backends/connection.ts";
 import {useConnection} from "./useConnection.ts";
 import Quiz from "../quiz/Quiz.tsx";
-import {useQuiz} from "../quiz/useQuiz.ts";
+import {useQuizMaster} from "../quiz/useQuizMaster.ts";
 import {ChatRooms} from "../../backends/chat.ts";
 import {GifSearch} from "../../backends/gifs.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
@@ -199,7 +199,7 @@ export default function Viewer(props: ViewerProps) {
 
     usePresence(props.presence, {countryCode: countryState.code, username, color})
 
-    const quiz = useQuiz(props.quizMaster, countryState.code, sound.play)
+    useQuizMaster(props.quizMaster, countryState.code, sound.play)
     const announce = useAnnouncements((announcements) => announcements.announce)
     const roster = useRoster(props.presence, (title) => announce({kind: "title", title}))
     const schedule = useSchedule(props.turn)
@@ -337,7 +337,7 @@ export default function Viewer(props: ViewerProps) {
     // CrazyGames forbids a sign-in that pops up or is the main call to action.
     const nudge = useSignInNudge(
         !props.crazyGames && guest && clickBudget?.linkedMultiplier !== undefined && !clickBudget.frozen && !charges.refill && !pitchOpen,
-        refusals, quiz.state.phase !== 'idle')
+        refusals)
     useSignInRefill(account.kind === 'ready' && account.guestLinked === true && signInRefill, charges.refill,
         () => void props.chargesRefresher?.refreshCharges().catch((e) => console.error("could not read the charges held", e)),
         () => void spendRefill?.())
@@ -619,19 +619,17 @@ export default function Viewer(props: ViewerProps) {
                                   dismissAward()
                               }}/>}
 
-        {ready && connection === "down" && <ConnectionLost lowered={quiz.state.phase !== 'idle'}/>}
+        {ready && connection === "down" && <ConnectionLost/>}
 
         {lastClose && newest === lastClose && <FortifyHint
             key={`close-${lastClose.id}`}
             close={lastClose.close}
-            lowered={quiz.state.phase !== 'idle'}
             onDone={dismissClose}
         />}
 
         {lastFortified && newest === lastFortified && <FortifyNews
             key={`fortify-${lastFortified.id}`}
             fortified={lastFortified.fortified}
-            lowered={quiz.state.phase !== 'idle'}
             onDone={dismissFortified}
         />}
 
@@ -644,7 +642,6 @@ export default function Viewer(props: ViewerProps) {
             key={lastBomb.id}
             drop={lastBomb.drop}
             land={lastBomb.land}
-            lowered={quiz.state.phase !== 'idle'}
             onDone={dismissBomb}
         />}
 
@@ -653,16 +650,14 @@ export default function Viewer(props: ViewerProps) {
             flag={countryState.code}
             connect={discord.connect}
             goThere={flyToLastLoss}
-            lowered={quiz.state.phase !== 'idle'}
             onDone={underAttack.dismiss}
         />}
 
         {battleOver.over && <BattleOver key={battleKeyOf(battleOver.over)}
                                         awaiting={battleOver.awaiting}
-                                        lowered={quiz.state.phase !== 'idle'}
                                         onDone={battleOver.dismiss}/>}
 
-        <Quiz state={quiz.state} onOpen={quiz.open} onAnswer={quiz.answer}/>
+        <Quiz/>
 
         {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
         {bannedUntil !== undefined && <BannedModal until={bannedUntil} onClose={dismissBanned}/>}

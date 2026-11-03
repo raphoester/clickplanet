@@ -176,7 +176,8 @@ buttons (`SignInButtons`, which `SignInPitchModal` uses too).
 - **It never covers a quiz.** A young account's first dry click brings its
   welcome quiz within about a second (the backend's [A newcomer's first quiz](../../backend/docs/welcome-bonus.md)).
   So the nudge waits `NUDGE_AFTER_MS` (1.5s) after the dry tap, and gives up if a
-  quiz is up then or comes in the wait. The next dry tap after the quiz tries
+  quiz is up then or comes in the wait (it reads `quizShown` from the
+  [quiz store](quizzes.md)). The next dry tap after the quiz tries
   again: the quiz closing is no dry tap, as the bank may have refilled by then.
 - **Once a page.** Closed, it stays closed until the next load. Signed in by
   email inside it, it closes as the player stops being a guest.

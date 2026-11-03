@@ -3,6 +3,7 @@ import {Countries} from '../../domain/countries.ts'
 import {Fortified} from '../../domain/fortify.ts'
 import CountryFlag from './CountryFlag.tsx'
 import BonusIcon from './BonusIcon.tsx'
+import {quizShown, useQuiz} from '../quiz/quizStore.ts'
 import './BombNews.css'
 import './FortifyNews.css'
 
@@ -10,12 +11,12 @@ export const FORTIFY_NEWS_MS = 4000
 
 export type FortifyNewsProps = {
     fortified: Fortified
-    lowered?: boolean
     onDone: () => void
 }
 
-export default function FortifyNews({fortified, lowered, onDone}: FortifyNewsProps) {
+export default function FortifyNews({fortified, onDone}: FortifyNewsProps) {
     const {fortification, name, tiles} = fortified
+    const lowered = useQuiz(quizShown)
     const country = Countries.get(fortification.countryId)?.name ?? fortification.countryId
 
     const done = useRef(onDone)

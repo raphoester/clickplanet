@@ -1,9 +1,11 @@
 import {useCallback, useEffect, useRef, useState} from "react"
+import {quizShown, useQuiz} from "../quiz/quizStore.ts"
 
 // A young account's first dry click brings its welcome quiz within about a second: the nudge leaves it that room.
 export const NUDGE_AFTER_MS = 1_500
 
-export function useSignInNudge(offered: boolean, dryTaps: number, quizUp: boolean): {open: boolean, close: () => void} {
+export function useSignInNudge(offered: boolean, dryTaps: number): {open: boolean, close: () => void} {
+    const quizUp = useQuiz(quizShown)
     const seen = useRef(dryTaps)
     const [due, setDue] = useState(false)
     const [shown, setShown] = useState<"not yet" | "open" | "closed">("not yet")
