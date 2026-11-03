@@ -18,6 +18,7 @@ func TestVendoredListsParse(t *testing.T) {
 	sizes := blocklist.Sizes()
 
 	assert.Greater(t, sizes[cpipblock.ListVPN], 5_000)
+	assert.Greater(t, sizes[cpipblock.ListWARP], 100)
 	assert.Greater(t, sizes[cpipblock.ListDatacenter], 20_000)
 }
 
@@ -39,6 +40,7 @@ func TestVendoredSourcesAreNotTruncated(t *testing.T) {
 		"az0":       cpdata.VPNAz0,
 		"tor exits": cpdata.TorExits,
 		"netnames":  cpdata.VPNNetnames,
+		"warp":      cpdata.CloudflareWARP,
 	} {
 		set, err := cpipblock.Parse(bytes.NewReader(data))
 		require.NoErrorf(t, err, "%s should parse", name)
@@ -61,6 +63,31 @@ func TestVPNListBlocksFirefoxVPN(t *testing.T) {
 		require.Truef(t, blocked, "%s should be refused", ip)
 		require.Equal(t, cpipblock.ListVPN, list)
 	}
+}
+
+func TestWARPListBlocksCloudflareWARP(t *testing.T) {
+	blocklist := cpipblock.New(cpipblock.Config{Enabled: true})
+	require.NoError(t, blocklist.Load())
+
+	for _, ip := range []string{"2a09:bac1::1", "2a09:bac5::1", "104.28.8.1"} {
+		list, blocked := blocklist.Blocked(ip)
+		require.Truef(t, blocked, "%s should be refused", ip)
+		require.Equal(t, cpipblock.ListWARP, list)
+	}
+}
+
+func TestWARPListSparesPrivateRelay(t *testing.T) {
+	warp, err := cpipblock.Parse(bytes.NewReader(cpdata.CloudflareWARP))
+	require.NoError(t, err)
+
+	for _, ip := range []string{"2a09:bac2::1", "2a09:bac3::1", "104.28.28.1"} {
+		assert.Falsef(t, warp.Contains(ip), "%s is iCloud Private Relay's egress", ip)
+	}
+
+	blocklist := cpipblock.New(cpipblock.Config{Enabled: true, IncludeDatacenters: true})
+	require.NoError(t, blocklist.Load())
+	_, blocked := blocklist.Blocked("2a09:bac2::1")
+	assert.False(t, blocked, "Private Relay over IPv6 still plays")
 }
 
 func TestDatacenterListIsOffUnlessAskedFor(t *testing.T) {

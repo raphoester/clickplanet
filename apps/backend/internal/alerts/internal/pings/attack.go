@@ -20,6 +20,7 @@ type Take struct {
 	Victim   nations.Flag
 	Attacker nations.Flag
 	Ground   nations.Flag
+	Point    Point
 	At       time.Time
 }
 
@@ -29,6 +30,7 @@ type Attack struct {
 	// Where most of the tiles were.
 	Ground nations.Flag
 	Tiles  int
+	View   View
 	At     time.Time
 }
 
@@ -73,14 +75,21 @@ func (w *Watch) Hear(take Take) (Attack, bool) {
 		return Attack{}, false
 	}
 
+	ground := mostOf(grounds)
 	others := recent[:0:0]
+	var points []Point
 	for _, kept := range recent {
-		if kept.Attacker != take.Attacker {
+		switch {
+		case kept.Attacker != take.Attacker:
 			others = append(others, kept)
+		case kept.Ground == ground:
+			points = append(points, kept.Point)
 		}
 	}
 	w.takes[take.Victim] = others
-	return Attack{Victim: take.Victim, Attacker: take.Attacker, Ground: mostOf(grounds), Tiles: tiles, At: take.At}, true
+	return Attack{
+		Victim: take.Victim, Attacker: take.Attacker, Ground: ground, Tiles: tiles, View: viewOf(points), At: take.At,
+	}, true
 }
 
 func mostOf(grounds map[nations.Flag]int) nations.Flag {

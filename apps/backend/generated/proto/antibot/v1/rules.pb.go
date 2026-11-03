@@ -1536,10 +1536,12 @@ type RotatorRules struct {
 	MinByChance *float64             `protobuf:"fixed64,4,opt,name=min_by_chance,json=minByChance,proto3,oneof" json:"min_by_chance,omitempty"`
 	MaxShare    *float64             `protobuf:"fixed64,5,opt,name=max_share,json=maxShare,proto3,oneof" json:"max_share,omitempty"`
 	// Zero never reads.
-	MinSlots      *uint32 `protobuf:"varint,6,opt,name=min_slots,json=minSlots,proto3,oneof" json:"min_slots,omitempty"`
-	CertainSlots  *uint32 `protobuf:"varint,7,opt,name=certain_slots,json=certainSlots,proto3,oneof" json:"certain_slots,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	MinSlots *uint32 `protobuf:"varint,6,opt,name=min_slots,json=minSlots,proto3,oneof" json:"min_slots,omitempty"`
+	// Zero never reads; certain needs both.
+	CertainSlots    *uint32  `protobuf:"varint,7,opt,name=certain_slots,json=certainSlots,proto3,oneof" json:"certain_slots,omitempty"`
+	CertainByChance *float64 `protobuf:"fixed64,8,opt,name=certain_by_chance,json=certainByChance,proto3,oneof" json:"certain_by_chance,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RotatorRules) Reset() {
@@ -1617,6 +1619,13 @@ func (x *RotatorRules) GetMinSlots() uint32 {
 func (x *RotatorRules) GetCertainSlots() uint32 {
 	if x != nil && x.CertainSlots != nil {
 		return *x.CertainSlots
+	}
+	return 0
+}
+
+func (x *RotatorRules) GetCertainByChance() float64 {
+	if x != nil && x.CertainByChance != nil {
+		return *x.CertainByChance
 	}
 	return 0
 }
@@ -1844,7 +1853,7 @@ const file_antibot_v1_rules_proto_rawDesc = "" +
 	"\n" +
 	"_min_shareB\x10\n" +
 	"\x0e_certain_stepsB\x10\n" +
-	"\x0e_certain_share\"\xf9\x02\n" +
+	"\x0e_certain_share\"\xc0\x03\n" +
 	"\fRotatorRules\x12\x1d\n" +
 	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x121\n" +
 	"\x06window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12$\n" +
@@ -1853,7 +1862,8 @@ const file_antibot_v1_rules_proto_rawDesc = "" +
 	"\rmin_by_chance\x18\x04 \x01(\x01H\x02R\vminByChance\x88\x01\x01\x12 \n" +
 	"\tmax_share\x18\x05 \x01(\x01H\x03R\bmaxShare\x88\x01\x01\x12 \n" +
 	"\tmin_slots\x18\x06 \x01(\rH\x04R\bminSlots\x88\x01\x01\x12(\n" +
-	"\rcertain_slots\x18\a \x01(\rH\x05R\fcertainSlots\x88\x01\x01B\n" +
+	"\rcertain_slots\x18\a \x01(\rH\x05R\fcertainSlots\x88\x01\x01\x12/\n" +
+	"\x11certain_by_chance\x18\b \x01(\x01H\x06R\x0fcertainByChance\x88\x01\x01B\n" +
 	"\n" +
 	"\b_enabledB\x0e\n" +
 	"\f_min_secondsB\x10\n" +
@@ -1862,7 +1872,8 @@ const file_antibot_v1_rules_proto_rawDesc = "" +
 	"_max_shareB\f\n" +
 	"\n" +
 	"_min_slotsB\x10\n" +
-	"\x0e_certain_slotsB\xb9\x01\n" +
+	"\x0e_certain_slotsB\x14\n" +
+	"\x12_certain_by_chanceB\xb9\x01\n" +
 	"\x0ecom.antibot.v1B\n" +
 	"RulesProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1;antibotv1\xa2\x02\x03AXX\xaa\x02\n" +
 	"Antibot.V1\xca\x02\n" +

@@ -45,7 +45,9 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
+	point := event.GetPoint()
 	return s.useCase.Execute(ctx, pings.Take{ //nolint:wrapcheck // the use case named it.
 		Victim: victim, Attacker: attacker, Ground: ground, At: event.GetTakenAt().AsTime(),
+		Point: pings.Point{X: point.GetX(), Y: point.GetY(), Z: point.GetZ()},
 	})
 }

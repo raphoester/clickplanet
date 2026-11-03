@@ -54,3 +54,20 @@ account as linked. A join that failed signs the player in all the same, and the 
 
 **To try the offer again**, an operator unlinks the account on the backoffice's player page (the Discord tool): the
 next load offers "Join Discord" again. A player cannot unlink: leaving the server is how they stop the pings.
+
+## A ping's link opens the globe on the attack
+
+An attack's ping links to `/play?lat=40.42&lon=-100.00&zoom=3.0` (see the backend's
+[Discord pings](../../backend/docs/alerts.md#the-pings-pings)). `main.tsx` reads it with `linkedShot`
+(`domain/linkedShot.ts`) before the first render, and the globe's camera starts on that `Shot`, not at rest
+(`createGlobe`'s `linkedShot`). No flight: the player opened the link to see the attack at once.
+
+- **`lat` and `lon` are degrees, `zoom` is the camera's**: 1 at rest, the whole globe's height on the screen, and the
+  game's own bounds (0.5 to 50) hold whatever the link asks. A link without one of the three, or with one off the
+  globe, opens the game at rest.
+- **The direction follows the tile positions**: y is the north pole, and longitude 0 is on -x
+  (`scripts/map/coverage.mjs` reads them the same way). `linkedShot.test.ts` pins it.
+- **The three are taken out of the address bar**, with `?f=` and `?s=` (see [Sharing the globe](sharing.md)): a link
+  copied later is the plain page, not an old attack.
+- **The home page sends them on**: `/?lat=…` reaches `/play` with its query, as every link does (see
+  [Pages and routes](routes.md)).

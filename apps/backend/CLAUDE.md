@@ -58,7 +58,8 @@ and says what is in it. Read the doc before you change its area.
 - [Map geography](docs/map-geography.md) — tile adjacency from the shared map blob, checked at boot.
 - [Rate limiting](docs/rate-limiting.md) — two buckets per click, what the answer says is left, and a big country
   refills slower.
-- [VPN blocklist](docs/vpn-blocklist.md) — `Click` refused from vendored VPN ranges, before the rate limiter.
+- [VPN blocklist](docs/vpn-blocklist.md) — `Click` refused from vendored VPN and Cloudflare WARP ranges, before the
+  rate limiter; what it costs iCloud Private Relay; `cmd/prefixdiff`.
 - [Allegiance](docs/allegiance.md) — an account plays for one flag, and may change it once an hour; a battle's rule
   set locks it.
 - [Rules](docs/rules.md) — every game rule, in rule sets kept in postgres; `default` holds every value, another set only
@@ -109,8 +110,8 @@ and says what is in it. Read the doc before you change its area.
   scoring); why progress is not read from the ledger.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
 - [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role; the role
-  follows the flag pledged, in a color of its own; the pings when its flag is attacked, and `@everyone` when a battle
-  or a season starts; the operator's unlink; off by default.
+  follows the flag pledged, in a color of its own; the pings when its flag is attacked, with a link that opens the
+  globe on the attack, and `@everyone` when a battle or a season starts; the operator's unlink; off by default.
 - [Clip stats](docs/clip-stats.md) — where the posted clips' daily numbers are kept, for the backoffice.
 - [Clip videos](docs/clip-videos.md) — the videos the operator posts by hand: uploaded and downloaded on the backoffice,
   the files in the bucket under `clips/videos/`, a row each in `clips.videos`.

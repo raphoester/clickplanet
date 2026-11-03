@@ -133,8 +133,8 @@ strict end and miss every bot that jitters, or at the loose end and ban humans �
 which is exactly the corner the first version of this was painted into.
 
 The `Jury` crosses them: guilty on one `Certain`, or on `jury.minSuspects`
-different watchdogs at `Suspect` inside `jury.suspicionWindow`. `rotator` never
-counts.
+different watchdogs at `Suspect` inside `jury.suspicionWindow`. A `rotator` at
+`Suspect` never counts.
 
 **Crossing is worth less than it looks, and the config says so.** Weak signals
 only multiply confidence when they are independent, and these only half are: a
@@ -159,17 +159,35 @@ person plays, and the keenest players read both. Together they banned two people
 - `TestTheNewcomerOfOctober12WhoPlaysHardAndDefendsIsNotBanned` replays the player,
   and `TestWithNoAccountTheSameHandsAreBannedAsOneCaller` is `cadence` with `defence`.
 
-**Turns never count, since 2026-10-20.** From 10-11 to 10-19 every ban but one was
+**Suspect turns never count, since 2026-10-20.** From 10-11 to 10-19 every ban but one was
 `rotator` beside `defence` or beside a `cadence` at its bound. The ones checked were
 children: one on a PC, one switching between two browsers on a phone, both chatting
 all through a tile war. Rotation beats the rate limit; it is not a bot signal.
 
-- **The rotator marks its reading** (`Evidence.Turns`), and the jury counts it at no
-  level. It still reads, logs, shows in `InspectPlayer` and feeds `click_rotation_share`.
+- **The rotator marks its reading** (`Evidence.Turns`), and the jury counts a suspect one
+  for nothing. It still reads, logs, shows in `InspectPlayer` and feeds `click_rotation_share`.
 - **Its ring still falls with a guilty caller**: when other watchdogs find one account
   guilty, the accounts it rotates with are banned with it (`Evidence.Accomplices`).
 - `TestThePhoneOfOctober19SwitchingBrowsersInATileWarIsNotBanned` and
   `TestThePCOfOctober19AtACadenceTheMorningAfterItsTurnsIsNotBanned` replay the two.
+
+**Certain turns ban alone, since 2026-11-03.** The game's rule is now "two accounts, a ban".
+On 11-03 chat accused Russia, and two people of it were playing two accounts each; nothing
+banned them, and the operator banned the two alts by hand. A `certain` reading of the rotator
+is a ban on its own, with bounds that only the obvious reach (see the
+[rotator](#rotator-one-hand-on-several-accounts)).
+
+- **It bans accounts, never a network** (`convictsOf`): when turns alone make the verdict, no
+  scope of the ring is banned, a guest's neither. A guest's network can be a school, a
+  household or a VPN's exit that strangers share, and the rotation names accounts.
+- **It bans the accounts it is sure of**, the clicker and each partner at `certain`. A partner
+  it only suspects plays on until its own turns are sure.
+- **The whole ring, not the newer account.** A ban on the newer account alone costs a cheater
+  nothing: a fresh guest takes seconds (on 10-24 one player made six). The rule is for the
+  person, and the person plays the main account.
+- `TestACertainReadingOfTurnsBansTheRingAndNoNetwork` pins it in the jury, and
+  `TestTheAccountOfNovember3AndItsGuestOnAVPNAreBanned` and
+  `TestThePairOfNovember3OnOneAddressIsBanned` replay the two through the guard.
 
 **Crossing is also what makes it fast.** The overnight sweep from the
 screenshots trips no watchdog's `Certain` for a long time — `sequencer` wants two
@@ -788,10 +806,10 @@ tiles drawn evenly over the sphere).
 - The counter-move is to aim near the last tile, which is to paint like a person.
 
 **`rotator`: one hand on several accounts.** The rate limit is per account, and the
-scope's bucket is ten accounts wide, so a second account on the same network doubles
-the clicks. On 2026-10-09 and 10, four of the top five clickers played two or three
-accounts on one scope and changed account each time a bank was empty. They are
-people, not scripts, and every other watchdog read `clear`.
+scope's bucket is ten accounts wide, so a second account doubles the clicks. On
+2026-10-09 and 10, four of the top five clickers played two or three accounts on one
+scope and changed account each time a bank was empty. They are people, not scripts,
+and every other watchdog read `clear`.
 
 - **The signal is two clocks.** Time is cut in slots of `slot` (5m). Two accounts
   **share a slot** when each clicked in `minSeconds` (15) different seconds of it. A
@@ -810,36 +828,67 @@ people, not scripts, and every other watchdog read `clear`.
 - **`minByChance` is what keeps luck out.** Two people who each click in one block
   of seconds per slot can miss each other for a while. Simulated, the worst such
   pair, judged at the first moment it can be, reads once in 400 times.
-- **`minSlots` (24) shared slots read `suspect`, `certainSlots` reads `certain`.**
-  Two hours of shared slots, since an hour of turns happens. Production sets no
-  `certainSlots`. **The jury counts neither level**: rotation is a person who cheats
-  the rate limit, and beside another watchdog it banned children (see turns never
-  count, above). `TestTakingTurnsAloneBansNobody` pins it.
+- **`minSlots` (24) shared slots read `suspect`**: two hours of shared slots, since an
+  hour of turns happens. The jury counts it for nothing: beside another watchdog it
+  banned children (see suspect turns never count, above).
+  `TestTakingTurnsUnderFourHoursBansNobody` pins it.
+- **`certainSlots` (48) shared slots, where chance gives `certainByChance` (300) shared
+  seconds, read `certain`**, and that bans alone. Both, since 2026-11-03: four hours of
+  turns in the window, and enough seconds that luck is no answer. Slow turns need more
+  slots: 37 seconds each a slot reach 300 at 66 (`TestSlowTurnsAreCertainOnlyOnceChanceIsSure`).
+  `certainSlots` 0 turns the level off.
+- **Measured before it was set**, over the ledger of 2026-11-01 23:25 to 11-03 09:40 (takes
+  and strikes, 119 accounts, every pair of one flag with a signed-in account, on any network).
+  The two people who rotated read 3 shared seconds where chance gave 500 (an account on an
+  IPv4 and its guest on 27 Cloudflare WARP /64s, 67 slots) and 1 where it gave 1,233 (two
+  accounts on one IPv4, 66 slots): `certain` from 01:35 and 00:45 on 11-03. Every pair of two
+  people read 0.58 to 1.8 of what chance gives; once chance gives 150 or more, 0.81 at the
+  least. Nine more pairs shared at most one second, in 4 to 29 slots where chance gave 240
+  at most: they read `suspect` or nothing. Simulated, two people who each click in one
+  block of seconds a slot never read `certain` in 4,000 days at each of four paces; at the
+  `suspect` bounds, up to 9 in 4,000 do.
+- **Who the old cases would have banned** (from the numbers kept when each was checked):
+  the Polish trio of 10-09 (101 of 118 slots, 3 shared seconds, about 370 by chance a pair,
+  estimated from its 11,700 active seconds), the group of 62 slots of the same day if its
+  chance passed 300 (not the one of 23), and the two pairs of 11-03. Not
+  the Irish phone of 10-19 (0 against 88 in 3 hours), nor his accounts of 10-31 (0 against
+  194 and 152), nor Jonathan's pair (0 against 63), nor the Montenegro PC (101 at most): they
+  rotated, but too little to be sure. Not the Palau household, nor the naval academy, nor
+  any school: they share seconds at chance.
 - **It reads tries, like the metronome** (`Attempted`), and judges in `Watch`. A try
   the throttle refused was made by the same hand, and accepted clicks alone would
   let one shared bucket space two people apart.
-- **Two guests are never a pair.** The guests behind a scope spend from one bank, so
-  turns buy them nothing. A pair needs one signed-in account: a signed-in account
-  and its guest tab are read.
+- **Across networks, since 2026-11-03.** Accounts are kept by account, not by scope, and
+  any two of one flag are a pair. On 11-03 one player clicked from a home IPv4 and his
+  guest only through Cloudflare WARP, on 27 /64s: a pair kept inside one scope never saw
+  it. People on two networks share seconds at chance as people on one do
+  (`TestTwoPeopleOfOneFlagOnTwoNetworksAreClear`). The cost: each judgement compares the
+  account with every account of its flag in the window, and each sweep every pair of a
+  flag, tens of accounts a flag today; an account on several networks is kept once.
+- **Two guests are never a pair.** The guests behind a scope spend from one bank, and
+  anywhere a guest is shed with its cookie. A pair needs one signed-in account: a
+  signed-in account and its guest tab are read, wherever each clicks from.
 - **Same flag only.** The accounts of one hand paint one country, and an account that
   paints another to dodge this has stopped helping the first.
 - **Each pair is judged alone**, so a trio inside a school is read and no student
   with it: `TestTurnsInsideASchoolAreReadAndTheSchoolIsNot`.
-- **The reading names the ring.** An account's reading carries the accounts it
-  rotates with (`Evidence.Accomplices`), and a guilty verdict on one falls on all of
-  them: see [the parts that are easy to get wrong](#the-parts-that-are-easy-to-get-wrong).
-  The evidence is the ring's numbers: `accounts`, `sharedSlots`, `sharedSeconds`,
-  `byChance` and `flag`.
+- **The reading names the ring at its level.** An account's reading carries the accounts
+  it rotates with at the level it reads (`Evidence.Accomplices`), each with the scope it
+  clicked from last, and a guilty verdict on one falls on all of them: see [the parts that
+  are easy to get wrong](#the-parts-that-are-easy-to-get-wrong). A `certain` reading names no
+  account it only suspects (`TestACertainReadingNamesOnlyTheAccountsItIsSureOf`). The
+  evidence is the ring's numbers: `accounts`, `sharedSlots`, `sharedSeconds`, `byChance`
+  and `flag`.
 - `click_rotation_share` is each readable pair's shared seconds over what chance
-  gives, once a sweep, for the scopes clicked on since the last one
+  gives, once a sweep, for the pairs with an account clicked since the last one
   (`Observer.OnRotationShare`). People pile up near 1.
-- **Kept per scope, per account, per slot**, one bit per second: 40 bytes a slot.
-  The section is saved with the slot length, and one saved under another length is
-  dropped on load.
-- **What it does not see**: accounts on two networks, a phone on mobile data and a
-  desktop at home. Those do not share the scope's bucket either. And two people who
-  pass one device back and forth each time a bank is empty read as one hand, which
-  is one more reason it only corroborates.
+- **Kept per account, per slot**, one bit per second: 40 bytes a slot, and the scope it
+  clicked from last. The section is saved with the slot length, and one saved under
+  another length is dropped on load. One saved per scope, before 2026-11-03, loads empty:
+  the deploy costs the window, and `certain` reads four hours after it at the soonest.
+- **What it cannot tell**: two people who pass one device back and forth each time a
+  bank is empty read as one hand, and four hours of that is a ban on both. That is the
+  cost of the rule. Two who pass it every few minutes rarely share four hours of slots.
 - The counter-move is to click with two accounts in the same seconds, which takes two
   hands or a script, and a script is what the other watchdogs read.
 
@@ -961,11 +1010,15 @@ accounts, so a guest banned on both counts twice.
 **A ban on one account of a ring falls on all of it.** The `rotator` names the
 accounts one hand plays (`Evidence.Accomplices`). When a click is guilty and a
 watchdog that fired named accomplices, the jury flags each of them as it flags the
-clicker (`convictsOf`): the account, and its scope too when it is a guest. Each is its
-own `antibot ban` line, with `alongside` set to the account whose click was judged,
-since the opinions on the line are that click's. On 2026-10-09 two accounts of a trio
-were banned and the third played on; `TestTheTrioThatTakesTurnsIsBannedTogether`
-bans the whole trio for a sweep on one account. A lone suspicion passes to nobody.
+clicker (`convictsOf`): the account, and when it is a guest the scope it clicked from
+last, which since 2026-11-03 can be another network than the clicker's. When turns
+alone make the verdict, no scope falls, the clicker's neither (see certain turns ban
+alone, above). Each is its own `antibot ban` line, with `alongside` set to the account
+whose click was judged, since the opinions on the line are that click's. On 2026-10-09
+two accounts of a trio were banned and the third played on;
+`TestTheTrioThatTakesTurnsIsBannedTogether` bans the whole trio for a sweep on one
+account. A lone suspicion passes to nobody, and a pardoned account is flagged by
+nobody's click.
 
 A scope ban only bites a bot with a stable address — against a residential proxy
 pool it evaporates for exactly the reason the scope's bucket does; the account ban

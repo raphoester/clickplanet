@@ -84,7 +84,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   a name out of the clips.
 - [Sound](docs/sound.md) — every sound built with Web Audio, no audio file; the leader's anthem.
 - [Discord pings](docs/discord-alerts.md) — "Join Discord" in the chat's Discord bar, and "Get pinged" once a page when
-  the flag is under attack, are a Discord sign-in, which joins the game's server; "Open Discord" once in.
+  the flag is under attack, are a Discord sign-in, which joins the game's server; "Open Discord" once in; a ping's
+  `?lat=&lon=&zoom=` starts the camera on the attack.
 
 ## The globe (`src/app/viewer/`)
 

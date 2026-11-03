@@ -20,6 +20,7 @@ type List string
 
 const (
 	ListVPN        List = "vpn"
+	ListWARP       List = "warp"
 	ListDatacenter List = "datacenter"
 	ListDeny       List = "deny"
 )
@@ -65,7 +66,12 @@ func (b *Blocklist) Load() error {
 		return fmt.Errorf("failed to parse vpn list: %w", err)
 	}
 
-	sets := []namedSet{{name: ListVPN, set: vpn}}
+	warp, err := Parse(bytes.NewReader(cpdata.CloudflareWARP))
+	if err != nil {
+		return fmt.Errorf("failed to parse warp list: %w", err)
+	}
+
+	sets := []namedSet{{name: ListVPN, set: vpn}, {name: ListWARP, set: warp}}
 
 	if b.config.IncludeDatacenters {
 		datacenter, err := Parse(bytes.NewReader(cpdata.DatacenterV4), bytes.NewReader(cpdata.DatacenterV6))

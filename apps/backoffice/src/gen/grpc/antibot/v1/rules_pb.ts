@@ -1276,9 +1276,16 @@ export class RotatorRules extends Message<RotatorRules> {
   minSlots?: number;
 
   /**
+   * Zero never reads; certain needs both.
+   *
    * @generated from field: optional uint32 certain_slots = 7;
    */
   certainSlots?: number;
+
+  /**
+   * @generated from field: optional double certain_by_chance = 8;
+   */
+  certainByChance?: number;
 
   constructor(data?: PartialMessage<RotatorRules>) {
     super();
@@ -1295,6 +1302,7 @@ export class RotatorRules extends Message<RotatorRules> {
     { no: 5, name: "max_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 6, name: "min_slots", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 7, name: "certain_slots", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 8, name: "certain_by_chance", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RotatorRules {

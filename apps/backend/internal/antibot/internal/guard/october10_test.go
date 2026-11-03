@@ -55,8 +55,8 @@ func TestTheTrioThatTakesTurnsIsBannedTogether(t *testing.T) {
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(10, 10))
 
-	s.rotate(r, 4*time.Hour)
-	require.Empty(t, s.reports, "taking turns alone bans nobody")
+	s.rotate(r, 3*time.Hour+45*time.Minute)
+	require.Empty(t, s.reports, "under four hours of turns ban nobody")
 
 	s.rest(s.clock.Now().Add(20 * time.Minute))
 
@@ -89,17 +89,17 @@ func TestTheTrioThatTakesTurnsIsBannedTogether(t *testing.T) {
 	assert.True(t, s.clickAs(homeLine, "phone", 1, "PL"), "and the phone is dropped on any network")
 }
 
-func TestTakingTurnsAloneBansNobody(t *testing.T) {
+func TestTakingTurnsUnderFourHoursBansNobody(t *testing.T) {
 	s := newStack(t)
 	s.signIn("desktop-one", "desktop-two", "phone")
 
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(10, 11))
 
-	s.rotate(r, 4*time.Hour)
+	s.rotate(r, 3*time.Hour+45*time.Minute)
 
 	assert.Empty(t, s.reports)
-	assert.Equal(t, []string{"rotator suspect"}, s.rises, "it reads, for the jury to cross")
+	assert.Equal(t, []string{"rotator suspect"}, s.rises, "it reads, and counts for nothing")
 
 	examination := s.examine(sharedAddress, "")
 	require.Len(t, examination.Readings, 10)
@@ -107,6 +107,41 @@ func TestTakingTurnsAloneBansNobody(t *testing.T) {
 	assert.Equal(t, "rotator", reading.Watchdog)
 	assert.Equal(t, "suspect", reading.Level)
 	assert.Regexp(t, `^rotation accounts=3 byChance=\d+ flag=PL sharedSeconds=0 sharedSlots=\d+$`, reading.Evidence)
+}
+
+func TestFourHoursOfTurnsBanTheAccountsTheRotatorIsSureOf(t *testing.T) {
+	s := newStack(t)
+	s.signIn("desktop-one", "desktop-two", "phone", "student")
+
+	//nolint:gosec // seeded test PRNG
+	r := rand.New(rand.NewPCG(10, 11))
+
+	start := s.clock.Now()
+	for len(s.reports) == 0 && s.clock.Now().Sub(start) < 5*time.Hour {
+		cycle := s.clock.Now()
+		s.burst(r, sharedAddress, "desktop-one", "PL", 25*time.Second, 500*time.Millisecond)
+		s.rest(cycle.Add(45 * time.Second))
+		s.burst(r, sharedAddress, "desktop-two", "PL", 25*time.Second, 500*time.Millisecond)
+		s.rest(cycle.Add(90 * time.Second))
+		s.burst(r, sharedAddress, "phone", "PL", 9*time.Second, time.Second)
+		s.rest(cycle.Add(150 * time.Second))
+	}
+
+	require.Len(t, s.reports, 2)
+	assert.InDelta(t, 4*time.Hour, s.clock.Now().Sub(start), float64(10*time.Minute))
+	assert.Equal(t, []string{"rotator suspect", "rotator certain"}, s.rises, "no other watchdog read anything")
+
+	banned := map[string]string{}
+	for _, report := range s.reports {
+		banned[report.Account] = report.Alongside
+	}
+	assert.Len(t, banned, 2, "the phone's few seconds a slot are not yet sure")
+	assert.Contains(t, banned, "desktop-one")
+	assert.Contains(t, banned, "desktop-two")
+
+	assert.Empty(t, s.bans.Stored(), "turns leave the address alone")
+	assert.False(t, s.clickAs(sharedAddress, "student", 1, "PL"))
+	assert.False(t, s.clickAs(sharedAddress, "phone", 1, "PL"))
 }
 
 func TestTwoPlayersSideBySideAreNeverRead(t *testing.T) {

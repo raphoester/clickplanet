@@ -38,7 +38,7 @@ describe("the antibot rules", () => {
         expect(LEAVES.find(leaf => leaf.path === "metronome.shape.maxSkew")).toMatchObject({kind: "number"})
         expect(LEAVES.find(leaf => leaf.path === "bans.banDurations")).toMatchObject({kind: "secondsList"})
         expect(LEAVES.find(leaf => leaf.path === "cohort.certainMembers")).toMatchObject({kind: "whole"})
-        expect(LEAVES).toHaveLength(94)
+        expect(LEAVES).toHaveLength(95)
     })
 
     it("edits a set's values as typed: durations in seconds, a value it leaves unset empty", () => {

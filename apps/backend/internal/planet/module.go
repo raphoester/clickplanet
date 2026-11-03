@@ -268,7 +268,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			relay := relay_ledger_usecase.NewRunner(ledgerRelayInterval, log_relay_ledger.New(
-				relay_ledger_usecase.New(takings, ledgerStore, borders, streams), props.Logger))
+				relay_ledger_usecase.New(takings, ledgerStore, borders, geography, streams), props.Logger))
 
 			refusalBook := refusals.NewBook(postgres_refusal_store.New(db), clock)
 			refused, err := cpredis.Handle(ctx, streams, log_subscriber.New(refuse_caller_handler.New(refusalBook), props.Logger))

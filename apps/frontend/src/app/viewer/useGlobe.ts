@@ -18,6 +18,7 @@ import {Allegiance} from '../../domain/allegiance.ts';
 import {BUBBLE_MS} from '../components/Bubble.tsx';
 import {Peek} from '../../domain/tilePeek.ts';
 import {Territory, TerritoryPeek} from '../../domain/territory.ts';
+import {Shot} from '../../domain/clip/camera.ts';
 
 export type GlobeStatus =
     | {state: 'loading', territories?: number}
@@ -26,6 +27,8 @@ export type GlobeStatus =
 
 export type UseGlobeOptions = {
     container: React.RefObject<HTMLElement>
+    // Must keep its identity: a new one rebuilds the globe.
+    linkedShot?: Shot
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
@@ -47,7 +50,7 @@ export type UseGlobeOptions = {
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, halo, bonusLook, rendering} = options
+    const {container, linkedShot, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, halo, bonusLook, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -138,6 +141,7 @@ export function useGlobe(options: UseGlobeOptions) {
             updatesListener,
             clickBudget,
             container: element,
+            linkedShot,
             country: initialCountry.current,
             mapView: latestMapView.current,
             rendering,
@@ -201,7 +205,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek, notify, recordLockedOut])
+    }, [container, linkedShot, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek, notify, recordLockedOut])
 
     useEffect(() => {
         initialCountry.current = country
