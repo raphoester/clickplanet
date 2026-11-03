@@ -45,6 +45,9 @@ const (
 	// InternalServiceGetOperatorProcedure is the fully-qualified name of the InternalService's
 	// GetOperator RPC.
 	InternalServiceGetOperatorProcedure = "/auth.v1.InternalService/GetOperator"
+	// InternalServiceGetDiscordUsersProcedure is the fully-qualified name of the InternalService's
+	// GetDiscordUsers RPC.
+	InternalServiceGetDiscordUsersProcedure = "/auth.v1.InternalService/GetDiscordUsers"
 )
 
 // InternalServiceClient is a client for the auth.v1.InternalService service.
@@ -54,6 +57,9 @@ type InternalServiceClient interface {
 	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
 	// Unauthenticated with no live session in the cookie, PermissionDenied for an account that does not operate.
 	GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error)
+	// Every account signed in with Discord and its Discord user, a page at a time, in the order of the account ids. An
+	// account its player asked to delete is left out. A page shorter than the limit is the last one.
+	GetDiscordUsers(context.Context, *connect.Request[v1.GetDiscordUsersRequest]) (*connect.Response[v1.GetDiscordUsersResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the auth.v1.InternalService service. By default,
@@ -92,6 +98,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(internalServiceMethods.ByName("GetOperator")),
 			connect.WithClientOptions(opts...),
 		),
+		getDiscordUsers: connect.NewClient[v1.GetDiscordUsersRequest, v1.GetDiscordUsersResponse](
+			httpClient,
+			baseURL+InternalServiceGetDiscordUsersProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetDiscordUsers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -101,6 +114,7 @@ type internalServiceClient struct {
 	getAccount      *connect.Client[v1.GetAccountRequest, v1.GetAccountResponse]
 	getAccounts     *connect.Client[v1.GetAccountsRequest, v1.GetAccountsResponse]
 	getOperator     *connect.Client[v1.GetOperatorRequest, v1.GetOperatorResponse]
+	getDiscordUsers *connect.Client[v1.GetDiscordUsersRequest, v1.GetDiscordUsersResponse]
 }
 
 // GetVerifyingKey calls auth.v1.InternalService.GetVerifyingKey.
@@ -123,6 +137,11 @@ func (c *internalServiceClient) GetOperator(ctx context.Context, req *connect.Re
 	return c.getOperator.CallUnary(ctx, req)
 }
 
+// GetDiscordUsers calls auth.v1.InternalService.GetDiscordUsers.
+func (c *internalServiceClient) GetDiscordUsers(ctx context.Context, req *connect.Request[v1.GetDiscordUsersRequest]) (*connect.Response[v1.GetDiscordUsersResponse], error) {
+	return c.getDiscordUsers.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the auth.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
@@ -130,6 +149,9 @@ type InternalServiceHandler interface {
 	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
 	// Unauthenticated with no live session in the cookie, PermissionDenied for an account that does not operate.
 	GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error)
+	// Every account signed in with Discord and its Discord user, a page at a time, in the order of the account ids. An
+	// account its player asked to delete is left out. A page shorter than the limit is the last one.
+	GetDiscordUsers(context.Context, *connect.Request[v1.GetDiscordUsersRequest]) (*connect.Response[v1.GetDiscordUsersResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -164,6 +186,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithSchema(internalServiceMethods.ByName("GetOperator")),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetDiscordUsersHandler := connect.NewUnaryHandler(
+		InternalServiceGetDiscordUsersProcedure,
+		svc.GetDiscordUsers,
+		connect.WithSchema(internalServiceMethods.ByName("GetDiscordUsers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetVerifyingKeyProcedure:
@@ -174,6 +203,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetAccountsHandler.ServeHTTP(w, r)
 		case InternalServiceGetOperatorProcedure:
 			internalServiceGetOperatorHandler.ServeHTTP(w, r)
+		case InternalServiceGetDiscordUsersProcedure:
+			internalServiceGetDiscordUsersHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -197,4 +228,8 @@ func (UnimplementedInternalServiceHandler) GetAccounts(context.Context, *connect
 
 func (UnimplementedInternalServiceHandler) GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetOperator is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetDiscordUsers(context.Context, *connect.Request[v1.GetDiscordUsersRequest]) (*connect.Response[v1.GetDiscordUsersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetDiscordUsers is not implemented"))
 }

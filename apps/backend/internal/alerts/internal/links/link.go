@@ -27,6 +27,12 @@ func AccountIDOf(value string) (AccountID, error) {
 
 var ErrNoLink = errors.New("this account has no Discord link")
 
+// An account signed in with Discord, and its Discord user: in the server or not, linked or not.
+type DiscordAccount struct {
+	Account AccountID
+	User    discord.UserID
+}
+
 // A player's Discord user, in the server with the role of the flag it last took a tile for. No flag yet: the account
 // never pledged one, and the first take gives it.
 type Link struct {

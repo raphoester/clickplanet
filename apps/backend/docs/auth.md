@@ -35,6 +35,7 @@ internal/auth/internal/
     get_me_handler/me_query/               PostgresQuery: GetMeResponse from the cookie, straight from SQL
     get_account_handler/account_query/     PostgresQuery: GetAccountResponse, for another module
     get_accounts_handler/accounts_query/   PostgresQuery: GetAccountsResponse, a page at once
+    get_discord_users_handler/discord_users_query/  PostgresQuery: each Discord account and its user, a page after an account
     get_operator_handler/operator_query/   PostgresQuery: GetOperatorResponse, the cp_admin cookie's live session if it operates
   adminsignin/                             the admin page's sign-in: Candidate, Session (Snapshot), Issuer, the cookies, the Store port
     postgres_admin_session_store/          the Store over identities, accounts and admin_sessions
@@ -65,6 +66,7 @@ internal/auth/internal/
 - **No cache.** Mints are one per 30s per address, so one indexed read each is cheap, and a sign-out has nothing to invalidate.
 - **`InternalService/GetAccount(account_id)`** answers `linked`: whether the account signed in with a provider, read by `account_query` (an identity exists). An unknown account, or an id that is not one (`accounts.AccountIDOf`), is `linked` false and not an error; a store failure is. `player` asks it before it gives an account a username.
 - **`InternalService/GetAccounts(account_ids)`** is a page of accounts at once, each with `linked` and `created_at_unix_ms`, in one statement (`accounts_query`: `id = ANY(...)`, in id order, linked when an identity exists), for the title reconciliation. An account it does not know is left out; an id that is not one is `InvalidArgument`, since a caller holding one has a bug. It is `NO_SIDE_EFFECTS`.
+- **`InternalService/GetDiscordUsers(after_account_id, limit)`** is every account signed in with Discord and its Discord user (the identity's subject), a page at a time in account order after the one named (none: from the first), 500 at most, for the alerts module's `LinkMembers` (see [Discord pings](alerts.md#the-players-a-sign-in-never-joined-linkmembers)). An account asked deleted is left out: its player is leaving. One row per account (`DISTINCT ON`), so a page never splits one. A page shorter than the limit is the last. It is `NO_SIDE_EFFECTS`.
 - **`create_session_usecase` mints whether the account is linked** (`Session.Linked`, read by the store), so the token says it and `planet` gives a linked account its faster bucket.
 - **`planet` reads the account off the token**: the session interceptor puts it on the context (`cpctx.GetAccount`, and `cpctx.GetLinked`), and the throttle, the bans and the ledger key on it beside the scope — see [Two buckets per click](rate-limiting.md#two-buckets-per-click), [Anti-bot](antibot.md) and [Manual bans](admin.md#manual-bans-findplayers-topplayers-banplayer-unbanplayer-revertplayer-inspectplayer).
 

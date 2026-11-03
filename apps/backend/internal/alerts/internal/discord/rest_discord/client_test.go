@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -161,4 +162,76 @@ func TestABusyDiscordIsAFailureToTryAgain(t *testing.T) {
 	err := c.Post(t.Context(), "100", "go", discord.RoleAudience("77"))
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, discord.ErrRefused)
+}
+
+func TestAMemberIsInTheServerAndAnUnknownMemberIsNot(t *testing.T) {
+	c, fake := client(t, map[string]func(w http.ResponseWriter){
+		"GET /api/guilds/900/members/4242": answering(http.StatusOK, `{"user":{"id":"4242"},"roles":[]}`),
+		"GET /api/guilds/900/members/5151": answering(http.StatusNotFound, `{"code":10007,"message":"Unknown Member"}`),
+	})
+
+	member, err := c.IsMember(t.Context(), "4242")
+	require.NoError(t, err)
+	assert.True(t, member)
+	assert.Equal(t, "Bot the-bot", fake.calls[0].Authorization)
+
+	member, err = c.IsMember(t.Context(), "5151")
+	require.NoError(t, err)
+	assert.False(t, member)
+}
+
+func TestAMemberDiscordWouldNotTellIsAFailure(t *testing.T) {
+	c, _ := client(t, map[string]func(w http.ResponseWriter){
+		"GET /api/guilds/900/members/4242": answering(http.StatusForbidden, `{"code":50001,"message":"Missing Access"}`),
+	})
+
+	_, err := c.IsMember(t.Context(), "4242")
+
+	assert.ErrorIs(t, err, discord.ErrRefused)
+}
+
+func TestAShortWaitDiscordAsksForIsWaitedOutAndSentAgain(t *testing.T) {
+	var asked atomic.Int32
+	c, fake := client(t, map[string]func(w http.ResponseWriter){
+		"PUT /api/guilds/900/members/4242/roles/1": func(w http.ResponseWriter) {
+			if asked.Add(1) == 1 {
+				w.Header().Set("Retry-After", "0.01")
+				answering(http.StatusTooManyRequests, `{"retry_after":0.01}`)(w)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		},
+	})
+
+	require.NoError(t, c.Grant(t.Context(), "4242", "1"))
+
+	assert.Len(t, fake.calls, 2)
+}
+
+func TestAWaitTooLongIsAFailureToTryAgainLater(t *testing.T) {
+	c, fake := client(t, map[string]func(w http.ResponseWriter){
+		"PUT /api/guilds/900/members/4242/roles/1": func(w http.ResponseWriter) {
+			w.Header().Set("Retry-After", "60")
+			answering(http.StatusTooManyRequests, `{"retry_after":60}`)(w)
+		},
+	})
+
+	err := c.Grant(t.Context(), "4242", "1")
+
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, discord.ErrRefused)
+	assert.Len(t, fake.calls, 1, "not sent again")
+}
+
+func TestAWaitIsSentAgainTwiceAtMost(t *testing.T) {
+	c, fake := client(t, map[string]func(w http.ResponseWriter){
+		"PUT /api/guilds/900/members/4242/roles/1": func(w http.ResponseWriter) {
+			w.Header().Set("Retry-After", "0")
+			answering(http.StatusTooManyRequests, `{"retry_after":0}`)(w)
+		},
+	})
+
+	require.Error(t, c.Grant(t.Context(), "4242", "1"))
+
+	assert.Len(t, fake.calls, 3)
 }
