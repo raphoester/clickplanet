@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 
@@ -38,10 +39,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/unmute_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/inprocess_feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/usecases/leave_room_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/log_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/postgres_message_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/rpc_planet_flags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/prune_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/prune_usecase/log_prune"
@@ -69,6 +72,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/usecases/mark_seen_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_muted_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/allegiance_pledged_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/battle_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/day_ended_subscriber"
@@ -100,9 +104,11 @@ func NewModule(config Config) cpbootstrap.Module {
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the chat asks the player module who posts and scoring who won: %w", err)
+		return fmt.Errorf("the chat asks the player module who posts, scoring who won and planet who plays for a flag: %w",
+			err)
 	}
 	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
+	rooms := messages.NewRooms(rpc_planet_flags.New(planetv1connect.NewInternalServiceClient(internal, baseURL)))
 	results := rpc_scoring_results.New(scoringv1connect.NewInternalServiceClient(internal, baseURL))
 
 	db := cppg.New(config.Database)
@@ -143,7 +149,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	announce := announce_usecase.New(announcementStore, updates)
 	authors := log_authors.New(rpc_player_authors.New(player), props.Logger)
 	drafts := messages.NewDrafts(
-		message_ids.Provider{}, cptime.SystemClock{}, messages.NewLimits(config.Service.MaxTextLength), cpcountries.New())
+		message_ids.Provider{}, cptime.SystemClock{}, messages.NewLimits(config.Service.MaxTextLength), cpcountries.New(),
+		rooms)
 	thread := messages.NewThread(messageStore, authors, cptime.SystemClock{}, window)
 
 	bombs, err := cpredis.Subscribe(ctx, streams, "chat-announcements-bombs",
@@ -195,9 +202,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to gamemaster.v1.SeasonEnded: %w", err)
 	}
 
+	departures, err := cpredis.Subscribe(ctx, streams, "chat-rooms",
+		log_subscriber.New(allegiance_pledged_subscriber.New(leave_room_usecase.New(updates)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to planet.v1.AllegiancePledged: %w", err)
+	}
+
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune_usecase.NewRunner(storage.PruneInterval, prune),
-		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, deletions, mutings, days, battles, champions)))
+		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, deletions, mutings, days, battles, champions,
+			departures)))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)
@@ -217,12 +232,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		SendMessageHandler: send_message_handler.New(muting_send_message.New(publishing_send_message.New(send_message_usecase.New(
 			messageStore, updates, authors, drafts, thread), streams), muteBook)),
 		GetHistoryHandler: get_history_handler.New(history_query.NewPostgresQuery(
-			db, history_authors.New(player), cptime.SystemClock{}, storage.HistorySize, storage.Retention)),
+			db, history_authors.New(player), cptime.SystemClock{}, storage.HistorySize, storage.Retention), rooms),
 		ListenForEventsHandler: listen_for_events_handler.New(
-			listen_for_events_usecase.New(updates, props.Server.StreamHeartbeat)),
+			listen_for_events_usecase.New(updates, rooms, props.Server.StreamHeartbeat)),
 		ReactHandler: react_handler.New(muting_react.New(react_usecase.New(
-			messageStore, reactionStore, updates, authors, cptime.SystemClock{}, window), muteBook)),
-		MarkSeenHandler: mark_seen_handler.New(mark_seen_usecase.New(seenStore, cptime.SystemClock{})),
+			messages.NewShowing(messageStore, rooms, cptime.SystemClock{}, window),
+			reactionStore, updates, authors, cptime.SystemClock{}), muteBook)),
+		MarkSeenHandler: mark_seen_handler.New(mark_seen_usecase.New(seenStore, rooms, cptime.SystemClock{})),
 	}
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "chat")))

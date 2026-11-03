@@ -3,8 +3,8 @@ import {ChatBackend, ChatMessage, OutgoingMessage} from "../../backends/chat.ts"
 import {PlayerLine, RosterEntry} from "../../backends/player.ts";
 import {PlayerReporter} from "../../backends/support.ts";
 import {Country} from "../../domain/countries.ts";
-import {idsSince, unseenAfter} from "../../domain/chatLog.ts";
 import {ChevronIcon} from "../components/icons.tsx";
+import CountryFlag from "../components/CountryFlag.tsx";
 import {opensFolded} from "../compact.ts";
 import {truncate} from "../truncate.ts";
 import {usePageVisible} from "../usePageVisible.ts";
@@ -18,15 +18,21 @@ import ChatLog from "./ChatLog.tsx";
 import ReportMessageModal from "../support/ReportMessageModal.tsx";
 import DiscordBar from "./DiscordBar.tsx";
 import {DiscordOffer} from "../alerts/useDiscordAlerts.ts";
-import {useChat} from "./useChat.ts";
+import {ChatRoomState, useChatRoom} from "./useChatRoom.ts";
 import {useChatIdentity} from "./useChatIdentity.ts";
 import {useChatSize} from "./useChatSize.ts";
-import {useSeenMark} from "./useSeenMark.ts";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
 import "./ChatPanel.css"
 
+export type FlagRoom = {
+    country: Country
+    backend: ChatBackend
+}
+
 export type ChatPanelProps = {
     backend?: ChatBackend
+    flagRoom?: FlagRoom
+    onLeftRoom?: () => void
     country: Country
     playSound?: PlaySound
     accountId?: string
@@ -41,17 +47,13 @@ export type ChatPanelProps = {
     discord?: DiscordOffer
 }
 
-type View = "chat" | "online"
+type View = "world" | "flag" | "online"
 
 const UNREAD_CAP = 99
 
 const PEEK_AUTHOR_MAX_LENGTH = 12
 
 const PEEK_TEXT_MAX_LENGTH = 80
-
-const FLASH_MS = 1600
-
-const TOAST_MS = 4000
 
 const NOTHING: ReadonlySet<string> = new Set()
 
@@ -60,115 +62,43 @@ export default function ChatPanel(props: ChatPanelProps) {
     const isOpen = props.open ?? ownOpen
     const {onOpenChange} = props
     const setOpen = useCallback((open: boolean) => onOpenChange ? onOpenChange(open) : setOwnOpen(open), [onOpenChange])
-    const [view, setView] = useState<View>("chat")
+    const [view, setView] = useState<View>("world")
     const players = props.players
     const visible = usePageVisible()
-    const seeing = isOpen && (view === "chat" || !players) && visible
+    const looking = isOpen && visible
 
-    const [toast, setToast] = useState<ChatMessage>()
     const [replyingTo, setReplyingTo] = useState<ChatMessage>()
-    const [flashing, setFlashing] = useState<ReadonlySet<string>>(NOTHING)
     const [reported, setReported] = useState<ReadonlySet<string>>(NOTHING)
     const [reporting, setReporting] = useState<ChatMessage>()
     const bodyId = useId()
     const panel = useRef<HTMLElement>(null)
     const {startResize, resetSize} = useChatSize(panel)
 
-    const {accountId, username} = props
-    const {messages, announcements, mine, own, displayName, seenAtLoad, status, failure, mutedUntil, send, react} =
-        useChat({backend: props.backend, accountId, username})
+    const {accountId, username, playSound, flagRoom} = props
+    const world = useChatRoom({
+        backend: props.backend, accountId, username, playSound,
+        seeing: looking && (view === "world" || (view === "online" && !players)),
+    })
+    const flag = useChatRoom({
+        backend: flagRoom?.backend, accountId, username, playSound, onLeft: props.onLeftRoom,
+        seeing: looking && view === "flag",
+    })
     const words = useWordFilter()
     const identity = useChatIdentity()
-    const markSeen = useSeenMark(props.backend, seenAtLoad?.kept ? seenAtLoad.until : 0)
-    const [seenLater, setSeenLater] = useState(0)
-    const seenUntil = seenAtLoad === undefined ? undefined : Math.max(seenAtLoad.until, seenLater)
 
-    const lastShown = useRef<string | undefined>(undefined)
-    const shownAnything = useRef(false)
-    const newestId = useRef<string | undefined>(undefined)
-    const fading = useRef<number[]>([])
-    const lastHeard = useRef<string | undefined>(undefined)
-    const heardAnything = useRef(false)
-
-    const flash = useCallback((ids: string[]) => {
-        if (ids.length === 0) return
-
-        setFlashing(current => new Set([...current, ...ids]))
-        fading.current.push(window.setTimeout(() => setFlashing(current => {
-            const rest = new Set(current)
-            ids.forEach(id => rest.delete(id))
-            return rest
-        }), FLASH_MS))
-    }, [])
-
-    useEffect(() => () => fading.current.forEach(clearTimeout), [])
+    const flagOpen = flagRoom !== undefined && flag.status !== 'unavailable'
+    const shown: View = view === "flag" && !flagOpen ? "world" : view
 
     useEffect(() => {
-        // So the next visit has a mark to count from, even if the chat is never opened in this one.
-        if (seenAtLoad && !seenAtLoad.kept) markSeen(seenAtLoad.until)
-    }, [seenAtLoad, markSeen])
+        if (view === "flag" && !flagOpen) setView("world")
+    }, [view, flagOpen])
 
-    const onSeen = useCallback((at: number) => {
-        setSeenLater(current => Math.max(current, at))
-        markSeen(at)
-    }, [markSeen])
-
-    const unread = seenUntil === undefined ? 0 : unseenAfter(messages, announcements, seenUntil, own)
-
-    useEffect(() => {
-        const last = messages[messages.length - 1]
-
-        if (!shownAnything.current) {
-            shownAnything.current = messages.length > 0
-            lastShown.current = last?.id
-            return
-        }
-        if (!seeing) return
-
-        flash(idsSince(messages, lastShown.current).filter(id => !mine.has(id)))
-        lastShown.current = last?.id
-    }, [messages, seeing, mine, flash])
-
-    useEffect(() => {
-        if (seeing) setToast(undefined)
-    }, [seeing])
-
-    useEffect(() => {
-        const last = messages[messages.length - 1]
-        if (seenUntil === undefined || !last || last.id === newestId.current) return
-        newestId.current = last.id
-
-        if (seeing || last.sentAt <= seenUntil || own(last)) return
-        setToast(last)
-    }, [seenUntil, messages, seeing, own])
-
-    useEffect(() => {
-        if (!toast) return
-        const timer = setTimeout(() => setToast(undefined), TOAST_MS)
-        return () => clearTimeout(timer)
-    }, [toast])
+    const unread = world.unread + (flagOpen ? flag.unread : 0)
 
     const {onUnread} = props
     useEffect(() => {
         onUnread?.(unread)
     }, [unread, onUnread])
-
-    const {playSound} = props
-    useEffect(() => {
-        const last = messages[messages.length - 1]?.id
-
-        if (!heardAnything.current) {
-            heardAnything.current = messages.length > 0
-            lastHeard.current = last
-            return
-        }
-
-        const fresh = messages.slice(messages.length - idsSince(messages, lastHeard.current).length)
-        lastHeard.current = last
-
-        // By account too: an own message's broadcast can land before `mine` holds its id.
-        if (fresh.some(message => !own(message))) playSound?.('chat')
-    }, [messages, own, playSound])
 
     // A copy each time: Reply pressed again on the same message puts the focus back in the box.
     const onReply = useCallback((message: ChatMessage) => setReplyingTo({...message}), [])
@@ -177,7 +107,14 @@ export default function ChatPanel(props: ChatPanelProps) {
     const onReported = useCallback((message: ChatMessage) =>
         setReported(current => new Set([...current, message.id])), [])
 
-    if (status === 'unavailable') return null
+    if (world.status === 'unavailable') return null
+
+    const room: ChatRoomState = shown === "flag" ? flag : world
+
+    const choose = (next: View) => {
+        if (next !== shown) setReplyingTo(undefined)
+        setView(next)
+    }
 
     const onSend = async (text: string) => {
         const target = replyingTo
@@ -189,57 +126,51 @@ export default function ChatPanel(props: ChatPanelProps) {
         }
 
         setReplyingTo(undefined)
-        const failed = await send(message)
+        const failed = await room.send(message)
         if (failed !== undefined && failed !== 'gone') setReplyingTo(current => current ?? target)
         return failed === undefined
     }
 
-    const missed = view !== "chat" && unread > 0
-
-    const tabs = players && <div className="chat-tabs" role="tablist" aria-label="Chat">
-        <button type="button"
-                role="tab"
-                aria-selected={view === "chat"}
-                aria-label={missed ? `Chat, ${newMessages(unread)}` : undefined}
-                className={view === "chat" ? "chat-tab chat-tab--on" : "chat-tab"}
-                onClick={() => setView("chat")}>
-            Chat
-            {missed && <span className="chip chat-badge" key={unread} aria-hidden="true">{badgeCount(unread)}</span>}
-        </button>
-        <button type="button"
-                role="tab"
-                aria-selected={view === "online"}
-                aria-label={players.length === 1 ? "1 player online" : `${players.length} players online`}
-                className={view === "online" ? "chat-tab chat-tab--on" : "chat-tab"}
-                onClick={() => setView("online")}>
+    const tabs = (players || flagOpen) && <div className="chat-tabs" role="tablist" aria-label="Chat">
+        <RoomTab on={shown === "world"} name={flagOpen ? "World" : "Chat"} unread={world.unread}
+                 onClick={() => choose("world")}/>
+        {flagOpen && <RoomTab on={shown === "flag"} name={flagRoom.country.name} flag={flagRoom.country.code}
+                              unread={flag.unread} onClick={() => choose("flag")}/>}
+        {players && <button type="button"
+                            role="tab"
+                            aria-selected={shown === "online"}
+                            aria-label={players.length === 1 ? "1 player online" : `${players.length} players online`}
+                            className={shown === "online" ? "chat-tab chat-tab--on" : "chat-tab"}
+                            onClick={() => choose("online")}>
             Online · {players.length}
-        </button>
+        </button>}
     </div>
 
-    const body: ReactNode = view === "online" && players
+    const body: ReactNode = shown === "online" && players
         ? <div className="chat-players"><PlayersPanel entries={players} onOpenPlayer={props.onOpenPlayer}/></div>
         : <>
             <DiscordBar discord={props.discord} flagName={props.country.name}/>
 
-            <ChatLog messages={messages}
-                     announcements={announcements}
-                     loading={status === 'loading'}
-                     seenUntil={seenUntil}
-                     onSeen={onSeen}
+            <ChatLog key={shown === "flag" ? `flag-${flagRoom?.country.code}` : "world"}
+                     messages={room.messages}
+                     announcements={room.announcements}
+                     loading={room.status === 'loading'}
+                     seenUntil={room.seenUntil}
+                     onSeen={room.onSeen}
                      watching={visible}
-                     flashing={flashing}
+                     flashing={room.flashing}
                      onOpenPlayer={props.onOpenPlayer}
                      onReact={(messageId, reaction, on) =>
-                         react({messageId, reaction, on})}
+                         room.react({messageId, reaction, on})}
                      onReply={onReply}
                      onReport={reporter && setReporting}
                      reported={reported}
-                     own={own}/>
+                     own={room.own}/>
 
             <ChatComposer username={username}
-                          guestName={username === undefined ? displayName : undefined}
-                          failure={failure}
-                          mutedUntil={mutedUntil}
+                          guestName={username === undefined ? world.displayName ?? flag.displayName : undefined}
+                          failure={room.failure}
+                          mutedUntil={room.mutedUntil}
                           replyingTo={replyingTo}
                           onCancelReply={() => setReplyingTo(undefined)}
                           onSend={onSend}/>
@@ -250,6 +181,8 @@ export default function ChatPanel(props: ChatPanelProps) {
                                                           onSent={onReported}
                                                           onClose={() => setReporting(undefined)}/>}
         </>
+
+    const toast = newest(world.toast, flagOpen ? flag.toast : undefined)
 
     if (props.compact) {
         if (isOpen) {
@@ -274,7 +207,10 @@ export default function ChatPanel(props: ChatPanelProps) {
         </button> : null
     }
 
-    const latest = messages[messages.length - 1]
+    const latest = newest(
+        world.unread > 0 ? world.messages[world.messages.length - 1] : undefined,
+        flagOpen && flag.unread > 0 ? flag.messages[flag.messages.length - 1] : undefined,
+    )
     const waiting = !isOpen && unread > 0
 
     return <section ref={panel} className={panelClass(isOpen, waiting)} aria-label="Live chat">
@@ -329,6 +265,34 @@ export default function ChatPanel(props: ChatPanelProps) {
 
         {isOpen && <div className="chat-body" id={bodyId}>{body}</div>}
     </section>
+}
+
+type RoomTabProps = {
+    on: boolean
+    name: string
+    flag?: string
+    unread: number
+    onClick: () => void
+}
+
+function RoomTab({on, name, flag, unread, onClick}: RoomTabProps) {
+    const missed = !on && unread > 0
+
+    return <button type="button"
+                   role="tab"
+                   aria-selected={on}
+                   aria-label={missed ? `${name}, ${newMessages(unread)}` : name}
+                   title={flag && name}
+                   className={["chat-tab", on && "chat-tab--on", flag && "chat-tab--flag"].filter(Boolean).join(" ")}
+                   onClick={onClick}>
+        {flag ? <><CountryFlag code={flag}/><span className="chat-tab-name">{name}</span></> : name}
+        {missed && <span className="chip chat-badge" key={unread} aria-hidden="true">{badgeCount(unread)}</span>}
+    </button>
+}
+
+function newest(...messages: (ChatMessage | undefined)[]): ChatMessage | undefined {
+    return messages.reduce<ChatMessage | undefined>(
+        (latest, message) => message && (!latest || message.sentAt > latest.sentAt) ? message : latest, undefined)
 }
 
 function newMessages(unread: number): string {

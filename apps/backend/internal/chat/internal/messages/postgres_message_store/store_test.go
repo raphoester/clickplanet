@@ -64,7 +64,9 @@ func (s *testSuite) TestOnlyAReplyKeepsTheMessageItRepliesTo() {
 	ctx := context.Background()
 	question := s.sent("hello", "Bob", start)
 	s.keep(question)
-	s.keep(s.sent("reply", "Ada", start.Add(time.Minute)).Answering(question))
+	reply, err := s.sent("reply", "Ada", start.Add(time.Minute)).Answering(question)
+	s.Require().NoError(err)
+	s.keep(reply)
 
 	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT COALESCE(reply_to, 'none') FROM messages ORDER BY seq`)
 	s.Require().NoError(err)
@@ -128,12 +130,8 @@ func (s *testSuite) TestARemovedMessageIsNeitherShownNorReadAndIsStillKept() {
 	s.keep(s.sent("hello", "Ada", start.Add(time.Second)))
 	s.removed(insult)
 
-	shown, err := s.store.Shown(ctx, "id-insult", start, 10)
-	s.Require().NoError(err)
-	s.False(shown, "nobody reacts to a removed message")
-
-	_, err = s.store.Message(ctx, "id-insult", start, 10)
-	s.Require().ErrorIs(err, messages.ErrNotShown, "nobody answers a removed message")
+	_, err := s.store.Message(ctx, "id-insult", start, 10)
+	s.Require().ErrorIs(err, messages.ErrNotShown, "nobody answers or reacts to a removed message")
 
 	kept, err := s.store.Kept(ctx, "id-insult", start)
 	s.Require().NoError(err)
@@ -147,9 +145,8 @@ func (s *testSuite) TestARemovedMessageKeepsItsPlaceInTheWindow() {
 	s.keep(insult)
 	s.removed(insult)
 
-	shown, err := s.store.Shown(context.Background(), "id-older", start, 1)
-	s.Require().NoError(err)
-	s.False(shown, "a window of one holds the removed message, as the history does")
+	_, err := s.store.Message(context.Background(), "id-older", start, 1)
+	s.Require().ErrorIs(err, messages.ErrNotShown, "a window of one holds the removed message, as the history does")
 }
 
 func (s *testSuite) TestAMessageIsKeptOnlyInsideTheRetention() {

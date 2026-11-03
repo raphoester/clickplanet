@@ -13,6 +13,7 @@ import {
     ChatMessageGoneError,
     ChatMutedError,
     ChatNoSessionError,
+    ChatNotInRoomError,
     ChatRateLimitedError,
     ChatRejectedError,
     OutgoingReaction,
@@ -47,6 +48,7 @@ function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncemen
     const reactionListeners: ((change: ReactionsChange) => void)[] = []
     const announcementListeners: ((announcement: ChatAnnouncement) => void)[] = []
     const removalListeners: ((messageId: string) => void)[] = []
+    const leftListeners: (() => void)[] = []
 
     const backend = {
         getHistory: vi.fn().mockResolvedValue({messages: history, announcements, seenUntil}),
@@ -57,11 +59,13 @@ function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncemen
             onAnnouncement?: (announcement: ChatAnnouncement) => void,
             _onResumed?: () => void,
             onRemoved?: (messageId: string) => void,
+            onLeft?: () => void,
         ) => {
             listeners.push(callback)
             if (onReactions) reactionListeners.push(onReactions)
             if (onAnnouncement) announcementListeners.push(onAnnouncement)
             if (onRemoved) removalListeners.push(onRemoved)
+            if (onLeft) leftListeners.push(onLeft)
             return () => {
             }
         }),
@@ -93,6 +97,7 @@ function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncemen
         broadcastReactions: (change: ReactionsChange) => reactionListeners.forEach(listener => listener(change)),
         announce: (announcement: ChatAnnouncement) => announcementListeners.forEach(listener => listener(announcement)),
         remove: (messageId: string) => removalListeners.forEach(listener => listener(messageId)),
+        leave: () => leftListeners.forEach(listener => listener()),
     }
 }
 
@@ -1399,5 +1404,134 @@ describe("ChatPanel on a phone", () => {
         act(() => vi.advanceTimersByTime(4_000))
         expect(screen.queryByRole("button", {name: /Open the chat/})).toBeNull()
         vi.useRealTimers()
+    })
+})
+
+describe("ChatPanel's flag room", () => {
+    const T = 1_700_000_000_000
+
+    const rooms = () => ({
+        world: stubBackend([message("w", "hello world", T)], [], T),
+        flag: stubBackend([message("f", "push from the east", T)], [], T),
+    })
+
+    const show = (
+        world: ReturnType<typeof stubBackend>,
+        flag: ReturnType<typeof stubBackend>,
+        more: Partial<Parameters<typeof ChatPanel>[0]> = {},
+    ) => ({
+        user: userEvent.setup(),
+        ...render(<ChatPanel backend={world.backend}
+                             flagRoom={{country: france, backend: flag.backend}}
+                             country={france}
+                             {...more}/>),
+    })
+
+    it("puts the world and the flag's room side by side, each with its own log", async () => {
+        const {world, flag} = rooms()
+        const {user} = show(world, flag)
+        expect(await screen.findByText("hello world")).toBeDefined()
+        expect(screen.queryByText("push from the east")).toBeNull()
+
+        await user.click(screen.getByRole("tab", {name: "France"}))
+
+        expect(await screen.findByText("push from the east")).toBeDefined()
+        expect(screen.queryByText("hello world")).toBeNull()
+        await user.click(screen.getByRole("tab", {name: "World"}))
+        expect(await screen.findByText("hello world")).toBeDefined()
+    })
+
+    it("posts to the room it shows", async () => {
+        const {world, flag} = rooms()
+        const {user} = show(world, flag)
+        await screen.findByText("hello world")
+
+        await user.click(screen.getByRole("tab", {name: "France"}))
+        await screen.findByText("push from the east")
+        await send(user, "bombs on Brest")
+
+        expect(await screen.findByText("bombs on Brest")).toBeDefined()
+        expect(flag.backend.sendMessage).toHaveBeenCalledOnce()
+        expect(world.backend.sendMessage).not.toHaveBeenCalled()
+    })
+
+    it("counts on each tab what lands in its own room, and the whole for the page", async () => {
+        const {world, flag} = rooms()
+        const onUnread = vi.fn()
+        show(world, flag, {onUnread})
+        await screen.findByText("hello world")
+
+        act(() => flag.broadcast(message("f2", "bomb ready", T + 1_000)))
+
+        expect(await screen.findByRole("tab", {name: "France, 1 new message"})).toBeDefined()
+        expect(screen.getByRole("tab", {name: "World"})).toBeDefined()
+        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(1))
+    })
+
+    it("counts both rooms on the folded panel", async () => {
+        const {world, flag} = rooms()
+        const {user} = show(world, flag)
+        await screen.findByText("hello world")
+        await user.click(screen.getByRole("button", {name: "Fold the chat"}))
+
+        act(() => world.broadcast(message("w2", "gm", T + 1_000)))
+        act(() => flag.broadcast(message("f2", "bomb ready", T + 2_000)))
+
+        expect(await screen.findByLabelText("2 new messages")).toBeDefined()
+    })
+
+    it("pings for a message in the room that is not shown", async () => {
+        const {world, flag} = rooms()
+        const playSound = vi.fn()
+        show(world, flag, {playSound})
+        await screen.findByText("hello world")
+        await waitFor(() => expect(flag.backend.getHistory).toHaveBeenCalled())
+
+        act(() => flag.broadcast(message("f2", "bomb ready", T + 1_000)))
+
+        await waitFor(() => expect(playSound).toHaveBeenCalledWith("chat"))
+    })
+
+    it("has no flag tab, and tells the page once, when the room refuses the player", async () => {
+        const {world, flag} = rooms()
+        flag.backend.getHistory.mockRejectedValue(new ChatNotInRoomError())
+        const onLeftRoom = vi.fn()
+        show(world, flag, {onLeftRoom})
+        await screen.findByText("hello world")
+
+        await waitFor(() => expect(onLeftRoom).toHaveBeenCalledOnce())
+        expect(screen.queryByRole("tab", {name: /France/})).toBeNull()
+    })
+
+    it("goes back to the world when the player leaves the flag while its room is shown", async () => {
+        const {world, flag} = rooms()
+        const onLeftRoom = vi.fn()
+        const {user} = show(world, flag, {onLeftRoom})
+        await screen.findByText("hello world")
+        await user.click(screen.getByRole("tab", {name: "France"}))
+        await screen.findByText("push from the east")
+
+        act(() => flag.leave())
+
+        expect(await screen.findByText("hello world")).toBeDefined()
+        expect(screen.queryByRole("tab", {name: /France/})).toBeNull()
+        expect(onLeftRoom).toHaveBeenCalledOnce()
+    })
+
+    it("follows the flag to its new room", async () => {
+        const {world, flag} = rooms()
+        const germany = stubBackend([message("g", "wir halten", T)], [], T)
+        const {user, rerender} = show(world, flag)
+        await screen.findByText("hello world")
+        await user.click(screen.getByRole("tab", {name: "France"}))
+        await screen.findByText("push from the east")
+
+        rerender(<ChatPanel backend={world.backend}
+                            flagRoom={{country: Countries.get("de")!, backend: germany.backend}}
+                            country={Countries.get("de")!}/>)
+
+        expect(await screen.findByText("wir halten")).toBeDefined()
+        expect(screen.queryByText("push from the east")).toBeNull()
+        expect(screen.getByRole("tab", {name: "Germany"})).toBeDefined()
     })
 })

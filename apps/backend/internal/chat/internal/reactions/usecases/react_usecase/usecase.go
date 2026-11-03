@@ -2,6 +2,7 @@ package react_usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 )
 
 type Messages interface {
-	Shown(ctx context.Context, id messages.MessageID, since time.Time, limit int) (bool, error)
+	Message(ctx context.Context, account messages.AccountID, id messages.MessageID) (messages.Message, error)
 }
 
 type Board interface {
@@ -37,15 +38,8 @@ type In struct {
 
 const writeTimeout = 5 * time.Second
 
-func New(
-	shown Messages,
-	board Board,
-	publisher Publisher,
-	authors Authors,
-	clock cptime.Clock,
-	window messages.Window,
-) *UseCase {
-	return &UseCase{shown: shown, board: board, publisher: publisher, authors: authors, clock: clock, window: window}
+func New(shown Messages, board Board, publisher Publisher, authors Authors, clock cptime.Clock) *UseCase {
+	return &UseCase{shown: shown, board: board, publisher: publisher, authors: authors, clock: clock}
 }
 
 type UseCase struct {
@@ -54,7 +48,6 @@ type UseCase struct {
 	publisher Publisher
 	authors   Authors
 	clock     cptime.Clock
-	window    messages.Window
 }
 
 type Out struct {
@@ -71,12 +64,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 
-	shown, err := u.shown.Shown(ctx, in.MessageID, u.window.Since(u.clock.Now()), u.window.Size())
+	shown, err := u.shown.Message(ctx, in.Account, in.MessageID)
+	if errors.Is(err, messages.ErrNotShown) {
+		return Out{}, fmt.Errorf("%w: %q", reactions.ErrUnknownMessage, in.MessageID)
+	}
 	if err != nil {
 		return Out{}, fmt.Errorf("failed to read the message: %w", err)
-	}
-	if !shown {
-		return Out{}, fmt.Errorf("%w: %q", reactions.ErrUnknownMessage, in.MessageID)
 	}
 
 	current, err := u.of(ctx, in.MessageID)
@@ -104,7 +97,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	if err != nil {
 		return Out{}, fmt.Errorf("failed to read who reacted: %w", err)
 	}
-	u.publisher.Publish(feed.ReactionsChanged(tally.Named(named)))
+	u.publisher.Publish(feed.ReactionsChanged(shown, tally.Named(named)))
 
 	return Out{Counts: reactions.Named(next.Tally(reactor), named), Version: next.Version()}, nil
 }

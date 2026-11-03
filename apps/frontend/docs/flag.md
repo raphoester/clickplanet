@@ -26,6 +26,8 @@ and so is one from an account that pledged none.
 - **`PlanetBackend` reads `GetAllegiance`** at load with the identity token, and
   again when a click goes out under a new token (`followSession`). A refusal carries
   the flag held in its detail, which `PlanetBackend` keeps (`allegianceDetailOf`).
+  `refreshAllegiance()` reads it again on demand: the chat asks when the flag's room
+  refuses the player (see [Rooms](chat.md#rooms)).
 - **The picked flag is always the held one**, locked or not: `Viewer` sets the
   country back to it (local storage, a share link, a CrazyGames invite, another
   device). A CrazyGames invite then asks the player whether to play for the

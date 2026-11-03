@@ -136,6 +136,45 @@ describe("openStream", () => {
         expect(source.opened).toHaveLength(2)
     })
 
+    it("stops for good on a refusal it is told to stop on, and says so once", async () => {
+        const source = fakeSource<string>()
+        const {wakeups, wake} = fakeWakeups()
+        const onStopped = vi.fn()
+        openStream(source.open, () => {}, "test", {
+            wakeups,
+            stopsOn: (e) => e instanceof ConnectError && e.code === Code.FailedPrecondition,
+            onStopped,
+        })
+        await settle()
+
+        source.latest().fail(new ConnectError("not in this room", Code.FailedPrecondition))
+        await vi.advanceTimersByTimeAsync(SILENCE_LIMIT_MS * 10)
+        wake()
+        await settle()
+
+        expect(source.opened).toHaveLength(1)
+        expect(source.opened[0].signal.aborted).toBe(true)
+        expect(onStopped).toHaveBeenCalledOnce()
+    })
+
+    it("still reopens after a failure it is not told to stop on", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+
+        const source = fakeSource<string>()
+        const onStopped = vi.fn()
+        openStream(source.open, () => {}, "test", {
+            stopsOn: (e) => e instanceof ConnectError && e.code === Code.FailedPrecondition,
+            onStopped,
+        })
+        await settle()
+
+        source.latest().fail(new ConnectError("connection reset", Code.Unavailable))
+        await vi.advanceTimersByTimeAsync(500)
+
+        expect(source.opened).toHaveLength(2)
+        expect(onStopped).not.toHaveBeenCalled()
+    })
+
     it("aborts a stream that failed, so its fetch does not stay open", async () => {
         vi.spyOn(console, "error").mockImplementation(() => {})
 

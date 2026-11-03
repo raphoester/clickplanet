@@ -13,6 +13,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
+)
+
+var (
+	ada   = messages.AccountID{15: 1}
+	bob   = messages.AccountID{15: 2}
+	open  = messages.NewRooms(messages.FakeFlags{ada: "fr", bob: "de"})
+	world = listen_for_events_usecase.In{Viewer: messages.NoAccount, Room: messages.World}
+	team  = listen_for_events_usecase.In{Viewer: ada, Room: messages.FlagRoom("fr")}
 )
 
 type stubSubscriber struct {
@@ -58,8 +67,8 @@ func (r *recorder) seen() []listen_for_events_usecase.Event {
 func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
 	cause := errors.New("disk on fire")
 
-	err := listen_for_events_usecase.New(stubSubscriber{err: cause}, time.Hour).
-		Execute(t.Context(), &recorder{})
+	err := listen_for_events_usecase.New(stubSubscriber{err: cause}, open, time.Hour).
+		Execute(t.Context(), world, &recorder{})
 
 	require.ErrorIs(t, err, cause)
 }
@@ -73,7 +82,7 @@ func TestAMessageIsCarriedToTheSink(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{feed: updates}, time.Hour).Execute(ctx, sink)
+		done <- listen_for_events_usecase.New(stubSubscriber{feed: updates}, open, time.Hour).Execute(ctx, world, sink)
 	}()
 
 	<-sink.fed
@@ -94,7 +103,7 @@ func TestAStreamOpensWithAHeartbeat(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{feed: make(chan feed.Update)}, time.Hour).Execute(ctx, sink)
+			stubSubscriber{feed: make(chan feed.Update)}, open, time.Hour).Execute(ctx, world, sink)
 	}()
 
 	<-sink.fed
@@ -129,7 +138,7 @@ func TestTheOpeningHeartbeatComesOnceTheFeedIsFollowed(t *testing.T) {
 	subscriber := &watchedSubscriber{}
 	sink := &witness{subscriber: subscriber}
 
-	require.NoError(t, listen_for_events_usecase.New(subscriber, time.Hour).Execute(t.Context(), sink))
+	require.NoError(t, listen_for_events_usecase.New(subscriber, open, time.Hour).Execute(t.Context(), world, sink))
 
 	assert.Equal(t, []bool{true}, sink.followed, "a client resyncs on it, so nothing after it may be missed")
 }
@@ -141,7 +150,7 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{feed: make(chan feed.Update)}, time.Millisecond).Execute(ctx, sink)
+			stubSubscriber{feed: make(chan feed.Update)}, open, time.Millisecond).Execute(ctx, world, sink)
 	}()
 
 	for range 3 {
@@ -159,8 +168,8 @@ func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
 	updates := make(chan feed.Update)
 	close(updates)
 
-	err := listen_for_events_usecase.New(stubSubscriber{feed: updates}, time.Hour).
-		Execute(t.Context(), &recorder{})
+	err := listen_for_events_usecase.New(stubSubscriber{feed: updates}, open, time.Hour).
+		Execute(t.Context(), world, &recorder{})
 
 	require.NoError(t, err)
 }
@@ -171,8 +180,8 @@ func TestAFailedSendEndsTheFeed(t *testing.T) {
 	updates <- sent
 	sink := &recorder{err: assert.AnError, accepted: 1}
 
-	err := listen_for_events_usecase.New(stubSubscriber{feed: updates}, time.Hour).
-		Execute(t.Context(), sink)
+	err := listen_for_events_usecase.New(stubSubscriber{feed: updates}, open, time.Hour).
+		Execute(t.Context(), world, sink)
 
 	require.ErrorIs(t, err, assert.AnError)
 	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Update: sent}}, sink.seen())
@@ -183,9 +192,72 @@ func TestAFailedOpeningHeartbeatEndsTheFeed(t *testing.T) {
 	updates <- feed.MessageSent(messages.Restored(t, messages.Snapshot{ID: "message-1"}))
 	sink := &recorder{err: assert.AnError}
 
-	err := listen_for_events_usecase.New(stubSubscriber{feed: updates}, time.Hour).
-		Execute(t.Context(), sink)
+	err := listen_for_events_usecase.New(stubSubscriber{feed: updates}, open, time.Hour).
+		Execute(t.Context(), world, sink)
 
 	require.ErrorIs(t, err, assert.AnError)
 	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}}, sink.seen())
+}
+
+func said(t *testing.T, id messages.MessageID, room messages.Room) feed.Update {
+	t.Helper()
+	return feed.MessageSent(messages.Restored(t, messages.Snapshot{ID: id, Room: room, Text: "hi"}))
+}
+
+func listened(t *testing.T, in listen_for_events_usecase.In, sent ...feed.Update) ([]listen_for_events_usecase.Event, error) {
+	t.Helper()
+
+	updates := make(chan feed.Update, len(sent))
+	for _, update := range sent {
+		updates <- update
+	}
+	close(updates)
+	sink := &recorder{accepted: len(sent) + 1}
+
+	err := listen_for_events_usecase.New(stubSubscriber{feed: updates}, open, time.Hour).Execute(t.Context(), in, sink)
+	return sink.seen(), err
+}
+
+func TestAFlagsStreamCarriesWhatIsSaidInItsRoomAlone(t *testing.T) {
+	plan := said(t, "plan", messages.FlagRoom("fr"))
+	gone := feed.MessageRemoved("anything")
+
+	events, err := listened(t, team,
+		said(t, "hello", messages.World),
+		plan,
+		said(t, "plan-de", messages.FlagRoom("de")),
+		feed.ReactionsChanged(messages.Restored(t, messages.Snapshot{ID: "hello", Room: messages.World}), reactions.Tally{}),
+		gone,
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Update: plan}, {Update: gone}}, events)
+}
+
+func TestTheChatEveryoneReadsCarriesNothingSaidInAFlagsRoom(t *testing.T) {
+	hello := said(t, "hello", messages.World)
+
+	events, err := listened(t, world, said(t, "plan", messages.FlagRoom("fr")), hello)
+
+	require.NoError(t, err)
+	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Update: hello}}, events)
+}
+
+func TestAStreamForTheRoomOfAnotherFlagIsRefusedBeforeAnythingIsSent(t *testing.T) {
+	events, err := listened(t, listen_for_events_usecase.In{Viewer: bob, Room: messages.FlagRoom("fr")})
+
+	require.ErrorIs(t, err, messages.ErrNotInRoom)
+	assert.Empty(t, events)
+}
+
+func TestAFlagsStreamEndsOnceItsViewerPledgesAnotherFlag(t *testing.T) {
+	events, err := listened(t, team,
+		feed.RoomLeft(bob, messages.FlagRoom("fr")),
+		feed.RoomLeft(ada, messages.FlagRoom("de")),
+		feed.RoomLeft(ada, messages.FlagRoom("fr")),
+		said(t, "plan", messages.FlagRoom("fr")),
+	)
+
+	require.ErrorIs(t, err, messages.ErrNotInRoom)
+	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}}, events, "nothing said after it")
 }

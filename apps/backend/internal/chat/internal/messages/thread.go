@@ -49,7 +49,7 @@ func (t Thread) Reply(ctx context.Context, draft Message, replyTo MessageID) (Me
 	if err != nil {
 		return Message{}, err
 	}
-	return draft.Answering(named), nil
+	return draft.Answering(named)
 }
 
 func (t Thread) named(ctx context.Context, message Message) (Message, error) {

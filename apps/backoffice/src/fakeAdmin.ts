@@ -168,7 +168,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         sentAt: Timestamp.fromDate(AT), countryId: "fr",
     })
     // The chat ListMessages pages through, the reported message among it: Bob baits, Cleo answers him, Ana insults,
-    // then Bob again.
+    // then Bob again, in Germany's room.
     chat = [
         new KeptMessage({
             messageId: "message-before-1", accountId: "account-reporter", authorName: "Bob", text: "come at me",
@@ -185,7 +185,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         }),
         new KeptMessage({
             messageId: "message-after-1", accountId: "account-reporter", authorName: "Bob", text: "so rude",
-            sentAt: Timestamp.fromDate(new Date(AT.getTime() + 60_000)), countryId: "de",
+            sentAt: Timestamp.fromDate(new Date(AT.getTime() + 60_000)), countryId: "de", flagRoom: "de",
         }),
     ]
     players = [

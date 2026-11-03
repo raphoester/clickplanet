@@ -1,6 +1,7 @@
 # Who is playing
 
-The "Online · N" tab beside Chat, in the chat's header, lists
+The "Online · N" tab beside Chat (beside World and the flag's room when the
+player holds a flag; see [Rooms](chat.md#rooms)), in the chat's header, lists
 everyone playing: players with a username, then guests, each with a flag, a name
 in its chat colour (`authorStyle`, the same hue as in the chat). A line's name
 is the one the chat shows for that account: the username, or `guest_` and its

@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -28,7 +29,7 @@ type PostgresQuery struct {
 }
 
 const message = `
-	SELECT messages.account_id, messages.text, messages.sent_at, messages.country, removals.removed_at
+	SELECT messages.account_id, messages.text, messages.sent_at, messages.country, messages.room, removals.removed_at
 	FROM messages
 	LEFT JOIN removals ON removals.message_id = messages.id
 	WHERE messages.id = $1 AND messages.sent_at >= $2
@@ -42,10 +43,11 @@ func (q *PostgresQuery) Message(ctx context.Context, id string) (*chatv1.GetMess
 		text      string
 		sentAt    time.Time
 		country   string
+		room      string
 		removedAt sql.NullTime
 	)
 	err := q.db.On(ctx).QueryRowContext(ctx, message, id, q.clock.Now().Add(-q.retention)).
-		Scan(&account, &text, &sentAt, &country, &removedAt)
+		Scan(&account, &text, &sentAt, &country, &room, &removedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%w: %q", ErrNoMessage, id)
 	}
@@ -61,6 +63,9 @@ func (q *PostgresQuery) Message(ctx context.Context, id string) (*chatv1.GetMess
 	}
 	if account.Valid {
 		answer.AccountId = account.UUID.String()
+	}
+	if messages.Room(room) != messages.World {
+		answer.FlagRoom = room
 	}
 	if removedAt.Valid {
 		answer.RemovedAt = timestamppb.New(removedAt.Time)

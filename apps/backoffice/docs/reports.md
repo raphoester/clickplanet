@@ -42,5 +42,8 @@ one or the other below. The report open is in the address bar (`#/reports/report
   removed. An author's name opens it on the player page (`OpenPlayer`), so a third player in the conversation is a
   click away; the player already open there stays open, with its row. A page past the chat's retention is
   `not_found`: "That part of the chat is no longer kept."
+- **A line said in a flag's room is tagged with it** ("Germany room", `KeptMessage.flag_room`): only the players of
+  that flag read it. A World line has no tag. `ListMessages` pages through every room at once, so a conversation
+  can mix the World chat with a room's lines.
 - **"What the antibot reads"** is the whole inspection, folded under the chat.
 - **`reports/actions.ts` holds the report's own calls** (remove, decide); the mute and ban are `players/actions.ts`'s.

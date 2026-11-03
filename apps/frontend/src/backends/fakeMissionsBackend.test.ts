@@ -10,6 +10,7 @@ const pledged = (countryId: string): AllegianceSource => ({
         return () => {}
     },
     pledgeAllegiance: async () => {},
+    refreshAllegiance: async () => {},
 })
 
 const clicker: TileClicker = {clickTile: async () => {}}

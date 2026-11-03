@@ -1,6 +1,7 @@
 import {
     ChatAnnouncement,
     ChatBlockedError,
+    ChatFlagRooms,
     ChatHistory,
     ChatHistoryGetter,
     ChatListener,
@@ -8,6 +9,7 @@ import {
     ChatMessageGoneError,
     ChatMutedError,
     ChatNoSessionError,
+    ChatNotInRoomError,
     ChatQuote,
     ChatRateLimitedError,
     ChatReactor,
@@ -54,12 +56,19 @@ export function newKeepaliveChatServiceClient(config: Config): PromiseClient<typ
     }))
 }
 
-export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor, ChatSeenMarker {
+const WORLD = ""
+
+export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor, ChatSeenMarker, ChatFlagRooms {
     constructor(
         private client: PromiseClient<typeof ChatService>,
         private readonly session: SessionProvider,
         private readonly keepalive: PromiseClient<typeof ChatService>,
+        private readonly room: string = WORLD,
     ) {
+    }
+
+    public flagRoom(flag: string): ChatServiceBackend {
+        return new ChatServiceBackend(this.client, this.session, this.keepalive, flag)
     }
 
     public async sendMessage(message: OutgoingMessage): Promise<ChatMessage> {
@@ -69,6 +78,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
                 countryId: message.countryCode,
                 text: message.text,
                 replyToMessageId: message.replyTo,
+                flagRoom: this.room,
             }, {headers}))
 
             if (!res.message) throw new ChatRejectedError()
@@ -128,7 +138,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
 
         try {
             const res = await retrying(
-                () => this.client.getHistory({}, {signal, headers}),
+                () => this.client.getHistory({flagRoom: this.room}, {signal, headers}),
                 "chat history",
                 signal,
             )
@@ -151,7 +161,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         if (identity) headers.set(SESSION_HEADER, identity)
 
         try {
-            await this.keepalive.markSeen({seenUntilUnixMs: BigInt(Math.floor(until))}, {headers})
+            await this.keepalive.markSeen({seenUntilUnixMs: BigInt(Math.floor(until)), flagRoom: this.room}, {headers})
         } catch (e) {
             throw translate(e)
         }
@@ -163,9 +173,12 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         onAnnouncement?: (announcement: ChatAnnouncement) => void,
         onResumed?: () => void,
         onRemoved?: (messageId: string) => void,
+        onLeft?: () => void,
     ): () => void {
         return openStream(
-            (signal) => this.client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT}),
+            (signal) => this.room === WORLD
+                ? this.client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT})
+                : this.roomEvents(signal),
             (event) => {
                 const message = messageOf(event)
                 if (message) callback(message)
@@ -177,15 +190,29 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
                 if (removed !== undefined) onRemoved?.(removed)
             },
             "chat",
-            {onResumed},
+            {onResumed, stopsOn: notInRoom, onStopped: onLeft},
         )
     }
+
+    private async* roomEvents(signal: AbortSignal): AsyncIterable<ChatEvent> {
+        const headers = new Headers()
+        const identity = await this.session.identity()
+        if (identity) headers.set(SESSION_HEADER, identity)
+
+        yield* this.client.listenForEvents({flagRoom: this.room}, {signal, headers, timeoutMs: NO_TIMEOUT})
+    }
+}
+
+function notInRoom(e: unknown): boolean {
+    return e instanceof ConnectError && e.code === Code.FailedPrecondition
 }
 
 function translate(e: unknown): unknown {
     if (!(e instanceof ConnectError)) return e
 
     switch (e.code) {
+        case Code.FailedPrecondition:
+            return new ChatNotInRoomError({cause: e})
         case Code.ResourceExhausted:
             return new ChatRateLimitedError({cause: e})
         case Code.PermissionDenied: {

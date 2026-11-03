@@ -111,7 +111,11 @@ func (s *testSuite) query() *history_query.PostgresQuery {
 }
 
 func (s *testSuite) history(viewer messages.AccountID) *chatv1.GetHistoryResponse {
-	answer, err := s.query().History(s.T().Context(), viewer)
+	return s.historyIn(viewer, messages.World)
+}
+
+func (s *testSuite) historyIn(viewer messages.AccountID, room messages.Room) *chatv1.GetHistoryResponse {
+	answer, err := s.query().History(s.T().Context(), viewer, room)
 	s.Require().NoError(err)
 	return answer
 }
@@ -475,7 +479,7 @@ func (s *testSuite) TestAReactionTheProtoDoesNotNameIsAnError() {
 	s.sent("hello", time.Hour)
 	s.reacted("hello", reactions.Reaction(99), reactions.ReactorOf(ada), true, now)
 
-	_, err := s.query().History(s.T().Context(), ada)
+	_, err := s.query().History(s.T().Context(), ada, messages.World)
 
 	s.ErrorIs(err, history_query.ErrUnknownReaction)
 }
@@ -485,7 +489,7 @@ func (s *testSuite) TestAnAnnouncementOfAKindNobodyKnowsIsAnError() {
 	s.Require().NoError(err)
 	s.announced(latest, announcements.Kind("meteor"), now.Add(-time.Hour))
 
-	_, err = s.query().History(s.T().Context(), ada)
+	_, err = s.query().History(s.T().Context(), ada, messages.World)
 
 	s.ErrorIs(err, history_query.ErrUnknownKind)
 }
@@ -494,7 +498,7 @@ func (s *testSuite) TestAHistoryNobodyCanBeNamedInIsARefusal() {
 	s.sent("hello", time.Hour)
 	s.authors.err = errors.New("the player module is down")
 
-	_, err := s.query().History(s.T().Context(), ada)
+	_, err := s.query().History(s.T().Context(), ada, messages.World)
 
 	s.ErrorIs(err, s.authors.err, "a chat of anonymous messages is worse than none")
 }
@@ -505,7 +509,7 @@ func uuidOf(id announcements.AnnouncementID) string {
 
 func (s *testSuite) TestTheHistorySaysUntilWhenTheViewerSawTheChat() {
 	at := now.Add(-time.Minute).Add(123 * time.Millisecond)
-	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, at))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.World, at))
 
 	s.Equal(at.UnixMilli(), s.history(ada).GetSeenUntilUnixMs())
 	s.Zero(s.history(bob).GetSeenUntilUnixMs(), "an account with no mark has seen nothing")
@@ -513,15 +517,15 @@ func (s *testSuite) TestTheHistorySaysUntilWhenTheViewerSawTheChat() {
 
 func (s *testSuite) TestTheSeenMarkOnlyMovesForward() {
 	later := now.Add(-time.Minute)
-	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, later))
-	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, later.Add(-time.Hour)))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.World, later))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.World, later.Add(-time.Hour)))
 
 	s.Equal(later.UnixMilli(), s.history(ada).GetSeenUntilUnixMs())
 }
 
 func (s *testSuite) TestADeletedSeenMarkIsGoneAndOnlyThatOne() {
-	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, now))
-	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), bob, now))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.World, now))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), bob, messages.World, now))
 
 	s.Require().NoError(s.seen.DeleteSeen(s.T().Context(), ada))
 	s.Require().NoError(s.seen.DeleteSeen(s.T().Context(), ada), "deleting no mark is no error")
@@ -531,7 +535,7 @@ func (s *testSuite) TestADeletedSeenMarkIsGoneAndOnlyThatOne() {
 }
 
 func (s *testSuite) TestNoViewerHasSeenNothing() {
-	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, now))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.World, now))
 
 	s.Zero(s.history(messages.NoAccount).GetSeenUntilUnixMs())
 }
@@ -565,4 +569,44 @@ func (s *testSuite) TestAReplyToARemovedMessageQuotesItWithNoText() {
 	s.Equal("Bob", quote.GetAuthorName())
 	s.True(quote.GetRemoved())
 	s.Empty(quote.GetText(), "nobody reads a removed message in a quote")
+}
+
+func (s *testSuite) TestAFlagsRoomHoldsWhatIsSaidThereAloneAndNoAnnouncement() {
+	s.sent("hello", 3*time.Hour)
+	s.keep(messages.Snapshot{
+		ID: "plan", SentAt: now.Add(-2 * time.Hour), Account: ada, Room: messages.FlagRoom("fr"), Country: "fr", Text: "plan",
+	})
+	s.keep(messages.Snapshot{
+		ID: "plan-de", SentAt: now.Add(-2 * time.Hour), Account: bob, Room: messages.FlagRoom("de"), Country: "de", Text: "plan-de",
+	})
+	s.announced(latest, announcements.KindBomb, now.Add(-time.Hour))
+
+	team := s.historyIn(ada, messages.FlagRoom("fr"))
+	s.Equal([]string{"plan"}, texts(team))
+	s.Empty(team.GetAnnouncements())
+
+	world := s.history(ada)
+	s.Equal([]string{"hello"}, texts(world))
+	s.Equal([]string{uuidOf(latest)}, ids(world))
+}
+
+func (s *testSuite) TestABusyChatDoesNotPushAFlagsRoomOutOfItsWindow() {
+	s.keep(messages.Snapshot{
+		ID: "plan", SentAt: now.Add(-5 * time.Hour), Account: ada, Room: messages.FlagRoom("fr"), Country: "fr", Text: "plan",
+	})
+	for i := range historySize + 1 {
+		s.sent(fmt.Sprintf("hello-%d", i), time.Duration(historySize+1-i)*time.Minute)
+	}
+
+	s.Equal([]string{"plan"}, texts(s.historyIn(ada, messages.FlagRoom("fr"))))
+	s.Len(s.history(ada).GetMessages(), historySize)
+}
+
+func (s *testSuite) TestEachRoomSaysUntilWhenTheViewerSawIt() {
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.World, now))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.FlagRoom("fr"), now.Add(-time.Hour)))
+
+	s.Equal(now.UnixMilli(), s.history(ada).GetSeenUntilUnixMs())
+	s.Equal(now.Add(-time.Hour).UnixMilli(), s.historyIn(ada, messages.FlagRoom("fr")).GetSeenUntilUnixMs())
+	s.Zero(s.historyIn(ada, messages.FlagRoom("de")).GetSeenUntilUnixMs())
 }

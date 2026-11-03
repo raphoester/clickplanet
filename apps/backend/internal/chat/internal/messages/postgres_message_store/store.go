@@ -25,29 +25,13 @@ var _ messages.Storage = (*Store)(nil)
 
 func (s *Store) Append(ctx context.Context, record messages.Record) error {
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO messages (id, sent_at, account_id, name, author_admin, author_id, country, ip, user_agent, text, reply_to)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO messages (id, sent_at, account_id, name, author_admin, author_id, country, ip, user_agent, text, reply_to,
+			room)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`, row(record)...); err != nil {
 		return fmt.Errorf("failed to insert a message: %w", err)
 	}
 	return nil
-}
-
-func (s *Store) Shown(ctx context.Context, id messages.MessageID, since time.Time, limit int) (bool, error) {
-	var shown bool
-	if err := s.db.On(ctx).QueryRowContext(ctx, `
-		SELECT EXISTS (
-			SELECT 1 FROM (
-				SELECT id FROM messages
-				WHERE sent_at >= $2
-				ORDER BY seq DESC LIMIT $3
-			) recent
-			WHERE recent.id = $1 AND NOT EXISTS (SELECT 1 FROM removals WHERE removals.message_id = recent.id)
-		)
-	`, string(id), since, limit).Scan(&shown); err != nil {
-		return false, fmt.Errorf("failed to read whether a message is shown: %w", err)
-	}
-	return shown, nil
 }
 
 func (s *Store) Message(ctx context.Context, id messages.MessageID, since time.Time, limit int) (messages.Message, error) {
@@ -56,21 +40,22 @@ func (s *Store) Message(ctx context.Context, id messages.MessageID, since time.T
 		account uuid.NullUUID
 		name    string
 		admin   bool
+		room    string
 		country string
 		text    string
 		replyTo sql.NullString
 	)
 	err := s.db.On(ctx).QueryRowContext(ctx, `
-		SELECT recent.sent_at, recent.account_id, recent.name, recent.author_admin, recent.country, recent.text,
-			recent.reply_to
+		SELECT recent.sent_at, recent.account_id, recent.name, recent.author_admin, recent.room, recent.country,
+			recent.text, recent.reply_to
 		FROM (
-			SELECT id, sent_at, account_id, name, author_admin, country, text, reply_to
+			SELECT id, sent_at, account_id, name, author_admin, room, country, text, reply_to
 			FROM messages
-			WHERE sent_at >= $2
+			WHERE room = (SELECT room FROM messages WHERE id = $1 ORDER BY seq DESC LIMIT 1) AND sent_at >= $2
 			ORDER BY seq DESC LIMIT $3
 		) recent
 		WHERE recent.id = $1 AND NOT EXISTS (SELECT 1 FROM removals WHERE removals.message_id = recent.id)
-	`, string(id), since, limit).Scan(&sentAt, &account, &name, &admin, &country, &text, &replyTo)
+	`, string(id), since, limit).Scan(&sentAt, &account, &name, &admin, &room, &country, &text, &replyTo)
 	if errors.Is(err, sql.ErrNoRows) {
 		return messages.Message{}, messages.ErrNotShown
 	}
@@ -83,6 +68,7 @@ func (s *Store) Message(ctx context.Context, id messages.MessageID, since time.T
 		SentAt:  sentAt.UTC(),
 		Account: messages.AccountID(account.UUID),
 		Author:  messages.AuthorOf(name, admin, 0, 0, messages.Title{}),
+		Room:    messages.Room(room),
 		Country: country,
 		Text:    text,
 		Quote:   messages.Quote{MessageID: messages.MessageID(replyTo.String)},
@@ -146,6 +132,7 @@ func row(record messages.Record) []any {
 		kept.UserAgent,
 		message.Text,
 		sql.NullString{String: string(message.Quote.MessageID), Valid: message.Quote.MessageID != ""},
+		string(message.Room),
 	}
 }
 

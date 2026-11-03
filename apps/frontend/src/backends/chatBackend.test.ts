@@ -27,6 +27,7 @@ import {
     ChatMessageGoneError,
     ChatMutedError,
     ChatNoSessionError,
+    ChatNotInRoomError,
     ChatRateLimitedError,
     ChatRejectedError,
 } from "./chat.ts"
@@ -372,6 +373,7 @@ describe("ChatServiceBackend.sendMessage", () => {
             authorId: "author-1",
             countryId: "fr",
             text: "hello",
+            flagRoom: "",
         }, expect.anything())
     })
 
@@ -386,6 +388,7 @@ describe("ChatServiceBackend.sendMessage", () => {
             countryId: "fr",
             text: "hello",
             replyToMessageId: "message-0",
+            flagRoom: "",
         }, expect.anything())
     })
 
@@ -556,7 +559,7 @@ describe("ChatServiceBackend's seen mark", () => {
 
         await new ChatServiceBackend({} as PromiseClient<typeof ChatService>, provider, keepalive).markSeen(1_700_000_000_123)
 
-        expect(markSeen.mock.calls[0][0]).toEqual({seenUntilUnixMs: BigInt(1_700_000_000_123)})
+        expect(markSeen.mock.calls[0][0]).toEqual({seenUntilUnixMs: BigInt(1_700_000_000_123), flagRoom: ""})
         expect(headersOf(markSeen).get(SESSION_HEADER)).toBe("token-1")
         expect(provider.token).not.toHaveBeenCalled()
     })
@@ -586,5 +589,81 @@ describe("ChatServiceBackend's seen mark", () => {
 
         await expect(new ChatServiceBackend({} as PromiseClient<typeof ChatService>, unheld(), keepalive).markSeen(1))
             .rejects.toBeInstanceOf(ChatNoSessionError)
+    })
+})
+
+describe("ChatServiceBackend's flag room", () => {
+    const refused = () => new ConnectError("not this flag", Code.FailedPrecondition)
+
+    function streamThat(fails: unknown) {
+        const listenForEvents = vi.fn((): AsyncIterable<ChatEvent> => ({
+            [Symbol.asyncIterator]: () => ({next: () => Promise.reject(fails)}),
+        }))
+        return {listenForEvents, client: {listenForEvents} as unknown as PromiseClient<typeof ChatService>}
+    }
+
+    it("names the flag on every call, and the world names none", async () => {
+        const sendMessage = vi.fn().mockResolvedValue({message: proto()})
+        const getHistory = vi.fn().mockResolvedValue({messages: [], announcements: []})
+        const markSeen = vi.fn().mockResolvedValue({})
+        const client = {sendMessage, getHistory} as unknown as PromiseClient<typeof ChatService>
+        const world = new ChatServiceBackend(client, session(), {markSeen} as unknown as PromiseClient<typeof ChatService>)
+        const france = world.flagRoom("fr")
+
+        await france.sendMessage(outgoing)
+        await france.getHistory()
+        await france.markSeen(1)
+        await world.getHistory()
+
+        expect(sendMessage.mock.calls[0][0]).toMatchObject({flagRoom: "fr"})
+        expect(getHistory.mock.calls[0][0]).toEqual({flagRoom: "fr"})
+        expect(markSeen.mock.calls[0][0]).toMatchObject({flagRoom: "fr"})
+        expect(getHistory.mock.calls[1][0]).toEqual({flagRoom: ""})
+    })
+
+    it("reads a refusal for a flag the player does not play for as not in the room", async () => {
+        const client = clientThatFails(refused())
+        const france = new ChatServiceBackend(client, session(), unusedKeepalive).flagRoom("fr")
+
+        await expect(france.sendMessage(outgoing)).rejects.toBeInstanceOf(ChatNotInRoomError)
+        await expect(france.getHistory()).rejects.toBeInstanceOf(ChatNotInRoomError)
+    })
+
+    it("listens as the identity the cookie resumes, never a mint", async () => {
+        const {listenForEvents, client} = streamThat(refused())
+        const provider: SessionProvider = {
+            token: vi.fn(async () => "minted"),
+            held: vi.fn(() => undefined),
+            identity: vi.fn(async () => "identity-1"),
+            heldIdentity: vi.fn(() => undefined),
+            invalidate: vi.fn(),
+        }
+
+        const stop = new ChatServiceBackend(client, provider, unusedKeepalive).flagRoom("fr")
+            .listenForMessages(() => {})
+        await vi.waitFor(() => expect(listenForEvents).toHaveBeenCalled())
+        stop()
+
+        const [request, options] = listenForEvents.mock.calls[0] as unknown as [unknown, {headers: Headers}]
+        expect(request).toEqual({flagRoom: "fr"})
+        expect(options.headers.get(SESSION_HEADER)).toBe("identity-1")
+        expect(provider.token).not.toHaveBeenCalled()
+    })
+
+    it("stops listening for good once the player left the flag, and says so", async () => {
+        vi.useFakeTimers()
+        try {
+            const {listenForEvents, client} = streamThat(refused())
+            const onLeft = vi.fn()
+
+            new ChatServiceBackend(client, session(), unusedKeepalive).flagRoom("fr")
+                .listenForMessages(() => {}, undefined, undefined, undefined, undefined, onLeft)
+            await vi.advanceTimersByTimeAsync(120_000)
+
+            expect(listenForEvents).toHaveBeenCalledOnce()
+            expect(onLeft).toHaveBeenCalledOnce()
+        } finally {
+            vi.useRealTimers()
+        }
     })
 })

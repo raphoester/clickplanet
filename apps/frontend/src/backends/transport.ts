@@ -118,13 +118,16 @@ export const pageWakeups: Wakeups = (wake) => {
 export type StreamOptions = {
     onResumed?: () => void
     wakeups?: Wakeups
+    // A refusal a reconnect would only meet again: the stream stops for good, and says so once.
+    stopsOn?: (e: unknown) => boolean
+    onStopped?: () => void
 }
 
 export function openStream<T>(
     open: (signal: AbortSignal) => AsyncIterable<T>,
     onMessage: (message: T) => void,
     what: string,
-    {onResumed, wakeups = pageWakeups}: StreamOptions = {},
+    {onResumed, wakeups = pageWakeups, stopsOn, onStopped}: StreamOptions = {},
 ): () => void {
     let controller: AbortController | undefined
     let retryTimer: ReturnType<typeof setTimeout> | undefined
@@ -199,6 +202,11 @@ export function openStream<T>(
             }
         } catch (e) {
             if (stopped || attempt.signal.aborted) return
+            if (stopsOn?.(e)) {
+                stop()
+                onStopped?.()
+                return
+            }
             console.error(`${what} stream failed`, e)
         } finally {
             // connect-es drops return() from a stream's iterator: leaving the loop leaves the fetch open.
@@ -215,9 +223,7 @@ export function openStream<T>(
         if (retryTimer !== undefined || silentFor() >= SILENCE_LIMIT_MS) reopen()
     })
 
-    void connect()
-
-    return () => {
+    const stop = () => {
         stopped = true
         stopWaking()
         if (retryTimer !== undefined) clearTimeout(retryTimer)
@@ -225,4 +231,8 @@ export function openStream<T>(
         controller?.abort()
         controller = undefined
     }
+
+    void connect()
+
+    return stop
 }

@@ -76,6 +76,8 @@ message GetMessageResponse {
   string country_id = 5;
   // Unset while the message is shown.
   google.protobuf.Timestamp removed_at = 6;
+  // The flag whose room it was said in. Empty for the chat everyone reads.
+  string flag_room = 7;
 }
 
 message ListMessagesRequest {
@@ -108,6 +110,8 @@ message KeptMessage {
   google.protobuf.Timestamp removed_at = 7;
   // The message it answers. Unset for none, and for one past the retention.
   KeptQuote reply_to = 8;
+  // The flag whose room it was said in. Empty for the chat everyone reads.
+  string flag_room = 9;
 }
 
 // The message a reply answers, as it was sent, removed or not.

@@ -54,7 +54,7 @@ func TestSinkFramesNewReactions(t *testing.T) {
 	stream := &recorder{}
 
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Update: feed.ReactionsChanged(reactions.TallyFor("message-1", []reactions.Count{reactions.CountOf(reactions.Reaction(chatv1.Reaction_REACTION_SKULL), 2, false, nil, nil)}, 4)),
+		Update: feed.ReactionsChanged(messages.Restored(t, messages.Snapshot{ID: "message-1"}), reactions.TallyFor("message-1", []reactions.Count{reactions.CountOf(reactions.Reaction(chatv1.Reaction_REACTION_SKULL), 2, false, nil, nil)}, 4)),
 	})
 
 	require.NoError(t, err)

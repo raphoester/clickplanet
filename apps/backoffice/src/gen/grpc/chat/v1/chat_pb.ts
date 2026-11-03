@@ -379,6 +379,14 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
    */
   replyToMessageId = "";
 
+  /**
+   * The flag whose room it goes to: only the accounts that play for that flag read and write there. Empty for the chat
+   * everyone reads.
+   *
+   * @generated from field: string flag_room = 6;
+   */
+  flagRoom = "";
+
   constructor(data?: PartialMessage<SendMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -391,6 +399,7 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
     { no: 3, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "reply_to_message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SendMessageRequest {
@@ -488,6 +497,13 @@ export class MuteRefusal extends Message<MuteRefusal> {
  * @generated from message chat.v1.GetHistoryRequest
  */
 export class GetHistoryRequest extends Message<GetHistoryRequest> {
+  /**
+   * As SendMessageRequest.flag_room. A flag's room has no announcements.
+   *
+   * @generated from field: string flag_room = 1;
+   */
+  flagRoom = "";
+
   constructor(data?: PartialMessage<GetHistoryRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -496,6 +512,7 @@ export class GetHistoryRequest extends Message<GetHistoryRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chat.v1.GetHistoryRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetHistoryRequest {
@@ -628,6 +645,13 @@ export class MarkSeenRequest extends Message<MarkSeenRequest> {
    */
   seenUntilUnixMs = protoInt64.zero;
 
+  /**
+   * As SendMessageRequest.flag_room: each room keeps its own mark.
+   *
+   * @generated from field: string flag_room = 2;
+   */
+  flagRoom = "";
+
   constructor(data?: PartialMessage<MarkSeenRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -637,6 +661,7 @@ export class MarkSeenRequest extends Message<MarkSeenRequest> {
   static readonly typeName = "chat.v1.MarkSeenRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "seen_until_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 2, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MarkSeenRequest {
@@ -783,6 +808,13 @@ export class ReactResponse extends Message<ReactResponse> {
  * @generated from message chat.v1.ListenForEventsRequest
  */
 export class ListenForEventsRequest extends Message<ListenForEventsRequest> {
+  /**
+   * As SendMessageRequest.flag_room. A flag's stream ends, FailedPrecondition, once the caller pledges another flag.
+   *
+   * @generated from field: string flag_room = 1;
+   */
+  flagRoom = "";
+
   constructor(data?: PartialMessage<ListenForEventsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -791,6 +823,7 @@ export class ListenForEventsRequest extends Message<ListenForEventsRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chat.v1.ListenForEventsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListenForEventsRequest {

@@ -27,7 +27,8 @@ player could paint for one country and defend another click to click. **Only
   `allegiance_facts` tells as `planet.v1.AllegiancePledged` (the account, the flag, the
   flag it left, empty for a first one) through the facts log, as the other facts go. The
   same flag again, a refusal and a release tell nothing. `alerts` hears it to move the
-  player's Discord role (see [Discord pings](alerts.md)).
+  player's Discord role (see [Discord pings](alerts.md)), and `chat` to end the player's stream of the room of the
+  flag it left (see [Chat](chat.md#rooms)).
   **`Book.PlayError(ctx, payer, flag)`** reads the store and asks `PlayError`. A caller
   with no account (the deprecated mint, `auth` off) is held to nothing, and a flag that
   is no country is left to the click use case, which refuses it.
@@ -47,7 +48,7 @@ player could paint for one country and defend another click to click. **Only
   and `changeable_at_unix_ms` 0 for a flag never changed. Not `NO_SIDE_EFFECTS`. A set taking over sends
   `rules_changed`, and the web client reads it again.
 - **`InternalService/GetAllegianceOf(account_id)`** is the same read for another module
-  (`missions`, to draw an account's day), with the same query. An id that is no account is `InvalidArgument`.
+  (`missions`, to draw an account's day; `chat`, to let an account into its flag's room), with the same query. An id that is no account is `InvalidArgument`.
 - **`ClickService/PledgeAllegiance(country_id)`** is `Book.Pledge`, and answers
   nothing: the client reads `GetAllegiance` after it. `Identified`, since it writes
   only the caller's own state. No account is `Unauthenticated`, a flag that is no

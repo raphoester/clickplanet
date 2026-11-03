@@ -547,6 +547,10 @@ button:disabled {
     color: var(--accent);
 }
 
+.tag-room {
+    color: var(--muted);
+}
+
 .line-quote {
     display: -webkit-box;
     -webkit-box-orient: vertical;

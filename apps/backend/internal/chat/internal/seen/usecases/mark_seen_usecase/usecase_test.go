@@ -23,37 +23,38 @@ var (
 func markSeen(t *testing.T, store *inmemory_seen_storage.Storage, in mark_seen_usecase.In) error {
 	t.Helper()
 
-	return mark_seen_usecase.New(store, cptime.NewFixedClock(now)).Execute(t.Context(), in)
+	return mark_seen_usecase.New(store, messages.NewRooms(messages.FakeFlags{ada: "fr"}), cptime.NewFixedClock(now)).
+		Execute(t.Context(), in)
 }
 
 func TestTheMarkIsKeptForTheAccount(t *testing.T) {
 	store := inmemory_seen_storage.New()
 
-	err := markSeen(t, store, mark_seen_usecase.In{Account: ada, At: now.Add(-time.Minute)})
+	err := markSeen(t, store, mark_seen_usecase.In{Account: ada, Room: messages.World, At: now.Add(-time.Minute)})
 
 	require.NoError(t, err)
-	assert.Equal(t, now.Add(-time.Minute), store.Kept(ada))
+	assert.Equal(t, now.Add(-time.Minute), store.Kept(ada, messages.World))
 }
 
 func TestAMarkAheadOfTheServerIsKeptAsNow(t *testing.T) {
 	store := inmemory_seen_storage.New()
 
-	require.NoError(t, markSeen(t, store, mark_seen_usecase.In{Account: ada, At: now.Add(time.Hour)}))
+	require.NoError(t, markSeen(t, store, mark_seen_usecase.In{Account: ada, Room: messages.World, At: now.Add(time.Hour)}))
 
-	assert.Equal(t, now, store.Kept(ada))
+	assert.Equal(t, now, store.Kept(ada, messages.World))
 }
 
 func TestNoAccountIsRefusedAndNothingIsKept(t *testing.T) {
 	store := inmemory_seen_storage.New()
 
-	err := markSeen(t, store, mark_seen_usecase.In{Account: messages.NoAccount, At: now})
+	err := markSeen(t, store, mark_seen_usecase.In{Account: messages.NoAccount, Room: messages.World, At: now})
 
 	require.ErrorIs(t, err, messages.ErrNoAccount)
-	assert.True(t, store.Kept(messages.NoAccount).IsZero())
+	assert.True(t, store.Kept(messages.NoAccount, messages.World).IsZero())
 }
 
 func TestNoTimeIsRefused(t *testing.T) {
-	err := markSeen(t, inmemory_seen_storage.New(), mark_seen_usecase.In{Account: ada})
+	err := markSeen(t, inmemory_seen_storage.New(), mark_seen_usecase.In{Account: ada, Room: messages.World})
 
 	assert.ErrorIs(t, err, seen.ErrNoTime)
 }
@@ -62,7 +63,27 @@ func TestAStoreFailureIsAnError(t *testing.T) {
 	store := inmemory_seen_storage.New()
 	store.FailWith(errors.New("postgres is down"))
 
-	err := markSeen(t, store, mark_seen_usecase.In{Account: ada, At: now})
+	err := markSeen(t, store, mark_seen_usecase.In{Account: ada, Room: messages.World, At: now})
 
 	assert.ErrorContains(t, err, "postgres is down")
+}
+
+func TestEachRoomKeepsItsOwnMark(t *testing.T) {
+	store := inmemory_seen_storage.New()
+
+	require.NoError(t, markSeen(t, store, mark_seen_usecase.In{Account: ada, Room: messages.World, At: now}))
+	require.NoError(t, markSeen(t, store,
+		mark_seen_usecase.In{Account: ada, Room: messages.FlagRoom("fr"), At: now.Add(-time.Hour)}))
+
+	assert.Equal(t, now, store.Kept(ada, messages.World))
+	assert.Equal(t, now.Add(-time.Hour), store.Kept(ada, messages.FlagRoom("fr")))
+}
+
+func TestNoMarkIsKeptForTheRoomOfAnotherFlag(t *testing.T) {
+	store := inmemory_seen_storage.New()
+
+	err := markSeen(t, store, mark_seen_usecase.In{Account: ada, Room: messages.FlagRoom("de"), At: now})
+
+	require.ErrorIs(t, err, messages.ErrNotInRoom)
+	assert.True(t, store.Kept(ada, messages.FlagRoom("de")).IsZero())
 }

@@ -98,13 +98,9 @@ func (s *testSuite) TestAMessageIsInTheHistoryExactlyWhenItCanBeReactedAndReplie
 				}
 			}
 			for _, id := range ids {
-				reactable, err := s.messages.Shown(s.T().Context(), messages.MessageID(id), window.Since(now), window.Size())
-				s.Require().NoError(err)
-				s.Equal(reactable, shown.Contains(id), "%s: the history and React must agree on what is shown", id)
-
-				_, err = s.messages.Message(s.T().Context(), messages.MessageID(id), window.Since(now), window.Size())
+				_, err := s.messages.Message(s.T().Context(), messages.MessageID(id), window.Since(now), window.Size())
 				s.Equal(!errors.Is(err, messages.ErrNotShown), shown.Contains(id),
-					"%s: the history and SendMessage must agree on what is shown", id)
+					"%s: the history, React and SendMessage must agree on what is shown", id)
 			}
 		})
 	}
@@ -130,12 +126,13 @@ func (s *testSuite) TestTheReactionsOfAMessageAreWhatReactAnswersForThem() {
 
 	const size = 3
 	query := history_query.NewPostgresQuery(s.db, s.authors, cptime.NewFixedClock(now), size, historyRetention)
-	react := react_usecase.New(s.messages, s.reactions, silentFeed{}, commandAuthors{query: s.authors},
-		cptime.NewFixedClock(now), messages.NewWindow(size, historyRetention))
+	shown := messages.NewShowing(s.messages, messages.NewRooms(messages.FakeFlags{}), cptime.NewFixedClock(now),
+		messages.NewWindow(size, historyRetention))
+	react := react_usecase.New(shown, s.reactions, silentFeed{}, commandAuthors{query: s.authors}, cptime.NewFixedClock(now))
 	untouched := reactions.Reaction(chatv1.Reaction_REACTION_EARTH)
 
 	for _, viewer := range []messages.AccountID{ada, bob, gone} {
-		history, err := query.History(s.T().Context(), viewer)
+		history, err := query.History(s.T().Context(), viewer, messages.World)
 		s.Require().NoError(err)
 		s.Require().Len(history.GetMessages(), size)
 		for _, message := range history.GetMessages() {
@@ -163,13 +160,14 @@ func (s *testSuite) TestAMessageReadsBackAsSendMessageAnsweredIt() {
 	clock := cptime.NewFixedClock(now.Add(-time.Hour).Add(123_456 * time.Microsecond))
 	authors := commandAuthors{query: s.authors}
 	send := send_message_usecase.New(s.messages, silentFeed{}, authors,
-		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpcountries.New()),
+		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpcountries.New(),
+			messages.NewRooms(messages.FakeFlags{})),
 		messages.NewThread(s.messages, authors, clock, window))
 
 	answers := map[string]*chatv1.ChatMessage{}
 	for _, in := range []send_message_usecase.In{
-		{Account: ada, AuthorID: "browser-1", CountryID: "fr", Text: "  hello\tplanet  ", UserAgent: "test"},
-		{Account: bob, AuthorID: "browser-2", CountryID: "de", Text: "hi", UserAgent: "test"},
+		{Account: ada, AuthorID: "browser-1", Room: messages.World, CountryID: "fr", Text: "  hello\tplanet  ", UserAgent: "test"},
+		{Account: bob, AuthorID: "browser-2", Room: messages.World, CountryID: "de", Text: "hi", UserAgent: "test"},
 	} {
 		sent, err := send.Execute(s.T().Context(), in)
 		s.Require().NoError(err)
@@ -200,13 +198,14 @@ func (s *testSuite) TestAReplyReadsBackAsSendMessageAnsweredIt() {
 	clock := cptime.NewFixedClock(now.Add(-time.Hour))
 	authors := commandAuthors{query: s.authors}
 	send := send_message_usecase.New(s.messages, silentFeed{}, authors,
-		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpcountries.New()),
+		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpcountries.New(),
+			messages.NewRooms(messages.FakeFlags{})),
 		messages.NewThread(s.messages, authors, clock, messages.NewWindow(size, historyRetention)))
 
 	answers := map[string]*chatv1.ChatMessage{}
 	for _, replyTo := range []messages.MessageID{"named", "deleted", "legacy"} {
 		sent, err := send.Execute(s.T().Context(), send_message_usecase.In{
-			Account: ada, AuthorID: "browser-1", CountryID: "fr", Text: "answer", ReplyTo: replyTo, UserAgent: "test",
+			Account: ada, AuthorID: "browser-1", Room: messages.World, CountryID: "fr", Text: "answer", ReplyTo: replyTo, UserAgent: "test",
 		})
 		s.Require().NoError(err)
 		answer := chatmessage.Encode(sent, nil, 0)
@@ -216,7 +215,7 @@ func (s *testSuite) TestAReplyReadsBackAsSendMessageAnsweredIt() {
 	}
 
 	history, err := history_query.NewPostgresQuery(s.db, s.authors, cptime.NewFixedClock(now), size, historyRetention).
-		History(s.T().Context(), ada)
+		History(s.T().Context(), ada, messages.World)
 	s.Require().NoError(err)
 	replies := 0
 	for _, message := range history.GetMessages() {

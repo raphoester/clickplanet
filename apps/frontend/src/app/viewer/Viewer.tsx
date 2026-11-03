@@ -26,7 +26,7 @@ import {ConnectionSource} from "../../backends/connection.ts";
 import {useConnection} from "./useConnection.ts";
 import Quiz from "../quiz/Quiz.tsx";
 import {useQuiz} from "../quiz/useQuiz.ts";
-import {ChatBackend} from "../../backends/chat.ts";
+import {ChatRooms} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu, {BoardSheet, MenuTab, YouPlace} from "../Menu.tsx";
 import {youLabel} from "../youLabel.ts";
@@ -159,7 +159,7 @@ export type ViewerProps = {
     refiller?: Refiller
     shielder?: Shielder
     allegiance?: AllegianceSource
-    chatBackend?: ChatBackend
+    chatBackend?: ChatRooms
     account?: AccountStore
     presence?: PresenceBackend
     playerInfo?: PlayerInfoBackend
@@ -184,6 +184,12 @@ export default function Viewer(props: ViewerProps) {
         if (held) handleSetCountry(held)
     }, [allegiance, countryState.code, handleSetCountry])
     const invitation = useInvites(props.crazyGames, allegiance, handleSetCountry)
+    const {chatBackend} = props
+    const heldFlag = allegiance?.countryId
+    const flagRoom = useMemo(() => {
+        const country = heldFlag === undefined ? undefined : Countries.get(heldFlag)
+        return country && chatBackend ? {country, backend: chatBackend.flagRoom(country.code)} : undefined
+    }, [chatBackend, heldFlag])
     const invite = props.crazyGames?.room.inviteLink
     const pickCountry = async (country: Country) => {
         if (country.code !== countryState.code) await props.allegiance?.pledgeAllegiance(country.code)
@@ -521,6 +527,8 @@ export default function Viewer(props: ViewerProps) {
 
         {ready && crazyGames.chat && <ChatPanel
             backend={props.chatBackend}
+            flagRoom={flagRoom}
+            onLeftRoom={() => void props.allegiance?.refreshAllegiance().catch((e) => console.error("could not read the flag played for", e))}
             country={countryState}
             playSound={sound.play}
             accountId={ownAccountId}

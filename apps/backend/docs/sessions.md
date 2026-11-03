@@ -24,7 +24,7 @@ The signature is checked **before** the expiry, so a forger learns nothing about
 
 **Where it sits in the chain:** error mapping, VPN blocklist, **session**, throttle. Outside the limiter for the same reason the blocklist is — a click refused for its session must not also spend a token, or the retry that follows the mint would come back 429 and the web app would show the throttle dialog instead. `TestSessionCheckRunsBeforeTheThrottle` pins it.
 
-**Reads and the streams never need a token.** A visitor loads the planet, watches it live and reads the chat without ever minting anything; a click token is only ever needed to act. A read that wants to know its caller takes the identity token, which costs no Turnstile check. `GetMap` is a cacheable GET and a per-session header on it would defeat that cache.
+**Reads and the streams never need a token.** A visitor loads the planet, watches it live and reads the chat without ever minting anything; a click token is only ever needed to act. A read that wants to know its caller takes the identity token, which costs no Turnstile check: the chat of a flag's room, its history and its stream, are such reads. `GetMap` is a cacheable GET and a per-session header on it would defeat that cache.
 
 **Minting has its own throttle** (`auth.rateLimiter`, one every 30s with 10 in hand, shared by both `CreateSession` paths). A mint costs a siteverify round trip to a third party, so it cannot share the click budget: unthrottled, the endpoint is a free way to spend this server's siteverify quota. `ResumeSession` has a bucket of its own (`auth.resumeLimiter`, one a second with 10 in hand): it costs one row read and no third party, and every page load makes one.
 

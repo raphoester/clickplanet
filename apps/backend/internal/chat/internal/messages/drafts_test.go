@@ -23,16 +23,18 @@ type failingIDs struct{}
 func (failingIDs) NewID() (messages.MessageID, error) { return "", errors.New("no entropy") }
 
 func drafts(ids messages.IDProvider) messages.Drafts {
-	return messages.NewDrafts(ids, cptime.NewFixedClock(draftedAt), limits, cpcountries.New())
+	return messages.NewDrafts(ids, cptime.NewFixedClock(draftedAt), limits, cpcountries.New(),
+		messages.NewRooms(messages.FakeFlags{ada: "fr"}))
 }
 
 func TestADraftIsCleanedAndStampedWithAnIDAndTheTime(t *testing.T) {
-	message, err := drafts(&messages.SequentialIDs{}).Draft(ada, "fr", "  hello\tplanet  ")
+	message, err := drafts(&messages.SequentialIDs{}).Draft(t.Context(), ada, messages.World, "fr", "  hello\tplanet  ")
 
 	require.NoError(t, err)
 	assert.Equal(t,
 		messages.Snapshot{
-			ID: "00000000-0000-0000-0000-000000000001", SentAt: draftedAt, Account: ada, Country: "fr", Text: "hello planet",
+			ID: "00000000-0000-0000-0000-000000000001", SentAt: draftedAt, Account: ada, Room: messages.World, Country: "fr",
+			Text: "hello planet",
 		},
 		message.TakeSnapshot())
 }
@@ -40,9 +42,9 @@ func TestADraftIsCleanedAndStampedWithAnIDAndTheTime(t *testing.T) {
 func TestEachDraftGetsAnIDOfItsOwn(t *testing.T) {
 	drafting := drafts(&messages.SequentialIDs{})
 
-	first, err := drafting.Draft(ada, "fr", "one")
+	first, err := drafting.Draft(t.Context(), ada, messages.World, "fr", "one")
 	require.NoError(t, err)
-	second, err := drafting.Draft(ada, "fr", "two")
+	second, err := drafting.Draft(t.Context(), ada, messages.World, "fr", "two")
 	require.NoError(t, err)
 
 	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), first.TakeSnapshot().ID)
@@ -52,10 +54,10 @@ func TestEachDraftGetsAnIDOfItsOwn(t *testing.T) {
 func TestAnInvalidTextIsRefusedBeforeAnIDIsDrawn(t *testing.T) {
 	drafting := drafts(&messages.SequentialIDs{})
 
-	_, err := drafting.Draft(ada, "fr", "   ")
+	_, err := drafting.Draft(t.Context(), ada, messages.World, "fr", "   ")
 	require.ErrorIs(t, err, messages.ErrInvalidMessage)
 
-	message, err := drafting.Draft(ada, "fr", "hello")
+	message, err := drafting.Draft(t.Context(), ada, messages.World, "fr", "hello")
 	require.NoError(t, err)
 	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), message.TakeSnapshot().ID)
 }
@@ -63,17 +65,35 @@ func TestAnInvalidTextIsRefusedBeforeAnIDIsDrawn(t *testing.T) {
 func TestAnUnknownCountryIsRefusedBeforeAnIDIsDrawn(t *testing.T) {
 	drafting := drafts(&messages.SequentialIDs{})
 
-	_, err := drafting.Draft(ada, "atlantis", "hello")
+	_, err := drafting.Draft(t.Context(), ada, messages.World, "atlantis", "hello")
 	require.ErrorIs(t, err, messages.ErrInvalidMessage)
 
-	message, err := drafting.Draft(ada, "fr", "hello")
+	message, err := drafting.Draft(t.Context(), ada, messages.World, "fr", "hello")
 	require.NoError(t, err)
 	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), message.TakeSnapshot().ID)
 }
 
 func TestADraftWithNoIDFails(t *testing.T) {
-	_, err := drafts(failingIDs{}).Draft(ada, "fr", "hello")
+	_, err := drafts(failingIDs{}).Draft(t.Context(), ada, messages.World, "fr", "hello")
 
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, messages.ErrInvalidMessage)
+}
+
+func TestADraftGoesToTheRoomOfTheFlagItsAccountPlaysFor(t *testing.T) {
+	message, err := drafts(&messages.SequentialIDs{}).Draft(t.Context(), ada, messages.FlagRoom("fr"), "fr", "hello team")
+
+	require.NoError(t, err)
+	assert.True(t, message.In(messages.FlagRoom("fr")))
+}
+
+func TestADraftForTheRoomOfAnotherFlagIsRefusedBeforeAnIDIsDrawn(t *testing.T) {
+	drafting := drafts(&messages.SequentialIDs{})
+
+	_, err := drafting.Draft(t.Context(), ada, messages.FlagRoom("de"), "fr", "hello")
+	require.ErrorIs(t, err, messages.ErrNotInRoom)
+
+	message, err := drafting.Draft(t.Context(), ada, messages.World, "fr", "hello")
+	require.NoError(t, err)
+	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), message.TakeSnapshot().ID)
 }

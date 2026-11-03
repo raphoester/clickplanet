@@ -54,7 +54,8 @@ func (s *testSuite) SetupTest() {
 		s.appender,
 		s.publisher,
 		s.authors,
-		messages.NewDrafts(&messages.SequentialIDs{}, s.clock, messages.NewLimits(0), cpcountries.New()),
+		messages.NewDrafts(&messages.SequentialIDs{}, s.clock, messages.NewLimits(0), cpcountries.New(),
+			messages.NewRooms(messages.FakeFlags{guest: "fr"})),
 		s.thread,
 	)
 }
@@ -89,6 +90,7 @@ func validIn() send_message_usecase.In {
 	return send_message_usecase.In{
 		Account:   guest,
 		AuthorID:  "8f14e45f-ea23-4a1b-9c11-0b0d1a2b3c4d",
+		Room:      messages.World,
 		CountryID: "fr",
 		Text:      "hello planet",
 		UserAgent: "curl/8",
@@ -99,7 +101,9 @@ func (s *testSuite) TestNominalCase() {
 	sent, err := s.send(validIn())
 	s.Require().NoError(err)
 
-	draft := messages.Snapshot{ID: firstID, SentAt: s.clock.Now(), Account: guest, Country: "fr", Text: "hello planet"}
+	draft := messages.Snapshot{
+		ID: firstID, SentAt: s.clock.Now(), Account: guest, Room: messages.World, Country: "fr", Text: "hello planet",
+	}
 	named := draft
 	named.Author = messages.AuthorOf("guest_0b1c2d", false, 0, 0, messages.Title{})
 	s.Equal(named, sent, "a guest posts under the name the player module gives it")
@@ -304,7 +308,7 @@ func (f *fakeThread) Reply(_ context.Context, draft messages.Message, replyTo me
 	if !shown {
 		return messages.Message{}, messages.ErrNotShown
 	}
-	return draft.Answering(answered), nil
+	return draft.Answering(answered) //nolint:wrapcheck // the rule named it.
 }
 
 type fakePublisher struct {
@@ -331,4 +335,32 @@ func (f *fakeAppender) Append(_ context.Context, record messages.Record) error {
 
 	f.records = append(f.records, record)
 	return nil
+}
+
+func (s *testSuite) TestAMessageToTheRoomOfTheSendersFlagIsKeptThereAndGoesOutThere() {
+	in := validIn()
+	in.Room = messages.FlagRoom("fr")
+
+	sent, err := s.send(in)
+
+	s.Require().NoError(err)
+	s.Equal(messages.FlagRoom("fr"), sent.Room)
+	s.Equal(messages.FlagRoom("fr"), s.kept()[0].Message.Room)
+	s.Require().Len(s.publisher.updates, 1)
+	s.True(s.publisher.updates[0].For(messages.FlagRoom("fr")))
+	s.False(s.publisher.updates[0].For(messages.World))
+}
+
+func (s *testSuite) TestAMessageToTheRoomOfAnotherFlagIsRefusedBeforeAnythingIsAsked() {
+	in := validIn()
+	in.Room = messages.FlagRoom("de")
+	in.ReplyTo = "parent"
+
+	_, err := s.send(in)
+
+	s.Require().ErrorIs(err, messages.ErrNotInRoom)
+	s.Empty(s.thread.asked)
+	s.Empty(s.authors.asked)
+	s.Empty(s.kept())
+	s.Empty(s.publisher.updates)
 }

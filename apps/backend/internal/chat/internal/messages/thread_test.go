@@ -149,3 +149,14 @@ func TestAReplyNobodyCouldBeAskedAboutIsRefused(t *testing.T) {
 
 	require.ErrorIs(t, err, messages.ErrAuthorUnavailable)
 }
+
+func TestAMessageOfAnotherRoomCannotBeRepliedTo(t *testing.T) {
+	thread := newThreading(t, 10)
+	thread.sent(messages.Snapshot{
+		ID: "plan", SentAt: draftedAt.Add(-time.Hour), Account: ada, Room: messages.FlagRoom("fr"), Text: "north at 8",
+	})
+
+	_, err := thread.thread.Reply(t.Context(), thread.draft, "plan")
+
+	require.ErrorIs(t, err, messages.ErrNotShown, "the draft is in the chat everyone reads")
+}

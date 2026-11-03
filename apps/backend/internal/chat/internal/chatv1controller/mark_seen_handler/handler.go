@@ -32,11 +32,14 @@ func (h MarkSeenHandler) MarkSeen(
 ) (*connect.Response[chatv1.MarkSeenResponse], error) {
 	err := h.useCase.Execute(ctx, mark_seen_usecase.In{
 		Account: messages.AccountIDOf(cpctx.GetAccount(ctx)),
+		Room:    messages.RoomOf(req.Msg.GetFlagRoom()),
 		At:      time.UnixMilli(req.Msg.GetSeenUntilUnixMs()).UTC(),
 	})
 	switch {
 	case errors.Is(err, messages.ErrNoAccount):
 		return nil, connect.NewError(connect.CodeUnauthenticated, messages.ErrNoAccount)
+	case errors.Is(err, messages.ErrNotInRoom):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, messages.ErrNotInRoom)
 	case errors.Is(err, seen.ErrNoTime):
 		return nil, connect.NewError(connect.CodeInvalidArgument, seen.ErrNoTime)
 	case err != nil:

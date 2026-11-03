@@ -19,15 +19,17 @@ var at = time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)
 func TestADeletedAccountsSeenMarkIsForgotten(t *testing.T) {
 	store := inmemory_seen_storage.New()
 	ada, bob := messages.AccountID{15: 1}, messages.AccountID{15: 2}
-	require.NoError(t, store.SaveSeen(t.Context(), ada, at))
-	require.NoError(t, store.SaveSeen(t.Context(), bob, at))
+	require.NoError(t, store.SaveSeen(t.Context(), ada, messages.World, at))
+	require.NoError(t, store.SaveSeen(t.Context(), ada, messages.FlagRoom("fr"), at))
+	require.NoError(t, store.SaveSeen(t.Context(), bob, messages.World, at))
 
 	err := account_deleted_subscriber.New(forget_seen_usecase.New(store)).Handle(t.Context(),
 		&authv1.AccountDeleted{AccountId: ada.String()})
 
 	require.NoError(t, err)
-	assert.True(t, store.Kept(ada).IsZero())
-	assert.Equal(t, at, store.Kept(bob))
+	assert.True(t, store.Kept(ada, messages.World).IsZero())
+	assert.True(t, store.Kept(ada, messages.FlagRoom("fr")).IsZero())
+	assert.Equal(t, at, store.Kept(bob, messages.World))
 }
 
 func TestAnEventWithNoAccountIsRefused(t *testing.T) {
