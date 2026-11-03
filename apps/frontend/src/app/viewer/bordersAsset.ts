@@ -1,1 +1,1 @@
-export const BORDERS_URL = "/static/borders-519faedb.bin"
+export const BORDERS_URL = "/static/borders-e6851c0e.bin"

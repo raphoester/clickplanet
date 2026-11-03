@@ -10,7 +10,7 @@ httpServer:
   allowedOrigin: http://localhost:5173
 
 gameMap:
-  maxIndex: 262147
+  maxIndex: 260503
 
 database:
   host: localhost

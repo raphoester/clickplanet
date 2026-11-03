@@ -16,7 +16,7 @@ func TestTheTakesOfOneAccountAreReadFromTheIndexAlone(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `
 		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, account)
-		SELECT n, 'take'::ledger_event_kind, n % 262147 + 1, NULL, 'fr', 'de', now(), md5((n % 500)::text)::uuid
+		SELECT n, 'take'::ledger_event_kind, n % 260503 + 1, NULL, 'fr', 'de', now(), md5((n % 500)::text)::uuid
 		FROM generate_series(0, 199999) n`)
 	require.NoError(t, err)
 	_, err = db.On(t.Context()).ExecContext(t.Context(), `VACUUM ANALYZE ledger_events`)

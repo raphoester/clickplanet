@@ -277,7 +277,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     })
     ledgerPages: LedgerChange[][] = []
     territories = new GetTerritoriesResponse({
-        tiles: 262147,
+        tiles: 260503,
         territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
     })
     // The set the migration keeps: the game's own rules.

@@ -2,7 +2,7 @@
 
 Every tile hands the GPU a few numbers that each frame reads: where it is, whose
 flag it wears, which landmass it is on, and whether it is hovered, shielded or
-pulsing. There are 262,147 tiles, so one byte per tile is a quarter of a
+pulsing. There are 260,503 tiles, so one byte per tile is a quarter of a
 megabyte, and the plain layout spent 56 of them.
 
 **`TileField` has two layouts, and the HD graphics setting picks one**

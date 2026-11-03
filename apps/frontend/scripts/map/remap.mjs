@@ -40,9 +40,10 @@ export function remap(before, after) {
 }
 
 /**
- * Which landmass of the new borders blob each landmass of the old one became: the one its surviving tiles are in,
- * on the same country's ground. A landmass whose tiles went to two (or that shares its new one with another) has none:
- * whatever was kept about it is about ground that is no longer one piece.
+ * Which landmass of the new borders blob each landmass of the old one became: the one that holds most of its
+ * surviving tiles, on the same country's ground. Canada keeps its fortify when a lake cuts an island off it. A
+ * landmass with no piece that holds most of it, or whose piece also holds most of another, has none: whatever was
+ * kept about it is about ground that is no longer one piece.
  * @param {{codes: string[], landmass: Uint16Array}} before
  * @param {{codes: string[], landmass: Uint16Array}} after
  * @param {{from: number, to: number, span: number}[]} runs the tiles' runs, in wire ids, from `remap`
@@ -50,25 +51,28 @@ export function remap(before, after) {
  */
 export function remapLandmasses(before, after, runs) {
     const into = new Map()
+    const kept = new Map()
     for (const {from, to, span} of runs) {
         for (let k = 0; k < span; k++) {
             const old = before.landmass[from - 1 + k]
             const now = after.landmass[to - 1 + k]
             if (old === 0 || before.codes[old] !== after.codes[now]) continue
-            if (!into.has(old)) into.set(old, new Set())
-            into.get(old).add(now)
+            if (!into.has(old)) into.set(old, new Map())
+            into.get(old).set(now, (into.get(old).get(now) ?? 0) + 1)
+            kept.set(old, (kept.get(old) ?? 0) + 1)
         }
     }
 
+    const most = new Map()
+    for (const [old, pieces] of into) {
+        for (const [now, tiles] of pieces) if (tiles * 2 > kept.get(old)) most.set(old, now)
+    }
+
     const claims = new Map()
-    for (const targets of into.values()) for (const now of targets) claims.set(now, (claims.get(now) ?? 0) + 1)
+    for (const now of most.values()) claims.set(now, (claims.get(now) ?? 0) + 1)
 
     const pairs = []
-    for (const [old, targets] of into) {
-        if (targets.size !== 1) continue
-        const [now] = targets
-        if (claims.get(now) === 1) pairs.push({from: old, to: now})
-    }
+    for (const [old, now] of most) if (claims.get(now) === 1) pairs.push({from: old, to: now})
     return pairs.sort((a, b) => a.from - b.from)
 }
 

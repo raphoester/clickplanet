@@ -61,13 +61,13 @@ func TestAReadOutsideTheMapIsToldAsSuch(t *testing.T) {
 		offMap bool
 	}{
 		{"the web app's first batch", get_map_usecase.In{Start: 1, End: 10001}, false},
-		{"the web app's last batch, clamped", get_map_usecase.In{Start: 250001, End: 262147}, false},
+		{"the web app's last batch, clamped", get_map_usecase.In{Start: 250001, End: 260503}, false},
 		{"an unset end is the end of the map", get_map_usecase.In{Start: 1}, false},
 		{"the bot's walk starts at tile 0", get_map_usecase.In{Start: 0, End: 10000}, true},
-		{"the bot's last batch runs past the end", get_map_usecase.In{Start: 250000, End: 262153}, true},
+		{"the bot's last batch runs past the end", get_map_usecase.In{Start: 250000, End: 260509}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, reads, err := read(t, clicks.NewBoard(262147), mapReader{batch: batch}, tc.in)
+			_, reads, err := read(t, clicks.NewBoard(260503), mapReader{batch: batch}, tc.in)
 
 			require.NoError(t, err)
 			require.Len(t, reads, 1)

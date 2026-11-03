@@ -1,5 +1,4 @@
 import {SEA} from "./ground.mjs"
-import {lonLatOf} from "./lattice.mjs"
 
 /**
  * One tile for each country no lattice vertex falls on. The lattice is 25 km apart, so the Vatican, Monaco, the
@@ -70,19 +69,6 @@ export const SEATS = {
 
 /** Flags of a region inside a country's ground: they share it and have no seat. */
 export const REGIONS = new Set(["gb-eng", "gb-sct", "gb-wls", "xb"])
-
-/**
- * The oracle's answer for every lattice vertex: Natural Earth's, then each seat.
- * @param {{groundOf: (lon: number, lat: number) => string}} ground
- * @param {{count: number, positions: Float32Array, uvs: Float32Array}} vertices the whole lattice
- * @param {{at: Uint32Array, to: Uint32Array}} edges the lattice's, from `neighbours`
- * @returns {{grounds: string[], seated: {code: string, vertex: number, was: string}[]}}
- */
-export function latticeGround(ground, {count, positions, uvs}, edges, seats = SEATS) {
-    const grounds = new Array(count)
-    for (let v = 0; v < count; v++) grounds[v] = ground.groundOf(...lonLatOf(uvs[v * 2], uvs[v * 2 + 1]))
-    return {grounds, seated: seat(grounds, positions, edges, seats)}
-}
 
 /**
  * Gives each seat its vertex, in place.

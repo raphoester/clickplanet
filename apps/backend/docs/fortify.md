@@ -2,7 +2,7 @@
 
 **A player's take that makes a landmass whole for its flag gives every tile of it a
 shield**, up to the rule set's `bonuses.shield.perTile`. A landmass is a piece of one country's ground
-that touches itself on the lattice, the borders blob's own table (692 of them): Alaska
+that touches itself on the lattice, the borders blob's own table (694 of them): Alaska
 is one, the lower 48 another. **The same flag never fortifies a landmass twice in a
 row**: another flag has to take all of it first, through its shields. That is the whole
 defence against taking back the last tile for a free refill, and it costs no timer.

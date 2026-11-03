@@ -133,9 +133,21 @@ describe("remapLandmasses", () => {
         expect(remapLandmasses(before, after, runs)).toEqual([{from: 1, to: 1}])
     })
 
-    it("follows neither half of a landmass that split, nor two that merged", () => {
-        const {runs} = remap(["a", "b", "c"], ["a", "b", "c"])
-        expect(remapLandmasses(blob(["", "fr"], [1, 1, 1]), blob(["", "fr", "fr"], [1, 1, 2]), runs)).toEqual([])
-        expect(remapLandmasses(blob(["", "fr", "fr"], [1, 1, 2]), blob(["", "fr"], [1, 1, 1]), runs)).toEqual([])
+    it("follows a landmass that split to the piece that holds most of it", () => {
+        const {runs} = remap(["a", "b", "c", "d"], ["a", "b", "c", "d"])
+        expect(remapLandmasses(blob(["", "ca"], [1, 1, 1, 1]), blob(["", "ca", "ca"], [1, 1, 1, 2]), runs))
+            .toEqual([{from: 1, to: 1}])
+    })
+
+    it("follows neither half of a landmass split in two equal pieces, nor two that merged", () => {
+        const {runs} = remap(["a", "b", "c", "d"], ["a", "b", "c", "d"])
+        expect(remapLandmasses(blob(["", "fr"], [1, 1, 1, 1]), blob(["", "fr", "fr"], [1, 1, 2, 2]), runs)).toEqual([])
+        expect(remapLandmasses(blob(["", "fr", "fr"], [1, 1, 2, 2]), blob(["", "fr"], [1, 1, 1, 1]), runs)).toEqual([])
+    })
+
+    it("follows nothing for a landmass whose every tile went", () => {
+        const {runs} = remap(["a", "b", "lake"], ["a", "b"])
+        expect(remapLandmasses(blob(["", "tz", "mw"], [1, 1, 2]), blob(["", "tz"], [1, 1]), runs))
+            .toEqual([{from: 1, to: 1}])
     })
 })

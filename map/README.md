@@ -20,9 +20,10 @@ makes a stale copy visible by eye rather than by symptom.
 ## One question, one answer
 
 **A tile exists exactly where a country does.** `apps/frontend/scripts/map/ground.mjs` is the one
-oracle: `groundOf(lon, lat)` answers a country code or `SEA`, from Natural Earth 1:50m, then each
-country too small for the lattice gets its seat (`latticeGround` in `scripts/map/seats.mjs`), and
-`npm run map:generate` writes both blobs from that one answer. So "is this sea or land" and "which
+oracle: `groundOf(lon, lat)` answers a country code or `SEA`, from Natural Earth 1:50m; a vertex
+whose cell is mostly lake is `SEA` too; then each country too small for the lattice gets its seat
+(`latticeGround` in `scripts/map/oracle.mjs`), and `npm run map:generate` writes both blobs from that
+one answer. So "is this sea or land" and "which
 country is this" cannot disagree, and **a tile in no country cannot be built**.
 
 That used to be two questions asked of two datasets — a greyscale land mask decided which lattice
@@ -41,6 +42,7 @@ is written into it:
   `ne_50m_antarctic_ice_shelves_polys` is a file of its own and is inside no country polygon, so
   before this Ross and Ronne were tileless holes in a continent the texture paints solid white.
   They are 2,633 tiles, which is about a tenth of `aq`.
+- **A cell that is mostly lake is water.** See below.
 - **Every country has at least one tile: its seat.** See below.
 - **The globe's texture follows, it does not decide.** A 4096×2048 photo blends a one-tile island
   into open water, so it can never be an authority. `npm run earth` cuts it *from* the tile field
@@ -50,6 +52,20 @@ is written into it:
 cd apps/frontend && npm run map:generate   # both blobs, from the oracle
 cd apps/frontend && npm run map:audit      # the three sources against each other
 ```
+
+## Lakes are water
+
+Natural Earth draws each country over its lakes, so the Great Lakes, Victoria, Tanganyika, Malawi, Baikal and Ladoga
+were all tiles, painted over the water the photo shows. `ne_50m_lakes` is the third layer of the oracle, and
+**a vertex is sea when most of its cell is lake** (`mostlyLake` in `scripts/map/ground.mjs`): 19 points over the
+cell, the vertex and two rings, and more than half of them in a lake. It is the cell and not the vertex because a
+lake is often narrower than a cell — a reservoir down a valley, Lake Champlain — and a vertex that falls in one would
+cut water a cell wide out of the land; a cell is a fair answer for a lake as wide as one. 1,644 vertices are lake,
+and an island in one stays land.
+
+`DRY` lists the lakes that stay land: Australia's salt pans, which fill a few years a century; Kakhovka, drained in
+2023; and the steppe's shallow salt lakes (Tengiz, Qusmuryn, Siletitengiz), which the photo draws as steppe. Natural
+Earth draws them full, and a cell with no tile on what the globe draws as land is ground nobody can take.
 
 ## A seat for each country the lattice misses
 
@@ -103,7 +119,9 @@ because the migration copies the row whole rather than naming columns. **A landm
 the borders blob's table, and a regeneration renumbers them. The migration follows each old landmass to the new one
 its tiles are on, for the same country, and moves the landmass each fortify in the ledger names (the territory card
 reads the last one by it) and copies the fortify locks to the new borders blob's name (the boot reads only those).
-A landmass that split or merged is followed to nothing, and its lock is settled at boot as any other.
+A landmass that split goes to the piece that holds most of it — Canada keeps its lock when a lake cuts an island off
+it — and one with no such piece, or whose piece is another's too, is followed to nothing: its lock is settled at boot
+as any other.
 
 What the migration cannot give back: a take on a tile the new map does not have is deleted, because
 leaving it would let a revert write to an id that now means other ground.
@@ -183,8 +201,8 @@ coordinates blob) instead of downloading them. See
 | --- | --- |
 | detail | 300, so `cols = 301` |
 | full sphere | `10 * 301² + 2` = 906,012 vertices |
-| land tiles | 262,147, which is `gameMap.maxIndex` |
-| landmasses | 692, across 239 countries |
+| land tiles | 260,503, which is `gameMap.maxIndex` |
+| landmasses | 694, across 239 countries |
 | spacing | ~25 km, ~563 km² per tile |
 
 `detail` is not recorded in the generator's output. It was recovered from this file and then
@@ -213,8 +231,8 @@ the photo draws as water from 8,599 lattice vertices to 2,053, and the water it 
 **A block learns its land colour only from 128 pixels' worth of land it agrees about**, or takes a neighbour's
 (`LAND_ENOUGH`). A block of open ocean whose only land is atolls the photo draws as water used to learn it from the
 few pixels that half agreed — a blue a shade off the sea's — and leave a one-tile island looking like open water:
-14 of the 28 island seats did. All but Nauru read as land now (Nauru is a dark green-blue dot), and the land drawn
-as water across the whole globe went down to 1,903, for 0.08% more of the image moved, all of it on coasts and
+14 of the 28 island seats did. All but Nauru read as land now (Nauru is a dark green-blue dot), and it took the land
+drawn as water across the whole globe from 2,053 to 1,903, for 0.08% more of the image moved, all of it on coasts and
 islands.
 
 `static/earth/earth-source.jpg` is the mosaic, kept in the repo and **not deployed**;
@@ -222,10 +240,12 @@ islands.
 
 ## What is left
 
-- **249 tiles have no neighbours at all** — single-tile islands, 26 of them seats. Anything reading adjacency has to
+- **250 tiles have no neighbours at all** — single-tile islands, 26 of them seats. Anything reading adjacency has to
   have an answer for an empty neighbour set. This is not a fault: an island a tile wide is an island
   a tile wide, and there are more of them now because the small ones finally have tiles.
-- **1,903 land vertices are still drawn as water, and 15 water vertices as land.** What is left is
+- **1,802 land vertices are still drawn as water, and 47 water vertices as land.** Most of the water drawn as land
+  is a lake the photo draws dark teal — the Quebec reservoirs, Itaipú, Kariba — which reads as water to the eye and
+  not to the audit's "is this pixel blue". What is left is
   where the photo gives the correction nothing to work with — land and water the same colour under
   cloud or on an ice shelf — and where the audit's own "does this pixel look blue" is stricter than
   an eye is. `npm run map:audit` is where those numbers live.

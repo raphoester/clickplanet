@@ -48,7 +48,7 @@ func TestTheRemapFollowsEveryOwnedTileToItsNewID(t *testing.T) {
 	db := server.OpenSchema(t, "planet", before(t, remapTiles))
 	seed(t, db)
 
-	require.NoError(t, db.Migrate(t.Context(), before(t, seatRemap)))
+	require.NoError(t, db.Migrate(t.Context(), before(t, seatsAndLakes)))
 
 	ids := scan(t, db, `SELECT id FROM tiles ORDER BY id`)
 	assert.ElementsMatch(t, values(moved), ids, "every surviving tile is at its new id")
@@ -66,7 +66,7 @@ func TestTheRemapDropsTheTilesTheNewMapDoesNotHave(t *testing.T) {
 	db := server.OpenSchema(t, "planet", before(t, remapTiles))
 	seed(t, db)
 
-	require.NoError(t, db.Migrate(t.Context(), before(t, seatRemap)))
+	require.NoError(t, db.Migrate(t.Context(), before(t, seatsAndLakes)))
 
 	ids := scan(t, db, `SELECT id FROM tiles ORDER BY id`)
 	assert.Len(t, ids, len(moved), "the two tiles on open sea are gone, and nothing else")
@@ -77,7 +77,7 @@ func TestTheRemapMovesTheLedgerAndForgetsTakesOnTilesThatWent(t *testing.T) {
 	db := server.OpenSchema(t, "planet", before(t, remapTiles))
 	seed(t, db)
 
-	require.NoError(t, db.Migrate(t.Context(), before(t, seatRemap)))
+	require.NoError(t, db.Migrate(t.Context(), before(t, seatsAndLakes)))
 
 	tiles := scan(t, db, `SELECT tile FROM ledger_events ORDER BY tile`)
 	assert.ElementsMatch(t, values(moved), tiles,
@@ -292,18 +292,22 @@ func TestEachTileIsHeldByTheAccountOfTheLastChangeThatGaveItItsFlag(t *testing.T
 		"the last take; none once another flag was written; a spread's tile; none after a clear; none for no account")
 }
 
-const seatRemap = "20261103120000"
+const seatsAndLakes = "20261103120000"
 
-// Old wire id to new across the seats' remap: the first tile, the first past a seat, one in the middle, the last.
-var seatMoved = map[int]int{1: 1, 23428: 23429, 100336: 100338, 262119: 262147}
+// Old wire id to new across the remap that seats every country and opens the lakes: the first tile, one past the
+// first seat, one past the first lakes, the last.
+var seatMoved = map[int]int{1: 1, 23428: 23334, 100336: 99217, 262119: 260503}
+
+// A tile in the middle of Lake Superior, which the new map does not have.
+const onLakeSuperior = 90992
 
 const (
 	bordersBeforeSeats = "borders-67e352b1.bin"
-	bordersWithSeats   = "borders-519faedb.bin"
+	bordersWithSeats   = "borders-e6851c0e.bin"
 )
 
-func TestTheSeatRemapCarriesEveryColumnOfATile(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, seatRemap))
+func TestTheSeatsAndLakesRemapCarriesEveryColumnOfATile(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, seatsAndLakes))
 	ana := "0192f0a0-0000-7000-8000-000000000001"
 	for old := range seatMoved {
 		_, err := db.On(t.Context()).ExecContext(t.Context(),
@@ -331,8 +335,8 @@ func TestTheSeatRemapCarriesEveryColumnOfATile(t *testing.T) {
 	assert.ElementsMatch(t, values(seatMoved), ids)
 }
 
-func TestTheSeatRemapMovesEveryTileTheLedgerNamesAndTheLandmassAFortifyNames(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, seatRemap))
+func TestTheSeatsAndLakesRemapMovesEveryTileTheLedgerNamesAndTheLandmassAFortifyNames(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, seatsAndLakes))
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `
 		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, payload) VALUES
 			(0, 'take', 262119, '203.0.113.7', 'fr', '', now(), NULL),
@@ -344,12 +348,12 @@ func TestTheSeatRemapMovesEveryTileTheLedgerNamesAndTheLandmassAFortifyNames(t *
 
 	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
 
-	assert.Equal(t, []int{262147, 23429, 262147}, scan(t, db, `SELECT tile FROM ledger_events ORDER BY position`))
-	assert.Equal(t, []int{100338}, scan(t, db,
+	assert.Equal(t, []int{260503, 23334, 260503}, scan(t, db, `SELECT tile FROM ledger_events ORDER BY position`))
+	assert.Equal(t, []int{99217}, scan(t, db,
 		`SELECT (payload->'taken'->0->>'tile')::integer FROM ledger_events WHERE position = 1`))
-	assert.Equal(t, []int{262147}, scan(t, db,
+	assert.Equal(t, []int{260503}, scan(t, db,
 		`SELECT (payload->'raised'->0->>'tile')::integer FROM ledger_events WHERE position = 2`))
-	assert.Equal(t, []int{692}, scan(t, db,
+	assert.Equal(t, []int{694}, scan(t, db,
 		`SELECT (payload->>'landmass')::integer FROM ledger_events WHERE position = 2`),
 		"the territory card reads the last fortify of a landmass by its id in the new blob")
 }
@@ -382,18 +386,18 @@ func locksOf(t *testing.T, db *cppg.Postgres, asset string) map[int]string {
 	return locks
 }
 
-func TestTheSeatRemapKeepsEveryFortifyLockOnTheNewBlob(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, seatRemap))
+func TestTheSeatsAndLakesRemapKeepsEveryFortifyLockOnTheNewBlob(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, seatsAndLakes))
 	seedLocks(t, db)
 
 	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
 
-	assert.Equal(t, map[int]string{1: "fr", 692: "de"}, locksOf(t, db, bordersWithSeats),
+	assert.Equal(t, map[int]string{1: "fr", 694: "de"}, locksOf(t, db, bordersWithSeats),
 		"the boot reads the locks of the blob it loads, so they are copied to its name")
 }
 
-func TestTheSeatRemapGoesBack(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, seatRemap))
+func TestTheSeatsAndLakesRemapGoesBack(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, seatsAndLakes))
 	for old := range seatMoved {
 		_, err := db.On(t.Context()).ExecContext(t.Context(), `INSERT INTO tiles (id, country) VALUES ($1, 'fr')`, old)
 		require.NoError(t, err)
@@ -401,10 +405,10 @@ func TestTheSeatRemapGoesBack(t *testing.T) {
 	seedLocks(t, db)
 	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
 	_, err := db.On(t.Context()).ExecContext(t.Context(),
-		`UPDATE landmasses SET fortified_by = 'it' WHERE asset = $1 AND id = 692`, bordersWithSeats)
+		`UPDATE landmasses SET fortified_by = 'it' WHERE asset = $1 AND id = 694`, bordersWithSeats)
 	require.NoError(t, err)
 
-	down, err := fs.ReadFile(migrations.FS, seatRemap+"_remap_tiles_for_seats.down.sql")
+	down, err := fs.ReadFile(migrations.FS, seatsAndLakes+"_remap_tiles_seats_and_lakes.down.sql")
 	require.NoError(t, err)
 	_, err = db.On(t.Context()).ExecContext(t.Context(), string(down))
 	require.NoError(t, err)
@@ -412,4 +416,23 @@ func TestTheSeatRemapGoesBack(t *testing.T) {
 	assert.ElementsMatch(t, keys(seatMoved), scan(t, db, `SELECT id FROM tiles`), "every tile is back at its old id")
 	assert.Equal(t, map[int]string{1: "fr", 658: "it"}, locksOf(t, db, bordersBeforeSeats),
 		"the locks taken since go back with the tiles")
+}
+
+func TestTheSeatsAndLakesRemapDropsATileUnderALakeAndForgetsItsTakes(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, seatsAndLakes))
+	_, err := db.On(t.Context()).ExecContext(t.Context(),
+		`INSERT INTO tiles (id, country) VALUES ($1, 'us'), (1, 'fr')`, onLakeSuperior)
+	require.NoError(t, err)
+	_, err = db.On(t.Context()).ExecContext(t.Context(), `
+		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, payload) VALUES
+			(0, 'take', $1, '203.0.113.7', 'us', '', now(), NULL),
+			(1, 'take', 1, '203.0.113.7', 'fr', '', now(), NULL)
+	`, onLakeSuperior)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	assert.Equal(t, []int{1}, scan(t, db, `SELECT id FROM tiles`), "Lake Superior is water")
+	assert.Equal(t, []int{1}, scan(t, db, `SELECT tile FROM ledger_events`),
+		"a take on it is deleted, not left pointing at other ground")
 }

@@ -7,7 +7,7 @@ import {DETAIL, keyOf, lattice, neighbours} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
 import {readBorders, readCoordinates} from "./map/blob.mjs"
 import {remap, remapLandmasses, remapSQL} from "./map/remap.mjs"
-import {latticeGround} from "./map/seats.mjs"
+import {latticeGround} from "./map/oracle.mjs"
 import {bordersPath, staticBordersPath, writeBordersAsset, writeCoordinatesBinary} from "./writeCoordinates.ts"
 
 const args = process.argv.slice(2)
@@ -18,8 +18,9 @@ const previous = readCoordinates()
 const previousBorders = readBorders()
 const ground = await loadGround()
 const {count: vertices, positions, uvs} = lattice(DETAIL)
-const {at, to} = neighbours(DETAIL)
-const {grounds: groundOfVertex, seated} = latticeGround(ground, {count: vertices, positions, uvs}, {at, to})
+const edges = neighbours(DETAIL)
+const {at, to} = edges
+const {grounds: groundOfVertex, lakes, seated} = latticeGround(ground, {count: vertices, positions, uvs}, edges)
 
 // Keep lattice order: the remap migration relies on ids staying monotonic.
 const tilePositions: number[] = []
@@ -36,6 +37,7 @@ for (let v = 0; v < vertices; v++) {
 }
 const count = grounds.length
 console.log(`Natural Earth ${NATURAL_EARTH_TAG}, detail ${DETAIL}: ${count} tiles of ${vertices} lattice vertices`)
+console.log(`${lakes} lattice vertices on a country's ground are sea, because most of their cell is lake`)
 const islands = seated.filter(({was}) => was === SEA).map(({code}) => code)
 const onLand = seated.filter(({was}) => was !== SEA).map(({code, was}) => `${code} from ${was}`)
 console.log(`seated ${seated.length} countries the lattice misses: ${islands.length} on a tile of their own at sea`

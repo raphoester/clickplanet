@@ -7,7 +7,8 @@ import {readBorders, readCoordinates, staticDir} from "./map/blob.mjs"
 import {SEA, loadGround} from "./map/ground.mjs"
 import {DETAIL, keyOf, lattice, lonLatOf, neighbours} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
-import {REGIONS, latticeGround} from "./map/seats.mjs"
+import {latticeGround} from "./map/oracle.mjs"
+import {REGIONS} from "./map/seats.mjs"
 
 const seaPixel = (r, g, b) => b > r + 18 && b > g + 8
 
@@ -18,7 +19,7 @@ async function main() {
     const borders = readBorders()
     const ground = await loadGround()
     const {count: vertices, positions, uvs} = lattice()
-    const {grounds, seated} = latticeGround(ground, {count: vertices, positions, uvs}, neighbours(DETAIL))
+    const {grounds, lakes, seated} = latticeGround(ground, {count: vertices, positions, uvs}, neighbours(DETAIL))
 
     const texture = await sharp(path.join(staticDir, "earth", earthName()))
         .raw().toBuffer({resolveWithObject: true})
@@ -88,7 +89,7 @@ async function main() {
     const groundless = Object.keys(flags).filter((code) => !REGIONS.has(code) && !grounded.has(code))
     faults.flagsWithNoGround = groundless.length
 
-    report({counts, faults, texture: texture_, seam, elsewhere, tiles, borders, seated, groundless})
+    report({counts, faults, texture: texture_, seam, elsewhere, tiles, borders, seated, groundless, lakes})
 
     const broken = Object.entries(faults).filter(([, n]) => n > 0)
     if (broken.length === 0) {
@@ -117,7 +118,7 @@ async function iceOnly() {
     })
 }
 
-function report({counts, faults, texture, seam, elsewhere, tiles, borders, seated, groundless}) {
+function report({counts, faults, texture, seam, elsewhere, tiles, borders, seated, groundless, lakes}) {
     const pct = (n, of) => `${(n / of * 100).toFixed(2)}%`
     console.log(`Natural Earth ${NATURAL_EARTH_TAG} | ${tiles.name} | ${borders.name} | ${earthName()}`)
     console.log(`
@@ -133,6 +134,9 @@ faults between the tile set and the ground oracle
   ice shelf with no tile ${faults.iceWithNoTile}
   tiles in no country   ${faults.tilesWithNoCountry}
   flags with no ground  ${faults.flagsWithNoGround}${groundless.length ? `  (${groundless.join(" ")})` : ""}
+
+lakes, sea on a country's ground where most of the cell is lake
+  ${lakes} lattice vertices
 
 seats, one tile each for a country the lattice misses
   ${seated.length} seated, ${seated.filter(({was}) => was === SEA).length} of them at sea
