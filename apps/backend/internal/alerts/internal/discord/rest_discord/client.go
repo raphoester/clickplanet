@@ -107,9 +107,9 @@ func (c *Client) DeleteRole(ctx context.Context, role discord.RoleID) error {
 
 // Pings the audience it names, and nobody else whatever the text holds.
 func (c *Client) Post(ctx context.Context, channel discord.ChannelID, text string, audience discord.Audience) error {
-	allowed := map[string]any{"parse": []string{"everyone"}}
-	if role, ok := audience.Role(); ok {
-		allowed = map[string]any{"parse": []string{}, "roles": []discord.RoleID{role}}
+	allowed := map[string]any{"parse": []string{}, "roles": audience.Roles()}
+	if audience.Everybody() {
+		allowed = map[string]any{"parse": []string{"everyone"}}
 	}
 	message := map[string]any{"content": text, "allowed_mentions": allowed}
 	if _, err := c.bot(ctx, http.MethodPost, "/channels/"+string(channel)+"/messages", message, nil); err != nil {

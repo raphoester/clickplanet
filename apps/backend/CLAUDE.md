@@ -112,7 +112,8 @@ and says what is in it. Read the doc before you change its area.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
 - [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role; the role
   follows the flag pledged, in a color of its own; the pings when its flag is attacked, with a link that opens the
-  globe on the attack, and `@everyone` when a battle or a season starts; the operator's unlink; off by default.
+  globe on the attack, the day's ranking when a day ends, pinging its top three, and `@everyone` when a battle or a
+  season starts; the operator's unlink; off by default.
 - [Clip stats](docs/clip-stats.md) — where the posted clips' daily numbers are kept, for the backoffice.
 - [Clip videos](docs/clip-videos.md) — the videos the operator posts by hand: uploaded and downloaded on the backoffice,
   the files in the bucket under `clips/videos/`, a row each in `clips.videos`.

@@ -91,5 +91,17 @@ func TestTheStoresKeepWhatTheyAreGiven(t *testing.T) {
 		pinged, err = store.StartPinged(t.Context(), "season-1/battle-1")
 		require.NoError(t, err)
 		assert.True(t, pinged)
+
+		pinged, err = store.RankingPinged(t.Context(), "season-1/day-3")
+		require.NoError(t, err)
+		require.False(t, pinged)
+		require.NoError(t, store.SaveRankingPing(t.Context(), "season-1/day-3", now))
+		require.NoError(t, store.SaveRankingPing(t.Context(), "season-1/day-3", now.Add(time.Second)))
+		pinged, err = store.RankingPinged(t.Context(), "season-1/day-3")
+		require.NoError(t, err)
+		assert.True(t, pinged)
+		pinged, err = store.RankingPinged(t.Context(), "season-1/day-4")
+		require.NoError(t, err)
+		assert.False(t, pinged)
 	})
 }

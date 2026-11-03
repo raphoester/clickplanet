@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 var (
@@ -42,28 +43,42 @@ func ValidID(id string) error {
 	return nil
 }
 
-// Who a post pings: the members of one role, or everybody in the server.
+// Who a post pings: everybody in the server, or the members of some roles. No role pings nobody.
 type Audience struct {
-	role RoleID
+	everybody bool
+	roles     []RoleID
 }
 
-func RoleAudience(role RoleID) Audience {
-	return Audience{role: role}
+func RoleAudience(roles ...RoleID) Audience {
+	return Audience{roles: roles}
 }
 
 func Everybody() Audience {
-	return Audience{}
+	return Audience{everybody: true}
 }
 
 // The text that pings the audience.
 func (a Audience) Mention() string {
-	if a.role == "" {
+	if a.everybody {
 		return "@everyone"
 	}
-	return "<@&" + string(a.role) + ">"
+	mentions := make([]string, 0, len(a.roles))
+	for _, role := range a.roles {
+		mentions = append(mentions, role.Mention())
+	}
+	return strings.Join(mentions, " ")
 }
 
-// No role: the post pings everybody.
-func (a Audience) Role() (RoleID, bool) {
-	return a.role, a.role != ""
+func (a Audience) Everybody() bool {
+	return a.everybody
+}
+
+// Never nil: Discord reads an empty list as no role, and null as none given.
+func (a Audience) Roles() []RoleID {
+	return append([]RoleID{}, a.roles...)
+}
+
+// The text that pings the role's members, and that Discord draws as its name.
+func (r RoleID) Mention() string {
+	return "<@&" + string(r) + ">"
 }

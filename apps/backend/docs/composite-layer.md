@@ -74,6 +74,7 @@ return []bootstrap.Module{
 | `missions` | `auth.v1.InternalService/GetAccount` | whether an account is signed in, when a take finishes one of its missions | `missions/rpc_auth_accounts` |
 | `chat` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account plays for, on each call to a flag's room: a post, a reaction, a history, a seen mark, a stream | `messages/rpc_planet_flags` |
 | `alerts` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per `JoinServer` of an account not linked yet, for the role it joins the server with | `links/rpc_planet_allegiance` |
+| `alerts` | `scoring.v1.InternalService/GetRound` | a day's results and the season's table after it, once per `DayEnded` not pinged yet, for the day's ranking | `pings/rpc_scoring_rounds` |
 | `auth` | `alerts.v1.InternalService/JoinServer` | the account, the Discord user and the token a Discord sign-in traded, once it is saved, to join the game's Discord server; only with `auth.discord.joinServer` on | `signin/rpc_alerts_server` |
 | `clips` | `planet.v1.InternalService/GetLedger` | who took which tile in a run's window, page after page, on each `MakeCast` | `casts/rpc_planet_ledger` |
 | `clips` | `player.v1.InternalService/GetAuthors` | the name each of those accounts may be shown under in the clips, on each `MakeCast` | `casts/rpc_player_names` |
@@ -152,6 +153,7 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `alerts-allegiances` | moves a link's role only when the pledged flag is not the role's already; a second delivery finds it moved |
 | `alerts-attacks` | the watch forgets the attacker's takes once it found an attack, and a flag is pinged once in 3 hours (`attack_pings`), so a take told again finds no second attack |
 | `alerts-battles`, `alerts-seasons` | keeps each start pinged by its round's or book's id (`start_pings`), in the transaction of the post |
+| `alerts-days` | keeps each day's ranking pinged by its round's id (`ranking_pings`), in the transaction of the post |
 | `alerts-accounts` | deletes the link, which is nothing the second time |
 | `gamemaster-rounds`, `gamemaster-books` | the gamemaster keeps each round scored and each book closed it heard (`scored_rounds`, `closed_books`, inserted once), and records its own event only for a new one |
 
@@ -241,7 +243,7 @@ The events today:
 | `scoring.v1.BookClosed{book_id, ended_at, table}` | `scoring`, through its outbox | a book closed: its table, the champion first | `gamemaster`, which tells which season it was |
 | `gamemaster.v1.DayStarted{season, day, round_id, book_id, starts_at, ends_at}` | `gamemaster`, through its outbox, from `tell_starts_usecase` | the day that runs, once as it starts (a boot tells it if it was never told), and again when a moved season end moves its end | `missions`, which keeps it: a fact counts in the day that runs at its time |
 | `gamemaster.v1.SeasonStarted{season, book_id, starts_at, ends_at}`, `BattleStarted{season, number, entry_id, times, ends_season, round_id, starts_at, ends_at}` | `gamemaster`, through its outbox, from `tell_starts_usecase` | the season and the battle (the finale too) that run, once as each starts; a boot tells one that runs if it was never told, never one that ended | `alerts`, which pings the server |
-| `gamemaster.v1.DayEnded{season, day, round_id, ended_at}`, `BattleEnded{season, number, entry_id, times, ends_season, round_id, ended_at}`, `SeasonEnded{season, book_id, ended_at, finale_round_id}` | `gamemaster`, through its outbox, once scoring scored it | a day, a battle or a season ended, in the game's words, with the ids to read its numbers by | `chat`, which reads the numbers from scoring and announces the podium or the champion |
+| `gamemaster.v1.DayEnded{season, day, round_id, ended_at}`, `BattleEnded{season, number, entry_id, times, ends_season, round_id, ended_at}`, `SeasonEnded{season, book_id, ended_at, finale_round_id}` | `gamemaster`, through its outbox, once scoring scored it | a day, a battle or a season ended, in the game's words, with the ids to read its numbers by | `chat`, which reads the numbers from scoring and announces the podium or the champion; `alerts`, which reads a day's from scoring and posts its ranking in `#alerts` |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, one line in the slice, and a `handle` for its public service in `deploy/vps/caddy/Caddyfile`. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit; but Caddy answers 404 for a path it does not list, and the client reads that 404 as a service the server does not offer. `TestCaddyRoutesEveryPublicService` fails for a public service Caddy does not route.
 

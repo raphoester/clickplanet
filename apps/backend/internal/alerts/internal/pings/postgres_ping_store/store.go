@@ -71,3 +71,23 @@ func (s *Store) SaveStartPing(ctx context.Context, key pings.StartKey, at time.T
 	}
 	return nil
 }
+
+func (s *Store) RankingPinged(ctx context.Context, round pings.RoundID) (bool, error) {
+	var pinged bool
+	if err := s.db.On(ctx).QueryRowContext(ctx, `
+		SELECT EXISTS (SELECT 1 FROM ranking_pings WHERE round_id = $1)
+	`, string(round)).Scan(&pinged); err != nil {
+		return false, fmt.Errorf("failed to read whether the ranking of %s was told: %w", round, err)
+	}
+	return pinged, nil
+}
+
+func (s *Store) SaveRankingPing(ctx context.Context, round pings.RoundID, at time.Time) error {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
+		INSERT INTO ranking_pings (round_id, sent_at) VALUES ($1, $2)
+		ON CONFLICT (round_id) DO UPDATE SET sent_at = EXCLUDED.sent_at
+	`, string(round), at.UTC()); err != nil {
+		return fmt.Errorf("failed to keep the ranking of %s: %w", round, err)
+	}
+	return nil
+}

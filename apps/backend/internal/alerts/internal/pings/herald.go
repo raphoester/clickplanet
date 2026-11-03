@@ -2,7 +2,9 @@ package pings
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
@@ -77,4 +79,64 @@ func startText(start Start, audience discord.Audience, gameURL string) (string, 
 			audience.Mention(), start.Season, gameURL), nil
 	}
 	return "", fmt.Errorf("%w: %d", ErrUnknownStart, start.Kind)
+}
+
+// The day's top three flags are pinged, each by its role, in #alerts; a flag no player ever linked is named, and
+// pinged by nobody.
+func (h Herald) TellRanking(ctx context.Context, day EndedDay, ranking Ranking) error {
+	var pinged []discord.RoleID
+	var text strings.Builder
+	fmt.Fprintf(&text, "🏁 **Day %d of season %d is over.** The points it gave:\n", day.Number, day.Season)
+	for _, place := range ranking.Won {
+		name := place.Flag.Name()
+		if place.Rank <= Podium {
+			role, err := h.roles.IDOf(ctx, roles.Nation(place.Flag))
+			switch {
+			case err == nil:
+				pinged = append(pinged, role)
+				name = role.Mention()
+			case !errors.Is(err, roles.ErrNoRole):
+				return err //nolint:wrapcheck // the book named it.
+			}
+		}
+		fmt.Fprintf(&text, "%s %s %s +%d\n", badgeOf(place.Rank), place.Flag.Emoji(), name, place.Points)
+	}
+	text.WriteString("🏆 **The season's ranking:**\n")
+	for _, place := range ranking.Table {
+		if place.Rank <= TableRows {
+			fmt.Fprintf(&text, "%s %s %s %s\n", badgeOf(place.Rank), place.Flag.Emoji(), place.Flag.Name(),
+				pointsOf(place.Points))
+		}
+	}
+	text.WriteString(h.gameURL)
+
+	if err := h.poster.Post(ctx, h.channels.Alerts, text.String(), discord.RoleAudience(pinged...)); err != nil {
+		return fmt.Errorf("failed to tell the ranking of %s: %w", day.Round, err)
+	}
+	return nil
+}
+
+// A medal for the podium, a keycap down to 10: "4." at a line's start is a Markdown list, which Discord numbers
+// again, so two flags tied 2nd would read 2 and 3.
+func badgeOf(rank uint32) string {
+	switch {
+	case rank == 1:
+		return "🥇"
+	case rank == 2:
+		return "🥈"
+	case rank == 3:
+		return "🥉"
+	case rank < 10:
+		return fmt.Sprintf("%d\ufe0f\u20e3", rank)
+	case rank == 10:
+		return "🔟"
+	}
+	return fmt.Sprintf("#%d", rank)
+}
+
+func pointsOf(points uint32) string {
+	if points == 1 {
+		return "1 point"
+	}
+	return fmt.Sprintf("%d points", points)
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/alerts/v1/alertsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_discord_link_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_discord_link_handler/link_query"
@@ -31,6 +32,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/postgres_ping_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/rpc_scoring_rounds"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/usecases/announce_ranking_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/usecases/announce_start_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/usecases/hear_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
@@ -39,6 +42,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/allegiance_pledged_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/battle_started_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/day_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/season_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/tile_taken_subscriber"
@@ -71,6 +75,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("the alerts module asks the planet module the flag a player pledged: %w", err)
 	}
 	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
+	scoring := scoringv1connect.NewInternalServiceClient(internal, baseURL)
 
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
@@ -97,6 +102,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	book := roles.NewBook(postgres_role_store.New(db), server)
 	herald := pings.NewHerald(book, server, config.Discord.channels(), config.GameURL)
 	announce := announce_start_usecase.New(clock, pingStore, herald, db)
+	rank := announce_ranking_usecase.New(clock, pingStore, rpc_scoring_rounds.New(scoring), herald, db)
 
 	var subscriptions []cpbootstrap.Runner
 	for _, subscribe := range []func() (cpbootstrap.Runner, error){
@@ -115,6 +121,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		func() (cpbootstrap.Runner, error) {
 			return cpredis.Subscribe(ctx, streams, "alerts-seasons", log_subscriber.New(season_started_subscriber.New(
 				announce), props.Logger))
+		},
+		func() (cpbootstrap.Runner, error) {
+			return cpredis.Subscribe(ctx, streams, "alerts-days", log_subscriber.New(day_ended_subscriber.New(
+				rank), props.Logger))
 		},
 		func() (cpbootstrap.Runner, error) {
 			return cpredis.Subscribe(ctx, streams, "alerts-accounts", log_subscriber.New(account_deleted_subscriber.New(

@@ -190,3 +190,90 @@ func TestTheHeraldCallsEverybodyInTheServerToBattle(t *testing.T) {
 		{Channel: "200", Audience: discord.Everybody(), Text: "@everyone 🌍 Season 2 has started on a blank map. https://clickplanet.lol/play"},
 	}, poster.Posts)
 }
+
+func TestTheHeraldTellsTheDaysRankingAndPingsItsTopThree(t *testing.T) {
+	poster := &pings.RecordedPoster{}
+	herald, book := herald(poster)
+	ireland, err := book.Ensure(t.Context(), roles.Nation("ie"))
+	require.NoError(t, err)
+	france, err := book.Ensure(t.Context(), roles.Nation("fr"))
+	require.NoError(t, err)
+	_, err = book.Ensure(t.Context(), roles.Nation("es"))
+	require.NoError(t, err)
+
+	won := []pings.Place{
+		{Flag: "ie", Rank: 1, Points: 25},
+		{Flag: "fr", Rank: 2, Points: 18},
+		{Flag: "gb", Rank: 2, Points: 18},
+		{Flag: "es", Rank: 4, Points: 12},
+		{Flag: "de", Rank: 5, Points: 10},
+		{Flag: "it", Rank: 6, Points: 8},
+		{Flag: "pt", Rank: 7, Points: 6},
+		{Flag: "be", Rank: 8, Points: 4},
+		{Flag: "nl", Rank: 9, Points: 2},
+		{Flag: "xb", Rank: 10, Points: 1},
+	}
+	table := []pings.Place{
+		{Flag: "fr", Rank: 1, Points: 118},
+		{Flag: "ie", Rank: 2, Points: 97},
+		{Flag: "gb", Rank: 3, Points: 60},
+		{Flag: "es", Rank: 4, Points: 40},
+		{Flag: "de", Rank: 5, Points: 22},
+		{Flag: "it", Rank: 6, Points: 20},
+		{Flag: "pt", Rank: 7, Points: 12},
+		{Flag: "be", Rank: 8, Points: 9},
+		{Flag: "nl", Rank: 9, Points: 2},
+		{Flag: "xb", Rank: 10, Points: 1},
+		{Flag: "pl", Rank: 10, Points: 1},
+		{Flag: "at", Rank: 12, Points: 1},
+	}
+	require.NoError(t, herald.TellRanking(t.Context(),
+		pings.EndedDay{Round: "season-1/day-3", Season: 1, Number: 3}, pings.Ranking{Won: won, Table: table}))
+
+	assert.Equal(t, []pings.Post{{
+		Channel:  "100",
+		Audience: discord.RoleAudience(ireland, france),
+		Text: "🏁 **Day 3 of season 1 is over.** The points it gave:\n" +
+			"🥇 🇮🇪 <@&1> +25\n" +
+			"🥈 🇫🇷 <@&2> +18\n" +
+			"🥈 🇬🇧 United Kingdom +18\n" +
+			"4️⃣ 🇪🇸 Spain +12\n" +
+			"5️⃣ 🇩🇪 Germany +10\n" +
+			"6️⃣ 🇮🇹 Italy +8\n" +
+			"7️⃣ 🇵🇹 Portugal +6\n" +
+			"8️⃣ 🇧🇪 Belgium +4\n" +
+			"9️⃣ 🇳🇱 Netherlands +2\n" +
+			"🔟 🏴 Brittany +1\n" +
+			"🏆 **The season's ranking:**\n" +
+			"🥇 🇫🇷 France 118 points\n" +
+			"🥈 🇮🇪 Ireland 97 points\n" +
+			"🥉 🇬🇧 United Kingdom 60 points\n" +
+			"4️⃣ 🇪🇸 Spain 40 points\n" +
+			"5️⃣ 🇩🇪 Germany 22 points\n" +
+			"6️⃣ 🇮🇹 Italy 20 points\n" +
+			"7️⃣ 🇵🇹 Portugal 12 points\n" +
+			"8️⃣ 🇧🇪 Belgium 9 points\n" +
+			"9️⃣ 🇳🇱 Netherlands 2 points\n" +
+			"🔟 🏴 Brittany 1 point\n" +
+			"🔟 🇵🇱 Poland 1 point\n" +
+			"https://clickplanet.lol/play",
+	}}, poster.Posts)
+}
+
+func TestARankingWhoseTopThreeNobodyLinkedPingsNobody(t *testing.T) {
+	poster := &pings.RecordedPoster{}
+	herald, _ := herald(poster)
+
+	require.NoError(t, herald.TellRanking(t.Context(), pings.EndedDay{Round: "season-1/day-3", Season: 1, Number: 3},
+		pings.Ranking{Won: []pings.Place{{Flag: "ie", Rank: 1, Points: 25}}, Table: []pings.Place{{Flag: "ie", Rank: 1, Points: 25}}}))
+
+	require.Len(t, poster.Posts, 1)
+	assert.Equal(t, discord.RoleAudience(), poster.Posts[0].Audience)
+	assert.False(t, poster.Posts[0].Audience.Everybody())
+	assert.NotContains(t, poster.Posts[0].Text, "@everyone")
+}
+
+func TestADayIsStaleAnHourAfterItsEnd(t *testing.T) {
+	assert.False(t, pings.EndedDay{EndedAt: start}.Stale(start.Add(pings.RankingFresh)))
+	assert.True(t, pings.EndedDay{EndedAt: start}.Stale(start.Add(pings.RankingFresh+time.Second)))
+}

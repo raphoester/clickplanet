@@ -447,7 +447,8 @@ frontend has the button and the privacy policy page is live: we store email.
 
 Off in `backend.yaml` (`alerts.enabled: false`). On, signing in with Discord also adds the player to the game's
 Discord server with the role of their flag ("Join Discord" in the game's chat is that sign-in), and the server pings
-that role when their flag is attacked, and everybody (`@everyone`) when a battle or a season starts.
+that role when their flag is attacked or places in a day's top three (the day's ranking, in `#alerts`), and everybody
+(`@everyone`) when a battle or a season starts.
 
 **It is the same Discord application as the sign-in** (client id `1549822806420885616`): the application gets a bot,
 and the bot joins your server. There is no second trip and no new redirect URI: the sign-in asks Discord for the

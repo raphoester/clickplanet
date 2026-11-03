@@ -141,6 +141,21 @@ func TestAPostPingsItsRoleAlone(t *testing.T) {
 	}, sent)
 }
 
+func TestAPostPingsItsRolesAloneAndNoRolePingsNobody(t *testing.T) {
+	c, fake := client(t, map[string]func(w http.ResponseWriter){
+		"POST /api/channels/100/messages": answering(http.StatusOK, `{"id":"1"}`),
+	})
+
+	require.NoError(t, c.Post(t.Context(), "100", "<@&77> <@&78> <@&79> go", discord.RoleAudience("77", "78")))
+	require.NoError(t, c.Post(t.Context(), "100", "<@&77> @everyone go", discord.RoleAudience()))
+
+	var several, none map[string]any
+	require.NoError(t, json.Unmarshal([]byte(fake.calls[0].Body), &several))
+	require.NoError(t, json.Unmarshal([]byte(fake.calls[1].Body), &none))
+	assert.Equal(t, map[string]any{"parse": []any{}, "roles": []any{"77", "78"}}, several["allowed_mentions"])
+	assert.Equal(t, map[string]any{"parse": []any{}, "roles": []any{}}, none["allowed_mentions"])
+}
+
 func TestAPostToEverybodyPingsEverybody(t *testing.T) {
 	c, fake := client(t, map[string]func(w http.ResponseWriter){
 		"POST /api/channels/100/messages": answering(http.StatusOK, `{"id":"1"}`),

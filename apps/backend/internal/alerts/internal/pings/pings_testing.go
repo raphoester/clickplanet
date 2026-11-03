@@ -13,15 +13,18 @@ import (
 )
 
 type InMemoryStore struct {
-	mu      sync.Mutex
-	attacks map[nations.Flag][]time.Time
-	starts  map[StartKey]time.Time
+	mu       sync.Mutex
+	attacks  map[nations.Flag][]time.Time
+	starts   map[StartKey]time.Time
+	rankings map[RoundID]time.Time
 }
 
 var _ Store = (*InMemoryStore)(nil)
 
 func NewInMemoryStore() *InMemoryStore {
-	return &InMemoryStore{attacks: map[nations.Flag][]time.Time{}, starts: map[StartKey]time.Time{}}
+	return &InMemoryStore{
+		attacks: map[nations.Flag][]time.Time{}, starts: map[StartKey]time.Time{}, rankings: map[RoundID]time.Time{},
+	}
 }
 
 func (s *InMemoryStore) AttackPingsOf(_ context.Context, victim nations.Flag, since time.Time) (History, error) {
@@ -57,6 +60,22 @@ func (s *InMemoryStore) SaveStartPing(ctx context.Context, key StartKey, at time
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		s.starts[key] = at
+	})
+	return nil
+}
+
+func (s *InMemoryStore) RankingPinged(_ context.Context, round RoundID) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, found := s.rankings[round]
+	return found, nil
+}
+
+func (s *InMemoryStore) SaveRankingPing(ctx context.Context, round RoundID, at time.Time) error {
+	cpatomic.OnCommit(ctx, func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.rankings[round] = at
 	})
 	return nil
 }

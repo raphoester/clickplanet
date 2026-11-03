@@ -2,9 +2,9 @@
 
 **A player connects Discord once, by signing in with it, and the game's Discord server pings it.** The sign-in adds the
 player to the server with the role of the flag it plays for. The server pings a flag's role when that flag is
-attacked, and everybody in the server (`@everyone`) when a battle or a season starts. Off by default
-(`alerts.enabled`); off, the module is not built, `alerts.v1` 404s, which the client reads as no offer, and a Discord
-sign-in joins no server.
+attacked or places in a day's top three (the day's ranking), and everybody in the server (`@everyone`) when a battle or
+a season starts. Off by default (`alerts.enabled`); off, the module is not built, `alerts.v1` 404s, which the client
+reads as no offer, and a Discord sign-in joins no server.
 
 Why: a newcomer who plays once never comes back on its own, and the players who come back on day 2 to 7 have no way to
 hear that their land is attacked. They have Discord open on their phone; a website's notifications they do not allow.
@@ -105,8 +105,38 @@ a season "Season N has started on a blank map". A start is told once by its roun
 the transaction of the post: a post Discord refused is tried again as the event comes again, until the start is 10
 minutes old.
 
-**A post pings the audience it names, whatever the text holds** (`discord.Audience`, sent as `allowed_mentions`): one
-role, or `everyone`. The bot needs **Mention @everyone, @here, and All Roles** for the second; without it Discord
+**A day's end** is `gamemaster.v1.DayEnded` (`alerts-days`), told once the day is scored (see [Hearing
+scoring](gamemaster.md#hearing-scoring)). Its post, the day's ranking, goes to `#alerts`, and pings the role of each
+flag placed 3rd or better that day, ties included (`pings.Podium`):
+
+> 🏁 **Day 3 of season 1 is over.** The points it gave:
+> 🥇 🇮🇪 @Ireland +25
+> 🥈 🇫🇷 @France +18
+> 🥉 🇬🇧 United Kingdom +15
+> 4️⃣ 🇪🇸 Spain +12
+> …
+> 🏆 **The season's ranking:**
+> 🥇 🇫🇷 France 118 points
+> 🥈 🇮🇪 Ireland 97 points
+> …
+> https://clickplanet.lol/play
+
+- **The first list is the day's top 10 and the points each won**; the second, the season's table once they were granted
+  (grants included), down to the 10th place, ties included (`pings.TableRows`). `announce_ranking_usecase` reads both by
+  the round's id from `scoring.v1.InternalService/GetRound` on the internal listener (`rpc_scoring_rounds`, 5 seconds):
+  its results and its `after`. A round scoring has not scored (`ended_at` unset, live standings) is an error, tried again.
+- **A flag of the top three no player ever linked is named, not pinged**: it has no role. A day whose top three
+  nobody linked still posts, and pings nobody.
+- **A place is a medal for 1st to 3rd, then a keycap (4️⃣ to 🔟)**: "4." at a line's start is a Markdown list, which
+  Discord numbers again, so two flags tied 2nd would read 2 and 3.
+- **Told once by the round's id** (`ranking_pings`), in the transaction of the post: a post Discord refused, or a round
+  scoring could not answer for, is tried again as the event comes again, **until the day ended an hour ago**
+  (`pings.RankingFresh`). A new consumer group reads the stream from its start, so without it the first boot would post
+  every day of the season. A day nobody scored in (no tile held) posts nothing. Only a day: a battle's end posts
+  nothing.
+
+**A post pings the audience it names, whatever the text holds** (`discord.Audience`, sent as `allowed_mentions`): some
+roles (none pings nobody), or `everyone`. The bot needs **Mention @everyone, @here, and All Roles** for the second; without it Discord
 posts the text and pings nobody.
 
 ## The Discord client (`discord/rest_discord`)
@@ -127,6 +157,8 @@ is the other half, and is on in production with this module.
 
 ## Tests
 
-`migrations/stores_test.go` runs the stores on postgres. The use cases run over the in-memory stores and
+`migrations/stores_test.go` runs the stores on postgres. `pings_test.go` pins the day's ranking word for word (ties,
+the top three's roles, a flag nobody linked, the table cut at the 10th place), and `rpc_scoring_rounds`' test the read
+of a scored round and the refusal of one that runs. The use cases run over the in-memory stores and
 `roles.FakeMaker`, `pings.RecordedPoster`; `cpatomic.OnCommit` keeps an in-memory write until the fake transaction
 commits. `rest_discord` runs against an `httptest` Discord.
