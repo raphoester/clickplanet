@@ -27,6 +27,7 @@ message GetAuthorResponse {
   NameColor color = 4;
   uint32 streak = 5;
   Title worn_title = 6;
+  bool guest = 7;
 }
 
 message GetAuthorsRequest {

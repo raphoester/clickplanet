@@ -285,6 +285,23 @@ func (s *testSuite) TestAReplyCarriesWhatItAnswersAsItWasSent() {
 	s.Equal(now.Add(-time.Second), quote.GetRemovedAt().AsTime())
 }
 
+func (s *testSuite) TestAGifAndTheQuoteOfOneAreReadWithTheirAddress() {
+	gif := messages.Gif{URL: "https://static.klipy.com/ii/935d7ab9/14/af/SE72470w.webp", Width: 220, Height: 124}
+	s.sent(messages.Snapshot{ID: "dance", SentAt: now.Add(-time.Hour), Account: ada, Country: "fr", Gif: gif})
+	s.sent(messages.Snapshot{
+		ID: "answer", SentAt: now.Add(-time.Minute), Account: bob, Country: "fr", Text: "nice",
+		Quote: messages.Quote{MessageID: "dance"},
+	})
+
+	page := s.page(messages_query.Cursor{}, 10)
+
+	s.Require().Len(page, 2)
+	s.Equal(gif.URL, page[0].GetGif().GetUrl())
+	s.Equal(uint32(124), page[0].GetGif().GetHeight())
+	s.Nil(page[1].GetGif())
+	s.Equal(gif.URL, page[1].GetReplyTo().GetGif().GetUrl())
+}
+
 func (s *testSuite) TestAReplyToAMessagePastTheRetentionHasNoQuote() {
 	s.sent(messages.Snapshot{ID: "old", SentAt: now.Add(-retention - time.Second), Account: ada, Country: "fr", Text: "old"})
 	s.sent(messages.Snapshot{

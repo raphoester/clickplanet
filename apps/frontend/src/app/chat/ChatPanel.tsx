@@ -1,5 +1,7 @@
 import {ReactNode, useCallback, useEffect, useId, useRef, useState} from "react";
-import {ChatBackend, ChatMessage, OutgoingMessage} from "../../backends/chat.ts";
+import {ChatBackend, ChatMessage, Gif, OutgoingMessage} from "../../backends/chat.ts";
+import {GifChoice, GifQuery, GifSearch} from "../../backends/gifs.ts";
+import {wordsOf} from "../../domain/chatLog.ts";
 import {PlayerLine, RosterEntry} from "../../backends/player.ts";
 import {PlayerReporter} from "../../backends/support.ts";
 import {Country} from "../../domain/countries.ts";
@@ -48,6 +50,7 @@ export type ChatPanelProps = {
     onUnread?: (unread: number) => void
     discord?: DiscordOffer
     onSignIn?: () => void
+    gifs?: GifSearch
 }
 
 type View = "world" | "flag" | "online"
@@ -122,19 +125,28 @@ export default function ChatPanel(props: ChatPanelProps) {
         setView(next)
     }
 
-    const onSend = async (text: string) => {
+    const send = async (text: string, gif?: Gif) => {
         const target = replyingTo
         const message: OutgoingMessage = {
             authorId: identity.authorId,
             countryCode: props.country.code,
             text,
             replyTo: target?.id,
+            gif,
         }
 
         setReplyingTo(undefined)
         const failed = await room.send(message)
         if (failed !== undefined && failed !== 'gone') setReplyingTo(current => current ?? target)
         return failed === undefined
+    }
+
+    const {gifs} = props
+    const gifOffer = gifs && {search: gifs, locale: props.country.code, customer: identity.authorId, onSignIn}
+    const onSendGif = async (choice: GifChoice, query: GifQuery) => {
+        const sent = await send("", choice.gif)
+        if (sent) gifs?.markShared(choice, query)
+        return sent
     }
 
     const tabs = (players || flagCountry) && <div className="chat-tabs" role="tablist" aria-label="Chat">
@@ -181,7 +193,9 @@ export default function ChatPanel(props: ChatPanelProps) {
                           mutedUntil={room.mutedUntil}
                           replyingTo={replyingTo}
                           onCancelReply={() => setReplyingTo(undefined)}
-                          onSend={onSend}/>
+                          onSend={text => send(text)}
+                          gifs={gifOffer}
+                          onSendGif={onSendGif}/>
 
             {reporting && reporter && <ReportMessageModal key={reporting.id}
                                                           message={reporting}
@@ -206,12 +220,12 @@ export default function ChatPanel(props: ChatPanelProps) {
                                key={toast.id}
                                className="chat-toast"
                                style={authorStyle(authorOf(toast))}
-                               aria-label={`Open the chat: ${words.masked(toast.authorName)}, ${words.masked(toast.text)}`}
+                               aria-label={`Open the chat: ${words.masked(toast.authorName)}, ${words.masked(wordsOf(toast))}`}
                                onClick={() => setOpen(true)}>
             <span className="chat-toast-author" aria-hidden="true">
                 {truncate(words.masked(toast.authorName), PEEK_AUTHOR_MAX_LENGTH)}
             </span>
-            <span className="chat-toast-text" aria-hidden="true">{truncate(words.masked(toast.text), PEEK_TEXT_MAX_LENGTH)}</span>
+            <span className="chat-toast-text" aria-hidden="true">{truncate(words.masked(wordsOf(toast)), PEEK_TEXT_MAX_LENGTH)}</span>
         </button> : null
     }
 
@@ -267,7 +281,7 @@ export default function ChatPanel(props: ChatPanelProps) {
                         <span className="chat-peek-author">
                             {truncate(words.masked(latest.authorName), PEEK_AUTHOR_MAX_LENGTH)}
                         </span>
-                        <span className="chat-peek-text">{words.masked(latest.text)}</span>
+                        <span className="chat-peek-text">{words.masked(wordsOf(latest))}</span>
                     </span>}
             </button>}
 

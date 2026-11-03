@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Gif } from "./chat_pb.js";
 
 /**
  * @generated from message chat.v1.MuteRequest
@@ -408,6 +409,11 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
    */
   flagRoom = "";
 
+  /**
+   * @generated from field: chat.v1.Gif gif = 8;
+   */
+  gif?: Gif;
+
   constructor(data?: PartialMessage<GetMessageResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -423,6 +429,7 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
     { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "removed_at", kind: "message", T: Timestamp },
     { no: 7, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "gif", kind: "message", T: Gif },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageResponse {
@@ -605,6 +612,11 @@ export class KeptMessage extends Message<KeptMessage> {
    */
   flagRoom = "";
 
+  /**
+   * @generated from field: chat.v1.Gif gif = 10;
+   */
+  gif?: Gif;
+
   constructor(data?: PartialMessage<KeptMessage>) {
     super();
     proto3.util.initPartial(data, this);
@@ -622,6 +634,7 @@ export class KeptMessage extends Message<KeptMessage> {
     { no: 7, name: "removed_at", kind: "message", T: Timestamp },
     { no: 8, name: "reply_to", kind: "message", T: KeptQuote },
     { no: 9, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "gif", kind: "message", T: Gif },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeptMessage {
@@ -671,6 +684,11 @@ export class KeptQuote extends Message<KeptQuote> {
    */
   removedAt?: Timestamp;
 
+  /**
+   * @generated from field: chat.v1.Gif gif = 5;
+   */
+  gif?: Gif;
+
   constructor(data?: PartialMessage<KeptQuote>) {
     super();
     proto3.util.initPartial(data, this);
@@ -683,6 +701,7 @@ export class KeptQuote extends Message<KeptQuote> {
     { no: 2, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "removed_at", kind: "message", T: Timestamp },
+    { no: 5, name: "gif", kind: "message", T: Gif },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeptQuote {

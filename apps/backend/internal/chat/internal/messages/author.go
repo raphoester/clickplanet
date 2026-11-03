@@ -28,10 +28,16 @@ type Author struct {
 	color  int32
 	streak uint32
 	title  Title
+	guest  bool
 }
 
 func AuthorOf(name string, admin bool, color int32, streak uint32, title Title) Author {
 	return Author{name: name, admin: admin, color: color, streak: streak, title: title}
+}
+
+// A guest wears no title and holds no color.
+func GuestOf(name string, streak uint32) Author {
+	return Author{name: name, streak: streak, guest: true}
 }
 
 func (a Author) Name() string { return a.name }

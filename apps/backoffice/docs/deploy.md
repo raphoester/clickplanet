@@ -17,5 +17,6 @@ to `proto/` alone ships nothing: the generated code is committed.
 - **The support bucket's host is in `img-src` and `media-src`**, and no other: a note's photos and videos load
   straight from the R2 link `ListNotes` signs (`support.attachments.bucket.endpoint` in `deploy/vps/backend.yaml`).
   **Another bucket is a change here too**, or every attachment shows "not shown here".
+- **KLIPY's three media hosts are in `img-src`** too: a chat GIF loads from the address KLIPY gave it.
 - `Referrer-Policy: no-referrer` and `X-Robots-Tag: noindex`.
 - `/assets/*` is immutable, `/index.html` is revalidated.

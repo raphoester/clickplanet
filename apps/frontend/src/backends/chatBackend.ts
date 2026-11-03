@@ -16,6 +16,7 @@ import {
     ChatRejectedError,
     ChatSeenMarker,
     ChatSender,
+    Gif,
     OutgoingMessage,
     OutgoingReaction,
     PodiumPlace,
@@ -26,6 +27,7 @@ import {
     Announcement as AnnouncementPb,
     ChatEvent,
     ChatMessage as ChatMessagePb,
+    Gif as GifPb,
     MuteRefusal,
     Quote as QuotePb,
     ReactionCount as ReactionCountPb,
@@ -79,6 +81,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
                 text: message.text,
                 replyToMessageId: message.replyTo,
                 flagRoom: this.room,
+                gif: message.gif,
             }, {headers}))
 
             if (!res.message) throw new ChatRejectedError()
@@ -253,7 +256,14 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
         reactionsVersion: Number(message.reactionsVersion),
         replyTo: decodedQuote(message.replyTo),
         removed: message.removed,
+        gif: decodedGif(message.gif),
     }
+}
+
+function decodedGif(gif: GifPb | undefined): Gif | undefined {
+    if (!gif || gif.url === "") return undefined
+
+    return {url: gif.url, width: gif.width, height: gif.height}
 }
 
 function decodedQuote(quote: QuotePb | undefined): ChatQuote | undefined {
@@ -265,6 +275,7 @@ function decodedQuote(quote: QuotePb | undefined): ChatQuote | undefined {
         authorColor: quote.authorColor,
         text: quote.text,
         removed: quote.removed,
+        gif: decodedGif(quote.gif),
     }
 }
 

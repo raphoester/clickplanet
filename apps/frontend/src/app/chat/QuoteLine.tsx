@@ -1,4 +1,5 @@
 import {ChatQuote} from "../../backends/chat.ts";
+import {wordsOf} from "../../domain/chatLog.ts";
 import {ReplyIcon} from "../components/icons.tsx";
 import {truncate} from "../truncate.ts";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
@@ -20,6 +21,6 @@ export default function QuoteLine({quote, lead}: {quote: ChatQuote, lead: string
         {" "}
         {quote.removed
             ? <span className="chat-quote-text chat-removed">{REMOVED_TEXT}</span>
-            : <span className="chat-quote-text">{truncate(words.masked(quote.text), QUOTE_MAX_LENGTH)}</span>}
+            : <span className="chat-quote-text">{truncate(words.masked(wordsOf(quote)), QUOTE_MAX_LENGTH)}</span>}
     </>
 }

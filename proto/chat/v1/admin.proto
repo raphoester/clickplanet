@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chat.v1;
 
+import "chat/v1/chat.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -78,6 +79,7 @@ message GetMessageResponse {
   google.protobuf.Timestamp removed_at = 6;
   // The flag whose room it was said in. Empty for the chat everyone reads.
   string flag_room = 7;
+  Gif gif = 8;
 }
 
 message ListMessagesRequest {
@@ -112,6 +114,7 @@ message KeptMessage {
   KeptQuote reply_to = 8;
   // The flag whose room it was said in. Empty for the chat everyone reads.
   string flag_room = 9;
+  Gif gif = 10;
 }
 
 // The message a reply answers, as it was sent, removed or not.
@@ -122,4 +125,5 @@ message KeptQuote {
   string text = 3;
   // Unset while the message is shown.
   google.protobuf.Timestamp removed_at = 4;
+  Gif gif = 5;
 }

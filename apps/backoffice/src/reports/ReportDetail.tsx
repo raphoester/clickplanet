@@ -1,6 +1,6 @@
 import {Code, ConnectError} from "@connectrpc/connect"
 import {useCallback} from "react"
-import {Conversation} from "../chat/Conversation.tsx"
+import {Conversation, LineWords} from "../chat/Conversation.tsx"
 import {theirTitleOf} from "../chat/theirConversations.ts"
 import {TheirMessages} from "../chat/TheirMessages.tsx"
 import {Clients, CLIENTS} from "../clients.ts"
@@ -134,7 +134,7 @@ function Said({message, again}: {message: Call<Read>, again: () => void}) {
     const removed = message.value.message.removedAt
     return (
         <blockquote className="report-quote">
-            <p className={removed === undefined ? "line-text" : "line-text line-removed"}>{message.value.message.text}</p>
+            <LineWords text={message.value.message.text} gif={message.value.message.gif} removed={removed !== undefined}/>
             {removed !== undefined && <p className="hint">Removed <When at={removed}/>.</p>}
         </blockquote>
     )
@@ -202,5 +202,6 @@ function keptOf(message: GetMessageResponse, report: Report): KeptMessage {
         countryId: message.countryId,
         removedAt: message.removedAt,
         flagRoom: message.flagRoom,
+        gif: message.gif,
     })
 }

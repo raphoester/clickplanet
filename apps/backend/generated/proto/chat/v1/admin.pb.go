@@ -458,6 +458,7 @@ type GetMessageResponse struct {
 	RemovedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
 	// The flag whose room it was said in. Empty for the chat everyone reads.
 	FlagRoom      string `protobuf:"bytes,7,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
+	Gif           *Gif   `protobuf:"bytes,8,opt,name=gif,proto3" json:"gif,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -539,6 +540,13 @@ func (x *GetMessageResponse) GetFlagRoom() string {
 		return x.FlagRoom
 	}
 	return ""
+}
+
+func (x *GetMessageResponse) GetGif() *Gif {
+	if x != nil {
+		return x.Gif
+	}
+	return nil
 }
 
 type ListMessagesRequest struct {
@@ -675,6 +683,7 @@ type KeptMessage struct {
 	ReplyTo *KeptQuote `protobuf:"bytes,8,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
 	// The flag whose room it was said in. Empty for the chat everyone reads.
 	FlagRoom      string `protobuf:"bytes,9,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
+	Gif           *Gif   `protobuf:"bytes,10,opt,name=gif,proto3" json:"gif,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -772,6 +781,13 @@ func (x *KeptMessage) GetFlagRoom() string {
 	return ""
 }
 
+func (x *KeptMessage) GetGif() *Gif {
+	if x != nil {
+		return x.Gif
+	}
+	return nil
+}
+
 // The message a reply answers, as it was sent, removed or not.
 type KeptQuote struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
@@ -781,6 +797,7 @@ type KeptQuote struct {
 	Text       string `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
 	// Unset while the message is shown.
 	RemovedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
+	Gif           *Gif                   `protobuf:"bytes,5,opt,name=gif,proto3" json:"gif,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -843,11 +860,18 @@ func (x *KeptQuote) GetRemovedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *KeptQuote) GetGif() *Gif {
+	if x != nil {
+		return x.Gif
+	}
+	return nil
+}
+
 var File_chat_v1_admin_proto protoreflect.FileDescriptor
 
 const file_chat_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x13chat/v1/admin.proto\x12\achat.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"c\n" +
+	"\x13chat/v1/admin.proto\x12\achat.v1\x1a\x12chat/v1/chat.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"c\n" +
 	"\vMuteRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x125\n" +
@@ -877,7 +901,7 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"removed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\"2\n" +
 	"\x11GetMessageRequest\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x01 \x01(\tR\tmessageId\"\x92\x02\n" +
+	"message_id\x18\x01 \x01(\tR\tmessageId\"\xb2\x02\n" +
 	"\x12GetMessageResponse\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1d\n" +
@@ -889,7 +913,8 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"country_id\x18\x05 \x01(\tR\tcountryId\x129\n" +
 	"\n" +
 	"removed_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\x12\x1b\n" +
-	"\tflag_room\x18\a \x01(\tR\bflagRoom\"\xa0\x01\n" +
+	"\tflag_room\x18\a \x01(\tR\bflagRoom\x12\x1e\n" +
+	"\x03gif\x18\b \x01(\v2\f.chat.v1.GifR\x03gif\"\xa0\x01\n" +
 	"\x13ListMessagesRequest\x12*\n" +
 	"\x11before_message_id\x18\x01 \x01(\tR\x0fbeforeMessageId\x12(\n" +
 	"\x10after_message_id\x18\x02 \x01(\tR\x0eafterMessageId\x12\x14\n" +
@@ -897,7 +922,7 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x04 \x01(\tR\taccountId\"H\n" +
 	"\x14ListMessagesResponse\x120\n" +
-	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.KeptMessageR\bmessages\"\xdb\x02\n" +
+	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.KeptMessageR\bmessages\"\xfb\x02\n" +
 	"\vKeptMessage\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1d\n" +
@@ -912,7 +937,9 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"removed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\x12-\n" +
 	"\breply_to\x18\b \x01(\v2\x12.chat.v1.KeptQuoteR\areplyTo\x12\x1b\n" +
-	"\tflag_room\x18\t \x01(\tR\bflagRoom\"\x9a\x01\n" +
+	"\tflag_room\x18\t \x01(\tR\bflagRoom\x12\x1e\n" +
+	"\x03gif\x18\n" +
+	" \x01(\v2\f.chat.v1.GifR\x03gif\"\xba\x01\n" +
 	"\tKeptQuote\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1f\n" +
@@ -920,7 +947,8 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"authorName\x12\x12\n" +
 	"\x04text\x18\x03 \x01(\tR\x04text\x129\n" +
 	"\n" +
-	"removed_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt2\xa0\x03\n" +
+	"removed_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\x12\x1e\n" +
+	"\x03gif\x18\x05 \x01(\v2\f.chat.v1.GifR\x03gif2\xa0\x03\n" +
 	"\fAdminService\x123\n" +
 	"\x04Mute\x12\x14.chat.v1.MuteRequest\x1a\x15.chat.v1.MuteResponse\x129\n" +
 	"\x06Unmute\x12\x16.chat.v1.UnmuteRequest\x1a\x17.chat.v1.UnmuteResponse\x12<\n" +
@@ -962,6 +990,7 @@ var file_chat_v1_admin_proto_goTypes = []any{
 	(*KeptQuote)(nil),             // 13: chat.v1.KeptQuote
 	(*durationpb.Duration)(nil),   // 14: google.protobuf.Duration
 	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
+	(*Gif)(nil),                   // 16: chat.v1.Gif
 }
 var file_chat_v1_admin_proto_depIdxs = []int32{
 	14, // 0: chat.v1.MuteRequest.duration:type_name -> google.protobuf.Duration
@@ -971,28 +1000,31 @@ var file_chat_v1_admin_proto_depIdxs = []int32{
 	15, // 4: chat.v1.RemoveMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
 	15, // 5: chat.v1.GetMessageResponse.sent_at:type_name -> google.protobuf.Timestamp
 	15, // 6: chat.v1.GetMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
-	12, // 7: chat.v1.ListMessagesResponse.messages:type_name -> chat.v1.KeptMessage
-	15, // 8: chat.v1.KeptMessage.sent_at:type_name -> google.protobuf.Timestamp
-	15, // 9: chat.v1.KeptMessage.removed_at:type_name -> google.protobuf.Timestamp
-	13, // 10: chat.v1.KeptMessage.reply_to:type_name -> chat.v1.KeptQuote
-	15, // 11: chat.v1.KeptQuote.removed_at:type_name -> google.protobuf.Timestamp
-	0,  // 12: chat.v1.AdminService.Mute:input_type -> chat.v1.MuteRequest
-	2,  // 13: chat.v1.AdminService.Unmute:input_type -> chat.v1.UnmuteRequest
-	4,  // 14: chat.v1.AdminService.GetMute:input_type -> chat.v1.GetMuteRequest
-	6,  // 15: chat.v1.AdminService.RemoveMessage:input_type -> chat.v1.RemoveMessageRequest
-	8,  // 16: chat.v1.AdminService.GetMessage:input_type -> chat.v1.GetMessageRequest
-	10, // 17: chat.v1.AdminService.ListMessages:input_type -> chat.v1.ListMessagesRequest
-	1,  // 18: chat.v1.AdminService.Mute:output_type -> chat.v1.MuteResponse
-	3,  // 19: chat.v1.AdminService.Unmute:output_type -> chat.v1.UnmuteResponse
-	5,  // 20: chat.v1.AdminService.GetMute:output_type -> chat.v1.GetMuteResponse
-	7,  // 21: chat.v1.AdminService.RemoveMessage:output_type -> chat.v1.RemoveMessageResponse
-	9,  // 22: chat.v1.AdminService.GetMessage:output_type -> chat.v1.GetMessageResponse
-	11, // 23: chat.v1.AdminService.ListMessages:output_type -> chat.v1.ListMessagesResponse
-	18, // [18:24] is the sub-list for method output_type
-	12, // [12:18] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	16, // 7: chat.v1.GetMessageResponse.gif:type_name -> chat.v1.Gif
+	12, // 8: chat.v1.ListMessagesResponse.messages:type_name -> chat.v1.KeptMessage
+	15, // 9: chat.v1.KeptMessage.sent_at:type_name -> google.protobuf.Timestamp
+	15, // 10: chat.v1.KeptMessage.removed_at:type_name -> google.protobuf.Timestamp
+	13, // 11: chat.v1.KeptMessage.reply_to:type_name -> chat.v1.KeptQuote
+	16, // 12: chat.v1.KeptMessage.gif:type_name -> chat.v1.Gif
+	15, // 13: chat.v1.KeptQuote.removed_at:type_name -> google.protobuf.Timestamp
+	16, // 14: chat.v1.KeptQuote.gif:type_name -> chat.v1.Gif
+	0,  // 15: chat.v1.AdminService.Mute:input_type -> chat.v1.MuteRequest
+	2,  // 16: chat.v1.AdminService.Unmute:input_type -> chat.v1.UnmuteRequest
+	4,  // 17: chat.v1.AdminService.GetMute:input_type -> chat.v1.GetMuteRequest
+	6,  // 18: chat.v1.AdminService.RemoveMessage:input_type -> chat.v1.RemoveMessageRequest
+	8,  // 19: chat.v1.AdminService.GetMessage:input_type -> chat.v1.GetMessageRequest
+	10, // 20: chat.v1.AdminService.ListMessages:input_type -> chat.v1.ListMessagesRequest
+	1,  // 21: chat.v1.AdminService.Mute:output_type -> chat.v1.MuteResponse
+	3,  // 22: chat.v1.AdminService.Unmute:output_type -> chat.v1.UnmuteResponse
+	5,  // 23: chat.v1.AdminService.GetMute:output_type -> chat.v1.GetMuteResponse
+	7,  // 24: chat.v1.AdminService.RemoveMessage:output_type -> chat.v1.RemoveMessageResponse
+	9,  // 25: chat.v1.AdminService.GetMessage:output_type -> chat.v1.GetMessageResponse
+	11, // 26: chat.v1.AdminService.ListMessages:output_type -> chat.v1.ListMessagesResponse
+	21, // [21:27] is the sub-list for method output_type
+	15, // [15:21] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_admin_proto_init() }
@@ -1000,6 +1032,7 @@ func file_chat_v1_admin_proto_init() {
 	if File_chat_v1_admin_proto != nil {
 		return
 	}
+	file_chat_v1_chat_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

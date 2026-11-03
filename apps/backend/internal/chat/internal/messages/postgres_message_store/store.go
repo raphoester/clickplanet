@@ -25,9 +25,14 @@ var _ messages.Storage = (*Store)(nil)
 
 func (s *Store) Append(ctx context.Context, record messages.Record) error {
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO messages (id, sent_at, account_id, name, author_admin, author_id, country, ip, user_agent, text, reply_to,
-			room)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		WITH kept AS (
+			INSERT INTO messages (id, sent_at, account_id, name, author_admin, author_id, country, ip, user_agent, text,
+				reply_to, room)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			RETURNING seq
+		)
+		INSERT INTO gifs (message_seq, url, width, height)
+		SELECT seq, $13, $14, $15 FROM kept WHERE $13 <> ''
 	`, row(record)...); err != nil {
 		return fmt.Errorf("failed to insert a message: %w", err)
 	}
@@ -44,18 +49,21 @@ func (s *Store) Message(ctx context.Context, id messages.MessageID, since time.T
 		country string
 		text    string
 		replyTo sql.NullString
+		gif     messages.Gif
 	)
 	err := s.db.On(ctx).QueryRowContext(ctx, `
 		SELECT recent.sent_at, recent.account_id, recent.name, recent.author_admin, recent.room, recent.country,
-			recent.text, recent.reply_to
+			recent.text, recent.reply_to, COALESCE(gifs.url, ''), COALESCE(gifs.width, 0), COALESCE(gifs.height, 0)
 		FROM (
-			SELECT id, sent_at, account_id, name, author_admin, room, country, text, reply_to
+			SELECT seq, id, sent_at, account_id, name, author_admin, room, country, text, reply_to
 			FROM messages
 			WHERE room = (SELECT room FROM messages WHERE id = $1 ORDER BY seq DESC LIMIT 1) AND sent_at >= $2
 			ORDER BY seq DESC LIMIT $3
 		) recent
+		LEFT JOIN gifs ON gifs.message_seq = recent.seq
 		WHERE recent.id = $1 AND NOT EXISTS (SELECT 1 FROM removals WHERE removals.message_id = recent.id)
-	`, string(id), since, limit).Scan(&sentAt, &account, &name, &admin, &room, &country, &text, &replyTo)
+	`, string(id), since, limit).Scan(&sentAt, &account, &name, &admin, &room, &country, &text, &replyTo,
+		&gif.URL, &gif.Width, &gif.Height)
 	if errors.Is(err, sql.ErrNoRows) {
 		return messages.Message{}, messages.ErrNotShown
 	}
@@ -71,6 +79,7 @@ func (s *Store) Message(ctx context.Context, id messages.MessageID, since time.T
 		Room:    messages.Room(room),
 		Country: country,
 		Text:    text,
+		Gif:     gif,
 		Quote:   messages.Quote{MessageID: messages.MessageID(replyTo.String)},
 	}.Restore()
 	if err != nil {
@@ -133,6 +142,9 @@ func row(record messages.Record) []any {
 		message.Text,
 		sql.NullString{String: string(message.Quote.MessageID), Valid: message.Quote.MessageID != ""},
 		string(message.Room),
+		message.Gif.URL,
+		message.Gif.Width,
+		message.Gif.Height,
 	}
 }
 

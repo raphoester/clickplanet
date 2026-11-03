@@ -21,6 +21,7 @@ import {
     ReactionsChange,
 } from "../../backends/chat.ts"
 import {Countries} from "../../domain/countries.ts"
+import {GifQuery} from "../../backends/gifs.ts"
 import {NameColor} from "../../backends/player.ts"
 
 const france = Countries.get("fr")!
@@ -1580,5 +1581,77 @@ describe("ChatPanel's flag room", () => {
         expect(screen.queryByText("bomb ready")).toBeNull()
         expect(onUnread).toHaveBeenLastCalledWith(0)
         expect(playSound).not.toHaveBeenCalled()
+    })
+})
+
+describe("ChatPanel GIFs", () => {
+    const choice = (slug: string) =>
+        ({slug, title: slug, gif: {url: `https://static.klipy.com/ii/a/${slug}.webp`, width: 220, height: 124}})
+
+    const stubGifs = () => ({
+        find: vi.fn(async (query: GifQuery) => ({choices: [choice(`${query.words || "trending"}-1`)], more: false})),
+        markShared: vi.fn(),
+    })
+
+    const gifButton = () => screen.findByRole("button", {name: "GIFs"})
+
+    it("offers no GIF with no search to find them", async () => {
+        setup(stubBackend().backend)
+        await screen.findByRole("textbox", {name: "Message"})
+
+        expect(screen.queryByRole("button", {name: "GIFs"})).toBeNull()
+    })
+
+    it("sends the GIF picked from what is trending, alone, and tells the search", async () => {
+        const {backend} = stubBackend()
+        const gifs = stubGifs()
+        render(<ChatPanel backend={backend} country={france} gifs={gifs}/>)
+        const user = userEvent.setup()
+
+        await user.click(await gifButton())
+        await user.click(await screen.findByRole("button", {name: "trending-1"}))
+
+        await waitFor(() => expect(gifs.markShared).toHaveBeenCalled())
+        expect(backend.sendMessage).toHaveBeenCalledWith(expect.objectContaining({text: "", gif: choice("trending-1").gif}))
+        expect(gifs.markShared).toHaveBeenCalledWith(choice("trending-1"),
+            {words: "", page: 1, locale: "fr", customer: expect.any(String)})
+        expect(screen.queryByRole("group", {name: "GIFs"})).toBeNull()
+    })
+
+    it("searches the words once the typing pauses", async () => {
+        const gifs = stubGifs()
+        render(<ChatPanel backend={stubBackend().backend} country={france} gifs={gifs}/>)
+        const user = userEvent.setup()
+
+        await user.click(await gifButton())
+        await user.type(screen.getByRole("searchbox", {name: "Search KLIPY"}), "cat")
+
+        expect(await screen.findByRole("button", {name: "cat-1"})).toBeDefined()
+        expect(gifs.find.mock.calls.map(([query]) => query.words)).toEqual(["", "cat"])
+    })
+
+    it("asks a guest to sign in, and searches nothing", async () => {
+        const gifs = stubGifs()
+        const onSignIn = vi.fn()
+        render(<ChatPanel backend={stubBackend().backend} country={france} gifs={gifs} onSignIn={onSignIn}/>)
+        const user = userEvent.setup()
+
+        await user.click(await gifButton())
+        await user.click(screen.getByRole("button", {name: "Sign in to send GIFs"}))
+
+        expect(onSignIn).toHaveBeenCalled()
+        expect(gifs.find).not.toHaveBeenCalled()
+    })
+
+    it("closes on Escape and keeps what was typed in the message", async () => {
+        render(<ChatPanel backend={stubBackend().backend} country={france} gifs={stubGifs()}/>)
+        const user = userEvent.setup()
+
+        await user.type(await screen.findByRole("textbox", {name: "Message"}), "look")
+        await user.click(await gifButton())
+        await user.keyboard("{Escape}")
+
+        expect(screen.queryByRole("group", {name: "GIFs"})).toBeNull()
+        expect((messageBox() as HTMLTextAreaElement).value).toBe("look")
     })
 })

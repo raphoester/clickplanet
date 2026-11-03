@@ -64,8 +64,17 @@ message ChatMessage {
   Quote reply_to = 13;
   // Empty for a message kept before accounts, and for an account that was deleted.
   string author_account_id = 14;
-  // An operator removed it: it keeps its place, with no text and no reactions.
+  // An operator removed it: it keeps its place, with no text, no GIF and no reactions.
   bool removed = 15;
+  // A message shows a text or a GIF, never both.
+  Gif gif = 16;
+}
+
+// A GIF from KLIPY, at the address KLIPY gave for it.
+message Gif {
+  string url = 1;
+  uint32 width = 2;
+  uint32 height = 3;
 }
 
 message Quote {
@@ -73,8 +82,9 @@ message Quote {
   string author_name = 2;
   player.v1.NameColor author_color = 3;
   string text = 4;
-  // The message quoted was removed: no text.
+  // The message quoted was removed: no text and no GIF.
   bool removed = 5;
+  Gif gif = 6;
 }
 
 message SendMessageRequest {
@@ -87,6 +97,8 @@ message SendMessageRequest {
   // The flag whose room it goes to: only the accounts that play for that flag read and write there. Empty for the chat
   // everyone reads.
   string flag_room = 6;
+  // With no text. Refused, PermissionDenied, from a guest.
+  Gif gif = 7;
 }
 
 message SendMessageResponse {

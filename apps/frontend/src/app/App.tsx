@@ -41,6 +41,7 @@ export default function App(props: AppProps) {
             clips={props.clips}
             crazyGames={props.crazyGames}
             alerts={props.alerts}
+            gifs={props.gifs}
         />
     </WordFilterContext.Provider>
 }

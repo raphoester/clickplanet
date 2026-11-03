@@ -245,11 +245,18 @@ export class ChatMessage extends Message<ChatMessage> {
   authorAccountId = "";
 
   /**
-   * An operator removed it: it keeps its place, with no text and no reactions.
+   * An operator removed it: it keeps its place, with no text, no GIF and no reactions.
    *
    * @generated from field: bool removed = 15;
    */
   removed = false;
+
+  /**
+   * A message shows a text or a GIF, never both.
+   *
+   * @generated from field: chat.v1.Gif gif = 16;
+   */
+  gif?: Gif;
 
   constructor(data?: PartialMessage<ChatMessage>) {
     super();
@@ -273,6 +280,7 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 13, name: "reply_to", kind: "message", T: Quote },
     { no: 14, name: "author_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 15, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 16, name: "gif", kind: "message", T: Gif },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatMessage {
@@ -289,6 +297,57 @@ export class ChatMessage extends Message<ChatMessage> {
 
   static equals(a: ChatMessage | PlainMessage<ChatMessage> | undefined, b: ChatMessage | PlainMessage<ChatMessage> | undefined): boolean {
     return proto3.util.equals(ChatMessage, a, b);
+  }
+}
+
+/**
+ * A GIF from KLIPY, at the address KLIPY gave for it.
+ *
+ * @generated from message chat.v1.Gif
+ */
+export class Gif extends Message<Gif> {
+  /**
+   * @generated from field: string url = 1;
+   */
+  url = "";
+
+  /**
+   * @generated from field: uint32 width = 2;
+   */
+  width = 0;
+
+  /**
+   * @generated from field: uint32 height = 3;
+   */
+  height = 0;
+
+  constructor(data?: PartialMessage<Gif>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.Gif";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "width", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "height", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Gif {
+    return new Gif().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Gif {
+    return new Gif().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Gif {
+    return new Gif().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Gif | PlainMessage<Gif> | undefined, b: Gif | PlainMessage<Gif> | undefined): boolean {
+    return proto3.util.equals(Gif, a, b);
   }
 }
 
@@ -317,11 +376,16 @@ export class Quote extends Message<Quote> {
   text = "";
 
   /**
-   * The message quoted was removed: no text.
+   * The message quoted was removed: no text and no GIF.
    *
    * @generated from field: bool removed = 5;
    */
   removed = false;
+
+  /**
+   * @generated from field: chat.v1.Gif gif = 6;
+   */
+  gif?: Gif;
 
   constructor(data?: PartialMessage<Quote>) {
     super();
@@ -336,6 +400,7 @@ export class Quote extends Message<Quote> {
     { no: 3, name: "author_color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "gif", kind: "message", T: Gif },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Quote {
@@ -387,6 +452,13 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
    */
   flagRoom = "";
 
+  /**
+   * With no text. Refused, PermissionDenied, from a guest.
+   *
+   * @generated from field: chat.v1.Gif gif = 7;
+   */
+  gif?: Gif;
+
   constructor(data?: PartialMessage<SendMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -400,6 +472,7 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
     { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "reply_to_message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "gif", kind: "message", T: Gif },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SendMessageRequest {

@@ -128,22 +128,30 @@ const shownMessages = `
 		shown.country,
 		CASE WHEN shown.removed THEN '' ELSE shown.text END,
 		shown.removed,
+		CASE WHEN shown.removed THEN '' ELSE COALESCE(gifs.url, '') END,
+		COALESCE(gifs.width, 0),
+		COALESCE(gifs.height, 0),
 		COALESCE(quoted.id, ''),
 		quoted.account_id,
 		COALESCE(quoted.name, ''),
 		CASE WHEN quoted.removed THEN '' ELSE COALESCE(quoted.text, '') END,
 		COALESCE(quoted.removed, false),
+		CASE WHEN quoted.removed THEN '' ELSE COALESCE(quoted_gifs.url, '') END,
+		COALESCE(quoted_gifs.width, 0),
+		COALESCE(quoted_gifs.height, 0),
 		COALESCE(versions.version, 0),
 		COALESCE(tallies.counts, '[]')
 	FROM shown
+	LEFT JOIN gifs ON gifs.message_seq = shown.seq
 	LEFT JOIN LATERAL (
-		SELECT id, account_id, name, text,
+		SELECT seq, id, account_id, name, text,
 			EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id) AS removed
 		FROM messages
 		WHERE messages.id = shown.reply_to AND messages.sent_at >= $1
 		ORDER BY seq DESC
 		LIMIT 1
 	) quoted ON true
+	LEFT JOIN gifs quoted_gifs ON quoted_gifs.message_seq = quoted.seq
 	LEFT JOIN reaction_versions versions ON versions.message_id = shown.id
 	LEFT JOIN LATERAL (
 		SELECT json_agg(json_build_object(
@@ -179,6 +187,7 @@ type row struct {
 	country string
 	text    string
 	removed bool
+	gif     gif
 	quoted  quoted
 	version uint64
 	counts  []count
@@ -190,6 +199,13 @@ type quoted struct {
 	name    string
 	text    string
 	removed bool
+	gif     gif
+}
+
+type gif struct {
+	url    string
+	width  uint32
+	height uint32
 }
 
 type count struct {
@@ -244,7 +260,9 @@ func (q *PostgresQuery) rows(
 		)
 		if err := result.Scan(
 			&each.id, &each.sentAt, &account, &each.name, &each.admin, &each.country, &each.text, &each.removed,
+			&each.gif.url, &each.gif.width, &each.gif.height,
 			&each.quoted.id, &quotedAccount, &each.quoted.name, &each.quoted.text, &each.quoted.removed,
+			&each.quoted.gif.url, &each.quoted.gif.width, &each.quoted.gif.height,
 			&each.version, &counts,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan a message of the chat history: %w", err)
@@ -317,6 +335,7 @@ func messageOf(row row, named map[cpsession.AccountID]*playerv1.Author) *chatv1.
 		CountryId:        row.country,
 		Text:             row.text,
 		Removed:          row.removed,
+		Gif:              gifOf(row.gif),
 		Reactions:        reactionsOf(row.counts, named),
 		ReactionsVersion: row.version,
 		ReplyTo:          quoteOf(row.quoted, named),
@@ -348,7 +367,7 @@ func quoteOf(quoted quoted, named map[cpsession.AccountID]*playerv1.Author) *cha
 		return nil
 	}
 
-	quote := &chatv1.Quote{MessageId: quoted.id, Text: quoted.text, Removed: quoted.removed}
+	quote := &chatv1.Quote{MessageId: quoted.id, Text: quoted.text, Removed: quoted.removed, Gif: gifOf(quoted.gif)}
 	if quoted.account == cpsession.NoAccount {
 		quote.AuthorName = quoted.name
 		return quote
@@ -363,6 +382,13 @@ func quoteOf(quoted quoted, named map[cpsession.AccountID]*playerv1.Author) *cha
 	quote.AuthorName = author.GetName()
 	quote.AuthorColor = author.GetColor()
 	return quote
+}
+
+func gifOf(gif gif) *chatv1.Gif {
+	if gif.url == "" {
+		return nil
+	}
+	return &chatv1.Gif{Url: gif.url, Width: gif.width, Height: gif.height}
 }
 
 func reactionsOf(counts []count, named map[cpsession.AccountID]*playerv1.Author) []*chatv1.ReactionCount {

@@ -26,7 +26,19 @@ func Encode(message messages.Message, counts []reactions.Count, version uint64) 
 		Reactions:        EncodeCounts(counts),
 		ReactionsVersion: version,
 		ReplyTo:          encodedQuote(sent.Quote),
+		Gif:              EncodeGif(sent.Gif),
 	}
+}
+
+func EncodeGif(gif messages.Gif) *chatv1.Gif {
+	if gif.None() {
+		return nil
+	}
+	return &chatv1.Gif{Url: gif.URL, Width: gif.Width, Height: gif.Height}
+}
+
+func Gif(gif *chatv1.Gif) messages.Gif {
+	return messages.Gif{URL: gif.GetUrl(), Width: gif.GetWidth(), Height: gif.GetHeight()}
 }
 
 func accountOf(account messages.AccountID) string {
@@ -46,6 +58,7 @@ func encodedQuote(quote messages.Quote) *chatv1.Quote {
 		AuthorName:  quote.Author.Name(),
 		AuthorColor: playerv1.NameColor(quote.Author.Color()),
 		Text:        quote.Text,
+		Gif:         EncodeGif(quote.Gif),
 	}
 }
 

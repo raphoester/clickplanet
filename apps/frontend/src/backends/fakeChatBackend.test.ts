@@ -1,5 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {FakeChatBackend} from "./fakeChatBackend.ts"
+import {ChatRejectedError} from "./chat.ts"
 import {ClosedRound} from "./standings.ts"
 
 const FINALE: ClosedRound = {
@@ -40,5 +41,19 @@ describe("FakeChatBackend.announceChampion", () => {
         chat.announceChampion({...FINALE, finale: false})
 
         expect(await championsIn(chat)).toEqual([])
+    })
+})
+
+describe("FakeChatBackend.sendMessage", () => {
+    const gif = {url: "data:image/svg+xml,", width: 220, height: 124}
+
+    it("sends a GIF alone, as the server does, and refuses one with a text", async () => {
+        const chat = new FakeChatBackend()
+
+        const sent = await chat.sendMessage({authorId: "author-1", countryCode: "fr", text: "", gif})
+
+        expect(sent.gif).toEqual(gif)
+        await expect(chat.sendMessage({authorId: "author-1", countryCode: "fr", text: "look", gif}))
+            .rejects.toBeInstanceOf(ChatRejectedError)
     })
 })

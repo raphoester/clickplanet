@@ -16,6 +16,26 @@ const message = (id: string, authorName: string, countryCode: string): ChatMessa
     ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorAccountId: `account-${authorName}`, authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
 
 describe("ChatLog", () => {
+    const dancing = {url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124}
+
+    it("draws a GIF at its size, no wider than the line, and a reply to it says GIF", () => {
+        const gif = {...message("1", "Ana", "fr"), text: "", gif: dancing}
+        const reply = {...message("2", "Bo", "de"), text: "nice", replyTo: quoteOf(gif)}
+        render(<ChatLog loading={false} messages={[gif, reply]}/>)
+
+        const image = screen.getByRole("img", {name: "GIF"})
+        expect(image.getAttribute("src")).toBe(dancing.url)
+        expect([image.getAttribute("width"), image.getAttribute("height")]).toEqual(["200", "113"])
+        expect(screen.getByText("GIF", {selector: ".chat-quote-text"})).toBeDefined()
+    })
+
+    it("shows a removed GIF as removed, with no image", () => {
+        render(<ChatLog loading={false} messages={[{...message("1", "Ana", "fr"), text: "", removed: true}]}/>)
+
+        expect(screen.queryByRole("img", {name: "GIF"})).toBeNull()
+        expect(screen.getByText("This message has been deleted")).toBeDefined()
+    })
+
     it("opens the author of a message from its name, and tells a guest by its prefix", async () => {
         const onOpenPlayer = vi.fn()
         render(<ChatLog loading={false}

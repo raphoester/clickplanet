@@ -571,6 +571,38 @@ func (s *testSuite) TestAReplyToARemovedMessageQuotesItWithNoText() {
 	s.Empty(quote.GetText(), "nobody reads a removed message in a quote")
 }
 
+var dancing = messages.Gif{URL: "https://static.klipy.com/ii/935d7ab9/14/af/SE72470w.webp", Width: 220, Height: 124}
+
+func (s *testSuite) gifAt(id string, account messages.AccountID, at time.Time) {
+	s.keep(messages.Snapshot{ID: messages.MessageID(id), SentAt: at, Account: account, Country: "fr", Gif: dancing})
+}
+
+func (s *testSuite) TestAGifIsShownWithItsSizeAndAReplyQuotesIt() {
+	s.gifAt("dance", bob, now.Add(-2*time.Hour))
+	s.repliedAt("answer", ada, now.Add(-time.Hour), "dance")
+
+	shown := s.history(ada).GetMessages()
+
+	s.Require().Len(shown, 2)
+	gif := &chatv1.Gif{Url: dancing.URL, Width: 220, Height: 124}
+	s.True(proto.Equal(gif, shown[0].GetGif()), "%v", shown[0].GetGif())
+	s.Empty(shown[0].GetText())
+	s.Nil(shown[1].GetGif(), "a text has no GIF")
+	s.True(proto.Equal(gif, shown[1].GetReplyTo().GetGif()), "%v", shown[1].GetReplyTo())
+}
+
+func (s *testSuite) TestARemovedGifIsNotShownNorQuoted() {
+	s.gifAt("dance", bob, now.Add(-2*time.Hour))
+	s.repliedAt("answer", ada, now.Add(-time.Hour), "dance")
+	s.removed("dance")
+
+	shown := s.history(ada).GetMessages()
+
+	s.True(shown[0].GetRemoved())
+	s.Nil(shown[0].GetGif(), "the address never leaves the server")
+	s.Nil(shown[1].GetReplyTo().GetGif())
+}
+
 func (s *testSuite) TestAFlagsRoomHoldsWhatIsSaidThereAloneAndNoAnnouncement() {
 	s.sent("hello", 3*time.Hour)
 	s.keep(messages.Snapshot{

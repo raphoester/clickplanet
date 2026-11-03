@@ -183,7 +183,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         this.refuse()
 
         const text = message.text.trim()
-        if (text === "" || countRunes(text) > MAX_TEXT_LENGTH) throw new ChatRejectedError()
+        if (message.gif ? text !== "" : text === "" || countRunes(text) > MAX_TEXT_LENGTH) throw new ChatRejectedError()
 
         const answered = this.messages.find(sent => sent.id === message.replyTo)
         if (message.replyTo !== undefined && !answered) throw new ChatMessageGoneError()
@@ -203,6 +203,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             reactions: [],
             reactionsVersion: 0,
             replyTo: answered && quoteOf(answered),
+            gif: message.gif,
         }
 
         this.publish(sent)

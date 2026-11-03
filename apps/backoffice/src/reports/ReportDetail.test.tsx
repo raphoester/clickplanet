@@ -5,6 +5,7 @@ import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-libr
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {AT, FakeAdmin} from "../fakeAdmin.ts"
 import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
+import {Gif} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {Report, ReportDecision, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
 import {ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
 import {OpenPlayer} from "../navigation.ts"
@@ -265,6 +266,17 @@ describe("ReportDetail", () => {
         ])
         expect(seen.closed[0].said[0]).toBe("Removed the message.")
         expect(seen.closed[0].said.at(-1)).toBe("Closed 1 report as Acted.")
+    })
+
+    it("shows a reported GIF, sized to fit", async () => {
+        const admin = new FakeAdmin()
+        admin.message.text = ""
+        admin.message.gif = new Gif({url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124})
+        open(admin)
+
+        const gif = (await screen.findAllByRole("img", {name: "GIF"})).find(image => image.closest(".report-quote"))!
+        expect(gif.getAttribute("src")).toBe("https://static.klipy.com/ii/a/sm.webp")
+        expect([gif.getAttribute("width"), gif.getAttribute("height")]).toEqual(["160", "90"])
     })
 
     it("offers no removal of a message already removed", async () => {

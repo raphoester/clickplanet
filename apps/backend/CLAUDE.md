@@ -92,8 +92,8 @@ and says what is in it. Read the doc before you change its area.
 
 ## The other contexts
 
-- [Chat](docs/chat.md) — messages, each flag's room beside the world chat, announcements, mutes, removals, replies,
-  reactions, and what each account saw.
+- [Chat](docs/chat.md) — messages, each flag's room beside the world chat, GIFs, announcements, mutes, removals,
+  replies, reactions, and what each account saw.
 - [Player](docs/player.md) — names and guest codes, stats, streaks, titles, who is playing now, and an account asked
   deleted, hidden from the other players until it is purged or comes back.
 - [Season titles](docs/season-titles.md) — Season 0 Gold, Silver, Bronze, Battle Top 1-3 and Veteran: who fought the

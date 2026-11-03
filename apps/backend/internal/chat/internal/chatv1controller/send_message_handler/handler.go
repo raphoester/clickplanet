@@ -33,6 +33,7 @@ func (h SendMessageHandler) SendMessage(
 		Room:      messages.RoomOf(req.Msg.GetFlagRoom()),
 		CountryID: req.Msg.GetCountryId(),
 		Text:      req.Msg.GetText(),
+		Gif:       chatmessage.Gif(req.Msg.GetGif()),
 		ReplyTo:   messages.MessageID(req.Msg.GetReplyToMessageId()),
 		UserAgent: req.Header().Get("User-Agent"),
 	})

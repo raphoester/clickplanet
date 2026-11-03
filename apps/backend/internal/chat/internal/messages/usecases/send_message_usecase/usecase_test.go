@@ -264,6 +264,35 @@ func (s *testSuite) TestAnAuthorThatCannotBeReadRefusesThePost() {
 	s.Empty(s.kept())
 }
 
+var dancing = messages.Gif{URL: "https://static.klipy.com/ii/935d7ab9/14/af/SE72470w.webp", Width: 220, Height: 220}
+
+func (s *testSuite) TestAPlayerPostsAGifThatIsKeptAndGoesOut() {
+	in := validIn()
+	in.Account, in.Text, in.Gif = ada, "", dancing
+
+	sent, err := s.send(in)
+
+	s.Require().NoError(err)
+	s.Equal(dancing, sent.Gif)
+	s.Equal(dancing, s.kept()[0].Message.Gif)
+	s.Equal(dancing, s.published()[0].Gif)
+}
+
+func (s *testSuite) TestAGuestPostsATextButNoGif() {
+	s.authors.guests = map[messages.AccountID]bool{guest: true}
+
+	_, err := s.send(validIn())
+	s.Require().NoError(err)
+
+	in := validIn()
+	in.Text, in.Gif = "", dancing
+	_, err = s.send(in)
+
+	s.Require().ErrorIs(err, messages.ErrGuestGif)
+	s.Len(s.kept(), 1, "the GIF is not kept")
+	s.Len(s.publisher.updates, 1, "nor sent")
+}
+
 func (s *testSuite) TestNoAccountIsRefusedBeforeAnythingIsAsked() {
 	in := validIn()
 	in.Account = cpsession.NoAccount
@@ -279,6 +308,7 @@ type fakeAuthors struct {
 	mu     sync.Mutex
 	names  map[messages.AccountID]string
 	admins map[messages.AccountID]bool
+	guests map[messages.AccountID]bool
 	err    error
 	asked  []messages.AccountID
 }
@@ -290,6 +320,9 @@ func (f *fakeAuthors) Author(_ context.Context, account messages.AccountID) (mes
 	f.asked = append(f.asked, account)
 	if f.err != nil {
 		return messages.Author{}, f.err
+	}
+	if f.guests[account] {
+		return messages.GuestOf(f.names[account], 0), nil
 	}
 	return messages.AuthorOf(f.names[account], f.admins[account], 0, 0, messages.Title{}), nil
 }

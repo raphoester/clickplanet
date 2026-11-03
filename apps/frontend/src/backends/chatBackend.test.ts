@@ -13,6 +13,7 @@ import {
     Announcement,
     ChatEvent,
     ChatMessage as ChatMessagePb,
+    Gif as GifPb,
     Heartbeat,
     MessageRemoved,
     MuteRefusal,
@@ -107,6 +108,20 @@ describe("decodedMessage", () => {
 
         expect(decodedMessage(removed).removed).toBe(true)
         expect(decodedMessage(removed).replyTo?.removed).toBe(true)
+    })
+
+    it("carries a GIF, and the GIF of a quoted message", () => {
+        const gif = new GifPb({url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124})
+        const message = proto()
+        message.text = ""
+        message.gif = gif
+        message.replyTo = new Quote({messageId: "message-0", authorName: "Bo", gif})
+
+        const decoded = decodedMessage(message)
+
+        expect(decoded.gif).toEqual({url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124})
+        expect(decoded.replyTo?.gif).toEqual(decoded.gif)
+        expect(decodedMessage(proto()).gif).toBeUndefined()
     })
 
     it("carries the message a reply quotes, and none for a plain message", () => {
@@ -375,6 +390,16 @@ describe("ChatServiceBackend.sendMessage", () => {
             text: "hello",
             flagRoom: "",
         }, expect.anything())
+    })
+
+    it("sends a GIF as it was found", async () => {
+        const sendMessage = vi.fn().mockResolvedValue({message: proto()})
+        const gif = {url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124}
+
+        await new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, session(), unusedKeepalive)
+            .sendMessage({...outgoing, text: "", gif})
+
+        expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({text: "", gif}), expect.anything())
     })
 
     it("says which message it replies to", async () => {

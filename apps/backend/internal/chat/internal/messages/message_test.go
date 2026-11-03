@@ -75,3 +75,32 @@ func TestAMessageOfAnotherRoomCannotBeAnswered(t *testing.T) {
 
 	require.ErrorIs(t, err, messages.ErrNotShown)
 }
+
+func TestAnAnswerToAGifQuotesTheGif(t *testing.T) {
+	question := messages.Restored(t, messages.Snapshot{ID: "message-1", Gif: dancing})
+
+	answer, err := messages.Restored(t, messages.Snapshot{ID: "message-2", Text: "same"}).Answering(question)
+
+	require.NoError(t, err)
+	assert.Equal(t, messages.Quote{MessageID: "message-1", Gif: dancing}, answer.TakeSnapshot().Quote)
+}
+
+func TestAGuestSendsATextButNoGif(t *testing.T) {
+	guest := messages.GuestOf("guest_0b1c2d", 3)
+
+	text, err := messages.Restored(t, messages.Snapshot{ID: "message-1", Text: "hello"}).SentBy(guest)
+	require.NoError(t, err)
+	assert.Equal(t, guest, text.TakeSnapshot().Author)
+
+	_, err = messages.Restored(t, messages.Snapshot{ID: "message-2", Gif: dancing}).SentBy(guest)
+	require.ErrorIs(t, err, messages.ErrGuestGif)
+}
+
+func TestAPlayerSendsAGif(t *testing.T) {
+	ada := messages.AuthorOf("Ada_L", false, 7, 12, messages.Title{})
+
+	sent, err := messages.Restored(t, messages.Snapshot{ID: "message-1", Gif: dancing}).SentBy(ada)
+
+	require.NoError(t, err)
+	assert.Equal(t, ada, sent.TakeSnapshot().Author)
+}
