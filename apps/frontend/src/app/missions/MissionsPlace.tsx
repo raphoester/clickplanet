@@ -5,20 +5,21 @@ import BonusIcon from "../components/BonusIcon.tsx"
 import {useNow} from "../season/useNow.ts"
 import {partsOf} from "./orderParts.tsx"
 import {MissionsState} from "./useMissions.ts"
+import {useSeenMissions} from "./seenMissionsStore.ts"
 import "./Missions.css"
 
 export type MissionsPlaceProps = {
     state: MissionsState
     onSignIn?: () => void
-    onSeen?: (missions: readonly Mission[]) => void
 }
 
-export default function MissionsPlace({state, onSignIn, onSeen}: MissionsPlaceProps) {
+export default function MissionsPlace({state, onSignIn}: MissionsPlaceProps) {
     const now = useNow()
+    const markSeen = useSeenMissions((seenMissions) => seenMissions.markSeen)
 
     useEffect(() => {
-        if (state.kind === "ready") onSeen?.(state.day.missions)
-    }, [state, onSeen])
+        if (state.kind === "ready") markSeen(state.day.missions)
+    }, [state, markSeen])
 
     if (state.kind === "loading") return <p className="missions-text" role="status">Loading…</p>
     if (state.kind === "failed") return <p className="missions-text" role="alert">Your missions could not be loaded.</p>

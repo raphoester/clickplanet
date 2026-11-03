@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import {Race} from "../backends/standings.ts"
 import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx"
 import {FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts"
+import {useBoardGuide} from "./boardGuideStore.ts"
 import {Countries} from "../domain/countries.ts"
 import {TileDelta, TileDeltas} from "../domain/tileDeltas.ts"
 
@@ -21,8 +22,11 @@ const headers = (...names: string[]) => {
     for (const name of names) expect(screen.getByRole("columnheader", {name})).toBeDefined()
 }
 
+beforeEach(() => useBoardGuide.setState({guided: true}))
+
 afterEach(() => {
     cleanup()
+    localStorage.clear()
     vi.useRealTimers()
 })
 
@@ -266,16 +270,18 @@ describe("Leaderboard with the season's race", () => {
     })
 
     it("says what the points mean the first time it shows them, once", () => {
-        const onGuided = vi.fn()
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} guided={false} onGuided={onGuided}/>)
+        useBoardGuide.setState({guided: false})
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
 
         expect(screen.getByRole("status").textContent).toBe(FIGURES.points)
-        expect(onGuided).toHaveBeenCalledOnce()
+        expect(useBoardGuide.getState().guided).toBe(true)
+        expect(localStorage.getItem("clickplanet-board-guide")).toBe("points")
     })
 
     it("lets the first word on the points stay long enough to read", () => {
         vi.useFakeTimers()
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} guided={false} onGuided={vi.fn()}/>)
+        useBoardGuide.setState({guided: false})
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
 
         act(() => vi.advanceTimersByTime(GUIDE_MS - 1))
         expect(screen.getByRole("status")).toBeDefined()
@@ -284,7 +290,7 @@ describe("Leaderboard with the season's race", () => {
     })
 
     it("says nothing on its own once the player was told", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} guided onGuided={vi.fn()}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
 
         expect(screen.queryByRole("status")).toBeNull()
     })

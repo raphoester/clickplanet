@@ -37,8 +37,9 @@ itself, with nothing to press.
   (`TabBar`) and the desktop menu's tab (`Menu`, `missionsNews`), "Missions, 3 new". A mission is news
   each time it moves on a stage, drawn, then done, then paid (`stageOf`), and the badge counts the ones
   past the stage last seen (`unseen`). So a new day shows 3, and a mission paid shows 1. Showing the
-  place marks what it shows as seen (`onSeen`, `seenNow`). The mark is kept on the device, in
-  `localStorage` (`clickplanet-missions-seen`, `useSeenMissions`), with the shown day's ids alone.
+  place marks what it shows as seen (`seenNow`). The mark is kept on the device, in
+  `localStorage` (`clickplanet-missions-seen`, the store `useSeenMissions` in `seenMissionsStore.ts`),
+  with the shown day's ids alone.
 - **A mission paid has its own card**, `MissionsDone`: "Mission done", or "3 missions done" for a
   burst, then each order with its flag and the reward it paid. One card for all the missions of a read,
   never a card each; it goes by itself like a box's card (`usePassing`, 2.9 s). `usePaidMissions`

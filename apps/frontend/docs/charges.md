@@ -97,9 +97,9 @@ charge is spent. The same line is in the slot's `aria-describedby`.
   came.
 
 **What a player has learned is kept in the browser** (`clickplanet-bonus-guide`,
-`domain/bonusGuide.ts`, `useBonusGuide`): how many times each kind was switched
-on (up to `LEARNING_USES`) and which kinds it has won. `Viewer` holds the one
-copy and hands it to the inventory and the award. **The first box of each kind
+`domain/bonusGuide.ts`, the store `useBonusGuide` in `components/bonusGuideStore.ts`): how many
+times each kind was switched on (up to `LEARNING_USES`) and which kinds it has won. The inventory
+reads it and counts each use; `Viewer` reads it for the award it shows. **The first box of each kind
 stays up** until "Got it" or Escape (`BonusAward`'s `kept`): the passing award
 lasts 2.9s and a tap anywhere closes it, which in a clicking game is before the
 line under it is read. Later boxes of that kind pass as before.

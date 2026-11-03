@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {ReactNode} from "react"
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import Menu, {BoardSheet, YouPlace} from "./Menu.tsx"
@@ -10,6 +10,8 @@ import type {CountryOrder} from "../domain/race.ts"
 import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
 import {DEFAULT_DISPLAY_SETTINGS, DisplaySettings} from "../domain/displaySettings.ts"
 import {useDisplaySettings} from "./settings/displaySettingsStore.ts"
+import {useSoundSettings} from "./sound/soundSettingsStore.ts"
+import {useBoardGuide} from "./boardGuideStore.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
 import {NameColor} from "../backends/player.ts"
@@ -31,10 +33,13 @@ const RACE: Race = {
 }
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
 
+beforeEach(() => useBoardGuide.setState({guided: true}))
+
 afterEach(() => {
     cleanup()
     localStorage.clear()
     useDisplaySettings.setState(DEFAULT_DISPLAY_SETTINGS)
+    useSoundSettings.setState({settings: DEFAULT_SOUND_SETTINGS})
     vi.useRealTimers()
 })
 
@@ -652,11 +657,11 @@ describe("Menu", () => {
     describe("the settings", () => {
         const withSettings = (display: DisplaySettings = DEFAULT_DISPLAY_SETTINGS) => {
             useDisplaySettings.setState(display)
-            const onSound = vi.fn()
+            useSoundSettings.setState({settings: DEFAULT_SOUND_SETTINGS})
             const preview = vi.fn()
             const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
-                                      sound={{settings: DEFAULT_SOUND_SETTINGS, onChange: onSound, preview}}/>)
-            return {...view, onSound, preview, user: userEvent.setup()}
+                                      sound={{preview}}/>)
+            return {...view, preview, user: userEvent.setup()}
         }
         const displayed = (): DisplaySettings => {
             const {mapView, rendering} = useDisplaySettings.getState()
@@ -687,12 +692,12 @@ describe("Menu", () => {
         })
 
         it("switches a sound off without playing it", async () => {
-            const {user, onSound, preview} = withSettings()
+            const {user, preview} = withSettings()
             await user.click(tab("Settings"))
 
             await user.click(toggle("Chat message"))
 
-            expect(onSound).toHaveBeenCalledWith({
+            expect(useSoundSettings.getState().settings).toEqual({
                 ...DEFAULT_SOUND_SETTINGS,
                 sounds: {...DEFAULT_SOUND_SETTINGS.sounds, chat: false},
             })

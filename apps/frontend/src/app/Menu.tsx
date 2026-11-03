@@ -48,8 +48,6 @@ export type BoardPlaceProps = {
     race?: Race,
     countryOrder?: CountryOrder,
     onCountryOrder?: (order: CountryOrder) => void,
-    guided?: boolean,
-    onGuided?: () => void,
     hallOfFame?: HallOfFameSeasons,
 }
 
@@ -315,9 +313,7 @@ export function BoardPlace(props: BoardPlaceProps & {headless?: boolean}) {
                                    highlight={props.country}
                                    anthem={props.anthem}
                                    race={props.race}
-                                   order={props.countryOrder}
-                                   guided={props.guided}
-                                   onGuided={props.onGuided}/>
+                                   order={props.countryOrder}/>
 
     const hallOfFame = props.hallOfFame && <HallOfFameButton {...props.hallOfFame}/>
 

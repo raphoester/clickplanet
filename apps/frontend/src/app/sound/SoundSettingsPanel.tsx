@@ -1,5 +1,6 @@
 import {SoundSettings, SWITCHES, SwitchName} from "../../domain/soundSettings.ts";
 import Switch from "../components/Switch.tsx";
+import {useSoundSettings} from "./soundSettingsStore.ts";
 import "./SoundSettingsPanel.css"
 
 const LABELS: Record<SwitchName, string> = {
@@ -15,23 +16,22 @@ const LABELS: Record<SwitchName, string> = {
 }
 
 export type SoundSettingsPanelProps = {
-    settings: SoundSettings
-    onChange: (settings: SoundSettings) => void
     preview: (name: SwitchName) => void
 }
 
-export default function SoundSettingsPanel({settings, onChange, preview}: SoundSettingsPanelProps) {
+export default function SoundSettingsPanel({preview}: SoundSettingsPanelProps) {
+    const {settings, setSettings} = useSoundSettings()
     const setEnabled = (enabled: boolean) => {
-        onChange({...settings, enabled})
+        setSettings({...settings, enabled})
         if (enabled) preview("click")
     }
 
     const setSound = (name: SwitchName, on: boolean) => {
-        onChange({...settings, sounds: {...settings.sounds, [name]: on}})
+        setSettings({...settings, sounds: {...settings.sounds, [name]: on}})
         if (on) preview(name)
     }
 
-    const setAnthem = (anthem: SoundSettings["anthem"]) => onChange({...settings, anthem})
+    const setAnthem = (anthem: SoundSettings["anthem"]) => setSettings({...settings, anthem})
 
     const listClass = settings.enabled ? "switch-list panel-box" : "switch-list panel-box sound-settings-list--off"
 
