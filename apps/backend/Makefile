@@ -107,6 +107,10 @@ VPN_AZ0_URL := https://az0-vpnip-public.oooninja.com/ip.txt
 TOR_EXITS_URL := https://check.torproject.org/torbulkexitlist
 VPN_NETNAMES := MOZILLA-FIREFOX-VPN
 VPN_RDAP_SERVERS := https://rdap.db.ripe.net https://rdap.arin.net/registry
+WARP_NETNAME := CLOUDFLAREWARP
+WARP_RDAP_SERVER := https://rdap.db.ripe.net
+CLOUDFLARE_GEOFEED_URL := https://api.cloudflare.com/local-ip-ranges.csv
+PRIVATE_RELAY_URL := https://mask-api.icloud.com/egress-ip-ranges.csv
 TO_PREFIX := awk '$$1 ~ /^[0-9a-fA-F:.]+$$/ { print $$1 (index($$1, ":") ? "/128" : "/32") }'
 
 vpn-lists:
@@ -130,7 +134,15 @@ vpn-lists:
 			curl -sSf "$$server/ips?name=$$name" -o "$$tmp/rdap.json"; \
 			jq -r '.ipSearchResults[]?.cidr0_cidrs[]? | "\(.v4prefix // .v6prefix)/\(.length)"' "$$tmp/rdap.json" >> "$$tmp/netnames"; \
 		done; done; \
-		mv "$$tmp/netnames" $(VPN_LISTS_DIR)/vpn_netnames.txt
+		mv "$$tmp/netnames" $(VPN_LISTS_DIR)/vpn_netnames.txt; \
+		curl -sSf "$(WARP_RDAP_SERVER)/ips?name=$(WARP_NETNAME)" -o "$$tmp/rdap.json"; \
+		jq -r '.ipSearchResults[]?.cidr0_cidrs[]? | "\(.v4prefix // .v6prefix)/\(.length)"' "$$tmp/rdap.json" > "$$tmp/warp"; \
+		curl -sSf $(CLOUDFLARE_GEOFEED_URL) -o "$$tmp/geofeed.csv"; \
+		cut -d, -f1 "$$tmp/geofeed.csv" >> "$$tmp/warp"; \
+		curl -sSf $(PRIVATE_RELAY_URL) -o "$$tmp/relay.csv"; \
+		cut -d, -f1 "$$tmp/relay.csv" > "$$tmp/relay"; \
+		go run ./cmd/prefixdiff -keep "$$tmp/warp" -remove "$$tmp/relay" > "$$tmp/cloudflare_warp"; \
+		mv "$$tmp/cloudflare_warp" $(VPN_LISTS_DIR)/cloudflare_warp.txt
 	@wc -l $(VPN_LISTS_DIR)/*.txt
 
 DISPOSABLE_DOMAINS_URL := https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/main/disposable_email_blocklist.conf

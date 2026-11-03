@@ -58,7 +58,8 @@ and says what is in it. Read the doc before you change its area.
 - [Map geography](docs/map-geography.md) — tile adjacency from the shared map blob, checked at boot.
 - [Rate limiting](docs/rate-limiting.md) — two buckets per click, what the answer says is left, and a big country
   refills slower.
-- [VPN blocklist](docs/vpn-blocklist.md) — `Click` refused from vendored VPN ranges, before the rate limiter.
+- [VPN blocklist](docs/vpn-blocklist.md) — `Click` refused from vendored VPN and Cloudflare WARP ranges, before the
+  rate limiter; what it costs iCloud Private Relay; `cmd/prefixdiff`.
 - [Allegiance](docs/allegiance.md) — an account plays for one flag, and may change it once an hour; a battle's rule
   set locks it.
 - [Rules](docs/rules.md) — every game rule, in rule sets kept in postgres; `default` holds every value, another set only
