@@ -11,7 +11,7 @@ afterEach(() => {
 describe("UnderAttack", () => {
     it("says the flag is under attack and connects Discord when pressed", () => {
         const connect = vi.fn(async () => undefined)
-        render(<UnderAttack flag="fr" connect={connect} onDone={vi.fn()}/>)
+        render(<UnderAttack flag="fr" connect={connect} goThere={vi.fn()} onDone={vi.fn()}/>)
 
         expect(screen.getByRole("status").textContent).toContain("France is under attack")
         const ping = screen.getByRole("button", {name: "Join Discord and get pinged when France is attacked"})
@@ -21,10 +21,25 @@ describe("UnderAttack", () => {
         expect(connect).toHaveBeenCalledTimes(1)
     })
 
+    it("flies to the attack when pressed", () => {
+        const goThere = vi.fn()
+        render(<UnderAttack flag="fr" connect={vi.fn(async () => undefined)} goThere={goThere} onDone={vi.fn()}/>)
+
+        fireEvent.click(screen.getByRole("button", {name: "Go there"}))
+
+        expect(goThere).toHaveBeenCalledTimes(1)
+    })
+
+    it("offers no ping without the Discord sign-in", () => {
+        render(<UnderAttack flag="fr" goThere={vi.fn()} onDone={vi.fn()}/>)
+
+        expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual(["Go there"])
+    })
+
     it("goes away on its own", () => {
         vi.useFakeTimers()
         const onDone = vi.fn()
-        render(<UnderAttack flag="fr" connect={vi.fn(async () => undefined)} onDone={onDone}/>)
+        render(<UnderAttack flag="fr" connect={vi.fn(async () => undefined)} goThere={vi.fn()} onDone={onDone}/>)
 
         act(() => void vi.advanceTimersByTime(UNDER_ATTACK_MS))
 

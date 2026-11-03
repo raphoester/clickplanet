@@ -310,6 +310,7 @@ export default function Viewer(props: ViewerProps) {
         pointingTerritory,
         territoryOf,
         showTerritory,
+        flyToLastLoss,
     } = useGlobe({
         container,
         linkedShot: props.linkedShot,
@@ -348,7 +349,7 @@ export default function Viewer(props: ViewerProps) {
         const timer = setTimeout(() => setFortifyCard(lastFortified.fortified), FORTIFY_CARD_DELAY_MS)
         return () => clearTimeout(timer)
     }, [lastFortified, fortifyGuide.seen])
-    const underAttack = useUnderAttack(discord.connect !== undefined, countryState.code, tileDeltas, accepted.listenForClicks)
+    const underAttack = useUnderAttack(countryState.code, tileDeltas, accepted.listenForClicks)
     // Moments show one at a time: the newest of them.
     const newest = [lastBomb, lastFortified, lastClose, underAttack.moment].reduce<{at: number} | undefined>(
         (latest, moment) => moment && (!latest || moment.at > latest.at) ? moment : latest, undefined)
@@ -733,10 +734,11 @@ export default function Viewer(props: ViewerProps) {
             onDone={dismissBomb}
         />}
 
-        {underAttack.moment && newest === underAttack.moment && discord.connect && <UnderAttack
+        {underAttack.moment && newest === underAttack.moment && <UnderAttack
             key={`attack-${underAttack.moment.at}`}
             flag={countryState.code}
             connect={discord.connect}
+            goThere={flyToLastLoss}
             lowered={quiz.state.phase !== 'idle'}
             onDone={underAttack.dismiss}
         />}

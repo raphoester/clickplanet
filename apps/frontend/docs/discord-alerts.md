@@ -39,10 +39,15 @@ sign-in; `serverUrl` once it is in; neither otherwise. Any failure of the read i
   - **In the server**: "Open Discord", the server's `#alerts` page.
   - **Nothing offered** (the alerts off, a failed read, no Discord sign-in, CrazyGames): "Join Discord", the plain
     invite (`DISCORD_INVITE`).
-- **A moment when the flag is under attack** (`UnderAttack`, `useUnderAttack`): "France is under attack" and "Get
-  pinged", the same sign-in, for 8 s, in the Moments zone. **Once a page**, the first time the flag the player took a
-  tile for in this page loses ground on the board (its badge in `tileDeltas` goes below 0), and only while `connect` is
-  offered. A player who has not taken a tile sees nothing: a first visit would see it before it played.
+- **A moment when the flag is under attack** (`UnderAttack`, `useUnderAttack`): "France is under attack" and "Go
+  there", for 8 s, in the Moments zone, and "Get pinged", the same sign-in, only while `connect` is offered: an account
+  in the server, CrazyGames or a page with nothing offered sees no Discord button. **Once a page**, the first time the
+  flag the player took a tile for in this page loses ground on the board (its badge in `tileDeltas` goes below 0). A
+  player who has not taken a tile sees nothing: a first visit would see it before it played.
+- **"Go there" flies the camera to the flag's last tile lost** (`Globe.flyToLastLoss`), down to tiles of 28px as the
+  flight to the front does (see [The front, for a first visit](front-guide.md)). The tile is the last one an update took
+  from the flag, a bomb cleared or a ghost took (see [Ghosts](ghosts.md)); the globe forgets it when the player plays
+  another flag. The moment stays up until its 8 s end, so "Get pinged" is still there when it is offered.
 - **Not on CrazyGames**: the trip leaves its frame and comes back on clickplanet.lol, where its carried session is
   not; and CrazyGames allows no sign-in but its own.
 

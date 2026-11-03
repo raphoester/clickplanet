@@ -10,7 +10,6 @@ export type UnderAttack = {
 
 // Once a page: the first time the flag the player took tiles for loses ground on the board.
 export function useUnderAttack(
-    armed: boolean,
     flag: string,
     deltas: TileDeltas,
     listenForClicks: ListenForClicks | undefined,
@@ -21,11 +20,11 @@ export function useUnderAttack(
     const [moment, setMoment] = useState<{at: number}>()
 
     useEffect(() => {
-        if (shown.current || !armed || !playing) return
+        if (shown.current || !playing) return
         if ((deltas.get(flag)?.net ?? 0) >= 0) return
         shown.current = true
         setMoment({at: Date.now()})
-    }, [armed, playing, deltas, flag])
+    }, [playing, deltas, flag])
 
     const dismiss = useCallback(() => setMoment(undefined), [])
 

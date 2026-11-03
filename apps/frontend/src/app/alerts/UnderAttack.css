@@ -18,6 +18,10 @@
     white-space: normal;
 }
 
+.under-attack-go {
+    pointer-events: auto;
+}
+
 .under-attack-ping {
     pointer-events: auto;
     background: var(--discord);
