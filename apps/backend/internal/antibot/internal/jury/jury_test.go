@@ -188,20 +188,51 @@ func TestZealStillCrossesAnotherWatchdog(t *testing.T) {
 	require.Len(t, h.reports, 1)
 }
 
-func TestAReadingOfTurnsNeverCounts(t *testing.T) {
+func TestASuspectReadingOfTurnsCountsForNothing(t *testing.T) {
 	turns := &stubWatchdog{name: "turns", verdict: detect.Suspect, turns: true}
 	h := newHarness(t, juryRules(), banRules(), turns, &stubWatchdog{name: "cadence", verdict: detect.Suspect})
 
-	assert.False(t, h.click(), "a person takes turns to beat the rate limit")
-
-	turns.verdict = detect.Certain
-	assert.False(t, h.click(), "at any level")
+	assert.False(t, h.click(), "beside a cadence at its bound it banned children")
 	assert.Empty(t, h.reports)
 
 	examination := h.jury.Examine("caller", "")
-	assert.Equal(t, "certain", examination.Readings[0].Level, "it still reads")
+	assert.Equal(t, "suspect", examination.Readings[0].Level, "it still reads")
 	assert.Equal(t, 1, examination.Suspects)
 	assert.False(t, examination.Guilty)
+}
+
+func TestACertainReadingOfTurnsBansTheRingAndNoNetwork(t *testing.T) {
+	turns := &stubWatchdog{name: "turns", verdict: detect.Certain, turns: true, accomplices: []detect.Accomplice{{Account: "tab", Scope: "vpn"}}}
+	h := newHarness(t, juryRules(), banRules(), turns, &stubWatchdog{name: "quiet", verdict: detect.Clear})
+
+	require.True(t, h.inspect(detect.Click{Scope: "school", Account: "guest", Tile: 1, Country: "FR", At: h.clock.Now()}))
+	assert.Equal(t, []banned{{account: "guest"}, {account: "tab", alongside: "guest"}}, h.banned())
+
+	examination := h.jury.Examine("school", "")
+	assert.Equal(t, 0, examination.Suspects, "turns are never a suspect")
+	assert.True(t, examination.Guilty)
+
+	turns.verdict, turns.accomplices = detect.Clear, nil
+	h.clock.Advance(time.Second)
+
+	assert.True(t, h.inspect(detect.Click{Scope: "elsewhere", Account: "tab", Tile: 1, Country: "FR", At: h.clock.Now()}))
+	assert.False(t, h.inspect(detect.Click{Scope: "school", Account: "student", Tile: 1, Country: "FR", At: h.clock.Now()}),
+		"turns name accounts, so the school behind a guest still plays")
+	assert.False(t, h.inspect(detect.Click{Scope: "vpn", Account: "stranger", Tile: 1, Country: "FR", At: h.clock.Now()}),
+		"and so does a VPN's exit")
+}
+
+func TestTurnsBesideAnotherCertainWatchdogBanAGuestsNetworkToo(t *testing.T) {
+	h := newHarness(t, juryRules(), banRules(),
+		&stubWatchdog{name: "turns", verdict: detect.Certain, turns: true, accomplices: []detect.Accomplice{{Account: "tab", Scope: "home"}}},
+		&stubWatchdog{name: "sure", verdict: detect.Certain},
+	)
+
+	require.True(t, h.inspect(detect.Click{Scope: "home", Account: "guest", Tile: 1, Country: "FR", At: h.clock.Now()}))
+
+	_, scopeBanned, err := h.banner.EnforcedSentence(t.Context(), bans.Caller{Scope: "home"})
+	require.NoError(t, err)
+	assert.True(t, scopeBanned, "a guest guilty on its own sheds its cookie, as any guest")
 }
 
 func TestMinSuspectsIsWhereTheLineIs(t *testing.T) {
@@ -648,7 +679,7 @@ func TestAnAccompliceAlreadyFlaggedIsNotReportedAgain(t *testing.T) {
 }
 
 func TestAGuestAccompliceTakesItsScopeWithIt(t *testing.T) {
-	ring := &stubWatchdog{name: "ring", verdict: detect.Certain, accomplices: []detect.Accomplice{{Account: "tab"}}}
+	ring := &stubWatchdog{name: "ring", verdict: detect.Certain, accomplices: []detect.Accomplice{{Account: "tab", Scope: "phone"}}}
 	h := newHarness(t, juryRules(), banRules(), ring)
 
 	require.True(t, h.inspect(detect.Click{Scope: "home", Account: "account", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()}))
@@ -656,8 +687,10 @@ func TestAGuestAccompliceTakesItsScopeWithIt(t *testing.T) {
 	ring.verdict, ring.accomplices = detect.Clear, nil
 	h.clock.Advance(time.Second)
 
-	assert.True(t, h.inspect(detect.Click{Scope: "home", Account: "fresh-cookie", Tile: 1, Country: "FR", At: h.clock.Now()}),
-		"a guest sheds its account with a new cookie, so its ban falls on its scope too")
+	assert.True(t, h.inspect(detect.Click{Scope: "phone", Account: "fresh-cookie", Tile: 1, Country: "FR", At: h.clock.Now()}),
+		"a guest sheds its account with a new cookie, so its ban falls on the scope it clicked from")
+	assert.False(t, h.inspect(detect.Click{Scope: "home", Account: "fresh-cookie", Tile: 1, Country: "FR", At: h.clock.Now()}),
+		"and not on its partner's")
 }
 
 func TestAFlagThatCannotBeKeptIsReported(t *testing.T) {

@@ -196,5 +196,7 @@ message RotatorRules {
   optional double max_share = 5;
   // Zero never reads.
   optional uint32 min_slots = 6;
+  // Zero never reads; certain needs both.
   optional uint32 certain_slots = 7;
+  optional double certain_by_chance = 8;
 }

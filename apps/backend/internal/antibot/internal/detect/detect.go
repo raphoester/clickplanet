@@ -75,6 +75,9 @@ type Evidence struct {
 type Accomplice struct {
 	Account  string
 	SignedIn bool
+
+	// Where it clicked last, which its ban falls on when it is a guest.
+	Scope string
 }
 
 type Watchdog interface {

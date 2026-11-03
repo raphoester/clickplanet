@@ -24,8 +24,9 @@ type Rules struct {
 	MinByChance float64
 	MaxShare    float64
 
-	MinSlots     int
-	CertainSlots int
+	MinSlots        int
+	CertainSlots    int
+	CertainByChance float64
 }
 
 func (r Rules) Validate() error {
@@ -37,6 +38,7 @@ func (r Rules) Validate() error {
 		detect.Share("maxShare", r.MaxShare),
 		detect.NotNegative("minSlots", r.MinSlots),
 		detect.NotNegative("certainSlots", r.CertainSlots),
+		detect.AtLeast("certainByChance", r.CertainByChance, "minByChance", r.MinByChance),
 	)
 }
 
@@ -69,12 +71,12 @@ func New(config Config, rules func() Rules, clock cptime.Clock, onShare func(sha
 	config = config.withDefaults()
 
 	return &Watchdog{
-		config:  config,
-		rules:   rules,
-		clock:   clock,
-		onShare: onShare,
-		span:    int64(config.Slot / time.Second),
-		scopes:  make(map[scopeID]*network),
+		config:   config,
+		rules:    rules,
+		clock:    clock,
+		onShare:  onShare,
+		span:     int64(config.Slot / time.Second),
+		accounts: make(map[accountID]*account),
 	}
 }
 
@@ -85,27 +87,23 @@ type Watchdog struct {
 	onShare func(float64)
 	span    int64
 
-	mu      sync.Mutex
-	scopes  map[scopeID]*network
-	sweptAt time.Time
+	mu       sync.Mutex
+	accounts map[accountID]*account
+	sweptAt  time.Time
 }
 
 var _ detect.Watchdog = (*Watchdog)(nil)
 
 type (
-	scopeID   string
 	accountID string
 	slot      int64
 )
 
-type network struct {
-	accounts map[accountID]*account
-	last     time.Time
-}
-
 type account struct {
 	id        accountID
 	signedIn  bool
+	scope     string
+	last      time.Time
 	countries map[string]int
 	slots     map[slot]marks
 
@@ -138,26 +136,20 @@ func (w *Watchdog) Attempted(click detect.Click) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	n, ok := w.scopes[scopeID(click.Scope)]
-	if !ok {
-		n = &network{accounts: make(map[accountID]*account)}
-		w.scopes[scopeID(click.Scope)] = n
-	}
-	if click.At.After(n.last) {
-		n.last = click.At
-	}
-
-	a, ok := n.accounts[accountID(click.Account)]
+	a, ok := w.accounts[accountID(click.Account)]
 	if !ok {
 		a = &account{
 			id:        accountID(click.Account),
 			countries: make(map[string]int),
 			slots:     make(map[slot]marks),
 		}
-		n.accounts[a.id] = a
+		w.accounts[a.id] = a
 	}
 
 	a.signedIn = click.SignedIn
+	if !click.At.Before(a.last) {
+		a.scope, a.last = click.Scope, click.At
+	}
 	if _, known := a.countries[click.Country]; known || len(a.countries) < maxTrackedCountries {
 		a.countries[click.Country]++
 	}
@@ -183,18 +175,14 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	n, ok := w.scopes[scopeID(click.Scope)]
-	if !ok {
-		return detect.Clear, detect.Evidence{}
-	}
-	a, ok := n.accounts[accountID(click.Account)]
+	a, ok := w.accounts[accountID(click.Account)]
 	if !ok {
 		return detect.Clear, detect.Evidence{}
 	}
 
 	if a.judgedAt.IsZero() || click.At.Sub(a.judgedAt) >= rejudgeAfter {
 		a.judgedAt = click.At
-		a.verdict, a.evidence = w.judgeLocked(n, a, click.At, rules)
+		a.verdict, a.evidence = w.judgeLocked(a, click.At, rules)
 	}
 
 	return a.verdict, a.evidence
@@ -204,17 +192,18 @@ func (w *Watchdog) slotOf(at time.Time) slot { return slot(at.Unix() / w.span) }
 
 func (w *Watchdog) words() int { return int((w.span + 63) / 64) }
 
-func (w *Watchdog) judgeLocked(n *network, a *account, now time.Time, rules Rules) (detect.Verdict, detect.Evidence) {
+// The ring is the partners at the reading's level: a certain reading names no account it only suspects.
+func (w *Watchdog) judgeLocked(a *account, now time.Time, rules Rules) (detect.Verdict, detect.Evidence) {
 	from := w.slotOf(now.Add(-rules.Window))
 
 	verdict := detect.Clear
-	ring := []*account{a}
-	for _, b := range n.accounts {
+	var partners [detect.Certain + 1][]*account
+	for _, b := range w.accounts {
 		if b == a || !paired(a, b) {
 			continue
 		}
 		if level := rules.level(w.sharingOf(from, rules.MinSeconds, a, b)); level > detect.Clear {
-			ring = append(ring, b)
+			partners[level] = append(partners[level], b)
 			verdict = max(verdict, level)
 		}
 	}
@@ -223,14 +212,15 @@ func (w *Watchdog) judgeLocked(n *network, a *account, now time.Time, rules Rule
 		return detect.Clear, detect.Evidence{}
 	}
 
-	partners := ring[1:]
-	sort.Slice(partners, func(i, j int) bool { return partners[i].id < partners[j].id })
+	ring := partners[verdict]
+	sort.Slice(ring, func(i, j int) bool { return ring[i].id < ring[j].id })
 
-	accomplices := make([]detect.Accomplice, 0, len(partners))
-	for _, partner := range partners {
-		accomplices = append(accomplices, detect.Accomplice{Account: string(partner.id), SignedIn: partner.signedIn})
+	accomplices := make([]detect.Accomplice, 0, len(ring))
+	for _, partner := range ring {
+		accomplices = append(accomplices, detect.Accomplice{Account: string(partner.id), SignedIn: partner.signedIn, Scope: partner.scope})
 	}
 
+	ring = append([]*account{a}, ring...)
 	together := w.sharingOf(from, rules.MinSeconds, ring...)
 
 	return verdict, detect.Evidence{
@@ -247,7 +237,7 @@ func (w *Watchdog) judgeLocked(n *network, a *account, now time.Time, rules Rule
 	}
 }
 
-// Two guests on one scope spend from one bank: taking turns buys them nothing.
+// Two guests on one scope spend from one bank, and anywhere a guest is shed with its cookie.
 func paired(a, b *account) bool {
 	if !a.signedIn && !b.signedIn {
 		return false
@@ -344,7 +334,7 @@ func (r Rules) level(s sharing) detect.Verdict {
 	}
 
 	switch {
-	case r.CertainSlots > 0 && s.slots >= r.CertainSlots:
+	case r.CertainSlots > 0 && s.slots >= r.CertainSlots && s.byChance >= r.CertainByChance:
 		return detect.Certain
 	case r.MinSlots > 0 && s.slots >= r.MinSlots:
 		return detect.Suspect
@@ -372,16 +362,10 @@ func (w *Watchdog) sweep() {
 	rules := w.rules()
 	from := w.slotOf(now.Add(-rules.Window))
 
-	var shares []float64
-
 	w.mu.Lock()
 
 	w.forgetLocked(from)
-	for _, n := range w.scopes {
-		if n.last.After(w.sweptAt) {
-			shares = append(shares, w.sharesLocked(n, from, rules)...)
-		}
-	}
+	shares := w.sharesLocked(from, rules)
 	w.sweptAt = now
 
 	w.mu.Unlock()
@@ -391,12 +375,12 @@ func (w *Watchdog) sweep() {
 	}
 }
 
-func (w *Watchdog) sharesLocked(n *network, from slot, rules Rules) []float64 {
+func (w *Watchdog) sharesLocked(from slot, rules Rules) []float64 {
 	var shares []float64
 
-	for _, a := range n.accounts {
-		for _, b := range n.accounts {
-			if a.id >= b.id || !paired(a, b) {
+	for _, a := range w.accounts {
+		for _, b := range w.accounts {
+			if a.id >= b.id || (!a.last.After(w.sweptAt) && !b.last.After(w.sweptAt)) || !paired(a, b) {
 				continue
 			}
 			if together := w.sharingOf(from, rules.MinSeconds, a, b); rules.readable(together) {
@@ -409,19 +393,14 @@ func (w *Watchdog) sharesLocked(n *network, from slot, rules Rules) []float64 {
 }
 
 func (w *Watchdog) forgetLocked(from slot) {
-	for scope, n := range w.scopes {
-		for id, a := range n.accounts {
-			for at := range a.slots {
-				if at < from {
-					delete(a.slots, at)
-				}
-			}
-			if len(a.slots) == 0 {
-				delete(n.accounts, id)
+	for id, a := range w.accounts {
+		for at := range a.slots {
+			if at < from {
+				delete(a.slots, at)
 			}
 		}
-		if len(n.accounts) == 0 {
-			delete(w.scopes, scope)
+		if len(a.slots) == 0 {
+			delete(w.accounts, id)
 		}
 	}
 }

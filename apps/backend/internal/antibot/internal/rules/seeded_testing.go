@@ -12,7 +12,7 @@ import (
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 )
 
-// Seeded is the set the migration keeps as default: production's rules on 26 October 2026.
+// Seeded is the set the migrations keep as default: production's rules on 26 October 2026, and the rotator's certain level of 3 November.
 func Seeded() Snapshot {
 	d := durationpb.New
 	return Snapshot{
@@ -100,13 +100,14 @@ func Seeded() Snapshot {
 				CertainShare: proto.Float64(0),
 			},
 			Rotator: &antibotv1.RotatorRules{
-				Enabled:      proto.Bool(true),
-				Window:       d(24 * time.Hour),
-				MinSeconds:   proto.Uint32(15),
-				MinByChance:  proto.Float64(90),
-				MaxShare:     proto.Float64(0.05),
-				MinSlots:     proto.Uint32(24),
-				CertainSlots: proto.Uint32(0),
+				Enabled:         proto.Bool(true),
+				Window:          d(24 * time.Hour),
+				MinSeconds:      proto.Uint32(15),
+				MinByChance:     proto.Float64(90),
+				MaxShare:        proto.Float64(0.05),
+				MinSlots:        proto.Uint32(24),
+				CertainSlots:    proto.Uint32(48),
+				CertainByChance: proto.Float64(300),
 			},
 		},
 	}
