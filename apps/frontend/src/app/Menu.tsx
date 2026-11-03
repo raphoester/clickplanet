@@ -31,10 +31,8 @@ import Sheet from "./hud/Sheet.tsx"
 import {ListenForClicks} from "./viewer/acceptedClicks.ts"
 import {useNow} from "./season/useNow.ts"
 import {HallOfFameButton, HallOfFameSeasons} from "./season/HallOfFame.tsx"
+import {MenuTab, useScreen} from "./hud/screenStore.ts"
 import "./Menu.css"
-
-// "you" is a phone sheet only: on a desktop the rail opens the profile as a modal.
-export type MenuTab = "board" | "missions" | "you" | "share" | "invite" | "settings"
 
 export type BoardPlaceProps = {
     country: Country,
@@ -63,8 +61,6 @@ export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & O
     missions?: MissionsPlaceProps,
     missionsNews?: number,
     invite?: InviteLink,
-    tab?: MenuTab,
-    onTab?: (tab: MenuTab) => void,
 }
 
 const OPEN_KEY = "clickplanet-menu-open"
@@ -72,9 +68,8 @@ const OPEN_KEY = "clickplanet-menu-open"
 type Place = {id: MenuTab, label: string, title: string, icon: ReactNode, news?: number}
 
 export default function Menu(props: MenuProps) {
-    const [ownTab, setOwnTab] = useState<MenuTab>("board")
-    const tab = props.tab ?? ownTab
-    const setTab = (next: MenuTab) => props.onTab ? props.onTab(next) : setOwnTab(next)
+    const tab = useScreen((screen) => screen.menuTab)
+    const setTab = useScreen((screen) => screen.setMenuTab)
     const account = useAccount(props.account)
     const tabsId = useId()
     const panelId = useId()

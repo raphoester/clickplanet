@@ -5,6 +5,7 @@ import ClickBudgetMeter from './ClickBudgetMeter.tsx'
 import {ClickBudget} from "../../backends/clickBudget.ts"
 import {Countries} from "../../domain/countries.ts"
 import {DISCORD_INVITE} from "../../links.ts"
+import {useScreen} from "../hud/screenStore.ts"
 
 vi.mock("../share/deliverShare.ts", async (original) => ({
     ...await original<typeof import("../share/deliverShare.ts")>(),
@@ -18,7 +19,10 @@ const deliver = vi.mocked(deliverLink)
 
 const FRANCE = Countries.get("fr")!
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    useScreen.setState(useScreen.getInitialState(), true)
+})
 
 function reading(overrides: Partial<ClickBudget> = {}): ClickBudget {
     return {tokens: 4, capacity: 10, perSecond: 1, readAt: performance.now(), ...overrides}
@@ -308,30 +312,31 @@ describe("ClickBudgetMeter's dock", () => {
 
 describe("ClickBudgetMeter and your clicks", () => {
     it("opens them from the reading", () => {
-        const onToggleOpen = vi.fn()
-        render(<ClickBudgetMeter budget={reading()} onToggleOpen={onToggleOpen}/>)
+        render(<ClickBudgetMeter budget={reading()} popover={<p>steps</p>}/>)
 
         const open = screen.getByRole("button", {name: "Your clicks"})
         expect(open.getAttribute("aria-expanded")).toBe("false")
         expect(meter().contains(open)).toBe(false)
 
         fireEvent.click(open)
-        expect(onToggleOpen).toHaveBeenCalledTimes(1)
+        expect(useScreen.getState().popovers.clicks).toBe(true)
     })
 
     it("shows them over the dock on a desktop, and closes them on Escape", () => {
-        const onToggleOpen = vi.fn()
-        render(<ClickBudgetMeter budget={reading()} open onToggleOpen={onToggleOpen} popover={<p>steps</p>}/>)
+        useScreen.setState({popovers: {season: false, battle: false, clicks: true}})
+        render(<ClickBudgetMeter budget={reading()} popover={<p>steps</p>}/>)
 
         expect(screen.getByText("steps")).toBeTruthy()
         expect(screen.getByRole("button", {name: "Your clicks"}).getAttribute("aria-expanded")).toBe("true")
 
         fireEvent.keyDown(document, {key: "Escape"})
-        expect(onToggleOpen).toHaveBeenCalledTimes(1)
+        expect(screen.queryByText("steps")).toBeNull()
+        expect(useScreen.getState().popovers.clicks).toBe(false)
     })
 
     it("leaves them to a sheet on a phone", () => {
-        render(<ClickBudgetMeter compact budget={reading()} open onToggleOpen={vi.fn()} popover={<p>steps</p>}/>)
+        useScreen.setState({sheet: "clicks"})
+        render(<ClickBudgetMeter compact budget={reading()} popover={<p>steps</p>}/>)
 
         expect(screen.queryByText("steps")).toBeNull()
     })

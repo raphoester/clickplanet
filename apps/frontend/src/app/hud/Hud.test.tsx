@@ -5,57 +5,58 @@ import Sheet from "./Sheet.tsx"
 import TabBar from "./TabBar.tsx"
 import StatusBar, {STATUS_BOTTOM} from "./StatusBar.tsx"
 import MenuPanel from "../components/MenuPanel.tsx"
+import {useScreen} from "./screenStore.ts"
 import {Countries} from "../../domain/countries.ts"
 
 afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    useScreen.setState(useScreen.getInitialState(), true)
 })
 
 describe("TabBar", () => {
     it("offers the board, the chat, the account, Share and the settings, in that order", () => {
-        render(<TabBar onOpen={vi.fn()} chat unread={0} you="player"/>)
+        render(<TabBar chat unread={0} you="player"/>)
         expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Chat", "You", "Share", "Settings"])
     })
 
     it("invites in place of Share on CrazyGames", () => {
-        const onOpen = vi.fn()
-        render(<TabBar onOpen={onOpen} chat unread={0} invite/>)
+        render(<TabBar chat unread={0} invite/>)
         expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Chat", "Invite", "Settings"])
 
         fireEvent.click(screen.getByRole("button", {name: "Invite"}))
-        expect(onOpen).toHaveBeenCalledWith("invite")
+        expect(useScreen.getState().sheet).toBe("invite")
     })
 
     it("names the account Sign in for a guest", () => {
-        render(<TabBar onOpen={vi.fn()} chat unread={0} you="guest"/>)
+        render(<TabBar chat unread={0} you="guest"/>)
         expect(screen.getByRole("button", {name: "Sign in"})).toBeDefined()
     })
 
     it("leaves out what is not wired", () => {
-        render(<TabBar onOpen={vi.fn()} chat={false} unread={0}/>)
+        render(<TabBar chat={false} unread={0}/>)
         expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Share", "Settings"])
     })
 
     it("counts what the chat missed", () => {
-        render(<TabBar onOpen={vi.fn()} chat unread={3}/>)
+        render(<TabBar chat unread={3}/>)
         expect(screen.getByRole("button", {name: "Chat, 3 new messages"}).textContent).toBe("Chat3")
     })
 
     it("counts the missions not seen yet", () => {
-        render(<TabBar onOpen={vi.fn()} chat unread={0} missions={3}/>)
+        render(<TabBar chat unread={0} missions={3}/>)
         expect(screen.getByRole("button", {name: "Missions, 3 new"}).textContent).toBe("Missions3")
     })
 
     it("says which sheet is open, and opens the one pressed", () => {
-        const onOpen = vi.fn()
-        render(<TabBar open="board" onOpen={onOpen} chat unread={0}/>)
+        useScreen.setState({sheet: "board"})
+        render(<TabBar chat unread={0}/>)
 
         expect(screen.getByRole("button", {name: "Board"}).getAttribute("aria-expanded")).toBe("true")
         expect(screen.getByRole("button", {name: "Share"}).getAttribute("aria-expanded")).toBe("false")
 
         fireEvent.click(screen.getByRole("button", {name: "Share"}))
-        expect(onOpen).toHaveBeenCalledWith("share")
+        expect(useScreen.getState().sheet).toBe("share")
     })
 })
 
@@ -95,22 +96,21 @@ describe("StatusBar", () => {
     const france = Countries.get("fr")!
 
     it("names the country and its rank, and opens the board", () => {
-        const onOpenBoard = vi.fn()
-        render(<StatusBar country={france} rank={3} boardOpen={false} onOpenBoard={onOpenBoard}/>)
+        render(<StatusBar country={france} rank={3}/>)
 
         fireEvent.click(screen.getByRole("button", {name: "France, rank 3. Leaderboard"}))
-        expect(onOpenBoard).toHaveBeenCalledTimes(1)
+        expect(useScreen.getState().sheet).toBe("board")
     })
 
     it("says when the country has no rank yet", () => {
-        render(<StatusBar country={france} rank={null} boardOpen={false} onOpenBoard={vi.fn()}/>)
+        render(<StatusBar country={france} rank={null}/>)
         expect(screen.getByRole("button", {name: "France, no rank yet. Leaderboard"})).toBeDefined()
     })
 
     it("tells the moments at the top where it ends", () => {
         vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 390, 62))
 
-        const {unmount} = render(<StatusBar country={france} rank={1} boardOpen={false} onOpenBoard={vi.fn()}/>)
+        const {unmount} = render(<StatusBar country={france} rank={1}/>)
         expect(document.documentElement.style.getPropertyValue(STATUS_BOTTOM)).toBe("62px")
 
         unmount()

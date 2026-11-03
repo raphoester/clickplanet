@@ -5,6 +5,7 @@ import {Finale} from "../../domain/battle.ts"
 import SeasonChip, {ChampionChip, SeasonDetails} from "./SeasonChip.tsx"
 import {TURN_MS} from "./useRotation.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
+import {useScreen} from "../hud/screenStore.ts"
 
 const SECOND = 1000
 const MINUTE = 60 * SECOND
@@ -26,12 +27,13 @@ afterEach(() => {
     cleanup()
     vi.useRealTimers()
     vi.restoreAllMocks()
+    useScreen.setState(useScreen.getInitialState(), true)
 })
 
 describe("SeasonChip", () => {
     it("counts down to today's cutoff, at the time of day the last day ends", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
-        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false} open={false} onToggle={vi.fn()}/>)
+        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false}/>)
 
         expect(screen.getByRole("region", {name: "Season 0"})).toBeDefined()
         expect(shownFace()).toEqual(["Today ends in", "12h 00m 00s"])
@@ -41,7 +43,7 @@ describe("SeasonChip", () => {
     it("turns to the next battle's countdown between today's and the season's", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
         const nextBattle = {entryId: "rush", startsAt: Date.now() + DAY, endsAt: Date.now() + DAY + 2 * HOUR, description: "", times: 3, endsSeason: false, roundId: "rush"}
-        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} nextBattle={nextBattle} compact={false} open={false} onToggle={vi.fn()}/>)
+        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} nextBattle={nextBattle} compact={false}/>)
 
         turn()
         expect(shownFace()).toEqual(["Next battle in", "23h 59m 54s"])
@@ -51,7 +53,7 @@ describe("SeasonChip", () => {
 
     it("ticks down every second", () => {
         vi.useFakeTimers({now: lastDayEndsAt - 3 * DAY - (2 * HOUR + 52 * MINUTE + 10 * SECOND)})
-        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false} open={false} onToggle={vi.fn()}/>)
+        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false}/>)
         expect(shownFace()).toEqual(["Today ends in", "2h 52m 10s"])
 
         act(() => vi.advanceTimersByTime(SECOND))
@@ -60,7 +62,7 @@ describe("SeasonChip", () => {
 
     it("turns to the season's countdown, then back to today's", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
-        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false} open={false} onToggle={vi.fn()}/>)
+        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false}/>)
 
         act(() => vi.advanceTimersByTime(TURN_MS - SECOND))
         expect(shownFace()).toEqual(["Today ends in", "11h 59m 55s"])
@@ -74,7 +76,7 @@ describe("SeasonChip", () => {
 
     it("names both countdowns, and no live region, so a screen reader needs no turn", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
-        const {container} = render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false} open={false} onToggle={vi.fn()}/>)
+        const {container} = render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false}/>)
 
         const name = "Today ends in 12h 00m 00s, Season ends in 27d 14h 00m 00s"
         expect(screen.getByRole("button", {name})).toBeDefined()
@@ -87,7 +89,7 @@ describe("SeasonChip", () => {
 
     it("holds still while the mouse is over it", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
-        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false} open={false} onToggle={vi.fn()}/>)
+        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false}/>)
 
         fireEvent.mouseEnter(screen.getByRole("region", {name: "Season 0"}))
         turn()
@@ -101,7 +103,7 @@ describe("SeasonChip", () => {
 
     it("holds still while it has focus", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
-        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false} open={false} onToggle={vi.fn()}/>)
+        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false}/>)
         const chip = screen.getByRole("button", {name: /Today ends in/})
 
         act(() => chip.focus())
@@ -115,7 +117,7 @@ describe("SeasonChip", () => {
 
     it("counts the season alone once its last day ended, and does not turn", () => {
         vi.useFakeTimers({now: endsAt - HOUR - 12 * MINUTE})
-        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false} open={false} onToggle={vi.fn()}/>)
+        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false}/>)
 
         expect(screen.getByRole("region", {name: "Season 0"})).toBeDefined()
         expect(screen.getByRole("button", {name: "Season ends in 1h 12m 00s"})).toBeDefined()
@@ -128,27 +130,23 @@ describe("SeasonChip", () => {
 
     it("opens on what a season is, and promises no battle", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY})
-        const onToggle = vi.fn()
-        const {rerender} = render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false} open={false} onToggle={onToggle}/>)
+        render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false}/>)
 
         fireEvent.click(screen.getByRole("button", {name: /Today ends in/}))
-        expect(onToggle).toHaveBeenCalledTimes(1)
-
-        rerender(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false} open onToggle={onToggle}/>)
         expect(screen.getByRole("button", {name: /Today ends in/}).getAttribute("aria-expanded")).toBe("true")
         expect(screen.getByText("When a day ends, the countries holding the most ground score points.")).toBeDefined()
         expect(battleTeased()).toBeNull()
 
         fireEvent.keyDown(document, {key: "Escape"})
-        expect(onToggle).toHaveBeenCalledTimes(2)
+        expect(useScreen.getState().popovers.season).toBe(false)
     })
 
     describe("before the Final Battle", () => {
         const startsAt = endsAt - 2 * HOUR
         const finale: Finale = {roundId: "season-0/finale", startsAt, endsAt, times: 3, description: "A bonus box every minute.", live: false}
         const nextBattle = {entryId: "", startsAt, endsAt, description: finale.description, times: 3, endsSeason: true, roundId: finale.roundId}
-        const chip = (open = false) => <SeasonChip season={season} dayEndsAt={dayEndsAt()} nextBattle={nextBattle} finale={finale}
-                                                   compact={false} open={open} onToggle={vi.fn()}/>
+        const chip = () => <SeasonChip season={season} dayEndsAt={dayEndsAt()} nextBattle={nextBattle} finale={finale}
+                                       compact={false}/>
 
         it("wears the battle's look in the two days before it, and paints its face", () => {
             vi.useFakeTimers({now: startsAt - 3 * DAY})
@@ -163,7 +161,8 @@ describe("SeasonChip", () => {
 
         it("opens on the Final Battle: when, how long, what it is worth, and the operator's words", () => {
             vi.useFakeTimers({now: startsAt - DAY})
-            render(chip(true))
+            useScreen.setState({popovers: {season: true, battle: false, clicks: false}})
+            render(chip())
 
             expect(screen.getByText("The Final Battle")).toBeDefined()
             expect(screen.getByText("A bonus box every minute.")).toBeDefined()
@@ -176,7 +175,7 @@ describe("SeasonChip", () => {
 
     it("is gone once the season is over", () => {
         vi.useFakeTimers({now: endsAt})
-        const {container} = render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false} open={false} onToggle={vi.fn()}/>)
+        const {container} = render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false}/>)
         expect(container.innerHTML).toBe("")
     })
 
@@ -184,7 +183,7 @@ describe("SeasonChip", () => {
         vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 16, 376, 51.4))
         const bottom = () => document.documentElement.style.getPropertyValue(STATUS_BOTTOM)
 
-        const {unmount} = render(<SeasonChip season={{...season, endsAt: Date.now() + DAY}} dayEndsAt={dayEndsAt()} compact={false} open={false} onToggle={vi.fn()}/>)
+        const {unmount} = render(<SeasonChip season={{...season, endsAt: Date.now() + DAY}} dayEndsAt={dayEndsAt()} compact={false}/>)
         expect(bottom()).toBe("68px")
 
         unmount()
@@ -194,7 +193,7 @@ describe("SeasonChip", () => {
     describe("on a phone", () => {
         it("is a chip with a tag and the two largest units, named in full", () => {
             vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR - 5 * MINUTE})
-            render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact open={false} onToggle={vi.fn()}/>)
+            render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact/>)
 
             const chip = screen.getByRole("button", {name: "Today ends in 12h 05m 00s, Season ends in 27d 14h 05m 00s"})
             expect(chip.getAttribute("aria-expanded")).toBe("false")
@@ -206,7 +205,7 @@ describe("SeasonChip", () => {
 
         it("holds still while the mouse is over it", () => {
             vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
-            render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact open={false} onToggle={vi.fn()}/>)
+            render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact/>)
 
             fireEvent.mouseEnter(screen.getByRole("button"))
             turn()
@@ -215,14 +214,14 @@ describe("SeasonChip", () => {
 
         it("has no tag with one countdown", () => {
             vi.useFakeTimers({now: endsAt - HOUR})
-            render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact open={false} onToggle={vi.fn()}/>)
+            render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact/>)
 
             expect(screen.getByRole("button", {name: "Season ends in 1h 00m 00s"})).toBeDefined()
             expect(shownFace()).toEqual(["1h 00m"])
         })
 
         it("leaves the moments to the status bar", () => {
-            render(<SeasonChip season={{...season, endsAt: Date.now() + DAY}} dayEndsAt={dayEndsAt()} compact open={false} onToggle={vi.fn()}/>)
+            render(<SeasonChip season={{...season, endsAt: Date.now() + DAY}} dayEndsAt={dayEndsAt()} compact/>)
             expect(document.documentElement.style.getPropertyValue(STATUS_BOTTOM)).toBe("")
         })
     })

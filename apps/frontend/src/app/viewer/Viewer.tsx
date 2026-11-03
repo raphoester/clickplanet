@@ -29,7 +29,7 @@ import {useQuizMaster} from "../quiz/useQuizMaster.ts";
 import {ChatRooms} from "../../backends/chat.ts";
 import {GifSearch} from "../../backends/gifs.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
-import Menu, {BoardSheet, MenuTab, YouPlace} from "../Menu.tsx";
+import Menu, {BoardSheet, YouPlace} from "../Menu.tsx";
 import {youLabel} from "../youLabel.ts";
 import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
@@ -82,6 +82,7 @@ import {useCompact} from "../compact.ts";
 import Sheet from "../hud/Sheet.tsx";
 import StatusBar from "../hud/StatusBar.tsx";
 import TabBar from "../hud/TabBar.tsx";
+import {useScreen} from "../hud/screenStore.ts";
 import MissionsPlace, {MissionsPlaceProps} from "../missions/MissionsPlace.tsx";
 import {useMissions} from "../missions/useMissions.ts";
 import {Mission, MissionsBackend} from "../../backends/missions.ts";
@@ -128,8 +129,6 @@ const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 
 // After the wave has run over the land.
 const FORTIFY_CARD_DELAY_MS = 1600
-
-type SheetName = "board" | "missions" | "chat" | "you" | "share" | "invite" | "settings" | "season" | "battle" | "clicks"
 
 export type ViewerProps = {
     sharedCountry?: Country
@@ -223,22 +222,17 @@ export default function Viewer(props: ViewerProps) {
     const guest = account.kind === 'ready' && account.offered.length > 0 && account.me.linked.length === 0
 
     const compact = useCompact()
-    const [sheet, setSheet] = useState<SheetName>()
-    const [menuTab, setMenuTab] = useState<MenuTab>("board")
-    const [seasonOpen, setSeasonOpen] = useState(false)
-    const [battleOpen, setBattleOpen] = useState(false)
-    const [clicksOpen, setClicksOpen] = useState(false)
+    const sheet = useScreen((screen) => screen.sheet)
+    const openSheet = useScreen((screen) => screen.openSheet)
+    const closeSheet = useScreen((screen) => screen.closeSheet)
+    const closePopover = useScreen((screen) => screen.closePopover)
+    const closeAll = useScreen((screen) => screen.closeAll)
     const [unread, setUnread] = useState(0)
     const [boardView, setBoardView] = useState<BoardView>("countries")
-    const toggleSheet = (name: SheetName) => setSheet((current) => current === name ? undefined : name)
-    const closeSheet = () => setSheet(undefined)
 
     useEffect(() => {
-        setSheet(undefined)
-        setSeasonOpen(false)
-        setBattleOpen(false)
-        setClicksOpen(false)
-    }, [compact])
+        closeAll()
+    }, [compact, closeAll])
 
     const {
         status,
@@ -349,7 +343,7 @@ export default function Viewer(props: ViewerProps) {
 
     const openPitch = guest ? () => {
         closeSheet()
-        setClicksOpen(false)
+        closePopover("clicks")
         setPitchOpen(true)
     } : undefined
 
@@ -391,7 +385,7 @@ export default function Viewer(props: ViewerProps) {
     })
     const missions: MissionsPlaceProps | undefined = props.missions && {
         state: missionsState,
-        onSignIn: guest ? openPitch ?? (() => setSheet("you")) : undefined,
+        onSignIn: guest ? openPitch ?? (() => openSheet("you")) : undefined,
     }
     const missionsNews = useSeenMissions((seenMissions) => missionsState.kind === "ready" ? unseen(missionsState.day.missions, seenMissions.seen) : 0)
 
@@ -431,43 +425,31 @@ export default function Viewer(props: ViewerProps) {
         {ready && !compact && <Menu {...board} {...you} {...share} {...settings}
                                     missions={missions}
                                     missionsNews={missionsNews}
-                                    invite={invite}
-                                    tab={menuTab}
-                                    onTab={setMenuTab}/>}
+                                    invite={invite}/>}
 
         {ready && !compact && battle && <BattleChip battle={battle}
                                                     season={season}
-                                                    compact={false}
-                                                    open={battleOpen}
-                                                    onToggle={() => setBattleOpen((open) => !open)}/>}
+                                                    compact={false}/>}
         {ready && !compact && !battle && champion && <ChampionChip champion={champion} compact={false}/>}
         {ready && !compact && !battle && !champion && season && <SeasonChip season={season}
                                                                  nextBattle={nextBattle}
                                                                  finale={finale}
                                                                  dayEndsAt={dayEndsAt}
-                                                                 compact={false}
-                                                                 open={seasonOpen}
-                                                                 onToggle={() => setSeasonOpen((open) => !open)}/>}
+                                                                 compact={false}/>}
 
         {ready && compact && <StatusBar country={countryState}
                                         rank={rankOf(lines, countryState)}
-                                        boardOpen={sheet === "board"}
-                                        onOpenBoard={() => toggleSheet("board")}
                                         trailing={battle
                                             ? <BattleChip battle={battle}
                                                           season={season}
-                                                          compact
-                                                          open={sheet === "battle"}
-                                                          onToggle={() => toggleSheet("battle")}/>
+                                                          compact/>
                                             : champion
                                                 ? <ChampionChip champion={champion} compact/>
                                                 : season && <SeasonChip season={season}
                                                                         nextBattle={nextBattle}
                                                                         finale={finale}
                                                                         dayEndsAt={dayEndsAt}
-                                                                        compact
-                                                                        open={sheet === "season"}
-                                                                        onToggle={() => toggleSheet("season")}/>}/>}
+                                                                        compact/>}/>}
 
         {ready && <ClickBudgetMeter budget={clickBudget}
                                     frozen={mood === "frozen" ? {nextSeason: schedule.seasons.next, country: countryState} : undefined}
@@ -476,8 +458,6 @@ export default function Viewer(props: ViewerProps) {
                                     said={lockedOut && {text: heldLine(lockedOut.allegiance, Date.now()), id: lockedOut.id}}
                                     onSignIn={openPitch}
                                     compact={compact}
-                                    open={compact ? sheet === "clicks" : clicksOpen}
-                                    onToggleOpen={compact ? () => toggleSheet("clicks") : () => setClicksOpen((open) => !open)}
                                     popover={clicks}>
             {props.bonusListener && <Inventory charges={charges}
                                                rules={rules}
@@ -503,7 +483,7 @@ export default function Viewer(props: ViewerProps) {
             players={roster.kind === 'ready' ? roster.entries : undefined}
             compact={compact}
             open={compact ? sheet === "chat" : undefined}
-            onOpenChange={compact ? (open) => setSheet(open ? "chat" : undefined) : undefined}
+            onOpenChange={compact ? (open) => open ? openSheet("chat") : closeSheet() : undefined}
             onUnread={setUnread}
             discord={discord}
             gifs={props.gifs}
@@ -534,9 +514,7 @@ export default function Viewer(props: ViewerProps) {
             </Sheet>}
             {sheet === "clicks" && <Sheet title="Your clicks" onClose={closeSheet}>{clicks}</Sheet>}
 
-            <TabBar open={sheet}
-                    onOpen={toggleSheet}
-                    chat={props.chatBackend !== undefined && crazyGames.chat}
+            <TabBar chat={props.chatBackend !== undefined && crazyGames.chat}
                     invite={invite !== undefined}
                     unread={unread}
                     you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}

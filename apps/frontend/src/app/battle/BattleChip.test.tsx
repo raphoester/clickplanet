@@ -3,6 +3,7 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
 import {battleEndsLine} from "../../domain/battle.ts"
 import BattleChip, {BattleDetails} from "./BattleChip.tsx"
+import {useScreen} from "../hud/screenStore.ts"
 
 const SECOND = 1000
 const MINUTE = 60 * SECOND
@@ -15,12 +16,13 @@ const season = {number: 0, startsAt: Date.UTC(2026, 9, 3), endsAt: Date.UTC(2026
 afterEach(() => {
     cleanup()
     vi.useRealTimers()
+    useScreen.setState(useScreen.getInitialState(), true)
 })
 
 describe("BattleChip", () => {
     it("counts the battle down, to the second", () => {
         vi.useFakeTimers({now})
-        render(<BattleChip battle={battle} compact={false} open={false} onToggle={vi.fn()}/>)
+        render(<BattleChip battle={battle} compact={false}/>)
 
         expect(screen.getByRole("region", {name: "Battle"})).toBeDefined()
         expect(screen.getByRole("button", {name: "Battle ends in 1h 23m 05s"})).toBeDefined()
@@ -34,20 +36,19 @@ describe("BattleChip", () => {
     it("names the season's finale the final battle", () => {
         vi.useFakeTimers({now})
         const finale = {...battle, entryId: "", roundId: "season-0/finale", endsSeason: true}
-        render(<BattleChip battle={finale} compact={false} open={false} onToggle={vi.fn()}/>)
+        render(<BattleChip battle={finale} compact={false}/>)
 
         expect(screen.getByRole("region", {name: "Final Battle"})).toBeDefined()
         expect(screen.getByRole("button", {name: "Final Battle ends in 1h 23m 05s"})).toBeDefined()
         cleanup()
 
-        render(<BattleChip battle={finale} compact={true} open={false} onToggle={vi.fn()}/>)
+        render(<BattleChip battle={finale} compact={true}/>)
         expect(screen.getByRole("button", {name: "Final Battle ends in 1h 23m 05s"}).textContent).toContain("Final")
     })
 
     it("tells the battle's facts on hover, and on a press", () => {
         vi.useFakeTimers({now})
-        const onToggle = vi.fn()
-        render(<BattleChip battle={battle} season={season} compact={false} open={false} onToggle={onToggle}/>)
+        render(<BattleChip battle={battle} season={season} compact={false}/>)
         expect(screen.queryByText("Triple points.")).toBeNull()
 
         fireEvent.pointerEnter(screen.getByRole("region", {name: "Battle"}))
@@ -59,12 +60,14 @@ describe("BattleChip", () => {
         expect(screen.queryByText("Triple points.")).toBeNull()
 
         fireEvent.click(screen.getByRole("button", {name: /Battle ends in/}))
-        expect(onToggle).toHaveBeenCalledTimes(1)
+        expect(screen.getByText("Triple points.")).toBeDefined()
+        expect(useScreen.getState().popovers.battle).toBe(true)
     })
 
     it("holds its facts open once pressed", () => {
         vi.useFakeTimers({now})
-        render(<BattleChip battle={battle} compact={false} open={true} onToggle={vi.fn()}/>)
+        useScreen.setState({popovers: {season: false, battle: true, clicks: false}})
+        render(<BattleChip battle={battle} compact={false}/>)
 
         expect(screen.getByText("Triple points.")).toBeDefined()
         expect(screen.getByRole("button", {name: /Battle ends in/}).getAttribute("aria-expanded")).toBe("true")
@@ -72,7 +75,7 @@ describe("BattleChip", () => {
 
     it("is a tagged pill on a phone, the two largest units alone", () => {
         vi.useFakeTimers({now})
-        render(<BattleChip battle={battle} compact open={false} onToggle={vi.fn()}/>)
+        render(<BattleChip battle={battle} compact/>)
 
         const chip = screen.getByRole("button", {name: "Battle ends in 1h 23m 05s"})
         expect(chip.textContent).toBe("Battle1h 23m")

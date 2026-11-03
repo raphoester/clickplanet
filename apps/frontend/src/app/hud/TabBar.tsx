@@ -1,5 +1,6 @@
 import {ReactNode} from "react"
 import {ChatIcon, SettingsIcon, ShareIcon, TargetIcon, TrophyIcon, UserIcon, UsersIcon} from "../components/icons.tsx"
+import {useScreen} from "./screenStore.ts"
 import "./TabBar.css"
 
 export type Tab = "board" | "missions" | "chat" | "you" | "share" | "invite" | "settings"
@@ -7,8 +8,6 @@ export type Tab = "board" | "missions" | "chat" | "you" | "share" | "invite" | "
 const UNREAD_CAP = 99
 
 export type TabBarProps = {
-    open?: string
-    onOpen: (tab: Tab) => void
     chat: boolean
     unread: number
     you?: "guest" | "player"
@@ -16,13 +15,16 @@ export type TabBarProps = {
     invite?: boolean
 }
 
-export default function TabBar({open, onOpen, chat, unread, you, missions, invite}: TabBarProps) {
+export default function TabBar({chat, unread, you, missions, invite}: TabBarProps) {
+    const open = useScreen((screen) => screen.sheet)
+    const toggleSheet = useScreen((screen) => screen.toggleSheet)
+
     const tab = (id: Tab, label: string, icon: ReactNode, extra?: ReactNode, name?: string) =>
         <button type="button"
                 className={open === id ? "tab-bar-tab tab-bar-tab--open" : "tab-bar-tab"}
                 aria-expanded={open === id}
                 aria-label={name}
-                onClick={() => onOpen(id)}>
+                onClick={() => toggleSheet(id)}>
             {icon}
             <span className="tab-bar-label">{label}</span>
             {extra}
