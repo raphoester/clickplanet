@@ -11,6 +11,7 @@ import RankCoin from "../components/RankCoin.tsx"
 import StreakFlame from "../components/StreakFlame.tsx"
 import {truncate} from "../truncate.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
+import {usePlayerCard} from "../players/playerCardStore.ts"
 import {TerritoryShown} from "./useTerritoryCard.ts"
 import {TerritoryPlayers} from "./useTerritoryPlayers.ts"
 import "./TerritoryCard.css"
@@ -26,12 +27,11 @@ export type TerritoryCardProps = {
     flag: string
     players?: TerritoryPlayers
     now?: number
-    onOpenPlayer?: (player: PlayerLine) => void
     onHold: (held: boolean) => void
     onClose: () => void
 }
 
-export default function TerritoryCard({shown, flag, players, now = Date.now(), onOpenPlayer, onHold, onClose}: TerritoryCardProps) {
+export default function TerritoryCard({shown, flag, players, now = Date.now(), onHold, onClose}: TerritoryCardProps) {
     const {territory, point, touch} = shown
     const {name, ground, size, holdings, fortifiedBy, target} = territory
     const free = freeTilesOf(territory)
@@ -39,6 +39,11 @@ export default function TerritoryCard({shown, flag, players, now = Date.now(), o
     const more = holdings.length - listed.length
     const top = players?.top ?? []
     const fortifier = players?.fortifier && players.fortifier.line.countryCode === fortifiedBy ? players.fortifier : undefined
+    const openPlayer = usePlayerCard((card) => card.openable ? card.open : undefined)
+    const onOpen = openPlayer && ((player: PlayerLine) => {
+        onClose()
+        openPlayer(player)
+    })
 
     return <PointerCard point={point}
                         touch={touch}
@@ -81,7 +86,7 @@ export default function TerritoryCard({shown, flag, players, now = Date.now(), o
             <ol className="territory-card-player-list">
                 {top.map(({line, tiles}) => <li key={line.accountId} className="territory-card-player" style={authorStyle(line)}>
                     <CountryFlag code={line.countryCode}/>
-                    <PlayerName line={line} onOpenPlayer={onOpenPlayer}/>
+                    <PlayerName line={line} onOpen={onOpen}/>
                     <span className="territory-card-tiles">{count.format(tiles)}</span>
                 </li>)}
             </ol>
@@ -94,7 +99,7 @@ export default function TerritoryCard({shown, flag, players, now = Date.now(), o
                     : <span>Never fortified</span>}
             </p>
             {fortifier && <p className="territory-card-fortify-line territory-card-fortifier" style={authorStyle(fortifier.line)}>
-                <PlayerName line={fortifier.line} onOpenPlayer={onOpenPlayer}/>
+                <PlayerName line={fortifier.line} onOpen={onOpen}/>
                 <span className="territory-card-ago">{agoOf(fortifier.at, now)}</span>
             </p>}
             {target && <p className="territory-card-fortify-line territory-card-target">
@@ -104,15 +109,15 @@ export default function TerritoryCard({shown, flag, players, now = Date.now(), o
     </PointerCard>
 }
 
-function PlayerName({line, onOpenPlayer}: {line: PlayerLine, onOpenPlayer?: (player: PlayerLine) => void}) {
+function PlayerName({line, onOpen}: {line: PlayerLine, onOpen?: (player: PlayerLine) => void}) {
     const shown = useWordFilter().masked(line.name)
     const name = <>
         <span className="territory-card-player-name-text">{truncate(shown, NAME_MAX_LENGTH)}</span>
         {line.admin && <AdminCrown/>}
         <StreakFlame days={line.streak}/>
     </>
-    if (!onOpenPlayer || line.guest || !line.accountId) return <span className="territory-card-player-name" title={shown}>{name}</span>
-    return <button type="button" className="territory-card-player-name" title={shown} onClick={() => onOpenPlayer(line)}>{name}</button>
+    if (!onOpen || line.guest || !line.accountId) return <span className="territory-card-player-name" title={shown}>{name}</span>
+    return <button type="button" className="territory-card-player-name" title={shown} onClick={() => onOpen(line)}>{name}</button>
 }
 
 function Flag({code}: {code: string}) {

@@ -7,6 +7,7 @@ import CountryFlag from "../components/CountryFlag.tsx"
 import RankCoin from "../components/RankCoin.tsx"
 import TitleBadge from "../titles/TitleBadge.tsx"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
+import {usePlayerCard} from "../players/playerCardStore.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import {Caller, useMySeason} from "./useMySeason.ts"
 import {useStandings} from "./useStandings.ts"
@@ -20,7 +21,6 @@ export type PlayerStandingsProps = {
     caller: Caller
     listenForClicks: ListenForClicks
     onSignIn?: () => void
-    onOpenPlayer?: (player: PlayerLine) => void
 }
 
 export default function PlayerStandings(props: PlayerStandingsProps) {
@@ -39,8 +39,7 @@ export default function PlayerStandings(props: PlayerStandingsProps) {
         {board && <StandingsTable label={props.label}
                                   standings={board.listed}
                                   accountId={accountId}
-                                  own={board.below}
-                                  onOpenPlayer={props.onOpenPlayer}/>}
+                                  own={board.below}/>}
     </>
 }
 
@@ -72,10 +71,9 @@ type StandingsTableProps = {
     standings: readonly Standing[]
     accountId?: string
     own?: Standing
-    onOpenPlayer?: (player: PlayerLine) => void
 }
 
-function StandingsTable({label, standings, accountId, own, onOpenPlayer}: StandingsTableProps) {
+function StandingsTable({label, standings, accountId, own}: StandingsTableProps) {
     if (standings.length === 0 && !own) return <p className="standings-empty">Nobody yet.</p>
 
     return <table className="leaderboard-table standings-table" aria-label={label}>
@@ -89,13 +87,12 @@ function StandingsTable({label, standings, accountId, own, onOpenPlayer}: Standi
         <tbody>
         {standings.map((standing) => <StandingRow key={standing.accountId}
                                                   standing={standing}
-                                                  you={standing.accountId === accountId}
-                                                  onOpenPlayer={onOpenPlayer}/>)}
+                                                  you={standing.accountId === accountId}/>)}
         {own && <>
             <tr className="standings-gap" aria-hidden="true">
                 <td colSpan={3}/>
             </tr>
-            <StandingRow standing={own} you onOpenPlayer={onOpenPlayer}/>
+            <StandingRow standing={own} you/>
         </>}
         </tbody>
     </table>
@@ -104,13 +101,13 @@ function StandingsTable({label, standings, accountId, own, onOpenPlayer}: Standi
 type StandingRowProps = {
     standing: Standing
     you: boolean
-    onOpenPlayer?: (player: PlayerLine) => void
 }
 
-function StandingRow({standing, you, onOpenPlayer}: StandingRowProps) {
+function StandingRow({standing, you}: StandingRowProps) {
     const country = Countries.get(standing.countryCode)
     const style = authorStyle({color: standing.color, guest: false})
     const name = useWordFilter().masked(standing.name)
+    const openPlayer = usePlayerCard((card) => card.openable ? card.open : undefined)
 
     return <tr className={you ? "leaderboard-entry leaderboard-entry-player" : "leaderboard-entry"}
                aria-current={you ? "true" : undefined}>
@@ -120,12 +117,12 @@ function StandingRow({standing, you, onOpenPlayer}: StandingRowProps) {
                 {country && <span className="standings-flag" role="img" aria-label={country.name} title={country.name}>
                     <CountryFlag code={country.code}/>
                 </span>}
-                {onOpenPlayer
+                {openPlayer
                     ? <button type="button"
                               className="standings-name player-name-button"
                               style={style}
                               title={name}
-                              onClick={() => onOpenPlayer(playerOf(standing))}>
+                              onClick={() => openPlayer(playerOf(standing))}>
                         {name}
                     </button>
                     : <span className="standings-name" style={style} title={name}>

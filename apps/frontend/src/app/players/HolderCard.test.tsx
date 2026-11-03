@@ -2,6 +2,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import HolderCard from "./HolderCard.tsx"
+import {usePlayerCard} from "./playerCardStore.ts"
 import {DELETED_ACCOUNT, HolderShown} from "./useTileHolder.ts"
 import {NameColor, PlayerLine} from "../../backends/player.ts"
 
@@ -31,7 +32,10 @@ function show(line: PlayerLine, props: Partial<Parameters<typeof HolderCard>[0]>
 }
 
 describe("HolderCard", () => {
-    afterEach(cleanup)
+    afterEach(() => {
+        cleanup()
+        usePlayerCard.setState({openable: false, player: undefined})
+    })
 
     it("says who holds the tile, the title it wears and when it took it, beside the pointer", () => {
         show(FOX)
@@ -58,17 +62,20 @@ describe("HolderCard", () => {
         expect(within(flags).getAllByRole("img").map((flag) => flag.getAttribute("aria-label"))).toEqual(["France", "Belgium"])
     })
 
-    it("opens the player's card from its profile button", () => {
-        const onOpenPlayer = vi.fn()
-        show(FOX, {onOpenPlayer})
+    it("closes, then opens the player's card, from its profile button", () => {
+        usePlayerCard.setState({openable: true})
+        const onClose = vi.fn()
+        show(FOX, {onClose})
 
         fireEvent.click(screen.getByRole("button", {name: "View profile"}))
 
-        expect(onOpenPlayer).toHaveBeenCalledWith(FOX)
+        expect(onClose).toHaveBeenCalledTimes(1)
+        expect(usePlayerCard.getState().player).toEqual(FOX)
     })
 
     it("shows a guest by its guest name alone, with no profile to open", () => {
-        show(GUEST, {onOpenPlayer: vi.fn()})
+        usePlayerCard.setState({openable: true})
+        show(GUEST)
 
         expect(screen.getByRole("region", {name: "guest_91aa3d"}).textContent).toContain("Took it for Germany 3 min ago")
         expect(screen.queryByRole("button", {name: "View profile"})).toBeNull()
@@ -76,8 +83,9 @@ describe("HolderCard", () => {
     })
 
     it("shows a deleted account by that alone, with no profile to open", () => {
+        usePlayerCard.setState({openable: true})
         const deleted: PlayerLine = {...GUEST, accountId: "", name: DELETED_ACCOUNT, countryCode: "tr", guest: false}
-        render(<HolderCard holder={{...shown(deleted), playsFor: []}} now={NOW} onHold={() => {}} onClose={() => {}} onOpenPlayer={vi.fn()}/>)
+        render(<HolderCard holder={{...shown(deleted), playsFor: []}} now={NOW} onHold={() => {}} onClose={() => {}}/>)
 
         expect(screen.getByRole("region", {name: "Deleted account"}).textContent).toContain("Took it for Turkey 3 min ago")
         expect(screen.queryByRole("button", {name: "View profile"})).toBeNull()

@@ -1,4 +1,3 @@
-import {PlayerLine} from "../../backends/player.ts"
 import {Countries} from "../../domain/countries.ts"
 import {agoOf} from "../../domain/tilePeek.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
@@ -10,6 +9,7 @@ import StreakFlame from "../components/StreakFlame.tsx"
 import TitleBadge from "../titles/TitleBadge.tsx"
 import {truncate} from "../truncate.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
+import {usePlayerCard} from "./playerCardStore.ts"
 import {HolderShown} from "./useTileHolder.ts"
 import "./HolderCard.css"
 
@@ -20,14 +20,14 @@ export type HolderCardProps = {
     holder: HolderShown
     now?: number
     onHold: (held: boolean) => void
-    onOpenPlayer?: (player: PlayerLine) => void
     onClose: () => void
 }
 
-export default function HolderCard({holder, now = Date.now(), onHold, onOpenPlayer, onClose}: HolderCardProps) {
+export default function HolderCard({holder, now = Date.now(), onHold, onClose}: HolderCardProps) {
     const {line, playsFor, mine, takenAt, point, touch} = holder
     const country = Countries.get(line.countryCode)?.name ?? line.countryCode
     const name = useWordFilter().masked(line.name)
+    const openPlayer = usePlayerCard((card) => card.openable ? card.open : undefined)
 
     return <PointerCard point={point}
                         touch={touch}
@@ -51,11 +51,14 @@ export default function HolderCard({holder, now = Date.now(), onHold, onOpenPlay
                     })}
                 </span>}
             </div>
-            {onOpenPlayer && !line.guest && line.accountId && <button type="button"
-                                                     className="icon-button holder-card-profile"
-                                                     aria-label="View profile"
-                                                     title="View profile"
-                                                     onClick={() => onOpenPlayer(line)}>
+            {openPlayer && !line.guest && line.accountId && <button type="button"
+                                                   className="icon-button holder-card-profile"
+                                                   aria-label="View profile"
+                                                   title="View profile"
+                                                   onClick={() => {
+                                                       onClose()
+                                                       openPlayer(line)
+                                                   }}>
                 <UserIcon size={20}/>
             </button>}
         </div>

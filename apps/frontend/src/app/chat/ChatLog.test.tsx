@@ -9,8 +9,12 @@ import {QUOTE_MAX_LENGTH} from "./QuoteLine.tsx"
 import {NameColor} from "../../backends/player.ts"
 import {wordFilterOf} from "../../domain/wordFilter.ts"
 import {WordFilterContext} from "../crazygames/wordFilter.ts"
+import {usePlayerCard} from "../players/playerCardStore.ts"
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    usePlayerCard.setState({openable: false, player: undefined})
+})
 
 const message = (id: string, authorName: string, countryCode: string): ChatMessage =>
     ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorAccountId: `account-${authorName}`, authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
@@ -37,18 +41,16 @@ describe("ChatLog", () => {
     })
 
     it("opens the author of a message from its name, and tells a guest by its prefix", async () => {
-        const onOpenPlayer = vi.fn()
+        usePlayerCard.setState({openable: true})
         render(<ChatLog loading={false}
-                        onOpenPlayer={onOpenPlayer}
                         messages={[message("1", "Ana", "fr"), message("2", "guest_Bo", "de")]}/>)
 
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
+        expect(usePlayerCard.getState().player).toEqual(
+            {accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0})
         await userEvent.click(screen.getByRole("button", {name: "guest_Bo"}))
-
-        expect(onOpenPlayer.mock.calls).toEqual([
-            [{accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}],
-            [{accountId: "account-guest_Bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}],
-        ])
+        expect(usePlayerCard.getState().player).toEqual(
+            {accountId: "account-guest_Bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0})
     })
 
     it("shows a guest's name once, and nothing of its address", () => {
@@ -66,41 +68,41 @@ describe("ChatLog", () => {
     })
 
     it("crowns an admin's message, and keeps it on the player it opens", async () => {
-        const onOpenPlayer = vi.fn()
+        usePlayerCard.setState({openable: true})
         const admin = {...message("1", "Ana", "fr"), authorAdmin: true}
-        render(<ChatLog loading={false} onOpenPlayer={onOpenPlayer} messages={[admin, message("2", "kiran_07", "in")]}/>)
+        render(<ChatLog loading={false} messages={[admin, message("2", "kiran_07", "in")]}/>)
 
         expect(screen.getAllByRole("img", {name: "Admin"})).toHaveLength(1)
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
-        expect(onOpenPlayer).toHaveBeenCalledWith({
+        expect(usePlayerCard.getState().player).toEqual({
             accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.UNSPECIFIED,
             streak: 0,
         })
     })
 
     it("lights a flame beside a streak of three days or more, and keeps it on the player it opens", async () => {
-        const onOpenPlayer = vi.fn()
+        usePlayerCard.setState({openable: true})
         const burning = {...message("1", "Ana", "fr"), authorStreak: 12}
         const starting = {...message("2", "kiran_07", "in"), authorStreak: 2}
-        render(<ChatLog loading={false} onOpenPlayer={onOpenPlayer} messages={[burning, starting]}/>)
+        render(<ChatLog loading={false} messages={[burning, starting]}/>)
 
         expect(screen.getAllByRole("img", {name: /streak/})).toHaveLength(1)
         expect(screen.getByRole("img", {name: "12-day streak"}).textContent).toBe("12")
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
-        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({streak: 12}))
+        expect(usePlayerCard.getState().player).toEqual(expect.objectContaining({streak: 12}))
     })
 
     it("shows the title its author wears beside the name, and keeps it on the player it opens", async () => {
-        const onOpenPlayer = vi.fn()
+        usePlayerCard.setState({openable: true})
         const warlord = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
         const dressed = {...message("1", "Ana", "fr"), authorTitle: warlord}
         const bare = message("2", "kiran_07", "in")
-        render(<ChatLog loading={false} onOpenPlayer={onOpenPlayer} messages={[dressed, bare]}/>)
+        render(<ChatLog loading={false} messages={[dressed, bare]}/>)
 
         expect(screen.getAllByRole("img", {name: "Warlord"})).toHaveLength(1)
         expect(screen.getByRole("img", {name: "Warlord"}).querySelector(".title-emblem")).not.toBeNull()
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
-        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({wornTitle: warlord}))
+        expect(usePlayerCard.getState().player).toEqual(expect.objectContaining({wornTitle: warlord}))
     })
 
     it("paints a name in the color its player chose, and grey with none or as a guest", () => {

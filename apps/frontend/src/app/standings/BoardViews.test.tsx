@@ -4,12 +4,13 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {AccountBackend, Provider} from "../../backends/account.ts"
-import {NameColor, PlayerBackend, PlayerLine, PlayerTitle} from "../../backends/player.ts"
+import {NameColor, PlayerBackend, PlayerTitle} from "../../backends/player.ts"
 import {MySeason, Standing, Boards} from "../../backends/standings.ts"
 import {Countries, Country} from "../../domain/countries.ts"
 import {hueOf} from "../../domain/authorColor.ts"
 import {AccountStore} from "../account/accountStore.ts"
 import SignInPitchModal from "../account/SignInPitchModal.tsx"
+import {usePlayerCard} from "../players/playerCardStore.ts"
 import {AcceptedClicks, acceptedClicks} from "../viewer/acceptedClicks.ts"
 import BoardViews, {BoardView} from "./BoardViews.tsx"
 import {Caller} from "./useMySeason.ts"
@@ -68,17 +69,15 @@ type HarnessProps = {
     view?: BoardView
     clicks?: AcceptedClicks
     onSignIn?: () => void
-    onOpenPlayer?: (player: PlayerLine) => void
 }
 
-function Harness({backend, caller, country = france, view: first = "countries", clicks, onSignIn, onOpenPlayer}: HarnessProps) {
+function Harness({backend, caller, country = france, view: first = "countries", clicks, onSignIn}: HarnessProps) {
     const [view, setView] = useState<BoardView>(first)
     const [own] = useState(acceptedClicks)
     return <BoardViews backend={backend}
                        caller={caller}
                        listenForClicks={(clicks ?? own).listenForClicks}
                        onSignIn={onSignIn}
-                       onOpenPlayer={onOpenPlayer}
                        view={view}
                        onView={setView}
                        country={country}
@@ -108,6 +107,7 @@ const stats = () => [...yours()!.querySelectorAll(".stat-tile")].map((tile) =>
 afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    usePlayerCard.setState({openable: false, player: undefined})
 })
 
 describe("BoardViews", () => {
@@ -327,12 +327,12 @@ describe("BoardViews", () => {
     })
 
     it("opens a player's card from its name, with the title it wears", async () => {
-        const onOpenPlayer = vi.fn()
-        const {user} = await shown({backend: backendOf(), caller: GUEST, view: "players", onOpenPlayer})
+        usePlayerCard.setState({openable: true})
+        const {user} = await shown({backend: backendOf(), caller: GUEST, view: "players"})
 
         await user.click(within(rows()[0]).getByRole("button", {name: "Ana"}))
 
-        expect(onOpenPlayer).toHaveBeenCalledWith({
+        expect(usePlayerCard.getState().player).toEqual({
             accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.PINK, streak: 0,
             wornTitle: WARLORD,
         })

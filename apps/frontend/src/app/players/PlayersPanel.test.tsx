@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, describe, expect, it} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {NameColor, RosterEntry} from "../../backends/player.ts"
 import PlayersPanel from "./PlayersPanel.tsx"
+import {usePlayerCard} from "./playerCardStore.ts"
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    usePlayerCard.setState({openable: false, player: undefined})
+})
 
 const entry = (name: string, guest: boolean, countryCode = "fr", admin = false, color = NameColor.UNSPECIFIED, streak = 0): RosterEntry =>
     ({key: name, accountId: `account-${name}`, name, countryCode, guest, admin, color, streak})
@@ -73,13 +77,13 @@ describe("PlayersPanel", () => {
     })
 
     it("opens a player, guest or not, from its name", async () => {
-        const onOpenPlayer = vi.fn()
+        usePlayerCard.setState({openable: true})
         const bo = entry("guest_Bo", true, "de")
-        render(<PlayersPanel entries={[entry("ana", false), bo]} onOpenPlayer={onOpenPlayer}/>)
+        render(<PlayersPanel entries={[entry("ana", false), bo]}/>)
 
         await userEvent.click(screen.getByRole("button", {name: "guest_Bo"}))
 
-        expect(onOpenPlayer).toHaveBeenCalledWith(bo)
+        expect(usePlayerCard.getState().player).toEqual(bo)
     })
 
     it("offers no button with nothing to open", () => {

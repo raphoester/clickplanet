@@ -1,5 +1,4 @@
 import {ReactNode} from "react"
-import {PlayerLine} from "../../backends/player.ts"
 import {Boards} from "../../backends/standings.ts"
 import {Country} from "../../domain/countries.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
@@ -16,7 +15,6 @@ export type BoardStandings = {
     caller: Caller
     listenForClicks: ListenForClicks
     onSignIn?: () => void
-    onOpenPlayer?: (player: PlayerLine) => void
     view: BoardView
     onView: (view: BoardView) => void
 }
@@ -61,7 +59,6 @@ export default function BoardViews(props: BoardViewsProps) {
                              label={props.view === "country" ? `Players, ${props.country.name}` : "Players"}
                              caller={props.caller}
                              listenForClicks={props.listenForClicks}
-                             onSignIn={props.onSignIn}
-                             onOpenPlayer={props.onOpenPlayer}/>}
+                             onSignIn={props.onSignIn}/>}
     </>
 }

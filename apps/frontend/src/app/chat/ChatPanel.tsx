@@ -2,7 +2,7 @@ import {ReactNode, useCallback, useEffect, useId, useRef, useState} from "react"
 import {ChatBackend, ChatMessage, Gif, OutgoingMessage} from "../../backends/chat.ts";
 import {GifChoice, GifQuery, GifSearch} from "../../backends/gifs.ts";
 import {wordsOf} from "../../domain/chatLog.ts";
-import {PlayerLine, RosterEntry} from "../../backends/player.ts";
+import {RosterEntry} from "../../backends/player.ts";
 import {PlayerReporter} from "../../backends/support.ts";
 import {Country} from "../../domain/countries.ts";
 import {ChevronIcon} from "../components/icons.tsx";
@@ -41,7 +41,6 @@ export type ChatPanelProps = {
     playSound?: PlaySound
     accountId?: string
     username?: string
-    onOpenPlayer?: (player: PlayerLine) => void
     reporter?: PlayerReporter
     players?: readonly RosterEntry[]
     compact?: boolean
@@ -165,7 +164,7 @@ export default function ChatPanel(props: ChatPanelProps) {
     </div>
 
     const body: ReactNode = shown === "online" && players
-        ? <div className="chat-players"><PlayersPanel entries={players} onOpenPlayer={props.onOpenPlayer}/></div>
+        ? <div className="chat-players"><PlayersPanel entries={players}/></div>
         : shown === "flag" && flagCountry && onSignIn
         ? <LockedRoom country={flagCountry} unread={flag.unread} onSignIn={onSignIn}/>
         : <>
@@ -179,7 +178,6 @@ export default function ChatPanel(props: ChatPanelProps) {
                      onSeen={room.onSeen}
                      watching={visible}
                      flashing={room.flashing}
-                     onOpenPlayer={props.onOpenPlayer}
                      onReact={(messageId, reaction, on) =>
                          room.react({messageId, reaction, on})}
                      onReply={onReply}
