@@ -30,6 +30,13 @@ func (p Profile) Renamed(name Name, at time.Time) (Profile, error) {
 	return p, nil
 }
 
+func (p Profile) RenamedByOperator(name Name, at time.Time) Profile {
+	p.name = name
+	p.updatedAt = at
+	p.choice = NameChoice{}
+	return p
+}
+
 func (p Profile) TakeSnapshot() ProfileSnapshot {
 	return ProfileSnapshot{
 		Account: p.account, Name: p.name, UpdatedAt: p.updatedAt, ChosenAt: p.choice.at, Admin: p.admin, Color: p.color,

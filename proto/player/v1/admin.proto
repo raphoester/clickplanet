@@ -22,6 +22,18 @@ service AdminService {
 
   // Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
   rpc SearchPlayers(SearchPlayersRequest) returns (SearchPlayersResponse);
+
+  // Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
+  rpc RenamePlayer(RenamePlayerRequest) returns (RenamePlayerResponse);
+}
+
+message RenamePlayerRequest {
+  string account_id = 1;
+  string name = 2;
+}
+
+message RenamePlayerResponse {
+  string name = 1;
 }
 
 message ReconcileTitlesRequest {}

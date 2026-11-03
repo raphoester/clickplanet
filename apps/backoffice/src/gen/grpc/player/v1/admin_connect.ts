@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AdminGetPlayerRequest, AdminGetPlayerResponse, ReconcileTitlesRequest, ReconcileTitlesResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
+import { AdminGetPlayerRequest, AdminGetPlayerResponse, ReconcileTitlesRequest, ReconcileTitlesResponse, RenamePlayerRequest, RenamePlayerResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
 import { GetRosterRequest, GetRosterResponse } from "./player_pb.js";
@@ -67,6 +67,17 @@ export const AdminService = {
       name: "SearchPlayers",
       I: SearchPlayersRequest,
       O: SearchPlayersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
+     *
+     * @generated from rpc player.v1.AdminService.RenamePlayer
+     */
+    renamePlayer: {
+      name: "RenamePlayer",
+      I: RenamePlayerRequest,
+      O: RenamePlayerResponse,
       kind: MethodKind.Unary,
     },
   }

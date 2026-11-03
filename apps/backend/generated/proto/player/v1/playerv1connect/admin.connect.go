@@ -45,6 +45,9 @@ const (
 	// AdminServiceSearchPlayersProcedure is the fully-qualified name of the AdminService's
 	// SearchPlayers RPC.
 	AdminServiceSearchPlayersProcedure = "/player.v1.AdminService/SearchPlayers"
+	// AdminServiceRenamePlayerProcedure is the fully-qualified name of the AdminService's RenamePlayer
+	// RPC.
+	AdminServiceRenamePlayerProcedure = "/player.v1.AdminService/RenamePlayer"
 )
 
 // AdminServiceClient is a client for the player.v1.AdminService service.
@@ -58,6 +61,8 @@ type AdminServiceClient interface {
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	// Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
 	SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error)
+	// Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
+	RenamePlayer(context.Context, *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the player.v1.AdminService service. By default, it
@@ -101,6 +106,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("SearchPlayers")),
 			connect.WithClientOptions(opts...),
 		),
+		renamePlayer: connect.NewClient[v1.RenamePlayerRequest, v1.RenamePlayerResponse](
+			httpClient,
+			baseURL+AdminServiceRenamePlayerProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("RenamePlayer")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -111,6 +122,7 @@ type adminServiceClient struct {
 	getPlayer       *connect.Client[v1.AdminGetPlayerRequest, v1.AdminGetPlayerResponse]
 	getRoster       *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
 	searchPlayers   *connect.Client[v1.SearchPlayersRequest, v1.SearchPlayersResponse]
+	renamePlayer    *connect.Client[v1.RenamePlayerRequest, v1.RenamePlayerResponse]
 }
 
 // ReconcileTitles calls player.v1.AdminService.ReconcileTitles.
@@ -138,6 +150,11 @@ func (c *adminServiceClient) SearchPlayers(ctx context.Context, req *connect.Req
 	return c.searchPlayers.CallUnary(ctx, req)
 }
 
+// RenamePlayer calls player.v1.AdminService.RenamePlayer.
+func (c *adminServiceClient) RenamePlayer(ctx context.Context, req *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error) {
+	return c.renamePlayer.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the player.v1.AdminService service.
 type AdminServiceHandler interface {
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
@@ -149,6 +166,8 @@ type AdminServiceHandler interface {
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	// Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
 	SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error)
+	// Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
+	RenamePlayer(context.Context, *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -188,6 +207,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("SearchPlayers")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceRenamePlayerHandler := connect.NewUnaryHandler(
+		AdminServiceRenamePlayerProcedure,
+		svc.RenamePlayer,
+		connect.WithSchema(adminServiceMethods.ByName("RenamePlayer")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceReconcileTitlesProcedure:
@@ -200,6 +225,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGetRosterHandler.ServeHTTP(w, r)
 		case AdminServiceSearchPlayersProcedure:
 			adminServiceSearchPlayersHandler.ServeHTTP(w, r)
+		case AdminServiceRenamePlayerProcedure:
+			adminServiceRenamePlayerHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -227,4 +254,8 @@ func (UnimplementedAdminServiceHandler) GetRoster(context.Context, *connect.Requ
 
 func (UnimplementedAdminServiceHandler) SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.SearchPlayers is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) RenamePlayer(context.Context, *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.RenamePlayer is not implemented"))
 }

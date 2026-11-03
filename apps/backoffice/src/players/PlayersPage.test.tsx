@@ -12,7 +12,7 @@ import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles} from "../gen/grpc/player/v1/player_pb.ts"
 import {Opened} from "../navigation.ts"
-import {ALERTS_OFF} from "./actions.ts"
+import {ALERTS_OFF, NO_USERNAME} from "./actions.ts"
 import {PlayersPage} from "./PlayersPage.tsx"
 import {NO_PROFILE} from "./ProfilePanel.tsx"
 
@@ -373,6 +373,34 @@ describe("one player", () => {
         tool("Flag")
         confirm("Allow a change now", "Yes, allow a change now")
         expect(await screen.findByText("Done, but the rules in force lock every flag: the change waits for them to end.")).toBeTruthy()
+    })
+
+    it("renames an account and shows the new name at the top", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={account}/>)
+
+        tool("Name")
+        expect((screen.getByRole("button", {name: "Rename"}) as HTMLButtonElement).disabled).toBe(true)
+        fireEvent.change(screen.getByRole("textbox", {name: "New name"}), {target: {value: " Ada_L "}})
+        fireEvent.click(screen.getByRole("button", {name: "Rename"}))
+        expect(screen.getByText("Rename BraveFox42 to Ada_L?")).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Yes, rename"}))
+
+        expect(await screen.findByText("Renamed to Ada_L.")).toBeTruthy()
+        expect(admin.askedFor("renamePlayer")).toEqual([{accountId: ACCOUNT, name: "Ada_L"}])
+        expect(await screen.findByRole("heading", {name: "Ada_L France"})).toBeTruthy()
+    })
+
+    it("says when the account has no username to change", async () => {
+        const admin = new FakeAdmin()
+        admin.refuse("renamePlayer", Code.NotFound)
+        render(<Page admin={admin} first={account}/>)
+
+        tool("Name")
+        fireEvent.change(screen.getByRole("textbox", {name: "New name"}), {target: {value: "Ada"}})
+        confirm("Rename", "Yes, rename")
+
+        expect(await screen.findByText(NO_USERNAME)).toBeTruthy()
     })
 
     it("shows an account's Discord link, unlinks it, and says it is not linked any more", async () => {
