@@ -8,7 +8,8 @@ import {Countries} from "../domain/countries.ts"
 import type {LeaderboardEntry} from "../domain/leaderboard.ts"
 import type {CountryOrder} from "../domain/race.ts"
 import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
-import {DEFAULT_DISPLAY_SETTINGS} from "../domain/displaySettings.ts"
+import {DEFAULT_DISPLAY_SETTINGS, DisplaySettings} from "../domain/displaySettings.ts"
+import {useDisplaySettings} from "./settings/displaySettingsStore.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
 import {NameColor} from "../backends/player.ts"
@@ -33,6 +34,7 @@ const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, 
 afterEach(() => {
     cleanup()
     localStorage.clear()
+    useDisplaySettings.setState(DEFAULT_DISPLAY_SETTINGS)
     vi.useRealTimers()
 })
 
@@ -648,14 +650,17 @@ describe("Menu", () => {
     })
 
     describe("the settings", () => {
-        const withSettings = (display = DEFAULT_DISPLAY_SETTINGS) => {
+        const withSettings = (display: DisplaySettings = DEFAULT_DISPLAY_SETTINGS) => {
+            useDisplaySettings.setState(display)
             const onSound = vi.fn()
-            const onDisplay = vi.fn()
             const preview = vi.fn()
             const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
-                                      sound={{settings: DEFAULT_SOUND_SETTINGS, onChange: onSound, preview}}
-                                      display={{settings: display, onChange: onDisplay}}/>)
-            return {...view, onSound, onDisplay, preview, user: userEvent.setup()}
+                                      sound={{settings: DEFAULT_SOUND_SETTINGS, onChange: onSound, preview}}/>)
+            return {...view, onSound, preview, user: userEvent.setup()}
+        }
+        const displayed = (): DisplaySettings => {
+            const {mapView, rendering} = useDisplaySettings.getState()
+            return {mapView, rendering}
         }
 
         const toggle = (name: string) => screen.getByRole("switch", {name}) as HTMLInputElement
@@ -666,12 +671,12 @@ describe("Menu", () => {
             expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "Share", "Settings"])
         })
 
-        it("keeps its tab with nothing to set, for About", async () => {
+        it("keeps the display and About with no sound to set", async () => {
             const {user} = setup()
 
             await user.click(tab("Settings"))
 
-            expect(screen.queryByRole("switch")).toBeNull()
+            expect(screen.getAllByRole("switch")).toEqual([toggle("HD graphics")])
             expect(button("About")).toBeDefined()
         })
 
@@ -704,21 +709,22 @@ describe("Menu", () => {
         })
 
         it("picks one of the three ways to draw the flags", async () => {
-            const {user, onDisplay} = withSettings()
+            const {user} = withSettings()
             await user.click(tab("Settings"))
             expect(flags("Split").getAttribute("aria-checked")).toBe("true")
 
             for (const [label, mapView] of [["Big", "big"], ["Off", "tiles"], ["Split", "split"]]) {
                 await user.click(flags(label))
-                expect(onDisplay).toHaveBeenLastCalledWith({...DEFAULT_DISPLAY_SETTINGS, mapView})
+                expect(displayed()).toEqual({...DEFAULT_DISPLAY_SETTINGS, mapView})
+                expect(flags(label).getAttribute("aria-checked")).toBe("true")
             }
         })
 
         it("turns the HD graphics off, keeping the map view", async () => {
-            const {user, onDisplay} = withSettings({mapView: "tiles", rendering: "sharp"})
+            const {user} = withSettings({mapView: "tiles", rendering: "sharp"})
             await user.click(tab("Settings"))
             await user.click(toggle("HD graphics"))
-            expect(onDisplay).toHaveBeenCalledWith({mapView: "tiles", rendering: "soft"})
+            expect(displayed()).toEqual({mapView: "tiles", rendering: "soft"})
         })
     })
 

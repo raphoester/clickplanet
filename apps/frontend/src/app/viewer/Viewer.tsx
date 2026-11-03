@@ -54,7 +54,7 @@ import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
 import {GlobeStatus, useGlobe} from './useGlobe.ts';
 import {useSound} from '../sound/useSound.ts';
-import {useDisplaySettings} from './useDisplaySettings.ts';
+import {useDisplaySettings} from '../settings/displaySettingsStore.ts';
 import SettingsPlace from "../settings/SettingsPlace.tsx";
 import AnthemControls from "../anthem/AnthemControls.tsx";
 import {useAnthem} from "../anthem/useAnthem.ts";
@@ -201,7 +201,8 @@ export default function Viewer(props: ViewerProps) {
     const connection = useConnection(props.connection)
     const crazyGames = useCrazyGames(props.crazyGames)
     const sound = useSound(crazyGames.silenced)
-    const display = useDisplaySettings()
+    const mapView = useDisplaySettings((settings) => settings.mapView)
+    const rendering = useDisplaySettings((settings) => settings.rendering)
     const account = useAccount(props.account)
     const username = account.kind === 'ready' ? account.username : undefined
     const ownAccountId = account.kind === 'ready' ? account.accountId : undefined
@@ -327,10 +328,10 @@ export default function Viewer(props: ViewerProps) {
         country: countryState,
         crowd: roster.kind === "ready" ? roster.entries.length : undefined,
         clickHue: hueOf(color),
-        mapView: display.settings.mapView,
+        mapView,
         halo: haloOf(battle, halloween),
         bonusLook: halloween ? "pumpkin" : "box",
-        rendering: display.settings.rendering,
+        rendering,
     })
 
     useGameplay(props.crazyGames, status.state === 'ready')
@@ -448,7 +449,6 @@ export default function Viewer(props: ViewerProps) {
         taking,
     }
     const settings = {
-        display: {settings: display.settings, onChange: display.setSettings},
         sound: {settings: sound.settings, onChange: sound.setSettings, preview: sound.preview},
         support: props.support,
         pageContext: () => pageContextOf(window, graphics(), connection === "down"),
