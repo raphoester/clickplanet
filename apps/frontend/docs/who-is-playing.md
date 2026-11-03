@@ -17,7 +17,8 @@ code. No address, and no hash of one, is on it.
   network, so every rule is under test. `domain/roster.ts` applies one live event
   (`applyRosterEvent`) and splits the roster into the two groups.
 - `app/players/` — `usePresence`, `useRoster` and `usePlayerInfo`, thin hooks
-  over the above, `PlayersPanel` and `PlayerCard`.
+  over the above, `PlayersPanel`, `PlayerCard`, and `usePlayerCard` with
+  `PlayerCardPlace`, the one card open.
 
 **A name wears its color and its streak** everywhere it is drawn: the chat log,
 the folded quote, the roster and the card. Both come from the server with the
@@ -51,10 +52,12 @@ season's board (`app/players/PlayerCard.tsx`, a `Modal`). **The card is read by
 the line's `accountId`, never by its name** (`PlayerInfoBackend.playerInfo`,
 `GetPlayerRequest.account_id`): the name is what the card shows, and a name
 that changed hands would open another player's card. The card can report
-its player: see [Support](support.md). `Viewer` holds the one
-card open and hands `onOpenPlayer` to `ChatPanel` → `ChatLog` and `PlayersPanel`,
-and to the board's `BoardStandings`;
-without a `PlayerInfoBackend` wired the names are plain text. The card shows the
+its player: see [Support](support.md). **The one card open is a store**,
+`usePlayerCard` (`app/players/playerCardStore.ts`, see [Stores](stores.md)): `ChatLog`,
+`PlayersPanel`, the board's `PlayerStandings`, `HolderCard` and `TerritoryCard` open a
+player in it themselves, and the last two close their own card first. `PlayerCardPlace`
+shows the card. `Viewer` renders it only with a `PlayerInfoBackend` wired, and the
+store is `openable` only while it is there: without it the names are plain text. The card shows the
 flag and the country, then, for a player with a username, what
 `player.v1.PlayerService/GetPlayer` answers: the title it wears and the titles
 it shows (see [Titles](titles.md)), then tiles taken, the current and best
@@ -79,7 +82,7 @@ nothing either** (a message kept before accounts, or of a deleted account) and
 reads "This player is gone." `GetPlayer` needs no
 token and goes out as a GET, like `GetRoster`; `NotFound` (the account is
 gone) reads as `undefined`, and shows the same line. `usePlayerInfo` reads it
-once per account. `Viewer` keys the card by the account id.
+once per account. `PlayerCardPlace` keys the card by the account id.
 Escape closes the card and leaves the roster open: `useEscape` does nothing
 while a modal dialog is on the page.
 

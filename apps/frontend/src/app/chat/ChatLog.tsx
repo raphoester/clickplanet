@@ -1,7 +1,6 @@
 import {Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {BombAnnouncement, ChampionAnnouncement, ChatAnnouncement, ChatMessage, ChatQuote, FortifyAnnouncement, MuteAnnouncement, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
 import {landmassName} from "../../domain/landmassNames.ts";
-import {PlayerLine} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
@@ -20,13 +19,13 @@ import {authorOf, authorStyle, quoteStyle} from "./authorStyle.ts";
 import QuoteLine, {REMOVED_TEXT} from "./QuoteLine.tsx";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
+import {usePlayerCard} from "../players/playerCardStore.ts";
 
 export type ChatLogProps = {
     messages: ChatMessage[]
     announcements?: ChatAnnouncement[]
     loading: boolean
     flashing?: ReadonlySet<string>
-    onOpenPlayer?: (player: PlayerLine) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
     onReply?: (message: ChatMessage) => void
     onReport?: (message: ChatMessage) => void
@@ -185,7 +184,6 @@ export default function ChatLog(props: ChatLogProps) {
                                            picking={picking}
                                            pick={pick}
                                            jumpTo={shown.has(entry.message.replyTo?.messageId ?? "") ? jumpTo : undefined}
-                                           onOpenPlayer={props.onOpenPlayer}
                                            onReact={entry.message.removed ? undefined : props.onReact}
                                            onReply={entry.message.removed ? undefined : props.onReply}
                                            onReport={reportable(entry.message, props.own) ? props.onReport : undefined}
@@ -210,7 +208,6 @@ type MessageLineProps = {
     picking: string | undefined
     pick: (id: string) => (open: boolean) => void
     jumpTo?: (id: string) => void
-    onOpenPlayer?: (player: PlayerLine) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
     onReply?: (message: ChatMessage) => void
     onReport?: (message: ChatMessage) => void
@@ -222,6 +219,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
     const opens = startsGroup(previous?.kind === "message" ? previous.message : undefined, message)
     const words = useWordFilter()
     const name = words.masked(message.authorName)
+    const openPlayer = usePlayerCard((card) => card.openable ? card.open : undefined)
 
     return <li className={messageClass(flashing, message.id, opens, spotlit)}
                style={authorStyle(author)}
@@ -234,11 +232,11 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                   title={countryName(message.countryCode)}>
                 <CountryFlag code={message.countryCode}/>
             </span>
-            {props.onOpenPlayer
+            {openPlayer
                 ? <button type="button"
                           className="chat-message-author player-name-button"
                           title={name}
-                          onClick={() => props.onOpenPlayer?.(author)}>
+                          onClick={() => openPlayer(author)}>
                     {truncate(name, AUTHOR_MAX_LENGTH)}
                 </button>
                 : <span className="chat-message-author">

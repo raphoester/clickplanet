@@ -7,6 +7,7 @@ import {Territory} from "../../domain/territory.ts"
 import {NameColor, PlayerLine} from "../../backends/player.ts"
 import {TerritoryPlayers} from "./useTerritoryPlayers.ts"
 import {deletedLineOf} from "../players/useTileHolder.ts"
+import {usePlayerCard} from "../players/playerCardStore.ts"
 
 const SICILY: Territory = {
     landmass: 12,
@@ -46,7 +47,10 @@ function show(territory: Territory, props: Partial<Parameters<typeof TerritoryCa
 const rows = () => within(screen.getAllByRole("list")[0]).getAllByRole("listitem").map((row) => row.textContent)
 
 describe("TerritoryCard", () => {
-    afterEach(cleanup)
+    afterEach(() => {
+        cleanup()
+        usePlayerCard.setState({openable: false, player: undefined})
+    })
 
     it("names the territory and its size, beside the pointer", () => {
         show(SICILY)
@@ -100,16 +104,18 @@ describe("TerritoryCard", () => {
         expect(screen.getByRole("region", {name: "Sicily"}).textContent).toContain(`${(1_200).toLocaleString()} free`)
     })
 
-    it("lists the players who hold the most of it, and opens a signed-in one's card", () => {
-        const onOpenPlayer = vi.fn()
-        show(SICILY, {players: PLAYERS, onOpenPlayer})
+    it("lists the players who hold the most of it, and closes to open a signed-in one's card", () => {
+        usePlayerCard.setState({openable: true})
+        const onClose = vi.fn()
+        show(SICILY, {players: PLAYERS, onClose})
 
         const top = screen.getByRole("region", {name: "Top players"})
         expect(within(top).getAllByRole("listitem").map((row) => row.textContent)).toEqual(["Ana400", "guest_91aa3d12"])
         expect(within(top).queryByRole("button", {name: /guest_91aa3d/})).toBeNull()
 
         fireEvent.click(within(top).getByRole("button", {name: /Ana/}))
-        expect(onOpenPlayer).toHaveBeenCalledWith(PLAYERS.top[0].line)
+        expect(onClose).toHaveBeenCalledTimes(1)
+        expect(usePlayerCard.getState().player).toEqual(PLAYERS.top[0].line)
     })
 
     it("lists no player until they are read", () => {

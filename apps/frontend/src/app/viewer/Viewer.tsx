@@ -61,8 +61,8 @@ import {useAnthem} from "../anthem/useAnthem.ts";
 import {AccountStore} from "../account/accountStore.ts";
 import {useAccount} from "../account/useAccount.ts";
 import {hueOf} from "../../domain/authorColor.ts";
-import {PlayerInfoBackend, PlayerLine, PresenceBackend} from "../../backends/player.ts";
-import PlayerCard from "../players/PlayerCard.tsx";
+import {PlayerInfoBackend, PresenceBackend} from "../../backends/player.ts";
+import PlayerCardPlace from "../players/PlayerCardPlace.tsx";
 import HolderCard from "../players/HolderCard.tsx";
 import TerritoryCard from "../territory/TerritoryCard.tsx";
 import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
@@ -220,8 +220,6 @@ export default function Viewer(props: ViewerProps) {
     const champion = reigningChampionOf(season, closed)
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
     const [pitchOpen, setPitchOpen] = useState(false)
-    const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
-    const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
     const guest = account.kind === 'ready' && account.offered.length > 0 && account.me.linked.length === 0
 
     const compact = useCompact()
@@ -363,7 +361,6 @@ export default function Viewer(props: ViewerProps) {
         caller: {accountId: ownAccountId, username, color, linked},
         listenForClicks: accepted.listenForClicks,
         onSignIn: clickBudget?.linkedMultiplier ? openPitch : undefined,
-        onOpenPlayer,
         view: boardView,
         onView: setBoardView,
     }
@@ -502,7 +499,6 @@ export default function Viewer(props: ViewerProps) {
             playSound={sound.play}
             accountId={ownAccountId}
             username={username}
-            onOpenPlayer={onOpenPlayer}
             reporter={props.support}
             players={roster.kind === 'ready' ? roster.entries : undefined}
             compact={compact}
@@ -573,28 +569,18 @@ export default function Viewer(props: ViewerProps) {
         {tileHolder.holder && <HolderCard key={`holder-${tileHolder.holder.id}`}
                                                               holder={tileHolder.holder}
                                                               onHold={tileHolder.hold}
-                                                              onOpenPlayer={onOpenPlayer && ((player) => {
-                                                                  tileHolder.dismiss()
-                                                                  onOpenPlayer(player)
-                                                              })}
                                                               onClose={tileHolder.dismiss}/>}
 
         {territoryCard.shown && <TerritoryCard key={`territory-${territoryCard.shown.id}`}
                                                shown={territoryCard.shown}
                                                flag={countryState.code}
                                                players={territoryPlayers}
-                                               onOpenPlayer={onOpenPlayer && ((player) => {
-                                                   territoryCard.dismiss()
-                                                   onOpenPlayer(player)
-                                               })}
                                                onHold={territoryCard.hold}
                                                onClose={territoryCard.dismiss}/>}
 
-        {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.accountId}
-                                                       player={openPlayer}
-                                                       backend={props.playerInfo}
-                                                       reporter={openPlayer.accountId === ownAccountId ? undefined : props.support}
-                                                       onClose={() => setOpenPlayer(undefined)}/>}
+        {props.playerInfo && <PlayerCardPlace backend={props.playerInfo}
+                                              accountId={ownAccountId}
+                                              reporter={props.support}/>}
 
         <Moments shown={ready}
                  battle={battle}
