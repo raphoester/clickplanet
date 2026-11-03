@@ -8,7 +8,8 @@ function isMapView(value: unknown): value is MapView {
     return MAP_VIEWS.some((view) => view === value)
 }
 
-export type Rendering = "sharp" | "plain"
+// "plain" was saved by every page while HD was off by default: it reads as the default.
+export type Rendering = "sharp" | "soft"
 
 export type DisplaySettings = {
     mapView: MapView
@@ -17,7 +18,7 @@ export type DisplaySettings = {
 
 export const DISPLAY_SETTINGS_STORAGE_KEY = "clickplanet-display-settings"
 
-export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {mapView: "split", rendering: "plain"}
+export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {mapView: "split", rendering: "sharp"}
 
 export function parseDisplaySettings(raw: string | null): DisplaySettings {
     if (raw === null) return DEFAULT_DISPLAY_SETTINGS
@@ -33,6 +34,6 @@ export function parseDisplaySettings(raw: string | null): DisplaySettings {
     const {mapView, rendering} = stored as {mapView?: unknown, rendering?: unknown}
     return {
         mapView: isMapView(mapView) ? mapView : DEFAULT_DISPLAY_SETTINGS.mapView,
-        rendering: rendering === "sharp" || rendering === "plain" ? rendering : DEFAULT_DISPLAY_SETTINGS.rendering,
+        rendering: rendering === "sharp" || rendering === "soft" ? rendering : DEFAULT_DISPLAY_SETTINGS.rendering,
     }
 }

@@ -5,33 +5,33 @@ describe("graphicsOf", () => {
     it("follows the setting when the URL asks for nothing", () => {
         expect(graphicsOf("", "sharp")).toEqual(SHARP)
         expect(graphicsOf("?f=fr", "sharp")).toEqual(SHARP)
-        expect(graphicsOf("", "plain")).toEqual(PLAIN)
-        expect(graphicsOf("?f=fr", "plain")).toEqual(PLAIN)
+        expect(graphicsOf("", "soft")).toEqual(PLAIN)
+        expect(graphicsOf("?f=fr", "soft")).toEqual(PLAIN)
     })
 
     it("is #254 whole when sharp", () => {
-        expect(graphicsOf("?gfx=all", "plain")).toEqual(SHARP)
+        expect(graphicsOf("?gfx=all", "soft")).toEqual(SHARP)
     })
 
     it("lets the URL override the setting either way", () => {
         expect(graphicsOf("?gfx=", "sharp")).toEqual(PLAIN)
         expect(graphicsOf("?gfx=earth", "sharp")).toEqual({...PLAIN, earth: true})
-        expect(graphicsOf("?gfx=all", "plain")).toEqual(SHARP)
+        expect(graphicsOf("?gfx=all", "soft")).toEqual(SHARP)
     })
 
     it("turns on each part its word names, and no other", () => {
         expect(graphicsOf("?gfx=ratio", "sharp")).toEqual({...PLAIN, ratio: true})
         expect(graphicsOf("?gfx=aa", "sharp")).toEqual({...PLAIN, antialias: true})
         expect(graphicsOf("?gfx=earth", "sharp")).toEqual({...PLAIN, earth: true})
-        expect(graphicsOf("?gfx=compact", "plain")).toEqual({...PLAIN, compact: true})
+        expect(graphicsOf("?gfx=compact", "soft")).toEqual({...PLAIN, compact: true})
     })
 
     it("adds up a list, whatever its case and spacing", () => {
-        expect(graphicsOf("?gfx=Ratio,%20earth", "plain")).toEqual({...PLAIN, ratio: true, earth: true})
+        expect(graphicsOf("?gfx=Ratio,%20earth", "soft")).toEqual({...PLAIN, ratio: true, earth: true})
     })
 
     it("reads the switch beside the rest of the query", () => {
-        expect(graphicsOf("?f=fr&gfx=earth", "plain")).toEqual({...PLAIN, earth: true})
+        expect(graphicsOf("?f=fr&gfx=earth", "soft")).toEqual({...PLAIN, earth: true})
     })
 
     it("turns nothing on for a word it does not know", () => {

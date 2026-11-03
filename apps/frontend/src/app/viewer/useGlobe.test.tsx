@@ -240,11 +240,11 @@ describe("useGlobe", () => {
         await act(async () => {view.rerender(<Rendered rendering="sharp"/>)})
         expect(createGlobe).toHaveBeenCalledTimes(1)
 
-        await act(async () => {view.rerender(<Rendered rendering="plain"/>)})
+        await act(async () => {view.rerender(<Rendered rendering="soft"/>)})
 
         expect(createGlobe).toHaveBeenCalledTimes(2)
         expect(createGlobe.mock.calls[0][0].rendering).toBe("sharp")
-        expect(createGlobe.mock.calls[1][0].rendering).toBe("plain")
+        expect(createGlobe.mock.calls[1][0].rendering).toBe("soft")
     })
 
     it("rebuilds the globe when a backend is swapped", async () => {

@@ -44,7 +44,7 @@ export default function SettingsPlace({display, sound, support, pageContext = pa
             <li>
                 <Switch label="HD graphics"
                         checked={display.settings.rendering === "sharp"}
-                        onChange={(on) => display.onChange({...display.settings, rendering: on ? "sharp" : "plain"})}/>
+                        onChange={(on) => display.onChange({...display.settings, rendering: on ? "sharp" : "soft"})}/>
             </li>
         </ul>}
         {sound && <SoundSettingsPanel {...sound}/>}

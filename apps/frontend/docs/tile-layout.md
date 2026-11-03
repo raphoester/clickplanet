@@ -9,7 +9,7 @@ megabyte, and the plain layout spent 56 of them.
 (`compact` in `Graphics`, `?gfx=compact` on its own — see [HD
 graphics](hd-graphics.md)):
 
-| | plain, the default | compact, with HD graphics |
+| | plain, with HD graphics off | compact, with HD graphics, the default |
 |---|---|---|
 | position | `position` f32×3 | the same |
 | flag | `regionVector` f32×4, the flag's atlas rectangle | `ids.x` u16, a flag number |
@@ -63,8 +63,8 @@ The page keeps the same arrays in its own memory, so it holds as much less.
 an Intel GPU (see [HD graphics](hd-graphics.md)) could not be reproduced
 anywhere else, and this layout reads small integer buffers that nothing else in
 the game uses. A player who sees a broken globe turns HD graphics off and gets the
-plain layout back. **Once it is seen working on such a machine, make it the
-default** and delete the plain layout: `plainLayout`, the `#else` halves of the
+plain layout back. **Once it is seen working on such a machine, delete the
+plain layout**: `plainLayout`, the `#else` halves of the
 display and picker vertex shaders, `pickingColors`, and the `compact` part of
 `Graphics`. If one driver mishandles one integer type, that one value can go back
 to an f32 attribute of its own.

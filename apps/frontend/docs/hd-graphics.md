@@ -8,9 +8,13 @@ on a Mac (Metal), on SwiftShader, or on a Windows laptop with the same GPU
 (Iris Xe, ratio 1.25) in either a dev or a production build. So the cause can
 only be found on the screens that have it.
 
-**A player turns them on as "HD graphics" in Settings**, off by default
-(`Rendering`, `"plain"` or `"sharp"`, in the display settings): turned on for
-everyone, a player who gets the white globe would have to find the switch. **Changing it rebuilds the globe**:
+**A player turns them off as "HD graphics" in Settings**, on by default
+(`Rendering`, `"sharp"` or `"soft"`, in the display settings). It was off by
+default, so that a player who gets the white globe would not have to find the
+switch; the owner turned it on for everyone and took that risk. **Every page had
+saved `"plain"`, the old off, on its first load**, chosen or not, so `"plain"` is
+not a value any more and reads as the default: every player got HD once, and
+turning it off now saves `"soft"`. **Changing it rebuilds the globe**:
 `antialias` is fixed when the WebGL context is made, so `rendering` is in
 `useGlobe`'s dependencies and the map loads again.
 

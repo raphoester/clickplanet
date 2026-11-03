@@ -718,7 +718,7 @@ describe("Menu", () => {
             const {user, onDisplay} = withSettings({mapView: "tiles", rendering: "sharp"})
             await user.click(tab("Settings"))
             await user.click(toggle("HD graphics"))
-            expect(onDisplay).toHaveBeenCalledWith({mapView: "tiles", rendering: "plain"})
+            expect(onDisplay).toHaveBeenCalledWith({mapView: "tiles", rendering: "soft"})
         })
     })
 
