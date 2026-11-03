@@ -65,6 +65,17 @@ func TestVPNListBlocksFirefoxVPN(t *testing.T) {
 	}
 }
 
+func TestVPNListBlocksInterhive(t *testing.T) {
+	blocklist := cpipblock.New(cpipblock.Config{Enabled: true})
+	require.NoError(t, blocklist.Load())
+
+	for _, ip := range []string{"217.217.232.1", "13.140.30.1"} {
+		list, blocked := blocklist.Blocked(ip)
+		require.Truef(t, blocked, "%s should be refused", ip)
+		require.Equal(t, cpipblock.ListVPN, list)
+	}
+}
+
 func TestWARPListBlocksCloudflareWARP(t *testing.T) {
 	blocklist := cpipblock.New(cpipblock.Config{Enabled: true})
 	require.NoError(t, blocklist.Load())
