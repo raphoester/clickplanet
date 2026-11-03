@@ -9,6 +9,7 @@ import {ChevronIcon, ClockIcon} from "../components/icons.tsx"
 import {useBottomEdge} from "../components/useBottomEdge.ts"
 import {useEscape} from "../components/useDialog.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
+import {useScreen} from "../hud/screenStore.ts"
 import {FinaleDetails} from "./FinaleFacts.tsx"
 import SeasonFacts from "./SeasonFacts.tsx"
 import {useNow} from "./useNow.ts"
@@ -21,13 +22,15 @@ export type SeasonChipProps = {
     finale?: Finale
     dayEndsAt?: number
     compact: boolean
-    open: boolean
-    onToggle: () => void
 }
 
-export default function SeasonChip({season, nextBattle, finale, dayEndsAt, compact, open, onToggle}: SeasonChipProps) {
+export default function SeasonChip({season, nextBattle, finale, dayEndsAt, compact}: SeasonChipProps) {
     const [chip, setChip] = useState<HTMLElement | null>(null)
     useBottomEdge(compact ? null : chip, STATUS_BOTTOM)
+    const open = useScreen((screen) => compact ? screen.sheet === "season" : screen.popovers.season)
+    const toggleSheet = useScreen((screen) => screen.toggleSheet)
+    const togglePopover = useScreen((screen) => screen.togglePopover)
+    const toggle = () => compact ? toggleSheet("season") : togglePopover("season")
 
     const now = useNow()
     const countdowns = countdownsOf(season, now, nextBattle, dayEndsAt)
@@ -44,7 +47,7 @@ export default function SeasonChip({season, nextBattle, finale, dayEndsAt, compa
                        className={`panel-box ${className}`}
                        aria-label={name}
                        aria-expanded={open}
-                       onClick={onToggle}
+                       onClick={toggle}
                        {...holds}>
             <ClockIcon/>
             <Faces countdowns={countdowns} shown={shown} compact/>
@@ -59,12 +62,12 @@ export default function SeasonChip({season, nextBattle, finale, dayEndsAt, compa
                 className="season-chip-head"
                 aria-label={name}
                 aria-expanded={open}
-                onClick={onToggle}>
+                onClick={toggle}>
             <ClockIcon/>
             <Faces countdowns={countdowns} shown={shown} compact={false}/>
             <span className="season-chip-chevron"><ChevronIcon size={16}/></span>
         </button>
-        {open && <SeasonPopover finale={finale} onClose={onToggle}/>}
+        {open && <SeasonPopover finale={finale} onClose={toggle}/>}
     </section>
 }
 

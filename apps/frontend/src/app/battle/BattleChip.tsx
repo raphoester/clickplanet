@@ -6,6 +6,7 @@ import {ChevronIcon, SwordsIcon} from "../components/icons.tsx"
 import {useBottomEdge} from "../components/useBottomEdge.ts"
 import {useEscape} from "../components/useDialog.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
+import {useScreen} from "../hud/screenStore.ts"
 import {useNow} from "../season/useNow.ts"
 import "../season/Season.css"
 import "./Battle.css"
@@ -20,14 +21,16 @@ export type BattleChipProps = {
     battle: Battle
     season?: Season
     compact: boolean
-    open: boolean
-    onToggle: () => void
 }
 
-export default function BattleChip({battle, season, compact, open, onToggle}: BattleChipProps) {
+export default function BattleChip({battle, season, compact}: BattleChipProps) {
     const [chip, setChip] = useState<HTMLElement | null>(null)
     useBottomEdge(compact ? null : chip, STATUS_BOTTOM)
     const [hovered, setHovered] = useState(false)
+    const open = useScreen((screen) => compact ? screen.sheet === "battle" : screen.popovers.battle)
+    const toggleSheet = useScreen((screen) => screen.toggleSheet)
+    const togglePopover = useScreen((screen) => screen.togglePopover)
+    const toggle = () => compact ? toggleSheet("battle") : togglePopover("battle")
 
     const now = useNow()
     const left = battleLeft(battle, now)
@@ -38,7 +41,7 @@ export default function BattleChip({battle, season, compact, open, onToggle}: Ba
                        className="panel-box season-chip season-chip--compact battle-chip"
                        aria-label={name}
                        aria-expanded={open}
-                       onClick={onToggle}>
+                       onClick={toggle}>
             <SwordsIcon/>
             <span className="season-chip-faces" aria-hidden="true">
                 <span className="season-chip-face">
@@ -60,7 +63,7 @@ export default function BattleChip({battle, season, compact, open, onToggle}: Ba
                 className="season-chip-head"
                 aria-label={name}
                 aria-expanded={shown}
-                onClick={onToggle}>
+                onClick={toggle}>
             <SwordsIcon/>
             <span className="season-chip-faces" aria-hidden="true">
                 <span className="season-chip-face">
@@ -70,7 +73,7 @@ export default function BattleChip({battle, season, compact, open, onToggle}: Ba
             </span>
             <span className="season-chip-chevron"><ChevronIcon size={16}/></span>
         </button>
-        {shown && <BattlePopover battle={battle} season={season} now={now} open={open} onClose={onToggle}/>}
+        {shown && <BattlePopover battle={battle} season={season} now={now} open={open} onClose={toggle}/>}
     </section>
 }
 

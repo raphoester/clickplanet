@@ -14,6 +14,7 @@ import {Country} from "../../domain/countries.ts"
 import {breakHeadline} from "../../domain/shareCard.ts"
 import {DISCORD_INVITE} from "../../links.ts"
 import {InviteLink} from "../../backends/crazyGames.ts"
+import {useScreen} from "../hud/screenStore.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
@@ -22,8 +23,6 @@ export type ClickBudgetMeterProps = {
     refusals?: number
     onSignIn?: () => void
     compact?: boolean
-    open?: boolean
-    onToggleOpen?: () => void
     popover?: ReactNode
     said?: {text: string, id: number}
     // The map takes no play: the dock says so, and when the next season starts when one is planned.
@@ -45,8 +44,6 @@ export default function ClickBudgetMeter({
     refusals = 0,
     onSignIn,
     compact = false,
-    open = false,
-    onToggleOpen,
     popover,
     said,
     frozen,
@@ -55,6 +52,10 @@ export default function ClickBudgetMeter({
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
     const wait = useRef<HTMLSpanElement>(null)
+    const open = useScreen((screen) => compact ? screen.sheet === "clicks" : screen.popovers.clicks)
+    const toggleSheet = useScreen((screen) => screen.toggleSheet)
+    const togglePopover = useScreen((screen) => screen.togglePopover)
+    const toggleOpen = () => compact ? toggleSheet("clicks") : togglePopover("clicks")
 
     useEffect(() => {
         const box = root.current
@@ -216,18 +217,18 @@ export default function ClickBudgetMeter({
                 </button>}
             </div>
 
-            {onToggleOpen && <button type="button"
-                                     className="click-budget-open"
-                                     aria-label="Your clicks"
-                                     aria-expanded={open}
-                                     onClick={onToggleOpen}/>}
+            {popover && <button type="button"
+                                className="click-budget-open"
+                                aria-label="Your clicks"
+                                aria-expanded={open}
+                                onClick={toggleOpen}/>}
         </div>
 
         {children}
 
         {said && <Bubble key={said.id} anchor={root}>{said.text}</Bubble>}
 
-        {open && !compact && popover && onToggleOpen && <Popover onClose={onToggleOpen}>{popover}</Popover>}
+        {open && !compact && popover && <Popover onClose={toggleOpen}>{popover}</Popover>}
     </div>
 }
 

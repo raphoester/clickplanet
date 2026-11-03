@@ -21,7 +21,13 @@ that does not.
 | **Play** | the dock (`ClickBudgetMeter` + `Inventory`) above the tab bar, the chat's peek above it | the dock at the bottom centre |
 | **Places** | `hud/TabBar` (Board, Missions, Chat, Sign in / You, Share, Settings), each a `hud/Sheet` | `Menu`'s rail (logo, Board, Missions, Share or Invite, Settings, and Sign in / You at its foot) on the left with the open place beside it, the chat on the right |
 
-- **One sheet at a time on a phone.** `Viewer` holds which (`sheet`): the five
+- **What is open is one store**, `useScreen` (`hud/screenStore.ts`, see
+  [Stores](stores.md)): the phone's sheet (`sheet`), the desktop menu's place
+  (`menuTab`), and the desktop's popovers (`popovers`: the season, the battle and
+  "Your clicks"). The tab bar, the status bar, the chips, the dock and the menu
+  read and change it themselves; `Viewer` reads the sheet to draw it. A change
+  between the phone and the desktop form closes the sheet and the popovers.
+- **One sheet at a time on a phone**: the five
   tabs, and the season and "Your clicks", which the status bar and the dock open.
   A tab pressed again closes it. The sheets are the same places the desktop
   shows: `BoardPlace` and `YouPlace` in `Menu.tsx`, `SharePlace`, `SettingsPlace`,

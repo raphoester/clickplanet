@@ -8,8 +8,8 @@ implements them against `/chat.v1.ChatService/` alone — `SendMessage`,
 `GetHistory`, `React`, `MarkSeen` and the `ListenForEvents` stream — and
 `fakeChatBackend.ts` is the dev stand-in. On a desktop `ChatPanel` is the
 right-hand column, folded and unfolded from its own header. On a phone it is the
-Chat tab's sheet, and `Viewer` holds whether it is open (`open`,
-`onOpenChange`); see [The screen](screen.md). **It is always
+Chat tab's sheet, and `Viewer` passes whether it is open (`open`,
+`onOpenChange`) from the screen's store; see [The screen](screen.md). **It is always
 mounted**, open or not, on both: it owns each room's history load, stream, unread
 count and sound (see [Rooms](#rooms)). **A resumed stream reads the history again**: `addMessages`
 takes what it missed, and `withNewerReactions` the reactions that moved meanwhile. Closed on a phone it draws only the peek (below) and hands

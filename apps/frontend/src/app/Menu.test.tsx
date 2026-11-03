@@ -12,6 +12,7 @@ import {DEFAULT_DISPLAY_SETTINGS, DisplaySettings} from "../domain/displaySettin
 import {useDisplaySettings} from "./settings/displaySettingsStore.ts"
 import {useSoundSettings} from "./sound/soundSettingsStore.ts"
 import {useBoardGuide} from "./boardGuideStore.ts"
+import {useScreen} from "./hud/screenStore.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
 import {NameColor} from "../backends/player.ts"
@@ -40,6 +41,7 @@ afterEach(() => {
     localStorage.clear()
     useDisplaySettings.setState(DEFAULT_DISPLAY_SETTINGS)
     useSoundSettings.setState({settings: DEFAULT_SOUND_SETTINGS})
+    useScreen.setState(useScreen.getInitialState(), true)
     vi.useRealTimers()
 })
 
