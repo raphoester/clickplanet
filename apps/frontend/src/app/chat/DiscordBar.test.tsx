@@ -3,12 +3,12 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {AuthError} from "../../backends/account.ts"
-import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../../links.ts"
+import {DISCORD_INVITE} from "../../links.ts"
 import DiscordBar from "./DiscordBar.tsx"
 import {DISCORD_BAR_RETURNS_AFTER_MS, DISCORD_BAR_STORAGE_KEY} from "./discordBar.ts"
 
 const link = () => screen.queryByRole("link", {name: "Join Discord"})
-const hide = () => userEvent.setup().click(screen.getByRole("button", {name: "Hide the links"}))
+const hide = () => userEvent.setup().click(screen.getByRole("button", {name: "Hide Discord"}))
 
 beforeEach(() => window.localStorage.clear())
 afterEach(() => {
@@ -25,20 +25,13 @@ describe("DiscordBar", () => {
         expect(link()?.getAttribute("rel")).toBe("noopener noreferrer")
     })
 
-    it.each([
-        ["TikTok", TIKTOK_PROFILE],
-        ["YouTube", YOUTUBE_CHANNEL],
-        ["Instagram", INSTAGRAM_PROFILE],
-    ])("links %s beside it, in a new tab", (name, href) => {
+    it("is the one link it holds: no other network beside it", () => {
         render(<DiscordBar/>)
 
-        const other = screen.getByRole("link", {name})
-        expect(other.getAttribute("href")).toBe(href)
-        expect(other.getAttribute("target")).toBe("_blank")
-        expect(other.getAttribute("rel")).toBe("noopener noreferrer")
+        expect(screen.getAllByRole("link")).toHaveLength(1)
     })
 
-    it("goes when its cross is pressed, with the links beside it, and stays gone on a visit soon after", async () => {
+    it("goes when its cross is pressed, and stays gone on a visit soon after", async () => {
         const before = Date.now()
         const {unmount} = render(<DiscordBar/>)
 

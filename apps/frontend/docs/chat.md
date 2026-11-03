@@ -20,14 +20,17 @@ While the list is shown, the Chat tab wears the unread badge: the log is not on
 screen, so nothing is marked seen, and the open panel has no other badge.
 
 **A Discord bar sits over the log** (`DiscordBar`), on a desktop and in the
-phone's sheet: "Join Discord", then TikTok, YouTube and Instagram as three
-icons, and a cross. "Join Discord" is a link to `DISCORD_INVITE`, or, while the
-game's Discord server is offered and the player is not in it, the Discord
-sign-in that joins it, with "Get pinged when France is attacked" on a line of
-its own under the row; "Open Discord" once the player is in (see [Discord
-pings](discord-alerts.md)). **The link says "Join Discord", not "Join the
-Discord"**: beside three icons the longer label no longer fit on a 375px phone
-or in the panel's default width, and a cut label looks broken. The cross hides all of it for
+phone's sheet: one call to action, Discord, for the alert when the flag is under
+attack. While the game's Discord server is offered and the player is not in it,
+a `panel-box` says "Get pinged when France is attacked" on its top
+line, with a cross beside it, and under it the "Join Discord" button
+(`button button-mini` in Discord's color) across the box: the Discord sign-in
+that joins the server (see [Discord pings](discord-alerts.md)). Otherwise the
+button and the cross share one row: "Join Discord", a link to `DISCORD_INVITE`,
+promises nothing; "Open Discord" once the player is in. **Nothing else goes in
+the box**: TikTok, YouTube and Instagram sat beside the button, three more calls
+to action that had nothing to do with joining Discord, and they are on the About
+panel. The cross hides all of it for
 `DISCORD_BAR_RETURNS_AFTER_MS` (20 hours), from the time of the press kept in
 `clickplanet-discord-bar` (`discordBar.ts`, `useDiscordBar`). **20 hours and
 not 24**, so a player who comes back at the same hour each day finds it again
@@ -35,6 +38,12 @@ each day. It is read when the chat is drawn, so it comes back on the next
 visit, or the next time the chat is opened, and never under a player who is
 reading. **Nothing is sent to Discord before a click**, as the privacy page
 says: it asks Discord for no member count.
+
+**The open panel has one left edge, 12px in**: the tabs, the Discord bar, the
+messages and the composer all start there, on a desktop (`.chat`'s 8px and the
+head's 4px) and in the phone's sheet (whose head is set to 12px, against 16px
+in the other sheets, to meet the body). The bar sat 4px wider than the tabs
+when the two were on different edges.
 
 **The open panel is resized from its top edge, its left edge or its top-left
 corner**, and a double-click on one puts the default back (`useChatSize`). Not

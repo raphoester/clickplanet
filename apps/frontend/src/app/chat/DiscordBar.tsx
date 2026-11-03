@@ -1,5 +1,5 @@
-import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../../links.ts"
-import {CloseIcon, DiscordIcon, InstagramIcon, TikTokIcon, YouTubeIcon} from "../components/icons.tsx"
+import {DISCORD_INVITE} from "../../links.ts"
+import {CloseIcon, DiscordIcon} from "../components/icons.tsx"
 import {pingFailureOf, pingHintOf, pingNameOf} from "../alerts/alertsMessages.ts"
 import {DiscordOffer} from "../alerts/useDiscordAlerts.ts"
 import {usePing} from "../alerts/usePing.ts"
@@ -11,66 +11,46 @@ export type DiscordBarProps = {
     flagName?: string
 }
 
+// One call to action over the log: Discord, for the alert when the flag is under attack. The line says what it is
+// for, the button under it does it, and the cross hides the box.
 export default function DiscordBar({discord, flagName}: DiscordBarProps) {
     const {hidden, hide} = useDiscordBar()
     if (hidden) return null
 
-    return <div className={discord?.connect ? "chat-discord chat-discord--connect" : "chat-discord"}>
-        {discord?.connect
-            ? <ConnectButton connect={discord.connect} flagName={flagName}/>
+    const connect = discord?.connect
+    return <div className={connect ? "chat-discord chat-discord--connect panel-box" : "chat-discord panel-box"}>
+        {connect && <p className="chat-discord-hint" aria-hidden="true">{pingHintOf(flagName)}</p>}
+        {connect
+            ? <ConnectButton connect={connect} flagName={flagName}/>
             : <a href={discord?.serverUrl ?? DISCORD_INVITE}
                  target="_blank"
                  rel="noopener noreferrer"
-                 className="chat-discord-link">
-                <DiscordIcon size={24}/>
+                 className="button button-mini chat-discord-join">
+                <DiscordIcon size={20}/>
                 <span className="chat-discord-label">{discord?.serverUrl ? "Open Discord" : "Join Discord"}</span>
             </a>}
-        <a href={TIKTOK_PROFILE}
-           target="_blank"
-           rel="noopener noreferrer"
-           className="chat-discord-other"
-           aria-label="TikTok">
-            <TikTokIcon size={20}/>
-        </a>
-        <a href={YOUTUBE_CHANNEL}
-           target="_blank"
-           rel="noopener noreferrer"
-           className="chat-discord-other"
-           aria-label="YouTube">
-            <YouTubeIcon size={20}/>
-        </a>
-        <a href={INSTAGRAM_PROFILE}
-           target="_blank"
-           rel="noopener noreferrer"
-           className="chat-discord-other"
-           aria-label="Instagram">
-            <InstagramIcon size={20}/>
-        </a>
         <button type="button"
                 className="chat-discord-close"
-                aria-label="Hide the links"
+                aria-label="Hide Discord"
                 onClick={hide}>
             <CloseIcon size={16}/>
         </button>
     </div>
 }
 
-// Joins the server by Discord's sign-in, with the flag's role: the same "Join Discord", and why it is worth it on a
-// line of its own under the bar, which the button's name already says.
+// Joins the server by Discord's sign-in, with the flag's role. The button's name says what for, which the line over
+// it shows.
 function ConnectButton({connect, flagName}: {connect: () => Promise<void>, flagName?: string}) {
     const ping = usePing(connect)
     const label = ping.failure ? pingFailureOf(ping.failure) : "Join Discord"
 
-    return <>
-        <button type="button"
-                className="chat-discord-link chat-discord-ping"
-                aria-label={ping.failure ? label : pingNameOf(flagName)}
-                aria-busy={ping.busy}
-                disabled={ping.busy}
-                onClick={ping.press}>
-            <DiscordIcon size={24}/>
-            <span className="chat-discord-label">{label}</span>
-        </button>
-        <p className="chat-discord-hint" aria-hidden="true">{pingHintOf(flagName)}</p>
-    </>
+    return <button type="button"
+                   className="button button-mini chat-discord-join"
+                   aria-label={ping.failure ? label : pingNameOf(flagName)}
+                   aria-busy={ping.busy}
+                   disabled={ping.busy}
+                   onClick={ping.press}>
+        <DiscordIcon size={20}/>
+        <span className="chat-discord-label">{label}</span>
+    </button>
 }
