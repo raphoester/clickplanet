@@ -7,6 +7,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
 )
@@ -55,6 +56,12 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 			enclosed.CountryID, enclosed.ClosingTile, enclosed.Wall, enclosed.Filled, enclosed.Yours))
 	case event.Spread != nil:
 		return s.stream.Send(planetmessage.TilesSpread(event.Spread.CountryID, event.Spread.Tile, event.Spread.Neighbours))
+	case event.Granted != nil:
+		return s.stream.Send(&planetv1.PlanetEvent{
+			Event: &planetv1.PlanetEvent_ChargesGranted{ChargesGranted: &planetv1.ChargesGranted{
+				Charges: chargesheld.Encode(*event.Granted),
+			}},
+		})
 	default:
 		return errEmptyEvent
 	}

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMissionsRequest, GetMissionsResponse } from "./missions_pb.js";
+import { GetMissionsRequest, GetMissionsResponse, ListenForEventsRequest, MissionEvent } from "./missions_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -20,6 +20,15 @@ export const MissionService = {
       I: GetMissionsRequest,
       O: GetMissionsResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc missions.v1.MissionService.ListenForEvents
+     */
+    listenForEvents: {
+      name: "ListenForEvents",
+      I: ListenForEventsRequest,
+      O: MissionEvent,
+      kind: MethodKind.ServerStreaming,
     },
   }
 } as const;

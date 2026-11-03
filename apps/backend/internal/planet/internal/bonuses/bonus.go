@@ -69,6 +69,7 @@ type Event struct {
 	Taken    *Taken
 	Enclosed *Enclosed
 	Spread   *Spread
+	Granted  *Held
 }
 
 type Reward struct {
@@ -393,6 +394,16 @@ func (r *Registry) PublishEnclosed(entrant Entrant, enclosed Enclosed) {
 
 func (r *Registry) PublishSpread(spread Spread) {
 	r.broadcast(Event{Spread: &spread})
+}
+
+// A guest's streams share its address with others', so only a signed-in account hears what it holds.
+func (r *Registry) PublishGranted(holder Holder, held Held) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if entry, ok := r.callers[accountEntrant(string(holder))]; ok {
+		entry.send(Event{Granted: &held})
+	}
 }
 
 func (r *Registry) broadcast(event Event) {

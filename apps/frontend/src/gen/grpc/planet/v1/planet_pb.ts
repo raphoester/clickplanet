@@ -1199,6 +1199,14 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: RulesChanged;
     case: "rulesChanged";
+  } | {
+    /**
+     * Only on a stream opened with a signed-in account's token, and only that account's.
+     *
+     * @generated from field: planet.v1.ChargesGranted charges_granted = 12;
+     */
+    value: ChargesGranted;
+    case: "chargesGranted";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -1220,6 +1228,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 9, name: "landmass_fortified", kind: "message", T: LandmassFortified, oneof: "event" },
     { no: 10, name: "holdings_changed", kind: "message", T: HoldingsChanged, oneof: "event" },
     { no: 11, name: "rules_changed", kind: "message", T: RulesChanged, oneof: "event" },
+    { no: 12, name: "charges_granted", kind: "message", T: ChargesGranted, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -1236,6 +1245,45 @@ export class PlanetEvent extends Message<PlanetEvent> {
 
   static equals(a: PlanetEvent | PlainMessage<PlanetEvent> | undefined, b: PlanetEvent | PlainMessage<PlanetEvent> | undefined): boolean {
     return proto3.util.equals(PlanetEvent, a, b);
+  }
+}
+
+/**
+ * A grant from outside the player's own clicks, such as a mission paid: all it holds now.
+ *
+ * @generated from message planet.v1.ChargesGranted
+ */
+export class ChargesGranted extends Message<ChargesGranted> {
+  /**
+   * @generated from field: planet.v1.ChargesHeld charges = 1;
+   */
+  charges?: ChargesHeld;
+
+  constructor(data?: PartialMessage<ChargesGranted>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ChargesGranted";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "charges", kind: "message", T: ChargesHeld },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargesGranted {
+    return new ChargesGranted().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ChargesGranted {
+    return new ChargesGranted().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ChargesGranted {
+    return new ChargesGranted().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ChargesGranted | PlainMessage<ChargesGranted> | undefined, b: ChargesGranted | PlainMessage<ChargesGranted> | undefined): boolean {
+    return proto3.util.equals(ChargesGranted, a, b);
   }
 }
 

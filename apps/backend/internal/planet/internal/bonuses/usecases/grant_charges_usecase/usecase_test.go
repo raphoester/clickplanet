@@ -16,10 +16,36 @@ func storage() *bonuses.MemoryStore {
 	return bonuses.NewMemoryStore()
 }
 
-func grant(store *bonuses.MemoryStore) *grant_charges_usecase.UseCase {
+type recordingStreams struct {
+	told map[bonuses.Holder]bonuses.Held
+}
+
+func (s *recordingStreams) PublishGranted(holder bonuses.Holder, held bonuses.Held) {
+	s.told[holder] = held
+}
+
+func grantTelling(store *bonuses.MemoryStore, streams *recordingStreams) *grant_charges_usecase.UseCase {
 	rules := bonuses.TestRules()
 	rules.Shield.Held = 12
-	return grant_charges_usecase.New(bonuses.NewCharges(store, func() bonuses.Rules { return rules }))
+	return grant_charges_usecase.New(bonuses.NewCharges(store, func() bonuses.Rules { return rules }), streams)
+}
+
+func grant(store *bonuses.MemoryStore) *grant_charges_usecase.UseCase {
+	return grantTelling(store, &recordingStreams{told: map[bonuses.Holder]bonuses.Held{}})
+}
+
+func TestTheAccountsStreamsAreToldAllItHoldsAfterTheGrant(t *testing.T) {
+	charges := storage()
+	charges.Keep(account, bonuses.Held{Enclosures: 1})
+	streams := &recordingStreams{told: map[bonuses.Holder]bonuses.Held{}}
+
+	_, err := grantTelling(charges, streams).Execute(t.Context(), grant_charges_usecase.In{
+		Account: account,
+		Grant:   bonuses.Held{Bomb: true},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, map[bonuses.Holder]bonuses.Held{account: {Bomb: true, Enclosures: 1}}, streams.told)
 }
 
 func TestEveryKindCanBeGranted(t *testing.T) {

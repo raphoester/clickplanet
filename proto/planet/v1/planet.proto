@@ -247,7 +247,15 @@ message PlanetEvent {
     HoldingsChanged holdings_changed = 10;
 
     RulesChanged rules_changed = 11;
+
+    // Only on a stream opened with a signed-in account's token, and only that account's.
+    ChargesGranted charges_granted = 12;
   }
+}
+
+// A grant from outside the player's own clicks, such as a mission paid: all it holds now.
+message ChargesGranted {
+  ChargesHeld charges = 1;
 }
 
 message GetTileHolderRequest {

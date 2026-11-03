@@ -45,6 +45,12 @@ its own.
   kept in one transaction, so a command told twice grants once. It caps at the stack as any grant does, and answers
   nothing. `missions` pays its rewards this way. A new player is granted its refill through the same
   `charge_grants`, from player's `PlayerCreated` ([A guest's first sign-in](sign-in-refill.md)).
+- **A grant reaches the player at once, on the planet stream it has open**: `charges_granted`, all it holds after the
+  grant, read in the grant's transaction and sent once it is committed (`Registry.PublishGranted`, the
+  `bonuses.Event`'s `Granted`), from `apply_grant_usecase` and the operator's `grant_charges_usecase`. Only a signed-in
+  account's own streams hear it: a guest's stream is its address's, which others share. Delivery is at most once; the
+  client reads the charges again when its stream comes back. The sign-in refill sends none: the client reads the
+  charges when it signs in.
 - **Nothing lapses.** Migration `20260919120000_charges_never_lapse` replaced the
   `*_until` columns with `refill` and `bomb` booleans and an `enclosures` count,
   keeping what was still in time. `bonus.chargeTTL` is gone.

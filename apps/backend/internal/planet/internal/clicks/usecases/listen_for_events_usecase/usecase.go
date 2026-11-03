@@ -38,6 +38,7 @@ type Event struct {
 	Taken    *bonuses.Taken
 	Enclosed *bonuses.Enclosed
 	Spread   *bonuses.Spread
+	Granted  *bonuses.Held
 }
 
 type BonusFeed interface {
@@ -139,7 +140,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 
 			if err := sink.Send(Event{
 				Offer: event.Offer, Quiz: event.Quiz, Taken: event.Taken, Enclosed: event.Enclosed,
-				Spread: event.Spread,
+				Spread: event.Spread, Granted: event.Granted,
 			}); err != nil {
 				return err
 			}

@@ -244,9 +244,22 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			charges := bonuses.NewCharges(postgres_charge_store.New(db), game)
 
+			bank, err := quizzes.Load(tilesStorage)
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to load the quiz bank: %w", err)
+			}
+			props.Logger.Info("quiz bank loaded",
+				slog.String("bank", bank.Version()),
+				slog.Int("questions", bank.Size()),
+				slog.Int("subjects", bank.Subjects()))
+
+			registry := bonuses.New(config.Bonus, clock, charges, game, bank)
+			props.Runners.Add(registry)
+
 			grantStore := postgres_grant_store.New(db)
 			grants, err := cpredis.Handle(ctx, streams, log_subscriber.New(apply_grant_handler.New(
-				apply_grant_usecase.New(db, grantStore, charges, clock)), props.Logger))
+				apply_grant_usecase.New(db, grantStore, charges, registry, clock)), props.Logger))
 			if err != nil {
 				closeStores()
 				return fmt.Errorf("failed to handle planet.v1.GrantCharges: %w", err)
@@ -303,18 +316,6 @@ func NewModule(config Config) cpbootstrap.Module {
 			writer := ledger.NewRecording(tilesStorage,
 				clicks.NewClaiming(tilesStorage, func() int { return game().Shield.PerTile }), takings, clock)
 
-			bank, err := quizzes.Load(tilesStorage)
-			if err != nil {
-				return fmt.Errorf("failed to load the quiz bank: %w", err)
-			}
-			props.Logger.Info("quiz bank loaded",
-				slog.String("bank", bank.Version()),
-				slog.Int("questions", bank.Size()),
-				slog.Int("subjects", bank.Subjects()))
-
-			registry := bonuses.New(config.Bonus, clock, charges, game, bank)
-			props.Runners.Add(registry)
-
 			bombing := bonuses.NewBombing(game, geography.Spacing())
 
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
@@ -361,7 +362,7 @@ func NewModule(config Config) cpbootstrap.Module {
 					paint_random_tiles_usecase.New(borders, geography, tilesStorage, countries, clicks.SystemRandom{}, pace),
 					props.Logger)),
 				GrantChargesHandler: grant_charges_handler.New(
-					audit_grant_charges.New(grant_charges_usecase.New(charges), props.Logger)),
+					audit_grant_charges.New(grant_charges_usecase.New(charges, registry), props.Logger)),
 				ReleaseAllegianceHandler: release_allegiance_handler.New(audit_release.New(book, props.Logger), lock),
 				GetReplayHandler:         get_replay_handler.New(replay_usecase.New(takings, resetStore, tilesChecker, tilesStorage, clock)),
 				GetLedgerHandler:         getLedger,

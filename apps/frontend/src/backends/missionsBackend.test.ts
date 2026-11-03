@@ -4,8 +4,10 @@ import {
     FlagMission as FlagMissionPb,
     GetMissionsResponse as GetMissionsResponsePb,
     Mission as MissionPb,
+    MissionEvent as MissionEventPb,
 } from "../gen/grpc/missions/v1/missions_pb.ts"
 import {BonusKind as BonusKindPb} from "../gen/grpc/planet/v1/planet_pb.ts"
+import {DayMissions} from "./missions.ts"
 import {ConnectMissionsBackend} from "./missionsBackend.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 
@@ -20,6 +22,72 @@ const backendWith = (methods: Record<string, unknown>) => new ConnectMissionsBac
 const headersOf = (call: ReturnType<typeof vi.fn>) => ((call.mock.calls[0] as unknown[])[1] as {headers: Headers}).headers
 
 afterEach(() => vi.restoreAllMocks())
+
+const never = () => new Promise<never>(() => {})
+
+const refusing = (code: Code) => vi.fn((): AsyncIterable<MissionEventPb> => ({
+    [Symbol.asyncIterator]: () => ({
+        next: async () => {
+            throw new ConnectError("refused", code)
+        },
+    }),
+}))
+
+describe("ConnectMissionsBackend.follow", () => {
+    it("hands on each day the stream sends with the click token, and skips the heartbeats", async () => {
+        const listenForEvents = vi.fn(async function* () {
+            yield new MissionEventPb({event: {case: "day", value: new GetMissionsResponsePb({endsAtUnixMs: 1_000n})}})
+            yield new MissionEventPb({event: {case: "heartbeat", value: {}}})
+            yield new MissionEventPb({event: {case: "day", value: new GetMissionsResponsePb({endsAtUnixMs: 2_000n, missions: [
+                new MissionPb({
+                    id: "m-1", done: true, paid: true, kind: {case: "takeFor", value: {countryId: "fr", goal: 60, taken: 60}},
+                    reward: {kind: {case: "charges", value: {kind: BonusKindPb.BOMB, amount: 1}}},
+                }),
+            ]})}})
+            await never()
+        })
+        const days: DayMissions[] = []
+
+        const stop = backendWith({listenForEvents}).follow((day) => days.push(day))
+        await vi.waitFor(() => expect(days).toHaveLength(2))
+        stop()
+
+        expect((listenForEvents.mock.calls[0] as unknown[])[1]).toMatchObject({headers: {[SESSION_HEADER]: "token-1"}})
+        expect(days).toEqual([
+            {endsAt: 1_000, missions: []},
+            {endsAt: 2_000, missions: [{
+                id: "m-1", order: {kind: "takeFor", country: "fr", goal: 60, taken: 60}, done: true, paid: true,
+                reward: {kind: "bomb", amount: 1},
+            }]},
+        ])
+    })
+
+    it("does not reconnect to a server without the stream", async () => {
+        vi.useFakeTimers()
+        for (const code of [Code.Unimplemented, Code.NotFound]) {
+            const listenForEvents = refusing(code)
+
+            backendWith({listenForEvents}).follow(() => {})
+            await vi.advanceTimersByTimeAsync(60_000)
+
+            expect(listenForEvents).toHaveBeenCalledTimes(1)
+        }
+        vi.useRealTimers()
+    })
+
+    it("drops a token the stream refuses, so the next try mints another", async () => {
+        vi.useFakeTimers()
+        const provider = session()
+        const stop = new ConnectMissionsBackend({listenForEvents: refusing(Code.Unauthenticated)} as never, provider)
+            .follow(() => {})
+
+        await vi.advanceTimersByTimeAsync(0)
+        stop()
+        vi.useRealTimers()
+
+        expect(provider.invalidate).toHaveBeenCalled()
+    })
+})
 
 describe("ConnectMissionsBackend", () => {
     it("reads the day's missions with the click token, and skips a kind or a reward it does not know", async () => {

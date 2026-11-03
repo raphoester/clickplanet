@@ -36,11 +36,15 @@ const (
 	// MissionServiceGetMissionsProcedure is the fully-qualified name of the MissionService's
 	// GetMissions RPC.
 	MissionServiceGetMissionsProcedure = "/missions.v1.MissionService/GetMissions"
+	// MissionServiceListenForEventsProcedure is the fully-qualified name of the MissionService's
+	// ListenForEvents RPC.
+	MissionServiceListenForEventsProcedure = "/missions.v1.MissionService/ListenForEvents"
 )
 
 // MissionServiceClient is a client for the missions.v1.MissionService service.
 type MissionServiceClient interface {
 	GetMissions(context.Context, *connect.Request[v1.GetMissionsRequest]) (*connect.Response[v1.GetMissionsResponse], error)
+	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.MissionEvent], error)
 }
 
 // NewMissionServiceClient constructs a client for the missions.v1.MissionService service. By
@@ -60,12 +64,19 @@ func NewMissionServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(missionServiceMethods.ByName("GetMissions")),
 			connect.WithClientOptions(opts...),
 		),
+		listenForEvents: connect.NewClient[v1.ListenForEventsRequest, v1.MissionEvent](
+			httpClient,
+			baseURL+MissionServiceListenForEventsProcedure,
+			connect.WithSchema(missionServiceMethods.ByName("ListenForEvents")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // missionServiceClient implements MissionServiceClient.
 type missionServiceClient struct {
-	getMissions *connect.Client[v1.GetMissionsRequest, v1.GetMissionsResponse]
+	getMissions     *connect.Client[v1.GetMissionsRequest, v1.GetMissionsResponse]
+	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.MissionEvent]
 }
 
 // GetMissions calls missions.v1.MissionService.GetMissions.
@@ -73,9 +84,15 @@ func (c *missionServiceClient) GetMissions(ctx context.Context, req *connect.Req
 	return c.getMissions.CallUnary(ctx, req)
 }
 
+// ListenForEvents calls missions.v1.MissionService.ListenForEvents.
+func (c *missionServiceClient) ListenForEvents(ctx context.Context, req *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.MissionEvent], error) {
+	return c.listenForEvents.CallServerStream(ctx, req)
+}
+
 // MissionServiceHandler is an implementation of the missions.v1.MissionService service.
 type MissionServiceHandler interface {
 	GetMissions(context.Context, *connect.Request[v1.GetMissionsRequest]) (*connect.Response[v1.GetMissionsResponse], error)
+	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.MissionEvent]) error
 }
 
 // NewMissionServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -91,10 +108,18 @@ func NewMissionServiceHandler(svc MissionServiceHandler, opts ...connect.Handler
 		connect.WithSchema(missionServiceMethods.ByName("GetMissions")),
 		connect.WithHandlerOptions(opts...),
 	)
+	missionServiceListenForEventsHandler := connect.NewServerStreamHandler(
+		MissionServiceListenForEventsProcedure,
+		svc.ListenForEvents,
+		connect.WithSchema(missionServiceMethods.ByName("ListenForEvents")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/missions.v1.MissionService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MissionServiceGetMissionsProcedure:
 			missionServiceGetMissionsHandler.ServeHTTP(w, r)
+		case MissionServiceListenForEventsProcedure:
+			missionServiceListenForEventsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -106,4 +131,8 @@ type UnimplementedMissionServiceHandler struct{}
 
 func (UnimplementedMissionServiceHandler) GetMissions(context.Context, *connect.Request[v1.GetMissionsRequest]) (*connect.Response[v1.GetMissionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("missions.v1.MissionService.GetMissions is not implemented"))
+}
+
+func (UnimplementedMissionServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.MissionEvent]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("missions.v1.MissionService.ListenForEvents is not implemented"))
 }

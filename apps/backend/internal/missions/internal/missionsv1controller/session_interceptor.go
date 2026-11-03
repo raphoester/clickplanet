@@ -29,3 +29,8 @@ func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Cloc
 		cpconnect.Identified(missionsv1connect.MissionServiceGetMissionsProcedure),
 	)
 }
+
+func NewStreamSessionReader(verifier cpconnect.SessionVerifier, clock cptime.Clock) connect.Interceptor {
+	return cpconnect.NewSessionReaderInterceptor(verifier, clock,
+		cpconnect.Identified(missionsv1connect.MissionServiceListenForEventsProcedure))
+}

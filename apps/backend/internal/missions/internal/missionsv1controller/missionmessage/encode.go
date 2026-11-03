@@ -8,9 +8,32 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/planetgrant"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/get_missions_usecase"
 )
 
 var ErrUnknownKind = errors.New("no message for this kind of mission")
+
+func Day(day get_missions_usecase.Out) (*missionsv1.GetMissionsResponse, error) {
+	encoded := &missionsv1.GetMissionsResponse{}
+	if ends := day.Day.Snapshot().EndsAt; !ends.IsZero() {
+		encoded.EndsAtUnixMs = ends.UnixMilli()
+	}
+	for _, status := range day.Sheet.Statuses(day.Brief) {
+		mission, err := Mission(status)
+		if err != nil {
+			return nil, err
+		}
+		encoded.Missions = append(encoded.Missions, mission)
+	}
+	if status, ok := day.Flag.Status(); ok {
+		flag, err := FlagMission(status)
+		if err != nil {
+			return nil, err
+		}
+		encoded.FlagMission = flag
+	}
+	return encoded, nil
+}
 
 func Mission(status missions.MissionStatus) (*missionsv1.Mission, error) {
 	encoded := &missionsv1.Mission{

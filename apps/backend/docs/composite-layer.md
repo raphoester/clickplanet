@@ -133,6 +133,7 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `missions-days` | keeps each day by its round's id (`mission_days`): told twice, the same row |
 | `missions-flag-takes`, `missions-flag-strikes` | a flag's day keeps the position and index past the last take it counted (`flag_days.counted_takes_below`, `counted_takes_below_index`) and past the last shield broken (`counted_strikes_below`, `counted_strikes_below_index`); the flag's mission is done once (`flag_missions.done`) |
 | `missions-sign-ins` | pays only the missions not paid yet (`mission_payments`) |
+| `missions-streams` | wakes the account's open streams, which read the day again: a second read sends the same day |
 | `planet`'s `planet.v1.GrantCharges` handler | keeps each `grant_id` it applied, in the transaction of the grant (`charge_grants`) |
 | `planet-charges-players` | keeps the account's sign-in grant id (`bonuses.SignInGrantOf`) in `charge_grants`, in the transaction of the grant |
 | `chat-announcements-*` | an announcement is named after the fact it tells (the bomb's or the fortify's ledger position, the mute's id, the round's season and number, the champion's season) and kept with `AppendOnce`: a second one is neither kept nor shown |
@@ -231,7 +232,7 @@ The events today:
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
 | `chat.v1.AccountMuted{account_id, muted_at, duration, mute_id}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |
-| `missions.v1.MissionsPaid{account_id, paid_in_all}` | `missions`, through its outbox, from `payroll` | with each payment of one or more missions: how many the account was paid in all | `player`, for the stats |
+| `missions.v1.MissionsPaid{account_id, paid_in_all}` | `missions`, through its outbox, from `payroll` | with each payment of one or more missions: how many the account was paid in all | `player`, for the stats; `missions`, which sends the account's open streams its day |
 | `player.v1.PlayerCreated{account_id}` | `player`, through its outbox, from `name_account_usecase` and `set_name_usecase` | with the profile it makes: once per account | `planet`, which grants the new player a refill |
 | `player.v1.StatsChanged{account_id}` | `player`, `record_stats_usecase` | after each take, message, bomb, fortify, box, right answer or missions paid is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
 | `scoring.v1.RoundScored{round_id, book_id, ended_at, results}` | `scoring`, through its outbox | a round closed: scored from the map then, its points times its times | `gamemaster`, which tells which day or battle it was |

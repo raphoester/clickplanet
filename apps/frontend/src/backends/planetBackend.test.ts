@@ -24,6 +24,7 @@ import {
     BonusOffered,
     BonusTaken,
     QuizOffered,
+    ChargesGranted,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
     GetAllegianceResponse,
@@ -1645,6 +1646,26 @@ describe("the charges held", () => {
         const seen = follow(backend)
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 2, shields: 5}))
 
+        expect(getCharges).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("holds what a grant on the stream says, with no read", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({shields: 5})})
+        let grant = () => {}
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            await new Promise<void>(resolve => grant = resolve)
+            yield new PlanetEvent({event: {case: "chargesGranted", value: new ChargesGranted({charges: new ChargesHeld({bomb: true, shields: 25})})}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({getCharges, listenForEvents}), 1_000)
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.shields).toBe(5))
+
+        grant()
+
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 0, shields: 25}))
         expect(getCharges).toHaveBeenCalledTimes(1)
         backend.close()
     })
