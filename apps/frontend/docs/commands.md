@@ -70,8 +70,9 @@ closes the next day, so the reveal plays again.
 new entry id: the mood, the halo, the chip, the start moment, and the battle's round
 at `times` in scoring, so the board's column is the battle's (see [Battles](battle.md)).
 As the gamemaster does, it ends the day that runs at the battle's start, a second after the turn, so the day's reveal
-plays before the start moment; with no day running (Season 0 has ended: `moveSeasonEnd(1440)` first), the start
-moment waits 10 s for it.
+plays before the start moment; with no day running, the start moment waits 10 s for it. The fake dates its Season 0
+from the clock (`seasonRunningAt`: started 20 days before today), so a day runs whatever the date; until 2026-11-03 it
+kept Season 0's real dates, and after 31 Oct no day ran, so `closeDay()` played nothing.
 `scheduleBattle(inMinutes = 90, minutes = 120, description)` adds a battle to come
 and answers its id, `moveBattle(id, inMinutes)` moves it and `deleteBattle(id)`
 deletes it, as an operator's edit does: the chip's and the home page's "Next battle

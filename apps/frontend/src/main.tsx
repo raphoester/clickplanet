@@ -18,7 +18,7 @@ import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeMissionsBackend} from "./backends/fakeMissionsBackend.ts"
 import {newScoringServiceClient} from "./backends/scoringBackend.ts"
 import {closedOf} from "./domain/debrief.ts"
-import {battleCommands, FakeTurnBackend} from "./backends/fakeTurnBackend.ts"
+import {battleCommands, FakeTurnBackend, seasonRunningAt} from "./backends/fakeTurnBackend.ts"
 import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
 import {ConnectionHealth, connectionInterceptor, followBrowser} from "./backends/connection.ts"
@@ -252,7 +252,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fakeChat = new FakeChatBackend()
     const fakeSupport = new FakeSupportBackend()
     Object.assign(window, {fakeChat, fakeSupport})
-    const fakeTurn = new FakeTurnBackend()
+    const fakeTurn = new FakeTurnBackend(seasonRunningAt(Date.now()))
     Object.assign(window, battleCommands(fakeTurn))
     const fakeStandings = new FakeStandingsBackend()
     const clicker = fakeMissions.counting(fakeStandings.counting(fake))
