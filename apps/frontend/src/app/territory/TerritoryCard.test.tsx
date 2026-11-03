@@ -118,6 +118,16 @@ describe("TerritoryCard", () => {
         expect(usePlayerCard.getState().player).toEqual(PLAYERS.top[0].line)
     })
 
+    it("lists an account once for each flag it holds the territory for", () => {
+        const warned = vi.spyOn(console, "error").mockImplementation(() => {})
+        show(SICILY, {players: {top: [{line: lineOf("Ana", "fr"), tiles: 400}, {line: lineOf("Ana", "it"), tiles: 30}], fortifier: undefined}})
+
+        const top = screen.getByRole("region", {name: "Top players"})
+        expect(within(top).getAllByRole("listitem").map((row) => row.textContent)).toEqual(["Ana400", "Ana30"])
+        expect(warned).not.toHaveBeenCalled()
+        warned.mockRestore()
+    })
+
     it("lists no player until they are read", () => {
         show(SICILY)
 
