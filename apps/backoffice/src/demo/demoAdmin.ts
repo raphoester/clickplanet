@@ -51,7 +51,12 @@ import {
     KeepVideoResponse,
     Video,
 } from "../gen/grpc/clips/v1/admin_pb.ts"
-import {AdminGetPlayerRequest, AdminGetPlayerResponse} from "../gen/grpc/player/v1/admin_pb.ts"
+import {
+    AdminGetPlayerRequest,
+    AdminGetPlayerResponse,
+    RenamePlayerRequest,
+    RenamePlayerResponse,
+} from "../gen/grpc/player/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles, Stats} from "../gen/grpc/player/v1/player_pb.ts"
 import {
@@ -380,6 +385,18 @@ export class DemoAdmin extends FakeAdmin {
             playsAgainst: FLAGS.filter(flag => flag !== account.flag).slice(0, 8)
                 .map((countryId, i) => new CountryTiles({countryId, tiles: taken / BigInt(i + 3)})),
         }))
+    }
+
+    override renamePlayer(request: PartialMessage<RenamePlayerRequest>): Promise<RenamePlayerResponse> {
+        const account = this.accounts.find(each => each.id === request.accountId)
+        if (account === undefined || account.guest || account.name === "") {
+            return this.refuseLater("renamePlayer", request, "the account has no profile", Code.NotFound)
+        }
+        account.name = (request.name ?? "").trim()
+        this.authors = this.authors.map(author => author.accountId === account.id
+            ? new Author({...author, name: account.name})
+            : author)
+        return this.answer("renamePlayer", request, new RenamePlayerResponse({name: account.name}))
     }
 
     private rowsOf(caller: {accountId?: string, scope?: string}): Player[] {

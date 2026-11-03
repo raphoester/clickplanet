@@ -10,6 +10,86 @@ import { CountryTiles, Stats } from "./player_pb.js";
 import { Title } from "./title_pb.js";
 
 /**
+ * @generated from message player.v1.RenamePlayerRequest
+ */
+export class RenamePlayerRequest extends Message<RenamePlayerRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  constructor(data?: PartialMessage<RenamePlayerRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.RenamePlayerRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RenamePlayerRequest {
+    return new RenamePlayerRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RenamePlayerRequest {
+    return new RenamePlayerRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RenamePlayerRequest {
+    return new RenamePlayerRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RenamePlayerRequest | PlainMessage<RenamePlayerRequest> | undefined, b: RenamePlayerRequest | PlainMessage<RenamePlayerRequest> | undefined): boolean {
+    return proto3.util.equals(RenamePlayerRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.RenamePlayerResponse
+ */
+export class RenamePlayerResponse extends Message<RenamePlayerResponse> {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name = "";
+
+  constructor(data?: PartialMessage<RenamePlayerResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.RenamePlayerResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RenamePlayerResponse {
+    return new RenamePlayerResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RenamePlayerResponse {
+    return new RenamePlayerResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RenamePlayerResponse {
+    return new RenamePlayerResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RenamePlayerResponse | PlainMessage<RenamePlayerResponse> | undefined, b: RenamePlayerResponse | PlainMessage<RenamePlayerResponse> | undefined): boolean {
+    return proto3.util.equals(RenamePlayerResponse, a, b);
+  }
+}
+
+/**
  * @generated from message player.v1.ReconcileTitlesRequest
  */
 export class ReconcileTitlesRequest extends Message<ReconcileTitlesRequest> {

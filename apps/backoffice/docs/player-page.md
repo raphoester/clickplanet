@@ -59,7 +59,9 @@ address>`), so Back goes to the list, as it was.
   Charges (`GrantCharges`: a refill, a bomb, enclosures, spread clicks, shields; the answer says what the account
   held before and after, since the caps hold), Flag (`FlagPanel`, `ReleaseAllegiance`: the hour of wait after a
   change of flag is lifted, so the player's next pick goes at once; the answer says when a battle's lock still holds
-  it), and Discord (`DiscordPanel`, `alerts.v1.AdminService`). **Max out** sends every charge at the form's ceiling
+  it), Name (`NamePanel`, `player.v1.AdminService/RenamePlayer`: a new username, during the player's 7 days of wait
+  too; the player's next change goes at once; the heading reads the profile again; `not_found` is an account with no
+  username), and Discord (`DiscordPanel`, `alerts.v1.AdminService`). **Max out** sends every charge at the form's ceiling
   (`MAX_GRANT`) in one tap, and the server's caps make it a full inventory.
 - **The Discord tool** reads the account's link when opened (`GetPlayerLink`): the Discord user (with Copy), the flag
   whose role it holds, and since when; "Not linked" otherwise; the alerts module off (`unimplemented`) says so.

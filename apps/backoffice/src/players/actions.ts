@@ -107,6 +107,12 @@ export async function release(planet: PlanetAdmin, accountId: string): Promise<R
     return {locked: answer.locked}
 }
 
+// Answers the name as the server kept it. The player's next own change goes at once.
+export async function rename(player: PlayerAdmin, accountId: string, name: string): Promise<string> {
+    const answer = await player.renamePlayer({accountId, name})
+    return answer.name
+}
+
 export type Linking = {on: false} | {on: true, link: DiscordLink | undefined}
 
 // The account's Discord link, if any. The alerts module off (its service absent) reads as such, not as a failure.
@@ -184,12 +190,13 @@ export function bannedWords(banned: Banned): string {
         + (banned.enforced ? "" : " Not enforced: the antibot only watches on this server.")
 }
 
-export type Action = "mute" | "unmute" | "ban" | "unban" | "revert" | "inspect" | "grant" | "release" | "unlink" | "list"
+export type Action = "mute" | "unmute" | "ban" | "unban" | "revert" | "inspect" | "grant" | "release" | "rename" | "unlink" | "list"
 
 export const ANTIBOT_OFF = "The antibot is off on this server, so it cannot ban, unban or inspect."
 export const NOT_BANNED = "This player has no ban left to lift."
 export const NOT_MUTED = "This player has no mute of its own to lift."
 export const ALERTS_OFF = "Discord pings are off on this server, so no account is linked to Discord."
+export const NO_USERNAME = "This account has no username to change."
 
 const MEANINGS: Record<Action, Meanings> = {
     mute: {},
@@ -200,6 +207,7 @@ const MEANINGS: Record<Action, Meanings> = {
     inspect: {unimplemented: ANTIBOT_OFF},
     grant: {},
     release: {},
+    rename: {notFound: NO_USERNAME},
     unlink: {unimplemented: ALERTS_OFF},
     list: {},
 }

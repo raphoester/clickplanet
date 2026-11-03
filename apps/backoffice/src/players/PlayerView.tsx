@@ -16,6 +16,7 @@ import {FlagPanel} from "./FlagPanel.tsx"
 import {GrantPanel} from "./GrantPanel.tsx"
 import {Inspection} from "./InspectPanel.tsx"
 import {BanAction, MuteAction, UnbanAction, UnmuteAction} from "./Moderation.tsx"
+import {NamePanel} from "./NamePanel.tsx"
 import {PlayerName} from "./PlayerName.tsx"
 import {PlayerStats} from "./PlayerStats.tsx"
 import {ProfilePanel} from "./ProfilePanel.tsx"
@@ -29,7 +30,7 @@ type Props = {
     onOpen: (opened: Opened) => void
 }
 
-type Tool = "ban" | "unban" | "mute" | "unmute" | "revert" | "charges" | "flag" | "discord"
+type Tool = "ban" | "unban" | "mute" | "unmute" | "revert" | "charges" | "flag" | "name" | "discord"
 
 // One player, by account or by address: who it is and where it stands, the tools that take it, then what the game
 // and the antibot keep about it, and what it said.
@@ -87,7 +88,14 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
                 </dl>
                 {row !== undefined && <PlayerStats player={row}/>}
             </article>
-            <Tools clients={clients} caller={caller} who={who} onBanned={readAgain} onMuted={readMutingAgain}/>
+            <Tools
+                clients={clients}
+                caller={caller}
+                who={who}
+                onBanned={readAgain}
+                onMuted={readMutingAgain}
+                onRenamed={readProfileAgain}
+            />
             <div className="columns">
                 {account && <ProfilePanel profile={profile} onReload={readProfileAgain}/>}
                 <section className="panel" aria-label="Antibot">
@@ -110,10 +118,12 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
     )
 }
 
-type ToolsProps = {clients: Clients, caller: Caller, who: string, onBanned: () => void, onMuted: () => void}
+type ToolsProps = {
+    clients: Clients, caller: Caller, who: string, onBanned: () => void, onMuted: () => void, onRenamed: () => void,
+}
 
 // Every tool on one player, one at a time: the page stays short, and the one in use sits under the player.
-function Tools({clients, caller, who, onBanned, onMuted}: ToolsProps) {
+function Tools({clients, caller, who, onBanned, onMuted, onRenamed}: ToolsProps) {
     const [tool, setTool] = useState<Tool>("ban")
     const tools: {key: Tool, label: string}[] = [
         {key: "ban", label: "Ban"},
@@ -122,7 +132,7 @@ function Tools({clients, caller, who, onBanned, onMuted}: ToolsProps) {
         {key: "revert", label: "Revert"},
         ...(isAccount(caller) ? [
             {key: "charges" as const, label: "Charges"}, {key: "flag" as const, label: "Flag"},
-            {key: "discord" as const, label: "Discord"},
+            {key: "name" as const, label: "Name"}, {key: "discord" as const, label: "Discord"},
         ] : []),
     ]
     return (
@@ -161,6 +171,9 @@ function Tools({clients, caller, who, onBanned, onMuted}: ToolsProps) {
                 {tool === "revert" && <RevertPanel planet={clients.planet} caller={caller} who={who}/>}
                 {tool === "charges" && isAccount(caller) && <GrantPanel planet={clients.planet} accountId={caller.accountId} who={who}/>}
                 {tool === "flag" && isAccount(caller) && <FlagPanel planet={clients.planet} accountId={caller.accountId} who={who}/>}
+                {tool === "name" && isAccount(caller) && (
+                    <NamePanel player={clients.player} accountId={caller.accountId} who={who} onDone={onRenamed}/>
+                )}
                 {tool === "discord" && isAccount(caller) && (
                     <DiscordPanel alerts={clients.alerts} accountId={caller.accountId} who={who}/>
                 )}

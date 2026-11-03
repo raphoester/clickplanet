@@ -5,7 +5,7 @@
 ```
 internal/player/internal/
   players/                          AccountID, Name (NameOf), GuestCode (GuestCodes, DisplayNameOf), Author (AuthorOf), Tag (TagOf), Profile
-                                    (ProfileSnapshot, Unnamed, Renamed), NameChoice (the rename rule), Color, Stats (StatsSnapshot), Streak,
+                                    (ProfileSnapshot, Unnamed, Renamed, RenamedByOperator), NameChoice (the rename rule), Color, Stats (StatsSnapshot), Streak,
                                     Day; the Store port and its contract suite
     postgres_player_store/          the Store over player.profiles, player.guest_codes and player.stats
     random_code_generator/          draws guest codes from crypto/rand
@@ -17,6 +17,8 @@ internal/player/internal/
       set_name_usecase/renaming_set_name/   shows a kept name on the roster at once
     usecases/record_stats_usecase/  — one change to an account's stats, then player.v1.StatsChanged
     usecases/forget_account_usecase/
+    usecases/rename_player_usecase/  — the operator's name for an account; player.v1.AdminService/RenamePlayer
+      rename_player_usecase/audit_rename_player/   logs every rename at Warn
     usecases/name_account_usecase/  — a username for an account signed in to with none; on auth.v1.SignedIn; then player.v1.PlayerCreated
       name_account_usecase/renaming_name_account/   shows the name on the roster at once
   titles/                           Title (one type per title), Rank, Track (Conquest, Devotion, Chatter, Defense, Bombs, Loot, Quiz, Missions),
@@ -54,7 +56,7 @@ internal/player/internal/
     get_profile_handler/  set_name_handler/  set_color_handler/  get_stats_handler/  get_author_handler/  get_player_handler/
     get_authors_handler/  get_titles_handler/  wear_title_handler/  get_fronts_handler/
     announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
-    reconcile_titles_handler/  admin_get_player_handler/  search_players_handler/   AdminService's own; it serves
+    reconcile_titles_handler/  admin_get_player_handler/  search_players_handler/  rename_player_handler/   AdminService's own; it serves
                                     get_authors_handler too
       admin_get_player_handler/admin_player_query/   PostgresQuery: what the game keeps about one account, a guest's too
       search_players_handler/matches_query/   PostgresQuery: the accounts a part of a name finds, straight from SQL
@@ -141,6 +143,17 @@ internal/player/internal/
   - **It was `FindAuthors` for a day** (#450), answering `Author`s through `authors_query`: the name followed the
     chat's type it reused, and "author" means nothing to an operator browsing players. Only the back office called
     it, so it was renamed in one step.
+- **The operator changes a username with `player.v1.AdminService/RenamePlayer(account_id, name)`**, for a player stuck
+  with a bad name for 7 days (`rename_player_usecase`, wrapped in `audit_rename_player`, which logs every call at
+  Warn with the account and the name typed).
+  - **`SetName`'s rules hold but the wait**: `NameOf`, then unique ignoring case. An invalid name is
+    `InvalidArgument`, a name another account holds `AlreadyExists`. The answer is the name as kept.
+  - **Only an account with a username** (a profile): a guest or an account never named is `NotFound`
+    (`ErrNoProfile`). It makes no profile, so it makes no player.
+  - **It is not the player's choice**: `Profile.RenamedByOperator` clears `name_chosen_at`, as a name given at
+    sign-in keeps none, so the player's next `SetName` goes at once.
+  - **Nothing pushes it**: the chat names a sender when it shows a message, and the roster takes the name at the
+    player's next announce, within 30s.
 - **Migration `20260918190000_unicode_usernames`** moves to this rule. Every name kept before is ASCII of 3 to 20, so only length breaks the new rule: **a name over 15 is cut to its first 15 characters**, the player keeping most of it. A cut name that another would then hold, ignoring case — a name of 15 or fewer, or an older cut name (`updated_at`, then `account_id`) — is **deleted** instead, and its player chooses again; an untouched name is never the one to go. Then it fills `name_folded` with an ASCII-only `translate()` (exact for these names, in any locale), replaces the `CHECK`, and moves `profiles_name_key` to `name_folded`. The down migration deletes the names the old rule refuses, drops the column and puts the old `CHECK` and the `lower(name)` index back; cut names stay cut. `migrations_test.go` migrates to the version before, writes names, and migrates the rest.
 - **Migration `20260917180000_usernames`** deletes the profiles whose name breaks the new rule, then, of names that differ only in case, every one but the oldest (`updated_at`, then `account_id`), replaces the name `CHECK` with the new pattern and adds the unique index. No client called `SetName` before usernames existed, so nothing a player chose is lost. The down migration drops the index and puts the old `CHECK` back; the deleted rows stay deleted.
 - **A guest code names an account that chose no username**: 6 lowercase hex characters (`players.GuestCode`), shown as `guest_` and the code (`players.DisplayNameOf`). It is drawn by `random_code_generator` the first time the account is shown (`players.GuestCodes.Assign`), kept in `player.guest_codes`, and deleted with the account, which frees it. **It is unique**: the table's `guest_codes_code_key` refuses a code another account holds, the store answers `ErrGuestCodeTaken`, and `Assign` draws again, up to 10 times (`ErrNoFreeGuestCode`). An account keeps its first code: a second save for it changes nothing, so two first announces at once leave one code. **It does not change with the network**, unlike the address, and says nothing about the account or the address. A linked account with no username keeps the code it had as a guest until it picks a name.

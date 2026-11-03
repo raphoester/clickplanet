@@ -113,6 +113,8 @@ import {
     PlayerMatch,
     ReconcileTitlesRequest,
     ReconcileTitlesResponse,
+    RenamePlayerRequest,
+    RenamePlayerResponse,
     SearchPlayersRequest,
     SearchPlayersResponse,
 } from "./gen/grpc/player/v1/admin_pb.ts"
@@ -555,6 +557,12 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     getPlayer(request: PartialMessage<AdminGetPlayerRequest>): Promise<AdminGetPlayerResponse> {
         return this.answer("getPlayer", request, this.profile)
+    }
+
+    renamePlayer(request: PartialMessage<RenamePlayerRequest>): Promise<RenamePlayerResponse> {
+        const name = (request.name ?? "").trim()
+        if (!this.refusals.has("renamePlayer")) this.profile = new AdminGetPlayerResponse({...this.profile, name})
+        return this.answer("renamePlayer", request, new RenamePlayerResponse({name}))
     }
 
     listNotes(request: PartialMessage<ListNotesRequest>): Promise<ListNotesResponse> {
