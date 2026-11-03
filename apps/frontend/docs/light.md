@@ -42,6 +42,14 @@ without the glint. As it is, the sea was too deep a blue. It used to be three's
 standard material under an ambient light: the texel read as linear, times 2/π, then
 encoded to sRGB, which lifted the deep blue sea to a pale one.
 
+**Nothing on the ground is white**: past a luminance of 0.7 the photo bends
+smoothly down, so white comes out at 0.82, a light grey (`SHOULDER_FROM`,
+`BRIGHTEST`). An unclaimed tile is a white veil at 30%, and on the photo's ice,
+which is a flat 253 to 255, it vanished: Antarctica and Greenland read as one
+blank white sheet with no tile on it. The old standard material put that ice at
+the same grey, so it is what the game showed before. Below 0.7 the photo is
+untouched; above it the hue is kept, so a bright desert is only a little dimmer.
+
 **None of it moves on its own**, so none of it costs a frame: the light turns
 with the camera, and a still globe is still the same picture. See [Drawing only
 when something changed](render-on-demand.md).
