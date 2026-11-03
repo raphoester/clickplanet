@@ -788,7 +788,7 @@ describe("Menu", () => {
 
             const profile = screen.getByRole("dialog", {name: "ana"})
             expect(within(profile).getByRole("region", {name: "Account"})).toBeDefined()
-            expect(within(profile).getByRole("region", {name: "Title tracks"})).toBeDefined()
+            expect(within(profile).getByRole("tablist", {name: "Title tracks"})).toBeDefined()
             expect(await within(profile).findByText("860 tiles to Raider")).toBeDefined()
             expect(within(profile).getByLabelText("Username")).toBeDefined()
             expect(screen.queryByRole("tablist", {name: "Account"})).toBeNull()
@@ -970,18 +970,16 @@ describe("Menu", () => {
             expect(within(foughtAgainst).getAllByRole("listitem")).toHaveLength(5)
         })
 
-        it("shows each track as a card, its every rank on demand", async () => {
+        it("lists the tracks, and every rank of the first one beside them", async () => {
             const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
             player.titles.mockResolvedValue(dashboard(140))
 
             await user.click(await screen.findByRole("button", {name: "You"}))
-            const tracks = await screen.findByRole("region", {name: "Title tracks"})
-            expect(within(tracks).getByText("Conquest · rank 1 of 2")).toBeDefined()
-            expect(within(tracks).queryByRole("region", {name: "Conquest"})).toBeNull()
+            const conquest = await screen.findByRole("tab", {name: /Conquest · rank 1 of 2/})
+            expect(conquest.getAttribute("aria-selected")).toBe("true")
 
-            await user.click(within(tracks).getByRole("button", {name: "Every rank of Conquest"}))
-
-            expect(within(tracks).getByRole("region", {name: "Conquest"})).toBeDefined()
+            const ranks = screen.getByRole("tabpanel", {name: /Conquest/})
+            expect(within(ranks).getAllByRole("listitem")).toHaveLength(2)
         })
 
         it("wears the title pressed, and shows it worn", async () => {

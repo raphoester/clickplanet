@@ -209,24 +209,37 @@
     color: var(--gold-ink);
 }
 
-/* One card per track, side by side: where the player stands and how far the next rank is. */
+/* The tracks as a list on the left, every rank of the one picked on the right. */
 .profile-tracks {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+    align-items: start;
     gap: var(--space-3);
 }
 
-.profile-track {
+.profile-track-tabs {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
-    padding: var(--space-4);
+    gap: var(--space-2);
 }
 
-.profile-track-head {
+.profile-track-tab {
     display: flex;
     align-items: center;
     gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.profile-track-tab[aria-selected="true"] {
+    box-shadow: inset 0 0 0 var(--outline) var(--gold);
+}
+
+.profile-track-tab[aria-selected="true"] .profile-track-rank {
+    color: var(--gold);
 }
 
 .profile-track-what {
@@ -245,11 +258,6 @@
     color: var(--text);
 }
 
-.profile-track-next {
-    display: flex;
-    flex-shrink: 0;
-}
-
 .profile-track-bar {
     display: block;
     height: 12px;
@@ -265,17 +273,92 @@
     background: var(--gold);
 }
 
-.profile-track-foot {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-}
-
 .profile-track-left {
     font-weight: 600;
     font-size: var(--text-s);
     color: var(--gold-light);
+}
+
+/* One row per rank, a bar down the medals' centres filled up to the progress. */
+.profile-ranks {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+}
+
+.profile-ranks-path {
+    --rank-row: 64px;
+    position: relative;
+}
+
+.profile-ranks-bar {
+    position: absolute;
+    top: calc(var(--rank-row) / 2);
+    bottom: calc(var(--rank-row) / 2);
+    left: calc(var(--rank-medal) / 2 - 9px);
+    box-sizing: border-box;
+    width: 18px;
+    overflow: hidden;
+    border: var(--outline) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--panel-sunk);
+}
+
+.profile-ranks-bar-filled {
+    display: block;
+    background: var(--gold);
+    box-shadow: inset -3px 0 0 var(--gold-shade);
+}
+
+.profile-ranks-list {
+    position: relative;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.profile-rank {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    height: var(--rank-row);
+}
+
+.profile-rank-medal {
+    position: relative;
+    display: block;
+    flex-shrink: 0;
+    width: var(--rank-medal);
+    height: var(--rank-medal);
+}
+
+.profile-rank-name {
+    flex: 1;
+    min-width: 0;
+    padding-top: 2px;
+    font-family: var(--font-display);
+    font-size: var(--display-m);
+    line-height: 1;
+    color: var(--text-faint);
+    text-shadow: var(--text-drop);
+}
+
+.profile-rank--earned .profile-rank-name {
+    color: var(--text);
+}
+
+.profile-rank--next .profile-rank-name {
+    color: var(--gold);
+}
+
+.profile-rank-threshold {
+    font-weight: 600;
+    font-size: var(--text-s);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
 }
 
 .profile-more {
