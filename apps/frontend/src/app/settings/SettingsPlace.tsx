@@ -1,5 +1,5 @@
 import {useState} from "react";
-import {DisplaySettings, MapView} from "../../domain/displaySettings.ts";
+import {MapView} from "../../domain/displaySettings.ts";
 import {FeedbackBackend, PageContext} from "../../backends/support.ts";
 import About from "../About.tsx";
 import BuyMeACoffee from "../components/BuyMeACoffee.tsx";
@@ -12,10 +12,10 @@ import FeedbackModal from "../support/FeedbackModal.tsx";
 import {pageContextOf} from "../support/pageContext.ts";
 import {NO_GRAPHICS} from "../viewer/graphicsReport.ts";
 import {ON_CRAZYGAMES} from "../../platform.ts";
+import {useDisplaySettings} from "./displaySettingsStore.ts";
 import "./SettingsPlace.css"
 
 export type SettingsPlaceProps = {
-    display?: {settings: DisplaySettings, onChange: (settings: DisplaySettings) => void},
     sound?: SoundSettingsPanelProps,
     support?: FeedbackBackend,
     pageContext?: () => PageContext,
@@ -29,24 +29,25 @@ const MAP_VIEWS: Choice<MapView>[] = [
     {value: "tiles", label: "Off"},
 ]
 
-export default function SettingsPlace({display, sound, support, pageContext = pageAlone}: SettingsPlaceProps) {
+export default function SettingsPlace({sound, support, pageContext = pageAlone}: SettingsPlaceProps) {
     const [open, setOpen] = useState<"feedback" | "about">()
     const close = () => setOpen(undefined)
+    const display = useDisplaySettings()
 
     return <div className="settings">
-        {display && <ul className="switch-list panel-box">
+        <ul className="switch-list panel-box">
             <li className="settings-choices">
                 <Choices label="Country flags"
                          options={MAP_VIEWS}
-                         picked={display.settings.mapView}
-                         onPick={(mapView) => display.onChange({...display.settings, mapView})}/>
+                         picked={display.mapView}
+                         onPick={display.setMapView}/>
             </li>
             <li>
                 <Switch label="HD graphics"
-                        checked={display.settings.rendering === "sharp"}
-                        onChange={(on) => display.onChange({...display.settings, rendering: on ? "sharp" : "soft"})}/>
+                        checked={display.rendering === "sharp"}
+                        onChange={(on) => display.setRendering(on ? "sharp" : "soft")}/>
             </li>
-        </ul>}
+        </ul>
         {sound && <SoundSettingsPanel {...sound}/>}
 
         <div className="menu-tiles settings-foot">
