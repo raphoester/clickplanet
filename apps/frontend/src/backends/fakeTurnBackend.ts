@@ -18,6 +18,12 @@ export const SEASON_ZERO: Season = {
     finaleRoundId: "season-0/finale",
 }
 
+// Season 0 as the fake pages play it: started 20 days before today, so a day runs at any date.
+export function seasonRunningAt(now: number): Season {
+    const startsAt = Math.floor(now / DAY_MS) * DAY_MS - 20 * DAY_MS
+    return {...SEASON_ZERO, startsAt, endsAt: startsAt + SEASON_ZERO.endsAt - SEASON_ZERO.startsAt}
+}
+
 const FAKE_TOTALS: SeasonTotals = {
     takes: 1_284_310, strikes: 18_402, spreads: 6_115, encloses: 1_207, bombs: 9_864, shields: 22_530, fortifies: 3_048, players: 2_416,
 }

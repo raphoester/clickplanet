@@ -4,7 +4,7 @@ import {seasonShown} from "./app/home/season.ts"
 import {carryQuery} from "./app/home/playLinks.ts"
 import {firstLanding, landingOf} from "./domain/landing.ts"
 import {localLandingStore} from "./backends/landingStore.ts"
-import {battleCommands, FakeTurnBackend} from "./backends/fakeTurnBackend.ts"
+import {battleCommands, FakeTurnBackend, seasonRunningAt} from "./backends/fakeTurnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
 import {TurnBackend} from "./backends/turn.ts"
 import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
@@ -32,7 +32,7 @@ turns.follow({
 })
 
 function fakeTurns(): FakeTurnBackend {
-    const turns = new FakeTurnBackend()
+    const turns = new FakeTurnBackend(seasonRunningAt(Date.now()))
     Object.assign(window, battleCommands(turns))
     return turns
 }

@@ -25,8 +25,10 @@ or a season scoring scored). A battle has a look, and so has Halloween (see [Hal
   `endDay()`, `endBattleRound(…)` and `endSeason(finaleRoundId, finaleBattle)` for the debriefs, and
   `scheduleBattle`, `moveBattle`, `deleteBattle` for the battles to come, and
   `moveSeasonEnd`, which tell of the change at once. It answers Season 0 as the
-  season that runs (`SEASON_ZERO`, book `season-0`), and today as the gamemaster counts
-  days (day K ends at the K-th 21:00 UTC cutoff after the start).
+  season that runs (book `season-0`), and today as the gamemaster counts
+  days (day K ends at the K-th 21:00 UTC cutoff after the start). The fake pages date
+  that season from the clock (`seasonRunningAt`), so a day always runs; the tests and
+  `/archive` keep Season 0's real dates (`SEASON_ZERO`).
 - **A battle is its entry's id** (`entryId`, empty when no entry runs): the battle's
   key and the start moment's "seen" mark. **Its round is `roundId`**, scoring's id for
   it: the board's battle column reads it, and a debrief is matched to the battle the
