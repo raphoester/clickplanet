@@ -44,8 +44,14 @@ other. Now auth names no module, and the join lands a second or two after the si
   the old one. Before, the role followed the flag of the next tile taken, so a player who changed flag and did not
   click kept being pinged for the old one. A user who left the server (`10007 Unknown Member`) is forgotten: it asked
   for no more pings.
-- **A deleted account is forgotten** (`alerts-accounts`, `auth.v1.AccountDeleted`). The Discord user stays in the
-  server with its roles: that is its own Discord account.
+- **A deleted account is forgotten** (`alerts-forgotten`, `player.v1.PlayerForgotten`, which player tells for every
+  account auth deletes). The Discord user stays in the server with its roles: that is its own Discord account. Until
+  2026-11-04 it heard `auth.v1.AccountDeleted` (`alerts-accounts`); why the new group misses no deletion is in
+  [Player](player.md#the-deploy-that-moved-the-others-to-players-events).
+- **Alerts is the one game module besides player that talks to auth, on purpose.** Every other module asks player
+  who an account is. Alerts hears `auth.v1.DiscordJoinGranted` and asks auth `GetDiscordGrant` and `GetDiscordUsers`,
+  because a join needs the user's OAuth access token, a secret auth keeps sealed and never puts on Redis. Through
+  player, player would hold OAuth secrets that are nothing to it: who a player is needs no token.
 
 `GetDiscordLink` answers `offered` (true: a server that answers at all offers it), `linked`, and the server's page
 (`#alerts`). It reads `links` straight (a query), with the caller's click token. The public route,

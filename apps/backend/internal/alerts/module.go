@@ -41,11 +41,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles/postgres_role_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles/tidy_roles_runner"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/allegiance_pledged_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/battle_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/discord_join_granted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/season_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -126,7 +126,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 				announce), props.Logger))
 		},
 		func() (cpbootstrap.Runner, error) {
-			return cpredis.Subscribe(ctx, streams, "alerts-accounts", log_subscriber.New(account_deleted_subscriber.New(
+			return cpredis.Subscribe(ctx, streams, "alerts-forgotten", log_subscriber.New(player_forgotten_subscriber.New(
 				forget_link_usecase.New(linkStore)), props.Logger))
 		},
 		func() (cpbootstrap.Runner, error) {
