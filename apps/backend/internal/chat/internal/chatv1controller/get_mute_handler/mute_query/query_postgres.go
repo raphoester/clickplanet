@@ -12,6 +12,7 @@ import (
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -31,12 +32,16 @@ const latestAddress = `SELECT ip FROM messages WHERE account_id = $1 ORDER BY se
 const mute = `
 	SELECT account_id, muted_until
 	FROM mutes
-	WHERE muted_until > $3 AND (account_id = $1 OR scope = $2)
+	WHERE kind = $3 AND muted_until > $4 AND (account_id = $1 OR scope = $2)
 	ORDER BY muted_until DESC, id
 	LIMIT 1
 `
 
-func (q *PostgresQuery) Mute(ctx context.Context, account messages.AccountID) (*chatv1.GetMuteResponse, error) {
+func (q *PostgresQuery) Mute(
+	ctx context.Context,
+	account messages.AccountID,
+	kind mutes.Kind,
+) (*chatv1.GetMuteResponse, error) {
 	var ip string
 	err := q.db.On(ctx).QueryRowContext(ctx, latestAddress, uuid.UUID(account)).Scan(&ip)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -49,7 +54,8 @@ func (q *PostgresQuery) Mute(ctx context.Context, account messages.AccountID) (*
 		given uuid.UUID
 		until time.Time
 	)
-	err = q.db.On(ctx).QueryRowContext(ctx, mute, uuid.UUID(account), scope, q.clock.Now().UTC()).Scan(&given, &until)
+	err = q.db.On(ctx).QueryRowContext(ctx, mute, uuid.UUID(account), scope, kind.String(), q.clock.Now().UTC()).
+		Scan(&given, &until)
 	if errors.Is(err, sql.ErrNoRows) {
 		return &chatv1.GetMuteResponse{}, nil
 	}

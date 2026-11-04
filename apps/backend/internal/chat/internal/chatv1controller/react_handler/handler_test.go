@@ -79,7 +79,7 @@ func TestReactMapsTheRefusals(t *testing.T) {
 }
 
 func TestAMutedReactorIsDenied(t *testing.T) {
-	muted := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(messages.AccountID{15: 1}, ""), time.Now(), time.Hour)
+	muted := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(messages.AccountID{15: 1}, ""), mutes.Chat, time.Now(), time.Hour)
 
 	_, err := react(t.Context(), &stubUseCase{err: muted.Refusal()}, chatv1.Reaction_REACTION_CLOWN)
 

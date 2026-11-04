@@ -18,12 +18,14 @@ import (
 
 type stubUseCase struct {
 	account messages.AccountID
+	kind    mutes.Kind
 	until   time.Time
 	err     error
 }
 
-func (s *stubUseCase) Execute(_ context.Context, account messages.AccountID) (time.Time, error) {
+func (s *stubUseCase) Execute(_ context.Context, account messages.AccountID, kind mutes.Kind) (time.Time, error) {
 	s.account = account
+	s.kind = kind
 	return s.until, s.err
 }
 
@@ -32,7 +34,13 @@ const bullyID = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
 func unmute(t *testing.T, useCase *stubUseCase, accountID string) (*chatv1.UnmuteResponse, error) {
 	t.Helper()
 
-	res, err := unmute_handler.New(useCase).Unmute(t.Context(), connect.NewRequest(&chatv1.UnmuteRequest{AccountId: accountID}))
+	return unmuteOf(t, useCase, &chatv1.UnmuteRequest{AccountId: accountID})
+}
+
+func unmuteOf(t *testing.T, useCase *stubUseCase, req *chatv1.UnmuteRequest) (*chatv1.UnmuteResponse, error) {
+	t.Helper()
+
+	res, err := unmute_handler.New(useCase).Unmute(t.Context(), connect.NewRequest(req))
 	if err != nil {
 		return nil, fmt.Errorf("unmute refused: %w", err)
 	}
@@ -47,7 +55,23 @@ func TestTheAccountReachesTheUseCaseAndWhenItsMuteWouldHaveEndedComesBack(t *tes
 	require.NoError(t, err)
 
 	assert.Equal(t, messages.AccountIDOf(bullyID), useCase.account)
+	assert.Equal(t, mutes.Chat, useCase.kind, "no kind is the whole chat")
 	assert.Equal(t, until, res.GetMutedUntil().AsTime())
+}
+
+func TestTheKindAskedReachesTheUseCase(t *testing.T) {
+	useCase := &stubUseCase{}
+
+	_, err := unmuteOf(t, useCase, &chatv1.UnmuteRequest{AccountId: bullyID, Kind: chatv1.MuteKind_MUTE_KIND_GIFS})
+	require.NoError(t, err)
+
+	assert.Equal(t, mutes.Gifs, useCase.kind)
+}
+
+func TestAKindTheProtoDoesNotNameIsInvalid(t *testing.T) {
+	_, err := unmuteOf(t, &stubUseCase{}, &chatv1.UnmuteRequest{AccountId: bullyID, Kind: chatv1.MuteKind(7)})
+
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
 func TestErrorsMapToTheirCodes(t *testing.T) {

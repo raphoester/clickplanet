@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { Gif } from "./chat_pb.js";
+import { Gif, MuteKind } from "./chat_pb.js";
 
 /**
  * @generated from message chat.v1.MuteRequest
@@ -21,6 +21,11 @@ export class MuteRequest extends Message<MuteRequest> {
    */
   duration?: Duration;
 
+  /**
+   * @generated from field: chat.v1.MuteKind kind = 3;
+   */
+  kind = MuteKind.CHAT;
+
   constructor(data?: PartialMessage<MuteRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -31,6 +36,7 @@ export class MuteRequest extends Message<MuteRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "duration", kind: "message", T: Duration },
+    { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(MuteKind) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MuteRequest {
@@ -102,6 +108,11 @@ export class UnmuteRequest extends Message<UnmuteRequest> {
    */
   accountId = "";
 
+  /**
+   * @generated from field: chat.v1.MuteKind kind = 2;
+   */
+  kind = MuteKind.CHAT;
+
   constructor(data?: PartialMessage<UnmuteRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -111,6 +122,7 @@ export class UnmuteRequest extends Message<UnmuteRequest> {
   static readonly typeName = "chat.v1.UnmuteRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(MuteKind) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnmuteRequest {
@@ -178,6 +190,11 @@ export class GetMuteRequest extends Message<GetMuteRequest> {
    */
   accountId = "";
 
+  /**
+   * @generated from field: chat.v1.MuteKind kind = 2;
+   */
+  kind = MuteKind.CHAT;
+
   constructor(data?: PartialMessage<GetMuteRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -187,6 +204,7 @@ export class GetMuteRequest extends Message<GetMuteRequest> {
   static readonly typeName = "chat.v1.GetMuteRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(MuteKind) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMuteRequest {

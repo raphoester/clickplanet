@@ -3,6 +3,7 @@ import {Code} from "@connectrpc/connect"
 import {describe, expect, it} from "vitest"
 import {AT, FakeAdmin} from "../fakeAdmin.ts"
 import {GetMuteResponse} from "../gen/grpc/chat/v1/admin_pb.ts"
+import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {
     ban,
     DEFAULT_MUTE_SECONDS,
@@ -13,6 +14,7 @@ import {
     LADDER,
     mute,
     mutingOf,
+    mutingsOf,
     NO_GRANT,
     refusalOf,
     release,
@@ -34,6 +36,16 @@ describe("mute", () => {
         expect(request.accountId).toBe("account-reported")
         expect(request.duration.seconds).toBe(3600n)
     })
+
+    it("mutes the whole chat unless told to mute the GIFs alone", async () => {
+        const admin = new FakeAdmin()
+
+        await mute(admin, "account-reported", DEFAULT_MUTE_SECONDS)
+        await mute(admin, "account-reported", DEFAULT_MUTE_SECONDS, MuteKind.GIFS)
+
+        expect((admin.askedFor("mute") as {kind: MuteKind}[]).map(request => request.kind))
+            .toEqual([MuteKind.CHAT, MuteKind.GIFS])
+    })
 })
 
 describe("unmute", () => {
@@ -41,7 +53,14 @@ describe("unmute", () => {
         const admin = new FakeAdmin()
 
         expect(await unmute(admin, "account-reported")).toEqual({until: AT})
-        expect(admin.askedFor("unmute")).toEqual([{accountId: "account-reported"}])
+        expect(admin.askedFor("unmute")).toEqual([{accountId: "account-reported", kind: MuteKind.CHAT}])
+    })
+
+    it("lifts the mutes of the kind asked", async () => {
+        const admin = new FakeAdmin()
+
+        await unmute(admin, "account-reported", MuteKind.GIFS)
+        expect(admin.askedFor("unmute")).toEqual([{accountId: "account-reported", kind: MuteKind.GIFS}])
     })
 
     it("says a player with no mute of its own", async () => {
@@ -66,6 +85,19 @@ describe("mutingOf", () => {
 
         admin.muting = new GetMuteResponse({mutedUntil: Timestamp.fromDate(AT), mutedAccountId: "account-household"})
         expect(await mutingOf(admin, "account-reported")).toEqual({until: AT, byNetwork: true})
+    })
+})
+
+describe("mutingsOf", () => {
+    it("reads each kind apart", async () => {
+        const admin = new FakeAdmin()
+        admin.gifMuting = new GetMuteResponse({mutedUntil: Timestamp.fromDate(AT), mutedAccountId: "account-reported"})
+
+        expect(await mutingsOf(admin, "account-reported")).toEqual({chat: undefined, gifs: {until: AT, byNetwork: false}})
+        expect(admin.askedFor("getMute")).toEqual([
+            {accountId: "account-reported", kind: MuteKind.CHAT},
+            {accountId: "account-reported", kind: MuteKind.GIFS},
+        ])
     })
 })
 

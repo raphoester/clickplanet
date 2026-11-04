@@ -11,7 +11,7 @@ import {Ago, When} from "../components/When.tsx"
 import {GetMessageResponse, KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {Report} from "../gen/grpc/support/v1/admin_pb.ts"
 import {useOpenPlayer} from "../navigation.ts"
-import {mutingOf, readingOf} from "../players/actions.ts"
+import {mutingsOf, readingOf, UNMUTED} from "../players/actions.ts"
 import {whoOf} from "../players/caller.ts"
 import {Inspection} from "../players/InspectPanel.tsx"
 import {Standing} from "../players/Standing.tsx"
@@ -63,7 +63,7 @@ export function ReportDetail({report, related = [], clients = CLIENTS, onBack, o
     )
     const [standing] = useCall(readStanding)
     const readMuting = useCallback(
-        (signal: AbortSignal) => accountId === "" ? Promise.resolve(undefined) : mutingOf(chat, accountId, signal),
+        (signal: AbortSignal) => accountId === "" ? Promise.resolve(UNMUTED) : mutingsOf(chat, accountId, signal),
         [chat, accountId],
     )
     const [muting] = useCall(readMuting)

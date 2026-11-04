@@ -38,6 +38,7 @@ import {
     TopPlayersResponse,
 } from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Rules as AntibotRules} from "../gen/grpc/antibot/v1/rules_pb.ts"
+import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {
     GetPlayerLinkRequest,
     GetPlayerLinkResponse,
@@ -119,6 +120,7 @@ type Account = {id: string, name: string, guest: boolean, flag: string, scope: s
 // `npm run demo`.
 export class DemoAdmin extends FakeAdmin {
     accounts: Account[]
+    // By account and kind: a mute of the GIFs holds apart from one of the whole chat.
     mutedUntil = new Map<string, number>()
     inspections = new Map<string, InspectPlayerResponse>()
     readonly bucket = new Map<string, Blob>()
@@ -330,21 +332,21 @@ export class DemoAdmin extends FakeAdmin {
 
     override mute(request: PartialMessage<MuteRequest>): Promise<MuteResponse> {
         const until = Date.now() + Number(request.duration?.seconds ?? 3600n) * 1000
-        this.mutedUntil.set(request.accountId ?? "", until)
+        this.mutedUntil.set(muteKeyOf(request), until)
         return this.answer("mute", request, new MuteResponse({mutedUntil: at(until)}))
     }
 
     override unmute(request: PartialMessage<UnmuteRequest>): Promise<UnmuteResponse> {
-        const until = this.mutedUntil.get(request.accountId ?? "")
+        const until = this.mutedUntil.get(muteKeyOf(request))
         if (until === undefined || until <= Date.now()) {
             return this.refuseLater("unmute", request, "no mute applies to this caller", Code.NotFound)
         }
-        this.mutedUntil.delete(request.accountId ?? "")
+        this.mutedUntil.delete(muteKeyOf(request))
         return this.answer("unmute", request, new UnmuteResponse({mutedUntil: at(until)}))
     }
 
     override getMute(request: PartialMessage<GetMuteRequest>): Promise<GetMuteResponse> {
-        const until = this.mutedUntil.get(request.accountId ?? "")
+        const until = this.mutedUntil.get(muteKeyOf(request))
         const answer = until === undefined || until <= Date.now()
             ? new GetMuteResponse()
             : new GetMuteResponse({mutedUntil: at(until), mutedAccountId: request.accountId})
@@ -508,4 +510,8 @@ export class DemoAdmin extends FakeAdmin {
         getRules: this.antibot.getRules.bind(this.antibot),
         saveRuleSet: this.antibot.saveRuleSet.bind(this.antibot),
     }
+}
+
+function muteKeyOf(request: {accountId?: string, kind?: MuteKind}): string {
+    return `${request.kind ?? MuteKind.CHAT}:${request.accountId ?? ""}`
 }

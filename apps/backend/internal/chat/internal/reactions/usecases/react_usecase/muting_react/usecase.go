@@ -13,7 +13,7 @@ type UseCase interface {
 }
 
 type Mutes interface {
-	MuteError(ctx context.Context, caller mutes.Caller) error
+	MuteError(ctx context.Context, caller mutes.Caller, kind mutes.Kind) error
 }
 
 func New(implementation UseCase, mutes Mutes) *Decorator {
@@ -26,7 +26,7 @@ type Decorator struct {
 }
 
 func (d *Decorator) Execute(ctx context.Context, in react_usecase.In) (react_usecase.Out, error) {
-	if err := d.mutes.MuteError(ctx, mutes.NewCaller(in.Account, cpctx.GetSourceIP(ctx))); err != nil {
+	if err := d.mutes.MuteError(ctx, mutes.NewCaller(in.Account, cpctx.GetSourceIP(ctx)), mutes.Chat); err != nil {
 		return react_usecase.Out{}, err //nolint:wrapcheck // the book named it, and a refusal keeps its type.
 	}
 	return d.implementation.Execute(ctx, in) //nolint:wrapcheck // a decorator adds a gate, not a sentence.

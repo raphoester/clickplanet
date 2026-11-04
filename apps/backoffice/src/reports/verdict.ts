@@ -1,14 +1,17 @@
 import {Clients} from "../clients.ts"
 import {ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
-import {ban, bannedWords, mute, refusalOf as playerRefusalOf} from "../players/actions.ts"
+import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
+import {ban, bannedWords, mute, muteWordsOf, refusalOf as playerRefusalOf} from "../players/actions.ts"
 import {BAN_CHOICES, labelOf, MUTE_CHOICES} from "../players/durations.ts"
 import {countOf, outcomeLabel} from "../support/labels.ts"
 import {timeOf} from "../components/time.ts"
 import {decide, refusalOf, removeMessage} from "./actions.ts"
 
 // What the operator does to the reported account before the report closes. A duration is undefined when it does not
-// mute or ban.
-export type Verdict = {remove: boolean, muteFor: number | undefined, banFor: number | undefined, comment: string}
+// mute or ban; `muteKind` is what the mute takes away, the whole chat unless said.
+export type Verdict = {
+    remove: boolean, muteFor: number | undefined, muteKind?: MuteKind, banFor: number | undefined, comment: string,
+}
 
 export type Target = {accountId: string, messageId: string, who: string}
 
@@ -26,7 +29,9 @@ export class Halted extends Error {
 export function actsOf(verdict: Verdict, who: string): string[] {
     return [
         ...(verdict.remove ? ["remove the message"] : []),
-        ...(verdict.muteFor !== undefined ? [`mute ${who} for ${labelOf(MUTE_CHOICES, verdict.muteFor)}`] : []),
+        ...(verdict.muteFor !== undefined
+            ? [`mute ${muteWordsOf(verdict.muteKind ?? MuteKind.CHAT).of(who)} for ${labelOf(MUTE_CHOICES, verdict.muteFor)}`]
+            : []),
         ...(verdict.banFor !== undefined ? [`ban ${who} for ${labelOf(BAN_CHOICES, verdict.banFor)}`] : []),
     ]
 }
@@ -56,8 +61,10 @@ export async function close(
             err => refusalOf("removeMessage", err))
     }
     const muteFor = verdict.muteFor
+    const muteKind = verdict.muteKind ?? MuteKind.CHAT
     if (muteFor !== undefined) {
-        await step(() => mute(clients.chat, target.accountId, muteFor), muted => `Muted until ${timeOf(muted.until)}.`,
+        await step(() => mute(clients.chat, target.accountId, muteFor, muteKind),
+            muted => `${muteWordsOf(muteKind).muted} until ${timeOf(muted.until)}.`,
             err => playerRefusalOf("mute", err))
     }
     const banFor = verdict.banFor
@@ -89,7 +96,9 @@ export function haltedWords(err: unknown): string {
 function pastOf(verdict: Verdict): string {
     return [
         ...(verdict.remove ? ["Removed the message."] : []),
-        ...(verdict.muteFor !== undefined ? [`Muted for ${labelOf(MUTE_CHOICES, verdict.muteFor)}.`] : []),
+        ...(verdict.muteFor !== undefined
+            ? [`${muteWordsOf(verdict.muteKind ?? MuteKind.CHAT).muted} for ${labelOf(MUTE_CHOICES, verdict.muteFor)}.`]
+            : []),
         ...(verdict.banFor !== undefined ? [`Banned for ${labelOf(BAN_CHOICES, verdict.banFor)}.`] : []),
     ].join(" ")
 }

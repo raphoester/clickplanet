@@ -10,7 +10,7 @@ import (
 )
 
 type Reader interface {
-	Mute(ctx context.Context, caller Caller, at time.Time) (Mute, error)
+	Mute(ctx context.Context, caller Caller, kind Kind, at time.Time) (Mute, error)
 }
 
 const readTimeout = 5 * time.Second
@@ -24,11 +24,11 @@ type Book struct {
 	clock cptime.Clock
 }
 
-func (b Book) MuteError(ctx context.Context, caller Caller) error {
+func (b Book) MuteError(ctx context.Context, caller Caller, kind Kind) error {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
-	mute, err := b.mutes.Mute(ctx, caller, b.clock.Now())
+	mute, err := b.mutes.Mute(ctx, caller, kind, b.clock.Now())
 	switch {
 	case errors.Is(err, ErrNotMuted):
 		return nil

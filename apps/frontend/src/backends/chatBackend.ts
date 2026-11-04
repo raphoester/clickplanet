@@ -28,6 +28,7 @@ import {
     ChatEvent,
     ChatMessage as ChatMessagePb,
     Gif as GifPb,
+    MuteKind as MuteKindPb,
     MuteRefusal,
     Quote as QuotePb,
     ReactionCount as ReactionCountPb,
@@ -218,7 +219,10 @@ function translate(e: unknown): unknown {
             return new ChatRateLimitedError({cause: e})
         case Code.PermissionDenied: {
             const muted = e.findDetails(MuteRefusal)[0]
-            if (muted) return new ChatMutedError(Number(muted.mutedUntilUnixMs), {cause: e})
+            if (muted) {
+                const kind = muted.kind === MuteKindPb.GIFS ? 'gifs' : 'chat'
+                return new ChatMutedError(Number(muted.mutedUntilUnixMs), kind, {cause: e})
+            }
             return new ChatBlockedError({cause: e})
         }
         case Code.InvalidArgument:

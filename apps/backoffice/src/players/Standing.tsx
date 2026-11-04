@@ -1,10 +1,12 @@
 import {timeOf} from "../components/time.ts"
 import {Call} from "../useCall.ts"
-import {Muting, Reading} from "./actions.ts"
+import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
+import {Muting, Mutings, muteWordsOf, Reading} from "./actions.ts"
 
-type Props = {reading: Call<Reading>, muting?: Call<Muting>}
+type Props = {reading: Call<Reading>, muting?: Call<Mutings>}
 
-// Where a player stands, at a glance: banned or not, its offences, the jury's opinion, and muted or not for an account.
+// Where a player stands, at a glance: banned or not, its offences, the jury's opinion, and muted or not for an account,
+// from the whole chat or from its GIFs.
 export function Standing({reading, muting}: Props) {
     return (
         <span className="standing">
@@ -39,13 +41,24 @@ function Antibot({reading}: {reading: Call<Reading>}) {
     )
 }
 
-function Mute({muting}: {muting: Call<Muting>}) {
+function Mute({muting}: {muting: Call<Mutings>}) {
     if (muting.state === "loading") return <span className="muted">Reading the chat…</span>
     if (muting.state === "failed") return <span className="muted">The mute could not be read.</span>
-    if (muting.value === undefined) return <span className="status status-good">Not muted</span>
+    const {chat, gifs} = muting.value
+    return (
+        <>
+            {chat === undefined
+                ? <span className="status status-good">Not muted</span>
+                : <Muted kind={MuteKind.CHAT} muting={chat}/>}
+            {gifs !== undefined && <Muted kind={MuteKind.GIFS} muting={gifs}/>}
+        </>
+    )
+}
+
+function Muted({kind, muting}: {kind: MuteKind, muting: NonNullable<Muting>}) {
     return (
         <span className="status status-bad">
-            Muted until {timeOf(muting.value.until)}{muting.value.byNetwork && ", by a mute on its network"}
+            {muteWordsOf(kind).muted} until {timeOf(muting.until)}{muting.byNetwork && ", by a mute on its network"}
         </span>
     )
 }

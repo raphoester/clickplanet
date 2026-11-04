@@ -44,12 +44,12 @@ func mute(t *testing.T, useCase *stubUseCase, req *chatv1.MuteRequest) (*chatv1.
 func TestTheRequestReachesTheUseCaseAndTheMuteComesBack(t *testing.T) {
 	at := time.Date(2026, 10, 7, 20, 0, 0, 0, time.UTC)
 	account := messages.AccountIDOf(bullyID)
-	useCase := &stubUseCase{mute: mutes.NewMute(mutes.MuteID{1}, mutes.CallerOf(account, "2a01:e0a:1:2::/64"), at, 2*time.Hour)}
+	useCase := &stubUseCase{mute: mutes.NewMute(mutes.MuteID{1}, mutes.CallerOf(account, "2a01:e0a:1:2::/64"), mutes.Chat, at, 2*time.Hour)}
 
 	res, err := mute(t, useCase, &chatv1.MuteRequest{AccountId: bullyID, Duration: durationpb.New(2 * time.Hour)})
 	require.NoError(t, err)
 
-	assert.Equal(t, mute_usecase.In{Account: account, Duration: 2 * time.Hour}, useCase.in)
+	assert.Equal(t, mute_usecase.In{Account: account, Kind: mutes.Chat, Duration: 2 * time.Hour}, useCase.in)
 	assert.Equal(t, "2a01:e0a:1:2::/64", res.GetScope())
 	assert.Equal(t, at.Add(2*time.Hour), res.GetMutedUntil().AsTime())
 }
@@ -61,6 +61,24 @@ func TestNoDurationIsLeftToTheDefault(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Zero(t, useCase.in.Duration)
+}
+
+func TestTheKindAskedReachesTheUseCase(t *testing.T) {
+	useCase := &stubUseCase{}
+
+	_, err := mute(t, useCase, &chatv1.MuteRequest{AccountId: bullyID, Kind: chatv1.MuteKind_MUTE_KIND_GIFS})
+	require.NoError(t, err)
+
+	assert.Equal(t, mutes.Gifs, useCase.in.Kind)
+}
+
+func TestAKindTheProtoDoesNotNameIsInvalidAndNothingIsMuted(t *testing.T) {
+	useCase := &stubUseCase{}
+
+	_, err := mute(t, useCase, &chatv1.MuteRequest{AccountId: bullyID, Kind: chatv1.MuteKind(7)})
+
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	assert.Equal(t, mute_usecase.In{}, useCase.in, "the use case is never asked")
 }
 
 func TestErrorsMapToTheirCodes(t *testing.T) {

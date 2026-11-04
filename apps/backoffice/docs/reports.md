@@ -10,9 +10,11 @@ one or the other below. The report open is in the address bar (`#/reports/report
 - **The report** (`ReportDetail`), top down as it is judged: the reported line quoted large (struck through once
   removed; "This message is no longer kept." past the chat's retention), what the reporter wrote, who reported whom
   (each name opens the player page, each short id has Copy), **where the reported account stands** (`Standing`, from
-  `InspectPlayer` on open: banned until when, the jury's opinion, a pardon; and `GetMute`: muted until when), and its other reports, open or closed,
+  `InspectPlayer` on open: banned until when, the jury's opinion, a pardon; and `GetMute`: muted until when, and its
+  GIFs muted until when), and its other reports, open or closed,
   each one click away.
-- **The verdict** (`VerdictPanel`, `verdict.ts`) is one form under the header: remove the message, mute for, ban for
+- **The verdict** (`VerdictPanel`, `verdict.ts`) is one form under the header: remove the message, mute for (and,
+  once ticked, mute what: the whole chat or GIFs alone, "mute the GIFs of Ana for 1 day", "GIFs muted for 1 day."), ban for
   (the ladder's next step by default), a comment, and "Close the N other open reports on Ana too" (on by default).
   **Act and close** (or "Close as acted" with nothing ticked, after a ban from the player page) and **Dismiss** each
   ask one question that names every step ("Remove the message, mute Ana for 1 day and close this report as Acted?").

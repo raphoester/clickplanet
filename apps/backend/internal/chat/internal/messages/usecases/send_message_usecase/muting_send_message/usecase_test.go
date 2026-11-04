@@ -29,6 +29,7 @@ var (
 type testSuite struct {
 	suite.Suite
 
+	store     *inmemory_mute_storage.Storage
 	clock     *cptime.FixedClock
 	inner     *recordingUseCase
 	decorator *muting_send_message.Decorator
@@ -36,10 +37,11 @@ type testSuite struct {
 
 func (s *testSuite) SetupTest() {
 	store := inmemory_mute_storage.New()
+	s.store = store
 	s.Require().NoError(store.Save(context.Background(),
-		mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), mutedAt, time.Hour)))
+		mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), mutes.Chat, mutedAt, time.Hour)))
 	s.Require().NoError(store.Save(context.Background(),
-		mutes.NewMute(mutes.MuteID{2}, mutes.NewCaller(messages.AccountID{15: 3}, "203.0.113.7"), mutedAt, time.Hour)))
+		mutes.NewMute(mutes.MuteID{2}, mutes.NewCaller(messages.AccountID{15: 3}, "203.0.113.7"), mutes.Chat, mutedAt, time.Hour)))
 
 	s.clock = cptime.NewFixedClock(mutedAt.Add(time.Minute))
 	s.inner = &recordingUseCase{}
@@ -50,6 +52,48 @@ func (s *testSuite) post(account messages.AccountID, ip string) error {
 	_, err := s.decorator.Execute(cpctx.AddIPToContext(context.Background(), ip),
 		send_message_usecase.In{Account: account, CountryID: "fr", Text: "hello"})
 	return err
+}
+
+func (s *testSuite) postGif(account messages.AccountID, ip string) error {
+	_, err := s.decorator.Execute(cpctx.AddIPToContext(context.Background(), ip), send_message_usecase.In{
+		Account: account, CountryID: "fr",
+		Gif: messages.Gif{URL: "https://static.klipy.com/ii/935d7ab9/14/af/SE72470w.webp", Width: 220, Height: 124},
+	})
+	return err
+}
+
+func (s *testSuite) mutedFromGifs(id byte, account messages.AccountID, ip string, duration time.Duration) {
+	s.Require().NoError(s.store.Save(context.Background(),
+		mutes.NewMute(mutes.MuteID{id}, mutes.NewCaller(account, ip), mutes.Gifs, mutedAt, duration)))
+}
+
+func (s *testSuite) TestAMuteOfTheGifsRefusesAGifAndSaysSo() {
+	s.mutedFromGifs(3, newGuest, "198.51.100.1", time.Hour)
+
+	err := s.postGif(newGuest, "198.51.100.1")
+
+	var refusal mutes.Refusal
+	s.Require().ErrorAs(err, &refusal)
+	s.Equal(mutes.Gifs, refusal.Kind())
+	s.Zero(s.inner.calls)
+}
+
+func (s *testSuite) TestAMuteOfTheGifsLetsTheTextGo() {
+	s.mutedFromGifs(3, newGuest, "198.51.100.1", time.Hour)
+
+	s.Require().NoError(s.post(newGuest, "198.51.100.1"))
+	s.Equal(1, s.inner.calls)
+}
+
+func (s *testSuite) TestAPlayerMutedBothWaysIsToldTheMuteOfTheChat() {
+	s.mutedFromGifs(3, bully, "2a01:e0a:1:2::1", 24*time.Hour)
+
+	err := s.postGif(bully, "2a01:e0a:1:2::1")
+
+	var refusal mutes.Refusal
+	s.Require().ErrorAs(err, &refusal)
+	s.Equal(mutes.Chat, refusal.Kind())
+	s.Equal(mutedAt.Add(time.Hour), refusal.Until())
 }
 
 func (s *testSuite) TestAMutedAccountCannotPostFromAnyNetwork() {

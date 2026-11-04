@@ -16,6 +16,7 @@ import {
     Gif as GifPb,
     Heartbeat,
     MessageRemoved,
+    MuteKind,
     MuteRefusal,
     Quote,
     Reaction,
@@ -507,6 +508,19 @@ describe("ChatServiceBackend.sendMessage", () => {
         const refusal = await backend.sendMessage(outgoing).catch((e: unknown) => e)
 
         expect(refusal).toBeInstanceOf(ChatMutedError)
+        expect((refusal as ChatMutedError).until).toBe(1_700_003_600_000)
+        expect((refusal as ChatMutedError).kind).toBe("chat")
+    })
+
+    it("reads a denial that carries a mute of the GIFs as such", async () => {
+        const muted = new ConnectError("muted in the chat", Code.PermissionDenied, undefined,
+            [new MuteRefusal({mutedUntilUnixMs: BigInt(1_700_003_600_000), kind: MuteKind.GIFS})])
+        const backend = new ChatServiceBackend(clientThatFails(muted), session(), unusedKeepalive)
+
+        const refusal = await backend.sendMessage(outgoing).catch((e: unknown) => e)
+
+        expect(refusal).toBeInstanceOf(ChatMutedError)
+        expect((refusal as ChatMutedError).kind).toBe("gifs")
         expect((refusal as ChatMutedError).until).toBe(1_700_003_600_000)
     })
 

@@ -3,6 +3,7 @@ import {Code, ConnectError} from "@connectrpc/connect"
 import {LONG_CALL_MS} from "../api.ts"
 import {AlertsAdmin, AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAdmin, ProgressionAdmin} from "../clients.ts"
 import {DiscordLink} from "../gen/grpc/alerts/v1/admin_pb.ts"
+import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {ChargesHeld} from "../gen/grpc/planet/v1/planet_pb.ts"
@@ -25,6 +26,9 @@ export type Muted = {until: Date}
 export type Unmuted = {until: Date}
 // The mute that holds an account now, or none. `byNetwork`: it was given to another account on its network.
 export type Muting = {until: Date, byNetwork: boolean} | undefined
+// Each kind holds apart: an account may be muted from the whole chat, from its GIFs, or both.
+export type Mutings = {chat: Muting, gifs: Muting}
+export const UNMUTED: Mutings = {chat: undefined, gifs: undefined}
 export type Banned = {until: Date, offence: number, enforced: boolean}
 export type Unbanned = {offence: number, until: Date | undefined, pardonedUntil: Date | undefined}
 export type Reverted = {touched: number, held: number, restored: number}
@@ -46,22 +50,43 @@ export const NO_GRANT: Grant = {refill: false, bomb: false, enclosures: 0, sprea
 // The server caps each count at its stack, so this fills every charge and the answer says what fit.
 export const MAX_GRANT: Grant = {refill: true, bomb: true, enclosures: MOST, spreadClicks: MOST, shields: MOST}
 
+// What each kind of mute takes away, as the page says it: its choice, the account it holds in a sentence, and what
+// was done. A mute of the GIFs leaves the player its text and its reactions.
+export const MUTE_KINDS: {kind: MuteKind, label: string, of: (who: string) => string, muted: string, unmuted: string}[] = [
+    {kind: MuteKind.CHAT, label: "The whole chat", of: who => who, muted: "Muted", unmuted: "Unmuted"},
+    {kind: MuteKind.GIFS, label: "GIFs alone", of: who => `the GIFs of ${who}`, muted: "GIFs muted", unmuted: "GIFs unmuted"},
+]
+
+export function muteWordsOf(kind: MuteKind) {
+    return MUTE_KINDS.find(each => each.kind === kind) ?? MUTE_KINDS[0]
+}
+
 // A mute is an account's: the chat has no scope to mute.
-export async function mute(chat: ChatAdmin, accountId: string, seconds: number): Promise<Muted> {
-    const answer = await chat.mute({accountId, duration: new Duration({seconds: BigInt(seconds)})})
+export async function mute(chat: ChatAdmin, accountId: string, seconds: number, kind = MuteKind.CHAT): Promise<Muted> {
+    const answer = await chat.mute({accountId, duration: new Duration({seconds: BigInt(seconds)}), kind})
     return {until: dateOf(answer.mutedUntil)}
 }
 
-// Ends every mute given to the account. A mute given to another account on its network still holds it.
-export async function unmute(chat: ChatAdmin, accountId: string): Promise<Unmuted> {
-    const answer = await chat.unmute({accountId})
+// Ends every mute of the kind given to the account. A mute given to another account on its network still holds it.
+export async function unmute(chat: ChatAdmin, accountId: string, kind = MuteKind.CHAT): Promise<Unmuted> {
+    const answer = await chat.unmute({accountId, kind})
     return {until: dateOf(answer.mutedUntil)}
 }
 
-export async function mutingOf(chat: ChatAdmin, accountId: string, signal?: AbortSignal): Promise<Muting> {
-    const answer = await chat.getMute({accountId}, {signal})
+export async function mutingOf(
+    chat: ChatAdmin, accountId: string, kind = MuteKind.CHAT, signal?: AbortSignal,
+): Promise<Muting> {
+    const answer = await chat.getMute({accountId, kind}, {signal})
     if (answer.mutedUntil === undefined) return undefined
     return {until: answer.mutedUntil.toDate(), byNetwork: answer.mutedAccountId !== accountId}
+}
+
+export async function mutingsOf(chat: ChatAdmin, accountId: string, signal?: AbortSignal): Promise<Mutings> {
+    const [whole, gifs] = await Promise.all([
+        mutingOf(chat, accountId, MuteKind.CHAT, signal),
+        mutingOf(chat, accountId, MuteKind.GIFS, signal),
+    ])
+    return {chat: whole, gifs}
 }
 
 export async function ban(antibot: AntibotAdmin, caller: Caller, seconds: number): Promise<Banned> {

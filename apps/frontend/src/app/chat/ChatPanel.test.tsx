@@ -616,6 +616,20 @@ describe("ChatPanel", () => {
             expect(messageBox()).toHaveProperty("value", "hello")
         })
 
+        it("says until when a player muted from GIFs may post one", async () => {
+            const until = Date.now() + 3600_000
+            const {backend} = stubBackend()
+            backend.sendMessage.mockRejectedValue(new ChatMutedError(until, "gifs"))
+            vi.spyOn(console, "error").mockImplementation(() => {})
+            const {user} = setup(backend)
+            await screen.findByRole("textbox", {name: "Message"})
+
+            await user.type(messageBox(), "hello{Enter}")
+
+            const clock = new Intl.DateTimeFormat(undefined, {hour: "2-digit", minute: "2-digit"})
+            expect(await screen.findByRole("alert")).toHaveProperty("textContent", `You may not post GIFs until ${clock.format(until)}.`)
+        })
+
         it("says so when no session could be had to send it", async () => {
             const {backend} = stubBackend()
             backend.sendMessage.mockRejectedValue(new ChatNoSessionError())

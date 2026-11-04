@@ -98,7 +98,7 @@ message SendMessageRequest {
   string country_id = 3;
   oneof body {
     string text = 4;
-    // Refused, PermissionDenied, from a guest.
+    // Refused, PermissionDenied, from a guest, and from an account a mute of the GIFs holds.
     Gif gif = 7;
   }
   string reply_to_message_id = 5;
@@ -111,8 +111,17 @@ message SendMessageResponse {
   ChatMessage message = 1;
 }
 
+// What a mute takes away.
+enum MuteKind {
+  // The whole chat: every post and every reaction.
+  MUTE_KIND_CHAT = 0;
+  // A post with a GIF. The player still writes and reacts.
+  MUTE_KIND_GIFS = 1;
+}
+
 message MuteRefusal {
   int64 muted_until_unix_ms = 1;
+  MuteKind kind = 2;
 }
 
 message GetHistoryRequest {

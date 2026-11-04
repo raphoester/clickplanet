@@ -19,6 +19,7 @@ import {
     ChatSender,
     countRunes,
     MAX_TEXT_LENGTH,
+    MuteKind,
     OutgoingMessage,
     OutgoingReaction,
     Reaction,
@@ -87,6 +88,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
     private readonly blocked: boolean
     private seenUntil: number
     private mutedUntil = 0
+    private gifsMutedUntil = 0
     private tokens = MESSAGE_BURST
     private lastRefillMs = Date.now()
     private nextChatter = 0
@@ -176,6 +178,8 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
 
     public async sendMessage(message: OutgoingMessage): Promise<ChatMessage> {
         this.refuse()
+        const gifsMutedUntil = (this.world ?? this).gifsMutedUntil
+        if (message.gif && Date.now() < gifsMutedUntil) throw new ChatMutedError(gifsMutedUntil, 'gifs')
 
         const text = message.text.trim()
         if (message.gif ? text !== "" : text === "" || countRunes(text) > MAX_TEXT_LENGTH) throw new ChatRejectedError()
@@ -287,8 +291,15 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         this.listeners.forEach(listener => listener.announcement?.(announcement))
     }
 
-    public mute(seconds = 3600, name = OWN_GUEST_NAME) {
-        if (name === OWN_GUEST_NAME) (this.world ?? this).mutedUntil = Date.now() + seconds * 1000
+    // A mute of the GIFs is not announced, as on the server.
+    public mute(seconds = 3600, name = OWN_GUEST_NAME, kind: MuteKind = 'chat') {
+        const until = Date.now() + seconds * 1000
+        const world = this.world ?? this
+        if (kind === 'gifs') {
+            if (name === OWN_GUEST_NAME) world.gifsMutedUntil = until
+            return
+        }
+        if (name === OWN_GUEST_NAME) world.mutedUntil = until
         this.announce({kind: "mute", id: UUIDv4(), announcedAt: Date.now(), name, seconds})
     }
 

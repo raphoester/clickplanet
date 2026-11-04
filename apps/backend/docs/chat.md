@@ -94,27 +94,39 @@ won a season.
 ## Mutes
 
 **An operator can take a player's chat away and leave it the map**: `chat.v1.AdminService/Mute(account_id,
-duration)`, on the admin listener (see [Operator tools](admin.md)). A muted caller's
+duration, kind)`, on the admin listener (see [Operator tools](admin.md)). A muted caller's
 `SendMessage` and `React` are refused; it still reads the chat and plays.
 
+- **A mute has a kind: what it takes away** (`mutes.Kind`, `chat.v1.MuteKind`). `Chat`, the zero value on the wire
+  and in Go, is the whole chat, every post and every reaction: what a mute was before kinds. `Gifs` is a post with a
+  GIF alone: the player still writes and reacts. **One concept, not two**: both kinds are the same `Mute`, kept in the
+  same table, held on the account and its network by the same rule, refused by the same `Book`, given, lifted and
+  read by the same three calls, each of which names its kind. Each kind holds apart, and neither ends the other. A
+  kind the proto does not name is `InvalidArgument`, never the whole chat by default.
+- **`muting_send_message` asks the whole chat first, then the GIFs for a post with one**, so a player muted both ways
+  is told the mute that stops it from writing at all. `muting_react` asks the whole chat alone.
+- **A mute of the GIFs is not announced**: `publishing_mute` publishes `chat.v1.AccountMuted` for a mute of the
+  whole chat alone, and that event is the line. A guest posts no GIF anyway (see [GIFs](#gifs)), so the network
+  matters for a signed-in account on the same line.
 - **A mute holds the account and its network.** The network is the address of the account's latest message
   (`messages.Storage.LatestAddress`, by `seq`), as `mutes.ScopeOf` reads it: the /64 over IPv6, the address over
   IPv4, the throttle's unit (`cpipscope`). Never wider: Free Mobile's subscribers share a /32. So a new guest in a
   private tab on the same line is muted from its first post. An account that never posted has no network, and
   only it is muted. **An IPv4 address can be a carrier's NAT**: a mute on one holds the strangers behind it too.
-- **The rule is `Mute.ApplicableTo`**: a caller is muted while a mute names its account or its network and has not
-  ended. `postgres_mute_store` asks the same in SQL (a mute with no network is `NULL`, which matches nobody), and
+- **The rule is `Mute.ApplicableTo`**: a caller is muted of a kind while a mute of that kind names its account or its
+  network and has not ended. `postgres_mute_store` asks the same in SQL (a mute with no network is `NULL`, which matches nobody), and
   the contract suite runs both stores.
 - **Two decorators refuse, before anything else**: `muting_send_message` and `muting_react` ask
   `mutes.Book.MuteError` with the account and the request's address. A refused post is never named, kept nor
   published, and a refused reaction never written. The use cases did not change.
 - **The refusal is `PermissionDenied` with a `chat.v1.MuteRefusal` detail** (`chatmute.Refusal`): the end of the
-  mute that ends last. The blocklist's denial carries no detail, which is how the client tells the two apart; an
-  older client shows its "not allowed to post" line.
+  mute that ends last, and its `kind`, so the client says "muted" or "no GIFs". The blocklist's denial carries no
+  detail, which is how the client tells the two apart; an older client shows its "not allowed to post" line.
 - **No duration is one hour** (`mutes.DefaultDuration`). Otherwise whole seconds, and a negative or fractional one
   is `InvalidArgument`, as is an id that is not an account. A second mute is a second row, so it never shortens one
   that ends later.
-- **Every mute is announced, after it is kept, by an event.** `mute_usecase` only keeps the mute, with an id from
+- **Every mute of the whole chat is announced, after it is kept, by an event.**
+  `mute_usecase` only keeps the mute, with an id from
   its `IDProvider` (`uuid_id_provider`; tests use `mutes.SequentialIDs`). `publishing_mute` then publishes
   `chat.v1.AccountMuted` with that id, and the chat hears it itself (`chat-announcements-mutes`):
   `account_muted_subscriber` hands it to `announce_mute_usecase`, which names the account (`IntroducePlayer`) and gives an
@@ -123,15 +135,16 @@ duration)`, on the admin listener (see [Operator tools](admin.md)). A muted call
   has been muted for one hour", under the name the account had when the event was heard. A mute Redis did not take
   is a line missed, never the mute; a failure to name the account is tried again, logged by `log_subscriber`.
 - **`audit_mute` logs every call at Warn** (`admin chat mute`), with the network it holds.
-- **Kept in `chat.mutes`** (`id`, `account_id`, `scope`, `muted_at`, `muted_until`). The network is personal data,
+- **Kept in `chat.mutes`** (`id`, `account_id`, `scope`, `kind`, `muted_at`, `muted_until`; `kind` is the type
+  `mute_kind`, migration `20261104130000_mute_kinds`, which made every mute before it one of the whole chat). The network is personal data,
   so the prune deletes a mute that ended more than `retention` ago.
-- **`Unmute(account_id)` ends now every mute given to the account**, with the network each holds. `unmute_usecase`
+- **`Unmute(account_id, kind)` ends now every mute of the kind given to the account**, with the network each holds. `unmute_usecase`
   reads the account's mutes (`MutesOf`), and saves each that has not `Ended` as `Lifted` now, in one transaction: the
   row stays, with `muted_until` moved to now, so the prune still takes it. `Save` is an upsert by id. A mute given
   to another account on the same network still holds it. None running is `NotFound`. The answer is the end the
   mute that would have ended last had. No announcement and no event: a client tries each post again, so the next
   one goes through. `audit_unmute` logs every call at Warn (`admin chat unmute`).
-- **`GetMute(account_id)` says whether a mute holds the account now** (`mute_query`): a mute given to it, or to
+- **`GetMute(account_id, kind)` says whether a mute of the kind holds the account now** (`mute_query`): a mute given to it, or to
   another account on the network it last posted from, the one that ends last, with the account it was given to.
   Nothing set when none holds it. It reads the latest address, not the request's, so a player that moved network
   since its last post may read otherwise than its next post is judged.
@@ -276,6 +289,8 @@ was sent.
   address. `Limits.Body` refuses a GIF with a text, an address that is not `https` on `static.klipy.com`,
   `static1.klipy.com` or `static2.klipy.com` (no user name, no port), and a side of 0 or over 2000:
   `ErrInvalidMessage`. So no player makes a reader's browser load an address it chose.
+- **An operator can take a player's GIFs away and leave it its text**: a mute of the kind `Gifs` (see
+  [Mutes](#mutes)).
 - **A guest sends no GIF**: `Message.SentBy(author)` refuses it with `ErrGuestGif`, `PermissionDenied`, once the
   author is known and before anything is kept. A guest account is free and a private tab is a new one, so a mute
   does not stop a guest who posts GIFs; the same reason a guest's address is not a link. The player module says who

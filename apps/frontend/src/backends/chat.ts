@@ -189,13 +189,18 @@ export class ChatBlockedError extends Error {
     }
 }
 
+// What a mute takes away: the whole chat, or a post with a GIF alone.
+export type MuteKind = 'chat' | 'gifs'
+
 export class ChatMutedError extends Error {
     readonly until: number
+    readonly kind: MuteKind
 
-    constructor(until: number, options?: {cause?: unknown}) {
+    constructor(until: number, kind: MuteKind = 'chat', options?: {cause?: unknown}) {
         super("muted in the chat", options)
         this.name = "ChatMutedError"
         this.until = until
+        this.kind = kind
     }
 }
 

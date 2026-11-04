@@ -6,7 +6,7 @@ import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-libr
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {AT, FakeAdmin} from "../fakeAdmin.ts"
 import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
-import {Gif} from "../gen/grpc/chat/v1/chat_pb.ts"
+import {Gif, MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {Report, ReportDecision, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
 import {ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
 import {OpenPlayer} from "../navigation.ts"
@@ -240,7 +240,10 @@ describe("ReportDetail", () => {
 
         expect(await screen.findByText("Not banned")).toBeTruthy()
         expect(await screen.findByText("Not muted")).toBeTruthy()
-        expect(admin.askedFor("getMute")).toEqual([{accountId: "account-reported"}])
+        expect(admin.askedFor("getMute")).toEqual([
+            {accountId: "account-reported", kind: MuteKind.CHAT},
+            {accountId: "account-reported", kind: MuteKind.GIFS},
+        ])
         fireEvent.click(screen.getByRole("button", {name: "What the antibot reads"}))
         expect(await screen.findByText(/^42 in /)).toBeTruthy()
         expect(admin.askedFor("inspectPlayer")).toEqual([{accountId: "account-reported"}])
@@ -267,6 +270,25 @@ describe("ReportDetail", () => {
         ])
         expect(seen.closed[0].said[0]).toBe("Removed the message.")
         expect(seen.closed[0].said.at(-1)).toBe("Closed 1 report as Acted.")
+    })
+
+    it("mutes the GIFs of the reported account alone when told", async () => {
+        const admin = new FakeAdmin()
+        const seen = open(admin)
+
+        await screen.findByText("you all suck", {selector: ".report-quote .line-text"})
+        fireEvent.change(verdict().getByRole("combobox", {name: "Mute for"}), {target: {value: String(24 * 3600)}})
+        fireEvent.change(verdict().getByRole("combobox", {name: "Mute what"}), {target: {value: String(MuteKind.GIFS)}})
+        fireEvent.click(verdict().getByRole("button", {name: "Act and close"}))
+        expect(verdict().getByText("Mute the GIFs of Ana for 1 day and close this report as Acted?")).toBeTruthy()
+        fireEvent.click(verdict().getByRole("button", {name: "Yes, act and close"}))
+
+        await waitFor(() => expect(seen.closed).toHaveLength(1))
+        expect((admin.askedFor("mute") as {kind: MuteKind}[])[0].kind).toBe(MuteKind.GIFS)
+        expect(admin.askedFor("decideReport")).toEqual([
+            {reportId: "report-1", outcome: ReportOutcome.ACTED, comment: "GIFs muted for 1 day."},
+        ])
+        expect(seen.closed[0].said[0]).toMatch(/^GIFs muted until /)
     })
 
     it("shows a reported GIF, sized to fit", async () => {

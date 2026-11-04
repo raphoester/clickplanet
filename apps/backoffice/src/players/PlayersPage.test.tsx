@@ -10,6 +10,7 @@ import {timeOf} from "../components/time.ts"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
 import {AdminGetPlayerResponse} from "../gen/grpc/player/v1/admin_pb.ts"
 import {GetMuteResponse, KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
+import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Player as Identity} from "../gen/grpc/player/v1/player_pb.ts"
 import {AdminGetProgressResponse} from "../gen/grpc/progression/v1/admin_pb.ts"
@@ -492,11 +493,25 @@ describe("one player", () => {
         confirm("Unmute", "Yes, unmute")
         expect(await screen.findByText(/^Unmuted\. The mute was until .*\.$/)).toBeTruthy()
         expect(await screen.findByText("Not muted")).toBeTruthy()
-        expect(admin.askedFor("unmute")).toEqual([{accountId: ACCOUNT}])
+        expect(admin.askedFor("unmute")).toEqual([{accountId: ACCOUNT, kind: MuteKind.CHAT}])
 
         admin.refuse("unmute", Code.NotFound)
         confirm("Unmute", "Yes, unmute")
         expect(await screen.findByText("This player has no mute of its own to lift.")).toBeTruthy()
+    })
+
+    it("mutes the GIFs of an account alone, and says so beside the mute of the chat", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={account}/>)
+        tool("Mute")
+        fireEvent.change(screen.getByRole("combobox", {name: "Mute what"}), {target: {value: String(MuteKind.GIFS)}})
+        admin.gifMuting = new GetMuteResponse({mutedUntil: Timestamp.fromDate(AT), mutedAccountId: ACCOUNT})
+        confirm("Mute", "Yes, mute")
+
+        expect(await screen.findByText(/^GIFs muted until .*\.$/)).toBeTruthy()
+        expect((admin.askedFor("mute") as {kind: MuteKind}[])[0].kind).toBe(MuteKind.GIFS)
+        expect(await screen.findByText(`GIFs muted until ${timeOf(AT)}`)).toBeTruthy()
+        expect(screen.getByText("Not muted")).toBeTruthy()
     })
 
     it("says when the mute that holds an account was given on its network", async () => {

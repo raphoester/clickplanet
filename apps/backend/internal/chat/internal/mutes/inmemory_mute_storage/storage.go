@@ -42,13 +42,13 @@ func (s *Storage) Kept() []mutes.Mute {
 	return slices.Clone(s.kept)
 }
 
-func (s *Storage) Mute(_ context.Context, caller mutes.Caller, at time.Time) (mutes.Mute, error) {
+func (s *Storage) Mute(_ context.Context, caller mutes.Caller, kind mutes.Kind, at time.Time) (mutes.Mute, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	var found *mutes.Mute
 	for i, mute := range s.kept {
-		if mute.ApplicableTo(caller, at) && (found == nil || mute.Until().After(found.Until())) {
+		if mute.ApplicableTo(caller, kind, at) && (found == nil || mute.Until().After(found.Until())) {
 			found = &s.kept[i]
 		}
 	}
@@ -58,13 +58,13 @@ func (s *Storage) Mute(_ context.Context, caller mutes.Caller, at time.Time) (mu
 	return *found, nil
 }
 
-func (s *Storage) MutesOf(_ context.Context, account messages.AccountID) ([]mutes.Mute, error) {
+func (s *Storage) MutesOf(_ context.Context, account messages.AccountID, kind mutes.Kind) ([]mutes.Mute, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	var found []mutes.Mute
 	for _, mute := range s.kept {
-		if mute.Caller().Account() == account {
+		if mute.Caller().Account() == account && mute.Kind() == kind {
 			found = append(found, mute)
 		}
 	}

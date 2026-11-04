@@ -118,6 +118,32 @@ proto3.util.setEnumType(Reaction, "chat.v1.Reaction", [
 ]);
 
 /**
+ * What a mute takes away.
+ *
+ * @generated from enum chat.v1.MuteKind
+ */
+export enum MuteKind {
+  /**
+   * The whole chat: every post and every reaction.
+   *
+   * @generated from enum value: MUTE_KIND_CHAT = 0;
+   */
+  CHAT = 0,
+
+  /**
+   * A post with a GIF. The player still writes and reacts.
+   *
+   * @generated from enum value: MUTE_KIND_GIFS = 1;
+   */
+  GIFS = 1,
+}
+// Retrieve enum metadata with: proto3.getEnumType(MuteKind)
+proto3.util.setEnumType(MuteKind, "chat.v1.MuteKind", [
+  { no: 0, name: "MUTE_KIND_CHAT" },
+  { no: 1, name: "MUTE_KIND_GIFS" },
+]);
+
+/**
  * @generated from message chat.v1.ReactionCount
  */
 export class ReactionCount extends Message<ReactionCount> {
@@ -446,7 +472,7 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
     case: "text";
   } | {
     /**
-     * Refused, PermissionDenied, from a guest.
+     * Refused, PermissionDenied, from a guest, and from an account a mute of the GIFs holds.
      *
      * @generated from field: chat.v1.Gif gif = 7;
      */
@@ -546,6 +572,11 @@ export class MuteRefusal extends Message<MuteRefusal> {
    */
   mutedUntilUnixMs = protoInt64.zero;
 
+  /**
+   * @generated from field: chat.v1.MuteKind kind = 2;
+   */
+  kind = MuteKind.CHAT;
+
   constructor(data?: PartialMessage<MuteRefusal>) {
     super();
     proto3.util.initPartial(data, this);
@@ -555,6 +586,7 @@ export class MuteRefusal extends Message<MuteRefusal> {
   static readonly typeName = "chat.v1.MuteRefusal";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "muted_until_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(MuteKind) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MuteRefusal {

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/unmute_usecase"
 )
 
@@ -20,14 +21,15 @@ type Audited struct {
 
 var _ unmute_usecase.Executor = (*Audited)(nil)
 
-func (a *Audited) Execute(ctx context.Context, account messages.AccountID) (time.Time, error) {
-	until, err := a.inner.Execute(ctx, account)
+func (a *Audited) Execute(ctx context.Context, account messages.AccountID, kind mutes.Kind) (time.Time, error) {
+	until, err := a.inner.Execute(ctx, account, kind)
+	who := []any{slog.String("account", account.String()), slog.String("kind", kind.String())}
 	if err != nil {
-		a.logger.Warn("admin chat unmute failed", slog.String("account", account.String()), slog.Any("error", err))
+		a.logger.Warn("admin chat unmute failed", append(who, slog.Any("error", err))...)
 		return until, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
 	}
 
-	a.logger.Warn("admin chat unmute", slog.String("account", account.String()), slog.Time("mutedUntil", until))
+	a.logger.Warn("admin chat unmute", append(who, slog.Time("mutedUntil", until))...)
 
 	return until, nil
 }

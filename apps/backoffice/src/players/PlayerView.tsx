@@ -9,7 +9,7 @@ import {Ago} from "../components/When.tsx"
 import {Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Opened} from "../navigation.ts"
 import {useCall} from "../useCall.ts"
-import {ANTIBOT_OFF, mutingOf, Profile, profileOf, readingOf} from "./actions.ts"
+import {ANTIBOT_OFF, mutingsOf, Profile, profileOf, readingOf, UNMUTED} from "./actions.ts"
 import {Caller, idOf, isAccount, whoOf} from "./caller.ts"
 import {DiscordPanel} from "./DiscordPanel.tsx"
 import {FlagPanel} from "./FlagPanel.tsx"
@@ -52,7 +52,7 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
     const read = useCallback((signal: AbortSignal) => readingOf(clients.antibot, caller, signal), [clients.antibot, caller])
     const [reading, readAgain] = useCall(read)
     const readMuting = useCallback(
-        (signal: AbortSignal) => isAccount(caller) ? mutingOf(clients.chat, caller.accountId, signal) : Promise.resolve(undefined),
+        (signal: AbortSignal) => isAccount(caller) ? mutingsOf(clients.chat, caller.accountId, signal) : Promise.resolve(UNMUTED),
         [clients.chat, caller],
     )
     const [muting, readMutingAgain] = useCall(readMuting)
