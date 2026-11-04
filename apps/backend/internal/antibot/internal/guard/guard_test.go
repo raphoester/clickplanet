@@ -340,7 +340,7 @@ func TestALoopAimingAllOverTheGlobeIsCaughtBeforeTheClockIsSure(t *testing.T) {
 	for range 3000 {
 		s.clock.Advance(time.Second)
 		clicks++
-		if s.clickOn("aimer", "bot", 1+uint32(rng.IntN(262119)), anywhere(rng), "PL") {
+		if s.clickOn("aimer", "bot", 1+uint32(rng.IntN(260503)), anywhere(rng), "PL") {
 			dropped = true
 			break
 		}
@@ -364,7 +364,7 @@ func TestHoppingAloneBansNobody(t *testing.T) {
 
 	for range 300 {
 		s.clock.Advance(500*time.Millisecond + time.Duration(rng.Int64N(int64(1500*time.Millisecond))))
-		require.False(t, s.clickOn("hopper", "player", 1+uint32(rng.IntN(262119)), anywhere(rng), "PL"))
+		require.False(t, s.clickOn("hopper", "player", 1+uint32(rng.IntN(260503)), anywhere(rng), "PL"))
 	}
 
 	assert.Empty(t, s.reports)
@@ -759,7 +759,7 @@ func TestTheMapScraperIsCaught(t *testing.T) {
 	for !dropped && s.clock.Now().Sub(start) < 30*time.Minute {
 		s.clock.Advance(time.Duration(600+random.IntN(1300)) * time.Millisecond)
 		dropped = s.click("2001:db8:e487::/64", 100000+uint32(random.IntN(60000)), "dz")
-		s.guard.Fetched("2001:db8:e487::/64", 10000.0/262119, false)
+		s.guard.Fetched("2001:db8:e487::/64", 10000.0/260503, false)
 	}
 
 	require.True(t, dropped)

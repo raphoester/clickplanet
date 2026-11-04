@@ -1,1 +1,1 @@
-export const COORDINATES_URL = "/static/coordinates-9998a414.bin"
+export const COORDINATES_URL = "/static/coordinates-10d1f87d.bin"

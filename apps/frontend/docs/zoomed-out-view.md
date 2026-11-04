@@ -7,8 +7,8 @@ for sparkle. Neither end works, so from far enough away the globe is drawn from
 something coarser than a tile.
 
 Every tile resolves **offline** to a *landmass*: a country's tiles split into the
-separate pieces of land they actually form (Natural Earth 1:50m, 205 countries →
-658 landmasses). Neither borders nor tiles move, so `npm run map:generate` writes
+separate pieces of land they actually form (Natural Earth 1:50m, 239 countries →
+694 landmasses). Neither borders nor tiles move, so `npm run map:generate` writes
 the whole table once and nothing recomputes it at runtime. Two tiles are the same
 piece when they **touch on the lattice** and carry the same country — not when
 they are within a tuned radius, which reached past the neighbours in places and

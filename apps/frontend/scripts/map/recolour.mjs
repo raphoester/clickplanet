@@ -2,6 +2,11 @@ const BLOCK = 64
 
 const ENOUGH = 4
 
+// A block learns what its land looks like only from this much land it agrees about, 3% of it; with less it takes a
+// neighbour's. An ocean block whose only land is atolls the photo drew as water would otherwise learn it from the few
+// pixels that half agree, a blue a shade off the sea's, and leave a one-tile island looking like open water.
+const LAND_ENOUGH = 128
+
 const FLAT = 12
 
 /**
@@ -17,7 +22,7 @@ export function recolour(photo, cover, {width, height, channels}) {
         sea: plate(photo, cover.map((c) => 1 - c), size),
     }, size)
 
-    const land = plate(photo, cover.map((c, i) => c * agrees[i]), size)
+    const land = plate(photo, cover.map((c, i) => c * agrees[i]), size, LAND_ENOUGH)
     const sea = plate(photo, cover.map((c, i) => (1 - c) * agrees[i]), size)
 
     const grounded = land.known && sea.known
@@ -81,7 +86,7 @@ function opinionOf(photo, at, channels, here, water) {
     return opinion < 0 ? 0 : opinion > 1 ? 1 : opinion
 }
 
-function plate(photo, weights, {width, height, channels}) {
+function plate(photo, weights, {width, height, channels}, enough = ENOUGH) {
     const columns = Math.ceil(width / BLOCK)
     const rows = Math.ceil(height / BLOCK)
     const sums = new Float64Array(columns * rows * 3)
@@ -104,7 +109,7 @@ function plate(photo, weights, {width, height, channels}) {
     const values = new Float32Array(columns * rows * 3)
     const known = new Uint8Array(columns * rows)
     for (let block = 0; block < columns * rows; block++) {
-        if (held[block] < ENOUGH) continue
+        if (held[block] < enough) continue
         known[block] = 1
         for (let channel = 0; channel < 3; channel++) {
             values[block * 3 + channel] = sums[block * 3 + channel] / held[block]

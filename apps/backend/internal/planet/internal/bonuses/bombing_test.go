@@ -66,7 +66,7 @@ func TestABombInTheSeaClearsNothing(t *testing.T) {
 }
 
 func TestProductionsBombClearsAboutOneBankInland(t *testing.T) {
-	geography, err := embedded_geodesic_map.New(262119, nil).LoadGeography()
+	geography, err := embedded_geodesic_map.New(260503, nil).LoadGeography()
 	require.NoError(t, err)
 
 	rules := bombOf(bonuses.TestRules().Bomb.Rings, geography.Spacing())

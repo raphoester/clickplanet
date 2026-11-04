@@ -2,7 +2,7 @@
 
 **A player's take that makes a landmass whole for its flag gives every tile of it a
 shield**, up to the rule set's `bonuses.shield.perTile`. A landmass is a piece of one country's ground
-that touches itself on the lattice, the borders blob's own table (658 of them): Alaska
+that touches itself on the lattice, the borders blob's own table (694 of them): Alaska
 is one, the lower 48 another. **The same flag never fortifies a landmass twice in a
 row**: another flag has to take all of it first, through its shields. That is the whole
 defence against taking back the last tile for a free refill, and it costs no timer.
@@ -25,7 +25,9 @@ defence against taking back the last tile for a free refill, and it costs no tim
 - **Kept with the tiles**: `planet.landmasses (asset, id, fortified_by)`, written by the
   same flush, so a lock and its shields are never saved apart. A row is keyed by the
   borders blob's name: a regenerated map numbers its landmasses again, and the boot
-  reads only the rows of the blob it loaded (then settles the rest).
+  reads only the rows of the blob it loaded (then settles the rest). The remap
+  migration a regeneration writes copies each lock to the new blob's name and id, and
+  moves the landmass each `fortify` in the ledger names (see [`/map/README.md`](../../../map/README.md)).
 - **On the wire**: `PlanetEvent.landmass_fortified{landmass_id, country_id, tile_id}`, in
   order with the tile updates. The client adds the shield to each tile of the landmass
   its flag holds, as the server did, rather than reading a list of 28,000 tiles.

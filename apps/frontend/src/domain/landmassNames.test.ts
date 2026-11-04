@@ -8,7 +8,7 @@ describe("landmassName", () => {
     })
 
     it("names a landmass by its own name, and a country's main one by the country", () => {
-        expect(landmassName(257, "fr")).toBe("Corsica")
-        expect(landmassName(228, "fr")).toBe("France")
+        expect(landmassName(264, "fr")).toBe("Corsica")
+        expect(landmassName(231, "fr")).toBe("France")
     })
 })

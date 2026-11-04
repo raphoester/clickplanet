@@ -39,7 +39,7 @@ const (
 	deletionGrace = 3 * time.Second
 	callerIP      = "203.0.113.7"
 	adminOrigin   = "https://backoffice.clickplanet.lol"
-	mapTiles      = 262119
+	mapTiles      = 260503
 )
 
 type gameStack struct {

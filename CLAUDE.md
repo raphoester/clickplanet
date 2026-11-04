@@ -26,7 +26,7 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
 - [Quiz bank](docs/quiz-bank.md) — `quiz/bank.json`, embedded in the backend only. The frontend has no copy,
   because the answers are in it.
 - [Map geometry](docs/map-geometry.md) — `map/`'s tile coordinates and borders blobs, the committed copy in each
-  app, and why a regeneration renumbers every tile.
+  app, the lakes, the one-tile seat of each country too small for the lattice, and why a regeneration renumbers every tile.
 - [Git hooks](docs/git-hooks.md) — `./.githooks/install`, once per clone; what pre-commit, commit-msg and pre-push
   check.
 - [Local full stack](docs/local-stack.md) — `deploy/docker-compose.yaml`: backend, frontend and postgres together.

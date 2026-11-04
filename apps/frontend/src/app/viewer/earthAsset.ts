@@ -1,1 +1,1 @@
-export const EARTH_URL = "/static/earth/earth-1769f748.jpg"
+export const EARTH_URL = "/static/earth/earth-cc68f1b1.jpg"

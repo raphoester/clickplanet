@@ -16,7 +16,7 @@ func TestAPageIsFoundFromTheHeadByThePrimaryKeyAndSortedOnlyWithinEachEvent(t *t
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
 	for _, statement := range []string{
 		`INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at)
-		SELECT n, 'take'::ledger_event_kind, n % 262119 + 1, '203.0.113.7', 'fr', 'de', now() - (200000 - n) * interval '1 second'
+		SELECT n, 'take'::ledger_event_kind, n % 260503 + 1, '203.0.113.7', 'fr', 'de', now() - (200000 - n) * interval '1 second'
 		FROM generate_series(0, 199999) n`,
 		`INSERT INTO ledger_head (singleton, head) VALUES (true, 190000) ON CONFLICT (singleton) DO UPDATE SET head = 190000`,
 		`VACUUM ANALYZE ledger_events`,

@@ -18,6 +18,11 @@ cd apps/frontend && npm run map   # → apps/frontend/static (fetched at runtime
 cd apps/backoffice && npm run map   # → apps/backoffice/src/gen/map (the coordinates alone, bundled)
 ```
 
+**A cell that is mostly lake is water**, from Natural Earth's lakes, so the Great Lakes, Victoria and Baikal are not
+tiles; a usually dry one, such as Lake Eyre, stays land. **Every country has a tile.** One the lattice misses — the Vatican, Monaco, the Maldives, Palau — gets one vertex,
+its seat: a neighbour's on a continent, the sea's over its main island otherwise. The list is
+`apps/frontend/scripts/map/seats.mjs`, and `npm run map:audit` fails on a flag with no ground.
+
 Each file is content-addressed, so all three copies carry the same name or one of them is stale.
 The backend rebuilds the tile adjacency from its copy at every boot and **refuses to start** if it
 does not match the lattice or `gameMap.maxIndex` — drift here silently moves every player's

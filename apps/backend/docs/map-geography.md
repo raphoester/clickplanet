@@ -80,14 +80,14 @@ In practice the failure is unreachable in production — the blob is embedded, s
 It costs ~0.3s of boot and about 12 MB resident. The boot log carries the whole result in one line:
 
 ```
-map geography loaded asset=coordinates-9998a414.bin tiles=262119 edges=768288
-  degrees="[225 516 1111 3796 5664 5048 245759]" took=263ms
+map geography loaded asset=coordinates-10d1f87d.bin tiles=260503 edges=761422
+  degrees="[250 527 1154 4072 6368 6471 241661]" took=263ms
 ```
 
-Those numbers are pinned by the tests. 768,288 undirected edges, average degree 5.862, and the
-degree histogram reads: 225 tiles with no neighbours, then 516, 1111, 3796, 5664, 5048, and 245,759
-inland tiles with the full 6. Walking adjacency alone finds **477 landmasses**, the largest four
-being 143,574 (Afro-Eurasia), 68,214 (the Americas), 22,871 (Antarctica) and 12,405 (Australia).
+Those numbers are pinned by the tests. 761,422 undirected edges, average degree 5.846, and the
+degree histogram reads: 250 tiles with no neighbours, then 527, 1154, 4072, 6368, 6471, and 241,661
+inland tiles with the full 6. Walking adjacency alone finds **505 landmasses**, the largest four
+being 142,792 (Afro-Eurasia), 67,352 (the Americas), 22,871 (Antarctica) and 12,402 (Australia).
 
 ## The API, and what is not in it yet
 
@@ -111,7 +111,7 @@ and so does a bomb, for the ground it landed on — see [Announcements](chat.md#
 
 `Neighbours` is what the spread bonus reads — see [What a spread does to a click](spread.md).
 `Within`, `Position`, `Nearest` and `Spacing` are what the bomb reads — see [What a bomb does](bomb.md).
-`Within`, `Nearest` and `Spacing` are straight scans (a few ms over 262,119 tiles): `Spacing` runs once at
+`Within`, `Nearest` and `Spacing` are straight scans (a few ms over 260,503 tiles): `Spacing` runs once at
 boot, `Within` and `Nearest` once per bomb. `Disc` is back behind the `testing` tag — see [Testing](testing.md).
 
 ## What the blob no longer gets wrong
@@ -119,6 +119,6 @@ boot, `Within` and `Nearest` once per bomb. `Disc` is back behind the `testing` 
 Both blobs come from one Natural Earth query now, so **every tile is in a country** and the
 antimeridian row carries what it should. It used to be 2,191 tiles in no country and a 36-tile
 deficit at the dateline, and both left tiles with fewer than 6 neighbours — which is also what a
-coastline does, so there was no telling them apart from the geometry. The 225 tiles with no
-neighbours at all are genuine single-tile islands; anything reading adjacency still has to have an
+coastline does, so there was no telling them apart from the geometry. The 250 tiles with no
+neighbours at all are genuine single-tile islands, 26 of them the seats of island countries; anything reading adjacency still has to have an
 answer for an empty neighbour set. See [`/map/README.md`](../../../map/README.md).

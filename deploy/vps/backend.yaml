@@ -6,7 +6,7 @@ httpServer:
   internalBindAddress: 127.0.0.1:8082
 
 gameMap:
-  maxIndex: 262119
+  maxIndex: 260503
 
 database:
   host: postgres

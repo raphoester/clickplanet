@@ -12,7 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-const chunk = 10000.0 / 262119
+const chunk = 10000.0 / 260503
 
 type harness struct {
 	watchdog *scraper.Watchdog

@@ -17,10 +17,10 @@ func TestTheHolderOfOneTileIsFoundThroughTheIndexes(t *testing.T) {
 		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, account, payload)
 		SELECT n,
 			CASE n % 10 WHEN 0 THEN 'spread' WHEN 1 THEN 'bomb' ELSE 'take' END::ledger_event_kind,
-			n % 262119 + 1, NULL, CASE n % 10 WHEN 1 THEN '' ELSE 'fr' END, 'de', now(), md5((n % 500)::text)::uuid,
+			n % 260503 + 1, NULL, CASE n % 10 WHEN 1 THEN '' ELSE 'fr' END, 'de', now(), md5((n % 500)::text)::uuid,
 			CASE n % 10
-				WHEN 0 THEN jsonb_build_object('taken', jsonb_build_array(jsonb_build_object('tile', (n + 7) % 262119 + 1, 'owner', 'de')))
-				WHEN 1 THEN jsonb_build_object('cleared', jsonb_build_array(jsonb_build_object('tile', (n + 3) % 262119 + 1, 'owner', 'de')))
+				WHEN 0 THEN jsonb_build_object('taken', jsonb_build_array(jsonb_build_object('tile', (n + 7) % 260503 + 1, 'owner', 'de')))
+				WHEN 1 THEN jsonb_build_object('cleared', jsonb_build_array(jsonb_build_object('tile', (n + 3) % 260503 + 1, 'owner', 'de')))
 			END
 		FROM generate_series(0, 199999) n`)
 	require.NoError(t, err)
