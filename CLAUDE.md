@@ -30,6 +30,8 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
 - [Git hooks](docs/git-hooks.md) — `./.githooks/install`, once per clone; what pre-commit, commit-msg and pre-push
   check.
 - [Local full stack](docs/local-stack.md) — `deploy/docker-compose.yaml`: backend, frontend and postgres together.
+- [A server restart reloads the page](docs/reload-on-restart.md) — the boot id on every answer, the page that reloads
+  when it changes, why a wire change can be a hard switch, and the order of the deploys.
 - [Independence of the apps](docs/app-independence.md) — each app builds from its own directory. No root build
   tooling.
 - [CrazyGames](docs/crazygames.md) — the game framed from `crazygames.clickplanet.lol`: why a host of its own, what
