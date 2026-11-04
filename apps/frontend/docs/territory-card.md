@@ -44,7 +44,9 @@ the globe. A click or a tap flies down to it.
   of another one's (`playersOf`), and the same territory opened again shows them at once while
   they are read again. `Viewer` renders the place with the backends and what `useTerritoryCard`
   shows, and reads none of it; the place keeps nothing once it goes. "Top players" lists them
-  with their flag and tiles, in their name's colour; a signed-in one's name opens its card. The fortifier and when are under "Fortified
+  with their flag and tiles, in their name's colour; a signed-in one's name opens its card. The crown and the
+  streak flame stand beside the name's button, never in it: the flame is a button of its own, so a press on it
+  says the streak and opens no card. The fortifier and when are under "Fortified
   by", **only when the fortify's flag is the lock's**: a lock settled with no fortify
   names nobody. A guest is shown by its guest name, a deleted account as such. See the
   backend's [Who holds the tiles](../../backend/docs/tile-holders.md).

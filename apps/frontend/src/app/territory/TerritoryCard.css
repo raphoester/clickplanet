@@ -200,20 +200,21 @@
     align-items: center;
     gap: var(--space-1);
     min-width: 0;
+    font-weight: 700;
+    color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
+}
+
+button.territory-card-player-name-text {
     padding: 0;
     border: none;
     background: none;
     font: inherit;
-    font-weight: 700;
     text-align: left;
-    color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
-}
-
-button.territory-card-player-name {
+    color: inherit;
     cursor: pointer;
 }
 
-button.territory-card-player-name:hover .territory-card-player-name-text {
+button.territory-card-player-name-text:hover {
     text-decoration: underline;
 }
 

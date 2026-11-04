@@ -111,13 +111,15 @@ export default function TerritoryCard({shown, flag, players, now = Date.now(), o
 
 function PlayerName({line, onOpen}: {line: PlayerLine, onOpen?: (player: PlayerLine) => void}) {
     const shown = useWordFilter().masked(line.name)
-    const name = <>
-        <span className="territory-card-player-name-text">{truncate(shown, NAME_MAX_LENGTH)}</span>
+    const text = truncate(shown, NAME_MAX_LENGTH)
+    // The flame is a button of its own: it stands beside the name's button, never inside it.
+    return <span className="territory-card-player-name">
+        {!onOpen || line.guest || !line.accountId
+            ? <span className="territory-card-player-name-text" title={shown}>{text}</span>
+            : <button type="button" className="territory-card-player-name-text" title={shown} onClick={() => onOpen(line)}>{text}</button>}
         {line.admin && <AdminCrown/>}
         <StreakFlame days={line.streak}/>
-    </>
-    if (!onOpen || line.guest || !line.accountId) return <span className="territory-card-player-name" title={shown}>{name}</span>
-    return <button type="button" className="territory-card-player-name" title={shown} onClick={() => onOpen(line)}>{name}</button>
+    </span>
 }
 
 function Flag({code}: {code: string}) {
