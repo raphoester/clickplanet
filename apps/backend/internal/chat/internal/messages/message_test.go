@@ -15,7 +15,7 @@ func TestAMessageIsRestoredAsItsSnapshotSays(t *testing.T) {
 		ID:      "message-2",
 		SentAt:  time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC),
 		Account: messages.AccountID{15: 1},
-		Author:  messages.AuthorOf("Ada_L", true, 7, 12, messages.Title{}),
+		Author:  messages.AuthorOf("Ada_L", true, 7),
 		Room:    messages.FlagRoom("fr"),
 		Country: "fr",
 		Text:    "we do",
@@ -41,7 +41,7 @@ func TestAMessageWithNoRoomIsNotRestored(t *testing.T) {
 }
 
 func TestAnAnswerQuotesTheMessageItAnswersAndIsOtherwiseUnchanged(t *testing.T) {
-	bob := messages.AuthorOf("Bob", false, 3, 0, messages.Title{})
+	bob := messages.AuthorOf("Bob", false, 3)
 	question := messages.Restored(t, messages.Snapshot{
 		ID: "message-1", Account: messages.AccountID{15: 2}, Author: bob, Country: "de", Text: "who holds the north",
 	})
@@ -86,7 +86,7 @@ func TestAnAnswerToAGifQuotesTheGif(t *testing.T) {
 }
 
 func TestAGuestSendsATextButNoGif(t *testing.T) {
-	guest := messages.GuestOf("guest_0b1c2d", 3)
+	guest := messages.GuestOf("guest_0b1c2d")
 
 	text, err := messages.Restored(t, messages.Snapshot{ID: "message-1", Text: "hello"}).SentBy(guest)
 	require.NoError(t, err)
@@ -97,7 +97,7 @@ func TestAGuestSendsATextButNoGif(t *testing.T) {
 }
 
 func TestAPlayerSendsAGif(t *testing.T) {
-	ada := messages.AuthorOf("Ada_L", false, 7, 12, messages.Title{})
+	ada := messages.AuthorOf("Ada_L", false, 7)
 
 	sent, err := messages.Restored(t, messages.Snapshot{ID: "message-1", Gif: dancing}).SentBy(ada)
 

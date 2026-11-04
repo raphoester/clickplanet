@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
 
 // TTL outlasts a 30s announce on a hidden tab, whose timers may fire only once a minute.
@@ -22,13 +20,13 @@ type Key string
 type Visit struct {
 	account players.AccountID
 	key     Key
-	author  wearing.Author
+	author  players.Author
 	tag     players.Tag
 	country string
 	at      time.Time
 }
 
-func NewVisit(account players.AccountID, author wearing.Author, tag players.Tag, country string, at time.Time) Visit {
+func NewVisit(account players.AccountID, author players.Author, tag players.Tag, country string, at time.Time) Visit {
 	return Visit{account: account, author: author, tag: tag, country: country, at: at}
 }
 
@@ -36,7 +34,7 @@ func (v Visit) Account() players.AccountID { return v.account }
 
 func (v Visit) Key() Key { return v.key }
 
-func (v Visit) Author() wearing.Author { return v.author }
+func (v Visit) Author() players.Author { return v.author }
 
 func (v Visit) Tag() players.Tag { return v.tag }
 
@@ -51,7 +49,7 @@ func (v Visit) Keyed(key Key) Visit {
 	return v
 }
 
-func (v Visit) For(account players.AccountID, author wearing.Author) Visit {
+func (v Visit) For(account players.AccountID, author players.Author) Visit {
 	v.account = account
 	v.author = author
 	return v
@@ -65,8 +63,6 @@ type Entry struct {
 	guest   bool
 	admin   bool
 	color   players.Color
-	streak  uint32
-	title   titles.Standing
 }
 
 func EntryOf(visit Visit) Entry {
@@ -78,8 +74,6 @@ func EntryOf(visit Visit) Entry {
 		guest:   visit.author.Guest(),
 		admin:   visit.author.Admin() && !visit.author.Guest(),
 		color:   visit.author.Color(),
-		streak:  visit.author.Streak().Days(),
-		title:   visit.author.Worn(),
 	}
 }
 
@@ -96,10 +90,6 @@ func (e Entry) Guest() bool { return e.guest }
 func (e Entry) Admin() bool { return e.admin }
 
 func (e Entry) Color() players.Color { return e.color }
-
-func (e Entry) Streak() uint32 { return e.streak }
-
-func (e Entry) Title() titles.Standing { return e.title }
 
 type Change struct {
 	entry Entry

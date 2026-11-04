@@ -36,14 +36,14 @@ func (s stubUseCase) Execute(_ context.Context, in send_message_usecase.In) (mes
 	message, err := messages.Snapshot{
 		ID:      "message-1",
 		SentAt:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		Author:  messages.AuthorOf("guest_0b1c2d", false, 0, 0, messages.Title{}),
+		Author:  messages.AuthorOf("guest_0b1c2d", false, 0),
 		Room:    in.Room,
 		Country: in.CountryID,
 		Text:    in.Text,
 		Gif:     in.Gif,
 		Quote: messages.Quote{
 			MessageID: in.ReplyTo,
-			Author:    messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_TEAL), 0, messages.Title{}),
+			Author:    messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_TEAL)),
 			Text:      "who holds the north",
 		},
 	}.Restore()

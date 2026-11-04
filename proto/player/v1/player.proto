@@ -110,8 +110,9 @@ message RosterEntry {
   bool admin = 5;
   string key = 6;
   NameColor color = 7;
-  uint32 streak = 8;
-  Title worn_title = 9;
+  // The line's badges are GetBadges', by account_id.
+  reserved 8, 9;
+  reserved "streak", "worn_title";
   string account_id = 10;
 }
 

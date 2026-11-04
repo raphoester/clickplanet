@@ -46,7 +46,7 @@ func (s *testSuite) SetupTest() {
 	s.authors = &fakeAuthors{names: map[messages.AccountID]string{ada: "Ada_L", guest: "guest_0b1c2d"}}
 	s.thread = &fakeThread{shown: map[messages.MessageID]messages.Message{
 		"parent": messages.Restored(s.T(), messages.Snapshot{
-			ID: "parent", Account: ada, Author: messages.AuthorOf("Ada_L", false, 0, 0, messages.Title{}), Text: "who holds the north",
+			ID: "parent", Account: ada, Author: messages.AuthorOf("Ada_L", false, 0), Text: "who holds the north",
 		}),
 	}}
 	s.clock = cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
@@ -105,7 +105,7 @@ func (s *testSuite) TestNominalCase() {
 		ID: firstID, SentAt: s.clock.Now(), Account: guest, Room: messages.World, Country: "fr", Text: "hello planet",
 	}
 	named := draft
-	named.Author = messages.AuthorOf("guest_0b1c2d", false, 0, 0, messages.Title{})
+	named.Author = messages.AuthorOf("guest_0b1c2d", false, 0)
 	s.Equal(named, sent, "a guest posts under the name the player module gives it")
 	s.Equal([]messages.AccountID{guest}, s.authors.asked)
 
@@ -188,7 +188,7 @@ func (s *testSuite) TestAReplyIsKeptAndGoesOutWithWhatItQuotes() {
 	s.Require().NoError(err)
 
 	quote := messages.Quote{
-		MessageID: "parent", Author: messages.AuthorOf("Ada_L", false, 0, 0, messages.Title{}), Text: "who holds the north",
+		MessageID: "parent", Author: messages.AuthorOf("Ada_L", false, 0), Text: "who holds the north",
 	}
 	s.Equal(quote, sent.Quote)
 	s.Require().Len(s.kept(), 1)
@@ -322,9 +322,9 @@ func (f *fakeAuthors) Author(_ context.Context, account messages.AccountID) (mes
 		return messages.Author{}, f.err
 	}
 	if f.guests[account] {
-		return messages.GuestOf(f.names[account], 0), nil
+		return messages.GuestOf(f.names[account]), nil
 	}
-	return messages.AuthorOf(f.names[account], f.admins[account], 0, 0, messages.Title{}), nil
+	return messages.AuthorOf(f.names[account], f.admins[account], 0), nil
 }
 
 type fakeThread struct {

@@ -6,7 +6,6 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { NameColor } from "../../player/v1/color_pb.js";
-import { Title } from "../../player/v1/title_pb.js";
 
 /**
  * @generated from enum chat.v1.Reaction
@@ -237,16 +236,6 @@ export class ChatMessage extends Message<ChatMessage> {
   authorColor = NameColor.UNSPECIFIED;
 
   /**
-   * @generated from field: uint32 author_streak = 11;
-   */
-  authorStreak = 0;
-
-  /**
-   * @generated from field: player.v1.Title author_title = 12;
-   */
-  authorTitle?: Title;
-
-  /**
    * @generated from field: chat.v1.Quote reply_to = 13;
    */
   replyTo?: Quote;
@@ -283,8 +272,6 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 8, name: "reactions", kind: "message", T: ReactionCount, repeated: true },
     { no: 9, name: "reactions_version", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
     { no: 10, name: "author_color", kind: "enum", T: proto3.getEnumType(NameColor) },
-    { no: 11, name: "author_streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 12, name: "author_title", kind: "message", T: Title },
     { no: 13, name: "reply_to", kind: "message", T: Quote },
     { no: 14, name: "author_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 15, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },

@@ -41,7 +41,7 @@ var start = time.Date(2024, 1, 1, 12, 0, 0, 123_456_000, time.UTC)
 
 func (s *testSuite) sent(text string, name string, at time.Time) messages.Message {
 	return messages.Restored(s.T(), messages.Snapshot{
-		ID: messages.MessageID("id-" + text), SentAt: at, Author: messages.AuthorOf(name, false, 0, 0, messages.Title{}),
+		ID: messages.MessageID("id-" + text), SentAt: at, Author: messages.AuthorOf(name, false, 0),
 		Country: "fr", Text: text,
 	})
 }

@@ -365,9 +365,7 @@ const failingWith = (error: ConnectError) => (): AsyncIterable<PlayerEventPb> =>
 describe("ConnectPlayerBackend live roster", () => {
     const entryPb = new RosterEntryPb({
         key: "k1", accountId: "account-ana", name: "ana", countryId: "fr", guest: false, admin: true, color: NameColor.PINK,
-        streak: 12, wornTitle: settlerPb,
     })
-    // The line's streak and title, which the server still sends, are left: its badges are drawn from the badges store.
     const ana = {
         key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK,
     }

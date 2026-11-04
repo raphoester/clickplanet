@@ -672,16 +672,6 @@ export class RosterEntry extends Message<RosterEntry> {
   color = NameColor.UNSPECIFIED;
 
   /**
-   * @generated from field: uint32 streak = 8;
-   */
-  streak = 0;
-
-  /**
-   * @generated from field: player.v1.Title worn_title = 9;
-   */
-  wornTitle?: Title;
-
-  /**
    * @generated from field: string account_id = 10;
    */
   accountId = "";
@@ -700,8 +690,6 @@ export class RosterEntry extends Message<RosterEntry> {
     { no: 5, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
-    { no: 8, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 9, name: "worn_title", kind: "message", T: Title },
     { no: 10, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 

@@ -6,7 +6,6 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { NameColor } from "./color_pb.js";
-import { Title } from "./title_pb.js";
 
 /**
  * @generated from message player.v1.GetAuthorRequest
@@ -65,16 +64,6 @@ export class GetAuthorResponse extends Message<GetAuthorResponse> {
   color = NameColor.UNSPECIFIED;
 
   /**
-   * @generated from field: uint32 streak = 5;
-   */
-  streak = 0;
-
-  /**
-   * @generated from field: player.v1.Title worn_title = 6;
-   */
-  wornTitle?: Title;
-
-  /**
    * @generated from field: bool guest = 7;
    */
   guest = false;
@@ -90,8 +79,6 @@ export class GetAuthorResponse extends Message<GetAuthorResponse> {
     { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
-    { no: 5, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 6, name: "worn_title", kind: "message", T: Title },
     { no: 7, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
@@ -211,16 +198,6 @@ export class Author extends Message<Author> {
   color = NameColor.UNSPECIFIED;
 
   /**
-   * @generated from field: uint32 streak = 5;
-   */
-  streak = 0;
-
-  /**
-   * @generated from field: player.v1.Title worn_title = 6;
-   */
-  wornTitle?: Title;
-
-  /**
    * @generated from field: bool guest = 7;
    */
   guest = false;
@@ -237,8 +214,6 @@ export class Author extends Message<Author> {
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
-    { no: 5, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 6, name: "worn_title", kind: "message", T: Title },
     { no: 7, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 

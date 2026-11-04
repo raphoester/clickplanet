@@ -93,7 +93,7 @@ func (s *testSuite) TestARemovedGifIsStillReadWithItsAddress() {
 
 func (s *testSuite) TestAMessageFromBeforeAccountsNamesNoAccount() {
 	s.sent(messages.Snapshot{
-		ID: "legacy", SentAt: now.Add(-time.Hour), Author: messages.AuthorOf("Bob", false, 0, 0, messages.Title{}),
+		ID: "legacy", SentAt: now.Add(-time.Hour), Author: messages.AuthorOf("Bob", false, 0),
 		Country: "fr", Text: "old",
 	})
 

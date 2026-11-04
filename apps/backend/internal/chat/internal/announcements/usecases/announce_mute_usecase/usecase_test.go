@@ -33,7 +33,7 @@ func (f fakeAuthors) Author(context.Context, messages.AccountID) (messages.Autho
 	if f.err != nil {
 		return messages.Author{}, f.err
 	}
-	return messages.AuthorOf("guest_a1b2c3", false, 0, 0, messages.Title{}), nil
+	return messages.AuthorOf("guest_a1b2c3", false, 0), nil
 }
 
 func TestAMuteIsAnnouncedUnderTheNameOfTheAccountAndForItsDuration(t *testing.T) {

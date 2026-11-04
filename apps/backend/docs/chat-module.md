@@ -9,7 +9,7 @@ its edge for the wire. A read is a query under its handler: see [Reads are queri
 ```
 internal/chat/internal/
   messages/                             Message (Snapshot, Restore, TakeSnapshot, Named, Answering), MessageID, Quote,
-                                        Drafts, Thread, Record (RecordSnapshot), Limits, AccountID, Author, Title, Rank,
+                                        Drafts, Thread, Record (RecordSnapshot), Limits, AccountID, Author,
                                         Room (World, FlagRoom, RoomOf), Rooms (EntryError), Showing,
                                         ErrNoAccount, ErrNotShown, ErrNotInRoom, Window, the Storage, Flags and
                                         IDProvider ports, the StorageContractSuite, SequentialIDs, Restored and

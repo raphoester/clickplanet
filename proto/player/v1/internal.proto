@@ -3,7 +3,6 @@ syntax = "proto3";
 package player.v1;
 
 import "player/v1/color.proto";
-import "player/v1/title.proto";
 
 service InternalService {
   rpc GetAuthor(GetAuthorRequest) returns (GetAuthorResponse);
@@ -25,8 +24,9 @@ message GetAuthorResponse {
   reserved "tag";
   bool admin = 3;
   NameColor color = 4;
-  uint32 streak = 5;
-  Title worn_title = 6;
+  // An author's badges are PlayerService/GetBadges', which the page reads itself.
+  reserved 5, 6;
+  reserved "streak", "worn_title";
   bool guest = 7;
 }
 
@@ -43,7 +43,7 @@ message Author {
   string name = 2;
   bool admin = 3;
   NameColor color = 4;
-  uint32 streak = 5;
-  Title worn_title = 6;
+  reserved 5, 6;
+  reserved "streak", "worn_title";
   bool guest = 7;
 }

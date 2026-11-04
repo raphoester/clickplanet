@@ -113,7 +113,7 @@ func (s *StorageContractSuite) TestAGifIsReadBackAsItWasKept() {
 
 func (s *StorageContractSuite) TestAMessageFromBeforeAccountsIsReadBackUnderTheNameItCarries() {
 	legacy := Snapshot{
-		ID: "id-legacy", SentAt: contractStart, Author: AuthorOf("guest_Bob", true, 0, 0, Title{}), Room: World, Country: "fr",
+		ID: "id-legacy", SentAt: contractStart, Author: AuthorOf("guest_Bob", true, 0), Room: World, Country: "fr",
 		Text: "legacy",
 	}
 	s.keep(s.message(legacy), "203.0.113.7")
@@ -122,7 +122,7 @@ func (s *StorageContractSuite) TestAMessageFromBeforeAccountsIsReadBackUnderTheN
 }
 
 func (s *StorageContractSuite) TestAReplyIsReadBackWithTheIDOfWhatItAnswersAndNothingOfWhatThatSaid() {
-	question := s.sent("question", contractStart).Named(AuthorOf("Ada", false, 0, 0, Title{}))
+	question := s.sent("question", contractStart).Named(AuthorOf("Ada", false, 0))
 	answer, err := s.sent("answer", contractStart).Answering(question)
 	s.Require().NoError(err)
 	s.keep(answer, "203.0.113.7")

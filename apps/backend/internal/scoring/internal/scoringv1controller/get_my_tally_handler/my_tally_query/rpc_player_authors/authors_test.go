@@ -61,8 +61,7 @@ func authors(t *testing.T, player stubPlayer) *rpc_player_authors.Authors {
 
 func TestEachAccountTheModuleKnowsIsAnsweredAsItsAuthor(t *testing.T) {
 	card := &playerv1.Author{
-		AccountId: ada.String(), Name: "Ada_L", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 12,
-		WornTitle: &playerv1.Title{Id: "og", Name: "OG"},
+		AccountId: ada.String(), Name: "Ada_L", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
 	}
 	asked := new([]string)
 

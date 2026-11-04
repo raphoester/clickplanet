@@ -30,7 +30,7 @@ func (f *fakeNamer) Authors(_ context.Context, accounts []messages.AccountID) (m
 
 var (
 	bob    = messages.AccountID{15: 2}
-	adaNow = messages.AuthorOf("Ada_L", true, 7, 12, messages.Title{})
+	adaNow = messages.AuthorOf("Ada_L", true, 7)
 )
 
 type threading struct {
@@ -118,7 +118,7 @@ func TestAReplyToADeletedAccountNoLongerNamesIt(t *testing.T) {
 func TestAReplyToAMessageFromBeforeAccountsKeepsTheNameItCarries(t *testing.T) {
 	thread := newThreading(t, 10)
 	thread.sent(messages.Snapshot{
-		ID: "legacy", SentAt: draftedAt.Add(-time.Hour), Author: messages.AuthorOf("guest_Bob", false, 0, 0, messages.Title{}), Text: "hello",
+		ID: "legacy", SentAt: draftedAt.Add(-time.Hour), Author: messages.AuthorOf("guest_Bob", false, 0), Text: "hello",
 	})
 
 	quote := thread.quote("legacy")
@@ -133,7 +133,7 @@ func TestAReplyToAReplyQuotesThatReplyAlone(t *testing.T) {
 	answer, err := thread.thread.Reply(t.Context(), thread.draft, "question")
 	require.NoError(t, err)
 	require.NoError(t, thread.storage.Append(t.Context(), messages.NewRecord(answer, "browser-1", "203.0.113.7", "test-agent")))
-	thread.namer.named[bob] = messages.AuthorOf("Bob", false, 0, 0, messages.Title{})
+	thread.namer.named[bob] = messages.AuthorOf("Bob", false, 0)
 
 	quote := thread.quote("draft")
 

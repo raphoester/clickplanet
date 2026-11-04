@@ -11,17 +11,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/inmemory_worn_title_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var (
 	ada   = players.AccountID{15: 1}
 	guest = players.AccountID{15: 2}
-	bob   = players.AccountID{15: 3}
 )
 
 var today = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
@@ -33,31 +27,15 @@ func store(t *testing.T) *inmemory_player_store.Store {
 	return store
 }
 
-var catalog = titles.NewCatalog()
-
 func useCase(store *inmemory_player_store.Store) *get_author_usecase.UseCase {
-	return dressed(store, inmemory_title_store.New(), inmemory_worn_title_store.New())
-}
-
-func dressed(
-	store *inmemory_player_store.Store,
-	held *inmemory_title_store.Store,
-	worn *inmemory_worn_title_store.Store,
-) *get_author_usecase.UseCase {
-	wardrobe := wearing.NewWardrobe(worn, titles.NewBook(held, catalog), catalog)
-	return get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}), wardrobe, cptime.NewFixedClock(today))
-}
-
-func standing(id titles.ID) titles.Standing {
-	standing, _ := catalog.StandingOf(id)
-	return standing
+	return get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}))
 }
 
 func TestAnAccountWithAUsernameIsAnsweredWithIt(t *testing.T) {
 	author, err := useCase(store(t)).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore(), players.Streak{}), titles.Standing{}), author)
+	assert.Equal(t, players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore()), author)
 }
 
 func TestAnAdminIsSaidToBeOne(t *testing.T) {
@@ -67,7 +45,7 @@ func TestAnAdminIsSaidToBeOne(t *testing.T) {
 	author, err := useCase(admins).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L", Admin: true}.Restore(), players.Streak{}), titles.Standing{}), author)
+	assert.Equal(t, players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L", Admin: true}.Restore()), author)
 }
 
 func TestAGuestIsGivenACodeOnceAndKeepsIt(t *testing.T) {
@@ -78,7 +56,7 @@ func TestAGuestIsGivenACodeOnceAndKeepsIt(t *testing.T) {
 	second, err := guests.Execute(t.Context(), guest)
 	require.NoError(t, err)
 
-	assert.Equal(t, wearing.AuthorOf(players.GuestAuthor("000001", players.Streak{}), titles.Standing{}), first)
+	assert.Equal(t, players.GuestAuthor("000001"), first)
 	assert.Equal(t, first, second)
 }
 
@@ -101,62 +79,14 @@ func TestTheChosenColorIsAnswered(t *testing.T) {
 	assert.Equal(t, players.Color(7), author.Color())
 }
 
-func TestTheStreakIsReadAsOfToday(t *testing.T) {
+func TestAPlayerWhoTookTilesIsNamedAsOneWhoNeverDid(t *testing.T) {
 	takes := store(t)
-	require.NoError(t, takes.SaveProfile(t.Context(), players.NewProfile(bob, "Bob", time.Now())))
-	require.NoError(t, takes.Record(t.Context(), ada, players.TakeAt(0, 0, today.AddDate(0, 0, -2))))
-	require.NoError(t, takes.Record(t.Context(), ada, players.TakeAt(1, 0, today.AddDate(0, 0, -1))))
-	require.NoError(t, takes.Record(t.Context(), bob, players.TakeAt(2, 0, today.AddDate(0, 0, -3))))
-	require.NoError(t, takes.Record(t.Context(), bob, players.TakeAt(3, 0, today.AddDate(0, 0, -2))))
+	require.NoError(t, takes.Record(t.Context(), ada, players.TakeAt(0, 0, today.AddDate(0, 0, -1))))
+	require.NoError(t, takes.Record(t.Context(), ada, players.TakeAt(1, 0, today)))
 
-	alive, err := useCase(takes).Execute(t.Context(), ada)
-	require.NoError(t, err)
-	lapsed, err := useCase(takes).Execute(t.Context(), bob)
-	require.NoError(t, err)
-
-	assert.Equal(t, uint32(2), alive.Streak().Days(), "a take yesterday can still be extended today")
-	assert.Equal(t, uint32(0), lapsed.Streak().Days(), "a whole day went by with no take")
-}
-
-func TestAGuestShowsNoStreak(t *testing.T) {
-	takes := store(t)
-	require.NoError(t, takes.Record(t.Context(), guest, players.TakeAt(4, 0, today.AddDate(0, 0, -1))))
-	require.NoError(t, takes.Record(t.Context(), guest, players.TakeAt(5, 0, today)))
-
-	author, err := useCase(takes).Execute(t.Context(), guest)
+	author, err := useCase(takes).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.True(t, author.Guest())
-	assert.Equal(t, players.Streak{}, author.Streak(), "a flame is for a player that signed in and chose a name")
-}
-
-func TestTheTitleWornIsAnswered(t *testing.T) {
-	held := inmemory_title_store.New()
-	require.NoError(t, held.Grant(t.Context(), titles.Holdings{ada: {"og", "settler"}}, today))
-	worn := inmemory_worn_title_store.New()
-	require.NoError(t, worn.Wear(t.Context(), ada, "og", today))
-
-	author, err := dressed(store(t), held, worn).Execute(t.Context(), ada)
-
-	require.NoError(t, err)
-	assert.Equal(t, standing("og"), author.Worn())
-}
-
-func TestAGuestWearsNoTitleAndNoTitleIsRead(t *testing.T) {
-	held := inmemory_title_store.New()
-	held.FailWith(errors.New("postgres is down"))
-
-	author, err := dressed(store(t), held, inmemory_worn_title_store.New()).Execute(t.Context(), guest)
-
-	require.NoError(t, err)
-	assert.True(t, author.Worn().Empty())
-}
-
-func TestATitleStoreFailureIsAnError(t *testing.T) {
-	worn := inmemory_worn_title_store.New()
-	worn.FailWith(errors.New("postgres is down"))
-
-	_, err := dressed(store(t), inmemory_title_store.New(), worn).Execute(t.Context(), ada)
-
-	assert.Error(t, err)
+	assert.Equal(t, players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore()), author,
+		"a streak is a badge, which GetBadges answers: the name carries none")
 }

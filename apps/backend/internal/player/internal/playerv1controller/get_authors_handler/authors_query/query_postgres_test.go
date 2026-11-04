@@ -17,15 +17,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/inprocess_title_catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/postgres_title_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/postgres_worn_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -67,7 +64,7 @@ func (s *testSuite) named(account players.AccountID, name players.Name) {
 }
 
 func (s *testSuite) query() *authors_query.PostgresQuery {
-	return authors_query.NewPostgresQuery(s.db, inprocess_title_catalog.New(titles.NewCatalog()), cptime.NewFixedClock(today))
+	return authors_query.NewPostgresQuery(s.db)
 }
 
 func (s *testSuite) authors(accounts ...players.AccountID) map[string]*playerv1.Author {
@@ -176,39 +173,13 @@ func (s *testSuite) TestARepeatedAccountIsAnsweredOnceInTheOrderAsked() {
 	s.Equal([]string{guest.String(), ada.String(), bob.String()}, ids)
 }
 
-func (s *testSuite) TestEachAuthorCarriesItsColorAndItsStreakAsOfToday() {
+func (s *testSuite) TestEachAuthorCarriesItsColorAndAGuestNone() {
 	s.Require().NoError(s.players.SaveColor(s.T().Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_PINK)))
-	for _, account := range []players.AccountID{ada, guest} {
-		s.Require().NoError(s.players.Record(s.T().Context(), account, players.TakeAt(0, 0, today.AddDate(0, 0, -1))))
-		s.Require().NoError(s.players.Record(s.T().Context(), account, players.TakeAt(1, 0, today)))
-	}
-	s.Require().NoError(s.players.Record(s.T().Context(), bob, players.TakeAt(2, 0, today.AddDate(0, 0, -3))))
 
-	authors := s.authors(ada, bob, guest)
+	authors := s.authors(ada, guest)
 
 	s.Equal(playerv1.NameColor_NAME_COLOR_PINK, authors[ada.String()].GetColor())
-	s.Equal(uint32(2), authors[ada.String()].GetStreak())
-	s.Zero(authors[bob.String()].GetStreak(), "a streak broken since reads zero")
 	s.Equal(playerv1.NameColor_NAME_COLOR_UNSPECIFIED, authors[guest.String()].GetColor())
-	s.Zero(authors[guest.String()].GetStreak(), "a guest shows no streak, however long it runs")
-}
-
-func (s *testSuite) TestAnAuthorWhoOnlyPostedHasNoStreak() {
-	s.Require().NoError(s.players.Record(s.T().Context(), ada, players.MessageAt(today)))
-
-	s.Zero(s.authors(ada)[ada.String()].GetStreak())
-}
-
-func (s *testSuite) TestEachAuthorWearsItsTitleAndAGuestNone() {
-	s.Require().NoError(s.titles.Grant(s.T().Context(), titles.Holdings{ada: {"og", "settler"}, bob: {"og", "settler"}, guest: {"og"}}, today))
-	s.Require().NoError(s.worn.Wear(s.T().Context(), ada, "og", today))
-
-	authors := s.authors(ada, bob, guest)
-
-	s.Equal("og", authors[ada.String()].GetWornTitle().GetId())
-	s.Equal("OG", authors[ada.String()].GetWornTitle().GetName())
-	s.Equal("settler", authors[bob.String()].GetWornTitle().GetId(), "no choice wears the first rank shown")
-	s.Nil(authors[guest.String()].GetWornTitle())
 }
 
 func (s *testSuite) TestAColorTheProtoDoesNotNameIsAnError() {
@@ -255,9 +226,7 @@ func (s *testSuite) TestEachAuthorIsWhatGetAuthorAnswersForIt() {
 	s.Require().NoError(s.worn.Wear(s.T().Context(), bob, "settler", today))
 	s.Require().NoError(s.worn.Wear(s.T().Context(), guest, "og", today))
 
-	catalog := titles.NewCatalog()
-	single := get_author_usecase.New(s.players, players.NewGuestCodes(s.players, &players.SequentialCodes{}),
-		wearing.NewWardrobe(s.worn, titles.NewBook(s.titles, catalog), catalog), cptime.NewFixedClock(today))
+	single := get_author_usecase.New(s.players, players.NewGuestCodes(s.players, &players.SequentialCodes{}))
 	everyone := []players.AccountID{ada, bob, guest, cy, dan, eve}
 	many := s.authors(everyone...)
 
@@ -271,8 +240,6 @@ func (s *testSuite) TestEachAuthorIsWhatGetAuthorAnswersForIt() {
 			Name:      one.Name(),
 			Admin:     one.Admin(),
 			Color:     playermessage.Color(one.Color()),
-			Streak:    one.Streak().Days(),
-			WornTitle: playermessage.Title(one.Worn()),
 			Guest:     one.Guest(),
 		}, many[account.String()]), "%s: GetAuthor and GetAuthors must name an account alike, got %v", one.Name(), many[account.String()])
 	}

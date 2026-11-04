@@ -11,15 +11,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/forget_visit_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func TestTheAccountLeavesTheRosterAtOnce(t *testing.T) {
 	now := time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 	visits := inmemory_visit_storage.New(cptime.NewFixedClock(now))
-	visits.Record(presence.NewVisit(players.AccountID{15: 1}, wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore(), players.Streak{}), titles.Standing{}), "aaaaaa", "fr", now))
+	visits.Record(presence.NewVisit(players.AccountID{15: 1}, players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore()), "aaaaaa", "fr", now))
 
 	err := forget_visit_usecase.New(visits).Execute(t.Context(), players.AccountID{15: 1})
 
