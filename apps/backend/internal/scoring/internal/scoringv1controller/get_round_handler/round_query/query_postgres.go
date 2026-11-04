@@ -258,7 +258,6 @@ func (q *PostgresQuery) named(ctx context.Context, lines []line) ([]*scoringv1.S
 			Color:     author.GetColor(),
 			CountryId: line.country,
 			Tiles:     line.tiles,
-			WornTitle: author.GetWornTitle(),
 		})
 		if len(top) == Shown {
 			break

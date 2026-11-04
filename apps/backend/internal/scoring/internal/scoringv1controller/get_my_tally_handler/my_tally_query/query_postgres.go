@@ -64,7 +64,6 @@ func (q *PostgresQuery) MyTally(
 	if !ranked(named, account) {
 		return mine, nil
 	}
-	mine.WornTitle = named[account].GetWornTitle()
 
 	var global, inCountry uint32
 	group, ctx := errgroup.WithContext(ctx)

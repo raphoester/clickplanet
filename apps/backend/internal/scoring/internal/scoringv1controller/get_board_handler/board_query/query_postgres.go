@@ -92,7 +92,6 @@ func (q *PostgresQuery) top(ctx context.Context, view View) ([]*scoringv1.Standi
 				Color:     author.GetColor(),
 				CountryId: line.country,
 				Tiles:     line.tiles,
-				WornTitle: author.GetWornTitle(),
 			})
 			if len(top) == Shown {
 				return top, nil
