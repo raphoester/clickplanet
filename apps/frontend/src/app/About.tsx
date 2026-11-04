@@ -1,16 +1,21 @@
-import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../links.ts"
+import {INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../links.ts"
 import {DiscordIcon, InstagramIcon, TikTokIcon, YouTubeIcon} from "./components/icons.tsx"
+import DiscordButton from "./alerts/DiscordButton.tsx"
+import {DiscordOffer} from "./alerts/useDiscordAlerts.ts"
 import {ON_CRAZYGAMES} from "../platform.ts"
 import "./About.css"
 
 const FOLLOW = [
-    {name: "Discord", href: DISCORD_INVITE, icon: <DiscordIcon size={20}/>},
     {name: "TikTok", href: TIKTOK_PROFILE, icon: <TikTokIcon size={20}/>},
     {name: "YouTube", href: YOUTUBE_CHANNEL, icon: <YouTubeIcon size={20}/>},
     {name: "Instagram", href: INSTAGRAM_PROFILE, icon: <InstagramIcon size={20}/>},
 ]
 
-export default function About() {
+export type AboutProps = {
+    discord?: DiscordOffer
+}
+
+export default function About({discord}: AboutProps) {
     return <>
         <h3>The ultimate world war</h3>
         <h4>It’s like Pixel Wars but way more epic</h4>
@@ -18,6 +23,9 @@ export default function About() {
             click. Out-click rival nations, and dominate the map. Every territory is yours, until someone
             takes it back!</p>
         <div className="about-social">
+            <DiscordButton offer={discord} className="button button-mini about-follow">
+                <DiscordIcon size={20}/>
+            </DiscordButton>
             {FOLLOW.map((place) => <a key={place.name}
                                       className="button button-mini about-follow"
                                       target="_blank"

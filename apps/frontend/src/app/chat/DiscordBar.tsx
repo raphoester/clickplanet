@@ -1,4 +1,3 @@
-import {DISCORD_INVITE} from "../../links.ts"
 import {CloseIcon, DiscordIcon} from "../components/icons.tsx"
 import {pingFailureOf, pingHintOf, pingNameOf} from "../alerts/alertsMessages.ts"
 import {DiscordOffer} from "../alerts/useDiscordAlerts.ts"
@@ -15,19 +14,20 @@ export type DiscordBarProps = {
 // for, the button under it does it, and the cross hides the box.
 export default function DiscordBar({discord, flagName}: DiscordBarProps) {
     const {hidden, hide} = useDiscordBar()
-    if (hidden) return null
-
     const connect = discord?.connect
+    const serverUrl = discord?.serverUrl
+    if (hidden || (!connect && !serverUrl)) return null
+
     return <div className={connect ? "chat-discord chat-discord--connect panel-box" : "chat-discord panel-box"}>
         {connect && <p className="chat-discord-hint" aria-hidden="true">{pingHintOf(flagName)}</p>}
         {connect
             ? <ConnectButton connect={connect} flagName={flagName}/>
-            : <a href={discord?.serverUrl ?? DISCORD_INVITE}
+            : <a href={serverUrl}
                  target="_blank"
                  rel="noopener noreferrer"
                  className="button button-mini chat-discord-join">
                 <DiscordIcon size={20}/>
-                <span className="chat-discord-label">{discord?.serverUrl ? "Open Discord" : "Join Discord"}</span>
+                <span className="chat-discord-label">Open Discord</span>
             </a>}
         <button type="button"
                 className="chat-discord-close"

@@ -41,6 +41,7 @@ import {FakeClipsBackend} from "./backends/fakeClipsBackend.ts"
 import {FakeAccountBackend} from "./backends/fakeAccountBackend.ts"
 import {SHARE_FLAG_PARAM, sharedCountry, withoutSharedFlag} from "./domain/shareCard.ts"
 import {linkedShot, withoutLinkedShot} from "./domain/linkedShot.ts"
+import {discordJoinAsked, withoutDiscordJoin} from "./domain/discordJoin.ts"
 import {enterFrontGuide} from "./app/viewer/frontGuide.ts"
 import {firstLanding, landingOf, SOURCE_TAG_PARAM, withoutLanding} from "./domain/landing.ts"
 import {localLandingStore} from "./backends/landingStore.ts"
@@ -64,14 +65,15 @@ if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 const page = new URL(window.location.href)
 const shared = sharedCountry(page)
 const shot = linkedShot(page)
+const joinDiscord = discordJoinAsked(page)
 const guided = enterFrontGuide()
 const crazyGames = ON_CRAZYGAMES ? connectCrazyGames() : undefined
 const words: Promise<WordFilter> = ON_CRAZYGAMES ? crazyGamesWords(CRAZYGAMES_WORDS_URL) : Promise.resolve(NO_FILTER)
 const seen = landingOf(page, document.referrer)
 const landing = crazyGames ? crazyGamesLanding(seen) : firstLanding(localLandingStore(), seen)
 // CrazyGames' frame puts an invite's flag on this address as a plain ?f=, and its SDK reads it after this runs.
-if (!crazyGames && (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM) || shot)) {
-    window.history.replaceState(null, "", withoutLinkedShot(withoutLanding(withoutSharedFlag(page))))
+if (!crazyGames && (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM) || shot || joinDiscord)) {
+    window.history.replaceState(null, "", withoutDiscordJoin(withoutLinkedShot(withoutLanding(withoutSharedFlag(page)))))
 }
 
 const connection = new ConnectionHealth()
@@ -102,7 +104,7 @@ const FAKE_JOIN_LANDS_MS = 1_500
 // session: and CrazyGames allows no sign-in but its own.
 function discordAlertsOf(backend: AlertsBackend, account: AccountStore): DiscordAlerts | undefined {
     if (crazyGames) return undefined
-    return new DiscordAlerts(backend, () => account.connectDiscord())
+    return new DiscordAlerts(backend, () => account.connectDiscord(), joinDiscord)
 }
 
 // CrazyGames' word list cannot read the words in a GIF.

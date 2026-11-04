@@ -408,6 +408,7 @@ export default function Viewer(props: ViewerProps) {
         sound: {preview: sound.preview},
         support: props.support,
         pageContext: () => pageContextOf(window, graphics(), connection === "down"),
+        discord,
     }
     const clicks = <ClicksPanel budget={clickBudget}
                                 countryName={countryState.name}
@@ -455,6 +456,7 @@ export default function Viewer(props: ViewerProps) {
         {ready && <ClickBudgetMeter budget={clickBudget}
                                     frozen={mood === "frozen" ? {nextSeason: schedule.seasons.next, country: countryState} : undefined}
                                     invite={invite}
+                                    discord={discord}
                                     refusals={refusals}
                                     said={lockedOut && {text: heldLine(lockedOut.allegiance, Date.now()), id: lockedOut.id}}
                                     onSignIn={openPitch}

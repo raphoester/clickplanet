@@ -3,11 +3,12 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {AuthError} from "../../backends/account.ts"
-import {DISCORD_INVITE} from "../../links.ts"
 import DiscordBar from "./DiscordBar.tsx"
 import {DISCORD_BAR_RETURNS_AFTER_MS, DISCORD_BAR_STORAGE_KEY} from "./discordBar.ts"
 
-const link = () => screen.queryByRole("link", {name: "Join Discord"})
+const SERVER = "https://discord.com/channels/1/2"
+const IN_SERVER = {serverUrl: SERVER}
+const link = () => screen.queryByRole("link", {name: "Open Discord"})
 const hide = () => userEvent.setup().click(screen.getByRole("button", {name: "Hide Discord"}))
 
 beforeEach(() => window.localStorage.clear())
@@ -17,23 +18,24 @@ afterEach(() => {
 })
 
 describe("DiscordBar", () => {
-    it("opens the Discord invite in a new tab", () => {
-        render(<DiscordBar/>)
+    it("shows nothing while the game offers no way in: an invite would join with no flag's role", () => {
+        const {container} = render(<DiscordBar/>)
+        expect(container.innerHTML).toBe("")
 
-        expect(link()?.getAttribute("href")).toBe(DISCORD_INVITE)
-        expect(link()?.getAttribute("target")).toBe("_blank")
-        expect(link()?.getAttribute("rel")).toBe("noopener noreferrer")
+        cleanup()
+        const offered = render(<DiscordBar discord={{}}/>)
+        expect(offered.container.innerHTML).toBe("")
     })
 
     it("is the one link it holds: no other network beside it", () => {
-        render(<DiscordBar/>)
+        render(<DiscordBar discord={IN_SERVER}/>)
 
         expect(screen.getAllByRole("link")).toHaveLength(1)
     })
 
     it("goes when its cross is pressed, and stays gone on a visit soon after", async () => {
         const before = Date.now()
-        const {unmount} = render(<DiscordBar/>)
+        const {unmount} = render(<DiscordBar discord={IN_SERVER}/>)
 
         await hide()
         expect(link()).toBeNull()
@@ -44,19 +46,19 @@ describe("DiscordBar", () => {
         expect(hiddenAt).toBeLessThanOrEqual(Date.now())
 
         unmount()
-        render(<DiscordBar/>)
+        render(<DiscordBar discord={IN_SERVER}/>)
         expect(link()).toBeNull()
     })
 
     it("is back on a visit the next day", () => {
         window.localStorage.setItem(DISCORD_BAR_STORAGE_KEY, String(Date.now() - DISCORD_BAR_RETURNS_AFTER_MS))
 
-        render(<DiscordBar/>)
+        render(<DiscordBar discord={IN_SERVER}/>)
 
         expect(link()).not.toBeNull()
     })
 
-    it("joins by Discord's sign-in in place of the invite, and says what for", async () => {
+    it("joins by Discord's sign-in, and says what for", async () => {
         const connect = vi.fn(async () => undefined)
         render(<DiscordBar discord={{connect}} flagName="France"/>)
 
@@ -85,11 +87,12 @@ describe("DiscordBar", () => {
         expect(connect).toHaveBeenCalledTimes(2)
     })
 
-    it("opens the server's page for a player already in it", () => {
-        render(<DiscordBar discord={{serverUrl: "https://discord.com/channels/1/2"}} flagName="France"/>)
+    it("opens the server's page in a new tab for a player already in it", () => {
+        render(<DiscordBar discord={IN_SERVER} flagName="France"/>)
 
-        expect(link()).toBeNull()
-        expect(screen.getByRole("link", {name: "Open Discord"}).getAttribute("href")).toBe("https://discord.com/channels/1/2")
+        expect(link()?.getAttribute("href")).toBe(SERVER)
+        expect(link()?.getAttribute("target")).toBe("_blank")
+        expect(link()?.getAttribute("rel")).toBe("noopener noreferrer")
     })
 
     it("still goes in a browser that keeps nothing", async () => {
@@ -98,7 +101,7 @@ describe("DiscordBar", () => {
         })
         vi.spyOn(console, "error").mockImplementation(() => {
         })
-        render(<DiscordBar/>)
+        render(<DiscordBar discord={IN_SERVER}/>)
 
         await hide()
 

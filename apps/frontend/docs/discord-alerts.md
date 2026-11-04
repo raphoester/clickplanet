@@ -9,13 +9,17 @@ There used to be a second Discord trip of its own, "Get pinged", beside "Sign in
 same application, which nobody could tell apart. Now any Discord sign-in, from the menu or from an offer below, is the
 connection.
 
+**No page links a plain invite.** Until Nov 4 2026 the Discord buttons fell back to `discord.gg/…`, and members came
+into the server that way with no flag's role, so no ping could reach them. Every Discord button is now the sign-in,
+the server's page once in, or nothing.
+
 - `backends/alerts.ts` — the contract: `AlertsBackend.discordLink()`, `DiscordLink` (`offered`, `linked`,
   `serverUrl`, the server's `#alerts` page).
 - `backends/alertsBackend.ts` — `ConnectAlertsBackend`, over `alerts.v1.AlertsService`. It sends the click token,
   and sends a read refused `unauthenticated` once more with a fresh session, as the player backend does. A 404 or
   `unimplemented` reads as not offered.
-- `app/alerts/discordAlerts.ts` — `DiscordAlerts`: `read`, and `connect`, which is `AccountStore.connectDiscord`.
-  `main.tsx` builds it, except on CrazyGames.
+- `app/alerts/discordAlerts.ts` — `DiscordAlerts`: `read`, `connect`, which is `AccountStore.connectDiscord`, and
+  `joinIfAsked` (see below). `main.tsx` builds it, except on CrazyGames.
 - `AccountStore.connectDiscord()` — a Discord sign-in: **a link** for an account signed in already (with Google, an
   email or Discord), so the player stays on it; **a sign-in** for a guest, which moves to the account that Discord user
   has, if any. It goes the way every sign-in goes (`leaveFor`, then `/auth/callback`, see [Sign-in](sign-in.md)), and
@@ -39,8 +43,10 @@ sign-in; `serverUrl` once it is in; neither otherwise. Any failure of the read i
     refused start puts the reason on the button ("Wait a minute", "Not available", "Try again"), and a press tries
     again.
   - **In the server**: "Open Discord", the server's `#alerts` page.
-  - **Nothing offered** (the alerts off, a failed read, no Discord sign-in, CrazyGames): "Join Discord", the plain
-    invite (`DISCORD_INVITE`).
+  - **Nothing offered** (before the first read answers, the alerts off, a failed read, no Discord sign-in,
+    CrazyGames): no bar.
+- **The Discord icon in About and the Discord button of a frozen map** (`DiscordButton`): the same sign-in, named
+  "Join Discord", or "Open Discord" once in, or nothing.
 - **A moment when the flag is under attack** (`UnderAttack`, `useUnderAttack`): "France is under attack" and "Go
   there", for 8 s, in the Moments zone, and "Get pinged", the same sign-in, only while `connect` is offered: an account
   in the server, CrazyGames or a page with nothing offered sees no Discord button. **Once a page**, the first time the
@@ -52,6 +58,19 @@ sign-in; `serverUrl` once it is in; neither otherwise. Any failure of the read i
   another flag. The moment stays up until its 8 s end, so "Get pinged" is still there when it is offered.
 - **Not on CrazyGames**: the trip leaves its frame and comes back on clickplanet.lol, where its carried session is
   not; and CrazyGames allows no sign-in but its own.
+
+## Links from outside the game: `/play?discord=join`
+
+**The home page, the privacy policy and the terms link Discord as `/play?discord=join`** (`DISCORD_JOIN_PATH`,
+`domain/discordJoin.ts`), since a plain page cannot start a sign-in. `main.tsx` reads it, takes it out of the address
+bar with the other params, and hands it to `DiscordAlerts`. The first time `useDiscordAlerts` offers `connect` on that
+page, `joinIfAsked` starts the sign-in, once. An account in the server already, or a page with nothing offered, starts
+nothing. The home page carries its own query onto it, as onto Play (see [Pages and routes](routes.md)), so a
+newcomer from a share link joins with that link's flag.
+
+**A newcomer joins with no role until its first pledge**: a new guest pledges at its first click (see
+[The flag played for](flag.md)), and the backend grants the role then (see the backend's
+[Discord pings](../../backend/docs/alerts.md)). The game does not pledge for it: the pledge locks the flag for an hour.
 
 ## The trip
 

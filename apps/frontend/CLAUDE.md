@@ -92,8 +92,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Sound](docs/sound.md) — every sound built with Web Audio, no audio file; the leader's anthem.
 - [Discord pings](docs/discord-alerts.md) — "Join Discord" in the chat's Discord bar, and "Get pinged" in the moment
   once a page when the flag is under attack, are a Discord sign-in, which joins the game's server; the moment's "Go
-  there", for every player, flies to the attack; "Open Discord" once in; a ping's `?lat=&lon=&zoom=` starts the
-  camera on the attack.
+  there", for every player, flies to the attack; "Open Discord" once in; no plain invite anywhere, the plain pages
+  link `/play?discord=join`; a ping's `?lat=&lon=&zoom=` starts the camera on the attack.
 
 ## The globe (`src/app/viewer/`)
 

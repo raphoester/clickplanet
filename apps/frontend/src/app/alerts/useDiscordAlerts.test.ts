@@ -7,9 +7,10 @@ import {useDiscordAlerts} from "./useDiscordAlerts.ts"
 
 const SERVER = "https://discord.com/channels/1/2"
 
-function alertsReading(read: () => Promise<DiscordLink>): {alerts: DiscordAlerts, backend: AlertsBackend} {
+function alertsReading(read: () => Promise<DiscordLink>, joinAsked = false) {
     const backend: AlertsBackend = {discordLink: vi.fn(read)}
-    return {alerts: new DiscordAlerts(backend, vi.fn(async () => undefined)), backend}
+    const signIn = vi.fn(async () => undefined)
+    return {alerts: new DiscordAlerts(backend, signIn, joinAsked), backend, signIn}
 }
 
 afterEach(() => {
@@ -33,6 +34,30 @@ describe("useDiscordAlerts", () => {
         const {result} = renderHook(() => useDiscordAlerts(alerts, undefined, true, false))
 
         await waitFor(() => expect(result.current).toEqual({connect: alerts.connect}))
+    })
+
+    it("starts the sign-in at the first offer to connect, for a page opened to join", async () => {
+        const {alerts, signIn} = alertsReading(async () => UNLINKED, true)
+
+        const {result, rerender} = renderHook(({connectable}) => useDiscordAlerts(alerts, "guest-1", connectable, false),
+            {initialProps: {connectable: false}})
+        await waitFor(() => expect(result.current).toEqual({}))
+        expect(signIn).not.toHaveBeenCalled()
+
+        rerender({connectable: true})
+
+        await waitFor(() => expect(signIn).toHaveBeenCalledTimes(1))
+        expect(result.current).toEqual({connect: alerts.connect})
+    })
+
+    it("starts no sign-in for a page opened to join by an account in the server already", async () => {
+        const {alerts, backend, signIn} = alertsReading(async () => LINKED, true)
+
+        const {result} = renderHook(() => useDiscordAlerts(alerts, "account-1", true, false))
+
+        await waitFor(() => expect(result.current).toEqual({serverUrl: SERVER}))
+        expect(backend.discordLink).toHaveBeenCalled()
+        expect(signIn).not.toHaveBeenCalled()
     })
 
     it("offers the server's page once this account is in it", async () => {

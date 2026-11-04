@@ -101,7 +101,7 @@ sentence. A new Google scope changes that section.
 **Cloudflare Web Analytics counts the page views**, with no cookie. Each of the
 four pages ends with the beacon tag, its token written once in
 `src/webAnalytics.ts` and fed to the pages as `%WEB_ANALYTICS_TOKEN%`, like the
-Discord invite. The token is public. **`/auth/callback` has no beacon**: its URL
+social profiles. The token is public. **`/auth/callback` has no beacon**: its URL
 holds the one-time code, and its referrer is Google or Discord, which would read
 as visitors sent from there. `gameRoutes` strips the tag from the copy and fails
 the build if one is left. `"spa": false`, because the pages are real pages and
@@ -127,12 +127,14 @@ under a week of cache, so a retake gets a new name. The section links (`#how`,
 `#board`, `#creator`) work in the page, but a returning player who opens one
 directly is sent to the game like any other hash but `#home`.
 
-**The Discord invite and the TikTok, YouTube and Instagram profiles are written
-once, in `src/links.ts`.** The chat's bar and About import them; `vite.config.ts` hands them
-to the plain pages, which write `%DISCORD_INVITE%`, `%TIKTOK_PROFILE%`,
-`%YOUTUBE_CHANNEL%` and `%INSTAGRAM_PROFILE%` (Vite's own HTML replacement, fed
-through `define`).
-`links.test.ts` fails on one of them pasted into a page.
+**The TikTok, YouTube and Instagram profiles are written once, in
+`src/links.ts`.** About imports them; `vite.config.ts` hands them to the plain
+pages, which write `%TIKTOK_PROFILE%`, `%YOUTUBE_CHANNEL%` and
+`%INSTAGRAM_PROFILE%` (Vite's own HTML replacement, fed through `define`).
+`links.test.ts` fails on one of them pasted into a page. **Discord has no
+invite there**: the pages link `/play?discord=join`, the game's Discord sign-in
+(see [Discord pings](discord-alerts.md)), and `links.test.ts` fails on a
+`discord.gg` or `discord.com/invite` link in a page.
 
 **`terms.html` is the terms of service**, linked beside it and built
 the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in.
