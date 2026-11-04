@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react"
 import {LandmassFortification, LandmassReader} from "../../backends/backend.ts"
 import {PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
-import {deletedLineOf, playerLineOf} from "../players/useTileHolder.ts"
+import {deletedLineOf, playerLineOf} from "../players/tileHolder.ts"
 
 export const TOP_PLAYERS = 3
 

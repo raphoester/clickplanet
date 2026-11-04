@@ -63,11 +63,10 @@ import {useAccount} from "../account/useAccount.ts";
 import {hueOf} from "../../domain/authorColor.ts";
 import {PlayerInfoBackend, PresenceBackend} from "../../backends/player.ts";
 import PlayerCardPlace from "../players/PlayerCardPlace.tsx";
-import HolderCard from "../players/HolderCard.tsx";
+import HolderCardPlace from "../players/HolderCardPlace.tsx";
 import TerritoryCard from "../territory/TerritoryCard.tsx";
 import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
 import {useTerritoryPlayers} from "../territory/useTerritoryPlayers.ts";
-import {useTileHolder} from "../players/useTileHolder.ts";
 import {usePresence} from "../players/usePresence.ts";
 import {useRosterFeed} from "../players/useRosterFeed.ts";
 import {onlineCount, useRoster} from "../players/rosterStore.ts";
@@ -302,7 +301,6 @@ export default function Viewer(props: ViewerProps) {
     const firstWin = useBonusGuide((bonus) => award !== undefined && isFirstWin(bonus.guide, award.kind))
     const markWon = useBonusGuide((bonus) => bonus.markWon)
 
-    const tileHolder = useTileHolder(props.tileHolders, props.playerInfo, pointing, ownAccountId)
     const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
     const territoryPlayers = useTerritoryPlayers(props.landmasses, props.playerInfo, territoryCard.shown?.territory.landmass)
 
@@ -548,10 +546,10 @@ export default function Viewer(props: ViewerProps) {
                                                          onSwitch={() => pickCountry(invitation.asked!)}
                                                          onClose={invitation.answer}/>}
 
-        {tileHolder.holder && <HolderCard key={`holder-${tileHolder.holder.id}`}
-                                                              holder={tileHolder.holder}
-                                                              onHold={tileHolder.hold}
-                                                              onClose={tileHolder.dismiss}/>}
+        <HolderCardPlace holders={props.tileHolders}
+                         players={props.playerInfo}
+                         pointing={pointing}
+                         accountId={ownAccountId}/>
 
         {territoryCard.shown && <TerritoryCard key={`territory-${territoryCard.shown.id}`}
                                                shown={territoryCard.shown}
