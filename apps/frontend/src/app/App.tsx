@@ -1,5 +1,6 @@
 import Viewer, {ViewerProps} from "./viewer/Viewer.tsx";
 import DonationModal from "./components/DonationModal.tsx";
+import MapUpdateModal from "./components/MapUpdateModal.tsx";
 import {ON_CRAZYGAMES} from "../platform.ts";
 import {WordFilter} from "../domain/wordFilter.ts";
 import {WordFilterContext} from "./crazygames/wordFilter.ts";
@@ -11,6 +12,7 @@ export type AppProps = ViewerProps & {
 export default function App(props: AppProps) {
     return <WordFilterContext.Provider value={props.words}>
         {!ON_CRAZYGAMES && <DonationModal/>}
+        <MapUpdateModal/>
 
         <Viewer
             sharedCountry={props.sharedCountry}
