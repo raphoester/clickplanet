@@ -1,5 +1,5 @@
 import {CSSProperties, useId, useState} from "react"
-import {TitleTrack} from "../../backends/player.ts"
+import {TitleTrack} from "../../backends/progression.ts"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
 import {filledOf, leftLabel, stepLabel} from "../titles/titleArt.ts"
 

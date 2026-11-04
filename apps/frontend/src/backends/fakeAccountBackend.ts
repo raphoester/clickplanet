@@ -1,7 +1,8 @@
 import {AccountBackend, AuthError, Me, OAuthProvider, Provider, SignInOutcome} from "./account.ts"
 import {CALLBACK_PATH} from "../domain/signInCallback.ts"
 import {FAKE_YOU} from "./fakeAccounts.ts"
-import {ColoredProfile, Fronts, NameColor, PlayerBackend, PlayerError, PlayerTitle, Profile, TitleDashboard} from "./player.ts"
+import {ColoredProfile, NameColor, PlayerBackend, PlayerError, Profile} from "./player.ts"
+import {Fronts, PlayerTitle, ProgressionBackend, TitleDashboard} from "./progression.ts"
 
 // Offers no provider until offerSignIn(). completeSignIn takes the code for the name to sign in with: the console's
 // signIn() calls it, as the callback page would.
@@ -12,7 +13,7 @@ export type FakeCareer = {
     wear(id: string): PlayerTitle | undefined
 }
 
-export class FakeAccountBackend implements AccountBackend, PlayerBackend {
+export class FakeAccountBackend implements AccountBackend, PlayerBackend, ProgressionBackend {
     constructor(private readonly career?: FakeCareer) {
     }
 

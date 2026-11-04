@@ -4,7 +4,8 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {AccountBackend, Provider} from "../../backends/account.ts"
-import {NameColor, PlayerBackend, PlayerTitle} from "../../backends/player.ts"
+import {NameColor, PlayerBackend} from "../../backends/player.ts"
+import {PlayerTitle, ProgressionBackend} from "../../backends/progression.ts"
 import {MySeason, Standing, Boards} from "../../backends/standings.ts"
 import {Countries, Country} from "../../domain/countries.ts"
 import {hueOf} from "../../domain/authorColor.ts"
@@ -450,11 +451,13 @@ async function guestStore() {
         profile: vi.fn(async () => ({accountId: "account-1", name: "", color: NameColor.UNSPECIFIED})),
         setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
         setColor: vi.fn(async (color: NameColor) => color),
+    } satisfies PlayerBackend
+    const progression = {
         titles: vi.fn(async () => ({wearable: [], tracks: []})),
         fronts: vi.fn(async () => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),
-    } satisfies PlayerBackend
-    const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate: vi.fn(), remember: vi.fn(), claimFlag: vi.fn()})
+    } satisfies ProgressionBackend
+    const store = new AccountStore(backend, player, progression, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate: vi.fn(), remember: vi.fn(), claimFlag: vi.fn()})
     await store.load()
     return store
 }

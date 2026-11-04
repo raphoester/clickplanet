@@ -1,4 +1,4 @@
-import {PlayerTitle, TitleTrack} from "../../backends/player.ts"
+import {PlayerTitle, TitleTrack} from "../../backends/progression.ts"
 
 export type Metal = "bronze" | "silver" | "gold" | "platinum" | "prism" | "holo" | "pumpkin"
 

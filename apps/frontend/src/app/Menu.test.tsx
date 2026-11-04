@@ -17,7 +17,8 @@ import {useRace} from "./standings/raceStore.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
 import {NameColor} from "../backends/player.ts"
-import {Fronts, PlayerBackend, PlayerError, PlayerInfoBackend, PlayerTitle, TitleDashboard} from "../backends/player.ts"
+import {PlayerBackend, PlayerError, PlayerInfoBackend} from "../backends/player.ts"
+import {Fronts, PlayerTitle, TitleDashboard, ProgressionBackend} from "../backends/progression.ts"
 import {AcceptedClicks, acceptedClicks} from "./viewer/acceptedClicks.ts"
 import {SETTLE_MS} from "./viewer/useAcceptedClicks.ts"
 import {Race} from "../backends/standings.ts"
@@ -775,11 +776,13 @@ describe("Menu", () => {
                 profile: vi.fn(async () => ({accountId: "account-1", name: username, color: NameColor.UNSPECIFIED})),
                 setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
                 setColor: vi.fn(async (color: NameColor) => color),
+            } satisfies PlayerBackend
+            const progression = {
                 titles: vi.fn(async (): Promise<TitleDashboard> => ({wearable: [], tracks: []})),
                 fronts: vi.fn(async (): Promise<Fronts> => ({playsFor: [], playsAgainst: []})),
                 wearTitle: vi.fn(async (): Promise<PlayerTitle | undefined> => undefined),
-            } satisfies PlayerBackend
-            const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn(), claimFlag: vi.fn()})
+            } satisfies ProgressionBackend
+            const store = new AccountStore(backend, player, progression, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn(), claimFlag: vi.fn()})
             const view = render(phone
                 ? <YouPlace account={store} playerInfo={playerInfo} listenForClicks={clicks?.listenForClicks}/>
                 : <Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
@@ -789,7 +792,7 @@ describe("Menu", () => {
             const openSettings = async () => {
                 await user.click(await screen.findByRole("button", {name: "You"}))
             }
-            return {...view, backend, player, navigate, user, openSettings}
+            return {...view, backend, player, progression, navigate, user, openSettings}
         }
 
         it("puts the account at the foot of the rail, out of the places", async () => {
@@ -801,8 +804,8 @@ describe("Menu", () => {
         })
 
         it("opens a signed-in player's progress and account side by side, in one dialog", async () => {
-            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
-            player.titles.mockResolvedValue(dashboard(140))
+            const {user, progression} = withAccount(["google"], {linked: ["google"]}, "ana")
+            progression.titles.mockResolvedValue(dashboard(140))
 
             await user.click(await screen.findByRole("button", {name: "You"}))
 
@@ -886,17 +889,17 @@ describe("Menu", () => {
         })
 
         it("opens a signed-in player's account on its progress, read again each time the account opens", async () => {
-            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
-            player.titles.mockResolvedValue(dashboard(140))
+            const {user, progression} = withAccount(["google"], {linked: ["google"]}, "ana")
+            progression.titles.mockResolvedValue(dashboard(140))
 
             await user.click(await screen.findByRole("button", {name: "You"}))
             expect(await screen.findByText("860 tiles to Raider")).toBeDefined()
 
-            player.titles.mockResolvedValue(dashboard(400))
+            progression.titles.mockResolvedValue(dashboard(400))
             await user.click(button("Close"))
             await user.click(button("You"))
             expect(await screen.findByText("600 tiles to Raider")).toBeDefined()
-            expect(player.titles).toHaveBeenCalledTimes(2)
+            expect(progression.titles).toHaveBeenCalledTimes(2)
         })
 
         it("shows a signed-in player its own stats on its progress", async () => {
@@ -906,8 +909,8 @@ describe("Menu", () => {
                     color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
                 })),
             }
-            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, playerInfo)
-            player.titles.mockResolvedValue(dashboard(140))
+            const {user, progression} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, playerInfo)
+            progression.titles.mockResolvedValue(dashboard(140))
 
             await user.click(await screen.findByRole("button", {name: "You"}))
 
@@ -923,36 +926,36 @@ describe("Menu", () => {
                 })),
             }
             const clicks = acceptedClicks()
-            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, playerInfo, clicks)
-            player.titles.mockResolvedValue(dashboard(140))
+            const {user, progression} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, playerInfo, clicks)
+            progression.titles.mockResolvedValue(dashboard(140))
             await user.click(await screen.findByRole("button", {name: "You"}))
             expect(await screen.findByText("860 tiles to Raider")).toBeDefined()
             expect(await screen.findByText("14,212")).toBeDefined()
 
             vi.useFakeTimers()
-            player.titles.mockResolvedValue(dashboard(143))
+            progression.titles.mockResolvedValue(dashboard(143))
             act(() => {
                 clicks.record({country: "fr", took: true})
                 clicks.record({country: "de", took: true})
                 clicks.record({country: "fr", took: false})
             })
             expect(screen.getByText("14,214")).toBeDefined()
-            expect(player.titles).toHaveBeenCalledTimes(1)
+            expect(progression.titles).toHaveBeenCalledTimes(1)
 
             await act(async () => vi.advanceTimersByTime(SETTLE_MS))
             vi.useRealTimers()
 
-            expect(player.titles).toHaveBeenCalledTimes(2)
+            expect(progression.titles).toHaveBeenCalledTimes(2)
             expect(await screen.findByText("857 tiles to Raider")).toBeDefined()
             expect(playerInfo.playerInfo).toHaveBeenCalledTimes(1)
         })
 
         it("shows the first countries a signed-in player fought for and against, the rest on demand, and reads them again once its clicks settle", async () => {
             const clicks = acceptedClicks()
-            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, undefined, clicks)
-            player.titles.mockResolvedValue(dashboard(140))
+            const {user, progression} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, undefined, clicks)
+            progression.titles.mockResolvedValue(dashboard(140))
             const against = ["de", "es", "it", "pt", "be"].map((countryCode, i) => ({countryCode, tiles: 50 - i}))
-            player.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 500}], playsAgainst: against})
+            progression.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 500}], playsAgainst: against})
 
             await user.click(await screen.findByRole("button", {name: "You"}))
 
@@ -967,20 +970,20 @@ describe("Menu", () => {
             expect(within(foughtAgainst).getAllByRole("listitem")).toHaveLength(5)
 
             vi.useFakeTimers()
-            player.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 501}], playsAgainst: against})
+            progression.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 501}], playsAgainst: against})
             act(() => clicks.record({country: "fr", took: true}))
             await act(async () => vi.advanceTimersByTime(SETTLE_MS))
             vi.useRealTimers()
 
-            expect(player.fronts).toHaveBeenCalledTimes(2)
+            expect(progression.fronts).toHaveBeenCalledTimes(2)
             expect(await screen.findByText("501")).toBeDefined()
         })
 
         it("folds the countries fought for and against in a phone's narrow sheet", async () => {
-            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, undefined, undefined, true)
-            player.titles.mockResolvedValue(dashboard(140))
+            const {user, progression} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, undefined, undefined, true)
+            progression.titles.mockResolvedValue(dashboard(140))
             const against = ["de", "es", "it", "pt", "be"].map((countryCode, i) => ({countryCode, tiles: 50 - i}))
-            player.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 500}], playsAgainst: against})
+            progression.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 500}], playsAgainst: against})
 
             const foughtAgainst = await screen.findByRole("region", {name: "Fought against"})
             expect(within(foughtAgainst).queryByRole("list")).toBeNull()
@@ -991,8 +994,8 @@ describe("Menu", () => {
         })
 
         it("lists the tracks, and every rank of the first one beside them", async () => {
-            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
-            player.titles.mockResolvedValue(dashboard(140))
+            const {user, progression} = withAccount(["google"], {linked: ["google"]}, "ana")
+            progression.titles.mockResolvedValue(dashboard(140))
 
             await user.click(await screen.findByRole("button", {name: "You"}))
             const conquest = await screen.findByRole("tab", {name: /Conquest · rank 1 of 2/})
@@ -1003,9 +1006,9 @@ describe("Menu", () => {
         })
 
         it("wears the title pressed, and shows it worn", async () => {
-            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
-            player.titles.mockResolvedValueOnce(dashboard(140)).mockResolvedValue({...dashboard(140), worn: og})
-            player.wearTitle.mockResolvedValue(og)
+            const {user, progression} = withAccount(["google"], {linked: ["google"]}, "ana")
+            progression.titles.mockResolvedValueOnce(dashboard(140)).mockResolvedValue({...dashboard(140), worn: og})
+            progression.wearTitle.mockResolvedValue(og)
 
             await user.click(await screen.findByRole("button", {name: "You"}))
             const wear = await screen.findByRole("radiogroup", {name: "Wear a title"})
@@ -1013,18 +1016,18 @@ describe("Menu", () => {
 
             await user.click(within(wear).getByRole("radio", {name: "OG"}))
 
-            expect(player.wearTitle).toHaveBeenCalledWith("og")
+            expect(progression.wearTitle).toHaveBeenCalledWith("og")
             await vi.waitFor(() =>
                 expect(within(wear).getByRole("radio", {name: "OG"}).getAttribute("aria-checked")).toBe("true"))
         })
 
         it("shows a guest no tabs, and reads no titles", async () => {
-            const {user, player} = withAccount(["google"], {linked: []})
+            const {user, progression} = withAccount(["google"], {linked: []})
 
             await user.click(await screen.findByRole("button", {name: "Sign in"}))
 
             expect(screen.queryByRole("tablist", {name: "Account"})).toBeNull()
-            expect(player.titles).not.toHaveBeenCalled()
+            expect(progression.titles).not.toHaveBeenCalled()
         })
 
         it("shows the username, and saves a new one", async () => {

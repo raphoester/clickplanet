@@ -24,8 +24,7 @@ export const rosterEntries = (roster: RosterStore) => roster.state.kind === "rea
 
 export const useRoster = create<RosterStore>()((set) => ({
     state: UNAVAILABLE,
-    // A stream opened again keeps the list it has, until its whole roster comes.
-    follow: () => set((roster) => roster.state.kind === "ready" ? roster : {state: {kind: "loading"}}),
+    follow: () => set({state: {kind: "loading"}}),
     hear: (event) => set((roster) => {
         const {state} = roster
         if (state.kind !== "ready") {

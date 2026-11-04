@@ -1,5 +1,5 @@
 import {useId} from "react"
-import {CountryTiles, Fronts} from "../../backends/player.ts"
+import {CountryTiles, Fronts} from "../../backends/progression.ts"
 import {Countries} from "../../domain/countries.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import Fold from "../components/Fold.tsx"

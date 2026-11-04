@@ -2,8 +2,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render} from "@testing-library/react"
 import {StrictMode} from "react"
-import {NameColor, PlayerTitle, PresenceBackend, RosterEntry, RosterEvent} from "../../backends/player.ts"
-import {SETTLE_MS} from "../../domain/presence.ts"
+import {NameColor, PresenceBackend, RosterEntry, RosterEvent} from "../../backends/player.ts"
 import {useRoster} from "./rosterStore.ts"
 import {useRosterFeed} from "./useRosterFeed.ts"
 
@@ -12,8 +11,8 @@ const bo: RosterEntry = {key: "k2", accountId: "account-bo", name: "guest_Bo", c
 
 const roster = () => useRoster.getState().state
 
-function Harness({backend, onTitleEarned}: {backend?: PresenceBackend, onTitleEarned?: (title: PlayerTitle) => void}) {
-    useRosterFeed(backend, onTitleEarned)
+function Harness({backend}: {backend?: PresenceBackend}) {
+    useRosterFeed(backend)
     return null
 }
 
@@ -21,18 +20,15 @@ function streaming() {
     const stream = {
         emit: (event: RosterEvent): void => void event,
         unavailable: () => {},
-        earn: (title: PlayerTitle): void => void title,
         stop: vi.fn(),
     }
     const backend = {
         heldSession: vi.fn((): string | undefined => undefined),
-        heldIdentity: vi.fn((): string | undefined => undefined),
         announce: vi.fn(),
         leave: vi.fn(),
-        listenForRoster: vi.fn((onEvent: (event: RosterEvent) => void, onUnavailable: () => void, onTitleEarned: (title: PlayerTitle) => void) => {
+        listenForRoster: vi.fn((onEvent: (event: RosterEvent) => void, onUnavailable: () => void) => {
             stream.emit = (event) => act(() => onEvent(event))
             stream.unavailable = () => act(() => onUnavailable())
-            stream.earn = (title) => act(() => onTitleEarned(title))
             return stream.stop
         }),
     }
@@ -43,7 +39,6 @@ afterEach(() => {
     cleanup()
     useRoster.setState({state: {kind: "unavailable"}})
     vi.restoreAllMocks()
-    vi.useRealTimers()
 })
 
 describe("useRosterFeed", () => {
@@ -102,36 +97,5 @@ describe("useRosterFeed", () => {
         expect(stream.stop).toHaveBeenCalledTimes(1)
         stream.emit({kind: "roster", entries: [ana]})
         expect(roster()).toEqual({kind: "ready", entries: [ana]})
-    })
-
-    it("opens the stream again under a new token, and keeps the list it has meanwhile", () => {
-        vi.useFakeTimers()
-        const {backend, stream} = streaming()
-        render(<Harness backend={backend}/>)
-        stream.emit({kind: "roster", entries: [ana]})
-
-        backend.heldIdentity.mockReturnValue("token-1")
-        act(() => vi.advanceTimersByTime(SETTLE_MS))
-
-        expect(stream.stop).toHaveBeenCalledTimes(1)
-        expect(backend.listenForRoster).toHaveBeenCalledTimes(2)
-        expect(roster()).toEqual({kind: "ready", entries: [ana]})
-
-        act(() => vi.advanceTimersByTime(SETTLE_MS))
-        expect(backend.listenForRoster).toHaveBeenCalledTimes(2)
-    })
-
-    it("hands a title earned to the callback it was last given", () => {
-        const {backend, stream} = streaming()
-        const first = vi.fn()
-        const second = vi.fn()
-        const view = render(<Harness backend={backend} onTitleEarned={first}/>)
-        view.rerender(<Harness backend={backend} onTitleEarned={second}/>)
-
-        stream.earn({id: "settler", name: "Settler"})
-
-        expect(first).not.toHaveBeenCalled()
-        expect(second).toHaveBeenCalledWith({id: "settler", name: "Settler"})
-        expect(backend.listenForRoster).toHaveBeenCalledTimes(1)
     })
 })

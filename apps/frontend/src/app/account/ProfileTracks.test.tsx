@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it} from "vitest"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
-import {PlayerTitle, TitleTrack} from "../../backends/player.ts"
+import {PlayerTitle, TitleTrack} from "../../backends/progression.ts"
 import ProfileTracks from "./ProfileTracks.tsx"
 
 afterEach(cleanup)

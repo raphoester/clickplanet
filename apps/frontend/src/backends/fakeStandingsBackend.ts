@@ -2,7 +2,8 @@ import {fakeAccountId} from "./fakeAccounts.ts"
 import {STANDINGS_SHOWN} from "../domain/standings.ts"
 import {TileClicker} from "./backend.ts"
 import {Badge} from "./badges.ts"
-import {NameColor, PlayerTitle} from "./player.ts"
+import {NameColor} from "./player.ts"
+import {PlayerTitle} from "./progression.ts"
 import {BookStep, MySeason, RaceListener, Round, RoundStanding, RoundTakes, Score, Standing, StandingsBackend} from "./standings.ts"
 
 // The title worn is the player's badge: the board names it, and GetBadges draws the title.

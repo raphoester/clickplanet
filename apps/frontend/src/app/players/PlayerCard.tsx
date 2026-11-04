@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useId, useRef, useState} from "react"
-import {PlayerInfo, PlayerInfoBackend, PlayerLine, PlayerTitle} from "../../backends/player.ts"
+import {PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
+import {PlayerTitle} from "../../backends/progression.ts"
 import {PlayerReporter} from "../../backends/support.ts"
 import {Countries} from "../../domain/countries.ts"
 import {useBadge, useBadges} from "../badges/badgesStore.ts"

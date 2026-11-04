@@ -2,19 +2,16 @@ import {FAKE_YOU, fakeAccountId} from "./fakeAccounts.ts"
 import {OWN_GUEST_NAME} from "./fakeChatBackend.ts"
 import {compareRosterEntries} from "../domain/roster.ts"
 import {Badge} from "./badges.ts"
+import {NameColor, Player, PlayerReader, Presence, PresenceBackend, RosterEntry, RosterEvent} from "./player.ts"
 import {
     CountryTiles,
     Fronts,
-    NameColor,
-    PlayerInfo,
-    PlayerInfoBackend,
     PlayerTitle,
-    Presence,
-    PresenceBackend,
-    RosterEntry,
-    RosterEvent,
+    Progress,
+    ProgressReader,
     TitleDashboard,
-} from "./player.ts"
+    TitlesListener,
+} from "./progression.ts"
 
 const SHIFT_MS = 25_000
 
@@ -95,7 +92,7 @@ const PLAYERS: FakePlayer[] = [
     {key: "8", accountId: fakeAccountId("guest_7e21c9"), name: "guest_7e21c9", countryCode: "ng", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
 ]
 
-export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
+export class FakePresenceBackend implements PresenceBackend, PlayerReader, ProgressReader, TitlesListener {
     private own?: {presence: Presence, at: number}
     // The title the signed-in player chose to wear, if any.
     private ownChoice?: string
@@ -121,20 +118,22 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         this.own = undefined
     }
 
-    public earnTitle(id = "conqueror"): void {
+    // Whether a page heard it: only a signed-in one listens.
+    public earnTitle(id = "conqueror"): boolean {
         const trackIndex = TRACKS.findIndex((track) => track.ranks.some((rank) => rank.id === id))
         const title = trackIndex === -1
             ? OG_TITLE
             : rankedTitle(trackIndex, TRACKS[trackIndex].ranks.findIndex((rank) => rank.id === id))
         this.titleListeners.forEach((listener) => listener(title))
+        return this.titleListeners.size > 0
     }
 
-    public listenForRoster(
-        onEvent: (event: RosterEvent) => void,
-        _onUnavailable: () => void,
-        onTitleEarned: (title: PlayerTitle) => void,
-    ): () => void {
-        this.titleListeners.add(onTitleEarned)
+    public listenForTitles(onEarned: (title: PlayerTitle) => void): () => void {
+        this.titleListeners.add(onEarned)
+        return () => this.titleListeners.delete(onEarned)
+    }
+
+    public listenForRoster(onEvent: (event: RosterEvent) => void): () => void {
         let shown = this.roster()
         onEvent({kind: "roster", entries: shown})
 
@@ -149,10 +148,7 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
             }
             shown = next
         }, TICK_MS)
-        return () => {
-            clearInterval(timer)
-            this.titleListeners.delete(onTitleEarned)
-        }
+        return () => clearInterval(timer)
     }
 
     private roster(): RosterEntry[] {
@@ -172,27 +168,29 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         return entries.sort(compareRosterEntries)
     }
 
-    public async playerInfo(accountId: string): Promise<PlayerInfo | undefined> {
-        const player = accountId === FAKE_YOU ? YOU : PLAYERS.find((p) => p.accountId === accountId)
+    public async player(accountId: string): Promise<Player | undefined> {
+        const player = playerOf(accountId)
         if (!player) return undefined
-        if (player.guest) {
-            return {
-                name: player.name, guest: true, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false,
-                color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
-            }
+        if (player.guest) return {name: player.name, guest: true, admin: false, color: NameColor.UNSPECIFIED}
+        return {
+            name: player.name, guest: false, admin: player.admin, color: player.color,
+            createdAt: this.career(player).createdAt,
         }
+    }
+
+    public async progress(accountId: string): Promise<Progress | undefined> {
+        const player = playerOf(accountId)
+        if (!player || player.guest) return undefined
 
         const career = this.career(player)
         return {
-            ...career,
+            tilesTaken: career.tilesTaken,
+            streakCurrent: player.streak,
+            streakBest: career.streakBest,
+            titles: career.titles,
+            wornTitle: player === YOU ? this.ownWorn() : career.wornTitle,
             playsFor: career.playsFor.slice(0, SHOWN_FRONTS),
             playsAgainst: career.playsAgainst.slice(0, SHOWN_FRONTS),
-            name: player.name,
-            guest: false,
-            streakCurrent: player.streak,
-            admin: player.admin,
-            color: player.color,
-            wornTitle: player === YOU ? this.ownWorn() : career.wornTitle,
         }
     }
 
@@ -243,6 +241,10 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
 }
 
 const SHOWN_FRONTS = 3
+
+function playerOf(accountId: string): FakePlayer | undefined {
+    return accountId === FAKE_YOU ? YOU : PLAYERS.find((p) => p.accountId === accountId)
+}
 
 function rosterEntryOf({key, accountId, name, countryCode, guest, admin, color}: FakePlayer): RosterEntry {
     return {key, accountId, name, countryCode, guest, admin, color}

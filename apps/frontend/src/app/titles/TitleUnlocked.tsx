@@ -1,6 +1,6 @@
 import {CSSProperties, useEffect, useId, useRef, useState} from "react"
 import {createPortal} from "react-dom"
-import {PlayerTitle} from "../../backends/player.ts"
+import {PlayerTitle} from "../../backends/progression.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
 import {useModalDialog} from "../components/useDialog.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"

@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react"
 import {Me} from "../../backends/account.ts"
-import {Fronts, TitleDashboard} from "../../backends/player.ts"
+import {Fronts, TitleDashboard} from "../../backends/progression.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import {useReadsAfterClicks} from "../viewer/useAcceptedClicks.ts"
 import {AccountStore} from "./accountStore.ts"

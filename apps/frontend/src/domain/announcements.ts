@@ -1,6 +1,6 @@
 import {Appearance} from "../backends/clips.ts"
 import {FlagMission} from "../backends/missions.ts"
-import {PlayerTitle} from "../backends/player.ts"
+import {PlayerTitle} from "../backends/progression.ts"
 import {Battle, battleKeyOf, Finale} from "./battle.ts"
 import {Reveal, revealKeyOf} from "./roundReveal.ts"
 

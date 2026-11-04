@@ -10,16 +10,8 @@ import {
     PROVIDERS,
     SignInOutcome,
 } from "../../backends/account.ts"
-import {
-    Fronts,
-    NameColor,
-    PlayerBackend,
-    PlayerFailure,
-    playerFailureOf,
-    PlayerTitle,
-    RenameTooSoonError,
-    TitleDashboard,
-} from "../../backends/player.ts"
+import {NameColor, PlayerBackend, PlayerFailure, playerFailureOf, RenameTooSoonError} from "../../backends/player.ts"
+import {Fronts, PlayerTitle, ProgressionBackend, TitleDashboard} from "../../backends/progression.ts"
 import {SessionProvider} from "../../backends/session.ts"
 import {useBadges} from "../badges/badgesStore.ts"
 import {CrazyGamesUser} from "../../backends/crazyGames.ts"
@@ -79,6 +71,7 @@ export class AccountStore {
     constructor(
         private readonly backend: AccountBackend,
         private readonly player: PlayerBackend,
+        private readonly progression: ProgressionBackend,
         private readonly session: SessionProvider,
         private readonly options: AccountStoreOptions,
     ) {
@@ -88,19 +81,19 @@ export class AccountStore {
 
     public titles = async (): Promise<TitleDashboard> => {
         const generation = this.generation
-        const dashboard = await this.player.titles()
+        const dashboard = await this.progression.titles()
         this.wore(generation, dashboard.worn)
         return dashboard
     }
 
     public wearTitle = async (id: string): Promise<PlayerTitle | undefined> => {
         const generation = this.generation
-        const worn = await this.player.wearTitle(id)
+        const worn = await this.progression.wearTitle(id)
         this.wore(generation, worn)
         return worn
     }
 
-    public fronts = (): Promise<Fronts> => this.player.fronts()
+    public fronts = (): Promise<Fronts> => this.progression.fronts()
 
     public subscribe = (listener: () => void): (() => void) => {
         this.listeners.add(listener)

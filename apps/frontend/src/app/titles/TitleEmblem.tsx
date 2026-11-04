@@ -1,5 +1,5 @@
 import {ReactNode, useId} from "react"
-import {PlayerTitle} from "../../backends/player.ts"
+import {PlayerTitle} from "../../backends/progression.ts"
 import {BANDS, enamelOf, METALS, metalOf, ribbonOf, seasonOf} from "./titleArt.ts"
 
 const INK = "var(--ink)"
