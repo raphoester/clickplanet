@@ -94,7 +94,7 @@ internal/chat/internal/
     day_ended_subscriber/               gamemaster.v1.DayEnded → announce_round_usecase, as a DayOf
     battle_ended_subscriber/            gamemaster.v1.BattleEnded → announce_round_usecase, as a BattleOf
     season_ended_subscriber/            gamemaster.v1.SeasonEnded → announce_champion_usecase
-    account_deleted_subscriber/         auth.v1.AccountDeleted → forget_seen_usecase
+    player_forgotten_subscriber/        player.v1.PlayerForgotten → forget_seen_usecase
     allegiance_pledged_subscriber/      planet.v1.AllegiancePledged → leave_room_usecase, for the flag left
     log_subscriber/                     logs an event a subscriber refused (player's, copied)
   migrations/                           the chat schema

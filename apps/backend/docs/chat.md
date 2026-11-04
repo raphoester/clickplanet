@@ -258,8 +258,11 @@ while it was away: the badge counts it, and the lines light up as the chat opens
   hour, so a player back the next day holds none at load: exactly the visit the mark is for. The identity token
   the cookie resumes names it with no Turnstile check. A seen mark is a write, but only of the caller's own state,
   so it needs no proof of a check.
-- **Forgotten with the account**: `account_deleted_subscriber` hears `auth.v1.AccountDeleted` and deletes the row.
-  There is no prune: a row lives as long as its account, and auth's guest prune deletes the guests.
+- **Forgotten with the account**: `player_forgotten_subscriber` hears `player.v1.PlayerForgotten` (`chat-seen-forgotten`),
+  which player tells for every account auth deletes, and deletes the row. There is no prune: a row lives as long as its
+  account, and auth's guest prune deletes the guests. Until 2026-11-04 it heard `auth.v1.AccountDeleted`
+  (`chat-seen`); why the new group misses no deletion is in
+  [Player](player.md#the-deploy-that-moved-the-others-to-players-events).
 - `TestAnIdentityTokenNamesTheReaderAndTheSeenMarkOnly` pins the identity path, the history query's
   `TestTheSeenMarkOnlyMovesForward` the mark, and `TestADeletedSeenMarkIsGoneAndOnlyThatOne` the deletion.
 
