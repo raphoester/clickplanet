@@ -58,9 +58,11 @@ function setup(backend: Fake, player: FakePlayer = fakePlayer(), crazyGames?: Cr
     const session: SessionProvider = {token: vi.fn(async () => "token"), held: vi.fn(() => "token"), identity: vi.fn(async () => "token"), heldIdentity: vi.fn(() => "token"), invalidate: vi.fn()}
     const navigate = vi.fn()
     const remember = vi.fn()
+    const claimFlag = vi.fn(async () => undefined)
     const store = new AccountStore(
-        backend as unknown as AccountBackend, player as unknown as PlayerBackend, session, {navigate, remember, crazyGames, leavers})
-    return {store, session, navigate, remember, player}
+        backend as unknown as AccountBackend, player as unknown as PlayerBackend, session,
+        {navigate, remember, claimFlag, crazyGames, leavers})
+    return {store, session, navigate, remember, claimFlag, player}
 }
 
 function held<T>() {
@@ -191,6 +193,50 @@ describe("AccountStore", () => {
             expect(backend.startSignIn).toHaveBeenCalledWith("discord", intent)
             expect(remember).toHaveBeenCalledWith("discord", intent)
             expect(navigate).toHaveBeenCalledWith("https://discord.example/authorize")
+        })
+
+        it.each<[string, (store: AccountStore) => Promise<void>]>([
+            ["a connection", (store) => store.connectDiscord()],
+            ["a sign-in", (store) => store.signIn("discord")],
+            ["a link", (store) => store.link("discord")],
+        ])("pledges the page's flag before Discord's %s, whose join gives the flag's role", async (_, leave) => {
+            const backend = fakeBackend()
+            const {store, claimFlag} = setup(backend)
+            await store.load()
+            const calls: string[] = []
+            claimFlag.mockImplementation(async () => {
+                calls.push("pledge")
+            })
+            backend.startSignIn.mockImplementation(async () => {
+                calls.push("leave")
+                return "https://discord.example/authorize"
+            })
+
+            await leave(store)
+
+            expect(calls).toEqual(["pledge", "leave"])
+        })
+
+        it("leaves for Discord all the same when the pledge before it fails", async () => {
+            const backend = fakeBackend()
+            const {store, claimFlag, navigate} = setup(backend)
+            await store.load()
+            claimFlag.mockRejectedValue(new Error("planet unreachable"))
+            vi.spyOn(console, "error").mockImplementation(() => {})
+
+            await store.connectDiscord()
+
+            expect(navigate).toHaveBeenCalledWith("https://discord.example/authorize")
+        })
+
+        it("pledges nothing before another provider's sign-in", async () => {
+            const backend = fakeBackend()
+            const {store, claimFlag} = setup(backend)
+            await store.load()
+
+            await store.signIn("google")
+
+            expect(claimFlag).not.toHaveBeenCalled()
         })
 
         it("throws a refused Discord connection, for the button that asked, and keeps the panel as it was", async () => {

@@ -27,7 +27,8 @@ other. Now auth names no module, and the join lands a second or two after the si
 - **`join_server_usecase`** asks planet the flag the account pledged (`planet.v1.InternalService/GetAllegianceOf`),
   makes its role if needed, adds the user to the server with it (`PUT /guilds/{guild}/members/{user}`, or the role
   granted when the user is in it already), and keeps the link. An account that never pledged joins with no role: its
-  first pledge gives it.
+  first pledge gives it. The game pledges the page's flag before the trip, so a guest that has not clicked yet
+  pledged one.
 - **An account linked to this user already changes nothing**: every Discord sign-in grants a join, and a user who left
   the server since is not added back by each one. A grant heard twice is the same: the second finds the link.
 - **One Discord user, one account.** A user linked from another account moves here: the first link is forgotten.

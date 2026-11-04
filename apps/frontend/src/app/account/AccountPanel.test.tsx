@@ -37,7 +37,7 @@ async function signedIn(profile: ColoredProfile, setName: (name: string) => Prom
         ? {token: vi.fn(async () => "the-jwt"), prompt: vi.fn(async () => true), listenForSignIn: vi.fn(() => () => undefined)}
         : undefined
     const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()},
-        {navigate: vi.fn(), remember: vi.fn(), crazyGames})
+        {navigate: vi.fn(), remember: vi.fn(), claimFlag: vi.fn(), crazyGames})
     await store.load()
     await vi.waitFor(() => expect(store.state()).toMatchObject({username: profile.name}))
 

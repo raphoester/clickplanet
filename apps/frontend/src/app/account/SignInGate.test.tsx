@@ -12,7 +12,7 @@ const code = {kind: "code" as const, code: "abc", state: "xyz"}
 
 function setup() {
     const accountBackend = new FakeAccountBackend()
-    const account = new AccountStore(accountBackend, accountBackend, new NoSession(), {navigate: vi.fn(), remember: rememberSignIn})
+    const account = new AccountStore(accountBackend, accountBackend, new NoSession(), {navigate: vi.fn(), remember: rememberSignIn, claimFlag: vi.fn()})
     const completeSignIn = vi.spyOn(accountBackend, "completeSignIn")
 
     render(<StrictMode>

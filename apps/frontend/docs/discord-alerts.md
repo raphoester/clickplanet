@@ -68,9 +68,12 @@ page, `joinIfAsked` starts the sign-in, once. An account in the server already, 
 nothing. The home page carries its own query onto it, as onto Play (see [Pages and routes](routes.md)), so a
 newcomer from a share link joins with that link's flag.
 
-**A newcomer joins with no role until its first pledge**: a new guest pledges at its first click (see
-[The flag played for](flag.md)), and the backend grants the role then (see the backend's
-[Discord pings](../../backend/docs/alerts.md)). The game does not pledge for it: the pledge locks the flag for an hour.
+**The game pledges the page's flag before every Discord trip** (`claimFlag`, see
+[The flag played for](flag.md)), when the account holds none. The backend gives the role of the flag pledged at the
+join (see the backend's [Discord pings](../../backend/docs/alerts.md)), and a new guest otherwise pledges only at its
+first click: until Nov 4 2026, a newcomer who joined before a click came in with no role. A first flag starts no wait,
+so the pledge costs nothing. Under a battle's lock it holds the player to that flag until the battle ends, as a
+first click would.
 
 ## The trip
 

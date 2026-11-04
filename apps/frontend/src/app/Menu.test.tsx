@@ -779,7 +779,7 @@ describe("Menu", () => {
                 fronts: vi.fn(async (): Promise<Fronts> => ({playsFor: [], playsAgainst: []})),
                 wearTitle: vi.fn(async (): Promise<PlayerTitle | undefined> => undefined),
             } satisfies PlayerBackend
-            const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
+            const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn(), claimFlag: vi.fn()})
             const view = render(phone
                 ? <YouPlace account={store} playerInfo={playerInfo} listenForClicks={clicks?.listenForClicks}/>
                 : <Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}

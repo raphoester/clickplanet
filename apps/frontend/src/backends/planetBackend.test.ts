@@ -1936,6 +1936,47 @@ describe("PlanetBackend allegiance", () => {
         backend.close()
     })
 
+    it("claims the flag the clicks are priced for, for an account that holds none, and the first click pledges no more", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(new GetAllegianceResponse())
+        const pledgeAllegiance = vi.fn().mockResolvedValue(new PledgeAllegianceResponse())
+        const click = vi.fn().mockResolvedValue({})
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance, click}), 1_000, sessionMinting("session-1"))
+        backend.priceFor("bg")
+
+        await backend.claimFlag()
+        expect(pledgeAllegiance).toHaveBeenCalledTimes(1)
+        expect(pledgeAllegiance.mock.calls[0][0]).toEqual({countryId: "bg"})
+        expect((pledgeAllegiance.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
+
+        await backend.clickTile(7, "bg")
+        expect(pledgeAllegiance).toHaveBeenCalledTimes(1)
+        expect(click).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("claims nothing for an account that holds a flag", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(held("fr"))
+        const pledgeAllegiance = vi.fn()
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance}), 1_000, fixedSession("session-1"))
+        backend.priceFor("fr")
+
+        await backend.claimFlag()
+
+        expect(pledgeAllegiance).not.toHaveBeenCalled()
+        backend.close()
+    })
+
+    it("claims nothing before the page names its flag", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(new GetAllegianceResponse())
+        const pledgeAllegiance = vi.fn()
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance}), 1_000, sessionMinting("session-1"))
+
+        await backend.claimFlag()
+
+        expect(pledgeAllegiance).not.toHaveBeenCalled()
+        backend.close()
+    })
+
     it("sends no click when the pledge before it failed, and tries again on the next click", async () => {
         const getAllegiance = vi.fn().mockResolvedValue(new GetAllegianceResponse())
         const pledgeAllegiance = vi.fn()
