@@ -46,8 +46,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/usecases/set_name_shown_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/snapshots/postgres_snapshot_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/snapshots/usecases/keep_snapshot_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/postgres_video_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/s3_video_bucket"
@@ -118,23 +118,23 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 	appearances := postgres_appearance_store.New(db)
 	optOuts := postgres_optout_store.New(db)
 
-	forgottenCasts, err := cpredis.Subscribe(ctx, streams, "clips-casts-accounts",
-		log_subscriber.New(account_deleted_subscriber.New(forget_casts.New(castStore)), props.Logger))
+	forgottenCasts, err := cpredis.Subscribe(ctx, streams, "clips-casts-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_casts.New(castStore)), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe the casts to auth.v1.AccountDeleted: %w", err)
+		return fmt.Errorf("failed to subscribe the casts to player.v1.PlayerForgotten: %w", err)
 	}
-	forgottenAppearances, err := cpredis.Subscribe(ctx, streams, "clips-appearances-accounts",
-		log_subscriber.New(account_deleted_subscriber.New(forget_appearances.New(appearances)), props.Logger))
+	forgottenAppearances, err := cpredis.Subscribe(ctx, streams, "clips-appearances-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_appearances.New(appearances)), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe the appearances to auth.v1.AccountDeleted: %w", err)
+		return fmt.Errorf("failed to subscribe the appearances to player.v1.PlayerForgotten: %w", err)
 	}
-	forgottenOptOuts, err := cpredis.Subscribe(ctx, streams, "clips-optouts-accounts",
-		log_subscriber.New(account_deleted_subscriber.New(forget_optouts.New(optOuts)), props.Logger))
+	forgottenOptOuts, err := cpredis.Subscribe(ctx, streams, "clips-optouts-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_optouts.New(optOuts)), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe the opt-outs to auth.v1.AccountDeleted: %w", err)
+		return fmt.Errorf("failed to subscribe the opt-outs to player.v1.PlayerForgotten: %w", err)
 	}
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
