@@ -85,6 +85,12 @@ the player in all the same, and the bar offers to join again once the reads give
 **To try the offer again**, an operator unlinks the account on the backoffice's player page (the Discord tool): the
 next load offers "Join Discord" again. A player cannot unlink: leaving the server is how they stop the pings.
 
+**A player who signed in with Discord before the sign-in joined the server** has no link, so the page offers them the
+same "Join Discord" and "Get pinged": for an account signed in already it is a link of the identity it holds, which
+joins the server like any Discord sign-in. Nothing else could add them: Discord adds a user to a server only with that
+user's own consent. The ones in the server already, by an invite, need no press: the backoffice's "Link Discord
+members" gives them their role (see the backend's [Discord pings](../../backend/docs/alerts.md#the-players-a-sign-in-never-joined-linkmembers)).
+
 ## A ping's link opens the globe on the attack
 
 An attack's ping links to `/play?lat=40.42&lon=-100.00&zoom=3.0` (see the backend's

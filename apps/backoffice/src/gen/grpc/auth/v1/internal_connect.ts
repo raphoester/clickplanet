@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetDiscordGrantRequest, GetDiscordGrantResponse, GetOperatorRequest, GetOperatorResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
+import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetDiscordGrantRequest, GetDiscordGrantResponse, GetDiscordUsersRequest, GetDiscordUsersResponse, GetOperatorRequest, GetOperatorResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -61,6 +61,19 @@ export const InternalService = {
       name: "GetDiscordGrant",
       I: GetDiscordGrantRequest,
       O: GetDiscordGrantResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Every account signed in with Discord and its Discord user, a page at a time, in the order of the account ids. An
+     * account its player asked to delete is left out. A page shorter than the limit is the last one.
+     *
+     * @generated from rpc auth.v1.InternalService.GetDiscordUsers
+     */
+    getDiscordUsers: {
+      name: "GetDiscordUsers",
+      I: GetDiscordUsersRequest,
+      O: GetDiscordUsersResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

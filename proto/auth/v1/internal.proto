@@ -18,6 +18,12 @@ service InternalService {
   rpc GetDiscordGrant(GetDiscordGrantRequest) returns (GetDiscordGrantResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // Every account signed in with Discord and its Discord user, a page at a time, in the order of the account ids. An
+  // account its player asked to delete is left out. A page shorter than the limit is the last one.
+  rpc GetDiscordUsers(GetDiscordUsersRequest) returns (GetDiscordUsersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetVerifyingKeyRequest {}
@@ -67,4 +73,20 @@ message GetDiscordGrantResponse {
   // A Discord access token with the scope guilds.join: it adds the user to the game's server. The caller keeps it
   // for that call alone.
   string access_token = 3;
+}
+
+message GetDiscordUsersRequest {
+  // Empty: from the first account. Else the accounts after this one.
+  string after_account_id = 1;
+  // 0 is 500, and more is 500.
+  uint32 limit = 2;
+}
+
+message GetDiscordUsersResponse {
+  repeated DiscordUser users = 1;
+}
+
+message DiscordUser {
+  string account_id = 1;
+  string discord_user_id = 2;
 }
