@@ -73,8 +73,9 @@ return []bootstrap.Module{
 | `missions` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per account and day, to draw its missions, and on each `GetMissions`, for its flag's mission | `missions/rpc_planet_allegiance` |
 | `missions` | `auth.v1.InternalService/GetAccount` | whether an account is signed in, when a take finishes one of its missions | `missions/rpc_auth_accounts` |
 | `chat` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account plays for, on each call to a flag's room: a post, a reaction, a history, a seen mark, a stream | `messages/rpc_planet_flags` |
-| `alerts` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per join of an account not linked yet, for the role it joins the server with | `links/rpc_planet_allegiance` |
+| `alerts` | `planet.v1.InternalService/GetAllegianceOf` | the flag an account pledged, once per join of an account not linked yet, for the role it joins the server with, and once per member a `LinkMembers` links | `links/rpc_planet_allegiance` |
 | `alerts` | `auth.v1.InternalService/GetDiscordGrant` | the account, the Discord user and the token a Discord sign-in traded, once per `DiscordJoinGranted` heard (and per try again), to join the game's Discord server; `NotFound` once auth keeps it no more | `links/rpc_auth_grants` |
+| `alerts` | `auth.v1.InternalService/GetDiscordUsers` | every account signed in with Discord and its Discord user, a page of 100 at a time, on each operator's `LinkMembers` | `links/rpc_auth_discord_accounts` |
 | `clips` | `planet.v1.InternalService/GetLedger` | who took which tile in a run's window, page after page, on each `MakeCast` | `casts/rpc_planet_ledger` |
 | `clips` | `player.v1.InternalService/GetAuthors` | the name each of those accounts may be shown under in the clips, on each `MakeCast` | `casts/rpc_player_names` |
 | `gamemaster` | `planet.v1.InternalService/GetRuleSetNames` and `antibot.v1.InternalService/GetRuleSetNames` | the rule sets each module keeps, on each schedule entry an operator adds or edits | `schedule/rpc_planet_rule_sets`, `schedule/rpc_antibot_rule_sets` |

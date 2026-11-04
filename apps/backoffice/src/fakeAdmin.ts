@@ -35,6 +35,8 @@ import {
     DiscordLink,
     GetPlayerLinkRequest,
     GetPlayerLinkResponse,
+    LinkMembersRequest,
+    LinkMembersResponse,
     UnlinkPlayerRequest,
     UnlinkPlayerResponse,
 } from "./gen/grpc/alerts/v1/admin_pb.ts"
@@ -166,6 +168,8 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     discordLink: DiscordLink | undefined = new DiscordLink({
         discordUserId: "80351110224678912", countryId: "fr", linkedAtUnixMs: BigInt(AT.getTime()),
     })
+    // What LinkMembers answers.
+    membersLinked = new LinkMembersResponse({linked: 7, outside: 13})
     message = new GetMessageResponse({
         messageId: "message-1", accountId: "account-reported", body: textBody("you all suck"),
         sentAt: Timestamp.fromDate(AT), countryId: "fr",
@@ -594,6 +598,10 @@ export class FakeAlerts implements AlertsAdmin {
         const answer = this.admin.answer("unlinkPlayer", request, new UnlinkPlayerResponse({unlinked}))
         if (!this.admin.refusals.has("unlinkPlayer")) this.admin.discordLink = undefined
         return answer
+    }
+
+    linkMembers(request: PartialMessage<LinkMembersRequest>): Promise<LinkMembersResponse> {
+        return this.admin.answer("linkMembers", request, this.admin.membersLinked)
     }
 }
 

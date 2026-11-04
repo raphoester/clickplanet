@@ -112,7 +112,8 @@ and says what is in it. Read the doc before you change its area.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
 - [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role; the role
   follows the flag pledged, in a color of its own; the pings when its flag is attacked, with a link that opens the
-  globe on the attack, and `@everyone` when a battle or a season starts; the operator's unlink; off by default.
+  globe on the attack, and `@everyone` when a battle or a season starts; the operator's unlink; `LinkMembers`, which
+  links the players in the server no sign-in linked; off by default.
 - [Clip stats](docs/clip-stats.md) — where the posted clips' daily numbers are kept, for the backoffice.
 - [Clip videos](docs/clip-videos.md) — the videos the operator posts by hand: uploaded and downloaded on the backoffice,
   the files in the bucket under `clips/videos/`, a row each in `clips.videos`.
@@ -122,6 +123,7 @@ and says what is in it. Read the doc before you change its area.
 ## Operator tools and jobs
 
 - [Operator tools (`AdminService`)](docs/admin.md) — the console and admin listeners; `GrantCharges`,
-  `ReleaseAllegiance`, `GetReplay`, `GetLedger`, `PaintRandomTiles`, manual bans, a player's Discord link.
+  `ReleaseAllegiance`, `GetReplay`, `GetLedger`, `PaintRandomTiles`, manual bans, a player's Discord link, linking the
+  Discord members.
 - [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them; its
   experiments, the model editor and the stats.

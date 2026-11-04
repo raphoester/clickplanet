@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetPlayerLinkRequest, GetPlayerLinkResponse, UnlinkPlayerRequest, UnlinkPlayerResponse } from "./admin_pb.js";
+import { GetPlayerLinkRequest, GetPlayerLinkResponse, LinkMembersRequest, LinkMembersResponse, UnlinkPlayerRequest, UnlinkPlayerResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -34,6 +34,19 @@ export const AdminService = {
       name: "UnlinkPlayer",
       I: UnlinkPlayerRequest,
       O: UnlinkPlayerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Links every account signed in with Discord that has no link and whose Discord user is in the server already: it
+     * joined by the invite, or signed in before the sign-in asked to join. The bot grants it its flag's role. A user not
+     * in the server is left as it is: only its own Discord sign-in can add it. A second run links nobody twice.
+     *
+     * @generated from rpc alerts.v1.AdminService.LinkMembers
+     */
+    linkMembers: {
+      name: "LinkMembers",
+      I: LinkMembersRequest,
+      O: LinkMembersResponse,
       kind: MethodKind.Unary,
     },
   }
