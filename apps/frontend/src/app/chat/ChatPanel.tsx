@@ -2,7 +2,6 @@ import {ReactNode, useCallback, useEffect, useId, useRef, useState} from "react"
 import {ChatBackend, ChatMessage, Gif, OutgoingMessage} from "../../backends/chat.ts";
 import {GifChoice, GifQuery, GifSearch} from "../../backends/gifs.ts";
 import {wordsOf} from "../../domain/chatLog.ts";
-import {RosterEntry} from "../../backends/player.ts";
 import {PlayerReporter} from "../../backends/support.ts";
 import {Country} from "../../domain/countries.ts";
 import {ChevronIcon} from "../components/icons.tsx";
@@ -13,6 +12,7 @@ import {usePageVisible} from "../usePageVisible.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 import Sheet from "../hud/Sheet.tsx";
 import PlayersPanel from "../players/PlayersPanel.tsx";
+import {onlineCount, useRoster} from "../players/rosterStore.ts";
 import {authorOf, authorStyle} from "./authorStyle.ts";
 import {RESIZE_EDGES} from "./chatSize.ts";
 import ChatComposer from "./ChatComposer.tsx";
@@ -42,7 +42,6 @@ export type ChatPanelProps = {
     accountId?: string
     username?: string
     reporter?: PlayerReporter
-    players?: readonly RosterEntry[]
     compact?: boolean
     open?: boolean
     onOpenChange?: (open: boolean) => void
@@ -68,7 +67,7 @@ export default function ChatPanel(props: ChatPanelProps) {
     const {onOpenChange} = props
     const setOpen = useCallback((open: boolean) => onOpenChange ? onOpenChange(open) : setOwnOpen(open), [onOpenChange])
     const [view, setView] = useState<View>("world")
-    const players = props.players
+    const online = useRoster(onlineCount)
     const visible = usePageVisible()
     const looking = isOpen && visible
 
@@ -83,7 +82,7 @@ export default function ChatPanel(props: ChatPanelProps) {
     const locked = onSignIn !== undefined
     const world = useChatRoom({
         backend: props.backend, accountId, username, playSound,
-        seeing: looking && (view === "world" || (view === "online" && !players)),
+        seeing: looking && (view === "world" || (view === "online" && online === undefined)),
     })
     const flag = useChatRoom({
         backend: flagRoom?.backend, accountId, username, playSound: locked ? undefined : playSound, onLeft: props.onLeftRoom,
@@ -148,23 +147,23 @@ export default function ChatPanel(props: ChatPanelProps) {
         return sent
     }
 
-    const tabs = (players || flagCountry) && <div className="chat-tabs" role="tablist" aria-label="Chat">
+    const tabs = (online !== undefined || flagCountry) && <div className="chat-tabs" role="tablist" aria-label="Chat">
         <RoomTab on={shown === "world"} name={flagCountry ? "World" : "Chat"} unread={world.unread}
                  onClick={() => choose("world")}/>
         {flagCountry && <RoomTab on={shown === "flag"} name={flagCountry.name} flag={flagCountry.code}
                                  unread={flag.unread} locked={locked} onClick={() => choose("flag")}/>}
-        {players && <button type="button"
-                            role="tab"
-                            aria-selected={shown === "online"}
-                            aria-label={players.length === 1 ? "1 player online" : `${players.length} players online`}
-                            className={shown === "online" ? "chat-tab chat-tab--on" : "chat-tab"}
-                            onClick={() => choose("online")}>
-            Online · {players.length}
+        {online !== undefined && <button type="button"
+                                         role="tab"
+                                         aria-selected={shown === "online"}
+                                         aria-label={online === 1 ? "1 player online" : `${online} players online`}
+                                         className={shown === "online" ? "chat-tab chat-tab--on" : "chat-tab"}
+                                         onClick={() => choose("online")}>
+            Online · {online}
         </button>}
     </div>
 
-    const body: ReactNode = shown === "online" && players
-        ? <div className="chat-players"><PlayersPanel entries={players}/></div>
+    const body: ReactNode = shown === "online" && online !== undefined
+        ? <div className="chat-players"><PlayersPanel/></div>
         : shown === "flag" && flagCountry && onSignIn
         ? <LockedRoom country={flagCountry} unread={flag.unread} onSignIn={onSignIn}/>
         : <>

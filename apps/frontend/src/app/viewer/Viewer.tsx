@@ -69,7 +69,8 @@ import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
 import {useTerritoryPlayers} from "../territory/useTerritoryPlayers.ts";
 import {useTileHolder} from "../players/useTileHolder.ts";
 import {usePresence} from "../players/usePresence.ts";
-import {useRoster} from "../players/useRoster.ts";
+import {useRosterFeed} from "../players/useRosterFeed.ts";
+import {onlineCount, useRoster} from "../players/rosterStore.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
 import SignInNudgeModal from "../account/SignInNudgeModal.tsx";
 import {useSignInNudge} from "../account/useSignInNudge.ts";
@@ -201,7 +202,8 @@ export default function Viewer(props: ViewerProps) {
 
     useQuizMaster(props.quizMaster, countryState.code, sound.play)
     const announce = useAnnouncements((announcements) => announcements.announce)
-    const roster = useRoster(props.presence, (title) => announce({kind: "title", title}))
+    useRosterFeed(props.presence, (title) => announce({kind: "title", title}))
+    const crowd = useRoster(onlineCount)
     const schedule = useSchedule(props.turn)
     const season = useSeason(schedule.seasons.current)
     const bookId = schedule.seasons.current?.bookId ?? endedBookOf(schedule.debrief)
@@ -286,7 +288,7 @@ export default function Viewer(props: ViewerProps) {
         playSound: sound.play,
         onClickAccepted: accepted.record,
         country: countryState,
-        crowd: roster.kind === "ready" ? roster.entries.length : undefined,
+        crowd,
         clickHue: hueOf(color),
         mapView,
         halo: haloOf(battle, halloween),
@@ -483,7 +485,6 @@ export default function Viewer(props: ViewerProps) {
             accountId={ownAccountId}
             username={username}
             reporter={props.support}
-            players={roster.kind === 'ready' ? roster.entries : undefined}
             compact={compact}
             open={compact ? sheet === "chat" : undefined}
             onOpenChange={compact ? (open) => open ? openSheet("chat") : closeSheet() : undefined}

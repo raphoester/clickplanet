@@ -22,6 +22,10 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
 - **A backend that already holds and tells a state is read as it is.** `AccountStore` and `ConnectionHealth`
   subscribe and notify by hand, which is what a store does; a component reads them through their hooks, `useAccount`
   and `useConnection`.
+- **What a backend sends goes into its store from where its inputs are.** A hook that `Viewer` calls with the
+  backend and what it knows links the two (`useQuizMaster`, `useRosterFeed`): it subscribes, writes the store, and
+  puts the store back to its start once it stops, so nothing stale shows after it and StrictMode's second run follows
+  one stream. `Viewer` reads back only what it hands the globe or a hook itself, such as the roster's count.
 - **A test sets a store with `use<Feature>.setState(...)` and puts it back in `afterEach`**, since the store lives as
   long as the module.
 

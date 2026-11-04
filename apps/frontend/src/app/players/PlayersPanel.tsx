@@ -10,16 +10,14 @@ import TitleBadge from "../titles/TitleBadge.tsx"
 import {truncate} from "../truncate.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {usePlayerCard} from "./playerCardStore.ts"
+import {rosterEntries, useRoster} from "./rosterStore.ts"
 import "./Players.css"
 import "./PlayerCard.css"
 
 const NAME_MAX_LENGTH = 16
 
-export type PlayersPanelProps = {
-    entries: readonly RosterEntry[]
-}
-
-export default function PlayersPanel({entries}: PlayersPanelProps) {
+export default function PlayersPanel() {
+    const entries = useRoster(rosterEntries)
     if (entries.length === 0) {
         return <p className="players-empty">Nobody is playing right now.</p>
     }

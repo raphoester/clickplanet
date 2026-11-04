@@ -22,7 +22,8 @@ import {
 } from "../../backends/chat.ts"
 import {Countries} from "../../domain/countries.ts"
 import {GifQuery} from "../../backends/gifs.ts"
-import {NameColor} from "../../backends/player.ts"
+import {NameColor, RosterEntry} from "../../backends/player.ts"
+import {useRoster} from "../players/rosterStore.ts"
 
 const france = Countries.get("fr")!
 
@@ -116,7 +117,12 @@ const send = async (user: ReturnType<typeof userEvent.setup>, text: string) => {
 }
 
 beforeEach(() => window.localStorage.clear())
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    useRoster.setState({state: {kind: "unavailable"}})
+})
+
+const online = (entries: RosterEntry[]) => useRoster.setState({state: {kind: "ready", entries}})
 
 describe("ChatPanel sound", () => {
     const withSound = (backend: ChatBackend, username?: string, accountId?: string) => {
@@ -1264,7 +1270,7 @@ describe("ChatPanel on a desktop", () => {
 })
 
 describe("ChatPanel's players", () => {
-    const players = [
+    const players: RosterEntry[] = [
         {key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
         {key: "k2", accountId: "account-b0b", name: "guest_b0b0b0", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
     ]
@@ -1272,7 +1278,8 @@ describe("ChatPanel's players", () => {
     it("shows who is online beside the chat, and goes back to it", async () => {
         const {backend} = stubBackend([message("a", "who took Brittany")])
         const user = userEvent.setup()
-        render(<ChatPanel backend={backend} country={france} players={players}/>)
+        online(players)
+        render(<ChatPanel backend={backend} country={france}/>)
         await screen.findByText("who took Brittany")
 
         await user.click(screen.getByRole("tab", {name: "2 players online"}))
@@ -1287,7 +1294,8 @@ describe("ChatPanel's players", () => {
         const T = 1_700_000_000_000
         const {backend, broadcast} = stubBackend([message("a", "who took Brittany", T)], [], T)
         const user = userEvent.setup()
-        render(<ChatPanel backend={backend} country={france} players={players}/>)
+        online(players)
+        render(<ChatPanel backend={backend} country={france}/>)
         await screen.findByText("who took Brittany")
         await user.click(screen.getByRole("tab", {name: "2 players online"}))
 
@@ -1301,13 +1309,15 @@ describe("ChatPanel's players", () => {
     })
 
     it("counts one player in the singular", () => {
-        render(<ChatPanel backend={stubBackend().backend} country={france} players={players.slice(0, 1)}/>)
+        online(players.slice(0, 1))
+        render(<ChatPanel backend={stubBackend().backend} country={france}/>)
         expect(screen.getByRole("tab", {name: "1 player online"})).toBeDefined()
     })
 
     it("says so when nobody is playing", async () => {
         const user = userEvent.setup()
-        render(<ChatPanel backend={stubBackend().backend} country={france} players={[]}/>)
+        online([])
+        render(<ChatPanel backend={stubBackend().backend} country={france}/>)
 
         await user.click(screen.getByRole("tab", {name: "0 players online"}))
         expect(screen.getByText("Nobody is playing right now.")).toBeDefined()
@@ -1325,7 +1335,8 @@ describe("ChatPanel's Discord bar", () => {
 
     it("sits over the chat, and not over who is online", async () => {
         const user = userEvent.setup()
-        render(<ChatPanel backend={stubBackend().backend} country={france} players={[]} discord={IN_SERVER}/>)
+        online([])
+        render(<ChatPanel backend={stubBackend().backend} country={france} discord={IN_SERVER}/>)
         expect(discord()).not.toBeNull()
 
         await user.click(screen.getByRole("tab", {name: "0 players online"}))

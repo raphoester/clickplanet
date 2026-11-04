@@ -6,9 +6,10 @@ times longer. A gamemaster army on the server would break the game's balance, so
 newcomer's page only. The newcomer must not notice it: every reading on the page agrees with it.
 
 - **Who sees them**: a guided page (`showFront`, see [The front, for a first visit](front-guide.md)) once every tile
-  is read, while the "Online" list holds fewer than 7 (`GHOSTS_BELOW` in `globe.ts`). `Viewer` passes the list's
-  length to `useGlobe` (`crowd`), which hands it to `Globe.setCrowd`; no list yet means no raid. Never in orbit, never
-  on a frozen map. When the room fills, the raids stop and the ghost tiles stay until they end.
+  is read, while the "Online" list holds fewer than 7 (`GHOSTS_BELOW` in `globe.ts`). `Viewer` reads the list's
+  length from the roster's store (`onlineCount`) and passes it to `useGlobe` (`crowd`), which hands it to
+  `Globe.setCrowd`; no list yet means no raid. Never in orbit, never on a frozen map. When the room fills, the
+  raids stop and the ghost tiles stay until they end.
 - **A raid** (`domain/ghostArmy.ts`, `GhostArmy`): within what the screen shows (70% of its shorter half around its
   middle, `GHOSTS_SIGHT`), it lands on a tile of the player's flag that touches a tile of another flag or a free one,
   3 times in 4 when there is one, else on the edge of another flag. It plays the flag next door, else the nearest
