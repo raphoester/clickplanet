@@ -6,6 +6,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 - `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served on the loopback console listener, and on the admin listener behind `Options.AdminGate` — see [Operator tools](admin.md)
 - `props.InternalRPC.Mount(build, interceptors...)` — the same again, for what other modules call: served only on the loopback internal listener
 - `props.Internal.Dial()` — the HTTP client and base URL a generated `New<Service>Client` takes, to call another module — see [Calling another module](#calling-another-module)
+- `props.Sessions` — the click token's check (`cpconnect.SessionVerifier`), one `cpsessionverifier` for the whole process, which a module hands its session interceptors — see [Sessions](sessions.md)
 - `props.Runners.Add(runner)` — a `Runner` (`Name()` and `Run(ctx)`), run as a goroutine with the process-lifetime context
 - `props.Closers.Add(name, close)` — a cleanup, run in reverse registration order
 - `props.Logger`, `props.Metrics`
@@ -46,7 +47,7 @@ return []bootstrap.Module{
 
 - **`shared/cpsession`** is the click token. The `auth:` block is read by two contexts, but they share no key and no type: `cpsession.SignerConfig` carries the Ed25519 seed and only `auth.Config` declares it, while `planet.Config` declares `cpsession.VerifierConfig`, which is two switches and **no key at all**. `auth` builds a `*Signer`, `planet` a `*Verifier`, **which has no `Mint` on it**. Under the old shared `Config` both built a `*Signer` off one HMAC secret, so `planet` held a live minting object and nothing but discipline stopped it using it.
 
-  **`planet` asks `auth` for the key** over the internal listener, rather than reading one — see [Calling another module](#calling-another-module) and [Sessions](sessions.md). So there is one key in the whole file, `auth.secret`, nothing derived for a human to paste, and nothing to keep in step with it.
+  **The process asks `auth` for the key** over the internal listener, rather than reading one: `cpbootstrap` builds one `cpsessionverifier` and hands it to every module (`props.Sessions`) — see [Calling another module](#calling-another-module) and [Sessions](sessions.md). So there is one key in the whole file, `auth.secret`, nothing derived for a human to paste, and nothing to keep in step with it.
 
   Neither module imports the other's packages, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `auth/internal/attestation/turnstile`, so it *cannot* reach it.
 - **`shared/cpcountries`** is the ISO list. It is stateless and hardcoded, so each module just calls `cpcountries.New()`, the way it calls `cptime.SystemClock{}`. It sits in `shared` and not under `planet/internal/clicks/` for exactly the reason that layer exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
@@ -59,7 +60,7 @@ return []bootstrap.Module{
 
 | caller | asks | for | through |
 |---|---|---|---|
-| `planet`, `player`, `progression`, `chat`, `scoring`, `support`, `missions`, `alerts`, `clips` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | `shared/cpsessionverifier` |
+| `cpbootstrap`, for every module (`props.Sessions`) | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per process, on the first token any module checks | `shared/cpsessionverifier` |
 | `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer`; both, on each operator's `AdminService/GetPlayer` | `players/rpc_account_reader` |
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, on each `player.v1.InternalService/GetAccounts` it answers | `players/rpc_account_reader` |
 | `progression` | `player.v1.InternalService/GetAccounts` | whether an account is linked and when it was made: one account on each title award (`StatsChanged`, a finale's fighter), a page once per page of a title reconciliation | `accounts/rpc_player_accounts` |
@@ -85,11 +86,11 @@ return []bootstrap.Module{
 | `gamemaster` | `planet.v1.InternalService/GetLedgerTotals` | the ledger's totals over an ended season's window, once per season and process, on the first `GetSeasonTotals` | `get_season_totals_handler/season_totals_query` |
 | `chat` | `scoring.v1.InternalService/GetRound` and `GetTable` | a round's results or a book's table, by the id a gamemaster event names, to announce a podium or a champion | chat's rpc scoring adapter |
 
-A module cannot import another's interior, so the key client every one of them needs is `shared/cpsessionverifier` rather than a copy in each.
+**The session key is the platform's, not a module's call.** Checking a click token is the same in every module (the `cpsession` format is the shared kernel), so `cpbootstrap` builds one `shared/cpsessionverifier` and hands it to every module as `props.Sessions`: no module dials auth for the key, and the process asks for it once, not once per module. Until 2026-11-04 nine modules each built their own, and each asked auth once.
 
 - **Each module's data stays in one place.** The caller holds an address, never the other module's config block, pool, objects or root package. The seed is read by `auth` and nothing else.
 - **`Dial` is the one place that knows the transport is loopback HTTP.** Moving to unix sockets changes the listener and `internalDialer`, and no module.
-- **`Dial` fails with no internal listener**, and a module that calls another refuses the boot. `cpsessionverifier` is the exception: it dials when it first fetches the key, once per process. An internal service with no listener is not served, and logged, like an admin one.
+- **`Dial` fails with no internal listener**, and a module that calls another refuses the boot. `props.Sessions` is the exception: it dials when it first fetches the key, once per process. An internal service with no listener is not served, and logged, like an admin one.
 - **The error net and the drain wrap internal services too.**
 - **What travels is a public key**, which is the point: a holder can check a token and cannot mint one, so the hop carries nothing worth stealing. Under the HMAC this replaced there was no such thing to send.
 - `TestAModuleCallsAnotherOverTheInternalListener` pins the path, `TestAnInternalServiceIsNotOnThePublicRouter` pins that Caddy cannot reach it.

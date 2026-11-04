@@ -59,7 +59,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -166,10 +165,9 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 		GetAppearancesHandler: get_appearances_handler.New(appearances_query.NewPostgresQuery(db, clock)),
 		SetNameShownHandler:   set_name_shown_handler.New(set_name_shown_usecase.New(optOuts)),
 	}
-	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return clipsv1connect.NewClipsServiceHandler(clipsService, options...)
-	}, clipsv1controller.NewSessionInterceptor(verifier, clock, props.Metrics)); err != nil {
+	}, clipsv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics)); err != nil {
 		return fmt.Errorf("failed to mount clips.v1.ClipsService: %w", err)
 	}
 

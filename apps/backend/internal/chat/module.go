@@ -85,7 +85,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -241,8 +240,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		MarkSeenHandler: mark_seen_handler.New(mark_seen_usecase.New(seenStore, rooms, cptime.SystemClock{})),
 	}
 
-	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "chat")))
-
 	err = props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return chatv1connect.NewChatServiceHandler(chatService, options...)
 	},
@@ -250,7 +247,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		chatv1controller.NewRateLimitInterceptor(messageLimiter),
 		chatv1controller.NewReactionRateLimitInterceptor(reactionLimiter),
 		chatv1controller.NewSeenRateLimitInterceptor(seenLimiter),
-		chatv1controller.NewSessionInterceptor(verifier, cptime.SystemClock{}),
+		chatv1controller.NewSessionInterceptor(props.Sessions, cptime.SystemClock{}),
 	)
 	if err != nil {
 		return err

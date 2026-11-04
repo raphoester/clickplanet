@@ -73,7 +73,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsecrets"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -212,8 +211,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		deletions, requests, restores, forgottenDepartures, signIns, namings, told, signOuts, gone, leaving,
 		cpoutbox.NewRelay("player-outbox", db, streams, props.Logger))))
 
-	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
-
 	getRoster := get_roster_handler.New(roster_query.NewMemoryQuery(inmemory_roster.New(visits, clock)))
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(profile_query.NewPostgresQuery(db, inprocess_rename_rule.New())),
@@ -233,7 +230,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)
-	}, playerv1controller.NewSessionInterceptor(verifier, clock, props.Metrics)); err != nil {
+	}, playerv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics)); err != nil {
 		return fmt.Errorf("failed to mount player.v1.PlayerService: %w", err)
 	}
 

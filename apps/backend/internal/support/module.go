@@ -18,7 +18,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/postgres_decision_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/usecases/decide_report_usecase"
@@ -156,11 +155,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetAttachmentRulesHandler: get_attachment_rules_handler.New(rules, shelf),
 		CreateUploadHandler:       create_upload_handler.New(create_upload_usecase.New(note_ids.Provider{}, rules, shelf, bucket)),
 	}
-	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return supportv1connect.NewSupportServiceHandler(service, options...)
 	},
-		supportv1controller.NewSessionInterceptor(verifier, clock, props.Metrics),
+		supportv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),
 		supportv1controller.NewRateLimitInterceptor(limiter),
 		supportv1controller.NewNoteLimitInterceptor(noteLimiter),
 		supportv1controller.NewUploadLimitInterceptor(uploadLimiter),

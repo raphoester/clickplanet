@@ -151,7 +151,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -410,10 +409,9 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			if config.Auth.Enabled {
-				verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "planet")))
 				interceptors = append(interceptors,
-					planetv1controller.NewSessionInterceptor(verifier, clock, config.Auth.Enforce, props.Metrics),
-					planetv1controller.NewSessionReaderInterceptor(verifier, clock))
+					planetv1controller.NewSessionInterceptor(props.Sessions, clock, config.Auth.Enforce, props.Metrics),
+					planetv1controller.NewSessionReaderInterceptor(props.Sessions, clock))
 			}
 
 			claimBonus, counters := prom_claim_bonus.New(

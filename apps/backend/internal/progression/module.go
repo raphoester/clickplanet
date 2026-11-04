@@ -77,7 +77,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -171,8 +170,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger, runners...)))
 
-	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
-
 	progressionService := progressionv1controller.ProgressionService{
 		GetStatsHandler:  get_stats_handler.New(stats_query.NewPostgresQuery(db, clock)),
 		GetTitlesHandler: get_titles_handler.New(titles_query.NewPostgresQuery(db, titleCards, clock)),
@@ -188,8 +185,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return progressionv1connect.NewProgressionServiceHandler(progressionService, options...)
-	}, progressionv1controller.NewSessionInterceptor(verifier, clock, props.Metrics),
-		progressionv1controller.NewStreamSessionReader(verifier, clock)); err != nil {
+	}, progressionv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),
+		progressionv1controller.NewStreamSessionReader(props.Sessions, clock)); err != nil {
 		return fmt.Errorf("failed to mount progression.v1.ProgressionService: %w", err)
 	}
 

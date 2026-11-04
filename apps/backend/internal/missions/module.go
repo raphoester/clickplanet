@@ -52,7 +52,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -160,11 +159,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			listen_for_events_usecase.New(payments, getMissions, props.Server.StreamHeartbeat),
 		),
 	}
-	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return missionsv1connect.NewMissionServiceHandler(service, options...)
-	}, missionsv1controller.NewSessionInterceptor(verifier, clock, props.Metrics),
-		missionsv1controller.NewStreamSessionReader(verifier, clock)); err != nil {
+	}, missionsv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),
+		missionsv1controller.NewStreamSessionReader(props.Sessions, clock)); err != nil {
 		return fmt.Errorf("failed to mount missions.v1.MissionService: %w", err)
 	}
 

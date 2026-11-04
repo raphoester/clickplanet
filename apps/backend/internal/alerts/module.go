@@ -51,7 +51,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -151,11 +150,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	service := alertsv1controller.AlertsService{
 		GetDiscordLinkHandler: get_discord_link_handler.New(link_query.NewPostgresQuery(db), config.Discord.serverURL()),
 	}
-	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return alertsv1connect.NewAlertsServiceHandler(service, options...)
 	},
-		alertsv1controller.NewSessionInterceptor(verifier, clock, props.Metrics),
+		alertsv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),
 	); err != nil {
 		return fmt.Errorf("failed to mount alerts.v1.AlertsService: %w", err)
 	}

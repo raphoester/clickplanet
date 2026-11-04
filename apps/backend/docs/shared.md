@@ -23,7 +23,7 @@ The `util` suffix is dropped rather than prefixed — `cpctx`, not `cpctxutil`.
 A package named for what it *is* stays that; one named "utilities for X" was
 never saying anything the prefix does not.
 
-`cpbootstrap` runs the modules — see [The composite layer](composite-layer.md). It knows nothing about this game: it takes a list of modules, builds each one under a startup deadline, mounts what they claimed on one router, and serves until the process is signalled.
+`cpbootstrap` runs the modules — see [The composite layer](composite-layer.md). It knows nothing about this game: it takes a list of modules, builds each one under a startup deadline, mounts what they claimed on one router, and serves until the process is signalled. The one thing it builds for them is the click token's check (`props.Sessions`, a `cpsessionverifier`), since the token's format is the shared kernel every module verifies the same way.
 
 Two of these are here because both bounded contexts need them and neither should depend on the other:
 
@@ -33,7 +33,7 @@ Two of these are here because both bounded contexts need them and neither should
 
 The siteverify client it is fed by is **not** here. `turnstile` sat here on the same "both contexts need it" rule, but only one ever did, so it now lives at `session/internal/turnstile` where the compiler keeps it. **The bar is not that a package is shareable, it is that it would read the same in any other program and that two modules actually import it** — "shared" names the symptom, and a directory admitted on the weaker reading becomes a dumping ground. `cpsecrets` passes narrowly — chat is its only caller today, but it is twenty lines of `crypto/rand` with no domain in it at all.
 
-`cpsessionverifier` is the exception to that bar: it knows `auth.v1.InternalService`, so it would not read the same in another program. It is the `cpconnect.SessionVerifier` that `planet`, `player`, `progression`, `chat`, `scoring`, `support`, `missions`, `alerts` and `clips` build, which takes the key from `auth` once — see [Sessions](sessions.md). It is here because the alternative was one copy in each module, and a fix to one copy missed the others.
+`cpsessionverifier` is the exception to that bar: it knows `auth.v1.InternalService`, so it would not read the same in another program. It is the `cpconnect.SessionVerifier` that `cpbootstrap` builds once per process and hands every module as `props.Sessions`, which takes the key from `auth` once — see [Sessions](sessions.md). It is here because the alternative was one copy in each module, and a fix to one copy missed the others. Until 2026-11-04 `planet`, `player`, `progression`, `chat`, `scoring`, `support`, `missions`, `alerts` and `clips` each built one.
 
 `cpcountries` is the ISO country list both the tile game and the chat validate against. `cpipblock` is the VPN prefix set — see [VPN blocklist](vpn-blocklist.md). `cpratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 

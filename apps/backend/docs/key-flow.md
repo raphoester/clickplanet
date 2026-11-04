@@ -29,7 +29,7 @@ POST /session.v1.SessionService/CreateSession   [deprecated]
 
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → [cpbootstrap: error net], CacheInterceptor, VPNBlockInterceptor, SessionInterceptor
-      [cpsessionverifier: the key from auth.v1.InternalService, asked once per boot
+      [props.Sessions: the key from auth.v1.InternalService, asked once per process
        then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
   → try_click       (tells the try, whatever came of it: facts.Log, sent to Redis every 100ms; refuses nothing)
@@ -54,7 +54,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
 ```
 POST /chat.v1.ChatService/SendMessage   [X-Session-Token: required, naming an account]
   → [cpbootstrap: error net], BlocklistInterceptor, RateLimitInterceptor, then SessionInterceptor (a reader: refuses nothing)
-      [cpsessionverifier: the key from auth.v1.InternalService, asked once per boot]
+      [props.Sessions: the key from auth.v1.InternalService, asked once per process]
   → ChatService → send_message_handler (the account off the context, or none)
   → muting_send_message: a mute on the account or its network is PermissionDenied, with when it ends
   → messages/usecases/send_message_usecase: no account is ErrNoAccount (Unauthenticated), then

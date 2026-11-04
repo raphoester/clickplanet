@@ -116,5 +116,5 @@ func TestProgressionKnowsPlayerAndNotAuth(t *testing.T) {
 	upstream := moduleEdges(t)["progression"]
 
 	assert.Contains(t, upstream, "player")
-	assert.NotContains(t, upstream, "auth", "auth is player's detail; progression verifies tokens with cpsessionverifier alone")
+	assert.NotContains(t, upstream, "auth", "auth is player's detail; progression verifies tokens with the verifier cpbootstrap hands it")
 }
