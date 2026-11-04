@@ -86,8 +86,8 @@ func (s *testSuite) SetupTest() {
 	s.board = inmemory_reaction_storage.New()
 	s.publisher = &fakePublisher{}
 	s.authors = &fakeAuthors{named: map[messages.AccountID]messages.Author{
-		ada: messages.AuthorOf("Ada", false, 0, 0, messages.Title{}),
-		bob: messages.AuthorOf("Bob", false, 0, 0, messages.Title{}),
+		ada: messages.AuthorOf("Ada", false, 0),
+		bob: messages.AuthorOf("Bob", false, 0),
 	}}
 	s.sent("hello")
 }
@@ -218,7 +218,7 @@ func (s *testSuite) TestEveryoneUnderAMessageIsNamedInOneAsk() {
 func (s *testSuite) TestARenameShowsUnderEveryReactionItsPlayerEverGave() {
 	s.react(ada, clown, true)
 	s.react(ada, laugh, true)
-	s.authors.named[ada] = messages.AuthorOf("Ada Lovelace", false, 0, 0, messages.Title{})
+	s.authors.named[ada] = messages.AuthorOf("Ada Lovelace", false, 0)
 
 	counts := s.react(bob, clown, true)
 

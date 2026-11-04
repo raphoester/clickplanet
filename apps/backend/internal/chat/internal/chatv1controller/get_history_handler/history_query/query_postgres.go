@@ -360,8 +360,6 @@ func messageOf(row row, named map[cpsession.AccountID]*playerv1.Author) *chatv1.
 	message.AuthorName = author.GetName()
 	message.AuthorAdmin = author.GetAdmin()
 	message.AuthorColor = author.GetColor()
-	message.AuthorStreak = author.GetStreak()
-	message.AuthorTitle = author.GetWornTitle()
 	return message
 }
 

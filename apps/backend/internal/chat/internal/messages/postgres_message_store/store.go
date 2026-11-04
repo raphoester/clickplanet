@@ -75,7 +75,7 @@ func (s *Store) Message(ctx context.Context, id messages.MessageID, since time.T
 		ID:      id,
 		SentAt:  sentAt.UTC(),
 		Account: messages.AccountID(account.UUID),
-		Author:  messages.AuthorOf(name, admin, 0, 0, messages.Title{}),
+		Author:  messages.AuthorOf(name, admin, 0),
 		Room:    messages.Room(room),
 		Country: country,
 		Text:    text,

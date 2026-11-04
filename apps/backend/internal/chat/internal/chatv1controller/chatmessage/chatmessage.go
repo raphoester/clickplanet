@@ -19,8 +19,6 @@ func Encode(message messages.Message, counts []reactions.Count, version uint64) 
 		AuthorName:       sent.Author.Name(),
 		AuthorAdmin:      sent.Author.Admin(),
 		AuthorColor:      playerv1.NameColor(sent.Author.Color()),
-		AuthorStreak:     sent.Author.Streak(),
-		AuthorTitle:      encodedTitle(sent.Author.Title()),
 		CountryId:        sent.Country,
 		Reactions:        EncodeCounts(counts),
 		ReactionsVersion: version,
@@ -66,23 +64,6 @@ func encodedQuote(quote messages.Quote) *chatv1.Quote {
 		encoded.Body = &chatv1.Quote_Gif{Gif: gif}
 	} else {
 		encoded.Body = &chatv1.Quote_Text{Text: quote.Text}
-	}
-	return encoded
-}
-
-func encodedTitle(title messages.Title) *playerv1.Title {
-	if title.Empty() {
-		return nil
-	}
-
-	encoded := &playerv1.Title{Id: title.ID(), Name: title.Name()}
-	if rank := title.Rank(); !rank.Empty() {
-		encoded.Rank = &playerv1.Rank{
-			TrackId:   rank.TrackID(),
-			TrackName: rank.TrackName(),
-			Number:    rank.Number(),
-			Count:     rank.Count(),
-		}
 	}
 	return encoded
 }

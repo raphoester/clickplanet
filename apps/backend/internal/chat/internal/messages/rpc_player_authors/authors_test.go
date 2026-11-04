@@ -23,8 +23,6 @@ type stubPlayer struct {
 	names  map[string]string
 	admins map[string]bool
 	colors map[string]playerv1.NameColor
-	streak map[string]uint32
-	titles map[string]*playerv1.Title
 	guests map[string]bool
 	err    error
 	asked  *string
@@ -39,12 +37,10 @@ func (s stubPlayer) GetAuthor(
 		return nil, s.err
 	}
 	return connect.NewResponse(&playerv1.GetAuthorResponse{
-		Name:      s.names[req.Msg.GetAccountId()],
-		Admin:     s.admins[req.Msg.GetAccountId()],
-		Color:     s.colors[req.Msg.GetAccountId()],
-		Streak:    s.streak[req.Msg.GetAccountId()],
-		WornTitle: s.titles[req.Msg.GetAccountId()],
-		Guest:     s.guests[req.Msg.GetAccountId()],
+		Name:  s.names[req.Msg.GetAccountId()],
+		Admin: s.admins[req.Msg.GetAccountId()],
+		Color: s.colors[req.Msg.GetAccountId()],
+		Guest: s.guests[req.Msg.GetAccountId()],
 	}), nil
 }
 
@@ -57,7 +53,7 @@ func (s stubPlayer) GetAuthors(
 	}
 	found := make([]*playerv1.Author, 0, len(req.Msg.GetAccountIds()))
 	for _, id := range req.Msg.GetAccountIds() {
-		found = append(found, &playerv1.Author{AccountId: id, Name: s.names[id], WornTitle: s.titles[id]})
+		found = append(found, &playerv1.Author{AccountId: id, Name: s.names[id], Color: s.colors[id]})
 	}
 	return connect.NewResponse(&playerv1.GetAuthorsResponse{Authors: found}), nil
 }
@@ -82,32 +78,14 @@ func TestItAnswersTheName(t *testing.T) {
 	author, err := authors(t, player).Author(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, messages.AuthorOf("Ada_L", true, 0, 0, messages.Title{}), author)
+	assert.Equal(t, messages.AuthorOf("Ada_L", true, 0), author)
 	assert.Equal(t, ada.String(), *asked)
 }
 
-func TestItAnswersTheColorAndTheStreak(t *testing.T) {
+func TestItAnswersTheColor(t *testing.T) {
 	player := stubPlayer{
 		names:  map[string]string{ada.String(): "Ada_L"},
 		colors: map[string]playerv1.NameColor{ada.String(): playerv1.NameColor_NAME_COLOR_TEAL},
-		streak: map[string]uint32{ada.String(): 12},
-		asked:  new(string),
-	}
-
-	author, err := authors(t, player).Author(t.Context(), ada)
-
-	require.NoError(t, err)
-	assert.Equal(t, messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_TEAL), 12, messages.Title{}), author)
-}
-
-var settler = &playerv1.Title{
-	Id: "settler", Name: "Settler", Rank: &playerv1.Rank{TrackId: "conquest", TrackName: "Conquest", Number: 1, Count: 5},
-}
-
-func TestItAnswersTheTitleWorn(t *testing.T) {
-	player := stubPlayer{
-		names:  map[string]string{ada.String(): "Ada_L"},
-		titles: map[string]*playerv1.Title{ada.String(): settler},
 		asked:  new(string),
 	}
 
@@ -116,18 +94,8 @@ func TestItAnswersTheTitleWorn(t *testing.T) {
 	many, err := authors(t, player).Authors(t.Context(), []messages.AccountID{ada})
 	require.NoError(t, err)
 
-	want := messages.TitleOf("settler", "Settler", messages.RankOf("conquest", "Conquest", 1, 5))
-	assert.Equal(t, want, author.Title())
-	assert.Equal(t, want, many[ada].Title())
-}
-
-func TestAnAuthorWearingNothingHasNoTitle(t *testing.T) {
-	player := stubPlayer{names: map[string]string{ada.String(): "Ada_L"}, asked: new(string)}
-
-	author, err := authors(t, player).Author(t.Context(), ada)
-
-	require.NoError(t, err)
-	assert.True(t, author.Title().Empty())
+	assert.Equal(t, messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_TEAL)), author)
+	assert.Equal(t, author, many[ada])
 }
 
 func TestAPlayerModuleThatFailsIsAnError(t *testing.T) {
@@ -140,12 +108,11 @@ func TestAPlayerModuleThatFailsIsAnError(t *testing.T) {
 
 func TestAGuestIsAnsweredAsOne(t *testing.T) {
 	player := stubPlayer{
-		names: map[string]string{ada.String(): "guest_0b1c2d"}, streak: map[string]uint32{ada.String(): 2},
-		guests: map[string]bool{ada.String(): true}, asked: new(string),
+		names: map[string]string{ada.String(): "guest_0b1c2d"}, guests: map[string]bool{ada.String(): true}, asked: new(string),
 	}
 
 	author, err := authors(t, player).Author(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, messages.GuestOf("guest_0b1c2d", 2), author)
+	assert.Equal(t, messages.GuestOf("guest_0b1c2d"), author)
 }

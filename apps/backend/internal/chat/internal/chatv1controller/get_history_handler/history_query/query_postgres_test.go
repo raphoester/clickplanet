@@ -138,7 +138,7 @@ func (s *testSuite) repliedAt(text string, account messages.AccountID, at time.T
 
 func (s *testSuite) legacy(name string, at time.Time) {
 	s.keep(messages.Snapshot{
-		ID: "legacy", SentAt: at, Author: messages.AuthorOf(name, true, 0, 0, messages.Title{}), Country: "fr", Text: "legacy",
+		ID: "legacy", SentAt: at, Author: messages.AuthorOf(name, true, 0), Country: "fr", Text: "legacy",
 	})
 }
 
@@ -222,12 +222,8 @@ func (s *testSuite) TestAMessageCarriesWhatItsRowHolds() {
 }
 
 func (s *testSuite) TestEachMessageIsNamedByWhoItsAccountIsNow() {
-	title := &playerv1.Title{
-		Id: "settler", Name: "Settler", Rank: &playerv1.Rank{TrackId: "conquest", TrackName: "Conquest", Number: 1, Count: 5},
-	}
 	s.authors.named[ada] = &playerv1.Author{
-		AccountId: ada.String(), Name: "Ada Lovelace", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 12,
-		WornTitle: title,
+		AccountId: ada.String(), Name: "Ada Lovelace", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
 	}
 	s.sent("one", 2*time.Hour)
 	s.sent("two", time.Hour)
@@ -237,8 +233,6 @@ func (s *testSuite) TestEachMessageIsNamedByWhoItsAccountIsNow() {
 		s.Equal("Ada Lovelace", message.GetAuthorName(), message.GetText())
 		s.True(message.GetAuthorAdmin(), message.GetText())
 		s.Equal(playerv1.NameColor_NAME_COLOR_TEAL, message.GetAuthorColor(), message.GetText())
-		s.Equal(uint32(12), message.GetAuthorStreak(), message.GetText())
-		s.True(proto.Equal(title, message.GetAuthorTitle()), message.GetText())
 	}
 }
 
@@ -261,8 +255,6 @@ func (s *testSuite) TestADeletedAccountIsNoLongerNamed() {
 	s.Empty(message.GetAuthorAccountId(), "nobody is there to open a card of, or to report")
 	s.False(message.GetAuthorAdmin())
 	s.Equal(playerv1.NameColor_NAME_COLOR_UNSPECIFIED, message.GetAuthorColor())
-	s.Zero(message.GetAuthorStreak())
-	s.Nil(message.GetAuthorTitle())
 	s.Equal("hello", message.GetText(), "what it said stays: a thread keeps its shape")
 }
 
@@ -279,7 +271,7 @@ func (s *testSuite) TestAMessageFromBeforeAccountsKeepsTheNameItCarries() {
 
 func (s *testSuite) TestAReplyCarriesWhatTheMessageItRepliesToSaidAndWhoSaidIt() {
 	s.authors.named[bob] = &playerv1.Author{
-		AccountId: bob.String(), Name: "Bob", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 12,
+		AccountId: bob.String(), Name: "Bob", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
 	}
 	s.sentAt("question", bob, now.Add(-2*time.Hour))
 	s.repliedAt("answer", ada, now.Add(-time.Hour), "question")

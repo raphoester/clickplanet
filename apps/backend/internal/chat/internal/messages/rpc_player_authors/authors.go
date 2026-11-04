@@ -40,9 +40,9 @@ func (a *Authors) Author(ctx context.Context, account messages.AccountID) (messa
 	}
 
 	if res.Msg.GetGuest() {
-		return messages.GuestOf(res.Msg.GetName(), res.Msg.GetStreak()), nil
+		return messages.GuestOf(res.Msg.GetName()), nil
 	}
-	return messages.AuthorOf(res.Msg.GetName(), res.Msg.GetAdmin(), int32(res.Msg.GetColor()), res.Msg.GetStreak(), titleOf(res.Msg.GetWornTitle())), nil
+	return messages.AuthorOf(res.Msg.GetName(), res.Msg.GetAdmin(), int32(res.Msg.GetColor())), nil
 }
 
 func (a *Authors) Authors(
@@ -69,13 +69,7 @@ func (a *Authors) Authors(
 	}
 
 	for _, author := range res.Msg.GetAuthors() {
-		found[messages.AccountIDOf(author.GetAccountId())] = messages.AuthorOf(author.GetName(), author.GetAdmin(), int32(author.GetColor()), author.GetStreak(), titleOf(author.GetWornTitle()))
+		found[messages.AccountIDOf(author.GetAccountId())] = messages.AuthorOf(author.GetName(), author.GetAdmin(), int32(author.GetColor()))
 	}
 	return found, nil
-}
-
-func titleOf(title *playerv1.Title) messages.Title {
-	rank := title.GetRank()
-	return messages.TitleOf(title.GetId(), title.GetName(),
-		messages.RankOf(rank.GetTrackId(), rank.GetTrackName(), rank.GetNumber(), rank.GetCount()))
 }

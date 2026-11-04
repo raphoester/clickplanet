@@ -10,7 +10,7 @@ import (
 
 const DeletedName = "[deleted]"
 
-var deleted = AuthorOf(DeletedName, false, 0, 0, Title{})
+var deleted = AuthorOf(DeletedName, false, 0)
 
 type Shown interface {
 	Message(ctx context.Context, id MessageID, since time.Time, limit int) (Message, error)

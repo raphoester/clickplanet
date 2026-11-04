@@ -246,7 +246,7 @@ func (s *testSuite) TestARemovedMessageIsReadAsItWasSentWithWhenItWasRemoved() {
 func (s *testSuite) TestEveryAuthorIsNamedAsNowAndAskedForOnce() {
 	asked := new([]cpsession.AccountID)
 	s.sent(messages.Snapshot{
-		ID: "legacy", SentAt: now.Add(-4 * time.Minute), Author: messages.AuthorOf("Old_Name", false, 0, 0, messages.Title{}),
+		ID: "legacy", SentAt: now.Add(-4 * time.Minute), Author: messages.AuthorOf("Old_Name", false, 0),
 		Country: "fr", Text: "old",
 	})
 	s.sent(messages.Snapshot{ID: "gone", SentAt: now.Add(-3 * time.Minute), Account: deleted, Country: "fr", Text: "bye"})

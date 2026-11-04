@@ -107,8 +107,8 @@ func TestNamedShowsWhoEachAccountIsNow(t *testing.T) {
 	given := reactions.Reactions{}.With(clown, reactions.ReactorOf(one)).With(clown, reactions.ReactorOf(two))
 
 	named := reactions.Named(given.Tally(reactions.NoReactor), map[messages.AccountID]messages.Author{
-		one: messages.AuthorOf("Ada", false, 0, 0, messages.Title{}),
-		two: messages.AuthorOf("Bo", false, 0, 0, messages.Title{}),
+		one: messages.AuthorOf("Ada", false, 0),
+		two: messages.AuthorOf("Bo", false, 0),
 	})
 
 	assert.Equal(t, []string{"Ada", "Bo"}, named[0].Names(), "oldest first")
@@ -123,7 +123,7 @@ func TestNamedCountsWhoItCannotNameWithoutNamingThem(t *testing.T) {
 		With(clown, bo)
 
 	named := reactions.Named(given.Tally(reactions.NoReactor), map[messages.AccountID]messages.Author{
-		two: messages.AuthorOf("Bo", false, 0, 0, messages.Title{}),
+		two: messages.AuthorOf("Bo", false, 0),
 	})
 
 	assert.Equal(t, []string{"Bo"}, named[0].Names(), "a deleted account, and a guest tag from before accounts")

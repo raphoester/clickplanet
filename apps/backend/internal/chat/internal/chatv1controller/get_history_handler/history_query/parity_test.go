@@ -35,11 +35,7 @@ type commandAuthors struct {
 }
 
 func authorOf(author *playerv1.Author) messages.Author {
-	worn := author.GetWornTitle()
-	rank := worn.GetRank()
-	return messages.AuthorOf(author.GetName(), author.GetAdmin(), int32(author.GetColor()), author.GetStreak(),
-		messages.TitleOf(worn.GetId(), worn.GetName(),
-			messages.RankOf(rank.GetTrackId(), rank.GetTrackName(), rank.GetNumber(), rank.GetCount())))
+	return messages.AuthorOf(author.GetName(), author.GetAdmin(), int32(author.GetColor()))
 }
 
 func (c commandAuthors) Author(ctx context.Context, account messages.AccountID) (messages.Author, error) {
@@ -151,10 +147,7 @@ func (s *testSuite) TestTheReactionsOfAMessageAreWhatReactAnswersForThem() {
 
 func (s *testSuite) TestAMessageReadsBackAsSendMessageAnsweredIt() {
 	s.authors.named[ada] = &playerv1.Author{
-		AccountId: ada.String(), Name: "Ada_L", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 12,
-		WornTitle: &playerv1.Title{
-			Id: "settler", Name: "Settler", Rank: &playerv1.Rank{TrackId: "conquest", TrackName: "Conquest", Number: 1, Count: 5},
-		},
+		AccountId: ada.String(), Name: "Ada_L", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
 	}
 	s.authors.named[bob] = &playerv1.Author{AccountId: bob.String(), Name: "guest_0b1c2d"}
 	clock := cptime.NewFixedClock(now.Add(-time.Hour).Add(123_456 * time.Microsecond))
@@ -189,7 +182,7 @@ func (s *testSuite) TestAReplyReadsBackAsSendMessageAnsweredIt() {
 	gone := messages.AccountID{15: 9}
 	long := strings.Repeat("north ", 40)
 	s.authors.named[bob] = &playerv1.Author{
-		AccountId: bob.String(), Name: "Bob_B", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 12,
+		AccountId: bob.String(), Name: "Bob_B", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
 	}
 	s.keep(messages.Snapshot{ID: "named", SentAt: now.Add(-5 * time.Hour), Account: bob, Country: "fr", Text: long})
 	s.keep(messages.Snapshot{ID: "deleted", SentAt: now.Add(-4 * time.Hour), Account: gone, Country: "fr", Text: "who holds the north"})
