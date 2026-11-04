@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnnounceRequest, AnnounceResponse, GetFrontsRequest, GetFrontsResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, GetTitlesRequest, GetTitlesResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse, WearTitleRequest, WearTitleResponse } from "./player_pb.js";
+import { AnnounceRequest, AnnounceResponse, GetBadgesRequest, GetBadgesResponse, GetFrontsRequest, GetFrontsResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, GetStatsRequest, GetStatsResponse, GetTitlesRequest, GetTitlesResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse, WearTitleRequest, WearTitleResponse } from "./player_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -121,6 +121,18 @@ export const PlayerService = {
       I: GetFrontsRequest,
       O: GetFrontsResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * The badges of a page of accounts, for the page to draw beside their names. At most 100 ids, or InvalidArgument.
+     *
+     * @generated from rpc player.v1.PlayerService.GetBadges
+     */
+    getBadges: {
+      name: "GetBadges",
+      I: GetBadgesRequest,
+      O: GetBadgesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;
