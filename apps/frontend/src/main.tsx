@@ -23,6 +23,7 @@ import {battleCommands, FakeTurnBackend, seasonRunningAt} from "./backends/fakeT
 import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
 import {ConnectionHealth, connectionInterceptor, followBrowser} from "./backends/connection.ts"
+import {Restarts, restartInterceptor} from "./backends/restarts.ts"
 import {FakeStandingsBackend} from "./backends/fakeStandingsBackend.ts"
 import {ConnectStandingsBackend} from "./backends/standingsBackend.ts"
 import {FakeSupportBackend} from "./backends/fakeSupportBackend.ts"
@@ -83,7 +84,7 @@ followBrowser(connection, window)
 const config = {
     baseUrl: API_BASE_URL,
     timeoutMs: 10_000,
-    interceptors: [connectionInterceptor(connection)],
+    interceptors: [connectionInterceptor(connection), restartInterceptor(new Restarts(() => window.location.reload()))],
 }
 
 const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY

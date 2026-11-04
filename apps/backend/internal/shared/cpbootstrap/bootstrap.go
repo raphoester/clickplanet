@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpprom"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsecrets"
 )
 
 type Module struct {
@@ -201,6 +202,11 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	runners := newRunnerRegistry()
 	closers := newCloserRegistry()
 
+	boot, err := cpsecrets.RandomHex()
+	if err != nil {
+		return fmt.Errorf("failed to draw the boot id: %w", err)
+	}
+
 	registrars := registrars{routes: routes, admin: adminRoutes, internal: internalRoutes}
 	if err := buildModules(ctx, options, metrics, registrars, runners, closers); err != nil {
 		return err
@@ -211,6 +217,7 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 		cphttpserver.NewLoggingMiddleware(options.Logger),
 		cphttpserver.IPReaderMiddleware,
 		cphttpserver.NewCorsMiddleware(options.Server.AllowedOrigin),
+		cphttpserver.NewBootMiddleware(boot),
 	))
 	mountMetrics(router, metrics, options.Logger)
 
