@@ -49,7 +49,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler/notes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler/reports_query"
-	report_authors "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler/reports_query/rpc_player_authors"
+	report_players "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler/reports_query/rpc_players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_bug_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/suggest_feature_handler"
@@ -170,7 +170,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	adminService := supportv1controller.AdminService{
 		ListNotesHandler:   list_notes_handler.New(notes_query.NewPostgresQuery(db, bucket)),
-		ListReportsHandler: list_reports_handler.New(reports_query.NewPostgresQuery(db, report_authors.New(player))),
+		ListReportsHandler: list_reports_handler.New(reports_query.NewPostgresQuery(db, report_players.New(player))),
 		DecideReportHandler: decide_report_handler.New(audit_decide_report.New(
 			decide_report_usecase.New(postgres_decision_store.New(db), clock), props.Logger)),
 	}

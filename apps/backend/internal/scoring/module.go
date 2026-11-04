@@ -33,14 +33,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler/board_query"
-	board_authors "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler/board_query/rpc_player_authors"
+	board_players "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler/board_query/rpc_players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_book_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler/my_tally_query"
-	tally_authors "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler/my_tally_query/rpc_player_authors"
+	tally_players "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler/my_tally_query/rpc_players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_handler/round_query"
-	round_authors "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_handler/round_query/rpc_player_authors"
+	round_players "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_handler/round_query/rpc_players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_players_handler/round_players_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_scores_handler"
@@ -168,9 +168,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to handle scoring.v1.GrantPoints: %w", err)
 	}
 
-	boardQuery := board_query.NewPostgresQuery(db, board_authors.New(player), countries)
+	boardQuery := board_query.NewPostgresQuery(db, board_players.New(player), countries)
 	scoresQuery := scores_query.NewPostgresQuery(db)
-	roundQuery := round_query.NewPostgresQuery(db, territories, round_authors.New(player), scoresQuery)
+	roundQuery := round_query.NewPostgresQuery(db, territories, round_players.New(player), scoresQuery)
 	boards := inprocess_feed.New[board_query.View, *scoringv1.Board]("scoring-boards",
 		log_reader.New[board_query.View, *scoringv1.Board]("board", boardQuery, props.Logger), clock, boardsEvery)
 	scores := inprocess_feed.New[books.BookID, *scoringv1.Scores]("scoring-scores",
@@ -184,7 +184,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	getRound := get_round_handler.New(roundQuery)
 	service := scoringv1controller.ScoringService{
 		GetBoardHandler:       get_board_handler.New(boardQuery),
-		GetMyTallyHandler:     get_my_tally_handler.New(my_tally_query.NewPostgresQuery(db, tally_authors.New(player), countries)),
+		GetMyTallyHandler:     get_my_tally_handler.New(my_tally_query.NewPostgresQuery(db, tally_players.New(player), countries)),
 		GetRoundHandler:       getRound,
 		GetScoresHandler:      get_scores_handler.New(scoresQuery),
 		GetBookHistoryHandler: get_book_history_handler.New(scoresQuery),

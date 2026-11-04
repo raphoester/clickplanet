@@ -34,7 +34,7 @@ type commandAuthors struct {
 	query *fakeAuthors
 }
 
-func authorOf(author *playerv1.Author) messages.Author {
+func authorOf(author *playerv1.Player) messages.Author {
 	return messages.AuthorOf(author.GetName(), author.GetAdmin(), int32(author.GetColor()))
 }
 
@@ -116,7 +116,7 @@ func (s *testSuite) TestTheReactionsOfAMessageAreWhatReactAnswersForThem() {
 	s.reacted("hello", laugh, reactions.ReactorOf(bob), false, now.Add(-30*time.Minute))
 	for i := range history_query.NamedReactors + 1 {
 		account := messages.AccountID{14: 1, 15: byte(i)}
-		s.authors.named[account] = &playerv1.Author{AccountId: account.String(), Name: fmt.Sprintf("Player%02d", i)}
+		s.authors.named[account] = &playerv1.Player{AccountId: account.String(), Name: fmt.Sprintf("Player%02d", i)}
 		s.reacted("crowd", clown, reactions.ReactorOf(account), true, now.Add(time.Duration(i-30)*time.Minute))
 	}
 
@@ -146,10 +146,10 @@ func (s *testSuite) TestTheReactionsOfAMessageAreWhatReactAnswersForThem() {
 }
 
 func (s *testSuite) TestAMessageReadsBackAsSendMessageAnsweredIt() {
-	s.authors.named[ada] = &playerv1.Author{
+	s.authors.named[ada] = &playerv1.Player{
 		AccountId: ada.String(), Name: "Ada_L", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
 	}
-	s.authors.named[bob] = &playerv1.Author{AccountId: bob.String(), Name: "guest_0b1c2d"}
+	s.authors.named[bob] = &playerv1.Player{AccountId: bob.String(), Name: "guest_0b1c2d"}
 	clock := cptime.NewFixedClock(now.Add(-time.Hour).Add(123_456 * time.Microsecond))
 	authors := commandAuthors{query: s.authors}
 	send := send_message_usecase.New(s.messages, silentFeed{}, authors,
@@ -181,7 +181,7 @@ func (s *testSuite) TestAReplyReadsBackAsSendMessageAnsweredIt() {
 	const size = 10
 	gone := messages.AccountID{15: 9}
 	long := strings.Repeat("north ", 40)
-	s.authors.named[bob] = &playerv1.Author{
+	s.authors.named[bob] = &playerv1.Player{
 		AccountId: bob.String(), Name: "Bob_B", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
 	}
 	s.keep(messages.Snapshot{ID: "named", SentAt: now.Add(-5 * time.Hour), Account: bob, Country: "fr", Text: long})

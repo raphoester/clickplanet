@@ -20,21 +20,21 @@ type Key string
 type Visit struct {
 	account players.AccountID
 	key     Key
-	author  players.Author
+	player  players.Player
 	tag     players.Tag
 	country string
 	at      time.Time
 }
 
-func NewVisit(account players.AccountID, author players.Author, tag players.Tag, country string, at time.Time) Visit {
-	return Visit{account: account, author: author, tag: tag, country: country, at: at}
+func NewVisit(account players.AccountID, player players.Player, tag players.Tag, country string, at time.Time) Visit {
+	return Visit{account: account, player: player, tag: tag, country: country, at: at}
 }
 
 func (v Visit) Account() players.AccountID { return v.account }
 
 func (v Visit) Key() Key { return v.key }
 
-func (v Visit) Author() players.Author { return v.author }
+func (v Visit) Player() players.Player { return v.player }
 
 func (v Visit) Tag() players.Tag { return v.tag }
 
@@ -49,9 +49,9 @@ func (v Visit) Keyed(key Key) Visit {
 	return v
 }
 
-func (v Visit) For(account players.AccountID, author players.Author) Visit {
+func (v Visit) For(account players.AccountID, player players.Player) Visit {
 	v.account = account
-	v.author = author
+	v.player = player
 	return v
 }
 
@@ -69,11 +69,11 @@ func EntryOf(visit Visit) Entry {
 	return Entry{
 		key:     visit.key,
 		account: visit.account,
-		name:    visit.author.Name(),
+		name:    visit.player.Name(),
 		country: visit.country,
-		guest:   visit.author.Guest(),
-		admin:   visit.author.Admin() && !visit.author.Guest(),
-		color:   visit.author.Color(),
+		guest:   visit.player.Guest(),
+		admin:   visit.player.Admin() && !visit.player.Guest(),
+		color:   visit.player.Color(),
 	}
 }
 

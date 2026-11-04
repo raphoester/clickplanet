@@ -1,4 +1,4 @@
-package authors_query
+package players_query
 
 import (
 	"context"
@@ -20,7 +20,7 @@ type PostgresQuery struct {
 	db cppg.Conn
 }
 
-const authors = `
+const named = `
 	SELECT
 		asked.account_id::text,
 		COALESCE(profiles.name, 'guest_' || guest_codes.code),
@@ -40,34 +40,34 @@ const authors = `
 	ORDER BY asked.position
 `
 
-func (q *PostgresQuery) Authors(ctx context.Context, accounts []cpsession.AccountID) (*playerv1.GetAuthorsResponse, error) {
+func (q *PostgresQuery) Players(ctx context.Context, accounts []cpsession.AccountID) (*playerv1.GetPlayersResponse, error) {
 	ids := make([]string, 0, len(accounts))
 	for _, account := range accounts {
 		ids = append(ids, account.String())
 	}
 
-	rows, err := q.db.On(ctx).QueryContext(ctx, authors, pq.Array(ids))
+	rows, err := q.db.On(ctx).QueryContext(ctx, named, pq.Array(ids))
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the authors: %w", err)
+		return nil, fmt.Errorf("failed to read the players: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	answer := &playerv1.GetAuthorsResponse{Authors: make([]*playerv1.Author, 0, len(accounts))}
+	answer := &playerv1.GetPlayersResponse{Players: make([]*playerv1.Player, 0, len(accounts))}
 	for rows.Next() {
 		var (
-			author = &playerv1.Author{}
+			player = &playerv1.Player{}
 			color  int32
 		)
-		if err := rows.Scan(&author.AccountId, &author.Name, &author.Admin, &author.Guest, &color); err != nil {
-			return nil, fmt.Errorf("failed to scan an author: %w", err)
+		if err := rows.Scan(&player.AccountId, &player.Name, &player.Admin, &player.Guest, &color); err != nil {
+			return nil, fmt.Errorf("failed to scan a player: %w", err)
 		}
-		if author.Color, err = playerread.KeptColor(color); err != nil {
-			return nil, fmt.Errorf("failed to read the color of %s: %w", author.GetAccountId(), err)
+		if player.Color, err = playerread.KeptColor(color); err != nil {
+			return nil, fmt.Errorf("failed to read the color of %s: %w", player.GetAccountId(), err)
 		}
-		answer.Authors = append(answer.Authors, author)
+		answer.Players = append(answer.Players, player)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the authors: %w", err)
+		return nil, fmt.Errorf("failed to read the players: %w", err)
 	}
 	return answer, nil
 }

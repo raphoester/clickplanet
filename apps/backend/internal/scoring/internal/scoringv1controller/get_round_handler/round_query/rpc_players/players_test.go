@@ -1,4 +1,4 @@
-package rpc_player_authors_test
+package rpc_players_test
 
 import (
 	"context"
@@ -14,33 +14,33 @@ import (
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler/board_query/rpc_player_authors"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_handler/round_query/rpc_players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings"
 )
 
 type stubPlayer struct {
 	playerv1connect.UnimplementedInternalServiceHandler
 
-	known map[string]*playerv1.Author
+	known map[string]*playerv1.Player
 	err   error
 	asked *[]string
 }
 
-func (s stubPlayer) GetAuthors(
+func (s stubPlayer) GetPlayers(
 	_ context.Context,
-	req *connect.Request[playerv1.GetAuthorsRequest],
-) (*connect.Response[playerv1.GetAuthorsResponse], error) {
+	req *connect.Request[playerv1.GetPlayersRequest],
+) (*connect.Response[playerv1.GetPlayersResponse], error) {
 	*s.asked = append(*s.asked, req.Msg.GetAccountIds()...)
 	if s.err != nil {
 		return nil, s.err
 	}
-	found := make([]*playerv1.Author, 0, len(req.Msg.GetAccountIds()))
+	found := make([]*playerv1.Player, 0, len(req.Msg.GetAccountIds()))
 	for _, id := range req.Msg.GetAccountIds() {
-		if author, known := s.known[id]; known {
-			found = append(found, author)
+		if player, known := s.known[id]; known {
+			found = append(found, player)
 		}
 	}
-	return connect.NewResponse(&playerv1.GetAuthorsResponse{Authors: found}), nil
+	return connect.NewResponse(&playerv1.GetPlayersResponse{Players: found}), nil
 }
 
 var (
@@ -48,7 +48,7 @@ var (
 	deleted = standings.AccountID{15: 2}
 )
 
-func authors(t *testing.T, player stubPlayer) *rpc_player_authors.Authors {
+func players(t *testing.T, player stubPlayer) *rpc_players.Players {
 	t.Helper()
 
 	mux := http.NewServeMux()
@@ -56,17 +56,17 @@ func authors(t *testing.T, player stubPlayer) *rpc_player_authors.Authors {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	return rpc_player_authors.New(playerv1connect.NewInternalServiceClient(server.Client(), server.URL))
+	return rpc_players.New(playerv1connect.NewInternalServiceClient(server.Client(), server.URL))
 }
 
-func TestEachAccountTheModuleKnowsIsAnsweredAsItsAuthor(t *testing.T) {
-	card := &playerv1.Author{
+func TestEachAccountTheModuleKnowsIsAnsweredAsItsPlayer(t *testing.T) {
+	card := &playerv1.Player{
 		AccountId: ada.String(), Name: "Ada_L", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
 	}
 	asked := new([]string)
 
-	found, err := authors(t, stubPlayer{known: map[string]*playerv1.Author{ada.String(): card}, asked: asked}).
-		Authors(t.Context(), []standings.AccountID{ada, deleted})
+	found, err := players(t, stubPlayer{known: map[string]*playerv1.Player{ada.String(): card}, asked: asked}).
+		Players(t.Context(), []standings.AccountID{ada, deleted})
 
 	require.NoError(t, err)
 	require.Len(t, found, 1, "an account the player module cannot name is left out")
@@ -77,7 +77,7 @@ func TestEachAccountTheModuleKnowsIsAnsweredAsItsAuthor(t *testing.T) {
 func TestNobodyToNameAsksNothing(t *testing.T) {
 	asked := new([]string)
 
-	found, err := authors(t, stubPlayer{asked: asked}).Authors(t.Context(), nil)
+	found, err := players(t, stubPlayer{asked: asked}).Players(t.Context(), nil)
 
 	require.NoError(t, err)
 	assert.Empty(t, found)
@@ -86,11 +86,11 @@ func TestNobodyToNameAsksNothing(t *testing.T) {
 
 func TestAnAnswerForSomethingThatIsNotAnAccountIsAnError(t *testing.T) {
 	player := stubPlayer{
-		known: map[string]*playerv1.Author{ada.String(): {AccountId: "not-a-uuid", Name: "Ada_L"}},
+		known: map[string]*playerv1.Player{ada.String(): {AccountId: "not-a-uuid", Name: "Ada_L"}},
 		asked: new([]string),
 	}
 
-	_, err := authors(t, player).Authors(t.Context(), []standings.AccountID{ada})
+	_, err := players(t, player).Players(t.Context(), []standings.AccountID{ada})
 
 	assert.ErrorContains(t, err, "which is not an account")
 }
@@ -98,7 +98,7 @@ func TestAnAnswerForSomethingThatIsNotAnAccountIsAnError(t *testing.T) {
 func TestAPlayerModuleThatFailsIsAnError(t *testing.T) {
 	player := stubPlayer{err: connect.NewError(connect.CodeInternal, errors.New("postgres is down")), asked: new([]string)}
 
-	_, err := authors(t, player).Authors(t.Context(), []standings.AccountID{ada})
+	_, err := players(t, player).Players(t.Context(), []standings.AccountID{ada})
 
 	assert.ErrorContains(t, err, "failed to ask the player module")
 }

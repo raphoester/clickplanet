@@ -23,24 +23,24 @@ func TestRunSuite(t *testing.T) {
 	suite.Run(t, new(testSuite))
 }
 
-type fakeAuthors struct {
-	named map[standings.AccountID]*playerv1.Author
+type fakePlayers struct {
+	named map[standings.AccountID]*playerv1.Player
 	asked int
 	err   error
 }
 
-func (f *fakeAuthors) Authors(
+func (f *fakePlayers) Players(
 	_ context.Context,
 	accounts []standings.AccountID,
-) (map[standings.AccountID]*playerv1.Author, error) {
+) (map[standings.AccountID]*playerv1.Player, error) {
 	f.asked++
 	if f.err != nil {
 		return nil, f.err
 	}
-	found := make(map[standings.AccountID]*playerv1.Author, len(accounts))
+	found := make(map[standings.AccountID]*playerv1.Player, len(accounts))
 	for _, account := range accounts {
-		if author, known := f.named[account]; known {
-			found[account] = author
+		if player, known := f.named[account]; known {
+			found[account] = player
 		}
 	}
 	return found, nil
@@ -51,7 +51,7 @@ type testSuite struct {
 
 	db      *cppg.Postgres
 	store   *postgres_contribution_store.Store
-	authors *fakeAuthors
+	players *fakePlayers
 	taken   uint64
 }
 
@@ -62,7 +62,7 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
-	s.authors = &fakeAuthors{named: map[standings.AccountID]*playerv1.Author{}}
+	s.players = &fakePlayers{named: map[standings.AccountID]*playerv1.Player{}}
 }
 
 func account(n int) standings.AccountID {
@@ -78,14 +78,14 @@ func (s *testSuite) take(book books.BookID, n int, country standings.Country, ti
 
 func (s *testSuite) player(n int, country standings.Country, tiles int) {
 	s.take(seasonZero, n, country, tiles)
-	s.authors.named[account(n)] = &playerv1.Author{
+	s.players.named[account(n)] = &playerv1.Player{
 		AccountId: account(n).String(), Name: fmt.Sprintf("player_%d", n), Color: playerv1.NameColor(n % 13),
 	}
 }
 
 func (s *testSuite) guest(n int, country standings.Country, tiles int) {
 	s.take(seasonZero, n, country, tiles)
-	s.authors.named[account(n)] = &playerv1.Author{AccountId: account(n).String(), Name: fmt.Sprintf("guest_%06x", n), Guest: true}
+	s.players.named[account(n)] = &playerv1.Player{AccountId: account(n).String(), Name: fmt.Sprintf("guest_%06x", n), Guest: true}
 }
 
 const (
@@ -94,7 +94,7 @@ const (
 )
 
 func (s *testSuite) query() *board_query.PostgresQuery {
-	return board_query.NewPostgresQuery(s.db, s.authors, cpcountries.New())
+	return board_query.NewPostgresQuery(s.db, s.players, cpcountries.New())
 }
 
 func (s *testSuite) standings(country string) *scoringv1.GetBoardResponse {
@@ -179,18 +179,18 @@ func (s *testSuite) TestTheTopReadsPastAPageOfGuests() {
 	s.player(1, "fr", 1)
 
 	s.Equal([]string{"1 player_1 fr 1"}, lines(s.standings("")))
-	s.Equal(2, s.authors.asked)
+	s.Equal(2, s.players.asked)
 }
 
 func (s *testSuite) TestAnEmptyBookIsAnEmptyTopAndAsksNobody() {
 	s.Empty(s.standings("").GetStandings())
-	s.Zero(s.authors.asked)
+	s.Zero(s.players.asked)
 }
 
 func (s *testSuite) TestOnlyTheBookAskedCounts() {
 	s.player(1, "fr", 3)
 	s.take(seasonOne, 2, "de", 1)
-	s.authors.named[account(2)] = &playerv1.Author{AccountId: account(2).String(), Name: "player_2"}
+	s.players.named[account(2)] = &playerv1.Player{AccountId: account(2).String(), Name: "player_2"}
 
 	s.Equal([]string{"1 player_1 fr 3"}, lines(s.of(seasonZero, "")))
 	s.Equal([]string{"1 player_2 de 1"}, lines(s.of(seasonOne, "")))
@@ -203,7 +203,7 @@ func (s *testSuite) TestACountryThatIsNotOneIsRefusedAndReadsNothing() {
 	_, err := s.query().Board(s.T().Context(), board_query.View{Book: seasonZero, Country: "zz"})
 
 	s.Require().ErrorIs(err, board_query.ErrUnknownCountry)
-	s.Zero(s.authors.asked)
+	s.Zero(s.players.asked)
 }
 
 func (s *testSuite) TestABoardIsTheTopOfTheStandings() {
@@ -228,7 +228,7 @@ func (s *testSuite) TestABoardOfACountryThatIsNotOneIsRefused() {
 func (s *testSuite) TestAFailureToNameIsAnError() {
 	s.player(1, "fr", 3)
 	refused := errors.New("the player module is down")
-	s.authors.err = refused
+	s.players.err = refused
 
 	_, err := s.query().Board(s.T().Context(), board_query.View{Book: seasonZero})
 

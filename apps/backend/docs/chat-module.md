@@ -16,7 +16,7 @@ internal/chat/internal/
                                         FakeFlags
     postgres_message_store/             Storage, over chat.messages
     inmemory_message_storage/           Storage in a slice — behind the testing tag, tests only
-    rpc_player_authors/                 who an account is, from player.v1.InternalService/GetAuthor(s): one on
+    rpc_player_authors/                 who an account is, from player.v1.InternalService/IntroducePlayer and GetPlayers: one on
                                         each post, the people under a message on each reaction
     rpc_planet_flags/                   Flags: the flag an account plays for, from
                                         planet.v1.InternalService/GetAllegianceOf, on each call to a flag's room
@@ -82,7 +82,7 @@ internal/chat/internal/
       rpc_player_authors/               the same adapter as the history's, for this query
     get_history_handler/history_query/  PostgresQuery: GetHistoryResponse straight from SQL, named, and until when
                                         the viewer saw the chat — Authors
-      rpc_player_authors/               Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
+      rpc_player_authors/               Authors, from player.v1.InternalService/GetPlayers, as player.v1.Player
     chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), for the post,
                                         the reaction and the stream
     chatannouncement/                   Encode, for the stream

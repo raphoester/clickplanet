@@ -1075,14 +1075,17 @@ func (x *GetPlayerResponse) GetPlayer() *Player {
 	return nil
 }
 
+// Who a player is, wherever player answers one: GetPlayer's card, and InternalService's GetPlayers and IntroducePlayer.
 type Player struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Name            string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	CreatedAtUnixMs int64                  `protobuf:"varint,3,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
-	Admin           bool                   `protobuf:"varint,4,opt,name=admin,proto3" json:"admin,omitempty"`
-	Color           NameColor              `protobuf:"varint,5,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
-	// A guest is its name alone: every other field is unset.
-	Guest         bool `protobuf:"varint,10,opt,name=guest,proto3" json:"guest,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Auth's, so GetPlayer alone asks for it: 0 from GetPlayers and IntroducePlayer.
+	CreatedAtUnixMs int64     `protobuf:"varint,3,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
+	Admin           bool      `protobuf:"varint,4,opt,name=admin,proto3" json:"admin,omitempty"`
+	Color           NameColor `protobuf:"varint,5,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
+	// A guest is its account and its name alone: every other field is unset.
+	Guest         bool   `protobuf:"varint,10,opt,name=guest,proto3" json:"guest,omitempty"`
+	AccountId     string `protobuf:"bytes,11,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1152,6 +1155,13 @@ func (x *Player) GetGuest() bool {
 	return false
 }
 
+func (x *Player) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
 var File_player_v1_player_proto protoreflect.FileDescriptor
 
 const file_player_v1_player_proto_rawDesc = "" +
@@ -1216,14 +1226,16 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x02 \x01(\tR\taccountIdJ\x04\b\x01\x10\x02R\x04name\">\n" +
 	"\x11GetPlayerResponse\x12)\n" +
-	"\x06player\x18\x01 \x01(\v2\x11.player.v1.PlayerR\x06player\"\xf4\x01\n" +
+	"\x06player\x18\x01 \x01(\v2\x11.player.v1.PlayerR\x06player\"\x93\x02\n" +
 	"\x06Player\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12+\n" +
 	"\x12created_at_unix_ms\x18\x03 \x01(\x03R\x0fcreatedAtUnixMs\x12\x14\n" +
 	"\x05admin\x18\x04 \x01(\bR\x05admin\x12*\n" +
 	"\x05color\x18\x05 \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12\x14\n" +
 	"\x05guest\x18\n" +
-	" \x01(\bR\x05guestJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	" \x01(\bR\x05guest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\v \x01(\tR\taccountIdJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
 	"R\x05statsR\x06titlesR\n" +
 	"worn_titleR\tplays_forR\rplays_against2\xcc\x04\n" +
 	"\rPlayerService\x12I\n" +

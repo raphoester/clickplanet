@@ -21,7 +21,7 @@ import (
 )
 
 type Authors interface {
-	Authors(ctx context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Author, error)
+	Authors(ctx context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Player, error)
 }
 
 const (
@@ -328,7 +328,7 @@ func everyone(rows []row) []cpsession.AccountID {
 	return accounts
 }
 
-func messageOf(row row, named map[cpsession.AccountID]*playerv1.Author) *chatv1.ChatMessage {
+func messageOf(row row, named map[cpsession.AccountID]*playerv1.Player) *chatv1.ChatMessage {
 	message := &chatv1.ChatMessage{
 		Id:               row.id,
 		SentAtUnixMs:     row.sentAt,
@@ -363,7 +363,7 @@ func messageOf(row row, named map[cpsession.AccountID]*playerv1.Author) *chatv1.
 	return message
 }
 
-func quoteOf(quoted quoted, named map[cpsession.AccountID]*playerv1.Author) *chatv1.Quote {
+func quoteOf(quoted quoted, named map[cpsession.AccountID]*playerv1.Player) *chatv1.Quote {
 	if quoted.id == "" {
 		return nil
 	}
@@ -397,7 +397,7 @@ func gifOf(gif gif) *chatv1.Gif {
 	return &chatv1.Gif{Url: gif.url, Width: gif.width, Height: gif.height}
 }
 
-func reactionsOf(counts []count, named map[cpsession.AccountID]*playerv1.Author) []*chatv1.ReactionCount {
+func reactionsOf(counts []count, named map[cpsession.AccountID]*playerv1.Player) []*chatv1.ReactionCount {
 	encoded := make([]*chatv1.ReactionCount, 0, len(counts))
 	for _, each := range counts {
 		encoded = append(encoded, &chatv1.ReactionCount{
@@ -410,7 +410,7 @@ func reactionsOf(counts []count, named map[cpsession.AccountID]*playerv1.Author)
 	return encoded
 }
 
-func namesOf(accounts []uuid.UUID, named map[cpsession.AccountID]*playerv1.Author) []string {
+func namesOf(accounts []uuid.UUID, named map[cpsession.AccountID]*playerv1.Player) []string {
 	names := make([]string, 0, min(len(accounts), NamedReactors))
 	for _, account := range accounts {
 		if len(names) == NamedReactors {

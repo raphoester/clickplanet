@@ -25,7 +25,7 @@ func (r *recordingStream) Send(event *playerv1.PlayerEvent) error {
 
 var ada = presence.EntryOf(presence.NewVisit(
 	players.AccountID{15: 1},
-	players.NamedAuthor(players.NewProfile(players.AccountID{15: 1}, "Ada_L", time.Time{})),
+	players.NamedPlayer(players.NewProfile(players.AccountID{15: 1}, "Ada_L", time.Time{})),
 	"", "fr", time.Time{},
 ).Keyed("k1"))
 

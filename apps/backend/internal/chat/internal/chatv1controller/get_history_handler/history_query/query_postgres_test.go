@@ -35,7 +35,7 @@ func TestRunSuite(t *testing.T) {
 }
 
 type fakeAuthors struct {
-	named map[messages.AccountID]*playerv1.Author
+	named map[messages.AccountID]*playerv1.Player
 	asked [][]messages.AccountID
 	err   error
 }
@@ -43,13 +43,13 @@ type fakeAuthors struct {
 func (f *fakeAuthors) Authors(
 	_ context.Context,
 	accounts []messages.AccountID,
-) (map[messages.AccountID]*playerv1.Author, error) {
+) (map[messages.AccountID]*playerv1.Player, error) {
 	f.asked = append(f.asked, accounts)
 	if f.err != nil {
 		return nil, f.err
 	}
 
-	found := make(map[messages.AccountID]*playerv1.Author, len(accounts))
+	found := make(map[messages.AccountID]*playerv1.Player, len(accounts))
 	for _, account := range accounts {
 		if author, known := f.named[account]; known {
 			found[account] = author
@@ -100,7 +100,7 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
-	s.authors = &fakeAuthors{named: map[messages.AccountID]*playerv1.Author{
+	s.authors = &fakeAuthors{named: map[messages.AccountID]*playerv1.Player{
 		ada: {AccountId: ada.String(), Name: "Ada"},
 		bob: {AccountId: bob.String(), Name: "Bob"},
 	}}
@@ -222,7 +222,7 @@ func (s *testSuite) TestAMessageCarriesWhatItsRowHolds() {
 }
 
 func (s *testSuite) TestEachMessageIsNamedByWhoItsAccountIsNow() {
-	s.authors.named[ada] = &playerv1.Author{
+	s.authors.named[ada] = &playerv1.Player{
 		AccountId: ada.String(), Name: "Ada Lovelace", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
 	}
 	s.sent("one", 2*time.Hour)
@@ -270,7 +270,7 @@ func (s *testSuite) TestAMessageFromBeforeAccountsKeepsTheNameItCarries() {
 }
 
 func (s *testSuite) TestAReplyCarriesWhatTheMessageItRepliesToSaidAndWhoSaidIt() {
-	s.authors.named[bob] = &playerv1.Author{
+	s.authors.named[bob] = &playerv1.Player{
 		AccountId: bob.String(), Name: "Bob", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
 	}
 	s.sentAt("question", bob, now.Add(-2*time.Hour))
@@ -418,7 +418,7 @@ func (s *testSuite) TestACountNamesOnlyItsFirstReactors() {
 	for i := range reactors {
 		account := messages.AccountID{14: 1, 15: byte(i)}
 		name := fmt.Sprintf("Player%02d", i)
-		s.authors.named[account] = &playerv1.Author{AccountId: account.String(), Name: name}
+		s.authors.named[account] = &playerv1.Player{AccountId: account.String(), Name: name}
 		names = append(names, name)
 		s.reacted("hello", clown, reactions.ReactorOf(account), true, now.Add(time.Duration(i-reactors)*time.Second))
 	}

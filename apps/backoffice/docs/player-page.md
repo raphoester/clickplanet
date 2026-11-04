@@ -21,7 +21,7 @@ address>`), so Back goes to the list, as it was.
 - **A row is shown by its flag and its name, never its account id** (`PlayerName`): the flag it took the most tiles
   for (`flag_country_id`), as an emoji and a name, then its username or its guest code. The planet's rows carry no
   name (the backend's [Player](../../backend/docs/player.md)), so the page asks
-  `player.v1.AdminService/GetAuthors` for the accounts of the page once the list answers (`withAuthors`). An account
+  `player.v1.AdminService/GetPlayers` for the accounts of the page once the list answers (`withNames`). An account
   the game never named is "Unnamed": it never joined the roster or posted, and the game's page joins the roster as
   soon as it may click, so it is most likely a script. A row with no account is "No account". **Names that cannot be
   read leave the list listed**, every account "Unnamed", with the reason above it.

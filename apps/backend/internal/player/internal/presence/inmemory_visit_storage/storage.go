@@ -60,7 +60,7 @@ func (s *Storage) Record(visit presence.Visit) {
 	}
 }
 
-func (s *Storage) Move(from, to players.AccountID, author players.Author) {
+func (s *Storage) Move(from, to players.AccountID, player players.Player) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -74,7 +74,7 @@ func (s *Storage) Move(from, to players.AccountID, author players.Author) {
 	}
 
 	delete(s.visits, from)
-	moved := visit.For(to, author)
+	moved := visit.For(to, player)
 	s.visits[to] = moved
 
 	if presence.EntryOf(visit) != presence.EntryOf(moved) {
@@ -91,7 +91,7 @@ func (s *Storage) Rename(account players.AccountID, username players.Name) {
 		return
 	}
 
-	renamed := visit.For(account, visit.Author().Renamed(username))
+	renamed := visit.For(account, visit.Player().Renamed(username))
 	s.visits[account] = renamed
 
 	if presence.EntryOf(visit) != presence.EntryOf(renamed) {

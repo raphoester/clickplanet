@@ -7,7 +7,7 @@ import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {ChargesHeld} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {AdminGetPlayerResponse, PlayerMatch} from "../gen/grpc/player/v1/admin_pb.ts"
-import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
+import {Player as Identity} from "../gen/grpc/player/v1/player_pb.ts"
 import {AdminGetProgressResponse} from "../gen/grpc/progression/v1/admin_pb.ts"
 import {Stats} from "../gen/grpc/progression/v1/progression_pb.ts"
 import {timeOf} from "../components/time.ts"
@@ -32,9 +32,9 @@ export type Grant = {refill: boolean, bomb: boolean, enclosures: number, spreadC
 export type Granted = {before: ChargesHeld, after: ChargesHeld}
 export type Released = {locked: boolean}
 export type Players = {players: Player[], total: number}
-export type Authors = Map<string, Author>
+export type Identities = Map<string, Identity>
 // Who each account is. `unnamed` says why there are no names, when they could not be read.
-export type Named = {authors: Authors, unnamed: string | undefined}
+export type Named = {identities: Identities, unnamed: string | undefined}
 // A page of players and who each account is.
 export type Listed = Players & Named
 export type Matches = {players: PlayerMatch[], total: number}
@@ -160,21 +160,21 @@ export async function searchPlayers(player: PlayerAdmin, name: string, limit: nu
 }
 
 // Each account of a page by its username or its guest code. A page whose names cannot be read is still listed.
-export async function withAuthors(player: PlayerAdmin, page: Players, signal?: AbortSignal): Promise<Listed> {
+export async function withNames(player: PlayerAdmin, page: Players, signal?: AbortSignal): Promise<Listed> {
     return {...page, ...await namesOf(player, page.players.map(row => row.accountId), signal)}
 }
 
 // Each account by its username or its guest code, asked once. Names that cannot be read fail nothing: they say why.
 export async function namesOf(player: PlayerAdmin, accounts: string[], signal?: AbortSignal): Promise<Named> {
     const accountIds = [...new Set(accounts.filter(id => id !== ""))]
-    if (accountIds.length === 0) return {authors: new Map(), unnamed: undefined}
+    if (accountIds.length === 0) return {identities: new Map(), unnamed: undefined}
 
     try {
-        const answer = await player.getAuthors({accountIds}, {signal})
-        return {authors: new Map(answer.authors.map(author => [author.accountId, author])), unnamed: undefined}
+        const answer = await player.getPlayers({accountIds}, {signal})
+        return {identities: new Map(answer.players.map(identity => [identity.accountId, identity])), unnamed: undefined}
     } catch (err) {
         if (signal?.aborted === true) throw err
-        return {authors: new Map(), unnamed: wordsOf(err)}
+        return {identities: new Map(), unnamed: wordsOf(err)}
     }
 }
 

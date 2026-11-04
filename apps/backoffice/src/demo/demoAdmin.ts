@@ -60,7 +60,7 @@ import {
     RenamePlayerRequest,
     RenamePlayerResponse,
 } from "../gen/grpc/player/v1/admin_pb.ts"
-import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
+import {Player as Identity} from "../gen/grpc/player/v1/player_pb.ts"
 import {AdminGetProgressRequest, AdminGetProgressResponse} from "../gen/grpc/progression/v1/admin_pb.ts"
 import {CountryTiles, Stats} from "../gen/grpc/progression/v1/progression_pb.ts"
 import {
@@ -147,8 +147,8 @@ export class DemoAdmin extends FakeAdmin {
         // Some accounts never got a name: most likely scripts.
         for (const account of this.accounts.filter(account => account.bot)) account.name = ""
 
-        this.authors = this.accounts.filter(account => account.name !== "")
-            .map(account => new Author({accountId: account.id, name: account.name, guest: account.guest}))
+        this.identities = this.accounts.filter(account => account.name !== "")
+            .map(account => new Identity({accountId: account.id, name: account.name, guest: account.guest}))
 
         this.players = [
             ...this.accounts.map(account => {
@@ -407,9 +407,9 @@ export class DemoAdmin extends FakeAdmin {
             return this.refuseLater("renamePlayer", request, "the account has no profile", Code.NotFound)
         }
         account.name = (request.name ?? "").trim()
-        this.authors = this.authors.map(author => author.accountId === account.id
-            ? new Author({...author, name: account.name})
-            : author)
+        this.identities = this.identities.map(identity => identity.accountId === account.id
+            ? new Identity({...identity, name: account.name})
+            : identity)
         return this.answer("renamePlayer", request, new RenamePlayerResponse({name: account.name}))
     }
 

@@ -20,8 +20,8 @@ type Territory interface {
 	Snapshot(ctx context.Context) (books.Snapshot, error)
 }
 
-type Authors interface {
-	Authors(ctx context.Context, accounts []books.AccountID) (map[books.AccountID]*playerv1.Author, error)
+type Players interface {
+	Players(ctx context.Context, accounts []books.AccountID) (map[books.AccountID]*playerv1.Player, error)
 }
 
 type Scores interface {
@@ -37,14 +37,14 @@ const (
 	read = 50
 )
 
-func NewPostgresQuery(db cppg.Conn, territory Territory, authors Authors, scores Scores) *PostgresQuery {
-	return &PostgresQuery{db: db, territory: territory, authors: authors, scores: scores}
+func NewPostgresQuery(db cppg.Conn, territory Territory, players Players, scores Scores) *PostgresQuery {
+	return &PostgresQuery{db: db, territory: territory, players: players, scores: scores}
 }
 
 type PostgresQuery struct {
 	db        cppg.Conn
 	territory Territory
-	authors   Authors
+	players   Players
 	scores    Scores
 }
 
@@ -91,7 +91,7 @@ func (q *PostgresQuery) Live(ctx context.Context, id books.RoundID) (*scoringv1.
 		return err
 	})
 	group.Go(func() (err error) {
-		shown.Players, err = q.players(ctx, id)
+		shown.Players, err = q.bestPlayers(ctx, id)
 		return err
 	})
 	if endedAt.Valid {
@@ -194,9 +194,9 @@ type line struct {
 	tiles   uint64
 }
 
-// players ranks each account by the tiles it took for the flag it took the most for, so it cannot add up several, and
+// bestPlayers ranks each account by the tiles it took for the flag it took the most for, so it cannot add up several, and
 // names the first Shown who are not guests, as the boards do.
-func (q *PostgresQuery) players(ctx context.Context, id books.RoundID) ([]*scoringv1.Standing, error) {
+func (q *PostgresQuery) bestPlayers(ctx context.Context, id books.RoundID) ([]*scoringv1.Standing, error) {
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
 		SELECT account_id, country, tiles FROM (
 			SELECT DISTINCT ON (account_id) account_id, country, tiles FROM round_players
@@ -237,14 +237,14 @@ func (q *PostgresQuery) named(ctx context.Context, lines []line) ([]*scoringv1.S
 	for i, line := range lines {
 		accounts[i] = line.account
 	}
-	authors, err := q.authors.Authors(ctx, accounts)
+	players, err := q.players.Players(ctx, accounts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read who the players of the round are: %w", err)
 	}
 
 	for _, line := range lines {
-		author, known := authors[line.account]
-		if !known || author.GetGuest() {
+		player, known := players[line.account]
+		if !known || player.GetGuest() {
 			continue
 		}
 		rank := uint32(len(top) + 1) //nolint:gosec // at most Shown.
@@ -254,8 +254,8 @@ func (q *PostgresQuery) named(ctx context.Context, lines []line) ([]*scoringv1.S
 		top = append(top, &scoringv1.Standing{
 			Rank:      rank,
 			AccountId: line.account.String(),
-			Name:      author.GetName(),
-			Color:     author.GetColor(),
+			Name:      player.GetName(),
+			Color:     player.GetColor(),
 			CountryId: line.country,
 			Tiles:     line.tiles,
 		})

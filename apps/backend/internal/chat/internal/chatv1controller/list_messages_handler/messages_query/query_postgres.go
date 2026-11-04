@@ -21,7 +21,7 @@ import (
 )
 
 type Authors interface {
-	Authors(ctx context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Author, error)
+	Authors(ctx context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Player, error)
 }
 
 const (
@@ -290,7 +290,7 @@ func everyone(rows []row) []cpsession.AccountID {
 	return accounts
 }
 
-func nameOf(author author, named map[cpsession.AccountID]*playerv1.Author) string {
+func nameOf(author author, named map[cpsession.AccountID]*playerv1.Player) string {
 	if author.account == cpsession.NoAccount {
 		return author.name
 	}

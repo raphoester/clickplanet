@@ -21,7 +21,7 @@ import (
 var (
 	now   = time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)
 	ada   = players.AccountID{15: 1}
-	guest = players.GuestAuthor("0b1c2d")
+	guest = players.GuestPlayer("0b1c2d")
 )
 
 func setup() (*inmemory_player_store.Store, *inmemory_visit_storage.Storage, *renaming_name_account.Renaming) {
@@ -42,7 +42,7 @@ func TestAGeneratedNameShowsOnTheRosterAtOnce(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, visits.Visits(), 1)
-	assert.Equal(t, players.NamedAuthor(players.ProfileSnapshot{Name: "BraveFox42"}.Restore()), visits.Visits()[0].Author())
+	assert.Equal(t, players.NamedPlayer(players.ProfileSnapshot{Name: "BraveFox42"}.Restore()), visits.Visits()[0].Player())
 }
 
 func TestAFailureRenamesNothing(t *testing.T) {
@@ -52,5 +52,5 @@ func TestAFailureRenamesNothing(t *testing.T) {
 	_, err := useCase.Execute(t.Context(), ada, "")
 
 	require.Error(t, err)
-	assert.Equal(t, guest, visits.Visits()[0].Author())
+	assert.Equal(t, guest, visits.Visits()[0].Player())
 }

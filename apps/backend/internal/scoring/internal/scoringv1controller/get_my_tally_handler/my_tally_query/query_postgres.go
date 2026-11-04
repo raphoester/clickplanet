@@ -17,8 +17,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-type Authors interface {
-	Authors(ctx context.Context, accounts []standings.AccountID) (map[standings.AccountID]*playerv1.Author, error)
+type Players interface {
+	Players(ctx context.Context, accounts []standings.AccountID) (map[standings.AccountID]*playerv1.Player, error)
 }
 
 type CountryChecker interface {
@@ -29,13 +29,13 @@ var ErrUnknownCountry = errors.New("not a country")
 
 const page = 500
 
-func NewPostgresQuery(db cppg.Conn, authors Authors, countries CountryChecker) *PostgresQuery {
-	return &PostgresQuery{db: db, authors: authors, countries: countries}
+func NewPostgresQuery(db cppg.Conn, players Players, countries CountryChecker) *PostgresQuery {
+	return &PostgresQuery{db: db, players: players, countries: countries}
 }
 
 type PostgresQuery struct {
 	db        cppg.Conn
-	authors   Authors
+	players   Players
 	countries CountryChecker
 }
 
@@ -57,7 +57,7 @@ func (q *PostgresQuery) MyTally(
 		return mine, nil
 	}
 
-	named, err := q.authors.Authors(ctx, []standings.AccountID{account})
+	named, err := q.players.Players(ctx, []standings.AccountID{account})
 	if err != nil {
 		return nil, fmt.Errorf("failed to read who the caller is: %w", err)
 	}
@@ -176,7 +176,7 @@ func (q *PostgresQuery) ahead(ctx context.Context, accounts []standings.AccountI
 	if len(accounts) == 0 {
 		return 0, nil
 	}
-	named, err := q.authors.Authors(ctx, accounts)
+	named, err := q.players.Players(ctx, accounts)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read who is above the caller: %w", err)
 	}
@@ -189,7 +189,7 @@ func (q *PostgresQuery) ahead(ctx context.Context, accounts []standings.AccountI
 	return count, nil
 }
 
-func ranked(named map[standings.AccountID]*playerv1.Author, account standings.AccountID) bool {
-	author, known := named[account]
-	return known && !author.GetGuest()
+func ranked(named map[standings.AccountID]*playerv1.Player, account standings.AccountID) bool {
+	player, known := named[account]
+	return known && !player.GetGuest()
 }

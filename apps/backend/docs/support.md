@@ -46,8 +46,8 @@ internal/support/internal/
     suggest_feature_handler/  report_bug_handler/  report_player_handler/  get_attachment_rules_handler/
     create_upload_handler/  decide_report_handler/
     list_notes_handler/notes_query/ PostgresQuery: ListNotesResponse straight from SQL, with a link to each file — Links
-    list_reports_handler/reports_query/   PostgresQuery: ListReportsResponse from SQL, decided or not, named — Authors
-      rpc_player_authors/           Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
+    list_reports_handler/reports_query/   PostgresQuery: ListReportsResponse from SQL, decided or not, named — Players
+      rpc_players/                  Players, from player.v1.InternalService/GetPlayers, as player.v1.Player
     caller/                         the account on the context, or Unauthenticated
     pagecontext/                    Diagnostics: a request's PageContext and its User-Agent, for both handlers
     attachment/                     IDs and Uploaded: the files a note names, and the upload a request is answered
@@ -110,7 +110,7 @@ internal/support/internal/
 - **One account reports one player once a UTC day** (`ErrReportedAlready`, `AlreadyExists`), **and `NewReport` is where that is decided**: the use case hands it what the reporter already filed about the player (`FiledBy`), and a report of the same day among them refuses the new one. **The database holds no part of the rule**: no day column, no unique constraint, and a storage keeps two reports of one day if it is handed them. So two reports sent at the very same moment can both be kept. That is accepted: a report does nothing by itself, and the service's limiter lets an address send three.
 - **A report does nothing by itself, and nothing counts reports.** No mute, no ban, no score. A guest account is free to make and countries are rivals here, so a threshold would be a weapon. The operator reads a report, then uses the tools it already has.
 - **Kept in `support.reports`** (`id`, `reporter_account_id`, `reported_account_id`, `reason`, `text`, `message_id`, `created_at`; migration `20261012110000_reports`), with no address. **`reason` is a postgres enum type, `report_reason`**, as a note's kind is: a new reason is a value a migration adds to the type.
-- **`AdminService/ListReports(since, limit)`**, as `ListNotes`: newest first, 100 unless asked, 500 at most. `reports_query` reads the rows, then asks `GetAuthors` once for everyone they name, reporters and reported together. An account nobody can name any more has an empty name. **Reports nobody could be named in are refused**, as a chat history is. A stored reason the wire cannot carry refuses the read (`ErrUnknownReason`: a reason a newer migration added to the type, read by an older build). `reported_account_id` is what `antibot.v1`'s `InspectPlayer` and `BanPlayer` and chat's `Mute` take, and `message_id` what `GetMessage` and `RemoveMessage` take.
+- **`AdminService/ListReports(since, limit)`**, as `ListNotes`: newest first, 100 unless asked, 500 at most. `reports_query` reads the rows, then asks `GetPlayers` once for everyone they name, reporters and reported together. An account nobody can name any more has an empty name. **Reports nobody could be named in are refused**, as a chat history is. A stored reason the wire cannot carry refuses the read (`ErrUnknownReason`: a reason a newer migration added to the type, read by an older build). `reported_account_id` is what `antibot.v1`'s `InspectPlayer` and `BanPlayer` and chat's `Mute` take, and `message_id` what `GetMessage` and `RemoveMessage` take.
 - **`AdminService/DecideReport(report_id, outcome, comment)` closes a report**: `acted` or `dismissed`, and an
   optional comment that follows `notes.TextOf`. **A decision is a concept of its own** (`decisions/`), in
   `support.report_decisions` (migration `20261018130000_report_decisions`, `outcome` the type `report_outcome`), one

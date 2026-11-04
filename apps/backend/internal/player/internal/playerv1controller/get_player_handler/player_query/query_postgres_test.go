@@ -74,7 +74,7 @@ func (s *testSuite) player(account players.AccountID) *playerv1.Player {
 }
 
 func (s *testSuite) TestAPlayerIsFoundByItsAccount() {
-	s.True(proto.Equal(&playerv1.Player{Name: "Ada_L", CreatedAtUnixMs: createdAt.UnixMilli()}, s.player(ada)))
+	s.True(proto.Equal(&playerv1.Player{AccountId: ada.String(), Name: "Ada_L", CreatedAtUnixMs: createdAt.UnixMilli()}, s.player(ada)))
 }
 
 func (s *testSuite) TestAnAccountKeepsItsCardWhenAnotherTakesTheNameItLeft() {
@@ -86,14 +86,15 @@ func (s *testSuite) TestAnAccountKeepsItsCardWhenAnotherTakesTheNameItLeft() {
 	s.Equal("Ada_L", s.player(bob).GetName())
 }
 
-func (s *testSuite) TestAGuestIsItsNameAlone() {
+func (s *testSuite) TestAGuestIsItsAccountAndItsNameAlone() {
 	guest := players.AccountID{15: 3}
 	s.Require().NoError(s.players.SaveGuestCode(s.T().Context(), guest, "a1b2c3"))
 
 	answer, err := s.query().Player(s.T().Context(), guest)
 
 	s.Require().NoError(err)
-	s.True(proto.Equal(&playerv1.Player{Name: "guest_a1b2c3", Guest: true}, answer.GetPlayer()), "%v", answer.GetPlayer())
+	s.True(proto.Equal(&playerv1.Player{AccountId: guest.String(), Name: "guest_a1b2c3", Guest: true}, answer.GetPlayer()),
+		"%v", answer.GetPlayer())
 }
 
 func (s *testSuite) TestAnAccountTheGameNeverNamedIsNoPlayer() {

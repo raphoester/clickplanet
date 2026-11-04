@@ -4,14 +4,14 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 **Always on.** There is no `chat.enabled`: the module is built on every boot, and its database block is required.
 
-**Identity: a username, or a guest code, and always an account.** `SendMessage` reads the click token (`chatv1controller.NewSessionInterceptor`, over `cpconnect.NewSessionReaderInterceptor`, on the key `auth` hands over the internal listener). **A sender with no token, a bad one or a token with no account is refused** with `Unauthenticated` (`messages.ErrNoAccount`) before anything is asked. Every browser that passed Turnstile has an account, a guest one until it signs in, so the web client mints for a post as it does for a click. **The name is the player module's**, asked of `player.v1.InternalService/GetAuthor` on every post: the account's username, or `guest_` and the account's guest code (see [Player](player.md)). Nobody types a guest's name, so no guest can pass for a player or for another guest. **A post the player module could not answer for is refused** with `Unavailable` (`messages.ErrAuthorUnavailable`): no answer within a second, or an error. `log_authors`, a decorator around the adapter, logs it at Error. Messages sent before usernames existed got the prefix from migration `20260917200000_guest_prefix_backfill`, and messages sent before guest codes keep the name a guest typed then, until the retention drops them.
+**Identity: a username, or a guest code, and always an account.** `SendMessage` reads the click token (`chatv1controller.NewSessionInterceptor`, over `cpconnect.NewSessionReaderInterceptor`, on the key `auth` hands over the internal listener). **A sender with no token, a bad one or a token with no account is refused** with `Unauthenticated` (`messages.ErrNoAccount`) before anything is asked. Every browser that passed Turnstile has an account, a guest one until it signs in, so the web client mints for a post as it does for a click. **The name is the player module's**, asked of `player.v1.InternalService/IntroducePlayer` on every post: the account's username, or `guest_` and the account's guest code (see [Player](player.md)). Nobody types a guest's name, so no guest can pass for a player or for another guest. **A post the player module could not answer for is refused** with `Unavailable` (`messages.ErrAuthorUnavailable`): no answer within a second, or an error. `log_authors`, a decorator around the adapter, logs it at Error. Messages sent before usernames existed got the prefix from migration `20260917200000_guest_prefix_backfill`, and messages sent before guest codes keep the name a guest typed then, until the retention drops them.
 
 **A message is kept as an account, not as a copy of a name.** `chat.messages.account_id` is who sent it; the name, the crown and the color are read from the player module when the message is *shown*, never stored beside it. That is what makes a rename show on everything its player ever said, and a deleted account stop being named at all — a frozen copy could do neither, and the copy outliving the account it named was a small privacy hole of its own.
 
 **The wire says whose a message is**: `ChatMessage.author_account_id`, on the post's answer, on the stream and in the history. It is empty for a message kept before accounts and for an account that was deleted: nobody is there to open a card of, or to report. A client that has to say which player it means (`ReportPlayer`) sends this id, never the name.
 
-- **The history names a whole window in one ask.** `history_query` collects the distinct accounts of the rows it read and asks `player.v1.InternalService/GetAuthors` once, however many messages each of them sent. An account that says fifty things costs one lookup, not fifty. **A history nobody could be named in is refused** rather than shown anonymous.
-- **`SendMessage` still asks `GetAuthor` for one**, because what it publishes has to go out named: everyone already watching is shown who is talking without a second read. That call is also the one that gives a guest its code, which is why the read path uses `GetAuthors` instead — it draws no code, so showing the chat never writes.
+- **The history names a whole window in one ask.** `history_query` collects the distinct accounts of the rows it read and asks `player.v1.InternalService/GetPlayers` once, however many messages each of them sent. An account that says fifty things costs one lookup, not fifty. **A history nobody could be named in is refused** rather than shown anonymous.
+- **`SendMessage` still asks `IntroducePlayer` for one**, because what it publishes has to go out named: everyone already watching is shown who is talking without a second read. That call is also the one that gives a guest its code, which is why the read path uses `GetPlayers` instead — it draws no code, so showing the chat never writes.
 - **An account that can no longer be named was deleted**, and reads as `history_query.DeletedName` (`[deleted]`). No username can look like it: `SetName` refuses punctuation. What the account said stays, so a thread keeps its shape.
 - **A message with no `account_id` is from before this**, and keeps the `name` and `author_admin` its row carries. Those two columns exist for that alone. **TODO** (see `postgres_message_store.row`): once `chat.storage.retention` has passed since this shipped, every remaining row has an account, and the columns and `history_query`'s fallback to them can go.
 
@@ -117,7 +117,7 @@ duration)`, on the admin listener (see [Operator tools](admin.md)). A muted call
 - **Every mute is announced, after it is kept, by an event.** `mute_usecase` only keeps the mute, with an id from
   its `IDProvider` (`uuid_id_provider`; tests use `mutes.SequentialIDs`). `publishing_mute` then publishes
   `chat.v1.AccountMuted` with that id, and the chat hears it itself (`chat-announcements-mutes`):
-  `account_muted_subscriber` hands it to `announce_mute_usecase`, which names the account (`GetAuthor`) and gives an
+  `account_muted_subscriber` hands it to `announce_mute_usecase`, which names the account (`IntroducePlayer`) and gives an
   `announcements.Muted`, payload `{name, seconds}`, named after the mute, to `announce_usecase`. So the operator's
   call never fails on the announcement, and a mute that was not kept is never announced. The client writes "<name>
   has been muted for one hour", under the name the account had when the event was heard. A mute Redis did not take
@@ -173,7 +173,7 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
   - **Each is a `KeptMessage`**: its text as sent and its `removed_at`, as `GetMessage` answers, its country, its
     time, and what it answers as a `KeptQuote` (its id, its author's name, its text as sent and its `removed_at`;
     unset past the retention, as the history's quote is).
-  - **Each is named as the chat names it now** (`author_name`): one `GetAuthors` for every account the page names,
+  - **Each is named as the chat names it now** (`author_name`): one `GetPlayers` for every account the page names,
     quotes included; the name it was sent under for a message kept before accounts; `messages_query.DeletedName`
     for an account nobody can name, whose id is still answered, since the operator tools take it. A failure to name
     refuses the read, as the history's does.
@@ -183,8 +183,8 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
 - **`audit_remove` logs every call at Warn** (`admin chat message removal`).
 - `remove_message_usecase` keeps the removal; the history query's suite shows the message in its place with no
   text and its quote with none, the message store refuses a reaction to it, and `message_query` still reads the
-  text for the operator. `messages_query` reads a page on each side of a message; player's `authors_query` pins
-  that `GetAuthors` names each account as `GetAuthor` named it in the chat.
+  text for the operator. `messages_query` reads a page on each side of a message; player's `players_query` pins
+  that `GetPlayers` names each account as `IntroducePlayer` named it in the chat.
 
 ## Replies
 
@@ -203,7 +203,7 @@ name and color, its text), which the client draws above the reply.
   the two against each other, and a parity test against the history.
 - **`messages.Thread` makes the reply**: it holds the storage, the authors, the clock and the window, and the use
   case calls one method. `Reply(ctx, draft, id)` answers the draft as it is for no id. Otherwise it reads the
-  message answered, names its account with `GetAuthors` (a pure read: answering somebody draws no guest code), and
+  message answered, names its account with `GetPlayers` (a pure read: answering somebody draws no guest code), and
   answers `draft.Answering(answered)`. An account nobody can name is `messages.DeletedName`; a message from before
   accounts keeps the name its row carries. A message nobody could be asked about refuses the post
   (`ErrAuthorUnavailable`).
@@ -212,7 +212,7 @@ name and color, its text), which the client draws above the reply.
 - **The answer and the stream carry the quote**, so everyone watching sees what is answered with no second read.
 - **The history reads it in the same statement** (`history_query`: a lateral join on `reply_to`, bounded by the
   retention and not by the window, so a reply still quotes a message that newer ones pushed out). The quoted
-  accounts go in the one `GetAuthors` ask. **A message that is gone is not quoted**: once it is pruned, or past the
+  accounts go in the one `GetPlayers` ask. **A message that is gone is not quoted**: once it is pruned, or past the
   retention, its reply reads as a plain message.
 - **The server sends the whole text.** How much of it is shown is the client's (100 characters).
 - `thread_test.go` and the history query's suite pin that a quote is named by who its author is now.
@@ -229,7 +229,7 @@ name and color, its text), which the client draws above the reply.
 - **`GetHistory` marks the caller's own.** It reads the optional token (the session reader covers it): the account's reactions are marked, and a caller with no token has none.
 - **A count says who gave it, not only how many** — as accounts, named when it is shown. `Count` carries the same two halves a `messages.Message` does: `Reactors` is what the store holds, and `Names` is who those accounts are to a reader, filled by `reactions.Named` on the way out. So a rename shows under every reaction its player ever gave, for the same reason it shows on every message.
   - **`reactions.AccountOf`** is `ReactorOf` backwards: `account:<uuid>` to an account, and `false` for a `guest:<tag>` row from before guests had accounts, which is nobody and can be named nothing.
-  - **The history names everyone in one ask.** `history_query` gathers the senders *and* the people under their reactions, which its SQL reads as accounts, and calls `GetAuthors` once for the lot.
+  - **The history names everyone in one ask.** `history_query` gathers the senders *and* the people under their reactions, which its SQL reads as accounts, and calls `GetPlayers` once for the lot.
   - **`React` asks once too**, after the write, and uses that one answer for both the caller's response and the `ReactionsChanged` frame — a reader of the stream has no way to ask for itself. A change that changes nothing pays the same ask, since it answers the same list.
   - **Somebody nobody can name is counted without being named**: a deleted account, or one of those guest tags. `Count` still says how many gave it, and a list of reactions is not the place to announce that somebody is gone — which is why this does not use `history_query.DeletedName`.
   - The edge sends the first 20 names per count (`chatmessage.NamedReactors` for a reaction and the stream, `history_query.NamedReactors` for the history) and lets `count` say the rest, so a message everybody piles onto does not carry a name per reader per message.
@@ -279,7 +279,7 @@ was sent.
 - **A guest sends no GIF**: `Message.SentBy(author)` refuses it with `ErrGuestGif`, `PermissionDenied`, once the
   author is known and before anything is kept. A guest account is free and a private tab is a new one, so a mute
   does not stop a guest who posts GIFs; the same reason a guest's address is not a link. The player module says who
-  is a guest: `GetAuthorResponse.guest`, and `rpc_player_authors` answers `messages.GuestOf`.
+  is a guest: the `guest` of `IntroducePlayer`'s player, and `rpc_player_authors` answers `messages.GuestOf`.
 - **Kept in `chat.gifs`**, one row per message that shows one (`message_seq` → `messages.seq`, `url`, `width`,
   `height`; migration `20261104120000_gifs`): a text has no row, so no column stands empty on it. `Append` writes the
   message and its GIF in one statement (a data-modifying CTE). The row goes with its message (`ON DELETE CASCADE`),

@@ -21,7 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/random_name_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_account_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/introduce_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_account_usecase/renaming_name_account"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/rename_player_usecase"
@@ -34,17 +34,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler/admin_player_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_accounts_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler/player_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_players_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_players_handler/players_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler/profile_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler/roster_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler/roster_query/inmemory_roster"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/inprocess_rename_rule"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/introduce_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/leave_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rename_player_handler"
@@ -131,7 +131,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	accounts := rpc_account_reader.New(auth)
 	departureStore := postgres_departure_store.New(db)
 
-	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}))
+	introducer := introduce_player_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}))
 
 	visits := inmemory_visit_storage.New(clock)
 	generatedNames := players.NewGeneratedNames(store, random_name_generator.Generator{})
@@ -166,7 +166,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	forgetVisit := forget_visit_usecase.New(visits)
 	signIns, err := cpredis.Subscribe(ctx, streams, "player-presence-sign-ins",
-		log_subscriber.New(signed_in_subscriber.New(move_visit_usecase.New(authors, visits)), props.Logger))
+		log_subscriber.New(signed_in_subscriber.New(move_visit_usecase.New(introducer, visits)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.SignedIn: %w", err)
@@ -212,7 +212,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		),
 		SetColorHandler: set_color_handler.New(set_color_usecase.New(store)),
 		AnnounceHandler: announce_handler.New(
-			announce_usecase.New(authors, visits, cpcountries.New(), clock, tagSalt),
+			announce_usecase.New(introducer, visits, cpcountries.New(), clock, tagSalt),
 		),
 		LeaveHandler:     leave_handler.New(forgetVisit),
 		GetRosterHandler: getRoster,
@@ -227,11 +227,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount player.v1.PlayerService: %w", err)
 	}
 
-	getAuthors := get_authors_handler.New(authors_query.NewPostgresQuery(db))
+	getPlayers := get_players_handler.New(players_query.NewPostgresQuery(db))
 	internalService := playerv1controller.InternalService{
-		GetAuthorHandler:   get_author_handler.New(authors),
-		GetAuthorsHandler:  getAuthors,
-		GetAccountsHandler: get_accounts_handler.New(accounts),
+		IntroducePlayerHandler: introduce_player_handler.New(introducer),
+		GetPlayersHandler:      getPlayers,
+		GetAccountsHandler:     get_accounts_handler.New(accounts),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewInternalServiceHandler(internalService, options...)
@@ -240,7 +240,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	adminService := playerv1controller.AdminService{
-		GetAuthorsHandler:     getAuthors,
+		GetPlayersHandler:     getPlayers,
 		AdminGetPlayerHandler: admin_get_player_handler.New(admin_player_query.NewPostgresQuery(db, accounts)),
 		GetRosterHandler:      getRoster,
 		SearchPlayersHandler:  search_players_handler.New(matches_query.NewPostgresQuery(db)),

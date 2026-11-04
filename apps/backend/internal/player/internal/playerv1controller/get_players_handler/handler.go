@@ -1,4 +1,4 @@
-package get_authors_handler
+package get_players_handler
 
 import (
 	"context"
@@ -10,21 +10,21 @@ import (
 )
 
 type Query interface {
-	Authors(ctx context.Context, accounts []players.AccountID) (*playerv1.GetAuthorsResponse, error)
+	Players(ctx context.Context, accounts []players.AccountID) (*playerv1.GetPlayersResponse, error)
 }
 
-func New(query Query) GetAuthorsHandler {
-	return GetAuthorsHandler{query: query}
+func New(query Query) GetPlayersHandler {
+	return GetPlayersHandler{query: query}
 }
 
-type GetAuthorsHandler struct {
+type GetPlayersHandler struct {
 	query Query
 }
 
-func (h GetAuthorsHandler) GetAuthors(
+func (h GetPlayersHandler) GetPlayers(
 	ctx context.Context,
-	req *connect.Request[playerv1.GetAuthorsRequest],
-) (*connect.Response[playerv1.GetAuthorsResponse], error) {
+	req *connect.Request[playerv1.GetPlayersRequest],
+) (*connect.Response[playerv1.GetPlayersResponse], error) {
 	asked := make([]players.AccountID, 0, len(req.Msg.GetAccountIds()))
 	for _, id := range req.Msg.GetAccountIds() {
 		account, err := players.AccountIDOf(id)
@@ -34,12 +34,12 @@ func (h GetAuthorsHandler) GetAuthors(
 		asked = append(asked, account)
 	}
 
-	authors, err := h.query.Authors(ctx, asked)
+	found, err := h.query.Players(ctx, asked)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the error net answers it.
 	}
 
-	res := connect.NewResponse(authors)
+	res := connect.NewResponse(found)
 	res.Header().Set("Cache-Control", "no-store")
 
 	return res, nil

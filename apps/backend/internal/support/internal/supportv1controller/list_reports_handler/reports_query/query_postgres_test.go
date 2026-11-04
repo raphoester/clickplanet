@@ -33,16 +33,16 @@ type names struct {
 	asked [][]cpsession.AccountID
 }
 
-func (n *names) Authors(_ context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Author, error) {
+func (n *names) Players(_ context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Player, error) {
 	n.asked = append(n.asked, accounts)
 	if n.err != nil {
 		return nil, n.err
 	}
 
-	found := map[cpsession.AccountID]*playerv1.Author{}
+	found := map[cpsession.AccountID]*playerv1.Player{}
 	for _, account := range accounts {
 		if name, named := n.shown[account]; named {
-			found[account] = &playerv1.Author{AccountId: account.String(), Name: name}
+			found[account] = &playerv1.Player{AccountId: account.String(), Name: name}
 		}
 	}
 	return found, nil

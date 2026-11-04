@@ -31,15 +31,15 @@ func (s *stubTerritory) Snapshot(context.Context) (books.Snapshot, error) {
 	return books.Snapshot{Tiles: 100, Held: s.held}, nil
 }
 
-type stubAuthors struct {
-	authors map[books.AccountID]*playerv1.Author
+type stubPlayers struct {
+	players map[books.AccountID]*playerv1.Player
 }
 
-func (s stubAuthors) Authors(_ context.Context, accounts []books.AccountID) (map[books.AccountID]*playerv1.Author, error) {
-	found := map[books.AccountID]*playerv1.Author{}
+func (s stubPlayers) Players(_ context.Context, accounts []books.AccountID) (map[books.AccountID]*playerv1.Player, error) {
+	found := map[books.AccountID]*playerv1.Player{}
 	for _, account := range accounts {
-		if author, known := s.authors[account]; known {
-			found[account] = author
+		if player, known := s.players[account]; known {
+			found[account] = player
 		}
 	}
 	return found, nil
@@ -62,7 +62,7 @@ type testSuite struct {
 	db        *cppg.Postgres
 	rounds    *postgres_round_store.Store
 	territory *stubTerritory
-	authors   stubAuthors
+	players   stubPlayers
 	query     *round_query.PostgresQuery
 }
 
@@ -74,8 +74,8 @@ func (s *testSuite) SetupSuite() {
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 	s.territory = &stubTerritory{held: map[books.Country]uint32{}}
-	s.authors = stubAuthors{authors: map[books.AccountID]*playerv1.Author{}}
-	s.query = round_query.NewPostgresQuery(s.db, s.territory, s.authors, scores_query.NewPostgresQuery(s.db))
+	s.players = stubPlayers{players: map[books.AccountID]*playerv1.Player{}}
+	s.query = round_query.NewPostgresQuery(s.db, s.territory, s.players, scores_query.NewPostgresQuery(s.db))
 	_, err := postgres_book_store.New(s.db).Open(s.T().Context(), seasonZero)
 	s.Require().NoError(err)
 	for _, round := range []books.Round{day23, day24, battle} {
@@ -139,9 +139,9 @@ func (s *testSuite) TestAScoredRoundShowsItsResultsAndTheBooksScoresBeforeAndAft
 
 func (s *testSuite) TestARoundNamesTheFlagsAndTheSignedInPlayersThatTookTheMost() {
 	ada, bob, guest := books.AccountID{15: 1}, books.AccountID{15: 2}, books.AccountID{15: 3}
-	s.authors.authors[ada] = &playerv1.Author{AccountId: ada.String(), Name: "ada"}
-	s.authors.authors[bob] = &playerv1.Author{AccountId: bob.String(), Name: "bob"}
-	s.authors.authors[guest] = &playerv1.Author{AccountId: guest.String(), Name: "guest_1", Guest: true}
+	s.players.players[ada] = &playerv1.Player{AccountId: ada.String(), Name: "ada"}
+	s.players.players[bob] = &playerv1.Player{AccountId: bob.String(), Name: "bob"}
+	s.players.players[guest] = &playerv1.Player{AccountId: guest.String(), Name: "guest_1", Guest: true}
 	position := uint64(0)
 	take := func(account books.AccountID, country books.Country, tiles int) {
 		for range tiles {

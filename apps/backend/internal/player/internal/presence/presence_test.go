@@ -12,21 +12,21 @@ import (
 
 var now = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 
-func named(name players.Name, admin bool) players.Author {
+func named(name players.Name, admin bool) players.Player {
 	profile := players.ProfileSnapshot{Name: name, Admin: admin}.Restore()
-	return players.NamedAuthor(profile)
+	return players.NamedPlayer(profile)
 }
 
-func player(name players.Name) players.Author {
+func player(name players.Name) players.Player {
 	return named(name, false)
 }
 
-func guest(code players.GuestCode) players.Author {
-	return players.GuestAuthor(code)
+func guest(code players.GuestCode) players.Player {
+	return players.GuestPlayer(code)
 }
 
-func visit(key presence.Key, author players.Author, country string, at time.Time) presence.Visit {
-	return presence.NewVisit(players.AccountID{}, author, "", country, at).Keyed(key)
+func visit(key presence.Key, shown players.Player, country string, at time.Time) presence.Visit {
+	return presence.NewVisit(players.AccountID{}, shown, "", country, at).Keyed(key)
 }
 
 type line struct {
@@ -54,7 +54,7 @@ func linesOf(roster []presence.Entry) []line {
 }
 
 func TestAVisitIsFreshForTheTTL(t *testing.T) {
-	visit := presence.NewVisit(players.AccountID{}, players.Author{}, "", "", now)
+	visit := presence.NewVisit(players.AccountID{}, players.Player{}, "", "", now)
 
 	assert.True(t, visit.Fresh(now.Add(presence.TTL-time.Second)))
 	assert.False(t, visit.Fresh(now.Add(presence.TTL)))
@@ -123,7 +123,7 @@ func names(roster []presence.Entry) []string {
 }
 
 func TestALineCarriesTheColorItWasAnnouncedWith(t *testing.T) {
-	ada := players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L", Color: 3}.Restore())
+	ada := players.NamedPlayer(players.ProfileSnapshot{Name: "Ada_L", Color: 3}.Restore())
 
 	entry := presence.EntryOf(visit("1", ada, "fr", now))
 
@@ -131,7 +131,7 @@ func TestALineCarriesTheColorItWasAnnouncedWith(t *testing.T) {
 }
 
 func TestARenamedLineKeepsItsMarkAndColor(t *testing.T) {
-	ada := players.NamedAuthor(players.ProfileSnapshot{Name: "Ada", Admin: true, Color: 3}.Restore())
+	ada := players.NamedPlayer(players.ProfileSnapshot{Name: "Ada", Admin: true, Color: 3}.Restore())
 
 	entry := presence.EntryOf(visit("1", ada.Renamed("Ada_L"), "fr", now))
 

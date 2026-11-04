@@ -1,4 +1,4 @@
-package get_author_usecase_test
+package introduce_player_usecase_test
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/introduce_player_usecase"
 )
 
 var (
@@ -25,25 +25,25 @@ func store(t *testing.T) *inmemory_player_store.Store {
 	return store
 }
 
-func useCase(store *inmemory_player_store.Store) *get_author_usecase.UseCase {
-	return get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}))
+func useCase(store *inmemory_player_store.Store) *introduce_player_usecase.UseCase {
+	return introduce_player_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}))
 }
 
 func TestAnAccountWithAUsernameIsAnsweredWithIt(t *testing.T) {
-	author, err := useCase(store(t)).Execute(t.Context(), ada)
+	player, err := useCase(store(t)).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore()), author)
+	assert.Equal(t, players.NamedPlayer(players.ProfileSnapshot{Name: "Ada_L"}.Restore()), player)
 }
 
 func TestAnAdminIsSaidToBeOne(t *testing.T) {
 	admins := store(t)
 	admins.MakeAdmin(ada)
 
-	author, err := useCase(admins).Execute(t.Context(), ada)
+	player, err := useCase(admins).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L", Admin: true}.Restore()), author)
+	assert.Equal(t, players.NamedPlayer(players.ProfileSnapshot{Name: "Ada_L", Admin: true}.Restore()), player)
 }
 
 func TestAGuestIsGivenACodeOnceAndKeepsIt(t *testing.T) {
@@ -54,7 +54,7 @@ func TestAGuestIsGivenACodeOnceAndKeepsIt(t *testing.T) {
 	second, err := guests.Execute(t.Context(), guest)
 	require.NoError(t, err)
 
-	assert.Equal(t, players.GuestAuthor("000001"), first)
+	assert.Equal(t, players.GuestPlayer("000001"), first)
 	assert.Equal(t, first, second)
 }
 
@@ -71,8 +71,8 @@ func TestTheChosenColorIsAnswered(t *testing.T) {
 	colored := store(t)
 	require.NoError(t, colored.SaveColor(t.Context(), ada, 7))
 
-	author, err := useCase(colored).Execute(t.Context(), ada)
+	player, err := useCase(colored).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, players.Color(7), author.Color())
+	assert.Equal(t, players.Color(7), player.Color())
 }

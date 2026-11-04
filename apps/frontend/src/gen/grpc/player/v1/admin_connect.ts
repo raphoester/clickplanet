@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
+import { GetPlayersRequest, GetPlayersResponse } from "./internal_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { AdminGetPlayerRequest, AdminGetPlayerResponse, RenamePlayerRequest, RenamePlayerResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
 import { GetRosterRequest, GetRosterResponse } from "./player_pb.js";
@@ -17,14 +17,14 @@ export const AdminService = {
   typeName: "player.v1.AdminService",
   methods: {
     /**
-     * InternalService/GetAuthors, for the admin page naming a page of players.
+     * InternalService/GetPlayers, for the admin page naming a page of players.
      *
-     * @generated from rpc player.v1.AdminService.GetAuthors
+     * @generated from rpc player.v1.AdminService.GetPlayers
      */
-    getAuthors: {
-      name: "GetAuthors",
-      I: GetAuthorsRequest,
-      O: GetAuthorsResponse,
+    getPlayers: {
+      name: "GetPlayers",
+      I: GetPlayersRequest,
+      O: GetPlayersResponse,
       kind: MethodKind.Unary,
     },
     /**

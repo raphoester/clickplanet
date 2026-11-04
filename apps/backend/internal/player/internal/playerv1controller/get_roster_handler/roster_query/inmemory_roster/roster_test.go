@@ -17,8 +17,8 @@ import (
 
 var start = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 
-func named(name players.Name, admin bool, color players.Color) players.Author {
-	return players.NamedAuthor(players.ProfileSnapshot{Name: name, Admin: admin, Color: color}.Restore())
+func named(name players.Name, admin bool, color players.Color) players.Player {
+	return players.NamedPlayer(players.ProfileSnapshot{Name: name, Admin: admin, Color: color}.Restore())
 }
 
 func assertLines(t *testing.T, want []*playerv1.RosterEntry, got []*playerv1.RosterEntry) {
@@ -44,7 +44,7 @@ func TestEachLineSaysWhoIsPlayingAndPlayersComeBeforeGuests(t *testing.T) {
 	clock := cptime.NewFixedClock(start)
 	visits := inmemory_visit_storage.New(clock)
 	zed := named("Zed", true, players.Color(playerv1.NameColor_NAME_COLOR_TEAL))
-	visits.Record(presence.NewVisit(players.AccountID{15: 1}, players.GuestAuthor("a1b2c3"), "aaaaaa", "fr", start))
+	visits.Record(presence.NewVisit(players.AccountID{15: 1}, players.GuestPlayer("a1b2c3"), "aaaaaa", "fr", start))
 	visits.Record(presence.NewVisit(players.AccountID{15: 2}, zed, "bbbbbb", "de", start))
 
 	assertLines(t, []*playerv1.RosterEntry{

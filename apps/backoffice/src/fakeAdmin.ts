@@ -119,8 +119,8 @@ import {
     SearchPlayersRequest,
     SearchPlayersResponse,
 } from "./gen/grpc/player/v1/admin_pb.ts"
-import {Author, GetAuthorsRequest, GetAuthorsResponse} from "./gen/grpc/player/v1/internal_pb.ts"
-import {GetRosterRequest, GetRosterResponse, RosterEntry} from "./gen/grpc/player/v1/player_pb.ts"
+import {GetPlayersRequest, GetPlayersResponse} from "./gen/grpc/player/v1/internal_pb.ts"
+import {GetRosterRequest, GetRosterResponse, Player as Identity, RosterEntry} from "./gen/grpc/player/v1/player_pb.ts"
 import {
     AdminGetProgressRequest,
     AdminGetProgressResponse,
@@ -257,7 +257,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ].map(({breakBefore, length, finale}) => ({
         breakBefore: new Duration({seconds: BigInt(breakBefore)}), length: new Duration({seconds: BigInt(length)}), finale,
     })))
-    authors = [new Author({accountId: ACCOUNT, name: "BraveFox42"})]
+    identities = [new Identity({accountId: ACCOUNT, name: "BraveFox42"})]
     profile = new AdminGetPlayerResponse({name: "BraveFox42", linked: true, createdAtUnixMs: BigInt(AT.getTime())})
     progress = new AdminGetProgressResponse({
         messagesSent: 4n, stats: new Stats({tilesTaken: 1200n, streakCurrent: 3, streakBest: 12}),
@@ -548,18 +548,18 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return this.answer("getRoster", request, new GetRosterResponse({entries: this.roster}))
     }
 
-    getAuthors(request: PartialMessage<GetAuthorsRequest>): Promise<GetAuthorsResponse> {
+    getPlayers(request: PartialMessage<GetPlayersRequest>): Promise<GetPlayersResponse> {
         const asked = new Set(request.accountIds)
-        return this.answer("getAuthors", request,
-            new GetAuthorsResponse({authors: this.authors.filter(author => asked.has(author.accountId))}))
+        return this.answer("getPlayers", request,
+            new GetPlayersResponse({players: this.identities.filter(identity => asked.has(identity.accountId))}))
     }
 
     // The accounts the fake names, matched as the server does: in any case, anywhere in the name.
     searchPlayers(request: PartialMessage<SearchPlayersRequest>): Promise<SearchPlayersResponse> {
         const name = (request.name ?? "").trim().toLowerCase()
-        const players = this.authors
-            .filter(author => author.name.toLowerCase().includes(name))
-            .map(author => new PlayerMatch({accountId: author.accountId, name: author.name, guest: author.guest}))
+        const players = this.identities
+            .filter(identity => identity.name.toLowerCase().includes(name))
+            .map(identity => new PlayerMatch({accountId: identity.accountId, name: identity.name, guest: identity.guest}))
         return this.answer("searchPlayers", request, new SearchPlayersResponse({players, total: players.length}))
     }
 

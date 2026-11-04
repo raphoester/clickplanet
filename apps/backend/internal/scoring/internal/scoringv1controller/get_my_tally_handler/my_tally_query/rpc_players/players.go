@@ -1,4 +1,4 @@
-package rpc_player_authors
+package rpc_players
 
 import (
 	"context"
@@ -14,29 +14,29 @@ import (
 )
 
 type Player interface {
-	GetAuthors(
+	GetPlayers(
 		ctx context.Context,
-		req *connect.Request[playerv1.GetAuthorsRequest],
-	) (*connect.Response[playerv1.GetAuthorsResponse], error)
+		req *connect.Request[playerv1.GetPlayersRequest],
+	) (*connect.Response[playerv1.GetPlayersResponse], error)
 }
 
 const askTimeout = time.Second
 
-func New(player Player) *Authors {
-	return &Authors{player: player}
+func New(player Player) *Players {
+	return &Players{player: player}
 }
 
-type Authors struct {
+type Players struct {
 	player Player
 }
 
-var _ my_tally_query.Authors = (*Authors)(nil)
+var _ my_tally_query.Players = (*Players)(nil)
 
-func (a *Authors) Authors(
+func (a *Players) Players(
 	ctx context.Context,
 	accounts []standings.AccountID,
-) (map[standings.AccountID]*playerv1.Author, error) {
-	found := make(map[standings.AccountID]*playerv1.Author, len(accounts))
+) (map[standings.AccountID]*playerv1.Player, error) {
+	found := make(map[standings.AccountID]*playerv1.Player, len(accounts))
 	if len(accounts) == 0 {
 		return found, nil
 	}
@@ -49,17 +49,17 @@ func (a *Authors) Authors(
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	res, err := a.player.GetAuthors(ctx, connect.NewRequest(&playerv1.GetAuthorsRequest{AccountIds: ids}))
+	res, err := a.player.GetPlayers(ctx, connect.NewRequest(&playerv1.GetPlayersRequest{AccountIds: ids}))
 	if err != nil {
 		return nil, fmt.Errorf("failed to ask the player module who these accounts are: %w", err)
 	}
 
-	for _, author := range res.Msg.GetAuthors() {
-		id, err := uuid.Parse(author.GetAccountId())
+	for _, player := range res.Msg.GetPlayers() {
+		id, err := uuid.Parse(player.GetAccountId())
 		if err != nil {
-			return nil, fmt.Errorf("the player module answered for %q, which is not an account: %w", author.GetAccountId(), err)
+			return nil, fmt.Errorf("the player module answered for %q, which is not an account: %w", player.GetAccountId(), err)
 		}
-		found[standings.AccountID(id)] = author
+		found[standings.AccountID(id)] = player
 	}
 	return found, nil
 }

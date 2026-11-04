@@ -60,7 +60,7 @@ func (s *recordingSink) sent() []frame {
 
 func TestTheRosterComesFirstThenEachChange(t *testing.T) {
 	visits := inmemory_visit_storage.New(cptime.NewFixedClock(now))
-	visits.Record(presence.NewVisit(players.AccountID{15: 1}, players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore()), "aaaaaa", "fr", now))
+	visits.Record(presence.NewVisit(players.AccountID{15: 1}, players.NamedPlayer(players.ProfileSnapshot{Name: "Ada_L"}.Restore()), "aaaaaa", "fr", now))
 	sink := &recordingSink{}
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)

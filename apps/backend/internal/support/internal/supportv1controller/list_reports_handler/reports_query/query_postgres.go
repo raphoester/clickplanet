@@ -16,8 +16,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-type Authors interface {
-	Authors(ctx context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Author, error)
+type Players interface {
+	Players(ctx context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Player, error)
 }
 
 const (
@@ -42,13 +42,13 @@ var outcomes = map[string]supportv1.ReportOutcome{
 	"dismissed": supportv1.ReportOutcome_REPORT_OUTCOME_DISMISSED,
 }
 
-func NewPostgresQuery(db cppg.Conn, authors Authors) *PostgresQuery {
-	return &PostgresQuery{db: db, authors: authors}
+func NewPostgresQuery(db cppg.Conn, players Players) *PostgresQuery {
+	return &PostgresQuery{db: db, players: players}
 }
 
 type PostgresQuery struct {
 	db      cppg.Conn
-	authors Authors
+	players Players
 }
 
 const reports = `
@@ -75,7 +75,7 @@ func (q *PostgresQuery) Reports(
 		return nil, err
 	}
 
-	named, err := q.authors.Authors(ctx, everyone(rows))
+	named, err := q.players.Players(ctx, everyone(rows))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read who the reports name: %w", err)
 	}

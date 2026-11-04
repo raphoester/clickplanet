@@ -27,7 +27,7 @@ describe("the notes", () => {
         const [bug] = screen.getAllByRole("listitem")
         expect(within(bug).getByText("BraveFox42")).toBeTruthy()
         expect(within(bug).getByText(ACCOUNT)).toBeTruthy()
-        expect(admin.askedFor("getAuthors")).toEqual([{accountIds: [ACCOUNT]}])
+        expect(admin.askedFor("getPlayers")).toEqual([{accountIds: [ACCOUNT]}])
     })
 
     it("opens the sender on the player page", async () => {
@@ -52,7 +52,7 @@ describe("the notes", () => {
 
     it("still lists the notes when the names cannot be read, and says why", async () => {
         const admin = new FakeAdmin()
-        admin.refuse("getAuthors", Code.Unavailable)
+        admin.refuse("getPlayers", Code.Unavailable)
         const openPlayer = show(admin)
 
         expect(await screen.findByText("The names could not be read. The call failed: refused")).toBeTruthy()

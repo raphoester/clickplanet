@@ -7,21 +7,21 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
-type Authors interface {
-	Execute(ctx context.Context, account players.AccountID) (players.Author, error)
+type Introducer interface {
+	Execute(ctx context.Context, account players.AccountID) (players.Player, error)
 }
 
 type Visits interface {
-	Move(from, to players.AccountID, author players.Author)
+	Move(from, to players.AccountID, player players.Player)
 }
 
 type UseCase struct {
-	authors Authors
-	visits  Visits
+	introducer Introducer
+	visits     Visits
 }
 
-func New(authors Authors, visits Visits) *UseCase {
-	return &UseCase{authors: authors, visits: visits}
+func New(introducer Introducer, visits Visits) *UseCase {
+	return &UseCase{introducer: introducer, visits: visits}
 }
 
 func (u *UseCase) Execute(ctx context.Context, from, to players.AccountID) error {
@@ -30,11 +30,11 @@ func (u *UseCase) Execute(ctx context.Context, from, to players.AccountID) error
 		return nil
 	}
 
-	author, err := u.authors.Execute(ctx, to)
+	player, err := u.introducer.Execute(ctx, to)
 	if err != nil {
 		return fmt.Errorf("failed to name the account: %w", err)
 	}
 
-	u.visits.Move(from, to, author)
+	u.visits.Move(from, to, player)
 	return nil
 }

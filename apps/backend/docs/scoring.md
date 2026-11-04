@@ -39,11 +39,11 @@ internal/scoring/internal/
   scoringv1controller/            ScoringService and InternalService (bags), the cache and session interceptors
     get_board_handler/board_query/          a book's top 10, of every flag or of one; View; Live for the stream
     get_my_tally_handler/my_tally_query/    the caller's tally in a book
-    get_round_handler/round_query/          a round, live or scored — Territory, Authors, Scores
+    get_round_handler/round_query/          a round, live or scored — Territory, Players, Scores
     get_scores_handler/scores_query/        a book's scores, the scores around a round, the table (GetTable)
     get_table_handler/                      InternalService/GetTable, through scores_query
     get_round_players_handler/round_players_query/   InternalService/GetRoundPlayers: every account of a round
-    (each */rpc_player_authors/           Authors, from player.v1.InternalService/GetAuthors)
+    (each */rpc_players/                  Players, from player.v1.InternalService/GetPlayers)
     listen_for_events_handler/    the stream: a book's board and scores, the rounds asked, a heartbeat
       inprocess_feed/             Feed[K, V]: each key the streams follow, read once a period, sent when it changed
       log_reader/                 logs a live read that failed
@@ -166,8 +166,8 @@ id that is not one is `InvalidArgument`.
 
 - **`GetBoard(book_id, country_id)`** (`board_query`): the book's top 10, of every player by its main flag's tiles, or
   of every player who took tiles for `country_id` by those tiles: rank, account id, name, color, flag and
-  tiles: the title its player wears is a badge, which the page reads from progression's `GetBadges` by the account id. **Only a signed-in player is ranked**: Go skips what `GetAuthors` answers as a guest or not at all; a tie
-  shares the rank. Rows come 200 at a time from a keyset on `(tiles, account_id)`, one `GetAuthors` a page, until 10
+  tiles: the title its player wears is a badge, which the page reads from progression's `GetBadges` by the account id. **Only a signed-in player is ranked**: Go skips what `GetPlayers` answers as a guest or not at all; a tie
+  shares the rank. Rows come 200 at a time from a keyset on `(tiles, account_id)`, one `GetPlayers` a page, until 10
   are named. A country that is not one is `InvalidArgument`. A GET, `public, max-age=15`.
 - **`GetMyTally(book_id, country_id)`** (`my_tally_query`): the caller's main flag, tiles and rank among every player,
   and its tiles and rank on `country_id`'s board; 0 for a guest's ranks. Behind
@@ -177,7 +177,7 @@ id that is not one is `InvalidArgument`.
   results (the countries that scored), its end, and the book's scores before and after it (`scores_query.Around`:
   rounds ended before it, and through it; both with the grants made before its end, so they differ by the round
   alone). Always: the tiles each flag took during it (most first) and its top 10
-  signed-in players by the tiles each took for the flag it took the most for, from the best 50 and one `GetAuthors`.
+  signed-in players by the tiles each took for the flag it took the most for, from the best 50 and one `GetPlayers`.
   A GET, `public, max-age=10`.
 - **`GetScores(book_id)`** (`scores_query`): the book's countries with points, grants included, ranked by
   `Book.Table`. A GET, `public, max-age=10`. A book never opened has none.
