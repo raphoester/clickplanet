@@ -30,9 +30,10 @@ attack. While the game's Discord server is offered and the player is not in it,
 a `panel-box` says "Get pinged when France is attacked" on its top
 line, with a cross beside it, and under it the "Join Discord" button
 (`button button-mini` in Discord's color) across the box: the Discord sign-in
-that joins the server (see [Discord pings](discord-alerts.md)). Otherwise the
-button and the cross share one row: "Join Discord", a link to `DISCORD_INVITE`,
-promises nothing; "Open Discord" once the player is in. **Nothing else goes in
+that joins the server (see [Discord pings](discord-alerts.md)). Once the player
+is in, the button and the cross share one row: "Open Discord". **With nothing
+offered there is no bar**: no plain invite, since a member who came in by one
+has no flag's role and is never pinged. **Nothing else goes in
 the box**: TikTok, YouTube and Instagram sat beside the button, three more calls
 to action that had nothing to do with joining Discord, and they are on the About
 panel. The cross hides all of it for

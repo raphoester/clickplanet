@@ -12,7 +12,8 @@ import RecruitButton from "../share/RecruitButton.tsx"
 import InviteButton from "../share/InviteButton.tsx"
 import {Country} from "../../domain/countries.ts"
 import {breakHeadline} from "../../domain/shareCard.ts"
-import {DISCORD_INVITE} from "../../links.ts"
+import DiscordButton from "../alerts/DiscordButton.tsx"
+import {DiscordOffer} from "../alerts/useDiscordAlerts.ts"
 import {InviteLink} from "../../backends/crazyGames.ts"
 import {useScreen} from "../hud/screenStore.ts"
 import "./ClickBudgetMeter.css"
@@ -28,6 +29,7 @@ export type ClickBudgetMeterProps = {
     // The map takes no play: the dock says so, and when the next season starts when one is planned.
     frozen?: {nextSeason?: {number: number, startsAt: number}, country: Country}
     invite?: InviteLink
+    discord?: DiscordOffer
 }
 
 const MAX_PIPS = 12
@@ -48,6 +50,7 @@ export default function ClickBudgetMeter({
     said,
     frozen,
     invite,
+    discord,
 }: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
@@ -143,14 +146,10 @@ export default function ClickBudgetMeter({
                                      className="button button-mini button-secondary click-budget-invite"
                                      icon={<CountryFlag code={frozen.country.code}/>}
                                      label="Invite"/>}
-                <a href={DISCORD_INVITE}
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   className="button button-mini click-budget-discord"
-                   aria-label="Discord">
+                <DiscordButton offer={discord} className="button button-mini click-budget-discord">
                     <DiscordIcon size={20}/>
                     {!compact && <span aria-hidden="true">Discord</span>}
-                </a>
+                </DiscordButton>
             </div>
         </div>
     }

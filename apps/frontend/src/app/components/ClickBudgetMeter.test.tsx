@@ -4,7 +4,6 @@ import {cleanup, fireEvent, render, screen} from '@testing-library/react'
 import ClickBudgetMeter from './ClickBudgetMeter.tsx'
 import {ClickBudget} from "../../backends/clickBudget.ts"
 import {Countries} from "../../domain/countries.ts"
-import {DISCORD_INVITE} from "../../links.ts"
 import {useScreen} from "../hud/screenStore.ts"
 
 vi.mock("../share/deliverShare.ts", async (original) => ({
@@ -69,10 +68,14 @@ describe("ClickBudgetMeter", () => {
         expect(copyLink).toHaveBeenCalledWith("https://www.crazygames.com/game/clickplanet?czy_invite=true&f=fr")
     })
 
-    it("links the Discord on a frozen map", () => {
-        render(<ClickBudgetMeter frozen={{country: FRANCE}} compact/>)
+    it("offers the Discord the game offers on a frozen map, and none when it offers nothing", () => {
+        const {unmount} = render(<ClickBudgetMeter frozen={{country: FRANCE}} discord={{serverUrl: "https://discord.com/channels/1/2"}} compact/>)
+        expect(screen.getByRole("link", {name: "Open Discord"}).getAttribute("href")).toBe("https://discord.com/channels/1/2")
 
-        expect(screen.getByRole("link", {name: "Discord"}).getAttribute("href")).toBe(DISCORD_INVITE)
+        unmount()
+        render(<ClickBudgetMeter frozen={{country: FRANCE}} discord={{}} compact/>)
+        expect(screen.queryByRole("link", {name: "Open Discord"})).toBeNull()
+        expect(screen.queryByRole("button", {name: "Join Discord"})).toBeNull()
     })
 
     it("shows nothing against a server that reports no allowance", () => {

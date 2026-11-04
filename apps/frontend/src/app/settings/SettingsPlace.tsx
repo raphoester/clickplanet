@@ -2,6 +2,7 @@ import {useState} from "react";
 import {MapView} from "../../domain/displaySettings.ts";
 import {FeedbackBackend, PageContext} from "../../backends/support.ts";
 import About from "../About.tsx";
+import {DiscordOffer} from "../alerts/useDiscordAlerts.ts";
 import BuyMeACoffee from "../components/BuyMeACoffee.tsx";
 import Choices, {Choice} from "../components/Choices.tsx";
 import {InfoIcon, MailIcon} from "../components/icons.tsx";
@@ -19,6 +20,7 @@ export type SettingsPlaceProps = {
     sound?: SoundSettingsPanelProps,
     support?: FeedbackBackend,
     pageContext?: () => PageContext,
+    discord?: DiscordOffer,
 }
 
 const pageAlone = () => pageContextOf(window, NO_GRAPHICS, false)
@@ -29,7 +31,7 @@ const MAP_VIEWS: Choice<MapView>[] = [
     {value: "tiles", label: "Off"},
 ]
 
-export default function SettingsPlace({sound, support, pageContext = pageAlone}: SettingsPlaceProps) {
+export default function SettingsPlace({sound, support, pageContext = pageAlone, discord}: SettingsPlaceProps) {
     const [open, setOpen] = useState<"feedback" | "about">()
     const close = () => setOpen(undefined)
     const display = useDisplaySettings()
@@ -68,7 +70,7 @@ export default function SettingsPlace({sound, support, pageContext = pageAlone}:
         {open === "about" && <Modal title="About ClickPlanet"
                                     footer={ON_CRAZYGAMES ? undefined : <BuyMeACoffee/>}
                                     onClose={close}>
-            <About/>
+            <About discord={discord}/>
         </Modal>}
 
         {open === "feedback" && support && <FeedbackModal support={support}

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import About from "./About.tsx"
-import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../links.ts"
+import {INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../links.ts"
 
 afterEach(cleanup)
 
@@ -14,8 +14,17 @@ describe("About", () => {
         expect(screen.getByRole("link", {name: "Terms of service"}).getAttribute("href")).toBe("/terms")
     })
 
+    it("joins Discord by its sign-in, and shows no Discord when nothing is offered", () => {
+        const {unmount} = render(<About discord={{connect: vi.fn(async () => undefined)}}/>)
+        expect(screen.getByRole("button", {name: "Join Discord"})).toBeDefined()
+
+        unmount()
+        render(<About discord={{}}/>)
+        expect(screen.queryByRole("button", {name: "Join Discord"})).toBeNull()
+        expect(screen.queryByRole("link", {name: "Open Discord"})).toBeNull()
+    })
+
     it.each([
-        ["Discord", DISCORD_INVITE],
         ["TikTok", TIKTOK_PROFILE],
         ["YouTube", YOUTUBE_CHANNEL],
         ["Instagram", INSTAGRAM_PROFILE],

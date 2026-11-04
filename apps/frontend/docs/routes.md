@@ -38,9 +38,11 @@ game. A reviewer comes with no storage: on Oct 30 2026, the day the game was
 sent to CrazyGames, four outside visitors there got the home page and never
 pressed Play, and CrazyGames refused the game. The test runs the script.
 
-**A first visit keeps the query too.** `home.ts` copies `location.search` onto
-every Play link (`app/home/playLinks.ts`), so a newcomer who opened a share link
-reaches the game with its flag rather than with their time zone's.
+**A first visit keeps the query too.** `home.ts` adds `location.search` to
+every link to `/play` (`app/home/playLinks.ts`), the Discord ones
+(`/play?discord=join`, see [Discord pings](discord-alerts.md)) with their own
+query kept, so a newcomer who opened a share link reaches the game with its flag
+rather than with their time zone's.
 
 **The game is a real file at each path**, not a fallback. The Workers fallback
 is `index.html`, the home page, so a `/auth/callback` that relied on it would

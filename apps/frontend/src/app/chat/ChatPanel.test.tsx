@@ -1320,11 +1320,12 @@ describe("ChatPanel's players", () => {
 })
 
 describe("ChatPanel's Discord bar", () => {
-    const discord = () => screen.queryByRole("link", {name: "Join Discord"})
+    const IN_SERVER = {serverUrl: "https://discord.com/channels/1/2"}
+    const discord = () => screen.queryByRole("link", {name: "Open Discord"})
 
     it("sits over the chat, and not over who is online", async () => {
         const user = userEvent.setup()
-        render(<ChatPanel backend={stubBackend().backend} country={france} players={[]}/>)
+        render(<ChatPanel backend={stubBackend().backend} country={france} players={[]} discord={IN_SERVER}/>)
         expect(discord()).not.toBeNull()
 
         await user.click(screen.getByRole("tab", {name: "0 players online"}))
@@ -1332,12 +1333,19 @@ describe("ChatPanel's Discord bar", () => {
     })
 
     it("is in the phone's sheet too", () => {
-        render(<ChatPanel backend={stubBackend().backend} country={france} compact open/>)
+        render(<ChatPanel backend={stubBackend().backend} country={france} compact open discord={IN_SERVER}/>)
         expect(discord()).not.toBeNull()
     })
 
+    it("is not there while the game offers no Discord", () => {
+        render(<ChatPanel backend={stubBackend().backend} country={france}/>)
+
+        expect(screen.queryByRole("button", {name: "Hide Discord"})).toBeNull()
+    })
+
     it("stays gone once its cross is pressed, through a fold of the chat", async () => {
-        const {user} = setup(stubBackend().backend)
+        const user = userEvent.setup()
+        render(<ChatPanel backend={stubBackend().backend} country={france} discord={IN_SERVER}/>)
 
         await user.click(screen.getByRole("button", {name: "Hide Discord"}))
         await user.click(screen.getByRole("button", {name: "Fold the chat"}))

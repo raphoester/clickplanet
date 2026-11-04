@@ -2,7 +2,7 @@ import {useEffect, useState} from "react"
 import {DiscordAlerts} from "./discordAlerts.ts"
 
 // What the game offers about its Discord server: to connect, while this account is not in it, or its page once it is.
-// Neither: the invite alone.
+// Neither: no Discord button, since the sign-in is the one way in with a flag's role.
 export type DiscordOffer = {
     connect?: () => Promise<void>
     serverUrl?: string
@@ -30,7 +30,11 @@ export function useDiscordAlerts(
                 if (stale) return
                 if (!link.offered) setOffer(NOTHING)
                 else if (link.linked) setOffer({serverUrl: link.serverUrl || undefined})
-                else setOffer(connectable ? {connect: alerts.connect} : NOTHING)
+                else if (!connectable) setOffer(NOTHING)
+                else {
+                    setOffer({connect: alerts.connect})
+                    alerts.joinIfAsked()
+                }
                 const [wait, ...later] = waits
                 if (link.offered && !link.linked && wait !== undefined) again = setTimeout(() => void read(later), wait)
             },
