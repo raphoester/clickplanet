@@ -38,6 +38,11 @@ const PLAYERS: TerritoryPlayers = {
     fortifier: {line: lineOf("Mateus", "it"), at: NOW - 3 * 60 * 60_000},
 }
 
+const STREAKED: TerritoryPlayers = {
+    top: [{line: {...lineOf("Ana", "fr"), admin: true, streak: 12}, tiles: 400}],
+    fortifier: {line: {...lineOf("Mateus", "it"), streak: 4}, at: NOW - 3 * 60 * 60_000},
+}
+
 const shown = (territory: Territory): TerritoryShown => ({territory, point: {x: 300, y: 200}, touch: false, id: 1})
 
 function show(territory: Territory, props: Partial<Parameters<typeof TerritoryCard>[0]> = {}) {
@@ -116,6 +121,44 @@ describe("TerritoryCard", () => {
         fireEvent.click(within(top).getByRole("button", {name: /Ana/}))
         expect(onClose).toHaveBeenCalledTimes(1)
         expect(usePlayerCard.getState().player).toEqual(PLAYERS.top[0].line)
+    })
+
+    it("says a streak when its flame is pressed, and opens no card", () => {
+        usePlayerCard.setState({openable: true})
+        const onClose = vi.fn()
+        show(SICILY, {players: STREAKED, onClose})
+
+        fireEvent.click(screen.getByRole("button", {name: "12-day streak"}))
+        fireEvent.click(screen.getByRole("button", {name: "4-day streak"}))
+
+        expect(screen.getAllByRole("status").map((bubble) => bubble.textContent)).toEqual(["Played 12 days in a row", "Played 4 days in a row"])
+        expect(onClose).not.toHaveBeenCalled()
+        expect(usePlayerCard.getState().player).toBeUndefined()
+    })
+
+    it("opens a card from a name that wears a crown and a flame", () => {
+        usePlayerCard.setState({openable: true})
+        const onClose = vi.fn()
+        show(SICILY, {players: STREAKED, onClose})
+
+        fireEvent.click(screen.getByRole("button", {name: "Ana"}))
+        expect(onClose).toHaveBeenCalledTimes(1)
+        expect(usePlayerCard.getState().player).toEqual(STREAKED.top[0].line)
+
+        fireEvent.click(screen.getByRole("button", {name: "Mateus"}))
+        expect(usePlayerCard.getState().player).toEqual(STREAKED.fortifier?.line)
+    })
+
+    it("puts no button inside another", () => {
+        const warned = vi.spyOn(console, "error").mockImplementation(() => {})
+        usePlayerCard.setState({openable: true})
+        show(SICILY, {players: STREAKED})
+
+        const buttons = within(screen.getByRole("region", {name: "Sicily"})).getAllByRole("button")
+        expect(buttons.map((button) => button.textContent)).toEqual(["", "Ana", "12", "Mateus", "4"])
+        expect(buttons.filter((button) => button.parentElement?.closest("button"))).toEqual([])
+        expect(warned).not.toHaveBeenCalled()
+        warned.mockRestore()
     })
 
     it("lists an account once for each flag it holds the territory for", () => {
