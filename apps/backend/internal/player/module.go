@@ -139,7 +139,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	generatedNames := players.NewGeneratedNames(store, random_name_generator.Generator{})
 	props.Runners.Add(visits)
 
-	deletions, err := cpredis.Subscribe(ctx, streams, "player-accounts",
+	// Not player-accounts any more: a new group reads every AccountDeleted still in the stream, and tells each one
+	// forgotten again, for the modules that heard AccountDeleted until 2026-11-04 (see docs/player.md).
+	deletions, err := cpredis.Subscribe(ctx, streams, "player-profiles-accounts",
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(db, store, outbox)), props.Logger))
 	if err != nil {
 		closeStores()
