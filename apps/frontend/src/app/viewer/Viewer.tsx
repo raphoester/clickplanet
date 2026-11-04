@@ -64,9 +64,8 @@ import {hueOf} from "../../domain/authorColor.ts";
 import {PlayerInfoBackend, PresenceBackend} from "../../backends/player.ts";
 import PlayerCardPlace from "../players/PlayerCardPlace.tsx";
 import HolderCardPlace from "../players/HolderCardPlace.tsx";
-import TerritoryCard from "../territory/TerritoryCard.tsx";
+import TerritoryCardPlace from "../territory/TerritoryCardPlace.tsx";
 import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
-import {useTerritoryPlayers} from "../territory/useTerritoryPlayers.ts";
 import {usePresence} from "../players/usePresence.ts";
 import {useRosterFeed} from "../players/useRosterFeed.ts";
 import {onlineCount, useRoster} from "../players/rosterStore.ts";
@@ -302,7 +301,6 @@ export default function Viewer(props: ViewerProps) {
     const markWon = useBonusGuide((bonus) => bonus.markWon)
 
     const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
-    const territoryPlayers = useTerritoryPlayers(props.landmasses, props.playerInfo, territoryCard.shown?.territory.landmass)
 
     const fortifyGuide = useFortifyGuide()
     const [fortifyCard, setFortifyCard] = useState<Fortified | undefined>()
@@ -551,12 +549,12 @@ export default function Viewer(props: ViewerProps) {
                          pointing={pointing}
                          accountId={ownAccountId}/>
 
-        {territoryCard.shown && <TerritoryCard key={`territory-${territoryCard.shown.id}`}
-                                               shown={territoryCard.shown}
-                                               flag={countryState.code}
-                                               players={territoryPlayers}
-                                               onHold={territoryCard.hold}
-                                               onClose={territoryCard.dismiss}/>}
+        <TerritoryCardPlace shown={territoryCard.shown}
+                            flag={countryState.code}
+                            reader={props.landmasses}
+                            players={props.playerInfo}
+                            onHold={territoryCard.hold}
+                            onClose={territoryCard.dismiss}/>
 
         {props.playerInfo && <PlayerCardPlace backend={props.playerInfo}
                                               accountId={ownAccountId}

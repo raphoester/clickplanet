@@ -36,11 +36,15 @@ the globe. A click or a tap flies down to it.
   server's](counts.md)), and the locks come from `GetFortresses`.
   `Globe.territoryOf` builds it, and asks no server. It works as soon as the
   globe is ready, before the tiles are read.
-- **The players are the server's**: `useTerritoryPlayers` asks `LandmassReader.landmass`
+- **The players are the server's**: `TerritoryCardPlace` asks `LandmassReader.landmass`
   (`ClickService/GetLandmass`) once the card opens, then `PlayerService/GetPlayer` for the
   first `TOP_PLAYERS` (3) holders and the last fortifier, as the tile card names its
-  holder. "Top players" lists them with their flag and tiles, in their name's colour;
-  a signed-in one's name opens its card. The fortifier and when are under "Fortified
+  holder. **They are a store**, `useTerritoryPlayers` (`app/territory/territoryPlayersStore.ts`,
+  see [Stores](stores.md)), kept with the territory they were read for, so a card says nothing
+  of another one's (`playersOf`), and the same territory opened again shows them at once while
+  they are read again. `Viewer` renders the place with the backends and what `useTerritoryCard`
+  shows, and reads none of it; the place keeps nothing once it goes. "Top players" lists them
+  with their flag and tiles, in their name's colour; a signed-in one's name opens its card. The fortifier and when are under "Fortified
   by", **only when the fortify's flag is the lock's**: a lock settled with no fortify
   names nobody. A guest is shown by its guest name, a deleted account as such. See the
   backend's [Who holds the tiles](../../backend/docs/tile-holders.md).
