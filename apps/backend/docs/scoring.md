@@ -165,12 +165,12 @@ The reads are queries (see [Reads are queries](queries.md)), by the ids the game
 id that is not one is `InvalidArgument`.
 
 - **`GetBoard(book_id, country_id)`** (`board_query`): the book's top 10, of every player by its main flag's tiles, or
-  of every player who took tiles for `country_id` by those tiles: rank, account id, name, color, worn title, flag and
-  tiles. **Only a signed-in player is ranked**: Go skips what `GetAuthors` answers as a guest or not at all; a tie
+  of every player who took tiles for `country_id` by those tiles: rank, account id, name, color, flag and
+  tiles: the title its player wears is a badge, which the page reads from player's `GetBadges` by the account id. **Only a signed-in player is ranked**: Go skips what `GetAuthors` answers as a guest or not at all; a tie
   shares the rank. Rows come 200 at a time from a keyset on `(tiles, account_id)`, one `GetAuthors` a page, until 10
   are named. A country that is not one is `InvalidArgument`. A GET, `public, max-age=15`.
 - **`GetMyTally(book_id, country_id)`** (`my_tally_query`): the caller's main flag, tiles and rank among every player,
-  and its tiles and rank on `country_id`'s board, and the title it wears; 0 for a guest's ranks. Behind
+  and its tiles and rank on `country_id`'s board; 0 for a guest's ranks. Behind
   `NewSessionInterceptor`, always enforcing, on the identity token (`scoring_session_checks{verdict}`).
 - **`GetRound(round_id)`** (`round_query`), on the public and the internal listener: NotFound for a round never opened.
   While open: each country's share of the map now and the points it would score (`Round.Results`). Once scored: its

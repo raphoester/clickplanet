@@ -40,7 +40,7 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
 - **A query imports no domain package.** Player's queries import neither `players`, `titles`, `wearing`, `presence`
   nor `playermessage`; their ids are the shared `cpsession.AccountID`. A small display rule a command also applies
   is written again in the query's SQL, and each side has its own tests: a streak as of today (`Streak.AsOf`), the
-  guest name (`DisplayNameOf`), and a guest showing no streak and no title (`Author.Shown`, `wearing.AuthorOf`). A
+  guest name (`DisplayNameOf`), and a guest showing no badge (`badges_query` reads `profiles` alone). A
   game rule is never written again: titles go through the port above, never thresholds in SQL. Chat's
   `history_query` imports neither `messages`, `reactions`, `announcements` nor `feed`: it takes the
   window as `chat.storage.historySize` and `retention`, keeps the kinds it can carry (`kinds`), and reads a reactor
@@ -51,8 +51,8 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   names them with a map of its own, as `authprovider` does. The handlers still parse an id with
   `accounts.AccountIDOf`, as every edge does.
 - **Every rule written twice has a parity test**, which runs the same stored rows through both copies and asks for
-  the same answer. Player: a command's stats as of a day against `GetStats`, `GetAuthor` against `GetAuthors`, and `GetAuthors` against
-  `GetBadges`.
+  the same answer. Player: a command's stats as of a day against `GetStats`, `GetAuthor` against `GetAuthors`, and a command's streak
+  as of today and title worn (`Stats.AsOf`, `Wardrobe.Showcase`) against `GetBadges`.
   Chat (`history_query/parity_test.go`): a message is in the
   history exactly when `React` may react to it and `SendMessage` may reply to it; `React`'s answer against the
   history's reactions, cap of names included; `SendMessage`'s answer against the message the history reads back,
@@ -65,10 +65,10 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
 - **So the domain has no exported fields.** A player domain type is built by a constructor (`NewProfile`,
   `NewStats`, `NewVisit` to start one; `StatsOf`, `StreakOf`, `AccountOf` to restore one a store or
   another module kept), read through nouns (`Stats.TilesTaken()`, `Visit.Author()`), and changed
-  through builders that answer a copy (`Stats.WithTake`, `Profile.Renamed`, `Author.Renamed`, `wearing.Author.Wearing`,
+  through builders that answer a copy (`Stats.WithTake`, `Profile.Renamed`, `Author.Renamed`,
   `Visit.Keyed`). `players.Profile` has no getter: a store and the wire read it through `ProfileSnapshot`
   (`TakeSnapshot`, `Restore`), as chat's `Message` below. Chat the same: `NewRecord`, `NewWindow`, `AuthorOf`,
-  `TitleOf`, `RankOf`, `reactions.On` and `Off` for a `Change`, `Tally.Named`, `NewAnnouncement`, `BombOf`, and
+  `reactions.On` and `Off` for a `Change`, `Tally.Named`, `NewAnnouncement`, `BombOf`, and
   `feed.MessageSent`, `ReactionsChanged` and `Announced` for the three cases of an `Update`. A test outside the
   package compares through those nouns, or through a view of them (`title_test.go`'s `standingView`), since it
   cannot build the value by hand; where a test must, a constructor behind the `testing` tag builds it
@@ -86,5 +86,5 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   wire from it, and a test compares it. What a message does is a method on it (`Named`, `Answering`), so a use case
   tells it and never asks it. `Record.TakeSnapshot()` is the same for the row a store writes; nothing reads a
   record back, so it has no `Restore`. Tests build a message with `messages.Restored(t, snapshot)`, behind the tag.
-  **Only `Message` and `Record` follow this so far**: `Author`, `Title`, `Rank` and the other concepts still read
+  **Only `Message` and `Record` follow this so far**: `Author` and the other concepts still read
   through nouns.
