@@ -230,7 +230,6 @@ export default function Viewer(props: ViewerProps) {
     const closeSheet = useScreen((screen) => screen.closeSheet)
     const closePopover = useScreen((screen) => screen.closePopover)
     const closeAll = useScreen((screen) => screen.closeAll)
-    const [unread, setUnread] = useState(0)
     const [boardView, setBoardView] = useState<BoardView>("countries")
 
     useEffect(() => {
@@ -485,7 +484,6 @@ export default function Viewer(props: ViewerProps) {
             compact={compact}
             open={compact ? sheet === "chat" : undefined}
             onOpenChange={compact ? (open) => open ? openSheet("chat") : closeSheet() : undefined}
-            onUnread={setUnread}
             discord={discord}
             gifs={props.gifs}
         />}
@@ -517,7 +515,6 @@ export default function Viewer(props: ViewerProps) {
 
             <TabBar chat={props.chatBackend !== undefined && crazyGames.chat}
                     invite={invite !== undefined}
-                    unread={unread}
                     you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}
                     missions={missions ? missionsNews : undefined}/>
         </>}

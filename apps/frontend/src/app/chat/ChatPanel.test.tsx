@@ -24,6 +24,7 @@ import {Countries} from "../../domain/countries.ts"
 import {GifQuery} from "../../backends/gifs.ts"
 import {NameColor, RosterEntry} from "../../backends/player.ts"
 import {useRoster} from "../players/rosterStore.ts"
+import {useChat} from "./chatStore.ts"
 
 const france = Countries.get("fr")!
 
@@ -120,7 +121,10 @@ beforeEach(() => window.localStorage.clear())
 afterEach(() => {
     cleanup()
     useRoster.setState({state: {kind: "unavailable"}})
+    useChat.setState(useChat.getInitialState(), true)
 })
+
+const unreadCount = () => useChat.getState().unread
 
 const online = (entries: RosterEntry[]) => useRoster.setState({state: {kind: "ready", entries}})
 
@@ -856,16 +860,15 @@ describe("ChatPanel's seen mark", () => {
         const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true)
         try {
             const {backend, broadcast} = stubBackend([message("a", "seen last time", T)], [], T)
-            const onUnread = vi.fn()
-            render(<ChatPanel backend={backend} country={france} onUnread={onUnread}/>)
+            render(<ChatPanel backend={backend} country={france}/>)
             await screen.findByText("seen last time")
 
             broadcast(message("b", "while you were away", T + 1_000))
 
-            await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(1))
+            await waitFor(() => expect(unreadCount()).toBe(1))
             hidden.mockReturnValue(false)
             act(() => void document.dispatchEvent(new Event("visibilitychange")))
-            await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(0))
+            await waitFor(() => expect(unreadCount()).toBe(0))
         } finally {
             hidden.mockRestore()
         }
@@ -873,10 +876,19 @@ describe("ChatPanel's seen mark", () => {
 
     it("tells a phone's tab what was missed since the last visit", async () => {
         const {backend} = stubBackend([message("a", "said while away", T + 1_000)], [bomb("x", T + 2_000)], T)
-        const onUnread = vi.fn()
-        render(<ChatPanel backend={backend} country={france} compact open={false} onUnread={onUnread}/>)
+        render(<ChatPanel backend={backend} country={france} compact open={false}/>)
 
-        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(2))
+        await waitFor(() => expect(unreadCount()).toBe(2))
+    })
+
+    it("takes the tab's count away with it", async () => {
+        const {backend} = stubBackend([message("a", "said while away", T + 1_000)], [], T)
+        const view = render(<ChatPanel backend={backend} country={france} compact open={false}/>)
+        await waitFor(() => expect(unreadCount()).toBe(1))
+
+        view.unmount()
+
+        expect(unreadCount()).toBe(0)
     })
 })
 
@@ -912,10 +924,9 @@ describe("ChatPanel's Unread line", () => {
         [],
         T + 1_000)
 
-    const open = (backend: ChatBackend, onUnread = vi.fn()) => ({
-        onUnread,
+    const open = (backend: ChatBackend) => ({
         user: userEvent.setup({advanceTimers: vi.advanceTimersByTime}),
-        ...render(<ChatPanel backend={backend} country={france} onUnread={onUnread}/>),
+        ...render(<ChatPanel backend={backend} country={france}/>),
     })
 
     const log = () => document.querySelector(".chat-log")!
@@ -932,12 +943,12 @@ describe("ChatPanel's Unread line", () => {
 
     it("opens on the first unread line, under an Unread line, and marks only what it shows", async () => {
         const {backend} = backlog()
-        const {onUnread} = open(backend)
+        open(backend)
 
         const unread = await screen.findByRole("separator")
         expect(item("line 2").previousElementSibling).toBe(unread)
         expect(log().scrollTop).toBeGreaterThan(0)
-        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(3))
+        await waitFor(() => expect(unreadCount()).toBe(3))
 
         await act(async () => void vi.advanceTimersByTime(2_000))
         expect(backend.markSeen).toHaveBeenCalledTimes(1)
@@ -946,7 +957,7 @@ describe("ChatPanel's Unread line", () => {
 
     it("marks more as the player scrolls down, in one call however fast", async () => {
         const {backend} = backlog()
-        const {onUnread} = open(backend)
+        open(backend)
         await screen.findByRole("separator")
 
         for (const top of [100, 150, 176]) {
@@ -954,7 +965,7 @@ describe("ChatPanel's Unread line", () => {
             fireEvent.scroll(log())
         }
 
-        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(1))
+        await waitFor(() => expect(unreadCount()).toBe(1))
         await act(async () => void vi.advanceTimersByTime(2_000))
         expect(backend.markSeen).toHaveBeenCalledTimes(1)
         expect(backend.markSeen).toHaveBeenCalledWith(T + 4_000)
@@ -962,12 +973,12 @@ describe("ChatPanel's Unread line", () => {
 
     it("goes to the newest line from the button, and so marks everything", async () => {
         const {backend} = backlog()
-        const {onUnread, user} = open(backend)
+        const {user} = open(backend)
         await screen.findByRole("separator")
 
         await user.click(screen.getByRole("button", {name: "New messages"}))
 
-        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(0))
+        await waitFor(() => expect(unreadCount()).toBe(0))
         expect(screen.queryByRole("button", {name: "New messages"})).toBeNull()
         await act(async () => void vi.advanceTimersByTime(2_000))
         expect(backend.markSeen).toHaveBeenLastCalledWith(T + 5_000)
@@ -1367,8 +1378,8 @@ describe("ChatPanel's Discord bar", () => {
 })
 
 describe("ChatPanel on a phone", () => {
-    const phone = (backend: ChatBackend, open: boolean, onOpenChange = vi.fn(), onUnread = vi.fn()) =>
-        render(<ChatPanel backend={backend} country={france} compact open={open} onOpenChange={onOpenChange} onUnread={onUnread}/>)
+    const phone = (backend: ChatBackend, open: boolean, onOpenChange = vi.fn()) =>
+        render(<ChatPanel backend={backend} country={france} compact open={open} onOpenChange={onOpenChange}/>)
 
     it("is a sheet while it is open, and closes on its ×", async () => {
         const {backend} = stubBackend([message("a", "who took Brittany")])
@@ -1390,13 +1401,12 @@ describe("ChatPanel on a phone", () => {
 
     it("counts what arrived while it was closed, for the tab", async () => {
         const {backend, broadcast} = stubBackend([message("a", "seen already")])
-        const onUnread = vi.fn()
-        phone(backend, false, vi.fn(), onUnread)
+        phone(backend, false)
         await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
 
         broadcast(message("b", "and one more", 1_700_000_200_000))
 
-        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(1))
+        await waitFor(() => expect(unreadCount()).toBe(1))
     })
 
     it("peeks at a new message for a moment, and opens on it", async () => {
@@ -1477,15 +1487,14 @@ describe("ChatPanel's flag room", () => {
 
     it("counts on each tab what lands in its own room, and the whole for the page", async () => {
         const {world, flag} = rooms()
-        const onUnread = vi.fn()
-        show(world, flag, {onUnread})
+        show(world, flag)
         await screen.findByText("hello world")
 
         act(() => flag.broadcast(message("f2", "bomb ready", T + 1_000)))
 
         expect(await screen.findByRole("tab", {name: "France, 1 new message"})).toBeDefined()
         expect(screen.getByRole("tab", {name: "World"})).toBeDefined()
-        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(1))
+        await waitFor(() => expect(unreadCount()).toBe(1))
     })
 
     it("counts both rooms on the folded panel", async () => {
@@ -1586,9 +1595,8 @@ describe("ChatPanel's flag room", () => {
 
     it("counts on a guest's flag tab what lands there, even while it is shown, and nowhere else", async () => {
         const {world, flag} = rooms()
-        const onUnread = vi.fn()
         const playSound = vi.fn()
-        const {user} = show(world, flag, {onSignIn: vi.fn(), onUnread, playSound})
+        const {user} = show(world, flag, {onSignIn: vi.fn(), playSound})
         await screen.findByText("hello world")
         await waitFor(() => expect(flag.backend.getHistory).toHaveBeenCalled())
         await user.click(screen.getByRole("tab", {name: "France"}))
@@ -1598,7 +1606,7 @@ describe("ChatPanel's flag room", () => {
         expect(await screen.findByRole("tab", {name: "France, 1 new message"})).toBeDefined()
         expect(screen.getByText("1 new message")).toBeDefined()
         expect(screen.queryByText("bomb ready")).toBeNull()
-        expect(onUnread).toHaveBeenLastCalledWith(0)
+        expect(unreadCount()).toBe(0)
         expect(playSound).not.toHaveBeenCalled()
     })
 })

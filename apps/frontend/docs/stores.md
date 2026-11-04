@@ -9,9 +9,9 @@ exports one hook, `use<Feature>`, made with `create`. It holds the state and the
 (`setMapView`), and saves itself where it must (a `subscribe` that writes `localStorage`, in the format the page read
 before). For example [`app/settings/displaySettingsStore.ts`](../src/app/settings/displaySettingsStore.ts).
 
-- **The component that shows the state reads the store itself.** `SettingsPlace` reads the display settings, and
-  the board reads its guide. `Viewer` reads a store only for what it draws or hands a hook itself, such as the two
-  display fields it gives the globe, and never to pass a value down.
+- **The component that shows the state reads the store itself.** `SettingsPlace` reads the display settings, the
+  board reads its guide, and the phone's tab bar the chat's unread count. `Viewer` reads a store only for what it
+  draws or hands a hook itself, such as the two display fields it gives the globe, and never to pass a value down.
 - **A selector returns a field or a plain value**: `useDisplaySettings((settings) => settings.mapView)`. A selector
   that builds a new object or array on each call makes React render without end; build it in the component with
   `useMemo`, or wrap the selector in Zustand's `useShallow`.

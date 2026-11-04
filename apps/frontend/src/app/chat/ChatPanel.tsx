@@ -25,6 +25,7 @@ import {DiscordOffer} from "../alerts/useDiscordAlerts.ts";
 import {ChatRoomState, useChatRoom} from "./useChatRoom.ts";
 import {useChatIdentity} from "./useChatIdentity.ts";
 import {useChatSize} from "./useChatSize.ts";
+import {useChat} from "./chatStore.ts";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
 import "./ChatPanel.css"
 
@@ -45,7 +46,6 @@ export type ChatPanelProps = {
     compact?: boolean
     open?: boolean
     onOpenChange?: (open: boolean) => void
-    onUnread?: (unread: number) => void
     discord?: DiscordOffer
     onSignIn?: () => void
     gifs?: GifSearch
@@ -59,8 +59,6 @@ const PEEK_AUTHOR_MAX_LENGTH = 12
 
 const PEEK_TEXT_MAX_LENGTH = 80
 
-const NOTHING: ReadonlySet<string> = new Set()
-
 export default function ChatPanel(props: ChatPanelProps) {
     const [ownOpen, setOwnOpen] = useState(() => !opensFolded())
     const isOpen = props.open ?? ownOpen
@@ -72,8 +70,9 @@ export default function ChatPanel(props: ChatPanelProps) {
     const looking = isOpen && visible
 
     const [replyingTo, setReplyingTo] = useState<ChatMessage>()
-    const [reported, setReported] = useState<ReadonlySet<string>>(NOTHING)
     const [reporting, setReporting] = useState<ChatMessage>()
+    const setUnread = useChat((chat) => chat.setUnread)
+    const markReported = useChat((chat) => chat.markReported)
     const bodyId = useId()
     const panel = useRef<HTMLElement>(null)
     const {startResize, resetSize} = useChatSize(panel)
@@ -102,17 +101,17 @@ export default function ChatPanel(props: ChatPanelProps) {
 
     const unread = world.unread + (flagRead ? flag.unread : 0)
 
-    const {onUnread} = props
     useEffect(() => {
-        onUnread?.(unread)
-    }, [unread, onUnread])
+        setUnread(unread)
+    }, [unread, setUnread])
+
+    // The tab's badge and the reports go with the panel.
+    useEffect(() => () => useChat.setState(useChat.getInitialState(), true), [])
 
     // A copy each time: Reply pressed again on the same message puts the focus back in the box.
     const onReply = useCallback((message: ChatMessage) => setReplyingTo({...message}), [])
 
     const {reporter} = props
-    const onReported = useCallback((message: ChatMessage) =>
-        setReported(current => new Set([...current, message.id])), [])
 
     if (world.status === 'unavailable') return null
 
@@ -181,7 +180,6 @@ export default function ChatPanel(props: ChatPanelProps) {
                          room.react({messageId, reaction, on})}
                      onReply={onReply}
                      onReport={reporter && setReporting}
-                     reported={reported}
                      own={room.own}/>
 
             <ChatComposer username={username}
@@ -197,7 +195,7 @@ export default function ChatPanel(props: ChatPanelProps) {
             {reporting && reporter && <ReportMessageModal key={reporting.id}
                                                           message={reporting}
                                                           reporter={reporter}
-                                                          onSent={onReported}
+                                                          onSent={markReported}
                                                           onClose={() => setReporting(undefined)}/>}
         </>
 

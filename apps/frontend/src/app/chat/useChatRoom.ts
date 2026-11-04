@@ -2,7 +2,7 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {ChatMessage} from "../../backends/chat.ts";
 import {idsSince, unseenAfter} from "../../domain/chatLog.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
-import {useChat, UseChatOptions} from "./useChat.ts";
+import {useRoomLog, UseRoomLogOptions} from "./useRoomLog.ts";
 import {useSeenMark} from "./useSeenMark.ts";
 
 export const FLASH_MS = 1600
@@ -11,7 +11,7 @@ export const TOAST_MS = 4000
 
 const NOTHING: ReadonlySet<string> = new Set()
 
-export type UseChatRoomOptions = UseChatOptions & {
+export type UseChatRoomOptions = UseRoomLogOptions & {
     seeing: boolean
     playSound?: PlaySound
 }
@@ -19,7 +19,7 @@ export type UseChatRoomOptions = UseChatOptions & {
 export type ChatRoomState = ReturnType<typeof useChatRoom>
 
 export function useChatRoom({seeing, playSound, ...options}: UseChatRoomOptions) {
-    const chat = useChat(options)
+    const chat = useRoomLog(options)
     const {messages, announcements, mine, own, seenAtLoad, status} = chat
     const markSeen = useSeenMark(options.backend, seenAtLoad?.kept ? seenAtLoad.until : 0)
     const [seenLater, setSeenLater] = useState(0)

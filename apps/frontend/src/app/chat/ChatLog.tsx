@@ -20,6 +20,7 @@ import QuoteLine, {REMOVED_TEXT} from "./QuoteLine.tsx";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
 import {usePlayerCard} from "../players/playerCardStore.ts";
+import {useChat} from "./chatStore.ts";
 
 export type ChatLogProps = {
     messages: ChatMessage[]
@@ -29,7 +30,6 @@ export type ChatLogProps = {
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
     onReply?: (message: ChatMessage) => void
     onReport?: (message: ChatMessage) => void
-    reported?: ReadonlySet<string>
     own?: (message: ChatMessage) => boolean
     seenUntil?: number
     onSeen?: (at: number) => void
@@ -61,6 +61,7 @@ export default function ChatLog(props: ChatLogProps) {
     const [picking, setPicking] = useState<string | undefined>(undefined)
     const [spotlit, setSpotlit] = useState<string | undefined>(undefined)
     const dimming = useRef<number>()
+    const reportedIds = useChat((chat) => chat.reported)
     const shown = useMemo(() => new Set(props.messages.map(message => message.id)), [props.messages])
     const announcements = props.announcements ?? NO_ANNOUNCEMENTS
     const listed = !props.loading && (props.messages.length > 0 || announcements.length > 0)
@@ -187,7 +188,7 @@ export default function ChatLog(props: ChatLogProps) {
                                            onReact={entry.message.removed ? undefined : props.onReact}
                                            onReply={entry.message.removed ? undefined : props.onReply}
                                            onReport={reportable(entry.message, props.own) ? props.onReport : undefined}
-                                           reported={props.reported?.has(entry.message.id) ?? false}/>}
+                                           reported={reportedIds.has(entry.message.id)}/>}
                     </Fragment>
                 })}
             </ul>

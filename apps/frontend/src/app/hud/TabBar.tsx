@@ -1,6 +1,7 @@
 import {ReactNode} from "react"
 import {ChatIcon, SettingsIcon, ShareIcon, TargetIcon, TrophyIcon, UserIcon, UsersIcon} from "../components/icons.tsx"
 import {useScreen} from "./screenStore.ts"
+import {useChat} from "../chat/chatStore.ts"
 import "./TabBar.css"
 
 export type Tab = "board" | "missions" | "chat" | "you" | "share" | "invite" | "settings"
@@ -9,13 +10,13 @@ const UNREAD_CAP = 99
 
 export type TabBarProps = {
     chat: boolean
-    unread: number
     you?: "guest" | "player"
     missions?: number
     invite?: boolean
 }
 
-export default function TabBar({chat, unread, you, missions, invite}: TabBarProps) {
+export default function TabBar({chat, you, missions, invite}: TabBarProps) {
+    const unread = useChat((state) => state.unread)
     const open = useScreen((screen) => screen.sheet)
     const toggleSheet = useScreen((screen) => screen.toggleSheet)
 

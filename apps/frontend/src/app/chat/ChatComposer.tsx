@@ -8,7 +8,7 @@ import {useEscape} from "../components/useDialog.ts";
 import {quoteStyle} from "./authorStyle.ts";
 import GifPicker, {GifOffer} from "./GifPicker.tsx";
 import QuoteLine from "./QuoteLine.tsx";
-import {ChatSendFailure} from "./useChat.ts";
+import {ChatSendFailure} from "./useRoomLog.ts";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
 
 export type ChatComposerProps = {
