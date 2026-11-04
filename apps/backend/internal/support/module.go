@@ -39,8 +39,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/usecases/prune_reports_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/usecases/report_player_usecase"
 	report_ids "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/uuid_id_provider"
-	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/decide_report_handler"
@@ -120,18 +120,18 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	unsentDiscard := log_prune.New(discard_unsent_usecase.New(config.Attachments.KeepUnsent, clock, uploadStore, bucket),
 		props.Logger.With(slog.String("pruned", "unsent files")))
 
-	noteDeletions, err := cpredis.Subscribe(ctx, streams, "support-notes-accounts",
-		log_subscriber.New(account_deleted_subscriber.New(anonymize_notes_usecase.New(noteStore)), props.Logger))
+	noteDeletions, err := cpredis.Subscribe(ctx, streams, "support-notes-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(anonymize_notes_usecase.New(noteStore)), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+		return fmt.Errorf("failed to subscribe the notes to player.v1.PlayerForgotten: %w", err)
 	}
 
-	reportDeletions, err := cpredis.Subscribe(ctx, streams, "support-reports-accounts",
-		log_subscriber.New(account_deleted_subscriber.New(forget_reports_usecase.New(reportStore)), props.Logger))
+	reportDeletions, err := cpredis.Subscribe(ctx, streams, "support-reports-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_reports_usecase.New(reportStore)), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+		return fmt.Errorf("failed to subscribe the reports to player.v1.PlayerForgotten: %w", err)
 	}
 
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
