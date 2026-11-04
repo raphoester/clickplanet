@@ -70,10 +70,9 @@ func (s *testSuite) TestATakeCountsOnThePlayersStatsAndInTheSeason() {
 		"scoring reads the map from planet for today's round")
 }
 
-func (s *testSuite) TestAPlayerDoesAMissionAndIsPaid() {
+func (s *testSuite) TestAGuestDoesAMissionAndIsPaidOnceItSignsIn() {
 	t := s.T()
 	ada := s.game.newPlayer(t)
-	ada.link("google-missions")
 	ada.pledge("it")
 	first := ada.missions()[0]
 	bank := first.GetTakeFor()
@@ -83,8 +82,13 @@ func (s *testSuite) TestAPlayerDoesAMissionAndIsPaid() {
 	for tile := range bank.GetGoal() {
 		ada.click(1000+tile, "it")
 	}
+	require.Eventually(t, func() bool { return ada.missions()[0].GetTakeFor().GetTaken() >= bank.GetGoal() },
+		10*time.Second, 20*time.Millisecond, "planet relays each take to missions, which counts a guest's too")
+	require.False(t, ada.missions()[0].GetPaid(), "missions asks player whether the account is signed in, in the count's transaction")
+
+	ada.link("google-missions")
 	require.Eventually(t, func() bool { return ada.missions()[0].GetPaid() },
-		10*time.Second, 20*time.Millisecond, "planet relays each take to missions, which pays the mission done")
+		10*time.Second, 20*time.Millisecond, "player tells the sign-in (PlayerSignedIn), and missions pays the mission done")
 
 	reward := first.GetReward().GetCharges()
 	require.NotEqual(t, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED, reward.GetKind(), "the reward is drawn with the day")

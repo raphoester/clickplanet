@@ -1,4 +1,4 @@
-package account_deleted_subscriber_test
+package player_forgotten_subscriber_test
 
 import (
 	"testing"
@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inmemory_mission_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/forget_account_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/account_deleted_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/player_forgotten_subscriber"
 )
 
 func TestADeletedAccountLeavesItsMissions(t *testing.T) {
@@ -24,8 +24,8 @@ func TestADeletedAccountLeavesItsMissions(t *testing.T) {
 		return missions.SheetOf(missions.SheetSnapshot{Progress: map[missions.MissionID]uint32{{15: 1}: 1}})
 	}))
 
-	err = account_deleted_subscriber.New(forget_account_usecase.New(store)).Handle(t.Context(),
-		&authv1.AccountDeleted{AccountId: account.String()})
+	err = player_forgotten_subscriber.New(forget_account_usecase.New(store)).Handle(t.Context(),
+		&playerv1.PlayerForgotten{AccountId: account.String()})
 
 	require.NoError(t, err)
 	sheet, err := store.Sheet(t.Context(), day, account)
@@ -34,8 +34,8 @@ func TestADeletedAccountLeavesItsMissions(t *testing.T) {
 }
 
 func TestAnEventWithNoAccountIsRefused(t *testing.T) {
-	err := account_deleted_subscriber.New(forget_account_usecase.New(inmemory_mission_store.New())).
-		Handle(t.Context(), &authv1.AccountDeleted{})
+	err := player_forgotten_subscriber.New(forget_account_usecase.New(inmemory_mission_store.New())).
+		Handle(t.Context(), &playerv1.PlayerForgotten{})
 
 	assert.ErrorIs(t, err, missions.ErrInvalidAccount)
 }

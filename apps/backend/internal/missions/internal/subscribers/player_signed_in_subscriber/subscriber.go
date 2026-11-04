@@ -1,9 +1,9 @@
-package sign_in_subscriber
+package player_signed_in_subscriber
 
 import (
 	"context"
 
-	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -21,9 +21,9 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpredis.Handler[*authv1.SignedIn] = Subscriber{}
+var _ cpredis.Handler[*playerv1.PlayerSignedIn] = Subscriber{}
 
-func (s Subscriber) Handle(ctx context.Context, event *authv1.SignedIn) error {
+func (s Subscriber) Handle(ctx context.Context, event *playerv1.PlayerSignedIn) error {
 	account, err := missions.AccountIDOf(event.GetAccountId())
 	if err != nil {
 		return err //nolint:wrapcheck // the sentinel already says what is wrong.

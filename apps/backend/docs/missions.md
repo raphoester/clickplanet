@@ -3,8 +3,8 @@
 **Every player has four or five missions a day of its own, and each pays itself once done. Every flag has one more,
 which all its players do together, and which gives the flag season points** (see [The flag's mission](#the-flags-mission)).
 It reads planet's facts (`TileTaken`, `BonusClaimed`, `QuizAnswered`, `BombLanded`, `ShieldPlaced`, `Fortified`,
-`ShieldStruck`, `GetTerritories`, `GetCountrySizes`, `GetAllegianceOf`), the gamemaster's days (`DayStarted`), and
-commands planet to grant a reward
+`ShieldStruck`, `GetTerritories`, `GetCountrySizes`, `GetAllegianceOf`), the gamemaster's days (`DayStarted`), player's
+word on an account (`PlayerSignedIn`, `PlayerForgotten`, `GetAccounts`), and commands planet to grant a reward
 (`planet.v1.GrantCharges`) and scoring to grant points (`scoring.v1.GrantPoints`), over Redis, as scoring asks planet
 what each country holds: neither ever imports, calls or hears missions.
 Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/caddy/Caddyfile`, as every service's is.
@@ -24,7 +24,7 @@ internal/missions/internal/
     inmemory_mission_store/         the same port in maps, behind the testing tag
     rpc_planet_world/               what each flag holds and each ground's size, from planet.v1.InternalService
     rpc_planet_allegiance/          the flag an account pledged, from planet.v1.InternalService/GetAllegianceOf
-    rpc_auth_accounts/              whether an account is signed in, from auth.v1.InternalService/GetAccount
+    rpc_player_accounts/            whether an account is signed in, from player.v1.InternalService/GetAccounts (2s timeout)
     payroll/                        pays each mission done once: the payments and their grants, in one transaction
     planetgrant/                    a payment as the planet.v1.GrantCharges command
     redis_outbox_sender/            what the outbox relay sends with: the grants as commands, MissionsPaid as an event
@@ -42,7 +42,7 @@ internal/missions/internal/
   subscribers/                      tile_taken_subscriber/  bonus_claimed_subscriber/  quiz_answered_subscriber/
                                     bomb_landed_subscriber/  shield_placed_subscriber/  fortified_subscriber/
                                     day_started_subscriber/  flag_tile_taken_subscriber/  shield_struck_subscriber/
-                                    sign_in_subscriber/  account_deleted_subscriber/  missions_paid_subscriber/
+                                    player_signed_in_subscriber/  player_forgotten_subscriber/  missions_paid_subscriber/
                                     log_subscriber/
   migrations/
 ```
@@ -150,12 +150,22 @@ internal/missions/internal/
     quiz, a shield or a bomb: a mission those finished showed paid only after the next run of clicks, up to a minute
     later (the owner: "it's perceived as a bug"). The stream needs an account: `NewStreamSessionReader` reads the token,
     since the unary session interceptor does not wrap streams, and a stream with none is refused `Unauthenticated`.
-  - **A guest's progress counts and is kept, and its pay waits for sign-in.** `payroll` asks auth whether the account
-    is signed in (`rpc_auth_accounts`) only when a take finishes a mission. `auth.v1.SignedIn` (`missions-sign-ins`,
-    `pay_signed_in_usecase`) pays the day's missions done, so a guest who signs in that day gets them; a day that
-    ended unpaid stays unpaid.
-  - **`GetMissions` and `ListenForEvents` are `Identified`**, and say which missions are paid. `auth.v1.AccountDeleted` deletes the account's
-    briefs, sheets, progress and payments (`missions-accounts`).
+  - **A guest's progress counts and is kept, and its pay waits for sign-in.** `payroll` asks player whether the account
+    is signed in (`rpc_player_accounts`, `player.v1.InternalService/GetAccounts`, which says what auth says: an
+    account player does not answer is not signed in) only when a take finishes a mission. `player.v1.PlayerSignedIn`
+    (`missions-signed-in`, `pay_signed_in_usecase`), which player tells at every sign-in and link, pays the day's
+    missions done, so a guest who signs in that day gets them; a day that ended unpaid stays unpaid. A sign-in to an
+    account linked long ago, or a switch of the browser to another account, pays what is due on the account signed in
+    to, which is nothing unless a payment failed. Missions asks the day when it hears the sign-in, as it did when it
+    heard auth's.
+  - **Missions speaks player's language, not auth's.** Until 2026-11-04 it asked auth (`auth.v1.InternalService/GetAccount`,
+    `rpc_auth_accounts`) and heard `auth.v1.SignedIn` (`missions-sign-ins`) and `auth.v1.AccountDeleted`
+    (`missions-accounts`). `player.v1.PlayerCreated` was not enough to pay on: player tells it once per profile, and
+    not when no name could be drawn, while a sign-in paid every time. Why the new groups miss no sign-in and no
+    deletion is in [Player](player.md#the-deploy-that-moved-the-others-to-players-events).
+  - **`GetMissions` and `ListenForEvents` are `Identified`**, and say which missions are paid. `player.v1.PlayerForgotten`,
+    which player tells for every account auth deletes, deletes the account's briefs, sheets, progress and payments
+    (`missions-forgotten`).
 
 ## The flag's mission
 
@@ -212,4 +222,4 @@ day and a flag), so it has its own package and store (`flagmissions`).
   mission that day.
 - **Kept in `flag_days`** (`day`, the day's id, `flag`, `takes`, `counted_takes_below`, `counted_takes_below_index`, `strikes`,
   `counted_strikes_below`, `counted_strikes_below_index`) and **`flag_missions`** (`mission_id`, `kind` of the enum `flag_mission_kind`, the kind's
-  own fields in `payload`, `points`, `progress`, `done`): a day with no mission has no row there. They name no account, so `AccountDeleted` leaves them.
+  own fields in `payload`, `points`, `progress`, `done`): a day with no mission has no row there. They name no account, so `PlayerForgotten` leaves them.
