@@ -163,7 +163,7 @@ internal/player/internal/
 - **`GetBadges(account_ids)` is what the page draws beside a page of names: each account's badges**, its streak as of
   today and the title it wears (`player.v1.Badge`). The browser keeps them by account id and draws them beside every
   name it shows, wherever the name came from (the chat, the roster, a board, a card): see the frontend's
-  [Titles](../../frontend/docs/titles.md#badges). It needs no token (the session interceptor does not list it: names and
+  [Badges](../../frontend/docs/badges.md). It needs no token (the session interceptor does not list it: names and
   badges are public, as `GetPlayer`), is `NO_SIDE_EFFECTS`, and answers `no-store`: the page is the cache, and an
   answer kept on the way could undo what the page learns of its own badges. `get_badges_handler`, `badges_query`.
   - **At most 100 ids a call** (`get_badges_handler.MaxAsked`), a repeated one counted each time; more is

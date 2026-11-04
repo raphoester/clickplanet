@@ -4,7 +4,8 @@
 half a second, opens a card beside the pointer on the player whose take holds
 it** (`HolderCard`). One row: the medal of the title it wears (its name only as
 the medal's label), the name in its colour with its crown and streak over the
-first three flags it fought for (from its public card, `GetPlayer`), and a round
+first three flags it fought for (from its public card, `GetPlayer`; the medal and the streak are its badges, by the
+take's account, see [Badges](badges.md)), and a round
 profile button that opens that card. Under it, a footer strip: the flag it took
 the tile for, with the country's name, and how long ago. The close is a round badge on the top-right corner,
 outside the layout, so the card keeps `EDGE_PX` (12px) from the screen's edges. A
