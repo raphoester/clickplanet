@@ -11,7 +11,8 @@ import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
 import {GetMuteResponse, KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
-import {CountryTiles} from "../gen/grpc/player/v1/player_pb.ts"
+import {AdminGetProgressResponse} from "../gen/grpc/progression/v1/admin_pb.ts"
+import {CountryTiles, Stats} from "../gen/grpc/progression/v1/progression_pb.ts"
 import {Opened} from "../navigation.ts"
 import {ALERTS_OFF, NO_USERNAME} from "./actions.ts"
 import {PlayersPage} from "./PlayersPage.tsx"
@@ -191,11 +192,23 @@ describe("one player", () => {
         expect(within(profile).getByText("Scotland")).toBeTruthy()
         expect(screen.getByRole("heading", {name: "BraveFox42 France"})).toBeTruthy()
         expect(admin.askedFor("getPlayer")).toEqual([{accountId: ACCOUNT}])
+        expect(admin.askedFor("getProgress")).toEqual([{accountId: ACCOUNT}])
+    })
+
+    it("asks who the account is and how far it got at once", async () => {
+        const admin = new FakeAdmin()
+        const release = admin.hold("getPlayer")
+        render(<Page admin={admin} first={account}/>)
+
+        expect(admin.askedFor("getProgress")).toEqual([{accountId: ACCOUNT}])
+        release()
+        const profile = await screen.findByRole("region", {name: "Profile"})
+        expect(await within(profile).findByText("1200")).toBeTruthy()
     })
 
     it("folds the countries past five behind All", async () => {
         const admin = new FakeAdmin()
-        admin.profile.playsAgainst = ["de", "es", "it", "pt", "be", "nl", "ch"]
+        admin.progress.playsAgainst = ["de", "es", "it", "pt", "be", "nl", "ch"]
             .map((countryId, i) => new CountryTiles({countryId, tiles: BigInt(70 - i)}))
         render(<Page admin={admin} first={account}/>)
 
@@ -207,9 +220,22 @@ describe("one player", () => {
         expect(within(profile).getByText("Switzerland")).toBeTruthy()
     })
 
+    it("shows the progress of an account with no name and no guest code", async () => {
+        const admin = new FakeAdmin()
+        admin.refuse("getPlayer", Code.NotFound)
+        render(<Page admin={admin} first={{caller: {accountId: ACCOUNT}}}/>)
+
+        const profile = await screen.findByRole("region", {name: "Profile"})
+        expect(await within(profile).findByText("none: it never joined the roster or posted, so it has no guest code")).toBeTruthy()
+        expect(within(profile).getByText("1200")).toBeTruthy()
+        expect(within(profile).queryByText("Account")).toBeNull()
+        expect(screen.getByRole("heading", {name: "Unnamed France"})).toBeTruthy()
+    })
+
     it("says when the game keeps nothing about an account, and reads no profile for an address", async () => {
         const admin = new FakeAdmin()
         admin.refuse("getPlayer", Code.NotFound)
+        admin.progress = new AdminGetProgressResponse({stats: new Stats()})
         render(<Page admin={admin} first={account}/>)
         expect(await screen.findByText(NO_PROFILE)).toBeTruthy()
         cleanup()
@@ -218,6 +244,7 @@ describe("one player", () => {
         await screen.findByText(/^0 of 0$/)
         expect(screen.queryByRole("region", {name: "Profile"})).toBeNull()
         expect(admin.askedFor("getPlayer")).toHaveLength(1)
+        expect(admin.askedFor("getProgress")).toHaveLength(1)
     })
 
     it("shows what the account said in its conversations on asking, read by its account id, no one tagged", async () => {

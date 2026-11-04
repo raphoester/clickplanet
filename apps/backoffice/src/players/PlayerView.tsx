@@ -39,12 +39,14 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
     const account = isAccount(caller)
 
     const readProfile = useCallback(
-        (signal: AbortSignal) => isAccount(caller) ? profileOf(clients.player, caller.accountId, signal) : Promise.resolve(undefined),
-        [clients.player, caller],
+        (signal: AbortSignal) => isAccount(caller)
+            ? profileOf(clients.player, clients.progression, caller.accountId, signal)
+            : Promise.resolve(undefined),
+        [clients.player, clients.progression, caller],
     )
     const [profile, readProfileAgain] = useCall(readProfile)
     const kept = profile.state === "done" ? profile.value : undefined
-    const name = kept?.name ?? opened.name ?? ""
+    const name = kept?.identity?.name ?? opened.name ?? ""
     const who = whoOf(caller, name)
 
     const read = useCallback((signal: AbortSignal) => readingOf(clients.antibot, caller, signal), [clients.antibot, caller])
@@ -184,14 +186,14 @@ function Tools({clients, caller, who, onBanned, onMuted, onRenamed}: ToolsProps)
 
 function messagesOf(profile: Profile | undefined): string | undefined {
     if (profile === undefined) return undefined
-    const sent = Number(profile.messagesSent)
+    const sent = Number(profile.progress.messagesSent)
     return sent === 1 ? "1 message" : `${sent} messages`
 }
 
 // The flag the row painted most in the ledger's 72 hours, or else the one the account took the most tiles for.
 function shownFlagOf(row: Player | undefined, profile: Profile | undefined): string {
     if (row !== undefined && row.flagCountryId !== "") return row.flagCountryId
-    return profile?.playsFor[0]?.countryId ?? ""
+    return profile?.progress.playsFor[0]?.countryId ?? ""
 }
 
 // The other half of a player: the address of an account, from its row or else where the antibot last read it, or
