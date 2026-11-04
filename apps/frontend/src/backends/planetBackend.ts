@@ -525,11 +525,17 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         if (token) await this.pledge(token, countryId)
     }
 
+    // The page's flag is the one its clicks are priced for.
+    public async claimFlag(): Promise<void> {
+        if (this.budgetCountry === "") return
+        await this.ensureFlag(await this.session.token(), this.budgetCountry)
+    }
+
     private ensureFlag(token: string | undefined, countryId: string): Promise<void> {
         if (!token) return Promise.resolve()
         if (this.flagged?.token === token) return this.flagged.ready
 
-        const flagged = {token, ready: this.claimFlag(token, countryId)}
+        const flagged = {token, ready: this.claimFlagFor(token, countryId)}
         this.flagged = flagged
         flagged.ready.catch(() => {
             if (this.flagged === flagged) this.flagged = undefined
@@ -537,7 +543,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         return flagged.ready
     }
 
-    private async claimFlag(token: string, countryId: string): Promise<void> {
+    private async claimFlagFor(token: string, countryId: string): Promise<void> {
         if (await this.heldFor(token) === undefined) await this.pledge(token, countryId)
     }
 

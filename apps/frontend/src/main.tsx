@@ -129,6 +129,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const account = new AccountStore(fakeAccount, fakeAccount, new NoSession(), {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
+        claimFlag: () => fake.claimFlag(),
         crazyGames: crazyGames?.user,
         leavers: crazyGames && localLeaverStore(),
     })
@@ -316,6 +317,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest, landing), player, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
+        claimFlag: () => backend.claimFlag(),
         crazyGames: crazyGames?.user,
         leavers: crazyGames && localLeaverStore(),
     })

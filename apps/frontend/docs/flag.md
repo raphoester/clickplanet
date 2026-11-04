@@ -23,6 +23,11 @@ and so is one from an account that pledged none.
   sign-in or a sign-out changes the account the same way. Clicks sent at once share
   one read. A pledge that failed sends no click, and the next click tries again. A
   token whose flag was read at load needs no read.
+- **The client pledges before a Discord trip too** (`PlanetBackend.claimFlag`, called by `AccountStore.leaveFor`
+  for Discord alone): the flag the clicks are priced for (`priceFor`), when the account holds none. Discord's sign-in
+  joins the server with the role of the flag pledged, and a guest that has not clicked yet holds none. A first flag
+  starts no wait, so this costs the player nothing. A pledge that failed still leaves for Discord: the first click
+  pledges, and the role follows.
 - **`PlanetBackend` reads `GetAllegiance`** at load with the identity token, and
   again when a click goes out under a new token (`followSession`). A refusal carries
   the flag held in its detail, which `PlanetBackend` keeps (`allegianceDetailOf`).
@@ -46,5 +51,5 @@ and so is one from an account that pledged none.
   time when no wait runs or the rules lock it); a refused shield says the same. It only happens on a
   page that did not know the flag changed elsewhere.
 - `FakeBackend` holds the flag the same way, and takes a first flag on the first
-  click, as the client's pledge would. `lockFlags()` and `openFlags()` on the console lock and open the flags, as a
+  click or a Discord trip (`claimFlag`), as the client's pledge would. `lockFlags()` and `openFlags()` on the console lock and open the flags, as a
   battle's set does (see [Commands](commands.md)).

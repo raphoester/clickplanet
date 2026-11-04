@@ -59,6 +59,8 @@ type Ready = Extract<AccountState, {kind: "ready"}>
 export type AccountStoreOptions = {
     navigate: (url: string) => void
     remember: (provider: OAuthProvider, intent: Intent) => void
+    // Pledges the page's flag to an account that holds none: Discord's sign-in joins the server with the flag's role.
+    claimFlag: () => Promise<void>
     // On CrazyGames its account is the only way in, and the page plays as whoever CrazyGames says is signed in.
     crazyGames?: CrazyGamesUser
     // On CrazyGames, who asked on this device to delete their account: see leaving.
@@ -186,9 +188,19 @@ export class AccountStore {
     }
 
     public async leaveFor(provider: OAuthProvider, intent: Intent): Promise<void> {
+        if (provider === "discord") await this.claimFlag()
         const url = await this.backend.startSignIn(provider, intent)
         this.options.remember(provider, intent)
         this.options.navigate(url)
+    }
+
+    // A failed pledge still joins: the first click pledges, and the role follows the pledge.
+    private async claimFlag(): Promise<void> {
+        try {
+            await this.options.claimFlag()
+        } catch (e) {
+            console.error("Could not pledge the flag before Discord's sign-in", e)
+        }
     }
 
     // provider: the one the browser left for, when it is remembered.

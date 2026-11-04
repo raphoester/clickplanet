@@ -399,6 +399,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.pledge(countryId)
     }
 
+    public async claimFlag(): Promise<void> {
+        if (!this.allegiance && this.budgetCountry) this.pledge(this.budgetCountry)
+    }
+
     private play(countryId: string): void {
         const held = this.allegiance
         if (!held) this.holdAllegiance({countryId, locked: this.flagsLocked || undefined})
