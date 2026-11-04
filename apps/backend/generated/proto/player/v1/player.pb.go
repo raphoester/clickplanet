@@ -777,8 +777,6 @@ type RosterEntry struct {
 	Admin         bool                   `protobuf:"varint,5,opt,name=admin,proto3" json:"admin,omitempty"`
 	Key           string                 `protobuf:"bytes,6,opt,name=key,proto3" json:"key,omitempty"`
 	Color         NameColor              `protobuf:"varint,7,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
-	Streak        uint32                 `protobuf:"varint,8,opt,name=streak,proto3" json:"streak,omitempty"`
-	WornTitle     *Title                 `protobuf:"bytes,9,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
 	AccountId     string                 `protobuf:"bytes,10,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -854,20 +852,6 @@ func (x *RosterEntry) GetColor() NameColor {
 		return x.Color
 	}
 	return NameColor_NAME_COLOR_UNSPECIFIED
-}
-
-func (x *RosterEntry) GetStreak() uint32 {
-	if x != nil {
-		return x.Streak
-	}
-	return 0
-}
-
-func (x *RosterEntry) GetWornTitle() *Title {
-	if x != nil {
-		return x.WornTitle
-	}
-	return nil
 }
 
 func (x *RosterEntry) GetAccountId() string {
@@ -2062,7 +2046,7 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\rLeaveResponse\"\x12\n" +
 	"\x10GetRosterRequest\"E\n" +
 	"\x11GetRosterResponse\x120\n" +
-	"\aentries\x18\x01 \x03(\v2\x16.player.v1.RosterEntryR\aentries\"\x9d\x02\n" +
+	"\aentries\x18\x01 \x03(\v2\x16.player.v1.RosterEntryR\aentries\"\xf4\x01\n" +
 	"\vRosterEntry\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
@@ -2070,13 +2054,12 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x05guest\x18\x04 \x01(\bR\x05guest\x12\x14\n" +
 	"\x05admin\x18\x05 \x01(\bR\x05admin\x12\x10\n" +
 	"\x03key\x18\x06 \x01(\tR\x03key\x12*\n" +
-	"\x05color\x18\a \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12\x16\n" +
-	"\x06streak\x18\b \x01(\rR\x06streak\x12/\n" +
-	"\n" +
-	"worn_title\x18\t \x01(\v2\x10.player.v1.TitleR\twornTitle\x12\x1d\n" +
+	"\x05color\x18\a \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\n" +
-	" \x01(\tR\taccountIdJ\x04\b\x02\x10\x03R\x03tag\"\x18\n" +
+	" \x01(\tR\taccountIdJ\x04\b\x02\x10\x03J\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"R\x03tagR\x06streakR\n" +
+	"worn_title\"\x18\n" +
 	"\x16ListenForEventsRequest\"\x93\x02\n" +
 	"\vPlayerEvent\x12+\n" +
 	"\x06roster\x18\x01 \x01(\v2\x11.player.v1.RosterH\x00R\x06roster\x12.\n" +
@@ -2231,62 +2214,61 @@ var file_player_v1_player_proto_depIdxs = []int32{
 	8,  // 5: player.v1.GetStatsResponse.stats:type_name -> player.v1.Stats
 	17, // 6: player.v1.GetRosterResponse.entries:type_name -> player.v1.RosterEntry
 	39, // 7: player.v1.RosterEntry.color:type_name -> player.v1.NameColor
-	40, // 8: player.v1.RosterEntry.worn_title:type_name -> player.v1.Title
-	20, // 9: player.v1.PlayerEvent.roster:type_name -> player.v1.Roster
-	17, // 10: player.v1.PlayerEvent.entry:type_name -> player.v1.RosterEntry
-	21, // 11: player.v1.PlayerEvent.left:type_name -> player.v1.PlayerLeft
-	22, // 12: player.v1.PlayerEvent.heartbeat:type_name -> player.v1.Heartbeat
-	29, // 13: player.v1.PlayerEvent.title_earned:type_name -> player.v1.TitleEarned
-	17, // 14: player.v1.Roster.entries:type_name -> player.v1.RosterEntry
-	25, // 15: player.v1.GetPlayerResponse.player:type_name -> player.v1.Player
-	8,  // 16: player.v1.Player.stats:type_name -> player.v1.Stats
-	39, // 17: player.v1.Player.color:type_name -> player.v1.NameColor
-	40, // 18: player.v1.Player.titles:type_name -> player.v1.Title
-	40, // 19: player.v1.Player.worn_title:type_name -> player.v1.Title
-	26, // 20: player.v1.Player.plays_for:type_name -> player.v1.CountryTiles
-	26, // 21: player.v1.Player.plays_against:type_name -> player.v1.CountryTiles
-	26, // 22: player.v1.GetFrontsResponse.plays_for:type_name -> player.v1.CountryTiles
-	26, // 23: player.v1.GetFrontsResponse.plays_against:type_name -> player.v1.CountryTiles
-	40, // 24: player.v1.TitleEarned.title:type_name -> player.v1.Title
-	40, // 25: player.v1.GetTitlesResponse.worn:type_name -> player.v1.Title
-	40, // 26: player.v1.GetTitlesResponse.wearable:type_name -> player.v1.Title
-	32, // 27: player.v1.GetTitlesResponse.tracks:type_name -> player.v1.Track
-	33, // 28: player.v1.Track.steps:type_name -> player.v1.Step
-	40, // 29: player.v1.Step.title:type_name -> player.v1.Title
-	40, // 30: player.v1.WearTitleResponse.worn:type_name -> player.v1.Title
-	38, // 31: player.v1.GetBadgesResponse.badges:type_name -> player.v1.Badge
-	40, // 32: player.v1.Badge.worn_title:type_name -> player.v1.Title
-	1,  // 33: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
-	3,  // 34: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
-	6,  // 35: player.v1.PlayerService.SetColor:input_type -> player.v1.SetColorRequest
-	9,  // 36: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
-	11, // 37: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
-	13, // 38: player.v1.PlayerService.Leave:input_type -> player.v1.LeaveRequest
-	15, // 39: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
-	18, // 40: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
-	23, // 41: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
-	30, // 42: player.v1.PlayerService.GetTitles:input_type -> player.v1.GetTitlesRequest
-	34, // 43: player.v1.PlayerService.WearTitle:input_type -> player.v1.WearTitleRequest
-	27, // 44: player.v1.PlayerService.GetFronts:input_type -> player.v1.GetFrontsRequest
-	36, // 45: player.v1.PlayerService.GetBadges:input_type -> player.v1.GetBadgesRequest
-	2,  // 46: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
-	4,  // 47: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
-	7,  // 48: player.v1.PlayerService.SetColor:output_type -> player.v1.SetColorResponse
-	10, // 49: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
-	12, // 50: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
-	14, // 51: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
-	16, // 52: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
-	19, // 53: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
-	24, // 54: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
-	31, // 55: player.v1.PlayerService.GetTitles:output_type -> player.v1.GetTitlesResponse
-	35, // 56: player.v1.PlayerService.WearTitle:output_type -> player.v1.WearTitleResponse
-	28, // 57: player.v1.PlayerService.GetFronts:output_type -> player.v1.GetFrontsResponse
-	37, // 58: player.v1.PlayerService.GetBadges:output_type -> player.v1.GetBadgesResponse
-	46, // [46:59] is the sub-list for method output_type
-	33, // [33:46] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	20, // 8: player.v1.PlayerEvent.roster:type_name -> player.v1.Roster
+	17, // 9: player.v1.PlayerEvent.entry:type_name -> player.v1.RosterEntry
+	21, // 10: player.v1.PlayerEvent.left:type_name -> player.v1.PlayerLeft
+	22, // 11: player.v1.PlayerEvent.heartbeat:type_name -> player.v1.Heartbeat
+	29, // 12: player.v1.PlayerEvent.title_earned:type_name -> player.v1.TitleEarned
+	17, // 13: player.v1.Roster.entries:type_name -> player.v1.RosterEntry
+	25, // 14: player.v1.GetPlayerResponse.player:type_name -> player.v1.Player
+	8,  // 15: player.v1.Player.stats:type_name -> player.v1.Stats
+	39, // 16: player.v1.Player.color:type_name -> player.v1.NameColor
+	40, // 17: player.v1.Player.titles:type_name -> player.v1.Title
+	40, // 18: player.v1.Player.worn_title:type_name -> player.v1.Title
+	26, // 19: player.v1.Player.plays_for:type_name -> player.v1.CountryTiles
+	26, // 20: player.v1.Player.plays_against:type_name -> player.v1.CountryTiles
+	26, // 21: player.v1.GetFrontsResponse.plays_for:type_name -> player.v1.CountryTiles
+	26, // 22: player.v1.GetFrontsResponse.plays_against:type_name -> player.v1.CountryTiles
+	40, // 23: player.v1.TitleEarned.title:type_name -> player.v1.Title
+	40, // 24: player.v1.GetTitlesResponse.worn:type_name -> player.v1.Title
+	40, // 25: player.v1.GetTitlesResponse.wearable:type_name -> player.v1.Title
+	32, // 26: player.v1.GetTitlesResponse.tracks:type_name -> player.v1.Track
+	33, // 27: player.v1.Track.steps:type_name -> player.v1.Step
+	40, // 28: player.v1.Step.title:type_name -> player.v1.Title
+	40, // 29: player.v1.WearTitleResponse.worn:type_name -> player.v1.Title
+	38, // 30: player.v1.GetBadgesResponse.badges:type_name -> player.v1.Badge
+	40, // 31: player.v1.Badge.worn_title:type_name -> player.v1.Title
+	1,  // 32: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
+	3,  // 33: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
+	6,  // 34: player.v1.PlayerService.SetColor:input_type -> player.v1.SetColorRequest
+	9,  // 35: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
+	11, // 36: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
+	13, // 37: player.v1.PlayerService.Leave:input_type -> player.v1.LeaveRequest
+	15, // 38: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
+	18, // 39: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
+	23, // 40: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
+	30, // 41: player.v1.PlayerService.GetTitles:input_type -> player.v1.GetTitlesRequest
+	34, // 42: player.v1.PlayerService.WearTitle:input_type -> player.v1.WearTitleRequest
+	27, // 43: player.v1.PlayerService.GetFronts:input_type -> player.v1.GetFrontsRequest
+	36, // 44: player.v1.PlayerService.GetBadges:input_type -> player.v1.GetBadgesRequest
+	2,  // 45: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
+	4,  // 46: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
+	7,  // 47: player.v1.PlayerService.SetColor:output_type -> player.v1.SetColorResponse
+	10, // 48: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
+	12, // 49: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
+	14, // 50: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
+	16, // 51: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
+	19, // 52: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
+	24, // 53: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
+	31, // 54: player.v1.PlayerService.GetTitles:output_type -> player.v1.GetTitlesResponse
+	35, // 55: player.v1.PlayerService.WearTitle:output_type -> player.v1.WearTitleResponse
+	28, // 56: player.v1.PlayerService.GetFronts:output_type -> player.v1.GetFrontsResponse
+	37, // 57: player.v1.PlayerService.GetBadges:output_type -> player.v1.GetBadgesResponse
+	45, // [45:58] is the sub-list for method output_type
+	32, // [32:45] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_player_v1_player_proto_init() }

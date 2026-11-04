@@ -3,7 +3,6 @@ syntax = "proto3";
 package chat.v1;
 
 import "player/v1/color.proto";
-import "player/v1/title.proto";
 
 // A request for a flag's room is FailedPrecondition when the caller does not play for that flag.
 service ChatService {
@@ -63,8 +62,9 @@ message ChatMessage {
   repeated ReactionCount reactions = 8;
   uint64 reactions_version = 9;
   player.v1.NameColor author_color = 10;
-  uint32 author_streak = 11;
-  player.v1.Title author_title = 12;
+  // The author's badges are player.v1.PlayerService/GetBadges', by author_account_id.
+  reserved 11, 12;
+  reserved "author_streak", "author_title";
   Quote reply_to = 13;
   // Empty for a message kept before accounts, and for an account that was deleted.
   string author_account_id = 14;

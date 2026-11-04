@@ -34,7 +34,6 @@ import {
 } from "./chat.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {NameColor} from "./player.ts"
-import {Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
 
 const outgoing = {authorId: "author-1", countryCode: "fr", text: "hello"}
 
@@ -63,8 +62,6 @@ const proto = () => new ChatMessagePb({
     authorName: "Ana",
     authorAdmin: true,
     authorColor: NameColor.TEAL,
-    authorStreak: 12,
-    authorTitle: new TitlePb({id: "og", name: "OG"}),
     countryId: "fr",
     body: {case: "text", value: "hello"},
     reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]})],
@@ -83,7 +80,6 @@ const unusedKeepalive = {} as PromiseClient<typeof ChatService>
 afterEach(() => vi.restoreAllMocks())
 
 describe("decodedMessage", () => {
-    // The author's streak and title, which the server still sends, are left: its badges are drawn from the badges store.
     it("maps a broadcast message onto the shape the chat consumes", () => {
         expect(decodedMessage(proto())).toEqual({
             id: "message-1",

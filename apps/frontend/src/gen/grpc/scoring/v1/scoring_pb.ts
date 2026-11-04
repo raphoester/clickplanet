@@ -6,7 +6,6 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { NameColor } from "../../player/v1/color_pb.js";
-import { Title } from "../../player/v1/title_pb.js";
 
 /**
  * @generated from message scoring.v1.GetBoardRequest
@@ -118,11 +117,6 @@ export class Standing extends Message<Standing> {
   tiles = protoInt64.zero;
 
   /**
-   * @generated from field: player.v1.Title worn_title = 6;
-   */
-  wornTitle?: Title;
-
-  /**
    * @generated from field: string account_id = 7;
    */
   accountId = "";
@@ -140,7 +134,6 @@ export class Standing extends Message<Standing> {
     { no: 3, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 4, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
-    { no: 6, name: "worn_title", kind: "message", T: Title },
     { no: 7, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
@@ -231,11 +224,6 @@ export class GetMyTallyResponse extends Message<GetMyTallyResponse> {
   countryRank = 0;
 
   /**
-   * @generated from field: player.v1.Title worn_title = 5;
-   */
-  wornTitle?: Title;
-
-  /**
    * @generated from field: uint64 country_tiles = 6;
    */
   countryTiles = protoInt64.zero;
@@ -252,7 +240,6 @@ export class GetMyTallyResponse extends Message<GetMyTallyResponse> {
     { no: 2, name: "tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
     { no: 3, name: "global_rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "country_rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 5, name: "worn_title", kind: "message", T: Title },
     { no: 6, name: "country_tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
   ]);
 
