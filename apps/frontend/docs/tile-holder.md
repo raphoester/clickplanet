@@ -4,7 +4,7 @@
 half a second, opens a card beside the pointer on the player whose take holds
 it** (`HolderCard`). One row: the medal of the title it wears (its name only as
 the medal's label), the name in its colour with its crown and streak over the
-first three flags it fought for (from its public card, `GetPlayer`; the medal and the streak are its badges, by the
+first three flags it fought for (from its public card, `GetProgress`; the medal and the streak are its badges, by the
 take's account, see [Badges](badges.md)), and a round
 profile button that opens that card. Under it, a footer strip: the flag it took
 the tile for, with the country's name, and how long ago. The close is a round badge on the top-right corner,
@@ -40,14 +40,15 @@ tap never is, and the bomb's hold-to-drop is already one.
   `pointing` and the account id, keeps it and shows `HolderCard` from it; `Viewer` reads none
   of it, and the place leaves nothing shown once it goes.
 - `HolderCardPlace` asks `TileHolders.tileHolder` (`ClickService/GetTileHolder`), then
-  `PlayerInfoBackend.playerInfo` (`PlayerService/GetPlayer`), which answers a guest
-  with its name alone: two calls, and planet never learns a name. Neither needs a
+  `PlayerInfoBackend.playerInfo` (`PlayerService/GetPlayer` and
+  `ProgressionService/GetProgress`, side by side), which answers a guest with its name
+  alone: three calls, and planet never learns a name. Neither needs a
   token. A new peek aborts the last one. The lines it builds (`playerLineOf`,
   `deletedLineOf`) and `LEAVE_GRACE_MS` are in `app/players/tileHolder.ts`, which the
   territory card shares.
 - **A take with no account is a deleted account** (`DELETED_ACCOUNT`): the ledger
   keeps a deleted account's takes with no account, so the card says "Deleted
-  account", the flag and when, with no profile button, and asks `GetPlayer` nothing.
+  account", the flag and when, with no profile button, and asks for no card.
 - **The card shows only while the tile wears the flag of its last take**
   (`holderShown`): the ledger is a second behind, and an operator's write keeps no
   take, so a tile that changed hands since says nothing rather than the wrong

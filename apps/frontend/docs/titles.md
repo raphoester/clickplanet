@@ -1,7 +1,7 @@
 # Titles
 
-A linked account earns titles; the server decides which and keeps them (see
-the backend's [Player](../../backend/docs/player.md)). `app/titles/` draws them and `app/account/ProgressTab.tsx`
+A linked account earns titles; the server's progression module decides which and keeps them
+(`progression.v1.ProgressionService`, see the backend's [Progression](../../backend/docs/progression.md#titles)). `app/titles/` draws them and `app/account/ProgressTab.tsx`
 is the player's own view.
 
 - **Most titles are ranks on a track** (`TitleRank`: the track, the rank's
@@ -28,7 +28,7 @@ is the player's own view.
 - **The public card** wears the worn title: a banner (`TitleBanner`, the rank line
   and the name), and a ring of its metal inside the card's ink border
   (`title-frame-<metal>` on the `Modal`). The worn title is the player's badge (see [Badges](badges.md)), read
-  again as the card opens; the medals under it are `GetPlayer`'s. Under it, one medal per title shown, with its name. A hover or a press on a
+  again as the card opens; the medals under it are `GetProgress`'s. Under it, one medal per title shown, with its name. A hover or a press on a
   medal says in a `Bubble` how it was earned (`feat`, the server's words: "Took 1,000 tiles"), as the streak flame
   does. A title the server sends no feat for is not a button.
   OG is also a stamp beside the name (`OgStamp`).
@@ -39,7 +39,7 @@ is the player's own view.
   the titles again), and one `TrackPath` per track: every rank, its threshold
   (`stepLabel`), a bar filled up to the progress (`filledOf`), and in its header
   what is left to the next rank (`leftLabel`). The path scrolls sideways and opens
-  centred on the next rank. `useTitles` reads `GetTitles` (the click token, as
+  centred on the next rank. `useTitles` reads `GetTitles` (`AccountStore.titles`, the click token, as
   `GetProfile`) each time the panel opens and after a run of clicks, at the pace
   of `useMySeason`; a failed read says so. Then **"Fought for" and "Fought
   against"** (`FrontFolds`), closed first: each bar shows its top 3 flags and how
@@ -50,10 +50,15 @@ is the player's own view.
   the tab is left. The stats are the player's own card, read by the
   `accountId` the `AccountStore` keeps (`OwnStats`), and shown once the account
   has a username. Tiles taken counts each take at once
-  (`useOwnTakes`): `GetPlayer` is cached 10s, so it is read only once.
-- **The unlock moment is live.** The player stream carries `titleEarned` to a
-  stream opened with this player's token. `useRosterFeed` hands it to `Viewer`, which
-  announces it (the announcements queue, in [Battles](battle.md#the-announcements-queue)), and reads its own badge
+  (`useOwnTakes`): `GetPlayer` and `GetProgress` are cached 10s (`public, max-age=10`), so the card is read only once.
+- **The unlock moment is live.** Progression's stream (`ListenForEvents`,
+  `TitlesListener.listenForTitles`) carries `titleEarned` to the account of the token it was
+  opened with. `useTitlesEarned`, which `Viewer` calls, opens it only for a signed-in account,
+  since a guest earns no title, and only while the page holds a token (`heldIdentity()`, never
+  a mint). The server reads the token when the stream opens, so the hook checks it every
+  second (`TOKEN_CHECK_MS`) and opens the stream again when it changes. A token refused
+  (`Unauthenticated`) stops the stream for good (`stopsOn`): only a new token opens it
+  again. The hook hands each title to `Viewer`, which announces it (the announcements queue, in [Battles](battle.md#the-announcements-queue)), and reads its own badge
   again, since the title worn may follow the one earned ([Badges](badges.md));
   `Moments` shows `TitleUnlocked` over the game, one full-screen moment at a time. It is not a
   `Modal` but the whole screen: it goes dark, "New title!" slams in, the medal

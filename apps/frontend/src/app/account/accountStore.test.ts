@@ -1,16 +1,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {AccountBackend, AuthError, AuthFailure, Me, Provider} from "../../backends/account.ts"
-import {
-    ColoredProfile,
-    Fronts,
-    NameColor,
-    PlayerBackend,
-    PlayerError,
-    PlayerFailure,
-    Profile,
-    RenameTooSoonError,
-    TitleDashboard,
-} from "../../backends/player.ts"
+import {ColoredProfile, NameColor, PlayerBackend, PlayerError, PlayerFailure, Profile, RenameTooSoonError} from "../../backends/player.ts"
+import {Fronts, ProgressionBackend, TitleDashboard} from "../../backends/progression.ts"
 import {SessionProvider} from "../../backends/session.ts"
 import {AccountStore} from "./accountStore.ts"
 import {useBadges} from "../badges/badgesStore.ts"
@@ -41,6 +32,13 @@ function fakePlayer(name = "", color = NameColor.UNSPECIFIED): FakePlayer {
         profile: vi.fn(async (): Promise<ColoredProfile> => ({accountId: "account-1", name, color})),
         setName: vi.fn(async (name: string): Promise<Profile> => ({accountId: "account-1", name})),
         setColor: vi.fn(async (color: NameColor): Promise<NameColor> => color),
+    }
+}
+
+type FakeProgression = {[K in keyof ProgressionBackend]: ReturnType<typeof vi.fn>}
+
+function fakeProgression(): FakeProgression {
+    return {
         titles: vi.fn(async (): Promise<TitleDashboard> => ({wearable: [], tracks: []})),
         fronts: vi.fn(async (): Promise<Fronts> => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),
@@ -55,15 +53,21 @@ const refusingName = (failure: PlayerFailure) => async () => {
     throw new PlayerError(failure)
 }
 
-function setup(backend: Fake, player: FakePlayer = fakePlayer(), crazyGames?: CrazyGamesUser, leavers?: LeaverStore) {
+function setup(
+    backend: Fake,
+    player: FakePlayer = fakePlayer(),
+    crazyGames?: CrazyGamesUser,
+    leavers?: LeaverStore,
+    progression: FakeProgression = fakeProgression(),
+) {
     const session: SessionProvider = {token: vi.fn(async () => "token"), held: vi.fn(() => "token"), identity: vi.fn(async () => "token"), heldIdentity: vi.fn(() => "token"), invalidate: vi.fn()}
     const navigate = vi.fn()
     const remember = vi.fn()
     const claimFlag = vi.fn(async () => undefined)
     const store = new AccountStore(
-        backend as unknown as AccountBackend, player as unknown as PlayerBackend, session,
+        backend as unknown as AccountBackend, player as unknown as PlayerBackend, progression as unknown as ProgressionBackend, session,
         {navigate, remember, claimFlag, crazyGames, leavers})
-    return {store, session, navigate, remember, claimFlag, player}
+    return {store, session, navigate, remember, claimFlag, player, progression}
 }
 
 function held<T>() {
@@ -82,27 +86,25 @@ describe("AccountStore", () => {
         const og = {id: "og", name: "OG"}
 
         it("goes beside the account's name at once when it wears one, and when it reads its titles", async () => {
-            const player = fakePlayer("ana")
-            const {store} = setup(linked(), player)
+            const {store, progression} = setup(linked(), fakePlayer("ana"))
             await store.load()
             await vi.waitFor(() => expect(store.state()).toMatchObject({accountId: "account-1"}))
 
-            player.wearTitle.mockResolvedValue(og)
+            progression.wearTitle.mockResolvedValue(og)
             expect(await store.wearTitle("og")).toEqual(og)
             expect(useBadges.getState().badges["account-1"]).toEqual({streak: 0, wornTitle: og})
 
-            player.titles.mockResolvedValue({wearable: [og], tracks: []})
+            progression.titles.mockResolvedValue({wearable: [og], tracks: []})
             await store.titles()
             expect(useBadges.getState().badges["account-1"]).toEqual({streak: 0, wornTitle: undefined})
         })
 
         it("writes nothing for an account that changed meanwhile", async () => {
-            const player = fakePlayer("ana")
-            const {store} = setup(linked(), player)
+            const {store, progression} = setup(linked(), fakePlayer("ana"))
             await store.load()
             await vi.waitFor(() => expect(store.state()).toMatchObject({accountId: "account-1"}))
             const worn = held<typeof og>()
-            player.wearTitle.mockReturnValue(worn.promise)
+            progression.wearTitle.mockReturnValue(worn.promise)
 
             const wearing = store.wearTitle("og")
             await store.signOut()

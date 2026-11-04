@@ -40,8 +40,6 @@ const (
 	PlayerServiceSetNameProcedure = "/player.v1.PlayerService/SetName"
 	// PlayerServiceSetColorProcedure is the fully-qualified name of the PlayerService's SetColor RPC.
 	PlayerServiceSetColorProcedure = "/player.v1.PlayerService/SetColor"
-	// PlayerServiceGetStatsProcedure is the fully-qualified name of the PlayerService's GetStats RPC.
-	PlayerServiceGetStatsProcedure = "/player.v1.PlayerService/GetStats"
 	// PlayerServiceAnnounceProcedure is the fully-qualified name of the PlayerService's Announce RPC.
 	PlayerServiceAnnounceProcedure = "/player.v1.PlayerService/Announce"
 	// PlayerServiceLeaveProcedure is the fully-qualified name of the PlayerService's Leave RPC.
@@ -53,14 +51,6 @@ const (
 	PlayerServiceListenForEventsProcedure = "/player.v1.PlayerService/ListenForEvents"
 	// PlayerServiceGetPlayerProcedure is the fully-qualified name of the PlayerService's GetPlayer RPC.
 	PlayerServiceGetPlayerProcedure = "/player.v1.PlayerService/GetPlayer"
-	// PlayerServiceGetTitlesProcedure is the fully-qualified name of the PlayerService's GetTitles RPC.
-	PlayerServiceGetTitlesProcedure = "/player.v1.PlayerService/GetTitles"
-	// PlayerServiceWearTitleProcedure is the fully-qualified name of the PlayerService's WearTitle RPC.
-	PlayerServiceWearTitleProcedure = "/player.v1.PlayerService/WearTitle"
-	// PlayerServiceGetFrontsProcedure is the fully-qualified name of the PlayerService's GetFronts RPC.
-	PlayerServiceGetFrontsProcedure = "/player.v1.PlayerService/GetFronts"
-	// PlayerServiceGetBadgesProcedure is the fully-qualified name of the PlayerService's GetBadges RPC.
-	PlayerServiceGetBadgesProcedure = "/player.v1.PlayerService/GetBadges"
 )
 
 // PlayerServiceClient is a client for the player.v1.PlayerService service.
@@ -68,17 +58,12 @@ type PlayerServiceClient interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
 	SetColor(context.Context, *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error)
-	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlayerEvent], error)
+	// Who a player is on its public card. Its stats, titles and fronts are progression.v1's GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
-	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
-	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
-	GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error)
-	// The badges of a page of accounts, for the page to draw beside their names. At most 100 ids, or InvalidArgument.
-	GetBadges(context.Context, *connect.Request[v1.GetBadgesRequest]) (*connect.Response[v1.GetBadgesResponse], error)
 }
 
 // NewPlayerServiceClient constructs a client for the player.v1.PlayerService service. By default,
@@ -108,12 +93,6 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+PlayerServiceSetColorProcedure,
 			connect.WithSchema(playerServiceMethods.ByName("SetColor")),
-			connect.WithClientOptions(opts...),
-		),
-		getStats: connect.NewClient[v1.GetStatsRequest, v1.GetStatsResponse](
-			httpClient,
-			baseURL+PlayerServiceGetStatsProcedure,
-			connect.WithSchema(playerServiceMethods.ByName("GetStats")),
 			connect.WithClientOptions(opts...),
 		),
 		announce: connect.NewClient[v1.AnnounceRequest, v1.AnnounceResponse](
@@ -148,31 +127,6 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
-		getTitles: connect.NewClient[v1.GetTitlesRequest, v1.GetTitlesResponse](
-			httpClient,
-			baseURL+PlayerServiceGetTitlesProcedure,
-			connect.WithSchema(playerServiceMethods.ByName("GetTitles")),
-			connect.WithClientOptions(opts...),
-		),
-		wearTitle: connect.NewClient[v1.WearTitleRequest, v1.WearTitleResponse](
-			httpClient,
-			baseURL+PlayerServiceWearTitleProcedure,
-			connect.WithSchema(playerServiceMethods.ByName("WearTitle")),
-			connect.WithClientOptions(opts...),
-		),
-		getFronts: connect.NewClient[v1.GetFrontsRequest, v1.GetFrontsResponse](
-			httpClient,
-			baseURL+PlayerServiceGetFrontsProcedure,
-			connect.WithSchema(playerServiceMethods.ByName("GetFronts")),
-			connect.WithClientOptions(opts...),
-		),
-		getBadges: connect.NewClient[v1.GetBadgesRequest, v1.GetBadgesResponse](
-			httpClient,
-			baseURL+PlayerServiceGetBadgesProcedure,
-			connect.WithSchema(playerServiceMethods.ByName("GetBadges")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
@@ -181,16 +135,11 @@ type playerServiceClient struct {
 	getProfile      *connect.Client[v1.GetProfileRequest, v1.GetProfileResponse]
 	setName         *connect.Client[v1.SetNameRequest, v1.SetNameResponse]
 	setColor        *connect.Client[v1.SetColorRequest, v1.SetColorResponse]
-	getStats        *connect.Client[v1.GetStatsRequest, v1.GetStatsResponse]
 	announce        *connect.Client[v1.AnnounceRequest, v1.AnnounceResponse]
 	leave           *connect.Client[v1.LeaveRequest, v1.LeaveResponse]
 	getRoster       *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.PlayerEvent]
 	getPlayer       *connect.Client[v1.GetPlayerRequest, v1.GetPlayerResponse]
-	getTitles       *connect.Client[v1.GetTitlesRequest, v1.GetTitlesResponse]
-	wearTitle       *connect.Client[v1.WearTitleRequest, v1.WearTitleResponse]
-	getFronts       *connect.Client[v1.GetFrontsRequest, v1.GetFrontsResponse]
-	getBadges       *connect.Client[v1.GetBadgesRequest, v1.GetBadgesResponse]
 }
 
 // GetProfile calls player.v1.PlayerService.GetProfile.
@@ -206,11 +155,6 @@ func (c *playerServiceClient) SetName(ctx context.Context, req *connect.Request[
 // SetColor calls player.v1.PlayerService.SetColor.
 func (c *playerServiceClient) SetColor(ctx context.Context, req *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error) {
 	return c.setColor.CallUnary(ctx, req)
-}
-
-// GetStats calls player.v1.PlayerService.GetStats.
-func (c *playerServiceClient) GetStats(ctx context.Context, req *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error) {
-	return c.getStats.CallUnary(ctx, req)
 }
 
 // Announce calls player.v1.PlayerService.Announce.
@@ -238,42 +182,17 @@ func (c *playerServiceClient) GetPlayer(ctx context.Context, req *connect.Reques
 	return c.getPlayer.CallUnary(ctx, req)
 }
 
-// GetTitles calls player.v1.PlayerService.GetTitles.
-func (c *playerServiceClient) GetTitles(ctx context.Context, req *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error) {
-	return c.getTitles.CallUnary(ctx, req)
-}
-
-// WearTitle calls player.v1.PlayerService.WearTitle.
-func (c *playerServiceClient) WearTitle(ctx context.Context, req *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error) {
-	return c.wearTitle.CallUnary(ctx, req)
-}
-
-// GetFronts calls player.v1.PlayerService.GetFronts.
-func (c *playerServiceClient) GetFronts(ctx context.Context, req *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error) {
-	return c.getFronts.CallUnary(ctx, req)
-}
-
-// GetBadges calls player.v1.PlayerService.GetBadges.
-func (c *playerServiceClient) GetBadges(ctx context.Context, req *connect.Request[v1.GetBadgesRequest]) (*connect.Response[v1.GetBadgesResponse], error) {
-	return c.getBadges.CallUnary(ctx, req)
-}
-
 // PlayerServiceHandler is an implementation of the player.v1.PlayerService service.
 type PlayerServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
 	SetColor(context.Context, *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error)
-	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlayerEvent]) error
+	// Who a player is on its public card. Its stats, titles and fronts are progression.v1's GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
-	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
-	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
-	GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error)
-	// The badges of a page of accounts, for the page to draw beside their names. At most 100 ids, or InvalidArgument.
-	GetBadges(context.Context, *connect.Request[v1.GetBadgesRequest]) (*connect.Response[v1.GetBadgesResponse], error)
 }
 
 // NewPlayerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -299,12 +218,6 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		PlayerServiceSetColorProcedure,
 		svc.SetColor,
 		connect.WithSchema(playerServiceMethods.ByName("SetColor")),
-		connect.WithHandlerOptions(opts...),
-	)
-	playerServiceGetStatsHandler := connect.NewUnaryHandler(
-		PlayerServiceGetStatsProcedure,
-		svc.GetStats,
-		connect.WithSchema(playerServiceMethods.ByName("GetStats")),
 		connect.WithHandlerOptions(opts...),
 	)
 	playerServiceAnnounceHandler := connect.NewUnaryHandler(
@@ -339,31 +252,6 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
-	playerServiceGetTitlesHandler := connect.NewUnaryHandler(
-		PlayerServiceGetTitlesProcedure,
-		svc.GetTitles,
-		connect.WithSchema(playerServiceMethods.ByName("GetTitles")),
-		connect.WithHandlerOptions(opts...),
-	)
-	playerServiceWearTitleHandler := connect.NewUnaryHandler(
-		PlayerServiceWearTitleProcedure,
-		svc.WearTitle,
-		connect.WithSchema(playerServiceMethods.ByName("WearTitle")),
-		connect.WithHandlerOptions(opts...),
-	)
-	playerServiceGetFrontsHandler := connect.NewUnaryHandler(
-		PlayerServiceGetFrontsProcedure,
-		svc.GetFronts,
-		connect.WithSchema(playerServiceMethods.ByName("GetFronts")),
-		connect.WithHandlerOptions(opts...),
-	)
-	playerServiceGetBadgesHandler := connect.NewUnaryHandler(
-		PlayerServiceGetBadgesProcedure,
-		svc.GetBadges,
-		connect.WithSchema(playerServiceMethods.ByName("GetBadges")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/player.v1.PlayerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PlayerServiceGetProfileProcedure:
@@ -372,8 +260,6 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceSetNameHandler.ServeHTTP(w, r)
 		case PlayerServiceSetColorProcedure:
 			playerServiceSetColorHandler.ServeHTTP(w, r)
-		case PlayerServiceGetStatsProcedure:
-			playerServiceGetStatsHandler.ServeHTTP(w, r)
 		case PlayerServiceAnnounceProcedure:
 			playerServiceAnnounceHandler.ServeHTTP(w, r)
 		case PlayerServiceLeaveProcedure:
@@ -384,14 +270,6 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceListenForEventsHandler.ServeHTTP(w, r)
 		case PlayerServiceGetPlayerProcedure:
 			playerServiceGetPlayerHandler.ServeHTTP(w, r)
-		case PlayerServiceGetTitlesProcedure:
-			playerServiceGetTitlesHandler.ServeHTTP(w, r)
-		case PlayerServiceWearTitleProcedure:
-			playerServiceWearTitleHandler.ServeHTTP(w, r)
-		case PlayerServiceGetFrontsProcedure:
-			playerServiceGetFrontsHandler.ServeHTTP(w, r)
-		case PlayerServiceGetBadgesProcedure:
-			playerServiceGetBadgesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -413,10 +291,6 @@ func (UnimplementedPlayerServiceHandler) SetColor(context.Context, *connect.Requ
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.SetColor is not implemented"))
 }
 
-func (UnimplementedPlayerServiceHandler) GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetStats is not implemented"))
-}
-
 func (UnimplementedPlayerServiceHandler) Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.Announce is not implemented"))
 }
@@ -435,20 +309,4 @@ func (UnimplementedPlayerServiceHandler) ListenForEvents(context.Context, *conne
 
 func (UnimplementedPlayerServiceHandler) GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetPlayer is not implemented"))
-}
-
-func (UnimplementedPlayerServiceHandler) GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetTitles is not implemented"))
-}
-
-func (UnimplementedPlayerServiceHandler) WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.WearTitle is not implemented"))
-}
-
-func (UnimplementedPlayerServiceHandler) GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetFronts is not implemented"))
-}
-
-func (UnimplementedPlayerServiceHandler) GetBadges(context.Context, *connect.Request[v1.GetBadgesRequest]) (*connect.Response[v1.GetBadgesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetBadges is not implemented"))
 }

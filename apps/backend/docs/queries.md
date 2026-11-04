@@ -2,7 +2,8 @@
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
-(`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetBadges`, `GetRoster`), planet
+(`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetPlayer`, `GetAuthors`, `GetRoster`), progression (`GetStats`,
+`GetTitles`, `GetBadges`, `GetProgress`, `AdminService/GetProgress`), planet
 (`GetTakesByCountry`, `GetLedgerTotals`, `GetMapHistory`, `GetTerritories`, `GetLedger`, `GetTileHolder`, `GetLandmass`, `GetHoldings`),
 gamemaster (`GetSeasonTotals`, `GetSeasonReplay`), auth
 (`GetMe`, `GetAccount`, `GetAccounts`), scoring (`GetBoard`, `GetMyTally`, `GetRound`, `GetScores`, `GetBookHistory` and the live stream) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
@@ -27,20 +28,22 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   adapter is a subpackage (`history_query/rpc_player_authors`). The query asks it once and stitches the answer on.
   An adapter the commands already use is reused rather than copied: `player_query.Accounts` is
   `players/rpc_account_reader`. **The adapter is the only bridge to the domain**: the titles catalog is game rules as
-  objects, so `GetPlayer`, `GetTitles`, `GetAuthors` and `GetBadges` reach it through a `Titles` port that takes the ids SQL read
-  and answers `*player.v1.Title`, implemented by `playerv1controller/inprocess_title_catalog`; the roster is state in
+  objects, so progression's `GetTitles`, `GetBadges` and both `GetProgress` reach it through a `Titles` port that takes the ids
+  SQL read and answers `*progression.v1.Title`, implemented by `progressionv1controller/inprocess_title_catalog`; the roster is state in
   memory, reached through `roster_query.Lines`, implemented by `roster_query/inmemory_roster`.
 - **Independent parts run at once** (`errgroup`): the messages and their authors, and the announcements.
 - **The handler only maps**: the caller off the context, the query, the header. It declares the query as its port.
-  What several queries share and that knows only the wire is in `playerv1controller/playerread` (`KeptColor`,
-  `Career`); `playermessage` encodes domain values, so only the commands and the adapters use it.
+  What several queries share and that knows only the wire is in `playerv1controller/playerread` (`KeptColor`) and
+  `progressionv1controller/progressionread` (`StreakNow`, `Career`); `playermessage` and `progressionmessage` encode
+  domain values, so only the commands and the adapters use them.
 - **It reads the write side's tables**, so its tests seed through the real stores (`postgres_message_store`,
   `postgres_reaction_store`, `postgres_announcement_store`) and assert the proto it answers. A store's own contract
   suite covers only what the write side reads back.
-- **A query imports no domain package.** Player's queries import neither `players`, `titles`, `wearing`, `presence`
-  nor `playermessage`; their ids are the shared `cpsession.AccountID`. A small display rule a command also applies
+- **A query imports no domain package.** Player's queries import neither `presence` nor `playermessage`, and
+  progression's neither `stats`, `titles`, `wearing` nor `progressionmessage`; their ids are the shared
+  `cpsession.AccountID`. A small display rule a command also applies
   is written again in the query's SQL, and each side has its own tests: a streak as of today (`Streak.AsOf`), the
-  guest name (`DisplayNameOf`), and a guest showing no badge (`badges_query` reads `profiles` alone). A
+  guest name (`DisplayNameOf`), and a guest showing no badge (`badges_query` reads `nameplates` alone). A
   game rule is never written again: titles go through the port above, never thresholds in SQL. Chat's
   `history_query` imports neither `messages`, `reactions`, `announcements` nor `feed`: it takes the
   window as `chat.storage.historySize` and `retention`, keeps the kinds it can carry (`kinds`), and reads a reactor
@@ -51,8 +54,8 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   names them with a map of its own, as `authprovider` does. The handlers still parse an id with
   `accounts.AccountIDOf`, as every edge does.
 - **Every rule written twice has a parity test**, which runs the same stored rows through both copies and asks for
-  the same answer. Player: a command's stats as of a day against `GetStats`, `GetAuthor` against `GetAuthors`, and a command's streak
-  as of today and title worn (`Stats.AsOf`, `Wardrobe.Showcase`) against `GetBadges`.
+  the same answer. Player: `GetAuthor` against `GetAuthors`. Progression: a command's stats as of a day against
+  `GetStats`, and a command's streak as of today and title worn (`Stats.AsOf`, `Wardrobe.Showcase`) against `GetBadges`.
   Chat (`history_query/parity_test.go`): a message is in the
   history exactly when `React` may react to it and `SendMessage` may reply to it; `React`'s answer against the
   history's reactions, cap of names included; `SendMessage`'s answer against the message the history reads back,

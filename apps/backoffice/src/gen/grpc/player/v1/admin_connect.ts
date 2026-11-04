@@ -3,9 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AdminGetPlayerRequest, AdminGetPlayerResponse, ReconcileTitlesRequest, ReconcileTitlesResponse, RenamePlayerRequest, RenamePlayerResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
 import { GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
+import { MethodKind } from "@bufbuild/protobuf";
+import { AdminGetPlayerRequest, AdminGetPlayerResponse, RenamePlayerRequest, RenamePlayerResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
 import { GetRosterRequest, GetRosterResponse } from "./player_pb.js";
 
 /**
@@ -16,15 +16,6 @@ import { GetRosterRequest, GetRosterResponse } from "./player_pb.js";
 export const AdminService = {
   typeName: "player.v1.AdminService",
   methods: {
-    /**
-     * @generated from rpc player.v1.AdminService.ReconcileTitles
-     */
-    reconcileTitles: {
-      name: "ReconcileTitles",
-      I: ReconcileTitlesRequest,
-      O: ReconcileTitlesResponse,
-      kind: MethodKind.Unary,
-    },
     /**
      * InternalService/GetAuthors, for the admin page naming a page of players.
      *
@@ -37,7 +28,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
+     * Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
+     * fronts are progression.v1.AdminService/GetProgress.
      *
      * @generated from rpc player.v1.AdminService.GetPlayer
      */

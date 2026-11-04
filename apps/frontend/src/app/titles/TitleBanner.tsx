@@ -1,4 +1,4 @@
-import {PlayerTitle} from "../../backends/player.ts"
+import {PlayerTitle} from "../../backends/progression.ts"
 import TitleEmblem from "./TitleEmblem.tsx"
 import {rankLine} from "./titleArt.ts"
 import "./Titles.css"

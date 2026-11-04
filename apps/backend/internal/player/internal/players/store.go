@@ -7,7 +7,6 @@ import (
 
 var (
 	ErrNoProfile = errors.New("the account has no profile")
-	ErrNoStats   = errors.New("the account has no stats")
 	ErrNameTaken = errors.New("another player has this name")
 
 	ErrProfileExists = errors.New("the account already has a profile")
@@ -20,8 +19,5 @@ type Store interface {
 	SaveProfile(ctx context.Context, profile Profile) error
 	CreateProfile(ctx context.Context, profile Profile) error
 	SaveColor(ctx context.Context, account AccountID, color Color) error
-	Stats(ctx context.Context, account AccountID) (Stats, error)
-	Record(ctx context.Context, account AccountID, change func(Stats) Stats) error
-	StatsAfter(ctx context.Context, after AccountID, limit int) ([]Stats, error)
 	DeleteAccount(ctx context.Context, account AccountID) error
 }

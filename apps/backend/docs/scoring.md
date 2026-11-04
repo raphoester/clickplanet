@@ -166,7 +166,7 @@ id that is not one is `InvalidArgument`.
 
 - **`GetBoard(book_id, country_id)`** (`board_query`): the book's top 10, of every player by its main flag's tiles, or
   of every player who took tiles for `country_id` by those tiles: rank, account id, name, color, flag and
-  tiles: the title its player wears is a badge, which the page reads from player's `GetBadges` by the account id. **Only a signed-in player is ranked**: Go skips what `GetAuthors` answers as a guest or not at all; a tie
+  tiles: the title its player wears is a badge, which the page reads from progression's `GetBadges` by the account id. **Only a signed-in player is ranked**: Go skips what `GetAuthors` answers as a guest or not at all; a tie
   shares the rank. Rows come 200 at a time from a keyset on `(tiles, account_id)`, one `GetAuthors` a page, until 10
   are named. A country that is not one is `InvalidArgument`. A GET, `public, max-age=15`.
 - **`GetMyTally(book_id, country_id)`** (`my_tally_query`): the caller's main flag, tiles and rank among every player,
@@ -188,7 +188,7 @@ id that is not one is `InvalidArgument`.
   never opened.
 - **`InternalService/GetRoundPlayers(round_id)`** (`round_players_query`): every account that took tiles in the round,
   guests too, each under the flag it took the most tiles for there (a tie goes to the country first by code), with
-  those tiles; NotFound for a round never opened. Player reads it for the fighters of a season's finale (see [Season
+  those tiles; NotFound for a round never opened. Progression reads it for the fighters of a season's finale (see [Season
   titles](season-titles.md)).
 - **`ListenForEvents(book_id, country_id, round_ids)`**: the book's board and scores, each round asked (10 at most, a
   round asked twice followed once), then each one again once it changed, and a `heartbeat` every

@@ -22,13 +22,10 @@ describe("the roster", () => {
         expect(rosterEntries(useRoster.getState())).toEqual([ana, bo])
     })
 
-    it("starts over from the roster a reconnect sends, and keeps its list while it waits for it", () => {
+    it("starts over from the roster a reconnect sends", () => {
         const roster = useRoster.getState()
         roster.follow()
         roster.hear({kind: "roster", entries: [ana, bo]})
-
-        roster.follow()
-        expect(rosterEntries(useRoster.getState())).toEqual([ana, bo])
 
         roster.hear({kind: "roster", entries: [bo]})
         expect(rosterEntries(useRoster.getState())).toEqual([bo])
@@ -42,7 +39,6 @@ describe("the roster", () => {
         const stop = useRoster.subscribe(told)
 
         roster.hear({kind: "left", key: "k2"})
-        roster.follow()
 
         expect(told).not.toHaveBeenCalled()
         stop()

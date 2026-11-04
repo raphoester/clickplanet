@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { NameColor } from "./color_pb.js";
 
 /**
@@ -231,6 +231,129 @@ export class Author extends Message<Author> {
 
   static equals(a: Author | PlainMessage<Author> | undefined, b: Author | PlainMessage<Author> | undefined): boolean {
     return proto3.util.equals(Author, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.GetAccountsRequest
+ */
+export class GetAccountsRequest extends Message<GetAccountsRequest> {
+  /**
+   * @generated from field: repeated string account_ids = 1;
+   */
+  accountIds: string[] = [];
+
+  constructor(data?: PartialMessage<GetAccountsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetAccountsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccountsRequest {
+    return new GetAccountsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAccountsRequest {
+    return new GetAccountsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAccountsRequest {
+    return new GetAccountsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAccountsRequest | PlainMessage<GetAccountsRequest> | undefined, b: GetAccountsRequest | PlainMessage<GetAccountsRequest> | undefined): boolean {
+    return proto3.util.equals(GetAccountsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.GetAccountsResponse
+ */
+export class GetAccountsResponse extends Message<GetAccountsResponse> {
+  /**
+   * @generated from field: repeated player.v1.Account accounts = 1;
+   */
+  accounts: Account[] = [];
+
+  constructor(data?: PartialMessage<GetAccountsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetAccountsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "accounts", kind: "message", T: Account, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccountsResponse {
+    return new GetAccountsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAccountsResponse {
+    return new GetAccountsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAccountsResponse {
+    return new GetAccountsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAccountsResponse | PlainMessage<GetAccountsResponse> | undefined, b: GetAccountsResponse | PlainMessage<GetAccountsResponse> | undefined): boolean {
+    return proto3.util.equals(GetAccountsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.Account
+ */
+export class Account extends Message<Account> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: bool linked = 2;
+   */
+  linked = false;
+
+  /**
+   * @generated from field: int64 created_at_unix_ms = 3;
+   */
+  createdAtUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<Account>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.Account";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "created_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Account {
+    return new Account().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Account {
+    return new Account().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Account {
+    return new Account().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Account | PlainMessage<Account> | undefined, b: Account | PlainMessage<Account> | undefined): boolean {
+    return proto3.util.equals(Account, a, b);
   }
 }
 

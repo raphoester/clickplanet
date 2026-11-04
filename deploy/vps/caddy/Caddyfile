@@ -96,6 +96,12 @@
 		}
 	}
 
+	handle /progression.v1.ProgressionService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
 	handle /scoring.v1.ScoringService/* {
 		reverse_proxy backend:8080 {
 			header_up X-Real-IP {client_ip}

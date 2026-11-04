@@ -61,7 +61,8 @@ import {
     RenamePlayerResponse,
 } from "../gen/grpc/player/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
-import {CountryTiles, Stats} from "../gen/grpc/player/v1/player_pb.ts"
+import {AdminGetProgressRequest, AdminGetProgressResponse} from "../gen/grpc/progression/v1/admin_pb.ts"
+import {CountryTiles, Stats} from "../gen/grpc/progression/v1/progression_pb.ts"
 import {
     DecideReportRequest,
     DecideReportResponse,
@@ -374,11 +375,21 @@ export class DemoAdmin extends FakeAdmin {
 
     override getPlayer(request: PartialMessage<AdminGetPlayerRequest>): Promise<AdminGetPlayerResponse> {
         const account = this.accounts.find(each => each.id === request.accountId)
-        if (account === undefined) return this.refuseLater("getPlayer", request, "no such account", Code.NotFound)
-        const row = this.players.find(each => each.accountId === account.id)
-        const taken = BigInt((row?.takes ?? 0) * 3)
+        if (account === undefined || account.name === "") {
+            return this.refuseLater("getPlayer", request, "no player for this account", Code.NotFound)
+        }
         return this.answer("getPlayer", request, new AdminGetPlayerResponse({
             name: account.name, guest: account.guest, linked: !account.guest, createdAtUnixMs: BigInt(account.createdAt),
+        }))
+    }
+
+    // Zeros for an account it keeps nothing about, as progression answers.
+    private progressOf(accountId: string): AdminGetProgressResponse {
+        const account = this.accounts.find(each => each.id === accountId)
+        if (account === undefined) return new AdminGetProgressResponse()
+        const row = this.players.find(each => each.accountId === account.id)
+        const taken = BigInt((row?.takes ?? 0) * 3)
+        return new AdminGetProgressResponse({
             messagesSent: BigInt(this.chat.filter(message => message.accountId === account.id).length),
             stats: new Stats({tilesTaken: taken, streakCurrent: 2, streakBest: 9}),
             playsFor: [
@@ -387,7 +398,7 @@ export class DemoAdmin extends FakeAdmin {
             ],
             playsAgainst: FLAGS.filter(flag => flag !== account.flag).slice(0, 8)
                 .map((countryId, i) => new CountryTiles({countryId, tiles: taken / BigInt(i + 3)})),
-        }))
+        })
     }
 
     override renamePlayer(request: PartialMessage<RenamePlayerRequest>): Promise<RenamePlayerResponse> {
@@ -453,6 +464,12 @@ export class DemoAdmin extends FakeAdmin {
             this.unlinkedFromDiscord.clear()
             return this.answer("linkMembers", request, new LinkMembersResponse({linked, outside: 9}))
         },
+    }
+
+    readonly demoProgression = {
+        getProgress: (request: PartialMessage<AdminGetProgressRequest>) =>
+            this.answer("getProgress", request, this.progressOf(request.accountId ?? "")),
+        reconcileTitles: this.progression.reconcileTitles.bind(this.progression),
     }
 
     readonly demoAntibot = {

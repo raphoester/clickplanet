@@ -1,6 +1,7 @@
 import {useEffect} from "react"
 import {TileHolder, TileHolders} from "../../backends/backend.ts"
-import {CountryTiles, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
+import {PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
+import {CountryTiles} from "../../backends/progression.ts"
 import {holderShown, Peek} from "../../domain/tilePeek.ts"
 import HolderCard from "./HolderCard.tsx"
 import {deletedLineOf, LEAVE_GRACE_MS, playerLineOf} from "./tileHolder.ts"

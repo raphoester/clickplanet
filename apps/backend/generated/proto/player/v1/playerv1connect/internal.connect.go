@@ -39,12 +39,18 @@ const (
 	// InternalServiceGetAuthorsProcedure is the fully-qualified name of the InternalService's
 	// GetAuthors RPC.
 	InternalServiceGetAuthorsProcedure = "/player.v1.InternalService/GetAuthors"
+	// InternalServiceGetAccountsProcedure is the fully-qualified name of the InternalService's
+	// GetAccounts RPC.
+	InternalServiceGetAccountsProcedure = "/player.v1.InternalService/GetAccounts"
 )
 
 // InternalServiceClient is a client for the player.v1.InternalService service.
 type InternalServiceClient interface {
 	GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error)
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
+	// What auth says of a page of accounts, for a module that must not ask auth: whether each signed in with a
+	// provider, and when it was made. An account auth does not answer is left out: read it as not linked, made at 0.
+	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the player.v1.InternalService service. By
@@ -71,13 +77,21 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getAccounts: connect.NewClient[v1.GetAccountsRequest, v1.GetAccountsResponse](
+			httpClient,
+			baseURL+InternalServiceGetAccountsProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetAccounts")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
-	getAuthor  *connect.Client[v1.GetAuthorRequest, v1.GetAuthorResponse]
-	getAuthors *connect.Client[v1.GetAuthorsRequest, v1.GetAuthorsResponse]
+	getAuthor   *connect.Client[v1.GetAuthorRequest, v1.GetAuthorResponse]
+	getAuthors  *connect.Client[v1.GetAuthorsRequest, v1.GetAuthorsResponse]
+	getAccounts *connect.Client[v1.GetAccountsRequest, v1.GetAccountsResponse]
 }
 
 // GetAuthor calls player.v1.InternalService.GetAuthor.
@@ -90,10 +104,18 @@ func (c *internalServiceClient) GetAuthors(ctx context.Context, req *connect.Req
 	return c.getAuthors.CallUnary(ctx, req)
 }
 
+// GetAccounts calls player.v1.InternalService.GetAccounts.
+func (c *internalServiceClient) GetAccounts(ctx context.Context, req *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error) {
+	return c.getAccounts.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the player.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error)
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
+	// What auth says of a page of accounts, for a module that must not ask auth: whether each signed in with a
+	// provider, and when it was made. An account auth does not answer is left out: read it as not linked, made at 0.
+	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -116,12 +138,21 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetAccountsHandler := connect.NewUnaryHandler(
+		InternalServiceGetAccountsProcedure,
+		svc.GetAccounts,
+		connect.WithSchema(internalServiceMethods.ByName("GetAccounts")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetAuthorProcedure:
 			internalServiceGetAuthorHandler.ServeHTTP(w, r)
 		case InternalServiceGetAuthorsProcedure:
 			internalServiceGetAuthorsHandler.ServeHTTP(w, r)
+		case InternalServiceGetAccountsProcedure:
+			internalServiceGetAccountsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -137,4 +168,8 @@ func (UnimplementedInternalServiceHandler) GetAuthor(context.Context, *connect.R
 
 func (UnimplementedInternalServiceHandler) GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.InternalService.GetAuthors is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.InternalService.GetAccounts is not implemented"))
 }

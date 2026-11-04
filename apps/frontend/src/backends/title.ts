@@ -1,4 +1,4 @@
-import {Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
+import {Title as TitlePb} from "../gen/grpc/progression/v1/title_pb.ts"
 
 export type TitleRank = {
     trackId: string

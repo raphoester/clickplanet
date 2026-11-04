@@ -1,9 +1,8 @@
 import {NameColor} from "../gen/grpc/player/v1/color_pb.ts"
 import {GUEST_PREFIX} from "./chat.ts"
-import {PlayerTitle} from "./title.ts"
+import {Progress} from "./progression.ts"
 
 export {NameColor}
-export type {PlayerTitle, TitleRank} from "./title.ts"
 
 export const MIN_USERNAME_LENGTH = 3
 export const MAX_USERNAME_LENGTH = 15
@@ -50,12 +49,6 @@ export interface PlayerBackend {
     setName(name: string): Promise<Profile>
 
     setColor(color: NameColor): Promise<NameColor>
-
-    titles(): Promise<TitleDashboard>
-
-    wearTitle(id: string): Promise<PlayerTitle | undefined>
-
-    fronts(): Promise<Fronts>
 }
 
 export type PlayerFailure =
@@ -111,60 +104,27 @@ export type RosterEvent =
 export interface PresenceBackend {
     heldSession(): string | undefined
 
-    heldIdentity(): string | undefined
-
     announce(presence: Presence): Promise<boolean>
 
     leave(): void
 
-    listenForRoster(
-        onEvent: (event: RosterEvent) => void,
-        onUnavailable: () => void,
-        onTitleEarned: (title: PlayerTitle) => void,
-    ): () => void
+    listenForRoster(onEvent: (event: RosterEvent) => void, onUnavailable: () => void): () => void
 }
 
-export type TitleStep = {
-    title: PlayerTitle
-    threshold: number
-    earned: boolean
-}
-
-export type TitleTrack = {
-    id: string
-    name: string
-    progress: number
-    steps: TitleStep[]
-}
-
-export type TitleDashboard = {
-    worn?: PlayerTitle
-    wearable: PlayerTitle[]
-    tracks: TitleTrack[]
-}
-
-export type PlayerInfo = {
+// A guest is its name alone.
+export type Player = {
     name: string
     guest: boolean
-    tilesTaken: number
-    streakCurrent: number
-    streakBest: number
     createdAt?: number
     admin: boolean
     color: NameColor
-    titles: PlayerTitle[]
-    wornTitle?: PlayerTitle
-} & Fronts
-
-export type Fronts = {
-    playsFor: CountryTiles[]
-    playsAgainst: CountryTiles[]
 }
 
-export type CountryTiles = {
-    countryCode: string
-    tiles: number
+export interface PlayerReader {
+    player(accountId: string): Promise<Player | undefined>
 }
+
+export type PlayerInfo = Player & Progress
 
 export interface PlayerInfoBackend {
     playerInfo(accountId: string): Promise<PlayerInfo | undefined>

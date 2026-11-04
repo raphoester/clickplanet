@@ -68,6 +68,8 @@ import TerritoryCardPlace from "../territory/TerritoryCardPlace.tsx";
 import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
 import {usePresence} from "../players/usePresence.ts";
 import {useRosterFeed} from "../players/useRosterFeed.ts";
+import {useTitlesEarned} from "../titles/useTitlesEarned.ts";
+import {TitlesListener} from "../../backends/progression.ts";
 import {useBadges} from "../badges/badgesStore.ts";
 import {useBadgesFeed} from "../badges/useBadgesFeed.ts";
 import {BadgesBackend} from "../../backends/badges.ts";
@@ -153,6 +155,7 @@ export type ViewerProps = {
     presence?: PresenceBackend
     playerInfo?: PlayerInfoBackend
     badges?: BadgesBackend
+    titles?: TitlesListener
     tileHolders?: TileHolders
     landmasses?: LandmassReader
     turn?: TurnBackend
@@ -206,7 +209,8 @@ export default function Viewer(props: ViewerProps) {
     useQuizMaster(props.quizMaster, countryState.code, sound.play)
     const announce = useAnnouncements((announcements) => announcements.announce)
     useBadgesFeed(props.badges)
-    useRosterFeed(props.presence, (title) => {
+    useRosterFeed(props.presence)
+    useTitlesEarned(props.titles, linked, (title) => {
         announce({kind: "title", title})
         // The title worn may follow the one earned: the next read of this player's badge says.
         if (ownAccountId) useBadges.getState().expire(ownAccountId)

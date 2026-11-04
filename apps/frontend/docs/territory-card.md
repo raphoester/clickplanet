@@ -37,8 +37,8 @@ the globe. A click or a tap flies down to it.
   `Globe.territoryOf` builds it, and asks no server. It works as soon as the
   globe is ready, before the tiles are read.
 - **The players are the server's**: `TerritoryCardPlace` asks `LandmassReader.landmass`
-  (`ClickService/GetLandmass`) once the card opens, then `PlayerService/GetPlayer` for the
-  first `TOP_PLAYERS` (3) holders and the last fortifier, as the tile card names its
+  (`ClickService/GetLandmass`) once the card opens, then the public card (`GetPlayer` and
+  `GetProgress`) for the first `TOP_PLAYERS` (3) holders and the last fortifier, as the tile card names its
   holder. **They are a store**, `useTerritoryPlayers` (`app/territory/territoryPlayersStore.ts`,
   see [Stores](stores.md)), kept with the territory they were read for, so a card says nothing
   of another one's (`playersOf`), and the same territory opened again shows them at once while

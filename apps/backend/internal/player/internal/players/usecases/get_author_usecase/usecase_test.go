@@ -18,8 +18,6 @@ var (
 	guest = players.AccountID{15: 2}
 )
 
-var today = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
-
 func store(t *testing.T) *inmemory_player_store.Store {
 	t.Helper()
 	store := inmemory_player_store.New()
@@ -77,16 +75,4 @@ func TestTheChosenColorIsAnswered(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, players.Color(7), author.Color())
-}
-
-func TestAPlayerWhoTookTilesIsNamedAsOneWhoNeverDid(t *testing.T) {
-	takes := store(t)
-	require.NoError(t, takes.Record(t.Context(), ada, players.TakeAt(0, 0, today.AddDate(0, 0, -1))))
-	require.NoError(t, takes.Record(t.Context(), ada, players.TakeAt(1, 0, today)))
-
-	author, err := useCase(takes).Execute(t.Context(), ada)
-
-	require.NoError(t, err)
-	assert.Equal(t, players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore()), author,
-		"a streak is a badge, which GetBadges answers: the name carries none")
 }

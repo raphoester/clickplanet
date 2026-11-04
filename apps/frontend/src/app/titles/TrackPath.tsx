@@ -1,5 +1,5 @@
 import {useEffect, useRef} from "react"
-import {TitleTrack} from "../../backends/player.ts"
+import {TitleTrack} from "../../backends/progression.ts"
 import TitleEmblem from "./TitleEmblem.tsx"
 import {filledOf, leftLabel, stepLabel} from "./titleArt.ts"
 import "./Titles.css"

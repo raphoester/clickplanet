@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event"
 import {useSyncExternalStore} from "react"
 import {AccountBackend, Provider} from "../../backends/account.ts"
 import {ColoredProfile, NameColor, PlayerBackend, Profile, RenameTooSoonError} from "../../backends/player.ts"
+import {ProgressionBackend} from "../../backends/progression.ts"
 import {AccountStore} from "./accountStore.ts"
 import AccountPanel from "./AccountPanel.tsx"
 
@@ -29,14 +30,16 @@ async function signedIn(profile: ColoredProfile, setName: (name: string) => Prom
         profile: vi.fn(async () => profile),
         setName: vi.fn(setName),
         setColor: vi.fn(async (color: NameColor) => color),
+    } satisfies PlayerBackend
+    const progression = {
         titles: vi.fn(async () => ({wearable: [], tracks: []})),
         fronts: vi.fn(async () => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),
-    } satisfies PlayerBackend
+    } satisfies ProgressionBackend
     const crazyGames = provider === "crazygames"
         ? {token: vi.fn(async () => "the-jwt"), prompt: vi.fn(async () => true), listenForSignIn: vi.fn(() => () => undefined)}
         : undefined
-    const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()},
+    const store = new AccountStore(backend, player, progression, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()},
         {navigate: vi.fn(), remember: vi.fn(), claimFlag: vi.fn(), crazyGames})
     await store.load()
     await vi.waitFor(() => expect(store.state()).toMatchObject({username: profile.name}))

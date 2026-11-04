@@ -243,6 +243,21 @@ player:
     password: ""
   tagSalt: ""
 
+progression:
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: progression
+    pool:
+      maxOpenConns: 2
+  redis:
+    address: localhost:6379
+    password: ""
+
 scoring:
   database:
     host: localhost

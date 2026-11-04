@@ -27,6 +27,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -86,6 +87,8 @@ func startGame(t *testing.T) gameStack {
 
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), Redis: redis, TagSalt: "pepper"}
 
+	progressionConfig := progression.Config{Database: postgres.ConfigFor("progression"), Redis: redis}
+
 	scoringConfig := scoring.Config{Database: postgres.ConfigFor("scoring"), Redis: redis}
 
 	missionsConfig := missions.Config{Database: postgres.ConfigFor("missions"), Redis: redis}
@@ -120,6 +123,7 @@ func startGame(t *testing.T) gameStack {
 			Logger: logger,
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), antibot.NewModule(antibotConfig), player.NewModule(playerConfig),
+				progression.NewModule(progressionConfig),
 				chat.NewModule(chatConfig), scoring.NewModule(scoringConfig), support.NewModule(supportConfig),
 				missions.NewModule(missionsConfig), gamemaster.NewModule(gamemasterConfig),
 			},

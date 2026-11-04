@@ -216,6 +216,21 @@ player:
     password: env://REDIS_PASSWORD
   tagSalt: env://CHAT_TAG_SALT
 
+progression:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: progression
+    pool:
+      maxOpenConns: 4
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+
 scoring:
   database:
     host: postgres

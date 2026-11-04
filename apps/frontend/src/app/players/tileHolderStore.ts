@@ -1,5 +1,6 @@
 import {create} from "zustand"
-import {CountryTiles, PlayerLine} from "../../backends/player.ts"
+import {PlayerLine} from "../../backends/player.ts"
+import {CountryTiles} from "../../backends/progression.ts"
 import {Point} from "../../domain/tilePeek.ts"
 
 export type HolderShown = {

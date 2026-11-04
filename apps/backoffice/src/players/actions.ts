@@ -1,13 +1,15 @@
 import {Duration} from "@bufbuild/protobuf"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {LONG_CALL_MS} from "../api.ts"
-import {AlertsAdmin, AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAdmin} from "../clients.ts"
+import {AlertsAdmin, AntibotAdmin, ChatAdmin, PlanetAdmin, PlayerAdmin, ProgressionAdmin} from "../clients.ts"
 import {DiscordLink} from "../gen/grpc/alerts/v1/admin_pb.ts"
 import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {ChargesHeld} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {AdminGetPlayerResponse, PlayerMatch} from "../gen/grpc/player/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
+import {AdminGetProgressResponse} from "../gen/grpc/progression/v1/admin_pb.ts"
+import {Stats} from "../gen/grpc/progression/v1/progression_pb.ts"
 import {timeOf} from "../components/time.ts"
 import {Meanings, wordsOf} from "../refusal.ts"
 import {Caller} from "./caller.ts"
@@ -36,7 +38,8 @@ export type Named = {authors: Authors, unnamed: string | undefined}
 // A page of players and who each account is.
 export type Listed = Players & Named
 export type Matches = {players: PlayerMatch[], total: number}
-export type Profile = AdminGetPlayerResponse
+// No identity: an account with no name and no guest code, most likely a script that clicks without announcing.
+export type Profile = {identity: AdminGetPlayerResponse | undefined, progress: AdminGetProgressResponse}
 
 export const MOST = 99
 export const NO_GRANT: Grant = {refill: false, bomb: false, enclosures: 0, spreadClicks: 0, shields: 0}
@@ -176,7 +179,26 @@ export async function namesOf(player: PlayerAdmin, accounts: string[], signal?: 
 }
 
 // Everything the game keeps about an account, a guest's too, or undefined when it keeps nothing.
-export async function profileOf(player: PlayerAdmin, accountId: string, signal?: AbortSignal): Promise<Profile | undefined> {
+export async function profileOf(
+    player: PlayerAdmin, progression: ProgressionAdmin, accountId: string, signal?: AbortSignal,
+): Promise<Profile | undefined> {
+    const [identity, progress] = await Promise.all([
+        identityOf(player, accountId, signal),
+        progression.getProgress({accountId}, {signal}),
+    ])
+    if (identity === undefined && !keepsAnything(progress)) return undefined
+    return {identity, progress}
+}
+
+// Progression answers zeros, never NotFound, for an account it keeps nothing about.
+function keepsAnything(progress: AdminGetProgressResponse): boolean {
+    const stats = progress.stats ?? new Stats()
+    return stats.tilesTaken > 0n || stats.streakCurrent > 0 || stats.streakBest > 0 || stats.streakLastDay !== ""
+        || progress.messagesSent > 0n || progress.titles.length > 0 || progress.wornTitle !== undefined
+        || progress.playsFor.length > 0 || progress.playsAgainst.length > 0
+}
+
+async function identityOf(player: PlayerAdmin, accountId: string, signal?: AbortSignal): Promise<AdminGetPlayerResponse | undefined> {
     try {
         return await player.getPlayer({accountId}, {signal})
     } catch (err) {

@@ -17,8 +17,15 @@ Beside them: `session.ts` (the click token, see [Sessions](sessions.md)),
 `account.ts` (who the cookie belongs to, see [Sign-in](sign-in.md)) and
 `player.ts` — `PlayerBackend`, the player's `Profile`, `PlayerError` and
 `isValidUsername`, the username rule, plus `PresenceBackend` (see [Who is
-playing](who-is-playing.md)). `playerBackend.ts` implements both against
-`player.v1.PlayerService`. `support.ts` is what a player sends the operator —
+playing](who-is-playing.md)) and `PlayerReader`, who a player is on its card.
+`playerBackend.ts` implements them against `player.v1.PlayerService`.
+`progression.ts` is what a player earned: `ProgressionBackend` (its own titles,
+the title it wears and its fronts), `ProgressReader` (a player's progress on its
+card) and `TitlesListener` (the titles it earns, live). `progressionBackend.ts`
+implements them, and the badges, against `progression.v1.ProgressionService`
+(see [Titles](titles.md) and [Badges](badges.md)). `playerCards.ts` reads the
+two halves of a public card side by side (see [Who is playing](who-is-playing.md)).
+`support.ts` is what a player sends the operator —
 see [Support](support.md). `clips.ts` is the clips that name the player — see [In a
 clip](clip-appearances.md). `alerts.ts` is whether the player is in the game's Discord server, which a Discord sign-in joins — see [Discord pings](discord-alerts.md).
 

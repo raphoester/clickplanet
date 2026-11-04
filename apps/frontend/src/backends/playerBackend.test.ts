@@ -1,8 +1,6 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
-    Badge as BadgePb,
-    CountryTiles as CountryTilesPb,
     Player as PlayerPb,
     PlayerEvent as PlayerEventPb,
     PlayerLeft as PlayerLeftPb,
@@ -10,18 +8,10 @@ import {
     RenameRefusal as RenameRefusalPb,
     Roster as RosterPb,
     RosterEntry as RosterEntryPb,
-    Stats as StatsPb,
-    Step as StepPb,
-    TitleEarned as TitleEarnedPb,
-    Track as TrackPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
-import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
-import {isValidUsername, NameColor, PlayerError, PlayerTitle, RenameTooSoonError, RosterEvent, usernameOf} from "./player.ts"
+import {isValidUsername, NameColor, PlayerError, RenameTooSoonError, RosterEvent, usernameOf} from "./player.ts"
 import {ConnectPlayerBackend} from "./playerBackend.ts"
 import {SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts"
-
-const settlerPb = new TitlePb({id: "settler", name: "Settler", rank: new RankPb({trackId: "conquest", trackName: "Conquest", number: 1, count: 5})})
-const settler: PlayerTitle = {id: "settler", name: "Settler", rank: {trackId: "conquest", trackName: "Conquest", number: 1, count: 5}}
 
 const refusing = (code: Code) => vi.fn(async () => {
     throw new ConnectError("no", code)
@@ -116,66 +106,6 @@ describe("ConnectPlayerBackend", () => {
         const backend = backendWith({getProfile: vi.fn(async () => ({}))})
 
         expect(await backend.profile()).toEqual({accountId: "", name: ""})
-    })
-
-    it("reads the titles with the click token: the one worn, the ones to wear and each track", async () => {
-        const getTitles = vi.fn(async () => ({
-            worn: settlerPb,
-            wearable: [new TitlePb({id: "og", name: "OG"}), settlerPb],
-            tracks: [new TrackPb({
-                id: "conquest", name: "Conquest", progress: 140n, steps: [
-                    new StepPb({title: settlerPb, threshold: 100n, earned: true}),
-                    new StepPb({title: new TitlePb({id: "raider", name: "Raider", rank: new RankPb({trackId: "conquest", trackName: "Conquest", number: 2, count: 5})}), threshold: 1000n}),
-                ],
-            })],
-        }))
-        const backend = backendWith({getTitles})
-
-        expect(await backend.titles()).toEqual({
-            worn: settler,
-            wearable: [{id: "og", name: "OG"}, settler],
-            tracks: [{
-                id: "conquest", name: "Conquest", progress: 140, steps: [
-                    {title: settler, threshold: 100, earned: true},
-                    {title: {id: "raider", name: "Raider", rank: {trackId: "conquest", trackName: "Conquest", number: 2, count: 5}}, threshold: 1000, earned: false},
-                ],
-            }],
-        })
-        expect(headersOf(getTitles).headers.get(SESSION_HEADER)).toBe("token-1")
-    })
-
-    it("reads no worn title as none", async () => {
-        const backend = backendWith({getTitles: vi.fn(async () => ({wearable: [], tracks: []}))})
-
-        expect((await backend.titles()).worn).toBeUndefined()
-    })
-
-    it("reads every country the player plays for and against with the click token", async () => {
-        const getFronts = vi.fn(async () => ({
-            playsFor: [new CountryTilesPb({countryId: "fr", tiles: 1200n})],
-            playsAgainst: [new CountryTilesPb({countryId: "de", tiles: 900n}), new CountryTilesPb({countryId: "es", tiles: 4n})],
-        }))
-        const backend = backendWith({getFronts})
-
-        expect(await backend.fronts()).toEqual({
-            playsFor: [{countryCode: "fr", tiles: 1200}],
-            playsAgainst: [{countryCode: "de", tiles: 900}, {countryCode: "es", tiles: 4}],
-        })
-        expect(headersOf(getFronts).headers.get(SESSION_HEADER)).toBe("token-1")
-    })
-
-    it("wears a title with the click token, and answers the one the server says is worn", async () => {
-        const wearTitle = vi.fn(async () => ({worn: settlerPb}))
-        const backend = backendWith({wearTitle})
-
-        expect(await backend.wearTitle("settler")).toEqual(settler)
-        expect(wearTitle).toHaveBeenCalledWith({titleId: "settler"}, expect.anything())
-        expect(headersOf(wearTitle).headers.get(SESSION_HEADER)).toBe("token-1")
-    })
-
-    it("reports a title that cannot be worn as invalid", async () => {
-        await expect(backendWith({wearTitle: refusing(Code.InvalidArgument)}).wearTitle("warmaster"))
-            .rejects.toMatchObject({failure: "invalid"})
     })
 
     it("sends the name with the click token, and answers what the server stored", async () => {
@@ -372,7 +302,7 @@ describe("ConnectPlayerBackend live roster", () => {
 
     afterEach(() => vi.useRealTimers())
 
-    it("follows the stream without a token, maps each event and skips the heartbeats", async () => {
+    it("follows the stream without a token, even one held, maps each event and skips the heartbeats", async () => {
         const listenForEvents = vi.fn(async function* () {
             yield new PlayerEventPb({event: {case: "roster", value: new RosterPb({entries: [entryPb]})}})
             yield new PlayerEventPb({event: {case: "heartbeat", value: {}}})
@@ -383,7 +313,9 @@ describe("ConnectPlayerBackend live roster", () => {
         const events: RosterEvent[] = []
         const onUnavailable = vi.fn()
 
-        const stop = backendWith({listenForEvents}).listenForRoster((event) => events.push(event), onUnavailable, vi.fn())
+        const session = {...sessionOf("token-1"), held: vi.fn(() => "token-1"), heldIdentity: vi.fn(() => "token-1")}
+
+        const stop = backendWith({listenForEvents}, session).listenForRoster((event) => events.push(event), onUnavailable)
         await vi.waitFor(() => expect(events).toHaveLength(3))
         stop()
 
@@ -393,27 +325,9 @@ describe("ConnectPlayerBackend live roster", () => {
             {kind: "left", key: "k1"},
         ])
         expect(onUnavailable).not.toHaveBeenCalled()
-        const options = (listenForEvents.mock.calls[0] as unknown[])[1] as {headers: Headers, timeoutMs: number}
-        expect(options.headers.get(SESSION_HEADER)).toBeNull()
+        const options = (listenForEvents.mock.calls[0] as unknown[])[1] as {headers?: Headers, timeoutMs: number}
+        expect(options.headers).toBeUndefined()
         expect(options.timeoutMs).toBe(0)
-    })
-
-    it("opens the stream with the token it holds, and hands a title earned to its own callback", async () => {
-        const session = {token: vi.fn(async () => "minted"), held: vi.fn(() => "token-1"), identity: vi.fn(async () => "token-1"), heldIdentity: vi.fn(() => "token-1"), invalidate: vi.fn()}
-        const listenForEvents = vi.fn(async function* () {
-            yield new PlayerEventPb({event: {case: "titleEarned", value: new TitleEarnedPb({title: settlerPb})}})
-            await new Promise(() => {})
-        })
-        const onEvent = vi.fn()
-        const titles: PlayerTitle[] = []
-
-        const stop = backendWith({listenForEvents}, session).listenForRoster(onEvent, vi.fn(), (title) => titles.push(title))
-        await vi.waitFor(() => expect(titles).toEqual([settler]))
-        stop()
-
-        expect(onEvent).not.toHaveBeenCalled()
-        const options = (listenForEvents.mock.calls[0] as unknown[])[1] as {headers: Headers}
-        expect(options.headers.get(SESSION_HEADER)).toBe("token-1")
         expect(session.token).not.toHaveBeenCalled()
     })
 
@@ -423,7 +337,7 @@ describe("ConnectPlayerBackend live roster", () => {
             const listenForEvents = vi.fn(failingWith(new ConnectError("no", code)))
             const onUnavailable = vi.fn()
 
-            backendWith({listenForEvents}).listenForRoster(() => {}, onUnavailable, vi.fn())
+            backendWith({listenForEvents}).listenForRoster(() => {}, onUnavailable)
             await vi.advanceTimersByTimeAsync(60_000)
 
             expect(onUnavailable).toHaveBeenCalledTimes(1)
@@ -437,7 +351,7 @@ describe("ConnectPlayerBackend live roster", () => {
         const listenForEvents = vi.fn(failingWith(new ConnectError("down", Code.Unavailable)))
         const onUnavailable = vi.fn()
 
-        const stop = backendWith({listenForEvents}).listenForRoster(() => {}, onUnavailable, vi.fn())
+        const stop = backendWith({listenForEvents}).listenForRoster(() => {}, onUnavailable)
         await vi.advanceTimersByTimeAsync(1_000)
         stop()
 
@@ -446,52 +360,15 @@ describe("ConnectPlayerBackend live roster", () => {
     })
 })
 
-describe("ConnectPlayerBackend badges", () => {
-    it("reads the badges of the accounts asked in one call, without a token, and maps them", async () => {
-        const session = sessionOf("token-1")
-        const getBadges = vi.fn(async () => ({
-            badges: [new BadgePb({accountId: "account-ana", streak: 12, wornTitle: settlerPb}), new BadgePb({accountId: "account-kiran", streak: 3})],
-        }))
-
-        expect(await backendWith({getBadges}, session).badges(["account-ana", "account-kiran", "account-guest"])).toEqual([
-            {accountId: "account-ana", streak: 12, wornTitle: settler},
-            {accountId: "account-kiran", streak: 3, wornTitle: undefined},
-        ])
-        expect(getBadges).toHaveBeenCalledWith({accountIds: ["account-ana", "account-kiran", "account-guest"]})
-        expect(session.token).not.toHaveBeenCalled()
-    })
-
-    it("reports a failure as it is, a backend that does not serve them yet too", async () => {
-        const error = await backendWith({getBadges: refusing(Code.Unimplemented)}).badges(["account-ana"]).catch((e) => e)
-
-        expect(error).toBeInstanceOf(ConnectError)
-    })
-})
-
-describe("ConnectPlayerBackend player info", () => {
-    it("reads a player by its account id without a token, and maps it", async () => {
+describe("ConnectPlayerBackend public card", () => {
+    it("reads who a player is by its account id without a token, and maps it", async () => {
         const session = sessionOf("token-1")
         const getPlayer = vi.fn(async () => ({
-            player: new PlayerPb({
-                name: "Ana",
-                stats: new StatsPb({tilesTaken: 1234n, streakCurrent: 3, streakBest: 7, streakLastDay: "2026-09-17"}),
-                createdAtUnixMs: 1_788_000_000_000n,
-                admin: true,
-                color: NameColor.VIOLET,
-                titles: [new TitlePb({id: "og", name: "OG", feat: "Joined before November 2026"}), settlerPb],
-                wornTitle: settlerPb,
-                playsFor: [new CountryTilesPb({countryId: "fr", tiles: 1200n}), new CountryTilesPb({countryId: "be", tiles: 34n})],
-                playsAgainst: [new CountryTilesPb({countryId: "de", tiles: 900n})],
-            }),
+            player: new PlayerPb({name: "Ana", createdAtUnixMs: 1_788_000_000_000n, admin: true, color: NameColor.VIOLET}),
         }))
 
-        expect(await backendWith({getPlayer}, session).playerInfo("account-1")).toEqual({
-            name: "Ana", guest: false, tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000, admin: true,
-            color: NameColor.VIOLET,
-            titles: [{id: "og", name: "OG", feat: "Joined before November 2026"}, settler],
-            wornTitle: settler,
-            playsFor: [{countryCode: "fr", tiles: 1200}, {countryCode: "be", tiles: 34}],
-            playsAgainst: [{countryCode: "de", tiles: 900}],
+        expect(await backendWith({getPlayer}, session).player("account-1")).toEqual({
+            name: "Ana", guest: false, createdAt: 1_788_000_000_000, admin: true, color: NameColor.VIOLET,
         })
         expect(getPlayer).toHaveBeenCalledWith({accountId: "account-1"})
         expect(session.token).not.toHaveBeenCalled()
@@ -500,21 +377,27 @@ describe("ConnectPlayerBackend player info", () => {
     it("reads a guest as its name alone", async () => {
         const getPlayer = vi.fn(async () => ({player: new PlayerPb({name: "guest_91aa3d", guest: true})}))
 
-        expect(await backendWith({getPlayer}).playerInfo("account-2")).toMatchObject({name: "guest_91aa3d", guest: true, wornTitle: undefined})
-    })
-
-    it("leaves out a creation date the server does not know", async () => {
-        const getPlayer = vi.fn(async () => ({player: new PlayerPb({name: "Ana", stats: new StatsPb()})}))
-
-        expect((await backendWith({getPlayer}).playerInfo("account-1"))?.createdAt).toBeUndefined()
+        expect(await backendWith({getPlayer}).player("account-2")).toEqual({
+            name: "guest_91aa3d", guest: true, createdAt: undefined, admin: false, color: NameColor.UNSPECIFIED,
+        })
     })
 
     it("answers undefined for an account with no card", async () => {
-        expect(await backendWith({getPlayer: refusing(Code.NotFound)}).playerInfo("account-2")).toBeUndefined()
+        expect(await backendWith({getPlayer: refusing(Code.NotFound)}).player("account-2")).toBeUndefined()
+    })
+
+    it("retries the read while the server cannot be reached", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        const getPlayer = vi.fn()
+            .mockRejectedValueOnce(new ConnectError("down", Code.Unavailable))
+            .mockResolvedValue({player: new PlayerPb({name: "Ana"})})
+
+        expect(await backendWith({getPlayer}).player("account-1")).toMatchObject({name: "Ana"})
+        expect(getPlayer).toHaveBeenCalledTimes(2)
     })
 
     it("reports any other failure as it is", async () => {
-        const error = await backendWith({getPlayer: refusing(Code.Internal)}).playerInfo("account-1").catch((e) => e)
+        const error = await backendWith({getPlayer: refusing(Code.Internal)}).player("account-1").catch((e) => e)
 
         expect(error).toBeInstanceOf(ConnectError)
     })

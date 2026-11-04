@@ -114,15 +114,20 @@ import {
     AdminGetPlayerRequest,
     AdminGetPlayerResponse,
     PlayerMatch,
-    ReconcileTitlesRequest,
-    ReconcileTitlesResponse,
     RenamePlayerRequest,
     RenamePlayerResponse,
     SearchPlayersRequest,
     SearchPlayersResponse,
 } from "./gen/grpc/player/v1/admin_pb.ts"
 import {Author, GetAuthorsRequest, GetAuthorsResponse} from "./gen/grpc/player/v1/internal_pb.ts"
-import {CountryTiles, GetRosterRequest, GetRosterResponse, RosterEntry, Stats} from "./gen/grpc/player/v1/player_pb.ts"
+import {GetRosterRequest, GetRosterResponse, RosterEntry} from "./gen/grpc/player/v1/player_pb.ts"
+import {
+    AdminGetProgressRequest,
+    AdminGetProgressResponse,
+    ReconcileTitlesRequest,
+    ReconcileTitlesResponse,
+} from "./gen/grpc/progression/v1/admin_pb.ts"
+import {CountryTiles, Stats} from "./gen/grpc/progression/v1/progression_pb.ts"
 import {
     DecideReportRequest,
     DecideReportResponse,
@@ -135,7 +140,8 @@ import {
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
 import {
-    AlertsAdmin, AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin,
+    AlertsAdmin, AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, PlanetAdmin, PlayerAdmin, ProgressionAdmin,
+    SupportAdmin,
 } from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
@@ -156,6 +162,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     readonly kind = "fake admin"
     readonly antibot: FakeAntibot = new FakeAntibot(this)
     readonly alerts: FakeAlerts = new FakeAlerts(this)
+    readonly progression: FakeProgression = new FakeProgression(this)
     readonly gamemaster: FakeGamemaster = new FakeGamemaster(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
@@ -251,9 +258,9 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         breakBefore: new Duration({seconds: BigInt(breakBefore)}), length: new Duration({seconds: BigInt(length)}), finale,
     })))
     authors = [new Author({accountId: ACCOUNT, name: "BraveFox42"})]
-    profile = new AdminGetPlayerResponse({
-        name: "BraveFox42", linked: true, createdAtUnixMs: BigInt(AT.getTime()), messagesSent: 4n,
-        stats: new Stats({tilesTaken: 1200n, streakCurrent: 3, streakBest: 12}),
+    profile = new AdminGetPlayerResponse({name: "BraveFox42", linked: true, createdAtUnixMs: BigInt(AT.getTime())})
+    progress = new AdminGetProgressResponse({
+        messagesSent: 4n, stats: new Stats({tilesTaken: 1200n, streakCurrent: 3, streakBest: 12}),
         playsFor: [new CountryTiles({countryId: "fr", tiles: 1100n}), new CountryTiles({countryId: "gb-sct", tiles: 100n})],
     })
     // A bug from a named account, and an idea whose sender deleted its account.
@@ -348,8 +355,8 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     clients(): Clients {
         return {
-            alerts: this.alerts, antibot: this.antibot, chat: this, planet: this, player: this, gamemaster: this.gamemaster,
-            support: this, clips: this,
+            alerts: this.alerts, antibot: this.antibot, chat: this, planet: this, player: this, progression: this.progression,
+            gamemaster: this.gamemaster, support: this, clips: this,
         }
     }
 
@@ -541,10 +548,6 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return this.answer("getRoster", request, new GetRosterResponse({entries: this.roster}))
     }
 
-    reconcileTitles(request: PartialMessage<ReconcileTitlesRequest>): Promise<ReconcileTitlesResponse> {
-        return this.answer("reconcileTitles", request, new ReconcileTitlesResponse({granted: 12, revoked: 3}))
-    }
-
     getAuthors(request: PartialMessage<GetAuthorsRequest>): Promise<GetAuthorsResponse> {
         const asked = new Set(request.accountIds)
         return this.answer("getAuthors", request,
@@ -602,6 +605,19 @@ export class FakeAlerts implements AlertsAdmin {
 
     linkMembers(request: PartialMessage<LinkMembersRequest>): Promise<LinkMembersResponse> {
         return this.admin.answer("linkMembers", request, this.admin.membersLinked)
+    }
+}
+
+// progression.v1's calls, asked of the same fake.
+export class FakeProgression implements ProgressionAdmin {
+    constructor(private readonly admin: FakeAdmin) {}
+
+    reconcileTitles(request: PartialMessage<ReconcileTitlesRequest>): Promise<ReconcileTitlesResponse> {
+        return this.admin.answer("reconcileTitles", request, new ReconcileTitlesResponse({granted: 12, revoked: 3}))
+    }
+
+    getProgress(request: PartialMessage<AdminGetProgressRequest>): Promise<AdminGetProgressResponse> {
+        return this.admin.answer("getProgress", request, this.admin.progress)
     }
 }
 

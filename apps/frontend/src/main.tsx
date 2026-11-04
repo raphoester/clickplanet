@@ -33,6 +33,8 @@ import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
 import {ConnectAccountBackend} from "./backends/accountBackend.ts"
 import {ConnectPlayerBackend, newKeepalivePlayerServiceClient, newPlayerServiceClient} from "./backends/playerBackend.ts"
+import {ConnectProgressionBackend, newProgressionServiceClient} from "./backends/progressionBackend.ts"
+import {PlayerCards} from "./backends/playerCards.ts"
 import {ConnectMissionsBackend, newMissionServiceClient} from "./backends/missionsBackend.ts"
 import {AccountStore} from "./app/account/accountStore.ts"
 import {rememberSignIn} from "./app/account/rememberedSignIn.ts"
@@ -128,7 +130,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     })
     const fakePresence = new FakePresenceBackend()
     const fakeAccount = new FakeAccountBackend(fakePresence)
-    const account = new AccountStore(fakeAccount, fakeAccount, new NoSession(), {
+    const account = new AccountStore(fakeAccount, fakeAccount, fakeAccount, new NoSession(), {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
         claimFlag: () => fake.claimFlag(),
@@ -191,10 +193,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             globe.takeReward(fake.grantBonus(kind))
             return `${kind} in your inventory — switch it on from there`
         },
-        giveTitle: (id?: string) => {
-            fakePresence.earnTitle(id)
-            return "a title is unlocked"
-        },
+        giveTitle: (id?: string) => fakePresence.earnTitle(id)
+            ? "a title is unlocked"
+            : "no page listens: a guest earns no title, signIn() first",
         finishMissions: () => {
             fakeMissions.prime()
             return "every mission is one tile from done: take a tile for your flag to finish and get them"
@@ -291,8 +292,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     connection={connection}
                     chatBackend={fakeChat}
                     presence={fakePresence}
-                    playerInfo={fakePresence}
+                    playerInfo={new PlayerCards(fakePresence, fakePresence)}
                     badges={fakeBadges}
+                    titles={fakePresence}
                     tileHolders={fake}
                     landmasses={fake}
                     turn={fakeTurn}
@@ -315,11 +317,12 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session, newKeepaliveChatServiceClient(config))
     const turn = new ConnectTurnBackend(newGamemasterServiceClient(config))
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
+    const progression = new ConnectProgressionBackend(newProgressionServiceClient(config), session)
     const standings = new ConnectStandingsBackend(newScoringServiceClient(config), session)
     const missions = new ConnectMissionsBackend(newMissionServiceClient(config), session)
     const support = new ConnectSupportBackend(newSupportServiceClient(config), session)
     const clips = new ConnectClipsBackend(newClipsServiceClient(config), session)
-    const account = new AccountStore(new ConnectAccountBackend(authClient, attest, landing), player, session, {
+    const account = new AccountStore(new ConnectAccountBackend(authClient, attest, landing), player, progression, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
         claimFlag: () => backend.claimFlag(),
@@ -350,8 +353,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     chatBackend={chatBackend}
                     account={account}
                     presence={player}
-                    playerInfo={player}
-                    badges={player}
+                    playerInfo={new PlayerCards(player, progression)}
+                    badges={progression}
+                    titles={progression}
                     tileHolders={backend}
                     landmasses={backend}
                     turn={turn}

@@ -14,13 +14,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures/usecases/decide_departure_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/restored_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 func TestARestoredAccountIsShownAgain(t *testing.T) {
 	account := players.AccountID{15: 1}
 	start := time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
 	store := inmemory_departure_store.New()
-	useCase := decide_departure_usecase.New(store)
+	useCase := decide_departure_usecase.New(cpatomic.FakeTransactioner{}, store, &cpatomic.FakeOutbox{})
 	require.NoError(t, useCase.Execute(t.Context(), account, departures.Leaves(start)))
 
 	err := restored_subscriber.New(useCase).Handle(t.Context(), &authv1.AccountRestored{
@@ -34,14 +35,14 @@ func TestARestoredAccountIsShownAgain(t *testing.T) {
 }
 
 func TestARestoreWithNoTimeIsRefused(t *testing.T) {
-	err := restored_subscriber.New(decide_departure_usecase.New(inmemory_departure_store.New())).
+	err := restored_subscriber.New(decide_departure_usecase.New(cpatomic.FakeTransactioner{}, inmemory_departure_store.New(), &cpatomic.FakeOutbox{})).
 		Handle(t.Context(), &authv1.AccountRestored{AccountId: players.AccountID{15: 1}.String()})
 
 	assert.ErrorIs(t, err, departures.ErrNoTime)
 }
 
 func TestAnEventWithNoAccountIsRefused(t *testing.T) {
-	err := restored_subscriber.New(decide_departure_usecase.New(inmemory_departure_store.New())).
+	err := restored_subscriber.New(decide_departure_usecase.New(cpatomic.FakeTransactioner{}, inmemory_departure_store.New(), &cpatomic.FakeOutbox{})).
 		Handle(t.Context(), &authv1.AccountRestored{RestoredAt: timestamppb.Now()})
 
 	assert.ErrorIs(t, err, players.ErrInvalidAccount)

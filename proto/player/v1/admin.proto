@@ -5,16 +5,14 @@ package player.v1;
 import "player/v1/color.proto";
 import "player/v1/internal.proto";
 import "player/v1/player.proto";
-import "player/v1/title.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
 service AdminService {
-  rpc ReconcileTitles(ReconcileTitlesRequest) returns (ReconcileTitlesResponse);
-
   // InternalService/GetAuthors, for the admin page naming a page of players.
   rpc GetAuthors(GetAuthorsRequest) returns (GetAuthorsResponse);
 
-  // Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
+  // Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
+  // fronts are progression.v1.AdminService/GetProgress.
   rpc GetPlayer(AdminGetPlayerRequest) returns (AdminGetPlayerResponse);
 
   // PlayerService/GetRoster, for the admin page's home: who is playing now.
@@ -34,13 +32,6 @@ message RenamePlayerRequest {
 
 message RenamePlayerResponse {
   string name = 1;
-}
-
-message ReconcileTitlesRequest {}
-
-message ReconcileTitlesResponse {
-  uint32 granted = 1;
-  uint32 revoked = 2;
 }
 
 message SearchPlayersRequest {
@@ -70,10 +61,7 @@ message AdminGetPlayerResponse {
   bool admin = 4;
   NameColor color = 5;
   int64 created_at_unix_ms = 6;
-  Stats stats = 7;
-  uint64 messages_sent = 8;
-  repeated Title titles = 9;
-  Title worn_title = 10;
-  repeated CountryTiles plays_for = 11;
-  repeated CountryTiles plays_against = 12;
+  // progression.v1.AdminService/GetProgress.
+  reserved 7, 8, 9, 10, 11, 12;
+  reserved "stats", "messages_sent", "titles", "worn_title", "plays_for", "plays_against";
 }

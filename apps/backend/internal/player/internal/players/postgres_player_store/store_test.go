@@ -3,7 +3,6 @@ package postgres_player_store_test
 import (
 	"context"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -65,43 +64,6 @@ func (s *testSuite) TestTheTableTakesTheNamesTheRuleTakes() {
 		s.Require().NoError(s.store.SaveProfile(s.T().Context(),
 			players.NewProfile(players.AccountID{15: byte(i + 1)}, name, at)), "%q", value)
 	}
-}
-
-func (s *testSuite) TestTheStreakDayIsStoredAsADate() {
-	s.Require().NoError(s.store.Record(s.T().Context(), players.AccountID{15: 1}, players.TakeAt(0, 0, at)))
-
-	var day string
-	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(), `SELECT streak_last_day::text FROM stats`).Scan(&day))
-	s.Equal("2026-09-17", day)
-}
-
-func (s *testSuite) TestFactsEachSubscriberCountsAtOnceAreAllKept() {
-	start := make(chan struct{})
-	var wg sync.WaitGroup
-	for _, change := range []func(uint64) func(players.Stats) players.Stats{
-		func(i uint64) func(players.Stats) players.Stats { return players.TakeAt(i, 0, at) },
-		players.BombAt,
-		func(i uint64) func(players.Stats) players.Stats { return players.FortifyAt(i, 1) },
-		func(i uint64) func(players.Stats) players.Stats {
-			return players.MessageAt(at.Add(time.Duration(i) * time.Second)) //nolint:gosec // i < 20.
-		},
-	} {
-		wg.Go(func() {
-			<-start
-			for i := range uint64(20) {
-				s.NoError(s.store.Record(s.T().Context(), players.AccountID{15: 1}, change(i)))
-			}
-		})
-	}
-	close(start)
-	wg.Wait()
-
-	stats, err := s.store.Stats(s.T().Context(), players.AccountID{15: 1})
-	s.Require().NoError(err)
-	s.Equal(uint64(20), stats.TilesTaken(), "no change overwrites another, the first ones included")
-	s.Equal(uint64(20), stats.BombsDropped())
-	s.Equal(uint64(20), stats.TilesFortified())
-	s.Equal(uint64(20), stats.MessagesSent())
 }
 
 func (s *testSuite) TestATakenNameLeavesTheTransactionToDrawAgain() {

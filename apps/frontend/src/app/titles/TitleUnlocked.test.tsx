@@ -2,7 +2,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {PlayerTitle} from "../../backends/player.ts"
+import {PlayerTitle} from "../../backends/progression.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
 import TitleUnlocked from "./TitleUnlocked.tsx"
 

@@ -1,5 +1,6 @@
 import {useId, useState} from "react"
-import {CountryTiles, PlayerInfoBackend, PlayerTitle} from "../../backends/player.ts"
+import {PlayerInfoBackend} from "../../backends/player.ts"
+import {CountryTiles, PlayerTitle} from "../../backends/progression.ts"
 import {Reaction} from "../../backends/chat.ts"
 import {Country} from "../../domain/countries.ts"
 import {takenCount} from "../../domain/standings.ts"

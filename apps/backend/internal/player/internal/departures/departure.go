@@ -30,6 +30,15 @@ func Returns(at time.Time) Decision {
 	return Decision{at: at}
 }
 
+func (d Decision) TakeSnapshot() DecisionSnapshot {
+	return DecisionSnapshot{Leaving: d.leaving, At: d.at}
+}
+
+type DecisionSnapshot struct {
+	Leaving bool
+	At      time.Time
+}
+
 func (d Decision) TimeError() error {
 	if d.at.IsZero() {
 		return ErrNoTime

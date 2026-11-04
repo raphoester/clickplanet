@@ -32,14 +32,14 @@ first leaves `Battle Top 1` to nobody until it signs in.
 1. At 23:00 the gamemaster hears scoring close season 0's book and tells `gamemaster.v1.SeasonEnded` (see [The
    gamemaster](gamemaster.md#hearing-scoring)): the season, its book and its finale's round. A season with no finale
    names no round, and nothing is recorded.
-2. The `player-finale-fights` subscriber (`season_ended_subscriber`, one minute to handle it) runs
+2. Progression's `player-finale-fights` subscriber (`season_ended_subscriber`, one minute to handle it) runs
    `record_finale_usecase`, which asks scoring by those ids: `InternalService/GetTable(book_id)`, which must be closed,
    and `InternalService/GetRoundPlayers(round_id)`, every account of the round under its main flag there, with its
    tiles (see
    [Scoring](scoring.md#the-reads)). `rpc_scoring_finales` turns the answers into `finales.Place` and `finales.Fighter`.
 3. `finales.Result.Fights` gives each fighter its `Fight`: the season, the flag, that flag's rank, 0 when the flag is
    not on the table, and the fighter's tiles rank. A fighter with no flag refuses the whole result.
-4. The fights are kept in `player.finale_fights` (`season`, `account_id`, `country`, `flag_rank`, `tiles_rank`; one row
+4. The fights are kept in `progression.finale_fights` (`season`, `account_id`, `country`, `flag_rank`, `tiles_rank`; one row
    per season and account, a fight recorded again takes the new answer), by `postgres_fight_store`.
 5. Each fighter goes through the same award as a take (`notifying_award_titles` over `award_titles_usecase`): a player
    with the game open sees "New title!" at once. A guest earns nothing yet; its fight is kept, and the take after it
@@ -49,12 +49,16 @@ first leaves `Battle Top 1` to nobody until it signs in.
 not held, so a second delivery changes nothing, and a failure is delivered again by the stream.
 
 **The titles read the fights through the career.** `titles.Career` holds the account's `finales.Fights` beside its
-stats and account; `titles.Careers` reads auth and the fight store, for one account (`Of`, the award) or a page
-(`PageOf`, the reconciliation). So `ReconcileTitles` gives the season titles to whoever fought and keeps them.
+stats and account; `titles.Careers` reads the account from player (`player.v1.InternalService/GetAccounts`, through
+`rpc_player_accounts`: whether it is linked, and when it was made) and the fights from the fight store, for one account
+(`Of`, the award) or a page (`PageOf`, the reconciliation). Progression never asks auth (see
+[Progression](progression.md#why-a-module-of-its-own)). So `ReconcileTitles` gives the season titles to whoever fought and keeps them.
 `Fights.PlacedIn(season, rank)`, `Fights.RankedByTilesIn(season, rank)` and `Fights.FoughtIn(season)` are the whole
 rule each title asks.
 
-**An account deleted** loses its fights (`player-finales-accounts`, `forget_fights_usecase`), as it loses its titles.
+**An account player forgets** loses its fights (`progression-finales-forgotten`, `forget_fights_usecase`, on
+`player.v1.PlayerForgotten`), as it loses its titles. Until 2026-11-04 the fights went on `auth.v1.AccountDeleted`
+(`player-finales-accounts`).
 
 ## A deploy after the battle still gives them
 
@@ -66,27 +70,28 @@ so `SeasonEnded` is still there for a group's first subscribe, even days later. 
 `20261101150000_finale_tiles_rank`). The subscriber's group was renamed from `player-finales` to `player-finale-fights`,
 so the new group reads season 0's `SeasonEnded` again: the record fills each fight's tiles rank, and the award gives the
 Battle Top titles, live. Once that release is out, `XGROUP DESTROY events:gamemaster.v1.SeasonEnded player-finales` removes
-the old group.
+the old group. **`player-finale-fights` kept its name when progression took it from player** (2026-11-04), so season
+0's `SeasonEnded` is not read again.
 
 **The battle's tops were renamed once the season's came.** Season 0's battle tops were given as `season_0_top_N`;
 migration `20261101180100_battle_top_titles` renames them, held and worn, to `season_0_battle_top_N`, and
 `season_0_top_N` is the season's.
 
 **A take scoring counts after `SeasonEnded` is handled is no fight.** Scoring counts the round's takes from
-`planet.v1.TileTaken` on its own, so a take in the battle's last second could, in theory, be counted after player read
-the round. The hops between the round's close and `SeasonEnded` take seconds; a deploy after the battle has no such race.
+`planet.v1.TileTaken` on its own, so a take in the battle's last second could, in theory, be counted after progression
+read the round. The hops between the round's close and `SeasonEnded` take seconds; a deploy after the battle has no such race.
 
 ## The season's best players
 
 **Season 0's tops were given once, by hand, after it ended.** Its board is closed and will not change, so nothing
 records it: the operator read its first three (scoring's `GetBoard` for `season-0`) and wrote their three rows in
-`player.titles`. `Season0Top1`, `Top2` and `Top3` are keepsakes no career earns (`EarnedBy` is false), so the award
+`player.titles`, which is `progression.titles` since 2026-11-04. `Season0Top1`, `Top2` and `Top3` are keepsakes no career earns (`EarnedBy` is false), so the award
 never gives them and the reconciliation never takes them back.
 
 ## A later season
 
-Each season's titles are types of their own in `titles/catalog.go`, beside `Season0Gold` and the others, listed in
-`NewCatalog`. A title id may hold digits since migration `20261031130000_title_digits` (`^[a-z0-9_]+$`, on
-`player.titles` and `player.worn_titles`). The client draws them in a frame
+Each season's titles are types of their own in progression's `titles/catalog.go`, beside `Season0Gold` and the others,
+listed in `NewCatalog`. A title id may hold digits since player's migration `20261031130000_title_digits`
+(`^[a-z0-9_]+$`, on `titles` and `worn_titles`, which moved to `progression` with that check). The client draws them in a frame
 of their own (see the frontend's [Titles](../../frontend/docs/titles.md)); a later season's ids need a line in its
 `SEASONS` and their icons.

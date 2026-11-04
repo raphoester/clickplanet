@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {PlayerTitle} from "../backends/player.ts"
+import {PlayerTitle} from "../backends/progression.ts"
 import {ClosedRound} from "../backends/standings.ts"
 import {Announcement, announced, announcementKeyOf} from "./announcements.ts"
 

@@ -23,7 +23,6 @@ func getAuthor(t *testing.T, accountID string) (*connect.Response[playerv1.GetAu
 	require.NoError(t, err)
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada_L", time.Now())))
 	require.NoError(t, store.SaveColor(t.Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_TEAL)))
-	require.NoError(t, store.Record(t.Context(), ada, players.TakeAt(0, 0, time.Now())))
 
 	useCase := get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}))
 	return get_author_handler.New(useCase).GetAuthor(t.Context(), //nolint:wrapcheck // the test reads the handler's own error.

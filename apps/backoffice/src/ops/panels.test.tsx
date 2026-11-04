@@ -18,7 +18,7 @@ function confirm(label: string, yes: string) {
 describe("the ops runs", () => {
     it("reconciles the titles once confirmed, and says how many moved", async () => {
         const admin = new FakeAdmin()
-        render(<TitlesPanel player={admin}/>)
+        render(<TitlesPanel progression={admin.progression}/>)
 
         confirm("Reconcile titles", "Yes, reconcile titles")
 
@@ -29,7 +29,7 @@ describe("the ops runs", () => {
     it("says a session that ended", async () => {
         const admin = new FakeAdmin()
         admin.refuse("reconcileTitles", Code.Unauthenticated)
-        render(<TitlesPanel player={admin}/>)
+        render(<TitlesPanel progression={admin.progression}/>)
 
         confirm("Reconcile titles", "Yes, reconcile titles")
 

@@ -4,11 +4,11 @@
 log, the roster, the season board and your own line on it, a tile's holder, a territory's players, the player
 card, the Hall of Fame's players and the battle debrief's.** The page composes them: the name comes with whatever
 shows it (a message, a roster line, a standing), and the badges come from one store, by the account id beside the
-name. Nothing else carries them. See the backend's [Player](../../backend/docs/player.md) for `GetBadges`.
+name. Nothing else carries them. See the backend's [Progression](../../backend/docs/progression.md#the-badges) for `GetBadges`.
 
 - `backends/badges.ts` — `Badge` (`streak`, `wornTitle`), `AccountBadge`, `BadgesBackend` and `MAX_BADGES_ASKED`
-  (100, as the server). `ConnectPlayerBackend.badges` calls `player.v1.PlayerService/GetBadges`, a GET with no
-  token: names and badges are public. The server leaves out every account with nothing to show (unknown, a guest,
+  (100, as the server). `ConnectProgressionBackend.badges` calls `progression.v1.ProgressionService/GetBadges`, a
+  GET with no token: names and badges are public. The server leaves out every account with nothing to show (unknown, a guest,
   deleted or asked deleted, or with neither a streak nor a title).
 - `app/badges/badgesStore.ts` — the store, `useBadges`, and its hooks: `useBadge(accountId)` reads one account's
   badge (a plain value, the store's own object), and `useOwnStreak` writes the streak the page read of its own
@@ -42,13 +42,13 @@ it:
 - **The title worn**: `AccountStore.wearTitle`, from `WearTitle`'s answer (the Progress tab, the profile and "Wear
   it" on the unlock moment), and `AccountStore.titles`, from `GetTitles`' `worn`, which follows a title earned. Not
   for an account changed meanwhile (`generation`).
-- **The streak**: the profile's and the Progress tab's own stats (`OwnStats`, `GetPlayer` on the own account), with
+- **The streak**: the profile's and the Progress tab's own stats (`OwnStats`, `GetProgress` on the own account), with
   `useOwnStreak`.
-- **A title earned** (`titleEarned` on the player stream, see [Titles](titles.md)) may change the title worn
+- **A title earned** (`titleEarned` on progression's stream, see [Titles](titles.md)) may change the title worn
   (`wearing.WornOf` on the server: a higher rank on the worn track replaces it), which the page cannot tell, so
   `Viewer` expires its own badge and reads it again at once.
 - **A player card** reads the badge of its player again as it opens (`expire`), so the title on its banner agrees
-  with the titles `GetPlayer` lists under it.
+  with the titles `GetProgress` lists under it.
 
 **Which reader draws what, and by which id:**
 

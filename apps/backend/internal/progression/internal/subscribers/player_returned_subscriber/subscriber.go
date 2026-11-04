@@ -1,0 +1,42 @@
+package player_returned_subscriber
+
+import (
+	"context"
+	"time"
+
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/departures"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
+)
+
+type UseCase interface {
+	Execute(ctx context.Context, account accounts.AccountID, decision departures.Decision) error
+}
+
+func New(useCase UseCase) Subscriber {
+	return Subscriber{useCase: useCase}
+}
+
+type Subscriber struct {
+	useCase UseCase
+}
+
+var _ cpredis.Handler[*playerv1.PlayerReturned] = Subscriber{}
+
+func (s Subscriber) Handle(ctx context.Context, event *playerv1.PlayerReturned) error {
+	account, err := accounts.AccountIDOf(event.GetAccountId())
+	if err != nil {
+		return err //nolint:wrapcheck // the id is the event's subject: the sentinel already says what is wrong.
+	}
+	var decidedAt time.Time
+	if event.GetDecidedAt().IsValid() {
+		decidedAt = event.GetDecidedAt().AsTime()
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
+	defer cancel()
+
+	return s.useCase.Execute(ctx, account, departures.Returns(decidedAt)) //nolint:wrapcheck // the use case named it.
+}

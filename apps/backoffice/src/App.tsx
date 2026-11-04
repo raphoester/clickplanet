@@ -101,7 +101,7 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
                 {page === "clips" && <ClipStatsPage clips={CLIENTS.clips}/>}
                 {page === "videos" && <VideosPage clips={CLIENTS.clips}/>}
-                {page === "titles" && <TitlesPanel player={CLIENTS.player}/>}
+                {page === "titles" && <TitlesPanel progression={CLIENTS.progression}/>}
                 {page === "discord" && <DiscordMembersPanel alerts={CLIENTS.alerts}/>}
                 {page === "rules" && <RulesPanel planet={CLIENTS.planet}/>}
                 {page === "antibotRules" && <AntibotRulesPanel antibot={CLIENTS.antibot}/>}
