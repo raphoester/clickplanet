@@ -48,7 +48,7 @@ internal/scoring/internal/
       inprocess_feed/             Feed[K, V]: each key the streams follow, read once a period, sent when it changed
       log_reader/                 logs a live read that failed
     caller/                       the account on the context, or Unauthenticated
-  subscribers/                    tile_taken_subscriber/  round_take_subscriber/  account_deleted_subscriber/
+  subscribers/                    tile_taken_subscriber/  round_take_subscriber/  player_forgotten_subscriber/
                                   log_subscriber/
   migrations/
 ```
@@ -127,9 +127,12 @@ tiles**, so a player is on the board of each flag it took for.
   primary key `(book_id, account_id, country)`), with its own block, `scoring.database`. `main` marks one row per account
   and book (a partial unique index); `contributions_board` serves the whole map's board and
   `contributions_country_board` a country's.
-- **`auth.v1.AccountDeleted`** (`seasons-standings-accounts`) deletes the account's rows in every book; in the rounds
-  (`seasons-rounds-accounts`) it forgets the account's rows, and its flag keeps its tiles.
-- The consumer groups keep their names from before scoring was renamed: a new name is a new group, which reads the
+- **`player.v1.PlayerForgotten`** (`seasons-standings-forgotten`), which player tells for every account auth deletes,
+  deletes the account's rows in every book; in the rounds (`seasons-rounds-forgotten`) it forgets the account's rows,
+  and its flag keeps its tiles. Until 2026-11-04 both heard `auth.v1.AccountDeleted` (`seasons-standings-accounts`,
+  `seasons-rounds-accounts`); why the new groups miss no deletion is in
+  [Player](player.md#the-deploy-that-moved-the-others-to-players-events).
+- The take groups keep their names from before scoring was renamed: a new name is a new group, which reads the
   stream again from its start.
 
 ## A round's numbers

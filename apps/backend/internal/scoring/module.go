@@ -52,8 +52,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings/postgres_contribution_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings/usecases/record_take_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/round_take_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -124,18 +124,18 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	territories := rpc_planet_territories.New(planet)
 	outbox := cpoutbox.New(db)
 
-	// The groups keep their names: a new name is a new group, which reads TileTaken again from the start of the stream.
+	// The take groups keep their names: a new name is a new group, which reads TileTaken again from the start of the stream.
 	takes, err := cpredis.Subscribe(ctx, streams, "seasons-standings",
 		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(bookStore, contributions)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
-	deletions, err := cpredis.Subscribe(ctx, streams, "seasons-standings-accounts",
-		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(contributions)), props.Logger))
+	deletions, err := cpredis.Subscribe(ctx, streams, "seasons-standings-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_account_usecase.New(contributions)), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+		return fmt.Errorf("failed to subscribe to player.v1.PlayerForgotten: %w", err)
 	}
 	roundTakes, err := cpredis.Subscribe(ctx, streams, "seasons-rounds",
 		log_subscriber.New(round_take_subscriber.New(count_take_usecase.New(bookStore, roundStore, roundStore)), props.Logger))
@@ -143,11 +143,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the rounds to planet.v1.TileTaken: %w", err)
 	}
-	roundDeletions, err := cpredis.Subscribe(ctx, streams, "seasons-rounds-accounts",
-		log_subscriber.New(account_deleted_subscriber.New(round_forget_account_usecase.New(roundStore)), props.Logger))
+	roundDeletions, err := cpredis.Subscribe(ctx, streams, "seasons-rounds-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(round_forget_account_usecase.New(roundStore)), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe the rounds to auth.v1.AccountDeleted: %w", err)
+		return fmt.Errorf("failed to subscribe the rounds to player.v1.PlayerForgotten: %w", err)
 	}
 
 	commands, err := cpredis.Handle(ctx, streams, scoring_command_handler.New(log_subscriber.New[*scoringv1.ScoringCommand](
