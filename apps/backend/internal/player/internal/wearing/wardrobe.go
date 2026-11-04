@@ -38,28 +38,6 @@ func (s Showcase) Worn() titles.Standing { return s.worn }
 
 func (s Showcase) Shown() []titles.Standing { return s.shown }
 
-type author = players.Author
-
-type Author struct {
-	author
-	worn titles.Standing
-}
-
-func AuthorOf(shown players.Author, worn titles.Standing) Author {
-	if shown.Guest() {
-		return Author{author: shown}
-	}
-	return Author{author: shown, worn: worn}
-}
-
-func (a Author) Worn() titles.Standing { return a.worn }
-
-func (a Author) Wearing(worn titles.Standing) Author { return AuthorOf(a.author, worn) }
-
-func (a Author) Renamed(username players.Name) Author {
-	return AuthorOf(a.author.Renamed(username), a.worn)
-}
-
 type Wardrobe struct {
 	store   Store
 	titles  Titles

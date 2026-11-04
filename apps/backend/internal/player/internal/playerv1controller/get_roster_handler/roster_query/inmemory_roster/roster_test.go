@@ -12,15 +12,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler/roster_query/inmemory_roster"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var start = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 
-func named(name players.Name, admin bool, color players.Color, streak players.Streak) players.Author {
-	return players.NamedAuthor(players.ProfileSnapshot{Name: name, Admin: admin, Color: color}.Restore(), streak)
+func named(name players.Name, admin bool, color players.Color) players.Author {
+	return players.NamedAuthor(players.ProfileSnapshot{Name: name, Admin: admin, Color: color}.Restore())
 }
 
 func assertLines(t *testing.T, want []*playerv1.RosterEntry, got []*playerv1.RosterEntry) {
@@ -32,8 +30,8 @@ func assertLines(t *testing.T, want []*playerv1.RosterEntry, got []*playerv1.Ros
 func TestTheRosterIsTheFreshVisitsAsOfTheClock(t *testing.T) {
 	clock := cptime.NewFixedClock(start)
 	visits := inmemory_visit_storage.New(clock)
-	visits.Record(presence.NewVisit(players.AccountID{15: 1}, wearing.AuthorOf(named("Ada", false, 0, players.Streak{}), titles.Standing{}), "aaaaaa", "fr", start))
-	visits.Record(presence.NewVisit(players.AccountID{15: 2}, wearing.AuthorOf(named("Bob", false, 0, players.Streak{}), titles.Standing{}), "bbbbbb", "de", start.Add(time.Minute)))
+	visits.Record(presence.NewVisit(players.AccountID{15: 1}, named("Ada", false, 0), "aaaaaa", "fr", start))
+	visits.Record(presence.NewVisit(players.AccountID{15: 2}, named("Bob", false, 0), "bbbbbb", "de", start.Add(time.Minute)))
 
 	clock.Advance(presence.TTL)
 
@@ -45,16 +43,14 @@ func TestTheRosterIsTheFreshVisitsAsOfTheClock(t *testing.T) {
 func TestEachLineSaysWhoIsPlayingAndPlayersComeBeforeGuests(t *testing.T) {
 	clock := cptime.NewFixedClock(start)
 	visits := inmemory_visit_storage.New(clock)
-	og, _ := titles.NewCatalog().StandingOf("og")
-	zed := named("Zed", true, players.Color(playerv1.NameColor_NAME_COLOR_TEAL), players.StreakOf(4, players.Day{}))
-	visits.Record(presence.NewVisit(players.AccountID{15: 1}, wearing.AuthorOf(players.GuestAuthor("a1b2c3", players.Streak{}), titles.Standing{}), "aaaaaa", "fr", start))
-	visits.Record(presence.NewVisit(players.AccountID{15: 2}, wearing.AuthorOf(zed, og), "bbbbbb", "de", start))
+	zed := named("Zed", true, players.Color(playerv1.NameColor_NAME_COLOR_TEAL))
+	visits.Record(presence.NewVisit(players.AccountID{15: 1}, players.GuestAuthor("a1b2c3"), "aaaaaa", "fr", start))
+	visits.Record(presence.NewVisit(players.AccountID{15: 2}, zed, "bbbbbb", "de", start))
 
 	assertLines(t, []*playerv1.RosterEntry{
 		{
 			Key: "2", AccountId: players.AccountID{15: 2}.String(), Name: "Zed", CountryId: "de", Admin: true,
-			Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 4,
-			WornTitle: &playerv1.Title{Id: "og", Name: "OG", Feat: "Joined before November 2026"},
+			Color: playerv1.NameColor_NAME_COLOR_TEAL,
 		},
 		{Key: "1", AccountId: players.AccountID{15: 1}.String(), Name: "guest_a1b2c3", CountryId: "fr", Guest: true},
 	}, inmemory_roster.New(visits, clock).Lines())

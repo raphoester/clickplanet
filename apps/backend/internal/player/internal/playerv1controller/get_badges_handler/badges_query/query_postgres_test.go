@@ -2,6 +2,7 @@ package badges_query_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -14,11 +15,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_badges_handler/badges_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/inprocess_title_catalog"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/postgres_title_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/postgres_worn_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -170,7 +172,33 @@ func (s *testSuite) TestAFailedReadIsAnError() {
 	s.Error(err)
 }
 
-func (s *testSuite) TestEachBadgeIsWhatGetAuthorsAnswersBesideTheName() {
+// The rules the commands apply, over the same rows: a username's streak as of today (Stats.AsOf) and the title its
+// wardrobe shows as worn (wearing.WornOf), and nothing for a guest.
+func (s *testSuite) badgeOf(account players.AccountID, wardrobe wearing.Wardrobe) *playerv1.Badge {
+	if _, err := s.players.Profile(s.T().Context(), account); errors.Is(err, players.ErrNoProfile) {
+		return nil
+	}
+	stats, err := s.players.Stats(s.T().Context(), account)
+	if errors.Is(err, players.ErrNoStats) {
+		stats = players.NewStats(account)
+	} else {
+		s.Require().NoError(err)
+	}
+	showcase, err := wardrobe.Showcase(s.T().Context(), account)
+	s.Require().NoError(err)
+
+	badge := &playerv1.Badge{
+		AccountId: account.String(),
+		Streak:    stats.AsOf(players.DayOf(today)).Streak().Days(),
+		WornTitle: playermessage.Title(showcase.Worn()),
+	}
+	if badge.GetStreak() == 0 && badge.GetWornTitle() == nil {
+		return nil
+	}
+	return badge
+}
+
+func (s *testSuite) TestEachBadgeIsWhatTheRulesShowBesideTheName() {
 	cy, dan, eve := players.AccountID{15: 4}, players.AccountID{15: 5}, players.AccountID{15: 6}
 	s.named(cy, "Cyd")
 	s.named(dan, "Dan")
@@ -188,24 +216,18 @@ func (s *testSuite) TestEachBadgeIsWhatGetAuthorsAnswersBesideTheName() {
 	s.Require().NoError(s.worn.Wear(s.T().Context(), guest, "og", today))
 
 	everyone := []players.AccountID{ada, bob, guest, cy, dan, eve}
-	authors, err := authors_query.NewPostgresQuery(s.db, inprocess_title_catalog.New(titles.NewCatalog()), cptime.NewFixedClock(today)).
-		Authors(s.T().Context(), everyone)
-	s.Require().NoError(err)
+	catalog := titles.NewCatalog()
+	wardrobe := wearing.NewWardrobe(s.worn, titles.NewBook(s.titles, catalog), catalog)
 	badges := s.badges(everyone...)
 
-	s.Require().Len(authors.GetAuthors(), len(everyone))
-	for _, author := range authors.GetAuthors() {
-		badge, shown := badges[author.GetAccountId()]
-		if author.GetStreak() == 0 && author.GetWornTitle() == nil {
-			s.False(shown, "%s shows nothing beside its name, so it has no badge", author.GetName())
+	for _, account := range everyone {
+		want := s.badgeOf(account, wardrobe)
+		badge, shown := badges[account.String()]
+		if want == nil {
+			s.False(shown, "%s shows nothing beside its name, so it has no badge, got %v", account, badge)
 			continue
 		}
-		s.Require().True(shown, "%s shows a badge beside its name", author.GetName())
-		s.True(proto.Equal(&playerv1.Badge{
-			AccountId: author.GetAccountId(),
-			Streak:    author.GetStreak(),
-			WornTitle: author.GetWornTitle(),
-		}, badge), "%s: GetAuthors and GetBadges must draw an account alike, got %v", author.GetName(), badge)
+		s.True(proto.Equal(want, badge), "%s: the rules show %v, GetBadges answers %v", account, want, badge)
 	}
 }
 

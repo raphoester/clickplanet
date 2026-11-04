@@ -12,11 +12,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/inprocess_title_catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_handler/matches_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -103,7 +100,7 @@ func (s *testSuite) TestEachMatchIsNamedAsGetAuthorsNamesIt() {
 	answer := s.search("a", 20)
 	s.Require().Len(answer.GetPlayers(), 3)
 
-	authors, err := authors_query.NewPostgresQuery(s.db, inprocess_title_catalog.New(titles.NewCatalog()), cptime.NewFixedClock(today)).
+	authors, err := authors_query.NewPostgresQuery(s.db).
 		Authors(s.T().Context(), []players.AccountID{ada, guest, iraEire})
 	s.Require().NoError(err)
 	named := make(map[string]*playerv1.Author, len(authors.GetAuthors()))

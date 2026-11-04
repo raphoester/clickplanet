@@ -13,7 +13,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
 
 type recordingStream struct {
@@ -27,7 +26,7 @@ func (r *recordingStream) Send(event *playerv1.PlayerEvent) error {
 
 var ada = presence.EntryOf(presence.NewVisit(
 	players.AccountID{15: 1},
-	wearing.AuthorOf(players.NamedAuthor(players.NewProfile(players.AccountID{15: 1}, "Ada_L", time.Time{}), players.Streak{}), titles.Standing{}),
+	players.NamedAuthor(players.NewProfile(players.AccountID{15: 1}, "Ada_L", time.Time{})),
 	"", "fr", time.Time{},
 ).Keyed("k1"))
 

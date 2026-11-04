@@ -106,7 +106,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/postgres_worn_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/usecases/forget_worn_title_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/usecases/wear_title_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/usecases/wear_title_usecase/dressing_wear_title"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
@@ -187,7 +186,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	wardrobe := wearing.NewWardrobe(wornTitleStore, titleBook, catalog)
 	titleCards := inprocess_title_catalog.New(catalog)
 
-	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}), wardrobe, clock)
+	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}))
 
 	visits := inmemory_visit_storage.New(clock)
 	generatedNames := players.NewGeneratedNames(store, random_name_generator.Generator{})
@@ -355,7 +354,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			db, titleCards, accounts, caching_fronts.New(fronts, frontsKeptFor, clock), clock,
 		)),
 		GetTitlesHandler: get_titles_handler.New(titles_query.NewPostgresQuery(db, titleCards, clock)),
-		WearTitleHandler: wear_title_handler.New(dressing_wear_title.New(wear_title_usecase.New(wardrobe, clock), visits)),
+		WearTitleHandler: wear_title_handler.New(wear_title_usecase.New(wardrobe, clock)),
 		GetFrontsHandler: get_fronts_handler.New(fronts),
 		GetBadgesHandler: get_badges_handler.New(badges_query.NewPostgresQuery(db, titleCards, clock)),
 	}
@@ -366,7 +365,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount player.v1.PlayerService: %w", err)
 	}
 
-	getAuthors := get_authors_handler.New(authors_query.NewPostgresQuery(db, titleCards, clock))
+	getAuthors := get_authors_handler.New(authors_query.NewPostgresQuery(db))
 	internalService := playerv1controller.InternalService{
 		GetAuthorHandler:  get_author_handler.New(authors),
 		GetAuthorsHandler: getAuthors,

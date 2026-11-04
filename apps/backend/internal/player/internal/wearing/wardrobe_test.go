@@ -110,17 +110,6 @@ func TestAShowcaseIsWhatTheCatalogShowsOfTheTitlesHeldAndTheOneWorn(t *testing.T
 	assert.True(t, wearing.ShowcaseOf(catalog, nil, "badge").Worn().Empty(), "a choice not held is not worn")
 }
 
-func TestAnAuthorWearsItsTitleUnlessItIsAGuest(t *testing.T) {
-	named := players.NamedAuthor(players.ProfileSnapshot{Name: "Ada"}.Restore(), players.Streak{})
-	guest := players.GuestAuthor("a1b2c3", players.Streak{})
-
-	dressed := wearing.AuthorOf(named, standing("mid"))
-	assert.Equal(t, standing("mid"), dressed.Worn())
-	assert.Equal(t, "Ada", dressed.Name())
-	assert.True(t, wearing.AuthorOf(guest, standing("mid")).Worn().Empty())
-	assert.True(t, wearing.AuthorOf(guest, titles.Standing{}).Wearing(standing("mid")).Worn().Empty(), "nor once dressed")
-}
-
 func TestAStoreFailureIsAnError(t *testing.T) {
 	closet, owned, _ := wardrobe(t, "badge")
 	owned.FailWith(errors.New("postgres is down"))
