@@ -15,6 +15,7 @@ import {FakeGifs} from "./backends/fakeGifs.ts"
 import {GifSearch} from "./backends/gifs.ts"
 import {KlipyGifs} from "./backends/klipyGifs.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
+import {FakeBadges} from "./backends/fakeBadges.ts"
 import {FakeMissionsBackend} from "./backends/fakeMissionsBackend.ts"
 import {newScoringServiceClient} from "./backends/scoringBackend.ts"
 import {closedOf} from "./domain/debrief.ts"
@@ -261,6 +262,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fakeTurn = new FakeTurnBackend(seasonRunningAt(Date.now()))
     Object.assign(window, battleCommands(fakeTurn))
     const fakeStandings = new FakeStandingsBackend()
+    const fakeBadges = new FakeBadges([fakePresence, fakeStandings])
+    Object.assign(window, {fakeBadges})
     const clicker = fakeMissions.counting(fakeStandings.counting(fake))
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
     fake.listenForFortifications((fortification) => void borders.then(({codes}) => fakeChat.announceFortify({
@@ -288,6 +291,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     chatBackend={fakeChat}
                     presence={fakePresence}
                     playerInfo={fakePresence}
+                    badges={fakeBadges}
                     tileHolders={fake}
                     landmasses={fake}
                     turn={fakeTurn}
@@ -346,6 +350,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     account={account}
                     presence={player}
                     playerInfo={player}
+                    badges={player}
                     tileHolders={backend}
                     landmasses={backend}
                     turn={turn}

@@ -1,6 +1,7 @@
 import {FAKE_YOU, fakeAccountId} from "./fakeAccounts.ts"
 import {OWN_GUEST_NAME} from "./fakeChatBackend.ts"
 import {compareRosterEntries} from "../domain/roster.ts"
+import {Badge} from "./badges.ts"
 import {
     CountryTiles,
     Fronts,
@@ -93,6 +94,8 @@ const PLAYERS: RosterEntry[] = [
 
 export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
     private own?: {presence: Presence, at: number}
+    // The title the signed-in player chose to wear, if any.
+    private ownChoice?: string
     private readonly titleListeners = new Set<(title: PlayerTitle) => void>()
 
     constructor(private readonly now: () => number = () => Date.now()) {
@@ -186,12 +189,35 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
             streakCurrent: player.streak,
             admin: player.admin,
             color: player.color,
+            wornTitle: player === YOU ? this.ownWorn() : career.wornTitle,
         }
+    }
+
+    // What GetBadges answers for an account: the streak and the title its roster line, its card and its messages
+    // show. Undefined for an account this fake does not know.
+    public badgeOf(accountId: string): Badge | undefined {
+        if (accountId === fakeAccountId(OWN_GUEST_NAME)) return {streak: 0}
+        if (accountId === FAKE_YOU) return {streak: YOU.streak, wornTitle: this.ownWorn()}
+        const player = PLAYERS.find((p) => p.accountId === accountId)
+        if (!player) return undefined
+        if (player.guest) return {streak: 0}
+        return {streak: player.streak, wornTitle: this.career(player).wornTitle}
     }
 
     public ownDashboard(): TitleDashboard {
         const career = this.career(YOU)
-        return dashboardOf(career.tilesTaken, career.streakBest, career.titles)
+        return {...dashboardOf(career.tilesTaken, career.streakBest, career.titles), worn: this.ownWorn()}
+    }
+
+    // WearTitle, for the signed-in player: it answers the title worn now.
+    public wear(id: string): PlayerTitle | undefined {
+        if (this.career(YOU).titles.some((title) => title.id === id)) this.ownChoice = id
+        return this.ownWorn()
+    }
+
+    private ownWorn(): PlayerTitle | undefined {
+        const {titles, wornTitle} = this.career(YOU)
+        return titles.find((title) => title.id === this.ownChoice) ?? wornTitle
     }
 
     public ownFronts(): Fronts {

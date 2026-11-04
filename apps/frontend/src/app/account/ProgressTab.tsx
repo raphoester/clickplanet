@@ -8,6 +8,7 @@ import {PlayerStats} from "../players/PlayerCard.tsx"
 import {FrontFolds} from "../players/PlayerFronts.tsx"
 import Fold from "../components/Fold.tsx"
 import {usePlayerInfo} from "../players/usePlayerInfo.ts"
+import {useOwnStreak} from "../badges/badgesStore.ts"
 import {takenCount} from "../../domain/standings.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import {useOwnTakes} from "../viewer/useAcceptedClicks.ts"
@@ -84,6 +85,7 @@ type OwnStatsProps = {
 function OwnStats({backend, accountId, listenForClicks}: OwnStatsProps) {
     const state = usePlayerInfo(backend, {accountId, guest: false})
     const takes = useOwnTakes(listenForClicks)
+    useOwnStreak(accountId, state.kind === "ready" ? state.info.streakCurrent : undefined)
     if (state.kind !== "ready") return null
     return <PlayerStats info={{...state.info, tilesTaken: state.info.tilesTaken + takenCount(takes)}}/>
 }

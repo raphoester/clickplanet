@@ -1,6 +1,7 @@
 import {fakeAccountId} from "./fakeAccounts.ts"
 import {STANDINGS_SHOWN} from "../domain/standings.ts"
 import {TileClicker} from "./backend.ts"
+import {Badge} from "./badges.ts"
 import {NameColor, PlayerTitle} from "./player.ts"
 import {BookStep, MySeason, RaceListener, Round, RoundStanding, RoundTakes, Score, Standing, StandingsBackend} from "./standings.ts"
 
@@ -135,6 +136,13 @@ export class FakeStandingsBackend implements StandingsBackend {
         const flag = flags[Math.floor(this.random() * flags.length)]
         player.tiles[flag] += 1 + Math.floor(this.random() * MOST_PER_MOVE)
         this.listeners.forEach((send) => send())
+    }
+
+    // What GetBadges answers for a player of the board: the title it wears, and no streak. Undefined for an account
+    // this fake does not know.
+    public badgeOf(accountId: string): Badge | undefined {
+        const player = this.players.find(({name}) => fakeAccountId(name) === accountId)
+        return player && {streak: 0, wornTitle: player.wornTitle}
     }
 
     private top(countryCode: string): Standing[] {
