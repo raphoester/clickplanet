@@ -24,7 +24,8 @@ import {
 
 export type ChatStatus = 'loading' | 'ready' | 'unavailable'
 
-export type ChatSendFailure = 'rate-limited' | 'blocked' | 'muted' | 'rejected' | 'gone' | 'no-session' | 'failed'
+export type ChatSendFailure =
+    'rate-limited' | 'blocked' | 'muted' | 'gifs-muted' | 'rejected' | 'gone' | 'no-session' | 'failed'
 
 export type SeenAtLoad = {
     until: number
@@ -177,7 +178,7 @@ export function useRoomLog({backend, accountId, username, onLeft}: UseRoomLogOpt
 
 function failureOf(e: unknown): ChatSendFailure {
     if (e instanceof ChatRateLimitedError) return 'rate-limited'
-    if (e instanceof ChatMutedError) return 'muted'
+    if (e instanceof ChatMutedError) return e.kind === 'gifs' ? 'gifs-muted' : 'muted'
     if (e instanceof ChatBlockedError) return 'blocked'
     if (e instanceof ChatRejectedError) return 'rejected'
     if (e instanceof ChatMessageGoneError) return 'gone'

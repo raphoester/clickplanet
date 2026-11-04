@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/unmute_usecase/audit_unmute"
 )
 
@@ -20,7 +21,7 @@ type stubExecutor struct {
 	err   error
 }
 
-func (s stubExecutor) Execute(context.Context, messages.AccountID) (time.Time, error) {
+func (s stubExecutor) Execute(context.Context, messages.AccountID, mutes.Kind) (time.Time, error) {
 	return s.until, s.err
 }
 
@@ -30,7 +31,7 @@ func run(t *testing.T, inner stubExecutor) (string, error) {
 	t.Helper()
 
 	var logs bytes.Buffer
-	_, err := audit_unmute.New(inner, slog.New(slog.NewTextHandler(&logs, nil))).Execute(t.Context(), bully)
+	_, err := audit_unmute.New(inner, slog.New(slog.NewTextHandler(&logs, nil))).Execute(t.Context(), bully, mutes.Gifs)
 	return logs.String(), err
 }
 
@@ -38,7 +39,7 @@ func TestEveryUnmuteIsLoggedWithWhenTheMuteWouldHaveEnded(t *testing.T) {
 	logs, err := run(t, stubExecutor{until: time.Date(2026, 10, 30, 21, 0, 0, 0, time.UTC)})
 
 	require.NoError(t, err)
-	assert.Contains(t, logs, `level=WARN msg="admin chat unmute" account=00000000-0000-0000-0000-000000000001 mutedUntil=2026-10-30T21:00:00.000Z`)
+	assert.Contains(t, logs, `level=WARN msg="admin chat unmute" account=00000000-0000-0000-0000-000000000001 kind=gifs mutedUntil=2026-10-30T21:00:00.000Z`)
 }
 
 func TestARefusedUnmuteIsLoggedToo(t *testing.T) {
@@ -47,5 +48,5 @@ func TestARefusedUnmuteIsLoggedToo(t *testing.T) {
 	logs, err := run(t, stubExecutor{err: cause})
 
 	require.ErrorIs(t, err, cause)
-	assert.Contains(t, logs, `level=WARN msg="admin chat unmute failed" account=00000000-0000-0000-0000-000000000001`)
+	assert.Contains(t, logs, `level=WARN msg="admin chat unmute failed" account=00000000-0000-0000-0000-000000000001 kind=gifs`)
 }

@@ -32,6 +32,10 @@ func (d *Decorator) Execute(ctx context.Context, in mute_usecase.In) (mutes.Mute
 	if err != nil {
 		return mute, err //nolint:wrapcheck // a decorator adds an event, not a sentence.
 	}
+	// The event is the line the chat announces. A mute of the GIFs is not announced.
+	if mute.Kind() != mutes.Chat {
+		return mute, nil
+	}
 
 	d.events.Publish(&chatv1.AccountMuted{
 		MuteId:    mute.ID().String(),

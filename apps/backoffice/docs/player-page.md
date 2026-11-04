@@ -27,7 +27,8 @@ address>`), so Back goes to the list, as it was.
   read leave the list listed**, every account "Unnamed", with the reason above it.
 - **The player page** (`PlayerView`), top down: its flag and its name (or its address), **where it stands**
   (`Standing`: banned until when and the offence, the jury's opinion, a pardon, and for an account muted until when,
-  from `chat.v1.AdminService/GetMute`, "by a mute on its network" when another account's mute holds it), its account
+  from `chat.v1.AdminService/GetMute`, "by a mute on its network" when another account's mute holds it, and "GIFs
+  muted until" when a mute of its GIFs holds it: `mutingsOf` asks `GetMute` once per kind), its account
   and its address with Copy,
   the other half opening from there, and its row's numbers; then **the tools**; then its profile and the antibot's
   reading side by side from 1100px; then what it said, folded.
@@ -62,7 +63,9 @@ address>`), so Back goes to the list, as it was.
   default), Unban (`UnbanPlayer`, which forgets the latest offence and pardons the key, and says until when;
   `not_found` is no ban left), Revert (`RevertPlayer`, dry run first), and for an account alone Mute (`Mute`), Unmute
   (`Unmute`, which ends every mute given to the account and says until when it was muted; `not_found` is no mute of
-  its own: a mute on its network given to another account is lifted from that account's page),
+  its own: a mute on its network given to another account is lifted from that account's page). **Both ask "Mute
+  what"** (`MuteKindPicker`): the whole chat, or GIFs alone (the player still writes and reacts). One kind is muted
+  or lifted at a time; the words of each are `MUTE_KINDS` in `actions.ts` ("GIFs muted until …"),
   Charges (`GrantCharges`: a refill, a bomb, enclosures, spread clicks, shields; the answer says what the account
   held before and after, since the caps hold), Flag (`FlagPanel`, `ReleaseAllegiance`: the hour of wait after a
   change of flag is lifted, so the player's next pick goes at once; the answer says when a battle's lock still holds

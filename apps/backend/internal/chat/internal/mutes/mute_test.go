@@ -62,60 +62,83 @@ func TestANegativeOrFractionalDurationIsRefused(t *testing.T) {
 }
 
 func TestAMuteEndsAfterItsDuration(t *testing.T) {
-	mute := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "203.0.113.7"), at, time.Hour)
+	mute := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "203.0.113.7"), mutes.Chat, at, time.Hour)
 
 	assert.Equal(t, at.Add(time.Hour), mute.Until())
 	assert.Equal(t, time.Hour, mute.Duration())
-	assert.True(t, mute.ApplicableTo(mutes.NewCaller(bully, "198.51.100.1"), at.Add(59*time.Minute)))
-	assert.False(t, mute.ApplicableTo(mutes.NewCaller(bully, "203.0.113.7"), at.Add(time.Hour)))
+	assert.True(t, mute.ApplicableTo(mutes.NewCaller(bully, "198.51.100.1"), mutes.Chat, at.Add(59*time.Minute)))
+	assert.False(t, mute.ApplicableTo(mutes.NewCaller(bully, "203.0.113.7"), mutes.Chat, at.Add(time.Hour)))
 }
 
 func TestALiftedMuteEndsWhenItIsLiftedAndKeepsTheRest(t *testing.T) {
-	mute := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), at, 24*time.Hour)
+	mute := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), mutes.Chat, at, 24*time.Hour)
 
 	lifted := mute.Lifted(at.Add(time.Hour))
 
-	assert.Equal(t, mutes.MuteOf(mutes.MuteID{1}, mute.Caller(), at, at.Add(time.Hour)), lifted)
+	assert.Equal(t, mutes.MuteOf(mutes.MuteID{1}, mute.Caller(), mutes.Chat, at, at.Add(time.Hour)), lifted)
 	assert.False(t, mute.Ended(at.Add(time.Hour)), "the mute it was built from is left as it was")
 	assert.True(t, lifted.Ended(at.Add(time.Hour)))
-	assert.False(t, lifted.ApplicableTo(mutes.NewCaller(newGuest, "2a01:e0a:1:2::9"), at.Add(time.Hour)),
+	assert.False(t, lifted.ApplicableTo(mutes.NewCaller(newGuest, "2a01:e0a:1:2::9"), mutes.Chat, at.Add(time.Hour)),
 		"nor its network")
 }
 
 func TestAMuteHoldsAFreshGuestOnTheSameSlash64(t *testing.T) {
-	mute := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), at, time.Hour)
+	mute := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), mutes.Chat, at, time.Hour)
 
-	assert.True(t, mute.ApplicableTo(mutes.NewCaller(newGuest, "2a01:e0a:1:2:dead:beef::5"), at))
-	assert.False(t, mute.ApplicableTo(mutes.NewCaller(newGuest, "2a01:e0a:1:3::1"), at))
+	assert.True(t, mute.ApplicableTo(mutes.NewCaller(newGuest, "2a01:e0a:1:2:dead:beef::5"), mutes.Chat, at))
+	assert.False(t, mute.ApplicableTo(mutes.NewCaller(newGuest, "2a01:e0a:1:3::1"), mutes.Chat, at))
 }
 
 func TestAMuteWithNoNetworkHoldsNoOneElse(t *testing.T) {
-	mute := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, ""), at, time.Hour)
+	mute := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, ""), mutes.Chat, at, time.Hour)
 
-	assert.False(t, mute.ApplicableTo(mutes.NewCaller(newGuest, ""), at))
+	assert.False(t, mute.ApplicableTo(mutes.NewCaller(newGuest, ""), mutes.Chat, at))
+}
+
+func TestAMuteHoldsItsKindAlone(t *testing.T) {
+	gifs := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), mutes.Gifs, at, time.Hour)
+
+	assert.True(t, gifs.ApplicableTo(mutes.NewCaller(newGuest, "2a01:e0a:1:2::9"), mutes.Gifs, at),
+		"with its network, as a mute of the chat")
+	assert.False(t, gifs.ApplicableTo(mutes.NewCaller(bully, "2a01:e0a:1:2::1"), mutes.Chat, at))
+}
+
+func TestALiftedMuteKeepsItsKind(t *testing.T) {
+	gifs := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, ""), mutes.Gifs, at, time.Hour)
+
+	assert.Equal(t, mutes.Gifs, gifs.Lifted(at.Add(time.Minute)).Kind())
 }
 
 func TestARefusalSaysUntilWhenAndIsAMute(t *testing.T) {
-	refusal := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, ""), at, time.Hour).Refusal()
+	refusal := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, ""), mutes.Chat, at, time.Hour).Refusal()
 
 	require.ErrorIs(t, refusal, mutes.ErrMuted)
 	assert.Equal(t, at.Add(time.Hour), refusal.Until())
 	assert.Contains(t, refusal.Error(), "2026-10-07T21:00:00Z")
+	assert.Equal(t, mutes.Chat, refusal.Kind())
+}
+
+func TestARefusalSaysTheKindOfTheMute(t *testing.T) {
+	refusal := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, ""), mutes.Gifs, at, time.Hour).Refusal()
+
+	require.ErrorIs(t, refusal, mutes.ErrMuted)
+	assert.Equal(t, mutes.Gifs, refusal.Kind())
+	assert.Contains(t, refusal.Error(), "gifs")
 }
 
 func TestTheBookLetsSpeakWhomNoMuteHolds(t *testing.T) {
 	book := mutes.NewBook(inmemory_mute_storage.New(), cptime.NewFixedClock(at))
 
-	assert.NoError(t, book.MuteError(t.Context(), mutes.NewCaller(bully, "203.0.113.7")))
+	assert.NoError(t, book.MuteError(t.Context(), mutes.NewCaller(bully, "203.0.113.7"), mutes.Chat))
 }
 
 func TestTheBookRefusesAMutedCallerWithTheMuteThatEndsLast(t *testing.T) {
 	store := inmemory_mute_storage.New()
-	require.NoError(t, store.Save(t.Context(), mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), at, time.Hour)))
-	require.NoError(t, store.Save(t.Context(), mutes.NewMute(mutes.MuteID{2}, mutes.NewCaller(bully, ""), at, 2*time.Hour)))
+	require.NoError(t, store.Save(t.Context(), mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), mutes.Chat, at, time.Hour)))
+	require.NoError(t, store.Save(t.Context(), mutes.NewMute(mutes.MuteID{2}, mutes.NewCaller(bully, ""), mutes.Chat, at, 2*time.Hour)))
 	book := mutes.NewBook(store, cptime.NewFixedClock(at.Add(time.Minute)))
 
-	err := book.MuteError(t.Context(), mutes.NewCaller(bully, "2a01:e0a:1:2::1"))
+	err := book.MuteError(t.Context(), mutes.NewCaller(bully, "2a01:e0a:1:2::1"), mutes.Chat)
 
 	var refusal mutes.Refusal
 	require.ErrorAs(t, err, &refusal)
@@ -124,12 +147,12 @@ func TestTheBookRefusesAMutedCallerWithTheMuteThatEndsLast(t *testing.T) {
 
 type brokenReader struct{}
 
-func (brokenReader) Mute(context.Context, mutes.Caller, time.Time) (mutes.Mute, error) {
+func (brokenReader) Mute(context.Context, mutes.Caller, mutes.Kind, time.Time) (mutes.Mute, error) {
 	return mutes.Mute{}, errors.New("postgres is down")
 }
 
 func TestTheBookFailsWhenItCannotRead(t *testing.T) {
-	err := mutes.NewBook(brokenReader{}, cptime.NewFixedClock(at)).MuteError(t.Context(), mutes.NewCaller(bully, ""))
+	err := mutes.NewBook(brokenReader{}, cptime.NewFixedClock(at)).MuteError(t.Context(), mutes.NewCaller(bully, ""), mutes.Chat)
 
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, mutes.ErrMuted, "a read that failed says nothing about a mute")

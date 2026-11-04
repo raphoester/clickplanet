@@ -2,7 +2,10 @@ import {useState} from "react"
 import {AntibotAdmin, ChatAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {timeOf} from "../components/time.ts"
-import {ban, bannedWords, DEFAULT_MUTE_SECONDS, LADDER, mute, refusalOf, unban, Unbanned, unmute} from "./actions.ts"
+import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
+import {
+    ban, bannedWords, DEFAULT_MUTE_SECONDS, LADDER, mute, MUTE_KINDS, muteWordsOf, refusalOf, unban, Unbanned, unmute,
+} from "./actions.ts"
 import {Caller} from "./caller.ts"
 import {BAN_CHOICES, Choice, labelOf, MUTE_CHOICES} from "./durations.ts"
 
@@ -10,16 +13,19 @@ type MuteProps = {chat: ChatAdmin, accountId: string, who: string, onDone?: () =
 
 // A mute is an account's alone: the chat mutes no address.
 export function MuteAction({chat, accountId, who, onDone}: MuteProps) {
+    const [kind, setKind] = useState(MuteKind.CHAT)
     const [muteFor, setMuteFor] = useState(DEFAULT_MUTE_SECONDS)
+    const words = muteWordsOf(kind)
 
     return (
         <div className="act">
+            <MuteKindPicker value={kind} onChange={setKind}/>
             <DurationPicker label="Mute for" choices={MUTE_CHOICES} value={muteFor} onChange={setMuteFor}/>
             <ConfirmAction
                 label="Mute"
-                question={`Mute ${who} in the chat for ${labelOf(MUTE_CHOICES, muteFor)}?`}
-                run={() => mute(chat, accountId, muteFor)}
-                said={muted => `Muted until ${timeOf(muted.until)}.`}
+                question={`Mute ${words.of(who)} in the chat for ${labelOf(MUTE_CHOICES, muteFor)}?`}
+                run={() => mute(chat, accountId, muteFor, kind)}
+                said={muted => `${words.muted} until ${timeOf(muted.until)}.`}
                 refusal={err => refusalOf("mute", err)}
                 onDone={onDone}
             />
@@ -27,18 +33,34 @@ export function MuteAction({chat, accountId, who, onDone}: MuteProps) {
     )
 }
 
+// Lifts the mutes of one kind: a mute of the other kind stays.
 export function UnmuteAction({chat, accountId, who, onDone}: MuteProps) {
+    const [kind, setKind] = useState(MuteKind.CHAT)
+    const words = muteWordsOf(kind)
+
     return (
         <div className="act">
+            <MuteKindPicker value={kind} onChange={setKind}/>
             <ConfirmAction
                 label="Unmute"
-                question={`Unmute ${who} in the chat now?`}
-                run={() => unmute(chat, accountId)}
-                said={unmuted => `Unmuted. The mute was until ${timeOf(unmuted.until)}.`}
+                question={`Unmute ${words.of(who)} in the chat now?`}
+                run={() => unmute(chat, accountId, kind)}
+                said={unmuted => `${words.unmuted}. The mute was until ${timeOf(unmuted.until)}.`}
                 refusal={err => refusalOf("unmute", err)}
                 onDone={onDone}
             />
         </div>
+    )
+}
+
+export function MuteKindPicker({value, onChange}: {value: MuteKind, onChange: (kind: MuteKind) => void}) {
+    return (
+        <label className="picker">
+            <span className="muted">Mute what</span>
+            <select value={value} onChange={event => onChange(Number(event.target.value) as MuteKind)}>
+                {MUTE_KINDS.map(each => <option key={each.kind} value={each.kind}>{each.label}</option>)}
+            </select>
+        </label>
     )
 }
 

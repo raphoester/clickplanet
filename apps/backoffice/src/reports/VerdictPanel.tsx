@@ -2,7 +2,9 @@ import {useState} from "react"
 import {Clients} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {Report, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
+import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {DEFAULT_MUTE_SECONDS, LADDER} from "../players/actions.ts"
+import {MuteKindPicker} from "../players/Moderation.tsx"
 import {BAN_CHOICES, Choice, MUTE_CHOICES} from "../players/durations.ts"
 import {MAX_COMMENT_LENGTH} from "./actions.ts"
 import {actsOf, close, Closed, haltedWords, questionOf, Verdict} from "./verdict.ts"
@@ -23,6 +25,7 @@ export function VerdictPanel({clients, report, who, removable, others, onClosed}
     const [remove, setRemove] = useState(false)
     const [muting, setMuting] = useState(false)
     const [muteFor, setMuteFor] = useState(DEFAULT_MUTE_SECONDS)
+    const [muteKind, setMuteKind] = useState(MuteKind.CHAT)
     const [banning, setBanning] = useState(false)
     const [banFor, setBanFor] = useState(LADDER)
     const [closeOthers, setCloseOthers] = useState(true)
@@ -32,6 +35,7 @@ export function VerdictPanel({clients, report, who, removable, others, onClosed}
     const verdict: Verdict = {
         remove: remove && removable,
         muteFor: muting && account !== "" ? muteFor : undefined,
+        muteKind,
         banFor: banning && account !== "" ? banFor : undefined,
         comment,
     }
@@ -60,6 +64,7 @@ export function VerdictPanel({clients, report, who, removable, others, onClosed}
                 {account !== "" && (
                     <>
                         <Timed label="Mute" on={muting} onOn={setMuting} choices={MUTE_CHOICES} value={muteFor} onValue={setMuteFor}/>
+                        {muting && <MuteKindPicker value={muteKind} onChange={setMuteKind}/>}
                         <Timed label="Ban" on={banning} onOn={setBanning} choices={BAN_CHOICES} value={banFor} onValue={setBanFor}/>
                     </>
                 )}

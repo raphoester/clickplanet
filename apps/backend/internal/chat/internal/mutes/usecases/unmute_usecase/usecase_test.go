@@ -38,14 +38,18 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) kept(id byte, account messages.AccountID, scope mutes.Scope, at time.Time, duration time.Duration) mutes.Mute {
-	mute := mutes.NewMute(mutes.MuteID{15: id}, mutes.CallerOf(account, scope), at, duration)
+	mute := mutes.NewMute(mutes.MuteID{15: id}, mutes.CallerOf(account, scope), mutes.Chat, at, duration)
 	s.Require().NoError(s.mutes.Save(context.Background(), mute))
 	return mute
 }
 
 func (s *testSuite) unmute(store unmute_usecase.Store, account messages.AccountID) (time.Time, error) {
+	return s.unmuteOf(store, account, mutes.Chat)
+}
+
+func (s *testSuite) unmuteOf(store unmute_usecase.Store, account messages.AccountID, kind mutes.Kind) (time.Time, error) {
 	return unmute_usecase.New(cpatomic.FakeTransactioner{}, store, cptime.NewFixedClock(now)).
-		Execute(context.Background(), account)
+		Execute(context.Background(), account, kind)
 }
 
 func (s *testSuite) TestEveryRunningMuteOfTheAccountEndsNowWithItsNetwork() {
@@ -60,8 +64,20 @@ func (s *testSuite) TestEveryRunningMuteOfTheAccountEndsNowWithItsNetwork() {
 	s.ElementsMatch([]mutes.Mute{hour.Lifted(now), day.Lifted(now), ended}, s.mutes.Kept(),
 		"a mute that had ended is left as it was")
 	book := mutes.NewBook(s.mutes, cptime.NewFixedClock(now))
-	s.NoError(book.MuteError(context.Background(), mutes.CallerOf(bully, home)))
-	s.NoError(book.MuteError(context.Background(), mutes.CallerOf(newGuest, home)))
+	s.NoError(book.MuteError(context.Background(), mutes.CallerOf(bully, home), mutes.Chat))
+	s.NoError(book.MuteError(context.Background(), mutes.CallerOf(newGuest, home), mutes.Chat))
+}
+
+func (s *testSuite) TestAMuteOfAnotherKindStays() {
+	gifs := mutes.NewMute(mutes.MuteID{15: 1}, mutes.CallerOf(bully, home), mutes.Gifs, now.Add(-time.Minute), time.Hour)
+	s.Require().NoError(s.mutes.Save(context.Background(), gifs))
+	chat := s.kept(2, bully, home, now.Add(-time.Minute), 24*time.Hour)
+
+	until, err := s.unmuteOf(s.mutes, bully, mutes.Gifs)
+	s.Require().NoError(err)
+
+	s.Equal(gifs.Until(), until)
+	s.ElementsMatch([]mutes.Mute{gifs.Lifted(now), chat}, s.mutes.Kept())
 }
 
 func (s *testSuite) TestAMuteGivenToAnotherAccountOnItsNetworkStays() {
@@ -72,7 +88,7 @@ func (s *testSuite) TestAMuteGivenToAnotherAccountOnItsNetworkStays() {
 	s.Require().NoError(err)
 
 	s.Contains(s.mutes.Kept(), household)
-	s.Error(mutes.NewBook(s.mutes, cptime.NewFixedClock(now)).MuteError(context.Background(), mutes.CallerOf(bully, home)),
+	s.Error(mutes.NewBook(s.mutes, cptime.NewFixedClock(now)).MuteError(context.Background(), mutes.CallerOf(bully, home), mutes.Chat),
 		"the household's mute still holds it")
 }
 

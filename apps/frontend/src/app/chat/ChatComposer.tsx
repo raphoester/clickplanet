@@ -29,6 +29,7 @@ const FAILURES: Record<ChatSendFailure, string> = {
     'rate-limited': "You're sending messages too fast. Give it a few seconds.",
     'blocked': "This connection is not allowed to post.",
     'muted': "You are muted.",
+    'gifs-muted': "You may not post GIFs for now.",
     'rejected': "That message was refused.",
     'gone': "The message you replied to is gone.",
     'no-session': "Could not start a session to chat. Try again in a moment.",
@@ -143,7 +144,10 @@ function Replying({to, onCancel}: {to: ChatMessage, onCancel: () => void}) {
 }
 
 function noticeOf(failure: ChatSendFailure, mutedUntil: number | undefined): string {
-    if (failure !== 'muted' || mutedUntil === undefined) return FAILURES[failure]
+    if (mutedUntil === undefined) return FAILURES[failure]
 
-    return `You are muted until ${describeEnd(mutedUntil, Date.now())}.`
+    const until = describeEnd(mutedUntil, Date.now())
+    if (failure === 'muted') return `You are muted until ${until}.`
+    if (failure === 'gifs-muted') return `You may not post GIFs until ${until}.`
+    return FAILURES[failure]
 }

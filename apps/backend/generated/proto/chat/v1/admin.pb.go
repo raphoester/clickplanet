@@ -27,6 +27,7 @@ type MuteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	Duration      *durationpb.Duration   `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
+	Kind          MuteKind               `protobuf:"varint,3,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -73,6 +74,13 @@ func (x *MuteRequest) GetDuration() *durationpb.Duration {
 		return x.Duration
 	}
 	return nil
+}
+
+func (x *MuteRequest) GetKind() MuteKind {
+	if x != nil {
+		return x.Kind
+	}
+	return MuteKind_MUTE_KIND_CHAT
 }
 
 type MuteResponse struct {
@@ -130,6 +138,7 @@ func (x *MuteResponse) GetMutedUntil() *timestamppb.Timestamp {
 type UnmuteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Kind          MuteKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -169,6 +178,13 @@ func (x *UnmuteRequest) GetAccountId() string {
 		return x.AccountId
 	}
 	return ""
+}
+
+func (x *UnmuteRequest) GetKind() MuteKind {
+	if x != nil {
+		return x.Kind
+	}
+	return MuteKind_MUTE_KIND_CHAT
 }
 
 type UnmuteResponse struct {
@@ -219,6 +235,7 @@ func (x *UnmuteResponse) GetMutedUntil() *timestamppb.Timestamp {
 type GetMuteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Kind          MuteKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -258,6 +275,13 @@ func (x *GetMuteRequest) GetAccountId() string {
 		return x.AccountId
 	}
 	return ""
+}
+
+func (x *GetMuteRequest) GetKind() MuteKind {
+	if x != nil {
+		return x.Kind
+	}
+	return MuteKind_MUTE_KIND_CHAT
 }
 
 type GetMuteResponse struct {
@@ -961,24 +985,27 @@ var File_chat_v1_admin_proto protoreflect.FileDescriptor
 
 const file_chat_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x13chat/v1/admin.proto\x12\achat.v1\x1a\x12chat/v1/chat.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"c\n" +
+	"\x13chat/v1/admin.proto\x12\achat.v1\x1a\x12chat/v1/chat.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8a\x01\n" +
 	"\vMuteRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x125\n" +
-	"\bduration\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bduration\"a\n" +
+	"\bduration\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bduration\x12%\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\"a\n" +
 	"\fMuteResponse\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12;\n" +
 	"\vmuted_until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"mutedUntil\".\n" +
+	"mutedUntil\"U\n" +
 	"\rUnmuteRequest\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\"M\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12%\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\"M\n" +
 	"\x0eUnmuteResponse\x12;\n" +
 	"\vmuted_until\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"mutedUntil\"/\n" +
+	"mutedUntil\"V\n" +
 	"\x0eGetMuteRequest\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\"x\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12%\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\"x\n" +
 	"\x0fGetMuteResponse\x12;\n" +
 	"\vmuted_until\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"mutedUntil\x12(\n" +
@@ -1082,42 +1109,46 @@ var file_chat_v1_admin_proto_goTypes = []any{
 	(*KeptMessage)(nil),           // 12: chat.v1.KeptMessage
 	(*KeptQuote)(nil),             // 13: chat.v1.KeptQuote
 	(*durationpb.Duration)(nil),   // 14: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
-	(*Gif)(nil),                   // 16: chat.v1.Gif
+	(MuteKind)(0),                 // 15: chat.v1.MuteKind
+	(*timestamppb.Timestamp)(nil), // 16: google.protobuf.Timestamp
+	(*Gif)(nil),                   // 17: chat.v1.Gif
 }
 var file_chat_v1_admin_proto_depIdxs = []int32{
 	14, // 0: chat.v1.MuteRequest.duration:type_name -> google.protobuf.Duration
-	15, // 1: chat.v1.MuteResponse.muted_until:type_name -> google.protobuf.Timestamp
-	15, // 2: chat.v1.UnmuteResponse.muted_until:type_name -> google.protobuf.Timestamp
-	15, // 3: chat.v1.GetMuteResponse.muted_until:type_name -> google.protobuf.Timestamp
-	15, // 4: chat.v1.RemoveMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
-	16, // 5: chat.v1.GetMessageResponse.gif:type_name -> chat.v1.Gif
-	15, // 6: chat.v1.GetMessageResponse.sent_at:type_name -> google.protobuf.Timestamp
-	15, // 7: chat.v1.GetMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
-	12, // 8: chat.v1.ListMessagesResponse.messages:type_name -> chat.v1.KeptMessage
-	16, // 9: chat.v1.KeptMessage.gif:type_name -> chat.v1.Gif
-	15, // 10: chat.v1.KeptMessage.sent_at:type_name -> google.protobuf.Timestamp
-	15, // 11: chat.v1.KeptMessage.removed_at:type_name -> google.protobuf.Timestamp
-	13, // 12: chat.v1.KeptMessage.reply_to:type_name -> chat.v1.KeptQuote
-	16, // 13: chat.v1.KeptQuote.gif:type_name -> chat.v1.Gif
-	15, // 14: chat.v1.KeptQuote.removed_at:type_name -> google.protobuf.Timestamp
-	0,  // 15: chat.v1.AdminService.Mute:input_type -> chat.v1.MuteRequest
-	2,  // 16: chat.v1.AdminService.Unmute:input_type -> chat.v1.UnmuteRequest
-	4,  // 17: chat.v1.AdminService.GetMute:input_type -> chat.v1.GetMuteRequest
-	6,  // 18: chat.v1.AdminService.RemoveMessage:input_type -> chat.v1.RemoveMessageRequest
-	8,  // 19: chat.v1.AdminService.GetMessage:input_type -> chat.v1.GetMessageRequest
-	10, // 20: chat.v1.AdminService.ListMessages:input_type -> chat.v1.ListMessagesRequest
-	1,  // 21: chat.v1.AdminService.Mute:output_type -> chat.v1.MuteResponse
-	3,  // 22: chat.v1.AdminService.Unmute:output_type -> chat.v1.UnmuteResponse
-	5,  // 23: chat.v1.AdminService.GetMute:output_type -> chat.v1.GetMuteResponse
-	7,  // 24: chat.v1.AdminService.RemoveMessage:output_type -> chat.v1.RemoveMessageResponse
-	9,  // 25: chat.v1.AdminService.GetMessage:output_type -> chat.v1.GetMessageResponse
-	11, // 26: chat.v1.AdminService.ListMessages:output_type -> chat.v1.ListMessagesResponse
-	21, // [21:27] is the sub-list for method output_type
-	15, // [15:21] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	15, // 1: chat.v1.MuteRequest.kind:type_name -> chat.v1.MuteKind
+	16, // 2: chat.v1.MuteResponse.muted_until:type_name -> google.protobuf.Timestamp
+	15, // 3: chat.v1.UnmuteRequest.kind:type_name -> chat.v1.MuteKind
+	16, // 4: chat.v1.UnmuteResponse.muted_until:type_name -> google.protobuf.Timestamp
+	15, // 5: chat.v1.GetMuteRequest.kind:type_name -> chat.v1.MuteKind
+	16, // 6: chat.v1.GetMuteResponse.muted_until:type_name -> google.protobuf.Timestamp
+	16, // 7: chat.v1.RemoveMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
+	17, // 8: chat.v1.GetMessageResponse.gif:type_name -> chat.v1.Gif
+	16, // 9: chat.v1.GetMessageResponse.sent_at:type_name -> google.protobuf.Timestamp
+	16, // 10: chat.v1.GetMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
+	12, // 11: chat.v1.ListMessagesResponse.messages:type_name -> chat.v1.KeptMessage
+	17, // 12: chat.v1.KeptMessage.gif:type_name -> chat.v1.Gif
+	16, // 13: chat.v1.KeptMessage.sent_at:type_name -> google.protobuf.Timestamp
+	16, // 14: chat.v1.KeptMessage.removed_at:type_name -> google.protobuf.Timestamp
+	13, // 15: chat.v1.KeptMessage.reply_to:type_name -> chat.v1.KeptQuote
+	17, // 16: chat.v1.KeptQuote.gif:type_name -> chat.v1.Gif
+	16, // 17: chat.v1.KeptQuote.removed_at:type_name -> google.protobuf.Timestamp
+	0,  // 18: chat.v1.AdminService.Mute:input_type -> chat.v1.MuteRequest
+	2,  // 19: chat.v1.AdminService.Unmute:input_type -> chat.v1.UnmuteRequest
+	4,  // 20: chat.v1.AdminService.GetMute:input_type -> chat.v1.GetMuteRequest
+	6,  // 21: chat.v1.AdminService.RemoveMessage:input_type -> chat.v1.RemoveMessageRequest
+	8,  // 22: chat.v1.AdminService.GetMessage:input_type -> chat.v1.GetMessageRequest
+	10, // 23: chat.v1.AdminService.ListMessages:input_type -> chat.v1.ListMessagesRequest
+	1,  // 24: chat.v1.AdminService.Mute:output_type -> chat.v1.MuteResponse
+	3,  // 25: chat.v1.AdminService.Unmute:output_type -> chat.v1.UnmuteResponse
+	5,  // 26: chat.v1.AdminService.GetMute:output_type -> chat.v1.GetMuteResponse
+	7,  // 27: chat.v1.AdminService.RemoveMessage:output_type -> chat.v1.RemoveMessageResponse
+	9,  // 28: chat.v1.AdminService.GetMessage:output_type -> chat.v1.GetMessageResponse
+	11, // 29: chat.v1.AdminService.ListMessages:output_type -> chat.v1.ListMessagesResponse
+	24, // [24:30] is the sub-list for method output_type
+	18, // [18:24] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_admin_proto_init() }

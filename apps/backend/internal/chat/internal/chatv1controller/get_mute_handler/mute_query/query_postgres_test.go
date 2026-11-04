@@ -49,7 +49,7 @@ func (s *testSuite) posted(account messages.AccountID, ip string) {
 }
 
 func (s *testSuite) muted(id byte, account messages.AccountID, scope mutes.Scope, duration time.Duration) mutes.Mute {
-	mute := mutes.NewMute(mutes.MuteID{15: id}, mutes.CallerOf(account, scope), now.Add(-time.Minute), duration)
+	mute := mutes.NewMute(mutes.MuteID{15: id}, mutes.CallerOf(account, scope), mutes.Chat, now.Add(-time.Minute), duration)
 	s.Require().NoError(postgres_mute_store.New(s.db).Save(s.T().Context(), mute))
 	return mute
 }
@@ -57,7 +57,7 @@ func (s *testSuite) muted(id byte, account messages.AccountID, scope mutes.Scope
 func (s *testSuite) TestAMuteGivenToTheAccountSaysUntilWhen() {
 	mute := s.muted(1, bully, mutes.NoScope, time.Hour)
 
-	answer, err := mute_query.NewPostgresQuery(s.db, cptime.NewFixedClock(now)).Mute(s.T().Context(), bully)
+	answer, err := mute_query.NewPostgresQuery(s.db, cptime.NewFixedClock(now)).Mute(s.T().Context(), bully, mutes.Chat)
 	s.Require().NoError(err)
 
 	s.Equal(mute.Until(), answer.GetMutedUntil().AsTime())
@@ -68,7 +68,7 @@ func (s *testSuite) TestAMuteOnTheNetworkItLastPostedFromNamesTheAccountItWasGiv
 	s.posted(newGuest, "2a01:e0a:1:2:aaaa::9")
 	mute := s.muted(1, bully, home, time.Hour)
 
-	answer, err := mute_query.NewPostgresQuery(s.db, cptime.NewFixedClock(now)).Mute(s.T().Context(), newGuest)
+	answer, err := mute_query.NewPostgresQuery(s.db, cptime.NewFixedClock(now)).Mute(s.T().Context(), newGuest, mutes.Chat)
 	s.Require().NoError(err)
 
 	s.Equal(mute.Until(), answer.GetMutedUntil().AsTime())
@@ -80,10 +80,23 @@ func (s *testSuite) TestTheMuteThatEndsLastIsRead() {
 	s.muted(1, bully, home, time.Hour)
 	long := s.muted(2, newGuest, home, 24*time.Hour)
 
-	answer, err := mute_query.NewPostgresQuery(s.db, cptime.NewFixedClock(now)).Mute(s.T().Context(), bully)
+	answer, err := mute_query.NewPostgresQuery(s.db, cptime.NewFixedClock(now)).Mute(s.T().Context(), bully, mutes.Chat)
 	s.Require().NoError(err)
 
 	s.Equal(long.Until(), answer.GetMutedUntil().AsTime())
+	s.Equal(newGuest.String(), answer.GetMutedAccountId())
+}
+
+func (s *testSuite) TestAMuteOfTheGifsIsReadApart() {
+	s.posted(bully, "2a01:e0a:1:2::1")
+	s.muted(1, bully, home, 24*time.Hour)
+	gifs := mutes.NewMute(mutes.MuteID{15: 2}, mutes.CallerOf(newGuest, home), mutes.Gifs, now.Add(-time.Minute), time.Hour)
+	s.Require().NoError(postgres_mute_store.New(s.db).Save(s.T().Context(), gifs))
+
+	answer, err := mute_query.NewPostgresQuery(s.db, cptime.NewFixedClock(now)).Mute(s.T().Context(), bully, mutes.Gifs)
+	s.Require().NoError(err)
+
+	s.Equal(gifs.Until(), answer.GetMutedUntil().AsTime(), "the network's, never the longer mute of the chat")
 	s.Equal(newGuest.String(), answer.GetMutedAccountId())
 }
 
@@ -92,7 +105,7 @@ func (s *testSuite) TestNoMuteThatHoldsTheAccountNowAnswersNothing() {
 	s.muted(2, newGuest, mutes.NoScope, 30*time.Second)
 
 	for _, account := range []messages.AccountID{newGuest, {15: 3}} {
-		answer, err := mute_query.NewPostgresQuery(s.db, cptime.NewFixedClock(now)).Mute(s.T().Context(), account)
+		answer, err := mute_query.NewPostgresQuery(s.db, cptime.NewFixedClock(now)).Mute(s.T().Context(), account, mutes.Chat)
 		s.Require().NoError(err)
 
 		s.Nil(answer.GetMutedUntil(), "an ended mute, or another account's with no network, holds nobody")

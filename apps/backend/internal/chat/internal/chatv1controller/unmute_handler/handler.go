@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/chatmute"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/unmute_usecase"
@@ -25,7 +26,12 @@ func (h UnmuteHandler) Unmute(
 	ctx context.Context,
 	req *connect.Request[chatv1.UnmuteRequest],
 ) (*connect.Response[chatv1.UnmuteResponse], error) {
-	until, err := h.useCase.Execute(ctx, messages.AccountIDOf(req.Msg.GetAccountId()))
+	kind, err := chatmute.KindOf(req.Msg.GetKind())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	until, err := h.useCase.Execute(ctx, messages.AccountIDOf(req.Msg.GetAccountId()), kind)
 
 	switch {
 	case err == nil:

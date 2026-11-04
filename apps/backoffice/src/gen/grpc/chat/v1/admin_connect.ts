@@ -15,6 +15,8 @@ export const AdminService = {
   typeName: "chat.v1.AdminService",
   methods: {
     /**
+     * Of the kind asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
+     *
      * @generated from rpc chat.v1.AdminService.Mute
      */
     mute: {
@@ -24,7 +26,7 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Ends now every mute given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
+     * Ends now every mute of the kind given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
      *
      * @generated from rpc chat.v1.AdminService.Unmute
      */
@@ -35,7 +37,7 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * The mute that holds the account now, given to it or to another account on the network it last posted from; the one that ends last. Nothing set when none holds it.
+     * The mute of the kind that holds the account now, given to it or to another account on the network it last posted from; the one that ends last. Nothing set when none holds it.
      *
      * @generated from rpc chat.v1.AdminService.GetMute
      */

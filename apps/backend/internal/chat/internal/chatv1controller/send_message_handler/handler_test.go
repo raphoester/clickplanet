@@ -146,7 +146,7 @@ func TestASenderThePlayerModuleCouldNotNameIsUnavailable(t *testing.T) {
 }
 
 func TestAMutedSenderIsDenied(t *testing.T) {
-	muted := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(messages.AccountID{15: 1}, ""), time.Now(), time.Hour)
+	muted := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(messages.AccountID{15: 1}, ""), mutes.Chat, time.Now(), time.Hour)
 
 	_, err := send(stubUseCase{in: &send_message_usecase.In{}, err: muted.Refusal()})
 

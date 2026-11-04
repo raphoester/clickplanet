@@ -51,10 +51,11 @@ const (
 
 // AdminServiceClient is a client for the chat.v1.AdminService service.
 type AdminServiceClient interface {
+	// Of the kind asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
-	// Ends now every mute given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
+	// Ends now every mute of the kind given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
 	Unmute(context.Context, *connect.Request[v1.UnmuteRequest]) (*connect.Response[v1.UnmuteResponse], error)
-	// The mute that holds the account now, given to it or to another account on the network it last posted from; the one that ends last. Nothing set when none holds it.
+	// The mute of the kind that holds the account now, given to it or to another account on the network it last posted from; the one that ends last. Nothing set when none holds it.
 	GetMute(context.Context, *connect.Request[v1.GetMuteRequest]) (*connect.Response[v1.GetMuteResponse], error)
 	// Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
 	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)
@@ -156,10 +157,11 @@ func (c *adminServiceClient) ListMessages(ctx context.Context, req *connect.Requ
 
 // AdminServiceHandler is an implementation of the chat.v1.AdminService service.
 type AdminServiceHandler interface {
+	// Of the kind asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
-	// Ends now every mute given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
+	// Ends now every mute of the kind given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
 	Unmute(context.Context, *connect.Request[v1.UnmuteRequest]) (*connect.Response[v1.UnmuteResponse], error)
-	// The mute that holds the account now, given to it or to another account on the network it last posted from; the one that ends last. Nothing set when none holds it.
+	// The mute of the kind that holds the account now, given to it or to another account on the network it last posted from; the one that ends last. Nothing set when none holds it.
 	GetMute(context.Context, *connect.Request[v1.GetMuteRequest]) (*connect.Response[v1.GetMuteResponse], error)
 	// Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
 	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)

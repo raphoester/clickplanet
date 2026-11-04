@@ -38,7 +38,7 @@ type testSuite struct {
 func (s *testSuite) SetupTest() {
 	store := inmemory_mute_storage.New()
 	s.Require().NoError(store.Save(context.Background(),
-		mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), mutedAt, time.Hour)))
+		mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), mutes.Chat, mutedAt, time.Hour)))
 
 	s.clock = cptime.NewFixedClock(mutedAt.Add(time.Minute))
 	s.inner = &recordingUseCase{}

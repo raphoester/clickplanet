@@ -143,7 +143,10 @@ and the advice is one line:
 - `permission_denied` → `ChatBlockedError`, the address is in `chat.blockedIPs`
 - `permission_denied` with a `MuteRefusal` detail → `ChatMutedError`, an operator
   muted the account or its network; the composer says until when (the time, or
-  the date and time past 20 hours). A muted reaction is undone and says the same
+  the date and time past 20 hours). A muted reaction is undone and says the same.
+  The detail's `kind` is what the mute takes away: the whole chat (`chat`), or a
+  post with a GIF (`gifs`, the failure `gifs-muted`: "You may not post GIFs until
+  …"), where the player still writes and reacts
 - `invalid_argument` → `ChatRejectedError`, the server refused the content
 - `not_found` → `ChatMessageGoneError`, the message a reply answers is no longer
   shown (see [Replies](#replies))
@@ -392,7 +395,8 @@ tiles or more a flag fortified, and `champion`, the country that won a season.
   `FakeChatBackend.announceChampion`, once a season as the server does.
   `fakeChat.mute()` in the console announces a mute of the player for an hour
   and refuses its posts and reactions until it ends; `fakeChat.mute(600, "Ana")`
-  only announces somebody else's.
+  only announces somebody else's. `fakeChat.mute(600, undefined, "gifs")` refuses
+  the player's GIFs alone, and announces nothing, as the server does.
 
 ## Saying that a message landed
 

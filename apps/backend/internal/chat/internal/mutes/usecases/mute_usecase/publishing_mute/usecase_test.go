@@ -32,7 +32,7 @@ func (s stubExecutor) Execute(context.Context, mute_usecase.In) (mutes.Mute, err
 var (
 	at    = time.Date(2026, 10, 7, 20, 0, 0, 0, time.UTC)
 	bully = messages.AccountIDOf("0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10")
-	kept  = mutes.NewMute(mutes.MuteID{15: 1}, mutes.CallerOf(bully, "2a01:e0a:1:2::/64"), at, 90*time.Minute)
+	kept  = mutes.NewMute(mutes.MuteID{15: 1}, mutes.CallerOf(bully, "2a01:e0a:1:2::/64"), mutes.Chat, at, 90*time.Minute)
 )
 
 func TestAKeptMuteIsPublishedWithItsAccountTimeAndDuration(t *testing.T) {
@@ -49,6 +49,18 @@ func TestAKeptMuteIsPublishedWithItsAccountTimeAndDuration(t *testing.T) {
 		MutedAt:   timestamppb.New(at),
 		Duration:  durationpb.New(90 * time.Minute),
 	}, events.Published()[0]), "and never the network it holds")
+}
+
+func TestAMuteOfTheGifsIsNotAnnounced(t *testing.T) {
+	events := cpredis.NewRecordedEvents()
+	gifs := mutes.NewMute(mutes.MuteID{15: 1}, mutes.CallerOf(bully, mutes.NoScope), mutes.Gifs, at, time.Hour)
+
+	mute, err := publishing_mute.New(stubExecutor{mute: gifs}, events).
+		Execute(t.Context(), mute_usecase.In{Account: bully, Kind: mutes.Gifs})
+
+	require.NoError(t, err)
+	assert.Equal(t, gifs, mute)
+	assert.Empty(t, events.Published())
 }
 
 func TestAMuteThatWasNotKeptPublishesNothing(t *testing.T) {

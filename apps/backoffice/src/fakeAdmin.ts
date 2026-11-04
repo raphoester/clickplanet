@@ -31,6 +31,7 @@ import {
     UnbanPlayerResponse,
 } from "./gen/grpc/antibot/v1/admin_pb.ts"
 import {Rules} from "./gen/grpc/antibot/v1/rules_pb.ts"
+import {MuteKind} from "./gen/grpc/chat/v1/chat_pb.ts"
 import {
     DiscordLink,
     GetPlayerLinkRequest,
@@ -167,8 +168,9 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
     private readonly holds = new Map<string, Promise<void>>()
-    // What GetMute answers: no mute, unless a test sets one.
+    // What GetMute answers, for the whole chat and for the GIFs: no mute, unless a test sets one.
     muting = new GetMuteResponse()
+    gifMuting = new GetMuteResponse()
     // Whether the rules in force lock every flag, as ReleaseAllegiance answers.
     flagsLocked = false
     // The account's Discord link, as GetPlayerLink answers; UnlinkPlayer forgets it.
@@ -465,7 +467,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     }
 
     getMute(request: PartialMessage<GetMuteRequest>): Promise<GetMuteResponse> {
-        return this.answer("getMute", request, this.muting)
+        return this.answer("getMute", request, request.kind === MuteKind.GIFS ? this.gifMuting : this.muting)
     }
 
     revertPlayer(request: PartialMessage<RevertPlayerRequest>): Promise<RevertPlayerResponse> {

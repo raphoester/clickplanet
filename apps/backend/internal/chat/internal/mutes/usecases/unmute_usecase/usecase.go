@@ -12,12 +12,12 @@ import (
 )
 
 type Store interface {
-	MutesOf(ctx context.Context, account messages.AccountID) ([]mutes.Mute, error)
+	MutesOf(ctx context.Context, account messages.AccountID, kind mutes.Kind) ([]mutes.Mute, error)
 	Save(ctx context.Context, mute mutes.Mute) error
 }
 
 type Executor interface {
-	Execute(ctx context.Context, account messages.AccountID) (time.Time, error)
+	Execute(ctx context.Context, account messages.AccountID, kind mutes.Kind) (time.Time, error)
 }
 
 const writeTimeout = 5 * time.Second
@@ -34,8 +34,8 @@ type UseCase struct {
 
 var _ Executor = (*UseCase)(nil)
 
-// Execute answers the end the mute that would have ended last had.
-func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) (time.Time, error) {
+// Execute answers the end the mute that would have ended last had. A mute of another kind stays.
+func (u *UseCase) Execute(ctx context.Context, account messages.AccountID, kind mutes.Kind) (time.Time, error) {
 	if account == messages.NoAccount {
 		return time.Time{}, mutes.ErrNoAccount
 	}
@@ -46,7 +46,7 @@ func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) (time
 	now := u.clock.Now()
 	var until time.Time
 	err := u.transactioner.InTx(ctx, func(ctx context.Context) error {
-		given, err := u.store.MutesOf(ctx, account)
+		given, err := u.store.MutesOf(ctx, account, kind)
 		if err != nil {
 			return fmt.Errorf("failed to read the account's mutes: %w", err)
 		}

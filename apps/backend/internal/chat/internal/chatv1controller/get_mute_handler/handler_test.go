@@ -13,15 +13,18 @@ import (
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_mute_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 )
 
 type stubQuery struct {
 	account messages.AccountID
+	kind    mutes.Kind
 	err     error
 }
 
-func (q *stubQuery) Mute(_ context.Context, account messages.AccountID) (*chatv1.GetMuteResponse, error) {
+func (q *stubQuery) Mute(_ context.Context, account messages.AccountID, kind mutes.Kind) (*chatv1.GetMuteResponse, error) {
 	q.account = account
+	q.kind = kind
 	if q.err != nil {
 		return nil, q.err
 	}
@@ -42,6 +45,25 @@ func TestTheMuteIsAnsweredAndNeverCached(t *testing.T) {
 	assert.Equal(t, messages.AccountIDOf(bullyID), query.account)
 	assert.Equal(t, bullyID, res.Msg.GetMutedAccountId())
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
+}
+
+func TestTheKindAskedReachesTheQuery(t *testing.T) {
+	query := &stubQuery{}
+
+	_, err := get_mute_handler.New(query).GetMute(t.Context(), connect.NewRequest(&chatv1.GetMuteRequest{
+		AccountId: bullyID, Kind: chatv1.MuteKind_MUTE_KIND_GIFS,
+	}))
+	require.NoError(t, err)
+
+	assert.Equal(t, mutes.Gifs, query.kind)
+}
+
+func TestAKindTheProtoDoesNotNameIsInvalid(t *testing.T) {
+	_, err := get_mute_handler.New(&stubQuery{}).GetMute(t.Context(), connect.NewRequest(&chatv1.GetMuteRequest{
+		AccountId: bullyID, Kind: chatv1.MuteKind(7),
+	}))
+
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
 func TestAnIDThatIsNotAnAccountIsInvalid(t *testing.T) {

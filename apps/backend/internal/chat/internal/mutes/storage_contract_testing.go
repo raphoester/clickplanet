@@ -38,18 +38,27 @@ func (s *StorageContractSuite) SetupTest() {
 }
 
 func (s *StorageContractSuite) save(name string, caller Caller, duration time.Duration) Mute {
-	mute := NewMute(contractID(name), caller, contractStart, duration)
+	return s.saveOf(name, caller, Chat, duration)
+}
+
+func (s *StorageContractSuite) saveOf(name string, caller Caller, kind Kind, duration time.Duration) Mute {
+	mute := NewMute(contractID(name), caller, kind, contractStart, duration)
 	s.Require().NoError(s.storage.Save(context.Background(), mute))
 	return mute
 }
 
 func (s *StorageContractSuite) read(caller Caller, at time.Time) (Mute, error) {
-	return s.storage.Mute(context.Background(), caller, at) //nolint:wrapcheck // the suite reads the port's own error.
+	return s.readOf(caller, Chat, at)
+}
+
+func (s *StorageContractSuite) readOf(caller Caller, kind Kind, at time.Time) (Mute, error) {
+	return s.storage.Mute(context.Background(), caller, kind, at) //nolint:wrapcheck // the suite reads the port's own error.
 }
 
 func (s *StorageContractSuite) same(want Mute, got Mute) {
 	s.Equal(want.ID(), got.ID())
 	s.Equal(want.Caller(), got.Caller())
+	s.Equal(want.Kind(), got.Kind())
 	s.True(want.At().Equal(got.At()), "muted at %s, read %s", want.At(), got.At())
 	s.True(want.Until().Equal(got.Until()), "muted until %s, read %s", want.Until(), got.Until())
 }
@@ -86,6 +95,17 @@ func (s *StorageContractSuite) TestAMuteWithNoNetworkHoldsItsAccountAlone() {
 	_, err := s.read(CallerOf(contractNewGuest, NoScope), contractStart.Add(time.Minute))
 
 	s.ErrorIs(err, ErrNotMuted, "no network is not one network")
+}
+
+func (s *StorageContractSuite) TestAMuteHoldsItsKindAlone() {
+	gifs := s.saveOf("gifs", CallerOf(contractBully, contractHome), Gifs, time.Hour)
+
+	_, err := s.read(CallerOf(contractBully, contractHome), contractStart.Add(time.Minute))
+	s.Require().ErrorIs(err, ErrNotMuted, "a mute of the GIFs leaves the chat")
+
+	got, err := s.readOf(CallerOf(contractNewGuest, contractHome), Gifs, contractStart.Add(time.Minute))
+	s.Require().NoError(err, "and holds the network as a mute of the chat does")
+	s.same(gifs, got)
 }
 
 func (s *StorageContractSuite) TestAMuteEndsAtItsUntil() {
@@ -126,15 +146,17 @@ func (s *StorageContractSuite) TestMutesOfAreTheOnesGivenToTheAccountEndedOrNot(
 	running := s.save("running", CallerOf(contractBully, NoScope), 24*time.Hour)
 	s.save("household", CallerOf(contractNewGuest, contractHome), 24*time.Hour)
 
+	s.saveOf("gifs", CallerOf(contractBully, NoScope), Gifs, 24*time.Hour)
+
 	kept := s.mutesOf(contractBully)
 
-	s.Require().Len(kept, 2, "and never another account's on its network")
+	s.Require().Len(kept, 2, "and never another account's on its network, nor one of another kind")
 	s.same(ended, kept[ended.ID()])
 	s.same(running, kept[running.ID()])
 }
 
 func (s *StorageContractSuite) mutesOf(account messages.AccountID) map[MuteID]Mute {
-	found, err := s.storage.MutesOf(context.Background(), account)
+	found, err := s.storage.MutesOf(context.Background(), account, Chat)
 	s.Require().NoError(err)
 
 	kept := make(map[MuteID]Mute, len(found))

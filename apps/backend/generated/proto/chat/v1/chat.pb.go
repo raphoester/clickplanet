@@ -113,6 +113,55 @@ func (Reaction) EnumDescriptor() ([]byte, []int) {
 	return file_chat_v1_chat_proto_rawDescGZIP(), []int{0}
 }
 
+// What a mute takes away.
+type MuteKind int32
+
+const (
+	// The whole chat: every post and every reaction.
+	MuteKind_MUTE_KIND_CHAT MuteKind = 0
+	// A post with a GIF. The player still writes and reacts.
+	MuteKind_MUTE_KIND_GIFS MuteKind = 1
+)
+
+// Enum value maps for MuteKind.
+var (
+	MuteKind_name = map[int32]string{
+		0: "MUTE_KIND_CHAT",
+		1: "MUTE_KIND_GIFS",
+	}
+	MuteKind_value = map[string]int32{
+		"MUTE_KIND_CHAT": 0,
+		"MUTE_KIND_GIFS": 1,
+	}
+)
+
+func (x MuteKind) Enum() *MuteKind {
+	p := new(MuteKind)
+	*p = x
+	return p
+}
+
+func (x MuteKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MuteKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_chat_v1_chat_proto_enumTypes[1].Descriptor()
+}
+
+func (MuteKind) Type() protoreflect.EnumType {
+	return &file_chat_v1_chat_proto_enumTypes[1]
+}
+
+func (x MuteKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MuteKind.Descriptor instead.
+func (MuteKind) EnumDescriptor() ([]byte, []int) {
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{1}
+}
+
 type ReactionCount struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Reaction      Reaction               `protobuf:"varint,1,opt,name=reaction,proto3,enum=chat.v1.Reaction" json:"reaction,omitempty"`
@@ -641,7 +690,7 @@ type SendMessageRequest_Text struct {
 }
 
 type SendMessageRequest_Gif struct {
-	// Refused, PermissionDenied, from a guest.
+	// Refused, PermissionDenied, from a guest, and from an account a mute of the GIFs holds.
 	Gif *Gif `protobuf:"bytes,7,opt,name=gif,proto3,oneof"`
 }
 
@@ -696,6 +745,7 @@ func (x *SendMessageResponse) GetMessage() *ChatMessage {
 type MuteRefusal struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	MutedUntilUnixMs int64                  `protobuf:"varint,1,opt,name=muted_until_unix_ms,json=mutedUntilUnixMs,proto3" json:"muted_until_unix_ms,omitempty"`
+	Kind             MuteKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -735,6 +785,13 @@ func (x *MuteRefusal) GetMutedUntilUnixMs() int64 {
 		return x.MutedUntilUnixMs
 	}
 	return 0
+}
+
+func (x *MuteRefusal) GetKind() MuteKind {
+	if x != nil {
+		return x.Kind
+	}
+	return MuteKind_MUTE_KIND_CHAT
 }
 
 type GetHistoryRequest struct {
@@ -1480,9 +1537,10 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\tflag_room\x18\x06 \x01(\tR\bflagRoomB\x06\n" +
 	"\x04bodyJ\x04\b\x01\x10\x02R\vauthor_name\"E\n" +
 	"\x13SendMessageResponse\x12.\n" +
-	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageR\amessage\"<\n" +
+	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageR\amessage\"c\n" +
 	"\vMuteRefusal\x12-\n" +
-	"\x13muted_until_unix_ms\x18\x01 \x01(\x03R\x10mutedUntilUnixMs\"0\n" +
+	"\x13muted_until_unix_ms\x18\x01 \x01(\x03R\x10mutedUntilUnixMs\x12%\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\"0\n" +
 	"\x11GetHistoryRequest\x12\x1b\n" +
 	"\tflag_room\x18\x01 \x01(\tR\bflagRoom\"}\n" +
 	"\fAnnouncement\x12\x0e\n" +
@@ -1542,7 +1600,10 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\x0eREACTION_PARTY\x10\r\x12\x17\n" +
 	"\x13REACTION_MIND_BLOWN\x10\x0e\x12\x11\n" +
 	"\rREACTION_NERD\x10\x0f\x12\x12\n" +
-	"\x0eREACTION_EARTH\x10\x102\xe6\x02\n" +
+	"\x0eREACTION_EARTH\x10\x10*2\n" +
+	"\bMuteKind\x12\x12\n" +
+	"\x0eMUTE_KIND_CHAT\x10\x00\x12\x12\n" +
+	"\x0eMUTE_KIND_GIFS\x10\x012\xe6\x02\n" +
 	"\vChatService\x12H\n" +
 	"\vSendMessage\x12\x1b.chat.v1.SendMessageRequest\x1a\x1c.chat.v1.SendMessageResponse\x12J\n" +
 	"\n" +
@@ -1564,66 +1625,68 @@ func file_chat_v1_chat_proto_rawDescGZIP() []byte {
 	return file_chat_v1_chat_proto_rawDescData
 }
 
-var file_chat_v1_chat_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_chat_v1_chat_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_chat_v1_chat_proto_goTypes = []any{
 	(Reaction)(0),                  // 0: chat.v1.Reaction
-	(*ReactionCount)(nil),          // 1: chat.v1.ReactionCount
-	(*ChatMessage)(nil),            // 2: chat.v1.ChatMessage
-	(*Gif)(nil),                    // 3: chat.v1.Gif
-	(*Quote)(nil),                  // 4: chat.v1.Quote
-	(*SendMessageRequest)(nil),     // 5: chat.v1.SendMessageRequest
-	(*SendMessageResponse)(nil),    // 6: chat.v1.SendMessageResponse
-	(*MuteRefusal)(nil),            // 7: chat.v1.MuteRefusal
-	(*GetHistoryRequest)(nil),      // 8: chat.v1.GetHistoryRequest
-	(*Announcement)(nil),           // 9: chat.v1.Announcement
-	(*GetHistoryResponse)(nil),     // 10: chat.v1.GetHistoryResponse
-	(*MarkSeenRequest)(nil),        // 11: chat.v1.MarkSeenRequest
-	(*MarkSeenResponse)(nil),       // 12: chat.v1.MarkSeenResponse
-	(*ReactRequest)(nil),           // 13: chat.v1.ReactRequest
-	(*ReactResponse)(nil),          // 14: chat.v1.ReactResponse
-	(*ListenForEventsRequest)(nil), // 15: chat.v1.ListenForEventsRequest
-	(*ChatEvent)(nil),              // 16: chat.v1.ChatEvent
-	(*MessageRemoved)(nil),         // 17: chat.v1.MessageRemoved
-	(*ReactionsChanged)(nil),       // 18: chat.v1.ReactionsChanged
-	(*Heartbeat)(nil),              // 19: chat.v1.Heartbeat
-	(v1.NameColor)(0),              // 20: player.v1.NameColor
+	(MuteKind)(0),                  // 1: chat.v1.MuteKind
+	(*ReactionCount)(nil),          // 2: chat.v1.ReactionCount
+	(*ChatMessage)(nil),            // 3: chat.v1.ChatMessage
+	(*Gif)(nil),                    // 4: chat.v1.Gif
+	(*Quote)(nil),                  // 5: chat.v1.Quote
+	(*SendMessageRequest)(nil),     // 6: chat.v1.SendMessageRequest
+	(*SendMessageResponse)(nil),    // 7: chat.v1.SendMessageResponse
+	(*MuteRefusal)(nil),            // 8: chat.v1.MuteRefusal
+	(*GetHistoryRequest)(nil),      // 9: chat.v1.GetHistoryRequest
+	(*Announcement)(nil),           // 10: chat.v1.Announcement
+	(*GetHistoryResponse)(nil),     // 11: chat.v1.GetHistoryResponse
+	(*MarkSeenRequest)(nil),        // 12: chat.v1.MarkSeenRequest
+	(*MarkSeenResponse)(nil),       // 13: chat.v1.MarkSeenResponse
+	(*ReactRequest)(nil),           // 14: chat.v1.ReactRequest
+	(*ReactResponse)(nil),          // 15: chat.v1.ReactResponse
+	(*ListenForEventsRequest)(nil), // 16: chat.v1.ListenForEventsRequest
+	(*ChatEvent)(nil),              // 17: chat.v1.ChatEvent
+	(*MessageRemoved)(nil),         // 18: chat.v1.MessageRemoved
+	(*ReactionsChanged)(nil),       // 19: chat.v1.ReactionsChanged
+	(*Heartbeat)(nil),              // 20: chat.v1.Heartbeat
+	(v1.NameColor)(0),              // 21: player.v1.NameColor
 }
 var file_chat_v1_chat_proto_depIdxs = []int32{
 	0,  // 0: chat.v1.ReactionCount.reaction:type_name -> chat.v1.Reaction
-	3,  // 1: chat.v1.ChatMessage.gif:type_name -> chat.v1.Gif
-	1,  // 2: chat.v1.ChatMessage.reactions:type_name -> chat.v1.ReactionCount
-	20, // 3: chat.v1.ChatMessage.author_color:type_name -> player.v1.NameColor
-	4,  // 4: chat.v1.ChatMessage.reply_to:type_name -> chat.v1.Quote
-	20, // 5: chat.v1.Quote.author_color:type_name -> player.v1.NameColor
-	3,  // 6: chat.v1.Quote.gif:type_name -> chat.v1.Gif
-	3,  // 7: chat.v1.SendMessageRequest.gif:type_name -> chat.v1.Gif
-	2,  // 8: chat.v1.SendMessageResponse.message:type_name -> chat.v1.ChatMessage
-	2,  // 9: chat.v1.GetHistoryResponse.messages:type_name -> chat.v1.ChatMessage
-	9,  // 10: chat.v1.GetHistoryResponse.announcements:type_name -> chat.v1.Announcement
-	0,  // 11: chat.v1.ReactRequest.reaction:type_name -> chat.v1.Reaction
-	1,  // 12: chat.v1.ReactResponse.reactions:type_name -> chat.v1.ReactionCount
-	2,  // 13: chat.v1.ChatEvent.message:type_name -> chat.v1.ChatMessage
-	19, // 14: chat.v1.ChatEvent.heartbeat:type_name -> chat.v1.Heartbeat
-	18, // 15: chat.v1.ChatEvent.reactions:type_name -> chat.v1.ReactionsChanged
-	9,  // 16: chat.v1.ChatEvent.announcement:type_name -> chat.v1.Announcement
-	17, // 17: chat.v1.ChatEvent.message_removed:type_name -> chat.v1.MessageRemoved
-	1,  // 18: chat.v1.ReactionsChanged.reactions:type_name -> chat.v1.ReactionCount
-	5,  // 19: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
-	8,  // 20: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
-	15, // 21: chat.v1.ChatService.ListenForEvents:input_type -> chat.v1.ListenForEventsRequest
-	13, // 22: chat.v1.ChatService.React:input_type -> chat.v1.ReactRequest
-	11, // 23: chat.v1.ChatService.MarkSeen:input_type -> chat.v1.MarkSeenRequest
-	6,  // 24: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
-	10, // 25: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
-	16, // 26: chat.v1.ChatService.ListenForEvents:output_type -> chat.v1.ChatEvent
-	14, // 27: chat.v1.ChatService.React:output_type -> chat.v1.ReactResponse
-	12, // 28: chat.v1.ChatService.MarkSeen:output_type -> chat.v1.MarkSeenResponse
-	24, // [24:29] is the sub-list for method output_type
-	19, // [19:24] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	4,  // 1: chat.v1.ChatMessage.gif:type_name -> chat.v1.Gif
+	2,  // 2: chat.v1.ChatMessage.reactions:type_name -> chat.v1.ReactionCount
+	21, // 3: chat.v1.ChatMessage.author_color:type_name -> player.v1.NameColor
+	5,  // 4: chat.v1.ChatMessage.reply_to:type_name -> chat.v1.Quote
+	21, // 5: chat.v1.Quote.author_color:type_name -> player.v1.NameColor
+	4,  // 6: chat.v1.Quote.gif:type_name -> chat.v1.Gif
+	4,  // 7: chat.v1.SendMessageRequest.gif:type_name -> chat.v1.Gif
+	3,  // 8: chat.v1.SendMessageResponse.message:type_name -> chat.v1.ChatMessage
+	1,  // 9: chat.v1.MuteRefusal.kind:type_name -> chat.v1.MuteKind
+	3,  // 10: chat.v1.GetHistoryResponse.messages:type_name -> chat.v1.ChatMessage
+	10, // 11: chat.v1.GetHistoryResponse.announcements:type_name -> chat.v1.Announcement
+	0,  // 12: chat.v1.ReactRequest.reaction:type_name -> chat.v1.Reaction
+	2,  // 13: chat.v1.ReactResponse.reactions:type_name -> chat.v1.ReactionCount
+	3,  // 14: chat.v1.ChatEvent.message:type_name -> chat.v1.ChatMessage
+	20, // 15: chat.v1.ChatEvent.heartbeat:type_name -> chat.v1.Heartbeat
+	19, // 16: chat.v1.ChatEvent.reactions:type_name -> chat.v1.ReactionsChanged
+	10, // 17: chat.v1.ChatEvent.announcement:type_name -> chat.v1.Announcement
+	18, // 18: chat.v1.ChatEvent.message_removed:type_name -> chat.v1.MessageRemoved
+	2,  // 19: chat.v1.ReactionsChanged.reactions:type_name -> chat.v1.ReactionCount
+	6,  // 20: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
+	9,  // 21: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
+	16, // 22: chat.v1.ChatService.ListenForEvents:input_type -> chat.v1.ListenForEventsRequest
+	14, // 23: chat.v1.ChatService.React:input_type -> chat.v1.ReactRequest
+	12, // 24: chat.v1.ChatService.MarkSeen:input_type -> chat.v1.MarkSeenRequest
+	7,  // 25: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
+	11, // 26: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
+	17, // 27: chat.v1.ChatService.ListenForEvents:output_type -> chat.v1.ChatEvent
+	15, // 28: chat.v1.ChatService.React:output_type -> chat.v1.ReactResponse
+	13, // 29: chat.v1.ChatService.MarkSeen:output_type -> chat.v1.MarkSeenResponse
+	25, // [25:30] is the sub-list for method output_type
+	20, // [20:25] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_chat_proto_init() }
@@ -1655,7 +1718,7 @@ func file_chat_v1_chat_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chat_v1_chat_proto_rawDesc), len(file_chat_v1_chat_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,

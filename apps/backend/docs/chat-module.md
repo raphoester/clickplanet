@@ -25,7 +25,8 @@ internal/chat/internal/
     usecases/send_message_usecase/      drafts, replies, names, appends, publishes — Appender, Publisher, Authors, Drafts,
                                         Thread
       publishing_send_message/          publishes chat.v1.MessageSent once a message is kept
-      muting_send_message/              refuses a muted caller before anything else — Mutes
+      muting_send_message/              refuses a muted caller before anything else, and a GIF to one muted from
+                                        GIFs — Mutes
     usecases/prune_usecase/             deletes past retention, from each table; Runner — Pruner
       log_prune/                        logs what a prune deleted
   reactions/                            Reaction, Reactor, AccountOf, Reactions, Count, Tally, Change, Named,
@@ -50,15 +51,17 @@ internal/chat/internal/
     inmemory_seen_storage/              Storage in a map, and Kept for a test — behind the testing tag, tests only
     usecases/mark_seen_usecase/         keeps until when an account saw the chat — Saver
     usecases/forget_seen_usecase/       deletes an account's mark — Deleter
-  mutes/                                Mute (NewMute, MuteOf, Ended, Lifted, ApplicableTo, Refusal), MuteID, Caller, Scope (ScopeOf),
-                                        DurationOf, Book (MuteError), the IDProvider and Storage ports, the suite
+  mutes/                                Mute (NewMute, MuteOf, Ended, Lifted, ApplicableTo, Refusal), MuteID, Kind (Chat,
+                                        Gifs), Caller, Scope (ScopeOf), DurationOf, Book (MuteError), the IDProvider
+                                        and Storage ports, the suite
     postgres_mute_store/                Storage, over chat.mutes
     inmemory_mute_storage/              Storage in a slice — behind the testing tag, tests only
     uuid_id_provider/                   IDProvider: a UUIDv7 per mute
     usecases/mute_usecase/              keeps a mute on the account and its network — Saver, Addresses, IDProvider
-      publishing_mute/                  publishes chat.v1.AccountMuted once a mute is kept
+      publishing_mute/                  publishes chat.v1.AccountMuted once a mute of the whole chat is kept
       audit_mute/                       logs every mute at Warn
-    usecases/unmute_usecase/            ends now every running mute given to the account — Transactioner, Store
+    usecases/unmute_usecase/            ends now every running mute of a kind given to the account — Transactioner,
+                                        Store
       audit_unmute/                     logs every unmute at Warn
   removals/                             Removal (NewRemoval, TakeSnapshot), Snapshot, ErrUnknownMessage, the Storage port
     postgres_removal_store/             Storage, over chat.removals
@@ -86,7 +89,8 @@ internal/chat/internal/
     chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), for the post,
                                         the reaction and the stream
     chatannouncement/                   Encode, for the stream
-    chatmute/                           Refusal: a mute as PermissionDenied with a MuteRefusal detail
+    chatmute/                           Refusal: a mute as PermissionDenied with a MuteRefusal detail; Kind and KindOf,
+                                        the kind on the wire and back
   subscribers/                          Timeout
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb
     fortified_subscriber/               planet.v1.Fortified → announce_usecase, as a Fortify of 50 tiles or more
