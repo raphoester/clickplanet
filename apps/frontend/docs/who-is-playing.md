@@ -9,8 +9,12 @@ code. No address, and no hash of one, is on it.
 
 - `backends/player.ts` — `PresenceBackend`, `Presence`, `PlayerLine` (what a
   card needs), `RosterEntry` (a `PlayerLine` with its `key`), `RosterEvent`, and
-  `PlayerInfoBackend` with `PlayerInfo`. `ConnectPlayerBackend` implements it over
-  `player.v1.PlayerService/Announce`, `Leave` and `ListenForEvents`;
+  `PlayerInfoBackend` with `PlayerInfo`, the public card: `Player`, who the player
+  is (`PlayerReader`), and `Progress`, how far it went (`ProgressReader`, in
+  `progression.ts`). `ConnectPlayerBackend` implements the presence over
+  `player.v1.PlayerService/Announce`, `Leave` and `ListenForEvents`, and
+  `PlayerReader` over `GetPlayer`; `PlayerCards` (`playerCards.ts`) is the
+  `PlayerInfoBackend`, over a `PlayerReader` and a `ProgressReader`;
   `fakePresenceBackend.ts` is the dev stand-in, with players coming and going on
   their own shifts, diffed into live events every second.
 - `domain/presence.ts` — `PresenceSchedule`, when to announce. No clock and no
@@ -33,7 +37,7 @@ days in a row" in a `Bubble`, which goes when the log under it scrolls. The titl
 player wears, small, after the crown (`TitleBadge`, drawn by `WornTitle`, a `TitleEmblem` with `role="img"` named
 by the title). **A guest has neither**, nor a color: the server gives a guest no badge, so a signed-in player shows
 a flame and a medal only once it has a username. `backends/title.ts` holds `PlayerTitle` and `titleOf`, the one
-decoder of `player.v1.Title`, shared by the chat, the player and the standings backends.
+decoder of `progression.v1.Title`.
 
 **An admin of the game wears a crown** (`AdminCrown`, gold, `role="img"` named
 "Admin") beside its name in the chat log, the roster and the card's title.
@@ -52,8 +56,9 @@ its player: see [Support](support.md). **The one card open is a store**,
 player in it themselves, and the last two close their own card first. `PlayerCardPlace`
 shows the card. `Viewer` renders it only with a `PlayerInfoBackend` wired, and the
 store is `openable` only while it is there: without it the names are plain text. The card shows the
-flag and the country, then, for a player with a username, what
-`player.v1.PlayerService/GetPlayer` answers: the titles it shows, under the title it wears, which is its badge
+flag and the country, then, for a player with a username, what `PlayerCards` reads: who
+it is from `player.v1.PlayerService/GetPlayer`, and from
+`progression.v1.ProgressionService/GetProgress` the titles it shows, under the title it wears, which is its badge
 (see [Titles](titles.md) and [Badges](badges.md)), then tiles taken, the current and best
 streak, and "Playing since", the day the account was made (left out when the
 server does not know it). Under them, **"Fought for" and "Fought against"**
@@ -61,21 +66,25 @@ server does not know it). Under them, **"Fought for" and "Fought against"**
 them from, each with a bar against the side's first country. Past tense on
 purpose: "You're playing for" at the top of the menu is the flag now, and these
 are the player's whole history. The card shows
-the top 3 of each, all `GetPlayer` sends; the player's own Progress tab shows
+the top 3 of each, all `GetProgress` sends; the player's own Progress tab shows
 every one (below). A side with no tile is left out. They
-are the player's total, not the season's (see the backend's [Player](../../backend/docs/player.md)),
+are the player's total, not the season's (see the backend's [Progression](../../backend/docs/progression.md#the-fronts)),
 so the top one explains the flag beside its name on the Players board. Two
 columns on a desktop, which is why the card is 440px wide; one under the other
 on a phone. The fake gives its players titles and countries of its own over
 their fake stats and creation date. **A guest's card asks nothing**: `GetPlayer`
 answers a guest with its name alone (`PlayerInfo.guest`), which the line already
-holds, so the card shows the name and the flag alone. It says nothing to the viewer, who may well be signed in. The chat tells
+holds, so the card shows the name and the flag alone. Where a card is read for an
+account not known as a guest (a tile's holder), `PlayerCards` shows a guest with no
+progress, whatever `GetProgress` says. It says nothing to the viewer, who may well be signed in. The chat tells
 a guest by `GUEST_PREFIX`, which no username starts with: that is a class of
 names the server reserves, not one account. **A line with no account id asks
 nothing either** (a message kept before accounts, or of a deleted account) and
-reads "This player is gone." `GetPlayer` needs no
-token and goes out as a GET, like `GetRoster`; `NotFound` (the account is
-gone) reads as `undefined`, and shows the same line. `usePlayerInfo` reads it
+reads "This player is gone." `GetPlayer` and
+`GetProgress` need no token and go out as GETs, side by side, each retried while
+the server cannot be reached. A `NotFound` from `GetPlayer` (the account is gone)
+reads as `undefined`, and shows the same line. A `NotFound` from `GetProgress` alone
+shows zeros, and no title and no front. `usePlayerInfo` reads it
 once per account. `PlayerCardPlace` keys the card by the account id.
 Escape closes the card and leaves the roster open: `useEscape` does nothing
 while a modal dialog is on the page.
@@ -101,12 +110,9 @@ tab reads the count (`onlineCount`), so a renamed line renders the list alone.
 `Viewer` reads only the count, which it gives the globe (`crowd`, see
 [Ghosts](ghosts.md)).
 
-**The roster is streamed**, over `ListenForEvents` through `openStream`, with
-the token already held (`held()`, never a mint) when there is one. The roster
-needs none; the token is what lets the same stream bring this player's own
-titles (`titleEarned`, see [Titles](titles.md)). The server reads it when the
-stream opens, so `useRosterFeed` checks `heldIdentity()` every `SETTLE_MS` and
-reopens the stream when it changes, keeping the list it has. Every connection starts with the whole roster, then
+**The roster is streamed**, over `ListenForEvents` through `openStream`, with no
+token: the roster needs none, and the titles earned have a stream of their own (see
+[Titles](titles.md)). Every connection starts with the whole roster, then
 sends one line that joined or changed (`entry`) or one key that left (`left`).
 A line is named by its `key`, which the server keeps through a new flag, a
 sign-in and a new name, so a guest who signs in is one row renamed in place;

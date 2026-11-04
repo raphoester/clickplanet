@@ -21,9 +21,9 @@ and says what is in it. Read the doc before you change its area.
 
 ## How the code is shaped
 
-- [Ten bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, scoring, support,
-  missions, antibot, gamemaster, alerts.
-  A module publishes its root package and hides the rest.
+- [Eleven bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, progression, scoring,
+  support, missions, antibot, gamemaster, alerts, and clips beside them. A module publishes its root package and hides
+  the rest; the modules depend on each other with no cycle.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
   calls another one, how it tells the others what happened and asks one to change something: Redis Streams,
   the idempotent receivers, the outboxes, the commands.
@@ -94,8 +94,12 @@ and says what is in it. Read the doc before you change its area.
 
 - [Chat](docs/chat.md) — messages, each flag's room beside the world chat, GIFs, announcements, mutes, removals,
   replies, reactions, and what each account saw.
-- [Player](docs/player.md) — names and guest codes, stats, streaks, titles, who is playing now, and an account asked
-  deleted, hidden from the other players until it is purged or comes back.
+- [Player](docs/player.md) — who an account is: names and guest codes, colors, who is playing now, and an account
+  asked deleted, hidden from the other players until it is purged or comes back; what it tells the other modules of
+  an account (`PlayerCreated`, `PlayerLeaving`, `PlayerReturned`, `PlayerForgotten`, `GetAccounts`).
+- [Progression](docs/progression.md) — how far an account went: stats, streaks, titles and their tracks, the title
+  worn, the fronts, the badges, the title-earned stream and the reconciliation; why it left `player`, and its tables
+  moved from schema `player`.
 - [Season titles](docs/season-titles.md) — Season 0 Gold, Silver, Bronze, Battle Top 1-3 and Veteran: who fought the
   Final Battle, where its flag placed and who took the most tiles there, read from scoring when the gamemaster tells
   `SeasonEnded`; Season 0 Top 1-3, its best players, given once by hand.

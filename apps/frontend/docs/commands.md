@@ -60,8 +60,8 @@ and a bomb at most, a pool of 8 spread clicks, a stack of 3 enclosures and 30
 shields, a box adding 1 to 4, 1 to 3 and 5 to 20 of them, spread and enclose
 spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
-banner up at once, `giveTitle("warlord")` plays the unlock of any title (the fake
-account wears nothing, so Wear it only closes it), `closeDay()` closes the
+banner up at once, `giveTitle("warlord")` plays the unlock of any title (after
+`signIn()`: a guest earns no title, so no stream listens), `closeDay()` closes the
 fake's day: scoring scores today's round, its countries with a little luck, the
 fake gamemaster debriefs it and the next day runs, and the chat announces the
 podium, so the cutoff plays (see [The cutoff, revealed](cutoff.md)). Each call

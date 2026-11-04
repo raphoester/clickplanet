@@ -70,7 +70,7 @@ internal/auth/internal/
 - **`accounts.StoreContractSuite` is the port's behaviour**, like `clicks.TileStorageContractSuite`. Both stores embed it: postgres adds only what the port cannot show (the token is never stored, `last_seen_at`, an unverified email is `NULL`), and the use cases are tested over the in-memory one, which can `FailWith` an error.
 - **No cache.** Mints are one per 30s per address, so one indexed read each is cheap, and a sign-out has nothing to invalidate.
 - **`InternalService/GetAccount(account_id)`** answers `linked`: whether the account signed in with a provider, read by `account_query` (an identity exists). An unknown account, or an id that is not one (`accounts.AccountIDOf`), is `linked` false and not an error; a store failure is. `player` asks it before it gives an account a username.
-- **`InternalService/GetAccounts(account_ids)`** is a page of accounts at once, each with `linked` and `created_at_unix_ms`, in one statement (`accounts_query`: `id = ANY(...)`, in id order, linked when an identity exists), for the title reconciliation. An account it does not know is left out; an id that is not one is `InvalidArgument`, since a caller holding one has a bug. It is `NO_SIDE_EFFECTS`.
+- **`InternalService/GetAccounts(account_ids)`** is a page of accounts at once, each with `linked` and `created_at_unix_ms`, in one statement (`accounts_query`: `id = ANY(...)`, in id order, linked when an identity exists), for `player`, which answers the same to `progression` on each title award and each page of a title reconciliation (`player.v1.InternalService/GetAccounts`): progression never asks auth. An account it does not know is left out; an id that is not one is `InvalidArgument`, since a caller holding one has a bug. It is `NO_SIDE_EFFECTS`.
 - **`InternalService/GetDiscordUsers(after_account_id, limit)`** is every account signed in with Discord and its Discord user (the identity's subject), a page at a time in account order after the one named (none: from the first), 500 at most, for the alerts module's `LinkMembers` (see [Discord pings](alerts.md#the-players-a-sign-in-never-joined-linkmembers)). An account asked deleted is left out: its player is leaving. One row per account (`DISTINCT ON`), so a page never splits one. A page shorter than the limit is the last. It is `NO_SIDE_EFFECTS`.
 - **`create_session_usecase` mints whether the account is linked** (`Session.Linked`, read by the store), so the token says it and `planet` gives a linked account its faster bucket.
 - **`planet` reads the account off the token**: the session interceptor puts it on the context (`cpctx.GetAccount`, and `cpctx.GetLinked`), and the throttle, the bans and the ledger key on it beside the scope — see [Two buckets per click](rate-limiting.md#two-buckets-per-click), [Anti-bot](antibot.md) and [Manual bans](admin.md#manual-bans-findplayers-topplayers-banplayer-unbanplayer-revertplayer-inspectplayer).
@@ -220,7 +220,8 @@ chat crown: `player.profiles.admin` is a display flag, and holding one never gra
   it, and records **`auth.v1.AccountDeletionRequested`** with the time, all in one transaction. Nothing else is
   deleted: its identities, its addresses and everything the other modules keep stay whole. To the other players it is
   deleted at once: `player` hears the request and stops naming it ([Player](player.md#an-account-asked-deleted)), so
-  every board, card, chat line and clip cast that names players through it leaves it out, and the roster drops it.
+  every board, card, chat line and clip cast that names players through it leaves it out, and the roster drops it;
+  `player` tells `progression`, which stops drawing its badges and its progress.
 - **A guest is deleted at once** (`Account.Restorable`: no identity): nothing could ever sign in to it again. The
   account row goes, its sessions with it by cascade, and **`auth.v1.AccountDeleted`** is recorded in the same
   transaction. The game offers Delete to a signed-in account only, so this is a caller of the RPC by hand.
@@ -239,8 +240,9 @@ chat crown: `player.profiles.admin` is a display flag, and holding one never gra
   `log_purge_deletions` logs it. **The privacy policy names the 30 days**: a change of `grace` is a change of the
   policy. To delete one at once, an operator moves its mark back past the grace period (`deploy/vps/README.md`,
   "Delete an account at once"), and the next purge takes it.
-- **`AccountDeleted` is the end, from the purge, the guest's deletion and the prune alike.** `player` hears it and
-  deletes the profile and the stats. `planet` hears it and takes the account off every take postgres keeps: the takes
+- **`AccountDeleted` is the end, from the purge, the guest's deletion and the prune alike.** `player` hears it,
+  deletes the profile and the guest code, and tells `player.v1.PlayerForgotten`, on which `progression` deletes the
+  stats, the titles and the rest it keeps ([Progression](progression.md#an-account-forgotten)). `planet` hears it and takes the account off every take postgres keeps: the takes
   stay, with their tile, flag and time (see [Durability](durability.md)). The ledger in memory keeps the id until it
   ages out (72h at most), as do the revert marks; the chat log ages out.
 - **No unlink RPC.** When one comes, a linked account must keep its last provider: without one it is a guest holding an email.

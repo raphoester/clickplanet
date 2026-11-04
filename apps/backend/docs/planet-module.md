@@ -54,7 +54,7 @@ internal/planet/internal/
   only blanks its address past the retention. `planet.v1.InternalService/GetTakesByCountry` reads it there
   (`takes_query`): an account's tiles by the flag they were taken for and by the flag that held them, counting a
   take's own row and each tile in a spread's or an enclose's payload, as `Taking.Replay` does. A parity test runs
-  every kind of event through both. It is what `player` shows as "plays for" and "plays against".
+  every kind of event through both. It is what `progression` shows as "plays for" and "plays against".
   **`InternalService/GetLedgerTotals(since, until)` reads it there too** (`totals_query`): the events of each kind in
   the window and the accounts that made them, in one scan of `taken_at` (no index on it: seconds over a season). The
   gamemaster asks it once per ended season and keeps the answer (see [The gamemaster](gamemaster.md)).

@@ -20,7 +20,7 @@ address>`), so Back goes to the list, as it was.
   so nothing scrolls sideways. The list is read again on the way back from a player, as the reports are.
 - **A row is shown by its flag and its name, never its account id** (`PlayerName`): the flag it took the most tiles
   for (`flag_country_id`), as an emoji and a name, then its username or its guest code. The planet's rows carry no
-  name, and planet may not ask `player` (the backend's [Player](../../backend/docs/player.md)), so the page asks
+  name (the backend's [Player](../../backend/docs/player.md)), so the page asks
   `player.v1.AdminService/GetAuthors` for the accounts of the page once the list answers (`withAuthors`). An account
   the game never named is "Unnamed": it never joined the roster or posted, and the game's page joins the roster as
   soon as it may click, so it is most likely a script. A row with no account is "No account". **Names that cannot be
@@ -34,13 +34,20 @@ address>`), so Back goes to the list, as it was.
 - **The other half of a player**: the address of an account comes from its row, or else from where the antibot last
   read it; the account of an address from its row. **A guest the jury banned is banned on both**, and an unban lifts
   one key.
-- **An account's page reads its profile** (`player.v1.AdminService/GetPlayer`, `ProfilePanel`): signed in or a
-  guest, when it was made, its name and whether it is a username or a guest code, the crown, its color, the tiles
-  it took, its streak, its messages, its titles (the one worn marked), and every country it plays for and against,
-  five of each and the rest behind "All". A guest has all of it too, which the game's public card does not. The
-  heading is its flag and its name: the name the profile answers, which is the name it holds now, over the one the
-  page that opened it knew; the flag of its row, or else the country it took the most tiles for. `not_found` is an
-  account the game keeps nothing about. An address has no profile, and is not asked.
+- **An account's page reads its profile** (`profileOf`, `ProfilePanel`) from two calls at once:
+  `player.v1.AdminService/GetPlayer`, who it is (signed in or a guest, when it was made, its name and whether it is a
+  username or a guest code, the crown, its color), and `progression.v1.AdminService/GetProgress`, how far it got (the
+  tiles it took, its streak, its messages, its titles, the one worn marked, and every country it plays for and
+  against, five of each and the rest behind "All"). A guest has all of it too, which the game's public card does not.
+  The heading is its flag and its name: the name the profile answers, which is the name it holds now, over the one
+  the page that opened it knew; the flag of its row, or else the country it took the most tiles for. **An account
+  with no name and no guest code still shows its progress**: most are scripts that click without joining the roster,
+  and their stats are what a bot case needs. Its name reads "none". `GetPlayer` still answers it while auth knows
+  the account, with the Account line (signed in or not, and since when); it answers `not_found` only when auth knows
+  nothing of it either (the backend's [Player](../../backend/docs/player.md)), and then the Account line is left
+  out. `GetProgress` never answers `not_found`: an account it keeps nothing about is zeros. **Only both empty**
+  (`not_found` and every stat, message, title and front at zero) says the game keeps nothing about the account. An
+  address has no profile, and is not asked.
 - **An account's page shows what it said, in its conversations** (`chat/TheirMessages`, as a report does), folded
   under "What Ana said" with its count of messages: it reads only once opened. Its lines are marked (`line-theirs`),
   and no line is tagged: there is no report. An address has no messages, since the chat keeps them by account, and is

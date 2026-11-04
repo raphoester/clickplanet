@@ -135,7 +135,7 @@ internal/missions/internal/
     reply comes back.
   - **The payment is told too**: with the grants, the payroll records `missions.v1.MissionsPaid`, how many missions the
     account was paid in all (`Store.PaidInAll`, a count of `mission_payments` under the sheet's lock), these included.
-    `player` keeps it for the Missions title track. A running total, not one event per mission: told twice or late it
+    `progression` keeps it for the Missions title track. A running total, not one event per mission: told twice or late it
     changes nothing, and the first one brings every payment before it. So one outbox holds a command and an event, and
     `redis_outbox_sender` sends each on its own kind of stream.
   - **The player hears the payment on a stream, with no read** (`MissionService.ListenForEvents`, `stream MissionEvent`).

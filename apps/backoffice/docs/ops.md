@@ -14,8 +14,8 @@
   the map is reset (every season but the first), a battle starts, a rule set plays.
 - **It reads, and changes nothing.** Reload reads again; the times move on by themselves every 30 s.
 
-`src/ops/`: `ReconcileTitles` (`TitlesPanel`, after a deploy that adds a title or changes a rule). It asks first, and
-it is harmless twice.
+`src/ops/`: `progression.v1.AdminService/ReconcileTitles` (`TitlesPanel`, after a deploy that adds a title or changes
+a rule). It asks first, and it is harmless twice.
 
 **Link Discord members** (`DiscordMembersPanel`, `alerts.v1.AdminService/LinkMembers`): for the players who signed in
 with Discord before the sign-in joined the server, or whose join failed. Each one already in the server (by the
