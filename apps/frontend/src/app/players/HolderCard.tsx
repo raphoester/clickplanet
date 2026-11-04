@@ -5,8 +5,8 @@ import AdminCrown from "../components/AdminCrown.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {UserIcon} from "../components/icons.tsx"
 import PointerCard from "../components/PointerCard.tsx"
-import StreakFlame from "../components/StreakFlame.tsx"
-import TitleBadge from "../titles/TitleBadge.tsx"
+import Streak from "../badges/Streak.tsx"
+import WornTitle from "../badges/WornTitle.tsx"
 import {truncate} from "../truncate.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {usePlayerCard} from "./playerCardStore.ts"
@@ -37,12 +37,12 @@ export default function HolderCard({holder, now = Date.now(), onHold, onClose}: 
                         onHold={onHold}
                         onClose={onClose}>
         <div className="holder-card-main">
-            {line.wornTitle && <TitleBadge title={line.wornTitle} size={48}/>}
+            <WornTitle accountId={line.accountId} size={48}/>
             <div className="holder-card-who">
                 <span className="holder-card-name">
                     <span className="holder-card-name-text" title={name}>{truncate(name, NAME_MAX_LENGTH)}</span>
                     {line.admin && <AdminCrown/>}
-                    <StreakFlame days={line.streak}/>
+                    <Streak accountId={line.accountId}/>
                 </span>
                 {playsFor.length > 0 && <span className="holder-card-flags" role="group" aria-label="Fought for">
                     {playsFor.slice(0, FLAGS_SHOWN).map(({countryCode}) => {

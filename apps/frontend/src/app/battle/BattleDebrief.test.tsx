@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event"
 import {NameColor, PlayerTitle} from "../../backends/player.ts"
 import {ClosedRound} from "../../backends/standings.ts"
 import {BATTLE_DEBRIEF} from "../../domain/battleBrief.ts"
+import {useBadges} from "../badges/badgesStore.ts"
 import BattleDebrief from "./BattleDebrief.tsx"
 
 beforeEach(() => {
@@ -15,6 +16,7 @@ afterEach(() => {
     cleanup()
     vi.useRealTimers()
     vi.restoreAllMocks()
+    useBadges.getState().serve(undefined)
 })
 
 const WARLORD: PlayerTitle = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
@@ -38,7 +40,7 @@ const FINAL_BATTLE: ClosedRound = {
     roundId: "entry-final",
     takes: [],
     players: [
-        {rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.PINK, countryCode: "fr", tiles: 912, wornTitle: WARLORD},
+        {rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.PINK, countryCode: "fr", tiles: 912},
         {rank: 2, accountId: "account-kofi", name: "Kofi", color: NameColor.GREEN, countryCode: "de", tiles: 640},
     ],
 }
@@ -97,6 +99,7 @@ describe("BattleDebrief", () => {
     })
 
     it("names the top players: flag, tiles and the title worn, the player found by account", () => {
+        useBadges.setState({badges: {"account-ana": {streak: 4, wornTitle: WARLORD}}})
         renderDebrief({screen: "players", accountId: "account-kofi"})
 
         const players = screen.getByRole("list", {name: "Top players"})

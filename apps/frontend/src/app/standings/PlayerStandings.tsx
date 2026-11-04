@@ -5,7 +5,7 @@ import {boardWith} from "../../domain/standings.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import RankCoin from "../components/RankCoin.tsx"
-import TitleBadge from "../titles/TitleBadge.tsx"
+import WornTitle from "../badges/WornTitle.tsx"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {usePlayerCard} from "../players/playerCardStore.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
@@ -54,7 +54,6 @@ function ownLine(caller: Caller, mine: MySeason | undefined): Standing | undefin
         color: caller.color ?? NameColor.UNSPECIFIED,
         countryCode: mine.countryCode,
         tiles: mine.tiles,
-        wornTitle: mine.wornTitle,
     }
 }
 
@@ -128,7 +127,7 @@ function StandingRow({standing, you}: StandingRowProps) {
                     : <span className="standings-name" style={style} title={name}>
                         {name}
                     </span>}
-                <TitleBadge title={standing.wornTitle} size={18}/>
+                <WornTitle accountId={standing.accountId} size={18}/>
             </span>
         </td>
         <td className="leaderboard-table-number">{standing.tiles}</td>
@@ -143,7 +142,5 @@ function playerOf(standing: Standing): PlayerLine {
         guest: false,
         admin: false,
         color: standing.color,
-        streak: 0,
-        wornTitle: standing.wornTitle,
     }
 }

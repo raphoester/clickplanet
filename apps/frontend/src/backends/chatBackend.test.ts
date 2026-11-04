@@ -83,6 +83,7 @@ const unusedKeepalive = {} as PromiseClient<typeof ChatService>
 afterEach(() => vi.restoreAllMocks())
 
 describe("decodedMessage", () => {
+    // The author's streak and title, which the server still sends, are left: its badges are drawn from the badges store.
     it("maps a broadcast message onto the shape the chat consumes", () => {
         expect(decodedMessage(proto())).toEqual({
             id: "message-1",
@@ -91,8 +92,6 @@ describe("decodedMessage", () => {
             authorName: "Ana",
             authorAdmin: true,
             authorColor: NameColor.TEAL,
-            authorStreak: 12,
-            authorTitle: {id: "og", name: "OG", rank: undefined},
             countryCode: "fr",
             text: "hello",
             reactions: [{reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]}],

@@ -1508,3 +1508,131 @@ export class WearTitleResponse extends Message<WearTitleResponse> {
   }
 }
 
+/**
+ * @generated from message player.v1.GetBadgesRequest
+ */
+export class GetBadgesRequest extends Message<GetBadgesRequest> {
+  /**
+   * @generated from field: repeated string account_ids = 1;
+   */
+  accountIds: string[] = [];
+
+  constructor(data?: PartialMessage<GetBadgesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetBadgesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBadgesRequest {
+    return new GetBadgesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBadgesRequest {
+    return new GetBadgesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBadgesRequest {
+    return new GetBadgesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBadgesRequest | PlainMessage<GetBadgesRequest> | undefined, b: GetBadgesRequest | PlainMessage<GetBadgesRequest> | undefined): boolean {
+    return proto3.util.equals(GetBadgesRequest, a, b);
+  }
+}
+
+/**
+ * Only the accounts with a badge to show, once each: an unknown one, a guest, one asked deleted, or one with neither a
+ * streak nor a title is left out.
+ *
+ * @generated from message player.v1.GetBadgesResponse
+ */
+export class GetBadgesResponse extends Message<GetBadgesResponse> {
+  /**
+   * @generated from field: repeated player.v1.Badge badges = 1;
+   */
+  badges: Badge[] = [];
+
+  constructor(data?: PartialMessage<GetBadgesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetBadgesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "badges", kind: "message", T: Badge, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBadgesResponse {
+    return new GetBadgesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBadgesResponse {
+    return new GetBadgesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBadgesResponse {
+    return new GetBadgesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBadgesResponse | PlainMessage<GetBadgesResponse> | undefined, b: GetBadgesResponse | PlainMessage<GetBadgesResponse> | undefined): boolean {
+    return proto3.util.equals(GetBadgesResponse, a, b);
+  }
+}
+
+/**
+ * What is drawn beside a player's name: its streak as of today, and the title it wears.
+ *
+ * @generated from message player.v1.Badge
+ */
+export class Badge extends Message<Badge> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: uint32 streak = 2;
+   */
+  streak = 0;
+
+  /**
+   * @generated from field: player.v1.Title worn_title = 3;
+   */
+  wornTitle?: Title;
+
+  constructor(data?: PartialMessage<Badge>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.Badge";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "worn_title", kind: "message", T: Title },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Badge {
+    return new Badge().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Badge {
+    return new Badge().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Badge {
+    return new Badge().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Badge | PlainMessage<Badge> | undefined, b: Badge | PlainMessage<Badge> | undefined): boolean {
+    return proto3.util.equals(Badge, a, b);
+  }
+}
+

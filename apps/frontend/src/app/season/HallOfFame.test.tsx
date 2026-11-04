@@ -4,6 +4,7 @@ import {cleanup, fireEvent, render, screen, within} from "@testing-library/react
 import {Season, SeasonTotals} from "../../backends/season.ts"
 import {Round, Score, Standing} from "../../backends/standings.ts"
 import {NameColor} from "../../backends/player.ts"
+import {useBadges} from "../badges/badgesStore.ts"
 import HallOfFame, {HallOfFameButton} from "./HallOfFame.tsx"
 
 const score = (rank: number, countryCode: string, points: number): Score => ({rank, countryCode, points, roundsWon: 0})
@@ -36,7 +37,10 @@ const gamemaster = {seasonTotals: async () => TOTALS}
 const plaques = () => [...document.querySelectorAll(".hall-of-fame-plaque")] as HTMLElement[]
 const steps = () => [...document.querySelectorAll(".podium-step")].map((step) => step.textContent)
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    useBadges.getState().serve(undefined)
+})
 
 describe("HallOfFame", () => {
     it("shows each ended season, oldest first, then the season that runs, with their dates", () => {
@@ -94,6 +98,21 @@ describe("HallOfFame", () => {
 
         fireEvent.click(screen.getByRole("button", {name: "Hall of Fame"}))
         expect(screen.getByRole("dialog", {name: "Hall of Fame"})).toBeDefined()
+    })
+
+    it("draws the title each top player wears now, read by its account, on the season's and the Final Battle's players", async () => {
+        const og = {id: "og", name: "OG"}
+        useBadges.setState({badges: {"account-Nova": {streak: 0, wornTitle: og}, "account-Ana": {streak: 0, wornTitle: og}}})
+        render(<HallOfFame ended={[SEASON_ZERO]} standings={books({"season-0": [score(1, "de", 365)]})} turn={gamemaster} onClose={vi.fn()}/>)
+
+        fireEvent.click(screen.getByRole("button", {name: "View"}))
+
+        const nova = (await screen.findByText("Nova")).closest("li")!
+        const kai = screen.getByText("Kai").closest("li")!
+        const ana = (await screen.findByText("Ana")).closest("li")!
+        expect(within(nova).getByRole("img", {name: "OG", hidden: true})).toBeDefined()
+        expect(within(kai).queryByRole("img", {name: "OG", hidden: true})).toBeNull()
+        expect(within(ana).getByRole("img", {name: "OG", hidden: true})).toBeDefined()
     })
 })
 

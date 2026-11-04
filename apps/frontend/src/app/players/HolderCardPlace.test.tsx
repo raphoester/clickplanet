@@ -11,7 +11,7 @@ import {NameColor, PlayerInfo, PlayerLine} from "../../backends/player.ts"
 import {Peek} from "../../domain/tilePeek.ts"
 
 const ANA: PlayerLine = {
-    accountId: "account-ana", name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12,
+    accountId: "account-ana", name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK,
 }
 
 const PEEK: Peek = {tile: 7, countryCode: "fr", point: {x: 300, y: 200}, touch: false}
@@ -77,7 +77,7 @@ describe("HolderCardPlace", () => {
         render(<HolderCardPlace holders={holdersOf({...ANAS_TILE, accountId: ""})} players={players} pointing={POINTING}/>)
 
         await waitFor(() => expect(shown()).toEqual({
-            line: {accountId: "", name: DELETED_ACCOUNT, countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+            line: {accountId: "", name: DELETED_ACCOUNT, countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED},
             playsFor: [], mine: false, takenAt: 1_000, point: PEEK.point, touch: false, id: 1,
         }))
         expect(players.playerInfo).not.toHaveBeenCalled()

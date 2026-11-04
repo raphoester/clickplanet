@@ -31,6 +31,7 @@ export default function App(props: AppProps) {
             account={props.account}
             presence={props.presence}
             playerInfo={props.playerInfo}
+            badges={props.badges}
             tileHolders={props.tileHolders}
             landmasses={props.landmasses}
             turn={props.turn}

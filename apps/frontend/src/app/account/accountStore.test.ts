@@ -1,4 +1,4 @@
-import {describe, expect, it, vi} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 import {AccountBackend, AuthError, AuthFailure, Me, Provider} from "../../backends/account.ts"
 import {
     ColoredProfile,
@@ -13,6 +13,7 @@ import {
 } from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
 import {AccountStore} from "./accountStore.ts"
+import {useBadges} from "../badges/badgesStore.ts"
 import {CrazyGamesUser} from "../../backends/crazyGames.ts"
 import {Leaver, LeaverStore} from "../../domain/crazyGames.ts"
 
@@ -74,6 +75,44 @@ function held<T>() {
 }
 
 describe("AccountStore", () => {
+    afterEach(() => useBadges.getState().serve(undefined))
+
+    describe("the title worn", () => {
+        const linked = () => fakeBackend(["google"], {linked: ["google"]})
+        const og = {id: "og", name: "OG"}
+
+        it("goes beside the account's name at once when it wears one, and when it reads its titles", async () => {
+            const player = fakePlayer("ana")
+            const {store} = setup(linked(), player)
+            await store.load()
+            await vi.waitFor(() => expect(store.state()).toMatchObject({accountId: "account-1"}))
+
+            player.wearTitle.mockResolvedValue(og)
+            expect(await store.wearTitle("og")).toEqual(og)
+            expect(useBadges.getState().badges["account-1"]).toEqual({streak: 0, wornTitle: og})
+
+            player.titles.mockResolvedValue({wearable: [og], tracks: []})
+            await store.titles()
+            expect(useBadges.getState().badges["account-1"]).toEqual({streak: 0, wornTitle: undefined})
+        })
+
+        it("writes nothing for an account that changed meanwhile", async () => {
+            const player = fakePlayer("ana")
+            const {store} = setup(linked(), player)
+            await store.load()
+            await vi.waitFor(() => expect(store.state()).toMatchObject({accountId: "account-1"}))
+            const worn = held<typeof og>()
+            player.wearTitle.mockReturnValue(worn.promise)
+
+            const wearing = store.wearTitle("og")
+            await store.signOut()
+            worn.release(og)
+            await wearing
+
+            expect(useBadges.getState().badges).toEqual({})
+        })
+    })
+
     describe("loading", () => {
         it("starts loading, then shows the offered providers in a fixed order", async () => {
             const {store} = setup(fakeBackend(["discord", "google"]))

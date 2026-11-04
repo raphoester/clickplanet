@@ -1,6 +1,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
+    Badge as BadgePb,
     CountryTiles as CountryTilesPb,
     Player as PlayerPb,
     PlayerEvent as PlayerEventPb,
@@ -366,9 +367,9 @@ describe("ConnectPlayerBackend live roster", () => {
         key: "k1", accountId: "account-ana", name: "ana", countryId: "fr", guest: false, admin: true, color: NameColor.PINK,
         streak: 12, wornTitle: settlerPb,
     })
+    // The line's streak and title, which the server still sends, are left: its badges are drawn from the badges store.
     const ana = {
         key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK,
-        streak: 12, wornTitle: settler,
     }
 
     afterEach(() => vi.useRealTimers())
@@ -444,6 +445,28 @@ describe("ConnectPlayerBackend live roster", () => {
 
         expect(listenForEvents.mock.calls.length).toBeGreaterThan(1)
         expect(onUnavailable).not.toHaveBeenCalled()
+    })
+})
+
+describe("ConnectPlayerBackend badges", () => {
+    it("reads the badges of the accounts asked in one call, without a token, and maps them", async () => {
+        const session = sessionOf("token-1")
+        const getBadges = vi.fn(async () => ({
+            badges: [new BadgePb({accountId: "account-ana", streak: 12, wornTitle: settlerPb}), new BadgePb({accountId: "account-kiran", streak: 3})],
+        }))
+
+        expect(await backendWith({getBadges}, session).badges(["account-ana", "account-kiran", "account-guest"])).toEqual([
+            {accountId: "account-ana", streak: 12, wornTitle: settler},
+            {accountId: "account-kiran", streak: 3, wornTitle: undefined},
+        ])
+        expect(getBadges).toHaveBeenCalledWith({accountIds: ["account-ana", "account-kiran", "account-guest"]})
+        expect(session.token).not.toHaveBeenCalled()
+    })
+
+    it("reports a failure as it is, a backend that does not serve them yet too", async () => {
+        const error = await backendWith({getBadges: refusing(Code.Unimplemented)}).badges(["account-ana"]).catch((e) => e)
+
+        expect(error).toBeInstanceOf(ConnectError)
     })
 })
 

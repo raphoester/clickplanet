@@ -19,7 +19,7 @@ import {authorStyle} from "../chat/authorStyle.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import RankCoin from "../components/RankCoin.tsx"
 import {BackIcon} from "../components/icons.tsx"
-import TitleBadge from "../titles/TitleBadge.tsx"
+import WornTitle from "../badges/WornTitle.tsx"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
 import RaceChart from "./RaceChart.tsx"
 import Podium from "./Podium.tsx"
@@ -191,7 +191,7 @@ function PlayerRows({rows}: {rows: Barred<Standing>[]}) {
                 <span className="season-stats-name season-stats-player"
                       style={authorStyle({color: row.color, guest: false})}
                       title={words.masked(row.name)}>{words.masked(row.name)}</span>
-                <TitleBadge title={row.wornTitle} size={18}/>
+                <WornTitle accountId={row.accountId} size={18}/>
             </span>
             <span className="season-stats-value">{numbers.format(row.tiles)}</span>
         </li>)}

@@ -59,6 +59,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   (flags, shares, fortify) and light it up; a click flies down to it.
 - [Support](docs/support.md) — suggestions, bug reports and reports of a player.
 - [Titles](docs/titles.md) — the ranks on each track, the medals, the unlock moment.
+- [Badges](docs/badges.md) — a name's streak and worn title, read by account id from one store that batches,
+  keeps them 5 minutes and takes the page's own changes at once; the readers.
 - [Season standings](docs/season-standings.md) — the players' table of the season.
 - [The season](docs/season.md) — the season chip and its clocks, the Final Battle to come in its look and its
   details, and the home page's countdowns and Final Battle panel.

@@ -30,6 +30,7 @@ import {
     TitleDashboard,
     TitleTrack,
 } from "./player.ts"
+import {AccountBadge, BadgesBackend} from "./badges.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {titleOf} from "./title.ts"
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
@@ -61,7 +62,7 @@ const FAILURES: Partial<Record<Code, PlayerFailure>> = {
     [Code.FailedPrecondition]: "unnamed",
 }
 
-export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, PlayerInfoBackend {
+export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, PlayerInfoBackend, BadgesBackend {
     constructor(
         private readonly client: PromiseClient<typeof PlayerService>,
         private readonly session: SessionProvider,
@@ -188,6 +189,16 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
         }
     }
 
+    // No retry here: the badges store reads them again later.
+    public async badges(accountIds: readonly string[]): Promise<AccountBadge[]> {
+        const res = await this.client.getBadges({accountIds: [...accountIds]})
+        return res.badges.map((badge) => ({
+            accountId: badge.accountId,
+            streak: badge.streak,
+            wornTitle: titleOf(badge.wornTitle),
+        }))
+    }
+
     private async authenticated<T>(call: (headers: Headers) => Promise<T>): Promise<T> {
         try {
             try {
@@ -229,8 +240,6 @@ function rosterEntryOf(entry: RosterEntryPb): RosterEntry {
         guest: entry.guest,
         admin: entry.admin,
         color: entry.color,
-        streak: entry.streak,
-        wornTitle: titleOf(entry.wornTitle),
     }
 }
 

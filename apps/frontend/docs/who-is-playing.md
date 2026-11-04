@@ -20,25 +20,19 @@ code. No address, and no hash of one, is on it.
   over the above, the roster's store `useRoster`, `PlayersPanel`, `PlayerCard`,
   and `usePlayerCard` with `PlayerCardPlace`, the one card open.
 
-**A name wears its color and its streak** everywhere it is drawn: the chat log,
-the folded quote, the roster and the card. Both come from the server with the
-name (`ChatMessage.authorColor` and `authorStreak`, `RosterEntry.color` and
-`streak`, `PlayerInfo.color`), read from the account when shown, so a new pick
-shows on everything its player ever said once the chat is read again. The
-flame (`StreakFlame`) is the Noto fire of the reactions, `role="img"` named
-"12-day streak", and is left out under 3 days (`streakShown`). It is a button: a
-press, or a mouse resting on it, says "Played 12 days in a row" in a `Bubble`,
-which goes when the log under it scrolls. **A guest has
-neither**: the server sends it no color and a streak of 0, so a signed-in player
-shows a flame only once it has a username.
+**A name wears its color** everywhere it is drawn: the chat log, the folded quote, the roster and the card. It
+comes from the server with the name (`ChatMessage.authorColor`, `RosterEntry.color`, `PlayerInfo.color`), read
+from the account when shown, so a new pick shows on everything its player ever said once the chat is read again.
 
-**A name wears its title too**, in the chat log, the roster and the season board: the medal of the
-title its player wears, small, after the crown (`TitleBadge`, a `TitleEmblem`
-with `role="img"` named by the title). The server sends it with the name
-(`ChatMessage.authorTitle`, `RosterEntry.wornTitle`, `Standing.wornTitle`), read when shown, so a new
-pick shows on the roster at once, on the next message, and on older ones once the
-chat is read again. A guest
-wears none. `backends/title.ts` holds `PlayerTitle` and `titleOf`, the one
+**A name wears its badges, its streak and its title**, in the chat log, the roster, the season board and the
+cards. They do not come with the name: each is read from the badges store by the line's `accountId` (see
+[Badges](badges.md)), so another player's new title or longer streak shows within 5 minutes, and your own at once.
+The flame (`StreakFlame`, drawn by `Streak`) is the Noto fire of the reactions, `role="img"` named "12-day streak",
+and is left out under 3 days (`streakShown`). It is a button: a press, or a mouse resting on it, says "Played 12
+days in a row" in a `Bubble`, which goes when the log under it scrolls. The title is the medal of the title its
+player wears, small, after the crown (`TitleBadge`, drawn by `WornTitle`, a `TitleEmblem` with `role="img"` named
+by the title). **A guest has neither**, nor a color: the server gives a guest no badge, so a signed-in player shows
+a flame and a medal only once it has a username. `backends/title.ts` holds `PlayerTitle` and `titleOf`, the one
 decoder of `player.v1.Title`, shared by the chat, the player and the standings backends.
 
 **An admin of the game wears a crown** (`AdminCrown`, gold, `role="img"` named
@@ -59,8 +53,8 @@ player in it themselves, and the last two close their own card first. `PlayerCar
 shows the card. `Viewer` renders it only with a `PlayerInfoBackend` wired, and the
 store is `openable` only while it is there: without it the names are plain text. The card shows the
 flag and the country, then, for a player with a username, what
-`player.v1.PlayerService/GetPlayer` answers: the title it wears and the titles
-it shows (see [Titles](titles.md)), then tiles taken, the current and best
+`player.v1.PlayerService/GetPlayer` answers: the titles it shows, under the title it wears, which is its badge
+(see [Titles](titles.md) and [Badges](badges.md)), then tiles taken, the current and best
 streak, and "Playing since", the day the account was made (left out when the
 server does not know it). Under them, **"Fought for" and "Fought against"**
 (`PlayerFronts`): the countries the player took tiles for, and the ones it took

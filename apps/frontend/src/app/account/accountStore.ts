@@ -21,6 +21,7 @@ import {
     TitleDashboard,
 } from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
+import {useBadges} from "../badges/badgesStore.ts"
 import {CrazyGamesUser} from "../../backends/crazyGames.ts"
 import {crazyGamesUserOf, leaving, LeaverStore} from "../../domain/crazyGames.ts"
 
@@ -85,9 +86,19 @@ export class AccountStore {
 
     public state = (): AccountState => this.current
 
-    public titles = (): Promise<TitleDashboard> => this.player.titles()
+    public titles = async (): Promise<TitleDashboard> => {
+        const generation = this.generation
+        const dashboard = await this.player.titles()
+        this.wore(generation, dashboard.worn)
+        return dashboard
+    }
 
-    public wearTitle = (id: string): Promise<PlayerTitle | undefined> => this.player.wearTitle(id)
+    public wearTitle = async (id: string): Promise<PlayerTitle | undefined> => {
+        const generation = this.generation
+        const worn = await this.player.wearTitle(id)
+        this.wore(generation, worn)
+        return worn
+    }
 
     public fronts = (): Promise<Fronts> => this.player.fronts()
 
@@ -376,6 +387,13 @@ export class AccountStore {
             return
         }
         this.set({...ready, accountId, username: name, color, renamableAt})
+    }
+
+    // The title this account wears now goes beside its name everywhere on the page, before any read of its badge.
+    private wore(generation: number, worn: PlayerTitle | undefined) {
+        const ready = this.current
+        if (generation !== this.generation || ready.kind !== "ready" || ready.accountId === undefined) return
+        useBadges.getState().wear(ready.accountId, worn)
     }
 
     private begin(action: AccountAction) {

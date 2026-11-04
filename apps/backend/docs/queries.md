@@ -2,7 +2,7 @@
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
-(`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
+(`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetBadges`, `GetRoster`), planet
 (`GetTakesByCountry`, `GetLedgerTotals`, `GetMapHistory`, `GetTerritories`, `GetLedger`, `GetTileHolder`, `GetLandmass`, `GetHoldings`),
 gamemaster (`GetSeasonTotals`, `GetSeasonReplay`), auth
 (`GetMe`, `GetAccount`, `GetAccounts`), scoring (`GetBoard`, `GetMyTally`, `GetRound`, `GetScores`, `GetBookHistory` and the live stream) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
@@ -27,7 +27,7 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   adapter is a subpackage (`history_query/rpc_player_authors`). The query asks it once and stitches the answer on.
   An adapter the commands already use is reused rather than copied: `player_query.Accounts` is
   `players/rpc_account_reader`. **The adapter is the only bridge to the domain**: the titles catalog is game rules as
-  objects, so `GetPlayer`, `GetTitles` and `GetAuthors` reach it through a `Titles` port that takes the ids SQL read
+  objects, so `GetPlayer`, `GetTitles`, `GetAuthors` and `GetBadges` reach it through a `Titles` port that takes the ids SQL read
   and answers `*player.v1.Title`, implemented by `playerv1controller/inprocess_title_catalog`; the roster is state in
   memory, reached through `roster_query.Lines`, implemented by `roster_query/inmemory_roster`.
 - **Independent parts run at once** (`errgroup`): the messages and their authors, and the announcements.
@@ -51,7 +51,8 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   names them with a map of its own, as `authprovider` does. The handlers still parse an id with
   `accounts.AccountIDOf`, as every edge does.
 - **Every rule written twice has a parity test**, which runs the same stored rows through both copies and asks for
-  the same answer. Player: a command's stats as of a day against `GetStats`, and `GetAuthor` against `GetAuthors`.
+  the same answer. Player: a command's stats as of a day against `GetStats`, `GetAuthor` against `GetAuthors`, and `GetAuthors` against
+  `GetBadges`.
   Chat (`history_query/parity_test.go`): a message is in the
   history exactly when `React` may react to it and `SendMessage` may reply to it; `React`'s answer against the
   history's reactions, cap of names included; `SendMessage`'s answer against the message the history reads back,

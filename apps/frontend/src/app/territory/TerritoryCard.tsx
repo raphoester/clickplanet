@@ -9,6 +9,7 @@ import CountryFlag from "../components/CountryFlag.tsx"
 import PointerCard from "../components/PointerCard.tsx"
 import RankCoin from "../components/RankCoin.tsx"
 import StreakFlame from "../components/StreakFlame.tsx"
+import {useBadge} from "../badges/badgesStore.ts"
 import {truncate} from "../truncate.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {usePlayerCard} from "../players/playerCardStore.ts"
@@ -112,13 +113,14 @@ export default function TerritoryCard({shown, flag, players, now = Date.now(), o
 function PlayerName({line, onOpen}: {line: PlayerLine, onOpen?: (player: PlayerLine) => void}) {
     const shown = useWordFilter().masked(line.name)
     const text = truncate(shown, NAME_MAX_LENGTH)
+    const streak = useBadge(line.accountId)?.streak ?? 0
     // The flame is a button of its own: it stands beside the name's button, never inside it.
     return <span className="territory-card-player-name">
         {!onOpen || line.guest || !line.accountId
             ? <span className="territory-card-player-name-text" title={shown}>{text}</span>
             : <button type="button" className="territory-card-player-name-text" title={shown} onClick={() => onOpen(line)}>{text}</button>}
         {line.admin && <AdminCrown/>}
-        <StreakFlame days={line.streak}/>
+        <StreakFlame days={streak}/>
     </span>
 }
 

@@ -7,8 +7,8 @@ import {SETTLE_MS} from "../../domain/presence.ts"
 import {useRoster} from "./rosterStore.ts"
 import {useRosterFeed} from "./useRosterFeed.ts"
 
-const ana: RosterEntry = {key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
-const bo: RosterEntry = {key: "k2", accountId: "account-bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
+const ana: RosterEntry = {key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED}
+const bo: RosterEntry = {key: "k2", accountId: "account-bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED}
 
 const roster = () => useRoster.getState().state
 

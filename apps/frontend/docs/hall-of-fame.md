@@ -33,7 +33,8 @@ Previous, Next, a dot per slide and the arrow keys move between them.
    its line's colour. Hovering a legend entry, or any point of a line, brings that line forward and dims the others;
    each point is a button that opens a `Bubble` on the flag, when its round ended and its value (with the points that
    round added).
-3. **Top players**: the book's board (`GetBoard`, `StandingsBackend.board`), each name in its colour with its title.
+3. **Top players**: the book's board (`GetBoard`, `StandingsBackend.board`), each name in its colour with the title
+   it wears now (its badge, by account, see [Badges](badges.md)), on this slide and the Final Battle's.
 4. **Final Battle, top flags**: its round (`GetRound` by the season's `finaleRoundId`), the flags that scored, their
    points (×times in the head) and the tiles their players took (`takes`, which the debrief no longer shows).
 5. **Final Battle, top players**: the round's ten best players, as the debrief's last screen.

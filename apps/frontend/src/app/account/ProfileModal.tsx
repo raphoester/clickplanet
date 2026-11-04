@@ -12,6 +12,7 @@ import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {days} from "../days.ts"
 import {FrontList} from "../players/PlayerFronts.tsx"
 import {usePlayerInfo} from "../players/usePlayerInfo.ts"
+import {useOwnStreak} from "../badges/badgesStore.ts"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import {useOwnTakes} from "../viewer/useAcceptedClicks.ts"
@@ -139,6 +140,7 @@ function WornTitle({title}: {title: PlayerTitle}) {
 function OwnStats({backend, accountId, listenForClicks}: {backend: PlayerInfoBackend, accountId: string, listenForClicks?: ListenForClicks}) {
     const state = usePlayerInfo(backend, {accountId, guest: false})
     const takes = useOwnTakes(listenForClicks)
+    useOwnStreak(accountId, state.kind === "ready" ? state.info.streakCurrent : undefined)
     if (state.kind !== "ready") return null
 
     const info = state.info

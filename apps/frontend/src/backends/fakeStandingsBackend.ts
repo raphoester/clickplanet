@@ -1,10 +1,12 @@
 import {fakeAccountId} from "./fakeAccounts.ts"
 import {STANDINGS_SHOWN} from "../domain/standings.ts"
 import {TileClicker} from "./backend.ts"
+import {Badge} from "./badges.ts"
 import {NameColor, PlayerTitle} from "./player.ts"
 import {BookStep, MySeason, RaceListener, Round, RoundStanding, RoundTakes, Score, Standing, StandingsBackend} from "./standings.ts"
 
-export type FakePlayer = Pick<Standing, "name" | "color" | "wornTitle"> & {tiles: Record<string, number>}
+// The title worn is the player's badge: the board names it, and GetBadges draws the title.
+export type FakePlayer = Pick<Standing, "name" | "color"> & {tiles: Record<string, number>, wornTitle?: PlayerTitle}
 
 const conquest = (id: string, name: string, number: number): PlayerTitle =>
     ({id, name, rank: {trackId: "conquest", trackName: "Conquest", number, count: 5}})
@@ -137,11 +139,19 @@ export class FakeStandingsBackend implements StandingsBackend {
         this.listeners.forEach((send) => send())
     }
 
+    // What GetBadges answers for a player of the board: the title it wears, and no streak. Undefined for an account
+    // this fake does not know.
+    public badgeOf(accountId: string): Badge | undefined {
+        const player = this.players.find(({name}) => fakeAccountId(name) === accountId)
+        return player && {streak: 0, wornTitle: player.wornTitle}
+    }
+
     private top(countryCode: string): Standing[] {
         const sorted = this.players
-            .map(({tiles, ...player}) => ({
-                ...player,
-                accountId: fakeAccountId(player.name),
+            .map(({name, color, tiles}) => ({
+                name,
+                color,
+                accountId: fakeAccountId(name),
                 ...lineOf(new Map(Object.entries(tiles)), countryCode),
             }))
             .filter((line) => line.tiles > 0)
@@ -217,9 +227,9 @@ export class FakeStandingsBackend implements StandingsBackend {
 
     private fighters(): Standing[] {
         const sorted = this.players
-            .map(({tiles, ...player}) => {
+            .map(({name, color, tiles}) => {
                 const [countryCode, held] = Object.entries(tiles).sort(([, x], [, y]) => y - x)[0]
-                return {...player, accountId: fakeAccountId(player.name), countryCode, tiles: Math.round(held * TAKEN_IN_BATTLE * this.random())}
+                return {name, color, accountId: fakeAccountId(name), countryCode, tiles: Math.round(held * TAKEN_IN_BATTLE * this.random())}
             })
             .filter((line) => line.tiles > 0)
             .sort((a, b) => b.tiles - a.tiles)

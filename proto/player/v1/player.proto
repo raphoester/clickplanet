@@ -30,6 +30,11 @@ service PlayerService {
   rpc WearTitle(WearTitleRequest) returns (WearTitleResponse);
 
   rpc GetFronts(GetFrontsRequest) returns (GetFrontsResponse);
+
+  // The badges of a page of accounts, for the page to draw beside their names. At most 100 ids, or InvalidArgument.
+  rpc GetBadges(GetBadgesRequest) returns (GetBadgesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message Profile {
@@ -199,4 +204,21 @@ message WearTitleRequest {
 
 message WearTitleResponse {
   Title worn = 1;
+}
+
+message GetBadgesRequest {
+  repeated string account_ids = 1;
+}
+
+// Only the accounts with a badge to show, once each: an unknown one, a guest, one asked deleted, or one with neither a
+// streak nor a title is left out.
+message GetBadgesResponse {
+  repeated Badge badges = 1;
+}
+
+// What is drawn beside a player's name: its streak as of today, and the title it wears.
+message Badge {
+  string account_id = 1;
+  uint32 streak = 2;
+  Title worn_title = 3;
 }

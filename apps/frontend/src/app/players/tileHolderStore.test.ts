@@ -3,7 +3,7 @@ import {NameColor} from "../../backends/player.ts"
 import {HolderShown, holderHeld, useTileHolder} from "./tileHolderStore.ts"
 
 const shown = (id: number): HolderShown => ({
-    line: {accountId: "account-ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+    line: {accountId: "account-ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED},
     playsFor: [], mine: false, takenAt: 1_000, point: {x: 300, y: 200}, touch: false, id,
 })
 

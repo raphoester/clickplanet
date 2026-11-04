@@ -157,7 +157,8 @@ screen and the rays in `--war`.
      `POINTS_SHOWN` (10) and the player's under them), its rank, its points before the
      times and ×times ("25 ×3"), and the total, drawn as a bar against the best; "Points
      ×3" in a war chip under the head. Skipped when no country scored.
-  3. `players` — "Top players": rank, flag, name in its colour, the title worn, tiles;
+  3. `players` — "Top players": rank, flag, name in its colour, the title it wears now (its badge, by account, see
+     [Badges](badges.md)), tiles;
      the player's own row is found by account id, never by name. Skipped with none.
 - **Each shows its button after `BATTLE_DEBRIEF`** (2.4 s, 2.2 s, 2.2 s): Next while a
   screen follows (`revealFollowed`), "To the globe" on the last. Escape closes it then.

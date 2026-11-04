@@ -1,23 +1,25 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import HolderCard from "./HolderCard.tsx"
 import {usePlayerCard} from "./playerCardStore.ts"
 import {DELETED_ACCOUNT} from "./tileHolder.ts"
 import {HolderShown} from "./tileHolderStore.ts"
 import {NameColor, PlayerLine} from "../../backends/player.ts"
+import {useBadges} from "../badges/badgesStore.ts"
 
 const NOW = 1_761_393_600_000
 
 const FOX: PlayerLine = {
     accountId: "account-fox", name: "BraveFox42", countryCode: "fr", guest: false, admin: false,
-    color: NameColor.TEAL, streak: 4,
-    wornTitle: {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}},
+    color: NameColor.TEAL,
 }
+
+const WARLORD = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
 
 const GUEST: PlayerLine = {
     accountId: "account-guest", name: "guest_91aa3d", countryCode: "de", guest: true, admin: false,
-    color: NameColor.UNSPECIFIED, streak: 0,
+    color: NameColor.UNSPECIFIED,
 }
 
 const pressed = (pointerType: string) => Object.assign(new Event("pointerdown", {bubbles: true}), {pointerType})
@@ -33,9 +35,14 @@ function show(line: PlayerLine, props: Partial<Parameters<typeof HolderCard>[0]>
 }
 
 describe("HolderCard", () => {
+    beforeEach(() => {
+        useBadges.setState({badges: {[FOX.accountId]: {streak: 4, wornTitle: WARLORD}}})
+    })
+
     afterEach(() => {
         cleanup()
         usePlayerCard.setState({openable: false, player: undefined})
+        useBadges.getState().serve(undefined)
     })
 
     it("says who holds the tile, the title it wears and when it took it, beside the pointer", () => {

@@ -9,6 +9,7 @@ import {ColoredProfile, Fronts, NameColor, PlayerBackend, PlayerError, PlayerTit
 export type FakeCareer = {
     ownDashboard(): TitleDashboard
     ownFronts(): Fronts
+    wear(id: string): PlayerTitle | undefined
 }
 
 export class FakeAccountBackend implements AccountBackend, PlayerBackend {
@@ -97,8 +98,9 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend {
         return this.career?.ownDashboard() ?? {wearable: [], tracks: []}
     }
 
-    public async wearTitle(): Promise<PlayerTitle | undefined> {
-        return undefined
+    public async wearTitle(id: string): Promise<PlayerTitle | undefined> {
+        this.requireSignedIn()
+        return this.career?.wear(id)
     }
 
     public async fronts(): Promise<Fronts> {

@@ -12,7 +12,6 @@ export function deletedLineOf(countryCode: string): PlayerLine {
         guest: false,
         admin: false,
         color: NameColor.UNSPECIFIED,
-        streak: 0,
     }
 }
 
@@ -24,7 +23,5 @@ export function playerLineOf(accountId: string, countryCode: string, info: Playe
         guest: info.guest,
         admin: info.admin,
         color: info.color,
-        streak: info.streakCurrent,
-        wornTitle: info.wornTitle,
     }
 }

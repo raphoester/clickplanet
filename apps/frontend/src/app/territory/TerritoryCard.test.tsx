@@ -8,6 +8,7 @@ import {NameColor, PlayerLine} from "../../backends/player.ts"
 import {TerritoryPlayers} from "./territoryPlayersStore.ts"
 import {deletedLineOf} from "../players/tileHolder.ts"
 import {usePlayerCard} from "../players/playerCardStore.ts"
+import {useBadges} from "../badges/badgesStore.ts"
 
 const SICILY: Territory = {
     landmass: 12,
@@ -30,7 +31,7 @@ const SICILY: Territory = {
 const NOW = 1_761_393_600_000
 
 const lineOf = (name: string, countryCode: string, guest = false): PlayerLine => ({
-    accountId: `account-${name}`, name, countryCode, guest, admin: false, color: NameColor.TEAL, streak: 0,
+    accountId: `account-${name}`, name, countryCode, guest, admin: false, color: NameColor.TEAL,
 })
 
 const PLAYERS: TerritoryPlayers = {
@@ -38,10 +39,13 @@ const PLAYERS: TerritoryPlayers = {
     fortifier: {line: lineOf("Mateus", "it"), at: NOW - 3 * 60 * 60_000},
 }
 
+// Their streaks are their badges, kept by account.
 const STREAKED: TerritoryPlayers = {
-    top: [{line: {...lineOf("Ana", "fr"), admin: true, streak: 12}, tiles: 400}],
-    fortifier: {line: {...lineOf("Mateus", "it"), streak: 4}, at: NOW - 3 * 60 * 60_000},
+    top: [{line: {...lineOf("Ana", "fr"), admin: true}, tiles: 400}],
+    fortifier: {line: lineOf("Mateus", "it"), at: NOW - 3 * 60 * 60_000},
 }
+
+const STREAKS = {"account-Ana": {streak: 12}, "account-Mateus": {streak: 4}}
 
 const shown = (territory: Territory): TerritoryShown => ({territory, point: {x: 300, y: 200}, touch: false, id: 1})
 
@@ -55,6 +59,7 @@ describe("TerritoryCard", () => {
     afterEach(() => {
         cleanup()
         usePlayerCard.setState({openable: false, player: undefined})
+        useBadges.getState().serve(undefined)
     })
 
     it("names the territory and its size, beside the pointer", () => {
@@ -126,6 +131,7 @@ describe("TerritoryCard", () => {
     it("says a streak when its flame is pressed, and opens no card", () => {
         usePlayerCard.setState({openable: true})
         const onClose = vi.fn()
+        useBadges.setState({badges: STREAKS})
         show(SICILY, {players: STREAKED, onClose})
 
         fireEvent.click(screen.getByRole("button", {name: "12-day streak"}))
@@ -139,6 +145,7 @@ describe("TerritoryCard", () => {
     it("opens a card from a name that wears a crown and a flame", () => {
         usePlayerCard.setState({openable: true})
         const onClose = vi.fn()
+        useBadges.setState({badges: STREAKS})
         show(SICILY, {players: STREAKED, onClose})
 
         fireEvent.click(screen.getByRole("button", {name: "Ana"}))
@@ -152,6 +159,7 @@ describe("TerritoryCard", () => {
     it("puts no button inside another", () => {
         const warned = vi.spyOn(console, "error").mockImplementation(() => {})
         usePlayerCard.setState({openable: true})
+        useBadges.setState({badges: STREAKS})
         show(SICILY, {players: STREAKED})
 
         const buttons = within(screen.getByRole("region", {name: "Sicily"})).getAllByRole("button")

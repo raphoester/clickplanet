@@ -27,7 +27,8 @@ is the player's own view.
   since an SVG presentation attribute does not resolve `var()`.
 - **The public card** wears the worn title: a banner (`TitleBanner`, the rank line
   and the name), and a ring of its metal inside the card's ink border
-  (`title-frame-<metal>` on the `Modal`). Under it, one medal per title shown, with its name. A hover or a press on a
+  (`title-frame-<metal>` on the `Modal`). The worn title is the player's badge (see [Badges](badges.md)), read
+  again as the card opens; the medals under it are `GetPlayer`'s. Under it, one medal per title shown, with its name. A hover or a press on a
   medal says in a `Bubble` how it was earned (`feat`, the server's words: "Took 1,000 tiles"), as the streak flame
   does. A title the server sends no feat for is not a button.
   OG is also a stamp beside the name (`OgStamp`).
@@ -52,7 +53,8 @@ is the player's own view.
   (`useOwnTakes`): `GetPlayer` is cached 10s, so it is read only once.
 - **The unlock moment is live.** The player stream carries `titleEarned` to a
   stream opened with this player's token. `useRosterFeed` hands it to `Viewer`, which
-  announces it (the announcements queue, in [Battles](battle.md#the-announcements-queue));
+  announces it (the announcements queue, in [Battles](battle.md#the-announcements-queue)), and reads its own badge
+  again, since the title worn may follow the one earned ([Badges](badges.md));
   `Moments` shows `TitleUnlocked` over the game, one full-screen moment at a time. It is not a
   `Modal` but the whole screen: it goes dark, "New title!" slams in, the medal
   spins in and lands with a flash, a shockwave and confetti, then the name and the
@@ -65,7 +67,9 @@ is the player's own view.
   rank per track of what one take earned, so a jump of two ranks is one overlay.
   A title earned while no tab is open is never announced; it is simply there next
   time.
-- **The worn title follows the name** in the chat, the roster and the season
-  board, as a small medal (see [Who is playing](who-is-playing.md)).
+- **The worn title follows the name** in the chat, the roster, the season
+  board, a tile's holder, the Hall of Fame's and the debrief's players, as a small medal, and on the player card's
+  banner: it is a badge, kept by account in the badges store, which `WearTitle`, `GetTitles` and a title earned
+  update at once for the player's own account (see [Badges](badges.md)).
 - **UI copy is not documentation.** The card and the tab say nothing about the
   rules ("one per track", "others see the title you wear"): what is drawn is the rule.

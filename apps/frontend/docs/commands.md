@@ -106,6 +106,7 @@ close nothing, for the bubble that says so, and `closeShapes(true)` puts it back
 minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
 `fakeBackend.setTempo(3)` refills the bank three times as fast, as a rule set
 of the server can, and `fakeBackend.setTempo(1)` puts it back.
+`fakeBadges.calls` counts the `GetBadges` calls the page made (see [Badges](badges.md)).
 `offerSignIn()` offers the fake guest Google, Discord and email, so the sign-in pitch and the nudge show on an
 empty bank (the buttons are refused: the fake has no flow).
 `signIn("Nova")` signs the fake account in, with that username (see [Sign-in](sign-in.md)). From a guest it is a

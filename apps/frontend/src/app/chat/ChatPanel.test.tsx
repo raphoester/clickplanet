@@ -39,7 +39,6 @@ const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMess
     authorName: "Ana",
     authorAdmin: false,
     authorColor: NameColor.UNSPECIFIED,
-    authorStreak: 0,
     countryCode: "fr",
     text,
     reactions: [],
@@ -1282,8 +1281,8 @@ describe("ChatPanel on a desktop", () => {
 
 describe("ChatPanel's players", () => {
     const players: RosterEntry[] = [
-        {key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
-        {key: "k2", accountId: "account-b0b", name: "guest_b0b0b0", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+        {key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED},
+        {key: "k2", accountId: "account-b0b", name: "guest_b0b0b0", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED},
     ]
 
     it("shows who is online beside the chat, and goes back to it", async () => {

@@ -1,6 +1,7 @@
 import {FAKE_YOU, fakeAccountId} from "./fakeAccounts.ts"
 import {OWN_GUEST_NAME} from "./fakeChatBackend.ts"
 import {compareRosterEntries} from "../domain/roster.ts"
+import {Badge} from "./badges.ts"
 import {
     CountryTiles,
     Fronts,
@@ -77,10 +78,13 @@ function dashboardOf(tilesTaken: number, streakBest: number, titles: PlayerTitle
     return {worn: titles.find((title) => title.rank) ?? titles[0], wearable: titles, tracks}
 }
 
-// The signed-in player of the fake: not in the roster, but with a career, so its profile has something to show.
-const YOU: RosterEntry = {key: "you", accountId: FAKE_YOU, name: "you", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 9}
+// A roster line and the streak its badge shows.
+type FakePlayer = RosterEntry & {streak: number}
 
-const PLAYERS: RosterEntry[] = [
+// The signed-in player of the fake: not in the roster, but with a career, so its profile has something to show.
+const YOU: FakePlayer = {key: "you", accountId: FAKE_YOU, name: "you", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 9}
+
+const PLAYERS: FakePlayer[] = [
     {key: "1", accountId: fakeAccountId("Ana"), name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12},
     {key: "2", accountId: fakeAccountId("kiran_07"), name: "kiran_07", countryCode: "in", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 3},
     {key: "3", accountId: fakeAccountId("Mateus"), name: "Mateus", countryCode: "br", guest: false, admin: false, color: NameColor.TEAL, streak: 1},
@@ -93,6 +97,8 @@ const PLAYERS: RosterEntry[] = [
 
 export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
     private own?: {presence: Presence, at: number}
+    // The title the signed-in player chose to wear, if any.
+    private ownChoice?: string
     private readonly titleListeners = new Set<(title: PlayerTitle) => void>()
 
     constructor(private readonly now: () => number = () => Date.now()) {
@@ -153,13 +159,13 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         const now = this.now()
         const entries = PLAYERS
             .filter((_, index) => onShift(index, now))
-            .map((entry) => entry.guest ? entry : {...entry, wornTitle: this.career(entry).wornTitle})
+            .map(rosterEntryOf)
 
         if (this.own && now - this.own.at < 90_000) {
             const {countryCode} = this.own.presence
             entries.push({
                 key: OWN_KEY, accountId: fakeAccountId(OWN_GUEST_NAME), name: OWN_GUEST_NAME, countryCode,
-                guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0,
+                guest: true, admin: false, color: NameColor.UNSPECIFIED,
             })
         }
 
@@ -186,12 +192,35 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
             streakCurrent: player.streak,
             admin: player.admin,
             color: player.color,
+            wornTitle: player === YOU ? this.ownWorn() : career.wornTitle,
         }
+    }
+
+    // What GetBadges answers for an account: the streak and the title its roster line, its card and its messages
+    // show. Undefined for an account this fake does not know.
+    public badgeOf(accountId: string): Badge | undefined {
+        if (accountId === fakeAccountId(OWN_GUEST_NAME)) return {streak: 0}
+        if (accountId === FAKE_YOU) return {streak: YOU.streak, wornTitle: this.ownWorn()}
+        const player = PLAYERS.find((p) => p.accountId === accountId)
+        if (!player) return undefined
+        if (player.guest) return {streak: 0}
+        return {streak: player.streak, wornTitle: this.career(player).wornTitle}
     }
 
     public ownDashboard(): TitleDashboard {
         const career = this.career(YOU)
-        return dashboardOf(career.tilesTaken, career.streakBest, career.titles)
+        return {...dashboardOf(career.tilesTaken, career.streakBest, career.titles), worn: this.ownWorn()}
+    }
+
+    // WearTitle, for the signed-in player: it answers the title worn now.
+    public wear(id: string): PlayerTitle | undefined {
+        if (this.career(YOU).titles.some((title) => title.id === id)) this.ownChoice = id
+        return this.ownWorn()
+    }
+
+    private ownWorn(): PlayerTitle | undefined {
+        const {titles, wornTitle} = this.career(YOU)
+        return titles.find((title) => title.id === this.ownChoice) ?? wornTitle
     }
 
     public ownFronts(): Fronts {
@@ -199,7 +228,7 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         return {playsFor, playsAgainst}
     }
 
-    private career(player: RosterEntry) {
+    private career(player: FakePlayer) {
         const seed = [...player.name].reduce((sum, c) => sum * 31 + c.charCodeAt(0), 7) >>> 0
         const tilesTaken = seed % 25_000
         const streakBest = player.streak + seed % 40
@@ -214,6 +243,10 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
 }
 
 const SHOWN_FRONTS = 3
+
+function rosterEntryOf({key, accountId, name, countryCode, guest, admin, color}: FakePlayer): RosterEntry {
+    return {key, accountId, name, countryCode, guest, admin, color}
+}
 
 const RIVALS = ["de", "es", "it", "gb", "be", "pt", "nl", "pl", "br", "us", "jp", "in", "ru", "ca", "mx", "ch"]
 

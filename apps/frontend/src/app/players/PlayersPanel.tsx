@@ -5,8 +5,8 @@ import {rosterGroups} from "../../domain/roster.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
-import StreakFlame from "../components/StreakFlame.tsx"
-import TitleBadge from "../titles/TitleBadge.tsx"
+import Streak from "../badges/Streak.tsx"
+import WornTitle from "../badges/WornTitle.tsx"
 import {truncate} from "../truncate.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {usePlayerCard} from "./playerCardStore.ts"
@@ -64,8 +64,8 @@ function PlayersGroup({title, entries}: PlayersGroupProps) {
                         {truncate(words.masked(entry.name), NAME_MAX_LENGTH)}
                     </span>}
                 {entry.admin && <AdminCrown/>}
-                <TitleBadge title={entry.wornTitle} size={18}/>
-                <StreakFlame days={entry.streak}/>
+                <WornTitle accountId={entry.accountId} size={18}/>
+                <Streak accountId={entry.accountId}/>
             </li>)}
         </ul>
     </section>
