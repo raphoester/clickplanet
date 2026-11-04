@@ -46,6 +46,46 @@ export class PlayerCreated extends Message<PlayerCreated> {
 }
 
 /**
+ * A player signed in to this account, which is signed in now: told at every sign-in and link, the first or not, and
+ * whatever account the browser was on before.
+ *
+ * @generated from message player.v1.PlayerSignedIn
+ */
+export class PlayerSignedIn extends Message<PlayerSignedIn> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<PlayerSignedIn>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.PlayerSignedIn";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayerSignedIn {
+    return new PlayerSignedIn().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayerSignedIn {
+    return new PlayerSignedIn().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayerSignedIn {
+    return new PlayerSignedIn().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlayerSignedIn | PlainMessage<PlayerSignedIn> | undefined, b: PlayerSignedIn | PlainMessage<PlayerSignedIn> | undefined): boolean {
+    return proto3.util.equals(PlayerSignedIn, a, b);
+  }
+}
+
+/**
  * The account's player asked to delete it: the other players see it as deleted until it returns or is forgotten.
  * PlayerLeaving and PlayerReturned are on two streams, so a receiver keeps the later of them by decided_at.
  *

@@ -22,6 +22,7 @@ internal/player/internal/
       rename_player_usecase/audit_rename_player/   logs every rename at Warn
     usecases/name_account_usecase/  — a username for an account signed in to with none; on auth.v1.SignedIn; then player.v1.PlayerCreated
       name_account_usecase/renaming_name_account/   shows the name on the roster at once
+    usecases/tell_sign_in_usecase/  — on auth.v1.SignedIn: player.v1.PlayerSignedIn, every time
   departures/                       Departure (Decided, Leaving), Decision (Leaves, Returns, TakeSnapshot): an account its player
                                     asked to delete, hidden from the others; the Store port and its contract suite
     postgres_departure_store/       the Store over player.departures, under an advisory lock per account
@@ -47,7 +48,7 @@ internal/player/internal/
     caller/                         the account on the context, or Unauthenticated
     playermessage/                  Profile and the roster lines as player.v1 messages, for the commands and the adapters
   subscribers/                      the edge for events, as the controller is for the wire
-    account_deleted_subscriber/  signed_in_subscriber/  signed_out_subscriber/  signed_in_account_subscriber/
+    account_deleted_subscriber/  signed_in_subscriber/  signed_out_subscriber/  signed_in_account_subscriber/  signed_in_told_subscriber/
     deletion_requested_subscriber/  restored_subscriber/  deletion_requested_account_subscriber/
     log_subscriber/
   migrations/
@@ -169,12 +170,22 @@ internal/player/internal/
 ## What player tells the others
 
 **Player is the other modules' one source on an account**, so they need not hear auth: auth is player's detail. Each
-event goes through player's outbox (relay `player-outbox`; `outbox_event` gained the three below in migration
-`20261104190000_departure_events`), in the transaction of what it tells, since a lost one would leave a module
+event goes through player's outbox (relay `player-outbox`; `outbox_event` gained `PlayerLeaving`, `PlayerReturned` and
+`PlayerForgotten` in migration `20261104190000_departure_events`, `PlayerSignedIn` in
+`20261104220000_signed_in_event`), in the transaction of what it tells, since a lost one would leave a module
 disagreeing with player for good (see [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox)).
-Progression hears all four; the other modules still hear auth's events, and moving them to these is a later step.
+Progression hears `PlayerCreated`, `PlayerLeaving`, `PlayerReturned` and `PlayerForgotten`; the other modules still
+hear auth's events, and moving them to these is a later step.
 
 - **`player.v1.PlayerCreated{account_id}`**: an account became a player (above).
+- **`player.v1.PlayerSignedIn{account_id}`**: a player signed in to the account, which is signed in now.
+  `tell_sign_in_usecase` records it on **every** `auth.v1.SignedIn` (`player-sign-ins`, `signed_in_told_subscriber`):
+  a first link, a sign-in to an account linked long ago, a switch from the browser's guest to another account, a new
+  account. It is not `PlayerCreated`, which is told once per profile, never for an account that held one already, and
+  not when no name could be drawn (`ErrNoFreeName`); its own group, so a name drawn or not changes nothing to it.
+  Missions pays then what the account finished as a guest (see [Missions](missions.md)).
+  `TestEverySignInIsToldToTheOtherModules` pins it; migration `20261104220000_signed_in_event` gives it its place in
+  `outbox_event`, and `TestEveryEventPlayerTellsHasAPlaceInItsOutbox` pins every event's.
 - **`player.v1.PlayerLeaving{account_id, decided_at}`** and **`PlayerReturned{account_id, decided_at}`**: its player
   asked to delete it, or a sign-in brought it back (see [An account asked deleted](#an-account-asked-deleted)).
   `decide_departure_usecase` records one **for every decision, applied or not**, in the transaction of the departure:

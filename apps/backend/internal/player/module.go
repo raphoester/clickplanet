@@ -29,6 +29,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_color_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase/renaming_set_name"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/tell_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler/admin_player_query"
@@ -64,6 +65,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/restored_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_account_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_told_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
@@ -179,6 +181,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the names to auth.v1.SignedIn: %w", err)
 	}
+	told, err := cpredis.Subscribe(ctx, streams, "player-sign-ins",
+		log_subscriber.New(signed_in_told_subscriber.New(tell_sign_in_usecase.New(db, outbox)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the sign-ins told to auth.v1.SignedIn: %w", err)
+	}
 	signOuts, err := cpredis.Subscribe(ctx, streams, "player-presence-sign-outs",
 		log_subscriber.New(signed_out_subscriber.New(forgetVisit), props.Logger))
 	if err != nil {
@@ -199,7 +207,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-		deletions, requests, restores, forgottenDepartures, signIns, namings, signOuts, gone, leaving,
+		deletions, requests, restores, forgottenDepartures, signIns, namings, told, signOuts, gone, leaving,
 		cpoutbox.NewRelay("player-outbox", db, streams, props.Logger))))
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
