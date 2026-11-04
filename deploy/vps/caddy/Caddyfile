@@ -46,7 +46,7 @@
 		Access-Control-Allow-Credentials "true"
 		Access-Control-Allow-Methods "GET, POST, OPTIONS"
 		Access-Control-Allow-Headers "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-Session-Token, X-Account-Session"
-		Access-Control-Expose-Headers "X-Account-Session"
+		Access-Control-Expose-Headers "X-Account-Session, X-Server-Boot"
 		Vary "Origin"
 		-Server
 	}

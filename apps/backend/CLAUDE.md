@@ -42,6 +42,8 @@ and says what is in it. Read the doc before you change its area.
 - [Shared](docs/shared.md) — the `internal/shared/` `cp*` infrastructure packages.
 - [The error net](docs/error-net.md) — no handler's raw error reaches the wire.
 - [Shared interceptors](docs/interceptors.md) — the `shared/cpconnect` interceptors that all contexts use.
+- [A server restart reloads the page](../../docs/reload-on-restart.md) — `X-Server-Boot` on every public answer, drawn
+  at each start; a wire change is a hard switch.
 
 ## The tile game (planet)
 

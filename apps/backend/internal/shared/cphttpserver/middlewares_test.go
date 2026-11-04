@@ -106,7 +106,7 @@ func TestCorsMiddlewareAllowsTheSessionHeader(t *testing.T) {
 	require.Contains(t, allowed, "Content-Type")
 	require.Contains(t, allowed, "Connect-Protocol-Version")
 	require.Contains(t, allowed, cpconnect.AccountSessionHeader)
-	require.Equal(t, cpconnect.AccountSessionHeader, recorder.Header().Get("Access-Control-Expose-Headers"),
+	require.Contains(t, recorder.Header().Get("Access-Control-Expose-Headers"), cpconnect.AccountSessionHeader,
 		"a page that keeps no cookie reads its session from the answer")
 }
 
@@ -121,4 +121,19 @@ func TestCorsMiddlewareAllowsCredentialsFromTheConfiguredOrigin(t *testing.T) {
 		assert.Equal(t, "true", recorder.Header().Get("Access-Control-Allow-Credentials"), method)
 		assert.Equal(t, "Origin", recorder.Header().Get("Vary"), method)
 	}
+}
+
+func TestEveryResponseNamesTheBootAndThePageMayReadIt(t *testing.T) {
+	handler := cphttpserver.MiddlewareStack(
+		cphttpserver.NewCorsMiddleware("https://clickplanet.lol"),
+		cphttpserver.NewBootMiddleware("b00t"),
+	)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/x", nil))
+
+	assert.Equal(t, "b00t", recorder.Header().Get(cphttpserver.BootHeader))
+	assert.Contains(t, recorder.Header().Get("Access-Control-Expose-Headers"), cphttpserver.BootHeader)
 }

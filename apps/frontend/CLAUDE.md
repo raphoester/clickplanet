@@ -25,6 +25,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [`src/domain/`](docs/domain.md) — the logic worth testing: no GPU, no DOM, no React.
 - [`src/backends/`](docs/backends.md) — the contracts and the one Connect transport; the click budget; a frozen
   map; connection health.
+- [A server restart reloads the page](../../docs/reload-on-restart.md) — `restartInterceptor` reloads once the
+  backend answers under a new boot; which answers it trusts.
 - [The screen: four zones](docs/screen.md) — nothing is drawn over the globe but four zones; the phone form at
   768px wide or 600px high and under.
 - [Data flow](docs/data-flow.md) — from `createGlobe` to the screen, step by step.

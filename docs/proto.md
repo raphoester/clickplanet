@@ -33,3 +33,8 @@ cd apps/backoffice && npm run proto   # regenerates apps/backoffice/src/gen/grpc
 ```
 
 Every app's `buf.gen.yaml` reference `../../proto` (or `../../../proto` for the backend, whose config lives one level deeper at `apps/backend/proto/`) — do not create per-app copies of the `.proto` files again.
+
+**A change of the game's wire is a hard switch**: a page reloads when the backend restarts, so no tab keeps calling
+an old path or reading an old field (see [A server restart reloads the page](reload-on-restart.md)). A removed field's
+number and name are still `reserved`, never reused. The backoffice does not reload: an operator's call changed at once
+needs the admin page reloaded by hand.
