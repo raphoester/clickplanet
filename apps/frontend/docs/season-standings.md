@@ -32,9 +32,14 @@ With no book there are no boards. `app/standings/` draws it.
   backend's [Scoring](../../backend/docs/scoring.md)).
   `listenForRace` follows the stream for the book and the rounds asked for, today's
   (`Timeline.today.round_id`) and the running battle's (`Turn.round_id`), and reads
-  its `scores` and `round` cases. `useRace` follows it again when either id changes,
-  and keeps a round only while it is open (`raceOf`). `Viewer` follows it once and
-  hands it to the board. With a race the
+  its `scores` and `round` cases. **The race is a store**, `useRace`
+  (`app/standings/raceStore.ts`, see [Stores](stores.md)): it keeps the book's points
+  through new round ids and a round only while the same ones are asked, and only while
+  it is open (`raceOf`). `useRaceFeed`, which `Viewer` calls once with the backend and
+  the ids, follows the stream into it, again when either id changes, and leaves it
+  empty once it stops. `Leaderboard`, `Menu` and `BoardSheet` read it themselves;
+  `Viewer` reads it only for the order it ranks by, which it hands the anthem, the
+  status bar's rank and the shared picture. With a race the
   board keeps "% of map" and adds two columns: Points, each country's points from
   the days closed, right-aligned, and Today, what it scores if the day ends now, in
   green ("+18") and left-aligned. **Today is its own column so the points line up**:

@@ -1,6 +1,5 @@
 import "./Leaderboard.css"
 import {PointerEvent, ReactNode, useEffect, useId, useRef, useState} from "react";
-import {Race} from "../backends/standings.ts";
 import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry} from "../domain/leaderboard.ts";
 import {CountryLine, countryLines, CountryOrder, shownOrder} from "../domain/race.ts";
@@ -13,6 +12,7 @@ import CountryFlag from "./components/CountryFlag.tsx";
 import {SwordsIcon} from "./components/icons.tsx";
 import RankCoin from "./components/RankCoin.tsx";
 import {useBoardGuide} from "./boardGuideStore.ts";
+import {useRace} from "./standings/raceStore.ts";
 
 type LeaderboardProps = {
     tilesCount: number,
@@ -20,7 +20,6 @@ type LeaderboardProps = {
     deltas?: TileDeltas,
     highlight?: Country,
     anthem?: ReactNode,
-    race?: Race,
     order?: CountryOrder,
 }
 
@@ -38,7 +37,7 @@ type Shown = {figure: Figure, at: "head" | "leader", ms?: number}
 export default function Leaderboard(props: LeaderboardProps) {
     const titleId = useId()
     const deltas = props.deltas ?? NO_TILE_DELTAS
-    const race = props.race
+    const race = useRace((standings) => standings.race)
     const battle = race?.battle
     const [leader, ...rest] = countryLines(props.data, race, shownOrder(race, props.order))
     const [shown, setShown] = useState<Shown>()

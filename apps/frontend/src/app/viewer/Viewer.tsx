@@ -93,7 +93,8 @@ import {boardsOf, StandingsBackend} from "../../backends/standings.ts";
 import {SupportBackend} from "../../backends/support.ts";
 import {pageContextOf} from "../support/pageContext.ts";
 import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
-import {useRace} from "../standings/useRace.ts";
+import {useRaceFeed} from "../standings/useRaceFeed.ts";
+import {useRace} from "../standings/raceStore.ts";
 import {useDebriefed} from "../season/useDebriefed.ts";
 import {TurnBackend} from "../../backends/turn.ts";
 import {Battle, battleKeyOf, battleOf, finaleOf, nextBattleOf} from "../../domain/battle.ts";
@@ -207,7 +208,8 @@ export default function Viewer(props: ViewerProps) {
     const bookId = schedule.seasons.current?.bookId ?? endedBookOf(schedule.debrief)
     const dayEndsAt = schedule.seasons.today?.endsAt
     const battle = battleOf(schedule.turn)
-    const race = useRace(props.standings, bookId, schedule.seasons.today?.roundId, battle?.roundId)
+    useRaceFeed(props.standings, bookId, schedule.seasons.today?.roundId, battle?.roundId)
+    const race = useRace((standings) => standings.race)
     const closed = useDebriefed(props.standings, schedule.debrief)
     const nextBattle = nextBattleOf(schedule.battles, Date.now())
     const finale = finaleOf(schedule.battles, schedule.turn, Date.now())
@@ -371,7 +373,6 @@ export default function Viewer(props: ViewerProps) {
         tilesCount,
         anthem: <AnthemControls anthem={anthem}/>,
         standings,
-        race,
         countryOrder,
         onCountryOrder: setCountryOrder,
         hallOfFame,
