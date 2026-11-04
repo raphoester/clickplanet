@@ -59,6 +59,8 @@ const (
 	PlayerServiceWearTitleProcedure = "/player.v1.PlayerService/WearTitle"
 	// PlayerServiceGetFrontsProcedure is the fully-qualified name of the PlayerService's GetFronts RPC.
 	PlayerServiceGetFrontsProcedure = "/player.v1.PlayerService/GetFronts"
+	// PlayerServiceGetBadgesProcedure is the fully-qualified name of the PlayerService's GetBadges RPC.
+	PlayerServiceGetBadgesProcedure = "/player.v1.PlayerService/GetBadges"
 )
 
 // PlayerServiceClient is a client for the player.v1.PlayerService service.
@@ -75,6 +77,8 @@ type PlayerServiceClient interface {
 	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
 	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
 	GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error)
+	// The badges of a page of accounts, for the page to draw beside their names. At most 100 ids, or InvalidArgument.
+	GetBadges(context.Context, *connect.Request[v1.GetBadgesRequest]) (*connect.Response[v1.GetBadgesResponse], error)
 }
 
 // NewPlayerServiceClient constructs a client for the player.v1.PlayerService service. By default,
@@ -162,6 +166,13 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(playerServiceMethods.ByName("GetFronts")),
 			connect.WithClientOptions(opts...),
 		),
+		getBadges: connect.NewClient[v1.GetBadgesRequest, v1.GetBadgesResponse](
+			httpClient,
+			baseURL+PlayerServiceGetBadgesProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("GetBadges")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -179,6 +190,7 @@ type playerServiceClient struct {
 	getTitles       *connect.Client[v1.GetTitlesRequest, v1.GetTitlesResponse]
 	wearTitle       *connect.Client[v1.WearTitleRequest, v1.WearTitleResponse]
 	getFronts       *connect.Client[v1.GetFrontsRequest, v1.GetFrontsResponse]
+	getBadges       *connect.Client[v1.GetBadgesRequest, v1.GetBadgesResponse]
 }
 
 // GetProfile calls player.v1.PlayerService.GetProfile.
@@ -241,6 +253,11 @@ func (c *playerServiceClient) GetFronts(ctx context.Context, req *connect.Reques
 	return c.getFronts.CallUnary(ctx, req)
 }
 
+// GetBadges calls player.v1.PlayerService.GetBadges.
+func (c *playerServiceClient) GetBadges(ctx context.Context, req *connect.Request[v1.GetBadgesRequest]) (*connect.Response[v1.GetBadgesResponse], error) {
+	return c.getBadges.CallUnary(ctx, req)
+}
+
 // PlayerServiceHandler is an implementation of the player.v1.PlayerService service.
 type PlayerServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
@@ -255,6 +272,8 @@ type PlayerServiceHandler interface {
 	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
 	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
 	GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error)
+	// The badges of a page of accounts, for the page to draw beside their names. At most 100 ids, or InvalidArgument.
+	GetBadges(context.Context, *connect.Request[v1.GetBadgesRequest]) (*connect.Response[v1.GetBadgesResponse], error)
 }
 
 // NewPlayerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -338,6 +357,13 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(playerServiceMethods.ByName("GetFronts")),
 		connect.WithHandlerOptions(opts...),
 	)
+	playerServiceGetBadgesHandler := connect.NewUnaryHandler(
+		PlayerServiceGetBadgesProcedure,
+		svc.GetBadges,
+		connect.WithSchema(playerServiceMethods.ByName("GetBadges")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.PlayerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PlayerServiceGetProfileProcedure:
@@ -364,6 +390,8 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceWearTitleHandler.ServeHTTP(w, r)
 		case PlayerServiceGetFrontsProcedure:
 			playerServiceGetFrontsHandler.ServeHTTP(w, r)
+		case PlayerServiceGetBadgesProcedure:
+			playerServiceGetBadgesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -419,4 +447,8 @@ func (UnimplementedPlayerServiceHandler) WearTitle(context.Context, *connect.Req
 
 func (UnimplementedPlayerServiceHandler) GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetFronts is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) GetBadges(context.Context, *connect.Request[v1.GetBadgesRequest]) (*connect.Response[v1.GetBadgesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetBadges is not implemented"))
 }

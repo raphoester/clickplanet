@@ -44,6 +44,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_badges_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_badges_handler/badges_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_fronts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler/player_query"
@@ -355,6 +357,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetTitlesHandler: get_titles_handler.New(titles_query.NewPostgresQuery(db, titleCards, clock)),
 		WearTitleHandler: wear_title_handler.New(dressing_wear_title.New(wear_title_usecase.New(wardrobe, clock), visits)),
 		GetFrontsHandler: get_fronts_handler.New(fronts),
+		GetBadgesHandler: get_badges_handler.New(badges_query.NewPostgresQuery(db, titleCards, clock)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)
