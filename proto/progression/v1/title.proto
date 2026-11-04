@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package progression.v1;
+
+message Title {
+  string id = 1;
+  string name = 2;
+  Rank rank = 3;
+  string feat = 4;
+}
+
+message Rank {
+  string track_id = 1;
+  string track_name = 2;
+  uint32 number = 3;
+  uint32 count = 4;
+}

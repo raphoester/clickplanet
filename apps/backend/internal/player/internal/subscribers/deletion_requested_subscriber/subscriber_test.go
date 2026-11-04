@@ -14,13 +14,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures/usecases/decide_departure_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/deletion_requested_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 func TestARequestedDeletionHidesTheAccount(t *testing.T) {
 	account := players.AccountID{15: 1}
 	store := inmemory_departure_store.New()
 
-	err := deletion_requested_subscriber.New(decide_departure_usecase.New(store)).Handle(t.Context(), &authv1.AccountDeletionRequested{
+	err := deletion_requested_subscriber.New(decide_departure_usecase.New(cpatomic.FakeTransactioner{}, store, &cpatomic.FakeOutbox{})).Handle(t.Context(), &authv1.AccountDeletionRequested{
 		AccountId: account.String(), RequestedAt: timestamppb.New(time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)),
 	})
 
@@ -33,7 +34,7 @@ func TestARequestedDeletionHidesTheAccount(t *testing.T) {
 func TestARequestWithNoTimeIsRefused(t *testing.T) {
 	store := inmemory_departure_store.New()
 
-	err := deletion_requested_subscriber.New(decide_departure_usecase.New(store)).Handle(t.Context(), &authv1.AccountDeletionRequested{
+	err := deletion_requested_subscriber.New(decide_departure_usecase.New(cpatomic.FakeTransactioner{}, store, &cpatomic.FakeOutbox{})).Handle(t.Context(), &authv1.AccountDeletionRequested{
 		AccountId: players.AccountID{15: 1}.String(),
 	})
 
@@ -41,7 +42,7 @@ func TestARequestWithNoTimeIsRefused(t *testing.T) {
 }
 
 func TestAnEventWithNoAccountIsRefused(t *testing.T) {
-	err := deletion_requested_subscriber.New(decide_departure_usecase.New(inmemory_departure_store.New())).
+	err := deletion_requested_subscriber.New(decide_departure_usecase.New(cpatomic.FakeTransactioner{}, inmemory_departure_store.New(), &cpatomic.FakeOutbox{})).
 		Handle(t.Context(), &authv1.AccountDeletionRequested{RequestedAt: timestamppb.Now()})
 
 	assert.ErrorIs(t, err, players.ErrInvalidAccount)

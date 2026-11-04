@@ -13,13 +13,9 @@ import (
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/listen_for_events_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/listen_for_titles_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type stubRoster struct {
@@ -42,43 +38,13 @@ func (s stubRoster) Execute(ctx context.Context, sink listen_for_events_usecase.
 	return nil
 }
 
-type stubTitles struct {
-	earned chan titles.Standing
-	asked  chan players.AccountID
-}
-
-func newStubTitles() stubTitles {
-	return stubTitles{earned: make(chan titles.Standing, 1), asked: make(chan players.AccountID, 1)}
-}
-
-func (s stubTitles) Execute(ctx context.Context, account players.AccountID, sink listen_for_titles_usecase.Sink) error {
-	s.asked <- account
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case standing := <-s.earned:
-			if err := sink.SendTitleEarned(standing); err != nil {
-				return err //nolint:wrapcheck // the stream's own error.
-			}
-		}
-	}
-}
-
-func routes(roster stubRoster, earner stubTitles) http.Handler {
-	handler := listen_for_events_handler.New(roster, earner)
+func routes(roster stubRoster) http.Handler {
+	handler := listen_for_events_handler.New(roster)
 	mux := http.NewServeMux()
 	mux.Handle(playerv1connect.PlayerServiceListenForEventsProcedure, connect.NewServerStreamHandler(
 		playerv1connect.PlayerServiceListenForEventsProcedure, handler.ListenForEvents,
 	))
 	return mux
-}
-
-func signedIn(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r.WithContext(cpctx.AddAccountToContext(r.Context(), players.AccountID{15: 1}.String())))
-	})
 }
 
 func listen(t *testing.T, handler http.Handler) *connect.ServerStreamForClient[playerv1.PlayerEvent] {
@@ -105,29 +71,13 @@ func requireRoster(t *testing.T, stream *connect.ServerStreamForClient[playerv1.
 	assert.Equal(t, "k1", stream.Msg().GetRoster().GetEntries()[0].GetKey())
 }
 
-func TestAStreamWithNoAccountGetsTheRosterAndNoTitle(t *testing.T) {
-	roster, earner := newStubRoster(), newStubTitles()
-	conqueror, _ := titles.NewCatalog().StandingOf("conqueror")
-	earner.earned <- conqueror
-	stream := listen(t, routes(roster, earner))
+func TestAStreamGetsTheRosterFirst(t *testing.T) {
+	roster := newStubRoster()
+	stream := listen(t, routes(roster))
 
 	requireRoster(t, stream)
 	close(roster.end)
 
 	require.False(t, stream.Receive(), "no frame after the roster: %v", stream.Msg())
 	require.NoError(t, stream.Err())
-	assert.Empty(t, earner.asked, "a caller with no account follows no titles")
-}
-
-func TestAStreamWithAnAccountGetsTheRosterThenTheTitlesItEarns(t *testing.T) {
-	roster, earner := newStubRoster(), newStubTitles()
-	stream := listen(t, signedIn(routes(roster, earner)))
-
-	requireRoster(t, stream)
-	conqueror, _ := titles.NewCatalog().StandingOf("conqueror")
-	earner.earned <- conqueror
-
-	require.True(t, stream.Receive(), stream.Err())
-	assert.Equal(t, "conqueror", stream.Msg().GetTitleEarned().GetTitle().GetId())
-	assert.Equal(t, players.AccountID{15: 1}, <-earner.asked)
 }

@@ -129,6 +129,9 @@ chat:
 player:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: player}
   redis: {address: localhost:6379}
+progression:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: progression}
+  redis: {address: localhost:6379}
 scoring:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: scoring}
   redis: {address: localhost:6379}
@@ -199,6 +202,14 @@ func TestTheExampleConfigReachesThePlayerBlock(t *testing.T) {
 
 	assert.Equal(t, "player", config.Player.Database.Schema)
 	require.NoError(t, config.Player.Database.Validate())
+}
+
+func TestTheExampleConfigReachesTheProgressionBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "progression", config.Progression.Database.Schema)
+	require.NoError(t, config.Progression.Validate())
 }
 
 func TestTheExampleConfigReachesTheMissionsBlock(t *testing.T) {
@@ -437,7 +448,8 @@ func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 
 	for name, redis := range map[string]cpredis.Config{
 		"auth": config.Auth.Redis, "chat": config.Chat.Redis, "player": config.Player.Redis,
-		"scoring": config.Scoring.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
+		"progression": config.Progression.Redis,
+		"scoring":     config.Scoring.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
 		"antiBot": config.AntiBot.Redis, "gamemaster": config.Gamemaster.Redis, "clips": config.Clips.Redis,
 		"alerts": config.Alerts.Redis,
 	} {

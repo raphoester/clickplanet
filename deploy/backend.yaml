@@ -63,6 +63,18 @@ player:
     address: redis:6379
   tagSalt: "local-development-salt"
 
+progression:
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: progression
+  redis:
+    address: redis:6379
+
 scoring:
   database:
     host: postgres

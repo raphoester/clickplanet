@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package progression.v1;
+
+import "progression/v1/title.proto";
+
+service ProgressionService {
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+
+  rpc GetTitles(GetTitlesRequest) returns (GetTitlesResponse);
+
+  rpc WearTitle(WearTitleRequest) returns (WearTitleResponse);
+
+  rpc GetFronts(GetFrontsRequest) returns (GetFrontsResponse);
+
+  // The badges of a page of accounts, for the page to draw beside their names. At most 100 ids, or InvalidArgument.
+  rpc GetBadges(GetBadgesRequest) returns (GetBadgesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // A player's progression on its public card, beside player.v1's GetPlayer. NotFound for an account the other
+  // players do not see: a guest, one asked deleted, one never named.
+  rpc GetProgress(GetProgressRequest) returns (GetProgressResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The titles the caller earns, as it earns them. Unauthenticated without a token.
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream ProgressionEvent);
+}
+
+message Stats {
+  uint64 tiles_taken = 1;
+  uint32 streak_current = 2;
+  uint32 streak_best = 3;
+  string streak_last_day = 4;
+}
+
+message GetStatsRequest {}
+
+message GetStatsResponse {
+  Stats stats = 1;
+}
+
+message CountryTiles {
+  string country_id = 1;
+  uint64 tiles = 2;
+}
+
+message GetFrontsRequest {}
+
+message GetFrontsResponse {
+  repeated CountryTiles plays_for = 1;
+  repeated CountryTiles plays_against = 2;
+}
+
+message GetTitlesRequest {}
+
+message GetTitlesResponse {
+  Title worn = 1;
+  repeated Title wearable = 2;
+  repeated Track tracks = 3;
+}
+
+message Track {
+  string id = 1;
+  string name = 2;
+  uint64 progress = 3;
+  repeated Step steps = 4;
+}
+
+message Step {
+  Title title = 1;
+  uint64 threshold = 2;
+  bool earned = 3;
+}
+
+message WearTitleRequest {
+  string title_id = 1;
+}
+
+message WearTitleResponse {
+  Title worn = 1;
+}
+
+message GetBadgesRequest {
+  repeated string account_ids = 1;
+}
+
+// Only the accounts with a badge to show, once each: an unknown one, a guest, one asked deleted, or one with neither a
+// streak nor a title is left out.
+message GetBadgesResponse {
+  repeated Badge badges = 1;
+}
+
+// What is drawn beside a player's name: its streak as of today, and the title it wears.
+message Badge {
+  string account_id = 1;
+  uint32 streak = 2;
+  Title worn_title = 3;
+}
+
+message GetProgressRequest {
+  string account_id = 1;
+}
+
+message GetProgressResponse {
+  Progress progress = 1;
+}
+
+message Progress {
+  Stats stats = 1;
+  repeated Title titles = 2;
+  Title worn_title = 3;
+  repeated CountryTiles plays_for = 4;
+  repeated CountryTiles plays_against = 5;
+}
+
+message ListenForEventsRequest {}
+
+message ProgressionEvent {
+  oneof event {
+    Heartbeat heartbeat = 1;
+    TitleEarned title_earned = 2;
+  }
+}
+
+message Heartbeat {}
+
+message TitleEarned {
+  Title title = 1;
+}

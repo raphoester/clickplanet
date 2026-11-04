@@ -22,6 +22,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
+	progressionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1/progressionv1connect"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
@@ -180,22 +182,26 @@ func (p *gamer) account() string {
 	return p.profile().GetAccountId()
 }
 
-func (p *gamer) stats() *playerv1.Stats {
+func (p *gamer) progression() progressionv1connect.ProgressionServiceClient {
+	return progressionv1connect.NewProgressionServiceClient(http.DefaultClient, p.stack.baseURL)
+}
+
+func (p *gamer) stats() *progressionv1.Stats {
 	p.t.Helper()
 
-	req := connect.NewRequest(&playerv1.GetStatsRequest{})
+	req := connect.NewRequest(&progressionv1.GetStatsRequest{})
 	p.send(req.Header())
-	res, err := p.players().GetStats(p.t.Context(), req)
+	res, err := p.progression().GetStats(p.t.Context(), req)
 	require.NoError(p.t, err)
 	return res.Msg.GetStats()
 }
 
-func (p *gamer) track(id string) *playerv1.Track {
+func (p *gamer) track(id string) *progressionv1.Track {
 	p.t.Helper()
 
-	req := connect.NewRequest(&playerv1.GetTitlesRequest{})
+	req := connect.NewRequest(&progressionv1.GetTitlesRequest{})
 	p.send(req.Header())
-	res, err := p.players().GetTitles(p.t.Context(), req)
+	res, err := p.progression().GetTitles(p.t.Context(), req)
 	require.NoError(p.t, err)
 	for _, track := range res.Msg.GetTracks() {
 		if track.GetId() == id {

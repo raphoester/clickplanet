@@ -10,6 +10,12 @@ service InternalService {
   rpc GetAuthors(GetAuthorsRequest) returns (GetAuthorsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // What auth says of a page of accounts, for a module that must not ask auth: whether each signed in with a
+  // provider, and when it was made. An account auth does not know is answered not linked, made at 0.
+  rpc GetAccounts(GetAccountsRequest) returns (GetAccountsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetAuthorRequest {
@@ -46,4 +52,18 @@ message Author {
   reserved 5, 6;
   reserved "streak", "worn_title";
   bool guest = 7;
+}
+
+message GetAccountsRequest {
+  repeated string account_ids = 1;
+}
+
+message GetAccountsResponse {
+  repeated Account accounts = 1;
+}
+
+message Account {
+  string account_id = 1;
+  bool linked = 2;
+  int64 created_at_unix_ms = 3;
 }

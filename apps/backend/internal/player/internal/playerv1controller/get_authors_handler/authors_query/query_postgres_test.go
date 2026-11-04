@@ -19,9 +19,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/postgres_title_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/postgres_worn_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -34,8 +31,6 @@ type testSuite struct {
 
 	db      *cppg.Postgres
 	players *postgres_player_store.Store
-	titles  *postgres_title_store.Store
-	worn    *postgres_worn_title_store.Store
 }
 
 var (
@@ -48,8 +43,6 @@ var (
 func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "player", migrations.FS)
 	s.players = postgres_player_store.New(s.db)
-	s.titles = postgres_title_store.New(s.db)
-	s.worn = postgres_worn_title_store.New(s.db)
 }
 
 func (s *testSuite) SetupTest() {
@@ -122,7 +115,6 @@ func (s *testSuite) TestAnAdminCarriesItsMark() {
 
 func (s *testSuite) TestAnAccountNobodyCanNameIsLeftOut() {
 	unnamed := players.AccountID{15: 4}
-	s.Require().NoError(s.players.Record(s.T().Context(), unnamed, players.TakeAt(0, 0, today)))
 
 	s.Equal(map[string]string{ada.String(): "Ada"}, names(s.authors(ada, unnamed, players.AccountID{15: 5})),
 		"an account with neither a profile nor a code is absent, and so is an unknown one")
@@ -207,25 +199,6 @@ func (s *testSuite) TestEachAuthorIsWhatGetAuthorAnswersForIt() {
 	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
 	s.Require().NoError(s.players.SaveColor(s.T().Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_PINK)))
-	takes := map[players.AccountID][]time.Time{
-		ada:   {today.AddDate(0, 0, -1), today},
-		bob:   {today.AddDate(0, 0, -3), today.AddDate(0, 0, -2)},
-		guest: {today.AddDate(0, 0, -1), today},
-		dan:   {today.AddDate(0, 0, 1)},
-	}
-	for account, at := range takes {
-		for position, take := range at {
-			s.Require().NoError(s.players.Record(s.T().Context(), account, players.TakeAt(uint64(position), 0, take)))
-		}
-	}
-	s.Require().NoError(s.players.Record(s.T().Context(), cy, players.MessageAt(today)))
-	s.Require().NoError(s.titles.Grant(s.T().Context(), titles.Holdings{
-		ada: {"og", "settler"}, bob: {"settler", "raider", "loyal"}, guest: {"og"}, dan: {"retired", "og"},
-	}, today))
-	s.Require().NoError(s.worn.Wear(s.T().Context(), ada, "og", today))
-	s.Require().NoError(s.worn.Wear(s.T().Context(), bob, "settler", today))
-	s.Require().NoError(s.worn.Wear(s.T().Context(), guest, "og", today))
-
 	single := get_author_usecase.New(s.players, players.NewGuestCodes(s.players, &players.SequentialCodes{}))
 	everyone := []players.AccountID{ada, bob, guest, cy, dan, eve}
 	many := s.authors(everyone...)

@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
@@ -27,14 +28,15 @@ type Config struct {
 
 	Planet planet.Config `koanf:",squash"`
 
-	Auth       auth.Config
-	AntiBot    antibot.Config
-	Chat       chat.Config
-	Player     player.Config
-	Scoring    scoring.Config
-	Gamemaster gamemaster.Config
-	Missions   missions.Config
-	Support    support.Config
+	Auth        auth.Config
+	AntiBot     antibot.Config
+	Chat        chat.Config
+	Player      player.Config
+	Progression progression.Config
+	Scoring     scoring.Config
+	Gamemaster  gamemaster.Config
+	Missions    missions.Config
+	Support     support.Config
 	// The numbers of the clips the clips job posted.
 	Clips clips.ModuleConfig
 	// The game's Discord server: a player's link, its flag's role, and the pings.
@@ -79,6 +81,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 		antibot.NewModule(config.AntiBot),
 		chat.NewModule(config.Chat),
 		player.NewModule(config.Player),
+		progression.NewModule(config.Progression),
 		scoring.NewModule(config.Scoring),
 		gamemaster.NewModule(config.Gamemaster),
 		missions.NewModule(config.Missions),
@@ -105,6 +108,7 @@ func (c Config) Validate() error {
 		c.Chat.Validate(),
 		c.Auth.Validate(),
 		c.Player.Validate(),
+		c.Progression.Validate(),
 		c.Scoring.Validate(),
 		c.Gamemaster.Validate(),
 		c.Missions.Validate(),

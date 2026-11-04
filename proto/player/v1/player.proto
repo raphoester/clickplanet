@@ -3,13 +3,11 @@ syntax = "proto3";
 package player.v1;
 
 import "player/v1/color.proto";
-import "player/v1/title.proto";
 
 service PlayerService {
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
   rpc SetName(SetNameRequest) returns (SetNameResponse);
   rpc SetColor(SetColorRequest) returns (SetColorResponse);
-  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
 
   rpc Announce(AnnounceRequest) returns (AnnounceResponse);
 
@@ -21,18 +19,8 @@ service PlayerService {
 
   rpc ListenForEvents(ListenForEventsRequest) returns (stream PlayerEvent);
 
+  // Who a player is on its public card. Its stats, titles and fronts are progression.v1's GetProgress.
   rpc GetPlayer(GetPlayerRequest) returns (GetPlayerResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
-  }
-
-  rpc GetTitles(GetTitlesRequest) returns (GetTitlesResponse);
-
-  rpc WearTitle(WearTitleRequest) returns (WearTitleResponse);
-
-  rpc GetFronts(GetFrontsRequest) returns (GetFrontsResponse);
-
-  // The badges of a page of accounts, for the page to draw beside their names. At most 100 ids, or InvalidArgument.
-  rpc GetBadges(GetBadgesRequest) returns (GetBadgesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 }
@@ -68,19 +56,6 @@ message SetColorRequest {
 
 message SetColorResponse {
   NameColor color = 1;
-}
-
-message Stats {
-  uint64 tiles_taken = 1;
-  uint32 streak_current = 2;
-  uint32 streak_best = 3;
-  string streak_last_day = 4;
-}
-
-message GetStatsRequest {}
-
-message GetStatsResponse {
-  Stats stats = 1;
 }
 
 message AnnounceRequest {
@@ -124,8 +99,10 @@ message PlayerEvent {
     RosterEntry entry = 2;
     PlayerLeft left = 3;
     Heartbeat heartbeat = 4;
-    TitleEarned title_earned = 5;
   }
+  // The titles earned are progression.v1's ListenForEvents.
+  reserved 5;
+  reserved "title_earned";
 }
 
 message Roster {
@@ -150,76 +127,12 @@ message GetPlayerResponse {
 
 message Player {
   string name = 1;
-  Stats stats = 2;
   int64 created_at_unix_ms = 3;
   bool admin = 4;
   NameColor color = 5;
-  repeated Title titles = 6;
-  Title worn_title = 7;
-  repeated CountryTiles plays_for = 8;
-  repeated CountryTiles plays_against = 9;
+  // A player's stats, titles and fronts are progression.v1's GetProgress.
+  reserved 2, 6, 7, 8, 9;
+  reserved "stats", "titles", "worn_title", "plays_for", "plays_against";
   // A guest is its name alone: every other field is unset.
   bool guest = 10;
-}
-
-message CountryTiles {
-  string country_id = 1;
-  uint64 tiles = 2;
-}
-
-message GetFrontsRequest {}
-
-message GetFrontsResponse {
-  repeated CountryTiles plays_for = 1;
-  repeated CountryTiles plays_against = 2;
-}
-
-message TitleEarned {
-  Title title = 1;
-}
-
-message GetTitlesRequest {}
-
-message GetTitlesResponse {
-  Title worn = 1;
-  repeated Title wearable = 2;
-  repeated Track tracks = 3;
-}
-
-message Track {
-  string id = 1;
-  string name = 2;
-  uint64 progress = 3;
-  repeated Step steps = 4;
-}
-
-message Step {
-  Title title = 1;
-  uint64 threshold = 2;
-  bool earned = 3;
-}
-
-message WearTitleRequest {
-  string title_id = 1;
-}
-
-message WearTitleResponse {
-  Title worn = 1;
-}
-
-message GetBadgesRequest {
-  repeated string account_ids = 1;
-}
-
-// Only the accounts with a badge to show, once each: an unknown one, a guest, one asked deleted, or one with neither a
-// streak nor a title is left out.
-message GetBadgesResponse {
-  repeated Badge badges = 1;
-}
-
-// What is drawn beside a player's name: its streak as of today, and the title it wears.
-message Badge {
-  string account_id = 1;
-  uint32 streak = 2;
-  Title worn_title = 3;
 }
