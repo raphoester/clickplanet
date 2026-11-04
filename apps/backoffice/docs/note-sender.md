@@ -5,8 +5,8 @@
 note and keeps its text).
 
 - **"From" is the sender's name and account id, with Copy** (`Person`). `ListNotes` carries no name, so `NoteList`
-  asks `player.v1.AdminService/GetAuthors` for the accounts of the page (`namesOf` in `players/actions.ts`, which
-  the player list's `withAuthors` uses too). **Names that cannot be read leave the notes listed**, every sender
+  asks `player.v1.AdminService/GetPlayers` for the accounts of the page (`namesOf` in `players/actions.ts`, which
+  the player list's `withNames` uses too). **Names that cannot be read leave the notes listed**, every sender
   "no name", with the reason above them.
 - **"Open player" opens the sender on the player page** (`OpenPlayer`): its profile, its inspection, and from
   there the address of its latest take. A note with no account has no button.

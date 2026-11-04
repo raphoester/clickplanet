@@ -1,4 +1,4 @@
-package get_authors_handler_test
+package get_players_handler_test
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_players_handler"
 )
 
 const (
@@ -21,26 +21,26 @@ const (
 )
 
 type stubQuery struct {
-	answer *playerv1.GetAuthorsResponse
+	answer *playerv1.GetPlayersResponse
 	err    error
 	asked  [][]players.AccountID
 }
 
-func (s *stubQuery) Authors(_ context.Context, accounts []players.AccountID) (*playerv1.GetAuthorsResponse, error) {
+func (s *stubQuery) Players(_ context.Context, accounts []players.AccountID) (*playerv1.GetPlayersResponse, error) {
 	s.asked = append(s.asked, accounts)
 	return s.answer, s.err
 }
 
-func getAuthors(t *testing.T, query *stubQuery, ids ...string) (*connect.Response[playerv1.GetAuthorsResponse], error) {
+func getPlayers(t *testing.T, query *stubQuery, ids ...string) (*connect.Response[playerv1.GetPlayersResponse], error) {
 	t.Helper()
 
-	return get_authors_handler.New(query).GetAuthors(t.Context(), connect.NewRequest(&playerv1.GetAuthorsRequest{AccountIds: ids})) //nolint:wrapcheck // the test reads the handler's own error.
+	return get_players_handler.New(query).GetPlayers(t.Context(), connect.NewRequest(&playerv1.GetPlayersRequest{AccountIds: ids})) //nolint:wrapcheck // the test reads the handler's own error.
 }
 
-func TestTheAuthorsAreTheQuerysForTheAccountsAsked(t *testing.T) {
-	query := &stubQuery{answer: &playerv1.GetAuthorsResponse{Authors: []*playerv1.Author{{AccountId: adaID, Name: "Ada_L"}}}}
+func TestThePlayersAreTheQuerysForTheAccountsAsked(t *testing.T) {
+	query := &stubQuery{answer: &playerv1.GetPlayersResponse{Players: []*playerv1.Player{{AccountId: adaID, Name: "Ada_L"}}}}
 
-	res, err := getAuthors(t, query, adaID, guestID)
+	res, err := getPlayers(t, query, adaID, guestID)
 
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(query.answer, res.Msg))
@@ -53,9 +53,9 @@ func TestTheAuthorsAreTheQuerysForTheAccountsAsked(t *testing.T) {
 
 func TestAnIdThatIsNotAnAccountIsRefusedAndReadsNothing(t *testing.T) {
 	for _, id := range []string{"", "not-an-account", "00000000-0000-0000-0000-000000000000"} {
-		query := &stubQuery{answer: &playerv1.GetAuthorsResponse{}}
+		query := &stubQuery{answer: &playerv1.GetPlayersResponse{}}
 
-		_, err := getAuthors(t, query, adaID, id)
+		_, err := getPlayers(t, query, adaID, id)
 
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), id)
 		assert.Empty(t, query.asked, id)
@@ -63,7 +63,7 @@ func TestAnIdThatIsNotAnAccountIsRefusedAndReadsNothing(t *testing.T) {
 }
 
 func TestTheAnswerIsNeverStored(t *testing.T) {
-	res, err := getAuthors(t, &stubQuery{answer: &playerv1.GetAuthorsResponse{}}, adaID)
+	res, err := getPlayers(t, &stubQuery{answer: &playerv1.GetPlayersResponse{}}, adaID)
 
 	require.NoError(t, err)
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"), "who a player is changes when it renames")
@@ -72,7 +72,7 @@ func TestTheAnswerIsNeverStored(t *testing.T) {
 func TestAFailedReadIsTheErrorNets(t *testing.T) {
 	failure := errors.New("postgres is down")
 
-	_, err := getAuthors(t, &stubQuery{err: failure}, adaID)
+	_, err := getPlayers(t, &stubQuery{err: failure}, adaID)
 
 	assert.ErrorIs(t, err, failure)
 }

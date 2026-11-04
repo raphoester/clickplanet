@@ -13,7 +13,7 @@ the [Clip stats](clip-stats.md): **the cast of each run, who each post names, an
   keeps who made a change that long). It reads who took what from planet (`planet.v1.InternalService/GetLedger`, the
   admin's handler and all, page after page, through `rpc_planet_ledger`; `LedgerChange.account_id` is the account of
   each change), and the name each account may be shown under (`casts.ShownNames`): its username from player
-  (`InternalService/GetAuthors`, through `rpc_player_names`; a guest has none, see [Player](player.md)), unless
+  (`InternalService/GetPlayers`, through `rpc_player_names`; a guest has none, see [Player](player.md)), unless
   it is in `opt_outs`. **A fighter is a player with such a name who took a tile from another flag**: filling empty
   ground is no fight (`Take.captured`). The fighters are numbered from 1 by tiles taken, then by name
   (`casts.CastOf`). The answer is the `clips.v1.Cast`: its id, its window, each fighter's number and name, and each of

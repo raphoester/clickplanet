@@ -11,7 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_players_handler/players_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_handler/matches_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
@@ -96,23 +96,23 @@ func (s *testSuite) TestADeletedAccountIsNotFound() {
 	s.Equal([]string{"EIRE1", "IRA EIRE"}, names(s.search("eire", 20)))
 }
 
-func (s *testSuite) TestEachMatchIsNamedAsGetAuthorsNamesIt() {
+func (s *testSuite) TestEachMatchIsNamedAsGetPlayersNamesIt() {
 	answer := s.search("a", 20)
 	s.Require().Len(answer.GetPlayers(), 3)
 
-	authors, err := authors_query.NewPostgresQuery(s.db).
-		Authors(s.T().Context(), []players.AccountID{ada, guest, iraEire})
+	found, err := players_query.NewPostgresQuery(s.db).
+		Players(s.T().Context(), []players.AccountID{ada, guest, iraEire})
 	s.Require().NoError(err)
-	named := make(map[string]*playerv1.Author, len(authors.GetAuthors()))
-	for _, author := range authors.GetAuthors() {
-		named[author.GetAccountId()] = author
+	named := make(map[string]*playerv1.Player, len(found.GetPlayers()))
+	for _, player := range found.GetPlayers() {
+		named[player.GetAccountId()] = player
 	}
 
 	for _, match := range answer.GetPlayers() {
-		author := named[match.GetAccountId()]
-		s.Require().NotNil(author, match.GetName())
-		s.Equal(author.GetName(), match.GetName())
-		s.Equal(author.GetGuest(), match.GetGuest(), match.GetName())
+		player := named[match.GetAccountId()]
+		s.Require().NotNil(player, match.GetName())
+		s.Equal(player.GetName(), match.GetName())
+		s.Equal(player.GetGuest(), match.GetGuest(), match.GetName())
 	}
 }
 

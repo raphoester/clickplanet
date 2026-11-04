@@ -10,7 +10,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/introduce_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/announce_usecase"
@@ -37,12 +37,12 @@ func setup(t *testing.T) fixture {
 	store := inmemory_player_store.New()
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada_L", now)))
 	visits := inmemory_visit_storage.New(clock)
-	authors := get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}))
+	introducer := introduce_player_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}))
 
 	return fixture{
 		store:   store,
 		visits:  visits,
-		useCase: announce_usecase.New(authors, visits, cpcountries.New(), clock, "pepper"),
+		useCase: announce_usecase.New(introducer, visits, cpcountries.New(), clock, "pepper"),
 	}
 }
 
@@ -52,9 +52,9 @@ func TestAnAccountWithAUsernameIsRecordedUnderIt(t *testing.T) {
 	err := f.useCase.Execute(t.Context(), announce_usecase.In{Account: ada, Country: "fr", IP: "1.2.3.4"})
 
 	require.NoError(t, err)
-	author := players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore())
+	player := players.NamedPlayer(players.ProfileSnapshot{Name: "Ada_L"}.Restore())
 	assert.Equal(t, []presence.Visit{
-		presence.NewVisit(ada, author, players.TagOf("pepper", "1.2.3.4"), "fr", now).Keyed("1"),
+		presence.NewVisit(ada, player, players.TagOf("pepper", "1.2.3.4"), "fr", now).Keyed("1"),
 	}, f.visits.Visits())
 }
 
@@ -66,7 +66,7 @@ func TestAnAdminIsRecordedAsOne(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, f.visits.Visits(), 1)
-	assert.True(t, f.visits.Visits()[0].Author().Admin())
+	assert.True(t, f.visits.Visits()[0].Player().Admin())
 }
 
 func TestAGuestIsRecordedUnderItsCodeWhateverItsAddress(t *testing.T) {
@@ -76,7 +76,7 @@ func TestAGuestIsRecordedUnderItsCodeWhateverItsAddress(t *testing.T) {
 	require.NoError(t, f.useCase.Execute(t.Context(), announce_usecase.In{Account: guest, Country: "de", IP: "5.6.7.8"}))
 
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Equal(t, players.GuestAuthor("000001"), f.visits.Visits()[0].Author(),
+	assert.Equal(t, players.GuestPlayer("000001"), f.visits.Visits()[0].Player(),
 		"a new network is not a new name")
 }
 

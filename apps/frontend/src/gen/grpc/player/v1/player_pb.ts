@@ -861,6 +861,8 @@ export class GetPlayerResponse extends Message<GetPlayerResponse> {
 }
 
 /**
+ * Who a player is, wherever player answers one: GetPlayer's card, and InternalService's GetPlayers and IntroducePlayer.
+ *
  * @generated from message player.v1.Player
  */
 export class Player extends Message<Player> {
@@ -870,6 +872,8 @@ export class Player extends Message<Player> {
   name = "";
 
   /**
+   * Auth's, so GetPlayer alone asks for it: 0 from GetPlayers and IntroducePlayer.
+   *
    * @generated from field: int64 created_at_unix_ms = 3;
    */
   createdAtUnixMs = protoInt64.zero;
@@ -885,11 +889,16 @@ export class Player extends Message<Player> {
   color = NameColor.UNSPECIFIED;
 
   /**
-   * A guest is its name alone: every other field is unset.
+   * A guest is its account and its name alone: every other field is unset.
    *
    * @generated from field: bool guest = 10;
    */
   guest = false;
+
+  /**
+   * @generated from field: string account_id = 11;
+   */
+  accountId = "";
 
   constructor(data?: PartialMessage<Player>) {
     super();
@@ -904,6 +913,7 @@ export class Player extends Message<Player> {
     { no: 4, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 10, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 11, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Player {

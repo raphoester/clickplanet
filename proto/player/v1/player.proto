@@ -125,14 +125,17 @@ message GetPlayerResponse {
   Player player = 1;
 }
 
+// Who a player is, wherever player answers one: GetPlayer's card, and InternalService's GetPlayers and IntroducePlayer.
 message Player {
   string name = 1;
+  // Auth's, so GetPlayer alone asks for it: 0 from GetPlayers and IntroducePlayer.
   int64 created_at_unix_ms = 3;
   bool admin = 4;
   NameColor color = 5;
   // A player's stats, titles and fronts are progression.v1's GetProgress.
   reserved 2, 6, 7, 8, 9;
   reserved "stats", "titles", "worn_title", "plays_for", "plays_against";
-  // A guest is its name alone: every other field is unset.
+  // A guest is its account and its name alone: every other field is unset.
   bool guest = 10;
+  string account_id = 11;
 }

@@ -42,18 +42,18 @@ type stubAuthors struct {
 
 func (a stubAuthors) Authors(
 	_ context.Context, accounts []cpsession.AccountID,
-) (map[cpsession.AccountID]*playerv1.Author, error) {
+) (map[cpsession.AccountID]*playerv1.Player, error) {
 	if a.asked != nil {
 		*a.asked = append(*a.asked, accounts...)
 	}
 	if a.err != nil {
 		return nil, a.err
 	}
-	known := map[cpsession.AccountID]*playerv1.Author{
+	known := map[cpsession.AccountID]*playerv1.Player{
 		ada: {AccountId: ada.String(), Name: "Ada"},
 		bob: {AccountId: bob.String(), Name: "Bob"},
 	}
-	found := map[cpsession.AccountID]*playerv1.Author{}
+	found := map[cpsession.AccountID]*playerv1.Player{}
 	for _, account := range accounts {
 		if author, ok := known[account]; ok {
 			found[account] = author

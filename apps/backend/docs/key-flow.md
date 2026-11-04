@@ -58,9 +58,9 @@ POST /chat.v1.ChatService/SendMessage   [X-Session-Token: required, naming an ac
   → ChatService → send_message_handler (the account off the context, or none)
   → muting_send_message: a mute on the account or its network is PermissionDenied, with when it ends
   → messages/usecases/send_message_usecase: no account is ErrNoAccount (Unauthenticated), then
-      who posts (log_authors → rpc_player_authors → player.v1.InternalService/GetAuthor): the account's
+      who posts (log_authors → rpc_player_authors → player.v1.InternalService/IntroducePlayer): the account's
       username, or "guest_" and its guest code; stamps id/time
-      for a reply, the message it answers (messages.Thread: postgres_message_store.Message, then GetAuthors);
+      for a reply, the message it answers (messages.Thread: postgres_message_store.Message, then GetPlayers);
       a message that is not shown is ErrNotShown (NotFound)
   → postgres_message_store.Append() [inserts into chat.messages: the account, never a copy of its name;
       for a reply, the id of the message it answers]

@@ -28,34 +28,35 @@ type stubPlayer struct {
 	asked  *string
 }
 
-func (s stubPlayer) GetAuthor(
+func (s stubPlayer) IntroducePlayer(
 	_ context.Context,
-	req *connect.Request[playerv1.GetAuthorRequest],
-) (*connect.Response[playerv1.GetAuthorResponse], error) {
+	req *connect.Request[playerv1.IntroducePlayerRequest],
+) (*connect.Response[playerv1.IntroducePlayerResponse], error) {
 	*s.asked = req.Msg.GetAccountId()
 	if s.err != nil {
 		return nil, s.err
 	}
-	return connect.NewResponse(&playerv1.GetAuthorResponse{
-		Name:  s.names[req.Msg.GetAccountId()],
-		Admin: s.admins[req.Msg.GetAccountId()],
-		Color: s.colors[req.Msg.GetAccountId()],
-		Guest: s.guests[req.Msg.GetAccountId()],
-	}), nil
+	return connect.NewResponse(&playerv1.IntroducePlayerResponse{Player: &playerv1.Player{
+		AccountId: req.Msg.GetAccountId(),
+		Name:      s.names[req.Msg.GetAccountId()],
+		Admin:     s.admins[req.Msg.GetAccountId()],
+		Color:     s.colors[req.Msg.GetAccountId()],
+		Guest:     s.guests[req.Msg.GetAccountId()],
+	}}), nil
 }
 
-func (s stubPlayer) GetAuthors(
+func (s stubPlayer) GetPlayers(
 	_ context.Context,
-	req *connect.Request[playerv1.GetAuthorsRequest],
-) (*connect.Response[playerv1.GetAuthorsResponse], error) {
+	req *connect.Request[playerv1.GetPlayersRequest],
+) (*connect.Response[playerv1.GetPlayersResponse], error) {
 	if s.err != nil {
 		return nil, s.err
 	}
-	found := make([]*playerv1.Author, 0, len(req.Msg.GetAccountIds()))
+	found := make([]*playerv1.Player, 0, len(req.Msg.GetAccountIds()))
 	for _, id := range req.Msg.GetAccountIds() {
-		found = append(found, &playerv1.Author{AccountId: id, Name: s.names[id], Color: s.colors[id]})
+		found = append(found, &playerv1.Player{AccountId: id, Name: s.names[id], Color: s.colors[id]})
 	}
-	return connect.NewResponse(&playerv1.GetAuthorsResponse{Authors: found}), nil
+	return connect.NewResponse(&playerv1.GetPlayersResponse{Players: found}), nil
 }
 
 var ada = messages.AccountID{15: 1}

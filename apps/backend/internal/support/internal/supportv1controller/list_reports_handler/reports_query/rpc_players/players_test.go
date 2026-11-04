@@ -1,4 +1,4 @@
-package rpc_player_authors_test
+package rpc_players_test
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
-	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler/reports_query/rpc_player_authors"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler/reports_query/rpc_players"
 )
 
 type stubPlayer struct {
@@ -25,21 +25,21 @@ type stubPlayer struct {
 	asks  *int
 }
 
-func (s stubPlayer) GetAuthors(
+func (s stubPlayer) GetPlayers(
 	_ context.Context,
-	req *connect.Request[playerv1.GetAuthorsRequest],
-) (*connect.Response[playerv1.GetAuthorsResponse], error) {
+	req *connect.Request[playerv1.GetPlayersRequest],
+) (*connect.Response[playerv1.GetPlayersResponse], error) {
 	*s.asks++
 	if s.err != nil {
 		return nil, s.err
 	}
-	found := make([]*playerv1.Author, 0, len(req.Msg.GetAccountIds()))
+	found := make([]*playerv1.Player, 0, len(req.Msg.GetAccountIds()))
 	for _, id := range req.Msg.GetAccountIds() {
 		if name, named := s.names[id]; named {
-			found = append(found, &playerv1.Author{AccountId: id, Name: name})
+			found = append(found, &playerv1.Player{AccountId: id, Name: name})
 		}
 	}
-	return connect.NewResponse(&playerv1.GetAuthorsResponse{Authors: found}), nil
+	return connect.NewResponse(&playerv1.GetPlayersResponse{Players: found}), nil
 }
 
 var (
@@ -47,7 +47,7 @@ var (
 	gone = cpsession.AccountID{15: 2}
 )
 
-func authors(t *testing.T, player stubPlayer) *rpc_player_authors.Authors {
+func players(t *testing.T, player stubPlayer) *rpc_players.Players {
 	t.Helper()
 
 	mux := http.NewServeMux()
@@ -55,14 +55,14 @@ func authors(t *testing.T, player stubPlayer) *rpc_player_authors.Authors {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	return rpc_player_authors.New(playerv1connect.NewInternalServiceClient(server.Client(), server.URL))
+	return rpc_players.New(playerv1connect.NewInternalServiceClient(server.Client(), server.URL))
 }
 
 func TestTheAccountsThePlayerModuleCanNameAreAnsweredAndTheOthersLeftOut(t *testing.T) {
 	asks := 0
 
-	found, err := authors(t, stubPlayer{names: map[string]string{ada.String(): "Ada_L"}, asks: &asks}).
-		Authors(t.Context(), []cpsession.AccountID{ada, gone})
+	found, err := players(t, stubPlayer{names: map[string]string{ada.String(): "Ada_L"}, asks: &asks}).
+		Players(t.Context(), []cpsession.AccountID{ada, gone})
 
 	require.NoError(t, err)
 	require.Len(t, found, 1)
@@ -73,7 +73,7 @@ func TestTheAccountsThePlayerModuleCanNameAreAnsweredAndTheOthersLeftOut(t *test
 func TestNobodyToNameAsksNothing(t *testing.T) {
 	asks := 0
 
-	found, err := authors(t, stubPlayer{asks: &asks}).Authors(t.Context(), nil)
+	found, err := players(t, stubPlayer{asks: &asks}).Players(t.Context(), nil)
 
 	require.NoError(t, err)
 	assert.Empty(t, found)
@@ -83,8 +83,8 @@ func TestNobodyToNameAsksNothing(t *testing.T) {
 func TestAFailureToAskIsAnError(t *testing.T) {
 	asks := 0
 
-	_, err := authors(t, stubPlayer{err: connect.NewError(connect.CodeInternal, errors.New("postgres is down")), asks: &asks}).
-		Authors(t.Context(), []cpsession.AccountID{ada})
+	_, err := players(t, stubPlayer{err: connect.NewError(connect.CodeInternal, errors.New("postgres is down")), asks: &asks}).
+		Players(t.Context(), []cpsession.AccountID{ada})
 
 	require.Error(t, err)
 }

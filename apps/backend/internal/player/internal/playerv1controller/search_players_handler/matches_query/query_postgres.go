@@ -16,7 +16,7 @@ type PostgresQuery struct {
 	db cppg.Conn
 }
 
-// An account goes by its username, or by its guest code until it chooses one, as GetAuthors names it.
+// An account goes by its username, or by its guest code until it chooses one, as GetPlayers names it.
 const matches = `
 	SELECT account_id::text, name, guest, count(*) OVER ()
 	FROM (

@@ -1,4 +1,4 @@
-package authors_query_test
+package players_query_test
 
 import (
 	"context"
@@ -15,8 +15,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/introduce_player_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_players_handler/players_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -56,74 +56,74 @@ func (s *testSuite) named(account players.AccountID, name players.Name) {
 	s.Require().NoError(s.players.SaveProfile(s.T().Context(), players.NewProfile(account, name, today)))
 }
 
-func (s *testSuite) query() *authors_query.PostgresQuery {
-	return authors_query.NewPostgresQuery(s.db)
+func (s *testSuite) query() *players_query.PostgresQuery {
+	return players_query.NewPostgresQuery(s.db)
 }
 
-func (s *testSuite) authors(accounts ...players.AccountID) map[string]*playerv1.Author {
-	answer, err := s.query().Authors(s.T().Context(), accounts)
+func (s *testSuite) answered(accounts ...players.AccountID) map[string]*playerv1.Player {
+	answer, err := s.query().Players(s.T().Context(), accounts)
 	s.Require().NoError(err)
 
-	by := make(map[string]*playerv1.Author, len(answer.GetAuthors()))
-	for _, author := range answer.GetAuthors() {
-		by[author.GetAccountId()] = author
+	by := make(map[string]*playerv1.Player, len(answer.GetPlayers()))
+	for _, player := range answer.GetPlayers() {
+		by[player.GetAccountId()] = player
 	}
 	return by
 }
 
-func names(authors map[string]*playerv1.Author) map[string]string {
-	by := make(map[string]string, len(authors))
-	for account, author := range authors {
-		by[account] = author.GetName()
+func names(found map[string]*playerv1.Player) map[string]string {
+	by := make(map[string]string, len(found))
+	for account, player := range found {
+		by[account] = player.GetName()
 	}
 	return by
 }
 
 func (s *testSuite) TestAPlayerIsNamedByItsUsernameAndAGuestByItsCode() {
-	s.Equal(map[string]string{ada.String(): "Ada", guest.String(): "guest_a1b2c3"}, names(s.authors(ada, guest)))
+	s.Equal(map[string]string{ada.String(): "Ada", guest.String(): "guest_a1b2c3"}, names(s.answered(ada, guest)))
 }
 
 func (s *testSuite) TestAUsernameWinsOverTheGuestCodeItNoLongerGoesBy() {
 	s.Require().NoError(s.players.SaveGuestCode(s.T().Context(), ada, "91aa3d"))
 
-	s.Equal(map[string]string{ada.String(): "Ada"}, names(s.authors(ada)))
+	s.Equal(map[string]string{ada.String(): "Ada"}, names(s.answered(ada)))
 }
 
 func (s *testSuite) TestARenamedPlayerIsNamedByItsNewNameAndNotByWhoTookItsOldOne() {
 	s.named(ada, "Ada_Lovelace")
 	s.named(bob, "Ada")
 
-	s.Equal(map[string]string{ada.String(): "Ada_Lovelace", bob.String(): "Ada"}, names(s.authors(ada, bob)))
+	s.Equal(map[string]string{ada.String(): "Ada_Lovelace", bob.String(): "Ada"}, names(s.answered(ada, bob)))
 }
 
 func (s *testSuite) TestAGuestIsToldApartFromAUsername() {
-	authors := s.authors(ada, guest)
+	found := s.answered(ada, guest)
 
-	s.False(authors[ada.String()].GetGuest())
-	s.True(authors[guest.String()].GetGuest())
+	s.False(found[ada.String()].GetGuest())
+	s.True(found[guest.String()].GetGuest())
 }
 
 func (s *testSuite) TestAnAdminCarriesItsMark() {
 	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
 
-	authors := s.authors(ada, bob)
+	found := s.answered(ada, bob)
 
-	s.True(authors[ada.String()].GetAdmin())
-	s.False(authors[bob.String()].GetAdmin())
+	s.True(found[ada.String()].GetAdmin())
+	s.False(found[bob.String()].GetAdmin())
 }
 
 func (s *testSuite) TestAnAccountNobodyCanNameIsLeftOut() {
 	unnamed := players.AccountID{15: 4}
 
-	s.Equal(map[string]string{ada.String(): "Ada"}, names(s.authors(ada, unnamed, players.AccountID{15: 5})),
+	s.Equal(map[string]string{ada.String(): "Ada"}, names(s.answered(ada, unnamed, players.AccountID{15: 5})),
 		"an account with neither a profile nor a code is absent, and so is an unknown one")
 }
 
 func (s *testSuite) TestAskingGivesNobodyAGuestCode() {
 	unnamed := players.AccountID{15: 4}
 
-	s.authors(unnamed)
+	s.answered(unnamed)
 
 	_, err := s.players.GuestCode(s.T().Context(), unnamed)
 	s.ErrorIs(err, players.ErrNoGuestCode, "a read path never writes")
@@ -132,7 +132,7 @@ func (s *testSuite) TestAskingGivesNobodyAGuestCode() {
 func (s *testSuite) TestADeletedAccountCanNoLongerBeNamed() {
 	s.Require().NoError(s.players.DeleteAccount(s.T().Context(), ada))
 
-	s.Empty(s.authors(ada), "what a caller shows in its place is the caller's to decide")
+	s.Empty(s.answered(ada), "what a caller shows in its place is the caller's to decide")
 }
 
 func (s *testSuite) decide(account players.AccountID, decision departures.Decision) {
@@ -143,41 +143,41 @@ func (s *testSuite) decide(account players.AccountID, decision departures.Decisi
 func (s *testSuite) TestAnAccountAskedToBeDeletedReadsAsDeletedUntilItComesBack() {
 	s.decide(ada, departures.Leaves(today))
 
-	s.Equal(map[string]string{bob.String(): "Bob"}, names(s.authors(ada, bob)), "the other players see it gone")
+	s.Equal(map[string]string{bob.String(): "Bob"}, names(s.answered(ada, bob)), "the other players see it gone")
 
 	s.decide(ada, departures.Returns(today.Add(time.Hour)))
 
-	s.Equal(map[string]string{ada.String(): "Ada", bob.String(): "Bob"}, names(s.authors(ada, bob)), "back under its name")
+	s.Equal(map[string]string{ada.String(): "Ada", bob.String(): "Bob"}, names(s.answered(ada, bob)), "back under its name")
 }
 
 func (s *testSuite) TestAskingAboutNobodyAnswersNobody() {
-	s.Empty(s.authors())
+	s.Empty(s.answered())
 }
 
 func (s *testSuite) TestARepeatedAccountIsAnsweredOnceInTheOrderAsked() {
-	answer, err := s.query().Authors(s.T().Context(), []players.AccountID{guest, ada, guest, bob})
+	answer, err := s.query().Players(s.T().Context(), []players.AccountID{guest, ada, guest, bob})
 	s.Require().NoError(err)
 
-	ids := make([]string, 0, len(answer.GetAuthors()))
-	for _, author := range answer.GetAuthors() {
-		ids = append(ids, author.GetAccountId())
+	ids := make([]string, 0, len(answer.GetPlayers()))
+	for _, player := range answer.GetPlayers() {
+		ids = append(ids, player.GetAccountId())
 	}
 	s.Equal([]string{guest.String(), ada.String(), bob.String()}, ids)
 }
 
-func (s *testSuite) TestEachAuthorCarriesItsColorAndAGuestNone() {
+func (s *testSuite) TestEachPlayerCarriesItsColorAndAGuestNone() {
 	s.Require().NoError(s.players.SaveColor(s.T().Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_PINK)))
 
-	authors := s.authors(ada, guest)
+	found := s.answered(ada, guest)
 
-	s.Equal(playerv1.NameColor_NAME_COLOR_PINK, authors[ada.String()].GetColor())
-	s.Equal(playerv1.NameColor_NAME_COLOR_UNSPECIFIED, authors[guest.String()].GetColor())
+	s.Equal(playerv1.NameColor_NAME_COLOR_PINK, found[ada.String()].GetColor())
+	s.Equal(playerv1.NameColor_NAME_COLOR_UNSPECIFIED, found[guest.String()].GetColor())
 }
 
 func (s *testSuite) TestAColorTheProtoDoesNotNameIsAnError() {
 	s.Require().NoError(s.players.SaveColor(s.T().Context(), ada, 99))
 
-	_, err := s.query().Authors(s.T().Context(), []players.AccountID{ada})
+	_, err := s.query().Players(s.T().Context(), []players.AccountID{ada})
 
 	s.ErrorIs(err, playerread.ErrUnknownColor)
 }
@@ -186,12 +186,12 @@ func (s *testSuite) TestAFailedReadIsAnError() {
 	ctx, cancel := context.WithCancel(s.T().Context())
 	cancel()
 
-	_, err := s.query().Authors(ctx, []players.AccountID{ada})
+	_, err := s.query().Players(ctx, []players.AccountID{ada})
 
 	s.Error(err)
 }
 
-func (s *testSuite) TestEachAuthorIsWhatGetAuthorAnswersForIt() {
+func (s *testSuite) TestEachPlayerIsWhatIntroducePlayerAnswersForIt() {
 	cy, dan, eve := players.AccountID{15: 4}, players.AccountID{15: 5}, players.AccountID{15: 6}
 	s.named(cy, "Cyd")
 	s.named(dan, "Dan")
@@ -199,21 +199,21 @@ func (s *testSuite) TestEachAuthorIsWhatGetAuthorAnswersForIt() {
 	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
 	s.Require().NoError(s.players.SaveColor(s.T().Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_PINK)))
-	single := get_author_usecase.New(s.players, players.NewGuestCodes(s.players, &players.SequentialCodes{}))
+	single := introduce_player_usecase.New(s.players, players.NewGuestCodes(s.players, &players.SequentialCodes{}))
 	everyone := []players.AccountID{ada, bob, guest, cy, dan, eve}
-	many := s.authors(everyone...)
+	many := s.answered(everyone...)
 
 	s.Require().Len(many, len(everyone))
 	for _, account := range everyone {
 		one, err := single.Execute(s.T().Context(), account)
 		s.Require().NoError(err)
 
-		s.True(proto.Equal(&playerv1.Author{
+		s.True(proto.Equal(&playerv1.Player{
 			AccountId: account.String(),
 			Name:      one.Name(),
 			Admin:     one.Admin(),
 			Color:     playermessage.Color(one.Color()),
 			Guest:     one.Guest(),
-		}, many[account.String()]), "%s: GetAuthor and GetAuthors must name an account alike, got %v", one.Name(), many[account.String()])
+		}, many[account.String()]), "%s: IntroducePlayer and GetPlayers must name an account alike, got %v", one.Name(), many[account.String()])
 	}
 }

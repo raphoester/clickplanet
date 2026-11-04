@@ -15,8 +15,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-type Authors interface {
-	Authors(ctx context.Context, accounts []standings.AccountID) (map[standings.AccountID]*playerv1.Author, error)
+type Players interface {
+	Players(ctx context.Context, accounts []standings.AccountID) (map[standings.AccountID]*playerv1.Player, error)
 }
 
 type CountryChecker interface {
@@ -30,13 +30,13 @@ const (
 	page  = 200
 )
 
-func NewPostgresQuery(db cppg.Conn, authors Authors, countries CountryChecker) *PostgresQuery {
-	return &PostgresQuery{db: db, authors: authors, countries: countries}
+func NewPostgresQuery(db cppg.Conn, players Players, countries CountryChecker) *PostgresQuery {
+	return &PostgresQuery{db: db, players: players, countries: countries}
 }
 
 type PostgresQuery struct {
 	db        cppg.Conn
-	authors   Authors
+	players   Players
 	countries CountryChecker
 }
 
@@ -81,15 +81,15 @@ func (q *PostgresQuery) top(ctx context.Context, view View) ([]*scoringv1.Standi
 			return nil, err
 		}
 		for _, line := range lines {
-			author, known := named[line.account]
-			if !known || author.GetGuest() {
+			player, known := named[line.account]
+			if !known || player.GetGuest() {
 				continue
 			}
 			top = append(top, &scoringv1.Standing{
 				Rank:      rankAfter(top, line.tiles),
 				AccountId: line.account.String(),
-				Name:      author.GetName(),
-				Color:     author.GetColor(),
+				Name:      player.GetName(),
+				Color:     player.GetColor(),
 				CountryId: line.country,
 				Tiles:     line.tiles,
 			})
@@ -160,15 +160,15 @@ func (q *PostgresQuery) lines(ctx context.Context, book books.BookID, country st
 	return lines, nil
 }
 
-func (q *PostgresQuery) named(ctx context.Context, lines []line) (map[standings.AccountID]*playerv1.Author, error) {
+func (q *PostgresQuery) named(ctx context.Context, lines []line) (map[standings.AccountID]*playerv1.Player, error) {
 	if len(lines) == 0 {
-		return map[standings.AccountID]*playerv1.Author{}, nil
+		return map[standings.AccountID]*playerv1.Player{}, nil
 	}
 	accounts := make([]standings.AccountID, len(lines))
 	for i, line := range lines {
 		accounts[i] = line.account
 	}
-	named, err := q.authors.Authors(ctx, accounts)
+	named, err := q.players.Players(ctx, accounts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read who the standings are: %w", err)
 	}

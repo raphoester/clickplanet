@@ -8,8 +8,8 @@ import "player/v1/player.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
 service AdminService {
-  // InternalService/GetAuthors, for the admin page naming a page of players.
-  rpc GetAuthors(GetAuthorsRequest) returns (GetAuthorsResponse);
+  // InternalService/GetPlayers, for the admin page naming a page of players.
+  rpc GetPlayers(GetPlayersRequest) returns (GetPlayersResponse);
 
   // Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
   // fronts are progression.v1.AdminService/GetProgress.

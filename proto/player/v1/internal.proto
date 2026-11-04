@@ -2,12 +2,15 @@ syntax = "proto3";
 
 package player.v1;
 
-import "player/v1/color.proto";
+import "player/v1/player.proto";
 
 service InternalService {
-  rpc GetAuthor(GetAuthorRequest) returns (GetAuthorResponse);
+  // The player an account is, for the chat about to show who posts. Not a pure read: a guest is given its code the
+  // first time it is introduced, as the roster's announce gives it.
+  rpc IntroducePlayer(IntroducePlayerRequest) returns (IntroducePlayerResponse);
 
-  rpc GetAuthors(GetAuthorsRequest) returns (GetAuthorsResponse) {
+  // The players a page of accounts are, for a module showing many at once. A pure read: it draws nobody a guest code.
+  rpc GetPlayers(GetPlayersRequest) returns (GetPlayersResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
@@ -18,40 +21,20 @@ service InternalService {
   }
 }
 
-message GetAuthorRequest {
+message IntroducePlayerRequest {
   string account_id = 1;
-  reserved 2;
-  reserved "ip";
 }
 
-message GetAuthorResponse {
-  string name = 1;
-  reserved 2;
-  reserved "tag";
-  bool admin = 3;
-  NameColor color = 4;
-  // An author's badges are PlayerService/GetBadges', which the page reads itself.
-  reserved 5, 6;
-  reserved "streak", "worn_title";
-  bool guest = 7;
+message IntroducePlayerResponse {
+  Player player = 1;
 }
 
-message GetAuthorsRequest {
+message GetPlayersRequest {
   repeated string account_ids = 1;
 }
 
-message GetAuthorsResponse {
-  repeated Author authors = 1;
-}
-
-message Author {
-  string account_id = 1;
-  string name = 2;
-  bool admin = 3;
-  NameColor color = 4;
-  reserved 5, 6;
-  reserved "streak", "worn_title";
-  bool guest = 7;
+message GetPlayersResponse {
+  repeated Player players = 1;
 }
 
 message GetAccountsRequest {

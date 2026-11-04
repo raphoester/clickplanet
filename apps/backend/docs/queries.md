@@ -2,12 +2,12 @@
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
-(`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetPlayer`, `GetAuthors`, `GetRoster`), progression (`GetStats`,
+(`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetPlayer`, `GetPlayers`, `GetRoster`), progression (`GetStats`,
 `GetTitles`, `GetBadges`, `GetProgress`, `AdminService/GetProgress`), planet
 (`GetTakesByCountry`, `GetLedgerTotals`, `GetMapHistory`, `GetTerritories`, `GetLedger`, `GetTileHolder`, `GetLandmass`, `GetHoldings`),
 gamemaster (`GetSeasonTotals`, `GetSeasonReplay`), auth
 (`GetMe`, `GetAccount`, `GetAccounts`), scoring (`GetBoard`, `GetMyTally`, `GetRound`, `GetScores`, `GetBookHistory` and the live stream) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
-still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
+still answer a small struct** (`SetName`, `WearTitle`, `React`, `IntroducePlayer`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
 through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
 
@@ -24,7 +24,7 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   until those rows are gone. An announcement's kind and an identity's provider are enum types, so postgres already
   refuses a value no migration added; the check in Go is for a value the type holds and this build does not. A title id the catalog
   no longer has is the exception: the catalog drops it from what is shown, and the reconciliation revokes it.
-- **What SQL cannot read is a port in the wire's terms.** `history_query.Authors` answers `*player.v1.Author`, and its
+- **What SQL cannot read is a port in the wire's terms.** `history_query.Authors` answers `*player.v1.Player`, and its
   adapter is a subpackage (`history_query/rpc_player_authors`). The query asks it once and stitches the answer on.
   An adapter the commands already use is reused rather than copied: `player_query.Accounts` is
   `players/rpc_account_reader`. **The adapter is the only bridge to the domain**: the titles catalog is game rules as
@@ -54,7 +54,7 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   names them with a map of its own, as `authprovider` does. The handlers still parse an id with
   `accounts.AccountIDOf`, as every edge does.
 - **Every rule written twice has a parity test**, which runs the same stored rows through both copies and asks for
-  the same answer. Player: `GetAuthor` against `GetAuthors`. Progression: a command's stats as of a day against
+  the same answer. Player: `IntroducePlayer` against `GetPlayers`. Progression: a command's stats as of a day against
   `GetStats`, and a command's streak as of today and title worn (`Stats.AsOf`, `Wardrobe.Showcase`) against `GetBadges`.
   Chat (`history_query/parity_test.go`): a message is in the
   history exactly when `React` may react to it and `SendMessage` may reply to it; `React`'s answer against the
@@ -67,8 +67,8 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   test does not cover is a rule that can drift.
 - **So the domain has no exported fields.** A player domain type is built by a constructor (`NewProfile`,
   `NewStats`, `NewVisit` to start one; `StatsOf`, `StreakOf`, `AccountOf` to restore one a store or
-  another module kept), read through nouns (`Stats.TilesTaken()`, `Visit.Author()`), and changed
-  through builders that answer a copy (`Stats.WithTake`, `Profile.Renamed`, `Author.Renamed`,
+  another module kept), read through nouns (`Stats.TilesTaken()`, `Visit.Player()`), and changed
+  through builders that answer a copy (`Stats.WithTake`, `Profile.Renamed`, `Player.Renamed`,
   `Visit.Keyed`). `players.Profile` has no getter: a store and the wire read it through `ProfileSnapshot`
   (`TakeSnapshot`, `Restore`), as chat's `Message` below. Chat the same: `NewRecord`, `NewWindow`, `AuthorOf`,
   `reactions.On` and `Off` for a `Change`, `Tally.Named`, `NewAnnouncement`, `BombOf`, and

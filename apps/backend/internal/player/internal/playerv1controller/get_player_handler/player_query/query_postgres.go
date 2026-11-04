@@ -48,7 +48,7 @@ func (q *PostgresQuery) Player(ctx context.Context, account cpsession.AccountID)
 	var (
 		guest  bool
 		color  int32
-		answer = &playerv1.Player{}
+		answer = &playerv1.Player{AccountId: account.String()}
 	)
 	err := q.db.On(ctx).QueryRowContext(ctx, player, uuid.UUID(account)).Scan(&guest, &answer.Name, &answer.Admin, &color)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -58,7 +58,7 @@ func (q *PostgresQuery) Player(ctx context.Context, account cpsession.AccountID)
 		return nil, fmt.Errorf("failed to read the player: %w", err)
 	}
 	if guest {
-		return &playerv1.GetPlayerResponse{Player: &playerv1.Player{Name: answer.GetName(), Guest: true}}, nil
+		return &playerv1.GetPlayerResponse{Player: &playerv1.Player{AccountId: answer.GetAccountId(), Name: answer.GetName(), Guest: true}}, nil
 	}
 
 	if answer.Color, err = playerread.KeptColor(color); err != nil {

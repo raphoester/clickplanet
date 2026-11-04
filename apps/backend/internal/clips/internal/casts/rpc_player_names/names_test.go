@@ -14,16 +14,16 @@ import (
 )
 
 type player struct {
-	authors []*playerv1.Author
+	players []*playerv1.Player
 	asked   []string
 }
 
-func (p *player) GetAuthors(
+func (p *player) GetPlayers(
 	_ context.Context,
-	req *connect.Request[playerv1.GetAuthorsRequest],
-) (*connect.Response[playerv1.GetAuthorsResponse], error) {
+	req *connect.Request[playerv1.GetPlayersRequest],
+) (*connect.Response[playerv1.GetPlayersResponse], error) {
 	p.asked = append(p.asked, req.Msg.GetAccountIds()...)
-	return connect.NewResponse(&playerv1.GetAuthorsResponse{Authors: p.authors}), nil
+	return connect.NewResponse(&playerv1.GetPlayersResponse{Players: p.players}), nil
 }
 
 func account(t *testing.T, id string) casts.AccountID {
@@ -35,7 +35,7 @@ func account(t *testing.T, id string) casts.AccountID {
 
 func TestAGuestHasNoUsername(t *testing.T) {
 	const ada, guest = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a01", "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a03"
-	module := &player{authors: []*playerv1.Author{
+	module := &player{players: []*playerv1.Player{
 		{AccountId: ada, Name: "Ada"},
 		{AccountId: guest, Name: "guest_X7K2", Guest: true},
 	}}

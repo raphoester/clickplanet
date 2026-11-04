@@ -11,7 +11,7 @@ import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
 import {AdminGetPlayerResponse} from "../gen/grpc/player/v1/admin_pb.ts"
 import {GetMuteResponse, KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
-import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
+import {Player as Identity} from "../gen/grpc/player/v1/player_pb.ts"
 import {AdminGetProgressResponse} from "../gen/grpc/progression/v1/admin_pb.ts"
 import {CountryTiles, Stats} from "../gen/grpc/progression/v1/progression_pb.ts"
 import {Opened} from "../navigation.ts"
@@ -65,7 +65,7 @@ describe("the player list", () => {
         expect(within(anonymous).getByText("No account")).toBeTruthy()
         expect(within(anonymous).getByText("2001:db8:1:2::/64")).toBeTruthy()
         expect(admin.askedFor("topPlayers")).toEqual([{limit: 20}])
-        expect(admin.askedFor("getAuthors")).toEqual([{accountIds: [ACCOUNT]}])
+        expect(admin.askedFor("getPlayers")).toEqual([{accountIds: [ACCOUNT]}])
     })
 
     it("sorts the rows read by a column, most first, then least first", async () => {
@@ -81,7 +81,7 @@ describe("the player list", () => {
 
     it("still lists the players when their names cannot be read, and says why", async () => {
         const admin = new FakeAdmin()
-        admin.refuse("getAuthors", Code.Unavailable)
+        admin.refuse("getPlayers", Code.Unavailable)
         render(<Page admin={admin}/>)
 
         expect(await screen.findByText("The names could not be read. The call failed: refused")).toBeTruthy()
@@ -107,7 +107,7 @@ describe("the player list", () => {
 
     it("finds any account by a part of its name, and opens it", async () => {
         const admin = new FakeAdmin()
-        admin.authors.push(new Author({accountId: "5e0c1b2a-3d4e-4f60-8a71-9b2c3d4e5f60", name: "guest_a1b2c3", guest: true}))
+        admin.identities.push(new Identity({accountId: "5e0c1b2a-3d4e-4f60-8a71-9b2c3d4e5f60", name: "guest_a1b2c3", guest: true}))
         render(<Page admin={admin}/>)
 
         await screen.findByText("2 of 75 players")

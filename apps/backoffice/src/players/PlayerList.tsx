@@ -6,11 +6,11 @@ import {Ago} from "../components/When.tsx"
 import {countryIdOf, countryLabel} from "../countries.ts"
 import {Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {PlayerMatch} from "../gen/grpc/player/v1/admin_pb.ts"
-import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
+import {Player as Identity} from "../gen/grpc/player/v1/player_pb.ts"
 import {Opened} from "../navigation.ts"
 import {countOf} from "../support/labels.ts"
 import {useCall} from "../useCall.ts"
-import {findPlayers, LIMITS, searchPlayers, topPlayers, withAuthors} from "./actions.ts"
+import {findPlayers, LIMITS, searchPlayers, topPlayers, withNames} from "./actions.ts"
 import {searchOf} from "./caller.ts"
 import {spanOf} from "./durations.ts"
 import {PlayerName} from "./PlayerName.tsx"
@@ -128,7 +128,7 @@ function Results({planet, player, query, onOpen}: ResultsProps) {
         (signal: AbortSignal) => (query.kind === "top"
             ? topPlayers(planet, query.limit, signal)
             : findPlayers(planet, query.flag, query.area, query.limit, signal)
-        ).then(page => withAuthors(player, page, signal)),
+        ).then(page => withNames(player, page, signal)),
         [planet, player, query],
     )
     const [players, again] = useCall(list)
@@ -137,7 +137,7 @@ function Results({planet, player, query, onOpen}: ResultsProps) {
 
     if (players.state === "loading") return <p className="muted">Loading…</p>
     if (players.state === "failed") return <FailureNotice failure={players} onRetry={again}/>
-    const {players: rows, total, authors, unnamed} = players.value
+    const {players: rows, total, identities, unnamed} = players.value
     const column = COLUMNS.find(each => each.key === sort?.key)
     const shown = column === undefined ? rows
         : [...rows].sort((a, b) => (column.of(a) - column.of(b)) * (sort?.down ? -1 : 1))
@@ -171,7 +171,7 @@ function Results({planet, player, query, onOpen}: ResultsProps) {
                 </thead>
                 <tbody>
                     {shown.map(row => (
-                        <PlayerRow key={`${row.accountId}|${row.scope}`} row={row} author={authors.get(row.accountId)} onOpen={onOpen}/>
+                        <PlayerRow key={`${row.accountId}|${row.scope}`} row={row} identity={identities.get(row.accountId)} onOpen={onOpen}/>
                     ))}
                 </tbody>
             </table>
@@ -179,12 +179,12 @@ function Results({planet, player, query, onOpen}: ResultsProps) {
     )
 }
 
-type RowProps = {row: Player, author: Author | undefined, onOpen: (opened: Opened) => void}
+type RowProps = {row: Player, identity: Identity | undefined, onOpen: (opened: Opened) => void}
 
 // A row by its flag and its name; the whole row opens it. The account id is on the player page, with the tools.
-function PlayerRow({row, author, onOpen}: RowProps) {
+function PlayerRow({row, identity, onOpen}: RowProps) {
     const caller = row.accountId !== "" ? {accountId: row.accountId} : {scope: row.scope}
-    const name = author?.name ?? ""
+    const name = identity?.name ?? ""
     return (
         <tr className={row.banned === true ? "row-link row-banned" : "row-link"}>
             <td>

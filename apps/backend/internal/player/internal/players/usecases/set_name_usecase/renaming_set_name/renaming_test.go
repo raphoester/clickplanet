@@ -21,7 +21,7 @@ var (
 	now = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 	ada = players.AccountID{15: 1}
 
-	guest = players.GuestAuthor("0b1c2d")
+	guest = players.GuestPlayer("0b1c2d")
 )
 
 type fixture struct {
@@ -52,7 +52,7 @@ func TestAKeptNameShowsOnTheRosterAtOnce(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, players.Name("Ada_L"), profile.TakeSnapshot().Name)
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Equal(t, players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore()), f.visits.Visits()[0].Author())
+	assert.Equal(t, players.NamedPlayer(players.ProfileSnapshot{Name: "Ada_L"}.Restore()), f.visits.Visits()[0].Player())
 }
 
 func TestARefusedNameRenamesNothing(t *testing.T) {
@@ -62,5 +62,5 @@ func TestARefusedNameRenamesNothing(t *testing.T) {
 
 	require.ErrorIs(t, err, players.ErrNotLinked)
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Equal(t, guest, f.visits.Visits()[0].Author())
+	assert.Equal(t, guest, f.visits.Visits()[0].Player())
 }

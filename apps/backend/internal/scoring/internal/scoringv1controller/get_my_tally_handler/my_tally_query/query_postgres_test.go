@@ -24,27 +24,27 @@ func TestRunSuite(t *testing.T) {
 	suite.Run(t, new(testSuite))
 }
 
-type fakeAuthors struct {
+type fakePlayers struct {
 	mu    sync.Mutex
-	named map[standings.AccountID]*playerv1.Author
+	named map[standings.AccountID]*playerv1.Player
 	asked int
 	err   error
 }
 
-func (f *fakeAuthors) Authors(
+func (f *fakePlayers) Players(
 	_ context.Context,
 	accounts []standings.AccountID,
-) (map[standings.AccountID]*playerv1.Author, error) {
+) (map[standings.AccountID]*playerv1.Player, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.asked++
 	if f.err != nil {
 		return nil, f.err
 	}
-	found := make(map[standings.AccountID]*playerv1.Author, len(accounts))
+	found := make(map[standings.AccountID]*playerv1.Player, len(accounts))
 	for _, account := range accounts {
-		if author, known := f.named[account]; known {
-			found[account] = author
+		if player, known := f.named[account]; known {
+			found[account] = player
 		}
 	}
 	return found, nil
@@ -55,7 +55,7 @@ type testSuite struct {
 
 	db      *cppg.Postgres
 	store   *postgres_contribution_store.Store
-	authors *fakeAuthors
+	players *fakePlayers
 	taken   uint64
 }
 
@@ -66,7 +66,7 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
-	s.authors = &fakeAuthors{named: map[standings.AccountID]*playerv1.Author{}}
+	s.players = &fakePlayers{named: map[standings.AccountID]*playerv1.Player{}}
 }
 
 func account(n int) standings.AccountID {
@@ -82,16 +82,16 @@ func (s *testSuite) take(n int, country standings.Country, tiles int) {
 
 func (s *testSuite) player(n int, country standings.Country, tiles int) {
 	s.take(n, country, tiles)
-	s.authors.named[account(n)] = &playerv1.Author{AccountId: account(n).String(), Name: fmt.Sprintf("player_%d", n)}
+	s.players.named[account(n)] = &playerv1.Player{AccountId: account(n).String(), Name: fmt.Sprintf("player_%d", n)}
 }
 
 func (s *testSuite) guest(n int, country standings.Country, tiles int) {
 	s.take(n, country, tiles)
-	s.authors.named[account(n)] = &playerv1.Author{AccountId: account(n).String(), Name: fmt.Sprintf("guest_%06x", n), Guest: true}
+	s.players.named[account(n)] = &playerv1.Player{AccountId: account(n).String(), Name: fmt.Sprintf("guest_%06x", n), Guest: true}
 }
 
 func (s *testSuite) query() *my_tally_query.PostgresQuery {
-	return my_tally_query.NewPostgresQuery(s.db, s.authors, cpcountries.New())
+	return my_tally_query.NewPostgresQuery(s.db, s.players, cpcountries.New())
 }
 
 func (s *testSuite) mySeason(n int, country string) *scoringv1.GetMyTallyResponse {
@@ -192,7 +192,7 @@ func (s *testSuite) TestAnAccountThatTookNothingReadsNothingAndAsksNobody() {
 	s.player(2, "fr", 4)
 
 	s.True(proto.Equal(&scoringv1.GetMyTallyResponse{}, s.mySeason(1, "fr")))
-	s.Zero(s.authors.asked)
+	s.Zero(s.players.asked)
 }
 
 func (s *testSuite) TestAnotherBookIsAnEmptyAnswer() {
@@ -209,13 +209,13 @@ func (s *testSuite) TestACountryThatIsNotOneIsRefusedAndReadsNothing() {
 	_, err := s.query().MyTally(s.T().Context(), "season-0", account(1), "zz")
 
 	s.Require().ErrorIs(err, my_tally_query.ErrUnknownCountry)
-	s.Zero(s.authors.asked)
+	s.Zero(s.players.asked)
 }
 
 func (s *testSuite) TestAFailureToNameIsAnError() {
 	s.player(1, "fr", 4)
 	refused := errors.New("the player module is down")
-	s.authors.err = refused
+	s.players.err = refused
 
 	_, err := s.query().MyTally(s.T().Context(), "season-0", account(1), "fr")
 

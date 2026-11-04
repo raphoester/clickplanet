@@ -446,7 +446,7 @@ const file_player_v1_admin_proto_rawDesc = "" +
 	"worn_titleR\tplays_forR\rplays_against2\x98\x03\n" +
 	"\fAdminService\x12I\n" +
 	"\n" +
-	"GetAuthors\x12\x1c.player.v1.GetAuthorsRequest\x1a\x1d.player.v1.GetAuthorsResponse\x12P\n" +
+	"GetPlayers\x12\x1c.player.v1.GetPlayersRequest\x1a\x1d.player.v1.GetPlayersResponse\x12P\n" +
 	"\tGetPlayer\x12 .player.v1.AdminGetPlayerRequest\x1a!.player.v1.AdminGetPlayerResponse\x12F\n" +
 	"\tGetRoster\x12\x1b.player.v1.GetRosterRequest\x1a\x1c.player.v1.GetRosterResponse\x12R\n" +
 	"\rSearchPlayers\x12\x1f.player.v1.SearchPlayersRequest\x1a .player.v1.SearchPlayersResponse\x12O\n" +
@@ -477,20 +477,20 @@ var file_player_v1_admin_proto_goTypes = []any{
 	(*AdminGetPlayerRequest)(nil),  // 5: player.v1.AdminGetPlayerRequest
 	(*AdminGetPlayerResponse)(nil), // 6: player.v1.AdminGetPlayerResponse
 	(NameColor)(0),                 // 7: player.v1.NameColor
-	(*GetAuthorsRequest)(nil),      // 8: player.v1.GetAuthorsRequest
+	(*GetPlayersRequest)(nil),      // 8: player.v1.GetPlayersRequest
 	(*GetRosterRequest)(nil),       // 9: player.v1.GetRosterRequest
-	(*GetAuthorsResponse)(nil),     // 10: player.v1.GetAuthorsResponse
+	(*GetPlayersResponse)(nil),     // 10: player.v1.GetPlayersResponse
 	(*GetRosterResponse)(nil),      // 11: player.v1.GetRosterResponse
 }
 var file_player_v1_admin_proto_depIdxs = []int32{
 	4,  // 0: player.v1.SearchPlayersResponse.players:type_name -> player.v1.PlayerMatch
 	7,  // 1: player.v1.AdminGetPlayerResponse.color:type_name -> player.v1.NameColor
-	8,  // 2: player.v1.AdminService.GetAuthors:input_type -> player.v1.GetAuthorsRequest
+	8,  // 2: player.v1.AdminService.GetPlayers:input_type -> player.v1.GetPlayersRequest
 	5,  // 3: player.v1.AdminService.GetPlayer:input_type -> player.v1.AdminGetPlayerRequest
 	9,  // 4: player.v1.AdminService.GetRoster:input_type -> player.v1.GetRosterRequest
 	2,  // 5: player.v1.AdminService.SearchPlayers:input_type -> player.v1.SearchPlayersRequest
 	0,  // 6: player.v1.AdminService.RenamePlayer:input_type -> player.v1.RenamePlayerRequest
-	10, // 7: player.v1.AdminService.GetAuthors:output_type -> player.v1.GetAuthorsResponse
+	10, // 7: player.v1.AdminService.GetPlayers:output_type -> player.v1.GetPlayersResponse
 	6,  // 8: player.v1.AdminService.GetPlayer:output_type -> player.v1.AdminGetPlayerResponse
 	11, // 9: player.v1.AdminService.GetRoster:output_type -> player.v1.GetRosterResponse
 	3,  // 10: player.v1.AdminService.SearchPlayers:output_type -> player.v1.SearchPlayersResponse
