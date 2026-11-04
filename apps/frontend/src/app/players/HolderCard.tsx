@@ -10,7 +10,7 @@ import TitleBadge from "../titles/TitleBadge.tsx"
 import {truncate} from "../truncate.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {usePlayerCard} from "./playerCardStore.ts"
-import {HolderShown} from "./useTileHolder.ts"
+import {HolderShown} from "./tileHolderStore.ts"
 import "./HolderCard.css"
 
 const NAME_MAX_LENGTH = 18

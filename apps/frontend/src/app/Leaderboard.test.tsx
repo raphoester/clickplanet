@@ -5,6 +5,7 @@ import {Race} from "../backends/standings.ts"
 import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx"
 import {FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts"
 import {useBoardGuide} from "./boardGuideStore.ts"
+import {useRace} from "./standings/raceStore.ts"
 import {Countries} from "../domain/countries.ts"
 import {TileDelta, TileDeltas} from "../domain/tileDeltas.ts"
 
@@ -27,6 +28,7 @@ beforeEach(() => useBoardGuide.setState({guided: true}))
 afterEach(() => {
     cleanup()
     localStorage.clear()
+    useRace.setState({race: undefined, heard: undefined})
     vi.useRealTimers()
 })
 
@@ -236,8 +238,10 @@ describe("Leaderboard with the season's race", () => {
         scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}],
     }
 
+    beforeEach(() => useRace.setState({race: RACE}))
+
     it("ranks by the season first: the points, with what each would score if the day ended now", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
         expect(leader()!.getAttribute("aria-label")).toBe("First: France")
         expect(within(leader()!).getByText("300 tiles")).toBeDefined()
@@ -255,7 +259,8 @@ describe("Leaderboard with the season's race", () => {
             {rank: 1, countryCode: "de", share: 0.5, points: 75},
             {rank: 2, countryCode: "fr", share: 0.3, points: 54},
         ]}}
-        render(<Leaderboard tilesCount={1000} data={MAP} race={battle}/>)
+        useRace.setState({race: battle})
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
         headers("#", "Country", "Tiles", "% of map", "Points", "Battle ×3")
         expect(screen.queryByRole("columnheader", {name: "Today"})).toBeNull()
@@ -264,14 +269,14 @@ describe("Leaderboard with the season's race", () => {
     })
 
     it("keeps the first country's share of the map beside its tiles", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
         expect(within(leader()!).getByText("30.00% of map")).toBeDefined()
     })
 
     it("says what the points mean the first time it shows them, once", () => {
         useBoardGuide.setState({guided: false})
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
         expect(screen.getByRole("status").textContent).toBe(FIGURES.points)
         expect(useBoardGuide.getState().guided).toBe(true)
@@ -281,7 +286,7 @@ describe("Leaderboard with the season's race", () => {
     it("lets the first word on the points stay long enough to read", () => {
         vi.useFakeTimers()
         useBoardGuide.setState({guided: false})
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
         act(() => vi.advanceTimersByTime(GUIDE_MS - 1))
         expect(screen.getByRole("status")).toBeDefined()
@@ -290,13 +295,13 @@ describe("Leaderboard with the season's race", () => {
     })
 
     it("says nothing on its own once the player was told", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
         expect(screen.queryByRole("status")).toBeNull()
     })
 
     it("leaves its order to the switch beside the heading", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
         expect(screen.queryByRole("group", {name: "Order"})).toBeNull()
     })
 
@@ -313,7 +318,7 @@ describe("Leaderboard with the season's race", () => {
     })
 
     it("ranks by the tiles held now when ordered by territory, the points still beside them", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} order="territory"/>)
+        render(<Leaderboard tilesCount={1000} data={MAP} order="territory"/>)
 
         expect(leader()!.getAttribute("aria-label")).toBe("First: Germany")
         expect(cells()).toEqual([

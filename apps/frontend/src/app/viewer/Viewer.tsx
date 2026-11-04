@@ -63,13 +63,12 @@ import {useAccount} from "../account/useAccount.ts";
 import {hueOf} from "../../domain/authorColor.ts";
 import {PlayerInfoBackend, PresenceBackend} from "../../backends/player.ts";
 import PlayerCardPlace from "../players/PlayerCardPlace.tsx";
-import HolderCard from "../players/HolderCard.tsx";
-import TerritoryCard from "../territory/TerritoryCard.tsx";
+import HolderCardPlace from "../players/HolderCardPlace.tsx";
+import TerritoryCardPlace from "../territory/TerritoryCardPlace.tsx";
 import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
-import {useTerritoryPlayers} from "../territory/useTerritoryPlayers.ts";
-import {useTileHolder} from "../players/useTileHolder.ts";
 import {usePresence} from "../players/usePresence.ts";
-import {useRoster} from "../players/useRoster.ts";
+import {useRosterFeed} from "../players/useRosterFeed.ts";
+import {onlineCount, useRoster} from "../players/rosterStore.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
 import SignInNudgeModal from "../account/SignInNudgeModal.tsx";
 import {useSignInNudge} from "../account/useSignInNudge.ts";
@@ -94,7 +93,8 @@ import {boardsOf, StandingsBackend} from "../../backends/standings.ts";
 import {SupportBackend} from "../../backends/support.ts";
 import {pageContextOf} from "../support/pageContext.ts";
 import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
-import {useRace} from "../standings/useRace.ts";
+import {useRaceFeed} from "../standings/useRaceFeed.ts";
+import {useRace} from "../standings/raceStore.ts";
 import {useDebriefed} from "../season/useDebriefed.ts";
 import {TurnBackend} from "../../backends/turn.ts";
 import {Battle, battleKeyOf, battleOf, finaleOf, nextBattleOf} from "../../domain/battle.ts";
@@ -201,13 +201,15 @@ export default function Viewer(props: ViewerProps) {
 
     useQuizMaster(props.quizMaster, countryState.code, sound.play)
     const announce = useAnnouncements((announcements) => announcements.announce)
-    const roster = useRoster(props.presence, (title) => announce({kind: "title", title}))
+    useRosterFeed(props.presence, (title) => announce({kind: "title", title}))
+    const crowd = useRoster(onlineCount)
     const schedule = useSchedule(props.turn)
     const season = useSeason(schedule.seasons.current)
     const bookId = schedule.seasons.current?.bookId ?? endedBookOf(schedule.debrief)
     const dayEndsAt = schedule.seasons.today?.endsAt
     const battle = battleOf(schedule.turn)
-    const race = useRace(props.standings, bookId, schedule.seasons.today?.roundId, battle?.roundId)
+    useRaceFeed(props.standings, bookId, schedule.seasons.today?.roundId, battle?.roundId)
+    const race = useRace((standings) => standings.race)
     const closed = useDebriefed(props.standings, schedule.debrief)
     const nextBattle = nextBattleOf(schedule.battles, Date.now())
     const finale = finaleOf(schedule.battles, schedule.turn, Date.now())
@@ -228,7 +230,6 @@ export default function Viewer(props: ViewerProps) {
     const closeSheet = useScreen((screen) => screen.closeSheet)
     const closePopover = useScreen((screen) => screen.closePopover)
     const closeAll = useScreen((screen) => screen.closeAll)
-    const [unread, setUnread] = useState(0)
     const [boardView, setBoardView] = useState<BoardView>("countries")
 
     useEffect(() => {
@@ -286,7 +287,7 @@ export default function Viewer(props: ViewerProps) {
         playSound: sound.play,
         onClickAccepted: accepted.record,
         country: countryState,
-        crowd: roster.kind === "ready" ? roster.entries.length : undefined,
+        crowd,
         clickHue: hueOf(color),
         mapView,
         halo: haloOf(battle, halloween),
@@ -300,9 +301,7 @@ export default function Viewer(props: ViewerProps) {
     const firstWin = useBonusGuide((bonus) => award !== undefined && isFirstWin(bonus.guide, award.kind))
     const markWon = useBonusGuide((bonus) => bonus.markWon)
 
-    const tileHolder = useTileHolder(props.tileHolders, props.playerInfo, pointing, ownAccountId)
     const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
-    const territoryPlayers = useTerritoryPlayers(props.landmasses, props.playerInfo, territoryCard.shown?.territory.landmass)
 
     const fortifyGuide = useFortifyGuide()
     const [fortifyCard, setFortifyCard] = useState<Fortified | undefined>()
@@ -373,7 +372,6 @@ export default function Viewer(props: ViewerProps) {
         tilesCount,
         anthem: <AnthemControls anthem={anthem}/>,
         standings,
-        race,
         countryOrder,
         onCountryOrder: setCountryOrder,
         hallOfFame,
@@ -483,11 +481,9 @@ export default function Viewer(props: ViewerProps) {
             accountId={ownAccountId}
             username={username}
             reporter={props.support}
-            players={roster.kind === 'ready' ? roster.entries : undefined}
             compact={compact}
             open={compact ? sheet === "chat" : undefined}
             onOpenChange={compact ? (open) => open ? openSheet("chat") : closeSheet() : undefined}
-            onUnread={setUnread}
             discord={discord}
             gifs={props.gifs}
         />}
@@ -519,7 +515,6 @@ export default function Viewer(props: ViewerProps) {
 
             <TabBar chat={props.chatBackend !== undefined && crazyGames.chat}
                     invite={invite !== undefined}
-                    unread={unread}
                     you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}
                     missions={missions ? missionsNews : undefined}/>
         </>}
@@ -547,17 +542,17 @@ export default function Viewer(props: ViewerProps) {
                                                          onSwitch={() => pickCountry(invitation.asked!)}
                                                          onClose={invitation.answer}/>}
 
-        {tileHolder.holder && <HolderCard key={`holder-${tileHolder.holder.id}`}
-                                                              holder={tileHolder.holder}
-                                                              onHold={tileHolder.hold}
-                                                              onClose={tileHolder.dismiss}/>}
+        <HolderCardPlace holders={props.tileHolders}
+                         players={props.playerInfo}
+                         pointing={pointing}
+                         accountId={ownAccountId}/>
 
-        {territoryCard.shown && <TerritoryCard key={`territory-${territoryCard.shown.id}`}
-                                               shown={territoryCard.shown}
-                                               flag={countryState.code}
-                                               players={territoryPlayers}
-                                               onHold={territoryCard.hold}
-                                               onClose={territoryCard.dismiss}/>}
+        <TerritoryCardPlace shown={territoryCard.shown}
+                            flag={countryState.code}
+                            reader={props.landmasses}
+                            players={props.playerInfo}
+                            onHold={territoryCard.hold}
+                            onClose={territoryCard.dismiss}/>
 
         {props.playerInfo && <PlayerCardPlace backend={props.playerInfo}
                                               accountId={ownAccountId}

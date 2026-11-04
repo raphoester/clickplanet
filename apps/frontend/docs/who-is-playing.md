@@ -16,9 +16,9 @@ code. No address, and no hash of one, is on it.
 - `domain/presence.ts` — `PresenceSchedule`, when to announce. No clock and no
   network, so every rule is under test. `domain/roster.ts` applies one live event
   (`applyRosterEvent`) and splits the roster into the two groups.
-- `app/players/` — `usePresence`, `useRoster` and `usePlayerInfo`, thin hooks
-  over the above, `PlayersPanel`, `PlayerCard`, and `usePlayerCard` with
-  `PlayerCardPlace`, the one card open.
+- `app/players/` — `usePresence`, `useRosterFeed` and `usePlayerInfo`, thin hooks
+  over the above, the roster's store `useRoster`, `PlayersPanel`, `PlayerCard`,
+  and `usePlayerCard` with `PlayerCardPlace`, the one card open.
 
 **A name wears its color and its streak** everywhere it is drawn: the chat log,
 the folded quote, the roster and the card. Both come from the server with the
@@ -99,11 +99,19 @@ flag alone: the server reads the name off the account. An announce refused
 would mint; the next click brings one. `NoSession` holds nothing, so a build
 without a sitekey never announces.
 
+**The roster is a store**, `useRoster` (`app/players/rosterStore.ts`, see
+[Stores](stores.md)): loading, unavailable, or the list. `useRosterFeed`, which
+`Viewer` calls with the `PresenceBackend`, follows the stream into it, and lists
+nobody again once it stops. `PlayersPanel` reads the list itself and the chat's
+tab reads the count (`onlineCount`), so a renamed line renders the list alone.
+`Viewer` reads only the count, which it gives the globe (`crowd`, see
+[Ghosts](ghosts.md)).
+
 **The roster is streamed**, over `ListenForEvents` through `openStream`, with
 the token already held (`held()`, never a mint) when there is one. The roster
 needs none; the token is what lets the same stream bring this player's own
 titles (`titleEarned`, see [Titles](titles.md)). The server reads it when the
-stream opens, so `useRoster` checks `heldSession()` every `SETTLE_MS` and
+stream opens, so `useRosterFeed` checks `heldIdentity()` every `SETTLE_MS` and
 reopens the stream when it changes, keeping the list it has. Every connection starts with the whole roster, then
 sends one line that joined or changed (`entry`) or one key that left (`left`).
 A line is named by its `key`, which the server keeps through a new flag, a

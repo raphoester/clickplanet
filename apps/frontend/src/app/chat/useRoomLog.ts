@@ -31,7 +31,7 @@ export type SeenAtLoad = {
     kept: boolean
 }
 
-export type UseChatOptions = {
+export type UseRoomLogOptions = {
     backend?: ChatBackend
     accountId?: string
     username?: string
@@ -40,7 +40,7 @@ export type UseChatOptions = {
 
 const NOTHING_SENT: ReadonlySet<string> = new Set()
 
-export function useChat({backend, accountId, username, onLeft}: UseChatOptions) {
+export function useRoomLog({backend, accountId, username, onLeft}: UseRoomLogOptions) {
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [announcements, setAnnouncements] = useState<ChatAnnouncement[]>([])
     const [status, setStatus] = useState<ChatStatus>(backend ? 'loading' : 'unavailable')

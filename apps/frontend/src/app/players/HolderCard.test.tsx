@@ -3,7 +3,8 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import HolderCard from "./HolderCard.tsx"
 import {usePlayerCard} from "./playerCardStore.ts"
-import {DELETED_ACCOUNT, HolderShown} from "./useTileHolder.ts"
+import {DELETED_ACCOUNT} from "./tileHolder.ts"
+import {HolderShown} from "./tileHolderStore.ts"
 import {NameColor, PlayerLine} from "../../backends/player.ts"
 
 const NOW = 1_761_393_600_000

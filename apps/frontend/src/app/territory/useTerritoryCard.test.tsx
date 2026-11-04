@@ -3,7 +3,7 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, renderHook} from "@testing-library/react"
 import {StrictMode} from "react"
 import {useTerritoryCard} from "./useTerritoryCard.ts"
-import {LEAVE_GRACE_MS} from "../players/useTileHolder.ts"
+import {LEAVE_GRACE_MS} from "../players/tileHolder.ts"
 import {SAMPLE_MS} from "../viewer/useLeaderboardFeed.ts"
 import {Territory, TerritoryPeek} from "../../domain/territory.ts"
 

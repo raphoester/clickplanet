@@ -5,8 +5,8 @@ import TerritoryCard from "./TerritoryCard.tsx"
 import {TerritoryShown} from "./useTerritoryCard.ts"
 import {Territory} from "../../domain/territory.ts"
 import {NameColor, PlayerLine} from "../../backends/player.ts"
-import {TerritoryPlayers} from "./useTerritoryPlayers.ts"
-import {deletedLineOf} from "../players/useTileHolder.ts"
+import {TerritoryPlayers} from "./territoryPlayersStore.ts"
+import {deletedLineOf} from "../players/tileHolder.ts"
 import {usePlayerCard} from "../players/playerCardStore.ts"
 
 const SICILY: Territory = {

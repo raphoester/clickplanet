@@ -2,7 +2,6 @@ import {ReactNode, useCallback, useEffect, useId, useRef, useState} from "react"
 import {ChatBackend, ChatMessage, Gif, OutgoingMessage} from "../../backends/chat.ts";
 import {GifChoice, GifQuery, GifSearch} from "../../backends/gifs.ts";
 import {wordsOf} from "../../domain/chatLog.ts";
-import {RosterEntry} from "../../backends/player.ts";
 import {PlayerReporter} from "../../backends/support.ts";
 import {Country} from "../../domain/countries.ts";
 import {ChevronIcon} from "../components/icons.tsx";
@@ -13,6 +12,7 @@ import {usePageVisible} from "../usePageVisible.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 import Sheet from "../hud/Sheet.tsx";
 import PlayersPanel from "../players/PlayersPanel.tsx";
+import {onlineCount, useRoster} from "../players/rosterStore.ts";
 import {authorOf, authorStyle} from "./authorStyle.ts";
 import {RESIZE_EDGES} from "./chatSize.ts";
 import ChatComposer from "./ChatComposer.tsx";
@@ -25,6 +25,7 @@ import {DiscordOffer} from "../alerts/useDiscordAlerts.ts";
 import {ChatRoomState, useChatRoom} from "./useChatRoom.ts";
 import {useChatIdentity} from "./useChatIdentity.ts";
 import {useChatSize} from "./useChatSize.ts";
+import {useChat} from "./chatStore.ts";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
 import "./ChatPanel.css"
 
@@ -42,11 +43,9 @@ export type ChatPanelProps = {
     accountId?: string
     username?: string
     reporter?: PlayerReporter
-    players?: readonly RosterEntry[]
     compact?: boolean
     open?: boolean
     onOpenChange?: (open: boolean) => void
-    onUnread?: (unread: number) => void
     discord?: DiscordOffer
     onSignIn?: () => void
     gifs?: GifSearch
@@ -60,21 +59,20 @@ const PEEK_AUTHOR_MAX_LENGTH = 12
 
 const PEEK_TEXT_MAX_LENGTH = 80
 
-const NOTHING: ReadonlySet<string> = new Set()
-
 export default function ChatPanel(props: ChatPanelProps) {
     const [ownOpen, setOwnOpen] = useState(() => !opensFolded())
     const isOpen = props.open ?? ownOpen
     const {onOpenChange} = props
     const setOpen = useCallback((open: boolean) => onOpenChange ? onOpenChange(open) : setOwnOpen(open), [onOpenChange])
     const [view, setView] = useState<View>("world")
-    const players = props.players
+    const online = useRoster(onlineCount)
     const visible = usePageVisible()
     const looking = isOpen && visible
 
     const [replyingTo, setReplyingTo] = useState<ChatMessage>()
-    const [reported, setReported] = useState<ReadonlySet<string>>(NOTHING)
     const [reporting, setReporting] = useState<ChatMessage>()
+    const setUnread = useChat((chat) => chat.setUnread)
+    const markReported = useChat((chat) => chat.markReported)
     const bodyId = useId()
     const panel = useRef<HTMLElement>(null)
     const {startResize, resetSize} = useChatSize(panel)
@@ -83,7 +81,7 @@ export default function ChatPanel(props: ChatPanelProps) {
     const locked = onSignIn !== undefined
     const world = useChatRoom({
         backend: props.backend, accountId, username, playSound,
-        seeing: looking && (view === "world" || (view === "online" && !players)),
+        seeing: looking && (view === "world" || (view === "online" && online === undefined)),
     })
     const flag = useChatRoom({
         backend: flagRoom?.backend, accountId, username, playSound: locked ? undefined : playSound, onLeft: props.onLeftRoom,
@@ -103,17 +101,17 @@ export default function ChatPanel(props: ChatPanelProps) {
 
     const unread = world.unread + (flagRead ? flag.unread : 0)
 
-    const {onUnread} = props
     useEffect(() => {
-        onUnread?.(unread)
-    }, [unread, onUnread])
+        setUnread(unread)
+    }, [unread, setUnread])
+
+    // The tab's badge and the reports go with the panel.
+    useEffect(() => () => useChat.setState(useChat.getInitialState(), true), [])
 
     // A copy each time: Reply pressed again on the same message puts the focus back in the box.
     const onReply = useCallback((message: ChatMessage) => setReplyingTo({...message}), [])
 
     const {reporter} = props
-    const onReported = useCallback((message: ChatMessage) =>
-        setReported(current => new Set([...current, message.id])), [])
 
     if (world.status === 'unavailable') return null
 
@@ -148,23 +146,23 @@ export default function ChatPanel(props: ChatPanelProps) {
         return sent
     }
 
-    const tabs = (players || flagCountry) && <div className="chat-tabs" role="tablist" aria-label="Chat">
+    const tabs = (online !== undefined || flagCountry) && <div className="chat-tabs" role="tablist" aria-label="Chat">
         <RoomTab on={shown === "world"} name={flagCountry ? "World" : "Chat"} unread={world.unread}
                  onClick={() => choose("world")}/>
         {flagCountry && <RoomTab on={shown === "flag"} name={flagCountry.name} flag={flagCountry.code}
                                  unread={flag.unread} locked={locked} onClick={() => choose("flag")}/>}
-        {players && <button type="button"
-                            role="tab"
-                            aria-selected={shown === "online"}
-                            aria-label={players.length === 1 ? "1 player online" : `${players.length} players online`}
-                            className={shown === "online" ? "chat-tab chat-tab--on" : "chat-tab"}
-                            onClick={() => choose("online")}>
-            Online · {players.length}
+        {online !== undefined && <button type="button"
+                                         role="tab"
+                                         aria-selected={shown === "online"}
+                                         aria-label={online === 1 ? "1 player online" : `${online} players online`}
+                                         className={shown === "online" ? "chat-tab chat-tab--on" : "chat-tab"}
+                                         onClick={() => choose("online")}>
+            Online · {online}
         </button>}
     </div>
 
-    const body: ReactNode = shown === "online" && players
-        ? <div className="chat-players"><PlayersPanel entries={players}/></div>
+    const body: ReactNode = shown === "online" && online !== undefined
+        ? <div className="chat-players"><PlayersPanel/></div>
         : shown === "flag" && flagCountry && onSignIn
         ? <LockedRoom country={flagCountry} unread={flag.unread} onSignIn={onSignIn}/>
         : <>
@@ -182,7 +180,6 @@ export default function ChatPanel(props: ChatPanelProps) {
                          room.react({messageId, reaction, on})}
                      onReply={onReply}
                      onReport={reporter && setReporting}
-                     reported={reported}
                      own={room.own}/>
 
             <ChatComposer username={username}
@@ -198,7 +195,7 @@ export default function ChatPanel(props: ChatPanelProps) {
             {reporting && reporter && <ReportMessageModal key={reporting.id}
                                                           message={reporting}
                                                           reporter={reporter}
-                                                          onSent={onReported}
+                                                          onSent={markReported}
                                                           onClose={() => setReporting(undefined)}/>}
         </>
 

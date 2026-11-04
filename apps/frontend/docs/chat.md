@@ -12,8 +12,16 @@ Chat tab's sheet, and `Viewer` passes whether it is open (`open`,
 `onOpenChange`) from the screen's store; see [The screen](screen.md). **It is always
 mounted**, open or not, on both: it owns each room's history load, stream, unread
 count and sound (see [Rooms](#rooms)). **A resumed stream reads the history again**: `addMessages`
-takes what it missed, and `withNewerReactions` the reactions that moved meanwhile. Closed on a phone it draws only the peek (below) and hands
-the unread count up through `onUnread`, for the tab's badge.
+takes what it missed, and `withNewerReactions` the reactions that moved meanwhile. Closed on a phone it draws only the
+peek (below) and puts the unread count in the chat's store, which the tab bar reads for its badge.
+
+**The chat's store holds what the panel only passed on** (`useChat`, `app/chat/chatStore.ts`, see
+[Stores](stores.md)): the unread count of both rooms, which went up through `Viewer` to `TabBar`, and the messages
+this page reported, which went from the report's modal through the panel to `ChatLog`. The panel takes both away
+with it when it goes. **What the panel uses itself stays in it**: each room (`useChatRoom`, over `useRoomLog` and
+`useSeenMark`: one per backend, with its stream), the tab shown, the fold, the message being answered (its send drops
+it on another tab and puts it back on a refusal) and the message being reported (it draws the modal). `ChatLog` keeps
+its own scroll, picker and spotlight, and the composer its text.
 
 **The chat and who is online share the panel**: with a roster wired, its header
 is two tabs, Chat and "Online · N" (see [Who is playing](who-is-playing.md)),
@@ -114,7 +122,7 @@ mint that failed, is `ChatNoSessionError`, and nothing is sent. `Viewer` reads
 the username and the account id off the `AccountStore` and hands both to
 `ChatPanel`: the name for the composer's foot, the id to tell the player's own
 messages. **A message is yours when its id is in `mine`, or its
-`authorAccountId` is your account** (`useChat`'s `own`): the id the
+`authorAccountId` is your account** (`useRoomLog`'s `own`): the id the
 `AccountStore` read from the profile of a signed-in player, or, for a guest,
 the account of the last message it sent (`accountSentUnder`). The badge, the
 peek and the sound all ask `own`. Never the name: another account can hold the
@@ -143,7 +151,7 @@ and the advice is one line:
 
 The server always runs chat, so there is no "chat is off" error. **A history that
 cannot be loaded hides the panel entirely** rather than showing a broken box:
-`useChat` goes to `unavailable` and `ChatPanel` renders nothing. So does a build
+`useRoomLog` goes to `unavailable` and `ChatPanel` renders nothing. So does a build
 with no chat backend wired.
 
 The composer **clears the box when the send starts, not when it lands**, and puts
@@ -178,7 +186,7 @@ for it read and write. The server checks the flag on every call (the backend's
   for (`country`), with no count: a first visit has no account before its first
   click, so nothing can read the room for it. That visitor is the one the tab
   is for: a private window showed it no country tab at all.
-- **Each room is a `useChatRoom`**: `useChat` and `useSeenMark` with the seen
+- **Each room is a `useChatRoom`**: `useRoomLog` and `useSeenMark` with the seen
   mark, the unread count, the flash, the peek and the sound of its own log.
   `ChatPanel` keeps two, always mounted, and shows one. The folded panel's badge
   and the phone's Chat tab count both rooms; the folded line, the phone's peek
@@ -192,7 +200,7 @@ for it read and write. The server checks the flag on every call (the backend's
   that flag any more, most often after a pledge on another device. Its stream
   ends with it too. **The stream then stops for good** (`openStream`'s
   `stopsOn`): a reconnect would only be refused again, and a reconnect loop from
-  old tabs once overloaded the server (Oct 31 2026). `useChat` goes
+  old tabs once overloaded the server (Oct 31 2026). `useRoomLog` goes
   `unavailable`, which takes the tab away (the World is shown again), and tells
   `Viewer` (`onLeftRoom`), which reads the flag again
   (`AllegianceSource.refreshAllegiance`). A new flag brings a new room; the same
@@ -242,7 +250,7 @@ in `QuoteLine.tsx`), in italics. So does the quote of every reply to it.
 
 - **The server never sends the text again**: the history answers `removed` with
   no text and no reactions, on the message and on a quote.
-- **The stream sends `message_removed`** with its id, and `useChat` empties the
+- **The stream sends `message_removed`** with its id, and `useRoomLog` empties the
   message and every quote of it at once (`withRemoved` in `domain/chatLog.ts`).
 - **Nothing more can be done with it**: no reaction, no reply, no report.
 - A removal missed while the stream was down shows until the next page load: a
@@ -318,10 +326,10 @@ is the list, and the backend refuses any other.
   server publishes tallies with no lock, so two frames can arrive in the wrong
   order: `applyReactionsChange` (a frame) and `applyReactionsAnswer` (the answer
   to this player's own reaction) drop one older than what the log holds.
-- `useChat.react` shows the change at once (`toggledReactions`), then takes the
+- `useRoomLog.react` shows the change at once (`toggledReactions`), then takes the
   server's answer, or undoes it when refused. A message the server no longer
   shows reads as `ChatMessageGoneError`. It puts this player's own name in and
-  out of the popup's list too: `useChat` derives `displayName` — the `username`
+  out of the popup's list too: `useRoomLog` derives `displayName` — the `username`
   prop, or the name the server posted under (`nameSentUnder`) for a guest — and
   reads it through a ref, so a guest learning its name builds no new callback.
   Without one the reaction is counted and nobody new is named, until the
@@ -349,7 +357,7 @@ tiles or more a flag fortified, and `champion`, the country that won a season.
   "Australia". A bomb told before the payload had a `landmass` names the
   country. A mute line is the name and `describeMute` of its seconds
   (`domain/mute.ts`): "one hour", "90 minutes", "2 days".
-- **Kept apart from the messages** (`useChat`'s `announcements`,
+- **Kept apart from the messages** (`useRoomLog`'s `announcements`,
   `addAnnouncements`) and put in one list only to draw (`interleave`, by time).
   So a burst of bombs never pushes a message out of the log, and the sound and
   the "New messages" pill count messages alone. The unread count counts
@@ -396,7 +404,7 @@ the eye without stealing it. Four things say it, each for a different glance:
   and `ChatLog` turns that into a class. What lights up is what `idsSince`
   reports as unseen, so the same rule covers one message arriving into an open
   panel and a whole backlog the moment a folded one is unfolded.
-- **Your own message never flashes.** `useChat` keeps the ids `sendMessage`
+- **Your own message never flashes.** `useRoomLog` keeps the ids `sendMessage`
   returned in `mine` and `ChatPanel` filters them out — you know you sent it.
   This is the only reason `mine` exists.
 - **A folded panel breathes.** `chat-waiting` puts the accent on the title, pops
@@ -418,7 +426,7 @@ arrival counts what was said while the player was away: messages and
 announcements, not the player's own messages. See the backend's
 [Seen](../../backend/docs/chat.md#seen).
 
-- **A time, not an id.** `GetHistory` answers `seenUntil`; `useChat` hands
+- **A time, not an id.** `GetHistory` answers `seenUntil`; `useRoomLog` hands
   `ChatPanel` the time to count from (`seenAtLoad`), and `unseenAfter` counts
   the lines after it, open or not. A history with no mark is a first visit:
   nothing counts, and the newest line of the history is sent as the mark, so

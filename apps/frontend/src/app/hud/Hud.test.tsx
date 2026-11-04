@@ -6,22 +6,24 @@ import TabBar from "./TabBar.tsx"
 import StatusBar, {STATUS_BOTTOM} from "./StatusBar.tsx"
 import MenuPanel from "../components/MenuPanel.tsx"
 import {useScreen} from "./screenStore.ts"
+import {useChat} from "../chat/chatStore.ts"
 import {Countries} from "../../domain/countries.ts"
 
 afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
     useScreen.setState(useScreen.getInitialState(), true)
+    useChat.setState(useChat.getInitialState(), true)
 })
 
 describe("TabBar", () => {
     it("offers the board, the chat, the account, Share and the settings, in that order", () => {
-        render(<TabBar chat unread={0} you="player"/>)
+        render(<TabBar chat you="player"/>)
         expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Chat", "You", "Share", "Settings"])
     })
 
     it("invites in place of Share on CrazyGames", () => {
-        render(<TabBar chat unread={0} invite/>)
+        render(<TabBar chat invite/>)
         expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Chat", "Invite", "Settings"])
 
         fireEvent.click(screen.getByRole("button", {name: "Invite"}))
@@ -29,28 +31,29 @@ describe("TabBar", () => {
     })
 
     it("names the account Sign in for a guest", () => {
-        render(<TabBar chat unread={0} you="guest"/>)
+        render(<TabBar chat you="guest"/>)
         expect(screen.getByRole("button", {name: "Sign in"})).toBeDefined()
     })
 
     it("leaves out what is not wired", () => {
-        render(<TabBar chat={false} unread={0}/>)
+        render(<TabBar chat={false}/>)
         expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Share", "Settings"])
     })
 
     it("counts what the chat missed", () => {
-        render(<TabBar chat unread={3}/>)
+        useChat.setState({unread: 3})
+        render(<TabBar chat/>)
         expect(screen.getByRole("button", {name: "Chat, 3 new messages"}).textContent).toBe("Chat3")
     })
 
     it("counts the missions not seen yet", () => {
-        render(<TabBar chat unread={0} missions={3}/>)
+        render(<TabBar chat missions={3}/>)
         expect(screen.getByRole("button", {name: "Missions, 3 new"}).textContent).toBe("Missions3")
     })
 
     it("says which sheet is open, and opens the one pressed", () => {
         useScreen.setState({sheet: "board"})
-        render(<TabBar chat unread={0}/>)
+        render(<TabBar chat/>)
 
         expect(screen.getByRole("button", {name: "Board"}).getAttribute("aria-expanded")).toBe("true")
         expect(screen.getByRole("button", {name: "Share"}).getAttribute("aria-expanded")).toBe("false")

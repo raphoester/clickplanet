@@ -85,7 +85,7 @@ the foot of Settings, and a report of another player, from that player's card.
   (`reported`) so a phone's sheet closed and opened again still shows it. A pill
   that armed on the first press and sent on the second was tried: it covered
   the reply and reaction buttons, and left no room for details. None on the
-  player's own messages (`useChat`'s `own`) or on a message with no account;
+  player's own messages (`useRoomLog`'s `own`) or on a message with no account;
   none without a `support` backend wired.
 - **No Report on the player's own card**, told by account id: `AccountStore`
   keeps the `accountId` of a signed-in player from its profile. A guest's is

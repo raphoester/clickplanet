@@ -13,7 +13,7 @@ import {truncate} from "../truncate.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {usePlayerCard} from "../players/playerCardStore.ts"
 import {TerritoryShown} from "./useTerritoryCard.ts"
-import {TerritoryPlayers} from "./useTerritoryPlayers.ts"
+import {TerritoryPlayers} from "./territoryPlayersStore.ts"
 import "./TerritoryCard.css"
 
 const FLAGS_SHOWN = 5

@@ -13,6 +13,7 @@ import {useDisplaySettings} from "./settings/displaySettingsStore.ts"
 import {useSoundSettings} from "./sound/soundSettingsStore.ts"
 import {useBoardGuide} from "./boardGuideStore.ts"
 import {useScreen} from "./hud/screenStore.ts"
+import {useRace} from "./standings/raceStore.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
 import {NameColor} from "../backends/player.ts"
@@ -42,6 +43,7 @@ afterEach(() => {
     useDisplaySettings.setState(DEFAULT_DISPLAY_SETTINGS)
     useSoundSettings.setState({settings: DEFAULT_SOUND_SETTINGS})
     useScreen.setState(useScreen.getInitialState(), true)
+    useRace.setState({race: undefined, heard: undefined})
     vi.useRealTimers()
 })
 
@@ -209,9 +211,10 @@ describe("Menu", () => {
     })
 
     it("ranks the country in the order picked, as the board under it does", () => {
+        useRace.setState({race: RACE})
         const menu = (countryOrder: CountryOrder) => <Menu country={france} setCountry={vi.fn()} tilesCount={1000}
                                                            leaderboard={[entry("jp", 500), entry("fr", 250)]}
-                                                           race={RACE} countryOrder={countryOrder}/>
+                                                           countryOrder={countryOrder}/>
 
         const {rerender} = render(menu("season"))
         expect(screen.getByLabelText("Rank 1").textContent).toBe("#1")
@@ -223,9 +226,10 @@ describe("Menu", () => {
     })
 
     it("ranks a country with points and no ground in the season, and not by territory", () => {
+        useRace.setState({race: RACE})
         const menu = (countryOrder: CountryOrder) => <Menu country={france} setCountry={vi.fn()} tilesCount={1000}
                                                            leaderboard={[entry("jp", 500)]}
-                                                           race={RACE} countryOrder={countryOrder}/>
+                                                           countryOrder={countryOrder}/>
 
         const {rerender} = render(menu("season"))
         expect(screen.getByLabelText("Rank 1").textContent).toBe("#1")
@@ -304,14 +308,15 @@ describe("Menu", () => {
         })
 
         it("put the countries' order on the heading's line, and only on the countries", () => {
+            useRace.setState({race: RACE})
             const {rerender} = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000}
-                                            standings={standings} race={RACE} onCountryOrder={vi.fn()}/>)
+                                            standings={standings} onCountryOrder={vi.fn()}/>)
 
             const heading = button("Leaderboard: Countries").closest(".board-heading")!
             expect(within(heading as HTMLElement).getByRole("group", {name: "Order"})).toBeDefined()
 
             rerender(<Menu country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000}
-                           standings={{...standings, view: "players"}} race={RACE} onCountryOrder={vi.fn()}/>)
+                           standings={{...standings, view: "players"}} onCountryOrder={vi.fn()}/>)
             expect(screen.queryByRole("group", {name: "Order"})).toBeNull()
         })
     })
@@ -329,8 +334,9 @@ describe("Menu", () => {
             onView: vi.fn(),
         }
         const sheet = (setCountry = vi.fn()) => {
+            useRace.setState({race: RACE})
             render(<BoardSheet country={france} setCountry={setCountry} leaderboard={[entry("fr", 500), entry("jp", 250)]}
-                               tilesCount={1000} standings={standings} race={RACE} onCountryOrder={vi.fn()} onClose={vi.fn()}/>)
+                               tilesCount={1000} standings={standings} onCountryOrder={vi.fn()} onClose={vi.fn()}/>)
             return {setCountry, user: userEvent.setup()}
         }
         const head = () => document.querySelector(".sheet-head") as HTMLElement
@@ -354,9 +360,10 @@ describe("Menu", () => {
         })
 
         it("ranks the country on that line in the order picked", () => {
+            useRace.setState({race: RACE})
             const board = (countryOrder: CountryOrder) => <BoardSheet country={france} setCountry={vi.fn()} tilesCount={1000}
                                                                       leaderboard={[entry("jp", 500), entry("fr", 250)]}
-                                                                      standings={standings} race={RACE} countryOrder={countryOrder}
+                                                                      standings={standings} countryOrder={countryOrder}
                                                                       onCountryOrder={vi.fn()} onClose={vi.fn()}/>
 
             const {rerender} = render(board("season"))

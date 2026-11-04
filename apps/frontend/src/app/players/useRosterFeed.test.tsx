@@ -1,17 +1,19 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render} from "@testing-library/react"
+import {StrictMode} from "react"
 import {NameColor, PlayerTitle, PresenceBackend, RosterEntry, RosterEvent} from "../../backends/player.ts"
 import {SETTLE_MS} from "../../domain/presence.ts"
-import {RosterState, useRoster} from "./useRoster.ts"
+import {useRoster} from "./rosterStore.ts"
+import {useRosterFeed} from "./useRosterFeed.ts"
 
 const ana: RosterEntry = {key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
 const bo: RosterEntry = {key: "k2", accountId: "account-bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
 
-let latest: RosterState
+const roster = () => useRoster.getState().state
 
 function Harness({backend, onTitleEarned}: {backend?: PresenceBackend, onTitleEarned?: (title: PlayerTitle) => void}) {
-    latest = useRoster(backend, onTitleEarned)
+    useRosterFeed(backend, onTitleEarned)
     return null
 }
 
@@ -39,45 +41,36 @@ function streaming() {
 
 afterEach(() => {
     cleanup()
+    useRoster.setState({state: {kind: "unavailable"}})
     vi.restoreAllMocks()
     vi.useRealTimers()
 })
 
-describe("useRoster", () => {
-    it("is unavailable with no backend", () => {
+describe("useRosterFeed", () => {
+    it("lists nobody with no backend", () => {
         render(<Harness/>)
-        expect(latest).toEqual({kind: "unavailable"})
+        expect(roster()).toEqual({kind: "unavailable"})
     })
 
     it("is loading until the whole roster arrives, then follows each change", () => {
         const {backend, stream} = streaming()
         render(<Harness backend={backend}/>)
-        expect(latest).toEqual({kind: "loading"})
+        expect(roster()).toEqual({kind: "loading"})
 
         stream.emit({kind: "entry", entry: bo})
-        expect(latest).toEqual({kind: "loading"})
+        expect(roster()).toEqual({kind: "loading"})
 
         stream.emit({kind: "roster", entries: [ana]})
-        expect(latest).toEqual({kind: "ready", entries: [ana]})
+        expect(roster()).toEqual({kind: "ready", entries: [ana]})
 
         stream.emit({kind: "entry", entry: bo})
-        expect(latest).toEqual({kind: "ready", entries: [ana, bo]})
+        expect(roster()).toEqual({kind: "ready", entries: [ana, bo]})
 
         stream.emit({kind: "entry", entry: {...bo, name: "Zed", guest: false}})
-        expect(latest).toEqual({kind: "ready", entries: [ana, {...bo, name: "Zed", guest: false}]})
+        expect(roster()).toEqual({kind: "ready", entries: [ana, {...bo, name: "Zed", guest: false}]})
 
         stream.emit({kind: "left", key: "k1"})
-        expect(latest).toEqual({kind: "ready", entries: [{...bo, name: "Zed", guest: false}]})
-    })
-
-    it("starts over from the roster a reconnect sends", () => {
-        const {backend, stream} = streaming()
-        render(<Harness backend={backend}/>)
-        stream.emit({kind: "roster", entries: [ana, bo]})
-
-        stream.emit({kind: "roster", entries: [bo]})
-
-        expect(latest).toEqual({kind: "ready", entries: [bo]})
+        expect(roster()).toEqual({kind: "ready", entries: [{...bo, name: "Zed", guest: false}]})
     })
 
     it("hides the list for good on a server without the live roster", () => {
@@ -87,16 +80,28 @@ describe("useRoster", () => {
 
         stream.unavailable()
 
-        expect(latest).toEqual({kind: "unavailable"})
+        expect(roster()).toEqual({kind: "unavailable"})
     })
 
-    it("stops following the stream when it unmounts", () => {
+    it("stops following the stream when it unmounts, and lists nobody", () => {
         const {backend, stream} = streaming()
         const view = render(<Harness backend={backend}/>)
+        stream.emit({kind: "roster", entries: [ana]})
 
         view.unmount()
 
         expect(stream.stop).toHaveBeenCalledTimes(1)
+        expect(roster()).toEqual({kind: "unavailable"})
+    })
+
+    it("follows one stream in StrictMode", () => {
+        const {backend, stream} = streaming()
+        render(<StrictMode><Harness backend={backend}/></StrictMode>)
+
+        expect(backend.listenForRoster).toHaveBeenCalledTimes(2)
+        expect(stream.stop).toHaveBeenCalledTimes(1)
+        stream.emit({kind: "roster", entries: [ana]})
+        expect(roster()).toEqual({kind: "ready", entries: [ana]})
     })
 
     it("opens the stream again under a new token, and keeps the list it has meanwhile", () => {
@@ -110,7 +115,7 @@ describe("useRoster", () => {
 
         expect(stream.stop).toHaveBeenCalledTimes(1)
         expect(backend.listenForRoster).toHaveBeenCalledTimes(2)
-        expect(latest).toEqual({kind: "ready", entries: [ana]})
+        expect(roster()).toEqual({kind: "ready", entries: [ana]})
 
         act(() => vi.advanceTimersByTime(SETTLE_MS))
         expect(backend.listenForRoster).toHaveBeenCalledTimes(2)

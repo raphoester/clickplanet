@@ -9,9 +9,9 @@ exports one hook, `use<Feature>`, made with `create`. It holds the state and the
 (`setMapView`), and saves itself where it must (a `subscribe` that writes `localStorage`, in the format the page read
 before). For example [`app/settings/displaySettingsStore.ts`](../src/app/settings/displaySettingsStore.ts).
 
-- **The component that shows the state reads the store itself.** `SettingsPlace` reads the display settings, and
-  the board reads its guide. `Viewer` reads a store only for what it draws or hands a hook itself, such as the two
-  display fields it gives the globe, and never to pass a value down.
+- **The component that shows the state reads the store itself.** `SettingsPlace` reads the display settings, the
+  board reads its guide, and the phone's tab bar the chat's unread count. `Viewer` reads a store only for what it
+  draws or hands a hook itself, such as the two display fields it gives the globe, and never to pass a value down.
 - **A selector returns a field or a plain value**: `useDisplaySettings((settings) => settings.mapView)`. A selector
   that builds a new object or array on each call makes React render without end; build it in the component with
   `useMemo`, or wrap the selector in Zustand's `useShallow`.
@@ -22,6 +22,12 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
 - **A backend that already holds and tells a state is read as it is.** `AccountStore` and `ConnectionHealth`
   subscribe and notify by hand, which is what a store does; a component reads them through their hooks, `useAccount`
   and `useConnection`.
+- **What a backend sends goes into its store from where its inputs are.** A hook that `Viewer` calls with the
+  backend and what it knows links the two (`useQuizMaster`, `useRosterFeed`, `useRaceFeed`): it subscribes, writes
+  the store, and puts the store back to its start once it stops, so nothing stale shows after it and StrictMode's
+  second run follows one stream. `Viewer` reads back only what it hands the globe or a hook itself, such as the
+  roster's count, or the race it ranks the countries by for the anthem. Or the place where a card shows does it, given
+  its inputs as props (`PlayerCardPlace`, `HolderCardPlace`, `TerritoryCardPlace`), and shows the card from the store.
 - **A test sets a store with `use<Feature>.setState(...)` and puts it back in `afterEach`**, since the store lives as
   long as the module.
 

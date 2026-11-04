@@ -10,10 +10,12 @@ import {NameColor} from "../../backends/player.ts"
 import {wordFilterOf} from "../../domain/wordFilter.ts"
 import {WordFilterContext} from "../crazygames/wordFilter.ts"
 import {usePlayerCard} from "../players/playerCardStore.ts"
+import {useChat} from "./chatStore.ts"
 
 afterEach(() => {
     cleanup()
     usePlayerCard.setState({openable: false, player: undefined})
+    useChat.setState(useChat.getInitialState(), true)
 })
 
 const message = (id: string, authorName: string, countryCode: string): ChatMessage =>
@@ -149,7 +151,8 @@ describe("ChatLog", () => {
         })
 
         it("shows a message already reported as reported, with nothing to press", () => {
-            render(<ChatLog loading={false} onReport={vi.fn()} reported={new Set(["2"])} messages={[first, second]}/>)
+            useChat.setState({reported: new Set(["2"])})
+            render(<ChatLog loading={false} onReport={vi.fn()} messages={[first, second]}/>)
 
             expect(screen.getAllByRole("button", {name: "Report this message from Ana"})).toHaveLength(1)
             expect(screen.getByRole("img", {name: "Reported"}).closest("[data-message]")?.getAttribute("data-message")).toBe("2")

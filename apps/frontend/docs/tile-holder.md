@@ -33,10 +33,17 @@ tap never is, and the bomb's hold-to-drop is already one.
   and calls `onPeek` with the pointer's place for a tile with a flag, and
   `onPeekEnd` when the mouse leaves that tile or the globe, or any press starts;
   nothing while a bomb is armed.
-- `useTileHolder` asks `TileHolders.tileHolder` (`ClickService/GetTileHolder`), then
+- **The card shown is a store**, `useTileHolder` (`app/players/tileHolderStore.ts`, see
+  [Stores](stores.md)): the holder, whether the pointer is on its card (`hold`, `holderHeld`),
+  and `dismiss`. `HolderCardPlace`, which `Viewer` renders with the backends, the globe's
+  `pointing` and the account id, keeps it and shows `HolderCard` from it; `Viewer` reads none
+  of it, and the place leaves nothing shown once it goes.
+- `HolderCardPlace` asks `TileHolders.tileHolder` (`ClickService/GetTileHolder`), then
   `PlayerInfoBackend.playerInfo` (`PlayerService/GetPlayer`), which answers a guest
   with its name alone: two calls, and planet never learns a name. Neither needs a
-  token. A new peek aborts the last one.
+  token. A new peek aborts the last one. The lines it builds (`playerLineOf`,
+  `deletedLineOf`) and `LEAVE_GRACE_MS` are in `app/players/tileHolder.ts`, which the
+  territory card shares.
 - **A take with no account is a deleted account** (`DELETED_ACCOUNT`): the ledger
   keeps a deleted account's takes with no account, so the card says "Deleted
   account", the flag and when, with no profile button, and asks `GetPlayer` nothing.

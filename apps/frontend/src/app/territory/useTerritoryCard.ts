@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useState} from "react"
 import {sameTerritory, Territory, TerritoryPeek} from "../../domain/territory.ts"
 import {Point} from "../../domain/tilePeek.ts"
-import {LEAVE_GRACE_MS} from "../players/useTileHolder.ts"
+import {LEAVE_GRACE_MS} from "../players/tileHolder.ts"
 import {SAMPLE_MS} from "../viewer/useLeaderboardFeed.ts"
 
 export type TerritoryShown = {
