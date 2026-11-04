@@ -61,7 +61,9 @@ function Facts({profile: {identity, progress}}: {profile: Profile}) {
 }
 
 function NameLine({identity}: {identity: AdminGetPlayerResponse | undefined}) {
-    if (identity === undefined) return <span className="muted">none: it never joined the roster or posted, so it has no guest code</span>
+    if (identity === undefined || identity.name === "") {
+        return <span className="muted">none: it never joined the roster or posted, so it has no guest code</span>
+    }
     return (
         <>
             {identity.name} <span className="muted">{identity.guest ? "(guest code: no username)" : "(username)"}</span>

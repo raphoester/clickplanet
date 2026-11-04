@@ -202,7 +202,7 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 	holders := planetv1connect.NewClickServiceClient(http.DefaultClient, s.game.baseURL, connect.WithHTTPGet())
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Empty(c, leaving.profile().GetName(), "player")
-		assert.Zero(c, leaving.stats().GetTilesTaken(), "player")
+		assert.Zero(c, leaving.stats().GetTilesTaken(), "progression")
 		assert.Zero(c, leaving.myTally().GetTiles(), "scoring")
 		assert.Zero(c, leaving.history().GetSeenUntilUnixMs(), "chat")
 		assert.Zero(c, leaving.missions()[0].GetTakeFor().GetTaken(), "missions")

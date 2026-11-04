@@ -33,7 +33,7 @@ export const InternalService = {
     },
     /**
      * What auth says of a page of accounts, for a module that must not ask auth: whether each signed in with a
-     * provider, and when it was made. An account auth does not know is answered not linked, made at 0.
+     * provider, and when it was made. An account auth does not answer is left out: read it as not linked, made at 0.
      *
      * @generated from rpc player.v1.InternalService.GetAccounts
      */

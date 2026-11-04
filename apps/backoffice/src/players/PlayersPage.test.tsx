@@ -8,6 +8,7 @@ import {afterEach, describe, expect, it} from "vitest"
 import {AROUND} from "../chat/theirConversations.ts"
 import {timeOf} from "../components/time.ts"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
+import {AdminGetPlayerResponse} from "../gen/grpc/player/v1/admin_pb.ts"
 import {GetMuteResponse, KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
@@ -230,6 +231,17 @@ describe("one player", () => {
         expect(within(profile).getByText("1200")).toBeTruthy()
         expect(within(profile).queryByText("Account")).toBeNull()
         expect(screen.getByRole("heading", {name: "Unnamed France"})).toBeTruthy()
+    })
+
+    it("names none an account that never got a name or a guest code, and says what auth knows of it", async () => {
+        const admin = new FakeAdmin()
+        admin.profile = new AdminGetPlayerResponse({guest: true, createdAtUnixMs: BigInt(AT.getTime())})
+        render(<Page admin={admin} first={{caller: {accountId: ACCOUNT}}}/>)
+
+        const profile = await screen.findByRole("region", {name: "Profile"})
+        expect(await within(profile).findByText("none: it never joined the roster or posted, so it has no guest code")).toBeTruthy()
+        expect(within(profile).getByText("Account")).toBeTruthy()
+        expect(within(profile).getByText("1200")).toBeTruthy()
     })
 
     it("says when the game keeps nothing about an account, and reads no profile for an address", async () => {
