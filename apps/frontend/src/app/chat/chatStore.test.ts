@@ -4,7 +4,7 @@ import {NameColor} from "../../backends/player.ts"
 import {useChat} from "./chatStore.ts"
 
 const message = (id: string): ChatMessage =>
-    ({id, sentAt: 0, authorAccountId: "account-ana", authorName: "Ana", authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0, countryCode: "fr", text: "hi", reactions: [], reactionsVersion: 0})
+    ({id, sentAt: 0, authorAccountId: "account-ana", authorName: "Ana", authorAdmin: false, authorColor: NameColor.UNSPECIFIED, countryCode: "fr", text: "hi", reactions: [], reactionsVersion: 0})
 
 afterEach(() => useChat.setState(useChat.getInitialState(), true))
 

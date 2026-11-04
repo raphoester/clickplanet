@@ -9,7 +9,6 @@ import {
 } from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {BookStep, MySeason, RaceListener, Round, RoundStanding, Score, Standing, StandingsBackend} from "./standings.ts"
-import {titleOf} from "./title.ts"
 import {NO_TIMEOUT, openStream, retrying} from "./transport.ts"
 
 export class ConnectStandingsBackend implements StandingsBackend {
@@ -124,7 +123,6 @@ function standingOf(standing: StandingPb): Standing {
         color: standing.color,
         countryCode: standing.countryId,
         tiles: Number(standing.tiles),
-        wornTitle: titleOf(standing.wornTitle),
     }
 }
 
@@ -151,7 +149,6 @@ function scoreOf(score: ScorePb): Score {
 }
 
 function mySeasonOf(res: GetMyTallyResponse, countryCode: string): MySeason {
-    const wornTitle = titleOf(res.wornTitle)
-    if (countryCode !== "") return {countryCode, tiles: Number(res.countryTiles), rank: res.countryRank || undefined, wornTitle}
-    return {countryCode: res.countryId || undefined, tiles: Number(res.tiles), rank: res.globalRank || undefined, wornTitle}
+    if (countryCode !== "") return {countryCode, tiles: Number(res.countryTiles), rank: res.countryRank || undefined}
+    return {countryCode: res.countryId || undefined, tiles: Number(res.tiles), rank: res.globalRank || undefined}
 }

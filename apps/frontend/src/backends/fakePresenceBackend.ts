@@ -78,10 +78,13 @@ function dashboardOf(tilesTaken: number, streakBest: number, titles: PlayerTitle
     return {worn: titles.find((title) => title.rank) ?? titles[0], wearable: titles, tracks}
 }
 
-// The signed-in player of the fake: not in the roster, but with a career, so its profile has something to show.
-const YOU: RosterEntry = {key: "you", accountId: FAKE_YOU, name: "you", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 9}
+// A roster line and the streak its badge shows.
+type FakePlayer = RosterEntry & {streak: number}
 
-const PLAYERS: RosterEntry[] = [
+// The signed-in player of the fake: not in the roster, but with a career, so its profile has something to show.
+const YOU: FakePlayer = {key: "you", accountId: FAKE_YOU, name: "you", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 9}
+
+const PLAYERS: FakePlayer[] = [
     {key: "1", accountId: fakeAccountId("Ana"), name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12},
     {key: "2", accountId: fakeAccountId("kiran_07"), name: "kiran_07", countryCode: "in", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 3},
     {key: "3", accountId: fakeAccountId("Mateus"), name: "Mateus", countryCode: "br", guest: false, admin: false, color: NameColor.TEAL, streak: 1},
@@ -156,13 +159,13 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         const now = this.now()
         const entries = PLAYERS
             .filter((_, index) => onShift(index, now))
-            .map((entry) => entry.guest ? entry : {...entry, wornTitle: this.career(entry).wornTitle})
+            .map(rosterEntryOf)
 
         if (this.own && now - this.own.at < 90_000) {
             const {countryCode} = this.own.presence
             entries.push({
                 key: OWN_KEY, accountId: fakeAccountId(OWN_GUEST_NAME), name: OWN_GUEST_NAME, countryCode,
-                guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0,
+                guest: true, admin: false, color: NameColor.UNSPECIFIED,
             })
         }
 
@@ -225,7 +228,7 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         return {playsFor, playsAgainst}
     }
 
-    private career(player: RosterEntry) {
+    private career(player: FakePlayer) {
         const seed = [...player.name].reduce((sum, c) => sum * 31 + c.charCodeAt(0), 7) >>> 0
         const tilesTaken = seed % 25_000
         const streakBest = player.streak + seed % 40
@@ -240,6 +243,10 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
 }
 
 const SHOWN_FRONTS = 3
+
+function rosterEntryOf({key, accountId, name, countryCode, guest, admin, color}: FakePlayer): RosterEntry {
+    return {key, accountId, name, countryCode, guest, admin, color}
+}
 
 const RIVALS = ["de", "es", "it", "gb", "be", "pt", "nl", "pl", "br", "us", "jp", "in", "ru", "ca", "mx", "ch"]
 

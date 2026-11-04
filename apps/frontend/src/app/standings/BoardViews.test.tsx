@@ -11,6 +11,7 @@ import {hueOf} from "../../domain/authorColor.ts"
 import {AccountStore} from "../account/accountStore.ts"
 import SignInPitchModal from "../account/SignInPitchModal.tsx"
 import {usePlayerCard} from "../players/playerCardStore.ts"
+import {useBadges} from "../badges/badgesStore.ts"
 import {AcceptedClicks, acceptedClicks} from "../viewer/acceptedClicks.ts"
 import BoardViews, {BoardView} from "./BoardViews.tsx"
 import {Caller} from "./useMySeason.ts"
@@ -25,7 +26,7 @@ const WARLORD: PlayerTitle = {id: "warlord", name: "Warlord", rank: {trackId: "c
 const DEVOTED: PlayerTitle = {id: "devoted", name: "Devoted", rank: {trackId: "devotion", trackName: "Devotion", number: 2, count: 3}}
 
 const WORLD = [
-    {...standing(1, "Ana", "fr", 1840, NameColor.PINK), wornTitle: WARLORD},
+    standing(1, "Ana", "fr", 1840, NameColor.PINK),
     standing(2, "kiran_07", "in", 1512),
     standing(2, "Mateus", "br", 1512, NameColor.TEAL),
 ]
@@ -108,6 +109,7 @@ afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
     usePlayerCard.setState({openable: false, player: undefined})
+    useBadges.getState().serve(undefined)
 })
 
 describe("BoardViews", () => {
@@ -184,6 +186,7 @@ describe("BoardViews", () => {
     })
 
     it("draws the title each player wears after its name, and none for a player who wears none", async () => {
+        useBadges.setState({badges: {"account-Ana": {streak: 0, wornTitle: WARLORD}}})
         await shown({backend: backendOf(), caller: GUEST, view: "players"})
 
         const [ana, kiran] = rows()
@@ -248,7 +251,8 @@ describe("BoardViews", () => {
     })
 
     it("puts the title the caller wears on its own line", async () => {
-        const mine = season({countryCode: "fr", tiles: 12, rank: 42, wornTitle: DEVOTED})
+        useBadges.setState({badges: {"account-Zed": {streak: 0, wornTitle: DEVOTED}}})
+        const mine = season({countryCode: "fr", tiles: 12, rank: 42})
         await shown({backend: backendOf(mine), caller: ZED, view: "players"})
 
         expect(within(rows()[3]).getByRole("img", {name: "Devoted"})).toBeDefined()
@@ -326,15 +330,14 @@ describe("BoardViews", () => {
         expect(stats()).toEqual([["Tiles", "14"], ["Players", "#10"]])
     })
 
-    it("opens a player's card from its name, with the title it wears", async () => {
+    it("opens a player's card from its name", async () => {
         usePlayerCard.setState({openable: true})
         const {user} = await shown({backend: backendOf(), caller: GUEST, view: "players"})
 
         await user.click(within(rows()[0]).getByRole("button", {name: "Ana"}))
 
         expect(usePlayerCard.getState().player).toEqual({
-            accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.PINK, streak: 0,
-            wornTitle: WARLORD,
+            accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.PINK,
         })
     })
 

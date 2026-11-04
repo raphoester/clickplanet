@@ -14,10 +14,9 @@ import {
     ScoringEvent,
     Standing as StandingPb,
 } from "../gen/grpc/scoring/v1/scoring_pb.ts"
-import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
 import {NameColor} from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
-import {Round, Score, Standing} from "./standings.ts"
+import {Round, Score} from "./standings.ts"
 import {ConnectStandingsBackend} from "./standingsBackend.ts"
 import {NO_TIMEOUT} from "./transport.ts"
 
@@ -40,13 +39,6 @@ const backendWith = (methods: Record<string, unknown>, session: SessionProvider 
 
 const headersOf = (call: ReturnType<typeof vi.fn>) =>
     (call.mock.calls[0] as unknown[])[1] as {headers: Headers}
-
-const warlordPb = new TitlePb({
-    id: "warlord",
-    name: "Warlord",
-    rank: new RankPb({trackId: "conquest", trackName: "Conquest", number: 3, count: 5}),
-})
-const warlord = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
 
 const BOOK = "season-0"
 
@@ -87,22 +79,6 @@ describe("ConnectStandingsBackend.listenForStandings", () => {
             ],
             [{rank: 1, accountId: "account-mateus", name: "Mateus", color: NameColor.TEAL, countryCode: "br", tiles: 1_300}],
         ])
-        stop()
-    })
-
-    it("reads the title each player wears, and none where it wears none", async () => {
-        const listenForEvents = streaming(board(
-            new StandingPb({rank: 1, name: "Ana", countryId: "fr", tiles: 9n, wornTitle: warlordPb}),
-            new StandingPb({rank: 2, name: "kiran_07", countryId: "in", tiles: 3n}),
-        ))
-        const seen: Standing[][] = []
-
-        const stop = backendWith({listenForEvents}).listenForStandings(BOOK, "", (standings) => seen.push(standings))
-
-        await vi.waitFor(() => expect(seen).toHaveLength(1))
-        const [ana, kiran] = seen[0]
-        expect(ana.wornTitle).toEqual(warlord)
-        expect(kiran.wornTitle).toBeUndefined()
         stop()
     })
 
@@ -151,12 +127,6 @@ describe("ConnectStandingsBackend.mySeason", () => {
         expect(getMyTally).toHaveBeenCalledWith({bookId: BOOK, countryId: "fr"}, expect.anything())
     })
 
-    it("reads the title the caller wears, on any board", async () => {
-        const getMyTally = vi.fn(async () => new GetMyTallyResponse({countryId: "fr", tiles: 340n, globalRank: 12, countryTiles: 3n, countryRank: 3, wornTitle: warlordPb}))
-
-        expect((await backendWith({getMyTally}).mySeason(BOOK, ""))?.wornTitle).toEqual(warlord)
-        expect((await backendWith({getMyTally}).mySeason(BOOK, "fr"))?.wornTitle).toEqual(warlord)
-    })
 
     it("reads no flag and no rank where the server answers none", async () => {
         const getMyTally = vi.fn(async () => new GetMyTallyResponse())
@@ -281,7 +251,7 @@ describe("ConnectStandingsBackend.round", () => {
             endedAt: 1_792_105_200_000,
             standings: [{rank: 1, countryCode: "fr", share: 0.3, points: 75}],
             takes: [{countryCode: "fr", tiles: 4210}, {countryCode: "de", tiles: 3105}],
-            players: [{rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.UNSPECIFIED, countryCode: "fr", tiles: 912, wornTitle: undefined}],
+            players: [{rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.UNSPECIFIED, countryCode: "fr", tiles: 912}],
             before: [{rank: 1, countryCode: "de", points: 43, roundsWon: 2}],
             after: [
                 {rank: 1, countryCode: "fr", points: 93, roundsWon: 2},

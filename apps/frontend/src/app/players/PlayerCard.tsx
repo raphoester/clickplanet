@@ -2,6 +2,7 @@ import {useCallback, useEffect, useId, useRef, useState} from "react"
 import {PlayerInfo, PlayerInfoBackend, PlayerLine, PlayerTitle} from "../../backends/player.ts"
 import {PlayerReporter} from "../../backends/support.ts"
 import {Countries} from "../../domain/countries.ts"
+import {useBadge, useBadges} from "../badges/badgesStore.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
 import Bubble, {BUBBLE_MS} from "../components/Bubble.tsx"
@@ -36,6 +37,7 @@ export type PlayerCardProps = {
 export default function PlayerCard({player, backend, reporter, onClose}: PlayerCardProps) {
     const [reporting, setReporting] = useState(false)
     const state = usePlayerInfo(backend, player)
+    const badge = useBadge(player.accountId)
     const words = useWordFilter()
     const country = Countries.get(player.countryCode)?.name ?? player.countryCode
 
@@ -47,7 +49,10 @@ export default function PlayerCard({player, backend, reporter, onClose}: PlayerC
         {admin && <AdminCrown size={20}/>}
         {info?.titles.some((held) => held.id === OG) && <OgStamp/>}
     </span>
-    const frame = info?.wornTitle ? ` title-frame-${metalOf(info.wornTitle)}` : ""
+    // The card reads the player afresh, and its badge with it, so the title worn agrees with the titles held.
+    useEffect(() => useBadges.getState().expire(player.accountId), [player.accountId])
+    const worn = info && badge?.wornTitle
+    const frame = worn ? ` title-frame-${metalOf(worn)}` : ""
 
     if (reporting && reporter) {
         return <ReportPlayerModal accountId={player.accountId}
@@ -73,7 +78,7 @@ export default function PlayerCard({player, backend, reporter, onClose}: PlayerC
         {state.kind === "loading" && <p className="player-card-note" role="status">Loading…</p>}
         {state.kind === "missing" && <p className="player-card-note">This player is gone.</p>}
         {state.kind === "failed" && <p className="player-card-note">The stats could not be loaded.</p>}
-        {info?.wornTitle && <TitleBanner title={info.wornTitle}/>}
+        {worn && <TitleBanner title={worn}/>}
         {info && <PlayerTitles titles={info.titles}/>}
         {info && <PlayerStats info={info}/>}
         {info && <PlayerFronts playsFor={info.playsFor} playsAgainst={info.playsAgainst}/>}

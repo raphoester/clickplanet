@@ -6,15 +6,17 @@ import {NameColor, RosterEntry} from "../../backends/player.ts"
 import PlayersPanel from "./PlayersPanel.tsx"
 import {usePlayerCard} from "./playerCardStore.ts"
 import {useRoster} from "./rosterStore.ts"
+import {useBadges} from "../badges/badgesStore.ts"
 
 afterEach(() => {
     cleanup()
     usePlayerCard.setState({openable: false, player: undefined})
     useRoster.setState({state: {kind: "unavailable"}})
+    useBadges.getState().serve(undefined)
 })
 
-const entry = (name: string, guest: boolean, countryCode = "fr", admin = false, color = NameColor.UNSPECIFIED, streak = 0): RosterEntry =>
-    ({key: name, accountId: `account-${name}`, name, countryCode, guest, admin, color, streak})
+const entry = (name: string, guest: boolean, countryCode = "fr", admin = false, color = NameColor.UNSPECIFIED): RosterEntry =>
+    ({key: name, accountId: `account-${name}`, name, countryCode, guest, admin, color})
 
 function show(entries: RosterEntry[]) {
     useRoster.setState({state: {kind: "ready", entries}})
@@ -99,13 +101,15 @@ describe("PlayersPanel", () => {
         expect(screen.queryByRole("button")).toBeNull()
     })
 
-    it("shows the title a player wears beside its name, and nothing beside one that wears none", () => {
-        const og = {id: "og", name: "OG"}
-        show([{...entry("ana", false), wornTitle: og}, entry("kiran_07", false)])
+    it("shows the badges kept for each line's account beside its name, and nothing beside one that has none", () => {
+        useBadges.setState({badges: {"account-ana": {streak: 12, wornTitle: {id: "og", name: "OG"}}, "account-kiran_07": {streak: 0}}})
+        show([entry("ana", false), entry("kiran_07", false)])
 
         const [ana, kiran] = screen.getAllByRole("listitem")
         expect(within(ana).getByRole("img", {name: "OG"}).querySelector(".title-emblem")).not.toBeNull()
+        expect(within(ana).getByRole("img", {name: "12-day streak"})).toBeDefined()
         expect(within(kiran).queryByRole("img", {name: "OG"})).toBeNull()
+        expect(within(kiran).queryByRole("img", {name: /streak/})).toBeNull()
     })
 
     it("crowns an admin, and nobody else", () => {

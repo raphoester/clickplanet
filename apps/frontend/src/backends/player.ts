@@ -97,8 +97,6 @@ export type PlayerLine = {
     guest: boolean
     admin: boolean
     color: NameColor
-    streak: number
-    wornTitle?: PlayerTitle
 }
 
 export type RosterEntry = PlayerLine & {

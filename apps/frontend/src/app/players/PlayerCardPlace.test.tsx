@@ -11,7 +11,7 @@ afterEach(() => {
     usePlayerCard.setState({openable: false, player: undefined})
 })
 
-const ana: PlayerLine = {accountId: "account-ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
+const ana: PlayerLine = {accountId: "account-ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED}
 
 const missing: PlayerInfoBackend = {playerInfo: async () => undefined}
 

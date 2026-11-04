@@ -240,8 +240,6 @@ function rosterEntryOf(entry: RosterEntryPb): RosterEntry {
         guest: entry.guest,
         admin: entry.admin,
         color: entry.color,
-        streak: entry.streak,
-        wornTitle: titleOf(entry.wornTitle),
     }
 }
 

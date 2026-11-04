@@ -1,4 +1,4 @@
-import {NameColor, PlayerTitle} from "./player.ts"
+import {NameColor} from "./player.ts"
 
 export type Standing = {
     rank: number
@@ -7,14 +7,12 @@ export type Standing = {
     color: NameColor
     countryCode: string
     tiles: number
-    wornTitle?: PlayerTitle
 }
 
 export type MySeason = {
     countryCode?: string
     tiles: number
     rank?: number
-    wornTitle?: PlayerTitle
 }
 
 export type RoundStanding = {

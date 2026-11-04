@@ -10,7 +10,7 @@ import {SwordsIcon} from "../components/icons.tsx"
 import SwordsArt from "../components/SwordsArt.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
-import TitleBadge from "../titles/TitleBadge.tsx"
+import WornTitle from "../badges/WornTitle.tsx"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
 import "../titles/TitleUnlocked.css"
 import "../season/RoundReveal.css"
@@ -122,7 +122,7 @@ function Players({headId, players, accountId}: {headId: string, players: Standin
                     <span className="battle-brief-name battle-brief-player"
                           style={authorStyle({color: player.color, guest: false})}
                           title={words.masked(player.name)}>{words.masked(player.name)}</span>
-                    <TitleBadge title={player.wornTitle} size={18}/>
+                    <WornTitle accountId={player.accountId} size={18}/>
                     <span className="battle-brief-tiles">{player.tiles}</span>
                 </li>
             })}

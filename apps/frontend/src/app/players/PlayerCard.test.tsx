@@ -3,15 +3,17 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {NameColor, PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
+import {useBadges} from "../badges/badgesStore.ts"
 import PlayerCard from "./PlayerCard.tsx"
 
 afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    useBadges.getState().serve(undefined)
 })
 
-const ana: PlayerLine = {accountId: "account-ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
-const bo: PlayerLine = {accountId: "account-bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
+const ana: PlayerLine = {accountId: "account-ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED}
+const bo: PlayerLine = {accountId: "account-bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED}
 
 const backendAnswering = (answer: (accountId: string) => Promise<PlayerInfo | undefined>) =>
     ({playerInfo: vi.fn(answer)}) satisfies PlayerInfoBackend
@@ -51,6 +53,7 @@ describe("PlayerCard", () => {
     it("wears the worn title on a banner and in the card's frame, with a medal for each title shown", async () => {
         const warlord = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
         const devoted = {id: "devoted", name: "Devoted", rank: {trackId: "devotion", trackName: "Devotion", number: 2, count: 3}}
+        useBadges.setState({badges: {"account-ana": {streak: 0, wornTitle: warlord}}})
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({
                                name: "Ana", guest: false, tilesTaken: 12_000, streakCurrent: 0, streakBest: 30, admin: false, color: NameColor.UNSPECIFIED,
@@ -94,7 +97,24 @@ describe("PlayerCard", () => {
         expect(screen.queryByRole("button", {name: /New title/})).toBeNull()
     })
 
+    it("reads the player's badge as it opens, and wears the title it says", async () => {
+        const warlord = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
+        const badges = vi.fn(async (ids: readonly string[]) => ids.map((accountId) => ({accountId, streak: 0, wornTitle: warlord})))
+        useBadges.getState().serve({badges})
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({
+                               name: "Ana", guest: false, tilesTaken: 12_000, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED,
+                               titles: [warlord], playsFor: [], playsAgainst: [],
+                           }))}
+                           onClose={() => {}}/>)
+
+        expect(await screen.findByText("Rank 3 of 5 · Conquest")).toBeDefined()
+        expect(badges).toHaveBeenCalledWith(["account-ana"])
+        expect(document.querySelector(".player-card.title-frame-gold")).not.toBeNull()
+    })
+
     it("stamps OG beside the name of a player who holds it", async () => {
+        useBadges.setState({badges: {"account-ana": {streak: 0, wornTitle: {id: "og", name: "OG"}}}})
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({
                                name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED,

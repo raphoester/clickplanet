@@ -2,8 +2,8 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {NameColor, RosterEntry} from "../../backends/player.ts"
 import {onlineCount, rosterEntries, useRoster} from "./rosterStore.ts"
 
-const ana: RosterEntry = {key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
-const bo: RosterEntry = {key: "k2", accountId: "account-bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
+const ana: RosterEntry = {key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED}
+const bo: RosterEntry = {key: "k2", accountId: "account-bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED}
 
 afterEach(() => useRoster.setState({state: {kind: "unavailable"}}))
 

@@ -25,7 +25,7 @@ import {
     ReactionCount,
     ReactionsChange,
 } from "./chat.ts";
-import {NameColor, PlayerTitle} from "./player.ts";
+import {NameColor} from "./player.ts";
 import {ClosedRound} from "./standings.ts";
 import {championOf} from "../domain/champion.ts";
 import {podiumOf} from "../domain/roundReveal.ts";
@@ -43,20 +43,19 @@ export type FakeChatBackendOptions = {
 
 const SEEN_AGO_MS = 150_000
 
-const WARLORD: PlayerTitle = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
-
-type Chatter = {name: string, country: string, admin: boolean, color: NameColor, streak: number, title?: PlayerTitle, text: string, answers?: number}
+// Their badges are the fake presence's, as the server's are player's.
+type Chatter = {name: string, country: string, admin: boolean, color: NameColor, text: string, answers?: number}
 
 const CHATTERS: Chatter[] = [
-    {name: "Ana", country: "fr", admin: true, color: NameColor.PINK, streak: 12, title: WARLORD, text: "who keeps taking Brittany"},
-    {name: "guest_91aa3d", country: "de", admin: false, color: NameColor.UNSPECIFIED, streak: 0, text: "we hold the north 💪", answers: 0},
-    {name: "kiran_07", country: "in", admin: false, color: NameColor.UNSPECIFIED, streak: 3, title: {id: "og", name: "OG"}, text: `gm everyone, clips on ${TIKTOK_PROFILE}`},
-    {name: "guest_aa1290", country: "jp", admin: false, color: NameColor.UNSPECIFIED, streak: 0, text: "the pacific is ours"},
+    {name: "Ana", country: "fr", admin: true, color: NameColor.PINK, text: "who keeps taking Brittany"},
+    {name: "guest_91aa3d", country: "de", admin: false, color: NameColor.UNSPECIFIED, text: "we hold the north 💪", answers: 0},
+    {name: "kiran_07", country: "in", admin: false, color: NameColor.UNSPECIFIED, text: `gm everyone, clips on ${TIKTOK_PROFILE}`},
+    {name: "guest_aa1290", country: "jp", admin: false, color: NameColor.UNSPECIFIED, text: "the pacific is ours"},
 ]
 
 const flagChatters = (flag: string): Chatter[] => [
-    {name: "Ana", country: flag, admin: true, color: NameColor.PINK, streak: 12, title: WARLORD, text: "ok team, we push from the east"},
-    {name: "guest_5be210", country: flag, admin: false, color: NameColor.UNSPECIFIED, streak: 0, text: "who has a bomb? their coast is weak", answers: 0},
+    {name: "Ana", country: flag, admin: true, color: NameColor.PINK, text: "ok team, we push from the east"},
+    {name: "guest_5be210", country: flag, admin: false, color: NameColor.UNSPECIFIED, text: "who has a bomb? their coast is weak", answers: 0},
 ]
 
 const FLAG_ROOM_SLOWER = 3
@@ -106,8 +105,6 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 authorName: chatter.name,
                 authorAdmin: chatter.admin,
                 authorColor: chatter.color,
-                authorStreak: chatter.streak,
-                authorTitle: chatter.title,
                 countryCode: chatter.country,
                 text: chatter.text,
                 reactions: [],
@@ -129,8 +126,6 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 authorName: chatter.name,
                 authorAdmin: chatter.admin,
                 authorColor: chatter.color,
-                authorStreak: chatter.streak,
-                authorTitle: chatter.title,
                 countryCode: chatter.country,
                 text: `${chatter.text} (${this.nextChatter})`,
                 reactions: [],
@@ -197,7 +192,6 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             authorName: OWN_GUEST_NAME,
             authorAdmin: false,
             authorColor: NameColor.UNSPECIFIED,
-            authorStreak: 0,
             countryCode: message.countryCode,
             text,
             reactions: [],

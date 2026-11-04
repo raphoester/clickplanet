@@ -28,7 +28,6 @@ const message = (id: string, sentAt: number): ChatMessage => ({
     authorName: "Ana",
     authorAdmin: false,
     authorColor: NameColor.UNSPECIFIED,
-    authorStreak: 0,
     countryCode: "fr",
     text: `message ${id}`,
     reactions: [],

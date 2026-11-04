@@ -1,6 +1,5 @@
 import {Reaction} from "../gen/grpc/chat/v1/chat_pb.ts";
 import {NameColor} from "../gen/grpc/player/v1/color_pb.ts";
-import {PlayerTitle} from "./title.ts";
 
 export {Reaction}
 
@@ -26,8 +25,6 @@ export type ChatMessage = {
     authorName: string
     authorAdmin: boolean
     authorColor: NameColor
-    authorStreak: number
-    authorTitle?: PlayerTitle
     countryCode: string
     text: string
     reactions: ReactionCount[]

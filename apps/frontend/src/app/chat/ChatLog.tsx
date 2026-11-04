@@ -4,8 +4,8 @@ import {landmassName} from "../../domain/landmassNames.ts";
 import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
-import StreakFlame from "../components/StreakFlame.tsx";
-import TitleBadge from "../titles/TitleBadge.tsx";
+import Streak from "../badges/Streak.tsx";
+import WornTitle from "../badges/WornTitle.tsx";
 import {ChevronIcon, ReplyIcon, ReportIcon} from "../components/icons.tsx";
 import {ChatLogEntry, GIF_LINE, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
 import {fitted} from "../../domain/gifs.ts";
@@ -244,8 +244,8 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                     {truncate(name, AUTHOR_MAX_LENGTH)}
                 </span>}
             {message.authorAdmin && <AdminCrown size={13}/>}
-            <TitleBadge title={message.authorTitle}/>
-            <StreakFlame days={message.authorStreak}/>
+            <WornTitle accountId={message.authorAccountId}/>
+            <Streak accountId={message.authorAccountId}/>
             <time className="chat-message-time"
                   dateTime={new Date(message.sentAt).toISOString()}>
                 {clock.format(message.sentAt)}

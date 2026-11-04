@@ -10,16 +10,18 @@ import {NameColor} from "../../backends/player.ts"
 import {wordFilterOf} from "../../domain/wordFilter.ts"
 import {WordFilterContext} from "../crazygames/wordFilter.ts"
 import {usePlayerCard} from "../players/playerCardStore.ts"
+import {useBadges} from "../badges/badgesStore.ts"
 import {useChat} from "./chatStore.ts"
 
 afterEach(() => {
     cleanup()
     usePlayerCard.setState({openable: false, player: undefined})
     useChat.setState(useChat.getInitialState(), true)
+    useBadges.getState().serve(undefined)
 })
 
 const message = (id: string, authorName: string, countryCode: string): ChatMessage =>
-    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorAccountId: `account-${authorName}`, authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
+    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorAccountId: `account-${authorName}`, authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
 
 describe("ChatLog", () => {
     const dancing = {url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124}
@@ -49,10 +51,10 @@ describe("ChatLog", () => {
 
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
         expect(usePlayerCard.getState().player).toEqual(
-            {accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0})
+            {accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED})
         await userEvent.click(screen.getByRole("button", {name: "guest_Bo"}))
         expect(usePlayerCard.getState().player).toEqual(
-            {accountId: "account-guest_Bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0})
+            {accountId: "account-guest_Bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED})
     })
 
     it("shows a guest's name once, and nothing of its address", () => {
@@ -78,33 +80,32 @@ describe("ChatLog", () => {
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
         expect(usePlayerCard.getState().player).toEqual({
             accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.UNSPECIFIED,
-            streak: 0,
         })
     })
 
-    it("lights a flame beside a streak of three days or more, and keeps it on the player it opens", async () => {
-        usePlayerCard.setState({openable: true})
-        const burning = {...message("1", "Ana", "fr"), authorStreak: 12}
-        const starting = {...message("2", "kiran_07", "in"), authorStreak: 2}
-        render(<ChatLog loading={false} messages={[burning, starting]}/>)
+    it("lights a flame beside a streak of three days or more, from the badge kept for the author's account", () => {
+        useBadges.setState({badges: {"account-Ana": {streak: 12}, "account-kiran_07": {streak: 2}}})
+        render(<ChatLog loading={false} messages={[message("1", "Ana", "fr"), message("2", "kiran_07", "in")]}/>)
 
         expect(screen.getAllByRole("img", {name: /streak/})).toHaveLength(1)
         expect(screen.getByRole("img", {name: "12-day streak"}).textContent).toBe("12")
-        await userEvent.click(screen.getByRole("button", {name: "Ana"}))
-        expect(usePlayerCard.getState().player).toEqual(expect.objectContaining({streak: 12}))
     })
 
-    it("shows the title its author wears beside the name, and keeps it on the player it opens", async () => {
-        usePlayerCard.setState({openable: true})
+    it("shows the title its author wears beside the name, from the badge kept for its account", () => {
         const warlord = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
-        const dressed = {...message("1", "Ana", "fr"), authorTitle: warlord}
-        const bare = message("2", "kiran_07", "in")
-        render(<ChatLog loading={false} messages={[dressed, bare]}/>)
+        useBadges.setState({badges: {"account-Ana": {streak: 0, wornTitle: warlord}}})
+        render(<ChatLog loading={false} messages={[message("1", "Ana", "fr"), message("2", "kiran_07", "in")]}/>)
 
         expect(screen.getAllByRole("img", {name: "Warlord"})).toHaveLength(1)
         expect(screen.getByRole("img", {name: "Warlord"}).querySelector(".title-emblem")).not.toBeNull()
-        await userEvent.click(screen.getByRole("button", {name: "Ana"}))
-        expect(usePlayerCard.getState().player).toEqual(expect.objectContaining({wornTitle: warlord}))
+    })
+
+    it("shows no badge beside a message with no account: kept before accounts, or of one deleted", () => {
+        useBadges.setState({badges: {"": {streak: 12, wornTitle: {id: "og", name: "OG"}}}})
+        render(<ChatLog loading={false} messages={[{...message("1", "[deleted]", "fr"), authorAccountId: ""}]}/>)
+
+        expect(screen.queryByRole("img", {name: /streak/})).toBeNull()
+        expect(screen.queryByRole("img", {name: "OG"})).toBeNull()
     })
 
     it("paints a name in the color its player chose, and grey with none or as a guest", () => {
