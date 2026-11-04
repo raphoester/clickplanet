@@ -21,9 +21,9 @@ and says what is in it. Read the doc before you change its area.
 
 ## How the code is shaped
 
-- [Eleven bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, progression, scoring,
-  support, missions, antibot, gamemaster, alerts, and clips beside them. A module publishes its root package and hides
-  the rest; the modules depend on each other with no cycle.
+- [Twelve bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, progression, scoring,
+  support, missions, antibot, gamemaster, alerts and clips. A module publishes its root package and hides the rest; the
+  modules depend on each other with no cycle, and only player and alerts speak auth's language.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
   calls another one, how it tells the others what happened and asks one to change something: Redis Streams,
   the idempotent receivers, the outboxes, the commands.
@@ -98,7 +98,8 @@ and says what is in it. Read the doc before you change its area.
   replies, reactions, and what each account saw.
 - [Player](docs/player.md) — who an account is: names and guest codes, colors, who is playing now, and an account
   asked deleted, hidden from the other players until it is purged or comes back; what it tells the other modules of
-  an account (`PlayerCreated`, `PlayerLeaving`, `PlayerReturned`, `PlayerForgotten`, `GetAccounts`).
+  an account (`PlayerCreated`, `PlayerSignedIn`, `PlayerLeaving`, `PlayerReturned`, `PlayerForgotten`, `GetAccounts`), so
+  no game module but alerts hears or asks auth; the deploy that moved them to it.
 - [Progression](docs/progression.md) — how far an account went: stats, streaks, titles and their tracks, the title
   worn, the fronts, the badges, the title-earned stream and the reconciliation; why it left `player`, and its tables
   moved from schema `player`.

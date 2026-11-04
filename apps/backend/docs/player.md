@@ -174,8 +174,12 @@ event goes through player's outbox (relay `player-outbox`; `outbox_event` gained
 `PlayerForgotten` in migration `20261104190000_departure_events`, `PlayerSignedIn` in
 `20261104220000_signed_in_event`), in the transaction of what it tells, since a lost one would leave a module
 disagreeing with player for good (see [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox)).
-Progression hears `PlayerCreated`, `PlayerLeaving`, `PlayerReturned` and `PlayerForgotten`; the other modules still
-hear auth's events, and moving them to these is a later step.
+**Who hears them**: `PlayerCreated`, planet (the sign-in refill) and progression (a nameplate); `PlayerSignedIn`,
+missions (what a guest finished that day is paid); `PlayerLeaving` and `PlayerReturned`, progression;
+`PlayerForgotten`, every module that keeps something of an account: progression, planet, chat, scoring, support,
+missions, alerts and clips. `GetAccounts` is asked by progression and missions. Since 2026-11-04 no game module but
+alerts hears or asks auth, which needs it for a Discord join's token (see [Discord pings](alerts.md)):
+`TestOnlyPlayerAndAlertsSpeakAuthsLanguage` pins it.
 
 - **`player.v1.PlayerCreated{account_id}`**: an account became a player (above).
 - **`player.v1.PlayerSignedIn{account_id}`**: a player signed in to the account, which is signed in now.
@@ -194,7 +198,8 @@ hear auth's events, and moving them to these is a later step.
 - **`player.v1.PlayerForgotten{account_id}`**: player forgot the account, its name and its guest code, and what
   another module keeps of it goes too. `forget_account_usecase` records it on `auth.v1.AccountDeleted`
   (`player-profiles-accounts`), in the transaction that deletes the profile and the guest code, **for every account deleted,
-  even one player kept nothing about**: progression may keep its stats (a guest that took tiles). The roster and the
+  even one player kept nothing about**: a guest that took tiles, chatted or did a mission has no profile, and the
+  modules that hear it keep its takes, its stats and its seen mark. The roster and the
   departure forget the account on their own groups (`player-presence-accounts`, `player-departures-accounts`).
   `TestAnAccountPlayerNeverKnewIsToldForgottenToo` pins it.
 - **`InternalService/GetAccounts(account_ids)`** is the read beside them: what auth says of a page of accounts, as
@@ -202,7 +207,8 @@ hear auth's events, and moving them to these is a later step.
   `rpc_account_reader`): each one's `account_id`, `linked` and `created_at_unix_ms`, in the order asked, once each.
   An account auth does not answer is left out, and the caller reads it as a guest with no date. An id that is not an
   account is `InvalidArgument`, and reads nothing; a failure to ask auth is the error net's `internal`.
-  `NO_SIDE_EFFECTS`. Progression asks it on each title award and once per page of a reconciliation.
+  `NO_SIDE_EFFECTS`. Progression asks it on each title award and once per page of a reconciliation, missions whether
+  an account is signed in before it pays.
 
 ## An account asked deleted
 

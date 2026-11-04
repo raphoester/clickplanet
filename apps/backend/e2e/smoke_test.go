@@ -217,7 +217,7 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 		require.NoError(c, err)
 		assert.Equal(c, "es", holder.Msg.GetHolder().GetCountryId(), "planet keeps the take")
 		assert.Empty(c, holder.Msg.GetHolder().GetAccountId(), "and names no account")
-	}, deletionGrace+5*time.Second, 20*time.Millisecond, "the purge deletes it once the grace period ends, and auth's outbox tells every module")
+	}, deletionGrace+5*time.Second, 20*time.Millisecond, "the purge deletes it once the grace period ends, auth's outbox tells player, and player's every module")
 }
 
 func (s *testSuite) TestAnAccountSignedInToWithinTheGracePeriodComesBack() {
