@@ -65,7 +65,9 @@
   the screen on the way in. Its scene is not the one `disposeScene` walks, so
   `startAnimation`'s `stop()` disposes it by hand.
 - `enclosureEffect.ts` — what every screen shows when somebody closes a shape
-  with the enclose bonus (`tilesEnclosed` on the stream): the outline lights up
+  with the enclose bonus (`tilesEnclosed` on the stream, its one event: no tile update comes for its tiles, so
+  `globe.ts` first gives them to the flag at its version with `MapTiles.applyEnclosure`, as it lands a bomb with
+  `applyBlast`, after the updates that came before it): the outline lights up
   and meets at the closing tile, the inside pours in, and a gold ring runs out
   over the ground. **The curves are TypeScript, written into attributes per
   frame**, not GLSL: a shape is a few dozen points, and that is what lets

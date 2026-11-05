@@ -44,18 +44,6 @@ type Taken struct {
 	QuizSubject string
 }
 
-type Enclosed struct {
-	CountryID string
-
-	ClosingTile uint32
-
-	Wall []uint32
-
-	Filled []uint32
-
-	Yours bool
-}
-
 type Spread struct {
 	CountryID string
 	Tile      uint32
@@ -64,12 +52,11 @@ type Spread struct {
 }
 
 type Event struct {
-	Offer    *Offer
-	Quiz     *QuizOffer
-	Taken    *Taken
-	Enclosed *Enclosed
-	Spread   *Spread
-	Granted  *Held
+	Offer   *Offer
+	Quiz    *QuizOffer
+	Taken   *Taken
+	Spread  *Spread
+	Granted *Held
 }
 
 type Reward struct {
@@ -370,26 +357,6 @@ func (r *Registry) refuse(token string, entrant Entrant, scope string) {
 
 func (r *Registry) Publish(taken Taken) {
 	r.broadcast(Event{Taken: &taken})
-}
-
-func (r *Registry) PublishEnclosed(entrant Entrant, enclosed Enclosed) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	theirs := enclosed
-	theirs.Yours = false
-
-	for other, entry := range r.callers {
-		if other == entrant {
-			yours := enclosed
-			yours.Yours = true
-			entry.send(Event{Enclosed: &yours})
-
-			continue
-		}
-
-		entry.send(Event{Enclosed: &theirs})
-	}
 }
 
 func (r *Registry) PublishSpread(spread Spread) {

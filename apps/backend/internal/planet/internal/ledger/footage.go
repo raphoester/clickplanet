@@ -43,6 +43,15 @@ func (f *Footage) see(scene Scene) {
 		for i, tile := range scene.Blast.Struck {
 			f.rewindShields(tile, scene.Blast.Left[i]+1)
 		}
+	case scene.Enclosure != nil:
+		for _, impact := range scene.Enclosure.Impacts {
+			f.rewind(impact.Tile, impact.Owner)
+			if impact.Outcome == clicks.Shielded {
+				f.rewindShields(impact.Tile, impact.Shields+1)
+			} else {
+				f.rewindShields(impact.Tile, 0)
+			}
+		}
 	}
 
 	if scene.At.Before(f.until) {

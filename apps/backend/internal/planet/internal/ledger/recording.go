@@ -21,6 +21,7 @@ type Tiles interface {
 type Claims interface {
 	Click(ctx context.Context, tile uint32, flag string) (clicks.Impact, error)
 	Claim(ctx context.Context, tile uint32, flag string) (clicks.Impact, error)
+	Enclose(ctx context.Context, enclosure clicks.Enclosure, inside []uint32) ([]clicks.Impact, error)
 }
 
 func NewRecording(tiles Tiles, claims Claims, events Storage, clock cptime.Clock) Recording {
@@ -70,14 +71,20 @@ func (r Recording) Spread(ctx context.Context, tile uint32, flag string, neighbo
 	return err
 }
 
-func (r Recording) Enclose(ctx context.Context, tile uint32, flag string, inside []uint32) error {
-	impacts, err := r.claim(ctx, flag, inside)
+func (r Recording) Enclose(ctx context.Context, enclosure clicks.Enclosure, inside []uint32) error {
+	impacts, err := r.claims.Enclose(ctx, enclosure, inside)
+	impacts = changed(impacts)
 	r.record(ctx, func(by Caller, at time.Time) Event {
-		return Enclosing{Tile: tile, Scope: by.Scope, Account: by.Account, Country: flag, At: at, Impacts: impacts}
+		return Enclosing{
+			Tile: enclosure.ClosingTile, Scope: by.Scope, Account: by.Account, Country: enclosure.Country, At: at, Impacts: impacts,
+		}
 	})
-	r.recordFortified(ctx, flag, impacts)
+	r.recordFortified(ctx, enclosure.Country, impacts)
+	if err != nil {
+		return fmt.Errorf("failed to enclose from tile %d: %w", enclosure.ClosingTile, err)
+	}
 
-	return err
+	return nil
 }
 
 func (r Recording) Clear(ctx context.Context, blast clicks.Blast) (clicks.Blast, error) {

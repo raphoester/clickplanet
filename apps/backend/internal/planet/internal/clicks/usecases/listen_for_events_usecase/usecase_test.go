@@ -141,6 +141,39 @@ func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
 	}, sink.seen())
 }
 
+func TestAnEnclosureIsCarriedToTheSinkAsOneFrameAndOnlyItsCloserIsToldItIsTheirs(t *testing.T) {
+	address := cpctx.AddIPToContext(t.Context(), "1.2.3.4")
+	closer := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(address, "a-player"))
+	other := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(address, "another-player"))
+	version := clicks.MapVersion{Epoch: opening.Epoch, Seq: 42}
+	enclosure := &clicks.Enclosure{Country: "fr", ClosingTile: 9, Filled: []uint32{4, 5}, By: clicks.PayerOf(closer)}
+
+	for _, stream := range []struct {
+		ctx   context.Context
+		yours bool
+	}{{closer, true}, {other, false}} {
+		updates := make(chan clicks.Change, 1)
+		updates <- clicks.Change{Version: version, Enclosure: enclosure}
+
+		ctx, cancel := context.WithCancel(stream.ctx)
+		sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
+		done := make(chan error, 1)
+		go func() {
+			done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+		}()
+
+		<-sink.fed
+		<-sink.fed
+		cancel()
+		require.NoError(t, <-done)
+
+		require.Equal(t, []listen_for_events_usecase.Event{
+			{Heartbeat: true, Version: opening},
+			{Version: version, Enclosure: enclosure, Yours: stream.yours},
+		}, sink.seen())
+	}
+}
+
 func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	updates := make(chan clicks.Change, 1)
 	blast := &clicks.Blast{Tile: 7, CountryID: "fr", Cleared: []uint32{6, 7, 8}}

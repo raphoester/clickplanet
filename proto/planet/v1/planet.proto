@@ -509,6 +509,7 @@ message BombDropped {
   repeated TileShields struck = 8;
 }
 
+// The one event of an enclosure on the stream: no tile_update is sent for the tiles it fills.
 message TilesEnclosed {
   string country_id = 1;
 
@@ -516,9 +517,15 @@ message TilesEnclosed {
 
   repeated uint32 wall_tile_ids = 3;
 
+  // Every tile inside, nearest the closing tile first: each is country_id's now, but those in struck.
   repeated uint32 filled_tile_ids = 4;
 
   bool yours = 5;
+
+  // Each lost one shield and kept its flag: with the shields it kept.
+  repeated TileShields struck = 6;
+
+  MapVersion version = 7;
 }
 
 message TilesSpread {

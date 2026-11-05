@@ -76,6 +76,10 @@ func (b board) Fortify(context.Context, uint32, string, int) (clicks.Fortificati
 	return clicks.Fortification{}, clicks.ErrNotWhole
 }
 
+func (b board) Enclose(_ context.Context, _ clicks.Enclosure, write func(clicks.Claimable) error) error {
+	return write(b)
+}
+
 type rule struct {
 	claiming clicks.Claiming
 	err      error
@@ -91,22 +95,29 @@ func (r rule) Execute(ctx context.Context, in click_usecase.In) (click_usecase.O
 	return click_usecase.Out{Outcome: impact.Outcome}, err
 }
 
-type encloser struct{ claiming clicks.Claiming }
+type shape struct {
+	CountryID   string
+	ClosingTile uint32
+	Wall        []uint32
+	Filled      []uint32
+}
 
-func (e encloser) Enclose(ctx context.Context, _ uint32, flag string, inside []uint32) error {
-	for _, tile := range inside {
-		if _, err := e.claiming.Claim(ctx, tile, flag); err != nil {
-			return fmt.Errorf("failed to claim tile %d: %w", tile, err)
-		}
+type recorder struct{ published []shape }
+
+type encloser struct {
+	claiming clicks.Claiming
+	recorder *recorder
+}
+
+func (e encloser) Enclose(ctx context.Context, enclosure clicks.Enclosure, inside []uint32) error {
+	e.recorder.published = append(e.recorder.published, shape{
+		CountryID: enclosure.Country, ClosingTile: enclosure.ClosingTile, Wall: enclosure.Wall, Filled: inside,
+	})
+	if _, err := e.claiming.Enclose(ctx, enclosure, inside); err != nil {
+		return fmt.Errorf("failed to claim the pocket: %w", err)
 	}
 
 	return nil
-}
-
-type recorder struct{ published []bonuses.Enclosed }
-
-func (r *recorder) PublishEnclosed(_ bonuses.Entrant, enclosed bonuses.Enclosed) {
-	r.published = append(r.published, enclosed)
 }
 
 const caller bonuses.Holder = "a-player"
@@ -144,7 +155,7 @@ func setup(charged bool, err error) fixture {
 	inForce := func() bonuses.Rules { return rules }
 	charges := bonuses.NewCharges(f.charges, inForce)
 	f.useCase = enclose_click.New(rule{claiming: claiming, err: err}, charges,
-		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(encloser{claiming: claiming}, charges, f.published), inForce)
+		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(encloser{claiming: claiming, recorder: f.published}, charges), inForce)
 
 	return f
 }

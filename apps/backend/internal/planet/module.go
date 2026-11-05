@@ -324,7 +324,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			clickUseCase = enclose_click.New(clickUseCase, charges,
 				bonuses.NewTerrain(geography, tilesStorage),
-				enclose_click.NewAnnexer(writer, charges, prom_enclose.New(registry, props.Metrics)),
+				enclose_click.NewAnnexer(prom_enclose.New(writer, props.Metrics), charges),
 				game)
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)

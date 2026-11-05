@@ -28,17 +28,18 @@ type Event struct {
 	Version       clicks.MapVersion
 	Update        *clicks.TileUpdate
 	Blast         *clicks.Blast
+	Enclosure     *clicks.Enclosure
+	Yours         bool
 	Fortification *clicks.Fortification
 	Tally         *clicks.Tally
 	Heartbeat     bool
 	RulesChanged  bool
 
-	Offer    *bonuses.Offer
-	Quiz     *bonuses.QuizOffer
-	Taken    *bonuses.Taken
-	Enclosed *bonuses.Enclosed
-	Spread   *bonuses.Spread
-	Granted  *bonuses.Held
+	Offer   *bonuses.Offer
+	Quiz    *bonuses.QuizOffer
+	Taken   *bonuses.Taken
+	Spread  *bonuses.Spread
+	Granted *bonuses.Held
 }
 
 type BonusFeed interface {
@@ -91,7 +92,8 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
 	}
 
-	boxes, leave := u.bonuses.Attend(bonuses.EntrantOf(clicks.PayerOf(ctx)))
+	entrant := bonuses.EntrantOf(clicks.PayerOf(ctx))
+	boxes, leave := u.bonuses.Attend(entrant)
 	defer leave()
 
 	changes, stopWatching := u.rules.Watch()
@@ -122,7 +124,8 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 
 			version = change.Version
 			if err := sink.Send(Event{
-				Version: change.Version, Update: change.Update, Blast: change.Blast,
+				Version: change.Version, Update: change.Update, Blast: change.Blast, Enclosure: change.Enclosure,
+				Yours:         change.Enclosure != nil && bonuses.EntrantOf(change.Enclosure.By) == entrant,
 				Fortification: change.Fortification, Tally: change.Tally,
 			}); err != nil {
 				return err
@@ -139,8 +142,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			}
 
 			if err := sink.Send(Event{
-				Offer: event.Offer, Quiz: event.Quiz, Taken: event.Taken, Enclosed: event.Enclosed,
-				Spread: event.Spread, Granted: event.Granted,
+				Offer: event.Offer, Quiz: event.Quiz, Taken: event.Taken, Spread: event.Spread, Granted: event.Granted,
 			}); err != nil {
 				return err
 			}

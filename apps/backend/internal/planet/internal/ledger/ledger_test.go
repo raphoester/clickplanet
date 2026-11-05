@@ -552,6 +552,10 @@ func (s *stubTiles) Click(ctx context.Context, tile uint32, value string) error 
 	return s.Set(ctx, tile, value)
 }
 
+func (s *stubTiles) Enclose(_ context.Context, _ clicks.Enclosure, write func(clicks.Claimable) error) error {
+	return write(s)
+}
+
 func (s *stubTiles) Shield(_ context.Context, tile uint32, _ string, _ int) error {
 	if tile > lastTile {
 		return errOutOfRange
@@ -767,7 +771,7 @@ func TestRecordingNotesAnEnclosureAsOneEventOnTheTileThatClosedIt(t *testing.T) 
 	tiles.shields[9] = 3
 	recording, events := recorded(tiles)
 
-	require.NoError(t, recording.Enclose(caller(t), 1, "fr", []uint32{8, 9}))
+	require.NoError(t, recording.Enclose(caller(t), clicks.Enclosure{Country: "fr", ClosingTile: 1}, []uint32{8, 9}))
 
 	assert.Equal(t, []ledger.Event{ledger.Enclosing{
 		Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", At: start, Impacts: []clicks.Impact{

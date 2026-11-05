@@ -7,6 +7,7 @@ import {GetReplayResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {GetRoundResponse} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {GetTurnResponse} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {ReplayBackend} from "../backends/replayBackend.ts"
+import {takenOf} from "../backends/planetBackend.ts"
 import {createGlobe} from "../app/viewer/globe.ts"
 import {loadPointGeometryData} from "../app/viewer/points.ts"
 import {countryOfTile, loadBorders} from "../app/viewer/borderField.ts"
@@ -453,6 +454,10 @@ async function choose(): Promise<Chosen> {
         }
         backend.listenForUpdates((update) => own(update.tile, update.newCountry))
         backend.listenForBombs((drop) => drop.cleared.forEach((tile) => own(tile, undefined)))
+        backend.listenForBonuses({
+            onEnclosed: (enclosure) => takenOf(enclosure).forEach((tile) => own(tile, enclosure.countryId)),
+            onOffered: () => {}, onTaken: () => {}, onSpread: () => {}, onCharges: () => {}, onRules: () => {},
+        })
 
         const words = wordsOf(story, written, params.get("headline") ?? undefined)
         const overlay = createOverlay(root, story, words, opening, named, ground)

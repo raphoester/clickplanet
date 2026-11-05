@@ -12,7 +12,7 @@ type Scene struct {
 	Change    *Change
 	Blast     *clicks.Blast
 	Spread    *Bonus
-	Enclosure *Bonus
+	Enclosure *Enclosure
 }
 
 type Change struct {
@@ -26,6 +26,12 @@ type Bonus struct {
 	Tile    uint32
 	Country string
 	Tiles   []uint32
+}
+
+type Enclosure struct {
+	Tile    uint32
+	Country string
+	Impacts []clicks.Impact
 }
 
 func showImpacts(see func(Scene), at time.Time, flag string, impacts []clicks.Impact) {
