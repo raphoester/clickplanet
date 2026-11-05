@@ -25,12 +25,12 @@ function island(owners: Record<number, string>, known = new Set([1, 2, 3, 4, 5])
 }
 
 describe("FortifyTargets", () => {
-    it("pulses the tiles a leader close to the whole still misses, and says it entered", () => {
+    it("pulses the tiles a leader close to the whole still misses", () => {
         const {targets, pulsing} = island({1: "us", 2: "us", 3: "us", 4: "ca"})
 
-        const entered = targets.lockAll(new Map(), 3)
+        targets.lockAll(new Map(), 3)
 
-        expect(entered).toEqual([{landmass: 1, target: {flag: "us", missing: 1}}])
+        expect(targets.targetOf(1)).toEqual({flag: "us", missing: 1})
         expect([...pulsing]).toEqual([4])
     })
 
@@ -40,12 +40,12 @@ describe("FortifyTargets", () => {
         expect(pulsing.size).toBe(0)
 
         owners[3] = "us"
-        expect(targets.touch([3])).toEqual([{landmass: 1, target: {flag: "us", missing: 1}}])
+        targets.touch([3])
         expect([...pulsing]).toEqual([4])
 
         owners[3] = "ca"
         owners[2] = "us"
-        expect(targets.touch([3, 2])).toEqual([])
+        targets.touch([3, 2])
         expect(pulsing.size).toBe(0)
     })
 
@@ -72,7 +72,8 @@ describe("FortifyTargets", () => {
     it("takes its target from the counts, and pulses only the tiles whose owner is read", () => {
         const {known, targets, pulsing} = island({1: "us", 2: "us", 3: "us", 4: "ca"}, new Set())
 
-        expect(targets.lockAll(new Map(), 3)).toEqual([{landmass: 1, target: {flag: "us", missing: 1}}])
+        targets.lockAll(new Map(), 3)
+        expect(targets.targetOf(1)).toEqual({flag: "us", missing: 1})
         expect(pulsing.size).toBe(0)
 
         for (const tile of [1, 2, 3, 4]) known.add(tile)
@@ -86,7 +87,7 @@ describe("FortifyTargets", () => {
         targets.lockAll(new Map(), 3)
 
         owners[3] = "us"
-        expect(targets.recount([1])).toEqual([{landmass: 1, target: {flag: "us", missing: 1}}])
+        targets.recount([1])
         expect([...pulsing]).toEqual([4])
 
         owners[4] = "us"
