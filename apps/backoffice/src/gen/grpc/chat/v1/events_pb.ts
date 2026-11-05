@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { MuteKind } from "./chat_pb.js";
 
 /**
  * @generated from message chat.v1.MessageSent
@@ -79,6 +80,13 @@ export class AccountMuted extends Message<AccountMuted> {
    */
   muteId = "";
 
+  /**
+   * What the mute takes away: the chat announces a mute of the GIFs as such.
+   *
+   * @generated from field: chat.v1.MuteKind kind = 5;
+   */
+  kind = MuteKind.CHAT;
+
   constructor(data?: PartialMessage<AccountMuted>) {
     super();
     proto3.util.initPartial(data, this);
@@ -91,6 +99,7 @@ export class AccountMuted extends Message<AccountMuted> {
     { no: 2, name: "muted_at", kind: "message", T: Timestamp },
     { no: 3, name: "duration", kind: "message", T: Duration },
     { no: 4, name: "mute_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "kind", kind: "enum", T: proto3.getEnumType(MuteKind) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AccountMuted {

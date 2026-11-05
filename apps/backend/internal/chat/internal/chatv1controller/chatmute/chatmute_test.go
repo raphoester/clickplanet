@@ -46,20 +46,6 @@ func TestAMuteOfTheGifsSaysSo(t *testing.T) {
 	assert.Equal(t, chatv1.MuteKind_MUTE_KIND_GIFS, detail.(*chatv1.MuteRefusal).GetKind())
 }
 
-func TestEveryKindCrossesTheWireBothWays(t *testing.T) {
-	for _, kind := range []mutes.Kind{mutes.Chat, mutes.Gifs} {
-		back, err := chatmute.KindOf(chatmute.Kind(kind))
-		require.NoError(t, err)
-		assert.Equal(t, kind, back)
-	}
-	for number := range chatv1.MuteKind_name {
-		_, err := chatmute.KindOf(chatv1.MuteKind(number))
-		require.NoError(t, err, "every kind the proto names is one here: %d", number)
-	}
-	_, err := chatmute.KindOf(chatv1.MuteKind(7))
-	assert.ErrorIs(t, err, mutes.ErrInvalidKind)
-}
-
 func TestAnyOtherErrorIsNoMuteRefusal(t *testing.T) {
 	_, ok := chatmute.Refusal(assert.AnError)
 

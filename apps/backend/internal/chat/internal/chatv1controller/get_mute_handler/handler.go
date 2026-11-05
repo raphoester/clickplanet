@@ -8,9 +8,9 @@ import (
 	"connectrpc.com/connect"
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/chatmute"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/proto_kind"
 )
 
 var ErrInvalidAccount = errors.New("the account id is not a UUID")
@@ -35,7 +35,7 @@ func (h GetMuteHandler) GetMute(
 	if account == messages.NoAccount {
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidAccount)
 	}
-	kind, err := chatmute.KindOf(req.Msg.GetKind())
+	kind, err := proto_kind.Decode(req.Msg.GetKind())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}

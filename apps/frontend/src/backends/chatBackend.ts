@@ -342,6 +342,7 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 id: announcement.id,
                 announcedAt: Number(announcement.announcedAtUnixMs),
                 name: values.name,
+                muteKind: values.kind === "gifs" ? "gifs" : "chat",
                 seconds: values.seconds,
             }
         case "fortify":

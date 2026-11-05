@@ -105,9 +105,9 @@ duration, kind)`, on the admin listener (see [Operator tools](admin.md)). A mute
   kind the proto does not name is `InvalidArgument`, never the whole chat by default.
 - **`muting_send_message` asks the whole chat first, then the GIFs for a post with one**, so a player muted both ways
   is told the mute that stops it from writing at all. `muting_react` asks the whole chat alone.
-- **A mute of the GIFs is not announced**: `publishing_mute` publishes `chat.v1.AccountMuted` for a mute of the
-  whole chat alone, and that event is the line. A guest posts no GIF anyway (see [GIFs](#gifs)), so the network
-  matters for a signed-in account on the same line.
+- **Every mute is announced with its kind**: `chat.v1.AccountMuted` carries the `kind`, and so does the line's payload,
+  so the client writes "<name> may not post GIFs for one day" for a mute of the GIFs. A guest posts no GIF anyway
+  (see [GIFs](#gifs)), so a mute of the GIFs on a network matters for a signed-in account on the same line.
 - **A mute holds the account and its network.** The network is the address of the account's latest message
   (`messages.Storage.LatestAddress`, by `seq`), as `mutes.ScopeOf` reads it: the /64 over IPv6, the address over
   IPv4, the throttle's unit (`cpipscope`). Never wider: Free Mobile's subscribers share a /32. So a new guest in a
@@ -125,14 +125,15 @@ duration, kind)`, on the admin listener (see [Operator tools](admin.md)). A mute
 - **No duration is one hour** (`mutes.DefaultDuration`). Otherwise whole seconds, and a negative or fractional one
   is `InvalidArgument`, as is an id that is not an account. A second mute is a second row, so it never shortens one
   that ends later.
-- **Every mute of the whole chat is announced, after it is kept, by an event.**
-  `mute_usecase` only keeps the mute, with an id from
+- **Every mute is announced, after it is kept, by an event.** `mute_usecase` only keeps the mute, with an id from
   its `IDProvider` (`uuid_id_provider`; tests use `mutes.SequentialIDs`). `publishing_mute` then publishes
   `chat.v1.AccountMuted` with that id, and the chat hears it itself (`chat-announcements-mutes`):
   `account_muted_subscriber` hands it to `announce_mute_usecase`, which names the account (`IntroducePlayer`) and gives an
-  `announcements.Muted`, payload `{name, seconds}`, named after the mute, to `announce_usecase`. So the operator's
+  `announcements.Muted`, payload `{name, kind, seconds}` (`kind` is `chat` or `gifs`; a line kept before kinds has none,
+  and was the whole chat's), named after the mute, to `announce_usecase`. An event whose kind the proto does not name is
+  refused and logged. So the operator's
   call never fails on the announcement, and a mute that was not kept is never announced. The client writes "<name>
-  has been muted for one hour", under the name the account had when the event was heard. A mute Redis did not take
+  has been muted for one hour", or "<name> may not post GIFs for one hour", under the name the account had when the event was heard. A mute Redis did not take
   is a line missed, never the mute; a failure to name the account is tried again, logged by `log_subscriber`.
 - **`audit_mute` logs every call at Warn** (`admin chat mute`), with the network it holds.
 - **Kept in `chat.mutes`** (`id`, `account_id`, `scope`, `kind`, `muted_at`, `muted_until`; `kind` is the type

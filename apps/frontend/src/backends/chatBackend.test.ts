@@ -308,8 +308,17 @@ describe("decodedAnnouncement", () => {
             id: "announcement-1",
             announcedAt: 1_700_000_000_000,
             name: "guest_a1b2c3",
+            muteKind: "chat",
             seconds: 3600,
         })
+    })
+
+    it("reads the kind of a mute, the GIFs alone or the whole chat", () => {
+        const gifs = decodedAnnouncement(bomb(`{"name":"guest_a1b2c3","kind":"gifs","seconds":3600}`, "mute"))
+        const chat = decodedAnnouncement(bomb(`{"name":"guest_a1b2c3","kind":"chat","seconds":3600}`, "mute"))
+
+        expect(gifs).toMatchObject({kind: "mute", muteKind: "gifs"})
+        expect(chat).toMatchObject({kind: "mute", muteKind: "chat"})
     })
 
     it("drops a mute with no name or no length", () => {

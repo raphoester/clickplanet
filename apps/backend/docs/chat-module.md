@@ -57,8 +57,10 @@ internal/chat/internal/
     postgres_mute_store/                Storage, over chat.mutes
     inmemory_mute_storage/              Storage in a slice — behind the testing tag, tests only
     uuid_id_provider/                   IDProvider: a UUIDv7 per mute
+    proto_kind/                         Encode and Decode: a Kind as chat.v1.MuteKind, for the admin calls, the
+                                        refusal and chat.v1.AccountMuted
     usecases/mute_usecase/              keeps a mute on the account and its network — Saver, Addresses, IDProvider
-      publishing_mute/                  publishes chat.v1.AccountMuted once a mute of the whole chat is kept
+      publishing_mute/                  publishes chat.v1.AccountMuted, with its kind, once a mute is kept
       audit_mute/                       logs every mute at Warn
     usecases/unmute_usecase/            ends now every running mute of a kind given to the account — Transactioner,
                                         Store
@@ -89,8 +91,7 @@ internal/chat/internal/
     chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), for the post,
                                         the reaction and the stream
     chatannouncement/                   Encode, for the stream
-    chatmute/                           Refusal: a mute as PermissionDenied with a MuteRefusal detail; Kind and KindOf,
-                                        the kind on the wire and back
+    chatmute/                           Refusal: a mute as PermissionDenied with a MuteRefusal detail
   subscribers/                          Timeout
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb
     fortified_subscriber/               planet.v1.Fortified → announce_usecase, as a Fortify of 50 tiles or more

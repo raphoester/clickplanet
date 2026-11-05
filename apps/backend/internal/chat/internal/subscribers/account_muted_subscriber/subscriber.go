@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_mute_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/proto_kind"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
@@ -48,6 +49,10 @@ func (s Subscriber) Handle(ctx context.Context, event *chatv1.AccountMuted) erro
 	if err := event.GetDuration().CheckValid(); err != nil {
 		return fmt.Errorf("%w: %w", errNoDuration, err)
 	}
+	kind, err := proto_kind.Decode(event.GetKind())
+	if err != nil {
+		return err //nolint:wrapcheck // Decode named it.
+	}
 
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
@@ -55,6 +60,7 @@ func (s Subscriber) Handle(ctx context.Context, event *chatv1.AccountMuted) erro
 	return s.useCase.Execute(ctx, announce_mute_usecase.In{ //nolint:wrapcheck // the use case named it.
 		Mute:     mute,
 		Account:  account,
+		Kind:     kind,
 		At:       event.GetMutedAt().AsTime(),
 		Duration: event.GetDuration().AsDuration(),
 	})

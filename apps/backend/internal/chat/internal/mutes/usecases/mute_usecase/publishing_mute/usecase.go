@@ -9,6 +9,7 @@ import (
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/proto_kind"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase"
 )
 
@@ -32,16 +33,13 @@ func (d *Decorator) Execute(ctx context.Context, in mute_usecase.In) (mutes.Mute
 	if err != nil {
 		return mute, err //nolint:wrapcheck // a decorator adds an event, not a sentence.
 	}
-	// The event is the line the chat announces. A mute of the GIFs is not announced.
-	if mute.Kind() != mutes.Chat {
-		return mute, nil
-	}
 
 	d.events.Publish(&chatv1.AccountMuted{
 		MuteId:    mute.ID().String(),
 		AccountId: mute.Caller().Account().String(),
 		MutedAt:   timestamppb.New(mute.At()),
 		Duration:  durationpb.New(mute.Duration()),
+		Kind:      proto_kind.Encode(mute.Kind()),
 	})
 	return mute, nil
 }

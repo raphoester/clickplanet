@@ -358,8 +358,10 @@ tiles or more a flag fortified, and `champion`, the country that won a season.
   never disagree. Both name the landmass with `landmassName`, as a fortify line
   does, not the country it belongs to: a bomb on Tasmania says "Tasmania", not
   "Australia". A bomb told before the payload had a `landmass` names the
-  country. A mute line is the name and `describeMute` of its seconds
-  (`domain/mute.ts`): "one hour", "90 minutes", "2 days".
+  country. A mute line is the name and `describeMute` of its seconds and its kind
+  (`domain/mute.ts`): "has been muted for one hour", "90 minutes", "2 days", and for a
+  mute of the GIFs (the payload's `kind`, `muteKind` here) "may not post GIFs for one
+  day". A line with no kind, kept before kinds, is the whole chat's.
 - **Kept apart from the messages** (`useRoomLog`'s `announcements`,
   `addAnnouncements`) and put in one list only to draw (`interleave`, by time).
   So a burst of bombs never pushes a message out of the log, and the sound and
@@ -396,7 +398,7 @@ tiles or more a flag fortified, and `champion`, the country that won a season.
   `fakeChat.mute()` in the console announces a mute of the player for an hour
   and refuses its posts and reactions until it ends; `fakeChat.mute(600, "Ana")`
   only announces somebody else's. `fakeChat.mute(600, undefined, "gifs")` refuses
-  the player's GIFs alone, and announces nothing, as the server does.
+  the player's GIFs alone, and announces it as such.
 
 ## Saying that a message landed
 

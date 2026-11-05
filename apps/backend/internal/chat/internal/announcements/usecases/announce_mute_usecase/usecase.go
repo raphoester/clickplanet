@@ -21,6 +21,7 @@ type Announcer interface {
 type In struct {
 	Mute     mutes.MuteID
 	Account  messages.AccountID
+	Kind     mutes.Kind
 	At       time.Time
 	Duration time.Duration
 }
@@ -40,7 +41,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		return fmt.Errorf("failed to name the muted account: %w", err)
 	}
 
-	announcement, err := announcements.MutedOf(in.Mute, author.Name(), in.Duration).Announcement(in.At)
+	announcement, err := announcements.MutedOf(in.Mute, author.Name(), in.Kind, in.Duration).Announcement(in.At)
 	if err != nil {
 		return fmt.Errorf("cannot announce the mute: %w", err)
 	}
