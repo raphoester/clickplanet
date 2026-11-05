@@ -12,7 +12,7 @@ and it was the first suspect for the white globe on Intel; turning it off
 
 **Every size in pixels in this viewer is a CSS pixel**, and is multiplied by the
 ratio on its way to the GPU: the tile's point size, the outline's width
-(`halfWidthOf`), the keyline around a painted flag, the smallest a mark or a
+(`halfWidthOf`), the smallest a mark or a
 ring of the bonus effects may be, the smallest debris. So are the thresholds:
 `coarseHandover` and `flagPaint` are worked out in CSS pixels, or a sharper
 screen would hand over at half the zoom. What is measured against

@@ -24,10 +24,6 @@ varying float vGlow;
 varying float vScorch;
 varying float vFortify;
 
-const float KEYLINE_WIDTH = 1.5;
-const float KEYLINE_FEATHER = 0.5;
-const float KEYLINE_MOST = 0.03;
-
 const float SQUARE_UNTIL = 3.0;
 const float ROUND_FROM = 6.0;
 
@@ -94,15 +90,6 @@ void main() {
         vec3 flag = vSlotted > 0.5
             ? textureGrad(slotTexture, at, across, upward).rgb
             : textureGrad(atlasTexture, at, across, upward).rgb;
-
-        float uvPerPixel = max(length(vFlagStep.xy), length(vFlagStep.zw));
-        float width = min(uvPerPixel * KEYLINE_WIDTH * pixelRatio, KEYLINE_MOST);
-        float feather = min(uvPerPixel * KEYLINE_FEATHER, width * 0.5);
-        float inner = 0.5 - width;
-        float edge = max(abs(uv.x - 0.5), abs(uv.y - 0.5));
-        float keyline = smoothstep(inner - feather, inner + feather, edge)
-            * (1.0 - smoothstep(0.5 - feather, 0.5 + feather, edge));
-        flag = mix(flag, vec3(0.03), keyline * 0.85 * vFlagShare);
 
         painted = vec4(flag, vFlagShare);
     }

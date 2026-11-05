@@ -61,6 +61,13 @@ fragment shader mixed straight back out, and the fragment shader now skips the
 tile's own atlas fetch at the other end, where the painted flag has the frame to
 itself.
 
+**A painted flag has no frame of its own.** Ground past the flag's rectangle
+wears the colour the flag ends on, and the country outline is the only line
+drawn. A dark keyline round the rectangle was drawn until November 2026: it ran
+straight along the edge tiles of every landmass, over the outline, and across
+open ground wherever a rectangle stopped short, as one capped at
+`MAX_FLAG_RADIUS` does in Russia.
+
 **The flags holding the biggest landmasses are drawn from their SVGs, not read
 from the atlas.** A sprite is 100px wide and a painted flag is as wide as its
 landmass: at the last zoom where the flag is painted alone, about 135 of the
