@@ -630,8 +630,10 @@ type EncloseRules struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	MaxTiles *uint32                `protobuf:"varint,1,opt,name=max_tiles,json=maxTiles,proto3,oneof" json:"max_tiles,omitempty"`
 	// The stack a hand holds at most.
-	Held          *uint32 `protobuf:"varint,2,opt,name=held,proto3,oneof" json:"held,omitempty"`
-	MaxPerBox     *uint32 `protobuf:"varint,3,opt,name=max_per_box,json=maxPerBox,proto3,oneof" json:"max_per_box,omitempty"`
+	Held      *uint32 `protobuf:"varint,2,opt,name=held,proto3,oneof" json:"held,omitempty"`
+	MaxPerBox *uint32 `protobuf:"varint,3,opt,name=max_per_box,json=maxPerBox,proto3,oneof" json:"max_per_box,omitempty"`
+	// A click with enclose on needs no charge and spends none.
+	Unlimited     *bool `protobuf:"varint,4,opt,name=unlimited,proto3,oneof" json:"unlimited,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -685,6 +687,13 @@ func (x *EncloseRules) GetMaxPerBox() uint32 {
 		return *x.MaxPerBox
 	}
 	return 0
+}
+
+func (x *EncloseRules) GetUnlimited() bool {
+	if x != nil && x.Unlimited != nil {
+		return *x.Unlimited
+	}
+	return false
 }
 
 type ShieldRules struct {
@@ -986,15 +995,18 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\f_max_per_box\"0\n" +
 	"\tBombRules\x12\x19\n" +
 	"\x05rings\x18\x01 \x01(\x01H\x00R\x05rings\x88\x01\x01B\b\n" +
-	"\x06_rings\"\x95\x01\n" +
+	"\x06_rings\"\xc6\x01\n" +
 	"\fEncloseRules\x12 \n" +
 	"\tmax_tiles\x18\x01 \x01(\rH\x00R\bmaxTiles\x88\x01\x01\x12\x17\n" +
 	"\x04held\x18\x02 \x01(\rH\x01R\x04held\x88\x01\x01\x12#\n" +
-	"\vmax_per_box\x18\x03 \x01(\rH\x02R\tmaxPerBox\x88\x01\x01B\f\n" +
+	"\vmax_per_box\x18\x03 \x01(\rH\x02R\tmaxPerBox\x88\x01\x01\x12!\n" +
+	"\tunlimited\x18\x04 \x01(\bH\x03R\tunlimited\x88\x01\x01B\f\n" +
 	"\n" +
 	"_max_tilesB\a\n" +
 	"\x05_heldB\x0e\n" +
-	"\f_max_per_box\"\xc6\x01\n" +
+	"\f_max_per_boxB\f\n" +
+	"\n" +
+	"_unlimited\"\xc6\x01\n" +
 	"\vShieldRules\x12\x17\n" +
 	"\x04held\x18\x01 \x01(\rH\x00R\x04held\x88\x01\x01\x12#\n" +
 	"\vmin_per_box\x18\x02 \x01(\rH\x01R\tminPerBox\x88\x01\x01\x12#\n" +

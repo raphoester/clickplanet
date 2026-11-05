@@ -108,6 +108,7 @@ const RULES: BonusRules = {
     tileShields: TILE_SHIELDS,
     toll: TOLL_STEPS,
     signInRefill: true,
+    enclosuresUnlimited: false,
 }
 
 export type FakeBackendOptions = {
@@ -160,6 +161,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private frozen = false
     private flagsLocked = false
     private shapesClose = true
+
+    private rules = RULES
     private bannedUntil: number | undefined
     private readonly vpnBlocked: boolean
     private readonly sessionUnavailable: boolean
@@ -349,7 +352,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     private pretendToEnclose(tileId: number, countryId: string) {
-        if (this.charges.enclosures === 0) return
+        const unlimited = this.rules.enclosuresUnlimited
+        if (!unlimited && this.charges.enclosures === 0) return
 
         const wall = [0, 1, 2, 3, 4, 5].map(step => tileId + step).filter(id => id <= this.tileCount)
         const inside = [6, 7, 8].map(step => tileId + step).filter(id => id <= this.tileCount)
@@ -370,7 +374,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             this.tally?.moved(id, owner, countryId)
         }
 
-        this.hold({...this.charges, enclosures: this.charges.enclosures - 1})
+        if (!unlimited) this.hold({...this.charges, enclosures: this.charges.enclosures - 1})
 
         const enclosure: Enclosure = {countryId, closingTile: tileId, wall, filled, struck, version: this.write(), yours: true}
         this.flushUpdates()
@@ -449,6 +453,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public closeShapes(close: boolean): void {
         this.shapesClose = close
+    }
+
+    public unlimitEnclosures(on: boolean): void {
+        this.rules = {...this.rules, enclosuresUnlimited: on}
+        this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
     }
 
     public setTempo(tempo: number): void {
@@ -612,7 +621,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public listenForBonuses(handlers: BonusHandlers): () => void {
         const identifier = UUIDv4()
         this.bonusCallbacks.set(identifier, handlers)
-        handlers.onRules(RULES)
+        handlers.onRules(this.rules)
         handlers.onCharges(this.charges)
 
         return () => this.bonusCallbacks.delete(identifier)

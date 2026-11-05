@@ -111,6 +111,7 @@ type EncloseRules struct {
 	MaxTiles  int
 	Held      int
 	MaxPerBox int
+	Unlimited bool
 }
 
 type ShieldRules struct {

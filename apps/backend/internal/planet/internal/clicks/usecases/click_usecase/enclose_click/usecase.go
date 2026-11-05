@@ -27,24 +27,38 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
-	payer := clicks.PayerOf(ctx)
-	holder := bonuses.HolderOf(payer)
-
 	if !in.Enclose {
 		return u.implementation.Execute(ctx, in)
 	}
 
-	held, err := u.enclosures.Held(ctx, holder)
+	payer := clicks.PayerOf(ctx)
+	holder := bonuses.HolderOf(payer)
+	rules := u.rules().Enclose
+
+	armed, err := u.armed(ctx, holder, rules)
 	if err != nil {
 		return click_usecase.Out{}, err
 	}
 
 	out, err := u.implementation.Execute(ctx, in)
-	if err != nil || held.Enclosures == 0 || out.Outcome != clicks.Taken {
+	if err != nil || !armed || out.Outcome != clicks.Taken {
 		return out, err
 	}
 
-	pockets := u.terrain.PocketsClosedBy(in.TileID, in.CountryID, u.rules().Enclose.MaxTiles)
+	pocket := u.terrain.PocketClosedBy(in.TileID, in.CountryID, rules.MaxTiles)
 
-	return out, u.annexer.Annex(ctx, holder, in, pockets)
+	return out, u.annexer.Annex(ctx, holder, in, pocket, rules)
+}
+
+func (u *UseCase) armed(ctx context.Context, holder bonuses.Holder, rules bonuses.EncloseRules) (bool, error) {
+	if rules.Unlimited {
+		return true, nil
+	}
+
+	held, err := u.enclosures.Held(ctx, holder)
+	if err != nil {
+		return false, err
+	}
+
+	return held.Enclosures > 0, nil
 }

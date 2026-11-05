@@ -59,6 +59,8 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 - `bonuses.bomb.rings` — the blast's radius in tile spacings (4). See [Bomb](bomb.md)
 - `bonuses.enclose.maxTiles`, `.held`, `.maxPerBox` — the biggest shape, the stack, a box's most (25, 3, 3). See
   [Enclose](enclose.md)
+- `bonuses.enclose.unlimited` — a click with enclose on needs no charge and spends none (off). See
+  [Unlimited enclosures](enclose.md#unlimited-enclosures-bonusesencloseunlimited)
 - `bonuses.shield.held`, `.minPerBox`, `.maxPerBox`, `.perTile` — the stack, a box's least and most, and a tile's most
   (30, 5, 20, 10; a tile keeps them in a byte, so 255 at most). See [Shields](shields.md)
 - `bonuses.welcome.within`, `.boxAfter` — how young an account is welcomed, and when its first box comes (10 min,

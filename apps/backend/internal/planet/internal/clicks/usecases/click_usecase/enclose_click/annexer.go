@@ -27,18 +27,21 @@ func NewAnnexer(encloser Encloser, spender Spender) Annexer {
 	return Annexer{encloser: encloser, spender: spender}
 }
 
-func (a Annexer) Annex(ctx context.Context, holder bonuses.Holder, closing click_usecase.In, pockets []bonuses.Pocket) error {
-	if len(pockets) == 0 {
+func (a Annexer) Annex(ctx context.Context, holder bonuses.Holder, closing click_usecase.In, pocket bonuses.Pocket,
+	rules bonuses.EncloseRules,
+) error {
+	if pocket.Empty() {
 		return nil
 	}
-	if err := a.spender.Spend(ctx, holder, bonuses.Held.AfterEnclose); err != nil {
-		if errors.Is(err, bonuses.ErrNotHeld) {
-			return nil
+	if !rules.Unlimited {
+		if err := a.spender.Spend(ctx, holder, bonuses.Held.AfterEnclose); err != nil {
+			if errors.Is(err, bonuses.ErrNotHeld) {
+				return nil
+			}
+			return err
 		}
-		return err
 	}
 
-	pocket := pockets[0]
 	if err := a.encloser.Enclose(ctx, pocket.Enclosure(closing.CountryID, closing.TileID), pocket.Inside()); err != nil {
 		return fmt.Errorf("failed to take the pocket closed at tile %d: %w", closing.TileID, err)
 	}

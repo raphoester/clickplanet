@@ -227,8 +227,8 @@ strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 3):
   whoever holds the tiles. See [What a bomb does](bomb.md).
 - **`enclose_clicks`** — 1 to `bonuses.enclose.maxPerBox` (3) enclosures added to a
   stack of at most `bonuses.enclose.held` (3). While the player switches enclose on,
-  a click that closes a shape of the caller's own tiles also takes the tiles
-  inside it, at most `bonuses.enclose.maxTiles` (25), and spends one.
+  a click that closes shapes of its flag's tiles also takes the tiles
+  inside each, at most `bonuses.enclose.maxTiles` (25) a shape, and spends one.
   See [What an enclose does to a click](enclose.md).
 - **`shields`** — `bonuses.shield.minPerBox` (5) to `bonuses.shield.maxPerBox` (20)
   shields added to a stack of at most `bonuses.shield.held` (30). Each is placed on a tile the player's flag

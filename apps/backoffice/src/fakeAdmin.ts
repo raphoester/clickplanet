@@ -330,7 +330,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             offerTtl: "15s", missRetry: "120s", activeWithin: "120s",
             spread: {clicks: 8, maxPerBox: 4},
             bomb: {rings: 4},
-            enclose: {maxTiles: 25, held: 3, maxPerBox: 3},
+            enclose: {maxTiles: 25, held: 3, maxPerBox: 3, unlimited: false},
             shield: {held: 30, minPerBox: 5, maxPerBox: 20, perTile: 10},
             welcome: {within: "600s", boxAfter: "60s"},
             quiz: {

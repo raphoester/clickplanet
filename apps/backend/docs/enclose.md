@@ -24,20 +24,24 @@ tells closed from open — there is no second rule.
 - **Each tile inside meets its shields**: a shielded tile loses one and is not
   taken. A bonus is never a way around the rule. `tiles_enclosed` lists it among the filled tiles, and in `struck`
   with the shields it kept.
-- **An enclosure is one shape**, spent through `Charges.SpendEnclose` only by a
+- **An enclosure is one click**, spent through `Charges.SpendEnclose` only by a
   click sent with enclose on that closed a pocket, so a click that closes nothing
   (too big, open to the coast, no inside) keeps it. With enclose off, closing a
-  shape takes nothing. The spend settles two clicks racing for the last one. A
-  click that closes two shapes takes the first.
+  shape takes nothing. The spend settles two clicks racing for the last one.
+- **A click that closes several shapes fills them all, for one charge** (the owner, 2026-11-05: closing two
+  shapes with one well-placed click is skill). Each shape is held to `maxTiles` on its own, so one click can fill up
+  to three. The search joins them into one pocket (`joined`): each wall tile once, and the insides side by side,
+  nearest the closing tile first, so the client fills both sides at once. Until then a click took the first shape
+  only.
 - **Why 25 tiles**: the wall around a 25-tile pocket costs about 20 clicks, so the
   reward matches the planning it took.
 
 **The use case only wires three objects together.** `bonuses.Terrain` is the map as
 the search sees it — who holds a tile, what touches it — and finds the pockets a
 click closed. `bonuses.Charges` says whether the caller holds the charge, and
-the rule set's `bonuses.enclose.maxTiles`, read at each click, how big a shape may be. `Annexer` spends the charge
-and hands the first pocket's shape and inside to the encloser. `Execute` asks whether the charge is held, lets the
-rule write, and hands the pockets to the annexer.
+the rule set's `bonuses.enclose`, read once per click, how big a shape may be and whether it costs a charge.
+`Annexer` spends the charge and hands the pocket's shape and inside to the encloser. `Execute` asks whether the
+charge is held (not while enclosures are unlimited), lets the rule write, and hands the pocket to the annexer.
 
 It sits beside `spread_click`, against the rule and inside everything else, so
 it is one click to the throttle and to `prom_click`, a click the ban refuses never
@@ -55,9 +59,25 @@ tile kept (`struck`), then the fortifies the takes earned, each a `landmass_fort
 size takes one slot in each stream's buffer (`tilesStorage.subscriberBuffer`, 1,024: a stream that falls that far
 behind is cut, see [The live streams](live-streams.md)), and one frame on the wire. Until then each tile went out as
 a `tile_update` and the shape again in `tiles_enclosed`, and a pocket of more than about 1,000 tiles would have cut
-every stream at once. **Each stream tells its own** `yours`: the change names who closed it (`Enclosure.By`), and the
-stream compares its entrant (`bonuses.EntrantOf`); an enclosure of your own is one charge spent. The client applies
-the tiles at the version, then animates the shape (see the frontend's [Charges](../../frontend/docs/charges.md)).
+every stream at once. One event per click, with every shape it closed in it, so the client counts one charge spent.
+**Each stream tells its own** `yours`: the change names who closed it (`Enclosure.By`), and the stream compares its
+entrant (`bonuses.EntrantOf`). The client applies the tiles at the version, then animates the shape (see the
+frontend's [Charges](../../frontend/docs/charges.md)).
 
-`prom_enclose` wraps the encloser, so it counts exactly the shapes that were
-closed: `bonus_enclosures_total` and `bonus_enclosed_tiles_total`.
+`prom_enclose` wraps the encloser, so it counts exactly the clicks that closed shapes and the tiles they filled:
+`bonus_enclosures_total` and `bonus_enclosed_tiles_total`.
+
+## Unlimited enclosures (`bonuses.enclose.unlimited`)
+
+**A rule set with `unlimited` makes enclose cost nothing**: a click sent with enclose on fills what it closes and
+needs no charge and spends none (the owner, 2026-11-05, for a battle). The switch is still the player's: the server
+reads `ClickRequest.enclose` as always, and the client turns it on by default while the rule plays (see the
+frontend's [Charges](../../frontend/docs/charges.md)). **The enclosures a player holds are not touched**, so they are
+there when the set stops playing; a battle that plays it sets `bonuses.kinds.encloseClicks` to 0, since a box of
+them would be worth nothing. `GetBonusRules.enclosures_unlimited` tells the client. `default` holds `false`
+(migration `20261105120000_enclose_unlimited`).
+
+**How big a shape may be is `maxTiles`, apart from it.** Measured on the real map (2026-11-05, an M-series laptop):
+a search that finds open ground stops at the first coast or lake, 0.07 ms at the median and 2 ms at worst with no
+size limit, since no tile is more than 64 tiles from one. The biggest inland ring holds 11,347 tiles; its search
+took 2 ms and taking its tiles 5 ms. Taken as one event (above), such a pocket cuts no stream.

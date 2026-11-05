@@ -61,7 +61,7 @@ import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {createClickEffects} from "./clickEffects.ts";
 import {createClickGlints} from "./clickGlints.ts";
-import {ALL_OFF, BonusNotice, BonusReward, BonusRules, Charges, NO_CHARGES, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
+import {ALL_OFF, atRest, BonusNotice, BonusReward, BonusRules, Charges, NO_CHARGES, sameSwitches, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
 import {canClick, ClickBudget, ClickBudgetSource, now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
@@ -566,15 +566,20 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     let switches: Switches = ALL_OFF
 
-    const switchTo = (next: Switches) => {
-        if (next === switches) return
-        switches = next
-        onSwitchesChange(next)
-    }
-
     let rules: BonusRules | undefined
 
     let armed: {radius: number} | undefined
+
+    let encloseSwitchedOff = false
+
+    const enclosuresUnlimited = () => rules?.enclosuresUnlimited ?? false
+
+    const switchTo = (next: Switches) => {
+        const settled = atRest(next, enclosuresUnlimited() && !encloseSwitchedOff && !armed)
+        if (sameSwitches(settled, switches)) return
+        switches = settled
+        onSwitchesChange(settled)
+    }
 
     const hold = new HoldToDrop<THREE.Vector3>({holdSeconds: HOLD_TO_DROP_SECONDS, tolerancePx: HOLD_TOLERANCE_PX})
 
@@ -724,6 +729,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onArmedChange(false)
     }
 
+    const putAway = () => {
+        disarm()
+        switchTo(switches)
+    }
+
     const arm = () => {
         if (armed || !charges.bomb || !bomber || !rules) return
         armed = {radius: rules.blastRadius}
@@ -735,7 +745,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const takeCharges = (held: Charges) => {
         charges = held
         if (!held.bomb) disarm()
-        switchTo(switchesHeld(switches, held))
+        switchTo(switchesHeld(switches, held, enclosuresUnlimited()))
         onCharges(held)
     }
 
@@ -779,7 +789,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
         onCharges: (held) => takeCharges(held),
         onRules: (read) => {
+            const unlimitedChanged = read.enclosuresUnlimited !== enclosuresUnlimited()
             rules = read
+            if (unlimitedChanged) {
+                encloseSwitchedOff = false
+                switchTo(switchesHeld({...switches, enclose: false}, charges, read.enclosuresUnlimited))
+            }
             if (read.tileShields > 0 && read.tileShields !== uniforms.shieldMost.value) {
                 uniforms.shieldMost.value = read.tileShields
                 uniforms.shieldMarks.value.dispose()
@@ -795,7 +810,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const dropBomb = (point: THREE.Vector3) => {
         if (!bomber) return
-        disarm()
+        putAway()
         ownDropAt = performance.now() / 1000
         bomber.dropBomb({x: point.x, y: point.y, z: point.z}, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
@@ -960,7 +975,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }, listenerOptions);
 
     window.addEventListener('keydown', (event: KeyboardEvent) => {
-        if (event.key === "Escape") disarm()
+        if (event.key === "Escape") putAway()
     }, listenerOptions);
 
     eventTarget.addEventListener('pointermove', (event: PointerEvent) => {
@@ -1095,7 +1110,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         const clicked = country.code
         const shielding = switches.shield && shielder !== undefined
-        const enclosing = switches.enclose && outcome === "taken"
+        const enclosing = switches.enclose && outcome === "taken" && !enclosuresUnlimited()
         tileClicker.clickTile(tile, clicked, switches).then(() => {
             if (lifetime.signal.aborted) return
             onClickAccepted({country: clicked, took: outcome === "taken"})
@@ -1367,9 +1382,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             invalidate()
         },
         takeReward,
-        setArmed: (on: boolean) => on ? arm() : disarm(),
+        setArmed: (on: boolean) => on ? arm() : putAway(),
         setSwitch: (name: keyof Switches, on: boolean) => {
-            const next = switchesHeld(switched(switches, name, on), charges)
+            if (name === "enclose") encloseSwitchedOff = !on
+            const next = switchesHeld(switched(switches, name, on), charges, enclosuresUnlimited())
             if (next[name]) disarm()
             switchTo(next)
         },

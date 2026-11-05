@@ -56,7 +56,9 @@ a set that takes no play, `playOf`), its tempo (`3×`), its clicks (`60 in hand,
 [A frozen map](../../backend/docs/rules.md#a-frozen-map)), and "Flags locked: no player changes country" (the set's
 `allegianceLocked`, for a battle's set: see the backend's [Allegiance](../../backend/docs/allegiance.md)): Clicks (the
 tempo with them), Boxes, What a box is (the kinds'
-weights), Charges, New accounts (with "Refill at first sign-in", the set's `bonuses.signInRefill`: see the backend's
+weights), Charges (with "Enclosures unlimited: enclose spends no charge", the set's `bonuses.enclose.unlimited`: see
+the backend's [Unlimited enclosures](../../backend/docs/enclose.md#unlimited-enclosures-bonusesencloseunlimited)), New
+accounts (with "Refill at first sign-in", the set's `bonuses.signInRefill`: see the backend's
 [A guest's first sign-in](../../backend/docs/sign-in-refill.md)), Quizzes (with their on switch), and the Toll, whose steps are rows to add and remove.
 `GROUPS` names each value by its path in the set's rules (`Rules.toJson`), so the form needs no code per value: a
 duration is typed in seconds, a count is rounded to a whole one, a toll share is typed in percent. Every value has a

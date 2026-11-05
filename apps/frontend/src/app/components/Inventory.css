@@ -54,6 +54,24 @@
     box-shadow: var(--drop-s), inset 0 0 0 2px var(--bonus-accent), 0 0 14px color-mix(in srgb, var(--bonus-box) 60%, transparent);
 }
 
+.inventory-loop {
+    position: absolute;
+    inset: calc(-1 * var(--outline-thin));
+    width: calc(100% + 2 * var(--outline-thin));
+    height: calc(100% + 2 * var(--outline-thin));
+    overflow: visible;
+    pointer-events: none;
+}
+
+.inventory-loop rect {
+    rx: var(--radius-m);
+    fill: none;
+    stroke: var(--bonus-accent);
+    stroke-width: 3;
+    stroke-dasharray: 6 5;
+    animation: inventory-loop 0.6s linear infinite;
+}
+
 .inventory-box {
     display: flex;
     align-items: center;
@@ -114,6 +132,12 @@
     }
 }
 
+@keyframes inventory-loop {
+    to {
+        stroke-dashoffset: -11;
+    }
+}
+
 @keyframes inventory-new {
     50% {
         box-shadow: var(--drop-s), 0 0 0 2px var(--bonus-accent), 0 0 16px var(--bonus-box);
@@ -169,7 +193,8 @@
 
 @media (prefers-reduced-motion: reduce) {
     .inventory-slot--on .inventory-box,
-    .inventory-slot--new {
+    .inventory-slot--new,
+    .inventory-loop rect {
         animation: none;
     }
 

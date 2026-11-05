@@ -19,6 +19,8 @@ its own.
   build a new `Held` and change
   nothing; `bonuses.Charges` writes it. `Count(kind)` is how many of a kind are held,
   and `Full(rules)` the kinds another box would add nothing to.
+- **A rule set may make enclosures unlimited** (`bonuses.enclose.unlimited`): enclose then spends no charge, and
+  the stack held is left as it is. See [Unlimited enclosures](enclose.md#unlimited-enclosures-bonusesencloseunlimited).
 - **How much fits.** A refill and a bomb are one: a second replaces the first,
   which is what stops a stockpile of bombs being dropped all at once. Enclosures
   stack to the rule set's `bonuses.enclose.held` (3), spread clicks pool to `bonuses.spread.clicks`

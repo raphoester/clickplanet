@@ -31,7 +31,7 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 	handler := get_bonus_rules_handler.New(inForce, bonuses.NewBombing(inForce, 0.004), toll{})
 
 	rules.Bomb.Rings = 5
-	rules.Enclose = bonuses.EncloseRules{MaxTiles: 40, Held: 4, MaxPerBox: 2}
+	rules.Enclose = bonuses.EncloseRules{MaxTiles: 40, Held: 4, MaxPerBox: 2, Unlimited: true}
 	rules.Spread.Clicks = 9
 	rules.Shield.Held = 12
 	rules.Shield.PerTile = 20
@@ -41,6 +41,7 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 	assert.InDelta(t, 0.02, got.GetBlastRadius(), 1e-9)
 	assert.Equal(t, uint32(40), got.GetEnclosureMaxTiles())
 	assert.Equal(t, uint32(4), got.GetEnclosures())
+	assert.True(t, got.GetEnclosuresUnlimited())
 	assert.Equal(t, uint32(9), got.GetSpreadClicks())
 	assert.Equal(t, uint32(12), got.GetShields())
 	assert.Equal(t, uint32(20), got.GetTileShields())

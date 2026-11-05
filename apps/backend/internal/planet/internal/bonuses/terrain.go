@@ -27,9 +27,9 @@ func (t Terrain) Holds(tile uint32, country string) bool {
 	return owner == country
 }
 
-func (t Terrain) PocketsClosedBy(tile uint32, country string, maxTiles int) []Pocket {
+func (t Terrain) PocketClosedBy(tile uint32, country string, maxTiles int) Pocket {
 	search := pocketSearch{terrain: t, country: country, maxTiles: maxTiles, seen: cpcolls.NewSet[uint32]()}
-	return search.around(tile)
+	return joined(search.around(tile))
 }
 
 func (t Terrain) onEdge(tile uint32) bool {

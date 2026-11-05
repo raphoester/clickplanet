@@ -136,6 +136,11 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                             <SwitchField label="Refill at first sign-in" on={draft.signInRefill} defaults={defaults?.signInRefill}
                                          inherits={defaults !== undefined} onChange={signInRefill => change({signInRefill})}/>
                         )}
+                        {group.title === "Charges" && (
+                            <SwitchField label="Enclosures unlimited: enclose spends no charge" on={draft.enclosuresUnlimited}
+                                         defaults={defaults?.enclosuresUnlimited} inherits={defaults !== undefined}
+                                         onChange={enclosuresUnlimited => change({enclosuresUnlimited})}/>
+                        )}
                         {group.title === "Quizzes" && (
                             <SwitchField label="Quizzes on" on={draft.quiz} defaults={defaults?.quiz}
                                          inherits={defaults !== undefined} onChange={quiz => change({quiz})}/>
