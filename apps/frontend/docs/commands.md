@@ -122,6 +122,9 @@ and `fakeSupport.refuse()` takes it all again; `fakeSupport.sent` is what it
 took, with the ids of each note's files, and `fakeSupport.uploaded` the files
 behind those ids (`fake-file-<n>` is its place there).
 `fakeSupport.rules.maxPerNote = 0` is a server that takes no file.
+`scheduleBattle(90, 60)` plans a battle within a day, which a returning page teases at once with the fake promo's
+cards (see [Battles](battle.md#the-teaser)); `fakePromo.cards = []` is a set with none, so nothing is teased, and
+`fakePromo.asked` is the battles it was asked of.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` runs chat (it is always on), and the Go server answers

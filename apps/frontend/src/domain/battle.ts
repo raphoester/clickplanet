@@ -33,7 +33,6 @@ export function nextBattleOf(battles: BattleToCome[], now: number): BattleToCome
     return battles.find((battle) => battle.startsAt > now)
 }
 
-export const FINALE_TEASED_STORAGE_KEY = "clickplanet-finale-teased"
 export const FINALE_NEAR_MS = 48 * 60 * 60_000
 
 export type Finale = {
@@ -59,14 +58,6 @@ export function finaleOf(battles: BattleToCome[], turn: Turn | undefined, now: n
 
 export function finaleNear(finale: Finale | undefined, now: number): finale is Finale {
     return finale !== undefined && !finale.live && finale.startsAt - now <= FINALE_NEAR_MS
-}
-
-// A newcomer plays before a full screen talks of a battle: half the start bank, before it runs dry.
-export const FINALE_TEASER_AFTER_CLICKS = 30
-
-// Once per browser and per finale, in the days before it starts, once the page took enough clicks.
-export function finaleTeaserDue(finale: Finale | undefined, seen: string | null, now: number, clicks: number): finale is Finale {
-    return finaleNear(finale, now) && finale.roundId !== seen && clicks >= FINALE_TEASER_AFTER_CLICKS
 }
 
 // "Sat 31 Oct · 21:00 – 23:00", in the player's time.
@@ -104,7 +95,7 @@ export function battleEndsLine(battle: Battle, now: number, timeZone?: string): 
     return sameDay ? `Ends at ${time}` : `Ends ${end("weekday")} at ${time}`
 }
 
-function partsOf(ms: number, timeZone?: string): (type: Intl.DateTimeFormatPartTypes) => string {
+export function partsOf(ms: number, timeZone?: string): (type: Intl.DateTimeFormatPartTypes) => string {
     const parts = new Intl.DateTimeFormat("en-GB", {
         weekday: "short",
         day: "numeric",
