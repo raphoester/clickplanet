@@ -1,0 +1,434 @@
+# IdentifierType.txt
+# Date: 2026-08-06, 01:05:35 GMT
+# © 2026 Unicode®, Inc.
+# Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
+# For terms of use and license, see https://www.unicode.org/terms_of_use.html
+#
+# Unicode Security Mechanisms for UTS #39
+# Version: 18.0.0
+#
+# Only the lines whose Identifier_Type is Exclusion: the historic scripts. Kept by make historic-scripts.
+
+03E2..03EF    ; Exclusion                      # 1.1   [14] COPTIC CAPITAL LETTER SHEI..COPTIC SMALL LETTER DEI
+0800..082D    ; Exclusion                      # 5.2   [46] SAMARITAN LETTER ALAF..SAMARITAN MARK NEQUDAA
+0830..083E    ; Exclusion Not_XID              # 5.2   [15] SAMARITAN PUNCTUATION NEQUDAA..SAMARITAN PUNCTUATION ANNAAU
+1680          ; Exclusion Not_XID              # 3.0        OGHAM SPACE MARK
+1681..169A    ; Exclusion                      # 3.0   [26] OGHAM LETTER BEITH..OGHAM LETTER PEITH
+169B..169C    ; Exclusion Not_XID              # 3.0    [2] OGHAM FEATHER MARK..OGHAM REVERSED FEATHER MARK
+16A0..16EA    ; Exclusion                      # 3.0   [75] RUNIC LETTER FEHU FEOH FE F..RUNIC LETTER X
+16EB..16ED    ; Exclusion Not_XID              # 3.0    [3] RUNIC SINGLE PUNCTUATION..RUNIC CROSS PUNCTUATION
+16EE..16F0    ; Exclusion                      # 3.0    [3] RUNIC ARLAUG SYMBOL..RUNIC BELGTHOR SYMBOL
+16F1..16F8    ; Exclusion                      # 7.0    [8] RUNIC LETTER K..RUNIC LETTER FRANKS CASKET AESC
+1700..170C    ; Exclusion                      # 3.2   [13] TAGALOG LETTER A..TAGALOG LETTER YA
+170D          ; Exclusion                      # 14.0       TAGALOG LETTER RA
+170E..1714    ; Exclusion                      # 3.2    [7] TAGALOG LETTER LA..TAGALOG SIGN VIRAMA
+1715          ; Exclusion                      # 14.0       TAGALOG SIGN PAMUDPOD
+171F          ; Exclusion                      # 14.0       TAGALOG LETTER ARCHAIC RA
+1720..1734    ; Exclusion                      # 3.2   [21] HANUNOO LETTER A..HANUNOO SIGN PAMUDPOD
+1735..1736    ; Exclusion Not_XID              # 3.2    [2] PHILIPPINE SINGLE PUNCTUATION..PHILIPPINE DOUBLE PUNCTUATION
+1740..1753    ; Exclusion                      # 3.2   [20] BUHID LETTER A..BUHID VOWEL SIGN U
+1760..176C    ; Exclusion                      # 3.2   [13] TAGBANWA LETTER A..TAGBANWA LETTER YA
+176E..1770    ; Exclusion                      # 3.2    [3] TAGBANWA LETTER LA..TAGBANWA LETTER SA
+1772..1773    ; Exclusion                      # 3.2    [2] TAGBANWA VOWEL SIGN I..TAGBANWA VOWEL SIGN U
+1800..180A    ; Exclusion Not_XID              # 3.0   [11] MONGOLIAN BIRGA..MONGOLIAN NIRUGU
+1810..1819    ; Exclusion                      # 3.0   [10] MONGOLIAN DIGIT ZERO..MONGOLIAN DIGIT NINE
+1820..1877    ; Exclusion                      # 3.0   [88] MONGOLIAN LETTER A..MONGOLIAN LETTER MANCHU ZHA
+1878          ; Exclusion                      # 11.0       MONGOLIAN LETTER CHA WITH TWO DOTS
+1880..18A8    ; Exclusion                      # 3.0   [41] MONGOLIAN LETTER ALI GALI ANUSVARA ONE..MONGOLIAN LETTER MANCHU ALI GALI BHA
+18A9          ; Uncommon_Use Exclusion         # 3.0        MONGOLIAN LETTER ALI GALI DAGALGA
+18AA          ; Exclusion                      # 5.1        MONGOLIAN LETTER MANCHU ALI GALI LHA
+1A00..1A1B    ; Exclusion                      # 4.1   [28] BUGINESE LETTER KA..BUGINESE VOWEL SIGN AE
+1A1E..1A1F    ; Exclusion Not_XID              # 4.1    [2] BUGINESE PALLAWA..BUGINESE END OF SECTION
+1CFA          ; Exclusion                      # 12.0       VEDIC SIGN DOUBLE ANUSVARA ANTARGOMUKHA
+2C00..2C2E    ; Exclusion                      # 4.1   [47] GLAGOLITIC CAPITAL LETTER AZU..GLAGOLITIC CAPITAL LETTER LATINATE MYSLITE
+2C2F          ; Exclusion                      # 14.0       GLAGOLITIC CAPITAL LETTER CAUDATE CHRIVI
+2C30..2C5E    ; Exclusion                      # 4.1   [47] GLAGOLITIC SMALL LETTER AZU..GLAGOLITIC SMALL LETTER LATINATE MYSLITE
+2C5F          ; Exclusion                      # 14.0       GLAGOLITIC SMALL LETTER CAUDATE CHRIVI
+2C80..2CE4    ; Exclusion                      # 4.1  [101] COPTIC CAPITAL LETTER ALFA..COPTIC SYMBOL KAI
+2CE5..2CEA    ; Exclusion Not_XID              # 4.1    [6] COPTIC SYMBOL MI RO..COPTIC SYMBOL SHIMA SIMA
+2CEB..2CEF    ; Exclusion                      # 5.2    [5] COPTIC CAPITAL LETTER CRYPTOGRAMMIC SHEI..COPTIC COMBINING NI ABOVE
+2CF0..2CF1    ; Technical Exclusion            # 5.2    [2] COPTIC COMBINING SPIRITUS ASPER..COPTIC COMBINING SPIRITUS LENIS
+2CF2..2CF3    ; Exclusion                      # 6.1    [2] COPTIC CAPITAL LETTER BOHAIRIC KHEI..COPTIC SMALL LETTER BOHAIRIC KHEI
+2CF9..2CFF    ; Exclusion Not_XID              # 4.1    [7] COPTIC OLD NUBIAN FULL STOP..COPTIC MORPHOLOGICAL DIVIDER
+2E30          ; Exclusion Not_XID              # 5.1        RING POINT
+2E3C          ; Exclusion Not_XID              # 7.0        STENOGRAPHIC FULL STOP
+A840..A873    ; Exclusion                      # 5.0   [52] PHAGS-PA LETTER KA..PHAGS-PA LETTER CANDRABINDU
+A874..A877    ; Exclusion Not_XID              # 5.0    [4] PHAGS-PA SINGLE HEAD MARK..PHAGS-PA MARK DOUBLE SHAD
+A930..A953    ; Exclusion                      # 5.1   [36] REJANG LETTER KA..REJANG VIRAMA
+A95F          ; Exclusion Not_XID              # 5.1        REJANG SECTION MARK
+10000..1000B  ; Exclusion                      # 4.0   [12] LINEAR B SYLLABLE B008 A..LINEAR B SYLLABLE B046 JE
+1000D..10026  ; Exclusion                      # 4.0   [26] LINEAR B SYLLABLE B036 JO..LINEAR B SYLLABLE B032 QO
+10028..1003A  ; Exclusion                      # 4.0   [19] LINEAR B SYLLABLE B060 RA..LINEAR B SYLLABLE B042 WO
+1003C..1003D  ; Exclusion                      # 4.0    [2] LINEAR B SYLLABLE B017 ZA..LINEAR B SYLLABLE B074 ZE
+1003F..1004D  ; Exclusion                      # 4.0   [15] LINEAR B SYLLABLE B020 ZO..LINEAR B SYLLABLE B091 TWO
+10050..1005D  ; Exclusion                      # 4.0   [14] LINEAR B SYMBOL B018..LINEAR B SYMBOL B089
+10080..100FA  ; Exclusion                      # 4.0  [123] LINEAR B IDEOGRAM B100 MAN..LINEAR B IDEOGRAM VESSEL B305
+10100..10102  ; Exclusion Not_XID              # 4.0    [3] AEGEAN WORD SEPARATOR LINE..AEGEAN CHECK MARK
+10107..10133  ; Exclusion Not_XID              # 4.0   [45] AEGEAN NUMBER ONE..AEGEAN NUMBER NINETY THOUSAND
+10137..1013F  ; Exclusion Not_XID              # 4.0    [9] AEGEAN WEIGHT BASE UNIT..AEGEAN MEASURE THIRD SUBUNIT
+10280..1029C  ; Exclusion                      # 5.1   [29] LYCIAN LETTER A..LYCIAN LETTER X
+102A0..102D0  ; Exclusion                      # 5.1   [49] CARIAN LETTER A..CARIAN LETTER UUU3
+10300..1031E  ; Exclusion                      # 3.1   [31] OLD ITALIC LETTER A..OLD ITALIC LETTER UU
+1031F         ; Exclusion                      # 7.0        OLD ITALIC LETTER ESS
+10320..10323  ; Exclusion Not_XID              # 3.1    [4] OLD ITALIC NUMERAL ONE..OLD ITALIC NUMERAL FIFTY
+1032D..1032F  ; Exclusion                      # 10.0   [3] OLD ITALIC LETTER YE..OLD ITALIC LETTER SOUTHERN TSE
+10330..1034A  ; Exclusion                      # 3.1   [27] GOTHIC LETTER AHSA..GOTHIC LETTER NINE HUNDRED
+10350..1037A  ; Exclusion                      # 7.0   [43] OLD PERMIC LETTER AN..COMBINING OLD PERMIC LETTER SII
+10380..1039D  ; Exclusion                      # 4.0   [30] UGARITIC LETTER ALPA..UGARITIC LETTER SSU
+1039F         ; Exclusion Not_XID              # 4.0        UGARITIC WORD DIVIDER
+103A0..103C3  ; Exclusion                      # 4.1   [36] OLD PERSIAN SIGN A..OLD PERSIAN SIGN HA
+103C8..103CF  ; Exclusion                      # 4.1    [8] OLD PERSIAN SIGN AURAMAZDAA..OLD PERSIAN SIGN BUUMISH
+103D0         ; Exclusion Not_XID              # 4.1        OLD PERSIAN WORD DIVIDER
+103D1..103D5  ; Exclusion                      # 4.1    [5] OLD PERSIAN NUMBER ONE..OLD PERSIAN NUMBER HUNDRED
+10400..10425  ; Exclusion                      # 3.1   [38] DESERET CAPITAL LETTER LONG I..DESERET CAPITAL LETTER ENG
+10426..10427  ; Exclusion                      # 4.0    [2] DESERET CAPITAL LETTER OI..DESERET CAPITAL LETTER EW
+10428..1044D  ; Exclusion                      # 3.1   [38] DESERET SMALL LETTER LONG I..DESERET SMALL LETTER ENG
+1044E..1049D  ; Exclusion                      # 4.0   [80] DESERET SMALL LETTER OI..OSMANYA LETTER OO
+104A0..104A9  ; Exclusion                      # 4.0   [10] OSMANYA DIGIT ZERO..OSMANYA DIGIT NINE
+10500..10527  ; Exclusion                      # 7.0   [40] ELBASAN LETTER A..ELBASAN LETTER KHE
+10530..10563  ; Exclusion                      # 7.0   [52] CAUCASIAN ALBANIAN LETTER ALT..CAUCASIAN ALBANIAN LETTER KIW
+1056F         ; Exclusion Not_XID              # 7.0        CAUCASIAN ALBANIAN CITATION MARK
+10570..1057A  ; Exclusion                      # 14.0  [11] VITHKUQI CAPITAL LETTER A..VITHKUQI CAPITAL LETTER GA
+1057C..1058A  ; Exclusion                      # 14.0  [15] VITHKUQI CAPITAL LETTER HA..VITHKUQI CAPITAL LETTER RE
+1058C..10592  ; Exclusion                      # 14.0   [7] VITHKUQI CAPITAL LETTER SE..VITHKUQI CAPITAL LETTER XE
+10594..10595  ; Exclusion                      # 14.0   [2] VITHKUQI CAPITAL LETTER Y..VITHKUQI CAPITAL LETTER ZE
+10597..105A1  ; Exclusion                      # 14.0  [11] VITHKUQI SMALL LETTER A..VITHKUQI SMALL LETTER GA
+105A3..105B1  ; Exclusion                      # 14.0  [15] VITHKUQI SMALL LETTER HA..VITHKUQI SMALL LETTER RE
+105B3..105B9  ; Exclusion                      # 14.0   [7] VITHKUQI SMALL LETTER SE..VITHKUQI SMALL LETTER XE
+105BB..105BC  ; Exclusion                      # 14.0   [2] VITHKUQI SMALL LETTER Y..VITHKUQI SMALL LETTER ZE
+105C0..105F3  ; Exclusion                      # 16.0  [52] TODHRI LETTER A..TODHRI LETTER OO
+10600..10736  ; Exclusion                      # 7.0  [311] LINEAR A SIGN AB001..LINEAR A SIGN A664
+10740..10755  ; Exclusion                      # 7.0   [22] LINEAR A SIGN A701 A..LINEAR A SIGN A732 JE
+10760..10767  ; Exclusion                      # 7.0    [8] LINEAR A SIGN A800..LINEAR A SIGN A807
+10800..10805  ; Exclusion                      # 4.0    [6] CYPRIOT SYLLABLE A..CYPRIOT SYLLABLE JA
+10808         ; Exclusion                      # 4.0        CYPRIOT SYLLABLE JO
+1080A..10835  ; Exclusion                      # 4.0   [44] CYPRIOT SYLLABLE KA..CYPRIOT SYLLABLE WO
+10837..10838  ; Exclusion                      # 4.0    [2] CYPRIOT SYLLABLE XA..CYPRIOT SYLLABLE XE
+1083C         ; Exclusion                      # 4.0        CYPRIOT SYLLABLE ZA
+1083F         ; Exclusion                      # 4.0        CYPRIOT SYLLABLE ZO
+10840..10855  ; Exclusion                      # 5.2   [22] IMPERIAL ARAMAIC LETTER ALEPH..IMPERIAL ARAMAIC LETTER TAW
+10857..1085F  ; Exclusion Not_XID              # 5.2    [9] IMPERIAL ARAMAIC SECTION SIGN..IMPERIAL ARAMAIC NUMBER TEN THOUSAND
+10860..10876  ; Exclusion                      # 7.0   [23] PALMYRENE LETTER ALEPH..PALMYRENE LETTER TAW
+10877..1087F  ; Exclusion Not_XID              # 7.0    [9] PALMYRENE LEFT-POINTING FLEURON..PALMYRENE NUMBER TWENTY
+10880..1089E  ; Exclusion                      # 7.0   [31] NABATAEAN LETTER FINAL ALEPH..NABATAEAN LETTER TAW
+108A7..108AF  ; Exclusion Not_XID              # 7.0    [9] NABATAEAN NUMBER ONE..NABATAEAN NUMBER ONE HUNDRED
+108E0..108F2  ; Exclusion                      # 8.0   [19] HATRAN LETTER ALEPH..HATRAN LETTER QOPH
+108F4..108F5  ; Exclusion                      # 8.0    [2] HATRAN LETTER SHIN..HATRAN LETTER TAW
+108FB..108FF  ; Exclusion Not_XID              # 8.0    [5] HATRAN NUMBER ONE..HATRAN NUMBER ONE HUNDRED
+10900..10915  ; Exclusion                      # 5.0   [22] PHOENICIAN LETTER ALF..PHOENICIAN LETTER TAU
+10916..10919  ; Exclusion Not_XID              # 5.0    [4] PHOENICIAN NUMBER ONE..PHOENICIAN NUMBER ONE HUNDRED
+1091A..1091B  ; Exclusion Not_XID              # 5.2    [2] PHOENICIAN NUMBER TWO..PHOENICIAN NUMBER THREE
+1091F         ; Exclusion Not_XID              # 5.0        PHOENICIAN WORD SEPARATOR
+10920..10939  ; Exclusion                      # 5.1   [26] LYDIAN LETTER A..LYDIAN LETTER C
+1093F         ; Exclusion Not_XID              # 5.1        LYDIAN TRIANGULAR MARK
+10940..10959  ; Exclusion                      # 17.0  [26] SIDETIC LETTER N01..SIDETIC LETTER N26
+10980..109B7  ; Exclusion                      # 6.1   [56] MEROITIC HIEROGLYPHIC LETTER A..MEROITIC CURSIVE LETTER DA
+109BC..109BD  ; Exclusion Not_XID              # 8.0    [2] MEROITIC CURSIVE FRACTION ELEVEN TWELFTHS..MEROITIC CURSIVE FRACTION ONE HALF
+109BE..109BF  ; Exclusion                      # 6.1    [2] MEROITIC CURSIVE LOGOGRAM RMT..MEROITIC CURSIVE LOGOGRAM IMN
+109C0..109CF  ; Exclusion Not_XID              # 8.0   [16] MEROITIC CURSIVE NUMBER ONE..MEROITIC CURSIVE NUMBER SEVENTY
+109D2..109FF  ; Exclusion Not_XID              # 8.0   [46] MEROITIC CURSIVE NUMBER ONE HUNDRED..MEROITIC CURSIVE FRACTION TEN TWELFTHS
+10A00..10A03  ; Exclusion                      # 4.1    [4] KHAROSHTHI LETTER A..KHAROSHTHI VOWEL SIGN VOCALIC R
+10A05..10A06  ; Exclusion                      # 4.1    [2] KHAROSHTHI VOWEL SIGN E..KHAROSHTHI VOWEL SIGN O
+10A0C..10A13  ; Exclusion                      # 4.1    [8] KHAROSHTHI VOWEL LENGTH MARK..KHAROSHTHI LETTER GHA
+10A15..10A17  ; Exclusion                      # 4.1    [3] KHAROSHTHI LETTER CA..KHAROSHTHI LETTER JA
+10A19..10A33  ; Exclusion                      # 4.1   [27] KHAROSHTHI LETTER NYA..KHAROSHTHI LETTER TTTHA
+10A34..10A35  ; Exclusion                      # 11.0   [2] KHAROSHTHI LETTER TTTA..KHAROSHTHI LETTER VHA
+10A38..10A3A  ; Exclusion                      # 4.1    [3] KHAROSHTHI SIGN BAR ABOVE..KHAROSHTHI SIGN DOT BELOW
+10A3F         ; Exclusion                      # 4.1        KHAROSHTHI VIRAMA
+10A40..10A47  ; Exclusion Not_XID              # 4.1    [8] KHAROSHTHI DIGIT ONE..KHAROSHTHI NUMBER ONE THOUSAND
+10A48         ; Exclusion Not_XID              # 11.0       KHAROSHTHI FRACTION ONE HALF
+10A50..10A58  ; Exclusion Not_XID              # 4.1    [9] KHAROSHTHI PUNCTUATION DOT..KHAROSHTHI PUNCTUATION LINES
+10A60..10A7C  ; Exclusion                      # 5.2   [29] OLD SOUTH ARABIAN LETTER HE..OLD SOUTH ARABIAN LETTER THETH
+10A7D..10A7F  ; Exclusion Not_XID              # 5.2    [3] OLD SOUTH ARABIAN NUMBER ONE..OLD SOUTH ARABIAN NUMERIC INDICATOR
+10A80..10A9C  ; Exclusion                      # 7.0   [29] OLD NORTH ARABIAN LETTER HEH..OLD NORTH ARABIAN LETTER ZAH
+10A9D..10A9F  ; Exclusion Not_XID              # 7.0    [3] OLD NORTH ARABIAN NUMBER ONE..OLD NORTH ARABIAN NUMBER TWENTY
+10AC0..10AC7  ; Exclusion                      # 7.0    [8] MANICHAEAN LETTER ALEPH..MANICHAEAN LETTER WAW
+10AC8         ; Exclusion Not_XID              # 7.0        MANICHAEAN SIGN UD
+10AC9..10AE6  ; Exclusion                      # 7.0   [30] MANICHAEAN LETTER ZAYIN..MANICHAEAN ABBREVIATION MARK BELOW
+10AEB..10AF6  ; Exclusion Not_XID              # 7.0   [12] MANICHAEAN NUMBER ONE..MANICHAEAN PUNCTUATION LINE FILLER
+10B00..10B35  ; Exclusion                      # 5.2   [54] AVESTAN LETTER A..AVESTAN LETTER HE
+10B39..10B3F  ; Exclusion Not_XID              # 5.2    [7] AVESTAN ABBREVIATION MARK..LARGE ONE RING OVER TWO RINGS PUNCTUATION
+10B40..10B55  ; Exclusion                      # 5.2   [22] INSCRIPTIONAL PARTHIAN LETTER ALEPH..INSCRIPTIONAL PARTHIAN LETTER TAW
+10B58..10B5F  ; Exclusion Not_XID              # 5.2    [8] INSCRIPTIONAL PARTHIAN NUMBER ONE..INSCRIPTIONAL PARTHIAN NUMBER ONE THOUSAND
+10B60..10B72  ; Exclusion                      # 5.2   [19] INSCRIPTIONAL PAHLAVI LETTER ALEPH..INSCRIPTIONAL PAHLAVI LETTER TAW
+10B78..10B7F  ; Exclusion Not_XID              # 5.2    [8] INSCRIPTIONAL PAHLAVI NUMBER ONE..INSCRIPTIONAL PAHLAVI NUMBER ONE THOUSAND
+10B80..10B91  ; Exclusion                      # 7.0   [18] PSALTER PAHLAVI LETTER ALEPH..PSALTER PAHLAVI LETTER TAW
+10B99..10B9C  ; Exclusion Not_XID              # 7.0    [4] PSALTER PAHLAVI SECTION MARK..PSALTER PAHLAVI FOUR DOTS WITH DOT
+10BA9..10BAF  ; Exclusion Not_XID              # 7.0    [7] PSALTER PAHLAVI NUMBER ONE..PSALTER PAHLAVI NUMBER ONE HUNDRED
+10C00..10C48  ; Exclusion                      # 5.2   [73] OLD TURKIC LETTER ORKHON A..OLD TURKIC LETTER ORKHON BASH
+10C80..10CB2  ; Exclusion                      # 8.0   [51] OLD HUNGARIAN CAPITAL LETTER A..OLD HUNGARIAN CAPITAL LETTER US
+10CC0..10CF2  ; Exclusion                      # 8.0   [51] OLD HUNGARIAN SMALL LETTER A..OLD HUNGARIAN SMALL LETTER US
+10CFA..10CFF  ; Exclusion Not_XID              # 8.0    [6] OLD HUNGARIAN NUMBER ONE..OLD HUNGARIAN NUMBER ONE THOUSAND
+10D40..10D65  ; Exclusion                      # 16.0  [38] GARAY DIGIT ZERO..GARAY CAPITAL LETTER OLD NA
+10D69..10D6D  ; Exclusion                      # 16.0   [5] GARAY VOWEL SIGN E..GARAY CONSONANT NASALIZATION MARK
+10D6E         ; Exclusion Not_XID              # 16.0       GARAY HYPHEN
+10D6F..10D85  ; Exclusion                      # 16.0  [23] GARAY REDUPLICATION MARK..GARAY SMALL LETTER OLD NA
+10D8E..10D8F  ; Exclusion Not_XID              # 16.0   [2] GARAY PLUS SIGN..GARAY MINUS SIGN
+10E80..10EA9  ; Exclusion                      # 13.0  [42] YEZIDI LETTER ELIF..YEZIDI LETTER ET
+10EAB..10EAC  ; Exclusion                      # 13.0   [2] YEZIDI COMBINING HAMZA MARK..YEZIDI COMBINING MADDA MARK
+10EAD         ; Exclusion Not_XID              # 13.0       YEZIDI HYPHENATION MARK
+10EB0..10EB1  ; Exclusion                      # 13.0   [2] YEZIDI LETTER LAM WITH DOT ABOVE..YEZIDI LETTER YOT WITH CIRCUMFLEX ABOVE
+10F00..10F1C  ; Exclusion                      # 11.0  [29] OLD SOGDIAN LETTER ALEPH..OLD SOGDIAN LETTER FINAL TAW WITH VERTICAL TAIL
+10F1D..10F26  ; Exclusion Not_XID              # 11.0  [10] OLD SOGDIAN NUMBER ONE..OLD SOGDIAN FRACTION ONE HALF
+10F27         ; Exclusion                      # 11.0       OLD SOGDIAN LIGATURE AYIN-DALETH
+10F30..10F50  ; Exclusion                      # 11.0  [33] SOGDIAN LETTER ALEPH..SOGDIAN COMBINING STROKE BELOW
+10F51..10F59  ; Exclusion Not_XID              # 11.0   [9] SOGDIAN NUMBER ONE..SOGDIAN PUNCTUATION HALF CIRCLE WITH DOT
+10F70..10F85  ; Exclusion                      # 14.0  [22] OLD UYGHUR LETTER ALEPH..OLD UYGHUR COMBINING TWO DOTS BELOW
+10F86..10F89  ; Exclusion Not_XID              # 14.0   [4] OLD UYGHUR PUNCTUATION BAR..OLD UYGHUR PUNCTUATION FOUR DOTS
+10FB0..10FC4  ; Exclusion                      # 13.0  [21] CHORASMIAN LETTER ALEPH..CHORASMIAN LETTER TAW
+10FC5..10FCB  ; Exclusion Not_XID              # 13.0   [7] CHORASMIAN NUMBER ONE..CHORASMIAN NUMBER ONE HUNDRED
+10FE0..10FF6  ; Exclusion                      # 12.0  [23] ELYMAIC LETTER ALEPH..ELYMAIC LIGATURE ZAYIN-YODH
+11000..11046  ; Exclusion                      # 6.0   [71] BRAHMI SIGN CANDRABINDU..BRAHMI VIRAMA
+11047..1104D  ; Exclusion Not_XID              # 6.0    [7] BRAHMI DANDA..BRAHMI PUNCTUATION LOTUS
+11052..11065  ; Exclusion Not_XID              # 6.0   [20] BRAHMI NUMBER ONE..BRAHMI NUMBER ONE THOUSAND
+11066..1106F  ; Exclusion                      # 6.0   [10] BRAHMI DIGIT ZERO..BRAHMI DIGIT NINE
+11070..11075  ; Exclusion                      # 14.0   [6] BRAHMI SIGN OLD TAMIL VIRAMA..BRAHMI LETTER OLD TAMIL LLA
+1107F         ; Exclusion                      # 7.0        BRAHMI NUMBER JOINER
+11080..110BA  ; Exclusion                      # 5.2   [59] KAITHI SIGN CANDRABINDU..KAITHI SIGN NUKTA
+110BB..110BC  ; Exclusion Not_XID              # 5.2    [2] KAITHI ABBREVIATION SIGN..KAITHI ENUMERATION SIGN
+110BD         ; Exclusion Not_XID              # 5.2        KAITHI NUMBER SIGN
+110BE..110C1  ; Exclusion Not_XID              # 5.2    [4] KAITHI SECTION MARK..KAITHI DOUBLE DANDA
+110C2         ; Exclusion                      # 14.0       KAITHI VOWEL SIGN VOCALIC R
+110CD         ; Exclusion Not_XID              # 11.0       KAITHI NUMBER SIGN ABOVE
+110D0..110E8  ; Exclusion                      # 6.1   [25] SORA SOMPENG LETTER SAH..SORA SOMPENG LETTER MAE
+110F0..110F9  ; Exclusion                      # 6.1   [10] SORA SOMPENG DIGIT ZERO..SORA SOMPENG DIGIT NINE
+11150..11173  ; Exclusion                      # 7.0   [36] MAHAJANI LETTER A..MAHAJANI SIGN NUKTA
+11174..11175  ; Exclusion Not_XID              # 7.0    [2] MAHAJANI ABBREVIATION SIGN..MAHAJANI SECTION MARK
+11176         ; Exclusion                      # 7.0        MAHAJANI LIGATURE SHRI
+11180..111C4  ; Exclusion                      # 6.1   [69] SHARADA SIGN CANDRABINDU..SHARADA OM
+111C5..111C8  ; Exclusion Not_XID              # 6.1    [4] SHARADA DANDA..SHARADA SEPARATOR
+111C9..111CC  ; Exclusion                      # 8.0    [4] SHARADA SANDHI MARK..SHARADA EXTRA SHORT VOWEL MARK
+111CD         ; Exclusion Not_XID              # 7.0        SHARADA SUTRA MARK
+111CE..111CF  ; Exclusion                      # 13.0   [2] SHARADA VOWEL SIGN PRISHTHAMATRA E..SHARADA SIGN INVERTED CANDRABINDU
+111D0..111D9  ; Exclusion                      # 6.1   [10] SHARADA DIGIT ZERO..SHARADA DIGIT NINE
+111DA         ; Exclusion                      # 7.0        SHARADA EKAM
+111DB         ; Exclusion Not_XID              # 8.0        SHARADA SIGN SIDDHAM
+111DC         ; Exclusion                      # 8.0        SHARADA HEADSTROKE
+111DD..111DF  ; Exclusion Not_XID              # 8.0    [3] SHARADA CONTINUATION SIGN..SHARADA SECTION MARK-2
+11200..11211  ; Exclusion                      # 7.0   [18] KHOJKI LETTER A..KHOJKI LETTER JJA
+11213..11237  ; Exclusion                      # 7.0   [37] KHOJKI LETTER NYA..KHOJKI SIGN SHADDA
+11238..1123D  ; Exclusion Not_XID              # 7.0    [6] KHOJKI DANDA..KHOJKI ABBREVIATION SIGN
+1123E         ; Exclusion                      # 9.0        KHOJKI SIGN SUKUN
+1123F..11241  ; Exclusion                      # 15.0   [3] KHOJKI LETTER QA..KHOJKI VOWEL SIGN VOCALIC R
+11280..11286  ; Exclusion                      # 8.0    [7] MULTANI LETTER A..MULTANI LETTER GA
+11288         ; Exclusion                      # 8.0        MULTANI LETTER GHA
+1128A..1128D  ; Exclusion                      # 8.0    [4] MULTANI LETTER CA..MULTANI LETTER JJA
+1128F..1129D  ; Exclusion                      # 8.0   [15] MULTANI LETTER NYA..MULTANI LETTER BA
+1129F..112A8  ; Exclusion                      # 8.0   [10] MULTANI LETTER BHA..MULTANI LETTER RHA
+112A9         ; Exclusion Not_XID              # 8.0        MULTANI SECTION MARK
+112B0..112EA  ; Exclusion                      # 7.0   [59] KHUDAWADI LETTER A..KHUDAWADI SIGN VIRAMA
+112F0..112F9  ; Exclusion                      # 7.0   [10] KHUDAWADI DIGIT ZERO..KHUDAWADI DIGIT NINE
+11300         ; Exclusion                      # 8.0        GRANTHA SIGN COMBINING ANUSVARA ABOVE
+11302         ; Exclusion                      # 7.0        GRANTHA SIGN ANUSVARA
+11305..1130C  ; Exclusion                      # 7.0    [8] GRANTHA LETTER A..GRANTHA LETTER VOCALIC L
+1130F..11310  ; Exclusion                      # 7.0    [2] GRANTHA LETTER EE..GRANTHA LETTER AI
+11313..11328  ; Exclusion                      # 7.0   [22] GRANTHA LETTER OO..GRANTHA LETTER NA
+1132A..11330  ; Exclusion                      # 7.0    [7] GRANTHA LETTER PA..GRANTHA LETTER RA
+11332..11333  ; Exclusion                      # 7.0    [2] GRANTHA LETTER LA..GRANTHA LETTER LLA
+11335..11339  ; Exclusion                      # 7.0    [5] GRANTHA LETTER VA..GRANTHA LETTER HA
+1133D..11344  ; Exclusion                      # 7.0    [8] GRANTHA SIGN AVAGRAHA..GRANTHA VOWEL SIGN VOCALIC RR
+11347..11348  ; Exclusion                      # 7.0    [2] GRANTHA VOWEL SIGN EE..GRANTHA VOWEL SIGN AI
+1134B..1134D  ; Exclusion                      # 7.0    [3] GRANTHA VOWEL SIGN OO..GRANTHA SIGN VIRAMA
+11350         ; Exclusion                      # 8.0        GRANTHA OM
+11357         ; Exclusion                      # 7.0        GRANTHA AU LENGTH MARK
+1135D..11363  ; Exclusion                      # 7.0    [7] GRANTHA SIGN PLUTA..GRANTHA VOWEL SIGN VOCALIC LL
+11366..1136C  ; Exclusion                      # 7.0    [7] COMBINING GRANTHA DIGIT ZERO..COMBINING GRANTHA DIGIT SIX
+11370..11374  ; Exclusion                      # 7.0    [5] COMBINING GRANTHA LETTER A..COMBINING GRANTHA LETTER PA
+11380..11389  ; Exclusion                      # 16.0  [10] TULU-TIGALARI LETTER A..TULU-TIGALARI LETTER VOCALIC LL
+1138B         ; Exclusion                      # 16.0       TULU-TIGALARI LETTER EE
+1138E         ; Exclusion                      # 16.0       TULU-TIGALARI LETTER AI
+11390..113B5  ; Exclusion                      # 16.0  [38] TULU-TIGALARI LETTER OO..TULU-TIGALARI LETTER LLLA
+113B7..113C0  ; Exclusion                      # 16.0  [10] TULU-TIGALARI SIGN AVAGRAHA..TULU-TIGALARI VOWEL SIGN VOCALIC LL
+113C2         ; Exclusion                      # 16.0       TULU-TIGALARI VOWEL SIGN EE
+113C5         ; Exclusion                      # 16.0       TULU-TIGALARI VOWEL SIGN AI
+113C7..113CA  ; Exclusion                      # 16.0   [4] TULU-TIGALARI VOWEL SIGN OO..TULU-TIGALARI SIGN CANDRA ANUNASIKA
+113CC..113D3  ; Exclusion                      # 16.0   [8] TULU-TIGALARI SIGN ANUSVARA..TULU-TIGALARI SIGN PLUTA
+113D4..113D5  ; Exclusion Not_XID              # 16.0   [2] TULU-TIGALARI DANDA..TULU-TIGALARI DOUBLE DANDA
+113D7..113D8  ; Exclusion Not_XID              # 16.0   [2] TULU-TIGALARI SIGN OM PUSHPIKA..TULU-TIGALARI SIGN SHRII PUSHPIKA
+113E1..113E2  ; Exclusion                      # 16.0   [2] TULU-TIGALARI VEDIC TONE SVARITA..TULU-TIGALARI VEDIC TONE ANUDATTA
+11480..114C5  ; Exclusion                      # 7.0   [70] TIRHUTA ANJI..TIRHUTA GVANG
+114C6         ; Exclusion Not_XID              # 7.0        TIRHUTA ABBREVIATION SIGN
+114C7         ; Exclusion                      # 7.0        TIRHUTA OM
+114D0..114D9  ; Exclusion                      # 7.0   [10] TIRHUTA DIGIT ZERO..TIRHUTA DIGIT NINE
+11580..115B5  ; Exclusion                      # 7.0   [54] SIDDHAM LETTER A..SIDDHAM VOWEL SIGN VOCALIC RR
+115B8..115C0  ; Exclusion                      # 7.0    [9] SIDDHAM VOWEL SIGN E..SIDDHAM SIGN NUKTA
+115C1..115C9  ; Exclusion Not_XID              # 7.0    [9] SIDDHAM SIGN SIDDHAM..SIDDHAM END OF TEXT MARK
+115CA..115D7  ; Exclusion Not_XID              # 8.0   [14] SIDDHAM SECTION MARK WITH TRIDENT AND U-SHAPED ORNAMENTS..SIDDHAM SECTION MARK WITH CIRCLES AND FOUR ENCLOSURES
+115D8..115DD  ; Exclusion                      # 8.0    [6] SIDDHAM LETTER THREE-CIRCLE ALTERNATE I..SIDDHAM VOWEL SIGN ALTERNATE UU
+11600..11640  ; Exclusion                      # 7.0   [65] MODI LETTER A..MODI SIGN ARDHACANDRA
+11641..11643  ; Exclusion Not_XID              # 7.0    [3] MODI DANDA..MODI ABBREVIATION SIGN
+11644         ; Exclusion                      # 7.0        MODI SIGN HUVA
+11650..11659  ; Exclusion                      # 7.0   [10] MODI DIGIT ZERO..MODI DIGIT NINE
+11660..1166C  ; Exclusion Not_XID              # 9.0   [13] MONGOLIAN BIRGA WITH ORNAMENT..MONGOLIAN TURNED SWIRL BIRGA WITH DOUBLE ORNAMENT
+11680..116B7  ; Exclusion                      # 6.1   [56] TAKRI LETTER A..TAKRI SIGN NUKTA
+116B8         ; Exclusion                      # 12.0       TAKRI LETTER ARCHAIC KHA
+116B9         ; Exclusion Not_XID              # 14.0       TAKRI ABBREVIATION SIGN
+116C0..116C9  ; Exclusion                      # 6.1   [10] TAKRI DIGIT ZERO..TAKRI DIGIT NINE
+11700..11719  ; Exclusion                      # 8.0   [26] AHOM LETTER KA..AHOM LETTER JHA
+1171A         ; Exclusion                      # 11.0       AHOM LETTER ALTERNATE BA
+1171D..1172B  ; Exclusion                      # 8.0   [15] AHOM CONSONANT SIGN MEDIAL LA..AHOM SIGN KILLER
+11730..11739  ; Exclusion                      # 8.0   [10] AHOM DIGIT ZERO..AHOM DIGIT NINE
+1173A..1173F  ; Exclusion Not_XID              # 8.0    [6] AHOM NUMBER TEN..AHOM SYMBOL VI
+11740..11746  ; Exclusion                      # 14.0   [7] AHOM LETTER CA..AHOM LETTER LLA
+11800..1183A  ; Exclusion                      # 11.0  [59] DOGRA LETTER A..DOGRA SIGN NUKTA
+1183B         ; Exclusion Not_XID              # 11.0       DOGRA ABBREVIATION SIGN
+118A0..118E9  ; Exclusion                      # 7.0   [74] WARANG CITI CAPITAL LETTER NGAA..WARANG CITI DIGIT NINE
+118EA..118F2  ; Exclusion Not_XID              # 7.0    [9] WARANG CITI NUMBER TEN..WARANG CITI NUMBER NINETY
+118FF         ; Exclusion                      # 7.0        WARANG CITI OM
+11900..11906  ; Exclusion                      # 13.0   [7] DIVES AKURU LETTER A..DIVES AKURU LETTER E
+11909         ; Exclusion                      # 13.0       DIVES AKURU LETTER O
+1190C..11913  ; Exclusion                      # 13.0   [8] DIVES AKURU LETTER KA..DIVES AKURU LETTER JA
+11915..11916  ; Exclusion                      # 13.0   [2] DIVES AKURU LETTER NYA..DIVES AKURU LETTER TTA
+11918..11935  ; Exclusion                      # 13.0  [30] DIVES AKURU LETTER DDA..DIVES AKURU VOWEL SIGN E
+11937..11938  ; Exclusion                      # 13.0   [2] DIVES AKURU VOWEL SIGN AI..DIVES AKURU VOWEL SIGN O
+1193B..11943  ; Exclusion                      # 13.0   [9] DIVES AKURU SIGN ANUSVARA..DIVES AKURU SIGN NUKTA
+11944..11946  ; Exclusion Not_XID              # 13.0   [3] DIVES AKURU DOUBLE DANDA..DIVES AKURU END OF TEXT MARK
+11950..11959  ; Exclusion                      # 13.0  [10] DIVES AKURU DIGIT ZERO..DIVES AKURU DIGIT NINE
+119A0..119A7  ; Exclusion                      # 12.0   [8] NANDINAGARI LETTER A..NANDINAGARI LETTER VOCALIC RR
+119AA..119D7  ; Exclusion                      # 12.0  [46] NANDINAGARI LETTER E..NANDINAGARI VOWEL SIGN VOCALIC RR
+119DA..119E1  ; Exclusion                      # 12.0   [8] NANDINAGARI VOWEL SIGN E..NANDINAGARI SIGN AVAGRAHA
+119E2         ; Exclusion Not_XID              # 12.0       NANDINAGARI SIGN SIDDHAM
+119E3..119E4  ; Exclusion                      # 12.0   [2] NANDINAGARI HEADSTROKE..NANDINAGARI VOWEL SIGN PRISHTHAMATRA E
+11A00..11A3E  ; Exclusion                      # 10.0  [63] ZANABAZAR SQUARE LETTER A..ZANABAZAR SQUARE CLUSTER-FINAL LETTER VA
+11A3F..11A46  ; Exclusion Not_XID              # 10.0   [8] ZANABAZAR SQUARE INITIAL HEAD MARK..ZANABAZAR SQUARE CLOSING DOUBLE-LINED HEAD MARK
+11A47         ; Exclusion                      # 10.0       ZANABAZAR SQUARE SUBJOINER
+11A50..11A83  ; Exclusion                      # 10.0  [52] SOYOMBO LETTER A..SOYOMBO LETTER KSSA
+11A84..11A85  ; Exclusion                      # 12.0   [2] SOYOMBO SIGN JIHVAMULIYA..SOYOMBO SIGN UPADHMANIYA
+11A86..11A99  ; Exclusion                      # 10.0  [20] SOYOMBO CLUSTER-INITIAL LETTER RA..SOYOMBO SUBJOINER
+11A9A..11A9C  ; Exclusion Not_XID              # 10.0   [3] SOYOMBO MARK TSHEG..SOYOMBO MARK DOUBLE SHAD
+11A9D         ; Exclusion                      # 11.0       SOYOMBO MARK PLUTA
+11A9E..11AA2  ; Exclusion Not_XID              # 10.0   [5] SOYOMBO HEAD MARK WITH MOON AND SUN AND TRIPLE FLAME..SOYOMBO TERMINAL MARK-2
+11AC0..11AF8  ; Exclusion                      # 7.0   [57] PAU CIN HAU LETTER PA..PAU CIN HAU GLOTTAL STOP FINAL
+11B60..11B67  ; Exclusion                      # 17.0   [8] SHARADA VOWEL SIGN OE..SHARADA VOWEL SIGN CANDRA O
+11BC0..11BE0  ; Exclusion                      # 16.0  [33] SUNUWAR LETTER DEVI..SUNUWAR LETTER KLOKO
+11BE1         ; Exclusion Not_XID              # 16.0       SUNUWAR SIGN PVO
+11BF0..11BF9  ; Exclusion                      # 16.0  [10] SUNUWAR DIGIT ZERO..SUNUWAR DIGIT NINE
+11C00..11C08  ; Exclusion                      # 9.0    [9] BHAIKSUKI LETTER A..BHAIKSUKI LETTER VOCALIC L
+11C0A..11C36  ; Exclusion                      # 9.0   [45] BHAIKSUKI LETTER E..BHAIKSUKI VOWEL SIGN VOCALIC L
+11C38..11C40  ; Exclusion                      # 9.0    [9] BHAIKSUKI VOWEL SIGN E..BHAIKSUKI SIGN AVAGRAHA
+11C41..11C45  ; Exclusion Not_XID              # 9.0    [5] BHAIKSUKI DANDA..BHAIKSUKI GAP FILLER-2
+11C50..11C59  ; Exclusion                      # 9.0   [10] BHAIKSUKI DIGIT ZERO..BHAIKSUKI DIGIT NINE
+11C5A..11C6C  ; Exclusion Not_XID              # 9.0   [19] BHAIKSUKI NUMBER ONE..BHAIKSUKI HUNDREDS UNIT MARK
+11C70..11C71  ; Exclusion Not_XID              # 9.0    [2] MARCHEN HEAD MARK..MARCHEN MARK SHAD
+11C72..11C8F  ; Exclusion                      # 9.0   [30] MARCHEN LETTER KA..MARCHEN LETTER A
+11C92..11CA7  ; Exclusion                      # 9.0   [22] MARCHEN SUBJOINED LETTER KA..MARCHEN SUBJOINED LETTER ZA
+11CA9..11CB6  ; Exclusion                      # 9.0   [14] MARCHEN SUBJOINED LETTER YA..MARCHEN SIGN CANDRABINDU
+11D00..11D06  ; Exclusion                      # 10.0   [7] MASARAM GONDI LETTER A..MASARAM GONDI LETTER E
+11D08..11D09  ; Exclusion                      # 10.0   [2] MASARAM GONDI LETTER AI..MASARAM GONDI LETTER O
+11D0B..11D36  ; Exclusion                      # 10.0  [44] MASARAM GONDI LETTER AU..MASARAM GONDI VOWEL SIGN VOCALIC R
+11D3A         ; Exclusion                      # 10.0       MASARAM GONDI VOWEL SIGN E
+11D3C..11D3D  ; Exclusion                      # 10.0   [2] MASARAM GONDI VOWEL SIGN AI..MASARAM GONDI VOWEL SIGN O
+11D3F..11D47  ; Exclusion                      # 10.0   [9] MASARAM GONDI VOWEL SIGN AU..MASARAM GONDI RA-KARA
+11D50..11D59  ; Exclusion                      # 10.0  [10] MASARAM GONDI DIGIT ZERO..MASARAM GONDI DIGIT NINE
+11D60..11D65  ; Exclusion                      # 11.0   [6] GUNJALA GONDI LETTER A..GUNJALA GONDI LETTER UU
+11D67..11D68  ; Exclusion                      # 11.0   [2] GUNJALA GONDI LETTER EE..GUNJALA GONDI LETTER AI
+11D6A..11D8E  ; Exclusion                      # 11.0  [37] GUNJALA GONDI LETTER OO..GUNJALA GONDI VOWEL SIGN UU
+11D90..11D91  ; Exclusion                      # 11.0   [2] GUNJALA GONDI VOWEL SIGN EE..GUNJALA GONDI VOWEL SIGN AI
+11D93..11D98  ; Exclusion                      # 11.0   [6] GUNJALA GONDI VOWEL SIGN OO..GUNJALA GONDI OM
+11DA0..11DA9  ; Exclusion                      # 11.0  [10] GUNJALA GONDI DIGIT ZERO..GUNJALA GONDI DIGIT NINE
+11DB0..11DDB  ; Exclusion                      # 17.0  [44] TOLONG SIKI LETTER I..TOLONG SIKI UNGGA
+11DE0..11DE9  ; Exclusion                      # 17.0  [10] TOLONG SIKI DIGIT ZERO..TOLONG SIKI DIGIT NINE
+11EE0..11EF6  ; Exclusion                      # 11.0  [23] MAKASAR LETTER KA..MAKASAR VOWEL SIGN O
+11EF7..11EF8  ; Exclusion Not_XID              # 11.0   [2] MAKASAR PASSIMBANG..MAKASAR END OF SECTION
+11F00..11F10  ; Exclusion                      # 15.0  [17] KAWI SIGN CANDRABINDU..KAWI LETTER O
+11F12..11F3A  ; Exclusion                      # 15.0  [41] KAWI LETTER KA..KAWI VOWEL SIGN VOCALIC R
+11F3E..11F42  ; Exclusion                      # 15.0   [5] KAWI VOWEL SIGN E..KAWI CONJOINER
+11F43..11F4F  ; Exclusion Not_XID              # 15.0  [13] KAWI DANDA..KAWI PUNCTUATION CLOSING SPIRAL
+11F50..11F59  ; Exclusion                      # 15.0  [10] KAWI DIGIT ZERO..KAWI DIGIT NINE
+11F5A         ; Exclusion                      # 16.0       KAWI SIGN NUKTA
+12000..1236E  ; Exclusion                      # 5.0  [879] CUNEIFORM SIGN A..CUNEIFORM SIGN ZUM
+1236F..12398  ; Exclusion                      # 7.0   [42] CUNEIFORM SIGN KAP ELAMITE..CUNEIFORM SIGN UM TIMES ME
+12399         ; Exclusion                      # 8.0        CUNEIFORM SIGN U U
+12400..12462  ; Exclusion                      # 5.0   [99] CUNEIFORM NUMERIC SIGN TWO ASH..CUNEIFORM NUMERIC SIGN OLD ASSYRIAN ONE QUARTER
+12463..1246E  ; Exclusion                      # 7.0   [12] CUNEIFORM NUMERIC SIGN ONE QUARTER GUR..CUNEIFORM NUMERIC SIGN NINE U VARIANT FORM
+1246F         ; Exclusion                      # 18.0       CUNEIFORM NUMERIC SIGN SEVEN ASH TENU
+12470..12473  ; Exclusion Not_XID              # 5.0    [4] CUNEIFORM PUNCTUATION SIGN OLD ASSYRIAN WORD DIVIDER..CUNEIFORM PUNCTUATION SIGN DIAGONAL TRICOLON
+12474         ; Exclusion Not_XID              # 7.0        CUNEIFORM PUNCTUATION SIGN DIAGONAL QUADCOLON
+12475..1247F  ; Exclusion                      # 18.0  [11] CUNEIFORM NUMERIC SIGN EIGHT ASH TENU..CUNEIFORM NUMERIC SIGN ASH TIMES NINE DISH TENU
+12480..12543  ; Exclusion                      # 8.0  [196] CUNEIFORM SIGN AB TIMES NUN TENU..CUNEIFORM SIGN ZU5 TIMES THREE DISH TENU
+12550..12686  ; Exclusion                      # 18.0 [311] CUNEIFORM NUMERIC SIGN ONE N01..CUNEIFORM NUMERIC SIGN ONE N36 FLAT
+12F90..12FF0  ; Exclusion                      # 14.0  [97] CYPRO-MINOAN SIGN CM001..CYPRO-MINOAN SIGN CM114
+12FF1..12FF2  ; Exclusion Not_XID              # 14.0   [2] CYPRO-MINOAN SIGN CM301..CYPRO-MINOAN SIGN CM302
+13000..1342E  ; Exclusion                      # 5.2 [1071] EGYPTIAN HIEROGLYPH A001..EGYPTIAN HIEROGLYPH AA032
+1342F         ; Exclusion                      # 15.0       EGYPTIAN HIEROGLYPH V011D
+13430..13438  ; Exclusion Not_XID              # 12.0   [9] EGYPTIAN HIEROGLYPH VERTICAL JOINER..EGYPTIAN HIEROGLYPH END SEGMENT
+13439..1343F  ; Exclusion Not_XID              # 15.0   [7] EGYPTIAN HIEROGLYPH INSERT AT MIDDLE..EGYPTIAN HIEROGLYPH END WALLED ENCLOSURE
+13440..13455  ; Exclusion                      # 15.0  [22] EGYPTIAN HIEROGLYPH MIRROR HORIZONTALLY..EGYPTIAN HIEROGLYPH MODIFIER DAMAGED
+13460..143FA  ; Exclusion                      # 16.0 [3995] EGYPTIAN HIEROGLYPH-13460..EGYPTIAN HIEROGLYPH-143FA
+14400..14646  ; Exclusion                      # 8.0  [583] ANATOLIAN HIEROGLYPH A001..ANATOLIAN HIEROGLYPH A530
+16100..16139  ; Exclusion                      # 16.0  [58] GURUNG KHEMA LETTER A..GURUNG KHEMA DIGIT NINE
+16A40..16A5E  ; Uncommon_Use Exclusion         # 7.0   [31] MRO LETTER TA..MRO LETTER TEK
+16A60..16A69  ; Uncommon_Use Exclusion         # 7.0   [10] MRO DIGIT ZERO..MRO DIGIT NINE
+16A6E..16A6F  ; Exclusion Not_XID              # 7.0    [2] MRO DANDA..MRO DOUBLE DANDA
+16A70..16ABE  ; Exclusion                      # 14.0  [79] TANGSA LETTER OZ..TANGSA LETTER ZA
+16AC0..16AC9  ; Exclusion                      # 14.0  [10] TANGSA DIGIT ZERO..TANGSA DIGIT NINE
+16AD0..16AED  ; Exclusion                      # 7.0   [30] BASSA VAH LETTER ENNI..BASSA VAH LETTER I
+16AF0..16AF4  ; Exclusion                      # 7.0    [5] BASSA VAH COMBINING HIGH TONE..BASSA VAH COMBINING HIGH-LOW TONE
+16AF5         ; Exclusion Not_XID              # 7.0        BASSA VAH FULL STOP
+16B00..16B36  ; Exclusion                      # 7.0   [55] PAHAWH HMONG VOWEL KEEB..PAHAWH HMONG MARK CIM TAUM
+16B37..16B3F  ; Exclusion Not_XID              # 7.0    [9] PAHAWH HMONG SIGN VOS THOM..PAHAWH HMONG SIGN XYEEM FAIB
+16B40..16B43  ; Exclusion                      # 7.0    [4] PAHAWH HMONG SIGN VOS SEEV..PAHAWH HMONG SIGN IB YAM
+16B44..16B45  ; Exclusion Not_XID              # 7.0    [2] PAHAWH HMONG SIGN XAUS..PAHAWH HMONG SIGN CIM TSOV ROG
+16B50..16B59  ; Exclusion                      # 7.0   [10] PAHAWH HMONG DIGIT ZERO..PAHAWH HMONG DIGIT NINE
+16B5B..16B61  ; Exclusion Not_XID              # 7.0    [7] PAHAWH HMONG NUMBER TENS..PAHAWH HMONG NUMBER TRILLIONS
+16B63..16B77  ; Exclusion                      # 7.0   [21] PAHAWH HMONG SIGN VOS LUB..PAHAWH HMONG SIGN CIM NRES TOS
+16B7D..16B8F  ; Exclusion                      # 7.0   [19] PAHAWH HMONG CLAN SIGN TSHEEJ..PAHAWH HMONG CLAN SIGN VWJ
+16D40..16D6C  ; Exclusion                      # 16.0  [45] KIRAT RAI SIGN ANUSVARA..KIRAT RAI SIGN SAAT
+16D6D..16D6F  ; Exclusion Not_XID              # 16.0   [3] KIRAT RAI SIGN YUPI..KIRAT RAI DOUBLE DANDA
+16D70..16D79  ; Exclusion                      # 16.0  [10] KIRAT RAI DIGIT ZERO..KIRAT RAI DIGIT NINE
+16E40..16E7F  ; Exclusion                      # 11.0  [64] MEDEFAIDRIN CAPITAL LETTER M..MEDEFAIDRIN SMALL LETTER Y
+16E80..16E9A  ; Exclusion Not_XID              # 11.0  [27] MEDEFAIDRIN DIGIT ZERO..MEDEFAIDRIN EXCLAMATION OH
+16EA0..16EB8  ; Exclusion                      # 17.0  [25] BERIA ERFE CAPITAL LETTER ARKAB..BERIA ERFE CAPITAL LETTER AY
+16EBB..16ED3  ; Exclusion                      # 17.0  [25] BERIA ERFE SMALL LETTER ARKAB..BERIA ERFE SMALL LETTER AY
+16FE0         ; Exclusion                      # 9.0        TANGUT ITERATION MARK
+16FE1         ; Exclusion                      # 10.0       NUSHU ITERATION MARK
+16FE4         ; Exclusion                      # 13.0       KHITAN SMALL SCRIPT FILLER
+17000..187EC  ; Exclusion                      # 9.0 [6125] TANGUT IDEOGRAPH-17000..TANGUT IDEOGRAPH-187EC
+187ED..187F1  ; Exclusion                      # 11.0   [5] TANGUT IDEOGRAPH-187ED..TANGUT IDEOGRAPH-187F1
+187F2..187F7  ; Exclusion                      # 12.0   [6] TANGUT IDEOGRAPH-187F2..TANGUT IDEOGRAPH-187F7
+187F8..187FF  ; Exclusion                      # 17.0   [8] TANGUT IDEOGRAPH-187F8..TANGUT IDEOGRAPH-187FF
+18800..18AF2  ; Exclusion                      # 9.0  [755] TANGUT COMPONENT-001..TANGUT COMPONENT-755
+18AF3..18CD5  ; Exclusion                      # 13.0 [483] TANGUT COMPONENT-756..KHITAN SMALL SCRIPT CHARACTER-18CD5
+18CD6..18CDA  ; Exclusion                      # 18.0   [5] KHITAN SMALL SCRIPT CHARACTER-18CD6..KHITAN SMALL SCRIPT CHARACTER-18CDA
+18CFF         ; Exclusion                      # 16.0       KHITAN SMALL SCRIPT CHARACTER-18CFF
+18D00..18D08  ; Exclusion                      # 13.0   [9] TANGUT IDEOGRAPH-18D00..TANGUT IDEOGRAPH-18D08
+18D09..18D1E  ; Exclusion                      # 17.0  [22] TANGUT IDEOGRAPH-18D09..TANGUT IDEOGRAPH-18D1E
+18D1F..18D20  ; Exclusion                      # 18.0   [2] TANGUT IDEOGRAPH-18D1F..TANGUT IDEOGRAPH-18D20
+18D80..18DF2  ; Exclusion                      # 17.0 [115] TANGUT COMPONENT-769..TANGUT COMPONENT-883
+18E00..19191  ; Exclusion                      # 18.0 [914] JURCHEN CHARACTER-18E00..JURCHEN CHARACTER-19191
+191A0..191D2  ; Exclusion                      # 18.0  [51] JURCHEN RADICAL-01..JURCHEN RADICAL-51
+1B170..1B2FB  ; Exclusion                      # 10.0 [396] NUSHU CHARACTER-1B170..NUSHU CHARACTER-1B2FB
+1BC00..1BC6A  ; Exclusion                      # 7.0  [107] DUPLOYAN LETTER H..DUPLOYAN LETTER VOCALIC M
+1BC70..1BC7C  ; Exclusion                      # 7.0   [13] DUPLOYAN AFFIX LEFT HORIZONTAL SECANT..DUPLOYAN AFFIX ATTACHED TANGENT HOOK
+1BC80..1BC88  ; Exclusion                      # 7.0    [9] DUPLOYAN AFFIX HIGH ACUTE..DUPLOYAN AFFIX HIGH VERTICAL
+1BC90..1BC99  ; Exclusion                      # 7.0   [10] DUPLOYAN AFFIX LOW ACUTE..DUPLOYAN AFFIX LOW ARROW
+1BC9C         ; Exclusion Not_XID              # 7.0        DUPLOYAN SIGN O WITH CROSS
+1BC9D..1BC9E  ; Exclusion                      # 7.0    [2] DUPLOYAN THICK LETTER SELECTOR..DUPLOYAN DOUBLE MARK
+1BC9F         ; Exclusion Not_XID              # 7.0        DUPLOYAN PUNCTUATION CHINOOK FULL STOP
+1D800..1D9FF  ; Exclusion Not_XID              # 8.0  [512] SIGNWRITING HAND-FIST INDEX..SIGNWRITING HEAD
+1DA00..1DA36  ; Exclusion                      # 8.0   [55] SIGNWRITING HEAD RIM..SIGNWRITING AIR SUCKING IN
+1DA37..1DA3A  ; Exclusion Not_XID              # 8.0    [4] SIGNWRITING AIR BLOW SMALL ROTATIONS..SIGNWRITING BREATH EXHALE
+1DA3B..1DA6C  ; Exclusion                      # 8.0   [50] SIGNWRITING MOUTH CLOSED NEUTRAL..SIGNWRITING EXCITEMENT
+1DA6D..1DA74  ; Exclusion Not_XID              # 8.0    [8] SIGNWRITING SHOULDER HIP SPINE..SIGNWRITING TORSO-FLOORPLANE TWISTING
+1DA75         ; Exclusion                      # 8.0        SIGNWRITING UPPER BODY TILTING FROM HIP JOINTS
+1DA76..1DA83  ; Exclusion Not_XID              # 8.0   [14] SIGNWRITING LIMB COMBINATION..SIGNWRITING LOCATION DEPTH
+1DA84         ; Exclusion                      # 8.0        SIGNWRITING LOCATION HEAD NECK
+1DA85..1DA8B  ; Exclusion Not_XID              # 8.0    [7] SIGNWRITING LOCATION TORSO..SIGNWRITING PARENTHESIS
+1DA9B..1DA9F  ; Exclusion                      # 8.0    [5] SIGNWRITING FILL MODIFIER-2..SIGNWRITING FILL MODIFIER-6
+1DAA1..1DAAF  ; Exclusion                      # 8.0   [15] SIGNWRITING ROTATION MODIFIER-2..SIGNWRITING ROTATION MODIFIER-16
+1E000..1E006  ; Exclusion                      # 9.0    [7] COMBINING GLAGOLITIC LETTER AZU..COMBINING GLAGOLITIC LETTER ZHIVETE
+1E008..1E018  ; Exclusion                      # 9.0   [17] COMBINING GLAGOLITIC LETTER ZEMLJA..COMBINING GLAGOLITIC LETTER HERU
+1E01B..1E021  ; Exclusion                      # 9.0    [7] COMBINING GLAGOLITIC LETTER SHTA..COMBINING GLAGOLITIC LETTER YATI
+1E023..1E024  ; Exclusion                      # 9.0    [2] COMBINING GLAGOLITIC LETTER YU..COMBINING GLAGOLITIC LETTER SMALL YUS
+1E026..1E02A  ; Exclusion                      # 9.0    [5] COMBINING GLAGOLITIC LETTER YO..COMBINING GLAGOLITIC LETTER FITA
+1E290..1E2AE  ; Exclusion                      # 14.0  [31] TOTO LETTER PA..TOTO SIGN RISING TONE
+1E4D0..1E4F9  ; Exclusion                      # 15.0  [42] NAG MUNDARI LETTER O..NAG MUNDARI DIGIT NINE
+1E5D0..1E5FA  ; Exclusion                      # 16.0  [43] OL ONAL LETTER O..OL ONAL DIGIT NINE
+1E5FF         ; Exclusion Not_XID              # 16.0       OL ONAL ABBREVIATION SIGN
+1E6C0..1E6DE  ; Exclusion                      # 17.0  [31] TAI YO LETTER LOW KO..TAI YO LETTER HIGH KVO
+1E6E0..1E6F5  ; Exclusion                      # 17.0  [22] TAI YO LETTER AA..TAI YO SIGN OM
+1E6FE..1E6FF  ; Exclusion                      # 17.0   [2] TAI YO SYMBOL MUEANG..TAI YO XAM LAI
+1E800..1E8C4  ; Exclusion                      # 7.0  [197] MENDE KIKAKUI SYLLABLE M001 KI..MENDE KIKAKUI SYLLABLE M060 NYON
+1E8C7..1E8CF  ; Exclusion Not_XID              # 7.0    [9] MENDE KIKAKUI DIGIT ONE..MENDE KIKAKUI DIGIT NINE
+1E8D0..1E8D6  ; Exclusion                      # 7.0    [7] MENDE KIKAKUI COMBINING NUMBER TEENS..MENDE KIKAKUI COMBINING NUMBER MILLIONS
+3D000..3FC3F  ; Exclusion                      # 18.0 [11328] SMALL SEAL CHARACTER-3D000..SMALL SEAL CHARACTER-3FC3F

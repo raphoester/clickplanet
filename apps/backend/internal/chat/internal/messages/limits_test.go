@@ -41,6 +41,21 @@ func TestControlCharactersAreStripped(t *testing.T) {
 	assert.NotContains(t, text, "\x00")
 }
 
+func TestATextWithALetterOfAHistoricScriptIsRefused(t *testing.T) {
+	for _, value := range []string{"𒁜𒁝𒁞𒁟𒁠𒁡𒁢𒁣", "hello 𒁜", "𓀀", "ᚠᚢᚦ"} {
+		_, err := limits.Text(value)
+		require.ErrorIs(t, err, messages.ErrInvalidMessage, "%q", value)
+	}
+}
+
+func TestATextKeepsTheAlphabetsWrittenTodayAndEmojis(t *testing.T) {
+	for _, value := range []string{"gg France 🇫🇷🔥", "Привет", "مرحبـــا", "東京タワー", "ㅋㅋㅋ", "ⵣ", "👨‍👩‍👧 ❤️ 👍🏽"} {
+		text, err := limits.Text(value)
+		require.NoError(t, err, "%q", value)
+		assert.Equal(t, value, text)
+	}
+}
+
 func TestTabsBecomeSpaces(t *testing.T) {
 	text, err := limits.Text("hello\tplanet")
 	require.NoError(t, err)
