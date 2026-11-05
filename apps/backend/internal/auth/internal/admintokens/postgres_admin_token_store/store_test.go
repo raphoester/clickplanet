@@ -54,7 +54,7 @@ func (s *testSuite) issued(at time.Time) *admintokens.Pair {
 }
 
 func (s *testSuite) kinds() map[string]string {
-	rows, err := s.db.QueryContext(s.T().Context(), `SELECT encode(token_hash, 'hex'), kind::text FROM admin_tokens`)
+	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(), `SELECT encode(token_hash, 'hex'), kind::text FROM admin_tokens`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 
@@ -75,28 +75,28 @@ func hexOf(secret admintokens.Secret) string {
 func (s *testSuite) TestAPairIsKeptAsTheHashesOfItsTwoTokens() {
 	pair := s.issued(start)
 
-	s.Equal(map[string]string{hexOf(pair.Access()): "access", hexOf(pair.Refresh()): "refresh"}, s.kinds())
+	s.Equal(map[string]string{hexOf(pair.TakeSnapshot().Access): "access", hexOf(pair.TakeSnapshot().Refresh): "refresh"}, s.kinds())
 }
 
 func (s *testSuite) TestARefreshTokenIsSpentOnceAndNamesItsHolder() {
 	pair := s.issued(start)
 
-	holder, err := s.store.SpendRefresh(s.T().Context(), pair.Refresh().Hash(), start.Add(time.Hour))
+	holder, err := s.store.SpendRefresh(s.T().Context(), pair.TakeSnapshot().Refresh.Hash(), start.Add(time.Hour))
 	s.Require().NoError(err)
 	s.Equal(claude, holder)
 
-	_, err = s.store.SpendRefresh(s.T().Context(), pair.Refresh().Hash(), start.Add(time.Hour))
+	_, err = s.store.SpendRefresh(s.T().Context(), pair.TakeSnapshot().Refresh.Hash(), start.Add(time.Hour))
 	s.Require().ErrorIs(err, admintokens.ErrUnknownToken, "spent")
-	s.Equal(map[string]string{hexOf(pair.Access()): "access"}, s.kinds())
+	s.Equal(map[string]string{hexOf(pair.TakeSnapshot().Access): "access"}, s.kinds())
 }
 
 func (s *testSuite) TestAnAccessTokenOrALapsedOneBuysNothing() {
 	pair := s.issued(start)
 
-	_, err := s.store.SpendRefresh(s.T().Context(), pair.Access().Hash(), start)
+	_, err := s.store.SpendRefresh(s.T().Context(), pair.TakeSnapshot().Access.Hash(), start)
 	s.Require().ErrorIs(err, admintokens.ErrUnknownToken, "an access token is not a refresh token")
 
-	_, err = s.store.SpendRefresh(s.T().Context(), pair.Refresh().Hash(), start.Add(admintokens.RefreshLifetime))
+	_, err = s.store.SpendRefresh(s.T().Context(), pair.TakeSnapshot().Refresh.Hash(), start.Add(admintokens.RefreshLifetime))
 	s.Require().ErrorIs(err, admintokens.ErrUnknownToken, "lapsed")
 }
 
@@ -107,14 +107,14 @@ func (s *testSuite) TestTheLapsedTokensGoAndTheLiveOnesStay() {
 	s.Require().NoError(s.store.DeleteLapsed(s.T().Context(), start.Add(2*time.Hour)))
 
 	s.Equal(map[string]string{
-		hexOf(old.Refresh()): "refresh", hexOf(fresh.Access()): "access", hexOf(fresh.Refresh()): "refresh",
+		hexOf(old.TakeSnapshot().Refresh): "refresh", hexOf(fresh.TakeSnapshot().Access): "access", hexOf(fresh.TakeSnapshot().Refresh): "refresh",
 	}, s.kinds())
 }
 
 func (s *testSuite) TestATokenGoesWithItsAccount() {
 	s.issued(start)
 
-	_, err := s.db.ExecContext(s.T().Context(), `DELETE FROM accounts WHERE id = $1`, uuid.UUID(ada))
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `DELETE FROM accounts WHERE id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
 
 	s.Empty(s.kinds())

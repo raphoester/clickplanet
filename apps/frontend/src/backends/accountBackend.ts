@@ -7,15 +7,18 @@ import {
     LinkRefusalReason,
     Provider as WireProvider,
     SignInIntent,
+    SignInOutcome as WireOutcome,
 } from "../gen/grpc/auth/v1/auth_pb.ts"
-import {AccountBackend, AuthError, AuthFailure, Intent, Me, OAuthProvider, Provider} from "./account.ts"
+import {AccountBackend, AuthError, AuthFailure, Intent, Me, OAuthProvider, Provider, SignInOutcome} from "./account.ts"
 import {retrying} from "./transport.ts"
 import {Attester} from "./turnstileSession.ts"
+import {Landing} from "../domain/landing.ts"
 
 const TO_WIRE: Record<Provider, WireProvider> = {
     google: WireProvider.GOOGLE,
     discord: WireProvider.DISCORD,
     email: WireProvider.EMAIL,
+    crazygames: WireProvider.CRAZYGAMES,
 }
 
 function providerOf(wire: WireProvider): Provider | undefined {
@@ -24,6 +27,18 @@ function providerOf(wire: WireProvider): Provider | undefined {
 
 function providersOf(wire: WireProvider[]): Provider[] {
     return wire.map(providerOf).filter((p): p is Provider => p !== undefined)
+}
+
+// A server from before outcomes says none: it signed the browser in.
+const OUTCOMES: Record<WireOutcome, SignInOutcome> = {
+    [WireOutcome.UNSPECIFIED]: "signedIn",
+    [WireOutcome.SIGNED_IN]: "signedIn",
+    [WireOutcome.LINKED]: "linked",
+    [WireOutcome.CREATED]: "created",
+}
+
+function outcomeOf(res: {outcome: WireOutcome, restored: boolean}): SignInOutcome {
+    return res.restored ? "restored" : OUTCOMES[res.outcome]
 }
 
 const INTENTS: Record<Intent, SignInIntent> = {
@@ -69,7 +84,11 @@ function refusalOf(e: ConnectError, own: Failures): AuthFailure | undefined {
 
 // Only reads are retried: a retried CompleteSignIn would spend a one-time code.
 export class ConnectAccountBackend implements AccountBackend {
-    constructor(private readonly client: PromiseClient<typeof AuthService>, private readonly attest: Attester) {
+    constructor(
+        private readonly client: PromiseClient<typeof AuthService>,
+        private readonly attest: Attester,
+        private readonly landing: Landing,
+    ) {
     }
 
     public async signInOptions(): Promise<Provider[]> {
@@ -97,8 +116,9 @@ export class ConnectAccountBackend implements AccountBackend {
         return res.authorizationUrl
     }
 
-    public async completeSignIn(code: string, state: string): Promise<void> {
-        await mapped(() => this.client.completeSignIn({code, state}))
+    public async completeSignIn(code: string, state: string): Promise<SignInOutcome> {
+        const res = await mapped(() => this.client.completeSignIn({code, state, landing: this.landing}))
+        return outcomeOf(res)
     }
 
     public async startEmailSignIn(email: string, intent: Intent): Promise<void> {
@@ -106,9 +126,15 @@ export class ConnectAccountBackend implements AccountBackend {
             {[Code.ResourceExhausted]: "tooManyCodes"})
     }
 
-    public async completeEmailSignIn(code: string): Promise<void> {
-        await mapped(() => this.client.completeEmailSignIn({code}),
+    public async completeEmailSignIn(code: string): Promise<SignInOutcome> {
+        const res = await mapped(() => this.client.completeEmailSignIn({code, landing: this.landing}),
             {[Code.InvalidArgument]: "wrongCode", [Code.FailedPrecondition]: "newCode"})
+        return outcomeOf(res)
+    }
+
+    public async completeCrazyGamesSignIn(token: string): Promise<SignInOutcome> {
+        const res = await mapped(() => this.client.completeCrazyGamesSignIn({token, landing: this.landing}))
+        return outcomeOf(res)
     }
 
     public async signOut(): Promise<void> {

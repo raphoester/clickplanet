@@ -6,8 +6,7 @@ import (
 	"net/url"
 )
 
-// RFC 9728: the metadata of the resource at /mcp is at /.well-known/oauth-protected-resource/mcp. The bare path is
-// served too, for a client that looks at the root.
+// RFC 9728: the metadata of /mcp is at /.well-known/oauth-protected-resource/mcp; the bare path is served too.
 const metadataPrefix = "/.well-known/oauth-protected-resource"
 
 type metadata struct {
@@ -17,7 +16,6 @@ type metadata struct {
 	ResourceName         string   `json:"resource_name"`
 }
 
-// The paths the metadata of a resource is served on, and where an app is told to read it.
 func MetadataPaths(resource *url.URL) (inserted, bare string) {
 	return metadataPrefix + resource.EscapedPath(), metadataPrefix
 }
@@ -27,7 +25,6 @@ func MetadataURL(resource *url.URL) string {
 	return resource.Scheme + "://" + resource.Host + inserted
 }
 
-// The authorization server is the resource's own origin: auth's connector, on the same listener.
 func NewMetadata(resource *url.URL) http.Handler {
 	body, err := json.Marshal(metadata{
 		Resource:             resource.String(),

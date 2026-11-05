@@ -37,6 +37,39 @@ describe("TitleEmblem", () => {
         expect(ribbons(ribboned)).toHaveLength(2)
     })
 
+    it("draws each track in its own colors, and a track this build does not know as Conquest", () => {
+        const ranked = (id: string, trackId: string) => ({id, name: id, rank: {trackId, trackName: trackId, number: 1, count: 4}})
+        const fills = (container: HTMLElement) => [...container.querySelectorAll("path, circle")]
+            .map((shape) => (shape as SVGElement).style.fill)
+
+        for (const track of ["defense", "bombs", "loot", "quiz", "missions"]) {
+            const {container} = render(<TitleEmblem title={ranked(`${track}-rank`, track)} size={56} ribbon/>)
+            expect(fills(container)).toContain(`var(--${track})`)
+            expect(fills(container)).toContain(`var(--${track}-enamel)`)
+        }
+        expect(fills(render(<TitleEmblem title={ranked("x", "tomorrow")} size={56} ribbon/>).container)).toContain("var(--conquest)")
+    })
+
+    it("wreathes a season's title in the season's colors and writes its season on a scroll", () => {
+        const {container} = render(<TitleEmblem title={{id: "season_0_silver", name: "Season 0 Silver"}} size={56} ribbon/>)
+
+        expect([...container.querySelectorAll("text")].map((text) => text.textContent)).toEqual(["2", "S", "0"])
+        const fills = [...container.querySelectorAll("path, circle")].map((shape) => (shape as SVGElement).style.fill)
+        expect(fills).toContain("var(--season)")
+        expect(fills).toContain("var(--season-enamel)")
+    })
+
+    it("draws a battle's top fighter as #2 and a season's top player as a star and 2, in the season's frame", () => {
+        const texts = (id: string) => [...render(<TitleEmblem title={{id, name: id}} size={56} ribbon/>).container
+            .querySelectorAll("text")].map((text) => text.textContent)
+
+        expect(texts("season_0_battle_top_2")).toEqual(["#2", "S", "0"])
+        expect(texts("season_0_top_2")).toEqual(["2", "S", "0"])
+        const {container} = render(<TitleEmblem title={{id: "season_0_top_2", name: "Season 0 Top 2"}} size={56} ribbon/>)
+        expect([...container.querySelectorAll("path, circle")].map((shape) => (shape as SVGElement).style.fill))
+            .toContain("var(--season-enamel)")
+    })
+
     it("greys a locked medal and hangs a padlock on it, with no ribbon", () => {
         const {container} = render(<TitleEmblem title={{id: "warlord", name: "Warlord"}} size={56} locked ribbon/>)
 

@@ -1,8 +1,8 @@
 package postgres_player_store_test
 
 import (
+	"context"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -31,7 +31,7 @@ func (s *testSuite) SetupSuite() {
 	s.store = postgres_player_store.New(s.db)
 	s.NewStore = func() players.Store { return s.store }
 	s.MakeAdmin = func(_ players.Store, account players.AccountID) {
-		_, err := s.db.ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(account))
+		_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(account))
 		s.Require().NoError(err)
 	}
 }
@@ -66,27 +66,17 @@ func (s *testSuite) TestTheTableTakesTheNamesTheRuleTakes() {
 	}
 }
 
-func (s *testSuite) TestTheStreakDayIsStoredAsADate() {
-	s.Require().NoError(s.store.RecordTake(s.T().Context(), players.AccountID{15: 1}, at))
+func (s *testSuite) TestATakenNameLeavesTheTransactionToDrawAgain() {
+	ctx := s.T().Context()
+	s.Require().NoError(s.store.SaveProfile(ctx, players.NewProfile(players.AccountID{15: 1}, "BraveFox42", at)))
 
-	var day string
-	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT streak_last_day::text FROM stats`).Scan(&day))
-	s.Equal("2026-09-17", day)
-}
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
+		s.Require().ErrorIs(s.store.CreateProfile(ctx, players.NewProfile(players.AccountID{15: 2}, "bravefox42", at)), players.ErrNameTaken)
+		return s.store.CreateProfile(ctx, players.NewProfile(players.AccountID{15: 2}, "SlyOtter17", at))
+	})
 
-func (s *testSuite) TestConcurrentFirstTakesAreAllCounted() {
-	start := make(chan struct{})
-	var wg sync.WaitGroup
-	for range 20 {
-		wg.Go(func() {
-			<-start
-			s.NoError(s.store.RecordTake(s.T().Context(), players.AccountID{15: 1}, at))
-		})
-	}
-	close(start)
-	wg.Wait()
-
-	stats, err := s.store.Stats(s.T().Context(), players.AccountID{15: 1})
 	s.Require().NoError(err)
-	s.Equal(uint64(20), stats.TilesTaken(), "no take overwrites another, the first ones included")
+	profile, err := s.store.Profile(ctx, players.AccountID{15: 2})
+	s.Require().NoError(err)
+	s.Equal(players.Name("SlyOtter17"), profile.TakeSnapshot().Name)
 }

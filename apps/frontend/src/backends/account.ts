@@ -1,18 +1,24 @@
-export type Provider = "google" | "discord" | "email"
+export type Provider = "google" | "discord" | "email" | "crazygames"
 
-export type OAuthProvider = Exclude<Provider, "email">
+export type OAuthProvider = Exclude<Provider, "email" | "crazygames">
 
-export const PROVIDERS: readonly Provider[] = ["google", "discord", "email"]
+export type ButtonProvider = Exclude<Provider, "email">
+
+export const PROVIDERS: readonly Provider[] = ["google", "discord", "email", "crazygames"]
 
 export const PROVIDER_NAMES: Record<Provider, string> = {
     google: "Google",
     discord: "Discord",
     email: "email",
+    crazygames: "CrazyGames",
 }
 
 export const CODE_LENGTH = 6
 
 export type Intent = "signIn" | "link"
+
+// "restored": the sign-in landed on an account its player had asked to delete, within the grace period, and brought it back.
+export type SignInOutcome = "signedIn" | "linked" | "created" | "restored"
 
 export type Me = {
     linked: Provider[]
@@ -25,11 +31,13 @@ export interface AccountBackend {
 
     startSignIn(provider: OAuthProvider, intent: Intent): Promise<string>
 
-    completeSignIn(code: string, state: string): Promise<void>
+    completeSignIn(code: string, state: string): Promise<SignInOutcome>
 
     startEmailSignIn(email: string, intent: Intent): Promise<void>
 
-    completeEmailSignIn(code: string): Promise<void>
+    completeEmailSignIn(code: string): Promise<SignInOutcome>
+
+    completeCrazyGamesSignIn(token: string): Promise<SignInOutcome>
 
     signOut(): Promise<void>
 

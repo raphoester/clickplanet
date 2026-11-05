@@ -44,6 +44,6 @@ func (h FindPlayersHandler) FindPlayers(
 
 	return connect.NewResponse(&planetv1.FindPlayersResponse{
 		Players: adminplayer.Encode(out.Players),
-		Total:   uint32(out.Total), //nolint:gosec // a scope count, bounded by the map.
+		Total:   uint32(out.Total), //nolint:gosec // a player count, bounded by the ledger.
 	}), nil
 }

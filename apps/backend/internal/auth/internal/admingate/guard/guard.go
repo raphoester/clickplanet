@@ -76,7 +76,7 @@ func (g guard) admitted(ctx context.Context, spec connect.Spec, header http.Head
 	return nil, fmt.Errorf("failed to admit an operator: %w", err)
 }
 
-// The scheme is case-insensitive (RFC 9110); any other scheme is no token, and the call is judged by its cookie.
+// RFC 9110: the scheme is case-insensitive; another scheme is no token.
 func bearerOf(authorization string) string {
 	scheme, token, found := strings.Cut(authorization, " ")
 	if !found || !strings.EqualFold(scheme, "Bearer") {

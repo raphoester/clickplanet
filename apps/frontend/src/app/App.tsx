@@ -1,14 +1,21 @@
 import Viewer, {ViewerProps} from "./viewer/Viewer.tsx";
 import DonationModal from "./components/DonationModal.tsx";
+import {ON_CRAZYGAMES} from "../platform.ts";
+import {WordFilter} from "../domain/wordFilter.ts";
+import {WordFilterContext} from "./crazygames/wordFilter.ts";
 
-export type AppProps = ViewerProps
+export type AppProps = ViewerProps & {
+    words: WordFilter
+}
 
 export default function App(props: AppProps) {
-    return <>
-        <DonationModal/>
+    return <WordFilterContext.Provider value={props.words}>
+        {!ON_CRAZYGAMES && <DonationModal/>}
 
         <Viewer
             sharedCountry={props.sharedCountry}
+            linkedShot={props.linkedShot}
+            showFront={props.showFront}
             tileClicker={props.tileClicker}
             ownershipsGetter={props.ownershipsGetter}
             updatesListener={props.updatesListener}
@@ -19,13 +26,25 @@ export default function App(props: AppProps) {
             bomber={props.bomber}
             refiller={props.refiller}
             shielder={props.shielder}
+            allegiance={props.allegiance}
             chatBackend={props.chatBackend}
             account={props.account}
             presence={props.presence}
             playerInfo={props.playerInfo}
-            season={props.season}
+            badges={props.badges}
+            titles={props.titles}
+            tileHolders={props.tileHolders}
+            landmasses={props.landmasses}
+            turn={props.turn}
             standings={props.standings}
             support={props.support}
+            missions={props.missions}
+            chargesRefresher={props.chargesRefresher}
+            clips={props.clips}
+            promo={props.promo}
+            crazyGames={props.crazyGames}
+            alerts={props.alerts}
+            gifs={props.gifs}
         />
-    </>
+    </WordFilterContext.Provider>
 }

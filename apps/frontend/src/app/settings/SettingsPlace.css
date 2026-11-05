@@ -4,6 +4,10 @@
     gap: 10px;
 }
 
+.settings-choices {
+    padding: var(--space-2) var(--space-3);
+}
+
 /* The list is longer than a phone's sheet: the foot stays in view while it scrolls. */
 .settings-foot {
     position: sticky;

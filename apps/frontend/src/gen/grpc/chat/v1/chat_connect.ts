@@ -7,6 +7,8 @@ import { ChatEvent, GetHistoryRequest, GetHistoryResponse, ListenForEventsReques
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * A request for a flag's room is FailedPrecondition when the caller does not play for that flag.
+ *
  * @generated from service chat.v1.ChatService
  */
 export const ChatService = {

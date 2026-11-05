@@ -1,5 +1,6 @@
 import {Countries, Country} from "./countries.ts";
 import {LeaderboardEntry} from "./leaderboard.ts";
+import {RECRUIT_TAG, SOURCE_TAG_PARAM} from "./landing.ts";
 
 export const SHARE_ORIGIN = "https://clickplanet.lol"
 
@@ -21,6 +22,10 @@ export function shareStats(leaderboard: readonly LeaderboardEntry[], country: Co
 }
 
 export function shareUrl(code: string): string {
+    return `${flagUrl(code)}&${SOURCE_TAG_PARAM}=${RECRUIT_TAG}`
+}
+
+function flagUrl(code: string): string {
     return `${SHARE_ORIGIN}/?${SHARE_FLAG_PARAM}=${encodeURIComponent(code)}`
 }
 
@@ -29,14 +34,15 @@ export function sharedCountry(url: URL): Country | undefined {
     return code ? Countries.get(code.trim().toLowerCase()) : undefined
 }
 
+// Without the tag: it is drawn into the picture, and a longer one meets the logo on a portrait card.
+export function shareLabel(code: string): string {
+    return flagUrl(code).replace(/^https?:\/\//, "")
+}
+
 export function withoutSharedFlag(url: URL): URL {
     const stripped = new URL(url)
     stripped.searchParams.delete(SHARE_FLAG_PARAM)
     return stripped
-}
-
-export function shareLabel(code: string): string {
-    return shareUrl(code).replace(/^https?:\/\//, "")
 }
 
 export function shareFileName(code: string): string {
@@ -51,6 +57,11 @@ export function statsLine(stats: ShareStats): string {
 
 export function shareText(stats: ShareStats): string {
     return `${shareHeadline(stats)} ${shareUrl(stats.country.code)}`
+}
+
+export function breakHeadline(country: Country, nextSeason?: number): string {
+    const join = `Play for ${country.name} on ClickPlanet!`
+    return nextSeason === undefined ? join : `Season ${nextSeason} starts on a blank map. ${join}`
 }
 
 export function shareHeadline({country, rank, tiles}: ShareStats): string {

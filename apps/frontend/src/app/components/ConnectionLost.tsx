@@ -1,10 +1,8 @@
+import {quizShown, useQuiz} from '../quiz/quizStore.ts'
 import './ConnectionLost.css'
 
-export type ConnectionLostProps = {
-    lowered?: boolean
-}
-
-export default function ConnectionLost({lowered}: ConnectionLostProps) {
+export default function ConnectionLost() {
+    const lowered = useQuiz(quizShown)
     return <div className={`connection-lost${lowered ? " connection-lost--lowered" : ""}`} role="alert">
         <div className="connection-lost-line panel">
             <span aria-hidden="true">📡</span>

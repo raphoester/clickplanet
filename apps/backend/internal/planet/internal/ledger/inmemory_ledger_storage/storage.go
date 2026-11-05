@@ -364,6 +364,36 @@ func (s *Storage) Replay(see func(ledger.Event)) ledger.Position {
 	return end
 }
 
+// Only what postgres holds, so a take a hard kill loses is never told; answers the position to read from next.
+func (s *Storage) ReplaySaved(from ledger.Position, most int, see func(ledger.Position, ledger.Event)) ledger.Position {
+	s.mu.Lock()
+	from = max(from, s.headPositionLocked())
+	end := min(s.saved, from+ledger.Position(most)) //nolint:gosec // most is a batch size.
+	views := s.viewsLocked(from)
+	s.mu.Unlock()
+
+	for _, v := range views {
+		payloads := v.payloads
+		for i := range v.records {
+			var stored Stored
+			stored, payloads = v.stored(i, payloads)
+			if stored.Position >= end {
+				return end
+			}
+
+			event, err := ledger.EventOf(stored.Entry)
+			if err != nil {
+				s.logger.Error("an event of the ledger does not read back, so it is not told",
+					slog.Uint64("position", uint64(stored.Position)), slog.Any("error", err))
+				continue
+			}
+			see(stored.Position, event)
+		}
+	}
+
+	return max(from, end)
+}
+
 func forgottenAt(forgotten map[ledger.Caller]ledger.Position, entry ledger.Entry, position ledger.Position) bool {
 	if before, ok := forgotten[ledger.Caller{Scope: entry.Scope}]; ok && position < before {
 		return true

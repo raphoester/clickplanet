@@ -21,6 +21,8 @@ type Shielding struct {
 
 func (s Shielding) Replay(func(Taking)) {}
 
+func (s Shielding) Strikes(func(Strike)) {}
+
 func (s Shielding) Show(see func(Scene)) {
 	see(Scene{At: s.At, Change: &Change{
 		TileUpdate: clicks.TileUpdate{Tile: s.Tile, Value: s.Country, Previous: s.Country, Shields: s.Shields},

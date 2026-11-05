@@ -15,7 +15,7 @@ import (
 
 type stubUseCase bonuses.Held
 
-func (s stubUseCase) Execute(context.Context) bonuses.Held { return bonuses.Held(s) }
+func (s stubUseCase) Execute(context.Context) (bonuses.Held, error) { return bonuses.Held(s), nil }
 
 func TestTheChargesHeldAreAnswered(t *testing.T) {
 	res, err := get_charges_handler.New(stubUseCase{Bomb: true, SpreadClicks: 4}).

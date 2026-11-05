@@ -21,7 +21,6 @@ func New(auth Auth) *Holders {
 	return &Holders{auth: auth}
 }
 
-// Who holds an access token, from auth.v1.InternalService/GetTokenOperator: the operator, read again on every call.
 type Holders struct {
 	auth Auth
 }

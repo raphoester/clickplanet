@@ -13,6 +13,7 @@ import (
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -20,7 +21,7 @@ import (
 )
 
 type Authors interface {
-	Authors(ctx context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Author, error)
+	Authors(ctx context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Player, error)
 }
 
 const (
@@ -40,12 +41,12 @@ type Cursor struct {
 	After  string
 }
 
-func NewPostgresQuery(db cppg.Querier, authors Authors, clock cptime.Clock, retention time.Duration) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, authors Authors, clock cptime.Clock, retention time.Duration) *PostgresQuery {
 	return &PostgresQuery{db: db, authors: authors, clock: clock, retention: retention}
 }
 
 type PostgresQuery struct {
-	db        cppg.Querier
+	db        cppg.Conn
 	authors   Authors
 	clock     cptime.Clock
 	retention time.Duration
@@ -62,28 +63,28 @@ const keptSeq = `
 // $1 is the start of the retention, $2 the limit, $3 the cursor's seq and $4 the one author, when there is one.
 const (
 	older = `
-		SELECT seq, id, account_id, name, text, sent_at, country, reply_to
+		SELECT seq, id, account_id, name, text, sent_at, country, room, reply_to
 		FROM messages
 		WHERE sent_at >= $1 AND seq < $3
 		ORDER BY seq DESC
 		LIMIT $2
 	`
 	newer = `
-		SELECT seq, id, account_id, name, text, sent_at, country, reply_to
+		SELECT seq, id, account_id, name, text, sent_at, country, room, reply_to
 		FROM messages
 		WHERE sent_at >= $1 AND seq > $3
 		ORDER BY seq
 		LIMIT $2
 	`
 	olderOfOne = `
-		SELECT seq, id, account_id, name, text, sent_at, country, reply_to
+		SELECT seq, id, account_id, name, text, sent_at, country, room, reply_to
 		FROM messages
 		WHERE sent_at >= $1 AND seq < $3 AND account_id = $4
 		ORDER BY seq DESC
 		LIMIT $2
 	`
 	newerOfOne = `
-		SELECT seq, id, account_id, name, text, sent_at, country, reply_to
+		SELECT seq, id, account_id, name, text, sent_at, country, room, reply_to
 		FROM messages
 		WHERE sent_at >= $1 AND seq > $3 AND account_id = $4
 		ORDER BY seq
@@ -91,15 +92,20 @@ const (
 	`
 	projection = `)
 	SELECT
-		page.id, page.account_id, page.name, page.text, page.sent_at, page.country, removals.removed_at,
+		page.id, page.account_id, page.name, page.text, page.sent_at, page.country, page.room, removals.removed_at,
+		COALESCE(gifs.url, ''), COALESCE(gifs.width, 0), COALESCE(gifs.height, 0),
 		COALESCE(quoted.id, ''), quoted.account_id, COALESCE(quoted.name, ''), COALESCE(quoted.text, ''),
-		quoted.removed_at
+		quoted.removed_at,
+		COALESCE(quoted.url, ''), COALESCE(quoted.width, 0), COALESCE(quoted.height, 0)
 	FROM page
 	LEFT JOIN removals ON removals.message_id = page.id
+	LEFT JOIN gifs ON gifs.message_seq = page.seq
 	LEFT JOIN LATERAL (
-		SELECT messages.id, messages.account_id, messages.name, messages.text, removals.removed_at
+		SELECT messages.id, messages.account_id, messages.name, messages.text, removals.removed_at,
+			gifs.url, gifs.width, gifs.height
 		FROM messages
 		LEFT JOIN removals ON removals.message_id = messages.id
+		LEFT JOIN gifs ON gifs.message_seq = messages.seq
 		WHERE messages.id = page.reply_to AND messages.sent_at >= $1
 		ORDER BY messages.seq DESC
 		LIMIT 1
@@ -189,7 +195,7 @@ func statementOf(backward bool, author cpsession.AccountID) (string, []any) {
 
 func (q *PostgresQuery) seqOf(ctx context.Context, id string, since time.Time) (int64, error) {
 	var seq int64
-	err := q.db.QueryRowContext(ctx, keptSeq, id, since).Scan(&seq)
+	err := q.db.On(ctx).QueryRowContext(ctx, keptSeq, id, since).Scan(&seq)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, fmt.Errorf("%w: %q", ErrNoMessage, id)
 	}
@@ -200,7 +206,7 @@ func (q *PostgresQuery) seqOf(ctx context.Context, id string, since time.Time) (
 }
 
 func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any) ([]row, error) {
-	found, err := q.db.QueryContext(ctx, statement, args...)
+	found, err := q.db.On(ctx).QueryContext(ctx, statement, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read a page of messages: %w", err)
 	}
@@ -212,20 +218,29 @@ func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any)
 			each            = row{message: &chatv1.KeptMessage{}}
 			account         uuid.NullUUID
 			sentAt          time.Time
+			room            string
+			text            string
 			removedAt       sql.NullTime
+			gif             = &chatv1.Gif{}
 			quote           = &chatv1.KeptQuote{}
 			quotedAccount   uuid.NullUUID
+			quotedText      string
 			quotedRemovedAt sql.NullTime
+			quotedGif       = &chatv1.Gif{}
 		)
 		if err := found.Scan(
-			&each.message.MessageId, &account, &each.author.name, &each.message.Text, &sentAt,
-			&each.message.CountryId, &removedAt,
-			&quote.MessageId, &quotedAccount, &each.quoted.name, &quote.Text, &quotedRemovedAt,
+			&each.message.MessageId, &account, &each.author.name, &text, &sentAt,
+			&each.message.CountryId, &room, &removedAt, &gif.Url, &gif.Width, &gif.Height,
+			&quote.MessageId, &quotedAccount, &each.quoted.name, &quotedText, &quotedRemovedAt,
+			&quotedGif.Url, &quotedGif.Width, &quotedGif.Height,
 		); err != nil {
 			return nil, fmt.Errorf("failed to read a message of a page: %w", err)
 		}
 
 		each.message.SentAt = timestamppb.New(sentAt)
+		if messages.Room(room) != messages.World {
+			each.message.FlagRoom = room
+		}
 		if account.Valid {
 			each.author.account = cpsession.AccountID(account.UUID)
 			each.message.AccountId = account.UUID.String()
@@ -233,12 +248,22 @@ func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any)
 		if removedAt.Valid {
 			each.message.RemovedAt = timestamppb.New(removedAt.Time)
 		}
+		if gif.GetUrl() != "" {
+			each.message.Body = &chatv1.KeptMessage_Gif{Gif: gif}
+		} else {
+			each.message.Body = &chatv1.KeptMessage_Text{Text: text}
+		}
 		if quote.GetMessageId() != "" {
 			if quotedAccount.Valid {
 				each.quoted.account = cpsession.AccountID(quotedAccount.UUID)
 			}
 			if quotedRemovedAt.Valid {
 				quote.RemovedAt = timestamppb.New(quotedRemovedAt.Time)
+			}
+			if quotedGif.GetUrl() != "" {
+				quote.Body = &chatv1.KeptQuote_Gif{Gif: quotedGif}
+			} else {
+				quote.Body = &chatv1.KeptQuote_Text{Text: quotedText}
 			}
 			each.message.ReplyTo = quote
 		}
@@ -265,7 +290,7 @@ func everyone(rows []row) []cpsession.AccountID {
 	return accounts
 }
 
-func nameOf(author author, named map[cpsession.AccountID]*playerv1.Author) string {
+func nameOf(author author, named map[cpsession.AccountID]*playerv1.Player) string {
 	if author.account == cpsession.NoAccount {
 		return author.name
 	}

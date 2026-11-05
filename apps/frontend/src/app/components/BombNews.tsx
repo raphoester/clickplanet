@@ -3,6 +3,7 @@ import {BombDrop} from '../../backends/backend.ts'
 import {Countries} from '../../domain/countries.ts'
 import CountryFlag from './CountryFlag.tsx'
 import {describeBlast} from '../../domain/blast.ts'
+import {quizShown, useQuiz} from '../quiz/quizStore.ts'
 import './BombNews.css'
 
 export const BOMB_NEWS_MS = 4000
@@ -11,14 +12,12 @@ export type BombNewsProps = {
     drop: BombDrop
     land?: string
 
-    lowered?: boolean
-
     onDone: () => void
 }
 
-export default function BombNews({drop, land, lowered, onDone}: BombNewsProps) {
+export default function BombNews({drop, land, onDone}: BombNewsProps) {
     const name = Countries.get(drop.countryId)?.name ?? drop.countryId
-    const landName = land === undefined ? undefined : Countries.get(land)?.name
+    const lowered = useQuiz(quizShown)
 
     const done = useRef(onDone)
     useEffect(() => {
@@ -34,7 +33,7 @@ export default function BombNews({drop, land, lowered, onDone}: BombNewsProps) {
         <div className="bomb-news-line panel">
             <span aria-hidden="true">{drop.tile === undefined ? "🌊" : "💥"}</span>
             <CountryFlag code={drop.countryId}/>
-            <span><strong>{name}</strong> {describeBlast({tile: drop.tile, cleared: drop.cleared.length}, landName)}</span>
+            <span><strong>{name}</strong> {describeBlast({tile: drop.tile, cleared: drop.cleared.length}, land)}</span>
         </div>
     </div>
 }

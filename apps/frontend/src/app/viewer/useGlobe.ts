@@ -1,5 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {createGlobe, Globe} from './globe.ts';
+import {Halo} from './atmosphere.ts';
+import {BoxLook} from './bonusBox.ts';
 import {CapturedFrame} from './capture.ts';
 import {GraphicsReport, NO_GRAPHICS} from './graphicsReport.ts';
 import {Country} from '../../domain/countries.ts';
@@ -12,6 +14,11 @@ import {PlaySound} from '../sound/soundPlayer.ts';
 import {AcceptedClick} from './acceptedClicks.ts';
 import {CloseToFortify, Fortified} from '../../domain/fortify.ts';
 import {ClickBudgetSource} from '../../backends/clickBudget.ts';
+import {Allegiance} from '../../domain/allegiance.ts';
+import {BUBBLE_MS} from '../components/Bubble.tsx';
+import {Peek} from '../../domain/tilePeek.ts';
+import {Territory, TerritoryPeek} from '../../domain/territory.ts';
+import {Shot} from '../../domain/clip/camera.ts';
 
 export type GlobeStatus =
     | {state: 'loading', territories?: number}
@@ -20,6 +27,10 @@ export type GlobeStatus =
 
 export type UseGlobeOptions = {
     container: React.RefObject<HTMLElement>
+    // Must keep its identity: a new one rebuilds the globe.
+    linkedShot?: Shot
+    // A change rebuilds the globe: a first visit is guided to its front from the load.
+    showFront?: boolean
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
@@ -32,17 +43,24 @@ export type UseGlobeOptions = {
     // Must keep its identity: a new one rebuilds the globe.
     onClickAccepted?: (click: AcceptedClick) => void
     country: Country
+    // The players online, when known: the ghosts of a first visit raid only while few play.
+    crowd?: number
     clickHue: number | undefined
     mapView: MapView
+    halo: Halo
+    bonusLook: BoxLook
     // A change rebuilds the globe: antialiasing is fixed when the context is made.
     rendering: Rendering
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, rendering} = options
+    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, crowd, clickHue, mapView, halo, bonusLook, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
+    // The share of the tiles read, until they all are.
+    const [tilesLoading, setTilesLoading] = useState<number | undefined>(0)
+    const [orbit, setOrbit] = useState(true)
 
     const {leaderboard, tileDeltas, recordLeaderboard, publishLeaderboard} = useLeaderboardFeed()
 
@@ -55,6 +73,16 @@ export function useGlobe(options: UseGlobeOptions) {
     const [bannedUntil, setBannedUntil] = useState<number>()
 
     const [sessionUnavailable, setSessionUnavailable] = useState(false)
+
+    const [lockedOut, setLockedOut] = useState<{allegiance: Allegiance, id: number} | undefined>()
+    const recordLockedOut = useCallback((allegiance: Allegiance) => {
+        setLockedOut((previous) => ({allegiance, id: (previous?.id ?? 0) + 1}))
+    }, [])
+    useEffect(() => {
+        if (!lockedOut) return
+        const timer = setTimeout(() => setLockedOut(undefined), BUBBLE_MS)
+        return () => clearTimeout(timer)
+    }, [lockedOut])
 
     const [award, setAward] = useState<BonusReward | undefined>()
     const [charges, setCharges] = useState<Charges>(NO_CHARGES)
@@ -82,13 +110,25 @@ export function useGlobe(options: UseGlobeOptions) {
         setLastClose((previous) => ({close, id: (previous?.id ?? 0) + 1, at: performance.now()}))
     }, [])
 
+    const [pointing, setPointing] = useState<{peek: Peek, id: number} | undefined>()
+    const peekCount = useRef(0)
+    const recordPeek = useCallback((peek: Peek) => setPointing({peek, id: ++peekCount.current}), [])
+    const endPeek = useCallback(() => setPointing(undefined), [])
+
+    const [pointingTerritory, setPointingTerritory] = useState<{peek: TerritoryPeek, id: number} | undefined>()
+    const recordTerritoryPeek = useCallback((peek: TerritoryPeek) => setPointingTerritory({peek, id: ++peekCount.current}), [])
+    const endTerritoryPeek = useCallback(() => setPointingTerritory(undefined), [])
+
     const takeBonus = useCallback((reward: BonusReward) => setAward(reward), [])
 
     const globeRef = useRef<Globe | null>(null)
 
     const initialCountry = useRef(country)
+    const latestCrowd = useRef(crowd)
     const latestClickHue = useRef(clickHue)
     const latestMapView = useRef(mapView)
+    const latestHalo = useRef(halo)
+    const latestBonusLook = useRef(bonusLook)
 
     useEffect(() => {
         const element = container.current
@@ -98,6 +138,7 @@ export function useGlobe(options: UseGlobeOptions) {
         let cancelled = false
 
         setStatus({state: 'loading'})
+        setTilesLoading(0)
 
         createGlobe({
             tileClicker,
@@ -105,17 +146,24 @@ export function useGlobe(options: UseGlobeOptions) {
             updatesListener,
             clickBudget,
             container: element,
+            linkedShot,
+            showFront,
             country: initialCountry.current,
             mapView: latestMapView.current,
             rendering,
             onLeaderboardChange: recordLeaderboard,
-            onLoadProgress: (territories) => {
-                if (!cancelled) setStatus({state: 'loading', territories})
+            onLoadProgress: (share) => {
+                if (!cancelled) setTilesLoading(share < 1 ? share : undefined)
+            },
+            onOrbitChange: (inOrbit) => {
+                if (!cancelled) setOrbit(inOrbit)
             },
             onRateLimited: () => setRefusals(n => n + 1),
+            onFrozen: () => setRefusals(n => n + 1),
             onVPNBlocked: () => setVPNBlocked(true),
             onBanned: setBannedUntil,
             onSessionUnavailable: () => setSessionUnavailable(true),
+            onAllegianceLocked: recordLockedOut,
             onBonusWon: takeBonus,
             onBonusTaken: recordCatch,
             onCharges: setCharges,
@@ -130,6 +178,10 @@ export function useGlobe(options: UseGlobeOptions) {
             onClickAccepted,
             onFortified: recordFortified,
             onCloseToFortify: recordClose,
+            onPeek: recordPeek,
+            onPeekEnd: endPeek,
+            onTerritoryPeek: recordTerritoryPeek,
+            onTerritoryPeekEnd: endTerritoryPeek,
             playSound,
             signal: abortController.signal,
         }).then((globe) => {
@@ -139,8 +191,11 @@ export function useGlobe(options: UseGlobeOptions) {
             }
 
             globeRef.current = globe
+            globe.setCrowd(latestCrowd.current)
             globe.setClickHue(latestClickHue.current)
             globe.setMapView(latestMapView.current)
+            globe.setHalo(latestHalo.current)
+            globe.setBonusLook(latestBonusLook.current)
             if (import.meta.env.DEV) Object.assign(window, {clickplanetGlobe: globe})
             setTilesCount(globe.tilesCount)
             publishLeaderboard()
@@ -157,12 +212,17 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, notify])
+    }, [container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek, notify, recordLockedOut])
 
     useEffect(() => {
         initialCountry.current = country
         globeRef.current?.setCountry(country)
     }, [country])
+
+    useEffect(() => {
+        latestCrowd.current = crowd
+        globeRef.current?.setCrowd(crowd)
+    }, [crowd])
 
     useEffect(() => {
         latestClickHue.current = clickHue
@@ -174,6 +234,16 @@ export function useGlobe(options: UseGlobeOptions) {
         globeRef.current?.setMapView(mapView)
     }, [mapView])
 
+    useEffect(() => {
+        latestHalo.current = halo
+        globeRef.current?.setHalo(halo)
+    }, [halo])
+
+    useEffect(() => {
+        latestBonusLook.current = bonusLook
+        globeRef.current?.setBonusLook(bonusLook)
+    }, [bonusLook])
+
     const capture = useCallback((): Promise<CapturedFrame> => {
         const globe = globeRef.current
         if (!globe) return Promise.reject(new Error("the globe is not running yet"))
@@ -181,6 +251,10 @@ export function useGlobe(options: UseGlobeOptions) {
     }, [])
 
     const graphics = useCallback((): GraphicsReport => globeRef.current?.graphics() ?? NO_GRAPHICS, [])
+
+    const territoryOf = useCallback((landmass: number): Territory | undefined => globeRef.current?.territoryOf(landmass), [])
+    const showTerritory = useCallback((landmass: number | undefined) => globeRef.current?.showTerritory(landmass), [])
+    const flyToLastLoss = useCallback(() => globeRef.current?.flyToLastLoss(), [])
 
     const dismissAward = useCallback(() => setAward(undefined), [])
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
@@ -191,6 +265,8 @@ export function useGlobe(options: UseGlobeOptions) {
 
     return {
         status,
+        tilesLoading,
+        orbit,
         leaderboard,
         tileDeltas,
         tilesCount,
@@ -203,6 +279,7 @@ export function useGlobe(options: UseGlobeOptions) {
         dismissBanned: () => setBannedUntil(undefined),
         sessionUnavailable,
         dismissSessionUnavailable: () => setSessionUnavailable(false),
+        lockedOut,
         award,
         dismissAward,
         charges,
@@ -219,6 +296,11 @@ export function useGlobe(options: UseGlobeOptions) {
         dismissFortified,
         lastClose,
         dismissClose,
+        pointing,
+        pointingTerritory,
+        territoryOf,
+        showTerritory,
+        flyToLastLoss,
     }
 }
 

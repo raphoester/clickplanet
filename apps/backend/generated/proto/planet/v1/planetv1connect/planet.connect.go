@@ -41,6 +41,9 @@ const (
 	ClickServiceMapDensityProcedure = "/planet.v1.ClickService/MapDensity"
 	// ClickServiceGetMapProcedure is the fully-qualified name of the ClickService's GetMap RPC.
 	ClickServiceGetMapProcedure = "/planet.v1.ClickService/GetMap"
+	// ClickServiceGetHoldingsProcedure is the fully-qualified name of the ClickService's GetHoldings
+	// RPC.
+	ClickServiceGetHoldingsProcedure = "/planet.v1.ClickService/GetHoldings"
 	// ClickServiceListenForEventsProcedure is the fully-qualified name of the ClickService's
 	// ListenForEvents RPC.
 	ClickServiceListenForEventsProcedure = "/planet.v1.ClickService/ListenForEvents"
@@ -65,6 +68,18 @@ const (
 	// ClickServiceGetFortressesProcedure is the fully-qualified name of the ClickService's
 	// GetFortresses RPC.
 	ClickServiceGetFortressesProcedure = "/planet.v1.ClickService/GetFortresses"
+	// ClickServiceGetTileHolderProcedure is the fully-qualified name of the ClickService's
+	// GetTileHolder RPC.
+	ClickServiceGetTileHolderProcedure = "/planet.v1.ClickService/GetTileHolder"
+	// ClickServiceGetLandmassProcedure is the fully-qualified name of the ClickService's GetLandmass
+	// RPC.
+	ClickServiceGetLandmassProcedure = "/planet.v1.ClickService/GetLandmass"
+	// ClickServiceGetAllegianceProcedure is the fully-qualified name of the ClickService's
+	// GetAllegiance RPC.
+	ClickServiceGetAllegianceProcedure = "/planet.v1.ClickService/GetAllegiance"
+	// ClickServicePledgeAllegianceProcedure is the fully-qualified name of the ClickService's
+	// PledgeAllegiance RPC.
+	ClickServicePledgeAllegianceProcedure = "/planet.v1.ClickService/PledgeAllegiance"
 )
 
 // ClickServiceClient is a client for the planet.v1.ClickService service.
@@ -74,6 +89,7 @@ type ClickServiceClient interface {
 	GetBudget(context.Context, *connect.Request[v1.GetBudgetRequest]) (*connect.Response[v1.GetBudgetResponse], error)
 	MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error)
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
+	GetHoldings(context.Context, *connect.Request[v1.GetHoldingsRequest]) (*connect.Response[v1.GetHoldingsResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlanetEvent], error)
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
@@ -85,6 +101,14 @@ type ClickServiceClient interface {
 	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
 	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
+	GetTileHolder(context.Context, *connect.Request[v1.GetTileHolderRequest]) (*connect.Response[v1.GetTileHolderResponse], error)
+	GetLandmass(context.Context, *connect.Request[v1.GetLandmassRequest]) (*connect.Response[v1.GetLandmassResponse], error)
+	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
+	GetAllegiance(context.Context, *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error)
+	// The only way to set or change the flag: a click or a shield never does.
+	// Refused within the hour after a change, and while the rules in force lock the flags, as a click for another flag
+	// is.
+	PledgeAllegiance(context.Context, *connect.Request[v1.PledgeAllegianceRequest]) (*connect.Response[v1.PledgeAllegianceResponse], error)
 }
 
 // NewClickServiceClient constructs a client for the planet.v1.ClickService service. By default, it
@@ -121,6 +145,13 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+ClickServiceGetMapProcedure,
 			connect.WithSchema(clickServiceMethods.ByName("GetMap")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getHoldings: connect.NewClient[v1.GetHoldingsRequest, v1.GetHoldingsResponse](
+			httpClient,
+			baseURL+ClickServiceGetHoldingsProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetHoldings")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
@@ -186,25 +217,56 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getTileHolder: connect.NewClient[v1.GetTileHolderRequest, v1.GetTileHolderResponse](
+			httpClient,
+			baseURL+ClickServiceGetTileHolderProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetTileHolder")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getLandmass: connect.NewClient[v1.GetLandmassRequest, v1.GetLandmassResponse](
+			httpClient,
+			baseURL+ClickServiceGetLandmassProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetLandmass")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getAllegiance: connect.NewClient[v1.GetAllegianceRequest, v1.GetAllegianceResponse](
+			httpClient,
+			baseURL+ClickServiceGetAllegianceProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetAllegiance")),
+			connect.WithClientOptions(opts...),
+		),
+		pledgeAllegiance: connect.NewClient[v1.PledgeAllegianceRequest, v1.PledgeAllegianceResponse](
+			httpClient,
+			baseURL+ClickServicePledgeAllegianceProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("PledgeAllegiance")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // clickServiceClient implements ClickServiceClient.
 type clickServiceClient struct {
-	click           *connect.Client[v1.ClickRequest, v1.ClickResponse]
-	getBudget       *connect.Client[v1.GetBudgetRequest, v1.GetBudgetResponse]
-	mapDensity      *connect.Client[v1.MapDensityRequest, v1.MapDensityResponse]
-	getMap          *connect.Client[v1.GetMapRequest, v1.GetMapResponse]
-	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.PlanetEvent]
-	claimBonus      *connect.Client[v1.ClaimBonusRequest, v1.ClaimBonusResponse]
-	dropBomb        *connect.Client[v1.DropBombRequest, v1.DropBombResponse]
-	useRefill       *connect.Client[v1.UseRefillRequest, v1.UseRefillResponse]
-	getCharges      *connect.Client[v1.GetChargesRequest, v1.GetChargesResponse]
-	getBonusRules   *connect.Client[v1.GetBonusRulesRequest, v1.GetBonusRulesResponse]
-	openQuiz        *connect.Client[v1.OpenQuizRequest, v1.OpenQuizResponse]
-	answerQuiz      *connect.Client[v1.AnswerQuizRequest, v1.AnswerQuizResponse]
-	placeShield     *connect.Client[v1.PlaceShieldRequest, v1.PlaceShieldResponse]
-	getFortresses   *connect.Client[v1.GetFortressesRequest, v1.GetFortressesResponse]
+	click            *connect.Client[v1.ClickRequest, v1.ClickResponse]
+	getBudget        *connect.Client[v1.GetBudgetRequest, v1.GetBudgetResponse]
+	mapDensity       *connect.Client[v1.MapDensityRequest, v1.MapDensityResponse]
+	getMap           *connect.Client[v1.GetMapRequest, v1.GetMapResponse]
+	getHoldings      *connect.Client[v1.GetHoldingsRequest, v1.GetHoldingsResponse]
+	listenForEvents  *connect.Client[v1.ListenForEventsRequest, v1.PlanetEvent]
+	claimBonus       *connect.Client[v1.ClaimBonusRequest, v1.ClaimBonusResponse]
+	dropBomb         *connect.Client[v1.DropBombRequest, v1.DropBombResponse]
+	useRefill        *connect.Client[v1.UseRefillRequest, v1.UseRefillResponse]
+	getCharges       *connect.Client[v1.GetChargesRequest, v1.GetChargesResponse]
+	getBonusRules    *connect.Client[v1.GetBonusRulesRequest, v1.GetBonusRulesResponse]
+	openQuiz         *connect.Client[v1.OpenQuizRequest, v1.OpenQuizResponse]
+	answerQuiz       *connect.Client[v1.AnswerQuizRequest, v1.AnswerQuizResponse]
+	placeShield      *connect.Client[v1.PlaceShieldRequest, v1.PlaceShieldResponse]
+	getFortresses    *connect.Client[v1.GetFortressesRequest, v1.GetFortressesResponse]
+	getTileHolder    *connect.Client[v1.GetTileHolderRequest, v1.GetTileHolderResponse]
+	getLandmass      *connect.Client[v1.GetLandmassRequest, v1.GetLandmassResponse]
+	getAllegiance    *connect.Client[v1.GetAllegianceRequest, v1.GetAllegianceResponse]
+	pledgeAllegiance *connect.Client[v1.PledgeAllegianceRequest, v1.PledgeAllegianceResponse]
 }
 
 // Click calls planet.v1.ClickService.Click.
@@ -225,6 +287,11 @@ func (c *clickServiceClient) MapDensity(ctx context.Context, req *connect.Reques
 // GetMap calls planet.v1.ClickService.GetMap.
 func (c *clickServiceClient) GetMap(ctx context.Context, req *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error) {
 	return c.getMap.CallUnary(ctx, req)
+}
+
+// GetHoldings calls planet.v1.ClickService.GetHoldings.
+func (c *clickServiceClient) GetHoldings(ctx context.Context, req *connect.Request[v1.GetHoldingsRequest]) (*connect.Response[v1.GetHoldingsResponse], error) {
+	return c.getHoldings.CallUnary(ctx, req)
 }
 
 // ListenForEvents calls planet.v1.ClickService.ListenForEvents.
@@ -277,6 +344,26 @@ func (c *clickServiceClient) GetFortresses(ctx context.Context, req *connect.Req
 	return c.getFortresses.CallUnary(ctx, req)
 }
 
+// GetTileHolder calls planet.v1.ClickService.GetTileHolder.
+func (c *clickServiceClient) GetTileHolder(ctx context.Context, req *connect.Request[v1.GetTileHolderRequest]) (*connect.Response[v1.GetTileHolderResponse], error) {
+	return c.getTileHolder.CallUnary(ctx, req)
+}
+
+// GetLandmass calls planet.v1.ClickService.GetLandmass.
+func (c *clickServiceClient) GetLandmass(ctx context.Context, req *connect.Request[v1.GetLandmassRequest]) (*connect.Response[v1.GetLandmassResponse], error) {
+	return c.getLandmass.CallUnary(ctx, req)
+}
+
+// GetAllegiance calls planet.v1.ClickService.GetAllegiance.
+func (c *clickServiceClient) GetAllegiance(ctx context.Context, req *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error) {
+	return c.getAllegiance.CallUnary(ctx, req)
+}
+
+// PledgeAllegiance calls planet.v1.ClickService.PledgeAllegiance.
+func (c *clickServiceClient) PledgeAllegiance(ctx context.Context, req *connect.Request[v1.PledgeAllegianceRequest]) (*connect.Response[v1.PledgeAllegianceResponse], error) {
+	return c.pledgeAllegiance.CallUnary(ctx, req)
+}
+
 // ClickServiceHandler is an implementation of the planet.v1.ClickService service.
 type ClickServiceHandler interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
@@ -284,6 +371,7 @@ type ClickServiceHandler interface {
 	GetBudget(context.Context, *connect.Request[v1.GetBudgetRequest]) (*connect.Response[v1.GetBudgetResponse], error)
 	MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error)
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
+	GetHoldings(context.Context, *connect.Request[v1.GetHoldingsRequest]) (*connect.Response[v1.GetHoldingsResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlanetEvent]) error
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
@@ -295,6 +383,14 @@ type ClickServiceHandler interface {
 	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
 	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
+	GetTileHolder(context.Context, *connect.Request[v1.GetTileHolderRequest]) (*connect.Response[v1.GetTileHolderResponse], error)
+	GetLandmass(context.Context, *connect.Request[v1.GetLandmassRequest]) (*connect.Response[v1.GetLandmassResponse], error)
+	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
+	GetAllegiance(context.Context, *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error)
+	// The only way to set or change the flag: a click or a shield never does.
+	// Refused within the hour after a change, and while the rules in force lock the flags, as a click for another flag
+	// is.
+	PledgeAllegiance(context.Context, *connect.Request[v1.PledgeAllegianceRequest]) (*connect.Response[v1.PledgeAllegianceResponse], error)
 }
 
 // NewClickServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -327,6 +423,13 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		ClickServiceGetMapProcedure,
 		svc.GetMap,
 		connect.WithSchema(clickServiceMethods.ByName("GetMap")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	clickServiceGetHoldingsHandler := connect.NewUnaryHandler(
+		ClickServiceGetHoldingsProcedure,
+		svc.GetHoldings,
+		connect.WithSchema(clickServiceMethods.ByName("GetHoldings")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -392,6 +495,32 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	clickServiceGetTileHolderHandler := connect.NewUnaryHandler(
+		ClickServiceGetTileHolderProcedure,
+		svc.GetTileHolder,
+		connect.WithSchema(clickServiceMethods.ByName("GetTileHolder")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	clickServiceGetLandmassHandler := connect.NewUnaryHandler(
+		ClickServiceGetLandmassProcedure,
+		svc.GetLandmass,
+		connect.WithSchema(clickServiceMethods.ByName("GetLandmass")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	clickServiceGetAllegianceHandler := connect.NewUnaryHandler(
+		ClickServiceGetAllegianceProcedure,
+		svc.GetAllegiance,
+		connect.WithSchema(clickServiceMethods.ByName("GetAllegiance")),
+		connect.WithHandlerOptions(opts...),
+	)
+	clickServicePledgeAllegianceHandler := connect.NewUnaryHandler(
+		ClickServicePledgeAllegianceProcedure,
+		svc.PledgeAllegiance,
+		connect.WithSchema(clickServiceMethods.ByName("PledgeAllegiance")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.ClickService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClickServiceClickProcedure:
@@ -402,6 +531,8 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceMapDensityHandler.ServeHTTP(w, r)
 		case ClickServiceGetMapProcedure:
 			clickServiceGetMapHandler.ServeHTTP(w, r)
+		case ClickServiceGetHoldingsProcedure:
+			clickServiceGetHoldingsHandler.ServeHTTP(w, r)
 		case ClickServiceListenForEventsProcedure:
 			clickServiceListenForEventsHandler.ServeHTTP(w, r)
 		case ClickServiceClaimBonusProcedure:
@@ -422,6 +553,14 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServicePlaceShieldHandler.ServeHTTP(w, r)
 		case ClickServiceGetFortressesProcedure:
 			clickServiceGetFortressesHandler.ServeHTTP(w, r)
+		case ClickServiceGetTileHolderProcedure:
+			clickServiceGetTileHolderHandler.ServeHTTP(w, r)
+		case ClickServiceGetLandmassProcedure:
+			clickServiceGetLandmassHandler.ServeHTTP(w, r)
+		case ClickServiceGetAllegianceProcedure:
+			clickServiceGetAllegianceHandler.ServeHTTP(w, r)
+		case ClickServicePledgeAllegianceProcedure:
+			clickServicePledgeAllegianceHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -445,6 +584,10 @@ func (UnimplementedClickServiceHandler) MapDensity(context.Context, *connect.Req
 
 func (UnimplementedClickServiceHandler) GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetMap is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetHoldings(context.Context, *connect.Request[v1.GetHoldingsRequest]) (*connect.Response[v1.GetHoldingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetHoldings is not implemented"))
 }
 
 func (UnimplementedClickServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlanetEvent]) error {
@@ -485,4 +628,20 @@ func (UnimplementedClickServiceHandler) PlaceShield(context.Context, *connect.Re
 
 func (UnimplementedClickServiceHandler) GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetFortresses is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetTileHolder(context.Context, *connect.Request[v1.GetTileHolderRequest]) (*connect.Response[v1.GetTileHolderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetTileHolder is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetLandmass(context.Context, *connect.Request[v1.GetLandmassRequest]) (*connect.Response[v1.GetLandmassResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetLandmass is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetAllegiance(context.Context, *connect.Request[v1.GetAllegianceRequest]) (*connect.Response[v1.GetAllegianceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetAllegiance is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) PledgeAllegiance(context.Context, *connect.Request[v1.PledgeAllegianceRequest]) (*connect.Response[v1.PledgeAllegianceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.PledgeAllegiance is not implemented"))
 }

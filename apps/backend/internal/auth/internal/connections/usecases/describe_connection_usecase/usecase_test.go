@@ -30,7 +30,7 @@ func TestTheOperatorIsToldWhoAsksAndWhereItIs(t *testing.T) {
 	out, err := describe_connection_usecase.New(sealer, cptime.NewFixedClock(now)).Execute(t.Context(), sealed)
 	require.NoError(t, err)
 	assert.Equal(t, describe_connection_usecase.Out{
-		Client: "Claude", RedirectHost: "claude.ai", DeniedURL: callback + "?error=access_denied&state=s",
+		Request: request.TakeSnapshot(), DeniedURL: callback + "?error=access_denied&state=s",
 	}, out)
 
 	_, err = describe_connection_usecase.New(sealer, cptime.NewFixedClock(now.Add(connections.RequestTTL))).Execute(t.Context(), sealed)

@@ -12,8 +12,8 @@ export type Front = {
     changes: TileChange[]
 }
 
-// Two fronts this close, for one attacker, are one story told twice.
-const SAME_FRONT_RADIANS = 0.6
+// About 1,900 km: two fronts this close are one, whatever window found them. Paris and Ankara are not.
+const SAME_FRONT_RADIANS = 0.3
 
 export function sameFront(a: Front, b: Front): boolean {
     return angleBetween(a.heart, b.heart) < SAME_FRONT_RADIANS

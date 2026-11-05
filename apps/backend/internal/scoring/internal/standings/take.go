@@ -1,0 +1,48 @@
+package standings
+
+import (
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+)
+
+type AccountID = cpsession.AccountID
+
+var ErrInvalidAccount = errors.New("not an account id")
+
+func AccountIDOf(value string) (AccountID, error) {
+	id, err := uuid.Parse(value)
+	if err != nil || id == uuid.Nil {
+		return AccountID{}, fmt.Errorf("%w: %q", ErrInvalidAccount, value)
+	}
+	return AccountID(id), nil
+}
+
+type Country string
+
+var ErrNoCountry = errors.New("the take has no country")
+
+type Take struct {
+	Account  AccountID
+	Country  Country
+	At       time.Time
+	Position uint64
+	Index    uint32
+}
+
+type TakeMark struct {
+	Position uint64
+	Index    uint32
+}
+
+func takeMarkPast(take Take) TakeMark {
+	return TakeMark{Position: take.Position, Index: take.Index + 1}
+}
+
+func (m TakeMark) counted(take Take) bool {
+	return take.Position < m.Position || take.Position == m.Position && take.Index < m.Index
+}

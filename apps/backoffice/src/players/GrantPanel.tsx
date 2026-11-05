@@ -1,7 +1,7 @@
 import {useState} from "react"
 import {PlanetAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
-import {grant, Grant, grantsAnything, NO_GRANT, refusalOf} from "./actions.ts"
+import {grant, Grant, Granted, grantsAnything, MAX_GRANT, MOST, NO_GRANT, refusalOf} from "./actions.ts"
 import {grantWords, heldWords, wholeOf} from "./charges.ts"
 
 type Props = {planet: PlanetAdmin, accountId: string, who: string}
@@ -15,13 +15,16 @@ const COUNTS: {key: Count, label: string}[] = [
 ]
 
 // Charges as a box gives them. The caps hold, so the answer says what fit; the player sees it at its next page load.
+function heldSaid(granted: Granted): string {
+    return `It held ${heldWords(granted.before)}. It holds ${heldWords(granted.after)}.`
+}
+
 export function GrantPanel({planet, accountId, who}: Props) {
     const [charges, setCharges] = useState<Grant>(NO_GRANT)
     const set = (change: Partial<Grant>) => setCharges(was => ({...was, ...change}))
 
     return (
-        <section className="panel" aria-label="Grant charges">
-            <h2>Give {who} charges</h2>
+        <div className="tool-body">
             <div className="checks">
                 <label className="check">
                     <input type="checkbox" checked={charges.refill} onChange={e => set({refill: e.target.checked})}/>
@@ -40,7 +43,7 @@ export function GrantPanel({planet, accountId, who}: Props) {
                             type="number"
                             inputMode="numeric"
                             min={0}
-                            max={99}
+                            max={MOST}
                             value={charges[key]}
                             onChange={e => set({[key]: wholeOf(e.target.value)})}
                         />
@@ -52,9 +55,16 @@ export function GrantPanel({planet, accountId, who}: Props) {
                 disabled={!grantsAnything(charges)}
                 question={`Give ${who} ${grantWords(charges)}?`}
                 run={() => grant(planet, accountId, charges)}
-                said={granted => `It held ${heldWords(granted.before)}. It holds ${heldWords(granted.after)}.`}
+                said={heldSaid}
                 refusal={err => refusalOf("grant", err)}
             />
-        </section>
+            <ConfirmAction
+                label="Max out"
+                question={`Give ${who} every charge, as many as fit?`}
+                run={() => grant(planet, accountId, MAX_GRANT)}
+                said={heldSaid}
+                refusal={err => refusalOf("grant", err)}
+            />
+        </div>
     )
 }

@@ -6,11 +6,11 @@ import (
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, account players.AccountID) (players.Profile, error)
+	Execute(ctx context.Context, account players.AccountID, suggested string) (players.Profile, error)
 }
 
 func New(useCase UseCase) Subscriber {
@@ -21,7 +21,7 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpbootstrap.Handler[*authv1.SignedIn] = Subscriber{}
+var _ cpredis.Handler[*authv1.SignedIn] = Subscriber{}
 
 func (s Subscriber) Handle(ctx context.Context, event *authv1.SignedIn) error {
 	account, err := players.AccountIDOf(event.GetAccountId())
@@ -32,6 +32,6 @@ func (s Subscriber) Handle(ctx context.Context, event *authv1.SignedIn) error {
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	_, err = s.useCase.Execute(ctx, account)
+	_, err = s.useCase.Execute(ctx, account, event.GetIdentityName())
 	return err //nolint:wrapcheck // the use case named it.
 }

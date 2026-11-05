@@ -1,9 +1,6 @@
-#ifdef LIT
-#include ../light.glsl;
-#endif
-
 uniform sampler2D atlasTexture;
 uniform vec2 atlasTextureSize;
+uniform sampler2D slotTexture;
 uniform float flagPaint;
 uniform float pixelRatio;
 uniform float shieldMost;
@@ -14,15 +11,13 @@ uniform float time;
 flat in vec4 vRegionVector;
 flat in vec2 vFlagUV;
 flat in vec4 vFlagStep;
-flat in vec4 vFlagRegion;
+flat in vec4 vFlagFrame;
 flat in float vFlagShare;
+flat in float vSlotted;
 flat in float vSpriteSize;
 flat in float vShield;
 flat in float vPulse;
-#ifdef LIT
-flat in float vShade;
-flat in float vHaze;
-#endif
+flat in float vHighlit;
 
 varying float vHover;
 varying float vGlow;
@@ -33,9 +28,16 @@ const float KEYLINE_WIDTH = 1.5;
 const float KEYLINE_FEATHER = 0.5;
 const float KEYLINE_MOST = 0.03;
 
+const float SQUARE_UNTIL = 3.0;
+const float ROUND_FROM = 6.0;
+
+const float HIGHLIGHT_LIFT = 0.2;
+const float HIGHLIGHT_FLOOR = 0.35;
+
+#include ../flagFrame.glsl;
+
 vec2 atlasUVof(vec4 region, vec2 uv) {
-    vec2 origin = vec2(region.x, atlasTextureSize.y - region.y - region.w) / atlasTextureSize;
-    return origin + clamp(uv, 0.002, 0.998) * (region.zw / atlasTextureSize);
+    return frameUVof(atlasFrameOf(region), uv);
 }
 
 vec4 ownColour() {
@@ -73,22 +75,25 @@ vec4 shielded(vec4 colour, vec2 coordinates) {
 
 void main() {
     vec2 coordinates = gl_PointCoord - vec2(0.5);
-    if (length(coordinates) > 0.5) discard;
+    // A disc a few pixels wide is drawn square: round, the discs left holes between them on the painted flag.
+    float square = 1.0 - smoothstep(SQUARE_UNTIL, ROUND_FROM, vSpriteSize);
+    if (mix(length(coordinates), max(abs(coordinates.x), abs(coordinates.y)), square) > 0.5) discard;
 
     vec4 own = flagPaint < 1.0 ? ownColour() : vec4(0.0);
 
     vec4 painted = vec4(own.rgb, 0.0);
-    if (vFlagRegion.z > 0.0) {
+    if (vFlagFrame.z > 0.0) {
         // gl_PointCoord runs down and the flag frame runs up; the frame itself needs no flip.
         vec2 screen = vec2(coordinates.x, -coordinates.y) * vSpriteSize;
         vec2 uv = vFlagUV + vFlagStep.xy * screen.x + vFlagStep.zw * screen.y;
 
         // Explicit gradients: the frame is flat across the sprite, so texture() picks the top mip.
-        vec2 footprint = vFlagRegion.zw / atlasTextureSize;
-        vec3 flag = textureGrad(
-            atlasTexture, atlasUVof(vFlagRegion, uv),
-            vFlagStep.xy * footprint, vFlagStep.zw * footprint
-        ).rgb;
+        vec2 at = frameUVof(vFlagFrame, uv);
+        vec2 across = vFlagStep.xy * vFlagFrame.zw;
+        vec2 upward = vFlagStep.zw * vFlagFrame.zw;
+        vec3 flag = vSlotted > 0.5
+            ? textureGrad(slotTexture, at, across, upward).rgb
+            : textureGrad(atlasTexture, at, across, upward).rgb;
 
         float uvPerPixel = max(length(vFlagStep.xy), length(vFlagStep.zw));
         float width = min(uvPerPixel * KEYLINE_WIDTH * pixelRatio, KEYLINE_MOST);
@@ -99,14 +104,12 @@ void main() {
             * (1.0 - smoothstep(0.5 - feather, 0.5 + feather, edge));
         flag = mix(flag, vec3(0.03), keyline * 0.85 * vFlagShare);
 
-        painted = vec4(flag, vFlagShare * (vHover > 0.5 ? 1.0 : 0.94));
+        painted = vec4(flag, vFlagShare);
     }
 
     vec4 colour = mix(own, painted, flagPaint);
 
-#ifdef LIT
-    colour.rgb = lit(colour.rgb, vShade, vHaze);
-#endif
+    if (vHighlit > 0.5) colour = vec4(mix(colour.rgb, vec3(1.0), HIGHLIGHT_LIFT), max(colour.a, HIGHLIGHT_FLOOR));
 
     if (vShield > 0.5) colour = shielded(colour, coordinates);
 
@@ -118,7 +121,8 @@ void main() {
         float r = length(coordinates);
         float ring = smoothstep(0.31, 0.38, r) * (1.0 - smoothstep(0.46, 0.5, r));
         vec3 gold = vec3(1.0, 0.8, 0.22);
-        colour.rgb = mix(colour.rgb, gold, ring * (0.5 + 0.5 * beat));
+        vec3 tint = mod(vPulse, 2.0) > 0.5 ? gold : vec3(1.0);
+        colour.rgb = mix(colour.rgb, tint, ring * (0.5 + 0.5 * beat));
         colour.a = max(colour.a, ring * (0.6 + 0.4 * beat));
     }
 

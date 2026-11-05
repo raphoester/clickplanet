@@ -3,8 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
+import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 
 /**
  * @generated from service planet.v1.InternalService
@@ -12,6 +13,18 @@ import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 export const InternalService = {
   typeName: "planet.v1.InternalService",
   methods: {
+    /**
+     * AdminService/GetLedger, for the clips module's cast: who took which tile.
+     *
+     * @generated from rpc planet.v1.InternalService.GetLedger
+     */
+    getLedger: {
+      name: "GetLedger",
+      I: GetLedgerRequest,
+      O: GetLedgerResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
     /**
      * @generated from rpc planet.v1.InternalService.GetTakesByCountry
      */
@@ -23,12 +36,82 @@ export const InternalService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
+     * The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
+     * keeps the answer. InvalidArgument unless since is before until.
+     *
+     * @generated from rpc planet.v1.InternalService.GetLedgerTotals
+     */
+    getLedgerTotals: {
+      name: "GetLedgerTotals",
+      I: GetLedgerTotalsRequest,
+      O: GetLedgerTotalsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The map every step from since to until, replayed from the ledger's first event, for the gamemaster's season replay.
+     * A read of the whole ledger: the caller keeps the answer. InvalidArgument unless since is before until, and the step
+     * makes 5,000 frames at most.
+     *
+     * @generated from rpc planet.v1.InternalService.GetMapHistory
+     */
+    getMapHistory: {
+      name: "GetMapHistory",
+      I: GetMapHistoryRequest,
+      O: GetMapHistoryResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
      * @generated from rpc planet.v1.InternalService.GetTerritories
      */
     getTerritories: {
       name: "GetTerritories",
       I: GetTerritoriesRequest,
       O: GetTerritoriesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.InternalService.GetCountrySizes
+     */
+    getCountrySizes: {
+      name: "GetCountrySizes",
+      I: GetCountrySizesRequest,
+      O: GetCountrySizesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.InternalService.GetAllegianceOf
+     */
+    getAllegianceOf: {
+      name: "GetAllegianceOf",
+      I: GetAllegianceOfRequest,
+      O: GetAllegianceOfResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.InternalService.GetRuleSetNames
+     */
+    getRuleSetNames: {
+      name: "GetRuleSetNames",
+      I: GetRuleSetNamesRequest,
+      O: GetRuleSetNamesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The values a set plays: default's, with the set's own written over them, for the promo module's cards. NotFound for
+     * a set postgres does not keep.
+     *
+     * @generated from rpc planet.v1.InternalService.GetRuleSet
+     */
+    getRuleSet: {
+      name: "GetRuleSet",
+      I: GetRuleSetRequest,
+      O: GetRuleSetResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

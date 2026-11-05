@@ -13,9 +13,12 @@ import {colorMessageOf, messageOf, providerList, usernameMessageOf} from "./auth
 import {factor} from "../../domain/clickPrice.ts"
 import {NAME_COLORS} from "../../domain/authorColor.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
+import {useWordFilter} from "../crazygames/wordFilter.ts"
 import ProviderButton from "./ProviderButton.tsx"
 import EmailSignIn from "./EmailSignIn.tsx"
 import ProgressTab from "./ProgressTab.tsx"
+import ClipsSwitch from "../clips/ClipsSwitch.tsx"
+import {ClipsNameBackend} from "../../backends/clips.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import "./Account.css"
 
@@ -28,6 +31,7 @@ export type AccountPanelProps = {
     linkedMultiplier?: number
     playerInfo?: PlayerInfoBackend
     listenForClicks?: ListenForClicks
+    clips?: ClipsNameBackend
 }
 
 type Tab = "progress" | "settings"
@@ -35,6 +39,7 @@ type Tab = "progress" | "settings"
 export default function AccountPanel(props: AccountPanelProps) {
     const [tab, setTab] = useState<Tab>("progress")
     const tabsId = useId()
+    const words = useWordFilter()
 
     if (props.state.me.linked.length === 0) return <AccountSettings {...props}/>
 
@@ -51,7 +56,7 @@ export default function AccountPanel(props: AccountPanelProps) {
     const name = props.state.username
     return <div className="account-tabbed">
         {name && <p className="account-who" style={authorStyle({color: props.state.color, guest: false})}>
-            {name}
+            {words.masked(name)}
         </p>}
         <div className="account-tabs" role="tablist" aria-label="Account">
             {tabButton("progress", "Progress")}
@@ -70,11 +75,13 @@ export default function AccountPanel(props: AccountPanelProps) {
     </div>
 }
 
-function AccountSettings({state, store, onDelete, linkedMultiplier}: AccountPanelProps) {
+export function AccountSettings({state, store, onDelete, linkedMultiplier, clips}: AccountPanelProps) {
     const busy = state.busy !== undefined
     const linked = state.me.linked
     const toLink = state.offered.filter((p) => !linked.includes(p))
     const buttons = toLink.filter((p) => p !== "email")
+    // CrazyGames signs the player in and out itself.
+    const leavable = linked.length > 0 && !linked.includes("crazygames")
 
     return <div className="account-panel" aria-busy={busy}>
         {linked.length === 0
@@ -87,16 +94,17 @@ function AccountSettings({state, store, onDelete, linkedMultiplier}: AccountPane
 
         {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
         {linked.length > 0 && state.username !== undefined && <ColorPicker name={state.username} state={state} store={store}/>}
+        {linked.length > 0 && state.username !== undefined && clips && <ClipsSwitch key={state.accountId} clips={clips}/>}
 
         {buttons.map((provider) => <ProviderButton key={provider}
                                                    provider={provider}
                                                    label={`${linked.length === 0 ? "Sign in with" : "Link"} ${PROVIDER_NAMES[provider]}`}
                                                    disabled={busy}
-                                                   onClick={() => void (linked.length === 0 ? store.signIn(provider) : store.link(provider))}/>)}
+                                                   onClick={() => void (linked.length > 0 && provider !== "crazygames" ? store.link(provider) : store.signIn(provider))}/>)}
 
         {toLink.includes("email") && <EmailSignIn state={state} store={store} intent={linked.length === 0 ? "signIn" : "link"}/>}
 
-        {linked.length > 0 && <>
+        {leavable && <>
             <button type="button"
                     className="button account-button"
                     disabled={busy}
@@ -109,6 +117,8 @@ function AccountSettings({state, store, onDelete, linkedMultiplier}: AccountPane
                     onClick={() => void store.signOutEverywhere()}>
                 Sign out everywhere
             </button>
+        </>}
+        {linked.length > 0 && <>
             <button type="button"
                     className="button account-button account-delete"
                     disabled={busy}
@@ -130,7 +140,7 @@ const MAX_INPUT_LENGTH = MAX_USERNAME_LENGTH * 2
 
 const renameDate = new Intl.DateTimeFormat(undefined, {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"})
 
-function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
+export function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
     const current = state.username ?? ""
     const [draft, setDraft] = useState(current)
     const inputId = useId()
@@ -179,8 +189,9 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
     </form>
 }
 
-function ColorPicker({name, state, store}: {name: string, state: Ready, store: AccountStore}) {
+export function ColorPicker({name, state, store}: {name: string, state: Ready, store: AccountStore}) {
     const labelId = useId()
+    const words = useWordFilter()
     const chosen = state.color
     const blocked = state.busy !== undefined || state.naming === true
 
@@ -203,7 +214,7 @@ function ColorPicker({name, state, store}: {name: string, state: Ready, store: A
         <div className="account-name-head">
             <span className="menu-label" id={labelId}>Name color</span>
             <span className="menu-label account-color-preview" style={authorStyle({color: chosen, guest: false})}>
-                {name}
+                {words.masked(name)}
             </span>
         </div>
         <div className="account-color-swatches" role="group" aria-labelledby={labelId}>

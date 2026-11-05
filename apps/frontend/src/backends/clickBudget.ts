@@ -11,6 +11,9 @@ export type ClickBudget = {
 
     sharedWith?: SharedBy
 
+    // The rules in force freeze the map: no click is taken.
+    frozen?: boolean
+
     readAt: number
 }
 

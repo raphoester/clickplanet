@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package alerts.v1;
+
+// The game's Discord server. A player connected to it is pinged by its flag's role when its flag is attacked, and
+// everybody in the server is pinged when a battle or a season starts. There is no link of its own to start here: a
+// player connects Discord by signing in with it or linking it (auth.v1.AuthService/StartSignIn), and that one trip
+// joins the server too (InternalService/JoinServer).
+service AlertsService {
+  rpc GetDiscordLink(GetDiscordLinkRequest) returns (GetDiscordLinkResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetDiscordLinkRequest {}
+
+message GetDiscordLinkResponse {
+  // False: this server pings nobody, and a Discord sign-in joins no server.
+  bool offered = 1;
+  // The caller's account is in the server with its flag's role.
+  bool linked = 2;
+  // The server's page in Discord, where the pings are. Empty when not offered.
+  string server_url = 3;
+}

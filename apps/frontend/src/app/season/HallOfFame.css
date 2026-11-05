@@ -1,0 +1,113 @@
+.hall-of-fame-button {
+    flex-shrink: 0;
+    width: 100%;
+    margin-bottom: var(--space-3);
+}
+
+/* Gold on a plain square: it says "reward" without shouting over the board. */
+.hall-of-fame-icon {
+    color: var(--gold);
+}
+
+.modal-content.hall-of-fame {
+    max-width: 720px;
+}
+
+.hall-of-fame-seasons {
+    display: flex;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0 0 var(--space-3);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    list-style: none;
+}
+
+/* Centred while they fit, and scrolled from the first one when they do not. */
+.hall-of-fame-plaque:first-child {
+    margin-left: auto;
+}
+
+.hall-of-fame-plaque:last-child {
+    margin-right: auto;
+}
+
+.hall-of-fame-plaque {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: var(--space-3);
+    width: 240px;
+    max-width: 85%;
+    padding: var(--space-3);
+    box-sizing: border-box;
+    scroll-snap-align: center;
+}
+
+/* The teaser holds an empty one, so every plaque is as tall. */
+.hall-of-fame-view {
+    display: flex;
+    flex-shrink: 0;
+    gap: var(--space-2);
+    height: 36px;
+}
+
+.hall-of-fame-view > .button {
+    flex: 1;
+}
+
+/* The slot still to be filled. */
+.hall-of-fame-plaque--teased {
+    background: var(--panel-sunk);
+}
+
+.hall-of-fame-plaque-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.hall-of-fame-season {
+    font-family: var(--font-display);
+    font-size: var(--display-m);
+    color: var(--gold);
+    text-shadow: var(--text-drop);
+}
+
+.hall-of-fame-dates {
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.hall-of-fame-nobody {
+    font-family: var(--font-text);
+    font-size: var(--text-m);
+    color: var(--text-muted);
+}
+
+.hall-of-fame-winner {
+    display: flex;
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    min-height: calc(2 * var(--display-xxl));
+    font-size: calc(2 * var(--display-xxl));
+    line-height: 1;
+}
+
+.hall-of-fame-winner .country-flag {
+    margin: 0;
+    filter: drop-shadow(0 3px 0 var(--ink));
+}
+
+.hall-of-fame-unknown {
+    font-family: var(--font-display);
+    line-height: 1;
+    color: var(--gold);
+    text-shadow: var(--text-outline-l);
+}

@@ -11,7 +11,9 @@ export type Pointer = {
     pointerType: string
 }
 
-type Press = {pointerId: number, x: number, y: number, tolerancePx: number}
+export type Spot = {clientX: number, clientY: number}
+
+type Press = {pointerId: number, x: number, y: number, tolerancePx: number, lift?: Spot}
 
 export class ClickOrDrag {
     private press: Press | undefined
@@ -19,8 +21,10 @@ export class ClickOrDrag {
 
     constructor(private readonly rules: DragRules) {}
 
-    get dragged(): boolean {
-        return this.travelled
+    // iOS puts a quick second tap's click where the first tap was (WebKit bug 216681); the pointer events are right.
+    spotOf(click: Spot): Spot | undefined {
+        if (this.travelled) return undefined
+        return this.press?.lift ?? click
     }
 
     begin(pointer: Pointer) {
@@ -41,5 +45,10 @@ export class ClickOrDrag {
         if (!this.press || pointer.pointerId !== this.press.pointerId) return
         const distance = Math.hypot(pointer.clientX - this.press.x, pointer.clientY - this.press.y)
         if (distance > this.press.tolerancePx) this.travelled = true
+    }
+
+    end(pointer: Pick<Pointer, "pointerId" | "clientX" | "clientY">) {
+        if (!this.press || pointer.pointerId !== this.press.pointerId) return
+        this.press.lift = {clientX: pointer.clientX, clientY: pointer.clientY}
     }
 }

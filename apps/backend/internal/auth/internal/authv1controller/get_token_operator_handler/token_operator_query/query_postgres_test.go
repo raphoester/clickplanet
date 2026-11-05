@@ -46,11 +46,10 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) operates(operates bool) {
-	_, err := s.db.ExecContext(s.T().Context(), `UPDATE accounts SET operator = $2 WHERE id = $1`, ada.String(), operates)
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `UPDATE accounts SET operator = $2 WHERE id = $1`, ada.String(), operates)
 	s.Require().NoError(err)
 }
 
-// Issued as the domain issues one, so the hash the store keeps is the one this query computes.
 func (s *testSuite) issued() *admintokens.Pair {
 	pair, err := admintokens.NewIssuer(&admintokens.SequentialSecrets{}).Pair(claude, start)
 	s.Require().NoError(err)
@@ -66,7 +65,7 @@ func (s *testSuite) TestAnOperatorsAccessTokenIsAnsweredWithItsAccountAndItsApp(
 	s.operates(true)
 	pair := s.issued()
 
-	answer, err := s.operator(pair.Access(), start)
+	answer, err := s.operator(pair.TakeSnapshot().Access, start)
 
 	s.Require().NoError(err)
 	s.Equal(&authv1.GetTokenOperatorResponse{AccountId: ada.String(), Client: "Claude"}, answer)
@@ -76,9 +75,9 @@ func (s *testSuite) TestAnAccessTokenEndsWithItsHour() {
 	s.operates(true)
 	pair := s.issued()
 
-	_, err := s.operator(pair.Access(), start.Add(admintokens.AccessLifetime-time.Microsecond))
+	_, err := s.operator(pair.TakeSnapshot().Access, start.Add(admintokens.AccessLifetime-time.Microsecond))
 	s.Require().NoError(err, "just before it ends")
-	_, err = s.operator(pair.Access(), start.Add(admintokens.AccessLifetime))
+	_, err = s.operator(pair.TakeSnapshot().Access, start.Add(admintokens.AccessLifetime))
 	s.Require().ErrorIs(err, token_operator_query.ErrNoToken, "never extended")
 }
 
@@ -86,7 +85,7 @@ func (s *testSuite) TestARefreshTokenOpensNothing() {
 	s.operates(true)
 	pair := s.issued()
 
-	_, err := s.operator(pair.Refresh(), start)
+	_, err := s.operator(pair.TakeSnapshot().Refresh, start)
 
 	s.Require().ErrorIs(err, token_operator_query.ErrNoToken)
 }
@@ -97,7 +96,7 @@ func (s *testSuite) TestUnflaggingAnOperatorEndsEveryConnectionItHolds() {
 
 	s.operates(false)
 
-	_, err := s.operator(pair.Access(), start)
+	_, err := s.operator(pair.TakeSnapshot().Access, start)
 	s.Require().ErrorIs(err, token_operator_query.ErrNotAnOperator)
 }
 
@@ -105,7 +104,7 @@ func (s *testSuite) TestATokenNobodyHoldsIsNobody() {
 	s.operates(true)
 	pair := s.issued()
 
-	for _, token := range []admintokens.Secret{"", "cpat_made-up", "game-token", pair.Access() + " ", "Bearer " + pair.Access()} {
+	for _, token := range []admintokens.Secret{"", "cpat_made-up", "game-token", pair.TakeSnapshot().Access + " ", "Bearer " + pair.TakeSnapshot().Access} {
 		_, err := s.operator(token, start)
 		s.Require().ErrorIs(err, token_operator_query.ErrNoToken, token)
 	}

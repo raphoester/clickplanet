@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package scoring.v1;
+
+import "scoring/v1/scoring.proto";
+
+// What another module reads of scoring's books, by the ids it was given.
+service InternalService {
+  rpc GetRound(GetRoundRequest) returns (GetRoundResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  rpc GetTable(GetTableRequest) returns (GetTableResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  rpc GetRoundPlayers(GetRoundPlayersRequest) returns (GetRoundPlayersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The points a round of `times` scores each rank, before it opens. InvalidArgument for times outside 1 to 10.
+  rpc GetRankPoints(GetRankPointsRequest) returns (GetRankPointsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetRankPointsRequest {
+  uint32 times = 1;
+}
+
+// Every rank that scores, the first's first.
+message GetRankPointsResponse {
+  repeated RankPoints ranks = 1;
+}
+
+message RankPoints {
+  uint32 rank = 1;
+  uint32 points = 2;
+}
+
+message GetRoundPlayersRequest {
+  string round_id = 1;
+}
+
+// Every account that took tiles in the round, guests too. NotFound for a round never opened.
+message GetRoundPlayersResponse {
+  repeated RoundPlayer players = 1;
+}
+
+// An account under the flag it took the most tiles for in the round.
+message RoundPlayer {
+  string account_id = 1;
+  string country_id = 2;
+  uint64 tiles = 3;
+}
+
+message GetTableRequest {
+  string book_id = 1;
+}
+
+// The book ranked now: every country with points. Closed once CloseBook was handled.
+message GetTableResponse {
+  repeated TablePlace table = 1;
+  bool closed = 2;
+}

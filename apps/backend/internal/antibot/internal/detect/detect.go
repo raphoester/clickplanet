@@ -22,6 +22,9 @@ type Click struct {
 	NoOp bool
 
 	Shielded bool
+
+	// How many times faster than plain the game refilled when the click was made; 0 is plain.
+	Tempo float64
 }
 
 type Point struct{ X, Y, Z float64 }
@@ -72,10 +75,16 @@ type Evidence struct {
 type Accomplice struct {
 	Account  string
 	SignedIn bool
+
+	// Where it clicked last, which its ban falls on when it is a guest.
+	Scope string
 }
 
 type Watchdog interface {
 	Name() string
+
+	// Off, the jury reads it as clear; it keeps watching all the same.
+	Enabled() bool
 
 	Attempted(click Click)
 

@@ -30,8 +30,10 @@ func (h SendMessageHandler) SendMessage(
 	message, err := h.useCase.Execute(ctx, send_message_usecase.In{
 		Account:   messages.AccountIDOf(cpctx.GetAccount(ctx)),
 		AuthorID:  req.Msg.GetAuthorId(),
+		Room:      messages.RoomOf(req.Msg.GetFlagRoom()),
 		CountryID: req.Msg.GetCountryId(),
 		Text:      req.Msg.GetText(),
+		Gif:       chatmessage.Gif(req.Msg.GetGif()),
 		ReplyTo:   messages.MessageID(req.Msg.GetReplyToMessageId()),
 		UserAgent: req.Header().Get("User-Agent"),
 	})

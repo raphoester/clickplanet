@@ -23,7 +23,6 @@ func (a *adminHandlers) forModule(module string) AdminHTTPRegistrar {
 	return moduleAdminHandlers{module: module, handlers: a}
 }
 
-// Outside the gate's middlewares: what is served here says who may call itself, and it is not the admin page.
 func (a *adminHandlers) mountOn(router *http.ServeMux, middlewares func(http.Handler) http.Handler) error {
 	for _, mounted := range a.handlers {
 		if err := handle(router, mounted.pattern, middlewares(mounted.handler)); err != nil {
@@ -34,7 +33,7 @@ func (a *adminHandlers) mountOn(router *http.ServeMux, middlewares func(http.Han
 	return nil
 }
 
-// The router panics on a pattern that conflicts with one it holds, an admin service's included.
+// The router panics on a pattern that conflicts with one it holds.
 func handle(router *http.ServeMux, pattern string, handler http.Handler) (err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -69,7 +68,7 @@ type adminDialer struct {
 	address string
 }
 
-// An address with no host, or the unspecified one, listens on loopback too, and loopback is what this process dials.
+// An unspecified host listens on loopback too, which is what this process dials.
 func (d adminDialer) Dial() (connect.HTTPClient, string, error) {
 	if d.address == "" {
 		return nil, "", errors.New("httpServer.adminBindAddress is empty: there is no admin listener to call")

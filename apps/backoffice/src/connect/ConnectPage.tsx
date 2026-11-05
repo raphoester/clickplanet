@@ -9,13 +9,10 @@ export type ConnectAdmin = Pick<PromiseClient<typeof AuthAdminService>, "describ
 type Props = {
     request: string
     auth: ConnectAdmin
-    // Where the browser goes once the operator said yes or no: back to the app.
     leave: (url: string) => void
     onDismiss: () => void
 }
 
-// An app such as Claude asks to operate as the signed-in operator: the operator says yes or no, here and nowhere
-// else. Yes sends the browser back to the app with a code; no, with a refusal.
 export function ConnectPage({request, auth, leave, onDismiss}: Props) {
     const describe = useCallback((signal: AbortSignal) => auth.describeConnection({request}, {signal}), [auth, request])
     const [described, again] = useCall(describe)
@@ -77,7 +74,6 @@ function Dismissed({words, onRetry, onDismiss}: {words: string, onRetry: () => v
     )
 }
 
-// The page already knows the operator is signed in: what is left is a request too old, or one nobody sealed.
 function wordsOf(failure: Failure): string {
     switch (failure.refusal) {
         case "startAgain":

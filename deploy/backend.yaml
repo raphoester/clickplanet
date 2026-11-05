@@ -3,8 +3,9 @@ httpServer:
   consoleBindAddress: 127.0.0.1:8081
   internalBindAddress: 127.0.0.1:8082
   allowedOrigin: http://localhost
+
 gameMap:
-  maxIndex: 262119
+  maxIndex: 260503
 
 database:
   host: postgres
@@ -14,6 +15,9 @@ database:
   dbName: postgres
   sslMode: disable
   schema: planet
+
+redis:
+  address: redis:6379
 
 antiBot:
   enabled: false
@@ -25,6 +29,8 @@ antiBot:
     dbName: postgres
     sslMode: disable
     schema: antibot
+  redis:
+    address: redis:6379
 
 vpnBlocklist:
   enabled: false
@@ -38,6 +44,8 @@ chat:
     dbName: postgres
     sslMode: disable
     schema: chat
+  redis:
+    address: redis:6379
   rateLimiter:
     perSecond: 0.33
     burst: 5
@@ -51,13 +59,11 @@ player:
     dbName: postgres
     sslMode: disable
     schema: player
+  redis:
+    address: redis:6379
   tagSalt: "local-development-salt"
 
-seasons:
-  list:
-    - number: 0
-      endsAt: 2026-10-31T23:00:00Z
-      finale: 2h
+progression:
   database:
     host: postgres
     port: "5432"
@@ -65,7 +71,46 @@ seasons:
     password: postgres
     dbName: postgres
     sslMode: disable
-    schema: seasons
+    schema: progression
+  redis:
+    address: redis:6379
+
+scoring:
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: scoring
+  redis:
+    address: redis:6379
+
+gamemaster:
+  dailyCutoff: 21h
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: gamemaster
+  redis:
+    address: redis:6379
+
+missions:
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: missions
+  redis:
+    address: redis:6379
 
 support:
   database:
@@ -76,3 +121,27 @@ support:
     dbName: postgres
     sslMode: disable
     schema: support
+  redis:
+    address: redis:6379
+
+clips:
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: clips
+  redis:
+    address: redis:6379
+
+promo:
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: promo

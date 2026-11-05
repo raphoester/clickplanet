@@ -129,9 +129,10 @@ func TestSweepForgetsOnlyTheRefilledBuckets(t *testing.T) {
 func TestDefaultsApplyToAZeroConfig(t *testing.T) {
 	limiter := New("test", Config{}, cptime.NewFixedClock(epoch))
 
-	require.InDelta(t, float64(defaultPerSecond), limiter.config.PerSecond, 1e-9)
-	require.Equal(t, defaultBurst, limiter.config.Burst)
-	require.Equal(t, defaultSweepInterval, limiter.config.SweepInterval)
+	state := limiter.Peek(Key{Name: "1.2.3.4"})
+	require.InDelta(t, float64(defaultPerSecond), state.PerSecond, 1e-9)
+	require.Equal(t, defaultBurst, state.Capacity)
+	require.Equal(t, defaultSweepInterval, limiter.sweepInterval)
 }
 
 func TestTakeIsSafeUnderConcurrentCallers(t *testing.T) {

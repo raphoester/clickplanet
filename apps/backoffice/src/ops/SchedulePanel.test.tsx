@@ -1,0 +1,254 @@
+// @vitest-environment jsdom
+import {Code} from "@connectrpc/connect"
+import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
+import {afterEach, describe, expect, it} from "vitest"
+import {clockOf, localOf, spanOf} from "../components/time.ts"
+import {FakeAdmin} from "../fakeAdmin.ts"
+import {GetRulesResponse as AntibotRules, RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
+import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {AddEntryRequest, EditEntryRequest, Playing} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
+import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
+import {SchedulePanel} from "./SchedulePanel.tsx"
+
+afterEach(cleanup)
+
+const rowOf = (set: string) =>
+    screen.getAllByRole("row").find(row => row.querySelector("strong")?.textContent === set) as HTMLTableRowElement
+
+const type = (label: string, value: string) =>
+    fireEvent.change(screen.getByLabelText(label), {target: {value}})
+
+// Planet and the antibot keep calm and frozen too, and play calm.
+function keeping(): FakeAdmin {
+    const admin = new FakeAdmin()
+    const planetDefault = admin.rules.sets[0]
+    admin.rules = new GetRulesResponse({
+        sets: ["default", "calm", "frozen", "rush"].map(name => new RuleSet({name, rules: planetDefault.rules?.clone()})),
+        playing: "calm",
+    })
+    const antibotDefault = admin.antibotRules.sets[0]
+    admin.antibotRules = new AntibotRules({
+        sets: ["default", "calm", "frozen", "rush"].map(name => new AntibotRuleSet({name, rules: antibotDefault.rules?.clone()})),
+        playing: "calm",
+    })
+    return admin
+}
+
+function show(admin: FakeAdmin) {
+    render(<SchedulePanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot}/>)
+}
+
+describe("the rule schedule page", () => {
+    it("lists every entry by start with its kind, the one playing marked, the ended one muted, and what each module plays", async () => {
+        show(keeping())
+
+        await screen.findByRole("table")
+        const sets = screen.getAllByRole("row").slice(1).map(row => row.querySelector("strong")?.textContent)
+        expect(sets).toEqual(["rush", "calm", "rush", "frozen"])
+        expect(rowOf("calm").getAttribute("aria-current")).toBe("true")
+        expect(rowOf("rush").className).toBe("muted")
+        expect(within(rowOf("frozen")).getByText("battle")).toBeTruthy()
+        expect(within(rowOf("frozen")).getByText("Frozen tiles.")).toBeTruthy()
+        expect(within(rowOf("calm")).getByText("plain")).toBeTruthy()
+        expect(within(rowOf("frozen")).getByText("2")).toBeTruthy()
+        expect(within(rowOf("frozen")).getByText("4×")).toBeTruthy()
+        expect(within(rowOf("calm")).queryByText(/×/)).toBeNull()
+        expect(screen.getByText(/a plain entry, since/)).toBeTruthy()
+        expect(screen.getByText(/the antibot plays/)).toBeTruthy()
+        expect(screen.queryByRole("alert")).toBeNull()
+    })
+
+    it("says an entry's start and end on one line", async () => {
+        const admin = keeping()
+        show(admin)
+
+        await screen.findByRole("table")
+        const frozen = admin.schedule.entries.find(entry => entry.ruleSet === "frozen")
+        expect(rowOf("frozen").cells[0].textContent).toBe(spanOf(frozen?.startsAt?.toDate(), frozen?.endsAt?.toDate()))
+    })
+
+    it("shows a season's final battle among the entries, above all, changed only on its season", async () => {
+        show(keeping())
+
+        await screen.findByRole("table")
+        const finale = screen.getByText("Season 2's final battle").closest("tr") as HTMLElement
+        expect(within(finale).getByText("rush")).toBeTruthy()
+        expect(within(finale).getByText("battle")).toBeTruthy()
+        expect(within(finale).getByText("3×")).toBeTruthy()
+        expect(within(finale).getByText("Triple points.")).toBeTruthy()
+        expect(within(finale).getByText("above all")).toBeTruthy()
+        expect(within(finale).queryByRole("button")).toBeNull()
+    })
+
+    it("says when a season's final battle plays", async () => {
+        const admin = keeping()
+        admin.schedule.playing = new Playing({ruleSet: "rush", kind: EntryKind.BATTLE, finaleSeason: 2})
+        admin.rules.playing = "rush"
+        admin.antibotRules.playing = "rush"
+        show(admin)
+
+        expect(await screen.findByText(/season 2's final battle/)).toBeTruthy()
+        expect(screen.getByText("Season 2's final battle").closest("tr")?.getAttribute("aria-current")).toBe("true")
+    })
+
+    it("offers a change only of an entry to come", async () => {
+        show(keeping())
+
+        await screen.findByRole("table")
+        expect(within(rowOf("frozen")).getByRole("button", {name: "Edit"})).toBeTruthy()
+        expect(within(rowOf("frozen")).getByRole("button", {name: "Delete"})).toBeTruthy()
+        expect(within(rowOf("calm")).queryByRole("button")).toBeNull()
+        expect(within(rowOf("rush")).queryByRole("button")).toBeNull()
+    })
+
+    it("warns of a set a module does not keep, on an entry that has not ended", async () => {
+        show(new FakeAdmin())
+
+        await screen.findByRole("table")
+        expect(within(rowOf("frozen")).getByText("No set frozen in planet or the antibot.")).toBeTruthy()
+        expect(within(rowOf("calm")).getByText("No set calm in planet or the antibot.")).toBeTruthy()
+        expect(within(rowOf("rush")).queryByRole("alert")).toBeNull()
+    })
+
+    it("says when a module does not play what the schedule plays", async () => {
+        show(new FakeAdmin())
+
+        expect(await screen.findByText(/Planet does not play/)).toBeTruthy()
+        expect(screen.getByText(/The antibot does not play/)).toBeTruthy()
+    })
+
+    it("adds an entry once confirmed, and reads the schedule again", async () => {
+        const admin = keeping()
+        show(admin)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Add an entry"}))
+        type("Set", "rush")
+        type("Kind", String(EntryKind.PLAIN))
+        expect(screen.queryByLabelText("Times")).toBeNull()
+        type("Description", "A quieter antibot.")
+        type("Starts", "2099-10-31T20:00")
+        type("Ends", "2099-10-31T23:30")
+        type("Priority", "3")
+        fireEvent.click(screen.getByRole("button", {name: "Add"}))
+        expect(screen.getByText(/^Play rush as a plain entry from /)).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Yes, add"}))
+
+        await waitFor(() => expect(screen.queryByRole("region", {name: "New entry"})).toBeNull())
+        const [asked] = admin.askedFor("addEntry") as AddEntryRequest[]
+        expect(asked.ruleSet).toBe("rush")
+        expect(asked.kind).toBe(EntryKind.PLAIN)
+        expect(asked.description).toBe("A quieter antibot.")
+        expect(asked.startsAt?.toDate()).toEqual(new Date("2099-10-31T20:00"))
+        expect(asked.endsAt?.toDate()).toEqual(new Date("2099-10-31T23:30"))
+        expect(asked.priority).toBe(3)
+        expect(asked.times).toBe(0)
+        expect(admin.askedFor("getSchedule")).toHaveLength(2)
+    })
+
+    it("adds a battle worth its times, 3 to start with", async () => {
+        const admin = keeping()
+        show(admin)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Add an entry"}))
+        expect((screen.getByLabelText("Times") as HTMLInputElement).value).toBe("3")
+        type("Times", "5")
+        type("Starts", "2099-10-31T20:00")
+        type("Ends", "2099-10-31T23:30")
+        fireEvent.click(screen.getByRole("button", {name: "Add"}))
+        fireEvent.click(screen.getByRole("button", {name: "Yes, add"}))
+
+        await waitFor(() => expect(admin.askedFor("addEntry")).toHaveLength(1))
+        const [asked] = admin.askedFor("addEntry") as AddEntryRequest[]
+        expect(asked.kind).toBe(EntryKind.BATTLE)
+        expect(asked.times).toBe(5)
+    })
+
+    it("warns of a battle that neither starts nor ends when a day ends, in the operator's own time, and not of a plain entry", async () => {
+        show(keeping())
+
+        fireEvent.click(await screen.findByRole("button", {name: "Add an entry"}))
+        const startsAt = new Date("2099-10-31T18:00:00Z")
+        const endsAt = new Date("2099-10-31T20:00:00Z")
+        const cutoff = new Date("2099-10-31T21:00:00Z")
+        type("Starts", localOf(startsAt))
+        type("Ends", localOf(endsAt))
+        expect(screen.getByText(`Days end at ${clockOf(cutoff)}.`)).toBeTruthy()
+        expect(screen.getByRole("alert").textContent)
+            .toBe(`The battle runs ${clockOf(startsAt)} to ${clockOf(endsAt)}: it must start or end at ${clockOf(cutoff)}, when a day ends.`)
+        type("Ends", localOf(cutoff))
+        expect(screen.queryByRole("alert")).toBeNull()
+        type("Ends", localOf(endsAt))
+        type("Kind", String(EntryKind.PLAIN))
+        expect(screen.queryByRole("alert")).toBeNull()
+    })
+
+    it("offers only the sets both modules keep", async () => {
+        const admin = keeping()
+        admin.antibotRules = new AntibotRules({sets: [admin.antibotRules.sets[0], admin.antibotRules.sets[3]], playing: "calm"})
+        show(admin)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Add an entry"}))
+
+        const options = within(screen.getByLabelText("Set")).getAllByRole("option").map(option => option.textContent)
+        expect(options).toEqual(["default", "rush"])
+    })
+
+    it("offers every kind in the proto's order, a battle picked", async () => {
+        show(keeping())
+
+        fireEvent.click(await screen.findByRole("button", {name: "Add an entry"}))
+
+        const kind = screen.getByLabelText("Kind") as HTMLSelectElement
+        expect(within(kind).getAllByRole("option").map(option => option.textContent)).toEqual(["plain", "battle", "halloween"])
+        expect(kind.value).toBe(String(EntryKind.BATTLE))
+    })
+
+    it("edits an entry to come once confirmed", async () => {
+        const admin = keeping()
+        show(admin)
+
+        fireEvent.click(within(await screen.findByRole("table")).getByRole("button", {name: "Edit"}))
+        expect((screen.getByLabelText("Priority") as HTMLInputElement).value).toBe("2")
+        expect((screen.getByLabelText("Kind") as HTMLSelectElement).value).toBe(String(EntryKind.BATTLE))
+        expect((screen.getByLabelText("Description") as HTMLTextAreaElement).value).toBe("Frozen tiles.")
+        expect((screen.getByLabelText("Times") as HTMLInputElement).value).toBe("4")
+        type("Set", "calm")
+        fireEvent.click(screen.getByRole("button", {name: "Save"}))
+        fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
+
+        await waitFor(() => expect(admin.askedFor("editEntry")).toHaveLength(1))
+        const [asked] = admin.askedFor("editEntry") as EditEntryRequest[]
+        expect(asked.id).toBe("entry-to-come")
+        expect(asked.ruleSet).toBe("calm")
+        expect(asked.kind).toBe(EntryKind.BATTLE)
+        expect(asked.description).toBe("Frozen tiles.")
+        expect(asked.priority).toBe(2)
+        expect(asked.times).toBe(4)
+    })
+
+    it("deletes an entry to come once confirmed", async () => {
+        const admin = keeping()
+        show(admin)
+
+        fireEvent.click(within(await screen.findByRole("table")).getByRole("button", {name: "Delete"}))
+        fireEvent.click(screen.getByRole("button", {name: "Yes, delete"}))
+
+        await waitFor(() => expect(screen.queryByText("frozen")).toBeNull())
+        expect(admin.askedFor("deleteEntry")).toEqual([{id: "entry-to-come"}])
+    })
+
+    it("quotes the server when it refuses an entry", async () => {
+        const admin = keeping()
+        admin.refuse("addEntry", Code.FailedPrecondition)
+        show(admin)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Add an entry"}))
+        type("Starts", "2099-10-31T20:00")
+        type("Ends", "2099-10-31T23:30")
+        fireEvent.click(screen.getByRole("button", {name: "Add"}))
+        fireEvent.click(screen.getByRole("button", {name: "Yes, add"}))
+
+        expect(await screen.findByText("The server refused it: refused")).toBeTruthy()
+        expect(screen.getByRole("region", {name: "New entry"})).toBeTruthy()
+    })
+})

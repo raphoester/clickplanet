@@ -2,36 +2,28 @@ import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrp
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {PlayerService} from "../gen/grpc/player/v1/player_connect.ts"
 import {
-    CountryTiles as CountryTilesPb,
     Player as PlayerPb,
     PlayerEvent as PlayerEventPb,
     Profile as ProfilePb,
     RenameRefusal,
     RosterEntry as RosterEntryPb,
-    Track as TrackPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
 import {
     ColoredProfile,
-    CountryTiles,
-    Fronts,
     NameColor,
+    Player,
     PlayerBackend,
     PlayerError,
     PlayerFailure,
-    PlayerInfo,
-    PlayerInfoBackend,
-    PlayerTitle,
+    PlayerReader,
     Presence,
     PresenceBackend,
     Profile,
     RenameTooSoonError,
     RosterEntry,
     RosterEvent,
-    TitleDashboard,
-    TitleTrack,
 } from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
-import {titleOf} from "./title.ts"
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
 
 export function newPlayerServiceClient(config: Config): PromiseClient<typeof PlayerService> {
@@ -61,7 +53,7 @@ const FAILURES: Partial<Record<Code, PlayerFailure>> = {
     [Code.FailedPrecondition]: "unnamed",
 }
 
-export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, PlayerInfoBackend {
+export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, PlayerReader {
     constructor(
         private readonly client: PromiseClient<typeof PlayerService>,
         private readonly session: SessionProvider,
@@ -85,33 +77,8 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
         return res.color
     }
 
-    public async titles(): Promise<TitleDashboard> {
-        const res = await this.authenticated((headers) =>
-            retrying(() => this.client.getTitles({}, {headers}), "GetTitles"))
-        return {
-            worn: titleOf(res.worn),
-            wearable: res.wearable.flatMap((title) => titleOf(title) ?? []),
-            tracks: res.tracks.map(trackOf),
-        }
-    }
-
-    public async fronts(): Promise<Fronts> {
-        const res = await this.authenticated((headers) =>
-            retrying(() => this.client.getFronts({}, {headers}), "GetFronts"))
-        return {playsFor: res.playsFor.map(countryTilesOf), playsAgainst: res.playsAgainst.map(countryTilesOf)}
-    }
-
-    public async wearTitle(id: string): Promise<PlayerTitle | undefined> {
-        const res = await this.authenticated((headers) => this.client.wearTitle({titleId: id}, {headers}))
-        return titleOf(res.worn)
-    }
-
     public heldSession(): string | undefined {
         return this.session.held()
-    }
-
-    public heldIdentity(): string | undefined {
-        return this.session.heldIdentity()
     }
 
     public async announce(presence: Presence): Promise<boolean> {
@@ -137,22 +104,14 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
             .catch((e) => console.error("Leave failed", e))
     }
 
-    public listenForRoster(
-        onEvent: (event: RosterEvent) => void,
-        onUnavailable: () => void,
-        onTitleEarned: (title: PlayerTitle) => void,
-    ): () => void {
+    public listenForRoster(onEvent: (event: RosterEvent) => void, onUnavailable: () => void): () => void {
         const client = this.client
-        const session = this.session
         let unavailable = false
         let stop = () => {}
         stop = openStream(
             async function* (signal) {
-                const token = session.heldIdentity()
-                const headers = new Headers()
-                if (token) headers.set(SESSION_HEADER, token)
                 try {
-                    yield* client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT, headers})
+                    yield* client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT})
                 } catch (e) {
                     if (e instanceof ConnectError && (e.code === Code.Unimplemented || e.code === Code.NotFound)) {
                         unavailable = true
@@ -165,11 +124,6 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
             },
             (event) => {
                 if (unavailable) return
-                if (event.event.case === "titleEarned") {
-                    const title = titleOf(event.event.value.title)
-                    if (title) onTitleEarned(title)
-                    return
-                }
                 const rosterEvent = rosterEventOf(event)
                 if (rosterEvent) onEvent(rosterEvent)
             },
@@ -178,10 +132,10 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
         return () => stop()
     }
 
-    public async playerInfo(accountId: string): Promise<PlayerInfo | undefined> {
+    public async player(accountId: string): Promise<Player | undefined> {
         try {
             const res = await retrying(() => this.client.getPlayer({accountId}), "GetPlayer")
-            return playerInfoOf(res.player)
+            return playerOf(res.player)
         } catch (e) {
             if (e instanceof ConnectError && e.code === Code.NotFound) return undefined
             throw e
@@ -229,8 +183,6 @@ function rosterEntryOf(entry: RosterEntryPb): RosterEntry {
         guest: entry.guest,
         admin: entry.admin,
         color: entry.color,
-        streak: entry.streak,
-        wornTitle: titleOf(entry.wornTitle),
     }
 }
 
@@ -247,35 +199,13 @@ function rosterEventOf(event: PlayerEventPb): RosterEvent | undefined {
     }
 }
 
-function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {
+function playerOf(player: PlayerPb | undefined): Player {
     const createdAt = Number(player?.createdAtUnixMs ?? 0)
     return {
         name: player?.name ?? "",
-        tilesTaken: Number(player?.stats?.tilesTaken ?? 0),
-        streakCurrent: player?.stats?.streakCurrent ?? 0,
-        streakBest: player?.stats?.streakBest ?? 0,
+        guest: player?.guest ?? false,
         createdAt: createdAt > 0 ? createdAt : undefined,
         admin: player?.admin ?? false,
         color: player?.color ?? NameColor.UNSPECIFIED,
-        titles: (player?.titles ?? []).flatMap((title) => titleOf(title) ?? []),
-        wornTitle: titleOf(player?.wornTitle),
-        playsFor: (player?.playsFor ?? []).map(countryTilesOf),
-        playsAgainst: (player?.playsAgainst ?? []).map(countryTilesOf),
-    }
-}
-
-function countryTilesOf(country: CountryTilesPb): CountryTiles {
-    return {countryCode: country.countryId, tiles: Number(country.tiles)}
-}
-
-function trackOf(track: TrackPb): TitleTrack {
-    return {
-        id: track.id,
-        name: track.name,
-        progress: Number(track.progress),
-        steps: track.steps.flatMap((step) => {
-            const title = titleOf(step.title)
-            return title ? [{title, threshold: Number(step.threshold), earned: step.earned}] : []
-        }),
     }
 }

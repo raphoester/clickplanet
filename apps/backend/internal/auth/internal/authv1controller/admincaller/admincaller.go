@@ -17,8 +17,6 @@ type Operators interface {
 	Operator(ctx context.Context, cookieHeader string) (*authv1.GetOperatorResponse, error)
 }
 
-// The operator the admin page's cookie names, for the calls only that session makes: the gate keeps a token out of
-// them, and the console listener, which has no cookie, is Unauthenticated.
 func AccountOf(ctx context.Context, operators Operators, header http.Header) (accounts.AccountID, error) {
 	operator, err := operators.Operator(ctx, header.Get("Cookie"))
 

@@ -25,8 +25,10 @@ var gameTags = []string{
 }
 
 const (
-	site  = "https://clickplanet.lol"
-	brand = " | CLICKPLANET"
+	site = "https://clickplanet.lol"
+	// ?s=yt is how the game counts the players that came from YouTube.
+	youtubeSite = site + "/?s=yt"
+	brand       = " | CLICKPLANET"
 )
 
 type Dice interface {
@@ -36,26 +38,45 @@ type Dice interface {
 
 type wording struct {
 	teaser string
-	call   CallToAction
+	// The name of its wording.
+	teaserName string
+	call       CallToAction
 }
 
 func wordingOf(clip Clip, dice Dice) wording {
-	return wording{teaser: clip.teasers[dice.IntN(len(clip.teasers))], call: callsToAction[dice.IntN(len(callsToAction))]}
+	teaser := dice.IntN(len(clip.teasers))
+	name := unnamedTeaser
+	if len(clip.teaserNames) == len(clip.teasers) {
+		name = clip.teaserNames[teaser]
+	}
+	return wording{teaser: clip.teasers[teaser], teaserName: name, call: callsToAction[dice.IntN(len(callsToAction))]}
 }
 
 type TikTokWords struct {
 	Caption string
 }
 
-// A teaser that says where it happens, a call with the site, the music's credit, then the tags.
+// A teaser that says where it happens, the players it names, a call with the site, the music's credit, then the tags.
 func (w wording) tiktok(clip Clip) TikTokWords {
-	lines := append([]string{w.teaser + brand}, w.callAndCredit(clip)...)
+	lines := append(append([]string{w.teaser + brand}, fightersLine(clip)...), w.callAndCredit(clip, site)...)
 	tags := append(tagsOf(clip), communityTagsOf(clip)...)
 	return TikTokWords{Caption: strings.Join(append(lines, hashtagged(tags)), "\n")}
 }
 
-func (w wording) callAndCredit(clip Clip) []string {
-	lines := []string{w.call.Words + " 👉 " + site}
+// A player searching their name finds the clip; none when it names nobody.
+func fightersLine(clip Clip) []string {
+	if len(clip.fighters) == 0 {
+		return nil
+	}
+	named := make([]string, 0, len(clip.fighters))
+	for _, fighter := range clip.fighters {
+		named = append(named, strings.TrimSpace(fighter.Name+" "+flagOf(fighter.Flag)))
+	}
+	return []string{"⚔️ Top fighters: " + strings.Join(named, ", ")}
+}
+
+func (w wording) callAndCredit(clip Clip, link string) []string {
+	lines := []string{w.call.Words + " 👉 " + link}
 	if clip.attribution != "" {
 		lines = append(lines, "🎵 "+clip.attribution)
 	}

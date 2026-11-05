@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/replay_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
@@ -41,6 +42,9 @@ func (h GetReplayHandler) GetReplay(
 	if errors.Is(err, replay_usecase.ErrInvalidWindow) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if errors.Is(err, replay_usecase.ErrBeforeReset) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -61,12 +65,12 @@ func (h GetReplayHandler) GetReplay(
 func eventOf(scene ledger.Scene) *planetv1.PlanetEvent {
 	switch {
 	case scene.Blast != nil:
-		return planetmessage.BombDropped(scene.Blast)
+		return planetmessage.BombDropped(scene.Blast, clicks.MapVersion{})
 	case scene.Spread != nil:
 		return planetmessage.TilesSpread(scene.Spread.Country, scene.Spread.Tile, scene.Spread.Tiles)
 	case scene.Enclosure != nil:
 		return planetmessage.TilesEnclosed(scene.Enclosure.Country, scene.Enclosure.Tile, nil, scene.Enclosure.Tiles, false)
 	default:
-		return planetmessage.TileUpdate(scene.Change.TileUpdate)
+		return planetmessage.TileUpdate(scene.Change.TileUpdate, clicks.MapVersion{})
 	}
 }

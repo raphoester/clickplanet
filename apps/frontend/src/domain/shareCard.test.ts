@@ -1,5 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {
+    breakHeadline,
     cardLayout,
     cardScale,
     cardSize,
@@ -25,7 +26,7 @@ const entry = (code: string, tiles: number): LeaderboardEntry => ({country: Coun
 
 describe("the share link", () => {
     it("points at the country the player is holding, by the code the atlas uses", () => {
-        expect(shareUrl("fr")).toBe("https://clickplanet.lol/?f=fr")
+        expect(shareUrl("fr")).toBe("https://clickplanet.lol/?f=fr&s=rc")
     })
 
     it("drops the scheme where it is drawn into the image for a person to read", () => {
@@ -34,6 +35,16 @@ describe("the share link", () => {
 
     it("names the file after the country, so a folder of them is readable", () => {
         expect(shareFileName("fr")).toBe("clickplanet-fr.png")
+    })
+})
+
+describe("the invite sent while the map is frozen", () => {
+    it("names the next season and the country", () => {
+        expect(breakHeadline(france, 1)).toBe("Season 1 starts on a blank map. Play for France on ClickPlanet!")
+    })
+
+    it("names the country alone when no season is planned", () => {
+        expect(breakHeadline(japan)).toBe("Play for Japan on ClickPlanet!")
     })
 })
 
@@ -81,17 +92,17 @@ describe("what the card says", () => {
 describe("the text that rides with the image", () => {
     it("carries the standing and the link", () => {
         expect(shareText({country: france, rank: 2, tiles: 9001}))
-            .toBe("France is #2 on ClickPlanet with 9,001 tiles. Come and take them. https://clickplanet.lol/?f=fr")
+            .toBe("France is #2 on ClickPlanet with 9,001 tiles. Come and take them. https://clickplanet.lol/?f=fr&s=rc")
     })
 
     it("invites rather than reports when there is no rank to quote", () => {
         expect(shareText({country: japan, rank: null, tiles: 0}))
-            .toBe("Japan holds nothing on ClickPlanet yet. Come and claim it. https://clickplanet.lol/?f=jp")
+            .toBe("Japan holds nothing on ClickPlanet yet. Come and claim it. https://clickplanet.lol/?f=jp&s=rc")
     })
 
     it("offers no tiles to take from a country ranked with none", () => {
         expect(shareText({country: france, rank: 2, tiles: 0}))
-            .toBe("France is #2 on ClickPlanet with no tiles. Come and claim it. https://clickplanet.lol/?f=fr")
+            .toBe("France is #2 on ClickPlanet with no tiles. Come and claim it. https://clickplanet.lol/?f=fr&s=rc")
     })
 })
 

@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import {Race} from "../backends/standings.ts"
 import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx"
 import {FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts"
+import {useBoardGuide} from "./boardGuideStore.ts"
+import {useRace} from "./standings/raceStore.ts"
 import {Countries} from "../domain/countries.ts"
 import {TileDelta, TileDeltas} from "../domain/tileDeltas.ts"
 
@@ -21,8 +23,12 @@ const headers = (...names: string[]) => {
     for (const name of names) expect(screen.getByRole("columnheader", {name})).toBeDefined()
 }
 
+beforeEach(() => useBoardGuide.setState({guided: true}))
+
 afterEach(() => {
     cleanup()
+    localStorage.clear()
+    useRace.setState({race: undefined, heard: undefined})
     vi.useRealTimers()
 })
 
@@ -215,20 +221,27 @@ describe("Leaderboard tile deltas", () => {
 describe("Leaderboard with the season's race", () => {
     const MAP = [entry("de", 500), entry("fr", 300), entry("es", 100)]
     const RACE: Race = {
-        round: {
-            number: 5,
-            endsAt: 0,
-            finale: false,
+        today: {
+            roundId: "season-0/day-5",
+            times: 1,
+            startedAt: 0,
+            endedAt: 0,
             standings: [
                 {rank: 1, countryCode: "de", share: 0.5, points: 25},
                 {rank: 2, countryCode: "fr", share: 0.3, points: 18},
             ],
+            takes: [],
+            players: [],
+            before: [],
+            after: [],
         },
         scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}],
     }
 
+    beforeEach(() => useRace.setState({race: RACE}))
+
     it("ranks by the season first: the points, with what each would score if the day ended now", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
         expect(leader()!.getAttribute("aria-label")).toBe("First: France")
         expect(within(leader()!).getByText("300 tiles")).toBeDefined()
@@ -241,23 +254,39 @@ describe("Leaderboard with the season's race", () => {
         ])
     })
 
+    it("heads the round in progress as the battle's, at its times, while a battle's round runs", () => {
+        const battle: Race = {...RACE, battle: {...RACE.today!, roundId: "entry-1", times: 3, standings: [
+            {rank: 1, countryCode: "de", share: 0.5, points: 75},
+            {rank: 2, countryCode: "fr", share: 0.3, points: 54},
+        ]}}
+        useRace.setState({race: battle})
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
+
+        headers("#", "Country", "Tiles", "% of map", "Points", "Battle ×3")
+        expect(screen.queryByRole("columnheader", {name: "Today"})).toBeNull()
+        expect(within(leader()!).getByText(/^43/).textContent).toBe("43+54 this battle")
+        expect(cells()[0]).toEqual(["2", "Germany", "500", "50.00", "0", "+75 this battle"])
+    })
+
     it("keeps the first country's share of the map beside its tiles", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
         expect(within(leader()!).getByText("30.00% of map")).toBeDefined()
     })
 
     it("says what the points mean the first time it shows them, once", () => {
-        const onGuided = vi.fn()
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} guided={false} onGuided={onGuided}/>)
+        useBoardGuide.setState({guided: false})
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
         expect(screen.getByRole("status").textContent).toBe(FIGURES.points)
-        expect(onGuided).toHaveBeenCalledOnce()
+        expect(useBoardGuide.getState().guided).toBe(true)
+        expect(localStorage.getItem("clickplanet-board-guide")).toBe("points")
     })
 
     it("lets the first word on the points stay long enough to read", () => {
         vi.useFakeTimers()
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} guided={false} onGuided={vi.fn()}/>)
+        useBoardGuide.setState({guided: false})
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
         act(() => vi.advanceTimersByTime(GUIDE_MS - 1))
         expect(screen.getByRole("status")).toBeDefined()
@@ -266,13 +295,13 @@ describe("Leaderboard with the season's race", () => {
     })
 
     it("says nothing on its own once the player was told", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} guided onGuided={vi.fn()}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
         expect(screen.queryByRole("status")).toBeNull()
     })
 
     it("leaves its order to the switch beside the heading", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
         expect(screen.queryByRole("group", {name: "Order"})).toBeNull()
     })
 
@@ -289,7 +318,7 @@ describe("Leaderboard with the season's race", () => {
     })
 
     it("ranks by the tiles held now when ordered by territory, the points still beside them", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} order="territory"/>)
+        render(<Leaderboard tilesCount={1000} data={MAP} order="territory"/>)
 
         expect(leader()!.getAttribute("aria-label")).toBe("First: Germany")
         expect(cells()).toEqual([

@@ -1,5 +1,6 @@
 import {ReactNode, useEffect, useId, useRef} from "react";
 import {BackIcon} from "./icons.tsx";
+import ScrollArea from "./ScrollArea.tsx";
 import {useEscape} from "./useDialog.ts";
 import "./MenuPanel.css"
 
@@ -31,8 +32,8 @@ export default function MenuPanel(props: MenuPanelProps) {
                 {props.title}
             </h2>
         </div>
-        <div className="menu-panel-body">
+        <ScrollArea className="menu-panel-body">
             {props.children}
-        </div>
+        </ScrollArea>
     </section>
 }

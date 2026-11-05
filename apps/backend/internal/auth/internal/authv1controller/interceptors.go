@@ -29,6 +29,7 @@ func NewRateLimitInterceptor(limiter MintLimiter) connect.Interceptor {
 		authv1connect.AuthServiceCompleteSignInProcedure,
 		authv1connect.AuthServiceStartEmailSignInProcedure,
 		authv1connect.AuthServiceCompleteEmailSignInProcedure,
+		authv1connect.AuthServiceCompleteCrazyGamesSignInProcedure,
 	)
 }
 

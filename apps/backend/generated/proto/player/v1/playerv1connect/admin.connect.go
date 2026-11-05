@@ -33,24 +33,33 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// AdminServiceReconcileTitlesProcedure is the fully-qualified name of the AdminService's
-	// ReconcileTitles RPC.
-	AdminServiceReconcileTitlesProcedure = "/player.v1.AdminService/ReconcileTitles"
-	// AdminServiceGetAuthorsProcedure is the fully-qualified name of the AdminService's GetAuthors RPC.
-	AdminServiceGetAuthorsProcedure = "/player.v1.AdminService/GetAuthors"
+	// AdminServiceGetPlayersProcedure is the fully-qualified name of the AdminService's GetPlayers RPC.
+	AdminServiceGetPlayersProcedure = "/player.v1.AdminService/GetPlayers"
 	// AdminServiceGetPlayerProcedure is the fully-qualified name of the AdminService's GetPlayer RPC.
 	AdminServiceGetPlayerProcedure = "/player.v1.AdminService/GetPlayer"
+	// AdminServiceGetRosterProcedure is the fully-qualified name of the AdminService's GetRoster RPC.
+	AdminServiceGetRosterProcedure = "/player.v1.AdminService/GetRoster"
+	// AdminServiceSearchPlayersProcedure is the fully-qualified name of the AdminService's
+	// SearchPlayers RPC.
+	AdminServiceSearchPlayersProcedure = "/player.v1.AdminService/SearchPlayers"
+	// AdminServiceRenamePlayerProcedure is the fully-qualified name of the AdminService's RenamePlayer
+	// RPC.
+	AdminServiceRenamePlayerProcedure = "/player.v1.AdminService/RenamePlayer"
 )
 
 // AdminServiceClient is a client for the player.v1.AdminService service.
 type AdminServiceClient interface {
-	// Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
-	// adds a title or changes a rule. A second run changes nothing.
-	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
-	// InternalService/GetAuthors, for the admin page naming a page of players.
-	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
-	// Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
+	// InternalService/GetPlayers, for the admin page naming a page of players.
+	GetPlayers(context.Context, *connect.Request[v1.GetPlayersRequest]) (*connect.Response[v1.GetPlayersResponse], error)
+	// Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
+	// fronts are progression.v1.AdminService/GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.AdminGetPlayerRequest]) (*connect.Response[v1.AdminGetPlayerResponse], error)
+	// PlayerService/GetRoster, for the admin page's home: who is playing now.
+	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
+	// Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
+	SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error)
+	// Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
+	RenamePlayer(context.Context, *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the player.v1.AdminService service. By default, it
@@ -64,22 +73,38 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 	baseURL = strings.TrimRight(baseURL, "/")
 	adminServiceMethods := v1.File_player_v1_admin_proto.Services().ByName("AdminService").Methods()
 	return &adminServiceClient{
-		reconcileTitles: connect.NewClient[v1.ReconcileTitlesRequest, v1.ReconcileTitlesResponse](
+		getPlayers: connect.NewClient[v1.GetPlayersRequest, v1.GetPlayersResponse](
 			httpClient,
-			baseURL+AdminServiceReconcileTitlesProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("ReconcileTitles")),
-			connect.WithClientOptions(opts...),
-		),
-		getAuthors: connect.NewClient[v1.GetAuthorsRequest, v1.GetAuthorsResponse](
-			httpClient,
-			baseURL+AdminServiceGetAuthorsProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("GetAuthors")),
+			baseURL+AdminServiceGetPlayersProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetPlayers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		getPlayer: connect.NewClient[v1.AdminGetPlayerRequest, v1.AdminGetPlayerResponse](
 			httpClient,
 			baseURL+AdminServiceGetPlayerProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetPlayer")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getRoster: connect.NewClient[v1.GetRosterRequest, v1.GetRosterResponse](
+			httpClient,
+			baseURL+AdminServiceGetRosterProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetRoster")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		searchPlayers: connect.NewClient[v1.SearchPlayersRequest, v1.SearchPlayersResponse](
+			httpClient,
+			baseURL+AdminServiceSearchPlayersProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("SearchPlayers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		renamePlayer: connect.NewClient[v1.RenamePlayerRequest, v1.RenamePlayerResponse](
+			httpClient,
+			baseURL+AdminServiceRenamePlayerProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("RenamePlayer")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -87,19 +112,16 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	reconcileTitles *connect.Client[v1.ReconcileTitlesRequest, v1.ReconcileTitlesResponse]
-	getAuthors      *connect.Client[v1.GetAuthorsRequest, v1.GetAuthorsResponse]
-	getPlayer       *connect.Client[v1.AdminGetPlayerRequest, v1.AdminGetPlayerResponse]
+	getPlayers    *connect.Client[v1.GetPlayersRequest, v1.GetPlayersResponse]
+	getPlayer     *connect.Client[v1.AdminGetPlayerRequest, v1.AdminGetPlayerResponse]
+	getRoster     *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
+	searchPlayers *connect.Client[v1.SearchPlayersRequest, v1.SearchPlayersResponse]
+	renamePlayer  *connect.Client[v1.RenamePlayerRequest, v1.RenamePlayerResponse]
 }
 
-// ReconcileTitles calls player.v1.AdminService.ReconcileTitles.
-func (c *adminServiceClient) ReconcileTitles(ctx context.Context, req *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error) {
-	return c.reconcileTitles.CallUnary(ctx, req)
-}
-
-// GetAuthors calls player.v1.AdminService.GetAuthors.
-func (c *adminServiceClient) GetAuthors(ctx context.Context, req *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error) {
-	return c.getAuthors.CallUnary(ctx, req)
+// GetPlayers calls player.v1.AdminService.GetPlayers.
+func (c *adminServiceClient) GetPlayers(ctx context.Context, req *connect.Request[v1.GetPlayersRequest]) (*connect.Response[v1.GetPlayersResponse], error) {
+	return c.getPlayers.CallUnary(ctx, req)
 }
 
 // GetPlayer calls player.v1.AdminService.GetPlayer.
@@ -107,15 +129,34 @@ func (c *adminServiceClient) GetPlayer(ctx context.Context, req *connect.Request
 	return c.getPlayer.CallUnary(ctx, req)
 }
 
+// GetRoster calls player.v1.AdminService.GetRoster.
+func (c *adminServiceClient) GetRoster(ctx context.Context, req *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error) {
+	return c.getRoster.CallUnary(ctx, req)
+}
+
+// SearchPlayers calls player.v1.AdminService.SearchPlayers.
+func (c *adminServiceClient) SearchPlayers(ctx context.Context, req *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error) {
+	return c.searchPlayers.CallUnary(ctx, req)
+}
+
+// RenamePlayer calls player.v1.AdminService.RenamePlayer.
+func (c *adminServiceClient) RenamePlayer(ctx context.Context, req *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error) {
+	return c.renamePlayer.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the player.v1.AdminService service.
 type AdminServiceHandler interface {
-	// Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
-	// adds a title or changes a rule. A second run changes nothing.
-	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
-	// InternalService/GetAuthors, for the admin page naming a page of players.
-	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
-	// Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
+	// InternalService/GetPlayers, for the admin page naming a page of players.
+	GetPlayers(context.Context, *connect.Request[v1.GetPlayersRequest]) (*connect.Response[v1.GetPlayersResponse], error)
+	// Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
+	// fronts are progression.v1.AdminService/GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.AdminGetPlayerRequest]) (*connect.Response[v1.AdminGetPlayerResponse], error)
+	// PlayerService/GetRoster, for the admin page's home: who is playing now.
+	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
+	// Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
+	SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error)
+	// Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
+	RenamePlayer(context.Context, *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -125,32 +166,52 @@ type AdminServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	adminServiceMethods := v1.File_player_v1_admin_proto.Services().ByName("AdminService").Methods()
-	adminServiceReconcileTitlesHandler := connect.NewUnaryHandler(
-		AdminServiceReconcileTitlesProcedure,
-		svc.ReconcileTitles,
-		connect.WithSchema(adminServiceMethods.ByName("ReconcileTitles")),
-		connect.WithHandlerOptions(opts...),
-	)
-	adminServiceGetAuthorsHandler := connect.NewUnaryHandler(
-		AdminServiceGetAuthorsProcedure,
-		svc.GetAuthors,
-		connect.WithSchema(adminServiceMethods.ByName("GetAuthors")),
+	adminServiceGetPlayersHandler := connect.NewUnaryHandler(
+		AdminServiceGetPlayersProcedure,
+		svc.GetPlayers,
+		connect.WithSchema(adminServiceMethods.ByName("GetPlayers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceGetPlayerHandler := connect.NewUnaryHandler(
 		AdminServiceGetPlayerProcedure,
 		svc.GetPlayer,
 		connect.WithSchema(adminServiceMethods.ByName("GetPlayer")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceGetRosterHandler := connect.NewUnaryHandler(
+		AdminServiceGetRosterProcedure,
+		svc.GetRoster,
+		connect.WithSchema(adminServiceMethods.ByName("GetRoster")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceSearchPlayersHandler := connect.NewUnaryHandler(
+		AdminServiceSearchPlayersProcedure,
+		svc.SearchPlayers,
+		connect.WithSchema(adminServiceMethods.ByName("SearchPlayers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceRenamePlayerHandler := connect.NewUnaryHandler(
+		AdminServiceRenamePlayerProcedure,
+		svc.RenamePlayer,
+		connect.WithSchema(adminServiceMethods.ByName("RenamePlayer")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/player.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case AdminServiceReconcileTitlesProcedure:
-			adminServiceReconcileTitlesHandler.ServeHTTP(w, r)
-		case AdminServiceGetAuthorsProcedure:
-			adminServiceGetAuthorsHandler.ServeHTTP(w, r)
+		case AdminServiceGetPlayersProcedure:
+			adminServiceGetPlayersHandler.ServeHTTP(w, r)
 		case AdminServiceGetPlayerProcedure:
 			adminServiceGetPlayerHandler.ServeHTTP(w, r)
+		case AdminServiceGetRosterProcedure:
+			adminServiceGetRosterHandler.ServeHTTP(w, r)
+		case AdminServiceSearchPlayersProcedure:
+			adminServiceSearchPlayersHandler.ServeHTTP(w, r)
+		case AdminServiceRenamePlayerProcedure:
+			adminServiceRenamePlayerHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -160,14 +221,22 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 // UnimplementedAdminServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAdminServiceHandler struct{}
 
-func (UnimplementedAdminServiceHandler) ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.ReconcileTitles is not implemented"))
-}
-
-func (UnimplementedAdminServiceHandler) GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.GetAuthors is not implemented"))
+func (UnimplementedAdminServiceHandler) GetPlayers(context.Context, *connect.Request[v1.GetPlayersRequest]) (*connect.Response[v1.GetPlayersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.GetPlayers is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) GetPlayer(context.Context, *connect.Request[v1.AdminGetPlayerRequest]) (*connect.Response[v1.AdminGetPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.GetPlayer is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.GetRoster is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.SearchPlayers is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) RenamePlayer(context.Context, *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.RenamePlayer is not implemented"))
 }

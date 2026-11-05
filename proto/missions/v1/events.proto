@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package missions.v1;
+
+message MissionsPaid {
+  string account_id = 1;
+  // How many missions the account was paid in all, these included: an event told twice or lost, the next one repairs.
+  uint64 paid_in_all = 2;
+}

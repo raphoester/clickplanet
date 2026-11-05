@@ -1,0 +1,579 @@
+.battle-chip,
+.battle-chip .season-chip-head,
+.battle-chip .season-chip-left,
+.battle-chip-left {
+    color: var(--war);
+}
+
+.battle-chip.panel {
+    overflow: hidden;
+    padding-top: calc(8px + var(--space-2));
+    box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 18px color-mix(in srgb, var(--war) 35%, transparent);
+    animation: battle-chip-live 2.4s ease-in-out infinite;
+}
+
+.battle-chip.panel::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: var(--tape);
+    border-bottom: var(--outline-thin) solid var(--ink);
+    pointer-events: none;
+}
+
+.season-chip--compact.battle-chip {
+    box-shadow: var(--drop-s), 0 0 14px color-mix(in srgb, var(--war) 45%, transparent);
+}
+
+.battle-facts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2) var(--space-1);
+}
+
+.season-details-facts .battle-facts {
+    padding: 0;
+}
+
+.battle-facts p {
+    margin: 0;
+}
+
+.battle-facts-text {
+    font-size: var(--text-s);
+    line-height: 1.38;
+    color: var(--text-soft);
+}
+
+.battle-facts-when {
+    font-weight: 600;
+    font-size: var(--text-s);
+    color: var(--text);
+}
+
+.battle-facts-season {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+}
+
+.battle-facts-left {
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--gold);
+    text-shadow: var(--text-drop);
+}
+
+.battle-reveal {
+    --metal: var(--war);
+}
+
+.battle-reveal .title-reveal-medal::before {
+    background: radial-gradient(circle, color-mix(in srgb, var(--war) 50%, transparent), transparent 65%);
+}
+
+.battle-reveal .title-reveal-rays {
+    background: repeating-conic-gradient(var(--war) 0deg 7deg, transparent 7deg 18deg);
+}
+
+.battle-reveal-disc {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--medal);
+    height: var(--medal);
+    box-sizing: border-box;
+    border: var(--outline) solid var(--ink);
+    border-radius: 50%;
+    color: var(--cream);
+    background: var(--war);
+    box-shadow: var(--drop-l), inset 0 0 0 10px var(--action), inset 0 0 0 13px var(--ink);
+    animation: title-reveal-spin-in 750ms cubic-bezier(0.3, 0.6, 0.4, 1) calc(var(--impact) - 600ms) both;
+}
+
+.battle-reveal-disc .swords-art {
+    width: 58%;
+    height: 58%;
+}
+
+.battle-reveal-text {
+    color: var(--text);
+}
+
+.battle-teaser {
+    --medal: min(170px, 22vh, 44vw);
+}
+
+.battle-teaser::after {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto;
+    height: 8px;
+    background: var(--tape);
+    pointer-events: none;
+}
+
+.battle-teaser-left {
+    margin-top: var(--space-4);
+    font-size: var(--display-m);
+    font-variant-numeric: tabular-nums;
+}
+
+.battle-teaser-words {
+    text-align: center;
+}
+
+/* The cards: a 3:4 portrait each, as tall as the screen leaves room for under the head and above the button. */
+.teaser-carousel {
+    --card: min(420px, 74vw, calc((100dvh - 360px) * 0.75));
+    position: relative;
+    z-index: 1;
+    display: grid;
+    justify-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    animation: title-reveal-rise 300ms ease-out calc(var(--impact) + 600ms) both;
+}
+
+.teaser-track {
+    width: max(var(--card), 180px);
+    overflow: hidden;
+    border: var(--outline) solid var(--ink);
+    border-radius: var(--radius-l);
+    box-shadow: var(--drop-l);
+    /* A sideways swipe is the carousel's, an upright one still scrolls the screen. */
+    touch-action: pan-y;
+    user-select: none;
+}
+
+.teaser-row {
+    display: flex;
+    transition: transform 350ms cubic-bezier(0.3, 1, 0.5, 1);
+}
+
+.teaser-row[data-dragging="true"] {
+    transition: none;
+}
+
+.teaser-card {
+    position: relative;
+    flex: 0 0 100%;
+    aspect-ratio: 3 / 4;
+    margin: 0;
+    overflow: hidden;
+    background: var(--panel-sunk);
+}
+
+.teaser-card img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    user-select: none;
+}
+
+/* The words on a band of shade along the top, as an App Store card's caption. */
+.teaser-card figcaption {
+    position: absolute;
+    inset: 0 0 auto;
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-4) var(--space-3) var(--space-6);
+    background: linear-gradient(color-mix(in srgb, var(--ink) 80%, transparent), transparent);
+    overflow-wrap: anywhere;
+}
+
+.teaser-card-headline {
+    font-family: var(--font-display);
+    font-size: var(--display-l);
+    font-weight: 400;
+    line-height: 1.05;
+    color: var(--text);
+    text-shadow: var(--text-outline);
+}
+
+.teaser-card-line {
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-m);
+    color: var(--text);
+}
+
+.teaser-arrow {
+    position: absolute;
+    top: calc(var(--card) * 2 / 3);
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: var(--secondary);
+    box-shadow: var(--drop-s);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.teaser-arrow--previous {
+    right: calc(50% + var(--card) / 2 + var(--space-3));
+}
+
+.teaser-arrow--previous svg {
+    transform: rotate(90deg);
+}
+
+.teaser-arrow--next {
+    left: calc(50% + var(--card) / 2 + var(--space-3));
+}
+
+.teaser-arrow--next svg {
+    transform: rotate(-90deg);
+}
+
+/* A phone swipes, and has no room beside the card. */
+@media (hover: none), (max-width: 480px) {
+    .teaser-arrow {
+        display: none;
+    }
+}
+
+/* A wide screen puts the words beside the cards, so the cards take the screen's height. */
+@media (min-width: 1024px) and (min-aspect-ratio: 5 / 4) {
+    .battle-teaser .title-reveal-stage {
+        display: grid;
+        grid-template-columns: auto minmax(0, 440px);
+        grid-template-rows: 1fr repeat(5, auto) 1fr;
+        justify-content: center;
+        justify-items: center;
+        column-gap: var(--space-5);
+        max-width: none;
+    }
+
+    .battle-teaser .title-reveal-stage > * {
+        grid-column: 2;
+    }
+
+    .battle-teaser .title-reveal-head {
+        grid-row: 2;
+        font-size: clamp(var(--display-l), 9vh, 80px);
+    }
+
+    .battle-teaser-left {
+        grid-row: 3;
+    }
+
+    .battle-teaser-when {
+        grid-row: 4;
+    }
+
+    .battle-teaser-words {
+        grid-row: 5;
+    }
+
+    .battle-teaser .title-reveal-actions {
+        grid-row: 6;
+    }
+
+    .battle-teaser .teaser-carousel {
+        --card: min(600px, calc((100dvh - 120px) * 0.75), calc(100vw - 640px));
+        grid-column: 1;
+        grid-row: 1 / -1;
+        align-self: center;
+        margin-top: 0;
+        padding-inline: calc(40px + var(--space-3) * 2);
+    }
+
+    .battle-teaser .teaser-card figcaption {
+        padding: var(--space-5) var(--space-5) var(--space-6);
+    }
+
+    .battle-teaser .teaser-card-headline {
+        font-size: max(var(--display-l), calc(var(--card) * 0.07));
+    }
+
+    .battle-teaser .teaser-card-line {
+        font-size: max(var(--text-m), calc(var(--card) * 0.034));
+    }
+}
+
+.teaser-dots {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.teaser-dot {
+    width: 12px;
+    height: 12px;
+    padding: 0;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: var(--text-faint);
+    cursor: pointer;
+}
+
+.teaser-dot[aria-current="true"] {
+    background: var(--war);
+}
+
+.battle-brief {
+    --row: 42px;
+}
+
+.battle-brief::after {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto;
+    height: 8px;
+    background: var(--tape);
+    pointer-events: none;
+}
+
+.battle-brief .title-reveal-rays {
+    background: repeating-conic-gradient(var(--war) 0deg 7deg, transparent 7deg 18deg);
+}
+
+.battle-brief-times {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-3) 0 0;
+    padding: var(--space-1) var(--space-3);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: var(--war);
+    box-shadow: var(--drop-xs);
+    font-family: var(--font-display);
+    font-size: var(--text-l);
+    color: var(--cream);
+    text-shadow: var(--text-outline);
+    animation: title-reveal-pop 380ms cubic-bezier(0.3, 1.6, 0.5, 1) 520ms both;
+}
+
+.battle-brief-times span {
+    padding-top: 2px;
+}
+
+.battle-brief-text {
+    max-width: 440px;
+    margin: var(--space-3) 0 0;
+    font-size: var(--text-m);
+    line-height: 1.38;
+    color: var(--text);
+    animation: title-reveal-rise 300ms ease-out 640ms both;
+}
+
+.battle-brief-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: min(440px, 100%);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+}
+
+.battle-brief-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    height: calc(var(--row) - 6px);
+    padding: 0 var(--space-3);
+    box-sizing: border-box;
+    overflow: hidden;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--panel-raised);
+    box-shadow: var(--drop-xs);
+    font-family: var(--font-text);
+    font-size: var(--text-m);
+    color: var(--text);
+    animation: round-reveal-enter 320ms ease-out calc(var(--enter) * 60ms) both;
+}
+
+.battle-brief-row::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: calc(var(--share, 0) * 100%);
+    background: color-mix(in srgb, var(--war) 45%, var(--panel-raised));
+    transform-origin: left;
+    animation: battle-brief-fill 700ms cubic-bezier(0.2, 0.8, 0.3, 1) calc(var(--enter) * 60ms + 200ms) both;
+}
+
+.battle-brief-row > * {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.battle-brief-row .country-flag {
+    margin: 0;
+}
+
+.battle-brief-row-mine {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px var(--gold), var(--drop-s);
+}
+
+.battle-brief-flag {
+    display: flex;
+}
+
+.battle-brief-name {
+    flex: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.battle-brief-player {
+    color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
+}
+
+.battle-brief-times-of {
+    font-size: var(--text-s);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.battle-brief-tiles {
+    font-family: var(--font-display);
+    font-size: var(--text-l);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.battle-over {
+    position: fixed;
+    top: calc(var(--status-bottom, 8px) + 8px);
+    left: 50%;
+    z-index: 150;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.battle-over--lowered {
+    top: calc(var(--status-bottom, 8px) + 212px);
+}
+
+.battle-over-line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    color: var(--war);
+    white-space: nowrap;
+    animation: battle-over 5s ease-out forwards;
+}
+
+.battle-over--awaiting .battle-over-line {
+    animation: battle-over-in 600ms ease-out both;
+}
+
+.battle-over-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.battle-over-line strong {
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-weight: normal;
+    font-size: var(--display-s);
+    color: var(--text);
+    text-shadow: var(--text-drop);
+}
+
+.battle-over-coming {
+    font-weight: 600;
+    font-size: var(--text-s);
+    color: var(--text-soft);
+    animation: battle-over-wait 1.6s ease-in-out infinite;
+}
+
+@keyframes battle-chip-live {
+    50% {
+        box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 30px color-mix(in srgb, var(--war) 60%, transparent);
+    }
+}
+
+@keyframes battle-brief-fill {
+    from { scale: 0 1; }
+}
+
+@keyframes battle-over-in {
+    0% {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.9);
+    }
+    60% {
+        opacity: 1;
+        transform: translateY(0) scale(1.04);
+    }
+    100% {
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes battle-over-wait {
+    50% {
+        opacity: 0.45;
+    }
+}
+
+@keyframes battle-over {
+    0% {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.9);
+    }
+    8% {
+        opacity: 1;
+        transform: translateY(0) scale(1.04);
+    }
+    14% {
+        transform: translateY(0) scale(1);
+    }
+    85% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .teaser-row {
+        transition: none;
+    }
+
+    .battle-chip.panel,
+    .battle-reveal-disc,
+    .battle-brief-row,
+    .battle-brief-row::before,
+    .battle-over-coming,
+    .battle-over--awaiting .battle-over-line {
+        animation: none;
+    }
+
+    .battle-brief-times,
+    .battle-brief-text,
+    .teaser-carousel {
+        animation: title-reveal-appear 300ms ease-out both;
+    }
+
+    .battle-over-line {
+        animation: battle-over 5s step-end forwards;
+    }
+}

@@ -45,7 +45,7 @@ func (p *fakePricer) Price(country string) clicks.Price {
 
 func onePrice() *fakePricer { return &fakePricer{price: clicks.Price{Slowdown: 1}} }
 
-var buckets = clicks.ThrottleConfig{}.Buckets()
+var buckets = clicks.NewBuckets(clicks.TestThrottle)
 
 type fakeClick struct {
 	err error

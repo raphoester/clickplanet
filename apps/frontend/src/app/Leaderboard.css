@@ -1,28 +1,12 @@
 .leaderboard {
-    position: relative;
     display: flex;
     flex-direction: column;
     min-height: 0;
     flex: 1 1 auto;
 }
 
-.leaderboard::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 36px;
-    pointer-events: none;
-    background: linear-gradient(180deg, transparent, var(--panel));
-}
-
 .leaderboard-table-container {
-    min-height: 0;
-    flex: 1 1 auto;
-    overflow-y: auto;
     margin-top: var(--space-2);
-    padding-bottom: 36px;
 }
 
 /* The gap under the line belongs to the head: on the first row it would widen the highlight. */
@@ -107,6 +91,13 @@
 
 .leaderboard-table-head .leaderboard-hint:hover {
     color: var(--text);
+}
+
+.leaderboard-battle {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    color: var(--war);
 }
 
 .leaderboard-today {
@@ -227,8 +218,8 @@
 
 .leaderboard-delta {
     position: absolute;
-    right: 0;
-    bottom: calc(100% - 7px);
+    left: calc(100% + 2px);
+    bottom: 7px;
     pointer-events: none;
     font-family: var(--font-text);
     font-weight: 700;
@@ -350,7 +341,6 @@
 }
 
 .leader-frame-tiles .leaderboard-delta {
-    right: auto;
     left: calc(100% + 4px);
     bottom: 2px;
 }
@@ -381,7 +371,7 @@
     text-shadow: none;
 }
 
-@media only screen and (max-width: 768px) {
+@media (max-width: 768px), (max-height: 600px) {
     .leaderboard-table {
         font-size: var(--display-s);
     }

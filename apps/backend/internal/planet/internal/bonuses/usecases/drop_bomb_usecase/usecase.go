@@ -12,7 +12,7 @@ import (
 var ErrNoBomb = errors.New("no bomb to drop")
 
 type Bombs interface {
-	SpendBomb(holder bonuses.Holder) bool
+	Spend(ctx context.Context, holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) error
 }
 
 type Map interface {
@@ -33,7 +33,7 @@ type In struct {
 	CountryID string
 }
 
-func New(bombs Bombs, geography Map, clearer Clearer, countries CountryChecker, rules bonuses.BombRules) *UseCase {
+func New(bombs Bombs, geography Map, clearer Clearer, countries CountryChecker, rules bonuses.Bombing) *UseCase {
 	return &UseCase{
 		bombs:     bombs,
 		geography: geography,
@@ -48,7 +48,7 @@ type UseCase struct {
 	geography Map
 	clearer   Clearer
 	countries CountryChecker
-	rules     bonuses.BombRules
+	rules     bonuses.Bombing
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (clicks.Blast, error) {
@@ -61,8 +61,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (clicks.Blast, error) {
 		return clicks.Blast{}, fmt.Errorf("%w: a target with no direction", clicks.ErrTileOutOfRange)
 	}
 
-	if !u.bombs.SpendBomb(bonuses.HolderOf(clicks.PayerOf(ctx))) {
-		return clicks.Blast{}, ErrNoBomb
+	if err := u.bombs.Spend(ctx, bonuses.HolderOf(clicks.PayerOf(ctx)), bonuses.Held.AfterBomb); err != nil {
+		if errors.Is(err, bonuses.ErrNotHeld) {
+			return clicks.Blast{}, ErrNoBomb
+		}
+		return clicks.Blast{}, err
 	}
 
 	blast, err := u.clearer.Clear(ctx, u.rules.Blast(in.CountryID, in.Target, tile, arc, u.geography))

@@ -35,7 +35,7 @@ func TestRunSuite(t *testing.T) {
 }
 
 type fakeAuthors struct {
-	named map[messages.AccountID]*playerv1.Author
+	named map[messages.AccountID]*playerv1.Player
 	asked [][]messages.AccountID
 	err   error
 }
@@ -43,13 +43,13 @@ type fakeAuthors struct {
 func (f *fakeAuthors) Authors(
 	_ context.Context,
 	accounts []messages.AccountID,
-) (map[messages.AccountID]*playerv1.Author, error) {
+) (map[messages.AccountID]*playerv1.Player, error) {
 	f.asked = append(f.asked, accounts)
 	if f.err != nil {
 		return nil, f.err
 	}
 
-	found := make(map[messages.AccountID]*playerv1.Author, len(accounts))
+	found := make(map[messages.AccountID]*playerv1.Player, len(accounts))
 	for _, account := range accounts {
 		if author, known := f.named[account]; known {
 			found[account] = author
@@ -100,7 +100,7 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
-	s.authors = &fakeAuthors{named: map[messages.AccountID]*playerv1.Author{
+	s.authors = &fakeAuthors{named: map[messages.AccountID]*playerv1.Player{
 		ada: {AccountId: ada.String(), Name: "Ada"},
 		bob: {AccountId: bob.String(), Name: "Bob"},
 	}}
@@ -111,7 +111,11 @@ func (s *testSuite) query() *history_query.PostgresQuery {
 }
 
 func (s *testSuite) history(viewer messages.AccountID) *chatv1.GetHistoryResponse {
-	answer, err := s.query().History(s.T().Context(), viewer)
+	return s.historyIn(viewer, messages.World)
+}
+
+func (s *testSuite) historyIn(viewer messages.AccountID, room messages.Room) *chatv1.GetHistoryResponse {
+	answer, err := s.query().History(s.T().Context(), viewer, room)
 	s.Require().NoError(err)
 	return answer
 }
@@ -134,7 +138,7 @@ func (s *testSuite) repliedAt(text string, account messages.AccountID, at time.T
 
 func (s *testSuite) legacy(name string, at time.Time) {
 	s.keep(messages.Snapshot{
-		ID: "legacy", SentAt: at, Author: messages.AuthorOf(name, true, 0, 0, messages.Title{}), Country: "fr", Text: "legacy",
+		ID: "legacy", SentAt: at, Author: messages.AuthorOf(name, true, 0), Country: "fr", Text: "legacy",
 	})
 }
 
@@ -156,7 +160,8 @@ func (s *testSuite) reacted(text string, reaction reactions.Reaction, reactor re
 }
 
 func (s *testSuite) announced(id announcements.AnnouncementID, kind announcements.Kind, at time.Time) {
-	s.Require().NoError(s.announcements.Append(s.T().Context(), announcements.NewAnnouncement(id, kind, at, json.RawMessage(`{"country":"fr","ground":"de","tile":42,"cleared":3}`))))
+	_, err := s.announcements.AppendOnce(s.T().Context(), announcements.NewAnnouncement(id, kind, at, json.RawMessage(`{"country":"fr","ground":"de","tile":42,"cleared":3}`)))
+	s.Require().NoError(err)
 }
 
 func texts(answer *chatv1.GetHistoryResponse) []string {
@@ -217,12 +222,8 @@ func (s *testSuite) TestAMessageCarriesWhatItsRowHolds() {
 }
 
 func (s *testSuite) TestEachMessageIsNamedByWhoItsAccountIsNow() {
-	title := &playerv1.Title{
-		Id: "settler", Name: "Settler", Rank: &playerv1.Rank{TrackId: "conquest", TrackName: "Conquest", Number: 1, Count: 5},
-	}
-	s.authors.named[ada] = &playerv1.Author{
-		AccountId: ada.String(), Name: "Ada Lovelace", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 12,
-		WornTitle: title,
+	s.authors.named[ada] = &playerv1.Player{
+		AccountId: ada.String(), Name: "Ada Lovelace", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
 	}
 	s.sent("one", 2*time.Hour)
 	s.sent("two", time.Hour)
@@ -232,8 +233,6 @@ func (s *testSuite) TestEachMessageIsNamedByWhoItsAccountIsNow() {
 		s.Equal("Ada Lovelace", message.GetAuthorName(), message.GetText())
 		s.True(message.GetAuthorAdmin(), message.GetText())
 		s.Equal(playerv1.NameColor_NAME_COLOR_TEAL, message.GetAuthorColor(), message.GetText())
-		s.Equal(uint32(12), message.GetAuthorStreak(), message.GetText())
-		s.True(proto.Equal(title, message.GetAuthorTitle()), message.GetText())
 	}
 }
 
@@ -256,8 +255,6 @@ func (s *testSuite) TestADeletedAccountIsNoLongerNamed() {
 	s.Empty(message.GetAuthorAccountId(), "nobody is there to open a card of, or to report")
 	s.False(message.GetAuthorAdmin())
 	s.Equal(playerv1.NameColor_NAME_COLOR_UNSPECIFIED, message.GetAuthorColor())
-	s.Zero(message.GetAuthorStreak())
-	s.Nil(message.GetAuthorTitle())
 	s.Equal("hello", message.GetText(), "what it said stays: a thread keeps its shape")
 }
 
@@ -273,8 +270,8 @@ func (s *testSuite) TestAMessageFromBeforeAccountsKeepsTheNameItCarries() {
 }
 
 func (s *testSuite) TestAReplyCarriesWhatTheMessageItRepliesToSaidAndWhoSaidIt() {
-	s.authors.named[bob] = &playerv1.Author{
-		AccountId: bob.String(), Name: "Bob", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 12,
+	s.authors.named[bob] = &playerv1.Player{
+		AccountId: bob.String(), Name: "Bob", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
 	}
 	s.sentAt("question", bob, now.Add(-2*time.Hour))
 	s.repliedAt("answer", ada, now.Add(-time.Hour), "question")
@@ -283,7 +280,8 @@ func (s *testSuite) TestAReplyCarriesWhatTheMessageItRepliesToSaidAndWhoSaidIt()
 
 	s.Nil(shown[0].GetReplyTo(), "a plain message quotes nothing")
 	s.True(proto.Equal(&chatv1.Quote{
-		MessageId: "question", AuthorName: "Bob", AuthorColor: playerv1.NameColor_NAME_COLOR_TEAL, Text: "question",
+		MessageId: "question", AuthorName: "Bob", AuthorColor: playerv1.NameColor_NAME_COLOR_TEAL,
+		Body: &chatv1.Quote_Text{Text: "question"},
 	}, shown[1].GetReplyTo()), "%v", shown[1].GetReplyTo())
 }
 
@@ -420,7 +418,7 @@ func (s *testSuite) TestACountNamesOnlyItsFirstReactors() {
 	for i := range reactors {
 		account := messages.AccountID{14: 1, 15: byte(i)}
 		name := fmt.Sprintf("Player%02d", i)
-		s.authors.named[account] = &playerv1.Author{AccountId: account.String(), Name: name}
+		s.authors.named[account] = &playerv1.Player{AccountId: account.String(), Name: name}
 		names = append(names, name)
 		s.reacted("hello", clown, reactions.ReactorOf(account), true, now.Add(time.Duration(i-reactors)*time.Second))
 	}
@@ -474,17 +472,17 @@ func (s *testSuite) TestAReactionTheProtoDoesNotNameIsAnError() {
 	s.sent("hello", time.Hour)
 	s.reacted("hello", reactions.Reaction(99), reactions.ReactorOf(ada), true, now)
 
-	_, err := s.query().History(s.T().Context(), ada)
+	_, err := s.query().History(s.T().Context(), ada, messages.World)
 
 	s.ErrorIs(err, history_query.ErrUnknownReaction)
 }
 
 func (s *testSuite) TestAnAnnouncementOfAKindNobodyKnowsIsAnError() {
-	_, err := s.db.ExecContext(s.T().Context(), `ALTER TYPE announcement_kind ADD VALUE IF NOT EXISTS 'meteor'`)
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `ALTER TYPE announcement_kind ADD VALUE IF NOT EXISTS 'meteor'`)
 	s.Require().NoError(err)
 	s.announced(latest, announcements.Kind("meteor"), now.Add(-time.Hour))
 
-	_, err = s.query().History(s.T().Context(), ada)
+	_, err = s.query().History(s.T().Context(), ada, messages.World)
 
 	s.ErrorIs(err, history_query.ErrUnknownKind)
 }
@@ -493,7 +491,7 @@ func (s *testSuite) TestAHistoryNobodyCanBeNamedInIsARefusal() {
 	s.sent("hello", time.Hour)
 	s.authors.err = errors.New("the player module is down")
 
-	_, err := s.query().History(s.T().Context(), ada)
+	_, err := s.query().History(s.T().Context(), ada, messages.World)
 
 	s.ErrorIs(err, s.authors.err, "a chat of anonymous messages is worse than none")
 }
@@ -504,7 +502,7 @@ func uuidOf(id announcements.AnnouncementID) string {
 
 func (s *testSuite) TestTheHistorySaysUntilWhenTheViewerSawTheChat() {
 	at := now.Add(-time.Minute).Add(123 * time.Millisecond)
-	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, at))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.World, at))
 
 	s.Equal(at.UnixMilli(), s.history(ada).GetSeenUntilUnixMs())
 	s.Zero(s.history(bob).GetSeenUntilUnixMs(), "an account with no mark has seen nothing")
@@ -512,15 +510,15 @@ func (s *testSuite) TestTheHistorySaysUntilWhenTheViewerSawTheChat() {
 
 func (s *testSuite) TestTheSeenMarkOnlyMovesForward() {
 	later := now.Add(-time.Minute)
-	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, later))
-	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, later.Add(-time.Hour)))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.World, later))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.World, later.Add(-time.Hour)))
 
 	s.Equal(later.UnixMilli(), s.history(ada).GetSeenUntilUnixMs())
 }
 
 func (s *testSuite) TestADeletedSeenMarkIsGoneAndOnlyThatOne() {
-	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, now))
-	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), bob, now))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.World, now))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), bob, messages.World, now))
 
 	s.Require().NoError(s.seen.DeleteSeen(s.T().Context(), ada))
 	s.Require().NoError(s.seen.DeleteSeen(s.T().Context(), ada), "deleting no mark is no error")
@@ -530,7 +528,7 @@ func (s *testSuite) TestADeletedSeenMarkIsGoneAndOnlyThatOne() {
 }
 
 func (s *testSuite) TestNoViewerHasSeenNothing() {
-	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, now))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.World, now))
 
 	s.Zero(s.history(messages.NoAccount).GetSeenUntilUnixMs())
 }
@@ -547,7 +545,7 @@ func (s *testSuite) TestARemovedMessageKeepsItsPlaceAndItsAuthorAndLosesItsTextA
 	s.Equal("insult", shown[0].GetId())
 	s.Equal("Bob", shown[0].GetAuthorName())
 	s.True(shown[0].GetRemoved())
-	s.Empty(shown[0].GetText(), "the text never leaves the server")
+	s.Nil(shown[0].GetBody(), "the text never leaves the server")
 	s.Empty(shown[0].GetReactions())
 	s.False(shown[1].GetRemoved())
 	s.Equal("last", shown[1].GetText())
@@ -564,4 +562,76 @@ func (s *testSuite) TestAReplyToARemovedMessageQuotesItWithNoText() {
 	s.Equal("Bob", quote.GetAuthorName())
 	s.True(quote.GetRemoved())
 	s.Empty(quote.GetText(), "nobody reads a removed message in a quote")
+}
+
+var dancing = messages.Gif{URL: "https://static.klipy.com/ii/935d7ab9/14/af/SE72470w.webp", Width: 220, Height: 124}
+
+func (s *testSuite) gifAt(id string, account messages.AccountID, at time.Time) {
+	s.keep(messages.Snapshot{ID: messages.MessageID(id), SentAt: at, Account: account, Country: "fr", Gif: dancing})
+}
+
+func (s *testSuite) TestAGifIsShownWithItsSizeAndAReplyQuotesIt() {
+	s.gifAt("dance", bob, now.Add(-2*time.Hour))
+	s.repliedAt("answer", ada, now.Add(-time.Hour), "dance")
+
+	shown := s.history(ada).GetMessages()
+
+	s.Require().Len(shown, 2)
+	gif := &chatv1.Gif{Url: dancing.URL, Width: 220, Height: 124}
+	s.True(proto.Equal(gif, shown[0].GetGif()), "%v", shown[0].GetGif())
+	s.Empty(shown[0].GetText())
+	s.Nil(shown[1].GetGif(), "a text has no GIF")
+	s.True(proto.Equal(gif, shown[1].GetReplyTo().GetGif()), "%v", shown[1].GetReplyTo())
+}
+
+func (s *testSuite) TestARemovedGifIsNotShownNorQuoted() {
+	s.gifAt("dance", bob, now.Add(-2*time.Hour))
+	s.repliedAt("answer", ada, now.Add(-time.Hour), "dance")
+	s.removed("dance")
+
+	shown := s.history(ada).GetMessages()
+
+	s.True(shown[0].GetRemoved())
+	s.Nil(shown[0].GetBody(), "the address never leaves the server")
+	s.Nil(shown[1].GetReplyTo().GetBody())
+}
+
+func (s *testSuite) TestAFlagsRoomHoldsWhatIsSaidThereAloneAndNoAnnouncement() {
+	s.sent("hello", 3*time.Hour)
+	s.keep(messages.Snapshot{
+		ID: "plan", SentAt: now.Add(-2 * time.Hour), Account: ada, Room: messages.FlagRoom("fr"), Country: "fr", Text: "plan",
+	})
+	s.keep(messages.Snapshot{
+		ID: "plan-de", SentAt: now.Add(-2 * time.Hour), Account: bob, Room: messages.FlagRoom("de"), Country: "de", Text: "plan-de",
+	})
+	s.announced(latest, announcements.KindBomb, now.Add(-time.Hour))
+
+	team := s.historyIn(ada, messages.FlagRoom("fr"))
+	s.Equal([]string{"plan"}, texts(team))
+	s.Empty(team.GetAnnouncements())
+
+	world := s.history(ada)
+	s.Equal([]string{"hello"}, texts(world))
+	s.Equal([]string{uuidOf(latest)}, ids(world))
+}
+
+func (s *testSuite) TestABusyChatDoesNotPushAFlagsRoomOutOfItsWindow() {
+	s.keep(messages.Snapshot{
+		ID: "plan", SentAt: now.Add(-5 * time.Hour), Account: ada, Room: messages.FlagRoom("fr"), Country: "fr", Text: "plan",
+	})
+	for i := range historySize + 1 {
+		s.sent(fmt.Sprintf("hello-%d", i), time.Duration(historySize+1-i)*time.Minute)
+	}
+
+	s.Equal([]string{"plan"}, texts(s.historyIn(ada, messages.FlagRoom("fr"))))
+	s.Len(s.history(ada).GetMessages(), historySize)
+}
+
+func (s *testSuite) TestEachRoomSaysUntilWhenTheViewerSawIt() {
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.World, now))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, messages.FlagRoom("fr"), now.Add(-time.Hour)))
+
+	s.Equal(now.UnixMilli(), s.history(ada).GetSeenUntilUnixMs())
+	s.Equal(now.Add(-time.Hour).UnixMilli(), s.historyIn(ada, messages.FlagRoom("fr")).GetSeenUntilUnixMs())
+	s.Zero(s.historyIn(ada, messages.FlagRoom("de")).GetSeenUntilUnixMs())
 }

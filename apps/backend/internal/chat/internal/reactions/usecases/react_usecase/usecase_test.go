@@ -69,6 +69,7 @@ var (
 	laugh  = reactions.Reaction(1)
 	now    = time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 	window = messages.NewWindow(1, 24*time.Hour)
+	flags  = messages.FakeFlags{ada: "fr", bob: "de"}
 )
 
 type testSuite struct {
@@ -85,20 +86,29 @@ func (s *testSuite) SetupTest() {
 	s.board = inmemory_reaction_storage.New()
 	s.publisher = &fakePublisher{}
 	s.authors = &fakeAuthors{named: map[messages.AccountID]messages.Author{
-		ada: messages.AuthorOf("Ada", false, 0, 0, messages.Title{}),
-		bob: messages.AuthorOf("Bob", false, 0, 0, messages.Title{}),
+		ada: messages.AuthorOf("Ada", false, 0),
+		bob: messages.AuthorOf("Bob", false, 0),
 	}}
 	s.sent("hello")
 }
 
 func (s *testSuite) sent(id messages.MessageID) {
+	s.sentIn(id, messages.World)
+}
+
+func (s *testSuite) sentIn(id messages.MessageID, room messages.Room) {
 	s.Require().NoError(s.messages.Append(context.Background(),
-		messages.NewRecord(messages.Restored(s.T(), messages.Snapshot{ID: id, SentAt: now.Add(-time.Hour)}), "", "", "")))
+		messages.NewRecord(s.message(id, room), "", "", "")))
+}
+
+func (s *testSuite) message(id messages.MessageID, room messages.Room) messages.Message {
+	return messages.Restored(s.T(), messages.Snapshot{ID: id, SentAt: now.Add(-time.Hour), Room: room})
 }
 
 func (s *testSuite) reactWith(board react_usecase.Board, in react_usecase.In) (react_usecase.Out, error) {
-	useCase := react_usecase.New(s.messages, board, s.publisher, s.authors, cptime.NewFixedClock(now), window)
-	return useCase.Execute(context.Background(), in)
+	clock := cptime.NewFixedClock(now)
+	shown := messages.NewShowing(s.messages, messages.NewRooms(flags), clock, window)
+	return react_usecase.New(shown, board, s.publisher, s.authors, clock).Execute(context.Background(), in)
 }
 
 func (s *testSuite) react(account messages.AccountID, reaction reactions.Reaction, on bool) []reactions.Count {
@@ -140,15 +150,16 @@ func (s *testSuite) TestEveryChangeIsPublishedAsTheWholeTallyForNobodyVersioned(
 	adaGave := []reactions.Reactor{reactions.ReactorOf(ada)}
 	bobGave := []reactions.Reactor{reactions.ReactorOf(bob)}
 
+	hello := s.message("hello", messages.World)
 	s.Equal([]feed.Update{
-		feed.ReactionsChanged(reactions.TallyFor("hello", []reactions.Count{
+		feed.ReactionsChanged(hello, reactions.TallyFor("hello", []reactions.Count{
 			reactions.CountOf(clown, 1, false, adaGave, []string{"Ada"}),
 		}, 1)),
-		feed.ReactionsChanged(reactions.TallyFor("hello", []reactions.Count{
+		feed.ReactionsChanged(hello, reactions.TallyFor("hello", []reactions.Count{
 			reactions.CountOf(clown, 1, false, adaGave, []string{"Ada"}),
 			reactions.CountOf(laugh, 1, false, bobGave, []string{"Bob"}),
 		}, 2)),
-		feed.ReactionsChanged(reactions.TallyFor("hello", []reactions.Count{
+		feed.ReactionsChanged(hello, reactions.TallyFor("hello", []reactions.Count{
 			reactions.CountOf(laugh, 1, false, bobGave, []string{"Bob"}),
 		}, 3)),
 	}, s.publisher.updates)
@@ -207,7 +218,7 @@ func (s *testSuite) TestEveryoneUnderAMessageIsNamedInOneAsk() {
 func (s *testSuite) TestARenameShowsUnderEveryReactionItsPlayerEverGave() {
 	s.react(ada, clown, true)
 	s.react(ada, laugh, true)
-	s.authors.named[ada] = messages.AuthorOf("Ada Lovelace", false, 0, 0, messages.Title{})
+	s.authors.named[ada] = messages.AuthorOf("Ada Lovelace", false, 0)
 
 	counts := s.react(bob, clown, true)
 
@@ -230,4 +241,19 @@ func (s *testSuite) TestAReactionNobodyCanBeNamedUnderIsARefusal() {
 	_, err := s.reactWith(s.board, react_usecase.In{Account: ada, MessageID: "hello", Reaction: clown, On: true})
 
 	s.Require().Error(err)
+}
+
+func (s *testSuite) TestOnlyTheAccountsThatPlayForAFlagReactInItsRoom() {
+	s.sentIn("plan", messages.FlagRoom("fr"))
+
+	_, err := s.reactWith(s.board, react_usecase.In{Account: bob, MessageID: "plan", Reaction: clown, On: true})
+	s.Require().ErrorIs(err, messages.ErrNotInRoom)
+	s.Empty(s.publisher.updates)
+
+	out, err := s.reactWith(s.board, react_usecase.In{Account: ada, MessageID: "plan", Reaction: clown, On: true})
+	s.Require().NoError(err)
+	s.Equal(1, out.Counts[0].Total())
+	s.Require().Len(s.publisher.updates, 1)
+	s.True(s.publisher.updates[0].For(messages.FlagRoom("fr")), "the tally goes to the room of the message")
+	s.False(s.publisher.updates[0].For(messages.World))
 }

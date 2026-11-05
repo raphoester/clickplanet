@@ -236,7 +236,8 @@ func TestBombingsSpanChunks(t *testing.T) {
 
 type unwritable struct{}
 
-func (unwritable) Replay(func(ledger.Taking)) {}
+func (unwritable) Replay(func(ledger.Taking))  {}
+func (unwritable) Strikes(func(ledger.Strike)) {}
 
 func (unwritable) Show(func(ledger.Scene)) {}
 

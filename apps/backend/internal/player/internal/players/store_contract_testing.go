@@ -27,22 +27,9 @@ func contractProfile(account byte, name Name) Profile {
 	return NewProfile(AccountID{15: account}, name, contractAt)
 }
 
-func (s *StoreContractSuite) recordTake(account byte, at time.Time) {
-	s.Require().NoError(s.store.RecordTake(s.T().Context(), AccountID{15: account}, at))
-}
-
-func (s *StoreContractSuite) stats(account byte) Stats {
-	stats, err := s.store.Stats(s.T().Context(), AccountID{15: account})
-	s.Require().NoError(err)
-	return stats
-}
-
-func (s *StoreContractSuite) TestAnUnknownAccountHasNoProfileAndNoStats() {
+func (s *StoreContractSuite) TestAnUnknownAccountHasNoProfile() {
 	_, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().ErrorIs(err, ErrNoProfile)
-
-	_, err = s.store.Stats(s.T().Context(), AccountID{15: 1})
-	s.Require().ErrorIs(err, ErrNoStats)
 }
 
 func (s *StoreContractSuite) TestACreatedProfileReadsBack() {
@@ -126,66 +113,21 @@ func (s *StoreContractSuite) TestAnAdminIsReadAndARenameKeepsIt() {
 	s.Equal(Name("Ada_L"), profile.TakeSnapshot().Name)
 }
 
-func (s *StoreContractSuite) TestEachTakeIsCountedByTheDomainsRule() {
-	s.recordTake(1, contractAt)
-	s.recordTake(1, contractAt.Add(time.Minute))
-	s.recordTake(1, contractAt.Add(time.Hour))
-
-	want := NewStats(AccountID{15: 1}).WithTake(contractAt).WithTake(contractAt.Add(time.Minute)).WithTake(contractAt.Add(time.Hour))
-	s.Equal(want, s.stats(1))
-	s.Equal(uint32(2), s.stats(1).Streak().Days(), "the third take is past UTC midnight")
-}
-
-func (s *StoreContractSuite) TestTakesOfOneAccountDoNotCountOnAnother() {
-	s.recordTake(1, contractAt)
-	s.recordTake(2, contractAt)
-	s.recordTake(2, contractAt)
-
-	s.Equal(uint64(1), s.stats(1).TilesTaken())
-	s.Equal(uint64(2), s.stats(2).TilesTaken())
-}
-
-func (s *StoreContractSuite) TestEachMessageIsCountedAndStartsNoStreak() {
-	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
-	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
-
-	s.Equal(NewStats(AccountID{15: 1}).WithMessage().WithMessage(), s.stats(1))
-}
-
-func (s *StoreContractSuite) TestMessagesAndTakesAddUpOnOneAccount() {
-	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
-	s.recordTake(1, contractAt)
-	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
-	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 2}))
-
-	s.Equal(NewStats(AccountID{15: 1}).WithMessage().WithTake(contractAt).WithMessage(), s.stats(1))
-	s.Equal(uint64(1), s.stats(2).MessagesSent())
-}
-
-func (s *StoreContractSuite) TestADeletedAccountLosesBothAndTheOthersKeepTheirs() {
+func (s *StoreContractSuite) TestADeletedAccountLosesItsProfileAndTheOthersKeepTheirs() {
 	for account := range byte(2) {
 		s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(account+1, []Name{"Ada", "Bob"}[account])))
-		s.recordTake(account+1, contractAt)
 	}
 
 	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}))
 
 	_, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().ErrorIs(err, ErrNoProfile)
-	_, err = s.store.Stats(s.T().Context(), AccountID{15: 1})
-	s.Require().ErrorIs(err, ErrNoStats)
-	s.Equal(uint64(1), s.stats(2).TilesTaken())
+	_, err = s.store.Profile(s.T().Context(), AccountID{15: 2})
+	s.Require().NoError(err)
 }
 
 func (s *StoreContractSuite) TestDeletingAnUnknownAccountIsNotAnError() {
 	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 9}))
-}
-
-func (s *StoreContractSuite) TestAnAccountWithStatsOnlyHasNoProfile() {
-	s.recordTake(1, contractAt)
-
-	_, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
-	s.Require().ErrorIs(err, ErrNoProfile)
 }
 
 func (s *StoreContractSuite) TestANameAnotherAccountHoldsIsTakenIgnoringCase() {
@@ -213,28 +155,6 @@ func (s *StoreContractSuite) TestARenameFreesTheOldName() {
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Bob")))
 
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "ada")))
-}
-
-func (s *StoreContractSuite) TestStatsArePagedInAccountOrderAfterTheCursor() {
-	for _, account := range []byte{3, 1, 4, 2} {
-		s.recordTake(account, contractAt)
-	}
-
-	first, err := s.store.StatsAfter(s.T().Context(), AccountID{}, 3)
-	s.Require().NoError(err)
-	rest, err := s.store.StatsAfter(s.T().Context(), first[len(first)-1].Account(), 3)
-	s.Require().NoError(err)
-
-	accountsOf := func(page []Stats) []AccountID {
-		accounts := make([]AccountID, 0, len(page))
-		for _, stats := range page {
-			accounts = append(accounts, stats.Account())
-		}
-		return accounts
-	}
-	s.Equal([]AccountID{{15: 1}, {15: 2}, {15: 3}}, accountsOf(first))
-	s.Equal([]AccountID{{15: 4}}, accountsOf(rest))
-	s.Equal(s.stats(4), rest[0])
 }
 
 func (s *StoreContractSuite) TestAnAccountNeverGivenACodeHasNone() {

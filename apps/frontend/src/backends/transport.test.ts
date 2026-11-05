@@ -4,8 +4,8 @@ import {createConnectTransport} from "@connectrpc/connect-web"
 import {Message} from "@bufbuild/protobuf"
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts"
 import {ClickResponse} from "../gen/grpc/planet/v1/planet_pb.ts"
-import {SeasonService} from "../gen/grpc/seasons/v1/seasons_connect.ts"
-import {GetSeasonResponse} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {ScoringService} from "../gen/grpc/scoring/v1/scoring_connect.ts"
+import {GetScoresResponse} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {openStream, retrying, retryingAtOnce, SILENCE_LIMIT_MS, Wakeups} from "./transport.ts"
 
 type Opened<T> = {
@@ -134,6 +134,79 @@ describe("openStream", () => {
         await vi.advanceTimersByTimeAsync(500)
 
         expect(source.opened).toHaveLength(2)
+    })
+
+    it("stops for good on a refusal it is told to stop on, and says so once", async () => {
+        const source = fakeSource<string>()
+        const {wakeups, wake} = fakeWakeups()
+        const onStopped = vi.fn()
+        openStream(source.open, () => {}, "test", {
+            wakeups,
+            stopsOn: (e) => e instanceof ConnectError && e.code === Code.FailedPrecondition,
+            onStopped,
+        })
+        await settle()
+
+        source.latest().fail(new ConnectError("not in this room", Code.FailedPrecondition))
+        await vi.advanceTimersByTimeAsync(SILENCE_LIMIT_MS * 10)
+        wake()
+        await settle()
+
+        expect(source.opened).toHaveLength(1)
+        expect(source.opened[0].signal.aborted).toBe(true)
+        expect(onStopped).toHaveBeenCalledOnce()
+    })
+
+    it("still reopens after a failure it is not told to stop on", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+
+        const source = fakeSource<string>()
+        const onStopped = vi.fn()
+        openStream(source.open, () => {}, "test", {
+            stopsOn: (e) => e instanceof ConnectError && e.code === Code.FailedPrecondition,
+            onStopped,
+        })
+        await settle()
+
+        source.latest().fail(new ConnectError("connection reset", Code.Unavailable))
+        await vi.advanceTimersByTimeAsync(500)
+
+        expect(source.opened).toHaveLength(2)
+        expect(onStopped).not.toHaveBeenCalled()
+    })
+
+    it("aborts a stream that failed, so its fetch does not stay open", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+
+        const source = fakeSource<string>()
+        openStream(source.open, () => {}, "test")
+        await settle()
+
+        source.latest().fail(new Error("protocol error"))
+        await settle()
+
+        expect(source.opened[0].signal.aborted).toBe(true)
+    })
+
+    it("drops a message it cannot handle and keeps the stream", async () => {
+        const errors = vi.spyOn(console, "error").mockImplementation(() => {})
+
+        const source = fakeSource<string>()
+        const received: string[] = []
+        openStream(source.open, m => {
+            if (m === "unknown kind") throw new Error("the turn has a kind this build does not know: 3")
+            received.push(m)
+        }, "test")
+        await settle()
+
+        source.latest().push("unknown kind")
+        source.latest().push("heartbeat")
+        await vi.advanceTimersByTimeAsync(30_000)
+
+        expect(received).toEqual(["heartbeat"])
+        expect(source.opened).toHaveLength(1)
+        expect(source.latest().signal.aborted).toBe(false)
+        expect(errors).toHaveBeenCalledOnce()
     })
 
     it("backs off exponentially while the backend stays down", async () => {
@@ -505,7 +578,7 @@ const answer = (message: Message): Reply => async () => new Response(message.toB
     headers: {"content-type": "application/proto"},
 })
 
-const season = answer(new GetSeasonResponse())
+const scores = answer(new GetScoresResponse())
 
 const clicked = answer(new ClickResponse())
 
@@ -526,7 +599,7 @@ function network(...replies: Reply[]) {
     })
 
     return {
-        seasons: createPromiseClient(SeasonService, transport),
+        scoring: createPromiseClient(ScoringService, transport),
         clicks: createPromiseClient(ClickService, transport),
         sent,
     }
@@ -540,30 +613,30 @@ describe("retrying over connect-web", () => {
     afterEach(() => vi.restoreAllMocks())
 
     it("retries a read whose fetch failed", async () => {
-        const {seasons, sent} = network(failedFetch, season)
+        const {scoring, sent} = network(failedFetch, scores)
 
-        await expect(retrying(() => seasons.getSeason({}), "GetSeason")).resolves.toBeInstanceOf(GetSeasonResponse)
+        await expect(retrying(() => scoring.getScores({}), "GetScores")).resolves.toBeInstanceOf(GetScoresResponse)
         expect(sent).toHaveLength(2)
     })
 
     it("retries a read that timed out", async () => {
-        const {seasons, sent} = network(noAnswer, season)
+        const {scoring, sent} = network(noAnswer, scores)
 
-        await expect(retrying(() => seasons.getSeason({}), "GetSeason")).resolves.toBeInstanceOf(GetSeasonResponse)
+        await expect(retrying(() => scoring.getScores({}), "GetScores")).resolves.toBeInstanceOf(GetScoresResponse)
         expect(sent).toHaveLength(2)
     })
 
     it.each([502, 503, 504])("retries a read the gateway answered %i", async (status) => {
-        const {seasons, sent} = network(gateway(status), season)
+        const {scoring, sent} = network(gateway(status), scores)
 
-        await expect(retrying(() => seasons.getSeason({}), "GetSeason")).resolves.toBeInstanceOf(GetSeasonResponse)
+        await expect(retrying(() => scoring.getScores({}), "GetScores")).resolves.toBeInstanceOf(GetScoresResponse)
         expect(sent).toHaveLength(2)
     })
 
     it("never retries a read the server refused", async () => {
-        const {seasons, sent} = network(refusal("resource_exhausted"), season)
+        const {scoring, sent} = network(refusal("resource_exhausted"), scores)
 
-        await expect(retrying(() => seasons.getSeason({}), "GetSeason"))
+        await expect(retrying(() => scoring.getScores({}), "GetScores"))
             .rejects.toMatchObject({code: Code.ResourceExhausted})
         expect(sent).toHaveLength(1)
     })

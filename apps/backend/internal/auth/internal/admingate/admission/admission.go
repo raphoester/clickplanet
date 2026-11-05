@@ -3,7 +3,9 @@ package admission
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
+	"strings"
 )
 
 var (
@@ -16,11 +18,9 @@ var (
 
 type Operator string
 
-// What a call carries to say who makes it: the admin page's cookie, or the access token of an app it connected.
 type Visit struct {
-	Origin string
-	Cookie string
-	// The access token after "Bearer ", empty with none.
+	Origin    string
+	Cookie    string
 	Token     string
 	Procedure string
 }
@@ -33,12 +33,11 @@ func NewPage(origin string, signIn ...string) Page {
 type Page struct {
 	origin      string
 	signIn      []string
-	sessionOnly []string
+	sessionOnly string
 }
 
-// The calls only the page's session makes, beside its sign-in: an app cannot let another app in.
-func (p Page) WithSessionOnly(procedures ...string) Page {
-	p.sessionOnly = slices.Concat(p.sessionOnly, procedures)
+func (p Page) WithSessionOnly(service string) Page {
+	p.sessionOnly = service
 	return p
 }
 
@@ -54,14 +53,12 @@ func (p Page) OriginError(origin string) error {
 }
 
 func (p Page) TokenError(procedure string) error {
-	if p.SignIn(procedure) || slices.Contains(p.sessionOnly, procedure) {
+	if p.SignIn(procedure) || (p.sessionOnly != "" && strings.HasPrefix(procedure, p.sessionOnly)) {
 		return fmt.Errorf("%w: %s", ErrSessionOnly, procedure)
 	}
 	return nil
 }
 
-// Who a call was let through as: an operator, and the app it connected when the call came with a token. Nobody for
-// the sign-in calls, which are made before a session exists.
 type Caller struct {
 	operator Operator
 	client   string
@@ -75,11 +72,6 @@ func ConnectionOf(operator Operator, client string) Caller {
 	return Caller{operator: operator, client: client}
 }
 
-func (c Caller) Operator() Operator {
-	return c.operator
-}
-
-// The name the app gave itself when it registered; empty for the admin page's own session.
-func (c Caller) Client() string {
-	return c.client
+func (c Caller) LogValue() slog.Value {
+	return slog.GroupValue(slog.String("operator", string(c.operator)), slog.String("client", c.client))
 }

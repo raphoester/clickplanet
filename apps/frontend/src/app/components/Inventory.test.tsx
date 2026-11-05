@@ -4,14 +4,19 @@ import {act, cleanup, fireEvent, render, screen} from '@testing-library/react'
 import Inventory, {InventoryProps, NOT_ENCLOSED_MS, NOTICE_MS} from './Inventory.tsx'
 import {BUBBLE_MS} from './Bubble.tsx'
 import {ALL_OFF, NO_CHARGES} from "../../domain/bonus.ts"
-import {BonusGuide, LEARNING_USES} from "../../domain/bonusGuide.ts"
+import {BonusGuide, FRESH_GUIDE, LEARNING_USES} from "../../domain/bonusGuide.ts"
+import {useBonusGuide} from "./bonusGuideStore.ts"
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    useBonusGuide.setState({guide: FRESH_GUIDE})
+})
 beforeEach(() => window.localStorage.clear())
 
-const rules = {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: []}
+const rules = {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [], signInRefill: false}
 
-function inventory(props: Partial<InventoryProps> = {}) {
+function inventory({guide = FRESH_GUIDE, ...props}: Partial<InventoryProps> & {guide?: BonusGuide} = {}) {
+    act(() => useBonusGuide.setState({guide}))
     return <Inventory charges={NO_CHARGES}
                       rules={rules}
                       switches={ALL_OFF}
@@ -175,18 +180,17 @@ describe("Inventory", () => {
     it("says how a bonus works as it is switched on, for its first uses only", () => {
         vi.useFakeTimers()
         try {
-            const used = vi.fn()
             const charges = {...NO_CHARGES, enclosures: 2}
-            const {rerender} = render(inventory({charges, onUsed: used}))
+            const {rerender} = render(inventory({charges}))
 
             fireEvent.click(slot(/^Enclose/))
             expect(bubble()).toBe("Tap your tiles in a ring. The inside becomes yours, up to 25 tiles")
-            expect(used).toHaveBeenCalledWith("encloseClicks")
+            expect(useBonusGuide.getState().guide.uses).toEqual({encloseClicks: 1})
 
             act(() => void vi.advanceTimersByTime(BUBBLE_MS))
             expect(bubble()).toBeUndefined()
 
-            rerender(inventory({charges, onUsed: used, guide: learned}))
+            rerender(inventory({charges, guide: learned}))
             fireEvent.click(slot(/^Enclose/))
             expect(bubble()).toBeUndefined()
         } finally {
@@ -195,14 +199,13 @@ describe("Inventory", () => {
     })
 
     it("says nothing and counts no use when a switch goes off", () => {
-        const used = vi.fn()
         const charges = {...NO_CHARGES, spreadClicksLeft: 3}
-        render(inventory({charges, onUsed: used, switches: {...ALL_OFF, spread: true}}))
+        render(inventory({charges, switches: {...ALL_OFF, spread: true}}))
 
         fireEvent.click(slot(/^Spread/))
 
         expect(bubble()).toBeUndefined()
-        expect(used).not.toHaveBeenCalled()
+        expect(useBonusGuide.getState().guide).toEqual(FRESH_GUIDE)
     })
 
     it("says what a slot does while a mouse rests on it, and not on a touch", () => {

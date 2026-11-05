@@ -54,6 +54,6 @@ func TestAnAdmittedCallIsNotLoggedHere(t *testing.T) {
 	caller, err := useCase.Execute(t.Context(), admission.Visit{Origin: "https://backoffice.clickplanet.lol"})
 
 	require.NoError(t, err)
-	assert.Equal(t, admission.Operator("the operator"), caller.Operator())
+	assert.Equal(t, admission.SessionOf("the operator"), caller)
 	assert.Empty(t, logs.String(), "the call log names it, once the call is done")
 }

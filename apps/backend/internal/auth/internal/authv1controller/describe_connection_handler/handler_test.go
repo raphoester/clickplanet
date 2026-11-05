@@ -27,7 +27,10 @@ func (stub) Execute(_ context.Context, sealed string) (describe_connection_useca
 	case "broken":
 		return describe_connection_usecase.Out{}, errors.New("on fire")
 	}
-	return describe_connection_usecase.Out{Client: "Claude", RedirectHost: "claude.ai", DeniedURL: "https://claude.ai/cb?error=access_denied"}, nil
+	return describe_connection_usecase.Out{
+		Request:   connections.RequestSnapshot{Client: "Claude", RedirectURI: "https://claude.ai/cb"},
+		DeniedURL: "https://claude.ai/cb?error=access_denied",
+	}, nil
 }
 
 func describe(t *testing.T, request string) (*connect.Response[authv1.DescribeConnectionResponse], error) {

@@ -1,0 +1,477 @@
+/* A signed-in player's own card takes most of the screen: the hero across the top, the medals, tracks and
+   fronts on the left, the account in a narrow column on the right. A guest's is the sign-in, at a modal's width. */
+.modal-content.profile-modal {
+    width: calc(100vw - 64px);
+    max-width: 1200px;
+}
+
+.modal-content.profile-modal--guest {
+    max-width: 440px;
+}
+
+.profile-modal-name {
+    overflow-wrap: anywhere;
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--display-xl);
+    color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
+}
+
+.profile {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+
+/* The hero: the worn medal large, what it is, the flag played for, and the stats. */
+.profile-hero {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    padding: var(--space-4) var(--space-5);
+}
+
+.profile-hero-medal {
+    display: flex;
+    flex-shrink: 0;
+}
+
+.profile-hero-who {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.profile-hero-title {
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-size: var(--display-xl);
+    line-height: 1;
+    color: var(--gold);
+    text-shadow: var(--text-drop);
+}
+
+.profile-hero-rank {
+    font-weight: 600;
+    font-size: var(--text-m);
+    color: var(--text-soft);
+}
+
+.profile-hero-country {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    font-weight: 600;
+    font-size: var(--text-l);
+    color: var(--text-soft);
+}
+
+.profile-stats {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(112px, max-content);
+    gap: var(--space-2);
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.profile-stat {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    background: var(--panel);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-m);
+    text-align: center;
+}
+
+.profile-stat dt {
+    font-weight: 600;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.profile-stat dd {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-size: var(--display-l);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    text-shadow: var(--text-drop);
+    white-space: nowrap;
+}
+
+.profile-stat-flame {
+    margin-top: -4px;
+}
+
+.profile-stat-flame--faded {
+    opacity: 0.55;
+}
+
+.profile-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    align-items: start;
+    gap: var(--space-5);
+}
+
+.profile-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    min-width: 0;
+}
+
+.profile-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.profile-section-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+}
+
+.profile-section-title,
+.profile-front-title {
+    margin: 0;
+    text-align: left;
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-weight: normal;
+    font-size: var(--display-l);
+    line-height: 1;
+    color: var(--gold);
+    text-shadow: var(--text-drop);
+}
+
+.profile-front-title {
+    flex: 1;
+    font-size: var(--display-m);
+}
+
+/* The medals earned, large: a press wears one. */
+.profile-medals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.profile-medal {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    width: 124px;
+    padding: var(--space-4) var(--space-2) var(--space-3);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.profile-medal[aria-checked="true"] {
+    box-shadow: inset 0 0 0 var(--outline) var(--gold);
+}
+
+.profile-medal:disabled {
+    cursor: default;
+}
+
+.profile-medal-name {
+    padding-top: 2px;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    line-height: 1;
+}
+
+.profile-medal[aria-checked="true"] .profile-medal-name {
+    color: var(--gold);
+}
+
+.profile-medal-worn {
+    position: absolute;
+    top: -10px;
+    background: var(--gold);
+    color: var(--gold-ink);
+}
+
+/* The tracks as a list on the left, every rank of the one picked on the right. */
+.profile-tracks {
+    display: grid;
+    grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-3);
+}
+
+.profile-track-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.profile-track-tab {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.profile-track-tab[aria-selected="true"] {
+    box-shadow: inset 0 0 0 var(--outline) var(--gold);
+}
+
+.profile-track-tab[aria-selected="true"] .profile-track-rank {
+    color: var(--gold);
+}
+
+.profile-track-what {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.profile-track-rank {
+    padding-top: 2px;
+    font-family: var(--font-display);
+    font-size: var(--display-m);
+    line-height: 1;
+    color: var(--text);
+}
+
+.profile-track-bar {
+    display: block;
+    height: 12px;
+    overflow: hidden;
+    background: var(--panel-sunk);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+}
+
+.profile-track-bar-filled {
+    display: block;
+    height: 100%;
+    background: var(--gold);
+}
+
+.profile-track-left {
+    font-weight: 600;
+    font-size: var(--text-s);
+    color: var(--gold-light);
+}
+
+/* One row per rank, a bar down the medals' centres filled up to the progress. */
+.profile-ranks {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+}
+
+.profile-ranks-path {
+    --rank-row: 64px;
+    position: relative;
+}
+
+.profile-ranks-bar {
+    position: absolute;
+    top: calc(var(--rank-row) / 2);
+    bottom: calc(var(--rank-row) / 2);
+    left: calc(var(--rank-medal) / 2 - 9px);
+    box-sizing: border-box;
+    width: 18px;
+    overflow: hidden;
+    border: var(--outline) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--panel-sunk);
+}
+
+.profile-ranks-bar-filled {
+    display: block;
+    background: var(--gold);
+    box-shadow: inset -3px 0 0 var(--gold-shade);
+}
+
+.profile-ranks-list {
+    position: relative;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.profile-rank {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    height: var(--rank-row);
+}
+
+.profile-rank-medal {
+    position: relative;
+    display: block;
+    flex-shrink: 0;
+    width: var(--rank-medal);
+    height: var(--rank-medal);
+}
+
+.profile-rank-name {
+    flex: 1;
+    min-width: 0;
+    padding-top: 2px;
+    font-family: var(--font-display);
+    font-size: var(--display-m);
+    line-height: 1;
+    color: var(--text-faint);
+    text-shadow: var(--text-drop);
+}
+
+.profile-rank--earned .profile-rank-name {
+    color: var(--text);
+}
+
+.profile-rank--next .profile-rank-name {
+    color: var(--gold);
+}
+
+.profile-rank-threshold {
+    font-weight: 600;
+    font-size: var(--text-s);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+}
+
+.profile-more {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-shrink: 0;
+    text-decoration: none;
+}
+
+.profile-more[aria-expanded="true"] svg {
+    transform: rotate(180deg);
+}
+
+.profile-fronts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--space-3);
+}
+
+.profile-front {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4);
+}
+
+.profile-front .profile-more {
+    align-self: flex-start;
+}
+
+/* The account: short, beside the card. */
+.profile-account {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-4);
+}
+
+.profile-providers {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.profile-provider-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.profile-provider-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 6px var(--space-3);
+    background: var(--panel-sunk);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    color: var(--text);
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-s);
+}
+
+.profile-provider-chip svg {
+    color: var(--gain);
+}
+
+.profile-provider-chip--link {
+    background: none;
+    border-style: dashed;
+    border-color: var(--text-faint);
+    color: var(--text-soft);
+    cursor: pointer;
+}
+
+.profile-provider-chip--link:hover,
+.profile-provider-chip--link[aria-expanded="true"] {
+    border-color: var(--text-soft);
+    color: var(--text);
+}
+
+.profile-account-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-4);
+    padding-top: var(--space-3);
+    border-top: var(--outline-thin) solid var(--panel);
+}
+
+.profile-account-legal {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+/* A narrower window keeps the card, and stacks what was side by side. */
+@media only screen and (max-width: 1100px) {
+    .profile-hero {
+        flex-wrap: wrap;
+    }
+
+    .profile-stats {
+        grid-auto-columns: minmax(0, 1fr);
+        width: 100%;
+    }
+
+    .profile-columns {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 
-import {SEA, groundIndex} from "./ground.mjs"
+import {SEA, groundIndex, mostlyLake} from "./ground.mjs"
 
 const polygon = (rings) => ({
     geometry: {type: "Polygon", coordinates: rings},
@@ -131,5 +131,44 @@ describe("the antimeridian seam", () => {
 
     it("still answers sea beyond the polygon", () => {
         expect(ground.groundOf(180, -50)).toBe(SEA)
+    })
+})
+
+describe("the lakes", () => {
+    const lake = (name, rings) => ({geometry: {type: "Polygon", coordinates: rings}, properties: {name}})
+    // A spacing of one degree, so a cell reaches about half a degree from its vertex.
+    const SPACING = Math.PI / 180
+    const ground = groundIndex({
+        countries: {features: [named("US", [square(-100, 30, -60, 60)])]},
+        iceShelves: noIce,
+        lakes: {features: [
+            lake("Lake Superior", [square(-90, 46, -85, 49), square(-89, 47, -88, 48)]),
+            lake("A reservoir down a valley", [square(-70, 40, -69.8, 50)]),
+            lake("Lake Eyre North", [square(-80, 35, -75, 38)]),
+        ]},
+    })
+
+    it("leave the country's ground to the country: the oracle does not cut them out of it", () => {
+        expect(ground.groundOf(-87, 46.5)).toBe("us")
+        expect(ground.lakeAt(-87, 46.5)).toBe(true)
+    })
+
+    it("make a cell water when most of it is lake", () => {
+        expect(mostlyLake(ground, -86, 46.5, SPACING)).toBe(true)
+    })
+
+    it("leave a cell land when the lake covers less than half of it, at its shore or across a narrow lake", () => {
+        expect(mostlyLake(ground, -85, 47.5, SPACING)).toBe(false)
+        expect(mostlyLake(ground, -69.9, 45, SPACING)).toBe(false)
+        expect(ground.lakeAt(-69.9, 45)).toBe(true)
+    })
+
+    it("keep an island in a lake as land", () => {
+        expect(mostlyLake(ground, -88.5, 47.5, SPACING)).toBe(false)
+    })
+
+    it("are not water where they are usually dry", () => {
+        expect(ground.lakeAt(-77, 36)).toBe(false)
+        expect(mostlyLake(ground, -77, 36, SPACING)).toBe(false)
     })
 })

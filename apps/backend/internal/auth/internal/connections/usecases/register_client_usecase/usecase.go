@@ -32,7 +32,6 @@ type Out struct {
 	Client   connections.ClientSnapshot
 }
 
-// RFC 7591, with nothing stored: the client id is the registration, sealed.
 func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
 	client, err := connections.NewClient(in.Name, in.RedirectURIs, u.redirects, u.clock.Now())
 	if err != nil {

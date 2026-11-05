@@ -3,13 +3,13 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, ReleaseAllegianceRequest, ReleaseAllegianceResponse, RevertPlayerRequest, RevertPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
+import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
+import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
- * Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
- * without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
  *
  * @generated from service planet.v1.AdminService
  */
@@ -57,12 +57,10 @@ export const AdminService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * A shadow ban: the caller's clicks and bombs are answered OK and dropped, so it learns nothing. Takes a scope or
-     * an account_id, never both; an account is banned alone, a scope bans everybody behind it. It counts as an offence,
-     * and an unset duration takes the next step of the ladder. enforced false means the antibot only logs and drops
-     * nothing. Ban before RevertPlayer, or the player repaints behind the revert.
+     * Deprecated: antibot.v1.AdminService/BanPlayer, which answers it on this path until the backoffice calls it there.
      *
      * @generated from rpc planet.v1.AdminService.BanPlayer
+     * @deprecated
      */
     banPlayer: {
       name: "BanPlayer",
@@ -71,12 +69,10 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lifts a caller's latest ban, for a false positive, and forgets that offence. The antibot's evidence stays: a
-     * watchdog that still reads certain bans the caller again on its next click, so the rule that misfired is to be
-     * fixed first. A guest the jury banned is banned on its account and its scope: two calls. NotFound when no offence
-     * is left.
+     * Deprecated: antibot.v1.AdminService/UnbanPlayer, which answers it on this path until the backoffice calls it there.
      *
      * @generated from rpc planet.v1.AdminService.UnbanPlayer
+     * @deprecated
      */
     unbanPlayer: {
       name: "UnbanPlayer",
@@ -110,18 +106,16 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
-     * and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
-     * is read on the scope of its latest take. Changes nothing.
+     * Deprecated: antibot.v1.AdminService/InspectPlayer, which answers it on this path until the backoffice calls it there.
      *
      * @generated from rpc planet.v1.AdminService.InspectPlayer
+     * @deprecated
      */
     inspectPlayer: {
       name: "InspectPlayer",
       I: InspectPlayerRequest,
       O: InspectPlayerResponse,
       kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
@@ -147,6 +141,65 @@ export const AdminService = {
       O: GetReplayResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Lifts the account's hour of wait, so its next change of flag goes at once. A lock of the rules in force still holds.
+     *
+     * @generated from rpc planet.v1.AdminService.ReleaseAllegiance
+     */
+    releaseAllegiance: {
+      name: "ReleaseAllegiance",
+      I: ReleaseAllegianceRequest,
+      O: ReleaseAllegianceResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
+     * time.
+     *
+     * @generated from rpc planet.v1.AdminService.GetLedger
+     */
+    getLedger: {
+      name: "GetLedger",
+      I: GetLedgerRequest,
+      O: GetLedgerResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * InternalService/GetTerritories, for the admin page: the tiles each country holds now.
+     *
+     * @generated from rpc planet.v1.AdminService.GetTerritories
+     */
+    getTerritories: {
+      name: "GetTerritories",
+      I: GetTerritoriesRequest,
+      O: GetTerritoriesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Every rule set postgres keeps, and the one the game plays now. SaveRuleSet changes one.
+     *
+     * @generated from rpc planet.v1.AdminService.GetRules
+     */
+    getRules: {
+      name: "GetRules",
+      I: GetRulesRequest,
+      O: GetRulesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Makes a set, or replaces its values. A save of the set that plays now takes over at once.
+     *
+     * @generated from rpc planet.v1.AdminService.SaveRuleSet
+     */
+    saveRuleSet: {
+      name: "SaveRuleSet",
+      I: SaveRuleSetRequest,
+      O: SaveRuleSetResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

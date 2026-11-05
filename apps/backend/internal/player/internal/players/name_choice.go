@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const renameEvery = 30 * 24 * time.Hour
+const renameEvery = 7 * 24 * time.Hour
 
 var ErrRenamedTooSoon = errors.New("the name was chosen too recently to change")
 

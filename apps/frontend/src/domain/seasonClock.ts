@@ -1,13 +1,9 @@
 import {Season} from "../backends/season.ts"
+import {BattleToCome} from "../backends/turn.ts"
 
 const MINUTE = 60
 const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
-
-export type SeasonClock = {
-    finale: boolean
-    left: string
-}
 
 export type Countdown = {
     days: number
@@ -16,50 +12,41 @@ export type Countdown = {
     seconds: number
 }
 
-export type FinaleClock = {
-    live: boolean
-    left: string
-    countdown: Countdown
-}
-
 export type SeasonCountdown = {
     label: string
     tag: string
     left: string
+    endsSeason?: boolean
 }
 
-export function seasonClock(season: Season, now: number): SeasonClock | undefined {
+// The day's end while a day runs, the next battle's start, then the season's end. None once the season ended.
+export function countdownsOf(season: Season, now: number, battle?: BattleToCome, dayEndsAt?: number): SeasonCountdown[] {
+    if (now >= season.endsAt) return []
+
+    const ends = {label: "Season ends in", tag: "Season", left: timeLeft(countdownTo(season.endsAt, now))}
+    const battles = battle && battle.startsAt > now
+        ? [battle.endsSeason
+            ? {label: "Final Battle in", tag: "Final", left: timeLeft(countdownTo(battle.startsAt, now)), endsSeason: true}
+            : {label: "Next battle in", tag: "Battle", left: timeLeft(countdownTo(battle.startsAt, now))}]
+        : []
+    if (dayEndsAt === undefined || dayEndsAt <= now || dayEndsAt >= season.endsAt) return [...battles, ends]
+    return [{label: "Today ends in", tag: "Today", left: timeLeft(countdownTo(dayEndsAt, now))}, ...battles, ends]
+}
+
+export type EndClock = {
+    left: string
+    countdown: Countdown
+}
+
+// The time left in the season. None once it ended.
+export function endClock(season: Season, now: number): EndClock | undefined {
     if (now >= season.endsAt) return undefined
-    if (now >= season.finaleStartsAt) return {finale: true, left: timeLeft(countdownTo(season.endsAt, now))}
 
-    return {finale: false, left: timeLeft(countdownTo(cutoffOf(season, now), now))}
+    const countdown = countdownTo(season.endsAt, now)
+    return {left: timeLeft(countdown), countdown}
 }
 
-export function finaleClock(season: Season, now: number): FinaleClock | undefined {
-    if (now >= season.endsAt) return undefined
-
-    const live = now >= season.finaleStartsAt
-    const countdown = countdownTo(live ? season.endsAt : season.finaleStartsAt, now)
-    return {live, left: timeLeft(countdown), countdown}
-}
-
-export function countdownsOf(season: Season, now: number): SeasonCountdown[] {
-    const today = seasonClock(season, now)
-    const finale = finaleClock(season, now)
-    if (!today || !finale) return []
-    if (finale.live) return [{label: "Final Battle ends in", tag: "Final", left: finale.left}]
-
-    const battle = {label: "Final Battle in", tag: "Final", left: finale.left}
-    if (cutoffOf(season, now) === season.finaleStartsAt) return [battle]
-    return [{label: "Today ends in", tag: "Today", left: today.left}, battle]
-}
-
-function cutoffOf(season: Season, now: number): number {
-    const daysAfter = Math.floor((season.finaleStartsAt - now - 1) / (DAY * 1000))
-    return season.finaleStartsAt - daysAfter * DAY * 1000
-}
-
-function countdownTo(at: number, now: number): Countdown {
+export function countdownTo(at: number, now: number): Countdown {
     const seconds = Math.ceil((at - now) / 1000)
     return {
         days: Math.floor(seconds / DAY),
@@ -76,28 +63,20 @@ function timeLeft({days, hours, minutes, seconds}: Countdown): string {
     return minutesAndSeconds
 }
 
+export function timeLeftTo(at: number, now: number): string {
+    return timeLeft(countdownTo(Math.max(at, now), now))
+}
+
+export function shortLeft(left: string): string {
+    return left.split(" ").slice(0, 2).join(" ")
+}
+
 export function twoDigits(n: number): string {
     return String(n).padStart(2, "0")
 }
 
-export type FinaleWindow = {
-    day: string
-    from: string
-    to: string
-}
-
-export function finaleWindow(season: Season, timeZone?: string): FinaleWindow {
-    const start = partsOf(season.finaleStartsAt, timeZone)
-    const end = partsOf(season.endsAt, timeZone)
-
-    return {
-        day: `${start("weekday")} ${start("day")} ${start("month")}`,
-        from: `${start("hour")}:${start("minute")}`,
-        to: `${end("hour")}:${end("minute")}`,
-    }
-}
-
-function partsOf(ms: number, timeZone?: string): (type: Intl.DateTimeFormatPartTypes) => string {
+// "Sat 31 Oct · 23:00", in the player's time.
+export function endsLine(season: Season, timeZone?: string): string {
     const parts = new Intl.DateTimeFormat("en-GB", {
         weekday: "short",
         day: "numeric",
@@ -106,7 +85,24 @@ function partsOf(ms: number, timeZone?: string): (type: Intl.DateTimeFormatPartT
         minute: "2-digit",
         hourCycle: "h23",
         timeZone,
-    }).formatToParts(ms)
+    }).formatToParts(season.endsAt)
+    const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
 
-    return (type) => parts.find((p) => p.type === type)?.value ?? ""
+    return `${part("weekday")} ${part("day")} ${part("month")} · ${part("hour")}:${part("minute")}`
+}
+
+// "8 Oct – 31 Oct 2026", in the player's time.
+export function spanLine(season: Season, timeZone?: string): string {
+    const start = dateOf(season.startsAt, timeZone)
+    const end = dateOf(season.endsAt, timeZone)
+    const from = start.year === end.year ? `${start.day} ${start.month}` : `${start.day} ${start.month} ${start.year}`
+
+    return `${from} – ${end.day} ${end.month} ${end.year}`
+}
+
+function dateOf(ms: number, timeZone?: string): {day: string, month: string, year: string} {
+    const parts = new Intl.DateTimeFormat("en-GB", {day: "numeric", month: "short", year: "numeric", timeZone}).formatToParts(ms)
+    const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
+
+    return {day: part("day"), month: part("month"), year: part("year")}
 }

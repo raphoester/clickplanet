@@ -1,10 +1,10 @@
 import {ChargesHeld} from "../gen/grpc/planet/v1/planet_pb.ts"
-import {Grant} from "./actions.ts"
+import {Grant, MOST} from "./actions.ts"
 
 // What the operator typed in a count: a whole number from 0 to 99, and 0 for anything else.
 export function wholeOf(typed: string): number {
     const n = Math.floor(Number(typed))
-    return Number.isFinite(n) && n > 0 ? Math.min(n, 99) : 0
+    return Number.isFinite(n) && n > 0 ? Math.min(n, MOST) : 0
 }
 
 export function grantWords(charges: Grant): string {

@@ -33,25 +33,25 @@ func setUp(t *testing.T) (*refresh_tokens_usecase.UseCase, *admintokens.MemorySt
 func TestARefreshTokenIsTradedOnceForTheNextPair(t *testing.T) {
 	useCase, tokens, first := setUp(t)
 
-	next, err := useCase.Execute(t.Context(), refresh_tokens_usecase.In{RefreshToken: first.Refresh(), ClientID: "the id"})
+	next, err := useCase.Execute(t.Context(), refresh_tokens_usecase.In{RefreshToken: first.TakeSnapshot().Refresh, ClientID: "the id"})
 	require.NoError(t, err)
-	assert.Equal(t, admintokens.Secret("cprt_secret-4"), next.Refresh(), "a new refresh token each time")
+	assert.Equal(t, admintokens.Secret("cprt_secret-4"), next.TakeSnapshot().Refresh, "a new refresh token each time")
 	assert.Len(t, tokens.Kept(), 3, "the first access token, and the new pair")
 	for _, kept := range tokens.Kept() {
 		assert.Equal(t, claude, kept.Holder)
 	}
 
-	_, err = useCase.Execute(t.Context(), refresh_tokens_usecase.In{RefreshToken: first.Refresh(), ClientID: "the id"})
+	_, err = useCase.Execute(t.Context(), refresh_tokens_usecase.In{RefreshToken: first.TakeSnapshot().Refresh, ClientID: "the id"})
 	require.ErrorIs(t, err, admintokens.ErrUnknownToken, "spent")
 }
 
 func TestARefreshTokenSentByAnotherClientIsSpentAndBuysNothing(t *testing.T) {
 	useCase, tokens, first := setUp(t)
 
-	_, err := useCase.Execute(t.Context(), refresh_tokens_usecase.In{RefreshToken: first.Refresh(), ClientID: "another id"})
+	_, err := useCase.Execute(t.Context(), refresh_tokens_usecase.In{RefreshToken: first.TakeSnapshot().Refresh, ClientID: "another id"})
 	require.ErrorIs(t, err, admintokens.ErrUnknownToken)
 
-	_, err = useCase.Execute(t.Context(), refresh_tokens_usecase.In{RefreshToken: first.Refresh(), ClientID: "the id"})
+	_, err = useCase.Execute(t.Context(), refresh_tokens_usecase.In{RefreshToken: first.TakeSnapshot().Refresh, ClientID: "the id"})
 	require.ErrorIs(t, err, admintokens.ErrUnknownToken, "whoever sent it should not hold it: the app connects again")
 	assert.Len(t, tokens.Kept(), 1)
 }

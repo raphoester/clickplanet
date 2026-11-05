@@ -1,11 +1,13 @@
-import {MySeason, Standing, StandingsBackend} from "../../backends/standings.ts"
+import {Boards, MySeason, Standing} from "../../backends/standings.ts"
 import {NameColor, PlayerLine} from "../../backends/player.ts"
 import {Countries} from "../../domain/countries.ts"
 import {boardWith} from "../../domain/standings.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import RankCoin from "../components/RankCoin.tsx"
-import TitleBadge from "../titles/TitleBadge.tsx"
+import WornTitle from "../badges/WornTitle.tsx"
+import {useWordFilter} from "../crazygames/wordFilter.ts"
+import {usePlayerCard} from "../players/playerCardStore.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import {Caller, useMySeason} from "./useMySeason.ts"
 import {useStandings} from "./useStandings.ts"
@@ -13,13 +15,12 @@ import YourSeason from "./YourSeason.tsx"
 import "./Standings.css"
 
 export type PlayerStandingsProps = {
-    backend: StandingsBackend
+    backend: Boards
     countryCode: string
     label: string
     caller: Caller
     listenForClicks: ListenForClicks
     onSignIn?: () => void
-    onOpenPlayer?: (player: PlayerLine) => void
 }
 
 export default function PlayerStandings(props: PlayerStandingsProps) {
@@ -38,8 +39,7 @@ export default function PlayerStandings(props: PlayerStandingsProps) {
         {board && <StandingsTable label={props.label}
                                   standings={board.listed}
                                   accountId={accountId}
-                                  own={board.below}
-                                  onOpenPlayer={props.onOpenPlayer}/>}
+                                  own={board.below}/>}
     </>
 }
 
@@ -54,7 +54,6 @@ function ownLine(caller: Caller, mine: MySeason | undefined): Standing | undefin
         color: caller.color ?? NameColor.UNSPECIFIED,
         countryCode: mine.countryCode,
         tiles: mine.tiles,
-        wornTitle: mine.wornTitle,
     }
 }
 
@@ -71,10 +70,9 @@ type StandingsTableProps = {
     standings: readonly Standing[]
     accountId?: string
     own?: Standing
-    onOpenPlayer?: (player: PlayerLine) => void
 }
 
-function StandingsTable({label, standings, accountId, own, onOpenPlayer}: StandingsTableProps) {
+function StandingsTable({label, standings, accountId, own}: StandingsTableProps) {
     if (standings.length === 0 && !own) return <p className="standings-empty">Nobody yet.</p>
 
     return <table className="leaderboard-table standings-table" aria-label={label}>
@@ -88,13 +86,12 @@ function StandingsTable({label, standings, accountId, own, onOpenPlayer}: Standi
         <tbody>
         {standings.map((standing) => <StandingRow key={standing.accountId}
                                                   standing={standing}
-                                                  you={standing.accountId === accountId}
-                                                  onOpenPlayer={onOpenPlayer}/>)}
+                                                  you={standing.accountId === accountId}/>)}
         {own && <>
             <tr className="standings-gap" aria-hidden="true">
                 <td colSpan={3}/>
             </tr>
-            <StandingRow standing={own} you onOpenPlayer={onOpenPlayer}/>
+            <StandingRow standing={own} you/>
         </>}
         </tbody>
     </table>
@@ -103,12 +100,13 @@ function StandingsTable({label, standings, accountId, own, onOpenPlayer}: Standi
 type StandingRowProps = {
     standing: Standing
     you: boolean
-    onOpenPlayer?: (player: PlayerLine) => void
 }
 
-function StandingRow({standing, you, onOpenPlayer}: StandingRowProps) {
+function StandingRow({standing, you}: StandingRowProps) {
     const country = Countries.get(standing.countryCode)
     const style = authorStyle({color: standing.color, guest: false})
+    const name = useWordFilter().masked(standing.name)
+    const openPlayer = usePlayerCard((card) => card.openable ? card.open : undefined)
 
     return <tr className={you ? "leaderboard-entry leaderboard-entry-player" : "leaderboard-entry"}
                aria-current={you ? "true" : undefined}>
@@ -118,18 +116,18 @@ function StandingRow({standing, you, onOpenPlayer}: StandingRowProps) {
                 {country && <span className="standings-flag" role="img" aria-label={country.name} title={country.name}>
                     <CountryFlag code={country.code}/>
                 </span>}
-                {onOpenPlayer
+                {openPlayer
                     ? <button type="button"
                               className="standings-name player-name-button"
                               style={style}
-                              title={standing.name}
-                              onClick={() => onOpenPlayer(playerOf(standing))}>
-                        {standing.name}
+                              title={name}
+                              onClick={() => openPlayer(playerOf(standing))}>
+                        {name}
                     </button>
-                    : <span className="standings-name" style={style} title={standing.name}>
-                        {standing.name}
+                    : <span className="standings-name" style={style} title={name}>
+                        {name}
                     </span>}
-                <TitleBadge title={standing.wornTitle} size={18}/>
+                <WornTitle accountId={standing.accountId} size={18}/>
             </span>
         </td>
         <td className="leaderboard-table-number">{standing.tiles}</td>
@@ -144,7 +142,5 @@ function playerOf(standing: Standing): PlayerLine {
         guest: false,
         admin: false,
         color: standing.color,
-        streak: 0,
-        wornTitle: standing.wornTitle,
     }
 }

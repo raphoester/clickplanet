@@ -13,14 +13,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 var start = time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
 
 func TestSigningOutDeletesTheSessionAndClearsTheCookie(t *testing.T) {
 	store := inmemory_account_store.New()
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 	guest := accounts.GuestSession(accounts.AccountID{15: 1}, accounts.TokenOf("token-1"), accounts.Lifetime{}.WithDefaults(), start)
 	require.NoError(t, store.CreateGuest(t.Context(), guest))
 
@@ -37,7 +37,7 @@ func TestSigningOutDeletesTheSessionAndClearsTheCookie(t *testing.T) {
 func TestABrowserWithNoSessionIsSignedOutAlready(t *testing.T) {
 	store := inmemory_account_store.New()
 	store.FailWith(errors.New("postgres is down"))
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 
 	setCookie, err := sign_out_usecase.New(store, events).Execute(t.Context(), "theme=dark")
 
@@ -47,7 +47,7 @@ func TestABrowserWithNoSessionIsSignedOutAlready(t *testing.T) {
 }
 
 func TestASessionAlreadyGoneIsSignedOutAndNamesNoAccount(t *testing.T) {
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 
 	setCookie, err := sign_out_usecase.New(inmemory_account_store.New(), events).Execute(t.Context(), "cp_sid=token-1")
 
@@ -59,7 +59,7 @@ func TestASessionAlreadyGoneIsSignedOutAndNamesNoAccount(t *testing.T) {
 func TestAStoreFailureFailsTheSignOut(t *testing.T) {
 	store := inmemory_account_store.New()
 	store.FailWith(errors.New("postgres is down"))
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 
 	_, err := sign_out_usecase.New(store, events).Execute(t.Context(), "cp_sid=token-1")
 

@@ -41,7 +41,7 @@ func (s *stubSender) Execute(_ context.Context, in send_message_usecase.In) (mes
 
 type emptyHistory struct{}
 
-func (emptyHistory) History(context.Context, messages.AccountID) (*chatv1.GetHistoryResponse, error) {
+func (emptyHistory) History(context.Context, messages.AccountID, messages.Room) (*chatv1.GetHistoryResponse, error) {
 	return &chatv1.GetHistoryResponse{}, nil
 }
 
@@ -75,9 +75,9 @@ func startChatServer(
 	mux.Handle(chatv1connect.NewChatServiceHandler(
 		ChatService{
 			SendMessageHandler: send_message_handler.New(sender),
-			GetHistoryHandler:  get_history_handler.New(emptyHistory{}),
-			ListenForEventsHandler: listen_for_events_handler.New(
-				listen_for_events_usecase.New(subscriber, listen_for_events_usecase.DefaultHeartbeat)),
+			GetHistoryHandler:  get_history_handler.New(emptyHistory{}, messages.NewRooms(messages.FakeFlags{})),
+			ListenForEventsHandler: listen_for_events_handler.New(listen_for_events_usecase.New(
+				subscriber, messages.NewRooms(messages.FakeFlags{}), listen_for_events_usecase.DefaultHeartbeat)),
 		},
 		connect.WithInterceptors(
 			cpconnect.NewErrorInterceptor(nil, nil),
@@ -101,7 +101,7 @@ func sendWithToken(server *httptest.Server, ip string, token string) error {
 	req := connect.NewRequest(&chatv1.SendMessageRequest{
 		AuthorId:  "some-uuid",
 		CountryId: "fr",
-		Text:      "hello",
+		Body:      &chatv1.SendMessageRequest_Text{Text: "hello"},
 	})
 	req.Header().Set("X-Real-IP", ip)
 	if token != "" {

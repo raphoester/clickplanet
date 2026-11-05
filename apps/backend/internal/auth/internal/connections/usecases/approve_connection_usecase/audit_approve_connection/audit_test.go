@@ -30,14 +30,14 @@ func TestEveryAppLetInIsLoggedWithWhoLetItInAndWhereItIs(t *testing.T) {
 	in := approve_connection_usecase.In{Request: "the sealed request", Operator: accounts.AccountID{15: 1}}
 
 	_, err := audit_approve_connection.New(stub{out: approve_connection_usecase.Out{
-		RedirectURL: "https://claude.ai/api/mcp/auth_callback?code=the-code", Client: "Claude", Host: "claude.ai",
+		RedirectURL: "https://claude.ai/api/mcp/auth_callback?code=the-code",
 	}}, logger).Execute(t.Context(), in)
 	require.NoError(t, err)
 	_, err = audit_approve_connection.New(stub{err: errors.New("lapsed")}, logger).Execute(t.Context(), in)
 	require.Error(t, err)
 
 	assert.Contains(t, logs.String(),
-		`level=WARN msg="admin connection approved" operator=00000000-0000-0000-0000-000000000001 client=Claude host=claude.ai`)
+		`level=WARN msg="admin connection approved" operator=00000000-0000-0000-0000-000000000001 host=claude.ai`)
 	assert.Contains(t, logs.String(), `msg="admin connection refused"`)
 	assert.NotContains(t, logs.String(), "the-code", "the code is the app's")
 	assert.NotContains(t, logs.String(), "the sealed request")

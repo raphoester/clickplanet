@@ -36,12 +36,14 @@ func (s stubUseCase) Execute(_ context.Context, in send_message_usecase.In) (mes
 	message, err := messages.Snapshot{
 		ID:      "message-1",
 		SentAt:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		Author:  messages.AuthorOf("guest_0b1c2d", false, 0, 0, messages.Title{}),
+		Author:  messages.AuthorOf("guest_0b1c2d", false, 0),
+		Room:    in.Room,
 		Country: in.CountryID,
 		Text:    in.Text,
+		Gif:     in.Gif,
 		Quote: messages.Quote{
 			MessageID: in.ReplyTo,
-			Author:    messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_TEAL), 0, messages.Title{}),
+			Author:    messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_TEAL)),
 			Text:      "who holds the north",
 		},
 	}.Restore()
@@ -59,7 +61,7 @@ func sendAs(ctx context.Context, useCase stubUseCase) (*connect.Response[chatv1.
 	req := connect.NewRequest(&chatv1.SendMessageRequest{
 		AuthorId:         "some-uuid",
 		CountryId:        "fr",
-		Text:             "hello planet",
+		Body:             &chatv1.SendMessageRequest_Text{Text: "hello planet"},
 		ReplyToMessageId: "message-0",
 	})
 	req.Header().Set("User-Agent", "curl/8")
@@ -75,6 +77,7 @@ func TestSendMessageMapsTheRequest(t *testing.T) {
 	assert.Equal(t, send_message_usecase.In{
 		Account:   cpsession.NoAccount,
 		AuthorID:  "some-uuid",
+		Room:      messages.World,
 		CountryID: "fr",
 		Text:      "hello planet",
 		ReplyTo:   "message-0",
@@ -101,7 +104,8 @@ func TestSendMessageReturnsTheStoredMessage(t *testing.T) {
 	assert.Equal(t, "hello planet", message.GetText())
 	assert.Equal(t, int64(1704067200000), message.GetSentAtUnixMs())
 	assert.True(t, proto.Equal(&chatv1.Quote{
-		MessageId: "message-0", AuthorName: "Ada_L", AuthorColor: playerv1.NameColor_NAME_COLOR_TEAL, Text: "who holds the north",
+		MessageId: "message-0", AuthorName: "Ada_L", AuthorColor: playerv1.NameColor_NAME_COLOR_TEAL,
+		Body: &chatv1.Quote_Text{Text: "who holds the north"},
 	}, message.GetReplyTo()), "%v", message.GetReplyTo())
 }
 
@@ -142,7 +146,7 @@ func TestASenderThePlayerModuleCouldNotNameIsUnavailable(t *testing.T) {
 }
 
 func TestAMutedSenderIsDenied(t *testing.T) {
-	muted := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(messages.AccountID{15: 1}, ""), time.Now(), time.Hour)
+	muted := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(messages.AccountID{15: 1}, ""), mutes.Chat, time.Now(), time.Hour)
 
 	_, err := send(stubUseCase{in: &send_message_usecase.In{}, err: muted.Refusal()})
 
@@ -152,9 +156,45 @@ func TestAMutedSenderIsDenied(t *testing.T) {
 	assert.Len(t, denied.Details(), 1, "the end of the mute travels with the refusal")
 }
 
+func TestAGifIsMappedFromTheRequestAndReturnedWithTheMessage(t *testing.T) {
+	var in send_message_usecase.In
+	gif := &chatv1.Gif{Url: "https://static.klipy.com/ii/935d7ab9/14/af/SE72470w.webp", Width: 220, Height: 124}
+	req := connect.NewRequest(&chatv1.SendMessageRequest{CountryId: "fr", Body: &chatv1.SendMessageRequest_Gif{Gif: gif}})
+
+	res, err := send_message_handler.New(stubUseCase{in: &in}).SendMessage(t.Context(), req)
+	require.NoError(t, err)
+
+	assert.Equal(t, messages.Gif{URL: gif.GetUrl(), Width: 220, Height: 124}, in.Gif)
+	assert.True(t, proto.Equal(gif, res.Msg.GetMessage().GetGif()), "%v", res.Msg.GetMessage().GetGif())
+}
+
+func TestAGuestsGifIsDenied(t *testing.T) {
+	_, err := send(stubUseCase{in: &send_message_usecase.In{}, err: messages.ErrGuestGif})
+
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+}
+
 func TestAnUnexpectedFailureIsLeftForTheErrorNet(t *testing.T) {
 	_, err := send(stubUseCase{in: &send_message_usecase.In{}, err: assert.AnError})
 
 	require.ErrorIs(t, err, assert.AnError)
 	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
+}
+
+func TestAMessageForAFlagsRoomGoesToThatRoom(t *testing.T) {
+	var in send_message_usecase.In
+	req := connect.NewRequest(&chatv1.SendMessageRequest{
+		CountryId: "fr", Body: &chatv1.SendMessageRequest_Text{Text: "north at 8"}, FlagRoom: "fr",
+	})
+
+	_, err := send_message_handler.New(stubUseCase{in: &in}).SendMessage(t.Context(), req)
+
+	require.NoError(t, err)
+	assert.Equal(t, messages.FlagRoom("fr"), in.Room)
+}
+
+func TestASenderThatDoesNotPlayForTheFlagOfTheRoomIsAFailedPrecondition(t *testing.T) {
+	_, err := send(stubUseCase{in: &send_message_usecase.In{}, err: fmt.Errorf("%w: \"de\"", messages.ErrNotInRoom)})
+
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 }

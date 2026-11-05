@@ -4,6 +4,7 @@ import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {AccountBackend, Provider} from "../../backends/account.ts"
 import {NameColor, PlayerBackend} from "../../backends/player.ts"
+import {ProgressionBackend} from "../../backends/progression.ts"
 import {AccountStore} from "./accountStore.ts"
 import SignInPitchModal from "./SignInPitchModal.tsx"
 
@@ -14,9 +15,10 @@ async function guest() {
         signInOptions: vi.fn(async (): Promise<Provider[]> => ["google", "discord"]),
         me: vi.fn(async () => ({linked: []})),
         startSignIn: vi.fn(async () => "https://discord.example/authorize"),
-        completeSignIn: vi.fn(async () => undefined),
+        completeSignIn: vi.fn(async () => "signedIn" as const),
         startEmailSignIn: vi.fn(async () => undefined),
-        completeEmailSignIn: vi.fn(async () => undefined),
+        completeEmailSignIn: vi.fn(async () => "signedIn" as const),
+        completeCrazyGamesSignIn: vi.fn(async () => "signedIn" as const),
         signOut: vi.fn(async () => undefined),
         signOutEverywhere: vi.fn(async () => undefined),
         deleteAccount: vi.fn(async () => undefined),
@@ -25,12 +27,14 @@ async function guest() {
         profile: vi.fn(async () => ({accountId: "account-1", name: "", color: NameColor.UNSPECIFIED})),
         setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
         setColor: vi.fn(async (color: NameColor) => color),
+    } satisfies PlayerBackend
+    const progression = {
         titles: vi.fn(async () => ({wearable: [], tracks: []})),
         fronts: vi.fn(async () => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),
-    } satisfies PlayerBackend
+    } satisfies ProgressionBackend
     const navigate = vi.fn()
-    const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
+    const store = new AccountStore(backend, player, progression, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn(), claimFlag: vi.fn()})
 
     await store.load()
     const state = store.state()
@@ -49,7 +53,7 @@ describe("SignInPitchModal", () => {
         expect(screen.getByText("It is free. You do not need an account to play.")).toBeDefined()
     })
 
-    it("sells more than speed: a name, a color, a place on the board and a streak flame", async () => {
+    it("sells more than speed: a name, a team chat, a color, a place on the board and a streak flame", async () => {
         const {store, state} = await guest()
         render(<SignInPitchModal state={state} store={store} multiplier={2} onClose={vi.fn()}/>)
 
@@ -57,6 +61,7 @@ describe("SignInPitchModal", () => {
         expect(perks).toEqual([
             "Click 2× faster.",
             "Your name.",
+            "Your team chat.",
             "Your color.",
             "Your place on the board.",
             "Your streak flame.",

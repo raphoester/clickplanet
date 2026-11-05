@@ -4,12 +4,14 @@ import {TIKTOK_PROFILE} from "../links.ts"
 import {
     ChatAnnouncement,
     ChatBlockedError,
+    ChatFlagRooms,
     ChatHistory,
     ChatHistoryGetter,
     ChatListener,
     ChatMessage,
     ChatMessageGoneError,
     ChatMutedError,
+    ChatNotInRoomError,
     ChatRateLimitedError,
     ChatReactor,
     ChatRejectedError,
@@ -17,14 +19,16 @@ import {
     ChatSender,
     countRunes,
     MAX_TEXT_LENGTH,
+    MuteKind,
     OutgoingMessage,
     OutgoingReaction,
     Reaction,
     ReactionCount,
     ReactionsChange,
 } from "./chat.ts";
-import {NameColor, PlayerTitle} from "./player.ts";
+import {NameColor} from "./player.ts";
 import {ClosedRound} from "./standings.ts";
+import {championOf} from "../domain/champion.ts";
 import {podiumOf} from "../domain/roundReveal.ts";
 import {quoteOf, withRemoved} from "../domain/chatLog.ts";
 import {v4 as UUIDv4} from 'uuid';
@@ -40,14 +44,22 @@ export type FakeChatBackendOptions = {
 
 const SEEN_AGO_MS = 150_000
 
-const WARLORD: PlayerTitle = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
+// Their badges are the fake presence's, as the server's are player's.
+type Chatter = {name: string, country: string, admin: boolean, color: NameColor, text: string, answers?: number}
 
-const CHATTERS: {name: string, country: string, admin: boolean, color: NameColor, streak: number, title?: PlayerTitle, text: string, answers?: number}[] = [
-    {name: "Ana", country: "fr", admin: true, color: NameColor.PINK, streak: 12, title: WARLORD, text: "who keeps taking Brittany"},
-    {name: "guest_91aa3d", country: "de", admin: false, color: NameColor.UNSPECIFIED, streak: 0, text: "we hold the north 💪", answers: 0},
-    {name: "kiran_07", country: "in", admin: false, color: NameColor.UNSPECIFIED, streak: 3, title: {id: "og", name: "OG"}, text: `gm everyone, clips on ${TIKTOK_PROFILE}`},
-    {name: "guest_aa1290", country: "jp", admin: false, color: NameColor.UNSPECIFIED, streak: 0, text: "the pacific is ours"},
+const CHATTERS: Chatter[] = [
+    {name: "Ana", country: "fr", admin: true, color: NameColor.PINK, text: "who keeps taking Brittany"},
+    {name: "guest_91aa3d", country: "de", admin: false, color: NameColor.UNSPECIFIED, text: "we hold the north 💪", answers: 0},
+    {name: "kiran_07", country: "in", admin: false, color: NameColor.UNSPECIFIED, text: `gm everyone, clips on ${TIKTOK_PROFILE}`},
+    {name: "guest_aa1290", country: "jp", admin: false, color: NameColor.UNSPECIFIED, text: "the pacific is ours"},
 ]
+
+const flagChatters = (flag: string): Chatter[] => [
+    {name: "Ana", country: flag, admin: true, color: NameColor.PINK, text: "ok team, we push from the east"},
+    {name: "guest_5be210", country: flag, admin: false, color: NameColor.UNSPECIFIED, text: "who has a bomb? their coast is weak", answers: 0},
+]
+
+const FLAG_ROOM_SLOWER = 3
 
 const REPLIES_EVERY = 3
 
@@ -62,36 +74,39 @@ type Listener = {
     reactions?: (change: ReactionsChange) => void
     announcement?: (announcement: ChatAnnouncement) => void
     removed?: (messageId: string) => void
+    left?: () => void
 }
 
-export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor, ChatSeenMarker {
+export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor, ChatSeenMarker, ChatFlagRooms {
     private readonly messages: ChatMessage[] = []
     private readonly announcements: ChatAnnouncement[] = []
     private readonly reactions = new Map<string, Map<Reaction, Set<string>>>()
     private readonly versions = new Map<string, number>()
     private readonly listeners = new Map<string, Listener>()
     private readonly timers: ReturnType<typeof setInterval>[] = []
+    private readonly rooms = new Map<string, FakeChatBackend>()
     private readonly blocked: boolean
     private seenUntil: number
     private mutedUntil = 0
+    private gifsMutedUntil = 0
     private tokens = MESSAGE_BURST
     private lastRefillMs = Date.now()
     private nextChatter = 0
+    private left = false
 
-    constructor(options: FakeChatBackendOptions = {}) {
+    constructor(private readonly options: FakeChatBackendOptions = {}, private readonly world?: FakeChatBackend, flag?: string) {
         this.blocked = options.blocked ?? false
         this.seenUntil = options.seenUntil ?? Date.now() - SEEN_AGO_MS
+        const chatters = flag === undefined ? CHATTERS : flagChatters(flag)
 
-        CHATTERS.forEach((chatter, index) => {
+        chatters.forEach((chatter, index) => {
             this.publish({
                 id: UUIDv4(),
-                sentAt: Date.now() - (CHATTERS.length - index) * 60_000,
+                sentAt: Date.now() - (chatters.length - index) * 60_000,
                 authorAccountId: fakeAccountId(chatter.name),
                 authorName: chatter.name,
                 authorAdmin: chatter.admin,
                 authorColor: chatter.color,
-                authorStreak: chatter.streak,
-                authorTitle: chatter.title,
                 countryCode: chatter.country,
                 text: chatter.text,
                 reactions: [],
@@ -101,7 +116,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         })
 
         this.timers.push(setInterval(() => {
-            const chatter = CHATTERS[this.nextChatter % CHATTERS.length]
+            const chatter = chatters[this.nextChatter % chatters.length]
             this.nextChatter++
             const answered = this.nextChatter % REPLIES_EVERY === 0
                 ? this.messages[Math.floor(Math.random() * this.messages.length)]
@@ -113,8 +128,6 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 authorName: chatter.name,
                 authorAdmin: chatter.admin,
                 authorColor: chatter.color,
-                authorStreak: chatter.streak,
-                authorTitle: chatter.title,
                 countryCode: chatter.country,
                 text: `${chatter.text} (${this.nextChatter})`,
                 reactions: [],
@@ -125,26 +138,56 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             const target = this.messages[Math.floor(Math.random() * this.messages.length)]
             const reaction = BOT_REACTIONS[this.nextChatter % BOT_REACTIONS.length]
             this.give(target.id, reaction, chatter.name, true)
-        }, options.chatterIntervalMs ?? 8000))
+        }, (options.chatterIntervalMs ?? 8000) * (flag === undefined ? 1 : FLAG_ROOM_SLOWER)))
+    }
+
+    public flagRoom(flag: string): FakeChatBackend {
+        const world = this.world ?? this
+        const known = world.rooms.get(flag)
+        if (known) return known
+
+        const room = new FakeChatBackend(world.options, world, flag)
+        world.rooms.set(flag, room)
+        return room
+    }
+
+    // As when the player plays for another flag on another device: every flag room refuses it from now on.
+    public leave(): string {
+        const world = this.world ?? this
+        world.rooms.forEach(room => {
+            room.left = true
+            room.listeners.forEach(listener => listener.left?.())
+            room.listeners.clear()
+        })
+        return `left ${world.rooms.size} flag room(s)`
     }
 
     public close() {
         this.timers.forEach(clearInterval)
         this.timers.length = 0
         this.listeners.clear()
+        this.rooms.forEach(room => room.close())
+    }
+
+    private refuse() {
+        const shared = this.world ?? this
+        if (this.left) throw new ChatNotInRoomError()
+        if (this.blocked) throw new ChatBlockedError()
+        if (Date.now() < shared.mutedUntil) throw new ChatMutedError(shared.mutedUntil)
     }
 
     public async sendMessage(message: OutgoingMessage): Promise<ChatMessage> {
-        if (this.blocked) throw new ChatBlockedError()
-        if (Date.now() < this.mutedUntil) throw new ChatMutedError(this.mutedUntil)
+        this.refuse()
+        const gifsMutedUntil = (this.world ?? this).gifsMutedUntil
+        if (message.gif && Date.now() < gifsMutedUntil) throw new ChatMutedError(gifsMutedUntil, 'gifs')
 
         const text = message.text.trim()
-        if (text === "" || countRunes(text) > MAX_TEXT_LENGTH) throw new ChatRejectedError()
+        if (message.gif ? text !== "" : text === "" || countRunes(text) > MAX_TEXT_LENGTH) throw new ChatRejectedError()
 
         const answered = this.messages.find(sent => sent.id === message.replyTo)
         if (message.replyTo !== undefined && !answered) throw new ChatMessageGoneError()
 
-        if (!this.allow()) throw new ChatRateLimitedError()
+        if (!(this.world ?? this).allow()) throw new ChatRateLimitedError()
 
         const sent: ChatMessage = {
             id: UUIDv4(),
@@ -153,12 +196,12 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             authorName: OWN_GUEST_NAME,
             authorAdmin: false,
             authorColor: NameColor.UNSPECIFIED,
-            authorStreak: 0,
             countryCode: message.countryCode,
             text,
             reactions: [],
             reactionsVersion: 0,
             replyTo: answered && quoteOf(answered),
+            gif: message.gif,
         }
 
         this.publish(sent)
@@ -166,8 +209,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
     }
 
     public async react(reaction: OutgoingReaction): Promise<ReactionsChange> {
-        if (this.blocked) throw new ChatBlockedError()
-        if (Date.now() < this.mutedUntil) throw new ChatMutedError(this.mutedUntil)
+        this.refuse()
         if (!this.messages.some(message => message.id === reaction.messageId)) throw new ChatMessageGoneError()
 
         this.give(reaction.messageId, reaction.reaction, ME, reaction.on)
@@ -176,6 +218,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
 
     public async getHistory(signal?: AbortSignal): Promise<ChatHistory> {
         signal?.throwIfAborted()
+        if (this.left) throw new ChatNotInRoomError()
         return {
             messages: this.messages.map(message => ({
                 ...message,
@@ -188,6 +231,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
     }
 
     public async markSeen(until: number): Promise<void> {
+        if (this.left) throw new ChatNotInRoomError()
         this.seenUntil = Math.max(this.seenUntil, Math.min(until, Date.now()))
     }
 
@@ -224,6 +268,8 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             announcedAt: closed.endedAt,
             number: closed.number,
             finale: closed.finale,
+            own: closed.moment !== "day",
+            times: closed.times,
             podium: podiumOf(closed).map((standing) => ({
                 country: standing.countryCode,
                 rank: standing.rank,
@@ -232,14 +278,25 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         })
     }
 
+    // As the server: one line a season, however often it is told.
+    public announceChampion(closed: ClosedRound) {
+        const champion = championOf(closed)
+        const id = `champion-${closed.season}`
+        if (!champion || this.announcements.some((announcement) => announcement.id === id)) return
+        this.announce({kind: "champion", id, announcedAt: closed.endedAt, season: champion.season, countries: champion.countryCodes})
+    }
+
     private announce(announcement: ChatAnnouncement) {
         this.announcements.push(announcement)
         this.listeners.forEach(listener => listener.announcement?.(announcement))
     }
 
-    public mute(seconds = 3600, name = OWN_GUEST_NAME) {
-        if (name === OWN_GUEST_NAME) this.mutedUntil = Date.now() + seconds * 1000
-        this.announce({kind: "mute", id: UUIDv4(), announcedAt: Date.now(), name, seconds})
+    public mute(seconds = 3600, name = OWN_GUEST_NAME, kind: MuteKind = 'chat') {
+        const until = Date.now() + seconds * 1000
+        const world = this.world ?? this
+        if (name === OWN_GUEST_NAME && kind === 'gifs') world.gifsMutedUntil = until
+        if (name === OWN_GUEST_NAME && kind === 'chat') world.mutedUntil = until
+        this.announce({kind: "mute", id: UUIDv4(), announcedAt: Date.now(), name, muteKind: kind, seconds})
     }
 
     public remove(messageId = this.messages[this.messages.length - 1]?.id): string {
@@ -256,10 +313,15 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         onAnnouncement?: (announcement: ChatAnnouncement) => void,
         _onResumed?: () => void,
         onRemoved?: (messageId: string) => void,
+        onLeft?: () => void,
     ): () => void {
+        if (this.left) {
+            onLeft?.()
+            return () => {}
+        }
         const id = UUIDv4()
         this.listeners.set(id, {
-            message: callback, reactions: onReactions, announcement: onAnnouncement, removed: onRemoved,
+            message: callback, reactions: onReactions, announcement: onAnnouncement, removed: onRemoved, left: onLeft,
         })
         return () => {
             this.listeners.delete(id)

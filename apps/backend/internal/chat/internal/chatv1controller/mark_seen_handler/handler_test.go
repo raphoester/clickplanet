@@ -48,13 +48,14 @@ func TestTheCallersAccountAndTheTimeAreHandedOn(t *testing.T) {
 
 	require.NoError(t, markSeen(t, useCase, at.UnixMilli()))
 
-	assert.Equal(t, []mark_seen_usecase.In{{Account: ada, At: at}}, useCase.asked)
+	assert.Equal(t, []mark_seen_usecase.In{{Account: ada, Room: messages.World, At: at}}, useCase.asked)
 }
 
 func TestTheRefusalsHaveTheirCodes(t *testing.T) {
 	for want, refusal := range map[connect.Code]error{
-		connect.CodeUnauthenticated: messages.ErrNoAccount,
-		connect.CodeInvalidArgument: fmt.Errorf("wrapped: %w", seen.ErrNoTime),
+		connect.CodeUnauthenticated:    messages.ErrNoAccount,
+		connect.CodeInvalidArgument:    fmt.Errorf("wrapped: %w", seen.ErrNoTime),
+		connect.CodeFailedPrecondition: fmt.Errorf("wrapped: %w", messages.ErrNotInRoom),
 	} {
 		assert.Equal(t, want, connect.CodeOf(markSeen(t, &stubUseCase{err: refusal}, 1)), "%v", refusal)
 	}

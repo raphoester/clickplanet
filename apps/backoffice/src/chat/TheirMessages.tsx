@@ -16,7 +16,6 @@ const NEXT_PAGE = 10
 type Props = {
     chat: ChatAdmin
     accountId: string
-    name: string
     parties: Parties | undefined
 }
 
@@ -36,7 +35,7 @@ async function theirPage(chat: ChatAdmin, accountId: string, before: string, sig
 
 // What one account said in the chat, in the conversations it said it in, by its account id: a report from a
 // player's card names no message.
-export function TheirMessages({chat, accountId, name, parties}: Props) {
+export function TheirMessages({chat, accountId, parties}: Props) {
     const read = useCallback<Read>((ask, limit) => pageOf(chat, ask, limit), [chat])
     const first = useCallback(async (signal: AbortSignal): Promise<Built> => {
         const theirs = await theirPage(chat, accountId, "", signal)
@@ -46,14 +45,13 @@ export function TheirMessages({chat, accountId, name, parties}: Props) {
     const [call, again] = useCall(first)
 
     return (
-        <section className="panel" aria-label="Their messages">
-            <h2>{name === "" ? "What they said" : `What ${name} said`}</h2>
+        <>
             {call.state === "loading" && <p className="muted">Loading…</p>}
             {call.state === "failed" && <FailureNotice failure={call} onRetry={again}/>}
             {call.state === "done" && (
                 <Conversations chat={chat} accountId={accountId} first={call.value} read={read} parties={parties}/>
             )}
-        </section>
+        </>
     )
 }
 

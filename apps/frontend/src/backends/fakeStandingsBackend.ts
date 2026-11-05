@@ -1,14 +1,18 @@
 import {fakeAccountId} from "./fakeAccounts.ts"
 import {STANDINGS_SHOWN} from "../domain/standings.ts"
 import {TileClicker} from "./backend.ts"
-import {NameColor, PlayerTitle} from "./player.ts"
-import {ClosedRound, MySeason, Race, RoundStanding, Score, Standing, StandingsBackend} from "./standings.ts"
+import {Badge} from "./badges.ts"
+import {NameColor} from "./player.ts"
+import {PlayerTitle} from "./progression.ts"
+import {BookStep, MySeason, RaceListener, Round, RoundStanding, RoundTakes, Score, Standing, StandingsBackend} from "./standings.ts"
 
-export type FakePlayer = Pick<Standing, "name" | "color" | "wornTitle"> & {tiles: Record<string, number>}
+// The title worn is the player's badge: the board names it, and GetBadges draws the title.
+export type FakePlayer = Pick<Standing, "name" | "color"> & {tiles: Record<string, number>, wornTitle?: PlayerTitle}
 
 const conquest = (id: string, name: string, number: number): PlayerTitle =>
     ({id, name, rank: {trackId: "conquest", trackName: "Conquest", number, count: 5}})
 
+const FAKE_DAYS = 24
 const WARLORD = conquest("warlord", "Warlord", 3)
 const RAIDER = conquest("raider", "Raider", 2)
 const SETTLER = conquest("settler", "Settler", 1)
@@ -36,10 +40,10 @@ const SEASON_POINTS: Record<string, [points: number, roundsWon: number]> = {
     fr: [61, 2], br: [43, 1], in: [36, 1], nz: [25, 1], es: [18, 0], ru: [12, 0],
 }
 const DAY_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
-const FINALE_TIMES = 3
-const FIRST_DAY = 5
+const PLAYERS_SHOWN = 10
+// The part of what a flag holds its players took during a battle.
+const TAKEN_IN_BATTLE = 0.2
 const MAP_TILES = 262_119
-const DAY_ENDS_AT_UTC_HOUR = 21
 const DAY_MS = 24 * 60 * 60 * 1000
 
 export const MOVE_EVERY_MS = 1_500
@@ -50,8 +54,9 @@ export class FakeStandingsBackend implements StandingsBackend {
     private readonly players: FakePlayer[]
     private readonly listeners = new Set<() => void>()
     private readonly season = new Map(Object.entries(SEASON_POINTS).map(([code, [points, roundsWon]]) => [code, {points, roundsWon}]))
-    private day = FIRST_DAY
-    private closed?: ClosedRound
+    private readonly opened = new Map<string, {times: number, startedAt: number, taken: Map<string, number>}>()
+    private readonly scored = new Map<string, Round>()
+    private battle?: string
     private timer?: ReturnType<typeof setInterval>
 
     constructor(
@@ -71,12 +76,45 @@ export class FakeStandingsBackend implements StandingsBackend {
         }
     }
 
-    public listenForStandings(countryCode: string, onStandings: (standings: Standing[]) => void): () => void {
+    public listenForStandings(_bookId: string, countryCode: string, onStandings: (standings: Standing[]) => void): () => void {
         return this.listen(() => onStandings(this.top(countryCode)))
     }
 
-    public listenForRace(onRace: (race: Race) => void): () => void {
-        return this.listen(() => onRace(this.race()))
+    public listenForRace(_bookId: string, roundIds: readonly string[], {onScores, onRound}: RaceListener): () => void {
+        return this.listen(() => {
+            onScores(this.table())
+            for (const roundId of roundIds) onRound(this.roundOf(roundId))
+        })
+    }
+
+    public async board(): Promise<Standing[]> {
+        return this.top("")
+    }
+
+    // A made-up race of 24 days to the table now: each flag gets its points on a curve of its own, so lines cross.
+    public async bookHistory(): Promise<BookStep[]> {
+        const final = this.table()
+        const bends = new Map(final.map((score, i) => [score.countryCode, 0.5 + ((i * 7) % 11) / 8]))
+        return Array.from({length: FAKE_DAYS}, (_, i) => {
+            const done = (i + 1) / FAKE_DAYS
+            const points = final.map((score) => ({...score, points: Math.round(score.points * done ** (bends.get(score.countryCode) ?? 1))}))
+            const table = points.sort((a, b) => b.points - a.points).map((score, rank) => ({...score, rank: rank + 1}))
+            const held = table.reduce((sum, score) => sum + score.points, 0) || 1
+            return {
+                roundId: `season-0/day-${i + 1}`,
+                endedAt: Date.UTC(2026, 9, 8, 21) + i * 86_400_000,
+                results: table.map((score) => ({rank: score.rank, countryCode: score.countryCode, share: score.points / held, points: 0})),
+                table,
+            }
+        })
+    }
+
+    public async round(roundId: string): Promise<Round | undefined> {
+        return this.scored.get(roundId)
+    }
+
+    public async scores(): Promise<Score[]> {
+        return this.table()
     }
 
     private listen(send: () => void): () => void {
@@ -102,11 +140,19 @@ export class FakeStandingsBackend implements StandingsBackend {
         this.listeners.forEach((send) => send())
     }
 
+    // What GetBadges answers for a player of the board: the title it wears, and no streak. Undefined for an account
+    // this fake does not know.
+    public badgeOf(accountId: string): Badge | undefined {
+        const player = this.players.find(({name}) => fakeAccountId(name) === accountId)
+        return player && {streak: 0, wornTitle: player.wornTitle}
+    }
+
     private top(countryCode: string): Standing[] {
         const sorted = this.players
-            .map(({tiles, ...player}) => ({
-                ...player,
-                accountId: fakeAccountId(player.name),
+            .map(({name, color, tiles}) => ({
+                name,
+                color,
+                accountId: fakeAccountId(name),
                 ...lineOf(new Map(Object.entries(tiles)), countryCode),
             }))
             .filter((line) => line.tiles > 0)
@@ -116,9 +162,46 @@ export class FakeStandingsBackend implements StandingsBackend {
             .slice(0, STANDINGS_SHOWN)
     }
 
-    public closeRound(finale = false): ClosedRound {
+    // A day's round: scored with a little luck, and no takes or players.
+    public closeRound(roundId: string): Round {
+        const opened = this.opened.get(roundId)
         const before = this.table()
-        const standings = this.standings(finale, () => 0.4 + this.random())
+        const standings = this.score(this.standings(1, () => 0.4 + this.random()))
+        this.opened.delete(roundId)
+        return this.close({
+            roundId, times: 1, startedAt: opened?.startedAt ?? this.now() - DAY_MS, endedAt: this.now(),
+            standings, takes: [], players: [], before, after: this.table(),
+        })
+    }
+
+    public openBattle(roundId: string, since: number, times: number) {
+        this.opened.set(roundId, {times, startedAt: since, taken: new Map(this.taken)})
+        this.battle = roundId
+        this.listeners.forEach((send) => send())
+    }
+
+    // The battle opened, else one of 2 hours at ×3 that ends now.
+    public closeBattle(): Round {
+        const now = this.now()
+        const roundId = this.battle ?? crypto.randomUUID()
+        const battle = this.opened.get(roundId) ?? {times: 3, startedAt: now - 2 * 60 * 60 * 1000, taken: new Map(this.taken)}
+        const before = this.table()
+        const standings = this.score(this.standings(battle.times, () => 0.4 + this.random()))
+        this.opened.delete(roundId)
+        this.battle = undefined
+        return this.close({
+            roundId, times: battle.times, startedAt: battle.startedAt, endedAt: now,
+            standings, takes: this.takes(battle.taken), players: this.fighters(), before, after: this.table(),
+        })
+    }
+
+    private close(round: Round): Round {
+        this.scored.set(round.roundId, round)
+        this.listeners.forEach((send) => send())
+        return round
+    }
+
+    private score(standings: RoundStanding[]): RoundStanding[] {
         for (const standing of standings) {
             const kept = this.season.get(standing.countryCode) ?? {points: 0, roundsWon: 0}
             this.season.set(standing.countryCode, {
@@ -126,29 +209,49 @@ export class FakeStandingsBackend implements StandingsBackend {
                 roundsWon: kept.roundsWon + (standing.rank === 1 ? 1 : 0),
             })
         }
-        this.closed = {
-            season: 0,
-            number: this.day,
-            endedAt: this.now(),
-            finale,
-            standings: standings.filter((standing) => standing.points > 0),
-            before,
-            after: this.table(),
-        }
-        this.day += 1
-        this.listeners.forEach((send) => send())
-        return this.closed
+        return standings.filter((standing) => standing.points > 0)
     }
 
-    private race(): Race {
+    private takes(takenBefore: ReadonlyMap<string, number>): RoundTakes[] {
+        const takes = new Map<string, number>()
+        for (const [code, tiles] of this.taken) takes.set(code, tiles - (takenBefore.get(code) ?? 0))
+        for (const player of this.players) {
+            for (const [code, tiles] of Object.entries(player.tiles)) {
+                takes.set(code, (takes.get(code) ?? 0) + Math.round(tiles * TAKEN_IN_BATTLE * this.random()))
+            }
+        }
+        return [...takes]
+            .filter(([, tiles]) => tiles > 0)
+            .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
+            .map(([countryCode, tiles]) => ({countryCode, tiles}))
+    }
+
+    private fighters(): Standing[] {
+        const sorted = this.players
+            .map(({name, color, tiles}) => {
+                const [countryCode, held] = Object.entries(tiles).sort(([, x], [, y]) => y - x)[0]
+                return {name, color, accountId: fakeAccountId(name), countryCode, tiles: Math.round(held * TAKEN_IN_BATTLE * this.random())}
+            })
+            .filter((line) => line.tiles > 0)
+            .sort((a, b) => b.tiles - a.tiles)
+        return sorted
+            .map((line) => ({...line, rank: sorted.findIndex((other) => other.tiles === line.tiles) + 1}))
+            .slice(0, PLAYERS_SHOWN)
+    }
+
+    // Any round asked for and not scored runs: a day's at ×1, a battle's at its times.
+    private roundOf(roundId: string): Round {
+        const scored = this.scored.get(roundId)
+        if (scored) return scored
+        const opened = this.opened.get(roundId)
+        const times = opened?.times ?? 1
         return {
-            round: {number: this.day, endsAt: dayEndAfter(this.now()), finale: false, standings: this.standings(false, () => 1)},
-            scores: this.table(),
-            closed: this.closed,
+            roundId, times, startedAt: opened?.startedAt ?? 0, endedAt: 0,
+            standings: this.standings(times, () => 1), takes: [], players: [], before: [], after: [],
         }
     }
 
-    private standings(finale: boolean, luck: () => number): RoundStanding[] {
+    private standings(times: number, luck: () => number): RoundStanding[] {
         const held = new Map(this.taken)
         for (const player of this.players) {
             for (const [code, tiles] of Object.entries(player.tiles)) held.set(code, (held.get(code) ?? 0) + tiles)
@@ -160,7 +263,7 @@ export class FakeStandingsBackend implements StandingsBackend {
                 rank: i + 1,
                 countryCode,
                 share: tiles / MAP_TILES,
-                points: (DAY_POINTS[i] ?? 0) * (finale ? FINALE_TIMES : 1),
+                points: (DAY_POINTS[i] ?? 0) * times,
             }))
     }
 
@@ -175,7 +278,7 @@ export class FakeStandingsBackend implements StandingsBackend {
         }))
     }
 
-    public async mySeason(countryCode: string): Promise<MySeason | undefined> {
+    public async mySeason(_bookId: string, countryCode: string): Promise<MySeason | undefined> {
         const line = lineOf(this.taken, countryCode)
         return {countryCode: line.countryCode || undefined, tiles: line.tiles}
     }
@@ -189,10 +292,4 @@ function lineOf(tiles: ReadonlyMap<string, number>, countryCode: string): {count
         if (count > main.tiles) main = {countryCode: code, tiles: count}
     }
     return main
-}
-
-function dayEndAfter(now: number): number {
-    const end = new Date(now)
-    end.setUTCHours(DAY_ENDS_AT_UTC_HOUR, 0, 0, 0)
-    return end.getTime() > now ? end.getTime() : end.getTime() + DAY_MS
 }

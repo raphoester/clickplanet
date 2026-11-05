@@ -1,0 +1,469 @@
+package posts
+
+import (
+	"errors"
+	"fmt"
+	"maps"
+	"slices"
+	"time"
+)
+
+// From 1: a clip's number in its run.
+type Pick int
+
+// What a story tells of its flag there, beyond what it did.
+type Angle string
+
+const (
+	Deeds   Angle = ""
+	Holding Angle = "holding"
+	DayWon  Angle = "round"
+	CallUp  Angle = "callup"
+)
+
+// Which story a post told: a post keeps it, so the editor reads what was told.
+type StoryKey struct {
+	Flag      string
+	Continent string
+	Angle     Angle
+	// The day a DayWon tells or a CallUp follows: "1.5".
+	Round string
+}
+
+func (k StoryKey) known() bool {
+	if k.Flag == "" || k.Continent == "" {
+		return false
+	}
+	switch k.Angle {
+	case Deeds, Holding:
+		return k.Round == ""
+	case DayWon, CallUp:
+		return k.Round != ""
+	default:
+		return false
+	}
+}
+
+const TheWorld = "the world"
+
+// What the generator found in a replay, measured and never judged. A Story names a front, a tour, a place or a
+// seasonal story by its place in its list, from 1.
+type Findings struct {
+	Since, Until time.Time
+	Fronts       []Front
+	Tours        []Tour
+	Places       []Place
+	Seasonal     []Seasonal
+	Names        map[string]string
+	// Each continent's own flag, empty for none.
+	Continents map[string]string
+	Anthems    []string
+}
+
+type Front struct {
+	// The country whose ground alone it is measured on; empty for the whole map.
+	Scope        string
+	Since, Until time.Time
+	TilesChanged int
+	// Taken from another flag rather than off empty ground.
+	Captured                   int
+	Countries                  []FrontCountry
+	Flags                      []FrontFlag
+	Bombs, Spreads, Enclosures int
+	Score                      float64
+}
+
+type FrontCountry struct {
+	Code                             string
+	Continent                        string
+	Tiles                            int
+	Changed                          int
+	HoldersStart, HoldersEnd, Takers map[string]int
+}
+
+type FrontFlag struct {
+	Code               string
+	Continent          string
+	Took, Filled, Lost int
+	TookFrom           map[string]int
+	Solidity           float64
+	FlippedByContinent map[string]int
+	Fighters           []Fighter
+}
+
+// A player's number in the run's cast, from 1: the server alone knows its account.
+type FighterNumber int
+
+// A player of the cast, and the tiles it took from another flag there.
+type Fighter struct {
+	Number FighterNumber
+	Name   string
+	Took   int
+}
+
+type Tour struct {
+	Flag                  string
+	Since, Until          time.Time
+	Took                  int
+	ByContinent, TookFrom map[string]int
+	// What the second flag across the world took in the same stretch.
+	NextTook int
+	Solidity float64
+	Bombs    int
+	// The tiles of the landmasses whose painted flag switched to it, big enough to read from far, by continent.
+	FlippedByContinent map[string]int
+	Fighters           []Fighter
+}
+
+type PlaceKind string
+
+const (
+	World          PlaceKind = "world"
+	ContinentPlace PlaceKind = "continent"
+	CountryPlace   PlaceKind = "country"
+)
+
+type Place struct {
+	Kind               PlaceKind
+	Code               string
+	Continent          string
+	Tiles              int
+	Holder             string
+	Held               int
+	Share              float64
+	Rivals             map[string]int
+	Changed            int
+	FlippedByContinent map[string]int
+	// The holder's.
+	Fighters []Fighter
+}
+
+// A day won or a call-up, headlined by the generator.
+type Seasonal struct {
+	Title     string
+	Key       StoryKey
+	Countries []string
+	Teasers   []string
+	Facts     StoryFacts
+}
+
+// A clips.v1.StoryFacts in protojson.
+type StoryFacts []byte
+
+var ErrInvalidFindings = errors.New("the findings are invalid")
+
+func FindingsOf(findings Findings) (Findings, error) {
+	for _, seasonal := range findings.Seasonal {
+		if !seasonal.Key.known() || seasonal.Key.Angle == Deeds || seasonal.Key.Angle == Holding {
+			return Findings{}, fmt.Errorf("%w: %q is no day won or call-up", ErrInvalidFindings, seasonal.Title)
+		}
+	}
+	for name := range findings.Continents {
+		if name == "" {
+			return Findings{}, fmt.Errorf("%w: a continent has no name", ErrInvalidFindings)
+		}
+	}
+	return findings, nil
+}
+
+func (f Findings) Any() bool {
+	return len(f.Fronts)+len(f.Tours)+len(f.Places) > 0
+}
+
+type Kind string
+
+const (
+	Attack   Kind = "attack"
+	Invasion Kind = "invasion"
+	Comeback Kind = "comeback"
+	Kickout  Kind = "kickout"
+	Rout     Kind = "rout"
+	Battle   Kind = "battle"
+)
+
+var frontKinds = []Kind{Attack, Invasion, Comeback, Kickout, Rout, Battle}
+
+type Look string
+
+const (
+	PaintedFlags Look = "flags"
+	Dive         Look = "dive"
+)
+
+// A story to tell, as the generator's --story takes it. The editor makes one of a front, picks a tour or a place, and
+// words each; a seasonal story has words of its own.
+type Story struct {
+	Front, Tour, Place, Seasonal int
+	Kind                         Kind
+	Attacker, Rival              string
+	TakenFrom                    []string
+	// One or two countries, else a continent.
+	Countries []string
+	Continent string
+	// The continent whose flags strike back together.
+	Team      string
+	Headline  string
+	Teasers   []string
+	Line      string
+	Call      string
+	CallFlags []string
+	Anthem    string
+	Look      Look
+	// The players the clip names.
+	Fighters []FighterNumber
+}
+
+func (s Story) Names() string {
+	switch {
+	case s.Tour > 0:
+		return fmt.Sprintf("tour %d", s.Tour)
+	case s.Place > 0:
+		return fmt.Sprintf("place %d", s.Place)
+	case s.Seasonal > 0:
+		return fmt.Sprintf("seasonal %d", s.Seasonal)
+	default:
+		return fmt.Sprintf("front %d", s.Front)
+	}
+}
+
+var ErrInvalidStory = errors.New("the story does not hold")
+
+// Whether the story is true to the findings, never whether it is good: its key when it is.
+func (f Findings) Check(story Story) (StoryKey, error) {
+	named := 0
+	for _, number := range []int{story.Front, story.Tour, story.Place, story.Seasonal} {
+		if number > 0 {
+			named++
+		}
+	}
+	if named != 1 {
+		return StoryKey{}, fmt.Errorf("%w: it names %d of a front, a tour, a place and a seasonal story, not one", ErrInvalidStory, named)
+	}
+	if err := f.checkDrawn(story); err != nil {
+		return StoryKey{}, err
+	}
+
+	key, err := f.keyOf(story)
+	if err != nil {
+		return StoryKey{}, err
+	}
+	if err := checkFighters(story, f.sidesOf(story)); err != nil {
+		return StoryKey{}, err
+	}
+	return key, nil
+}
+
+func (f Findings) keyOf(story Story) (StoryKey, error) {
+	switch {
+	case story.Seasonal > 0:
+		if story.Seasonal > len(f.Seasonal) {
+			return StoryKey{}, fmt.Errorf("%w: no seasonal story %d of %d", ErrInvalidStory, story.Seasonal, len(f.Seasonal))
+		}
+		return f.Seasonal[story.Seasonal-1].Key, nil
+	case story.Tour > 0:
+		if story.Tour > len(f.Tours) {
+			return StoryKey{}, fmt.Errorf("%w: no tour %d of %d", ErrInvalidStory, story.Tour, len(f.Tours))
+		}
+		tour := f.Tours[story.Tour-1]
+		if len(tour.FlippedByContinent) == 0 {
+			return StoryKey{}, fmt.Errorf("%w: no landmass's painted flag switched to %q on tour %d, and a tour shows nothing else",
+				ErrInvalidStory, tour.Flag, story.Tour)
+		}
+		return StoryKey{Flag: tour.Flag, Continent: TheWorld}, nil
+	case story.Place > 0:
+		if story.Place > len(f.Places) {
+			return StoryKey{}, fmt.Errorf("%w: no place %d of %d", ErrInvalidStory, story.Place, len(f.Places))
+		}
+		if err := story.checkLook(); err != nil {
+			return StoryKey{}, err
+		}
+		place := f.Places[story.Place-1]
+		continent := place.Continent
+		if place.Kind == World {
+			continent = TheWorld
+		}
+		return StoryKey{Flag: place.Holder, Continent: continent, Angle: Holding}, nil
+	default:
+		if story.Front > len(f.Fronts) {
+			return StoryKey{}, fmt.Errorf("%w: no front %d of %d", ErrInvalidStory, story.Front, len(f.Fronts))
+		}
+		if err := story.checkLook(); err != nil {
+			return StoryKey{}, err
+		}
+		return f.checkFront(story, f.Fronts[story.Front-1])
+	}
+}
+
+func (s Story) checkLook() error {
+	switch s.Look {
+	case PaintedFlags, Dive:
+		return nil
+	default:
+		return fmt.Errorf("%w: %s has the look %q, not %q or %q", ErrInvalidStory, s.Names(), s.Look, PaintedFlags, Dive)
+	}
+}
+
+// A flag the clip cannot draw at its end, or an anthem it does not have, is none the findings hold.
+func (f Findings) checkDrawn(story Story) error {
+	for _, code := range story.CallFlags {
+		if _, named := f.Names[code]; !named && !slices.Contains(slices.Collect(maps.Values(f.Continents)), code) {
+			return fmt.Errorf("%w: the call's flag %q is no flag of the findings", ErrInvalidStory, code)
+		}
+	}
+	if story.Anthem != "" && !slices.Contains(f.Anthems, story.Anthem) {
+		return fmt.Errorf("%w: there is no anthem of %q", ErrInvalidStory, story.Anthem)
+	}
+	return nil
+}
+
+func (f Findings) checkFront(story Story, front Front) (StoryKey, error) {
+	flagOf := func(code string) (FrontFlag, bool) {
+		at := slices.IndexFunc(front.Flags, func(flag FrontFlag) bool { return flag.Code == code })
+		if at < 0 {
+			return FrontFlag{}, false
+		}
+		return front.Flags[at], true
+	}
+	refused := func(why string, args ...any) (StoryKey, error) {
+		return StoryKey{}, fmt.Errorf("%w: %s on front %d", ErrInvalidStory, fmt.Sprintf(why, args...), story.Front)
+	}
+
+	if !slices.Contains(frontKinds, story.Kind) {
+		return refused("%q is no kind a front tells", story.Kind)
+	}
+	attacker, found := flagOf(story.Attacker)
+	if !found || attacker.Took == 0 {
+		return refused("%q took nothing", story.Attacker)
+	}
+	for _, code := range story.TakenFrom {
+		if code == story.Attacker {
+			return refused("%q took from itself", code)
+		}
+		if loser, found := flagOf(code); !found || loser.Lost == 0 {
+			return refused("%q lost nothing", code)
+		}
+	}
+	switch story.Kind {
+	case Battle:
+		rival, found := flagOf(story.Rival)
+		if !found || story.Rival == story.Attacker || attacker.TookFrom[story.Rival] == 0 || rival.TookFrom[story.Attacker] == 0 {
+			return refused("%q and %q did not take from each other", story.Attacker, story.Rival)
+		}
+	case Rout, Kickout:
+		if len(story.TakenFrom) == 0 {
+			return refused("a %s names the flag thrown out", story.Kind)
+		}
+	default:
+	}
+	if story.Kind != Battle && story.Rival != "" {
+		return refused("only a battle has a rival, and this is %s", story.Kind)
+	}
+
+	var there []FrontCountry
+	switch {
+	case len(story.Countries) > 0 && story.Continent == "", len(story.Countries) == 0 && story.Continent != "":
+	default:
+		return refused("a story is told in one or two countries, or on a continent")
+	}
+	if len(story.Countries) > 2 {
+		return refused("a story is told in one or two countries, not %d", len(story.Countries))
+	}
+	for _, code := range story.Countries {
+		at := slices.IndexFunc(front.Countries, func(country FrontCountry) bool { return country.Code == code })
+		if at < 0 {
+			return refused("%q is no country of it", code)
+		}
+		there = append(there, front.Countries[at])
+	}
+	if story.Continent != "" {
+		for _, country := range front.Countries {
+			if country.Continent == story.Continent {
+				there = append(there, country)
+			}
+		}
+		if len(there) == 0 {
+			return refused("%q is no continent of it", story.Continent)
+		}
+	}
+	placeName := story.Continent
+	if placeName == "" {
+		placeName = fmt.Sprint(story.Countries)
+	}
+	tookThere := slices.ContainsFunc(there, func(country FrontCountry) bool { return country.Takers[story.Attacker] > 0 })
+	if !tookThere {
+		return refused("%q took nothing in %s", story.Attacker, placeName)
+	}
+
+	switch story.Kind {
+	case Comeback:
+		home := story.Continent != "" && attacker.Continent == story.Continent || slices.Contains(story.Countries, story.Attacker)
+		if !home {
+			return refused("%q is not at home in %s, so it is no comeback", story.Attacker, placeName)
+		}
+	case Kickout:
+		heldThere := slices.ContainsFunc(there, func(country FrontCountry) bool { return country.HoldersStart[story.Attacker] > 0 })
+		if !heldThere {
+			return refused("%q held nothing in %s when the front opened, so it kicks nobody out", story.Attacker, placeName)
+		}
+	case Rout:
+		loser := story.TakenFrom[0]
+		heldThere := slices.ContainsFunc(there, func(country FrontCountry) bool { return country.HoldersStart[loser] > 0 })
+		if !heldThere {
+			return refused("%q held nothing in %s when the front opened, so it is not thrown out", loser, placeName)
+		}
+	default:
+	}
+	if story.Team != "" && (story.Kind != Comeback || story.Team != story.Continent || attacker.Continent != story.Team) {
+		return refused("a team is a continent's flags striking back together on it, and %q is not that", story.Team)
+	}
+
+	continent := story.Continent
+	if continent == "" {
+		continent = there[0].Continent
+	}
+	return StoryKey{Flag: f.keyFlagOf(story, attacker), Continent: continent}, nil
+}
+
+// The loser of a rout, the continent's flag of a team, else the attacker: the generator's sidesOf.
+func (f Findings) keyFlagOf(story Story, attacker FrontFlag) string {
+	switch {
+	case story.Kind == Rout:
+		return story.TakenFrom[0]
+	case story.Team != "" && f.Continents[story.Team] != "":
+		return f.Continents[story.Team]
+	default:
+		return attacker.Code
+	}
+}
+
+// The fighters of the flags a story is between, once its numbers are known to hold. A seasonal story names nobody.
+func (f Findings) sidesOf(story Story) []Fighter {
+	switch {
+	case story.Seasonal > 0:
+		return nil
+	case story.Tour > 0:
+		return f.Tours[story.Tour-1].Fighters
+	case story.Place > 0:
+		return f.Places[story.Place-1].Fighters
+	default:
+		var sides []Fighter
+		for _, flag := range f.Fronts[story.Front-1].Flags {
+			if flag.Code == story.Attacker || flag.Code == story.Rival || slices.Contains(story.TakenFrom, flag.Code) {
+				sides = append(sides, flag.Fighters...)
+			}
+		}
+		return sides
+	}
+}
+
+func checkFighters(story Story, sides []Fighter) error {
+	for i, number := range story.Fighters {
+		if slices.Index(story.Fighters, number) != i {
+			return fmt.Errorf("%w: it names fighter %d twice", ErrInvalidStory, number)
+		}
+		if !slices.ContainsFunc(sides, func(fighter Fighter) bool { return fighter.Number == number }) {
+			return fmt.Errorf("%w: fighter %d took nothing for a side of %s", ErrInvalidStory, number, story.Names())
+		}
+	}
+	return nil
+}

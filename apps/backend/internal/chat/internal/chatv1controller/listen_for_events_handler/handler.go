@@ -2,14 +2,17 @@ package listen_for_events_handler
 
 import (
 	"context"
+	"errors"
 
 	"connectrpc.com/connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, sink listen_for_events_usecase.Sink) error
+	Execute(ctx context.Context, in listen_for_events_usecase.In, sink listen_for_events_usecase.Sink) error
 }
 
 func New(useCase UseCase) ListenForEventsHandler {
@@ -22,8 +25,20 @@ type ListenForEventsHandler struct {
 
 func (h ListenForEventsHandler) ListenForEvents(
 	ctx context.Context,
-	_ *connect.Request[chatv1.ListenForEventsRequest],
+	req *connect.Request[chatv1.ListenForEventsRequest],
 	stream *connect.ServerStream[chatv1.ChatEvent],
 ) error {
-	return h.useCase.Execute(ctx, NewSink(stream))
+	err := h.useCase.Execute(ctx, listen_for_events_usecase.In{
+		Viewer: messages.AccountIDOf(cpctx.GetAccount(ctx)),
+		Room:   messages.RoomOf(req.Msg.GetFlagRoom()),
+	}, NewSink(stream))
+
+	switch {
+	case errors.Is(err, messages.ErrNoAccount):
+		return connect.NewError(connect.CodeUnauthenticated, messages.ErrNoAccount)
+	case errors.Is(err, messages.ErrNotInRoom):
+		return connect.NewError(connect.CodeFailedPrecondition, messages.ErrNotInRoom)
+	default:
+		return err
+	}
 }

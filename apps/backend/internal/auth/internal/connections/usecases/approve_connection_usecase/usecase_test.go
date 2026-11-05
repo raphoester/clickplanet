@@ -51,8 +51,6 @@ func TestTheAppIsSentACodeForTheOperatorWhoLetItIn(t *testing.T) {
 		Execute(t.Context(), approve_connection_usecase.In{Request: sealed(t, sealer), Operator: ada})
 	require.NoError(t, err)
 
-	assert.Equal(t, "Claude", out.Client)
-	assert.Equal(t, "claude.ai", out.Host)
 	sent, err := url.Parse(out.RedirectURL)
 	require.NoError(t, err)
 	assert.Equal(t, callback, sent.Scheme+"://"+sent.Host+sent.Path)

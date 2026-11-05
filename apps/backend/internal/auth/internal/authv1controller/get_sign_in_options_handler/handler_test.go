@@ -29,15 +29,18 @@ func TestEveryOfferedProviderIsAnswered(t *testing.T) {
 
 	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_DISCORD, authv1.Provider_PROVIDER_GOOGLE}, res.Msg.GetProviders())
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
+	assert.Empty(t, res.Header().Values("Set-Cookie"))
 }
 
 func TestEmailIsAnsweredAfterTheProviders(t *testing.T) {
-	offer := signin.NewOffer(signin.Providers{signin.Google: signin.NewFakeProvider(signin.Google)}, true)
+	offer := signin.NewOffer(signin.Providers{signin.Google: signin.NewFakeProvider(signin.Google)},
+		signin.TokenProviders{signin.CrazyGames: signin.NewFakeTokenProvider(signin.CrazyGames)}, true)
 
 	res, err := get_sign_in_options_handler.New(offer).GetSignInOptions(t.Context(), connect.NewRequest(&authv1.GetSignInOptionsRequest{}))
 	require.NoError(t, err)
 
-	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_GOOGLE, authv1.Provider_PROVIDER_EMAIL}, res.Msg.GetProviders())
+	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_CRAZYGAMES, authv1.Provider_PROVIDER_GOOGLE, authv1.Provider_PROVIDER_EMAIL},
+		res.Msg.GetProviders())
 }
 
 func TestSignInOffIsAnEmptyListAndNotAnError(t *testing.T) {

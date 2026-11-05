@@ -12,10 +12,10 @@ type SequentialSecrets struct {
 	next int
 }
 
-func (s *SequentialSecrets) NewSecret(prefix string) (Secret, error) {
+func (s *SequentialSecrets) NewSecret() (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.next++
-	return Secret(fmt.Sprintf("%ssecret-%d", prefix, s.next)), nil
+	return fmt.Sprintf("secret-%d", s.next), nil
 }

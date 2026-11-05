@@ -36,11 +36,8 @@ type In struct {
 
 type Out struct {
 	RedirectURL string
-	Client      string
-	Host        string
 }
 
-// The operator lets the app in: a code for the operator's account, which the app's browser carries back to it.
 func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
 	now := u.clock.Now()
 
@@ -56,10 +53,10 @@ func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
 	if err != nil {
 		return Out{}, fmt.Errorf("failed to draw the code's id: %w", err)
 	}
-	code, err := u.sealer.SealedCode(request.Approved(in.Operator, id, now))
+	code, err := u.sealer.SealedCode(request.Approved(in.Operator, connections.CodeID(id), now))
 	if err != nil {
 		return Out{}, fmt.Errorf("failed to seal the code: %w", err)
 	}
 
-	return Out{RedirectURL: request.ApprovedURL(code, u.issuer), Client: request.Client(), Host: request.RedirectHost()}, nil
+	return Out{RedirectURL: request.ApprovedURL(code, u.issuer)}, nil
 }

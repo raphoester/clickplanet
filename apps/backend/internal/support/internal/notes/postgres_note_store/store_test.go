@@ -38,7 +38,7 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) kept() []notes.Snapshot {
-	rows, err := s.db.QueryContext(s.T().Context(),
+	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(),
 		`SELECT id, kind, account_id, text, diagnostics, submitted_at FROM notes ORDER BY submitted_at, id`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
@@ -68,7 +68,7 @@ func (s *testSuite) kept() []notes.Snapshot {
 }
 
 func (s *testSuite) attachmentsOf(note notes.NoteID) []notes.Attachment {
-	rows, err := s.db.QueryContext(s.T().Context(),
+	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(),
 		`SELECT position, id, media_type, size_bytes FROM attachments WHERE note_id = $1 ORDER BY position`, uuid.UUID(note))
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
@@ -117,12 +117,12 @@ func (s *testSuite) TestANoteWhosePageSaidNothingKeepsAnObjectOfEmptyValues() {
 	s.Require().NoError(postgres_note_store.New(s.db).Save(s.T().Context(), note))
 
 	var build string
-	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT diagnostics->>'build' FROM notes`).Scan(&build))
+	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(), `SELECT diagnostics->>'build' FROM notes`).Scan(&build))
 	s.Empty(build, "the key is there, with nothing in it")
 }
 
 func (s *testSuite) TestTheDatabaseRefusesANoteWithNoDiagnostics() {
-	_, err := s.db.ExecContext(s.T().Context(),
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(),
 		`INSERT INTO notes (id, kind, account_id, text, submitted_at) VALUES ($1, 'suggestion', $2, 'by hand', now())`,
 		uuid.New(), uuid.New())
 
@@ -138,7 +138,7 @@ func (s *testSuite) TestAnAnonymizedNoteHasNoAccountInTheTable() {
 	s.Require().NoError(store.Save(s.T().Context(), note.Anonymized()))
 
 	var named bool
-	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT account_id IS NOT NULL FROM notes`).Scan(&named))
+	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(), `SELECT account_id IS NOT NULL FROM notes`).Scan(&named))
 	s.False(named, "NULL, not an account of zeros")
 }
 
@@ -147,7 +147,7 @@ func (s *testSuite) TestTheDatabaseRefusesAMediaTypeItsTypeDoesNotName() {
 	s.Require().NoError(err)
 	s.Require().NoError(postgres_note_store.New(s.db).Save(s.T().Context(), note))
 
-	_, err = s.db.ExecContext(s.T().Context(),
+	_, err = s.db.On(s.T().Context()).ExecContext(s.T().Context(),
 		`INSERT INTO attachments (note_id, position, id, media_type, size_bytes) VALUES ($1, 0, $2, 'image/svg+xml', 1)`,
 		uuid.UUID{15: 1}, uuid.New())
 
@@ -155,7 +155,7 @@ func (s *testSuite) TestTheDatabaseRefusesAMediaTypeItsTypeDoesNotName() {
 }
 
 func (s *testSuite) TestTheDatabaseRefusesAKindItsTypeDoesNotName() {
-	_, err := s.db.ExecContext(s.T().Context(),
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(),
 		`INSERT INTO notes (id, kind, account_id, text, diagnostics, submitted_at) VALUES ($1, 'complaint', $2, 'by hand', '{}', now())`,
 		uuid.New(), uuid.New())
 

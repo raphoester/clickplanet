@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+package gamemaster.v1;
+
+import "google/protobuf/timestamp.proto";
+import "gamemaster/v1/events.proto";
+import "planet/v1/history.proto";
+import "planet/v1/totals.proto";
+
+// What the schedule plays now, in the players' words: the kind of the running entry, never a rule set's name, which
+// is the operator's. On the public router.
+service GamemasterService {
+  rpc GetTurn(GetTurnRequest) returns (GetTurnResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The turn now, the timeline and the last debrief, as the first events, then each change of any within a second; a
+  // heartbeat every 30 s meanwhile.
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream GamemasterEvent);
+
+  // What the players did on the map during a season that ended, from planet's ledger. NotFound for a season that has
+  // not ended.
+  rpc GetSeasonTotals(GetSeasonTotalsRequest) returns (GetSeasonTotalsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The map during a season that ended, or during its finale, from planet's ledger: every 30 minutes over the season,
+  // every 10 seconds over the finale. NotFound for a season that has not ended, or a finale it did not have.
+  rpc GetSeasonReplay(GetSeasonReplayRequest) returns (GetSeasonReplayResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetSeasonReplayRequest {
+  uint32 season = 1;
+  bool finale = 2;
+}
+
+message GetSeasonReplayResponse {
+  planet.v1.MapHistory history = 1;
+}
+
+message GetSeasonTotalsRequest {
+  uint32 season = 1;
+}
+
+message GetSeasonTotalsResponse {
+  planet.v1.LedgerTotals totals = 1;
+}
+
+// What an entry is to the players. The game client reads the kind that plays and gives it a look: a battle has one,
+// Halloween another, a plain entry none.
+enum EntryKind {
+  ENTRY_KIND_UNSPECIFIED = 0;
+  // A change of the rules with no look for the players: a quieter antibot bound for a day.
+  ENTRY_KIND_PLAIN = 1;
+  ENTRY_KIND_BATTLE = 2;
+  // A plain entry the client dresses for Halloween. It scores nothing, as a plain one.
+  ENTRY_KIND_HALLOWEEN = 3;
+}
+
+message GetTurnRequest {}
+
+message GetTurnResponse {
+  Turn turn = 1;
+  Timeline timeline = 2;
+  // The last moment scoring scored; unset before any.
+  Debrief debrief = 3;
+}
+
+// What the schedule plays now.
+message Turn {
+  // The kind of the running entry with the highest priority; plain when none runs.
+  EntryKind kind = 1;
+  // When this turn began. Unset when it has played since before any entry.
+  google.protobuf.Timestamp since = 2;
+  // When the running entry ends. Unset when none runs. An entry above it may start before that: the stream says so.
+  google.protobuf.Timestamp ends_at = 3;
+  // The running entry's words for the players, plain text: what its rules are. Empty when none runs.
+  string description = 4;
+  // The running entry's id; empty when none runs, and while a season's finale plays.
+  string entry_id = 5;
+  // The running battle's round in scoring's books; empty when no battle runs.
+  string round_id = 6;
+  // The running battle's points' times; 0 when no battle runs.
+  uint32 times = 7;
+  // The running battle is the season's finale.
+  bool ends_season = 8;
+}
+
+// What the schedule will play that the players may wait for. An operator may still move or delete an entry to come:
+// the stream sends the timeline again then.
+message Timeline {
+  // The battles that have not started, by start, the seasons' finales among them. Never a plain entry.
+  repeated Battle battles = 1;
+  // The season that runs now; unset between two seasons.
+  Season current = 2;
+  // The first season that has not started; unset when none is scheduled.
+  Season next = 3;
+  // The day in progress; unset between two seasons, and from the season's last cutoff to its end.
+  Day today = 4;
+  // The seasons that ended, by number.
+  repeated Season ended = 5;
+}
+
+// A day of a season: a round scored at the daily cutoff.
+message Day {
+  uint32 number = 1;
+  google.protobuf.Timestamp starts_at = 2;
+  google.protobuf.Timestamp ends_at = 3;
+  string round_id = 4;
+}
+
+// A season: scoring counts its points from its start to its end. An operator may move the end of one that runs: the
+// stream sends the timeline again then.
+message Season {
+  uint32 number = 1;
+  google.protobuf.Timestamp starts_at = 2;
+  google.protobuf.Timestamp ends_at = 3;
+  // The season's book in scoring.
+  string book_id = 4;
+  // Its finale's round in scoring's books; empty when it has no finale.
+  string finale_round_id = 5;
+}
+
+message Battle {
+  // Empty for a season's finale, which is the season's and no entry's.
+  string entry_id = 1;
+  google.protobuf.Timestamp starts_at = 2;
+  google.protobuf.Timestamp ends_at = 3;
+  // The entry's words for the players, plain text: what its rules are.
+  string description = 4;
+  // How many times a day's points the battle scores.
+  uint32 times = 5;
+  // The battle is the season's finale.
+  bool ends_season = 6;
+  string round_id = 7;
+}
+
+// What scoring just scored, for the screens: the ids to read its numbers by.
+message Debrief {
+  oneof moment {
+    DayEnded day = 1;
+    BattleEnded battle = 2;
+    SeasonEnded season = 3;
+  }
+}
+
+message ListenForEventsRequest {}
+
+message GamemasterEvent {
+  oneof event {
+    Turn turn = 1;
+    Heartbeat heartbeat = 2;
+    Timeline timeline = 3;
+    Debrief debrief = 4;
+  }
+}
+
+message Heartbeat {}

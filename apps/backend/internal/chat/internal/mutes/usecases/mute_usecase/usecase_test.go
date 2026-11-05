@@ -58,7 +58,7 @@ func (s *testSuite) TestAMuteHoldsTheAccountAndTheSlash64ItLastPostedFrom() {
 	mute, err := s.useCase.Execute(context.Background(), mute_usecase.In{Account: bully})
 	s.Require().NoError(err)
 
-	s.Equal(mutes.NewMute(mutes.MuteID{15: 1}, mutes.CallerOf(bully, "2a01:e0a:1:2::/64"), now, time.Hour), mute,
+	s.Equal(mutes.NewMute(mutes.MuteID{15: 1}, mutes.CallerOf(bully, "2a01:e0a:1:2::/64"), mutes.Chat, now, time.Hour), mute,
 		"one hour when no duration is asked")
 	s.Equal([]mutes.Mute{mute}, s.mutes.Kept())
 }
@@ -68,6 +68,16 @@ func (s *testSuite) TestAMuteLastsWhatWasAsked() {
 	s.Require().NoError(err)
 
 	s.Equal(now.Add(90*time.Minute), mute.Until())
+}
+
+func (s *testSuite) TestAMuteOfTheGifsHoldsTheNetworkToo() {
+	s.posted(bully, "2a01:e0a:1:2:aaaa::9", "latest")
+
+	mute, err := s.useCase.Execute(context.Background(), mute_usecase.In{Account: bully, Kind: mutes.Gifs})
+	s.Require().NoError(err)
+
+	s.Equal(mutes.NewMute(mutes.MuteID{15: 1}, mutes.CallerOf(bully, "2a01:e0a:1:2::/64"), mutes.Gifs, now, time.Hour), mute)
+	s.Equal([]mutes.Mute{mute}, s.mutes.Kept())
 }
 
 func (s *testSuite) TestAnAccountThatNeverPostedIsMutedAlone() {

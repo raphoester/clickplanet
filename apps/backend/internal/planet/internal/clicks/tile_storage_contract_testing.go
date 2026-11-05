@@ -5,9 +5,15 @@ package clicks
 import (
 	"context"
 	"encoding/binary"
+	"maps"
+	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 const contractMaxIndex = 100_000
@@ -33,7 +39,7 @@ func (s *TileStorageContractSuite) subscribe(timeout time.Duration) (<-chan Chan
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	s.T().Cleanup(cancel)
 
-	listener, err := s.storage.Subscribe(ctx)
+	listener, _, err := s.storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
 	return listener, ctx
@@ -134,7 +140,7 @@ func (s *TileStorageContractSuite) TestEverySubscriberGetsEveryChange() {
 
 	listeners := make([]<-chan Change, 0, 5)
 	for range 5 {
-		listener, err := s.storage.Subscribe(ctx)
+		listener, _, err := s.storage.Subscribe(ctx)
 		s.Require().NoError(err)
 		listeners = append(listeners, listener)
 	}
@@ -149,7 +155,7 @@ func (s *TileStorageContractSuite) TestEverySubscriberGetsEveryChange() {
 func (s *TileStorageContractSuite) TestSubscribeClosesTheFeedWhenTheContextEnds() {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	listener, err := s.storage.Subscribe(ctx)
+	listener, _, err := s.storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
 	cancel()
@@ -443,6 +449,7 @@ func (s *TileStorageContractSuite) TestABlastStrikesTheShieldedTilesAndClearsThe
 	s.Equal([]uint32{10, 12}, blast.Cleared)
 	s.Equal([]uint32{11}, blast.Struck)
 	s.Equal([]int{1}, blast.Left, "with the shields each one kept")
+	s.Equal([]string{"fr"}, blast.StruckOwners, "and the flag each one kept")
 	s.Equal(map[uint32]string{11: "fr"}, s.owners(10, 12))
 	s.Equal(1, s.storage.Shields(11))
 }
@@ -479,10 +486,10 @@ func (s *TileStorageContractSuite) TestAWholeLandmassFortifiedGivesEachOfItsTile
 	s.own("fr", contractIsland...)
 	listener, ctx := s.subscribe(time.Second)
 
-	fortification, err := s.storage.Fortify(ctx, 90_003, "fr", 10)
+	fortification, err := s.storage.Fortify(cpctx.AddAccountToContext(ctx, "ada"), 90_003, "fr", 10)
 	s.Require().NoError(err)
 
-	s.Equal(Fortification{Landmass: 1, Ground: "l1", Country: "fr", Tile: 90_003, Tiles: 3, Raised: []TileShields{
+	s.Equal(Fortification{Landmass: 1, Ground: "l1", Country: "fr", Tile: 90_003, Account: "ada", Tiles: 3, Raised: []TileShields{
 		{Tile: 90_001, Shields: 1}, {Tile: 90_002, Shields: 1}, {Tile: 90_003, Shields: 1},
 	}}, fortification)
 	s.Equal([]int{1, 1, 1}, s.shieldsOn(contractIsland...))
@@ -601,4 +608,213 @@ func (s *TileStorageContractSuite) TestARestoreThatMakesALandmassWholeLocksItToI
 	_, err = s.storage.Fortify(ctx, 90_003, "fr", 10)
 
 	s.Require().ErrorIs(err, ErrFortifiedAlready)
+}
+
+func (s *TileStorageContractSuite) asAccount() (context.Context, cpsession.AccountID) {
+	account := cpsession.AccountID(uuid.New())
+	return cpctx.AddAccountToContext(context.Background(), account.String()), account
+}
+
+func (s *TileStorageContractSuite) TestAPlayersTakeHoldsTheTileForItsAccount() {
+	ana, anaID := s.asAccount()
+	bob, bobID := s.asAccount()
+
+	s.Require().NoError(s.storage.Click(ana, contractIsland[0], "fr"))
+	s.Require().NoError(s.storage.Set(ana, contractIsland[1], "fr"))
+	s.Require().NoError(s.storage.Click(bob, contractIsland[2], "fr"))
+
+	s.ElementsMatch([]Holding{{Account: anaID, Flag: "fr", Tiles: 2}, {Account: bobID, Flag: "fr", Tiles: 1}},
+		s.storage.HoldingsOf(1))
+	s.Empty(s.storage.HoldingsOf(2))
+}
+
+func (s *TileStorageContractSuite) TestAWriteWithNoAccountHoldsTheTileForNobody() {
+	s.Require().NoError(s.storage.Set(context.Background(), contractIsland[0], "fr"))
+
+	s.Empty(s.storage.HoldingsOf(1))
+	s.Equal(map[uint32]string{contractIsland[0]: "fr"}, s.owners(contractIsland[0], contractIsland[0]))
+}
+
+func (s *TileStorageContractSuite) TestAClickThatChangesNoOwnerKeepsTheHolder() {
+	ana, anaID := s.asAccount()
+	bob, _ := s.asAccount()
+	s.Require().NoError(s.storage.Click(ana, contractIsland[0], "fr"))
+	s.Require().NoError(s.storage.Shield(ana, contractIsland[0], "fr", 3))
+
+	s.Require().NoError(s.storage.Click(bob, contractIsland[0], "fr"))
+	s.Require().True(s.storage.Strike(bob, contractIsland[0], "fr"))
+
+	s.Equal([]Holding{{Account: anaID, Flag: "fr", Tiles: 1}}, s.storage.HoldingsOf(1))
+}
+
+func (s *TileStorageContractSuite) TestATakeForAnotherFlagHoldsTheTileForItsTaker() {
+	ana, _ := s.asAccount()
+	bob, bobID := s.asAccount()
+	s.Require().NoError(s.storage.Click(ana, contractIsland[0], "fr"))
+
+	s.Require().NoError(s.storage.Click(bob, contractIsland[0], "de"))
+
+	s.Equal([]Holding{{Account: bobID, Flag: "de", Tiles: 1}}, s.storage.HoldingsOf(1))
+}
+
+func (s *TileStorageContractSuite) TestAClearAReassignAndARestoreLeaveTheirTilesHeldByNobody() {
+	ana, anaID := s.asAccount()
+	for _, tile := range contractIsland {
+		s.Require().NoError(s.storage.Click(ana, tile, "fr"))
+	}
+
+	_, err := s.storage.Clear(ana, Blast{Tile: contractIsland[0], CountryID: "us", Cleared: []uint32{contractIsland[0]}})
+	s.Require().NoError(err)
+	_, err = s.storage.Restore(context.Background(), []Restoration{{Tile: contractIsland[1], From: "fr", To: "us"}})
+	s.Require().NoError(err)
+	s.Equal([]Holding{{Account: anaID, Flag: "fr", Tiles: 1}}, s.storage.HoldingsOf(1))
+
+	_, _, err = s.storage.Reassign(context.Background(), "fr", "it", 0, 10)
+	s.Require().NoError(err)
+	s.Empty(s.storage.HoldingsOf(1))
+}
+
+func (s *TileStorageContractSuite) TestAForgottenHolderLeavesItsTilesWearingTheirFlag() {
+	ana, anaID := s.asAccount()
+	bob, bobID := s.asAccount()
+	s.Require().NoError(s.storage.Click(ana, contractIsland[0], "fr"))
+	s.Require().NoError(s.storage.Click(ana, contractIsland[1], "fr"))
+	s.Require().NoError(s.storage.Click(bob, contractIsland[2], "fr"))
+
+	forgotten, err := s.storage.ForgetHolder(context.Background(), anaID)
+	s.Require().NoError(err)
+
+	s.Equal(2, forgotten)
+	s.Equal([]Holding{{Account: bobID, Flag: "fr", Tiles: 1}}, s.storage.HoldingsOf(1))
+	s.Len(s.owners(contractIsland[0], contractIsland[2]), 3)
+
+	again, err := s.storage.ForgetHolder(context.Background(), anaID)
+	s.Require().NoError(err)
+	s.Zero(again)
+}
+
+func (s *TileStorageContractSuite) TestEveryWriteCountsOneAfterTheVersionTheSubscriptionStartedAt() {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	s.T().Cleanup(cancel)
+	s.own("fr", 7, 8)
+	s.own("dz", 9)
+
+	listener, opening, err := s.storage.Subscribe(ctx)
+	s.Require().NoError(err)
+	s.NotZero(opening.Epoch)
+
+	s.Require().NoError(s.storage.Click(ctx, 7, "de"))
+	s.Require().NoError(s.storage.Shield(ctx, 8, "fr", 10))
+	s.Require().True(s.storage.Strike(ctx, 8, "fr"))
+	_, err = s.storage.Clear(ctx, Blast{Cleared: []uint32{7}})
+	s.Require().NoError(err)
+	_, _, err = s.storage.Reassign(ctx, "dz", "it", 0, 10)
+	s.Require().NoError(err)
+	_, err = s.storage.Restore(ctx, []Restoration{{Tile: 9, From: "it", To: "dz"}})
+	s.Require().NoError(err)
+	s.own("fr", contractIsland...)
+	_, err = s.storage.Fortify(ctx, contractIsland[0], "fr", 10)
+	s.Require().NoError(err)
+
+	for seq := opening.Seq + 1; seq <= opening.Seq+10; seq++ {
+		s.Equal(MapVersion{Epoch: opening.Epoch, Seq: seq}, s.next(ctx, listener).Version)
+	}
+	s.Empty(listener)
+}
+
+func (s *TileStorageContractSuite) TestAWriteThatChangesNothingCountsNothing() {
+	ctx := context.Background()
+	s.own("fr", 7)
+	before := s.batchVersion()
+
+	s.Require().NoError(s.storage.Set(ctx, 7, "fr"))
+	s.False(s.storage.Strike(ctx, 7, "fr"))
+	_, _, err := s.storage.Reassign(ctx, "dz", "it", 0, 10)
+	s.Require().NoError(err)
+
+	s.Equal(before, s.batchVersion())
+}
+
+func (s *TileStorageContractSuite) TestConcurrentWritesReachEverySubscriberInVersionOrder() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	s.T().Cleanup(cancel)
+
+	const writers, writes = 8, 100
+	listeners := make([]<-chan Change, 3)
+	for i := range listeners {
+		listener, _, err := s.storage.Subscribe(ctx)
+		s.Require().NoError(err)
+		listeners[i] = listener
+	}
+
+	var wg sync.WaitGroup
+	for w := range writers {
+		wg.Go(func() {
+			for i := range writes {
+				s.NoError(s.storage.Set(ctx, uint32(w*writes+i+1), []string{"fr", "de"}[i%2])) //nolint:gosec // a few thousand tiles.
+			}
+		})
+	}
+	wg.Wait()
+
+	for _, listener := range listeners {
+		last := uint64(0)
+		for range writers * writes {
+			seq := s.next(ctx, listener).Version.Seq
+			s.Require().Greater(seq, last)
+			last = seq
+		}
+	}
+}
+
+func (s *TileStorageContractSuite) TestAStateBatchIsAtTheVersionOfTheLastWriteItHolds() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	s.T().Cleanup(cancel)
+	listener, _, err := s.storage.Subscribe(ctx)
+	s.Require().NoError(err)
+
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		for tile := uint32(1); tile <= 900; tile++ {
+			select {
+			case <-stop:
+				return
+			default:
+				s.NoError(s.storage.Set(ctx, tile, []string{"fr", "de"}[tile%2]))
+			}
+		}
+	})
+
+	batches := make([]DenseBatch, 0, 50)
+	for range 50 {
+		batch, err := s.storage.StateBatchDense(1, 1_000)
+		s.Require().NoError(err)
+		batches = append(batches, batch)
+	}
+	close(stop)
+	wg.Wait()
+
+	owners := map[uint32]string{}
+	at := map[uint64]map[uint32]string{}
+	for len(listener) > 0 {
+		change := <-listener
+		owners[change.Update.Tile] = change.Update.Value
+		at[change.Version.Seq] = maps.Clone(owners)
+	}
+	for _, batch := range batches {
+		expected, ok := at[batch.Version.Seq]
+		if !ok {
+			continue
+		}
+		for tile, owner := range expected {
+			s.Equal(owner, batch.Codes[binary.LittleEndian.Uint16(batch.Tiles[(tile-1)*2:])], "tile %d at %d", tile, batch.Version.Seq)
+		}
+	}
+}
+
+func (s *TileStorageContractSuite) batchVersion() MapVersion {
+	batch, err := s.storage.StateBatchDense(1, 1)
+	s.Require().NoError(err)
+	return batch.Version
 }

@@ -15,6 +15,7 @@ import {
     unreadSince,
     unseenAfter,
     withRemoved,
+    wordsOf,
 } from "./chatLog.ts"
 import type {ChatAnnouncement, ChatMessage} from "../backends/chat.ts"
 import {NameColor} from "../backends/player.ts"
@@ -27,7 +28,6 @@ const message = (id: string, sentAt: number): ChatMessage => ({
     authorName: "Ana",
     authorAdmin: false,
     authorColor: NameColor.UNSPECIFIED,
-    authorStreak: 0,
     countryCode: "fr",
     text: `message ${id}`,
     reactions: [],
@@ -80,6 +80,29 @@ describe("addMessages", () => {
         const many = Array.from({length: CHAT_LOG_LIMIT + 10}, (_, i) => message(`m${i}`, i))
 
         expect(addMessages([], many)).toHaveLength(CHAT_LOG_LIMIT)
+    })
+})
+
+const dancing = {url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124}
+
+describe("a GIF", () => {
+    it("is said as GIF where only words fit", () => {
+        expect(wordsOf({...message("a", 1), text: "", gif: dancing})).toBe("GIF")
+        expect(wordsOf(message("a", 1))).toBe("message a")
+    })
+
+    it("goes into the quote of a reply to it", () => {
+        expect(quoteOf({...message("a", 1), text: "", gif: dancing}).gif).toEqual(dancing)
+    })
+
+    it("is gone from a removed message and from the quote of a reply to it", () => {
+        const gif = {...message("a", 1), text: "", gif: dancing}
+        const reply = {...message("b", 2), replyTo: quoteOf(gif)}
+
+        const kept = withRemoved([gif, reply], "a")
+
+        expect(kept[0].gif).toBeUndefined()
+        expect(kept[1].replyTo?.gif).toBeUndefined()
     })
 })
 

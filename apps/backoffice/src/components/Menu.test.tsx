@@ -3,7 +3,7 @@ import {cleanup, fireEvent, render, screen, within} from "@testing-library/react
 import {useState} from "react"
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {PageId, titleOf} from "../navigation.ts"
-import {Menu} from "./Menu.tsx"
+import {Menu, Sidebar} from "./Menu.tsx"
 
 afterEach(cleanup)
 
@@ -30,7 +30,7 @@ describe("Menu", () => {
         const drawer = screen.getByRole("dialog", {name: "Menu"})
         expect(burger().getAttribute("aria-expanded")).toBe("true")
         expect(within(drawer).getAllByRole("heading").map(h => h.textContent))
-            .toEqual(["Feedback", "Moderation", "Map", "Ops"])
+            .toEqual(["Overview", "Feedback", "Moderation", "Map", "Clips", "Ops"])
         expect(within(drawer).getByRole("button", {name: "Ideas and bugs"}).getAttribute("aria-current")).toBe("page")
         expect(document.activeElement).toBe(within(drawer).getByRole("button", {name: "Ideas and bugs"}))
     })
@@ -76,5 +76,23 @@ describe("Menu", () => {
 
         fireEvent.keyDown(document, {key: "Tab", shiftKey: true})
         expect(document.activeElement).toBe(buttons[buttons.length - 1])
+    })
+})
+
+describe("Sidebar", () => {
+    it("shows every page by group, with no burger, and stays open on the page picked", () => {
+        const onGo = vi.fn()
+        render(<Sidebar page="notes" onGo={onGo}/>)
+
+        const pages = screen.getByRole("navigation", {name: "Pages"})
+        expect(screen.queryByRole("button", {name: "Menu"})).toBeNull()
+        expect(within(pages).getAllByRole("heading").map(h => h.textContent))
+            .toEqual(["Overview", "Feedback", "Moderation", "Map", "Clips", "Ops"])
+        expect(within(pages).getByRole("button", {name: "Ideas and bugs"}).getAttribute("aria-current")).toBe("page")
+
+        fireEvent.click(within(pages).getByRole("button", {name: "Reports"}))
+
+        expect(onGo).toHaveBeenCalledWith("reports")
+        expect(screen.getByRole("navigation", {name: "Pages"})).toBeTruthy()
     })
 })

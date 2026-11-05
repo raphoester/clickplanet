@@ -15,7 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/publishing_send_message"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 type stubUseCase struct {
@@ -35,7 +35,7 @@ var sent = messages.Snapshot{
 }
 
 func TestASentMessageIsPublishedWithItsSenderAndTime(t *testing.T) {
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 	kept := messages.Restored(t, sent)
 
 	message, err := publishing_send_message.New(stubUseCase{message: kept}, events).
@@ -51,7 +51,7 @@ func TestASentMessageIsPublishedWithItsSenderAndTime(t *testing.T) {
 }
 
 func TestARefusedMessagePublishesNothing(t *testing.T) {
-	events := cpbootstrap.NewRecordedEvents()
+	events := cpredis.NewRecordedEvents()
 	refused := errors.New("postgres is down")
 
 	_, err := publishing_send_message.New(stubUseCase{err: refused}, events).

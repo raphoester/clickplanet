@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
+import {textBody} from "../chat/said.ts"
 import {Timestamp} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {AT, FakeAdmin} from "../fakeAdmin.ts"
 import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
-import {Report, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
+import {Gif, MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
+import {Report, ReportDecision, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
 import {ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
 import {OpenPlayer} from "../navigation.ts"
 import {ReportDetail} from "./ReportDetail.tsx"
-import {AROUND} from "../chat/theirConversations.ts"
+import {Closed} from "./verdict.ts"
 
 afterEach(cleanup)
 
@@ -25,8 +27,30 @@ const report = new Report({
     createdAt: Timestamp.fromDate(AT),
 })
 
-function open(admin: FakeAdmin, shown: Report = report) {
-    render(<ReportDetail report={shown} onBack={() => undefined} clients={admin.clients()}/>)
+// Two more reports on Ana: one open, one closed.
+const related = [
+    new Report({id: "report-2", reportedAccountId: "account-reported", reason: ReportReason.BAD_NAME, createdAt: Timestamp.fromDate(AT)}),
+    new Report({
+        id: "report-3", reportedAccountId: "account-reported", reason: ReportReason.CHAT_ABUSE, createdAt: Timestamp.fromDate(AT),
+        decision: new ReportDecision({outcome: ReportOutcome.DISMISSED}),
+    }),
+]
+
+type Opened = {closed: Closed[], opened: string[]}
+
+function open(admin: FakeAdmin, shown: Report = report, others: Report[] = []): Opened {
+    const seen: Opened = {closed: [], opened: []}
+    render(
+        <ReportDetail
+            report={shown}
+            related={others}
+            onBack={() => undefined}
+            onOpen={id => seen.opened.push(id)}
+            onClosed={closed => seen.closed.push(closed)}
+            clients={admin.clients()}
+        />,
+    )
+    return seen
 }
 
 // The lines of the conversation, once the pages around the reported message are read.
@@ -36,34 +60,31 @@ async function lines(): Promise<HTMLElement[]> {
     return within(screen.getByRole("list", {name: "The conversation"})).getAllByRole("listitem")
 }
 
-// The reported message's own panel: the page also lists every message of the reported account.
-function messagePanel() {
-    return within(screen.getByRole("region", {name: "The message"}))
+// The chat around the reported message, shown once the message is read.
+async function messagePanel() {
+    return within(await screen.findByRole("region", {name: "The message"}))
 }
 
-// What the conversation around the reported message asked, leaving out the reported account's own messages and the
-// conversations TheirMessages reads around them.
-function asksAround(admin: FakeAdmin): unknown[] {
-    return admin.askedFor("listMessages").filter(ask => {
-        const {accountId, limit} = ask as {accountId?: string, limit?: number}
-        return !accountId && limit !== AROUND
-    })
+function verdict() {
+    return within(screen.getByRole("region", {name: "Verdict"}))
 }
 
 function confirm(label: string, yes: string) {
-    fireEvent.click(screen.getByRole("button", {name: label}))
-    fireEvent.click(screen.getByRole("button", {name: yes}))
+    fireEvent.click(verdict().getByRole("button", {name: label}))
+    fireEvent.click(verdict().getByRole("button", {name: yes}))
 }
 
 describe("ReportDetail", () => {
-    it("reads the reported message, then a page of the chat on each side of it", async () => {
+    it("quotes the reported message, then reads a page of the chat on each side of it", async () => {
         const admin = new FakeAdmin()
         open(admin)
 
-        expect(await messagePanel().findByText("you all suck")).toBeTruthy()
+        const quote = await screen.findByText("you all suck", {selector: ".report-quote .line-text"})
+        expect(quote).toBeTruthy()
+        expect(screen.getByText("Bob wrote:")).toBeTruthy()
         await lines()
         expect(admin.askedFor("getMessage")).toEqual([{messageId: "message-1"}])
-        expect(asksAround(admin)).toEqual([
+        expect(admin.askedFor("listMessages")).toEqual([
             {beforeMessageId: "message-1", limit: 10},
             {afterMessageId: "message-1", limit: 10},
         ])
@@ -99,10 +120,18 @@ describe("ReportDetail", () => {
         expect(within(shown[2]).getByText("Ana")).toBeTruthy()
     })
 
+    it("says the flag room a line was said in, and nothing for the world chat", async () => {
+        open(new FakeAdmin())
+
+        const shown = await lines()
+        expect(within(shown[3]).getByText("Germany room")).toBeTruthy()
+        expect(shown.slice(0, 3).some(line => line.textContent?.includes(" room"))).toBe(false)
+    })
+
     it("pages back and forth from the reported message, on asking", async () => {
         const admin = new FakeAdmin()
         const said = (side: string, n: number) => new KeptMessage({
-            messageId: `${side}-${n}`, accountId: "account-cleo", authorName: "Cleo", text: `${side} ${n}`,
+            messageId: `${side}-${n}`, accountId: "account-cleo", authorName: "Cleo", body: textBody(`${side} ${n}`),
             sentAt: Timestamp.fromDate(AT),
         })
         admin.chat = [
@@ -113,24 +142,25 @@ describe("ReportDetail", () => {
         open(admin)
 
         expect(await lines()).toHaveLength(21)
+        const panel = await messagePanel()
         const list = screen.getByRole("list", {name: "The conversation"})
         expect(within(list).queryByText("before 15")).toBeNull()
         expect(within(list).getByText("before 16")).toBeTruthy()
         expect(within(list).getByText("after 10")).toBeTruthy()
         expect(within(list).queryByText("after 11")).toBeNull()
 
-        fireEvent.click(messagePanel().getByRole("button", {name: "Show earlier"}))
+        fireEvent.click(panel.getByRole("button", {name: "Show earlier"}))
         expect(await within(list).findByText("before 1")).toBeTruthy()
-        fireEvent.click(messagePanel().getByRole("button", {name: "Show later"}))
+        fireEvent.click(panel.getByRole("button", {name: "Show later"}))
         expect(await within(list).findByText("after 22")).toBeTruthy()
 
         expect(within(list).getAllByRole("listitem")).toHaveLength(48)
-        expect(asksAround(admin).slice(2)).toEqual([
+        expect(admin.askedFor("listMessages").slice(2)).toEqual([
             {beforeMessageId: "before-16", limit: 20},
             {afterMessageId: "after-10", limit: 20},
         ])
-        expect(messagePanel().queryByRole("button", {name: "Show earlier"})).toBeNull()
-        expect(messagePanel().queryByRole("button", {name: "Show later"})).toBeNull()
+        expect(panel.queryByRole("button", {name: "Show earlier"})).toBeNull()
+        expect(panel.queryByRole("button", {name: "Show later"})).toBeNull()
     })
 
     it("says when nothing was said around it", async () => {
@@ -140,7 +170,7 @@ describe("ReportDetail", () => {
 
         expect(await screen.findByText("Nothing said before it is kept.")).toBeTruthy()
         expect(screen.getByText("Nothing was said after it.")).toBeTruthy()
-        expect(messagePanel().queryByRole("button", {name: /^Show/})).toBeNull()
+        expect((await messagePanel()).queryByRole("button", {name: /^Show/})).toBeNull()
     })
 
     it("strikes a message removed around it, with when", async () => {
@@ -148,9 +178,10 @@ describe("ReportDetail", () => {
         admin.chat[1].removedAt = Timestamp.fromDate(AT)
         open(admin)
 
-        expect((await messagePanel().findByText("calm down")).className).toContain("line-removed")
-        expect(messagePanel().getByText(/^Removed at /)).toBeTruthy()
-        expect(screen.getByRole("button", {name: "Remove the message"})).toBeTruthy()
+        const panel = await messagePanel()
+        expect((await panel.findByText("calm down")).className).toContain("line-removed")
+        expect(panel.getByText(/^Removed at /)).toBeTruthy()
+        expect((verdict().getByRole("checkbox", {name: "Remove the message"}) as HTMLInputElement).disabled).toBe(false)
     })
 
     it("shows the reported message when the chat around it cannot be read, and reads it again", async () => {
@@ -158,31 +189,29 @@ describe("ReportDetail", () => {
         admin.refuse("listMessages", Code.Unavailable)
         open(admin)
 
-        expect(await messagePanel().findByText("The call failed.")).toBeTruthy()
-        expect(messagePanel().getByText("you all suck")).toBeTruthy()
-
+        const panel = await messagePanel()
+        expect(await panel.findByText("The call failed.")).toBeTruthy()
+        expect(panel.getByText("you all suck")).toBeTruthy()
         admin.refusals.delete("listMessages")
-        fireEvent.click(messagePanel().getByRole("button", {name: "Try again"}))
-
-        expect(await messagePanel().findByText("so rude")).toBeTruthy()
+        fireEvent.click(panel.getByRole("button", {name: "Try again"}))
+        expect(await panel.findByText("so rude")).toBeTruthy()
     })
 
     it("says when an earlier page is no longer kept", async () => {
         const admin = new FakeAdmin()
         admin.chat = [
-            ...Array.from({length: 10}, (_, n) => new KeptMessage({messageId: `before-${n}`, text: `before ${n}`})),
+            ...Array.from({length: 10}, (_, n) => new KeptMessage({messageId: `before-${n}`, body: textBody(`before ${n}`)})),
             admin.chat[2],
         ]
         open(admin)
+
         await lines()
-
         admin.refuse("listMessages", Code.NotFound)
-        fireEvent.click(messagePanel().getByRole("button", {name: "Show earlier"}))
-
+        fireEvent.click((await messagePanel()).getByRole("button", {name: "Show earlier"}))
         expect(await screen.findByText("That part of the chat is no longer kept.")).toBeTruthy()
     })
 
-    it("opens an author of the conversation on the player page, by its id", async () => {
+    it("opens an author of the conversation, and either party, on the player page by its id", async () => {
         const openPlayer = vi.fn()
         render(
             <OpenPlayer.Provider value={openPlayer}>
@@ -191,110 +220,176 @@ describe("ReportDetail", () => {
         )
 
         fireEvent.click(await screen.findByRole("button", {name: "Cleo"}))
-
         expect(openPlayer).toHaveBeenCalledWith({caller: {accountId: "account-cleo"}, name: "Cleo"})
+        fireEvent.click(within(screen.getByRole("article")).getByRole("button", {name: "Ana"}))
+        expect(openPlayer).toHaveBeenLastCalledWith({caller: {accountId: "account-reported"}, name: "Ana"})
     })
 
-    it("says when the message is no longer kept", async () => {
+    it("says when the message is no longer kept, and offers no removal", async () => {
         const admin = new FakeAdmin()
         admin.refuse("getMessage", Code.NotFound)
         open(admin)
 
         expect(await screen.findByText("This message is no longer kept.")).toBeTruthy()
+        expect((verdict().getByRole("checkbox", {name: /^Remove the message/}) as HTMLInputElement).disabled).toBe(true)
     })
 
-    it("removes the message once confirmed, and shows it removed", async () => {
+    it("says where the reported account stands with the antibot, and the whole reading on asking", async () => {
         const admin = new FakeAdmin()
         open(admin)
-        await messagePanel().findByText("you all suck")
 
-        confirm("Remove the message", "Yes, remove the message")
-
-        expect(await screen.findByText(/^Removed at /)).toBeTruthy()
-        expect(admin.askedFor("removeMessage")).toEqual([{messageId: "message-1"}])
-        expect(screen.queryByRole("button", {name: "Remove the message"})).toBeNull()
+        expect(await screen.findByText("Not banned")).toBeTruthy()
+        expect(await screen.findByText("Not muted")).toBeTruthy()
+        expect(admin.askedFor("getMute")).toEqual([
+            {accountId: "account-reported", kind: MuteKind.CHAT},
+            {accountId: "account-reported", kind: MuteKind.GIFS},
+        ])
+        fireEvent.click(screen.getByRole("button", {name: "What the antibot reads"}))
+        expect(await screen.findByText(/^42 in /)).toBeTruthy()
+        expect(admin.askedFor("inspectPlayer")).toEqual([{accountId: "account-reported"}])
     })
 
-    it("offers no removal for a message already removed", async () => {
+    it("removes the message, mutes and closes the report as acted, with one question", async () => {
+        const admin = new FakeAdmin()
+        const seen = open(admin)
+
+        await screen.findByText("you all suck", {selector: ".report-quote .line-text"})
+        fireEvent.click(verdict().getByRole("checkbox", {name: "Remove the message"}))
+        fireEvent.change(verdict().getByRole("combobox", {name: "Mute for"}), {target: {value: String(24 * 3600)}})
+        fireEvent.click(verdict().getByRole("button", {name: "Act and close"}))
+        expect(verdict().getByText("Remove the message, mute Ana for 1 day and close this report as Acted?")).toBeTruthy()
+        fireEvent.click(verdict().getByRole("button", {name: "Yes, act and close"}))
+
+        await waitFor(() => expect(seen.closed).toHaveLength(1))
+        expect(admin.askedFor("removeMessage")).toEqual([{messageId: "message-1"}])
+        const [muted] = admin.askedFor("mute") as {accountId: string, duration: {seconds: bigint}}[]
+        expect(muted.accountId).toBe("account-reported")
+        expect(muted.duration.seconds).toBe(86400n)
+        expect(admin.askedFor("decideReport")).toEqual([
+            {reportId: "report-1", outcome: ReportOutcome.ACTED, comment: "Removed the message. Muted for 1 day."},
+        ])
+        expect(seen.closed[0].said[0]).toBe("Removed the message.")
+        expect(seen.closed[0].said.at(-1)).toBe("Closed 1 report as Acted.")
+    })
+
+    it("mutes the GIFs of the reported account alone when told", async () => {
+        const admin = new FakeAdmin()
+        const seen = open(admin)
+
+        await screen.findByText("you all suck", {selector: ".report-quote .line-text"})
+        fireEvent.change(verdict().getByRole("combobox", {name: "Mute for"}), {target: {value: String(24 * 3600)}})
+        fireEvent.change(verdict().getByRole("combobox", {name: "Mute what"}), {target: {value: String(MuteKind.GIFS)}})
+        fireEvent.click(verdict().getByRole("button", {name: "Act and close"}))
+        expect(verdict().getByText("Mute the GIFs of Ana for 1 day and close this report as Acted?")).toBeTruthy()
+        fireEvent.click(verdict().getByRole("button", {name: "Yes, act and close"}))
+
+        await waitFor(() => expect(seen.closed).toHaveLength(1))
+        expect((admin.askedFor("mute") as {kind: MuteKind}[])[0].kind).toBe(MuteKind.GIFS)
+        expect(admin.askedFor("decideReport")).toEqual([
+            {reportId: "report-1", outcome: ReportOutcome.ACTED, comment: "GIFs muted for 1 day."},
+        ])
+        expect(seen.closed[0].said[0]).toMatch(/^GIFs muted until /)
+    })
+
+    it("shows a reported GIF, sized to fit", async () => {
+        const admin = new FakeAdmin()
+        admin.message.body = {case: "gif", value: new Gif({url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124})}
+        open(admin)
+
+        const gif = (await screen.findAllByRole("img", {name: "GIF"})).find(image => image.closest(".report-quote"))!
+        expect(gif.getAttribute("src")).toBe("https://static.klipy.com/ii/a/sm.webp")
+        expect([gif.getAttribute("width"), gif.getAttribute("height")]).toEqual(["160", "90"])
+    })
+
+    it("offers no removal of a message already removed", async () => {
         const admin = new FakeAdmin()
         admin.message.removedAt = Timestamp.fromDate(AT)
         open(admin)
 
-        expect(await screen.findByText(/^Removed at /)).toBeTruthy()
-        expect(screen.queryByRole("button", {name: "Remove the message"})).toBeNull()
-    })
-
-    it("mutes the reported account for an hour by default", async () => {
-        const admin = new FakeAdmin()
-        open(admin)
-
-        confirm("Mute", "Yes, mute")
-
-        expect(await screen.findByText(/^Muted until /)).toBeTruthy()
-        const [request] = admin.askedFor("mute") as {accountId: string, duration: {seconds: bigint}}[]
-        expect(request.accountId).toBe("account-reported")
-        expect(request.duration.seconds).toBe(3600n)
+        await screen.findByText(/^Removed /, {selector: ".report-quote .hint"})
+        const remove = verdict().getByRole("checkbox", {name: "Remove the message (gone already)"}) as HTMLInputElement
+        expect(remove.disabled).toBe(true)
     })
 
     it("bans the reported account on the ladder by default", async () => {
         const admin = new FakeAdmin()
         open(admin)
 
-        fireEvent.click(screen.getByRole("button", {name: "Ban"}))
-        expect(screen.getByText("Ban Ana for the ladder's next step?")).toBeTruthy()
-        fireEvent.click(screen.getByRole("button", {name: "Yes, ban"}))
-
-        expect(await screen.findByText(/^Banned until .*, offence 2\.$/)).toBeTruthy()
+        fireEvent.click(verdict().getByRole("checkbox", {name: "Ban"}))
+        confirm("Act and close", "Yes, act and close")
+        await waitFor(() => expect(admin.askedFor("decideReport")).toHaveLength(1))
         expect(admin.askedFor("banPlayer")).toEqual([{accountId: "account-reported", duration: undefined}])
     })
 
-    it("says a ban the antibot cannot make in plain words", async () => {
+    it("stops at a step the server refuses, and leaves the report open", async () => {
         const admin = new FakeAdmin()
-        admin.refuse("banPlayer", Code.FailedPrecondition)
-        open(admin)
+        admin.refuse("banPlayer", Code.Unimplemented)
+        const seen = open(admin)
 
-        confirm("Ban", "Yes, ban")
-
-        expect(await screen.findByText("The antibot is off on this server, so it cannot ban, unban or inspect.")).toBeTruthy()
+        fireEvent.click(verdict().getByRole("checkbox", {name: "Mute"}))
+        fireEvent.click(verdict().getByRole("checkbox", {name: "Ban"}))
+        confirm("Act and close", "Yes, act and close")
+        expect((await verdict().findByRole("alert")).textContent).toMatch(new RegExp(
+            "^Muted until .*\\. The antibot is off on this server, so it cannot ban, unban or inspect\\. The report is still open\\.$"))
+        expect(admin.askedFor("decideReport")).toEqual([])
+        expect(seen.closed).toEqual([])
     })
 
-    it("inspects the reported account", async () => {
-        const admin = new FakeAdmin()
-        open(admin)
-
-        fireEvent.click(screen.getByRole("button", {name: "Inspect"}))
-
-        expect(await screen.findByText(/^42 in /)).toBeTruthy()
-        expect(admin.askedFor("inspectPlayer")).toEqual([{accountId: "account-reported"}])
-    })
-
-    it("opens the reported account on the player page, by its id", () => {
-        const openPlayer = vi.fn()
-        render(
-            <OpenPlayer.Provider value={openPlayer}>
-                <ReportDetail report={report} onBack={() => undefined} clients={new FakeAdmin().clients()}/>
-            </OpenPlayer.Provider>,
-        )
-
-        fireEvent.click(screen.getByRole("button", {name: "Every tool →"}))
-
-        expect(openPlayer).toHaveBeenCalledWith({caller: {accountId: "account-reported"}, name: "Ana"})
-    })
-
-    it("closes the report with the outcome picked and its comment", async () => {
+    it("closes a report as acted with nothing done here, as after a ban from the player page", async () => {
         const admin = new FakeAdmin()
         open(admin)
 
-        expect((screen.getByRole("button", {name: "Close the report"}) as HTMLButtonElement).disabled).toBe(true)
-        fireEvent.click(screen.getByRole("radio", {name: "Dismissed"}))
-        fireEvent.change(screen.getByRole("textbox", {name: "Comment (optional)"}), {target: {value: "banter"}})
-        confirm("Close the report", "Yes, close the report")
+        confirm("Close as acted", "Yes, close as acted")
+        await waitFor(() => expect(admin.askedFor("decideReport")).toHaveLength(1))
+        expect(admin.askedFor("decideReport")).toEqual([{reportId: "report-1", outcome: ReportOutcome.ACTED, comment: ""}])
+    })
 
-        expect(await screen.findByText(/^Closed as Dismissed at /)).toBeTruthy()
+    it("dismisses the report with its comment", async () => {
+        const admin = new FakeAdmin()
+        const seen = open(admin)
+
+        fireEvent.click(verdict().getByRole("checkbox", {name: "Mute"}))
+        fireEvent.change(verdict().getByRole("textbox", {name: "Comment (optional)"}), {target: {value: "banter"}})
+        fireEvent.click(verdict().getByRole("button", {name: "Dismiss"}))
+        expect(verdict().getByText("Close this report as Dismissed?")).toBeTruthy()
+        fireEvent.click(verdict().getByRole("button", {name: "Yes, dismiss"}))
+
+        await waitFor(() => expect(seen.closed).toHaveLength(1))
+        expect(admin.askedFor("mute")).toEqual([])
         expect(admin.askedFor("decideReport"))
             .toEqual([{reportId: "report-1", outcome: ReportOutcome.DISMISSED, comment: "banter"}])
-        const card = screen.getByRole("article")
-        expect(within(card).getByText("Dismissed")).toBeTruthy()
-        expect(within(card).getByText("banter")).toBeTruthy()
+        expect(seen.closed[0].outcome).toBe(ReportOutcome.DISMISSED)
+    })
+
+    it("closes the account's other open reports with it, unless asked not to", async () => {
+        const admin = new FakeAdmin()
+        open(admin, report, related)
+
+        expect(screen.getByText("Reported 2 more times:")).toBeTruthy()
+        const close = verdict().getByRole("checkbox", {name: "Close the other open report on Ana too"}) as HTMLInputElement
+        expect(close.checked).toBe(true)
+        fireEvent.click(verdict().getByRole("button", {name: "Dismiss"}))
+        expect(verdict().getByText("Close these 2 reports as Dismissed?")).toBeTruthy()
+        fireEvent.click(verdict().getByRole("button", {name: "Cancel"}))
+        fireEvent.click(close)
+        confirm("Dismiss", "Yes, dismiss")
+
+        await waitFor(() => expect(admin.askedFor("decideReport")).toHaveLength(1))
+        expect(admin.askedFor("decideReport"))
+            .toEqual([{reportId: "report-1", outcome: ReportOutcome.DISMISSED, comment: ""}])
+        cleanup()
+
+        const again = new FakeAdmin()
+        open(again, report, related)
+        confirm("Dismiss", "Yes, dismiss")
+        await waitFor(() => expect(again.askedFor("decideReport")).toHaveLength(2))
+        expect(again.askedFor("decideReport").map(asked => (asked as {reportId: string}).reportId)).toEqual(["report-1", "report-2"])
+    })
+
+    it("opens the account's other reports from its own", async () => {
+        const seen = open(new FakeAdmin(), report, related)
+
+        fireEvent.click(screen.getByRole("button", {name: /^Bad name · .* · open$/}))
+        expect(seen.opened).toEqual(["report-2"])
     })
 })

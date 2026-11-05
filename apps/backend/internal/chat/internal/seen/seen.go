@@ -22,6 +22,6 @@ func Until(at, now time.Time) (time.Time, error) {
 }
 
 type Storage interface {
-	SaveSeen(ctx context.Context, account messages.AccountID, until time.Time) error
+	SaveSeen(ctx context.Context, account messages.AccountID, room messages.Room, until time.Time) error
 	DeleteSeen(ctx context.Context, account messages.AccountID) error
 }

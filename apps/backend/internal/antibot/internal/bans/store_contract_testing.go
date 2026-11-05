@@ -156,12 +156,15 @@ func (s *StoreContractSuite) TestChangesToOneKeyNeverOverlap() {
 	s.Equal(changes, record.Flags, "each change saw the one before it")
 }
 
-func (s *StoreContractSuite) TestRunningCountsTheBansThatEndAfterNow() {
+func (s *StoreContractSuite) TestRunningAreTheBansThatEndAfterNow() {
 	s.keep(Record{Key: s.Key(1), Offences: 1, ExpiresAt: contractAt.Add(time.Second)})
 	s.keep(Record{Key: s.Key(2), Offences: 1, ExpiresAt: contractAt})
 	s.keep(Record{Key: s.Key(3), Offences: 2, ExpiresAt: contractAt.Add(-time.Hour)})
 
 	running, err := s.store.Running(s.T().Context(), contractAt)
 	s.Require().NoError(err)
-	s.Equal(1, running, "a ban that ends now has ended")
+	s.Require().Len(running, 1, "a ban that ends now has ended")
+	s.Equal(s.Key(1), running[0].Key)
+	s.True(contractAt.Add(time.Second).Equal(running[0].ExpiresAt))
+	s.Equal(1, running[0].Offences)
 }

@@ -38,6 +38,11 @@ export function countOf(n: number, noun: string): string {
     return n === 1 ? `1 ${noun}` : `${n} ${noun}s`
 }
 
+// What a form changes: "1 change", "3 changes", or none yet.
+export function changesWord(n: number): string {
+    return n === 0 ? "No change yet" : countOf(n, "change")
+}
+
 export type Line = {label: string, value: string}
 
 export function deviceLines(context: PageContext | undefined, userAgent: string): Line[] {

@@ -1,8 +1,4 @@
-#ifdef LIT
-#include ../light.glsl;
-#else
 uniform vec3 colour;
-#endif
 
 uniform float power;
 uniform float intensity;
@@ -18,10 +14,5 @@ void main() {
     float glow = pow(facing, power);
 
     // Intensity goes in alpha: a colour above 1.0 is clamped before it is blended.
-#ifdef LIT
-    float shade = shadeOf(vec3(vViewNormal.xy, 0.0));
-    gl_FragColor = vec4(AIR, clamp(glow * intensity * shade, 0.0, 1.0));
-#else
     gl_FragColor = vec4(colour, clamp(glow * intensity, 0.0, 1.0));
-#endif
 }

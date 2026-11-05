@@ -27,7 +27,8 @@ export const PODIUM_ENDING_SECONDS = 4
 // screens: how far the action moves up close, in screen heights. A bomb takes no time of its own: it goes off while
 // the map goes on changing.
 export function timelineOf(screens: number, seconds?: number, ending = ENDING_SECONDS): Timeline {
-    return timelineFor(Math.min(LONGEST_PLAY_SECONDS, SHORTEST_PLAY_SECONDS + SECONDS_PER_SCREEN * screens), seconds, ending)
+    const play = Math.min(LONGEST_PLAY_SECONDS, SHORTEST_PLAY_SECONDS + SECONDS_PER_SCREEN * screens)
+    return timelineFor(play, seconds, ending)
 }
 
 // play: how long the replay plays before the call to act, which lasts ending.

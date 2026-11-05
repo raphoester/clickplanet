@@ -4,11 +4,12 @@ package planet.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "planet/v1/internal.proto";
+import "planet/v1/ledger.proto";
 import "planet/v1/planet.proto";
+import "planet/v1/rules.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
-// Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
-// without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
 service AdminService {
   // Gives every tile one country holds to another, while the game runs: paced in batches, each tile an ordinary
   // update every screen repaints. The ledger does not see it, so no revert undoes it. A tile the first country
@@ -28,17 +29,15 @@ service AdminService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // A shadow ban: the caller's clicks and bombs are answered OK and dropped, so it learns nothing. Takes a scope or
-  // an account_id, never both; an account is banned alone, a scope bans everybody behind it. It counts as an offence,
-  // and an unset duration takes the next step of the ladder. enforced false means the antibot only logs and drops
-  // nothing. Ban before RevertPlayer, or the player repaints behind the revert.
-  rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse);
+  // Deprecated: antibot.v1.AdminService/BanPlayer, which answers it on this path until the backoffice calls it there.
+  rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse) {
+    option deprecated = true;
+  }
 
-  // Lifts a caller's latest ban, for a false positive, and forgets that offence. The antibot's evidence stays: a
-  // watchdog that still reads certain bans the caller again on its next click, so the rule that misfired is to be
-  // fixed first. A guest the jury banned is banned on its account and its scope: two calls. NotFound when no offence
-  // is left.
-  rpc UnbanPlayer(UnbanPlayerRequest) returns (UnbanPlayerResponse);
+  // Deprecated: antibot.v1.AdminService/UnbanPlayer, which answers it on this path until the backoffice calls it there.
+  rpc UnbanPlayer(UnbanPlayerRequest) returns (UnbanPlayerResponse) {
+    option deprecated = true;
+  }
 
   // Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
   // caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
@@ -49,11 +48,9 @@ service AdminService {
   // between stays theirs. The ledger does not see it.
   rpc PaintRandomTiles(PaintRandomTilesRequest) returns (PaintRandomTilesResponse);
 
-  // What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
-  // and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
-  // is read on the scope of its latest take. Changes nothing.
+  // Deprecated: antibot.v1.AdminService/InspectPlayer, which answers it on this path until the backoffice calls it there.
   rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
+    option deprecated = true;
   }
 
   // Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
@@ -65,6 +62,28 @@ service AdminService {
   rpc GetReplay(GetReplayRequest) returns (GetReplayResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // Lifts the account's hour of wait, so its next change of flag goes at once. A lock of the rules in force still holds.
+  rpc ReleaseAllegiance(ReleaseAllegianceRequest) returns (ReleaseAllegianceResponse);
+
+  // Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
+  // time.
+  rpc GetLedger(GetLedgerRequest) returns (GetLedgerResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // InternalService/GetTerritories, for the admin page: the tiles each country holds now.
+  rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Every rule set postgres keeps, and the one the game plays now. SaveRuleSet changes one.
+  rpc GetRules(GetRulesRequest) returns (GetRulesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Makes a set, or replaces its values. A save of the set that plays now takes over at once.
+  rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
 }
 
 message GetReplayRequest {
@@ -101,6 +120,15 @@ message GrantChargesResponse {
   string account_id = 1;
   ChargesHeld before = 2;
   ChargesHeld after = 3;
+}
+
+message ReleaseAllegianceRequest {
+  string account_id = 1;
+}
+
+message ReleaseAllegianceResponse {
+  // The rules in force lock every flag: the change waits for them to end.
+  bool locked = 1;
 }
 
 message PaintRandomTilesRequest {
@@ -194,7 +222,8 @@ message Player {
   google.protobuf.Timestamp last_at = 4;
   optional bool banned = 5;
   google.protobuf.Timestamp banned_until = 6;
-  uint32 offence = 7;
+  // Planet keeps no offence: antibot.v1.AdminService/InspectPlayer says it.
+  uint32 offence = 7 [deprecated = true];
   google.protobuf.Duration active_for = 8;
   double tiles_per_minute = 9;
   uint32 takes = 10;
@@ -267,3 +296,23 @@ message ReassignCountryResponse {
   uint32 from_after = 4;
   uint32 to_after = 5;
 }
+
+message GetRulesRequest {}
+
+message GetRulesResponse {
+  // Every set postgres keeps, "default" first, as kept: one that cannot play too, so it can be mended.
+  repeated RuleSet sets = 1;
+  // The set the game plays now.
+  string playing = 2;
+}
+
+message RuleSet {
+  string name = 1;
+  Rules rules = 2;
+}
+
+message SaveRuleSetRequest {
+  RuleSet set = 1;
+}
+
+message SaveRuleSetResponse {}

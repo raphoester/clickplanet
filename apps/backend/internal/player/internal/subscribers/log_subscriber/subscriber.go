@@ -6,22 +6,23 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
-func New[T proto.Message](inner cpbootstrap.Handler[T], logger *slog.Logger) *Logged[T] {
+func New[T proto.Message](inner cpredis.Handler[T], logger *slog.Logger) *Logged[T] {
 	return &Logged[T]{inner: inner, logger: logger}
 }
 
 type Logged[T proto.Message] struct {
-	inner  cpbootstrap.Handler[T]
+	inner  cpredis.Handler[T]
 	logger *slog.Logger
 }
 
 func (l *Logged[T]) Handle(ctx context.Context, event T) error {
 	err := l.inner.Handle(ctx, event)
 	if err != nil {
-		l.logger.Error("the player module refused an event",
+		l.logger.Error(
+			"the player module refused an event",
 			slog.String("event", string(event.ProtoReflect().Descriptor().FullName())),
 			slog.Any("error", err),
 		)

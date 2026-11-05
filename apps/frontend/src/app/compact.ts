@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react"
 
-export const COMPACT = "(max-width: 768px)"
+export const COMPACT = "(max-width: 768px), (max-height: 600px)"
 
 export const opensFolded = () => window.matchMedia?.(COMPACT).matches ?? false
 

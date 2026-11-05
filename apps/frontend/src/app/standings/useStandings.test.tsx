@@ -2,7 +2,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render} from "@testing-library/react"
 import {NameColor} from "../../backends/player.ts"
-import {Standing, StandingsBackend} from "../../backends/standings.ts"
+import {Standing, Boards} from "../../backends/standings.ts"
 import {useStandings} from "./useStandings.ts"
 
 const ana: Standing = {rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.PINK, countryCode: "fr", tiles: 40}
@@ -10,7 +10,7 @@ const kofi: Standing = {rank: 1, accountId: "account-kofi", name: "Kofi", color:
 
 let latest: readonly Standing[] | undefined
 
-function Harness({backend, countryCode}: {backend: StandingsBackend, countryCode: string}) {
+function Harness({backend, countryCode}: {backend: Boards, countryCode: string}) {
     latest = useStandings(backend, countryCode)
     return null
 }
@@ -25,9 +25,9 @@ function streaming() {
             stops.set(countryCode, stop)
             return stop
         }),
-        listenForRace: vi.fn(() => () => {}),
+
         mySeason: vi.fn(async () => undefined),
-    } satisfies StandingsBackend
+    } satisfies Boards
     const send = (countryCode: string, standings: Standing[]) => act(() => followers.get(countryCode)!(standings))
     return {backend, send, stopOf: (countryCode: string) => stops.get(countryCode)!}
 }

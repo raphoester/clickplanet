@@ -2,6 +2,7 @@ package spread_click
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
@@ -10,7 +11,7 @@ import (
 )
 
 type Spreads interface {
-	SpendSpreadClick(holder bonuses.Holder) bool
+	Spend(ctx context.Context, holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) error
 }
 
 type Neighbours interface {
@@ -51,7 +52,14 @@ type UseCase struct {
 
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
 	out, err := u.implementation.Execute(ctx, in)
-	if err != nil || !in.Spread || !u.spreads.SpendSpreadClick(bonuses.HolderOf(clicks.PayerOf(ctx))) {
+	if err != nil || !in.Spread {
+		return out, err
+	}
+
+	if err := u.spreads.Spend(ctx, bonuses.HolderOf(clicks.PayerOf(ctx)), bonuses.Held.AfterSpreadClick); err != nil {
+		if errors.Is(err, bonuses.ErrNotHeld) {
+			return out, nil
+		}
 		return out, err
 	}
 

@@ -18,6 +18,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpprom"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsecrets"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 )
 
 type Module struct {
@@ -38,15 +40,15 @@ type Props struct {
 	Runners RunnerRegistrar
 	Closers CloserRegistrar
 
-	AdminRPC RPCRegistrar
-	// Served on the admin listener alone, beside the admin services and outside the gate's middlewares.
+	AdminRPC  RPCRegistrar
 	AdminHTTP AdminHTTPRegistrar
 	Admin     Dialer
 
 	InternalRPC RPCRegistrar
 	Internal    Dialer
 
-	Events EventBus
+	// The click token's check, one for the whole process: it asks auth for the verifying key once, on the first token.
+	Sessions cpconnect.SessionVerifier
 }
 
 type Dialer interface {
@@ -210,20 +212,23 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	adminHTTP := &adminHandlers{}
 	runners := newRunnerRegistry()
 	closers := newCloserRegistry()
-	events := newEventBus(metrics)
 
-	registrars := registrars{routes: routes, admin: adminRoutes, adminHTTP: adminHTTP, internal: internalRoutes, events: events}
+	boot, err := cpsecrets.RandomHex()
+	if err != nil {
+		return fmt.Errorf("failed to draw the boot id: %w", err)
+	}
+
+	registrars := registrars{routes: routes, admin: adminRoutes, adminHTTP: adminHTTP, internal: internalRoutes}
 	if err := buildModules(ctx, options, metrics, registrars, runners, closers); err != nil {
 		return err
 	}
-	// Before any runner starts: a subscriber registered later could miss boot events.
-	events.seal()
 
 	router := http.NewServeMux()
 	routes.mountOn(router, cphttpserver.MiddlewareStack(
 		cphttpserver.NewLoggingMiddleware(options.Logger),
 		cphttpserver.IPReaderMiddleware,
 		cphttpserver.NewCorsMiddleware(options.Server.AllowedOrigin),
+		cphttpserver.NewBootMiddleware(boot),
 	))
 	mountMetrics(router, metrics, options.Logger)
 
@@ -280,7 +285,6 @@ type registrars struct {
 	admin     *rpcRoutes
 	adminHTTP *adminHandlers
 	internal  *rpcRoutes
-	events    *eventBus
 }
 
 func buildModules(
@@ -293,6 +297,9 @@ func buildModules(
 ) error {
 	ctx, cancel := context.WithTimeout(ctx, options.Server.StartupTimeout)
 	defer cancel()
+
+	internal := internalDialer{address: options.Server.InternalBindAddress}
+	sessions := cpsessionverifier.New(internal, options.Logger)
 
 	for _, module := range options.Modules {
 		if !module.Enabled {
@@ -311,8 +318,8 @@ func buildModules(
 			AdminHTTP:   registrars.adminHTTP.forModule(module.Name),
 			Admin:       adminDialer{address: options.Server.AdminBindAddress},
 			InternalRPC: registrars.internal.forModule(module.Name),
-			Internal:    internalDialer{address: options.Server.InternalBindAddress},
-			Events:      registrars.events,
+			Internal:    internal,
+			Sessions:    sessions,
 			Runners:     runners,
 			Closers:     closers,
 		})

@@ -2,12 +2,15 @@ import {createContext, useContext} from "react"
 import {Player} from "./gen/grpc/planet/v1/admin_pb.ts"
 import {Caller} from "./players/caller.ts"
 
-export type PageId = "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "titles"
+export type PageId =
+    | "home" | "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "clips" | "videos" | "titles"
+    | "discord" | "rules" | "antibotRules" | "schedule" | "seasons" | "timeline" | "promo"
 
 export type MenuGroup = {label: string, pages: {page: PageId, label: string}[]}
 
 // Every page, as the burger menu lists them. A page's label is its title too.
 export const MENU: MenuGroup[] = [
+    {label: "Overview", pages: [{page: "home", label: "Home"}]},
     {label: "Feedback", pages: [{page: "notes", label: "Ideas and bugs"}]},
     {label: "Moderation", pages: [{page: "reports", label: "Reports"}, {page: "players", label: "Players"}]},
     {
@@ -18,21 +21,43 @@ export const MENU: MenuGroup[] = [
             {page: "replay", label: "Download a replay"},
         ],
     },
-    {label: "Ops", pages: [{page: "titles", label: "Reconcile titles"}]},
+    {label: "Clips", pages: [{page: "clips", label: "Clip stats"}, {page: "videos", label: "Videos"}]},
+    {
+        label: "Ops",
+        pages: [
+            {page: "timeline", label: "Timeline"},
+            {page: "titles", label: "Reconcile titles"},
+            {page: "discord", label: "Link Discord members"},
+            {page: "rules", label: "Game rules"},
+            {page: "antibotRules", label: "Anti-bot rules"},
+            {page: "schedule", label: "Rule schedule"},
+            {page: "seasons", label: "Seasons"},
+            {page: "promo", label: "Promo"},
+        ],
+    },
 ]
 
 const PAGES: PageId[] = MENU.flatMap(group => group.pages.map(item => item.page))
 
-export const FIRST_PAGE: PageId = "notes"
+export const FIRST_PAGE: PageId = "home"
 
 export function titleOf(page: PageId): string {
     return MENU.flatMap(group => group.pages).find(item => item.page === page)?.label ?? page
 }
 
-// The page an address names (#/reports), and the first page for an address that names none.
-export function pageOf(hash: string): PageId {
-    const named = hash.replace(/^#\/?/, "")
-    return PAGES.find(page => page === named) ?? FIRST_PAGE
+// A page and what is open on it: a report's id, a player's account id or address, or "" for its list.
+export type Route = {page: PageId, item: string}
+
+// The route an address names (#/reports, #/players/203.0.113.7), and the first page for an address that names none.
+export function routeOf(hash: string): Route {
+    const [named, ...rest] = hash.replace(/^#\/?/, "").split("/")
+    const page = PAGES.find(each => each === named)
+    if (page === undefined) return {page: FIRST_PAGE, item: ""}
+    return {page, item: decodeURIComponent(rest.join("/"))}
+}
+
+export function hashOf({page, item}: Route): string {
+    return item === "" ? `#/${page}` : `#/${page}/${encodeURIComponent(item)}`
 }
 
 // A player to open on the Players page: who, and what the page that opens it already knows of it.

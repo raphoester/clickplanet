@@ -11,17 +11,19 @@ import (
 func TestSweepForgetsSlotsOlderThanTheWindow(t *testing.T) {
 	clock := newClock()
 
-	w := newWatchdog(Config{Window: time.Hour}, clock)
+	hour := bounded()
+	hour.Window = time.Hour
+	w := newWatchdog(Config{}, hour, clock)
 	play(w, clock, 2, inTurns)
 
 	clock.Advance(55 * time.Minute)
 	w.sweep()
-	require.Contains(t, w.scopes, scopeID(scope))
-	assert.Len(t, w.scopes[scope].accounts["one"].slots, 1)
+	require.Contains(t, w.accounts, accountID("one"))
+	assert.Len(t, w.accounts["one"].slots, 1)
 
 	clock.Advance(5 * time.Minute)
 	w.sweep()
-	assert.Empty(t, w.scopes, "an account with no slot left is forgotten, and so is its scope")
+	assert.Empty(t, w.accounts, "an account with no slot left is forgotten")
 }
 
 func TestSweepReportsEachPairChanceCouldHaveShown(t *testing.T) {
@@ -36,7 +38,8 @@ func TestSweepReportsEachPairChanceCouldHaveShown(t *testing.T) {
 			clock := newClock()
 
 			var shares []float64
-			w := New(Config{}, clock, func(share float64) { shares = append(shares, share) })
+			unbounded := func() Rules { return Rules{Window: 24 * time.Hour, MinSeconds: 15, MinByChance: 90, MaxShare: 0.05} }
+			w := New(Config{}, unbounded, clock, func(share float64) { shares = append(shares, share) })
 
 			play(w, clock, 10, tc.turn)
 			w.sweep()

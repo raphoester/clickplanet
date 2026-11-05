@@ -1,6 +1,7 @@
 package posts_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -21,4 +22,28 @@ func TestAPostKeepsTheKeyAndEveryCountryOfItsClip(t *testing.T) {
 
 	assert.Equal(t, posts.StoryKey{Flag: "va", Continent: "Europe"}, post.TakeSnapshot().Key)
 	assert.Equal(t, []string{"ru", "va", "pw"}, post.TakeSnapshot().Countries)
+}
+
+func TestAPostKeepsWhatItsClipWasTheNameOfTheTeaserRolledAndItsPlaceInTheRun(t *testing.T) {
+	now := time.Date(2026, 10, 17, 1, 0, 0, 0, time.UTC)
+
+	planned := plan.Posts([]posts.Clip{clip(t, 2, "SECOND"), clip(t, 1, "BEST")}, now, posts.LoadedDice(1))
+
+	first, second := planned[0].TakeSnapshot(), planned[1].TakeSnapshot()
+	assert.Equal(t, rendered(1, "BEST").Record, first.Record)
+	assert.Equal(t, "invades", first.Teaser)
+	assert.True(t, strings.HasPrefix(first.TikTok.Caption, "ALGERIA INVADES BEST | CLICKPLANET"), first.TikTok.Caption)
+	assert.Equal(t, []int{1, 2}, []int{first.RunPosition, first.RunSize})
+	assert.Equal(t, []int{2, 2}, []int{second.RunPosition, second.RunSize})
+}
+
+func TestTheTeaserOfAClipWrittenBeforeTheyWereNamedIsUnnamed(t *testing.T) {
+	written := rendered(1, "BEST")
+	written.TeaserNames = nil
+	old, err := written.Restore()
+	require.NoError(t, err)
+
+	post := plan.Posts([]posts.Clip{old}, time.Date(2026, 10, 17, 1, 0, 0, 0, time.UTC), posts.LoadedDice(1))[0]
+
+	assert.Equal(t, "unnamed", post.TakeSnapshot().Teaser)
 }

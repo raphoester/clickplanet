@@ -13,8 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase/renaming_set_name"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -22,7 +21,7 @@ var (
 	now = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 	ada = players.AccountID{15: 1}
 
-	guest = wearing.AuthorOf(players.GuestAuthor("0b1c2d", players.Streak{}), titles.Standing{})
+	guest = players.GuestPlayer("0b1c2d")
 )
 
 type fixture struct {
@@ -40,7 +39,7 @@ func setup() fixture {
 	return fixture{
 		accounts: accounts,
 		visits:   visits,
-		useCase:  renaming_set_name.New(set_name_usecase.New(inmemory_player_store.New(), accounts, clock), visits),
+		useCase:  renaming_set_name.New(set_name_usecase.New(cpatomic.FakeTransactioner{}, inmemory_player_store.New(), accounts, &cpatomic.FakeOutbox{}, clock), visits),
 	}
 }
 
@@ -53,7 +52,7 @@ func TestAKeptNameShowsOnTheRosterAtOnce(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, players.Name("Ada_L"), profile.TakeSnapshot().Name)
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore(), players.Streak{}), titles.Standing{}), f.visits.Visits()[0].Author())
+	assert.Equal(t, players.NamedPlayer(players.ProfileSnapshot{Name: "Ada_L"}.Restore()), f.visits.Visits()[0].Player())
 }
 
 func TestARefusedNameRenamesNothing(t *testing.T) {
@@ -63,5 +62,5 @@ func TestARefusedNameRenamesNothing(t *testing.T) {
 
 	require.ErrorIs(t, err, players.ErrNotLinked)
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Equal(t, guest, f.visits.Visits()[0].Author())
+	assert.Equal(t, guest, f.visits.Visits()[0].Player())
 }

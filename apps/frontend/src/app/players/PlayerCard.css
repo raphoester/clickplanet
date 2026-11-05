@@ -67,6 +67,15 @@
     align-items: center;
     gap: 6px;
     width: 88px;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+}
+
+button.player-card-held {
+    cursor: help;
 }
 
 .player-card-held-name {
@@ -74,7 +83,8 @@
     font-family: var(--font-display);
     font-size: var(--display-s);
     line-height: 1;
-    white-space: nowrap;
+    text-align: center;
+    overflow-wrap: anywhere;
     color: var(--text);
     text-shadow: var(--text-drop);
 }
@@ -125,7 +135,7 @@
     color: var(--text);
 }
 
-@media only screen and (max-width: 768px) {
+@media (max-width: 768px), (max-height: 600px) {
     .modal:has(.player-card) {
         align-items: flex-end;
         padding: var(--status-bar-height) 0 0;

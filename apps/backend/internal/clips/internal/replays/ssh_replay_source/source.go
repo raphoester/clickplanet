@@ -11,23 +11,33 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	clipsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1"
+	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
+	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays"
 )
 
 const OpenSSH = "ssh"
 
 // The body goes between single quotes: it holds two times and nothing a shell reads.
-const operatorTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
-	" --header 'Content-Type: application/json' --post-data '%s'" +
-	" http://127.0.0.1:8081/planet.v1.AdminService/GetReplay"
+const (
+	operatorTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
+		" --header 'Content-Type: application/json' --post-data '%s' http://127.0.0.1:8081/%s"
+	replayProcedure = "planet.v1.AdminService/GetReplay"
+	castProcedure   = "clips.v1.AdminService/MakeCast"
+)
 
-// The race is the season stream's, public: the backend serves it on the listener every browser reaches.
-const raceTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
-	" --header 'Content-Type: application/json' --post-data '{}'" +
-	" http://127.0.0.1:8080/seasons.v1.SeasonService/GetRace"
+// The turn and the round are public: the backend serves them on the listener every browser reaches. The body holds a
+// round id, which RoundIDOf keeps to what no shell reads.
+const (
+	publicTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
+		" --header 'Content-Type: application/json' --post-data '%s' http://127.0.0.1:8080/%s"
+	turnProcedure  = "gamemaster.v1.GamemasterService/GetTurn"
+	roundProcedure = "scoring.v1.ScoringService/GetRound"
+)
 
 var decoder = protojson.UnmarshalOptions{DiscardUnknown: true}
 
@@ -47,15 +57,12 @@ type Source struct {
 var _ replays.Source = (*Source)(nil)
 
 func (s *Source) Replay(ctx context.Context, window replays.Window) (replays.Replay, error) {
-	body, err := json.Marshal(map[string]string{
-		"since": window.Since.UTC().Format(time.RFC3339Nano),
-		"until": window.Until.UTC().Format(time.RFC3339Nano),
-	})
+	body, err := windowOf(window)
 	if err != nil {
-		return replays.Replay{}, fmt.Errorf("failed to encode the request: %w", err)
+		return replays.Replay{}, err
 	}
 
-	answered, err := s.ask(ctx, fmt.Sprintf(operatorTool, body))
+	answered, err := s.ask(ctx, fmt.Sprintf(operatorTool, body, replayProcedure))
 	if err != nil {
 		return replays.Replay{}, err
 	}
@@ -75,28 +82,140 @@ func (s *Source) Replay(ctx context.Context, window replays.Window) (replays.Rep
 	}, nil
 }
 
-var _ replays.RaceSource = (*Source)(nil)
-
-func (s *Source) Race(ctx context.Context) (replays.Race, error) {
-	answered, err := s.ask(ctx, raceTool)
+func windowOf(window replays.Window) ([]byte, error) {
+	body, err := json.Marshal(map[string]string{
+		"since": window.Since.UTC().Format(time.RFC3339Nano),
+		"until": window.Until.UTC().Format(time.RFC3339Nano),
+	})
 	if err != nil {
-		return replays.Race{}, err
+		return nil, fmt.Errorf("failed to encode the request: %w", err)
+	}
+	return body, nil
+}
+
+var _ replays.CastSource = (*Source)(nil)
+
+// The cast alone is written, as a clips.v1.Cast, for the generator to read.
+func (s *Source) Cast(ctx context.Context, window replays.Window) (replays.Cast, error) {
+	body, err := windowOf(window)
+	if err != nil {
+		return replays.Cast{}, err
 	}
 
-	var race seasonsv1.GetRaceResponse
-	if err := decoder.Unmarshal(answered, &race); err != nil {
-		return replays.Race{}, fmt.Errorf("the backend answered what is not a seasons.v1.GetRaceResponse: %w", err)
+	answered, err := s.ask(ctx, fmt.Sprintf(operatorTool, body, castProcedure))
+	if err != nil {
+		return replays.Cast{}, err
 	}
 
-	closed := race.GetRace().GetClosed()
-	if closed == nil {
-		return replays.Race{Document: answered}, nil
+	var made clipsv1.MakeCastResponse
+	if err := decoder.Unmarshal(answered, &made); err != nil {
+		return replays.Cast{}, fmt.Errorf("the backend answered what is not a clips.v1.MakeCastResponse: %w", err)
 	}
-	return replays.Race{
-		Document: answered,
-		Closed:   fmt.Sprintf("%d.%d", closed.GetSeason(), closed.GetNumber()),
-		EndedAt:  time.UnixMilli(closed.GetEndedAtUnixMs()).UTC(),
-	}, nil
+	if made.GetCast().GetId() == "" {
+		return replays.Cast{}, errors.New("the backend answered a cast with no id")
+	}
+	document, err := protojson.Marshal(made.GetCast())
+	if err != nil {
+		return replays.Cast{}, fmt.Errorf("failed to write the cast: %w", err)
+	}
+	return replays.Cast{Document: document, Fighters: len(made.GetCast().GetFighters()), Takes: len(made.GetCast().GetTakes())}, nil
+}
+
+var _ replays.TurnSource = (*Source)(nil)
+
+func (s *Source) Turn(ctx context.Context) (replays.Turn, error) {
+	answered, err := s.ask(ctx, fmt.Sprintf(publicTool, "{}", turnProcedure))
+	if err != nil {
+		return replays.Turn{}, err
+	}
+
+	var turn gamemasterv1.GetTurnResponse
+	if err := decoder.Unmarshal(answered, &turn); err != nil {
+		return replays.Turn{}, fmt.Errorf("the backend answered what is not a gamemaster.v1.GetTurnResponse: %w", err)
+	}
+
+	told, err := debriefOf(turn.GetDebrief())
+	if err != nil {
+		return replays.Turn{}, err
+	}
+	told.Document = answered
+	told.FinaleAt = finaleOf(turn.GetTimeline())
+	return told, nil
+}
+
+var errUnknownMoment = errors.New("the backend debriefed a moment the job does not know")
+
+func debriefOf(debrief *gamemasterv1.Debrief) (replays.Turn, error) {
+	var (
+		label, round string
+		endedAt      *timestamppb.Timestamp
+	)
+	switch moment := debrief.GetMoment().(type) {
+	case nil:
+		return replays.Turn{}, nil
+	case *gamemasterv1.Debrief_Day:
+		day := moment.Day
+		label, round, endedAt = fmt.Sprintf("%d.%d", day.GetSeason(), day.GetDay()), day.GetRoundId(), day.GetEndedAt()
+	case *gamemasterv1.Debrief_Battle:
+		battle := moment.Battle
+		label, round, endedAt = fmt.Sprintf("%d.battle.%d", battle.GetSeason(), battle.GetNumber()), battle.GetRoundId(), battle.GetEndedAt()
+	case *gamemasterv1.Debrief_Season:
+		season := moment.Season
+		label, round, endedAt = fmt.Sprintf("%d.finale", season.GetSeason()), season.GetFinaleRoundId(), season.GetEndedAt()
+		if finale := season.GetFinaleBattle(); finale != nil {
+			label = fmt.Sprintf("%d.battle.%d", finale.GetSeason(), finale.GetNumber())
+		}
+	default:
+		return replays.Turn{}, fmt.Errorf("%w: %T", errUnknownMoment, moment)
+	}
+
+	told := replays.Turn{Debriefed: label}
+	if endedAt.IsValid() {
+		told.EndedAt = endedAt.AsTime()
+	}
+	if round == "" {
+		return told, nil
+	}
+	id, err := replays.RoundIDOf(round)
+	if err != nil {
+		return replays.Turn{}, fmt.Errorf("the backend debriefed a round the job cannot ask for: %w", err)
+	}
+	told.Round = id
+	return told, nil
+}
+
+func finaleOf(timeline *gamemasterv1.Timeline) time.Time {
+	for _, battle := range timeline.GetBattles() {
+		if battle.GetEndsSeason() {
+			return battle.GetStartsAt().AsTime()
+		}
+	}
+	return time.Time{}
+}
+
+var _ replays.RoundSource = (*Source)(nil)
+
+var errOtherRound = errors.New("the backend answered another round")
+
+func (s *Source) Round(ctx context.Context, id replays.RoundID) (replays.Round, error) {
+	body, err := json.Marshal(map[string]string{"roundId": id.String()})
+	if err != nil {
+		return replays.Round{}, fmt.Errorf("failed to encode the request: %w", err)
+	}
+
+	answered, err := s.ask(ctx, fmt.Sprintf(publicTool, body, roundProcedure))
+	if err != nil {
+		return replays.Round{}, err
+	}
+
+	var round scoringv1.GetRoundResponse
+	if err := decoder.Unmarshal(answered, &round); err != nil {
+		return replays.Round{}, fmt.Errorf("the backend answered what is not a scoring.v1.GetRoundResponse: %w", err)
+	}
+	if got := round.GetRound().GetRoundId(); got != id.String() {
+		return replays.Round{}, fmt.Errorf("%w: %q, not %q", errOtherRound, got, id)
+	}
+	return replays.Round{Document: answered, ID: id}, nil
 }
 
 func (s *Source) ask(ctx context.Context, command string) ([]byte, error) {

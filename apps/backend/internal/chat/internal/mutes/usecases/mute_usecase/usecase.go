@@ -25,6 +25,7 @@ type Executor interface {
 
 type In struct {
 	Account  messages.AccountID
+	Kind     mutes.Kind
 	Duration time.Duration
 }
 
@@ -65,7 +66,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (mutes.Mute, error) {
 		return mutes.Mute{}, fmt.Errorf("failed to draw a mute id: %w", err)
 	}
 
-	mute := mutes.NewMute(id, mutes.NewCaller(in.Account, ip), u.clock.Now(), duration)
+	mute := mutes.NewMute(id, mutes.NewCaller(in.Account, ip), in.Kind, u.clock.Now(), duration)
 	if err := u.saver.Save(ctx, mute); err != nil {
 		return mutes.Mute{}, fmt.Errorf("failed to keep the mute: %w", err)
 	}

@@ -35,15 +35,25 @@ func contractAnnouncement(name string, at time.Time) Announcement {
 
 func (s *StorageContractSuite) append(names ...string) {
 	for i, name := range names {
-		s.Require().NoError(s.storage.Append(context.Background(),
-			contractAnnouncement(name, contractStart.Add(time.Duration(i)*time.Hour))))
+		appended, err := s.storage.AppendOnce(context.Background(),
+			contractAnnouncement(name, contractStart.Add(time.Duration(i)*time.Hour)))
+		s.Require().NoError(err)
+		s.Require().True(appended)
 	}
 }
 
-func (s *StorageContractSuite) TestAnIDIsKeptOnce() {
-	s.append("boom")
+func (s *StorageContractSuite) TestAnAnnouncementAppendedOnceIsKeptTheFirstTime() {
+	appended, err := s.storage.AppendOnce(context.Background(), contractAnnouncement("champion", contractStart))
+	s.Require().NoError(err)
+	s.True(appended)
 
-	s.Error(s.storage.Append(context.Background(), contractAnnouncement("boom", contractStart.Add(time.Hour))))
+	appended, err = s.storage.AppendOnce(context.Background(), contractAnnouncement("champion", contractStart.Add(time.Hour)))
+	s.Require().NoError(err)
+	s.False(appended, "its id is kept already")
+
+	deleted, err := s.storage.DeleteBefore(context.Background(), contractStart.Add(24*time.Hour))
+	s.Require().NoError(err)
+	s.Equal(int64(1), deleted)
 }
 
 func (s *StorageContractSuite) TestDeleteBeforeRemovesWhatIsOlderAndCountsIt() {

@@ -274,6 +274,11 @@
     min-height: 56px;
 }
 
+.quiz-close {
+    align-self: flex-start;
+    margin-left: auto;
+}
+
 .quiz-clock {
     position: relative;
     flex: 1;

@@ -15,14 +15,15 @@ type Pricer interface {
 	Price(country string) clicks.Price
 }
 
-func New(budgets ClickBudgetReader, pricer Pricer, buckets clicks.Buckets) *UseCase {
-	return &UseCase{budgets: budgets, pricer: pricer, buckets: buckets}
+func New(budgets ClickBudgetReader, pricer Pricer, buckets clicks.Buckets, freeze func() clicks.Freeze) *UseCase {
+	return &UseCase{budgets: budgets, pricer: pricer, buckets: buckets, freeze: freeze}
 }
 
 type UseCase struct {
 	budgets ClickBudgetReader
 	pricer  Pricer
 	buckets clicks.Buckets
+	freeze  func() clicks.Freeze
 }
 
 func (u *UseCase) Execute(ctx context.Context, country string) (clicks.Budget, bool) {
@@ -39,5 +40,7 @@ func (u *UseCase) Execute(ctx context.Context, country string) (clicks.Budget, b
 		states[i] = u.budgets.Peek(key)
 	}
 
-	return u.buckets.BudgetOf(payer, states, price), true
+	budget := u.buckets.BudgetOf(payer, states, price)
+	budget.Frozen = u.freeze()
+	return budget, true
 }

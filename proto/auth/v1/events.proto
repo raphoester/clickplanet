@@ -2,15 +2,47 @@ syntax = "proto3";
 
 package auth.v1;
 
+import "google/protobuf/timestamp.proto";
+
+// The account is gone, and everything another module keeps about it goes too: a guest idle too long, or an account
+// whose deletion was asked for longer ago than the grace period.
 message AccountDeleted {
   string account_id = 1;
+}
+
+// The player asked to delete the account. It is kept, whole, for the grace period, and the other players see it as
+// deleted: AccountDeleted ends it, or AccountRestored brings it back. The two are on two streams, so a receiver keeps
+// the later of them by requested_at and restored_at.
+message AccountDeletionRequested {
+  string account_id = 1;
+
+  google.protobuf.Timestamp requested_at = 2;
+}
+
+// A sign-in landed on an account whose deletion was asked for, within the grace period: it is back as it was.
+message AccountRestored {
+  string account_id = 1;
+
+  google.protobuf.Timestamp restored_at = 2;
 }
 
 message SignedIn {
   string previous_account_id = 1;
   string account_id = 2;
+  // CrazyGames' username; empty for a provider that gives no name to show.
+  string identity_name = 3;
 }
 
 message SignedOut {
   string account_id = 1;
+}
+
+// A Discord sign-in or link just gave leave to add this Discord user to the game's Discord server (scope guilds.join).
+// Auth keeps that leave, sealed, for ten minutes: InternalService/GetDiscordGrant answers it by grant_id. The token is
+// never in an event.
+message DiscordJoinGranted {
+  string grant_id = 1;
+  string account_id = 2;
+  string discord_user_id = 3;
+  google.protobuf.Timestamp granted_at = 4;
 }

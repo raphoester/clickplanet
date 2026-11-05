@@ -4,7 +4,7 @@ import {FailureNotice} from "../components/FailureNotice.tsx"
 import {Person} from "../components/Person.tsx"
 import {When} from "../components/When.tsx"
 import {Note, NoteKind} from "../gen/grpc/support/v1/admin_pb.ts"
-import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
+import {Player as Identity} from "../gen/grpc/player/v1/player_pb.ts"
 import {useOpenPlayer} from "../navigation.ts"
 import {namesOf} from "../players/actions.ts"
 import {useCall} from "../useCall.ts"
@@ -62,7 +62,7 @@ export function NoteList({clients = CLIENTS}: {clients?: Clients}) {
                     )}
                     <ol className="cards">
                         {notes.value.notes.map(note => (
-                            <NoteCard key={note.id} note={note} sender={notes.value.authors.get(note.accountId)}/>
+                            <NoteCard key={note.id} note={note} sender={notes.value.identities.get(note.accountId)}/>
                         ))}
                     </ol>
                 </>
@@ -71,7 +71,7 @@ export function NoteList({clients = CLIENTS}: {clients?: Clients}) {
     )
 }
 
-function NoteCard({note, sender}: {note: Note, sender: Author | undefined}) {
+function NoteCard({note, sender}: {note: Note, sender: Identity | undefined}) {
     const openPlayer = useOpenPlayer()
     const device = deviceLines(note.context, note.userAgent)
     const name = sender?.name ?? ""

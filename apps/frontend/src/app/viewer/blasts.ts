@@ -55,6 +55,8 @@ export type Blasts = {
 
     newest(seconds: number): THREE.Vector3 | undefined
 
+    prime(): void
+
     update(seconds: number, camera: THREE.Camera): boolean
 
     dispose(): void
@@ -125,6 +127,8 @@ export function createBlasts(
         return {centre: new THREE.Vector3(0, 0, 1), startedAt: NEVER, radius: 0, splash: false, flash, debris, incoming}
     })
 
+    let priming = false
+
     return {
         object: group,
 
@@ -171,9 +175,23 @@ export function createBlasts(
             return best?.centre
         },
 
+        prime() {
+            priming = true
+        },
+
         update(seconds, camera) {
             uniforms.time.value = seconds
             camera.getWorldDirection(toCamera).negate()
+
+            if (priming) {
+                priming = false
+                for (const slot of slots) {
+                    slot.flash.material.opacity = 0
+                    ringOpacity(slot.incoming, 0)
+                    slot.flash.visible = slot.debris.visible = slot.incoming.visible = true
+                }
+                return true
+            }
 
             ringOpacity(aim, 0.85 + 0.15 * Math.sin(seconds * 4))
 

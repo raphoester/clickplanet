@@ -48,5 +48,7 @@ func NewSessionReaderInterceptor(verifier ClickSessionVerifier, clock cptime.Clo
 		cpconnect.Identified(planetv1connect.ClickServiceGetBudgetProcedure),
 		cpconnect.Identified(planetv1connect.ClickServiceGetChargesProcedure),
 		cpconnect.Identified(planetv1connect.ClickServiceListenForEventsProcedure),
+		cpconnect.Identified(planetv1connect.ClickServiceGetAllegianceProcedure),
+		cpconnect.Identified(planetv1connect.ClickServicePledgeAllegianceProcedure),
 	)
 }

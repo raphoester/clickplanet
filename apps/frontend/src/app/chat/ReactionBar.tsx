@@ -5,6 +5,7 @@ import {whoReacted} from "../../domain/reactions.ts";
 import {AddReactionIcon} from "../components/icons.tsx";
 import {truncate} from "../truncate.ts";
 import {REACTION_IMAGES} from "./reactionsAsset.ts";
+import {useWordFilter} from "../crazygames/wordFilter.ts";
 
 const OWNER = "data-reactions-for"
 
@@ -157,6 +158,7 @@ type ReactionWhoProps = {
 
 function ReactionWho({id, at, count, label}: ReactionWhoProps) {
     const {names, more} = whoReacted(count)
+    const words = useWordFilter()
 
     // On the body: the log scrolls and clips whatever is drawn inside it.
     return createPortal(
@@ -166,7 +168,7 @@ function ReactionWho({id, at, count, label}: ReactionWhoProps) {
              style={{left: `${at.left}px`, top: `${at.top}px`, maxWidth: `${WHO_MAX_WIDTH_PX}px`}}>
             <span className="chat-reaction-who-label">{label}</span>
             <ul className="chat-reaction-who-names">
-                {names.map((name, index) => <li key={`${index}-${name}`}>{truncate(name, WHO_MAX_LENGTH)}</li>)}
+                {names.map((name, index) => <li key={`${index}-${name}`}>{truncate(words.masked(name), WHO_MAX_LENGTH)}</li>)}
                 {more > 0 && <li className="chat-reaction-who-more">{restOf(names.length, more)}</li>}
             </ul>
         </div>,

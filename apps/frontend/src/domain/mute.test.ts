@@ -5,6 +5,10 @@ describe("describeMute", () => {
     it("says one hour for the usual mute", () => {
         expect(describeMute(3600)).toBe("has been muted for one hour")
     })
+
+    it("says the GIFs alone for a mute of the GIFs", () => {
+        expect(describeMute(86400, "gifs")).toBe("may not post GIFs for one day")
+    })
 })
 
 describe("muteLength", () => {

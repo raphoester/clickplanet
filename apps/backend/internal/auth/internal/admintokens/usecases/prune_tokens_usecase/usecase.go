@@ -38,7 +38,6 @@ func NewRunner(useCase *UseCase, logger *slog.Logger) *Runner {
 	return &Runner{useCase: useCase, logger: logger}
 }
 
-// A lapsed token is refused anyway: the prune only keeps the table to the live ones, once at boot and every hour.
 type Runner struct {
 	useCase *UseCase
 	logger  *slog.Logger

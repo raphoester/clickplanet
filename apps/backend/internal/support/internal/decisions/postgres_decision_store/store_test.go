@@ -59,7 +59,7 @@ func (s *testSuite) decided(outcome decisions.Outcome, comment string, at time.T
 }
 
 func (s *testSuite) kept() []decisions.Snapshot {
-	rows, err := s.db.QueryContext(s.T().Context(), `SELECT report_id, outcome, comment, decided_at FROM report_decisions`)
+	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(), `SELECT report_id, outcome, comment, decided_at FROM report_decisions`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 

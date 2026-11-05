@@ -5,7 +5,7 @@ import (
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
 type UseCase interface {
@@ -20,7 +20,7 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpbootstrap.Handler[*authv1.SignedOut] = Subscriber{}
+var _ cpredis.Handler[*authv1.SignedOut] = Subscriber{}
 
 func (s Subscriber) Handle(ctx context.Context, event *authv1.SignedOut) error {
 	account, err := players.AccountIDOf(event.GetAccountId())

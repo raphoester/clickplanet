@@ -14,8 +14,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 )
 
-func newWatchdog() *cohort.Watchdog {
-	return cohort.New(cohort.Config{
+func production() cohort.Rules {
+	return cohort.Rules{
 		StartWindow:    5 * time.Second,
 		MinClicks:      20,
 		MinFlagShare:   0.9,
@@ -23,12 +23,14 @@ func newWatchdog() *cohort.Watchdog {
 		LengthRatio:    1.2,
 		QuietAfter:     time.Minute,
 		MinMembers:     2,
-		V4Bits:         24,
-		V6Bits:         44,
 		CertainCohorts: 3,
 		CertainMembers: 6,
 		ChainWindow:    30 * time.Minute,
-	}, nil, nil)
+	}
+}
+
+func newWatchdog() *cohort.Watchdog {
+	return cohort.New(cohort.Config{V4Bits: 24, V6Bits: 44}, production, nil, nil)
 }
 
 func at(clock string) time.Time {
@@ -285,14 +287,27 @@ func TestScopesThatAreNotAddressesAreNeverCertain(t *testing.T) {
 }
 
 func TestValidateRefusesBoundsThatCannotMeanAnything(t *testing.T) {
+	require.NoError(t, production().Validate())
+
+	for name, change := range map[string]func(*cohort.Rules){
+		"no window":          func(r *cohort.Rules) { r.StartWindow = 0 },
+		"share over one":     func(r *cohort.Rules) { r.MinFlagShare = 1.5 },
+		"ratio under one":    func(r *cohort.Rules) { r.RateRatio = 0.8 },
+		"cohort of one":      func(r *cohort.Rules) { r.MinMembers = 1 },
+		"chain of one":       func(r *cohort.Rules) { r.CertainCohorts = 1 },
+		"crowd under cohort": func(r *cohort.Rules) { r.CertainMembers = 1 },
+	} {
+		rules := production()
+		change(&rules)
+		assert.Error(t, rules.Validate(), name)
+	}
+}
+
+func TestValidateRefusesAPrefixWiderThanAnAddress(t *testing.T) {
 	require.NoError(t, cohort.Config{}.Validate(), "every zero is a default")
 
 	for name, config := range map[string]cohort.Config{
-		"negative window":   {StartWindow: -time.Second},
-		"share over one":    {MinFlagShare: 1.5},
-		"ratio under one":   {RateRatio: 0.8},
-		"cohort of one":     {MinMembers: 1},
-		"chain of one":      {CertainCohorts: 1},
+		"negative window":   {TrackWindow: -time.Second},
 		"v4 prefix too big": {V4Bits: 33},
 		"v6 below the /64":  {V6Bits: 96},
 	} {

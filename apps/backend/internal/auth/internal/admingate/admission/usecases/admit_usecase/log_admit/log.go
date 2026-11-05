@@ -20,7 +20,7 @@ type Logged struct {
 	logger *slog.Logger
 }
 
-// Never the cookie, and never the token: whether a token came is all the line says of it.
+// Never the cookie and never the token: only whether a token came.
 func (l *Logged) Execute(ctx context.Context, visit admission.Visit) (admission.Caller, error) {
 	caller, err := l.inner.Execute(ctx, visit)
 	if err != nil {

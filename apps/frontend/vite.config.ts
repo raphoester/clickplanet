@@ -1,8 +1,22 @@
 import {defineConfig, Plugin} from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import glsl from 'vite-plugin-glsl'
-import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from './src/links.ts'
+import {INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from './src/links.ts'
 import {WEB_ANALYTICS_TOKEN, withoutAnalytics} from './src/webAnalytics.ts'
+
+// The archive's page at its path in npm run dev, as the Workers asset handler serves archive.html at /archive.
+function archiveRoute(): Plugin {
+    return {
+        name: "clickplanet-archive-route",
+        configureServer(server) {
+            server.middlewares.use((req, _res, next) => {
+                const url = new URL(req.url ?? "/", "http://localhost")
+                if (url.pathname.replace(/\/+$/, "") === "/archive") req.url = `/archive.html${url.search}`
+                next()
+            })
+        },
+    }
+}
 
 function gameRoutes(): Plugin {
     const GAME = "play.html"
@@ -30,17 +44,17 @@ function gameRoutes(): Plugin {
 }
 
 export default defineConfig({
-    plugins: [react(), glsl(), gameRoutes()],
+    plugins: [react(), glsl(), gameRoutes(), archiveRoute()],
     base: "/",
     define: {
-        "import.meta.env.DISCORD_INVITE": JSON.stringify(DISCORD_INVITE),
         "import.meta.env.TIKTOK_PROFILE": JSON.stringify(TIKTOK_PROFILE),
+        "import.meta.env.YOUTUBE_CHANNEL": JSON.stringify(YOUTUBE_CHANNEL),
         "import.meta.env.INSTAGRAM_PROFILE": JSON.stringify(INSTAGRAM_PROFILE),
         "import.meta.env.WEB_ANALYTICS_TOKEN": JSON.stringify(WEB_ANALYTICS_TOKEN),
     },
     build: {
         rollupOptions: {
-            input: {home: "index.html", play: "play.html", privacy: "privacy.html", terms: "terms.html"},
+            input: {home: "index.html", play: "play.html", archive: "archive.html", privacy: "privacy.html", terms: "terms.html"},
         },
     },
     test: {

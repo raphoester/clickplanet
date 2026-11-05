@@ -16,11 +16,27 @@ import (
 )
 
 var (
-	now    = time.Date(2026, 10, 12, 12, 40, 0, 0, time.UTC)
-	plan   = posts.Plan{Review: 4 * time.Hour, Spacing: 2 * time.Hour, Platforms: []posts.Platform{posts.TikTok, posts.YouTube}}
-	first  = now.Add(4 * time.Hour)
-	second = now.Add(6 * time.Hour)
+	now     = time.Date(2026, 10, 12, 12, 40, 0, 0, time.UTC)
+	budget  = posts.Budget{posts.TikTok: {PerDay: 10}, posts.YouTube: {PerDay: 8}}
+	both    = []posts.Platform{posts.TikTok, posts.YouTube}
+	plan    = posts.Plan{Review: 4 * time.Hour, Spacing: 2 * time.Hour, Platforms: both, Budget: budget}
+	first   = now.Add(4 * time.Hour)
+	second  = now.Add(6 * time.Hour)
+	running = posts.Experiments{
+		{Name: "length", Arms: []posts.Arm{{Name: "as-chosen", Weight: 1}, {Name: "short", Weight: 1}}, Control: "as-chosen"},
+	}
 )
+
+type feeds struct {
+	feed  posts.Feed
+	err   error
+	since []time.Time
+}
+
+func (f *feeds) Posted(_ context.Context, since time.Time) (posts.Feed, error) {
+	f.since = append(f.since, since)
+	return f.feed, f.err
+}
 
 type folder struct {
 	clips []posts.Clip
@@ -38,21 +54,37 @@ func key(title string) posts.StoryKey {
 func clip(t *testing.T, pick posts.Pick, title string) posts.Clip {
 	t.Helper()
 
-	restored, err := posts.ClipSnapshot{Pick: pick, Title: title, Teasers: []string{title + " 1", title + " 2"}, Key: key(title), Video: "clip.mp4"}.Restore()
+	return clipIn(t, pick, title, nil)
+}
+
+func clipIn(t *testing.T, pick posts.Pick, title string, variants posts.Variants) posts.Clip {
+	t.Helper()
+
+	restored, err := posts.ClipSnapshot{
+		Pick: pick, Title: title, Teasers: []string{title + " 1", title + " 2"}, Key: key(title), Video: "clip.mp4", Seconds: 10,
+		Variants: variants,
+	}.Restore()
 	require.NoError(t, err)
 	return restored
 }
 
 type run struct {
 	service *posts.ScriptedService
+	feeds   *feeds
 	usecase *schedule_clips_usecase.UseCase
 }
 
 func scheduling(clips folder, refusals ...error) run {
+	return schedulingWith(plan, &feeds{}, clips, refusals...)
+}
+
+func schedulingWith(p posts.Plan, posted *feeds, clips folder, refusals ...error) run {
 	clock := cptime.NewFixedClock(now)
 	service := posts.NewScriptedService(refusals...)
 	sender := posts.NewSender(service, posts.Backoff{time.Minute}, posts.NewRecordedPause(clock), clock)
-	return run{service: service, usecase: schedule_clips_usecase.New(clips, plan, clock, posts.LoadedDice(1), sender)}
+	return run{service: service, feeds: posted, usecase: schedule_clips_usecase.New(
+		clips, posted, p, clock, posts.LoadedDice(1), sender, running,
+	)}
 }
 
 func on(failures ...string) []posts.PlatformOutcome {
@@ -85,9 +117,10 @@ func TestAClipTheServiceRefusesIsInTheReportAndTheOthersStillGoOut(t *testing.T)
 	report, err := r.usecase.Execute(t.Context())
 
 	require.NoError(t, err)
+	// A clip refused takes no place: the next one goes out in it.
 	assert.Equal(t, posts.Report{
 		{Title: "BEST", At: first, Platforms: on("the caption is too long", "the caption is too long")},
-		{Title: "SECOND", At: second, Post: "post-SECOND", Platforms: on("", "")},
+		{Title: "SECOND", At: first, Post: "post-SECOND", Platforms: on("", "")},
 	}, report)
 	assert.False(t, report.Complete())
 }
@@ -122,4 +155,113 @@ func TestClipsThatCannotBeReadFailTheRun(t *testing.T) {
 
 	require.ErrorIs(t, err, unreadable)
 	assert.Empty(t, r.service.Scheduled)
+}
+
+var asap = posts.Plan{Spacing: time.Hour, Platforms: both, Budget: budget}
+
+func TestWithNoReviewARunsClipsGoOutAtOnceAndASpacingApartAfterWhatThePlatformsHold(t *testing.T) {
+	posted := &feeds{feed: posts.Feed{{At: now.Add(-30 * time.Minute), Platforms: both}}}
+	r := schedulingWith(asap, posted, folder{clips: []posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}})
+
+	report, err := r.usecase.Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, []time.Time{now.Add(30 * time.Minute), now.Add(90 * time.Minute)}, []time.Time{report[0].At, report[1].At})
+	assert.Equal(t, []time.Time{now.Add(-24 * time.Hour)}, posted.since)
+	assert.True(t, report.Complete())
+}
+
+func TestAClipNoPlatformHasRoomForIsHeldAndTheRunIsStillComplete(t *testing.T) {
+	full := make(posts.Feed, 0, 9)
+	for i := range 9 {
+		full = append(full, posts.Posting{At: now.Add(-time.Duration(i+2) * time.Hour), Platforms: []posts.Platform{posts.TikTok}})
+	}
+	r := schedulingWith(asap, &feeds{feed: full}, folder{clips: []posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}})
+
+	report, err := r.usecase.Execute(t.Context())
+
+	require.NoError(t, err)
+	require.Len(t, r.service.Scheduled, 2)
+	assert.Equal(t, both, r.service.Scheduled[0].Platforms)
+	// TikTok's tenth went out with BEST: SECOND goes to YouTube alone.
+	assert.Equal(t, []posts.Platform{posts.YouTube}, r.service.Scheduled[1].Platforms)
+	assert.False(t, report[1].Held)
+
+	tight := asap
+	tight.Budget = posts.Budget{posts.TikTok: {PerDay: 10}}
+	r = schedulingWith(tight, &feeds{feed: full}, folder{clips: []posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}})
+
+	report, err = r.usecase.Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Len(t, r.service.Scheduled, 1)
+	assert.Equal(t, posts.Outcome{Title: "SECOND", Held: true}, report[1])
+	assert.True(t, report.Complete())
+}
+
+func TestAPostAWaitMovedLaterMovesTheNextOneToo(t *testing.T) {
+	clock := cptime.NewFixedClock(now)
+	service := posts.NewScriptedService(&posts.BusyError{RetryAfter: 10 * time.Minute, Reason: "rate limit"})
+	sender := posts.NewSender(service, posts.Backoff{15 * time.Minute}, posts.NewRecordedPause(clock), clock)
+	usecase := schedule_clips_usecase.New(folder{clips: []posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}}, &feeds{}, asap,
+		clock, posts.LoadedDice(1), sender, running)
+
+	report, err := usecase.Execute(t.Context())
+
+	require.NoError(t, err)
+	// Planned at 12:45, sent after a 15-minute wait: 13:00, and SECOND an hour after it.
+	assert.Equal(t, []time.Time{now.Add(20 * time.Minute), now.Add(80 * time.Minute)}, []time.Time{report[0].At, report[1].At})
+}
+
+func TestAFeedThatCannotBeReadFailsTheRunBeforeAnythingIsSent(t *testing.T) {
+	unreachable := errors.New("zernio could not be reached")
+	r := schedulingWith(asap, &feeds{err: unreachable}, folder{clips: []posts.Clip{clip(t, 1, "BEST")}})
+
+	_, err := r.usecase.Execute(t.Context())
+
+	require.ErrorIs(t, err, unreachable)
+	assert.Empty(t, r.service.Scheduled)
+}
+
+func TestTheArmsOfEachClipReachItsPostAndTheReport(t *testing.T) {
+	r := scheduling(folder{clips: []posts.Clip{clipIn(t, 1, "BEST", posts.Variants{"length": "short"}), clip(t, 2, "SECOND")}})
+
+	report, err := r.usecase.Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, posts.Variants{"length": "short"}, report[0].Variants)
+	assert.Empty(t, report[1].Variants)
+	assert.Equal(t, posts.Variants{"length": "short"}, r.service.Scheduled[0].Variants)
+}
+
+// The control is what a clip was before the experiment: the same post, word for word, at the same time.
+func TestAClipInTheControlArmIsPostedAsAClipInNoExperiment(t *testing.T) {
+	control := scheduling(folder{clips: []posts.Clip{clipIn(t, 1, "BEST", posts.Variants{"length": "as-chosen"})}})
+	before := scheduling(folder{clips: []posts.Clip{clip(t, 1, "BEST")}})
+
+	_, err := control.usecase.Execute(t.Context())
+	require.NoError(t, err)
+	_, err = before.usecase.Execute(t.Context())
+	require.NoError(t, err)
+
+	posted := control.service.Scheduled[0]
+	posted.Variants = nil
+	assert.Equal(t, before.service.Scheduled[0], posted)
+}
+
+func TestAClipInAnArmNobodyRunsFailsTheRunBeforeAnyPost(t *testing.T) {
+	for name, variants := range map[string]posts.Variants{
+		"an experiment that does not run": {"end-card": "podium"},
+		"an arm the experiment has not":   {"length": "long"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := scheduling(folder{clips: []posts.Clip{clip(t, 1, "BEST"), clipIn(t, 2, "SECOND", variants)}})
+
+			_, err := r.usecase.Execute(t.Context())
+
+			require.ErrorIs(t, err, posts.ErrUnknownVariant)
+			assert.Contains(t, err.Error(), "SECOND")
+			assert.Empty(t, r.service.Scheduled)
+		})
+	}
 }

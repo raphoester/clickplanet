@@ -36,7 +36,8 @@ Caddyfile; it moves to any provider that rents a Linux box.
 - `docker-compose.yaml` — Caddy + backend, plus a small metrics poller that
   keeps a history the API's in-process counters cannot (see
   [Evidence has to outlive a deploy](#evidence-has-to-outlive-a-deploy-and-by-default-it-does-not)),
-  and the postgres that holds the tile map and the chat (see [9. Postgres](#9-postgres)).
+  the postgres that holds the tile map and the chat (see [9. Postgres](#9-postgres)), and the Redis the modules
+  tell each other what happened through (see [10. Redis](#10-redis-the-events-between-modules)).
 - `caddy/Caddyfile` — TLS via DNS-01, reverse proxy, CORS. Compose mounts the
   whole `caddy/` directory, so a deploy can reload it (see
   [7. CI and the image registry](#7-ci-and-the-image-registry))
@@ -45,7 +46,8 @@ Caddyfile; it moves to any provider that rents a Linux box.
 - `backend.yaml` — API config. Each secret is an `env://NAME` anchor, so the
   file names the variable and never holds the value.
 - `env.public` — the settings that are not secret (`API_DOMAIN`,
-  `FRONTEND_ORIGIN`), in git so a change to either shows up in a diff
+  `FRONTEND_ORIGIN`, and `CRAZYGAMES_ORIGIN`, the CrazyGames page, which Caddy
+  answers CORS for too), in git so a change to any shows up in a diff
 - `render-env.sh` — writes the three env files the stack reads, from the
   repository's Actions secrets plus `env.public`. Every deploy runs it, and so
   does `bootstrap.sh` (see [Where the secrets live](#where-the-secrets-live)).
@@ -171,7 +173,8 @@ Everything else is one command from your laptop:
 It copies itself to the box over SSH and re-runs there as root, then: installs
 Docker and turns off its userland proxy (see below), creates the `deploy` user, generates and installs a CI keypair
 (`~/.ssh/clickplanet_ci`, private half never leaves your laptop), restricts ufw
-to SSH plus Cloudflare's ranges on 80/443, clones the repo to
+to SSH plus Cloudflare's ranges on 80/443 (and Docker's forwarded 80/443, see
+below), clones the repo to
 `/opt/clickplanet`, renders the three env files, builds
 Caddy with the Cloudflare DNS plugin, and starts the stack. It finishes by
 printing the `gh secret set` commands for step 5.
@@ -221,6 +224,39 @@ ssh root@YOUR_IP 'docker info | grep EnableUserlandProxy; ss -tn src 172.18.0.1 
 
 `false` and an empty socket list means every request keeps its real address.
 
+### Caddy's ports are filtered in DOCKER-USER, not only in ufw
+
+Docker forwards a published port to its container before ufw's input rules see
+the packet. So ufw's Cloudflare rules alone do not cover Caddy's 80/443.
+`bootstrap.sh` puts the same
+Cloudflare ranges in a `clickplanet-origin` chain, jumped to from `DOCKER-USER`
+for 80/443 on the public interface, in a marked block at the end of
+`/etc/ufw/after.rules`. ufw loads that file at boot, before Docker starts, and
+Docker keeps what is in `DOCKER-USER`. A re-run writes the block again with
+fresh ranges, and `--open-origin` empties it.
+
+From your laptop, or any address that is not Cloudflare's:
+
+```bash
+nc -z -w 5 YOUR_IP 443 && echo open || echo filtered
+```
+
+`filtered` is correct. On the box, `iptables -nvL clickplanet-origin` counts the
+dropped packets.
+
+### Caddy listens with plain TCP
+
+Go opens every listener with MPTCP when the kernel allows it. Cloudflare
+connects to the origin with plain TCP, so MPTCP only gives an attacker more
+kernel code to reach. `docker-compose.yaml` sets `net.mptcp.enabled=0` in
+Caddy's network namespace, and Go falls back to TCP. To check:
+
+```bash
+ssh root@YOUR_IP 'nsenter -t $(docker inspect -f "{{.State.Pid}}" cp-caddy) -n ss -Mltn'
+```
+
+No `mptcp` line is correct.
+
 ## 4. Frontend on Cloudflare Pages
 
 Create a Pages project from the GitHub repo:
@@ -232,6 +268,7 @@ Create a Pages project from the GitHub repo:
 | Output directory | `dist` |
 | Env var | `VITE_API_BASE_URL=https://api.clickplanet.lol` |
 | Env var | `VITE_TURNSTILE_SITEKEY=0x4AAAAAAEuFCQwAVFUYug8z` (see [§5](#5-turnstile-and-the-click-session)) |
+| Env var | `VITE_KLIPY_KEY=<the app key from partner.klipy.com>`: the chat's GIFs, with ads off for the key. Public: it is read off the page |
 
 Generated protobuf code is committed, so the build needs no `buf`.
 
@@ -406,6 +443,138 @@ frontend has the button and the privacy policy page is live: we store email.
 4. Set `auth.signIn.enabled: true` and deploy. A client id with no secret
    refuses the boot.
 
+### Discord pings
+
+Off in `backend.yaml` (`alerts.enabled: false`). On, signing in with Discord also adds the player to the game's
+Discord server with the role of their flag ("Join Discord" in the game's chat is that sign-in), and the server pings
+that role when their flag is attacked, and everybody (`@everyone`) when a battle or a season starts.
+
+**It is the same Discord application as the sign-in** (client id `1549822806420885616`): the application gets a bot,
+and the bot joins your server. There is no second trip and no new redirect URI: the sign-in asks Discord for the
+leave to add the player to the server (`guilds.join`) when `auth.discord.joinServer` is on.
+
+#### 1. Give the application a bot, and copy its token
+
+1. Open <https://discord.com/developers/applications> and sign in with the Discord account that owns the game.
+2. Click the application whose **Application ID** (on **General Information**) is `1549822806420885616`.
+3. In the left menu, click **Installation**. Under **Install Link**, choose **None**, then **Save Changes**. The
+   portal refuses to make a bot private while it has an install link.
+4. In the left menu, click **Bot**. Set these, then **Save Changes**:
+   - **Public Bot**: off. Only you can add it to a server.
+   - **Requires OAuth2 Code Grant**: off. On, the link in step 2 does not work.
+   - **Privileged Gateway Intents** (Presence, Server Members, Message Content): all off. The bot only calls the API;
+     it never connects to the gateway.
+5. Still on **Bot**, under **Token**, click **Reset Token**, confirm, and type your 2FA code if asked. Click **Copy**.
+   Discord shows the token once; if you lose it, reset it again (the old one stops working).
+6. Store it as an Actions secret, on your laptop. `gh` asks for it and hides what you paste:
+
+   ```bash
+   read -rsp 'Discord bot token: ' s && echo && printf '%s' "$s" | gh secret set DISCORD_BOT_TOKEN --repo raphoester/clickplanet && unset s
+   ```
+
+#### 2. Add the bot to your server
+
+1. In the left menu, click **OAuth2**. Check that **Redirects** lists `https://clickplanet.lol/auth/callback` (the
+   sign-in added it). Add nothing.
+2. Further down, in **OAuth2 URL Generator**, tick the scope **bot** only. A **Bot Permissions** box appears below it.
+   Tick these five, and nothing else:
+   - **Manage Roles**: the bot makes one role per flag, paints it, and gives it to players.
+   - **Create Instant Invite**: Discord needs it to add a player to the server.
+   - **View Channels**
+   - **Send Messages**
+   - **Mention @everyone, @here, and All Roles**: a battle pings everybody. Without it Discord posts the battle and
+     pings nobody.
+3. Leave **Integration Type** on **Guild Install**. Copy the **Generated URL** at the bottom and open it in your
+   browser.
+4. Pick the game's server under **Add to server**, click **Continue**, keep the five permissions ticked, and click
+   **Authorize**.
+5. In Discord, the bot is now in the server's member list, offline. That is normal: it only posts through the API.
+   It also has a role of its own with the application's name. The roles the bot makes go below that role, so leave
+   the bot's role where it is or above.
+
+#### 3. Make the two channels
+
+1. In your server, click **+** next to **Text Channels** and make `alerts`. Do the same for `battles`.
+2. For each one: right-click it > **Edit Channel** > **Permissions**. For **@everyone**, turn **Send Messages** off
+   (so players read the pings and talk elsewhere). That also stops the bot, so let it back in: **Add members or
+   roles** (the **+** next to Roles/Members), type the application's name, pick the role with that name (or the bot
+   itself), and turn **View Channel** and **Send Messages** on for it. You do not make that role: Discord made it
+   when the bot joined in step 2, with the permissions you ticked. It shows in **Server Settings** > **Roles**
+   with the application's name.
+
+#### 4. Copy the three ids
+
+1. In Discord, **User Settings** (the gear) > **Advanced** > turn **Developer Mode** on.
+2. Right-click the server's icon > **Copy Server ID**. That is `guildId`.
+3. Right-click `#alerts` > **Copy Channel ID** (`alertsChannelId`), and `#battles` the same way (`battlesChannelId`).
+
+#### 5. Turn it on
+
+In `deploy/vps/backend.yaml`, make the `alerts.discord` block whole, set `enabled: true`, and let the Discord
+sign-in join the server:
+
+```yaml
+auth:
+  discord:
+    clientId: "1549822806420885616"
+    clientSecret: env://DISCORD_CLIENT_SECRET
+    joinServer: true
+
+alerts:
+  enabled: true
+  # database and redis stay as they are
+  discord:
+    botToken: env://DISCORD_BOT_TOKEN
+    guildId: "<the server id>"
+    alertsChannelId: "<the #alerts id>"
+    battlesChannelId: "<the #battles id>"
+```
+
+Keep the quotes around the ids: they are long numbers, and YAML would read them as numbers otherwise. Merge to main:
+a change under `deploy/vps/` runs the deploy workflow, which passes the secrets and restarts the backend. A missing
+secret or id refuses the boot, so set the secret (step 1) before you merge.
+
+#### 6. Check it
+
+1. Open the game, then press **Join Discord** in the chat's Discord bar (or sign in with Discord from the menu).
+   Discord asks to let ClickPlanet sign you in and join servers for you: **Authorize**. You are back in the game,
+   signed in, and the bar says **Open Discord**.
+2. In the server, you now have your flag's role, in a color of its own. Change flag in the game: the role follows.
+3. To see the offer again, unlink your account on the backoffice: **Players**, open yours, the **Discord** tool,
+   **Unlink Discord**. The bot takes the flag's role off you, you stay in the server, and the game offers **Join
+   Discord** again on the next load.
+4. The backend log says why a join or a ping failed:
+
+   ```bash
+   ssh root@64.225.102.150 'journalctl CONTAINER_TAG=cp-backend --since "10 min ago" -o cat | grep -i "alerts\|discord"'
+   ```
+
+   `Missing Permissions` (50013) means a permission from step 2 is missing, or a role the bot must give is above the
+   bot's own role.
+
+#### The players who signed in with Discord before the alerts
+
+Their sign-in never asked to join the server, so they have no role and get no pings. Once the backend runs with the
+alerts on, open the backoffice: **Ops** > **Link Discord members** > **Link Discord members** > **Yes**. Each of them
+already in the server (by the invite) gets their flag's role, with nothing to do on their side. The answer also says
+how many are not in the server: Discord lets nobody add them but themselves, and the game shows them **Join
+Discord** in the chat's Discord bar, one press and one **Authorize**. Run it again any time: it links nobody twice,
+but it does link again an account you unlinked to try the offer, if it is still in the server. Over SSH instead:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/alerts.v1.AdminService/LinkMembers
+```
+
+The answer is `{"linked":N,"outside":M,"failed":F}` (a count of 0 is left out). A `failed` one is in the log above
+with its reason (`failed to link a Discord member`).
+
+#### A server set up before the one connection (November 2026)
+
+1. Give the bot's role the new permission: **Server Settings** > **Roles** > the role with the application's name >
+   **Permissions** > turn **Mention @everyone, @here, and All Roles** on > **Save Changes**.
+2. Nothing else by hand: the first boot deletes the `Battles` role the bot made, and paints each flag's role in its
+   color. The log says `Discord roles tidied`, or why not.
+
 ### Sign-in by email
 
 Off in `backend.yaml` (`auth.email.enabled: false`). The server sends a
@@ -460,11 +629,13 @@ left that separates it from a player is behaviour.
 - **`hopper`** — aims all over the globe: click after click a continent away from
   the last, where a hand paints where it is looking. **Suspect only**: it never
   bans alone.
-- **`rotator`** — one person on several accounts on one network, who changes
-  account each time a click bank is empty: the accounts play in the same five
-  minutes for hours and almost never in the same second. **Suspect only**: it
-  never bans alone. When the jury bans one of the accounts, it bans all of them,
-  and each ban line says `alongside` which account.
+- **`rotator`** — one person on several accounts of one flag, on one network or
+  several, who changes account each time a click bank is empty: the accounts play
+  in the same five minutes for hours and almost never in the same second. Its
+  `suspect` counts for nothing. Its `certain` (4 hours of such slots in a day, where
+  chance gives 300 shared seconds) bans the accounts alone, and no network. When
+  the jury bans one of the accounts, it bans the ones it is sure of, and each ban
+  line says `alongside` which account.
 
 Each returns `certain` or `suspect`. **`certain` bans on its own; `suspect` is a
 reading that would ban real players if it were trusted alone**, and counts only
@@ -610,8 +781,8 @@ Then `bans.enforce: true` and redeploy.
 
 `banned_callers` is how many callers are inside a ban and **counts while
 `enforce` is false too** — a non-zero gauge in observe mode means the rules are
-biting, not that anything was refused. `banned_clicks` is the one that
-stays at 0 until you enforce.
+biting, not that anything was refused. `refused_clicks` (planet's) is the one
+that stays at 0 until you enforce.
 
 `ban_flags` counts flags rather than callers, **labelled by watchdog**, so
 the two read together: `ban_flags{watchdog="sequencer"} 40` against
@@ -658,9 +829,15 @@ docker compose exec postgres psql -U clickplanet -c "select * from antibot.bans 
 ```
 
 To lift a ban that was a mistake, use `UnbanPlayer`: see
-[Unban a player](#unban-a-player). The backend reads the table on every click,
-so a hand edit of it counts at once too, but the call keeps the offence count
-right and is logged.
+[Unban a player](#unban-a-player). Planet refuses from its own table,
+`planet.refused_callers`, which the antibot's commands keep: a hand edit of
+`antibot.bans` reaches planet only at the next boot, when the antibot tells it
+every running ban again. The call keeps the offence count right, tells planet at
+once and is logged.
+
+```bash
+docker compose exec postgres psql -U clickplanet -c "select * from planet.refused_callers where refused_until > now() order by refused_until"
+```
 
 Set `enforce` back to false to stop dropping clicks for everyone at once.
 ### Evidence has to outlive a deploy, and by default it does not
@@ -689,7 +866,8 @@ nothing.
 appends the ban and click series to the `metrics_history` volume, one
 file per UTC day, pruned after `POLL_RETENTION_DAYS`. Before 2026-10-20 the ban
 series were named `shadowban_flagged`, `shadowban_flags` and `shadowbanned_clicks`
-(now `banned_callers`, `ban_flags` and `banned_clicks`):
+(now `banned_callers`, `ban_flags` and `refused_clicks`; the last was
+`banned_clicks` until 2026-10-26):
 
 ```bash
 docker compose exec -T metrics-poller ls /history
@@ -845,9 +1023,19 @@ The deploy does this after `git pull`:
 
 1. `caddy validate` on the new file, in a throwaway container. A bad file fails
    the deploy here, and the live Caddy keeps its old config.
-2. `docker compose up -d`.
-3. `caddy reload` in `cp-caddy`. This keeps open connections. It does nothing
+2. `docker compose up -d backend`, with `--force-recreate` when the pull changed
+   `backend.yaml`. This starts postgres and redis first if they need it.
+3. `docker compose up -d --no-deps` for every other service. `--no-deps` keeps
+   this step away from the backend.
+4. `caddy reload` in `cp-caddy`. This keeps open connections. It does nothing
    if the config did not change.
+
+Steps 2 and 3 start `cp-backend` once per deploy. Before 2026-10-26 the deploy
+ran `up -d`, then a second `--force-recreate` of the backend when `backend.yaml`
+changed. When the image changed too, the second recreate killed the first new
+container 0.7 s into its boot. A boot runs each module's migrations, and a
+container killed mid-migration can leave `schema_migrations` dirty: the next
+boot then refuses to start, in a restart loop.
 
 The reload is needed because `up -d` does not recreate Caddy when only the
 Caddyfile changed. Compose mounts the `caddy/` directory, not the file: `git
@@ -974,10 +1162,61 @@ docker volume rm vps_tile_state
 rm -f ~/backups/tiles-*.tar.gz
 ```
 
-## 10. Operator tools
+## 10. Redis: the events between modules
+
+The backend's modules tell each other what happened over Redis Streams, in the
+`redis` service, on the `redis_data` volume (append-only file, fsync every
+second). One stream per kind of event (`events:planet.v1.TileTaken`, …), one
+consumer group per subscriber. Nothing publishes a port: only the backend
+reaches it, over the compose network. The API refuses to start without it.
+
+**The password is the `REDIS_PASSWORD` Actions secret**, which reaches both
+`.env` (the server's `--requirepass`) and `.env.backend` (each module's
+`redis.password`).
+`bootstrap.sh` generates one on a fresh box; on a box set up before, create it
+before the deploy that brings Redis:
+
+```bash
+openssl rand -hex 32 | gh secret set REDIS_PASSWORD --repo raphoester/clickplanet
+```
+
+Without it, `docker compose up` refuses to start. Unlike postgres it can change:
+Redis reads it at each start, so a new value takes effect once both restart.
+
+`maxmemory` is 64 MB with `noeviction`: a full Redis refuses new events rather
+than drop unread ones. A stream is trimmed every minute down to what its
+slowest subscriber has not handled, so it stays small while every subscriber
+keeps up; `redis.maxLen` (100k) caps one that stops.
+
+Each module of `backend.yaml` has its own `redis` block, and all of them name
+the same server. A subscriber renamed or removed in a release leaves its
+consumer group behind, which holds its stream at `redis.maxLen`. Destroy it once
+the release is out:
+
+```bash
+docker compose exec redis redis-cli XGROUP DESTROY events:<type> <old subscriber>
+```
+
+An event a subscriber failed `redis.maxDeliveries` times (8, about four
+minutes of retries) is moved to `events:dead` and counted in
+`events_dead_total`. To read them:
+
+```bash
+docker compose exec redis redis-cli XRANGE events:dead - +
+```
+
+How far behind each subscriber is (`events_lag`, `events_pending`), and what a
+handler refused (`events_failed_total`), are on the metrics endpoint:
+
+```bash
+docker compose exec backend wget -qO- localhost:8080/metrics | grep ^events_
+```
+
+## 11. Operator tools
 
 `httpServer.consoleBindAddress` serves the backend's operator services
-(`planet.v1.AdminService`, `player.v1.AdminService`, `chat.v1.AdminService`, `support.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
+(`planet.v1.AdminService`, `player.v1.AdminService`, `chat.v1.AdminService`, `support.v1.AdminService`,
+`clips.v1.AdminService`, `gamemaster.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
 not behind Caddy and have **no authentication**: loopback is their whole
 protection, so a non-loopback address refuses the boot. Reach them from the box
 with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
@@ -1021,7 +1260,7 @@ backoffice.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* �
   It asks `auth.v1.AdminService/WhoAmI` first, so a refused page says why:
   not signed in, or not an operator.
 - **Every tool in this section is on the page too**, in its burger menu:
-  Players (find, ban, unban, revert, inspect, mute, grant charges), the Map
+  Players (find, ban, unban, revert, inspect, mute, unmute, grant charges), the Map
   pages (reassign, paint, replay) and the Ops pages (titles, names). Each asks before it changes anything, and a revert, a
   reassign and a paint run their dry run first. The commands below stay for
   scripts on the box.
@@ -1098,6 +1337,27 @@ Two steps, for the reason the crown has two (see the player module's admin flag)
 a name can change hands, an id cannot. `operator = false` takes it back, and
 ends any admin session at once. The flag is not the chat crown:
 `player.profiles.admin` stays a display flag.
+
+### Delete an account at once
+
+The game keeps an account its player deleted for 30 days, so a sign-in can bring
+it back. The privacy policy promises to delete it at once when its player emails
+from the address it signed in with. Find the account by that address, check its
+deletion was asked for (`deletion_requested_at` is set; if it is not, ask the
+player to press Delete account first), then move the mark past the 30 days:
+
+```bash
+docker compose exec postgres psql -U clickplanet -c \
+  "SELECT account_id, provider, deletion_requested_at FROM auth.identities
+   JOIN auth.accounts ON accounts.id = identities.account_id
+   WHERE lower(email) = lower('player@example.com')"
+docker compose exec postgres psql -U clickplanet -c \
+  "UPDATE auth.accounts SET deletion_requested_at = now() - interval '31 days'
+   WHERE id = '<account_id>' AND deletion_requested_at IS NOT NULL"
+```
+
+The purge runs every hour (`auth.deletion.interval`) and deletes it with
+everything every module keeps about it, as it would on day 30.
 
 ### Give one country's tiles to another
 
@@ -1248,16 +1508,19 @@ way. An address is banned as its scope, which drops every account behind it. An
 both:
 
 ```bash
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/BanPlayer
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"2001:db8:1:2::/64","duration":"3600s"}' http://127.0.0.1:8081/planet.v1.AdminService/BanPlayer
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}' http://127.0.0.1:8081/planet.v1.AdminService/BanPlayer
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/antibot.v1.AdminService/BanPlayer
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"2001:db8:1:2::/64","duration":"3600s"}' http://127.0.0.1:8081/antibot.v1.AdminService/BanPlayer
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}' http://127.0.0.1:8081/antibot.v1.AdminService/BanPlayer
 ```
 
 Ban the scope when the player is on a guest account: a guest drops its account
 with a new cookie.
 
-`"enforced":false` in the answer means `antiBot.bans.enforce` is off: the
-ban is kept but refuses nothing. To lift a ban, see [Unban a player](#unban-a-player).
+`"enforced":false` in the answer means the rule `bans.enforce` is off: the
+ban is kept but refuses nothing. With it on, planet refuses the player a moment
+after the answer, once the antibot's command reaches it. The three ban calls are
+the antibot's (`antibot.v1`); `planet.v1` answers them on its old paths until the
+backoffice has moved, then drops them. To lift a ban, see [Unban a player](#unban-a-player).
 
 Then revert, dry run first:
 
@@ -1288,16 +1551,16 @@ wrong player. It ends the ban now, or forgets a ban that already ended. There is
 no restart and no SQL:
 
 ```bash
-docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}' http://127.0.0.1:8081/planet.v1.AdminService/UnbanPlayer
-docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/UnbanPlayer
+docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}' http://127.0.0.1:8081/antibot.v1.AdminService/UnbanPlayer
+docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/antibot.v1.AdminService/UnbanPlayer
 ```
 
 - **Fix the rule first.** The unban does not change what the watchdogs hold. If
   a rule still reads the player `certain`, the jury bans it again on its next
   click, at the earliest 5 minutes after the last ban
-  (`antiBot.bans.reflagInterval`).
+  (the rule `bans.reflagInterval`).
   [`InspectPlayer`](#see-how-close-the-antibot-is-to-one-player) shows which
-  rule it was. Change the rule and deploy, then unban.
+  rule it was. Change the rule ([Change the antibot's rules](#change-the-antibots-rules)), then unban.
 - **The ban's offence is forgotten**: the next ban takes the same step of the
   ladder (24h for a first offence). This works after the ban ended too, so a
   player banned by mistake yesterday does not get 7 days at the next flag.
@@ -1306,32 +1569,32 @@ docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --pos
   forgotten. A player with no offence left answers `not_found`.
 - **A guest that the jury banned is banned on its account and on its scope.**
   Send two calls, one with `accountId` and one with `scope`. `InspectPlayer` with
-  the `accountId` gives the scope of its latest take. A signed-in player is
+  the `accountId` gives the scope of its latest click. A signed-in player is
   banned on its account only. Send `scope` or `accountId` in one call, not both.
 - The answer is the ban that was lifted: `offence`, and `bannedUntil`, when it
   would have ended.
 - A player with no running ban is refused: `server returned error: HTTP/1.1 404`.
-  A bad scope or account is refused with `400`, and so is any call while
-  `antiBot.enabled` is off.
+  A bad scope or account is refused with `400`. While `antiBot.enabled` is off
+  the antibot has no service, and every call is a `404` too.
 - It is in postgres when the answer comes, so a restart keeps the player
-  unbanned.
+  unbanned, and planet admits it a moment later.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin unban"`.
 
 ### See how close the antibot is to one player
 
 The `antibot ban` log line is only written when a ban fires. To see where a
 player stands before that, inspect its scope (an address is read as its scope),
-or its `accountId`, which is read on the address of its latest take. It changes
+or its `accountId`, which is read on the address of its latest click. It changes
 nothing and is not logged:
 
 ```bash
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/InspectPlayer
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/antibot.v1.AdminService/InspectPlayer
 ```
 
 - `readings` has one entry per watchdog: `level` is `clear`, `suspect` or
   `certain`, and `evidence` is the rule and its numbers, as the ban line writes
-  them. A `clear` watchdog has no evidence. A verdict older than
-  `antiBot.jury.suspicionWindow` reads `clear`.
+  them. A `clear` watchdog has no evidence. A verdict older than the rule
+  `jury.suspicionWindow` reads `clear`.
 - `suspects` against `minSuspects`, and `guilty`: what the jury would decide if
   the player clicked now. One `certain` is enough alone.
 - `clicks`, `activeFor`, `longestGap`, `lastClickAt`, `topCountry`: the same
@@ -1339,7 +1602,32 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - `banned`, `bannedUntil`, `offence`, `flags` when a ban is running, enforced or not.
 - `"tracked":false` means the jury has not seen the scope in
   `antiBot.jury.trackWindow`: it is not clicking now, or not from this scope.
-- With `antiBot.enabled` off it is refused: `server returned error: HTTP/1.1 400`. A bad scope is refused the same way.
+- A bad scope is refused: `server returned error: HTTP/1.1 400`. With `antiBot.enabled` off the antibot has no service: `404`.
+
+### Change the antibot's rules
+
+Every bound the antibot judges with is a rule of a set kept in postgres
+(`antibot.rule_sets`), not in `backend.yaml`. Edit them on the backoffice: Ops →
+Anti-bot rules. A save of the set that plays now takes over at once; a save of
+another set plays when planet's schedule plays it. Either way the antibot then
+logs `antibot rules in force` with its values.
+
+- The antibot plays the set named like the planet rule set in force, and
+  `default` when it has no set of that name. For the Final Battle, planet plays
+  `rush`: make an antibot set `rush` (a copy of `default`) with the crowd it
+  needs, `cohort.certainMembers` 50, **before 21:00**. While planet plays `rush`,
+  a save of `rush` is refused, like any set that plays.
+- To turn a watchdog off, set `"enabled": false` in its part of a set the
+  schedule plays later. The jury then reads it as clear, and it keeps watching,
+  so it reads again at once when turned on.
+- A set any value of which cannot be judged with is refused, with every reason.
+- Every save is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin antibot rule set"`.
+
+From the console, the sets and the one playing:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/antibot.v1.AdminService/GetRules
+```
 
 ### Mute a player in the chat
 
@@ -1371,10 +1659,19 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - `duration` is whole seconds (`"86400s"` is a day). A bad account or duration
   is refused: `server returned error: HTTP/1.1 400`.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin chat mute"`.
-- To end a mute early, delete it:
+- To see whether a player is muted, and until when (nothing set when it is not;
+  `mutedAccountId` is another account when its network holds it):
 
 ```bash
-docker compose exec postgres psql -U clickplanet -c "delete from chat.mutes where account_id = '<account_id>'"
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"<account_id>"}' http://127.0.0.1:8081/chat.v1.AdminService/GetMute
+```
+
+- To end a mute early, unmute the account it was given to. Every mute given to
+  it ends now, its network's too; `404` is no mute of its own. Logged as
+  `admin chat unmute`:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"<account_id>"}' http://127.0.0.1:8081/chat.v1.AdminService/Unmute
 ```
 
 ### Read what players sent
@@ -1467,7 +1764,7 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - A report is deleted after 90 days, and at once when the reporter or the
   player reported is deleted.
 
-## 11. Photos and videos on a note
+## 12. Photos and videos on a note
 
 On in `backend.yaml` (`support.attachments.enabled: true`). A player adds up
 to 10 photos or videos to a suggestion or a bug report. They are not kept on
@@ -1477,50 +1774,55 @@ on a link the backend signs, then sends the note naming them. The backend reads
 each file back from the bucket before it keeps the note, and `ListNotes` gives
 you a link to each.
 
-`backend.yaml` names a Cloudflare R2 bucket: R2 is free up to 10 GB, has no
-charge for downloads, and is on the account that already serves the site. **Any
-S3-compatible bucket works**: for DigitalOcean Spaces ($5 a month for 250 GB),
-change `endpoint` to `https://<region>.digitaloceanspaces.com` and `region` to
+`backend.yaml` names a Cloudflare R2 bucket, `clickplanet-media`: R2 is free up to 10 GB, has no
+charge for downloads, and is on the account that already serves the site. **It holds two modules' files**: the
+support notes' photos and videos at its root, and the clip videos the operator uploads on the backoffice's Videos
+page under `clips/videos/` (`clips.videos` in `backend.yaml`, the same key and secret; see the backend's
+[Clip videos](../../apps/backend/docs/clip-videos.md)). **Any S3-compatible bucket works**: for DigitalOcean Spaces
+($5 a month for 250 GB), change `endpoint` to `https://<region>.digitaloceanspaces.com` and `region` to
 `us-east-1`, and do steps 2 and 3 in its control panel.
 
+The first bucket, `clickplanet-support` (2026-10-14), held the notes' files alone. It was replaced on 2026-10-30 by
+`clickplanet-media`, **without its files**, by choice: a note sent before that shows its files as gone.
+
 1. Turn R2 on for the account in the dashboard (**R2 object storage**), then
-   make the bucket. **Done on 2026-10-14**, in Western Europe:
+   make the bucket. **Done on 2026-10-30**, in Western Europe:
 
    ```bash
-   npx wrangler r2 bucket create clickplanet-support
+   npx wrangler r2 bucket create clickplanet-media --location weur
    ```
 
-2. Let the site upload to it. Without this rule the browser blocks every
-   upload. **Done on 2026-10-14** too:
+2. Let the site and the backoffice upload to it. Without this rule the browser
+   blocks every upload. **Done on 2026-10-30** too:
 
    ```bash
-   printf '%s' '{"rules":[{"allowed":{"origins":["https://clickplanet.lol"],"methods":["PUT"],"headers":["content-type"]},"maxAgeSeconds":3600}]}' > /tmp/cors.json && npx wrangler r2 bucket cors set clickplanet-support --file /tmp/cors.json
+   printf '%s' '{"rules":[{"allowed":{"origins":["https://clickplanet.lol","https://backoffice.clickplanet.lol"],"methods":["PUT"],"headers":["content-type"]},"maxAgeSeconds":3600}]}' > /tmp/cors.json && npx wrangler r2 bucket cors set clickplanet-media --file /tmp/cors.json
    ```
 
 3. In the dashboard, **R2 object storage → Manage API tokens → Create**: an
-   **Object Read & Write** token for the `clickplanet-support` bucket alone. It
+   **Object Read & Write** token for the `clickplanet-media` bucket alone. It
    shows an **Access Key ID** and a **Secret Access Key**, once.
 4. Put the secret in the Actions secrets. `backend.yaml` already names it
-   (`env://SUPPORT_BUCKET_SECRET`):
+   (`env://MEDIA_BUCKET_SECRET`). `gh` asks for it and hides what is pasted, in any shell:
 
    ```bash
-   read -rsp 'Secret Access Key: ' s && echo && printf '%s' "$s" | gh secret set SUPPORT_BUCKET_SECRET --repo raphoester/clickplanet && unset s
+   gh secret set MEDIA_BUCKET_SECRET --repo raphoester/clickplanet
    ```
 
 5. In `backend.yaml`, write the Access Key ID in
-   `support.attachments.bucket.accessKeyId` (it is in every link the page gets,
-   so it is not a secret), set `support.attachments.enabled: true`, and deploy.
+   `support.attachments.bucket.accessKeyId` and `clips.videos.bucket.accessKeyId` (it is in every link the page gets,
+   so it is not a secret), and deploy.
    **An empty key or secret refuses the boot, and the deploy does not check the
    boot**: set the secret before the deploy, or the backend restarts in a loop.
-   With a new token, change both, then deploy. **Done on 2026-10-18.**
+   With a new token, change both, then deploy.
 
-To check it: the boot logs `support built ... attachments=true`, the Feedback
-form in Settings shows **Add photos or videos**, and a picture sent from it
-shows under its note in the backoffice.
+To check it: the boot logs `support built ... attachments=true` and `clips built ... videos=true`, the Feedback
+form in Settings shows **Add photos or videos**, a picture sent from it shows under its note in the backoffice, and a
+video uploaded on the Videos page plays there.
 
 - **The backoffice loads each file straight from the bucket**, so its
   Content-Security-Policy (`apps/backoffice/public/_headers`) names the
-  bucket's host in `img-src` and `media-src`. **With another bucket, change it
+  bucket's host in `img-src` and `media-src`, and in `connect-src` for the videos it uploads. **With another bucket, change it
   there too**, or the backoffice shows none of the files.
 
 - **A link is only good for the file it was signed for**: its type and its
@@ -1553,6 +1855,34 @@ shows under its note in the backoffice.
   `ListNotes` fails on a note that does.
 - The privacy page says Cloudflare stores these files. With another provider,
   change that line.
+
+## 13. Battle teasers
+
+A battle is teased in the game with cards: a background and words over it, kept per rule set by the backend's promo
+module (see the backend's [Promo](../../apps/backend/docs/promo.md)). The operator uploads the backgrounds on the
+backoffice's Promo page, **into `clickplanet-media` under `promo/backgrounds/`**, with the same key and secret as the
+support files (`promo.backgrounds` in `backend.yaml`). Players load them by their plain URL on
+`https://media.clickplanet.lol`, which serves that prefix and nothing else of the bucket.
+
+1. **A WAF custom rule on the `clickplanet.lol` zone, before the domain**, so the bucket is never public for a minute:
+   block `(http.host eq "media.clickplanet.lol" and (not starts_with(http.request.uri.path, "/promo/") or not
+   http.request.method in {"GET" "HEAD"}))`. The support files at the bucket's root and the clip videos under
+   `clips/videos/` stay readable only through the backend's signed links.
+2. **Connect `media.clickplanet.lol` to `clickplanet-media`** (R2 → the bucket → Settings → Custom Domains). **Leave
+   the bucket's `r2.dev` URL off**: the zone's rules do not apply to it, so it would serve every file of the bucket.
+3. **A cache rule for `media.clickplanet.lol`**: edge and browser TTL of a year. A background's id is drawn once and
+   its file never changes, so a URL can be kept for good; a background removed may still be served from the cache.
+4. The upload needs nothing new: the bucket's CORS already lets `https://backoffice.clickplanet.lol` `PUT`.
+
+To check it: `curl -sI https://media.clickplanet.lol/promo/does-not-exist` answers 404 (it reached the bucket), and
+`curl -sI https://media.clickplanet.lol/anything-else` and `.../clips/videos/x` answer 403. The boot logs `promo built
+... backgrounds=true`.
+
+- **The pages load the backgrounds from that domain**, so the game's and the backoffice's Content-Security-Policy name
+  `https://media.clickplanet.lol` in `img-src`.
+- **The promo module adds a pool of 2 connections**: postgres runs with `max_connections=42` since, 10 above the sum of
+  the pools (`docker-compose.yaml`; `cmd/api` tests it). A deploy that changes it recreates the postgres container, a
+  few seconds without the database.
 
 ## Rollback
 

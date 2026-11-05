@@ -10,6 +10,7 @@ import (
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_sign_in_usecase"
 )
@@ -47,6 +48,7 @@ func (h CompleteSignInHandler) CompleteSignIn(
 		Code:         req.Msg.GetCode(),
 		State:        req.Msg.GetState(),
 		CookieHeader: req.Header().Get("Cookie"),
+		Landing:      arrivals.Landing{Tag: req.Msg.GetLanding().GetTag(), Referrer: req.Msg.GetLanding().GetReferrer()},
 	})
 	switch {
 	case errors.Is(err, signin.ErrSignInOff):
@@ -67,7 +69,7 @@ func (h CompleteSignInHandler) CompleteSignIn(
 		return nil, fmt.Errorf("failed to complete the sign-in: %w", err)
 	}
 
-	res := connect.NewResponse(&authv1.CompleteSignInResponse{AccountId: out.Account().String(), Outcome: outcomes[out.Outcome()]})
+	res := connect.NewResponse(&authv1.CompleteSignInResponse{AccountId: out.Account().String(), Outcome: outcomes[out.Outcome()], Restored: out.Restored()})
 	res.Header().Set("Cache-Control", "no-store")
 	res.Header().Add("Set-Cookie", out.SetCookie())
 	res.Header().Add("Set-Cookie", signin.ExpiredFlowCookie())

@@ -1,6 +1,5 @@
 import {Reaction} from "../gen/grpc/chat/v1/chat_pb.ts";
 import {NameColor} from "../gen/grpc/player/v1/color_pb.ts";
-import {PlayerTitle} from "./title.ts";
 
 export {Reaction}
 
@@ -12,6 +11,13 @@ export function countRunes(value: string): number {
     return [...value].length
 }
 
+// At the address KLIPY gave: its terms forbid rewriting it.
+export type Gif = {
+    url: string
+    width: number
+    height: number
+}
+
 export type ChatMessage = {
     id: string
     sentAt: number
@@ -19,14 +25,14 @@ export type ChatMessage = {
     authorName: string
     authorAdmin: boolean
     authorColor: NameColor
-    authorStreak: number
-    authorTitle?: PlayerTitle
     countryCode: string
     text: string
     reactions: ReactionCount[]
     reactionsVersion: number
     replyTo?: ChatQuote
     removed?: boolean
+    // A message shows a text or a GIF, never both.
+    gif?: Gif
 }
 
 export type ChatQuote = {
@@ -35,9 +41,10 @@ export type ChatQuote = {
     authorColor: NameColor
     text: string
     removed?: boolean
+    gif?: Gif
 }
 
-export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | RoundAnnouncement | FortifyAnnouncement
+export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | RoundAnnouncement | FortifyAnnouncement | ChampionAnnouncement
 
 export type BombAnnouncement = {
     kind: "bomb"
@@ -45,6 +52,7 @@ export type BombAnnouncement = {
     announcedAt: number
     country: string
     ground?: string
+    landmass?: number
     tile?: number
     cleared: number
 }
@@ -64,6 +72,8 @@ export type MuteAnnouncement = {
     id: string
     announcedAt: number
     name: string
+    // What the mute takes away. A line kept before kinds is the whole chat's.
+    muteKind: MuteKind
     seconds: number
 }
 
@@ -79,7 +89,17 @@ export type RoundAnnouncement = {
     announcedAt: number
     number: number
     finale: boolean
+    own: boolean
+    times: number
     podium: PodiumPlace[]
+}
+
+export type ChampionAnnouncement = {
+    kind: "champion"
+    id: string
+    announcedAt: number
+    season: number
+    countries: string[]
 }
 
 export type ChatHistory = {
@@ -112,6 +132,7 @@ export type OutgoingMessage = {
     countryCode: string
     text: string
     replyTo?: string
+    gif?: Gif
 }
 
 export interface ChatSender {
@@ -129,6 +150,7 @@ export interface ChatListener {
         onAnnouncement?: (announcement: ChatAnnouncement) => void,
         onResumed?: () => void,
         onRemoved?: (messageId: string) => void,
+        onLeft?: () => void,
     ): () => void
 }
 
@@ -141,6 +163,19 @@ export interface ChatSeenMarker {
 }
 
 export type ChatBackend = ChatSender & ChatHistoryGetter & ChatListener & ChatReactor & ChatSeenMarker
+
+export interface ChatFlagRooms {
+    flagRoom(flag: string): ChatBackend
+}
+
+export type ChatRooms = ChatBackend & ChatFlagRooms
+
+export class ChatNotInRoomError extends Error {
+    constructor(options?: {cause?: unknown}) {
+        super("this player does not play for the room's flag", options)
+        this.name = "ChatNotInRoomError"
+    }
+}
 
 export class ChatRateLimitedError extends Error {
     constructor(options?: {cause?: unknown}) {
@@ -156,13 +191,18 @@ export class ChatBlockedError extends Error {
     }
 }
 
+// What a mute takes away: the whole chat, or a post with a GIF alone.
+export type MuteKind = 'chat' | 'gifs'
+
 export class ChatMutedError extends Error {
     readonly until: number
+    readonly kind: MuteKind
 
-    constructor(until: number, options?: {cause?: unknown}) {
+    constructor(until: number, kind: MuteKind = 'chat', options?: {cause?: unknown}) {
         super("muted in the chat", options)
         this.name = "ChatMutedError"
         this.until = until
+        this.kind = kind
     }
 }
 

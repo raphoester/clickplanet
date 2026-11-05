@@ -22,12 +22,10 @@ type UseCase struct {
 }
 
 type Out struct {
-	Client       string
-	RedirectHost string
-	DeniedURL    string
+	Request   connections.RequestSnapshot
+	DeniedURL string
 }
 
-// What the operator is asked to let in. It decides nothing: the approval opens the request again.
 func (u *UseCase) Execute(_ context.Context, sealed string) (Out, error) {
 	request, err := u.sealer.OpenedRequest(sealed)
 	if err != nil {
@@ -37,5 +35,5 @@ func (u *UseCase) Execute(_ context.Context, sealed string) (Out, error) {
 		return Out{}, fmt.Errorf("failed to read the request: %w", err)
 	}
 
-	return Out{Client: request.Client(), RedirectHost: request.RedirectHost(), DeniedURL: request.DeniedURL()}, nil
+	return Out{Request: request.TakeSnapshot(), DeniedURL: request.DeniedURL()}, nil
 }

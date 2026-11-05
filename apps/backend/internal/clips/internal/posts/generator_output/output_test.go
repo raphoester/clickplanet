@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,28 +14,41 @@ import (
 )
 
 const (
-	writtenShortlist = `{
-  "stories": [
+	writtenFindings = `{
+  "since": "2026-10-26T08:29:17Z",
+  "until": "2026-10-26T20:29:17Z",
+  "fronts": [
     {
-      "title": "KOSOVO IS ATTACKING THE MIDDLE EAST",
-      "key": {
-        "flag": "xk",
-        "continent": "Middle East"
-      },
+      "scope": "tr",
+      "since": "2026-10-26T15:03:00Z",
+      "until": "2026-10-26T20:29:17Z",
+      "tilesChanged": 9844,
+      "captured": 9000,
       "countries": [
-        "xk",
-        "tr",
-        "pw"
-      ]
-    },
-    {
-      "title": "FRANCE IS ATTACKING EUROPE",
-      "key": {
-        "flag": "fr",
-        "continent": "Europe"
-      }
+        {"code": "tr", "continent": "Middle East", "tiles": 2500, "changed": 6000, "holdersStart": {"tr": 2000}, "holdersEnd": {"fr": 1500, "tr": 900}, "takers": {"fr": 5000}}
+      ],
+      "flags": [
+        {"code": "fr", "continent": "Europe", "took": 5000, "filled": 100, "lost": 3000, "tookFrom": {"tr": 4800}, "solidity": 0.86,
+         "flippedByContinent": {"Middle East": 2400}, "fighters": [{"number": 1, "name": "BraveFox42", "took": 812}]}
+      ],
+      "bombs": 3,
+      "score": 3886.5
     }
-  ]
+  ],
+  "tours": [
+    {"flag": "fr", "since": "2026-10-26T08:29:17Z", "until": "2026-10-26T20:29:17Z", "took": 27992, "byContinent": {"Europe": 12000}, "tookFrom": {"dz": 8000}, "nextTook": 9000, "solidity": 0.95, "bombs": 12, "flippedByContinent": {"South Asia": 6246},
+     "fighters": [{"number": 1, "name": "BraveFox42", "took": 4000}]}
+  ],
+  "places": [
+    {"kind": "continent", "continent": "South Asia", "tiles": 9600, "holder": "fr", "held": 6170, "share": 0.643, "rivals": {"dz": 1200}, "changed": 6000,
+     "flippedByContinent": {"South Asia": 5200}, "fighters": [{"number": 2, "name": "Ада", "took": 30}]}
+  ],
+  "seasonal": [
+    {"title": "PALAU WINS DAY 18", "key": {"flag": "pw", "continent": "the world", "angle": "round", "round": "0.18"}, "countries": ["pw", "dz"], "teasers": ["PALAU TAKES DAY 18"], "facts": {"kind": "round", "storyTilesChanged": 1200}}
+  ],
+  "names": {"fr": "France", "tr": "Turkey"},
+  "continents": [{"name": "Europe", "flag": "eu"}, {"name": "Middle East"}],
+  "anthems": ["eu", "fr", "tr"]
 }
 `
 	writtenClip = `{
@@ -72,53 +86,79 @@ func write(t *testing.T, folder, name, content string) string {
 	return path
 }
 
-func TestAShortlistIsTheStoriesTheGeneratorWroteBestFirst(t *testing.T) {
-	file := write(t, t.TempDir(), "shortlist.json", writtenShortlist)
+func TestTheFindingsAreEveryFrontTourPlaceAndSeasonalStoryTheGeneratorWrote(t *testing.T) {
+	file := write(t, t.TempDir(), "findings.json", writtenFindings)
 
-	shortlist, err := generator_output.ShortlistFile(file).Shortlist(t.Context())
-
-	require.NoError(t, err)
-	assert.Equal(t, posts.Shortlist{
-		{
-			Pick: 1, Title: "KOSOVO IS ATTACKING THE MIDDLE EAST", Key: posts.StoryKey{Flag: "xk", Continent: "Middle East"},
-			Countries: []string{"xk", "tr", "pw"},
-		},
-		{Pick: 2, Title: "FRANCE IS ATTACKING EUROPE", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}},
-	}, shortlist)
-}
-
-func TestAStoryKeepsWhatItTellsOfItsFlagAndTheDayItTells(t *testing.T) {
-	file := write(t, t.TempDir(), "shortlist.json", `{"stories":[`+
-		`{"title":"FRANCE WINS DAY 5","key":{"flag":"fr","continent":"the world","angle":"round","round":"1.5"}},`+
-		`{"title":"CROATIA HOLDS 80% OF EUROPE","key":{"flag":"hr","continent":"Europe","angle":"holding"}}`+
-		`]}`)
-
-	shortlist, err := generator_output.ShortlistFile(file).Shortlist(t.Context())
+	findings, err := generator_output.FindingsFile(file).Findings(t.Context())
 
 	require.NoError(t, err)
-	assert.Equal(t, []posts.StoryKey{
-		{Flag: "fr", Continent: "the world", Angle: posts.DayWon, Round: "1.5"},
-		{Flag: "hr", Continent: "Europe", Angle: posts.Holding},
-	}, []posts.StoryKey{shortlist[0].Key, shortlist[1].Key})
+	assert.Equal(t, time.Date(2026, 10, 26, 8, 29, 17, 0, time.UTC), findings.Since)
+	assert.Equal(t, []posts.Front{{
+		Scope: "tr", Since: time.Date(2026, 10, 26, 15, 3, 0, 0, time.UTC), Until: time.Date(2026, 10, 26, 20, 29, 17, 0, time.UTC),
+		TilesChanged: 9844, Captured: 9000,
+		Countries: []posts.FrontCountry{{
+			Code: "tr", Continent: "Middle East", Tiles: 2500, Changed: 6000, HoldersStart: map[string]int{"tr": 2000},
+			HoldersEnd: map[string]int{"fr": 1500, "tr": 900}, Takers: map[string]int{"fr": 5000},
+		}},
+		Flags: []posts.FrontFlag{{
+			Code: "fr", Continent: "Europe", Took: 5000, Filled: 100, Lost: 3000, TookFrom: map[string]int{"tr": 4800}, Solidity: 0.86,
+			FlippedByContinent: map[string]int{"Middle East": 2400},
+			Fighters:           []posts.Fighter{{Number: 1, Name: "BraveFox42", Took: 812}},
+		}},
+		Bombs: 3, Score: 3886.5,
+	}}, findings.Fronts)
+	assert.Equal(t, []posts.Tour{{
+		Flag: "fr", Since: findings.Since, Until: findings.Until, Took: 27992, ByContinent: map[string]int{"Europe": 12000},
+		TookFrom: map[string]int{"dz": 8000}, NextTook: 9000, Solidity: 0.95, Bombs: 12, FlippedByContinent: map[string]int{"South Asia": 6246},
+		Fighters: []posts.Fighter{{Number: 1, Name: "BraveFox42", Took: 4000}},
+	}}, findings.Tours)
+	assert.Equal(t, []posts.Place{{
+		Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.643,
+		Rivals: map[string]int{"dz": 1200}, Changed: 6000, FlippedByContinent: map[string]int{"South Asia": 5200},
+		Fighters: []posts.Fighter{{Number: 2, Name: "Ада", Took: 30}},
+	}}, findings.Places)
+	require.Len(t, findings.Seasonal, 1)
+	assert.Equal(t, "PALAU WINS DAY 18", findings.Seasonal[0].Title)
+	assert.Equal(t, posts.StoryKey{Flag: "pw", Continent: "the world", Angle: posts.DayWon, Round: "0.18"}, findings.Seasonal[0].Key)
+	assert.Equal(t, []string{"PALAU TAKES DAY 18"}, findings.Seasonal[0].Teasers)
+	assert.JSONEq(t, `{"kind":"round","storyTilesChanged":1200}`, string(findings.Seasonal[0].Facts))
+	assert.Equal(t, map[string]string{"fr": "France", "tr": "Turkey"}, findings.Names)
+	assert.Equal(t, map[string]string{"Europe": "eu", "Middle East": ""}, findings.Continents)
+	assert.Equal(t, []string{"eu", "fr", "tr"}, findings.Anthems)
 }
 
-func TestAShortlistWithNoStoryIsEmpty(t *testing.T) {
-	file := write(t, t.TempDir(), "shortlist.json", "{}\n")
+func TestFindingsWithNothingFoundAreEmpty(t *testing.T) {
+	file := write(t, t.TempDir(), "findings.json", "{}\n")
 
-	shortlist, err := generator_output.ShortlistFile(file).Shortlist(t.Context())
+	findings, err := generator_output.FindingsFile(file).Findings(t.Context())
 
 	require.NoError(t, err)
-	assert.Empty(t, shortlist)
+	assert.False(t, findings.Any())
 }
 
-func TestAShortlistThatIsMissingOrIsNotOneIsAnError(t *testing.T) {
+func TestFindingsThatAreMissingOrAreNotFindingsAreAnError(t *testing.T) {
 	folder := t.TempDir()
 
-	_, err := generator_output.ShortlistFile(filepath.Join(folder, "gone.json")).Shortlist(t.Context())
+	_, err := generator_output.FindingsFile(filepath.Join(folder, "gone.json")).Findings(t.Context())
 	require.Error(t, err)
 
-	_, err = generator_output.ShortlistFile(write(t, folder, "shortlist.json", "saved 8 stories")).Shortlist(t.Context())
-	require.ErrorContains(t, err, "is not a clips.v1.Shortlist")
+	_, err = generator_output.FindingsFile(write(t, folder, "findings.json", "saved 8 fronts")).Findings(t.Context())
+	require.ErrorContains(t, err, "are not a clips.v1.Findings")
+}
+
+func TestAStoryIsWrittenAsTheGeneratorsStoryFlagTakesIt(t *testing.T) {
+	front, err := generator_output.StoryJSON(posts.Story{
+		Front: 3, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Headline: "FRANCE VS TURKEY",
+		Teasers: []string{"THE WAR FOR TURKEY"}, Line: "The battle for Turkey", Call: "PICK A SIDE", CallFlags: []string{"fr", "tr"}, Anthem: "fr",
+		Look:     posts.PaintedFlags,
+		Fighters: []posts.FighterNumber{2, 1},
+	})
+	require.NoError(t, err)
+	seasonal, err := generator_output.StoryJSON(posts.Story{Seasonal: 1})
+	require.NoError(t, err)
+
+	assert.JSONEq(t, `{"front":3,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr","sy"],"headline":"FRANCE VS TURKEY","teasers":["THE WAR FOR TURKEY"],"line":"The battle for Turkey","call":"PICK A SIDE","callFlags":["fr","tr"],"anthem":"fr","look":"flags","fighters":[2,1]}`, string(front))
+	assert.JSONEq(t, `{"seasonal":1}`, string(seasonal))
 }
 
 func TestAFolderGivesEachClipWithItsVideo(t *testing.T) {
@@ -144,6 +184,30 @@ func TestAFolderGivesEachClipWithItsVideo(t *testing.T) {
 		Attribution:  "Fida'i (instrumental) by Sounds Monarch, CC BY 3.0",
 		Video:        posts.VideoFile(video),
 	}, clips[0].TakeSnapshot())
+}
+
+func TestAClipKeepsWhatItWasAndTheNamesOfItsTeasersAndOneWrittenBeforeThatHasNeither(t *testing.T) {
+	folder := t.TempDir()
+	write(t, folder, "clip-1.json", `{"pick": 1, "title": "FRANCE VS PALAU", "key": {"flag": "fr", "continent": "Europe"},
+		"teasers": ["WAR FOR FRANCE: FRANCE VS PALAU", "FRANCE AND PALAU FIGHT FOR FRANCE"], "teaserNames": ["war-for", "fight-for"],
+		"record": {"format": "globe-replay", "generator": "8dc31d2", "common": {"durationSeconds": 12.37, "music": "fr"},
+		"globe": {"camera": "front", "tilesChanged": 1480}, "addedLater": true}}`)
+	write(t, folder, "clip-1.mp4", "the video")
+	write(t, folder, "clip-2.json", writtenClip)
+	write(t, folder, "clip-2.mp4", "the video")
+
+	clips, err := generator_output.Folder(folder).Rendered(t.Context())
+
+	require.NoError(t, err)
+	require.Len(t, clips, 2)
+	named := clips[0].TakeSnapshot()
+	assert.Equal(t, []string{"war-for", "fight-for"}, named.TeaserNames)
+	assert.InDelta(t, 12.37, named.Seconds, 0)
+	assert.JSONEq(t, `{"format": "globe-replay", "generator": "8dc31d2", "common": {"durationSeconds": 12.37, "music": "fr"},
+		"globe": {"camera": "front", "tilesChanged": 1480}}`, string(named.Record))
+	assert.Empty(t, clips[1].TakeSnapshot().TeaserNames)
+	assert.Empty(t, clips[1].TakeSnapshot().Record)
+	assert.Zero(t, clips[1].TakeSnapshot().Seconds)
 }
 
 func TestAFolderWithNoClipGivesNone(t *testing.T) {
@@ -181,4 +245,48 @@ func TestAFileThatIsNotAClipIsAnError(t *testing.T) {
 	_, err := generator_output.Folder(folder).Rendered(t.Context())
 
 	require.ErrorContains(t, err, "clip-1.json is not a clips.v1.Clip")
+}
+
+func TestAClipKeepsTheArmsItWasMadeIn(t *testing.T) {
+	folder := t.TempDir()
+	write(t, folder, "clip-1.json", `{"pick": 1, "title": "FRANCE VS PALAU", "key": {"flag": "fr", "continent": "Europe"},
+		"teasers": ["WAR FOR FRANCE"], "record": {"format": "globe-replay", "variants": {"length": "short"}}}`)
+	write(t, folder, "clip-1.mp4", "the video")
+	write(t, folder, "clip-2.json", writtenClip)
+	write(t, folder, "clip-2.mp4", "the video")
+
+	clips, err := generator_output.Folder(folder).Rendered(t.Context())
+
+	require.NoError(t, err)
+	require.Len(t, clips, 2)
+	assert.Equal(t, posts.Variants{"length": "short"}, clips[0].TakeSnapshot().Variants)
+	assert.JSONEq(t, `{"format": "globe-replay", "variants": {"length": "short"}}`, string(clips[0].TakeSnapshot().Record))
+	assert.Empty(t, clips[1].TakeSnapshot().Variants)
+}
+
+func TestAClipKeepsTheFightersItNamesAndTheirCast(t *testing.T) {
+	folder := t.TempDir()
+	write(t, folder, "clip-1.json", `{"pick": 1, "title": "FRANCE VS TURKEY", "key": {"flag": "fr", "continent": "Middle East"},
+		"teasers": ["WAR FOR TURKEY"], "cast": "5f0c2a11-0b6d-4f7e-9a51-3f1f8f0c2a11",
+		"fighters": [{"number": 1, "name": "BraveFox42", "flag": "fr"}, {"number": 2, "name": "Ankara55", "flag": "tr"}]}`)
+	write(t, folder, "clip-1.mp4", "the video")
+
+	clips, err := generator_output.Folder(folder).Rendered(t.Context())
+
+	require.NoError(t, err)
+	require.Len(t, clips, 1)
+	named := clips[0].TakeSnapshot()
+	assert.Equal(t, "5f0c2a11-0b6d-4f7e-9a51-3f1f8f0c2a11", named.Cast)
+	assert.Equal(t, []posts.ClipFighter{{Number: 1, Name: "BraveFox42", Flag: "fr"}, {Number: 2, Name: "Ankara55", Flag: "tr"}}, named.Fighters)
+}
+
+func TestFightersOfNoCastAreAnError(t *testing.T) {
+	folder := t.TempDir()
+	write(t, folder, "clip-1.json", `{"pick": 1, "title": "FRANCE VS TURKEY", "key": {"flag": "fr", "continent": "Middle East"},
+		"teasers": ["WAR FOR TURKEY"], "fighters": [{"number": 1, "name": "BraveFox42", "flag": "fr"}]}`)
+	write(t, folder, "clip-1.mp4", "the video")
+
+	_, err := generator_output.Folder(folder).Rendered(t.Context())
+
+	require.ErrorIs(t, err, posts.ErrInvalidClip)
 }

@@ -19,12 +19,13 @@ type harness struct {
 
 func newHarness() *harness {
 	h := &harness{clock: cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))}
-	h.watchdog = catcher.New(catcher.Config{
+	rules := catcher.Rules{
 		MinCatches:    5,
 		MaxMedian:     3 * time.Second,
 		CertainMedian: 1500 * time.Millisecond,
-		TrackWindow:   30 * time.Minute,
-	}, h.clock)
+		Foreign:       catcher.ForeignRules{Window: time.Hour},
+	}
+	h.watchdog = catcher.New(catcher.Config{TrackWindow: 30 * time.Minute}, func() catcher.Rules { return rules }, h.clock)
 	return h
 }
 

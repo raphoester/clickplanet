@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package planet.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// The map as it was every step of a window, out of the ledger. The first frame holds every tile held at the window's
+// start; each next one the tiles whose owner differs from the frame before.
+message MapHistory {
+  repeated MapFrame frames = 1;
+  // Each tile's changes of owner and shield hits in the window; a tile with none is left out.
+  repeated TileHits hits = 2;
+}
+
+message MapFrame {
+  google.protobuf.Timestamp at = 1;
+  repeated TileOwner owners = 2;
+}
+
+message TileOwner {
+  uint32 tile = 1;
+  // Empty for a tile left with no owner: a bomb cleared it.
+  string country_id = 2;
+}
+
+message TileHits {
+  uint32 tile = 1;
+  uint32 hits = 2;
+}

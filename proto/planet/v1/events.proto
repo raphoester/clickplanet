@@ -2,13 +2,22 @@ syntax = "proto3";
 
 package planet.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "planet/v1/planet.proto";
 
 message TileTaken {
   string account_id = 1;
   uint32 tile_id = 2;
   string country = 3;
   google.protobuf.Timestamp taken_at = 4;
+  uint64 position = 5;
+  string previous = 6;
+  string ground = 7;
+  // A spread or an enclose is one ledger event, at one position, that holds several takes: each has its index in it.
+  uint32 index = 8;
+  // Where the tile is on the globe: `position` is the ledger's.
+  GlobePoint point = 9;
 }
 
 message BombLanded {
@@ -17,6 +26,9 @@ message BombLanded {
   string ground = 3;
   uint32 cleared = 4;
   google.protobuf.Timestamp landed_at = 5;
+  string account_id = 6;
+  uint64 position = 7;
+  uint32 landmass_id = 8;
 }
 
 message Fortified {
@@ -25,4 +37,118 @@ message Fortified {
   uint32 tiles = 3;
   google.protobuf.Timestamp fortified_at = 4;
   string ground = 5;
+  string account_id = 6;
+  uint64 position = 7;
+}
+
+// A shield a player placed, with the tile's shields after it.
+message ShieldPlaced {
+  string account_id = 1;
+  uint32 tile_id = 2;
+  string country = 3;
+  uint32 shields = 4;
+  google.protobuf.Timestamp placed_at = 5;
+  uint64 position = 6;
+}
+
+// A shield a click, a spread, an enclose or a bomb broke: the tile kept its flag, owner, and lost one shield.
+message ShieldStruck {
+  string account_id = 1;
+  uint32 tile_id = 2;
+  // The flag that struck it.
+  string country = 3;
+  string owner = 4;
+  google.protobuf.Timestamp struck_at = 5;
+  uint64 position = 6;
+  // A spread, an enclose or a bomb is one ledger event, at one position, that may strike several: each has its index.
+  uint32 index = 7;
+}
+
+message BonusClaimed {
+  string account_id = 1;
+  google.protobuf.Timestamp claimed_at = 2;
+}
+
+message QuizAnswered {
+  string account_id = 1;
+  bool correct = 2;
+  google.protobuf.Timestamp answered_at = 3;
+}
+
+// Every click a caller tried, whatever came of it. The callers' facts are told in the order they ended, each at a
+// later time than the one before: a time names its fact.
+message ClickTried {
+  string scope = 1;
+  string account_id = 2;
+  bool linked = 3;
+  google.protobuf.Timestamp account_created_at = 4;
+  uint32 tile_id = 5;
+  string country = 6;
+  google.protobuf.Timestamp tried_at = 7;
+  ClickOutcome outcome = 8;
+  // The flag the tile wore before the try.
+  string owner = 9;
+  // Unset for a tile off the map.
+  GlobePoint position = 10;
+  // How many times faster than the plain pace every bucket refilled when the click was tried; 0 is the plain pace.
+  double tempo = 11;
+}
+
+enum ClickOutcome {
+  CLICK_OUTCOME_UNSPECIFIED = 0;
+  CLICK_OUTCOME_TAKEN = 1;
+  // A shield took the click.
+  CLICK_OUTCOME_STRUCK = 2;
+  // The tile already wore the flag.
+  CLICK_OUTCOME_UNCHANGED = 3;
+  CLICK_OUTCOME_THROTTLED = 4;
+  // The caller is refused.
+  CLICK_OUTCOME_REFUSED = 5;
+  // Not the flag the account plays for.
+  CLICK_OUTCOME_OTHER_FLAG = 6;
+  // An unknown flag, a tile off the map, or two bonuses together.
+  CLICK_OUTCOME_INVALID = 7;
+  CLICK_OUTCOME_FAILED = 8;
+}
+
+message MapRead {
+  string scope = 1;
+  // The share of the map the read held.
+  double maps = 2;
+  // A bound outside the map, which no page load asks for.
+  bool off_map = 3;
+  google.protobuf.Timestamp read_at = 4;
+}
+
+message StreamOpened {
+  string scope = 1;
+  google.protobuf.Timestamp opened_at = 2;
+}
+
+message BoxCaught {
+  string scope = 1;
+  // From the offer to the claim.
+  google.protobuf.Duration after = 2;
+  google.protobuf.Timestamp caught_at = 3;
+}
+
+message BoxLapsed {
+  string scope = 1;
+  google.protobuf.Timestamp lapsed_at = 2;
+}
+
+// A claim of a box offered to another scope, or to nobody the registry remembers.
+message ForeignBoxClaimed {
+  string scope = 1;
+  google.protobuf.Timestamp claimed_at = 2;
+}
+
+// The flag an account plays for, set or changed by PledgeAllegiance. A pledge of the flag it already plays for tells
+// nothing.
+message AllegiancePledged {
+  string account_id = 1;
+  string country = 2;
+  // Empty for the account's first flag.
+  string previous = 3;
+  google.protobuf.Timestamp pledged_at = 4;
 }

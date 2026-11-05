@@ -1,0 +1,74 @@
+:root[data-mood="halloween"] {
+    --dock-crown: 44px;
+}
+
+:root[data-mood="halloween"] .click-budget-dock::before,
+:root[data-mood="halloween"] .click-budget-dock::after,
+:root[data-mood="halloween"] .menu::after,
+:root[data-mood="halloween"] .chat::before,
+:root[data-mood="halloween"] .chat::after {
+    content: "";
+    position: absolute;
+    background: center / contain no-repeat;
+    pointer-events: none;
+}
+
+:root[data-mood="halloween"] .click-budget-dock::before {
+    left: 18px;
+    bottom: calc(100% - 2px);
+    width: 46px;
+    height: 46px;
+    background-image: url("./pumpkin.svg");
+}
+
+/* The skull's chin is the dock's top edge; only the fingers come over it. */
+:root[data-mood="halloween"] .click-budget-dock::after {
+    right: 22px;
+    bottom: calc(100% - 1.5px);
+    width: 72px;
+    height: 37.5px;
+    background-image: url("./peeking-skeleton.svg");
+}
+
+:root[data-mood="halloween"] .menu::after,
+:root[data-mood="halloween"] .chat::after {
+    top: 0;
+    width: 76px;
+    height: 76px;
+    background-image: url("./web.svg");
+}
+
+:root[data-mood="halloween"] .menu::after {
+    right: 0;
+    border-top-right-radius: calc(var(--radius-l) - var(--outline));
+    transform: scaleX(-1);
+}
+
+:root[data-mood="halloween"] .chat::after {
+    left: 0;
+    border-top-left-radius: calc(var(--radius-l) - var(--outline));
+}
+
+:root[data-mood="halloween"] .chat::before {
+    top: -22px;
+    right: 26px;
+    width: 46px;
+    height: 26px;
+    background-image: url("./bat.svg");
+}
+
+:root[data-mood="halloween"] .bonus-pointer:not(.bonus-pointer--blast) .bonus-pointer-badge {
+    border: none;
+    background: url("./pumpkin.svg") center / contain no-repeat;
+    box-shadow: none;
+    animation: bonus-pointer-pulse 1.4s ease-in-out infinite;
+}
+
+:root[data-mood="halloween"] .bonus-pointer:not(.bonus-pointer--blast) .bonus-pointer-mark {
+    visibility: hidden;
+}
+
+:root[data-mood="halloween"] .bonus-pointer:not(.bonus-pointer--blast) .bonus-pointer-arrow {
+    border-left-color: var(--enclose);
+    animation: none;
+}

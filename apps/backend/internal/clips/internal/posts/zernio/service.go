@@ -19,6 +19,10 @@ import (
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	clipsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpzernio"
@@ -39,7 +43,9 @@ const (
 	// Absent on a post of what a flag did, and on every post made before them.
 	angleKey = "storyAngle"
 	roundKey = "storyRound"
-	// Four posts a day: a page this long holds the week the choice reads, and more.
+	// What the post was, to set beside how it did: a clips.v1.PostRecord.
+	recordKey = "record"
+	// About ten posts a day: a page this long holds the week the choice reads, and more.
 	pageOfPosts = 500
 )
 
@@ -91,6 +97,10 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.Schedule
 	if err != nil {
 		return posts.Scheduled{}, err
 	}
+	metadata, err := metadataOf(snapshot)
+	if err != nil {
+		return posts.Scheduled{}, err
+	}
 	if len(targets) == 0 {
 		return posts.Scheduled{Refused: refused}, nil
 	}
@@ -109,7 +119,7 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.Schedule
 			MediaItems:   &[]cpzernio.MediaItem{{Type: new(cpzernio.MediaItemTypeVideo), Url: &media}},
 			Platforms:    &targets,
 			ScheduledFor: new(snapshot.At.UTC()),
-			Metadata:     metadataOf(snapshot),
+			Metadata:     metadata,
 			Tags:         tagsOf(snapshot, accounts),
 		})
 	if err != nil {
@@ -155,10 +165,7 @@ func targetOf(snapshot posts.PostSnapshot, platform posts.Platform, account stri
 	switch platform {
 	case posts.TikTok:
 		target.CustomContent = &snapshot.TikTok.Caption
-		err = settings.FromTikTokPlatformData(cpzernio.TikTokPlatformData{
-			PrivacyLevel: new(everyone), AllowComment: new(true), AllowDuet: new(true), AllowStitch: new(true),
-			ContentPreviewConfirmed: new(true), ExpressConsentGiven: new(true),
-		})
+		err = settings.FromTikTokPlatformData(tiktokSettings())
 	case posts.YouTube:
 		target.CustomContent = &snapshot.YouTube.Description
 		err = settings.FromYouTubePlatformData(cpzernio.YouTubePlatformData{
@@ -174,12 +181,23 @@ func targetOf(snapshot posts.PostSnapshot, platform posts.Platform, account stri
 	return target, nil
 }
 
+func tiktokSettings() cpzernio.TikTokPlatformData {
+	return cpzernio.TikTokPlatformData{
+		PrivacyLevel: new(everyone), AllowComment: new(true), AllowDuet: new(true), AllowStitch: new(true),
+		ContentPreviewConfirmed: new(true), ExpressConsentGiven: new(true),
+	}
+}
+
 // What the choice reads back of the post: its key and its countries; and the call to act, to compare the calls on the
-// posts' numbers. Never published.
-func metadataOf(snapshot posts.PostSnapshot) *map[string]any {
+// posts' numbers. Beside them, what the post was, as one document (recordKey). Never published.
+func metadataOf(snapshot posts.PostSnapshot) (*map[string]any, error) {
+	record, err := recordOf(snapshot)
+	if err != nil {
+		return nil, err
+	}
 	metadata := map[string]any{
 		flagKey: snapshot.Key.Flag, continentKey: snapshot.Key.Continent, countriesKey: snapshot.Countries,
-		callKey: snapshot.CallToAction,
+		callKey: snapshot.CallToAction, recordKey: record,
 	}
 	if snapshot.Key.Angle != posts.Deeds {
 		metadata[angleKey] = string(snapshot.Key.Angle)
@@ -187,7 +205,34 @@ func metadataOf(snapshot posts.PostSnapshot) *map[string]any {
 	if snapshot.Key.Round != "" {
 		metadata[roundKey] = snapshot.Key.Round
 	}
-	return &metadata
+	return &metadata, nil
+}
+
+// A clips.v1.PostRecord as protojson writes it, under one key: what the clip was as the generator wrote it, and what
+// this job made of it. Its shape is the proto's, not Zernio's, and it grows there.
+func recordOf(snapshot posts.PostSnapshot) (map[string]any, error) {
+	record := &clipsv1.PostRecord{
+		Schema: string((&clipsv1.PostRecord{}).ProtoReflect().Descriptor().FullName()),
+		Post: &clipsv1.PostFacts{
+			Teaser: snapshot.Teaser, CallToAction: snapshot.CallToAction, ScheduledAt: timestamppb.New(snapshot.At),
+			RunPosition: uint32(snapshot.RunPosition), RunSize: uint32(snapshot.RunSize), //nolint:gosec // 2 a run.
+		},
+	}
+	if len(snapshot.Record) != 0 {
+		record.Clip = &clipsv1.ClipRecord{}
+		if err := protojson.Unmarshal(snapshot.Record, record.Clip); err != nil {
+			return nil, fmt.Errorf("what the clip was is not a clips.v1.ClipRecord: %w", err)
+		}
+	}
+	written, err := protojson.Marshal(record)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write what the post was: %w", err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(written, &document); err != nil {
+		return nil, fmt.Errorf("failed to read back what the post was: %w", err)
+	}
+	return document, nil
 }
 
 // Zernio sends them to YouTube alone.
@@ -206,18 +251,13 @@ func on(post cpzernio.Post, platform posts.Platform) bool {
 
 // The posts made by hand carry no story key, and are left out.
 func (s *Service) Told(ctx context.Context, since time.Time) ([]posts.Telling, error) {
-	answer, err := s.api.ListPostsWithResponse(ctx, &cpzernio.ListPostsParams{
-		FromDate: &openapi_types.Date{Time: since.UTC()}, Limit: new(pageOfPosts),
-	})
+	listed, err := s.list(ctx, since)
 	if err != nil {
-		return nil, unreachable(err)
-	}
-	if answer.JSON200 == nil || answer.JSON200.Posts == nil {
-		return nil, refusal(answer.HTTPResponse, answer.Body, "the list of posts")
+		return nil, err
 	}
 
-	told := make([]posts.Telling, 0, len(*answer.JSON200.Posts))
-	for _, post := range *answer.JSON200.Posts {
+	told := make([]posts.Telling, 0, len(listed))
+	for _, post := range listed {
 		key, keyed := keyOf(post)
 		if !keyed || post.ScheduledFor == nil {
 			continue
@@ -228,6 +268,78 @@ func (s *Service) Told(ctx context.Context, since time.Time) ([]posts.Telling, e
 		})
 	}
 	return told, nil
+}
+
+// Every post, by hand or not, on each platform it is to go out on, or went out on, at that platform's time: Zernio
+// moves a TikTok target held over the cap to when it will go out. A draft, a post cancelled or failed, and a target
+// that failed or was unpublished count for nothing.
+func (s *Service) Posted(ctx context.Context, since time.Time) (posts.Feed, error) {
+	listed, err := s.list(ctx, since)
+	if err != nil {
+		return nil, err
+	}
+
+	var feed posts.Feed
+	for _, post := range listed {
+		switch valueOf(post.Status) {
+		case cpzernio.PostStatusDraft, cpzernio.PostStatusCancelled, cpzernio.PostStatusFailed:
+			continue
+		}
+		feed = append(feed, postingsOf(post)...)
+	}
+	return feed, nil
+}
+
+// One for each time the post's targets go out at, most often one.
+func postingsOf(post cpzernio.Post) []posts.Posting {
+	if post.Platforms == nil {
+		return nil
+	}
+	var postings []posts.Posting
+	for _, target := range *post.Platforms {
+		platform, err := posts.PlatformsOf(valueOf(target.Platform))
+		if err != nil {
+			continue
+		}
+		switch valueOf(target.Status) {
+		case "failed", "cancelled":
+			continue
+		}
+		at := firstTimeOf(target.ScheduledFor, post.ScheduledFor, target.PublishedAt)
+		if at.IsZero() {
+			continue
+		}
+		i := slices.IndexFunc(postings, func(posting posts.Posting) bool { return posting.At.Equal(at) })
+		if i < 0 {
+			postings = append(postings, posts.Posting{At: at})
+			i = len(postings) - 1
+		}
+		postings[i].Platforms = append(postings[i].Platforms, platform...)
+	}
+	return postings
+}
+
+// A post published at once by hand may have no scheduled time, only the time it went out.
+func firstTimeOf(times ...*time.Time) time.Time {
+	for _, at := range times {
+		if at != nil && !at.IsZero() {
+			return *at
+		}
+	}
+	return time.Time{}
+}
+
+func (s *Service) list(ctx context.Context, since time.Time) ([]cpzernio.Post, error) {
+	answer, err := s.api.ListPostsWithResponse(ctx, &cpzernio.ListPostsParams{
+		FromDate: &openapi_types.Date{Time: since.UTC()}, Limit: new(pageOfPosts),
+	})
+	if err != nil {
+		return nil, unreachable(err)
+	}
+	if answer.JSON200 == nil || answer.JSON200.Posts == nil {
+		return nil, refusal(answer.HTTPResponse, answer.Body, "the list of posts")
+	}
+	return *answer.JSON200.Posts, nil
 }
 
 func failureOf(post cpzernio.Post) string {

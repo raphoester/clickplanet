@@ -60,6 +60,19 @@ const (
 	AdminServiceGrantChargesProcedure = "/planet.v1.AdminService/GrantCharges"
 	// AdminServiceGetReplayProcedure is the fully-qualified name of the AdminService's GetReplay RPC.
 	AdminServiceGetReplayProcedure = "/planet.v1.AdminService/GetReplay"
+	// AdminServiceReleaseAllegianceProcedure is the fully-qualified name of the AdminService's
+	// ReleaseAllegiance RPC.
+	AdminServiceReleaseAllegianceProcedure = "/planet.v1.AdminService/ReleaseAllegiance"
+	// AdminServiceGetLedgerProcedure is the fully-qualified name of the AdminService's GetLedger RPC.
+	AdminServiceGetLedgerProcedure = "/planet.v1.AdminService/GetLedger"
+	// AdminServiceGetTerritoriesProcedure is the fully-qualified name of the AdminService's
+	// GetTerritories RPC.
+	AdminServiceGetTerritoriesProcedure = "/planet.v1.AdminService/GetTerritories"
+	// AdminServiceGetRulesProcedure is the fully-qualified name of the AdminService's GetRules RPC.
+	AdminServiceGetRulesProcedure = "/planet.v1.AdminService/GetRules"
+	// AdminServiceSaveRuleSetProcedure is the fully-qualified name of the AdminService's SaveRuleSet
+	// RPC.
+	AdminServiceSaveRuleSetProcedure = "/planet.v1.AdminService/SaveRuleSet"
 )
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
@@ -75,15 +88,13 @@ type AdminServiceClient interface {
 	// Who takes the most tiles, every flag and the whole map, within the ledger's last 72 hours: most takes first, then
 	// most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
-	// A shadow ban: the caller's clicks and bombs are answered OK and dropped, so it learns nothing. Takes a scope or
-	// an account_id, never both; an account is banned alone, a scope bans everybody behind it. It counts as an offence,
-	// and an unset duration takes the next step of the ladder. enforced false means the antibot only logs and drops
-	// nothing. Ban before RevertPlayer, or the player repaints behind the revert.
+	// Deprecated: antibot.v1.AdminService/BanPlayer, which answers it on this path until the backoffice calls it there.
+	//
+	// Deprecated: do not use.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
-	// Lifts a caller's latest ban, for a false positive, and forgets that offence. The antibot's evidence stays: a
-	// watchdog that still reads certain bans the caller again on its next click, so the rule that misfired is to be
-	// fixed first. A guest the jury banned is banned on its account and its scope: two calls. NotFound when no offence
-	// is left.
+	// Deprecated: antibot.v1.AdminService/UnbanPlayer, which answers it on this path until the backoffice calls it there.
+	//
+	// Deprecated: do not use.
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
 	// Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
 	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
@@ -92,9 +103,9 @@ type AdminServiceClient interface {
 	// Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
 	// between stays theirs. The ledger does not see it.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
-	// What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
-	// and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
-	// is read on the scope of its latest take. Changes nothing.
+	// Deprecated: antibot.v1.AdminService/InspectPlayer, which answers it on this path until the backoffice calls it there.
+	//
+	// Deprecated: do not use.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
 	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
@@ -102,6 +113,17 @@ type AdminServiceClient interface {
 	// The map as it was at since, and every act on it until until, for the clip generator. Megabytes for a day, so the
 	// connector does not offer it.
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
+	// Lifts the account's hour of wait, so its next change of flag goes at once. A lock of the rules in force still holds.
+	ReleaseAllegiance(context.Context, *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error)
+	// Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
+	// time.
+	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
+	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
+	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	// Every rule set postgres keeps, and the one the game plays now. SaveRuleSet changes one.
+	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
+	// Makes a set, or replaces its values. A save of the set that plays now takes over at once.
+	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the planet.v1.AdminService service. By default, it
@@ -163,7 +185,6 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceInspectPlayerProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		grantCharges: connect.NewClient[v1.GrantChargesRequest, v1.GrantChargesResponse](
@@ -179,21 +200,59 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		releaseAllegiance: connect.NewClient[v1.ReleaseAllegianceRequest, v1.ReleaseAllegianceResponse](
+			httpClient,
+			baseURL+AdminServiceReleaseAllegianceProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ReleaseAllegiance")),
+			connect.WithClientOptions(opts...),
+		),
+		getLedger: connect.NewClient[v1.GetLedgerRequest, v1.GetLedgerResponse](
+			httpClient,
+			baseURL+AdminServiceGetLedgerProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetLedger")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getTerritories: connect.NewClient[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse](
+			httpClient,
+			baseURL+AdminServiceGetTerritoriesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetTerritories")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getRules: connect.NewClient[v1.GetRulesRequest, v1.GetRulesResponse](
+			httpClient,
+			baseURL+AdminServiceGetRulesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		saveRuleSet: connect.NewClient[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse](
+			httpClient,
+			baseURL+AdminServiceSaveRuleSetProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	reassignCountry  *connect.Client[v1.ReassignCountryRequest, v1.ReassignCountryResponse]
-	findPlayers      *connect.Client[v1.FindPlayersRequest, v1.FindPlayersResponse]
-	topPlayers       *connect.Client[v1.TopPlayersRequest, v1.TopPlayersResponse]
-	banPlayer        *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
-	unbanPlayer      *connect.Client[v1.UnbanPlayerRequest, v1.UnbanPlayerResponse]
-	revertPlayer     *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
-	paintRandomTiles *connect.Client[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse]
-	inspectPlayer    *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
-	grantCharges     *connect.Client[v1.GrantChargesRequest, v1.GrantChargesResponse]
-	getReplay        *connect.Client[v1.GetReplayRequest, v1.GetReplayResponse]
+	reassignCountry   *connect.Client[v1.ReassignCountryRequest, v1.ReassignCountryResponse]
+	findPlayers       *connect.Client[v1.FindPlayersRequest, v1.FindPlayersResponse]
+	topPlayers        *connect.Client[v1.TopPlayersRequest, v1.TopPlayersResponse]
+	banPlayer         *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
+	unbanPlayer       *connect.Client[v1.UnbanPlayerRequest, v1.UnbanPlayerResponse]
+	revertPlayer      *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
+	paintRandomTiles  *connect.Client[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse]
+	inspectPlayer     *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
+	grantCharges      *connect.Client[v1.GrantChargesRequest, v1.GrantChargesResponse]
+	getReplay         *connect.Client[v1.GetReplayRequest, v1.GetReplayResponse]
+	releaseAllegiance *connect.Client[v1.ReleaseAllegianceRequest, v1.ReleaseAllegianceResponse]
+	getLedger         *connect.Client[v1.GetLedgerRequest, v1.GetLedgerResponse]
+	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
+	getRules          *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
+	saveRuleSet       *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
 }
 
 // ReassignCountry calls planet.v1.AdminService.ReassignCountry.
@@ -212,11 +271,15 @@ func (c *adminServiceClient) TopPlayers(ctx context.Context, req *connect.Reques
 }
 
 // BanPlayer calls planet.v1.AdminService.BanPlayer.
+//
+// Deprecated: do not use.
 func (c *adminServiceClient) BanPlayer(ctx context.Context, req *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error) {
 	return c.banPlayer.CallUnary(ctx, req)
 }
 
 // UnbanPlayer calls planet.v1.AdminService.UnbanPlayer.
+//
+// Deprecated: do not use.
 func (c *adminServiceClient) UnbanPlayer(ctx context.Context, req *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error) {
 	return c.unbanPlayer.CallUnary(ctx, req)
 }
@@ -232,6 +295,8 @@ func (c *adminServiceClient) PaintRandomTiles(ctx context.Context, req *connect.
 }
 
 // InspectPlayer calls planet.v1.AdminService.InspectPlayer.
+//
+// Deprecated: do not use.
 func (c *adminServiceClient) InspectPlayer(ctx context.Context, req *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {
 	return c.inspectPlayer.CallUnary(ctx, req)
 }
@@ -244,6 +309,31 @@ func (c *adminServiceClient) GrantCharges(ctx context.Context, req *connect.Requ
 // GetReplay calls planet.v1.AdminService.GetReplay.
 func (c *adminServiceClient) GetReplay(ctx context.Context, req *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error) {
 	return c.getReplay.CallUnary(ctx, req)
+}
+
+// ReleaseAllegiance calls planet.v1.AdminService.ReleaseAllegiance.
+func (c *adminServiceClient) ReleaseAllegiance(ctx context.Context, req *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error) {
+	return c.releaseAllegiance.CallUnary(ctx, req)
+}
+
+// GetLedger calls planet.v1.AdminService.GetLedger.
+func (c *adminServiceClient) GetLedger(ctx context.Context, req *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error) {
+	return c.getLedger.CallUnary(ctx, req)
+}
+
+// GetTerritories calls planet.v1.AdminService.GetTerritories.
+func (c *adminServiceClient) GetTerritories(ctx context.Context, req *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
+	return c.getTerritories.CallUnary(ctx, req)
+}
+
+// GetRules calls planet.v1.AdminService.GetRules.
+func (c *adminServiceClient) GetRules(ctx context.Context, req *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error) {
+	return c.getRules.CallUnary(ctx, req)
+}
+
+// SaveRuleSet calls planet.v1.AdminService.SaveRuleSet.
+func (c *adminServiceClient) SaveRuleSet(ctx context.Context, req *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error) {
+	return c.saveRuleSet.CallUnary(ctx, req)
 }
 
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
@@ -259,15 +349,13 @@ type AdminServiceHandler interface {
 	// Who takes the most tiles, every flag and the whole map, within the ledger's last 72 hours: most takes first, then
 	// most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
-	// A shadow ban: the caller's clicks and bombs are answered OK and dropped, so it learns nothing. Takes a scope or
-	// an account_id, never both; an account is banned alone, a scope bans everybody behind it. It counts as an offence,
-	// and an unset duration takes the next step of the ladder. enforced false means the antibot only logs and drops
-	// nothing. Ban before RevertPlayer, or the player repaints behind the revert.
+	// Deprecated: antibot.v1.AdminService/BanPlayer, which answers it on this path until the backoffice calls it there.
+	//
+	// Deprecated: do not use.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
-	// Lifts a caller's latest ban, for a false positive, and forgets that offence. The antibot's evidence stays: a
-	// watchdog that still reads certain bans the caller again on its next click, so the rule that misfired is to be
-	// fixed first. A guest the jury banned is banned on its account and its scope: two calls. NotFound when no offence
-	// is left.
+	// Deprecated: antibot.v1.AdminService/UnbanPlayer, which answers it on this path until the backoffice calls it there.
+	//
+	// Deprecated: do not use.
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
 	// Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
 	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
@@ -276,9 +364,9 @@ type AdminServiceHandler interface {
 	// Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
 	// between stays theirs. The ledger does not see it.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
-	// What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
-	// and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
-	// is read on the scope of its latest take. Changes nothing.
+	// Deprecated: antibot.v1.AdminService/InspectPlayer, which answers it on this path until the backoffice calls it there.
+	//
+	// Deprecated: do not use.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
 	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
@@ -286,6 +374,17 @@ type AdminServiceHandler interface {
 	// The map as it was at since, and every act on it until until, for the clip generator. Megabytes for a day, so the
 	// connector does not offer it.
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
+	// Lifts the account's hour of wait, so its next change of flag goes at once. A lock of the rules in force still holds.
+	ReleaseAllegiance(context.Context, *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error)
+	// Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
+	// time.
+	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
+	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
+	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	// Every rule set postgres keeps, and the one the game plays now. SaveRuleSet changes one.
+	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
+	// Makes a set, or replaces its values. A save of the set that plays now takes over at once.
+	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -343,7 +442,6 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceInspectPlayerProcedure,
 		svc.InspectPlayer,
 		connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceGrantChargesHandler := connect.NewUnaryHandler(
@@ -357,6 +455,39 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		svc.GetReplay,
 		connect.WithSchema(adminServiceMethods.ByName("GetReplay")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceReleaseAllegianceHandler := connect.NewUnaryHandler(
+		AdminServiceReleaseAllegianceProcedure,
+		svc.ReleaseAllegiance,
+		connect.WithSchema(adminServiceMethods.ByName("ReleaseAllegiance")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceGetLedgerHandler := connect.NewUnaryHandler(
+		AdminServiceGetLedgerProcedure,
+		svc.GetLedger,
+		connect.WithSchema(adminServiceMethods.ByName("GetLedger")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceGetTerritoriesHandler := connect.NewUnaryHandler(
+		AdminServiceGetTerritoriesProcedure,
+		svc.GetTerritories,
+		connect.WithSchema(adminServiceMethods.ByName("GetTerritories")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceGetRulesHandler := connect.NewUnaryHandler(
+		AdminServiceGetRulesProcedure,
+		svc.GetRules,
+		connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceSaveRuleSetHandler := connect.NewUnaryHandler(
+		AdminServiceSaveRuleSetProcedure,
+		svc.SaveRuleSet,
+		connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -381,6 +512,16 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGrantChargesHandler.ServeHTTP(w, r)
 		case AdminServiceGetReplayProcedure:
 			adminServiceGetReplayHandler.ServeHTTP(w, r)
+		case AdminServiceReleaseAllegianceProcedure:
+			adminServiceReleaseAllegianceHandler.ServeHTTP(w, r)
+		case AdminServiceGetLedgerProcedure:
+			adminServiceGetLedgerHandler.ServeHTTP(w, r)
+		case AdminServiceGetTerritoriesProcedure:
+			adminServiceGetTerritoriesHandler.ServeHTTP(w, r)
+		case AdminServiceGetRulesProcedure:
+			adminServiceGetRulesHandler.ServeHTTP(w, r)
+		case AdminServiceSaveRuleSetProcedure:
+			adminServiceSaveRuleSetHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -428,4 +569,24 @@ func (UnimplementedAdminServiceHandler) GrantCharges(context.Context, *connect.R
 
 func (UnimplementedAdminServiceHandler) GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetReplay is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ReleaseAllegiance(context.Context, *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.ReleaseAllegiance is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetLedger is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetTerritories is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetRules is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.SaveRuleSet is not implemented"))
 }

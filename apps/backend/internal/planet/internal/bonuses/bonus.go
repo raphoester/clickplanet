@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -70,6 +69,7 @@ type Event struct {
 	Taken    *Taken
 	Enclosed *Enclosed
 	Spread   *Spread
+	Granted  *Held
 }
 
 type Reward struct {
@@ -78,12 +78,23 @@ type Reward struct {
 	Amount int
 }
 
+type Click struct {
+	Entrant Entrant
+	Scope   string
+	Holder  Holder
+
+	Born time.Time
+
+	Dry bool
+}
+
 type caller struct {
 	streams map[uint64]chan Event
 
 	scope string
 
 	nextOfferAt time.Time
+	lastOfferAt time.Time
 	lastSeen    time.Time
 	lastClickAt time.Time
 
@@ -94,10 +105,15 @@ type caller struct {
 
 	grants []time.Time
 
+	owedBox Kind
+
 	nextQuizAt      time.Time
+	lastQuizAt      time.Time
 	outstandingQuiz string
 	quizMisses      int
 	quizGrants      []time.Time
+
+	owedQuiz Kind
 }
 
 func (c *caller) watching() bool {
@@ -130,23 +146,32 @@ type Report struct {
 	QuizAnswered func(scope string, correct bool, after time.Duration)
 }
 
+type Pace struct {
+	MinInterval time.Duration
+	MaxInterval time.Duration
+
+	MaxChargesPerHour int
+}
+
 type Registry struct {
 	config   Config
+	rules    func() Rules
 	clock    cptime.Clock
 	report   Report
 	holdings Holdings
-	charges  ChargesConfig
+	bank     Questions
 
-	quizConfig quizzes.Config
-	bank       Questions
-
-	mu      sync.Mutex
-	callers map[Entrant]*caller
-	offers  map[string]*pending
+	mu            sync.Mutex
+	followedBoxes Pace
+	followedQuiz  QuizRules
+	callers       map[Entrant]*caller
+	offers        map[string]*pending
 
 	spent map[string]spentOffer
 
 	quizOffers map[string]*pendingQuiz
+
+	newcomers map[Holder]*newcomer
 
 	nextID uint64
 }
@@ -169,25 +194,29 @@ const rememberSpent = 10 * time.Minute
 const eventBuffer = 32
 
 type Holdings interface {
-	Held(holder Holder) Held
+	Held(ctx context.Context, holder Holder) (Held, error)
 }
 
-func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
+func New(config Config, clock cptime.Clock, holdings Holdings, rules func() Rules, bank Questions) *Registry {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
-	config = config.withDefaults()
+	followed := rules()
 
 	return &Registry{
-		config:     config,
-		charges:    config.ChargesConfig(),
-		clock:      clock,
-		holdings:   holdings,
-		callers:    make(map[Entrant]*caller),
-		offers:     make(map[string]*pending),
-		spent:      make(map[string]spentOffer),
-		quizOffers: make(map[string]*pendingQuiz),
+		config:        config.withDefaults(),
+		rules:         rules,
+		clock:         clock,
+		holdings:      holdings,
+		bank:          bank,
+		followedBoxes: followed.Boxes,
+		followedQuiz:  followed.Quiz,
+		callers:       make(map[Entrant]*caller),
+		offers:        make(map[string]*pending),
+		spent:         make(map[string]spentOffer),
+		quizOffers:    make(map[string]*pendingQuiz),
+		newcomers:     make(map[Holder]*newcomer),
 	}
 }
 
@@ -198,6 +227,29 @@ func (r *Registry) Observe(report Report) {
 	r.report = report
 }
 
+// follow brings in a box or a quiz due later than the longest wait of a new pace, and a caller's next quiz is a whole
+// wait away from when quizzes are switched on.
+func (r *Registry) follow(rules Rules, now time.Time) {
+	if rules.Boxes != r.followedBoxes {
+		for _, entry := range r.callers {
+			if entry.nextOfferAt.After(now.Add(rules.Boxes.MaxInterval)) {
+				entry.nextOfferAt = now.Add(boxWait(rules))
+			}
+		}
+		r.followedBoxes = rules.Boxes
+	}
+
+	if rules.Quiz != r.followedQuiz {
+		switchedOn := rules.Quiz.Enabled && !r.followedQuiz.Enabled
+		for _, entry := range r.callers {
+			if switchedOn || entry.nextQuizAt.After(now.Add(rules.Quiz.MaxInterval)) {
+				entry.nextQuizAt = now.Add(quizWait(rules))
+			}
+		}
+		r.followedQuiz = rules.Quiz
+	}
+}
+
 func (r *Registry) counted(hook func()) {
 	if hook != nil {
 		hook()
@@ -206,11 +258,12 @@ func (r *Registry) counted(hook func()) {
 
 func (r *Registry) Attend(entrant Entrant) (<-chan Event, func()) {
 	now := r.clock.Now()
+	rules := r.rules()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	entry := r.caller(entrant, now)
+	entry := r.caller(entrant, rules, now)
 
 	r.nextID++
 	id := r.nextID
@@ -222,7 +275,7 @@ func (r *Registry) Attend(entrant Entrant) (<-chan Event, func()) {
 	return events, func() { r.leave(entrant, id) }
 }
 
-func (r *Registry) caller(entrant Entrant, now time.Time) *caller {
+func (r *Registry) caller(entrant Entrant, rules Rules, now time.Time) *caller {
 	entry, ok := r.callers[entrant]
 	if ok {
 		return entry
@@ -231,8 +284,8 @@ func (r *Registry) caller(entrant Entrant, now time.Time) *caller {
 	entry = &caller{
 		streams:     make(map[uint64]chan Event),
 		players:     make(map[Holder]time.Time),
-		nextOfferAt: now.Add(r.window()),
-		nextQuizAt:  now.Add(r.quizWindow()),
+		nextOfferAt: now.Add(boxWait(rules)),
+		nextQuizAt:  now.Add(quizWait(rules)),
 		lastSeen:    now,
 	}
 	r.callers[entrant] = entry
@@ -253,22 +306,27 @@ func (r *Registry) leave(entrant Entrant, id uint64) {
 	entry.lastSeen = r.clock.Now()
 }
 
-func (r *Registry) Clicked(entrant Entrant, scope string, holder Holder) {
+func (r *Registry) Clicked(click Click) {
 	now := r.clock.Now()
+	rules := r.rules()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	entry := r.caller(entrant, now)
-	entry.scope = scope
+	entry := r.caller(click.Entrant, rules, now)
+	entry.scope = click.Scope
 	entry.lastClickAt = now
-	if holder != NoHolder {
-		entry.players[holder] = now
+	if click.Holder == NoHolder {
+		return
 	}
+
+	entry.players[click.Holder] = now
+	r.welcome(entry, click, rules, now)
 }
 
 func (r *Registry) Claim(token string, entrant Entrant, scope string) (Reward, bool) {
 	now := r.clock.Now()
+	rules := r.rules()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -291,10 +349,10 @@ func (r *Registry) Claim(token string, entrant Entrant, scope string) (Reward, b
 		entry.misses = 0
 		entry.grants = append(entry.grants, now)
 
-		entry.nextOfferAt = now.Add(r.window())
+		entry.nextOfferAt = now.Add(boxWait(rules))
 	}
 
-	return Reward{Kind: offer.kind, Amount: r.amountOf(offer.kind)}, true
+	return Reward{Kind: offer.kind, Amount: amountOf(offer.kind, rules)}, true
 }
 
 func (r *Registry) refuse(token string, entrant Entrant, scope string) {
@@ -338,6 +396,16 @@ func (r *Registry) PublishSpread(spread Spread) {
 	r.broadcast(Event{Spread: &spread})
 }
 
+// A guest's streams share its address with others', so only a signed-in account hears what it holds.
+func (r *Registry) PublishGranted(holder Holder, held Held) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if entry, ok := r.callers[accountEntrant(string(holder))]; ok {
+		entry.send(Event{Granted: &held})
+	}
+}
+
 func (r *Registry) broadcast(event Event) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -356,70 +424,79 @@ func (r *Registry) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			r.sweep()
+			r.sweep(ctx)
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (r *Registry) sweep() {
+func (r *Registry) sweep(ctx context.Context) {
 	now := r.clock.Now()
+	rules := r.rules()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.collectMisses(now)
+	r.follow(rules, now)
+	r.collectMisses(rules, now)
 	r.forgetSpent(now)
-	r.sweepQuizzes(now)
+	r.sweepQuizzes(ctx, rules, now)
 	r.forgetStale(now)
+	r.forgetNewcomers(now)
 
 	for entrant, entry := range r.callers {
-		if !r.due(entry, now) {
+		if !r.due(entry, rules, now) {
 			continue
 		}
 
-		kinds := r.offerable(entry, now)
+		kinds := drawable(entry.owedBox, r.offerable(ctx, entry, rules, now))
+		entry.owedBox = ""
 		if kinds.Empty() {
-			entry.nextOfferAt = now.Add(r.window())
+			entry.nextOfferAt = now.Add(boxWait(rules))
 			continue
 		}
 
-		r.offer(entrant, entry, now, kinds)
+		r.offer(entrant, entry, rules, now, kinds)
 	}
 }
 
-func (r *Registry) due(entry *caller, now time.Time) bool {
+func (r *Registry) due(entry *caller, rules Rules, now time.Time) bool {
 	if !entry.watching() || entry.outstanding != "" || now.Before(entry.nextOfferAt) {
 		return false
 	}
 
-	if now.Sub(entry.lastClickAt) > r.config.ActiveWithin {
-		entry.nextOfferAt = now.Add(r.window())
+	if now.Sub(entry.lastClickAt) > rules.ActiveWithin {
+		entry.nextOfferAt = now.Add(boxWait(rules))
 		return false
 	}
 
-	return true
+	return !near(entry.outstandingQuiz, entry.lastQuizAt, entry.owedBox, rules, now)
 }
 
-func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
+func (r *Registry) offerable(ctx context.Context, entry *caller, rules Rules, now time.Time) *cpcolls.Set[Kind] {
 	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))
 
 	held := cpcolls.NewSet[Kind]()
 	for holder, clicked := range entry.players {
-		if now.Sub(clicked) > r.config.ActiveWithin {
+		if now.Sub(clicked) > rules.ActiveWithin {
 			delete(entry.players, holder)
 			continue
 		}
-		held.Add(r.holdings.Held(holder).Full(r.charges)...)
+		hand, err := r.holdings.Held(ctx, holder)
+		if err != nil {
+			// Offered nothing: the slot is lost, as an away player's.
+			return kinds
+		}
+		held.Add(hand.Full(rules)...)
 	}
 
-	if len(entry.players) == 0 || r.grantedWithinTheHour(entry, now) >= r.config.MaxChargesPerHour {
+	if len(entry.players) == 0 || r.grantedWithinTheHour(entry, now) >= rules.Boxes.MaxChargesPerHour {
 		return kinds
 	}
 
 	for _, kind := range Kinds {
-		if r.config.Kinds[kind] > 0 && !held.Contains(kind) {
+		if rules.Kinds[kind] > 0 && !held.Contains(kind) {
 			kinds.Add(kind)
 		}
 	}
@@ -441,18 +518,18 @@ func (r *Registry) grantedWithinTheHour(entry *caller, now time.Time) int {
 	return len(kept)
 }
 
-func (r *Registry) offer(entrant Entrant, entry *caller, now time.Time, kinds *cpcolls.Set[Kind]) {
+func (r *Registry) offer(entrant Entrant, entry *caller, rules Rules, now time.Time, kinds *cpcolls.Set[Kind]) {
 	token, err := newToken()
 	if err != nil {
 		return
 	}
 
-	kind := r.drawKind(kinds)
+	kind := drawKind(kinds, rules.Kinds)
 	offer := Offer{
 		Token:     token,
 		Seed:      randomSeed(),
 		Kind:      kind,
-		ExpiresAt: now.Add(r.config.OfferTTL),
+		ExpiresAt: now.Add(rules.OfferTTL),
 	}
 
 	r.offers[token] = &pending{
@@ -464,13 +541,14 @@ func (r *Registry) offer(entrant Entrant, entry *caller, now time.Time, kinds *c
 	}
 
 	entry.outstanding = token
-	entry.nextOfferAt = offer.ExpiresAt.Add(r.window())
+	entry.lastOfferAt = now
+	entry.nextOfferAt = offer.ExpiresAt.Add(boxWait(rules))
 
 	entry.send(Event{Offer: &offer})
 	r.counted(r.report.Offered)
 }
 
-func (r *Registry) collectMisses(now time.Time) {
+func (r *Registry) collectMisses(rules Rules, now time.Time) {
 	for token, offer := range r.offers {
 		if now.Before(offer.expiresAt) {
 			continue
@@ -486,7 +564,7 @@ func (r *Registry) collectMisses(now time.Time) {
 
 		entry.outstanding = ""
 		if entry.misses == 0 {
-			entry.nextOfferAt = now.Add(r.config.MissRetry)
+			entry.nextOfferAt = now.Add(rules.MissRetry)
 		}
 		entry.misses++
 		if r.report.Lapsed != nil {
@@ -517,8 +595,25 @@ func (r *Registry) forgetStale(now time.Time) {
 	}
 }
 
-func (r *Registry) window() time.Duration {
-	return drawWindow(r.config.MinInterval, r.config.MaxInterval)
+// A box and a quiz keep this far apart: half the shorter of their shortest waits, so one falls between two of the other
+// rather than beside one.
+func spacing(rules Rules) time.Duration {
+	return min(rules.Boxes.MinInterval, rules.Quiz.MinInterval) / 2
+}
+
+// near says the other of the two, out still or offered at offeredAt, is too close for this one to be offered now. It
+// is held, not redrawn, so it comes the moment the other is far enough. A welcome owed has its own moment, so it waits
+// only for the other to be gone.
+func near(out string, offeredAt time.Time, owed Kind, rules Rules, now time.Time) bool {
+	if out != "" {
+		return true
+	}
+
+	return owed == "" && now.Sub(offeredAt) < spacing(rules)
+}
+
+func boxWait(rules Rules) time.Duration {
+	return drawWindow(rules.Boxes.MinInterval, rules.Boxes.MaxInterval)
 }
 
 func drawWindow(shortest, longest time.Duration) time.Duration {
@@ -535,12 +630,24 @@ func drawWindow(shortest, longest time.Duration) time.Duration {
 	return shortest + time.Duration(n.Int64())
 }
 
-func (r *Registry) drawKind(kinds *cpcolls.Set[Kind]) Kind {
+func drawable(owed Kind, kinds *cpcolls.Set[Kind]) *cpcolls.Set[Kind] {
+	if owed == "" {
+		return kinds
+	}
+
+	if kinds.Contains(owed) {
+		return cpcolls.NewSet(owed)
+	}
+
+	return cpcolls.NewSet[Kind]()
+}
+
+func drawKind(kinds *cpcolls.Set[Kind], weights map[Kind]float64) Kind {
 	total := 0.0
 	var last Kind
 	for _, kind := range Kinds {
 		if kinds.Contains(kind) {
-			total += r.config.Kinds[kind]
+			total += weights[kind]
 			last = kind
 		}
 	}
@@ -553,7 +660,7 @@ func (r *Registry) drawKind(kinds *cpcolls.Set[Kind]) Kind {
 
 	left := float64(n.Int64()) / resolution * total
 	for _, kind := range Kinds {
-		weight := r.config.Kinds[kind]
+		weight := weights[kind]
 		if !kinds.Contains(kind) {
 			continue
 		}
@@ -566,15 +673,15 @@ func (r *Registry) drawKind(kinds *cpcolls.Set[Kind]) Kind {
 	return last
 }
 
-func (r *Registry) amountOf(kind Kind) int {
+func amountOf(kind Kind, rules Rules) int {
 	least, most := 1, 1
 	switch kind {
 	case KindSpreadClicks:
-		most = r.config.Spread.MaxPerBox
+		most = rules.Spread.MaxPerBox
 	case KindEncloseClicks:
-		most = r.config.Enclose.MaxPerBox
+		most = rules.Enclose.MaxPerBox
 	case KindShields:
-		least, most = r.config.Shield.MinPerBox, r.config.Shield.MaxPerBox
+		least, most = rules.Shield.MinPerBox, rules.Shield.MaxPerBox
 	case KindRefill, KindBomb:
 	}
 

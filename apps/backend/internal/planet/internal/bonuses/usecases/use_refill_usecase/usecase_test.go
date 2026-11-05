@@ -18,43 +18,33 @@ import (
 
 var epoch = time.Date(2026, 9, 18, 12, 0, 0, 0, time.UTC)
 
-type stubRefills struct {
-	held  map[bonuses.Holder]bool
-	spent []bonuses.Holder
-}
-
-func (s *stubRefills) SpendRefill(holder bonuses.Holder) bool {
-	s.spent = append(s.spent, holder)
-	held := s.held[holder]
-	s.held[holder] = false
-
-	return held
-}
-
-func (s *stubRefills) Held(holder bonuses.Holder) bonuses.Held {
-	return bonuses.Held{Refill: s.held[holder]}
-}
-
 type onePrice struct{}
 
 func (onePrice) Price(string) clicks.Price { return clicks.Price{Slowdown: 1} }
 
-var config = clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 0.2, Burst: 60}, ScopeMultiplier: 10}
+var buckets = clicks.NewBuckets(func() clicks.Throttle {
+	return clicks.Throttle{
+		Tempo: 1, PerSecond: 0.2, Burst: 60,
+		ScopeMultiplier: 10, V6ScopeMultiplier: 10, GuestScopeMultiplier: 1, LinkedMultiplier: 2,
+		NewAccountClicks: 60,
+	}
+})
 
 type fixture struct {
-	refills *stubRefills
+	refills *bonuses.MemoryStore
 	limiter *cpratelimit.Limiter
 	useCase *use_refill_usecase.UseCase
 }
 
 func setup(held bool) fixture {
-	refills := &stubRefills{held: map[bonuses.Holder]bool{"a-guest": held}}
-	limiter := cpratelimit.New("test", config.Config, cptime.NewFixedClock(epoch))
+	refills := bonuses.NewMemoryStore()
+	refills.Keep("a-guest", bonuses.Held{Refill: held})
+	limiter := cpratelimit.New("test", cpratelimit.Config{PerSecond: 0.2, Burst: 60}, cptime.NewFixedClock(epoch))
 
 	return fixture{
 		refills: refills,
 		limiter: limiter,
-		useCase: use_refill_usecase.New(refills, limiter, onePrice{}, config.Buckets()),
+		useCase: use_refill_usecase.New(bonuses.NewCharges(refills, bonuses.TestRules), limiter, onePrice{}, buckets),
 	}
 }
 
@@ -67,7 +57,7 @@ func played(t *testing.T) context.Context {
 func (f fixture) spend(t *testing.T, account string, n int) {
 	t.Helper()
 
-	keys := config.Buckets().Keys(clicks.Payer{Scope: "1.2.3.4", Account: account}, clicks.Price{Slowdown: 1})
+	keys := buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: account}, clicks.Price{Slowdown: 1})
 	for range n {
 		allowed, _ := f.limiter.TakeAll(1, keys...)
 		require.True(t, allowed)
@@ -84,7 +74,7 @@ func TestARefillFillsTheBankAndIsSpent(t *testing.T) {
 	assert.InDelta(t, 60, out.Budget.Tokens, 1e-9, "the bank is full")
 	assert.Equal(t, 60, out.Budget.Capacity, "and no bigger")
 	assert.Equal(t, bonuses.Held{}, out.Held)
-	assert.Equal(t, []bonuses.Holder{"a-guest"}, f.refills.spent)
+	assert.Equal(t, bonuses.Held{}, f.refills.Kept("a-guest"), "the refill is spent")
 }
 
 func TestAFullBankIsRefusedAndSpendsNothing(t *testing.T) {
@@ -93,7 +83,7 @@ func TestAFullBankIsRefusedAndSpendsNothing(t *testing.T) {
 	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
 
 	require.ErrorIs(t, err, use_refill_usecase.ErrBankFull)
-	assert.Empty(t, f.refills.spent, "a press on a full meter wastes nothing")
+	assert.True(t, f.refills.Kept("a-guest").Refill, "a press on a full meter wastes nothing")
 }
 
 func TestNoRefillFillsNothing(t *testing.T) {
@@ -103,7 +93,7 @@ func TestNoRefillFillsNothing(t *testing.T) {
 	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
 
 	require.ErrorIs(t, err, use_refill_usecase.ErrNoRefill)
-	state := f.limiter.Peek(config.Buckets().Bank(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"})[0])
+	state := f.limiter.Peek(buckets.Bank(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"})[0])
 	assert.InDelta(t, 10, state.Tokens, 1e-9)
 }
 
@@ -113,18 +103,52 @@ func TestACallerWithNoAccountHasNoRefill(t *testing.T) {
 	_, err := f.useCase.Execute(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), use_refill_usecase.In{})
 
 	require.ErrorIs(t, err, use_refill_usecase.ErrNoRefill)
-	assert.Empty(t, f.refills.spent)
+	assert.True(t, f.refills.Kept("a-guest").Refill)
 }
 
-func TestTheScopesBucketIsNotFilled(t *testing.T) {
+var scope = buckets.Ceiling(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"})[0]
+
+func (f fixture) drainScope(t *testing.T, n float64) {
+	t.Helper()
+
+	allowed, _ := f.limiter.TakeAll(n, scope)
+	require.True(t, allowed)
+}
+
+func TestTheScopesBucketIsGivenWhatTheRefillGave(t *testing.T) {
 	f := setup(true)
+	f.drainScope(t, 200)
 	f.spend(t, "a-guest", 50)
 
 	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
 	require.NoError(t, err)
 
-	scope := f.limiter.Peek(config.Buckets().Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}, clicks.Price{})[2])
-	assert.InDelta(t, 550, scope.Tokens, 1e-9, "the scope's bucket, shared by everyone behind the address, keeps its level")
+	assert.InDelta(t, 400, f.limiter.Peek(scope).Tokens, 1e-9,
+		"50 clicks given, so the scope everyone behind the address shares is no tighter for it, and no looser")
+}
+
+func TestARefillFillsWhatTheScopeLacksWhenItIsTheTighter(t *testing.T) {
+	f := setup(true)
+	f.drainScope(t, 576)
+
+	out, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
+	require.NoError(t, err, "its own bank is full, but the scope it spends from holds 24")
+
+	assert.InDelta(t, 60, out.Budget.Tokens, 1e-9, "a full bank to spend")
+	assert.Equal(t, 60, out.Budget.Capacity, "read against its own bank, not the scope's 600")
+	assert.InDelta(t, 60, f.limiter.Peek(scope).Tokens, 1e-9, "the scope is given the 36 the player lacked, no more")
+	assert.False(t, f.refills.Kept("a-guest").Refill, "the refill is spent")
+}
+
+func TestAFullBankOnAScopeHoldingABankIsRefused(t *testing.T) {
+	f := setup(true)
+	f.drainScope(t, 540)
+
+	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
+
+	require.ErrorIs(t, err, use_refill_usecase.ErrBankFull, "the scope still holds the bank the player can spend")
+	assert.InDelta(t, 60, f.limiter.Peek(scope).Tokens, 1e-9)
+	assert.True(t, f.refills.Kept("a-guest").Refill)
 }
 
 func TestARefillFillsTheBucketTheScopesGuestsShare(t *testing.T) {

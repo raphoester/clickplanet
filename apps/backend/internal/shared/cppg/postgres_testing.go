@@ -134,7 +134,7 @@ func openSchema(ctx context.Context, config Config, schema string, migrations fs
 }
 
 func (p *Postgres) Purge(ctx context.Context) error {
-	rows, err := p.QueryContext(ctx, `
+	rows, err := p.sqlClient.QueryContext(ctx, `
 		SELECT quote_ident(table_schema) || '.' || quote_ident(table_name)
 		FROM information_schema.tables
 		WHERE table_schema = $1
@@ -142,7 +142,7 @@ func (p *Postgres) Purge(ctx context.Context) error {
 		  AND table_name <> 'schema_migrations'
 	`, p.config.Schema)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list tables: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
@@ -162,7 +162,8 @@ func (p *Postgres) Purge(ctx context.Context) error {
 		return nil
 	}
 
-	_, err = p.ExecContext(ctx, "TRUNCATE TABLE "+strings.Join(tables, ", ")+" CASCADE")
-
-	return err
+	if _, err := p.sqlClient.ExecContext(ctx, "TRUNCATE TABLE "+strings.Join(tables, ", ")+" CASCADE"); err != nil {
+		return fmt.Errorf("failed to empty the tables: %w", err)
+	}
+	return nil
 }

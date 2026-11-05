@@ -2,8 +2,8 @@ import {useCallback} from "react"
 import {Copyable} from "../components/AccountId.tsx"
 import {Fact} from "../components/Fact.tsx"
 import {When} from "../components/When.tsx"
-import {PlanetAdmin} from "../clients.ts"
-import {InspectPlayerResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {AntibotAdmin} from "../clients.ts"
+import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {useAction} from "../useAction.ts"
 import {inspect, refusalOf} from "./actions.ts"
 import {Caller, isAccount} from "./caller.ts"
@@ -12,9 +12,9 @@ import {spanOf} from "./durations.ts"
 const refused = (err: unknown) => refusalOf("inspect", err)
 
 // A read: it changes nothing, so it asks for no confirmation.
-export function InspectPanel({planet, caller}: {planet: PlanetAdmin, caller: Caller}) {
+export function InspectPanel({antibot, caller}: {antibot: AntibotAdmin, caller: Caller}) {
     const [state, start] = useAction<InspectPlayerResponse>(refused)
-    const run = useCallback(() => start(() => inspect(planet, caller)), [start, planet, caller])
+    const run = useCallback(() => start(() => inspect(antibot, caller)), [start, antibot, caller])
 
     return (
         <div className="action">
@@ -40,7 +40,7 @@ export function Inspection({value, caller, onOpenScope}: InspectionProps) {
             {isAccount(caller) && (
                 <Fact label="Address">
                     {value.scope === ""
-                        ? <span className="muted">no take in the last 72 hours</span>
+                        ? <span className="muted">no click in the last 72 hours</span>
                         : (
                             <span className="account">
                                 <Copyable text={value.scope}/>

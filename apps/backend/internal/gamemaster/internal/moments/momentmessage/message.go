@@ -1,0 +1,100 @@
+package momentmessage
+
+import (
+	"fmt"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
+)
+
+// DebriefOf is a moment in the players' words.
+func DebriefOf(moment moments.Moment) (*gamemasterv1.Debrief, error) {
+	switch told := moment.(type) {
+	case moments.DayEnded:
+		return &gamemasterv1.Debrief{Moment: &gamemasterv1.Debrief_Day{Day: dayEnded(told)}}, nil
+	case moments.BattleEnded:
+		return &gamemasterv1.Debrief{Moment: &gamemasterv1.Debrief_Battle{Battle: battleEnded(told)}}, nil
+	case moments.SeasonEnded:
+		return &gamemasterv1.Debrief{Moment: &gamemasterv1.Debrief_Season{Season: seasonEnded(told)}}, nil
+	}
+	return nil, fmt.Errorf("no debrief tells %T", moment)
+}
+
+// EventOf is a moment as the gamemaster.v1 event the other modules hear.
+func EventOf(moment moments.Moment) (proto.Message, error) {
+	switch told := moment.(type) {
+	case moments.SeasonStarted:
+		return seasonStarted(told), nil
+	case moments.DayStarted:
+		return dayStarted(told), nil
+	case moments.BattleStarted:
+		return battleStarted(told), nil
+	case moments.DayEnded:
+		return dayEnded(told), nil
+	case moments.BattleEnded:
+		return battleEnded(told), nil
+	case moments.SeasonEnded:
+		return seasonEnded(told), nil
+	}
+	return nil, fmt.Errorf("no event tells %T", moment)
+}
+
+func seasonStarted(told moments.SeasonStarted) *gamemasterv1.SeasonStarted {
+	return &gamemasterv1.SeasonStarted{
+		Season: uint32(told.Window.Number), BookId: string(moments.BookOf(told.Window.Number)),
+		StartsAt: timestamppb.New(told.Window.StartsAt), EndsAt: timestamppb.New(told.Window.EndsAt),
+	}
+}
+
+func dayStarted(told moments.DayStarted) *gamemasterv1.DayStarted {
+	return &gamemasterv1.DayStarted{
+		Season: uint32(told.Day.Season), Day: uint32(told.Day.Number), RoundId: string(moments.DayRoundOf(told.Day)),
+		BookId: string(moments.BookOf(told.Day.Season)), StartsAt: timestamppb.New(told.Day.StartsAt),
+		EndsAt: timestamppb.New(told.Day.EndsAt),
+	}
+}
+
+func battleStarted(told moments.BattleStarted) *gamemasterv1.BattleStarted {
+	return &gamemasterv1.BattleStarted{
+		Season: uint32(told.Battle.Season), Number: told.Battle.Number, EntryId: EntryIDOf(told.Battle),
+		Times: uint32(told.Battle.Times), EndsSeason: told.Battle.EndsSeason, RoundId: string(told.Battle.Round()),
+		StartsAt: timestamppb.New(told.Battle.StartsAt), EndsAt: timestamppb.New(told.Battle.EndsAt),
+	}
+}
+
+func dayEnded(told moments.DayEnded) *gamemasterv1.DayEnded {
+	return &gamemasterv1.DayEnded{
+		Season: uint32(told.Day.Season), Day: uint32(told.Day.Number), RoundId: string(moments.DayRoundOf(told.Day)),
+		EndedAt: timestamppb.New(told.EndedAt),
+	}
+}
+
+func battleEnded(told moments.BattleEnded) *gamemasterv1.BattleEnded {
+	return &gamemasterv1.BattleEnded{
+		Season: uint32(told.Battle.Season), Number: told.Battle.Number, EntryId: EntryIDOf(told.Battle),
+		Times: uint32(told.Battle.Times), EndsSeason: told.Battle.EndsSeason, RoundId: string(told.Battle.Round()),
+		EndedAt: timestamppb.New(told.EndedAt),
+	}
+}
+
+// EntryIDOf is a battle's entry's id; empty for a season's finale, which is no entry's.
+func EntryIDOf(battle moments.Battle) string {
+	if battle.EndsSeason {
+		return ""
+	}
+	return battle.Entry.String()
+}
+
+func seasonEnded(told moments.SeasonEnded) *gamemasterv1.SeasonEnded {
+	ended := &gamemasterv1.SeasonEnded{
+		Season: uint32(told.Season), BookId: string(told.Book), EndedAt: timestamppb.New(told.EndedAt),
+		FinaleRoundId: string(told.Finale),
+	}
+	if told.FinaleBattle != nil {
+		ended.FinaleBattle = battleEnded(*told.FinaleBattle)
+	}
+	return ended
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -19,6 +20,7 @@ type stubWatchdog struct {
 	verdict detect.Verdict
 	zeal    bool
 	turns   bool
+	off     bool
 
 	accomplices []detect.Accomplice
 
@@ -28,6 +30,8 @@ type stubWatchdog struct {
 }
 
 func (w *stubWatchdog) Name() string { return w.name }
+
+func (w *stubWatchdog) Enabled() bool { return !w.off }
 
 func (w *stubWatchdog) Watch(detect.Click) (detect.Verdict, detect.Evidence) {
 	w.seen++
@@ -53,12 +57,13 @@ type harness struct {
 	rises   []string
 }
 
-func newHarness(t *testing.T, config jury.Config, ban bans.Config, watchdogs ...detect.Watchdog) *harness {
+func newHarness(t *testing.T, rules jury.Rules, ban bans.Rules, watchdogs ...detect.Watchdog) *harness {
 	t.Helper()
 	h := &harness{t: t, clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))}
 
-	h.banner = bans.NewBook(ban, pardon, h.clock, bans.NewMemoryStore(), bans.NewMemoryStore())
-	h.jury = jury.New(config, h.banner, h.clock, jury.Hooks{
+	h.banner = bans.NewBook(func() bans.Rules { return ban }, pardon, h.clock, bans.NewMemoryStore(), bans.NewMemoryStore(),
+		cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
+	h.jury = jury.New(jury.Config{TrackWindow: time.Hour}, func() jury.Rules { return rules }, h.banner, h.clock, jury.Hooks{
 		OnFlag: func(report detect.Report) {
 			h.reports = append(h.reports, report)
 		},
@@ -100,18 +105,14 @@ func (h *harness) click() bool {
 	return drop
 }
 
-func juryConfig() jury.Config {
-	return jury.Config{
-		MinSuspects:     2,
-		SuspicionWindow: 10 * time.Minute,
-		TrackWindow:     time.Hour,
-	}
+func juryRules() jury.Rules {
+	return jury.Rules{MinSuspects: 2, SuspicionWindow: 10 * time.Minute}
 }
 
 const pardon = 72 * time.Hour
 
-func banConfig() bans.Config {
-	return bans.Config{
+func banRules() bans.Rules {
+	return bans.Rules{
 		Enforce:        true,
 		BanDurations:   []time.Duration{time.Hour},
 		ReflagInterval: 5 * time.Minute,
@@ -119,7 +120,7 @@ func banConfig() bans.Config {
 }
 
 func TestOneCertainWatchdogBansOnItsOwn(t *testing.T) {
-	h := newHarness(t, juryConfig(), banConfig(),
+	h := newHarness(t, juryRules(), banRules(),
 		&stubWatchdog{name: "sure", verdict: detect.Certain},
 		&stubWatchdog{name: "quiet", verdict: detect.Clear},
 	)
@@ -128,8 +129,22 @@ func TestOneCertainWatchdogBansOnItsOwn(t *testing.T) {
 	require.Len(t, h.reports, 1)
 }
 
+func TestAWatchdogTurnedOffKeepsWatchingAndCountsForNothing(t *testing.T) {
+	sure := &stubWatchdog{name: "sure", verdict: detect.Certain, off: true}
+	h := newHarness(t, juryRules(), banRules(), sure)
+
+	assert.False(t, h.click())
+	assert.Equal(t, 1, sure.seen, "its windows stay full, so it reads again at once when turned on")
+	assert.Empty(t, h.rises)
+	assert.Equal(t, "clear", h.jury.Examine("caller", "").Readings[0].Level)
+
+	sure.off = false
+
+	assert.True(t, h.click())
+}
+
 func TestOneSuspectIsNotEnough(t *testing.T) {
-	h := newHarness(t, juryConfig(), banConfig(),
+	h := newHarness(t, juryRules(), banRules(),
 		&stubWatchdog{name: "unsure", verdict: detect.Suspect},
 		&stubWatchdog{name: "quiet", verdict: detect.Clear},
 	)
@@ -139,7 +154,7 @@ func TestOneSuspectIsNotEnough(t *testing.T) {
 }
 
 func TestTwoSuspectsCrossIntoABan(t *testing.T) {
-	h := newHarness(t, juryConfig(), banConfig(),
+	h := newHarness(t, juryRules(), banRules(),
 		&stubWatchdog{name: "first", verdict: detect.Suspect},
 		&stubWatchdog{name: "second", verdict: detect.Suspect},
 	)
@@ -149,7 +164,7 @@ func TestTwoSuspectsCrossIntoABan(t *testing.T) {
 }
 
 func TestTwoReadingsOfZealAreOneSuspect(t *testing.T) {
-	h := newHarness(t, juryConfig(), banConfig(),
+	h := newHarness(t, juryRules(), banRules(),
 		&stubWatchdog{name: "hours", verdict: detect.Suspect, zeal: true},
 		&stubWatchdog{name: "retakes", verdict: detect.Suspect, zeal: true},
 	)
@@ -157,13 +172,13 @@ func TestTwoReadingsOfZealAreOneSuspect(t *testing.T) {
 	assert.False(t, h.click(), "a person who plays hard reads both")
 	assert.Empty(t, h.reports)
 
-	examination := h.jury.Examine("caller")
+	examination := h.jury.Examine("caller", "")
 	assert.Equal(t, 1, examination.Suspects)
 	assert.False(t, examination.Guilty)
 }
 
 func TestZealStillCrossesAnotherWatchdog(t *testing.T) {
-	h := newHarness(t, juryConfig(), banConfig(),
+	h := newHarness(t, juryRules(), banRules(),
 		&stubWatchdog{name: "hours", verdict: detect.Suspect, zeal: true},
 		&stubWatchdog{name: "retakes", verdict: detect.Suspect, zeal: true},
 		&stubWatchdog{name: "cadence", verdict: detect.Suspect},
@@ -173,27 +188,58 @@ func TestZealStillCrossesAnotherWatchdog(t *testing.T) {
 	require.Len(t, h.reports, 1)
 }
 
-func TestAReadingOfTurnsNeverCounts(t *testing.T) {
+func TestASuspectReadingOfTurnsCountsForNothing(t *testing.T) {
 	turns := &stubWatchdog{name: "turns", verdict: detect.Suspect, turns: true}
-	h := newHarness(t, juryConfig(), banConfig(), turns, &stubWatchdog{name: "cadence", verdict: detect.Suspect})
+	h := newHarness(t, juryRules(), banRules(), turns, &stubWatchdog{name: "cadence", verdict: detect.Suspect})
 
-	assert.False(t, h.click(), "a person takes turns to beat the rate limit")
-
-	turns.verdict = detect.Certain
-	assert.False(t, h.click(), "at any level")
+	assert.False(t, h.click(), "beside a cadence at its bound it banned children")
 	assert.Empty(t, h.reports)
 
-	examination := h.jury.Examine("caller")
-	assert.Equal(t, "certain", examination.Readings[0].Level, "it still reads")
+	examination := h.jury.Examine("caller", "")
+	assert.Equal(t, "suspect", examination.Readings[0].Level, "it still reads")
 	assert.Equal(t, 1, examination.Suspects)
 	assert.False(t, examination.Guilty)
 }
 
-func TestMinSuspectsIsWhereTheLineIs(t *testing.T) {
-	config := juryConfig()
-	config.MinSuspects = 3
+func TestACertainReadingOfTurnsBansTheRingAndNoNetwork(t *testing.T) {
+	turns := &stubWatchdog{name: "turns", verdict: detect.Certain, turns: true, accomplices: []detect.Accomplice{{Account: "tab", Scope: "vpn"}}}
+	h := newHarness(t, juryRules(), banRules(), turns, &stubWatchdog{name: "quiet", verdict: detect.Clear})
 
-	h := newHarness(t, config, banConfig(),
+	require.True(t, h.inspect(detect.Click{Scope: "school", Account: "guest", Tile: 1, Country: "FR", At: h.clock.Now()}))
+	assert.Equal(t, []banned{{account: "guest"}, {account: "tab", alongside: "guest"}}, h.banned())
+
+	examination := h.jury.Examine("school", "")
+	assert.Equal(t, 0, examination.Suspects, "turns are never a suspect")
+	assert.True(t, examination.Guilty)
+
+	turns.verdict, turns.accomplices = detect.Clear, nil
+	h.clock.Advance(time.Second)
+
+	assert.True(t, h.inspect(detect.Click{Scope: "elsewhere", Account: "tab", Tile: 1, Country: "FR", At: h.clock.Now()}))
+	assert.False(t, h.inspect(detect.Click{Scope: "school", Account: "student", Tile: 1, Country: "FR", At: h.clock.Now()}),
+		"turns name accounts, so the school behind a guest still plays")
+	assert.False(t, h.inspect(detect.Click{Scope: "vpn", Account: "stranger", Tile: 1, Country: "FR", At: h.clock.Now()}),
+		"and so does a VPN's exit")
+}
+
+func TestTurnsBesideAnotherCertainWatchdogBanAGuestsNetworkToo(t *testing.T) {
+	h := newHarness(t, juryRules(), banRules(),
+		&stubWatchdog{name: "turns", verdict: detect.Certain, turns: true, accomplices: []detect.Accomplice{{Account: "tab", Scope: "home"}}},
+		&stubWatchdog{name: "sure", verdict: detect.Certain},
+	)
+
+	require.True(t, h.inspect(detect.Click{Scope: "home", Account: "guest", Tile: 1, Country: "FR", At: h.clock.Now()}))
+
+	_, scopeBanned, err := h.banner.EnforcedSentence(t.Context(), bans.Caller{Scope: "home"})
+	require.NoError(t, err)
+	assert.True(t, scopeBanned, "a guest guilty on its own sheds its cookie, as any guest")
+}
+
+func TestMinSuspectsIsWhereTheLineIs(t *testing.T) {
+	rules := juryRules()
+	rules.MinSuspects = 3
+
+	h := newHarness(t, rules, banRules(),
 		&stubWatchdog{name: "first", verdict: detect.Suspect},
 		&stubWatchdog{name: "second", verdict: detect.Suspect},
 	)
@@ -202,13 +248,13 @@ func TestMinSuspectsIsWhereTheLineIs(t *testing.T) {
 }
 
 func TestASuspicionOlderThanTheWindowStopsCounting(t *testing.T) {
-	config := juryConfig()
-	config.SuspicionWindow = time.Minute
+	rules := juryRules()
+	rules.SuspicionWindow = time.Minute
 
 	stale := &stubWatchdog{name: "stale", verdict: detect.Suspect}
 	late := &stubWatchdog{name: "late", verdict: detect.Clear}
 
-	h := newHarness(t, config, banConfig(), stale, late)
+	h := newHarness(t, rules, banRules(), stale, late)
 
 	require.False(t, h.click())
 
@@ -223,7 +269,7 @@ func TestEveryWatchdogSeesEveryClickIncludingTheDroppedOnes(t *testing.T) {
 	certain := &stubWatchdog{name: "sure", verdict: detect.Certain}
 	other := &stubWatchdog{name: "other", verdict: detect.Clear}
 
-	h := newHarness(t, juryConfig(), banConfig(), certain, other)
+	h := newHarness(t, juryRules(), banRules(), certain, other)
 
 	for range 10 {
 		h.click()
@@ -234,7 +280,7 @@ func TestEveryWatchdogSeesEveryClickIncludingTheDroppedOnes(t *testing.T) {
 }
 
 func TestTheReportNamesEveryWatchdogIncludingTheQuietOnes(t *testing.T) {
-	h := newHarness(t, juryConfig(), banConfig(),
+	h := newHarness(t, juryRules(), banRules(),
 		&stubWatchdog{name: "sure", verdict: detect.Certain},
 		&stubWatchdog{name: "quiet", verdict: detect.Clear},
 	)
@@ -253,7 +299,7 @@ func TestTheReportNamesEveryWatchdogIncludingTheQuietOnes(t *testing.T) {
 }
 
 func TestTheFlagIsNotRepeatedOnEveryClickInsideIt(t *testing.T) {
-	h := newHarness(t, juryConfig(), banConfig(),
+	h := newHarness(t, juryRules(), banRules(),
 		&stubWatchdog{name: "sure", verdict: detect.Certain},
 	)
 
@@ -265,10 +311,10 @@ func TestTheFlagIsNotRepeatedOnEveryClickInsideIt(t *testing.T) {
 }
 
 func TestACallerThatKeepsAtItIsReportedAgain(t *testing.T) {
-	ban := banConfig()
+	ban := banRules()
 	ban.ReflagInterval = time.Minute
 
-	h := newHarness(t, juryConfig(), ban, &stubWatchdog{name: "sure", verdict: detect.Certain})
+	h := newHarness(t, juryRules(), ban, &stubWatchdog{name: "sure", verdict: detect.Certain})
 
 	for range 4 {
 		h.click()
@@ -282,10 +328,10 @@ func TestACallerThatKeepsAtItIsReportedAgain(t *testing.T) {
 }
 
 func TestEnforceOffJudgesAndDropsNothing(t *testing.T) {
-	ban := banConfig()
+	ban := banRules()
 	ban.Enforce = false
 
-	h := newHarness(t, juryConfig(), ban, &stubWatchdog{name: "sure", verdict: detect.Certain})
+	h := newHarness(t, juryRules(), ban, &stubWatchdog{name: "sure", verdict: detect.Certain})
 
 	assert.False(t, h.click(), "the mode to deploy in")
 	assert.Len(t, h.reports, 1, "enforce must not change what is judged")
@@ -296,7 +342,7 @@ func TestCommittedReachesEveryWatchdog(t *testing.T) {
 	first := &stubWatchdog{name: "first"}
 	second := &stubWatchdog{name: "second"}
 
-	h := newHarness(t, juryConfig(), banConfig(), first, second)
+	h := newHarness(t, juryRules(), banRules(), first, second)
 
 	h.jury.Committed(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: h.clock.Now()})
 
@@ -308,7 +354,7 @@ func TestAttemptedReachesEveryWatchdogAndJudgesNothing(t *testing.T) {
 	first := &stubWatchdog{name: "first", verdict: detect.Certain}
 	second := &stubWatchdog{name: "second"}
 
-	h := newHarness(t, juryConfig(), banConfig(), first, second)
+	h := newHarness(t, juryRules(), banRules(), first, second)
 
 	h.jury.Attempted(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: h.clock.Now()})
 	h.jury.Attempted(detect.Click{Tile: 1, Country: "FR", At: h.clock.Now()})
@@ -322,7 +368,7 @@ func TestAttemptedReachesEveryWatchdogAndJudgesNothing(t *testing.T) {
 func TestACallerWithNoScopeIsNotJudged(t *testing.T) {
 	watchdog := &stubWatchdog{name: "sure", verdict: detect.Certain}
 
-	h := newHarness(t, juryConfig(), banConfig(), watchdog)
+	h := newHarness(t, juryRules(), banRules(), watchdog)
 
 	assert.False(t, h.inspect(detect.Click{Tile: 1, Country: "FR", At: h.clock.Now()}))
 	assert.Equal(t, 0, watchdog.seen)
@@ -331,7 +377,7 @@ func TestACallerWithNoScopeIsNotJudged(t *testing.T) {
 func TestTheCallerFactsTravelWithTheBan(t *testing.T) {
 	watchdog := &stubWatchdog{name: "sure", verdict: detect.Clear}
 
-	h := newHarness(t, juryConfig(), banConfig(), watchdog)
+	h := newHarness(t, juryRules(), banRules(), watchdog)
 
 	for range 20 {
 		h.click()
@@ -351,12 +397,12 @@ func TestTheCallerFactsTravelWithTheBan(t *testing.T) {
 }
 
 func TestExaminingAnUnknownCallerListsEveryWatchdogAsClear(t *testing.T) {
-	h := newHarness(t, juryConfig(), banConfig(),
+	h := newHarness(t, juryRules(), banRules(),
 		&stubWatchdog{name: "first", verdict: detect.Certain},
 		&stubWatchdog{name: "second", verdict: detect.Suspect},
 	)
 
-	examination := h.jury.Examine("stranger")
+	examination := h.jury.Examine("stranger", "")
 
 	assert.False(t, examination.Tracked)
 	assert.False(t, examination.Guilty)
@@ -371,14 +417,14 @@ func TestExaminingSaysHowCloseACallerIsAndChangesNothing(t *testing.T) {
 	unsure := &stubWatchdog{name: "unsure", verdict: detect.Suspect}
 	quiet := &stubWatchdog{name: "quiet", verdict: detect.Clear}
 
-	h := newHarness(t, juryConfig(), banConfig(), unsure, quiet)
+	h := newHarness(t, juryRules(), banRules(), unsure, quiet)
 
 	first := h.clock.Now()
 	require.False(t, h.click())
 	require.False(t, h.click())
 	last := first.Add(time.Second)
 
-	examination := h.jury.Examine("caller")
+	examination := h.jury.Examine("caller", "")
 
 	assert.Equal(t, detect.Examination{
 		Scope:   "caller",
@@ -403,14 +449,14 @@ func TestExaminingSaysHowCloseACallerIsAndChangesNothing(t *testing.T) {
 }
 
 func TestExaminingWithTwoSuspectsReadsGuiltyWithoutBanning(t *testing.T) {
-	h := newHarness(t, juryConfig(), banConfig(),
+	h := newHarness(t, juryRules(), banRules(),
 		&stubWatchdog{name: "first", verdict: detect.Suspect},
 		&stubWatchdog{name: "second", verdict: detect.Suspect},
 	)
 
 	require.True(t, h.click())
 
-	examination := h.jury.Examine("caller")
+	examination := h.jury.Examine("caller", "")
 
 	assert.True(t, examination.Guilty)
 	assert.Equal(t, 2, examination.Suspects)
@@ -418,7 +464,7 @@ func TestExaminingWithTwoSuspectsReadsGuiltyWithoutBanning(t *testing.T) {
 }
 
 func TestExaminingAgesASuspicionPastTheWindow(t *testing.T) {
-	h := newHarness(t, juryConfig(), banConfig(),
+	h := newHarness(t, juryRules(), banRules(),
 		&stubWatchdog{name: "first", verdict: detect.Suspect},
 		&stubWatchdog{name: "second", verdict: detect.Suspect},
 	)
@@ -426,7 +472,7 @@ func TestExaminingAgesASuspicionPastTheWindow(t *testing.T) {
 	require.True(t, h.click())
 	h.clock.Advance(11 * time.Minute)
 
-	examination := h.jury.Examine("caller")
+	examination := h.jury.Examine("caller", "")
 
 	assert.False(t, examination.Guilty)
 	assert.Zero(t, examination.Suspects)
@@ -437,7 +483,7 @@ func TestExaminingAgesASuspicionPastTheWindow(t *testing.T) {
 func TestAReadingFlappingAcrossABoundRisesOncePerWindow(t *testing.T) {
 	watchdog := &stubWatchdog{name: "unsure", verdict: detect.Suspect}
 
-	h := newHarness(t, juryConfig(), banConfig(), watchdog)
+	h := newHarness(t, juryRules(), banRules(), watchdog)
 
 	for i := range 300 {
 		watchdog.verdict = detect.Verdict(i % 2)
@@ -460,7 +506,7 @@ func TestGoingStraightToCertainRisesThroughSuspect(t *testing.T) {
 	watchdog := &stubWatchdog{name: "sure", verdict: detect.Clear}
 	quiet := &stubWatchdog{name: "quiet", verdict: detect.Clear}
 
-	h := newHarness(t, juryConfig(), banConfig(), watchdog, quiet)
+	h := newHarness(t, juryRules(), banRules(), watchdog, quiet)
 
 	h.click()
 	assert.Empty(t, h.rises, "clear is not a level")
@@ -479,7 +525,7 @@ func TestGoingStraightToCertainRisesThroughSuspect(t *testing.T) {
 
 func TestAGuestBannedByTheJuryCannotShedItWithAFreshCookie(t *testing.T) {
 	sure := &stubWatchdog{name: "sure", verdict: detect.Certain}
-	h := newHarness(t, juryConfig(), banConfig(), sure)
+	h := newHarness(t, juryRules(), banRules(), sure)
 
 	require.True(t, h.inspect(detect.Click{Scope: "caller", Account: "guest", Tile: 1, Country: "FR", At: h.clock.Now()}))
 	require.Len(t, h.reports, 1)
@@ -496,7 +542,7 @@ func TestAGuestBannedByTheJuryCannotShedItWithAFreshCookie(t *testing.T) {
 
 func TestASignedInAccountBannedByTheJuryLeavesItsScopeAlone(t *testing.T) {
 	sure := &stubWatchdog{name: "sure", verdict: detect.Certain}
-	h := newHarness(t, juryConfig(), banConfig(), sure)
+	h := newHarness(t, juryRules(), banRules(), sure)
 
 	require.True(t, h.inspect(detect.Click{Scope: "campus", Account: "bot", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()}))
 
@@ -525,7 +571,7 @@ func TestAGuiltyVerdictPassesToTheAccomplicesAWatchdogNames(t *testing.T) {
 		{Account: "third", SignedIn: true},
 	}}
 	other := &stubWatchdog{name: "other", verdict: detect.Suspect}
-	h := newHarness(t, juryConfig(), banConfig(), ring, other)
+	h := newHarness(t, juryRules(), banRules(), ring, other)
 
 	require.True(t, h.inspect(detect.Click{Scope: "campus", Account: "first", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()}))
 
@@ -552,7 +598,7 @@ func (h *harness) pardon(caller bans.Caller) {
 }
 
 func TestAPardonedCallerBansNobodyNotEvenItsRing(t *testing.T) {
-	h := newHarness(t, juryConfig(), banConfig(),
+	h := newHarness(t, juryRules(), banRules(),
 		&stubWatchdog{name: "ring", verdict: detect.Suspect, accomplices: []detect.Accomplice{{Account: "second", SignedIn: true}}},
 		&stubWatchdog{name: "other", verdict: detect.Suspect},
 	)
@@ -573,7 +619,7 @@ func TestAPardonedCallerBansNobodyNotEvenItsRing(t *testing.T) {
 }
 
 func TestAPardonedAccomplicePassesNoBanOnToItsRing(t *testing.T) {
-	h := newHarness(t, juryConfig(), banConfig(),
+	h := newHarness(t, juryRules(), banRules(),
 		&stubWatchdog{name: "ring", verdict: detect.Suspect, accomplices: []detect.Accomplice{
 			{Account: "second", SignedIn: true},
 			{Account: "third", SignedIn: true},
@@ -588,7 +634,7 @@ func TestAPardonedAccomplicePassesNoBanOnToItsRing(t *testing.T) {
 }
 
 func TestAReadingOfTurnsStillNamesTheRingOfAGuiltyCaller(t *testing.T) {
-	h := newHarness(t, juryConfig(), banConfig(),
+	h := newHarness(t, juryRules(), banRules(),
 		&stubWatchdog{name: "turns", verdict: detect.Suspect, turns: true, accomplices: []detect.Accomplice{{Account: "second", SignedIn: true}}},
 		&stubWatchdog{name: "ids", verdict: detect.Suspect},
 		&stubWatchdog{name: "cadence", verdict: detect.Suspect},
@@ -601,7 +647,7 @@ func TestAReadingOfTurnsStillNamesTheRingOfAGuiltyCaller(t *testing.T) {
 
 func TestALoneSuspicionPassesToNoAccomplice(t *testing.T) {
 	ring := &stubWatchdog{name: "ring", verdict: detect.Suspect, accomplices: []detect.Accomplice{{Account: "second", SignedIn: true}}}
-	h := newHarness(t, juryConfig(), banConfig(), ring, &stubWatchdog{name: "quiet", verdict: detect.Clear})
+	h := newHarness(t, juryRules(), banRules(), ring, &stubWatchdog{name: "quiet", verdict: detect.Clear})
 
 	require.False(t, h.inspect(detect.Click{Scope: "campus", Account: "first", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()}))
 
@@ -611,7 +657,7 @@ func TestALoneSuspicionPassesToNoAccomplice(t *testing.T) {
 
 func TestAWatchdogThatReadsClearNamesNoAccomplice(t *testing.T) {
 	ring := &stubWatchdog{name: "ring", verdict: detect.Clear, accomplices: []detect.Accomplice{{Account: "second", SignedIn: true}}}
-	h := newHarness(t, juryConfig(), banConfig(), ring, &stubWatchdog{name: "sure", verdict: detect.Certain})
+	h := newHarness(t, juryRules(), banRules(), ring, &stubWatchdog{name: "sure", verdict: detect.Certain})
 
 	require.True(t, h.inspect(detect.Click{Scope: "campus", Account: "first", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()}))
 
@@ -620,7 +666,7 @@ func TestAWatchdogThatReadsClearNamesNoAccomplice(t *testing.T) {
 
 func TestAnAccompliceAlreadyFlaggedIsNotReportedAgain(t *testing.T) {
 	ring := &stubWatchdog{name: "ring", verdict: detect.Certain, accomplices: []detect.Accomplice{{Account: "second", SignedIn: true}}}
-	h := newHarness(t, juryConfig(), banConfig(), ring)
+	h := newHarness(t, juryRules(), banRules(), ring)
 
 	h.inspect(detect.Click{Scope: "campus", Account: "first", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()})
 	require.Len(t, h.reports, 2)
@@ -633,16 +679,18 @@ func TestAnAccompliceAlreadyFlaggedIsNotReportedAgain(t *testing.T) {
 }
 
 func TestAGuestAccompliceTakesItsScopeWithIt(t *testing.T) {
-	ring := &stubWatchdog{name: "ring", verdict: detect.Certain, accomplices: []detect.Accomplice{{Account: "tab"}}}
-	h := newHarness(t, juryConfig(), banConfig(), ring)
+	ring := &stubWatchdog{name: "ring", verdict: detect.Certain, accomplices: []detect.Accomplice{{Account: "tab", Scope: "phone"}}}
+	h := newHarness(t, juryRules(), banRules(), ring)
 
 	require.True(t, h.inspect(detect.Click{Scope: "home", Account: "account", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()}))
 
 	ring.verdict, ring.accomplices = detect.Clear, nil
 	h.clock.Advance(time.Second)
 
-	assert.True(t, h.inspect(detect.Click{Scope: "home", Account: "fresh-cookie", Tile: 1, Country: "FR", At: h.clock.Now()}),
-		"a guest sheds its account with a new cookie, so its ban falls on its scope too")
+	assert.True(t, h.inspect(detect.Click{Scope: "phone", Account: "fresh-cookie", Tile: 1, Country: "FR", At: h.clock.Now()}),
+		"a guest sheds its account with a new cookie, so its ban falls on the scope it clicked from")
+	assert.False(t, h.inspect(detect.Click{Scope: "home", Account: "fresh-cookie", Tile: 1, Country: "FR", At: h.clock.Now()}),
+		"and not on its partner's")
 }
 
 func TestAFlagThatCannotBeKeptIsReported(t *testing.T) {
@@ -651,10 +699,30 @@ func TestAFlagThatCannotBeKeptIsReported(t *testing.T) {
 	cause := errors.New("postgres is down")
 	store.FailWith(cause)
 
-	j := jury.New(juryConfig(), bans.NewBook(banConfig(), pardon, clock, store, store), clock, jury.Hooks{},
+	book := bans.NewBook(banRules, pardon, clock, store, store, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
+	j := jury.New(jury.Config{TrackWindow: time.Hour}, juryRules, book, clock, jury.Hooks{},
 		&stubWatchdog{name: "sure", verdict: detect.Certain})
 
 	err := j.Inspect(t.Context(), detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
 
 	require.ErrorIs(t, err, cause)
+}
+
+func TestAnAccountIsExaminedOnTheScopeItClickedFromLast(t *testing.T) {
+	h := newHarness(t, juryRules(), banRules(), &stubWatchdog{name: "reader", verdict: detect.Suspect})
+
+	h.inspect(detect.Click{Scope: "home", Account: "player", Tile: 1, Country: "FR", At: h.clock.Now()})
+	h.clock.Advance(time.Minute)
+	h.inspect(detect.Click{Scope: "phone", Account: "player", Tile: 2, Country: "FR", At: h.clock.Now()})
+
+	examination := h.jury.Examine("", "player")
+
+	assert.Equal(t, "phone", examination.Scope)
+	assert.Equal(t, "player", examination.Account)
+	assert.True(t, examination.Tracked)
+	assert.Equal(t, 1, examination.Clicks, "the watchdogs judge the scope, not the account")
+
+	stranger := h.jury.Examine("", "stranger")
+	assert.Empty(t, stranger.Scope)
+	assert.False(t, stranger.Tracked)
 }

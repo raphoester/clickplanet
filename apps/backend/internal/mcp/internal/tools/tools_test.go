@@ -10,22 +10,25 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 
+	"google.golang.org/protobuf/types/descriptorpb"
+
 	"github.com/raphoester/clickplanet.lol-backend/generated/descriptors"
+	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/alerts/v1"
+	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
+	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1"
+	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
+	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/promo/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/mcp/internal/tools"
 )
 
-var (
-	leftOut = []protoreflect.FullName{"auth.v1"}
-	hidden  = []protoreflect.FullName{"planet.v1.AdminService.GetReplay"}
-)
-
 func catalog(t *testing.T) *tools.Catalog {
 	t.Helper()
-	catalog, err := tools.CatalogOf(descriptors.Admin(), leftOut, hidden)
+	catalog, err := tools.CatalogOf(descriptors.Admin(), tools.LeftOut, tools.Hidden)
 	require.NoError(t, err)
 	return catalog
 }
@@ -36,17 +39,22 @@ func TestEveryAdminMethodIsATool(t *testing.T) {
 		names[tool.Name] = tool.Procedure
 	}
 
-	assert.Equal(t, "/planet.v1.AdminService/BanPlayer", names["planet_ban_player"])
+	assert.Equal(t, "/antibot.v1.AdminService/BanPlayer", names["antibot_ban_player"])
 	assert.Equal(t, "/chat.v1.AdminService/RemoveMessage", names["chat_remove_message"])
-	assert.Equal(t, "/player.v1.AdminService/ReconcileTitles", names["player_reconcile_titles"])
+	assert.Equal(t, "/progression.v1.AdminService/ReconcileTitles", names["progression_reconcile_titles"])
 	assert.Equal(t, "/support.v1.AdminService/DecideReport", names["support_decide_report"])
-	assert.NotContains(t, names, "planet_get_replay", "hidden: megabytes for a day")
+	for _, hidden := range []string{
+		"planet_get_replay", "planet_get_ledger", "planet_get_territories",
+		"clips_keep_snapshot", "clips_make_cast", "clips_keep_appearance",
+	} {
+		assert.NotContains(t, names, hidden)
+	}
+	assert.NotContains(t, names, "planet_ban_player", "deprecated: antibot_ban_player replaces it")
 	for name := range names {
 		assert.NotRegexp(t, "^auth_", name, "an app never signs in or lets an app in")
 	}
 }
 
-// The tools are read from the embedded set and served by the generated code: both come from one `make proto`.
 func TestTheEmbeddedSetIsTheOneTheServerIsBuiltFrom(t *testing.T) {
 	served := 0
 	for _, tool := range catalog(t).Tools() {
@@ -56,13 +64,22 @@ func TestTheEmbeddedSetIsTheOneTheServerIsBuiltFrom(t *testing.T) {
 		served++
 	}
 
-	generated := 0
-	for _, pkg := range []string{"planet.v1", "chat.v1", "player.v1", "support.v1"} {
+	offered := 0
+	for _, pkg := range []string{
+		"alerts.v1", "antibot.v1", "chat.v1", "clips.v1", "gamemaster.v1", "planet.v1", "player.v1", "progression.v1",
+		"promo.v1", "support.v1",
+	} {
 		service, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(pkg + ".AdminService"))
 		require.NoError(t, err)
-		generated += service.(protoreflect.ServiceDescriptor).Methods().Len()
+		methods := service.(protoreflect.ServiceDescriptor).Methods()
+		for i := range methods.Len() {
+			options, _ := methods.Get(i).Options().(*descriptorpb.MethodOptions)
+			if !options.GetDeprecated() {
+				offered++
+			}
+		}
 	}
-	assert.Equal(t, generated-len(hidden), served, "a method in the generated code and not in the set: run make proto")
+	assert.Equal(t, offered-len(tools.Hidden), served, "a method in the generated code and not in the set: run make proto")
 }
 
 func TestEveryToolSaysWhatItDoes(t *testing.T) {
@@ -75,8 +92,8 @@ func TestAReadIsAMethodMarkedNoSideEffects(t *testing.T) {
 	c := catalog(t)
 
 	for name, reads := range map[string]bool{
-		"planet_top_players": true, "planet_inspect_player": true, "support_list_notes": true, "chat_get_message": true,
-		"planet_ban_player": false, "chat_mute": false, "planet_reassign_country": false,
+		"planet_top_players": true, "antibot_inspect_player": true, "support_list_notes": true, "chat_get_message": true,
+		"antibot_ban_player": false, "chat_mute": false, "planet_reassign_country": false,
 	} {
 		tool, err := c.Tool(name)
 		require.NoError(t, err, name)
@@ -88,7 +105,7 @@ func TestAReadIsAMethodMarkedNoSideEffects(t *testing.T) {
 }
 
 func TestAToolsInputIsItsRequestAsProtojsonReadsIt(t *testing.T) {
-	tool, err := catalog(t).Tool("planet_ban_player")
+	tool, err := catalog(t).Tool("antibot_ban_player")
 	require.NoError(t, err)
 	assert.Equal(t, "Ban player", tool.Title)
 

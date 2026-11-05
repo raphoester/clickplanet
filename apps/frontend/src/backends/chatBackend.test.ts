@@ -13,8 +13,10 @@ import {
     Announcement,
     ChatEvent,
     ChatMessage as ChatMessagePb,
+    Gif as GifPb,
     Heartbeat,
     MessageRemoved,
+    MuteKind,
     MuteRefusal,
     Quote,
     Reaction,
@@ -27,12 +29,12 @@ import {
     ChatMessageGoneError,
     ChatMutedError,
     ChatNoSessionError,
+    ChatNotInRoomError,
     ChatRateLimitedError,
     ChatRejectedError,
 } from "./chat.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {NameColor} from "./player.ts"
-import {Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
 
 const outgoing = {authorId: "author-1", countryCode: "fr", text: "hello"}
 
@@ -61,10 +63,8 @@ const proto = () => new ChatMessagePb({
     authorName: "Ana",
     authorAdmin: true,
     authorColor: NameColor.TEAL,
-    authorStreak: 12,
-    authorTitle: new TitlePb({id: "og", name: "OG"}),
     countryId: "fr",
-    text: "hello",
+    body: {case: "text", value: "hello"},
     reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]})],
     reactionsVersion: BigInt(3),
 })
@@ -89,8 +89,6 @@ describe("decodedMessage", () => {
             authorName: "Ana",
             authorAdmin: true,
             authorColor: NameColor.TEAL,
-            authorStreak: 12,
-            authorTitle: {id: "og", name: "OG", rank: undefined},
             countryCode: "fr",
             text: "hello",
             reactions: [{reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]}],
@@ -108,9 +106,35 @@ describe("decodedMessage", () => {
         expect(decodedMessage(removed).replyTo?.removed).toBe(true)
     })
 
+    it("carries a GIF, and the GIF of a quoted message", () => {
+        const gif = new GifPb({url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124})
+        const message = proto()
+        message.body = {case: "gif", value: gif}
+        message.replyTo = new Quote({messageId: "message-0", authorName: "Bo", body: {case: "gif", value: gif}})
+
+        const decoded = decodedMessage(message)
+
+        expect(decoded.gif).toEqual({url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124})
+        expect(decoded.text).toBe("")
+        expect(decoded.replyTo?.gif).toEqual(decoded.gif)
+        expect(decodedMessage(proto()).gif).toBeUndefined()
+    })
+
+    it("reads a removed message, which has neither, as no text and no GIF", () => {
+        const removed = proto()
+        removed.removed = true
+        removed.body = {case: undefined}
+
+        expect(decodedMessage(removed)).toMatchObject({text: "", removed: true})
+        expect(decodedMessage(removed).gif).toBeUndefined()
+    })
+
     it("carries the message a reply quotes, and none for a plain message", () => {
         const reply = proto()
-        reply.replyTo = new Quote({messageId: "message-0", authorName: "Bo", authorColor: NameColor.PINK, text: "who holds the north"})
+        reply.replyTo = new Quote({
+            messageId: "message-0", authorName: "Bo", authorColor: NameColor.PINK,
+            body: {case: "text", value: "who holds the north"},
+        })
 
         expect(decodedMessage(reply).replyTo).toEqual({
             messageId: "message-0",
@@ -235,13 +259,14 @@ describe("decodedAnnouncement", () => {
         payload,
     })
 
-    it("reads a bomb on land", () => {
-        expect(decodedAnnouncement(bomb(`{"country":"fr","ground":"de","tile":42,"cleared":3}`))).toEqual({
+    it("reads a bomb on land, with the landmass it hit", () => {
+        expect(decodedAnnouncement(bomb(`{"country":"fr","ground":"au","landmass":420,"tile":42,"cleared":3}`))).toEqual({
             kind: "bomb",
             id: "announcement-1",
             announcedAt: 1_700_000_000_000,
             country: "fr",
-            ground: "de",
+            ground: "au",
+            landmass: 420,
             tile: 42,
             cleared: 3,
         })
@@ -271,6 +296,7 @@ describe("decodedAnnouncement", () => {
             announcedAt: 1_700_000_000_000,
             country: "fr",
             ground: undefined,
+            landmass: undefined,
             tile: undefined,
             cleared: 0,
         })
@@ -282,8 +308,17 @@ describe("decodedAnnouncement", () => {
             id: "announcement-1",
             announcedAt: 1_700_000_000_000,
             name: "guest_a1b2c3",
+            muteKind: "chat",
             seconds: 3600,
         })
+    })
+
+    it("reads the kind of a mute, the GIFs alone or the whole chat", () => {
+        const gifs = decodedAnnouncement(bomb(`{"name":"guest_a1b2c3","kind":"gifs","seconds":3600}`, "mute"))
+        const chat = decodedAnnouncement(bomb(`{"name":"guest_a1b2c3","kind":"chat","seconds":3600}`, "mute"))
+
+        expect(gifs).toMatchObject({kind: "mute", muteKind: "gifs"})
+        expect(chat).toMatchObject({kind: "mute", muteKind: "chat"})
     })
 
     it("drops a mute with no name or no length", () => {
@@ -301,15 +336,20 @@ describe("decodedAnnouncement", () => {
             announcedAt: 1_700_000_000_000,
             number: 5,
             finale: false,
+            own: false,
+            times: 1,
             podium: [{country: "fr", rank: 1, points: 25}, {country: "de", rank: 2, points: 18}],
         })
     })
 
-    it("reads the Final Battle, and skips a place it cannot read", () => {
-        const payload = `{"number":23,"finale":true,"podium":[{"country":"fr","rank":1,"points":75},{"rank":2}]}`
+    it("reads the Final Battle, a round of its own and its times, and skips a place it cannot read", () => {
+        const payload = `{"number":1,"finale":true,"own":true,"times":3,"podium":[{"country":"fr","rank":1,"points":75},{"rank":2}]}`
 
         expect(decodedAnnouncement(bomb(payload, "round"))).toMatchObject({
+            number: 1,
             finale: true,
+            own: true,
+            times: 3,
             podium: [{country: "fr", rank: 1, points: 75}],
         })
     })
@@ -317,6 +357,23 @@ describe("decodedAnnouncement", () => {
     it("drops a round with no number or no podium", () => {
         expect(decodedAnnouncement(bomb(`{"podium":[]}`, "round"))).toBeUndefined()
         expect(decodedAnnouncement(bomb(`{"number":5}`, "round"))).toBeUndefined()
+    })
+
+    it("reads a season's champion", () => {
+        expect(decodedAnnouncement(bomb(`{"season":0,"countries":["de"]}`, "champion"))).toEqual({
+            kind: "champion",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            season: 0,
+            countries: ["de"],
+        })
+    })
+
+    it("drops a champion with no season or no country", () => {
+        expect(decodedAnnouncement(bomb(`{"countries":["de"]}`, "champion"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"season":0,"countries":[]}`, "champion"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"season":0,"countries":[""]}`, "champion"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"season":0}`, "champion"))).toBeUndefined()
     })
 
     it("drops a kind it does not know, and a payload that is not the kind's", () => {
@@ -347,8 +404,19 @@ describe("ChatServiceBackend.sendMessage", () => {
         expect(client.sendMessage).toHaveBeenCalledWith({
             authorId: "author-1",
             countryId: "fr",
-            text: "hello",
+            body: {case: "text", value: "hello"},
+            flagRoom: "",
         }, expect.anything())
+    })
+
+    it("sends a GIF as it was found", async () => {
+        const sendMessage = vi.fn().mockResolvedValue({message: proto()})
+        const gif = {url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124}
+
+        await new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, session(), unusedKeepalive)
+            .sendMessage({...outgoing, text: "", gif})
+
+        expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({body: {case: "gif", value: gif}}), expect.anything())
     })
 
     it("says which message it replies to", async () => {
@@ -360,8 +428,9 @@ describe("ChatServiceBackend.sendMessage", () => {
         expect(sendMessage).toHaveBeenCalledWith({
             authorId: "author-1",
             countryId: "fr",
-            text: "hello",
+            body: {case: "text", value: "hello"},
             replyToMessageId: "message-0",
+            flagRoom: "",
         }, expect.anything())
     })
 
@@ -449,6 +518,19 @@ describe("ChatServiceBackend.sendMessage", () => {
 
         expect(refusal).toBeInstanceOf(ChatMutedError)
         expect((refusal as ChatMutedError).until).toBe(1_700_003_600_000)
+        expect((refusal as ChatMutedError).kind).toBe("chat")
+    })
+
+    it("reads a denial that carries a mute of the GIFs as such", async () => {
+        const muted = new ConnectError("muted in the chat", Code.PermissionDenied, undefined,
+            [new MuteRefusal({mutedUntilUnixMs: BigInt(1_700_003_600_000), kind: MuteKind.GIFS})])
+        const backend = new ChatServiceBackend(clientThatFails(muted), session(), unusedKeepalive)
+
+        const refusal = await backend.sendMessage(outgoing).catch((e: unknown) => e)
+
+        expect(refusal).toBeInstanceOf(ChatMutedError)
+        expect((refusal as ChatMutedError).kind).toBe("gifs")
+        expect((refusal as ChatMutedError).until).toBe(1_700_003_600_000)
     })
 
     it("leaves any other fault alone", async () => {
@@ -532,7 +614,7 @@ describe("ChatServiceBackend's seen mark", () => {
 
         await new ChatServiceBackend({} as PromiseClient<typeof ChatService>, provider, keepalive).markSeen(1_700_000_000_123)
 
-        expect(markSeen.mock.calls[0][0]).toEqual({seenUntilUnixMs: BigInt(1_700_000_000_123)})
+        expect(markSeen.mock.calls[0][0]).toEqual({seenUntilUnixMs: BigInt(1_700_000_000_123), flagRoom: ""})
         expect(headersOf(markSeen).get(SESSION_HEADER)).toBe("token-1")
         expect(provider.token).not.toHaveBeenCalled()
     })
@@ -562,5 +644,81 @@ describe("ChatServiceBackend's seen mark", () => {
 
         await expect(new ChatServiceBackend({} as PromiseClient<typeof ChatService>, unheld(), keepalive).markSeen(1))
             .rejects.toBeInstanceOf(ChatNoSessionError)
+    })
+})
+
+describe("ChatServiceBackend's flag room", () => {
+    const refused = () => new ConnectError("not this flag", Code.FailedPrecondition)
+
+    function streamThat(fails: unknown) {
+        const listenForEvents = vi.fn((): AsyncIterable<ChatEvent> => ({
+            [Symbol.asyncIterator]: () => ({next: () => Promise.reject(fails)}),
+        }))
+        return {listenForEvents, client: {listenForEvents} as unknown as PromiseClient<typeof ChatService>}
+    }
+
+    it("names the flag on every call, and the world names none", async () => {
+        const sendMessage = vi.fn().mockResolvedValue({message: proto()})
+        const getHistory = vi.fn().mockResolvedValue({messages: [], announcements: []})
+        const markSeen = vi.fn().mockResolvedValue({})
+        const client = {sendMessage, getHistory} as unknown as PromiseClient<typeof ChatService>
+        const world = new ChatServiceBackend(client, session(), {markSeen} as unknown as PromiseClient<typeof ChatService>)
+        const france = world.flagRoom("fr")
+
+        await france.sendMessage(outgoing)
+        await france.getHistory()
+        await france.markSeen(1)
+        await world.getHistory()
+
+        expect(sendMessage.mock.calls[0][0]).toMatchObject({flagRoom: "fr"})
+        expect(getHistory.mock.calls[0][0]).toEqual({flagRoom: "fr"})
+        expect(markSeen.mock.calls[0][0]).toMatchObject({flagRoom: "fr"})
+        expect(getHistory.mock.calls[1][0]).toEqual({flagRoom: ""})
+    })
+
+    it("reads a refusal for a flag the player does not play for as not in the room", async () => {
+        const client = clientThatFails(refused())
+        const france = new ChatServiceBackend(client, session(), unusedKeepalive).flagRoom("fr")
+
+        await expect(france.sendMessage(outgoing)).rejects.toBeInstanceOf(ChatNotInRoomError)
+        await expect(france.getHistory()).rejects.toBeInstanceOf(ChatNotInRoomError)
+    })
+
+    it("listens as the identity the cookie resumes, never a mint", async () => {
+        const {listenForEvents, client} = streamThat(refused())
+        const provider: SessionProvider = {
+            token: vi.fn(async () => "minted"),
+            held: vi.fn(() => undefined),
+            identity: vi.fn(async () => "identity-1"),
+            heldIdentity: vi.fn(() => undefined),
+            invalidate: vi.fn(),
+        }
+
+        const stop = new ChatServiceBackend(client, provider, unusedKeepalive).flagRoom("fr")
+            .listenForMessages(() => {})
+        await vi.waitFor(() => expect(listenForEvents).toHaveBeenCalled())
+        stop()
+
+        const [request, options] = listenForEvents.mock.calls[0] as unknown as [unknown, {headers: Headers}]
+        expect(request).toEqual({flagRoom: "fr"})
+        expect(options.headers.get(SESSION_HEADER)).toBe("identity-1")
+        expect(provider.token).not.toHaveBeenCalled()
+    })
+
+    it("stops listening for good once the player left the flag, and says so", async () => {
+        vi.useFakeTimers()
+        try {
+            const {listenForEvents, client} = streamThat(refused())
+            const onLeft = vi.fn()
+
+            new ChatServiceBackend(client, session(), unusedKeepalive).flagRoom("fr")
+                .listenForMessages(() => {}, undefined, undefined, undefined, undefined, onLeft)
+            await vi.advanceTimersByTimeAsync(120_000)
+
+            expect(listenForEvents).toHaveBeenCalledOnce()
+            expect(onLeft).toHaveBeenCalledOnce()
+        } finally {
+            vi.useRealTimers()
+        }
     })
 })

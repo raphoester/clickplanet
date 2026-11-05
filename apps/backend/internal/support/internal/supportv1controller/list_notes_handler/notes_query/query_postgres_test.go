@@ -196,7 +196,7 @@ func (s *testSuite) TestALinkThatCannotBeMadeRefusesTheRead() {
 }
 
 func (s *testSuite) TestANoteKeptBeforeADiagnosticOrWithOneThisBuildDoesNotKnowIsStillRead() {
-	_, err := s.db.ExecContext(s.T().Context(), `
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `
 		INSERT INTO notes (id, kind, account_id, text, diagnostics, submitted_at)
 		VALUES ($1, 'bug', $2, 'the globe is black', '{"build": "play-a1b2c3.js", "userAgent": "Mozilla/5.0", "frameRate": 12}', $3)
 	`, uuid.UUID{15: 1}, uuid.UUID(ada), start)
@@ -262,7 +262,7 @@ func (s *testSuite) TestTheLimitKeepsTheNewest() {
 
 func (s *testSuite) TestNoLimitIsTheDefaultAndNoLimitPassesTheMost() {
 	for n := range notes_query.MaxLimit + 5 {
-		_, err := s.db.ExecContext(s.T().Context(),
+		_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(),
 			`INSERT INTO notes (id, kind, account_id, text, diagnostics, submitted_at) VALUES ($1, 'suggestion', $2, 'one of many', '{}', $3)`,
 			uuid.New(), uuid.UUID(ada), start.Add(time.Duration(n)*time.Second))
 		s.Require().NoError(err)
@@ -273,9 +273,9 @@ func (s *testSuite) TestNoLimitIsTheDefaultAndNoLimitPassesTheMost() {
 }
 
 func (s *testSuite) TestAKindTheDatabaseNamesAndTheWireCannotCarryRefusesTheRead() {
-	_, err := s.db.ExecContext(s.T().Context(), `ALTER TYPE note_kind ADD VALUE IF NOT EXISTS 'praise'`)
+	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `ALTER TYPE note_kind ADD VALUE IF NOT EXISTS 'praise'`)
 	s.Require().NoError(err)
-	_, err = s.db.ExecContext(s.T().Context(),
+	_, err = s.db.On(s.T().Context()).ExecContext(s.T().Context(),
 		`INSERT INTO notes (id, kind, account_id, text, diagnostics, submitted_at) VALUES ($1, 'praise', $2, 'nice game', '{}', $3)`,
 		uuid.New(), uuid.UUID(ada), start)
 	s.Require().NoError(err)

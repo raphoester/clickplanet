@@ -29,16 +29,7 @@ func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Cloc
 		cpconnect.Identified(playerv1connect.PlayerServiceGetProfileProcedure),
 		cpconnect.Attested(playerv1connect.PlayerServiceSetNameProcedure),
 		cpconnect.Attested(playerv1connect.PlayerServiceSetColorProcedure),
-		cpconnect.Identified(playerv1connect.PlayerServiceGetStatsProcedure),
 		cpconnect.Attested(playerv1connect.PlayerServiceAnnounceProcedure),
 		cpconnect.Identified(playerv1connect.PlayerServiceLeaveProcedure),
-		cpconnect.Identified(playerv1connect.PlayerServiceGetTitlesProcedure),
-		cpconnect.Attested(playerv1connect.PlayerServiceWearTitleProcedure),
-		cpconnect.Identified(playerv1connect.PlayerServiceGetFrontsProcedure),
 	)
-}
-
-func NewStreamSessionReader(verifier cpconnect.SessionVerifier, clock cptime.Clock) connect.Interceptor {
-	return cpconnect.NewSessionReaderInterceptor(verifier, clock,
-		cpconnect.Identified(playerv1connect.PlayerServiceListenForEventsProcedure))
 }

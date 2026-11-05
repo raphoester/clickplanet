@@ -45,7 +45,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A public client sends its id in the form; one that sends it as HTTP Basic, with any secret, is read the same.
+	// A client id sent as HTTP Basic, with any secret, is read as one sent in the form.
 	clientID := r.PostForm.Get("client_id")
 	if basic, _, ok := r.BasicAuth(); ok && clientID == "" {
 		clientID = basic
@@ -82,10 +82,11 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	issued := pair.TakeSnapshot()
 	oauthcontroller.JSON(w, http.StatusOK, tokens{
-		AccessToken:  string(pair.Access()),
+		AccessToken:  string(issued.Access),
 		TokenType:    "Bearer",
 		ExpiresIn:    int(admintokens.AccessLifetime.Seconds()),
-		RefreshToken: string(pair.Refresh()),
+		RefreshToken: string(issued.Refresh),
 	})
 }

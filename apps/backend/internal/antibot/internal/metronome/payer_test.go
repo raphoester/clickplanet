@@ -78,8 +78,8 @@ type household struct {
 	browsers []*browser
 }
 
-func newHousehold(config metronome.Config) *household {
-	h := newHarness(config)
+func newHousehold(rules metronome.Rules, config metronome.Config) *household {
+	h := newHarness(rules, config)
 	return &household{watchdog: h.watchdog, start: h.clock.Now(), now: h.clock.Now()}
 }
 
@@ -119,15 +119,10 @@ func (h *household) playUntil(done func() bool) {
 	}
 }
 
-func productionCadence() metronome.Config {
-	return metronome.Config{
-		MaxGap:        7 * time.Second,
-		MaxSpread:     400 * time.Millisecond,
-		MinClicks:     120,
-		CertainFor:    30 * time.Minute,
-		CertainClicks: 900,
-		TrackWindow:   15 * time.Minute,
-	}
+func productionCadence() (metronome.Rules, metronome.Config) {
+	rules := shipped()
+	rules.MaxGap, rules.MaxSpread = 7*time.Second, 400*time.Millisecond
+	return rules, metronome.Config{TrackWindow: 15 * time.Minute}
 }
 
 func TestHandsBehindOneNetworkAreEachJudgedAlone(t *testing.T) {
@@ -185,7 +180,7 @@ func TestALoopBehindABusyNetworkIsSuspectThenCertain(t *testing.T) {
 }
 
 func TestARandomSleepBehindABusyNetworkIsStillRead(t *testing.T) {
-	h := newHousehold(shapeConfig())
+	h := newHousehold(shaped())
 	loop := h.browser("loop", gapsOf(randomSleep))
 	neighbours := []*browser{h.browser("one", gapsOf(hand)), h.browser("two", gapsOf(hand))}
 
@@ -201,7 +196,7 @@ func TestARandomSleepBehindABusyNetworkIsStillRead(t *testing.T) {
 }
 
 func TestAHiddenTabBehindABusyNetworkKeepsItsBeat(t *testing.T) {
-	h := newHousehold(clockConfig())
+	h := newHousehold(clocked())
 	tab := h.browser("tab", onTheSecond)
 	neighbours := []*browser{h.browser("one", gapsOf(hand)), h.browser("two", gapsOf(hand))}
 

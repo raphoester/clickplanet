@@ -20,14 +20,14 @@ import (
 var at = time.Date(2026, 9, 18, 12, 0, 0, 0, time.UTC)
 
 func subscriber(store *inmemory_announcement_storage.Storage) bomb_landed_subscriber.Subscriber {
-	return bomb_landed_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler)), &announcements.SequentialIDs{}))
+	return bomb_landed_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler))))
 }
 
 func TestABombIsAnnouncedAtTheTimeItLanded(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 
 	err := subscriber(store).Handle(t.Context(), &planetv1.BombLanded{
-		Country: "fr", TileId: 42, Ground: "de", Cleared: 3, LandedAt: timestamppb.New(at),
+		Country: "fr", TileId: 42, Ground: "au", LandmassId: 420, Cleared: 3, LandedAt: timestamppb.New(at),
 	})
 
 	require.NoError(t, err)
@@ -35,7 +35,7 @@ func TestABombIsAnnouncedAtTheTimeItLanded(t *testing.T) {
 	require.Len(t, kept, 1)
 	assert.Equal(t, announcements.KindBomb, kept[0].Kind())
 	assert.Equal(t, at, kept[0].At())
-	assert.JSONEq(t, `{"country":"fr","ground":"de","tile":42,"cleared":3}`, string(kept[0].Payload()))
+	assert.JSONEq(t, `{"country":"fr","ground":"au","landmass":420,"tile":42,"cleared":3}`, string(kept[0].Payload()))
 }
 
 func TestABombInTheSeaHasNoGroundAndNoTile(t *testing.T) {
@@ -47,6 +47,19 @@ func TestABombInTheSeaHasNoGroundAndNoTile(t *testing.T) {
 	kept := store.Kept()
 	require.Len(t, kept, 1)
 	assert.JSONEq(t, `{"country":"fr","cleared":0}`, string(kept[0].Payload()))
+}
+
+func TestABombToldTwiceIsAnnouncedOnce(t *testing.T) {
+	store := inmemory_announcement_storage.New()
+	landed := func(position uint64) *planetv1.BombLanded {
+		return &planetv1.BombLanded{Country: "fr", LandedAt: timestamppb.New(at), Position: position}
+	}
+
+	require.NoError(t, subscriber(store).Handle(t.Context(), landed(7)))
+	require.NoError(t, subscriber(store).Handle(t.Context(), landed(7)))
+	require.NoError(t, subscriber(store).Handle(t.Context(), landed(8)))
+
+	assert.Len(t, store.Kept(), 2, "bombs 7 and 8 of the ledger")
 }
 
 func TestABombWithNoTimeIsRefused(t *testing.T) {

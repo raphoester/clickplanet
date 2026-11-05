@@ -7,9 +7,13 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 type IdentityStore interface {
@@ -20,37 +24,57 @@ type IdentityStore interface {
 	SaveSignIn(ctx context.Context, signIn accounts.SignIn) error
 }
 
-type Publisher interface {
-	Publish(event proto.Message)
+type ArrivalRecorder interface {
+	Record(ctx context.Context, account accounts.AccountID, landing arrivals.Landing, now time.Time) error
+}
+
+// The leave a Discord sign-in gave to join the game's Discord server, kept with the sign-in for the alerts module.
+type GrantKeeper interface {
+	NewGrant(account accounts.AccountID, user string, token string, now time.Time) (grants.Grant, error)
+	Keep(ctx context.Context, grant grants.Grant) error
 }
 
 type Admitter struct {
-	store    IdentityStore
-	ids      accounts.IDProvider
-	tokens   accounts.TokenGenerator
-	lifetime accounts.Lifetime
-	events   Publisher
+	transactioner cpatomic.Transactioner
+	store         IdentityStore
+	outbox        cpatomic.Outbox
+	arrivals      ArrivalRecorder
+	grants        GrantKeeper
+	ids           accounts.IDProvider
+	tokens        accounts.TokenGenerator
+	lifetime      accounts.Lifetime
 }
 
 func NewAdmitter(
-	store IdentityStore, ids accounts.IDProvider, tokens accounts.TokenGenerator, lifetime accounts.Lifetime, events Publisher,
+	transactioner cpatomic.Transactioner,
+	store IdentityStore,
+	outbox cpatomic.Outbox,
+	arrivals ArrivalRecorder,
+	grantKeeper GrantKeeper,
+	ids accounts.IDProvider,
+	tokens accounts.TokenGenerator,
+	lifetime accounts.Lifetime,
 ) *Admitter {
-	return &Admitter{store: store, ids: ids, tokens: tokens, lifetime: lifetime.WithDefaults(), events: events}
+	return &Admitter{
+		transactioner: transactioner, store: store, outbox: outbox, arrivals: arrivals, grants: grantKeeper, ids: ids,
+		tokens: tokens, lifetime: lifetime.WithDefaults(),
+	}
 }
 
 type Visitor struct {
 	account  *accounts.Account
 	replaces accounts.TokenHash
+	landing  arrivals.Landing
 }
 
 func (v *Visitor) Account() *accounts.Account {
 	return v.account
 }
 
-func (a *Admitter) Visitor(ctx context.Context, cookieHeader string, now time.Time) (*Visitor, error) {
+func (a *Admitter) Visitor(ctx context.Context, cookieHeader string, landing arrivals.Landing, now time.Time) (*Visitor, error) {
 	session, err := accounts.Caller(ctx, a.store, cookieHeader, now)
 	if errors.Is(err, accounts.ErrNoAccount) {
-		return &Visitor{}, nil
+		return &Visitor{landing: landing}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the caller: %w", err)
@@ -58,17 +82,18 @@ func (a *Admitter) Visitor(ctx context.Context, cookieHeader string, now time.Ti
 
 	account, err := a.store.Account(ctx, session.Account())
 	if errors.Is(err, accounts.ErrAccountNotFound) {
-		return &Visitor{replaces: session.TokenHash()}, nil
+		return &Visitor{replaces: session.TokenHash(), landing: landing}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the caller's account: %w", err)
 	}
-	return &Visitor{account: account, replaces: session.TokenHash()}, nil
+	return &Visitor{account: account, replaces: session.TokenHash(), landing: landing}, nil
 }
 
 type Admission struct {
 	account   accounts.AccountID
 	outcome   accounts.Outcome
+	restored  bool
 	setCookie string
 }
 
@@ -78,6 +103,11 @@ func (a *Admission) Account() accounts.AccountID {
 
 func (a *Admission) Outcome() accounts.Outcome {
 	return a.outcome
+}
+
+// The account had asked to be deleted, and this sign-in brought it back.
+func (a *Admission) Restored() bool {
+	return a.restored
 }
 
 func (a *Admission) SetCookie() string {
@@ -120,19 +150,27 @@ func (a *Admitter) admit(
 	if err != nil {
 		return nil, fmt.Errorf("failed to link %s: %w", provider, err)
 	}
-	var account accounts.AccountID
+	var (
+		account accounts.AccountID
+		target  *accounts.Account
+	)
 	switch outcome {
 	case accounts.SignedIn:
 		account = known.Account()
+		if target, err = a.store.Account(ctx, account); err != nil {
+			return nil, fmt.Errorf("failed to find the identity's account: %w", err)
+		}
 	case accounts.Linked:
-		account = current.ID()
+		account, target = current.ID(), current
 	case accounts.Joined:
-		account = owner.ID()
+		account, target = owner.ID(), owner
 	case accounts.Created:
 		if account, err = a.ids.NewID(); err != nil {
 			return nil, fmt.Errorf("failed to get an account id: %w", err)
 		}
 	}
+	// Coming back within the grace period undoes the deletion, whichever identity the player came back with.
+	restored := target != nil && target.DeletionRequested()
 
 	token, err := a.tokens.NewToken()
 	if err != nil {
@@ -146,17 +184,54 @@ func (a *Admitter) admit(
 	if outcome != accounts.SignedIn {
 		signIn = signIn.WithIdentity(accounts.NewIdentity(provider, claim, account, now))
 	}
-
-	if err := a.store.SaveSignIn(ctx, signIn); err != nil {
-		return nil, fmt.Errorf("failed to save the sign-in: %w", err)
+	if restored {
+		signIn = signIn.WithRestored()
 	}
 
-	signedIn := &authv1.SignedIn{AccountId: account.String()}
+	signedIn := &authv1.SignedIn{AccountId: account.String(), IdentityName: claim.Name()}
 	if current != nil {
 		signedIn.PreviousAccountId = current.ID().String()
 	}
-	// After the sign-in is saved: a subscriber moves what it keeps for the old account.
-	a.events.Publish(signedIn)
+	events := []proto.Message{signedIn}
+	if restored {
+		events = []proto.Message{&authv1.AccountRestored{AccountId: account.String(), RestoredAt: timestamppb.New(now)}, signedIn}
+	}
+	// Whatever the outcome, a link of an identity the account holds already too: the alerts module decides whether
+	// there is anything to join.
+	var grant *grants.Grant
+	if token := claim.ServerToken(); token != "" {
+		granted, err := a.grants.NewGrant(account, claim.Subject(), token, now)
+		if err != nil {
+			return nil, fmt.Errorf("failed to grant the join: %w", err)
+		}
+		grant = &granted
+		events = append(events, &authv1.DiscordJoinGranted{
+			GrantId: granted.ID().String(), AccountId: account.String(), DiscordUserId: claim.Subject(),
+			GrantedAt: timestamppb.New(now),
+		})
+	}
+	err = a.transactioner.InTx(ctx, func(ctx context.Context) error {
+		if err := a.store.SaveSignIn(ctx, signIn); err != nil {
+			return fmt.Errorf("failed to save the sign-in: %w", err)
+		}
+		if outcome == accounts.Created {
+			if err := a.arrivals.Record(ctx, account, visitor.landing, now); err != nil {
+				return fmt.Errorf("failed to record the new account's arrival: %w", err)
+			}
+		}
+		if grant != nil {
+			if err := a.grants.Keep(ctx, *grant); err != nil {
+				return fmt.Errorf("failed to keep the Discord grant: %w", err)
+			}
+		}
+		if err := a.outbox.Record(ctx, events...); err != nil {
+			return fmt.Errorf("failed to record the sign-in: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
 
-	return &Admission{account: account, outcome: outcome, setCookie: session.Cookie(token, now)}, nil
+	return &Admission{account: account, outcome: outcome, restored: restored, setCookie: session.Cookie(token, now)}, nil
 }

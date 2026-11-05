@@ -13,12 +13,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-func NewPostgresQuery(db cppg.Querier) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
 	return &PostgresQuery{db: db}
 }
 
 type PostgresQuery struct {
-	db cppg.Querier
+	db cppg.Conn
 }
 
 const known = `
@@ -33,7 +33,7 @@ func (q *PostgresQuery) Accounts(ctx context.Context, asked []cpsession.AccountI
 		ids[i] = account.String()
 	}
 
-	rows, err := q.db.QueryContext(ctx, known, pq.Array(ids))
+	rows, err := q.db.On(ctx).QueryContext(ctx, known, pq.Array(ids))
 	if err != nil {
 		return nil, fmt.Errorf("failed to select the accounts: %w", err)
 	}

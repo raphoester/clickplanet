@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package gamemaster.v1;
+
+// What another module asks the gamemaster.
+service InternalService {
+  // What a battle plays, by the id the timeline names it by: its entry's id, or `season-N/finale` for a season's
+  // finale. For the promo module's teaser. NotFound for an entry the schedule does not keep or that is no battle, and
+  // for a season with no finale.
+  rpc GetBattle(GetBattleRequest) returns (GetBattleResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetBattleRequest {
+  string battle_id = 1;
+}
+
+message GetBattleResponse {
+  string rule_set = 1;
+  // The battle's points' times, 1 to 10: its round scores each rank that many times a day's points.
+  uint32 times = 2;
+}

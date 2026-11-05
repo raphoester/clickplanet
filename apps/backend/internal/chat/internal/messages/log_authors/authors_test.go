@@ -47,12 +47,12 @@ func TestAFailureIsLoggedAndPassedOn(t *testing.T) {
 }
 
 func TestAnAnswerIsPassedOnAndNotLogged(t *testing.T) {
-	authors, out := logged(stubAuthors{author: messages.AuthorOf("Ada", false, 0, 0, messages.Title{})})
+	authors, out := logged(stubAuthors{author: messages.AuthorOf("Ada", false, 0)})
 
 	author, err := authors.Author(t.Context(), messages.AccountID{15: 1})
 
 	require.NoError(t, err)
-	assert.Equal(t, messages.AuthorOf("Ada", false, 0, 0, messages.Title{}), author)
+	assert.Equal(t, messages.AuthorOf("Ada", false, 0), author)
 	assert.Empty(t, out.String())
 }
 
@@ -68,11 +68,11 @@ func TestAFailedPageIsLoggedWithHowManyAndNotWithWho(t *testing.T) {
 }
 
 func TestAnAnsweredPageIsPassedOnAndNotLogged(t *testing.T) {
-	authors, out := logged(stubAuthors{author: messages.AuthorOf("Ada", false, 0, 0, messages.Title{})})
+	authors, out := logged(stubAuthors{author: messages.AuthorOf("Ada", false, 0)})
 
 	found, err := authors.Authors(t.Context(), []messages.AccountID{{15: 1}})
 
 	require.NoError(t, err)
-	assert.Equal(t, map[messages.AccountID]messages.Author{{15: 1}: messages.AuthorOf("Ada", false, 0, 0, messages.Title{})}, found)
+	assert.Equal(t, map[messages.AccountID]messages.Author{{15: 1}: messages.AuthorOf("Ada", false, 0)}, found)
 	assert.Empty(t, out.String())
 }

@@ -1,4 +1,4 @@
-import {spawn} from "node:child_process"
+import {execFileSync, spawn} from "node:child_process"
 import {createReadStream, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync} from "node:fs"
 import {availableParallelism, tmpdir} from "node:os"
 import {basename, dirname, join, resolve} from "node:path"
@@ -16,26 +16,35 @@ const replay = flag("replay")
 if (!replay || has("help")) {
     console.error(`usage: npm run clip -- --replay <replay.json> [options]
 
+  --story <json>      the story to tell, a clips.v1.Pick: one front, tour, place or seasonal story of the findings by
+                      its number, for a front its kind, sides and place as the editor wrote them, and the editor's words:
+                      headline, teasers, line, call, its flags and the anthem; for a front or a place its look, flags
+                      or dive. A seasonal story has words of its own, and dives.
+                      The job's choose prints one for each clip of a run; clips edit prints the model's by hand
+  --findings <path>   write what the replay holds for the editor (clips.v1.Findings), as JSON, and make no clip
+  --pick <n>          the clip's number in its run, which names its files: clip-<n>.mp4, default 1
   --out <path>        the video, default clip-<n>.mp4 beside the replay
-  --count <n>         the n best stories, one clip each, default 1
-  --pick <n>          only the n-th best story
-  --plan              print what each clip would be, and make none
-  --shortlist <path>  write the stories worth a clip, best first, as JSON (clips.v1.Shortlist), and make none
-  --race <path>       the season's race (seasons.v1.GetRaceResponse): the day it closed last is a story when its
+  --plan              print what the clip would be, and make none
+  --race <path>       the season's race (scoring.v1.GetRaceResponse): the day it closed last is a story when its
                       cutoff is in the window
+  --season <path>     the season (scoring.v1.GetSeasonResponse): with the race, each country that can still win it is
+                      called up to its Final Battle
+  --cast <path>       who took which tiles (clips.v1.Cast): the fighters the story names are on its end card, and the
+                      findings name each front's, tour's and place's top fighters
   --silent            no anthem under the clip, for a sound added where it is posted
-  --preview <s>       only the first s seconds of each clip
+  --preview <s>       only the first s seconds of the clip
+  --variants <json>   the arm of each experiment the clip is in, as the posting job assigned it: {"length":"short"}.
+                      An experiment or an arm the generator does not know fails the clip
 
 Everything below is chosen from the replay when left out:
-  --since, --until    the window to play, as ISO times; default the shortest one with a lot of action in one place
-  --hours <n>         the window's length, its busiest stretch
-  --seconds <n>       the clip's length, from 14 to 22 by how much happens
-  --country <code>    the attacker, default the flag that took the most where the action is
+  --since, --until    the window searched, as ISO times; default the last 12 hours
+  --hours <n>         the window's length, its busiest stretches
+  --seconds <n>       the clip's length, at most 22; default 8.5 to 17.5 by how far the fighting moves (10 to 19 with a
+                      day's podium), 6.5 to 19 for a tour by its stops. Not with the experiment "length"
   --focus <code>      only what changed hands on that country's ground
-  --flags             come back out of the tiles halfway, to watch the painted flags change
-  --dive              come back out of the tiles at the end
-  --headline <text>   the headline
-  --hold <s>          how long the opening holds on the whole front before diving in, default 0.3
+  --flags             come back out of the tiles halfway, to watch the painted flags change, over the story's look
+  --dive              come back out of the tiles at the end, over the story's look
+  --headline <text>   the headline, over the editor's or the seasonal story's own
   --fps <n>           frames a second, default 30
   --recorders <n>     the browsers taking the frames in turn, default one for every 3 cores, 4 at most
   --headed            show the browser
@@ -53,7 +62,7 @@ const HEIGHT = 960
 const SCALE = 2
 const MUSIC_FADE_SECONDS = 1.2
 const MUSIC_FADE_IN_SECONDS = 0.05
-const RECORDERS = has("plan") || has("shortlist") ? 1 : Number(flag("recorders", Math.max(1, Math.min(4, Math.floor(availableParallelism() / 3)))))
+const RECORDERS = has("plan") || has("findings") ? 1 : Number(flag("recorders", Math.max(1, Math.min(4, Math.floor(availableParallelism() / 3)))))
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const replayPath = resolve(replay)
@@ -61,11 +70,17 @@ if (!existsSync(replayPath)) {
     console.error(`no replay at ${replayPath}`)
     process.exit(1)
 }
-const racePath = flag("race") === undefined ? undefined : resolve(flag("race"))
-if (racePath !== undefined && !existsSync(racePath)) {
-    console.error(`no race at ${racePath}`)
-    process.exit(1)
+const optionalPath = (name) => {
+    const path = flag(name) === undefined ? undefined : resolve(flag(name))
+    if (path !== undefined && !existsSync(path)) {
+        console.error(`no ${name} at ${path}`)
+        process.exit(1)
+    }
+    return path
 }
+const racePath = optionalPath("race")
+const seasonPath = optionalPath("season")
+const castPath = optionalPath("cast")
 
 const server = await createServer({
     root: APP,
@@ -80,17 +95,21 @@ const server = await createServer({
                 res.setHeader("Content-Length", statSync(replayPath).size)
                 createReadStream(replayPath).pipe(res)
             })
-            // Answered either way: with no race, a day is no story, and the page must not read the app's fallback page.
-            vite.middlewares.use("/__clip/race.json", (_req, res) => {
-                if (racePath === undefined) {
+            // Answered either way: with no race or no season, a day or a call-up is no story, with no cast nobody is named,
+            // and the page must not read the app's fallback page.
+            const optional = (path) => (_req, res) => {
+                if (path === undefined) {
                     res.statusCode = 404
                     res.end()
                     return
                 }
                 res.setHeader("Content-Type", "application/json")
-                res.setHeader("Content-Length", statSync(racePath).size)
-                createReadStream(racePath).pipe(res)
-            })
+                res.setHeader("Content-Length", statSync(path).size)
+                createReadStream(path).pipe(res)
+            }
+            vite.middlewares.use("/__clip/race.json", optional(racePath))
+            vite.middlewares.use("/__clip/season.json", optional(seasonPath))
+            vite.middlewares.use("/__clip/cast.json", optional(castPath))
         },
     }],
 })
@@ -112,8 +131,11 @@ const done = async (code) => {
 }
 process.on("SIGINT", () => done(130))
 
+// A loaded runner starts Chrome slowly: a minute, where 20s failed a run on 2026-10-26.
+const CHROME_START_TRIES = 240
+
 async function debuggerUrl(profile) {
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < CHROME_START_TRIES; i++) {
         try {
             const port = readFileSync(join(profile, "DevToolsActivePort"), "utf8").split("\n")[0]
             const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json())
@@ -195,9 +217,9 @@ async function openRecorder(speaks) {
             await open(url)
             return evaluate("window.clip.record()")
         },
-        async shortlist(url) {
+        async findings(url) {
             await open(url)
-            return evaluate("window.clip.shortlist")
+            return evaluate("window.clip.findings")
         },
         // Every recorder plays every frame, so each holds the same map, and takes the picture of its own only.
         async shoot(from, frame) {
@@ -208,11 +230,21 @@ async function openRecorder(speaks) {
     }
 }
 
-let skippedTold = false
+// The commit that makes the clip, kept in what the clip was: the workflow's, else the checkout's.
+function commitOf() {
+    if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA
+    try {
+        return execFileSync("git", ["rev-parse", "HEAD"], {encoding: "utf8", stdio: ["ignore", "pipe", "ignore"]}).trim()
+    } catch {
+        return "unknown"
+    }
+}
 
-function pageOf(pick) {
-    const query = new URLSearchParams({fps: flag("fps", "30"), pick: String(pick)})
-    for (const name of ["since", "until", "hours", "seconds", "country", "focus", "headline", "hold"]) {
+const COMMIT = commitOf()
+
+function pageOf() {
+    const query = new URLSearchParams({fps: flag("fps", "30"), commit: COMMIT})
+    for (const name of ["since", "until", "hours", "seconds", "focus", "headline", "variants", "story", "pick"]) {
         if (flag(name)) query.set(name, flag(name))
     }
     for (const name of ["flags", "dive", "silent"]) {
@@ -221,20 +253,20 @@ function pageOf(pick) {
     return `${origin}clip.html?${query}`
 }
 
-async function record(recorders, pick, chosenOut) {
-    const [recording] = await Promise.all(recorders.map((recorder) => recorder.prepare(pageOf(pick))))
-    const out = chosenOut ?? join(dirname(replayPath), `clip-${pick}.mp4`)
-    if (!skippedTold) {
-        for (const reason of recording.skipped) console.log(`skipped ${reason}`)
-        skippedTold = true
-    }
+async function record(recorders) {
+    const [recording] = await Promise.all(recorders.map((recorder) => recorder.prepare(pageOf())))
+    const out = has("out") ? resolve(flag("out")) : join(dirname(replayPath), `clip-${recording.pick}.mp4`)
     console.log([
-        `#${recording.pick} of ${recording.stories}: ${recording.headline}`,
+        `#${recording.pick}: ${recording.headline}`,
         ...recording.line ? [`  ${recording.line}`] : [],
         `  window: ${recording.since} to ${recording.until}`,
         `  place: ${recording.place}, ${recording.seconds}s`,
         `  look: ${recording.look}`,
         `  music: ${recording.music ? `${recording.music.title}, the anthem of ${recording.music.whose}, from ${recording.music.from.toFixed(1)}s` : "none"}`,
+        ...recording.fighters.length > 0
+            ? [`  fighters: ${recording.fighters.map(({number, name, flag, took}) => `#${number} ${name} for ${flag} (${took} ${took === 1 ? "tile" : "tiles"})`).join(", ")}`] : [],
+        ...Object.keys(recording.variants).length > 0
+            ? [`  arms: ${Object.entries(recording.variants).map(([name, arm]) => `${name} ${arm}`).join(", ")}`] : [],
     ].join("\n"))
     if (has("plan")) return recording
 
@@ -293,19 +325,15 @@ async function record(recorders, pick, chosenOut) {
 try {
     const recorders = await Promise.all(Array.from({length: RECORDERS}, (_, i) => openRecorder(i === 0)))
 
-    if (has("shortlist")) {
-        const shortlist = await recorders[0].shortlist(pageOf(1))
-        writeFileSync(resolve(flag("shortlist")), JSON.stringify(shortlist, null, 2) + "\n")
-        console.log(`${shortlist.stories?.length ?? 0} stories worth a clip, in ${flag("shortlist")}`)
+    if (has("findings")) {
+        const findings = await recorders[0].findings(pageOf())
+        writeFileSync(resolve(flag("findings")), JSON.stringify(findings, null, 2) + "\n")
+        const count = (name) => findings[name]?.length ?? 0
+        console.log(`${count("fronts")} fronts, ${count("tours")} tours, ${count("places")} places and ${count("seasonal")} seasonal stories, in ${flag("findings")}`)
         await done(0)
     }
 
-    const first = Number(flag("pick", "1"))
-    const last = has("pick") ? first : Number(flag("count", "1"))
-    for (let pick = first; pick <= last; pick++) {
-        const recorded = await record(recorders, pick, last > first || !has("out") ? undefined : resolve(flag("out")))
-        if (recorded.stories <= pick) break
-    }
+    await record(recorders)
 } catch (error) {
     console.error(error.message.split("\n").filter((line) => !line.trimStart().startsWith("at ")).join("\n"))
     await done(1)

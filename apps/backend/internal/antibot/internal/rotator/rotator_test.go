@@ -21,14 +21,16 @@ const (
 	slotSeconds = 300
 )
 
-func config() rotator.Config {
-	return rotator.Config{
-		Slot:        5 * time.Minute,
+func production() rotator.Rules {
+	return rotator.Rules{
 		Window:      24 * time.Hour,
 		MinSeconds:  15,
 		MinByChance: 90,
 		MaxShare:    0.05,
-		MinSlots:    24,
+
+		MinSlots:        24,
+		CertainSlots:    48,
+		CertainByChance: 300,
 	}
 }
 
@@ -37,9 +39,10 @@ type harness struct {
 	clock    *cptime.FixedClock
 }
 
-func newHarness(config rotator.Config) *harness {
+func newHarness(rules rotator.Rules) *harness {
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 9, 8, 0, 0, 0, time.UTC))
-	return &harness{watchdog: rotator.New(config, clock, func(float64) {}), clock: clock}
+	watchdog := rotator.New(rotator.Config{Slot: 5 * time.Minute}, func() rotator.Rules { return rules }, clock, func(float64) {})
+	return &harness{watchdog: watchdog, clock: clock}
 }
 
 type player struct {
@@ -150,7 +153,7 @@ func (h *harness) second(c *crowd, clicking []player) {
 }
 
 func TestThreeAccountsThatTakeTurnsAreRead(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	one := linked(address, "desktop-one", "pl")
 	two := linked(address, "desktop-two", "pl")
@@ -173,13 +176,13 @@ func TestThreeAccountsThatTakeTurnsAreRead(t *testing.T) {
 	}
 
 	for p, accomplices := range map[player][]detect.Accomplice{
-		one:   {{Account: "desktop-two", SignedIn: true}, {Account: "phone", SignedIn: true}},
-		two:   {{Account: "desktop-one", SignedIn: true}, {Account: "phone", SignedIn: true}},
-		phone: {{Account: "desktop-one", SignedIn: true}, {Account: "desktop-two", SignedIn: true}},
+		one:   {{Account: "desktop-two", SignedIn: true, Scope: address}, {Account: "phone", SignedIn: true, Scope: address}},
+		two:   {{Account: "desktop-one", SignedIn: true, Scope: address}, {Account: "phone", SignedIn: true, Scope: address}},
+		phone: {{Account: "desktop-one", SignedIn: true, Scope: address}, {Account: "desktop-two", SignedIn: true, Scope: address}},
 	} {
 		r := h.read(p)
 
-		require.Equal(t, detect.Suspect, r.verdict, p.account)
+		require.Equal(t, detect.Certain, r.verdict, p.account)
 		assert.Equal(t, "rotation", r.evidence.Rule)
 		assert.True(t, r.evidence.Turns, p.account)
 		assert.ElementsMatch(t, []detect.Field{
@@ -196,7 +199,7 @@ func TestThreeAccountsThatTakeTurnsAreRead(t *testing.T) {
 }
 
 func TestAHouseholdOfTwoIsClear(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	//nolint:gosec // seeded test PRNG
 	rng := rand.New(rand.NewPCG(10, 10))
@@ -254,7 +257,7 @@ func (s *school) clicking(second int) []player {
 }
 
 func TestASchoolBehindOneAddressIsClear(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	//nolint:gosec // seeded test PRNG
 	rng := rand.New(rand.NewPCG(10, 8))
@@ -271,7 +274,7 @@ func TestASchoolBehindOneAddressIsClear(t *testing.T) {
 }
 
 func TestTurnsInsideASchoolAreReadAndTheSchoolIsNot(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	//nolint:gosec // seeded test PRNG
 	rng := rand.New(rand.NewPCG(10, 9))
@@ -298,7 +301,7 @@ func TestTurnsInsideASchoolAreReadAndTheSchoolIsNot(t *testing.T) {
 }
 
 func TestOneAccountAloneIsClear(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	alone := linked(line, "alone", "it")
 
@@ -310,7 +313,7 @@ func TestOneAccountAloneIsClear(t *testing.T) {
 }
 
 func TestUnderTwoHoursOfTurnsIsNotEnough(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
 
@@ -324,7 +327,7 @@ func TestUnderTwoHoursOfTurnsIsNotEnough(t *testing.T) {
 }
 
 func TestTurnsBetweenASignedInAccountAndAGuestTabAreRead(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	account, tab := linked(line, "account", "hu"), guest(line, "tab", "hu")
 
@@ -332,12 +335,12 @@ func TestTurnsBetweenASignedInAccountAndAGuestTabAreRead(t *testing.T) {
 
 	r := h.read(account)
 	require.Equal(t, detect.Suspect, r.verdict)
-	assert.Equal(t, []detect.Accomplice{{Account: "tab"}}, r.evidence.Accomplices, "the jury bans a guest's scope too")
+	assert.Equal(t, []detect.Accomplice{{Account: "tab", Scope: line}}, r.evidence.Accomplices, "where the guest clicked last")
 	assert.Equal(t, detect.Suspect, h.read(tab).verdict)
 }
 
 func TestTwoGuestsOnOneBankAreNeverPaired(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	one, two := guest(line, "one", "hu"), guest(line, "two", "hu")
 
@@ -348,7 +351,7 @@ func TestTwoGuestsOnOneBankAreNeverPaired(t *testing.T) {
 }
 
 func TestAccountsOnOtherFlagsAreNoRotation(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "ro")
 
@@ -358,19 +361,49 @@ func TestAccountsOnOtherFlagsAreNoRotation(t *testing.T) {
 	assert.Equal(t, detect.Clear, h.read(two).verdict)
 }
 
-func TestAccountsOnOtherScopesAreNoRotation(t *testing.T) {
-	h := newHarness(config())
+func TestOneHandOnTwoNetworksIsRead(t *testing.T) {
+	h := newHarness(production())
 
-	one, two := linked(line, "one", "hu"), linked(address, "two", "hu")
+	account := linked(address, "account", "ru")
+	var tab player
+	for i := range 50 {
+		tab = guest(fmt.Sprintf("2001:db8:%x::/64", i), "tab", "ru")
+		h.slot(turn{account, 0, 60}, turn{tab, 150, 210})
+	}
 
-	h.turns(60, one, two)
+	r := h.read(account)
+	require.Equal(t, detect.Certain, r.verdict, "a guest on a VPN's exits, a new /64 each slot")
+	assert.Equal(t, []detect.Accomplice{{Account: "tab", Scope: tab.scope}}, r.evidence.Accomplices)
+	assert.Equal(t, detect.Certain, h.read(tab).verdict)
+}
 
-	assert.Equal(t, detect.Clear, h.read(one).verdict)
-	assert.Equal(t, detect.Clear, h.read(two).verdict)
+func TestTwoPeopleOfOneFlagOnTwoNetworksAreClear(t *testing.T) {
+	h := newHarness(production())
+
+	//nolint:gosec // seeded test PRNG
+	rng := rand.New(rand.NewPCG(11, 3))
+
+	apart := []*person{
+		{player: linked(line, "here", "ru"), rng: rng, burst: [2]int{20, 60}, pause: [2]int{10, 40}},
+		{player: linked(address, "there", "ru"), rng: rng, burst: [2]int{20, 60}, pause: [2]int{10, 40}},
+	}
+
+	var seen crowd
+	for second := range 12 * 3600 {
+		var clicking []player
+		for _, p := range apart {
+			if p.clicks(second) {
+				clicking = append(clicking, p.player)
+			}
+		}
+		h.second(&seen, clicking)
+	}
+
+	assert.Equal(t, detect.Clear, seen.strongest, "they share what chance gives, however long they play")
 }
 
 func TestTurnsOlderThanTheWindowNoLongerCount(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(production())
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
 
@@ -383,8 +416,10 @@ func TestTurnsOlderThanTheWindowNoLongerCount(t *testing.T) {
 	assert.Equal(t, detect.Clear, h.read(one).verdict)
 }
 
-func TestWithNoCertainBoundItOnlyCorroborates(t *testing.T) {
-	h := newHarness(config())
+func TestWithNoCertainSlotsItOnlyCorroborates(t *testing.T) {
+	unset := production()
+	unset.CertainSlots = 0
+	h := newHarness(unset)
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
 
@@ -393,23 +428,57 @@ func TestWithNoCertainBoundItOnlyCorroborates(t *testing.T) {
 	assert.Equal(t, detect.Suspect, h.read(one).verdict)
 }
 
-func TestTheCertainBoundReadsCertain(t *testing.T) {
-	bounded := config()
-	bounded.CertainSlots = 72
-
-	h := newHarness(bounded)
+func TestFourHoursOfTurnsReadCertain(t *testing.T) {
+	h := newHarness(production())
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
 
-	h.turns(71, one, two)
+	for range 47 {
+		h.slot(turn{one, 0, 60}, turn{two, 150, 210})
+	}
 	assert.Equal(t, detect.Suspect, h.read(one).verdict)
+
+	h.slot(turn{one, 0, 60}, turn{two, 150, 210})
+	assert.Equal(t, detect.Certain, h.read(one).verdict)
+	assert.Equal(t, detect.Certain, h.read(two).verdict)
+}
+
+func TestSlowTurnsAreCertainOnlyOnceChanceIsSure(t *testing.T) {
+	h := newHarness(production())
+
+	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
+
+	h.turns(65, one, two)
+	assert.Equal(t, detect.Suspect, h.read(one).verdict, "37 seconds each: 65 slots are 296 seconds by chance")
 
 	h.turns(1, one, two)
 	assert.Equal(t, detect.Certain, h.read(one).verdict)
 }
 
+func TestACertainReadingNamesOnlyTheAccountsItIsSureOf(t *testing.T) {
+	h := newHarness(production())
+
+	one, two, three := linked(line, "one", "hu"), linked(line, "two", "hu"), linked(line, "three", "hu")
+
+	for i := range 48 {
+		turns := []turn{{one, 0, 60}, {two, 150, 210}}
+		if i < 30 {
+			turns = append(turns, turn{three, 240, 280})
+		}
+		h.slot(turns...)
+	}
+
+	r := h.read(one)
+	require.Equal(t, detect.Certain, r.verdict)
+	assert.Equal(t, []detect.Accomplice{{Account: "two", SignedIn: true, Scope: line}}, r.evidence.Accomplices)
+	assert.Contains(t, r.evidence.Fields, detect.Field{Key: "accounts", Value: 2})
+	assert.Equal(t, detect.Suspect, h.read(three).verdict, "thirty slots of turns with one")
+}
+
 func TestUnsetBoundsNeverRead(t *testing.T) {
-	h := newHarness(rotator.Config{})
+	unset := production()
+	unset.MinSlots, unset.CertainSlots = 0, 0
+	h := newHarness(unset)
 
 	one, two := linked(line, "one", "hu"), linked(line, "two", "hu")
 

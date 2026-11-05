@@ -27,7 +27,5 @@ export function authorOf(message: ChatMessage): PlayerLine {
         guest: message.authorName.startsWith(GUEST_PREFIX),
         admin: message.authorAdmin,
         color: message.authorColor,
-        streak: message.authorStreak,
-        wornTitle: message.authorTitle,
     }
 }

@@ -46,7 +46,7 @@ func (s *testSuite) SetupTest() {
 	s.authors = &fakeAuthors{names: map[messages.AccountID]string{ada: "Ada_L", guest: "guest_0b1c2d"}}
 	s.thread = &fakeThread{shown: map[messages.MessageID]messages.Message{
 		"parent": messages.Restored(s.T(), messages.Snapshot{
-			ID: "parent", Account: ada, Author: messages.AuthorOf("Ada_L", false, 0, 0, messages.Title{}), Text: "who holds the north",
+			ID: "parent", Account: ada, Author: messages.AuthorOf("Ada_L", false, 0), Text: "who holds the north",
 		}),
 	}}
 	s.clock = cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
@@ -54,7 +54,8 @@ func (s *testSuite) SetupTest() {
 		s.appender,
 		s.publisher,
 		s.authors,
-		messages.NewDrafts(&messages.SequentialIDs{}, s.clock, messages.NewLimits(0), cpcountries.New()),
+		messages.NewDrafts(&messages.SequentialIDs{}, s.clock, messages.NewLimits(0), cpcountries.New(),
+			messages.NewRooms(messages.FakeFlags{guest: "fr"})),
 		s.thread,
 	)
 }
@@ -89,6 +90,7 @@ func validIn() send_message_usecase.In {
 	return send_message_usecase.In{
 		Account:   guest,
 		AuthorID:  "8f14e45f-ea23-4a1b-9c11-0b0d1a2b3c4d",
+		Room:      messages.World,
 		CountryID: "fr",
 		Text:      "hello planet",
 		UserAgent: "curl/8",
@@ -99,9 +101,11 @@ func (s *testSuite) TestNominalCase() {
 	sent, err := s.send(validIn())
 	s.Require().NoError(err)
 
-	draft := messages.Snapshot{ID: firstID, SentAt: s.clock.Now(), Account: guest, Country: "fr", Text: "hello planet"}
+	draft := messages.Snapshot{
+		ID: firstID, SentAt: s.clock.Now(), Account: guest, Room: messages.World, Country: "fr", Text: "hello planet",
+	}
 	named := draft
-	named.Author = messages.AuthorOf("guest_0b1c2d", false, 0, 0, messages.Title{})
+	named.Author = messages.AuthorOf("guest_0b1c2d", false, 0)
 	s.Equal(named, sent, "a guest posts under the name the player module gives it")
 	s.Equal([]messages.AccountID{guest}, s.authors.asked)
 
@@ -184,7 +188,7 @@ func (s *testSuite) TestAReplyIsKeptAndGoesOutWithWhatItQuotes() {
 	s.Require().NoError(err)
 
 	quote := messages.Quote{
-		MessageID: "parent", Author: messages.AuthorOf("Ada_L", false, 0, 0, messages.Title{}), Text: "who holds the north",
+		MessageID: "parent", Author: messages.AuthorOf("Ada_L", false, 0), Text: "who holds the north",
 	}
 	s.Equal(quote, sent.Quote)
 	s.Require().Len(s.kept(), 1)
@@ -260,6 +264,35 @@ func (s *testSuite) TestAnAuthorThatCannotBeReadRefusesThePost() {
 	s.Empty(s.kept())
 }
 
+var dancing = messages.Gif{URL: "https://static.klipy.com/ii/935d7ab9/14/af/SE72470w.webp", Width: 220, Height: 220}
+
+func (s *testSuite) TestAPlayerPostsAGifThatIsKeptAndGoesOut() {
+	in := validIn()
+	in.Account, in.Text, in.Gif = ada, "", dancing
+
+	sent, err := s.send(in)
+
+	s.Require().NoError(err)
+	s.Equal(dancing, sent.Gif)
+	s.Equal(dancing, s.kept()[0].Message.Gif)
+	s.Equal(dancing, s.published()[0].Gif)
+}
+
+func (s *testSuite) TestAGuestPostsATextButNoGif() {
+	s.authors.guests = map[messages.AccountID]bool{guest: true}
+
+	_, err := s.send(validIn())
+	s.Require().NoError(err)
+
+	in := validIn()
+	in.Text, in.Gif = "", dancing
+	_, err = s.send(in)
+
+	s.Require().ErrorIs(err, messages.ErrGuestGif)
+	s.Len(s.kept(), 1, "the GIF is not kept")
+	s.Len(s.publisher.updates, 1, "nor sent")
+}
+
 func (s *testSuite) TestNoAccountIsRefusedBeforeAnythingIsAsked() {
 	in := validIn()
 	in.Account = cpsession.NoAccount
@@ -275,6 +308,7 @@ type fakeAuthors struct {
 	mu     sync.Mutex
 	names  map[messages.AccountID]string
 	admins map[messages.AccountID]bool
+	guests map[messages.AccountID]bool
 	err    error
 	asked  []messages.AccountID
 }
@@ -287,7 +321,10 @@ func (f *fakeAuthors) Author(_ context.Context, account messages.AccountID) (mes
 	if f.err != nil {
 		return messages.Author{}, f.err
 	}
-	return messages.AuthorOf(f.names[account], f.admins[account], 0, 0, messages.Title{}), nil
+	if f.guests[account] {
+		return messages.GuestOf(f.names[account]), nil
+	}
+	return messages.AuthorOf(f.names[account], f.admins[account], 0), nil
 }
 
 type fakeThread struct {
@@ -304,7 +341,7 @@ func (f *fakeThread) Reply(_ context.Context, draft messages.Message, replyTo me
 	if !shown {
 		return messages.Message{}, messages.ErrNotShown
 	}
-	return draft.Answering(answered), nil
+	return draft.Answering(answered) //nolint:wrapcheck // the rule named it.
 }
 
 type fakePublisher struct {
@@ -331,4 +368,32 @@ func (f *fakeAppender) Append(_ context.Context, record messages.Record) error {
 
 	f.records = append(f.records, record)
 	return nil
+}
+
+func (s *testSuite) TestAMessageToTheRoomOfTheSendersFlagIsKeptThereAndGoesOutThere() {
+	in := validIn()
+	in.Room = messages.FlagRoom("fr")
+
+	sent, err := s.send(in)
+
+	s.Require().NoError(err)
+	s.Equal(messages.FlagRoom("fr"), sent.Room)
+	s.Equal(messages.FlagRoom("fr"), s.kept()[0].Message.Room)
+	s.Require().Len(s.publisher.updates, 1)
+	s.True(s.publisher.updates[0].For(messages.FlagRoom("fr")))
+	s.False(s.publisher.updates[0].For(messages.World))
+}
+
+func (s *testSuite) TestAMessageToTheRoomOfAnotherFlagIsRefusedBeforeAnythingIsAsked() {
+	in := validIn()
+	in.Room = messages.FlagRoom("de")
+	in.ReplyTo = "parent"
+
+	_, err := s.send(in)
+
+	s.Require().ErrorIs(err, messages.ErrNotInRoom)
+	s.Empty(s.thread.asked)
+	s.Empty(s.authors.asked)
+	s.Empty(s.kept())
+	s.Empty(s.publisher.updates)
 }

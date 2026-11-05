@@ -1,5 +1,3 @@
-// Package mcpcontroller is the connector's edge: the Model Context Protocol over Streamable HTTP, answered with plain
-// JSON (the server never streams), and the metadata that points an app at the authorization server.
 package mcpcontroller
 
 import (
@@ -22,14 +20,12 @@ const (
 	latestVersion = "2025-06-18"
 	maxRequest    = 1 << 20
 
-	// JSON-RPC 2.0's codes.
 	parseError     = -32700
 	invalidRequest = -32600
 	methodNotFound = -32601
 	invalidParams  = -32602
 )
 
-// The versions this server speaks, newest first: a client asking for another is answered the newest.
 var versions = []string{latestVersion, "2025-03-26", "2024-11-05"}
 
 type Holders interface {
@@ -49,7 +45,6 @@ type Endpoint struct {
 	logger       *slog.Logger
 }
 
-// metadataURL is where the 401 points an app that holds no token: the protected resource metadata.
 func NewEndpoint(catalog []tools.Tool, instructions, metadataURL string, holders Holders, calls Calls, logger *slog.Logger) *Endpoint {
 	listed := make([]Tool, 0, len(catalog))
 	for _, tool := range catalog {
@@ -60,8 +55,6 @@ func NewEndpoint(catalog []tools.Tool, instructions, metadataURL string, holders
 	}
 }
 
-// The wire's shape of a tool. Every call needs Claude's user to have connected as the operator; the hints tell it
-// which calls to make without asking (claude.ai lets the user set each tool's permission besides).
 type Tool struct {
 	Name        string       `json:"name"`
 	Title       string       `json:"title"`
@@ -94,7 +87,6 @@ type message struct {
 	Params  json.RawMessage `json:"params,omitempty"`
 }
 
-// A request has an id; a notification, and a response the client sends back, need no answer.
 func (m message) request() bool {
 	return len(m.ID) > 0 && m.Method != ""
 }
@@ -119,7 +111,7 @@ func (e *Endpoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, ok := e.admitted(w, r)
+	token, ok := e.admit(w, r)
 	if !ok {
 		return
 	}
@@ -130,7 +122,7 @@ func (e *Endpoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The 2025-03-26 revision sends a batch as an array; the ones after it send one message a POST.
+	// The 2025-03-26 revision sends a batch as an array; later ones send one message a POST.
 	trimmed := bytes.TrimSpace(body)
 	if len(trimmed) > 0 && trimmed[0] == '[' {
 		var batch []message
@@ -160,8 +152,7 @@ func (e *Endpoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	e.write(w, e.answer(r.Context(), token, asked))
 }
 
-// RFC 9728 and the MCP spec: no token, or a token nobody holds, is a 401 that says where to get one.
-func (e *Endpoint) admitted(w http.ResponseWriter, r *http.Request) (string, bool) {
+func (e *Endpoint) admit(w http.ResponseWriter, r *http.Request) (string, bool) {
 	scheme, token, found := strings.Cut(r.Header.Get("Authorization"), " ")
 	token = strings.TrimSpace(token)
 	if !found || !strings.EqualFold(scheme, "Bearer") || token == "" {
@@ -202,7 +193,7 @@ func (e *Endpoint) answer(ctx context.Context, token string, asked message) resp
 	case "tools/list":
 		answered.Result = map[string]any{"tools": e.tools}
 	case "tools/call":
-		answered.Result, answered.Error = e.called(ctx, token, asked.Params)
+		answered.Result, answered.Error = e.call(ctx, token, asked.Params)
 	default:
 		answered.Error = &rpcError{Code: methodNotFound, Message: "no method " + asked.Method}
 	}
@@ -232,9 +223,7 @@ type content struct {
 	Text string `json:"text"`
 }
 
-// A refusal of the service is the tool's result, so Claude reads it and tries again; only a tool nobody offers is a
-// protocol error.
-func (e *Endpoint) called(ctx context.Context, token string, params json.RawMessage) (any, *rpcError) {
+func (e *Endpoint) call(ctx context.Context, token string, params json.RawMessage) (any, *rpcError) {
 	var asked struct {
 		Name      string          `json:"name"`
 		Arguments json.RawMessage `json:"arguments"`

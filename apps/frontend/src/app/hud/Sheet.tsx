@@ -1,5 +1,6 @@
 import {ReactNode, useEffect, useId, useRef} from "react"
 import {BackIcon, CloseIcon} from "../components/icons.tsx"
+import ScrollArea from "../components/ScrollArea.tsx"
 import {useEscape} from "../components/useDialog.ts"
 import "./Sheet.css"
 
@@ -49,8 +50,8 @@ export default function Sheet(props: SheetProps) {
                 </button>
             </div>
         </div>
-        <div className="sheet-body">
+        <ScrollArea className="sheet-body">
             {props.children}
-        </div>
+        </ScrollArea>
     </section>
 }

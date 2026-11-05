@@ -2,10 +2,6 @@
     max-width: 640px;
 }
 
-.modal-picture .modal-scroll::after {
-    display: none;
-}
-
 .modal-picture .modal-body {
     display: flex;
     align-items: center;

@@ -4,42 +4,214 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
- * @generated from message player.v1.StatsChanged
+ * An account became a player: player made its profile, with the name drawn at its first sign-in or the one it chose.
+ *
+ * @generated from message player.v1.PlayerCreated
  */
-export class StatsChanged extends Message<StatsChanged> {
+export class PlayerCreated extends Message<PlayerCreated> {
   /**
    * @generated from field: string account_id = 1;
    */
   accountId = "";
 
-  constructor(data?: PartialMessage<StatsChanged>) {
+  constructor(data?: PartialMessage<PlayerCreated>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "player.v1.StatsChanged";
+  static readonly typeName = "player.v1.PlayerCreated";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StatsChanged {
-    return new StatsChanged().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayerCreated {
+    return new PlayerCreated().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StatsChanged {
-    return new StatsChanged().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayerCreated {
+    return new PlayerCreated().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StatsChanged {
-    return new StatsChanged().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayerCreated {
+    return new PlayerCreated().fromJsonString(jsonString, options);
   }
 
-  static equals(a: StatsChanged | PlainMessage<StatsChanged> | undefined, b: StatsChanged | PlainMessage<StatsChanged> | undefined): boolean {
-    return proto3.util.equals(StatsChanged, a, b);
+  static equals(a: PlayerCreated | PlainMessage<PlayerCreated> | undefined, b: PlayerCreated | PlainMessage<PlayerCreated> | undefined): boolean {
+    return proto3.util.equals(PlayerCreated, a, b);
+  }
+}
+
+/**
+ * A player signed in to this account, which is signed in now: told at every sign-in and link, the first or not, and
+ * whatever account the browser was on before.
+ *
+ * @generated from message player.v1.PlayerSignedIn
+ */
+export class PlayerSignedIn extends Message<PlayerSignedIn> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<PlayerSignedIn>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.PlayerSignedIn";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayerSignedIn {
+    return new PlayerSignedIn().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayerSignedIn {
+    return new PlayerSignedIn().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayerSignedIn {
+    return new PlayerSignedIn().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlayerSignedIn | PlainMessage<PlayerSignedIn> | undefined, b: PlayerSignedIn | PlainMessage<PlayerSignedIn> | undefined): boolean {
+    return proto3.util.equals(PlayerSignedIn, a, b);
+  }
+}
+
+/**
+ * The account's player asked to delete it: the other players see it as deleted until it returns or is forgotten.
+ * PlayerLeaving and PlayerReturned are on two streams, so a receiver keeps the later of them by decided_at.
+ *
+ * @generated from message player.v1.PlayerLeaving
+ */
+export class PlayerLeaving extends Message<PlayerLeaving> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 2;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<PlayerLeaving>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.PlayerLeaving";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayerLeaving {
+    return new PlayerLeaving().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayerLeaving {
+    return new PlayerLeaving().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayerLeaving {
+    return new PlayerLeaving().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlayerLeaving | PlainMessage<PlayerLeaving> | undefined, b: PlayerLeaving | PlainMessage<PlayerLeaving> | undefined): boolean {
+    return proto3.util.equals(PlayerLeaving, a, b);
+  }
+}
+
+/**
+ * A sign-in brought back an account its player asked to delete: the other players see it again.
+ *
+ * @generated from message player.v1.PlayerReturned
+ */
+export class PlayerReturned extends Message<PlayerReturned> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 2;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<PlayerReturned>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.PlayerReturned";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayerReturned {
+    return new PlayerReturned().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayerReturned {
+    return new PlayerReturned().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayerReturned {
+    return new PlayerReturned().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlayerReturned | PlainMessage<PlayerReturned> | undefined, b: PlayerReturned | PlainMessage<PlayerReturned> | undefined): boolean {
+    return proto3.util.equals(PlayerReturned, a, b);
+  }
+}
+
+/**
+ * Player forgot the account: its name and its guest code. What another module keeps of the account goes too.
+ *
+ * @generated from message player.v1.PlayerForgotten
+ */
+export class PlayerForgotten extends Message<PlayerForgotten> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<PlayerForgotten>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.PlayerForgotten";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayerForgotten {
+    return new PlayerForgotten().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayerForgotten {
+    return new PlayerForgotten().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayerForgotten {
+    return new PlayerForgotten().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlayerForgotten | PlainMessage<PlayerForgotten> | undefined, b: PlayerForgotten | PlainMessage<PlayerForgotten> | undefined): boolean {
+    return proto3.util.equals(PlayerForgotten, a, b);
   }
 }
 

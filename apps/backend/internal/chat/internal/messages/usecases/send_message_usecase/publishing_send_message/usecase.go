@@ -16,7 +16,7 @@ type UseCase interface {
 }
 
 type Publisher interface {
-	Publish(event proto.Message)
+	Publish(events ...proto.Message)
 }
 
 func New(implementation UseCase, events Publisher) *Decorator {

@@ -8,8 +8,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-var ErrNoTimeToReview = errors.New("the post is too close to its time to be reviewed")
-
 type Pause interface {
 	Wait(ctx context.Context, d time.Duration) error
 }
@@ -35,24 +33,23 @@ type Sender struct {
 	clock   cptime.Clock
 }
 
-func (s *Sender) Send(ctx context.Context, post Post) (Scheduled, error) {
+// It answers the post as it was sent: a wait that ate its lead moves it later, never sooner.
+func (s *Sender) Send(ctx context.Context, post Post) (Post, Scheduled, error) {
 	for failed := 1; ; failed++ {
-		if !post.Reviewable(s.clock.Now()) {
-			return Scheduled{}, ErrNoTimeToReview
-		}
+		post = post.Rescheduled(s.clock.Now())
 
 		scheduled, err := s.service.Schedule(ctx, post)
 		var busy *BusyError
 		if !errors.As(err, &busy) {
-			return scheduled, err //nolint:wrapcheck // a pure delegation: the service already named what failed.
+			return post, scheduled, err //nolint:wrapcheck // a pure delegation: the service already named what failed.
 		}
 
 		wait, again := s.backoff.Wait(failed, busy.RetryAfter)
 		if !again {
-			return Scheduled{}, err //nolint:wrapcheck // a pure delegation: the service already named what failed.
+			return post, Scheduled{}, err //nolint:wrapcheck // a pure delegation: the service already named what failed.
 		}
 		if err := s.pause.Wait(ctx, wait); err != nil {
-			return Scheduled{}, err //nolint:wrapcheck // a pure delegation: the pause only ends early with the context.
+			return post, Scheduled{}, err //nolint:wrapcheck // a pure delegation: the pause only ends early with the context.
 		}
 	}
 }

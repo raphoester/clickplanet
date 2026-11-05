@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	// A reassign, a revert or a reconciliation moves the whole map or every account, paced.
+	// A reassign or a reconciliation walks the whole map or every account.
 	callTimeout = 5 * time.Minute
 	maxAnswer   = 8 << 20
 )
@@ -25,8 +25,6 @@ func New(client connect.HTTPClient, baseURL string) *Caller {
 	return &Caller{client: client, baseURL: baseURL}
 }
 
-// A tool's call, made to the admin listener as the app that holds the token: the gate there admits it as that
-// operator and writes the call's line, as for the admin page. The arguments are the request in protojson, as is.
 type Caller struct {
 	client  connect.HTTPClient
 	baseURL string
@@ -64,8 +62,6 @@ func (c *Caller) Call(ctx context.Context, procedure, token string, arguments js
 	return refusalOf(procedure, response.StatusCode, body)
 }
 
-// Connect's error, as JSON: what Claude reads to try again, a code and a sentence. The error net already took the
-// cause off an internal error.
 func refusalOf(procedure string, status int, body []byte) (tools.Result, error) {
 	var refusal struct {
 		Code    string `json:"code"`

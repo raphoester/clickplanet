@@ -20,18 +20,18 @@ type harness struct {
 	rng      *rand.Rand
 }
 
-func newHarness(config hopper.Config) *harness {
+func newHarness(rules hopper.Rules, config hopper.Config) *harness {
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 9, 9, 0, 0, 0, time.UTC))
 	return &harness{
-		watchdog: hopper.New(config, clock, func(float64) {}),
+		watchdog: hopper.New(config, func() hopper.Rules { return rules }, clock, func(float64) {}),
 		clock:    clock,
 		//nolint:gosec // seeded test PRNG
 		rng: rand.New(rand.NewPCG(10, 9)),
 	}
 }
 
-func config() hopper.Config {
-	return hopper.Config{
+func bounds() (hopper.Rules, hopper.Config) {
+	return hopper.Rules{
 		MinAngle:     45,
 		MinGap:       100 * time.Millisecond,
 		MaxGap:       30 * time.Second,
@@ -39,8 +39,7 @@ func config() hopper.Config {
 		MinShare:     0.4,
 		CertainSteps: 200,
 		CertainShare: 0.7,
-		TrackWindow:  15 * time.Minute,
-	}
+	}, hopper.Config{TrackWindow: 15 * time.Minute}
 }
 
 func (h *harness) clickAs(scope, account string, at detect.Point) detect.Verdict {
@@ -73,7 +72,7 @@ var (
 )
 
 func TestAClickerAimingAllOverTheGlobeIsCaught(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(bounds())
 
 	for range 40 {
 		h.clock.Advance(1500 * time.Millisecond)
@@ -93,7 +92,7 @@ func TestAClickerAimingAllOverTheGlobeIsCaught(t *testing.T) {
 }
 
 func TestABotWaitingForEachRefillIsStillRead(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(bounds())
 
 	var verdict detect.Verdict
 	for range 41 {
@@ -105,7 +104,7 @@ func TestABotWaitingForEachRefillIsStillRead(t *testing.T) {
 }
 
 func TestPaintingOneCountryIsClear(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(bounds())
 
 	var verdict detect.Verdict
 	for range 300 {
@@ -117,7 +116,7 @@ func TestPaintingOneCountryIsClear(t *testing.T) {
 }
 
 func TestAPlayerMovingBetweenFrontsIsClear(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(bounds())
 	fronts := []detect.Point{poland, antarctica, brazil}
 
 	var verdict detect.Verdict
@@ -129,7 +128,7 @@ func TestAPlayerMovingBetweenFrontsIsClear(t *testing.T) {
 }
 
 func TestAFlushOfHeldTapsCountsOnlyItsEnds(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(bounds())
 
 	var verdict detect.Verdict
 	for range 10 {
@@ -149,7 +148,7 @@ func TestAFlushOfHeldTapsCountsOnlyItsEnds(t *testing.T) {
 }
 
 func TestClicksFurtherApartThanMaxGapAreNoStep(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(bounds())
 
 	var verdict detect.Verdict
 	for range 100 {
@@ -162,7 +161,7 @@ func TestClicksFurtherApartThanMaxGapAreNoStep(t *testing.T) {
 
 func TestPlayersBehindOneAddressAreJudgedApart(t *testing.T) {
 	t.Run("two accounts", func(t *testing.T) {
-		h := newHarness(config())
+		h := newHarness(bounds())
 
 		for range 100 {
 			h.clock.Advance(500 * time.Millisecond)
@@ -174,7 +173,7 @@ func TestPlayersBehindOneAddressAreJudgedApart(t *testing.T) {
 	})
 
 	t.Run("no account to tell them apart", func(t *testing.T) {
-		h := newHarness(config())
+		h := newHarness(bounds())
 
 		var verdict detect.Verdict
 		for range 100 {
@@ -190,7 +189,7 @@ func TestPlayersBehindOneAddressAreJudgedApart(t *testing.T) {
 }
 
 func TestATryWithNoPositionIsNoStep(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(bounds())
 
 	var verdict detect.Verdict
 	for range 100 {
@@ -202,7 +201,7 @@ func TestATryWithNoPositionIsNoStep(t *testing.T) {
 }
 
 func TestTheEvidenceNamesTheRule(t *testing.T) {
-	h := newHarness(config())
+	h := newHarness(bounds())
 
 	for range 41 {
 		h.clock.Advance(time.Second)

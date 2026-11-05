@@ -1,6 +1,8 @@
 package admission_test
 
 import (
+	"bytes"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,21 +23,24 @@ func TestOnlyTheAdminPagesOriginMayCall(t *testing.T) {
 
 func TestATokenMakesNoneOfThePagesOwnCalls(t *testing.T) {
 	page := admission.NewPage("https://backoffice.clickplanet.lol", "/auth.v1.AdminService/StartSignIn").
-		WithSessionOnly("/auth.v1.AdminService/ApproveConnection")
+		WithSessionOnly("/auth.v1.AdminService/")
 
-	for _, procedure := range []string{"/auth.v1.AdminService/StartSignIn", "/auth.v1.AdminService/ApproveConnection"} {
+	for _, procedure := range []string{
+		"/auth.v1.AdminService/StartSignIn", "/auth.v1.AdminService/ApproveConnection", "/auth.v1.AdminService/AddedLater",
+	} {
 		require.ErrorIs(t, page.TokenError(procedure), admission.ErrSessionOnly, procedure)
 	}
 	require.NoError(t, page.TokenError("/planet.v1.AdminService/BanPlayer"))
 	assert.False(t, page.SignIn("/auth.v1.AdminService/ApproveConnection"), "letting an app in still needs the session")
 }
 
-func TestACallerIsTheOperatorAndTheAppItConnected(t *testing.T) {
-	connected := admission.ConnectionOf("ada", "Claude")
-	assert.Equal(t, admission.Operator("ada"), connected.Operator())
-	assert.Equal(t, "Claude", connected.Client())
+func TestACallerLogsItsOperatorAndTheAppItConnected(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
 
-	session := admission.SessionOf("ada")
-	assert.Equal(t, admission.Operator("ada"), session.Operator())
-	assert.Empty(t, session.Client(), "the page's session is no app")
+	logger.Info("call", slog.Any("", admission.ConnectionOf("ada", "Claude")))
+	logger.Info("call", slog.Any("", admission.SessionOf("ada")))
+
+	assert.Contains(t, logs.String(), `msg=call operator=ada client=Claude`)
+	assert.Contains(t, logs.String(), `msg=call operator=ada client=""`, "the page's session is no app")
 }

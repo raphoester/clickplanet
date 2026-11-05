@@ -3,13 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMessageRequest, GetMessageResponse, ListMessagesRequest, ListMessagesResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse } from "./admin_pb.js";
+import { GetMessageRequest, GetMessageResponse, GetMuteRequest, GetMuteResponse, ListMessagesRequest, ListMessagesResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse, UnmuteRequest, UnmuteResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
- * Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
- * without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
  *
  * @generated from service chat.v1.AdminService
  */
@@ -18,8 +16,8 @@ export const AdminService = {
   methods: {
     /**
      * Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
-     * the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. There is no
-     * unmute.
+     * the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. Of the kind
+     * asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
      *
      * @generated from rpc chat.v1.AdminService.Mute
      */
@@ -28,6 +26,29 @@ export const AdminService = {
       I: MuteRequest,
       O: MuteResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * Ends now every mute of the kind given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
+     *
+     * @generated from rpc chat.v1.AdminService.Unmute
+     */
+    unmute: {
+      name: "Unmute",
+      I: UnmuteRequest,
+      O: UnmuteResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The mute of the kind that holds the account now, given to it or to another account on the network it last posted from; the one that ends last. Nothing set when none holds it.
+     *
+     * @generated from rpc chat.v1.AdminService.GetMute
+     */
+    getMute: {
+      name: "GetMute",
+      I: GetMuteRequest,
+      O: GetMuteResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.

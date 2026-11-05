@@ -8,8 +8,6 @@ import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
- * Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
- * without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
  *
  * @generated from service support.v1.AdminService
  */

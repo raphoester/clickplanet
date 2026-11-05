@@ -13,6 +13,7 @@ import (
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -20,7 +21,7 @@ import (
 )
 
 type Authors interface {
-	Authors(ctx context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Author, error)
+	Authors(ctx context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Player, error)
 }
 
 const (
@@ -28,47 +29,54 @@ const (
 	NamedReactors = 20
 )
 
-var kinds = cpcolls.NewSet("bomb", "mute", "round", "fortify")
+var kinds = cpcolls.NewSet("bomb", "mute", "round", "fortify", "champion")
 
 var (
 	ErrUnknownReaction = errors.New("a kept reaction the proto does not name")
 	ErrUnknownKind     = errors.New("a kept announcement of a kind nobody knows")
 )
 
-func NewPostgresQuery(db cppg.Querier, authors Authors, clock cptime.Clock, size int, retention time.Duration) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, authors Authors, clock cptime.Clock, size int, retention time.Duration) *PostgresQuery {
 	return &PostgresQuery{db: db, authors: authors, clock: clock, size: size, retention: retention}
 }
 
 type PostgresQuery struct {
-	db        cppg.Querier
+	db        cppg.Conn
 	authors   Authors
 	clock     cptime.Clock
 	size      int
 	retention time.Duration
 }
 
-func (q *PostgresQuery) History(ctx context.Context, viewer cpsession.AccountID) (*chatv1.GetHistoryResponse, error) {
+// A flag's room has no announcements.
+func (q *PostgresQuery) History(
+	ctx context.Context,
+	viewer cpsession.AccountID,
+	room messages.Room,
+) (*chatv1.GetHistoryResponse, error) {
 	since := q.clock.Now().Add(-q.retention)
 
 	var (
 		shown     []*chatv1.ChatMessage
-		announced []*chatv1.Announcement
+		announced = make([]*chatv1.Announcement, 0)
 		seenUntil int64
 	)
 	group, ctx := errgroup.WithContext(ctx)
 	group.Go(func() error {
 		var err error
-		shown, err = q.shown(ctx, since, viewer)
+		shown, err = q.shown(ctx, since, room, viewer)
 		return err
 	})
+	if room == messages.World {
+		group.Go(func() error {
+			var err error
+			announced, err = q.announced(ctx, since)
+			return err
+		})
+	}
 	group.Go(func() error {
 		var err error
-		announced, err = q.announced(ctx, since)
-		return err
-	})
-	group.Go(func() error {
-		var err error
-		seenUntil, err = q.seenUntil(ctx, viewer)
+		seenUntil, err = q.seenUntil(ctx, viewer, room)
 		return err
 	})
 	if err := group.Wait(); err != nil {
@@ -81,16 +89,16 @@ func (q *PostgresQuery) History(ctx context.Context, viewer cpsession.AccountID)
 const seenMark = `
 	SELECT floor(extract(epoch FROM seen_until) * 1000)::bigint
 	FROM seen
-	WHERE account_id = $1
+	WHERE account_id = $1 AND room = $2
 `
 
-func (q *PostgresQuery) seenUntil(ctx context.Context, viewer cpsession.AccountID) (int64, error) {
+func (q *PostgresQuery) seenUntil(ctx context.Context, viewer cpsession.AccountID, room messages.Room) (int64, error) {
 	if viewer == cpsession.NoAccount {
 		return 0, nil
 	}
 
 	var until int64
-	err := q.db.QueryRowContext(ctx, seenMark, uuid.UUID(viewer)).Scan(&until)
+	err := q.db.On(ctx).QueryRowContext(ctx, seenMark, uuid.UUID(viewer), string(room)).Scan(&until)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
 	}
@@ -104,7 +112,7 @@ const inWindow = `
 	SELECT seq, id, sent_at, account_id, name, author_admin, country, text, reply_to,
 		EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id) AS removed
 	FROM messages
-	WHERE sent_at >= $1
+	WHERE room = $3 AND sent_at >= $1
 	ORDER BY seq DESC
 	LIMIT $2
 `
@@ -120,22 +128,30 @@ const shownMessages = `
 		shown.country,
 		CASE WHEN shown.removed THEN '' ELSE shown.text END,
 		shown.removed,
+		CASE WHEN shown.removed THEN '' ELSE COALESCE(gifs.url, '') END,
+		COALESCE(gifs.width, 0),
+		COALESCE(gifs.height, 0),
 		COALESCE(quoted.id, ''),
 		quoted.account_id,
 		COALESCE(quoted.name, ''),
 		CASE WHEN quoted.removed THEN '' ELSE COALESCE(quoted.text, '') END,
 		COALESCE(quoted.removed, false),
+		CASE WHEN quoted.removed THEN '' ELSE COALESCE(quoted_gifs.url, '') END,
+		COALESCE(quoted_gifs.width, 0),
+		COALESCE(quoted_gifs.height, 0),
 		COALESCE(versions.version, 0),
 		COALESCE(tallies.counts, '[]')
 	FROM shown
+	LEFT JOIN gifs ON gifs.message_seq = shown.seq
 	LEFT JOIN LATERAL (
-		SELECT id, account_id, name, text,
+		SELECT seq, id, account_id, name, text,
 			EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id) AS removed
 		FROM messages
 		WHERE messages.id = shown.reply_to AND messages.sent_at >= $1
 		ORDER BY seq DESC
 		LIMIT 1
 	) quoted ON true
+	LEFT JOIN gifs quoted_gifs ON quoted_gifs.message_seq = quoted.seq
 	LEFT JOIN reaction_versions versions ON versions.message_id = shown.id
 	LEFT JOIN LATERAL (
 		SELECT json_agg(json_build_object(
@@ -148,7 +164,7 @@ const shownMessages = `
 			SELECT
 				reaction,
 				count(*) AS count,
-				COALESCE(bool_or(reactor = 'account:' || $3::uuid), false) AS mine,
+				COALESCE(bool_or(reactor = 'account:' || $4::uuid), false) AS mine,
 				min(reacted_at) AS first_at,
 				COALESCE(
 					array_agg(substr(reactor, 9)::uuid ORDER BY reacted_at, reactor) FILTER (WHERE reactor LIKE 'account:%'),
@@ -171,6 +187,7 @@ type row struct {
 	country string
 	text    string
 	removed bool
+	gif     gif
 	quoted  quoted
 	version uint64
 	counts  []count
@@ -182,6 +199,13 @@ type quoted struct {
 	name    string
 	text    string
 	removed bool
+	gif     gif
+}
+
+type gif struct {
+	url    string
+	width  uint32
+	height uint32
 }
 
 type count struct {
@@ -194,9 +218,10 @@ type count struct {
 func (q *PostgresQuery) shown(
 	ctx context.Context,
 	since time.Time,
+	room messages.Room,
 	viewer cpsession.AccountID,
 ) ([]*chatv1.ChatMessage, error) {
-	rows, err := q.rows(ctx, since, viewer)
+	rows, err := q.rows(ctx, since, room, viewer)
 	if err != nil {
 		return nil, err
 	}
@@ -213,8 +238,13 @@ func (q *PostgresQuery) shown(
 	return shown, nil
 }
 
-func (q *PostgresQuery) rows(ctx context.Context, since time.Time, viewer cpsession.AccountID) ([]row, error) {
-	result, err := q.db.QueryContext(ctx, shownMessages, since, q.size, nullable(viewer))
+func (q *PostgresQuery) rows(
+	ctx context.Context,
+	since time.Time,
+	room messages.Room,
+	viewer cpsession.AccountID,
+) ([]row, error) {
+	result, err := q.db.On(ctx).QueryContext(ctx, shownMessages, since, q.size, string(room), nullable(viewer))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the chat history: %w", err)
 	}
@@ -230,7 +260,9 @@ func (q *PostgresQuery) rows(ctx context.Context, since time.Time, viewer cpsess
 		)
 		if err := result.Scan(
 			&each.id, &each.sentAt, &account, &each.name, &each.admin, &each.country, &each.text, &each.removed,
+			&each.gif.url, &each.gif.width, &each.gif.height,
 			&each.quoted.id, &quotedAccount, &each.quoted.name, &each.quoted.text, &each.quoted.removed,
+			&each.quoted.gif.url, &each.quoted.gif.width, &each.quoted.gif.height,
 			&each.version, &counts,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan a message of the chat history: %w", err)
@@ -296,16 +328,20 @@ func everyone(rows []row) []cpsession.AccountID {
 	return accounts
 }
 
-func messageOf(row row, named map[cpsession.AccountID]*playerv1.Author) *chatv1.ChatMessage {
+func messageOf(row row, named map[cpsession.AccountID]*playerv1.Player) *chatv1.ChatMessage {
 	message := &chatv1.ChatMessage{
 		Id:               row.id,
 		SentAtUnixMs:     row.sentAt,
 		CountryId:        row.country,
-		Text:             row.text,
 		Removed:          row.removed,
 		Reactions:        reactionsOf(row.counts, named),
 		ReactionsVersion: row.version,
 		ReplyTo:          quoteOf(row.quoted, named),
+	}
+	if gif := gifOf(row.gif); gif != nil {
+		message.Body = &chatv1.ChatMessage_Gif{Gif: gif}
+	} else if !row.removed {
+		message.Body = &chatv1.ChatMessage_Text{Text: row.text}
 	}
 
 	if row.account == cpsession.NoAccount {
@@ -324,17 +360,20 @@ func messageOf(row row, named map[cpsession.AccountID]*playerv1.Author) *chatv1.
 	message.AuthorName = author.GetName()
 	message.AuthorAdmin = author.GetAdmin()
 	message.AuthorColor = author.GetColor()
-	message.AuthorStreak = author.GetStreak()
-	message.AuthorTitle = author.GetWornTitle()
 	return message
 }
 
-func quoteOf(quoted quoted, named map[cpsession.AccountID]*playerv1.Author) *chatv1.Quote {
+func quoteOf(quoted quoted, named map[cpsession.AccountID]*playerv1.Player) *chatv1.Quote {
 	if quoted.id == "" {
 		return nil
 	}
 
-	quote := &chatv1.Quote{MessageId: quoted.id, Text: quoted.text, Removed: quoted.removed}
+	quote := &chatv1.Quote{MessageId: quoted.id, Removed: quoted.removed}
+	if gif := gifOf(quoted.gif); gif != nil {
+		quote.Body = &chatv1.Quote_Gif{Gif: gif}
+	} else if !quoted.removed {
+		quote.Body = &chatv1.Quote_Text{Text: quoted.text}
+	}
 	if quoted.account == cpsession.NoAccount {
 		quote.AuthorName = quoted.name
 		return quote
@@ -351,7 +390,14 @@ func quoteOf(quoted quoted, named map[cpsession.AccountID]*playerv1.Author) *cha
 	return quote
 }
 
-func reactionsOf(counts []count, named map[cpsession.AccountID]*playerv1.Author) []*chatv1.ReactionCount {
+func gifOf(gif gif) *chatv1.Gif {
+	if gif.url == "" {
+		return nil
+	}
+	return &chatv1.Gif{Url: gif.url, Width: gif.width, Height: gif.height}
+}
+
+func reactionsOf(counts []count, named map[cpsession.AccountID]*playerv1.Player) []*chatv1.ReactionCount {
 	encoded := make([]*chatv1.ReactionCount, 0, len(counts))
 	for _, each := range counts {
 		encoded = append(encoded, &chatv1.ReactionCount{
@@ -364,7 +410,7 @@ func reactionsOf(counts []count, named map[cpsession.AccountID]*playerv1.Author)
 	return encoded
 }
 
-func namesOf(accounts []uuid.UUID, named map[cpsession.AccountID]*playerv1.Author) []string {
+func namesOf(accounts []uuid.UUID, named map[cpsession.AccountID]*playerv1.Player) []string {
 	names := make([]string, 0, min(len(accounts), NamedReactors))
 	for _, account := range accounts {
 		if len(names) == NamedReactors {
@@ -402,7 +448,7 @@ const shownAnnouncements = `
 `
 
 func (q *PostgresQuery) announced(ctx context.Context, since time.Time) ([]*chatv1.Announcement, error) {
-	result, err := q.db.QueryContext(ctx, shownAnnouncements, since, q.size)
+	result, err := q.db.On(ctx).QueryContext(ctx, shownAnnouncements, since, q.size, string(messages.World))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the chat announcements: %w", err)
 	}

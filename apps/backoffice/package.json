@@ -9,7 +9,9 @@
     "test": "vitest run",
     "lint": "eslint .",
     "preview": "vite preview",
-    "proto": "npx buf generate"
+    "proto": "npx buf generate",
+    "map": "node scripts/syncMap.mjs",
+    "demo": "vite --mode demo"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^1.10.0",

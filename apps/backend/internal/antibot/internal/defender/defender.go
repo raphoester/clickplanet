@@ -2,6 +2,7 @@ package defender
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -11,7 +12,9 @@ import (
 
 const Name = "defender"
 
-type Config struct {
+type Rules struct {
+	Enabled bool
+
 	RetakeWindow time.Duration
 
 	MinClicks int
@@ -19,16 +22,25 @@ type Config struct {
 
 	CertainClicks int
 	CertainShare  float64
+}
 
+func (r Rules) Validate() error {
+	return errors.Join(
+		detect.Positive("retakeWindow", r.RetakeWindow),
+		detect.Positive("minClicks", r.MinClicks),
+		detect.Share("minShare", r.MinShare),
+		detect.AtLeast("certainClicks", r.CertainClicks, "minClicks", r.MinClicks),
+		detect.Share("certainShare", r.CertainShare),
+	)
+}
+
+type Config struct {
 	TrackWindow time.Duration
 
 	SweepInterval time.Duration
 }
 
 const (
-	defaultRetakeWindow  = 2 * time.Minute
-	defaultMinClicks     = 60
-	defaultCertainClicks = 200
 	defaultTrackWindow   = 5 * time.Minute
 	defaultSweepInterval = time.Minute
 
@@ -36,18 +48,6 @@ const (
 )
 
 func (c Config) withDefaults() Config {
-	if c.RetakeWindow <= 0 {
-		c.RetakeWindow = defaultRetakeWindow
-	}
-	if c.MinClicks <= 0 {
-		c.MinClicks = defaultMinClicks
-	}
-	if c.CertainClicks <= 0 {
-		c.CertainClicks = defaultCertainClicks
-	}
-	if c.CertainClicks < c.MinClicks {
-		c.CertainClicks = c.MinClicks
-	}
 	if c.TrackWindow <= 0 {
 		c.TrackWindow = defaultTrackWindow
 	}
@@ -57,13 +57,14 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, clock cptime.Clock, onShare func(share float64)) *Watchdog {
+func New(config Config, rules func() Rules, clock cptime.Clock, onShare func(share float64)) *Watchdog {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
 	return &Watchdog{
 		config:  config.withDefaults(),
+		rules:   rules,
 		clock:   clock,
 		onShare: onShare,
 		losses:  make(map[uint32]loss),
@@ -73,6 +74,7 @@ func New(config Config, clock cptime.Clock, onShare func(share float64)) *Watchd
 
 type Watchdog struct {
 	config  Config
+	rules   func() Rules
 	clock   cptime.Clock
 	onShare func(float64)
 
@@ -100,9 +102,13 @@ type take struct {
 
 func (w *Watchdog) Name() string { return Name }
 
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
+
 func (w *Watchdog) Attempted(detect.Click) {}
 
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
+	rules := w.rules()
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -111,7 +117,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		retake := ok && !click.Shielded &&
 			previous.country == click.Country &&
 			previous.to != click.Scope &&
-			click.At.Sub(previous.at) <= w.config.RetakeWindow
+			click.At.Sub(previous.at) <= rules.RetakeWindow
 
 		c := w.callerLocked(click.Scope)
 		c.takes = append(c.takes, take{at: click.At, retake: retake})
@@ -133,9 +139,9 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	share := ratio(retakes, clicks)
 
 	switch {
-	case w.config.CertainShare > 0 && clicks >= w.config.CertainClicks && share >= w.config.CertainShare:
+	case rules.CertainShare > 0 && clicks >= rules.CertainClicks && share >= rules.CertainShare:
 		verdict = detect.Certain
-	case w.config.MinShare > 0 && clicks >= w.config.MinClicks && share >= w.config.MinShare:
+	case rules.MinShare > 0 && clicks >= rules.MinClicks && share >= rules.MinShare:
 		verdict = detect.Suspect
 	}
 
@@ -216,12 +222,13 @@ func (w *Watchdog) Run(ctx context.Context) {
 
 func (w *Watchdog) sweep() {
 	now := w.clock.Now()
+	rules := w.rules()
 
 	var shares []float64
 
 	w.mu.Lock()
 
-	lossCutoff := now.Add(-w.config.RetakeWindow)
+	lossCutoff := now.Add(-rules.RetakeWindow)
 	for tile, l := range w.losses {
 		if l.at.Before(lossCutoff) {
 			delete(w.losses, tile)
@@ -236,7 +243,7 @@ func (w *Watchdog) sweep() {
 		switch {
 		case clicks == 0:
 			delete(w.callers, scope)
-		case clicks >= w.config.MinClicks:
+		case clicks >= rules.MinClicks:
 			shares = append(shares, ratio(retakes, clicks))
 		}
 	}

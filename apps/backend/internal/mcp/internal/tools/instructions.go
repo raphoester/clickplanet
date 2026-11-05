@@ -1,6 +1,5 @@
 package tools
 
-// What Claude is told once it connects, before any tool's own description.
 const Instructions = `ClickPlanet (clickplanet.lol) is a game where players click the tiles of a globe to paint them with a
 country's flag. These are its operator's tools, on the production server, as the operator who connected you: what a
 tool changes, it changes for every player at once.

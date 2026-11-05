@@ -33,18 +33,54 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// InternalServiceGetLedgerProcedure is the fully-qualified name of the InternalService's GetLedger
+	// RPC.
+	InternalServiceGetLedgerProcedure = "/planet.v1.InternalService/GetLedger"
 	// InternalServiceGetTakesByCountryProcedure is the fully-qualified name of the InternalService's
 	// GetTakesByCountry RPC.
 	InternalServiceGetTakesByCountryProcedure = "/planet.v1.InternalService/GetTakesByCountry"
+	// InternalServiceGetLedgerTotalsProcedure is the fully-qualified name of the InternalService's
+	// GetLedgerTotals RPC.
+	InternalServiceGetLedgerTotalsProcedure = "/planet.v1.InternalService/GetLedgerTotals"
+	// InternalServiceGetMapHistoryProcedure is the fully-qualified name of the InternalService's
+	// GetMapHistory RPC.
+	InternalServiceGetMapHistoryProcedure = "/planet.v1.InternalService/GetMapHistory"
 	// InternalServiceGetTerritoriesProcedure is the fully-qualified name of the InternalService's
 	// GetTerritories RPC.
 	InternalServiceGetTerritoriesProcedure = "/planet.v1.InternalService/GetTerritories"
+	// InternalServiceGetCountrySizesProcedure is the fully-qualified name of the InternalService's
+	// GetCountrySizes RPC.
+	InternalServiceGetCountrySizesProcedure = "/planet.v1.InternalService/GetCountrySizes"
+	// InternalServiceGetAllegianceOfProcedure is the fully-qualified name of the InternalService's
+	// GetAllegianceOf RPC.
+	InternalServiceGetAllegianceOfProcedure = "/planet.v1.InternalService/GetAllegianceOf"
+	// InternalServiceGetRuleSetNamesProcedure is the fully-qualified name of the InternalService's
+	// GetRuleSetNames RPC.
+	InternalServiceGetRuleSetNamesProcedure = "/planet.v1.InternalService/GetRuleSetNames"
+	// InternalServiceGetRuleSetProcedure is the fully-qualified name of the InternalService's
+	// GetRuleSet RPC.
+	InternalServiceGetRuleSetProcedure = "/planet.v1.InternalService/GetRuleSet"
 )
 
 // InternalServiceClient is a client for the planet.v1.InternalService service.
 type InternalServiceClient interface {
+	// AdminService/GetLedger, for the clips module's cast: who took which tile.
+	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
+	// The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
+	// keeps the answer. InvalidArgument unless since is before until.
+	GetLedgerTotals(context.Context, *connect.Request[v1.GetLedgerTotalsRequest]) (*connect.Response[v1.GetLedgerTotalsResponse], error)
+	// The map every step from since to until, replayed from the ledger's first event, for the gamemaster's season replay.
+	// A read of the whole ledger: the caller keeps the answer. InvalidArgument unless since is before until, and the step
+	// makes 5,000 frames at most.
+	GetMapHistory(context.Context, *connect.Request[v1.GetMapHistoryRequest]) (*connect.Response[v1.GetMapHistoryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)
+	GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error)
+	GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error)
+	// The values a set plays: default's, with the set's own written over them, for the promo module's cards. NotFound for
+	// a set postgres does not keep.
+	GetRuleSet(context.Context, *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the planet.v1.InternalService service. By
@@ -58,10 +94,31 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	internalServiceMethods := v1.File_planet_v1_internal_proto.Services().ByName("InternalService").Methods()
 	return &internalServiceClient{
+		getLedger: connect.NewClient[v1.GetLedgerRequest, v1.GetLedgerResponse](
+			httpClient,
+			baseURL+InternalServiceGetLedgerProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetLedger")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		getTakesByCountry: connect.NewClient[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse](
 			httpClient,
 			baseURL+InternalServiceGetTakesByCountryProcedure,
 			connect.WithSchema(internalServiceMethods.ByName("GetTakesByCountry")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getLedgerTotals: connect.NewClient[v1.GetLedgerTotalsRequest, v1.GetLedgerTotalsResponse](
+			httpClient,
+			baseURL+InternalServiceGetLedgerTotalsProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetLedgerTotals")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getMapHistory: connect.NewClient[v1.GetMapHistoryRequest, v1.GetMapHistoryResponse](
+			httpClient,
+			baseURL+InternalServiceGetMapHistoryProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetMapHistory")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
@@ -72,13 +129,53 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getCountrySizes: connect.NewClient[v1.GetCountrySizesRequest, v1.GetCountrySizesResponse](
+			httpClient,
+			baseURL+InternalServiceGetCountrySizesProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetCountrySizes")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getAllegianceOf: connect.NewClient[v1.GetAllegianceOfRequest, v1.GetAllegianceOfResponse](
+			httpClient,
+			baseURL+InternalServiceGetAllegianceOfProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetAllegianceOf")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getRuleSetNames: connect.NewClient[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse](
+			httpClient,
+			baseURL+InternalServiceGetRuleSetNamesProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetRuleSetNames")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getRuleSet: connect.NewClient[v1.GetRuleSetRequest, v1.GetRuleSetResponse](
+			httpClient,
+			baseURL+InternalServiceGetRuleSetProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetRuleSet")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
+	getLedger         *connect.Client[v1.GetLedgerRequest, v1.GetLedgerResponse]
 	getTakesByCountry *connect.Client[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse]
+	getLedgerTotals   *connect.Client[v1.GetLedgerTotalsRequest, v1.GetLedgerTotalsResponse]
+	getMapHistory     *connect.Client[v1.GetMapHistoryRequest, v1.GetMapHistoryResponse]
 	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
+	getCountrySizes   *connect.Client[v1.GetCountrySizesRequest, v1.GetCountrySizesResponse]
+	getAllegianceOf   *connect.Client[v1.GetAllegianceOfRequest, v1.GetAllegianceOfResponse]
+	getRuleSetNames   *connect.Client[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse]
+	getRuleSet        *connect.Client[v1.GetRuleSetRequest, v1.GetRuleSetResponse]
+}
+
+// GetLedger calls planet.v1.InternalService.GetLedger.
+func (c *internalServiceClient) GetLedger(ctx context.Context, req *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error) {
+	return c.getLedger.CallUnary(ctx, req)
 }
 
 // GetTakesByCountry calls planet.v1.InternalService.GetTakesByCountry.
@@ -86,15 +183,60 @@ func (c *internalServiceClient) GetTakesByCountry(ctx context.Context, req *conn
 	return c.getTakesByCountry.CallUnary(ctx, req)
 }
 
+// GetLedgerTotals calls planet.v1.InternalService.GetLedgerTotals.
+func (c *internalServiceClient) GetLedgerTotals(ctx context.Context, req *connect.Request[v1.GetLedgerTotalsRequest]) (*connect.Response[v1.GetLedgerTotalsResponse], error) {
+	return c.getLedgerTotals.CallUnary(ctx, req)
+}
+
+// GetMapHistory calls planet.v1.InternalService.GetMapHistory.
+func (c *internalServiceClient) GetMapHistory(ctx context.Context, req *connect.Request[v1.GetMapHistoryRequest]) (*connect.Response[v1.GetMapHistoryResponse], error) {
+	return c.getMapHistory.CallUnary(ctx, req)
+}
+
 // GetTerritories calls planet.v1.InternalService.GetTerritories.
 func (c *internalServiceClient) GetTerritories(ctx context.Context, req *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
 	return c.getTerritories.CallUnary(ctx, req)
 }
 
+// GetCountrySizes calls planet.v1.InternalService.GetCountrySizes.
+func (c *internalServiceClient) GetCountrySizes(ctx context.Context, req *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error) {
+	return c.getCountrySizes.CallUnary(ctx, req)
+}
+
+// GetAllegianceOf calls planet.v1.InternalService.GetAllegianceOf.
+func (c *internalServiceClient) GetAllegianceOf(ctx context.Context, req *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error) {
+	return c.getAllegianceOf.CallUnary(ctx, req)
+}
+
+// GetRuleSetNames calls planet.v1.InternalService.GetRuleSetNames.
+func (c *internalServiceClient) GetRuleSetNames(ctx context.Context, req *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error) {
+	return c.getRuleSetNames.CallUnary(ctx, req)
+}
+
+// GetRuleSet calls planet.v1.InternalService.GetRuleSet.
+func (c *internalServiceClient) GetRuleSet(ctx context.Context, req *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error) {
+	return c.getRuleSet.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the planet.v1.InternalService service.
 type InternalServiceHandler interface {
+	// AdminService/GetLedger, for the clips module's cast: who took which tile.
+	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
+	// The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
+	// keeps the answer. InvalidArgument unless since is before until.
+	GetLedgerTotals(context.Context, *connect.Request[v1.GetLedgerTotalsRequest]) (*connect.Response[v1.GetLedgerTotalsResponse], error)
+	// The map every step from since to until, replayed from the ledger's first event, for the gamemaster's season replay.
+	// A read of the whole ledger: the caller keeps the answer. InvalidArgument unless since is before until, and the step
+	// makes 5,000 frames at most.
+	GetMapHistory(context.Context, *connect.Request[v1.GetMapHistoryRequest]) (*connect.Response[v1.GetMapHistoryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)
+	GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error)
+	GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error)
+	// The values a set plays: default's, with the set's own written over them, for the promo module's cards. NotFound for
+	// a set postgres does not keep.
+	GetRuleSet(context.Context, *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -104,10 +246,31 @@ type InternalServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	internalServiceMethods := v1.File_planet_v1_internal_proto.Services().ByName("InternalService").Methods()
+	internalServiceGetLedgerHandler := connect.NewUnaryHandler(
+		InternalServiceGetLedgerProcedure,
+		svc.GetLedger,
+		connect.WithSchema(internalServiceMethods.ByName("GetLedger")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	internalServiceGetTakesByCountryHandler := connect.NewUnaryHandler(
 		InternalServiceGetTakesByCountryProcedure,
 		svc.GetTakesByCountry,
 		connect.WithSchema(internalServiceMethods.ByName("GetTakesByCountry")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceGetLedgerTotalsHandler := connect.NewUnaryHandler(
+		InternalServiceGetLedgerTotalsProcedure,
+		svc.GetLedgerTotals,
+		connect.WithSchema(internalServiceMethods.ByName("GetLedgerTotals")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceGetMapHistoryHandler := connect.NewUnaryHandler(
+		InternalServiceGetMapHistoryProcedure,
+		svc.GetMapHistory,
+		connect.WithSchema(internalServiceMethods.ByName("GetMapHistory")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -118,12 +281,54 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetCountrySizesHandler := connect.NewUnaryHandler(
+		InternalServiceGetCountrySizesProcedure,
+		svc.GetCountrySizes,
+		connect.WithSchema(internalServiceMethods.ByName("GetCountrySizes")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceGetAllegianceOfHandler := connect.NewUnaryHandler(
+		InternalServiceGetAllegianceOfProcedure,
+		svc.GetAllegianceOf,
+		connect.WithSchema(internalServiceMethods.ByName("GetAllegianceOf")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceGetRuleSetNamesHandler := connect.NewUnaryHandler(
+		InternalServiceGetRuleSetNamesProcedure,
+		svc.GetRuleSetNames,
+		connect.WithSchema(internalServiceMethods.ByName("GetRuleSetNames")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceGetRuleSetHandler := connect.NewUnaryHandler(
+		InternalServiceGetRuleSetProcedure,
+		svc.GetRuleSet,
+		connect.WithSchema(internalServiceMethods.ByName("GetRuleSet")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case InternalServiceGetLedgerProcedure:
+			internalServiceGetLedgerHandler.ServeHTTP(w, r)
 		case InternalServiceGetTakesByCountryProcedure:
 			internalServiceGetTakesByCountryHandler.ServeHTTP(w, r)
+		case InternalServiceGetLedgerTotalsProcedure:
+			internalServiceGetLedgerTotalsHandler.ServeHTTP(w, r)
+		case InternalServiceGetMapHistoryProcedure:
+			internalServiceGetMapHistoryHandler.ServeHTTP(w, r)
 		case InternalServiceGetTerritoriesProcedure:
 			internalServiceGetTerritoriesHandler.ServeHTTP(w, r)
+		case InternalServiceGetCountrySizesProcedure:
+			internalServiceGetCountrySizesHandler.ServeHTTP(w, r)
+		case InternalServiceGetAllegianceOfProcedure:
+			internalServiceGetAllegianceOfHandler.ServeHTTP(w, r)
+		case InternalServiceGetRuleSetNamesProcedure:
+			internalServiceGetRuleSetNamesHandler.ServeHTTP(w, r)
+		case InternalServiceGetRuleSetProcedure:
+			internalServiceGetRuleSetHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -133,10 +338,38 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 // UnimplementedInternalServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedInternalServiceHandler struct{}
 
+func (UnimplementedInternalServiceHandler) GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetLedger is not implemented"))
+}
+
 func (UnimplementedInternalServiceHandler) GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetTakesByCountry is not implemented"))
 }
 
+func (UnimplementedInternalServiceHandler) GetLedgerTotals(context.Context, *connect.Request[v1.GetLedgerTotalsRequest]) (*connect.Response[v1.GetLedgerTotalsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetLedgerTotals is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetMapHistory(context.Context, *connect.Request[v1.GetMapHistoryRequest]) (*connect.Response[v1.GetMapHistoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetMapHistory is not implemented"))
+}
+
 func (UnimplementedInternalServiceHandler) GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetTerritories is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetCountrySizes is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetAllegianceOf is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetRuleSetNames is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetRuleSet(context.Context, *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetRuleSet is not implemented"))
 }

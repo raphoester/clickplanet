@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections"
 )
 
-// A key per kind, so nothing sealed as one kind opens as another.
 const (
 	clientInfo  = "clickplanet auth connection client v1"
 	requestInfo = "clickplanet auth connection request v1"
@@ -27,8 +27,6 @@ type Sealer struct {
 	requests cipher.AEAD
 	codes    cipher.AEAD
 }
-
-var _ connections.Sealer = (*Sealer)(nil)
 
 func New(seed []byte) (*Sealer, error) {
 	if len(seed) == 0 {
@@ -62,8 +60,7 @@ func aeadOf(seed []byte, info string) (cipher.AEAD, error) {
 	return aead, nil
 }
 
-// The keys are the format an app holds: a client id registered before a release opens after it. Short, because each
-// one travels in a URL.
+// Apps hold what these keys seal: renaming one breaks every registered client.
 type sealedClient struct {
 	Name         string    `json:"n"`
 	RedirectURIs []string  `json:"r"`
@@ -71,22 +68,22 @@ type sealedClient struct {
 }
 
 type sealedRequest struct {
-	ClientID    string    `json:"c"`
-	Client      string    `json:"n"`
-	RedirectURI string    `json:"r"`
-	Challenge   string    `json:"p"`
-	State       string    `json:"s"`
-	ExpiresAt   time.Time `json:"e"`
+	ClientID    admintokens.ClientID `json:"c"`
+	Client      string               `json:"n"`
+	RedirectURI string               `json:"r"`
+	Challenge   string               `json:"p"`
+	State       string               `json:"s"`
+	ExpiresAt   time.Time            `json:"e"`
 }
 
 type sealedCode struct {
-	ID          string             `json:"i"`
-	Account     accounts.AccountID `json:"a"`
-	ClientID    string             `json:"c"`
-	Client      string             `json:"n"`
-	RedirectURI string             `json:"r"`
-	Challenge   string             `json:"p"`
-	ExpiresAt   time.Time          `json:"e"`
+	ID          connections.CodeID   `json:"i"`
+	Account     accounts.AccountID   `json:"a"`
+	ClientID    admintokens.ClientID `json:"c"`
+	Client      string               `json:"n"`
+	RedirectURI string               `json:"r"`
+	Challenge   string               `json:"p"`
+	ExpiresAt   time.Time            `json:"e"`
 }
 
 func (s *Sealer) SealedClient(client *connections.Client) (string, error) {

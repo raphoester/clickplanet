@@ -1,0 +1,176 @@
+package allegiances_test
+
+import (
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
+)
+
+const (
+	alice = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
+	bob   = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e60"
+)
+
+func book() (allegiances.Book, *allegiances.MemoryStore, *cptime.FixedClock) {
+	b, store, clock, _ := bookTelling()
+	return b, store, clock
+}
+
+func bookTelling() (allegiances.Book, *allegiances.MemoryStore, *cptime.FixedClock, *allegiances.RecordedPledges) {
+	store := allegiances.NewMemoryStore()
+	clock := cptime.NewFixedClock(at)
+	told := &allegiances.RecordedPledges{}
+
+	return allegiances.NewBook(store, cpcountries.New(), unlocked, clock, told), store, clock, told
+}
+
+func TestAnAccountIsHeldToItsFlagForAnHourAfterAChange(t *testing.T) {
+	b, store, clock := book()
+	payer := clicks.Payer{Account: alice}
+
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), payer, "de"))
+
+	clock.Advance(59 * time.Minute)
+	err := b.Pledge(t.Context(), payer, "fr")
+	require.ErrorIs(t, err, allegiances.ErrChangedTooSoon)
+	assert.Equal(t, allegiances.Snapshot{Flag: "de", ChangedAt: at}, store.Kept(alice))
+
+	clock.Advance(time.Minute)
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	assert.Equal(t, allegiances.Snapshot{Flag: "fr", ChangedAt: at.Add(time.Hour)}, store.Kept(alice))
+}
+
+func TestAReleasedAccountChangesItsFlagAtOnce(t *testing.T) {
+	b, store, clock := book()
+	payer := clicks.Payer{Account: alice}
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), payer, "de"))
+	clock.Advance(time.Minute)
+
+	require.NoError(t, b.Release(t.Context(), alice))
+	assert.Equal(t, allegiances.Snapshot{Flag: "de"}, store.Kept(alice))
+
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	assert.Equal(t, allegiances.Snapshot{Flag: "fr", ChangedAt: at.Add(time.Minute)}, store.Kept(alice))
+}
+
+func TestReleasingAnAccountWithNoFlagKeepsNothing(t *testing.T) {
+	b, store, _ := book()
+
+	require.NoError(t, b.Release(t.Context(), bob))
+
+	assert.Equal(t, allegiances.Snapshot{}, store.Kept(bob))
+}
+
+func unlocked() allegiances.Lock { return false }
+
+func TestNoAccountChangesItsFlagWhileTheRulesLockThem(t *testing.T) {
+	var lock allegiances.Lock
+	store := allegiances.NewMemoryStore()
+	b := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return lock }, cptime.NewFixedClock(at), &allegiances.RecordedPledges{})
+	payer := clicks.Payer{Account: alice}
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+
+	lock = true
+	require.ErrorIs(t, b.Pledge(t.Context(), payer, "de"), allegiances.ErrLocked)
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: bob}, "de"), "a first flag is still taken")
+	var refusal allegiances.Refusal
+	require.ErrorAs(t, b.PlayError(t.Context(), payer, "de"), &refusal)
+	assert.True(t, refusal.Locked)
+
+	lock = false
+	require.NoError(t, b.Pledge(t.Context(), payer, "de"))
+	assert.Equal(t, allegiances.Snapshot{Flag: "de", ChangedAt: at}, store.Kept(alice))
+}
+
+func TestEachAccountHasItsOwnFlag(t *testing.T) {
+	b, store, _ := book()
+
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: alice, Scope: "1.2.3.4"}, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: alice, Scope: "1.2.3.4"}, "de"))
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: bob, Scope: "1.2.3.4"}, "fr"))
+
+	assert.Equal(t, "de", store.Kept(alice).Flag)
+	assert.Equal(t, "fr", store.Kept(bob).Flag)
+}
+
+func TestACallerWithNoAccountPledgesNothingAndPlaysAnyFlag(t *testing.T) {
+	b, store, _ := book()
+	payer := clicks.Payer{Scope: "1.2.3.4"}
+
+	require.ErrorIs(t, b.Pledge(t.Context(), payer, "fr"), allegiances.ErrNoAccount)
+	require.NoError(t, b.PlayError(t.Context(), payer, "de"))
+
+	assert.Equal(t, allegiances.Snapshot{}, store.Kept(allegiances.NoAccount))
+}
+
+func TestAFlagThatIsNoCountryIsRefusedAndNotKept(t *testing.T) {
+	b, store, _ := book()
+	payer := clicks.Payer{Account: alice}
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+
+	require.ErrorIs(t, b.Pledge(t.Context(), payer, "zz"), clicks.ErrUnknownCountry)
+
+	assert.Equal(t, "fr", store.Kept(alice).Flag)
+}
+
+func TestAnAccountPlaysOnlyTheFlagItPledged(t *testing.T) {
+	b, store, clock := book()
+	payer := clicks.Payer{Account: alice}
+
+	require.ErrorIs(t, b.PlayError(t.Context(), payer, "fr"), allegiances.ErrNoFlag)
+	assert.Equal(t, allegiances.Snapshot{}, store.Kept(alice), "a refused click pledges nothing")
+
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	require.NoError(t, b.PlayError(t.Context(), payer, "fr"))
+
+	clock.Advance(2 * time.Hour)
+	require.ErrorIs(t, b.PlayError(t.Context(), payer, "de"), allegiances.ErrOtherFlag)
+	require.NoError(t, b.PlayError(t.Context(), payer, "zz"), "the click refuses a flag that is no country")
+}
+
+func TestAStoreThatFailsFailsThePledge(t *testing.T) {
+	b, store, _ := book()
+	down := errors.New("postgres is down")
+	store.FailWith(down)
+
+	assert.ErrorIs(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, "fr"), down)
+	assert.ErrorIs(t, b.PlayError(t.Context(), clicks.Payer{Account: alice}, "fr"), down)
+	assert.ErrorIs(t, b.Release(t.Context(), alice), down)
+}
+
+func TestEachFlagSetOrChangedIsToldOnceWritten(t *testing.T) {
+	b, _, clock, told := bookTelling()
+	payer := clicks.Payer{Account: alice}
+
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	require.NoError(t, b.Pledge(t.Context(), payer, "de"))
+	require.ErrorIs(t, b.Pledge(t.Context(), payer, "it"), allegiances.ErrChangedTooSoon)
+	clock.Advance(time.Hour)
+	require.NoError(t, b.Pledge(t.Context(), payer, "it"))
+
+	assert.Equal(t, []allegiances.RecordedPledge{
+		{Account: alice, Flag: "fr"},
+		{Account: alice, Flag: "de", Previous: "fr"},
+		{Account: alice, Flag: "it", Previous: "de"},
+	}, told.Told())
+}
+
+func TestAReleaseTellsNothing(t *testing.T) {
+	b, _, _, told := bookTelling()
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, "fr"))
+
+	require.NoError(t, b.Release(t.Context(), alice))
+
+	assert.Len(t, told.Told(), 1)
+}

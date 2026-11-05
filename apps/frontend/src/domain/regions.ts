@@ -14,3 +14,8 @@ const CONTINENT_FLAGS: ReadonlyMap<string, string> = new Map([["Europe", "eu"]])
 export function flagOfContinent(continent: string): string | undefined {
     return CONTINENT_FLAGS.get(continent)
 }
+
+// Every continent of the map, as Natural Earth names them and Asia's parts as people name them.
+export function continents(): string[] {
+    return [...new Set(CONTINENTS.values())].sort()
+}

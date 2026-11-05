@@ -1,14 +1,25 @@
-import {ClosedRound, RoundStanding} from "../backends/standings.ts"
+import {ClosedRound, RoundStanding, Score} from "../backends/standings.ts"
+import {Battle} from "./battle.ts"
+import {debriefedFor, debriefScreensOf} from "./battleBrief.ts"
 
 export const REVEAL_WITHIN_MS = 6 * 60 * 60 * 1000
 export const REVEAL_SEEN_STORAGE_KEY = "clickplanet-round-seen"
 export const REVEAL_ROWS = 10
 const PODIUM = 3
 
-export const ROUND_REVEAL = {podium: 3.4, slide: 0.7, settle: 1.6} as const
+export const ROUND_REVEAL = {podium: 3.4, slide: 0.7, settle: 1.6, hold: 2.4, champion: 2.2} as const
 
-export function roundOverLine(round: {number: number, finale: boolean}): string {
-    return round.finale ? "The Final Battle is over!" : `Day ${round.number} is over!`
+export function roundOverLine(round: {number: number, finale: boolean, own: boolean}): string {
+    if (!round.own) return `Day ${round.number} is over!`
+    return round.finale ? "The Final Battle is over!" : "The battle is over!"
+}
+
+export function battleFinishedLine(round: {finale: boolean}): string {
+    return round.finale ? "Final Battle finished!" : "Battle finished!"
+}
+
+export function seasonOverLine(season: number): string {
+    return `Season ${season} is over!`
 }
 
 export const MEDALS = ["🥇", "🥈", "🥉"] as const
@@ -17,17 +28,62 @@ export function medalOf(rank: number): string {
     return MEDALS[rank - 1] ?? ""
 }
 
-export function revealKeyOf(closed: ClosedRound): string {
-    return `${closed.season}:${closed.number}:${closed.endedAt}`
+// round: a day's reveal. over, points, players: a battle's debrief, each a screen of its own. results: the season's
+// table and its champion, after the debrief of the battle that ended the season.
+export type Reveal = {kind: "round" | "over" | "points" | "players" | "results", closed: ClosedRound}
+
+// battle is the last one the page saw play: another battle's round plays no debrief.
+export function revealsOf(closed: ClosedRound, battle?: Battle): Reveal[] {
+    switch (closed.moment) {
+        case "day":
+            return [{kind: "round", closed}]
+        case "battle": {
+            const debrief = debriefedFor(closed, battle) ? screensOf(closed) : []
+            return closed.finale ? [...debrief, {kind: "results", closed}] : debrief
+        }
+        case "season":
+            return [...(closed.number > 0 ? screensOf(closed) : []), {kind: "results", closed}]
+    }
 }
 
-export function revealDue(closed: ClosedRound | undefined, now: number, seen: string | null): closed is ClosedRound {
-    if (!closed) return false
-    return now - closed.endedAt < REVEAL_WITHIN_MS && revealKeyOf(closed) !== seen
+function screensOf(closed: ClosedRound): Reveal[] {
+    return debriefScreensOf(closed).map((kind) => ({kind, closed}))
+}
+
+// More plays after it: its button goes on rather than back to the globe.
+export function revealFollowed(reveal: Reveal, battle?: Battle): boolean {
+    const reveals = revealsOf(reveal.closed, battle)
+    return reveals.findIndex((each) => each.kind === reveal.kind) < reveals.length - 1
+}
+
+// A battle's screens are keyed by its round, so the season's debrief does not play them again.
+export function revealKeyOf(reveal: Reveal): string {
+    const {season, number, endedAt, roundId} = reveal.closed
+    switch (reveal.kind) {
+        case "round":
+            return `${season}:${number}:${endedAt}`
+        case "over":
+        case "points":
+        case "players":
+            return `${season}:battle:${roundId}:${reveal.kind}`
+        case "results":
+            return `${season}:results:${roundId}`
+    }
+}
+
+// The reveals after the one closed last.
+export function revealsDue(closed: ClosedRound | undefined, now: number, seen: string | null, battle?: Battle): Reveal[] {
+    if (!closed || now - closed.endedAt >= REVEAL_WITHIN_MS) return []
+    const reveals = revealsOf(closed, battle)
+    return reveals.slice(reveals.findIndex((reveal) => revealKeyOf(reveal) === seen) + 1)
 }
 
 export function podiumOf(closed: ClosedRound): RoundStanding[] {
     return closed.standings.filter((standing) => standing.rank <= PODIUM && standing.points > 0).slice(0, PODIUM)
+}
+
+export function tablePodiumOf(table: Score[]): Score[] {
+    return table.filter((score) => score.rank <= PODIUM && score.points > 0).slice(0, PODIUM)
 }
 
 export type Placing = {rank: number, points: number}

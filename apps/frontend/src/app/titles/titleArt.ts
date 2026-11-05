@@ -1,8 +1,27 @@
-import {PlayerTitle, TitleTrack} from "../../backends/player.ts"
+import {PlayerTitle, TitleTrack} from "../../backends/progression.ts"
 
-export type Metal = "bronze" | "silver" | "gold" | "platinum" | "prism" | "holo"
+export type Metal = "bronze" | "silver" | "gold" | "platinum" | "prism" | "holo" | "pumpkin"
 
-type Track = "conquest" | "chatter" | "devotion" | "og"
+const TRACKS = ["conquest", "chatter", "devotion", "defense", "bombs", "loot", "quiz", "missions"] as const
+
+type Track = typeof TRACKS[number] | "og" | "halloween" | "season"
+
+const STANDALONE_LOOKS: Partial<Record<string, Track>> = {
+    halloween_2026: "halloween",
+}
+
+const SEASONS: Partial<Record<string, string>> = {
+    season_0_gold: "0",
+    season_0_silver: "0",
+    season_0_bronze: "0",
+    season_0_top_1: "0",
+    season_0_top_2: "0",
+    season_0_top_3: "0",
+    season_0_battle_top_1: "0",
+    season_0_battle_top_2: "0",
+    season_0_battle_top_3: "0",
+    season_0_veteran: "0",
+}
 
 export const METALS: Record<Metal, string> = {
     bronze: "var(--bronze)",
@@ -11,15 +30,28 @@ export const METALS: Record<Metal, string> = {
     platinum: "var(--platinum)",
     prism: "color-mix(in srgb, var(--prism-2) 70%, var(--text))",
     holo: "color-mix(in srgb, var(--holo-1) 50%, var(--holo-2))",
+    pumpkin: "var(--pumpkin)",
 }
 
 export const BANDS: Partial<Record<Metal, readonly string[]>> = {
     prism: ["var(--prism-1)", "var(--prism-2)", "var(--prism-3)", "var(--prism-4)"],
     holo: ["var(--holo-1)", "var(--holo-2)", "var(--holo-3)", "var(--holo-4)"],
+    pumpkin: Array.from({length: 8}, (_, i) => i % 2 === 0 ? "var(--pumpkin)" : "var(--pumpkin-shade)"),
 }
 
 const TITLE_METALS: Partial<Record<string, Metal>> = {
     og: "holo",
+    season_0_gold: "gold",
+    season_0_silver: "silver",
+    season_0_bronze: "bronze",
+    season_0_top_1: "gold",
+    season_0_top_2: "silver",
+    season_0_top_3: "bronze",
+    season_0_battle_top_1: "gold",
+    season_0_battle_top_2: "silver",
+    season_0_battle_top_3: "bronze",
+    season_0_veteran: "platinum",
+    halloween_2026: "pumpkin",
     settler: "bronze",
     raider: "silver",
     warlord: "gold",
@@ -32,17 +64,39 @@ const TITLE_METALS: Partial<Record<string, Metal>> = {
     chatterbox: "silver",
     socialite: "gold",
     icon: "prism",
+    guard: "bronze",
+    defender: "silver",
+    protector: "gold",
+    warden: "prism",
+    bomber: "bronze",
+    blaster: "silver",
+    wrecker: "gold",
+    destroyer: "prism",
+    looter: "bronze",
+    hunter: "silver",
+    pirate: "gold",
+    captain: "prism",
+    student: "bronze",
+    expert: "silver",
+    professor: "gold",
+    genius: "prism",
+    rookie: "bronze",
+    agent: "silver",
+    operative: "gold",
+    spymaster: "prism",
 }
 
 export function metalOf(title: PlayerTitle): Metal {
     return TITLE_METALS[title.id] ?? "silver"
 }
 
+export function seasonOf(title: PlayerTitle): string | undefined {
+    return SEASONS[title.id]
+}
+
 function trackOf(title: PlayerTitle): Track {
-    if (title.rank?.trackId === "devotion") return "devotion"
-    if (title.rank?.trackId === "chatter") return "chatter"
-    if (title.rank) return "conquest"
-    return "og"
+    if (!title.rank) return seasonOf(title) ? "season" : STANDALONE_LOOKS[title.id] ?? "og"
+    return TRACKS.find((track) => track === title.rank?.trackId) ?? "conquest"
 }
 
 export function enamelOf(title: PlayerTitle): string {
@@ -86,6 +140,26 @@ const TRACK_UNITS: Partial<Record<string, {step: (n: string) => string, left: (n
     chatter: {
         step: (n) => `${n} messages`,
         left: (n, next) => `${n} messages to ${next}`,
+    },
+    defense: {
+        step: (n) => `${n} fortified tiles`,
+        left: (n, next) => `${n} fortified tiles to ${next}`,
+    },
+    bombs: {
+        step: (n) => `${n} ${n === "1" ? "bomb" : "bombs"}`,
+        left: (n, next) => `${n} ${n === "1" ? "bomb" : "bombs"} to ${next}`,
+    },
+    loot: {
+        step: (n) => `${n} boxes`,
+        left: (n, next) => `${n} ${n === "1" ? "box" : "boxes"} to ${next}`,
+    },
+    quiz: {
+        step: (n) => `${n} right answers`,
+        left: (n, next) => `${n} ${n === "1" ? "right answer" : "right answers"} to ${next}`,
+    },
+    missions: {
+        step: (n) => `${n} ${n === "1" ? "mission" : "missions"}`,
+        left: (n, next) => `${n} ${n === "1" ? "mission" : "missions"} to ${next}`,
     },
 }
 

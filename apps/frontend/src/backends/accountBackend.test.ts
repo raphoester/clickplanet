@@ -7,6 +7,7 @@ import {
     LinkRefusalReason,
     Provider as WireProvider,
     SignInIntent,
+    SignInOutcome as WireOutcome,
 } from "../gen/grpc/auth/v1/auth_pb.ts"
 import {AuthError} from "./account.ts"
 import {ConnectAccountBackend} from "./accountBackend.ts"
@@ -16,8 +17,10 @@ const refusing = (code: Code) => vi.fn(async () => {
     throw new ConnectError("no", code)
 })
 
+const LANDING = {tag: "rc", referrer: "discord.com"}
+
 function backendWith(methods: Record<string, unknown>, attest = vi.fn(async () => "turnstile-token")) {
-    return new ConnectAccountBackend(methods as never, attest)
+    return new ConnectAccountBackend(methods as never, attest, LANDING)
 }
 
 describe("ConnectAccountBackend", () => {
@@ -78,6 +81,33 @@ describe("ConnectAccountBackend", () => {
 
             await expect(backend.completeSignIn("code", "state")).rejects.toMatchObject({failure})
         }
+    })
+
+    it("says how each sign-in ended, and a server that says nothing signed the browser in", async () => {
+        const cases: [WireOutcome, string][] = [
+            [WireOutcome.LINKED, "linked"],
+            [WireOutcome.SIGNED_IN, "signedIn"],
+            [WireOutcome.CREATED, "created"],
+            [WireOutcome.UNSPECIFIED, "signedIn"],
+        ]
+        for (const [outcome, said] of cases) {
+            const backend = backendWith({
+                completeSignIn: vi.fn(async () => ({outcome})),
+                completeEmailSignIn: vi.fn(async () => ({outcome})),
+            })
+
+            expect(await backend.completeSignIn("code", "state")).toBe(said)
+            expect(await backend.completeEmailSignIn("123456")).toBe(said)
+        }
+    })
+
+    it("says a sign-in brought back an account its player had asked to delete, whichever way it came", async () => {
+        const restored = vi.fn(async () => ({outcome: WireOutcome.SIGNED_IN, restored: true}))
+        const backend = backendWith({completeSignIn: restored, completeEmailSignIn: restored, completeCrazyGamesSignIn: restored})
+
+        expect(await backend.completeSignIn("code", "state")).toBe("restored")
+        expect(await backend.completeEmailSignIn("123456")).toBe("restored")
+        expect(await backend.completeCrazyGamesSignIn("the-jwt")).toBe("restored")
     })
 
     it("maps each refusal to its failure", async () => {
@@ -182,6 +212,20 @@ describe("ConnectAccountBackend", () => {
     })
 })
 
+describe("the landing", () => {
+    it("goes with both completions, since either can make the account", async () => {
+        const completeSignIn = vi.fn(async () => ({}))
+        const completeEmailSignIn = vi.fn(async () => ({}))
+        const backend = backendWith({completeSignIn, completeEmailSignIn})
+
+        await backend.completeSignIn("code", "state")
+        await backend.completeEmailSignIn("123456")
+
+        expect(completeSignIn).toHaveBeenCalledWith({code: "code", state: "state", landing: LANDING})
+        expect(completeEmailSignIn).toHaveBeenCalledWith({code: "123456", landing: LANDING})
+    })
+})
+
 describe("the auth transport", () => {
     afterEach(() => {
         vi.unstubAllGlobals()
@@ -193,7 +237,7 @@ describe("the auth transport", () => {
         })
         vi.stubGlobal("fetch", fetch)
 
-        await new ConnectAccountBackend(newAuthServiceClient({baseUrl: "https://api.test"}), async () => "").signInOptions()
+        await new ConnectAccountBackend(newAuthServiceClient({baseUrl: "https://api.test"}), async () => "", LANDING).signInOptions()
 
         expect(String((fetch.mock.calls[0] as unknown[])[0])).toBe("https://api.test/auth.v1.AuthService/GetSignInOptions")
         expect(((fetch.mock.calls[0] as unknown[])[1] as RequestInit).credentials).toBe("include")

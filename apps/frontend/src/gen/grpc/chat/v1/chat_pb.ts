@@ -6,7 +6,6 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { NameColor } from "../../player/v1/color_pb.js";
-import { Title } from "../../player/v1/title_pb.js";
 
 /**
  * @generated from enum chat.v1.Reaction
@@ -119,6 +118,32 @@ proto3.util.setEnumType(Reaction, "chat.v1.Reaction", [
 ]);
 
 /**
+ * What a mute takes away.
+ *
+ * @generated from enum chat.v1.MuteKind
+ */
+export enum MuteKind {
+  /**
+   * The whole chat: every post and every reaction.
+   *
+   * @generated from enum value: MUTE_KIND_CHAT = 0;
+   */
+  CHAT = 0,
+
+  /**
+   * A post with a GIF. The player still writes and reacts.
+   *
+   * @generated from enum value: MUTE_KIND_GIFS = 1;
+   */
+  GIFS = 1,
+}
+// Retrieve enum metadata with: proto3.getEnumType(MuteKind)
+proto3.util.setEnumType(MuteKind, "chat.v1.MuteKind", [
+  { no: 0, name: "MUTE_KIND_CHAT" },
+  { no: 1, name: "MUTE_KIND_GIFS" },
+]);
+
+/**
  * @generated from message chat.v1.ReactionCount
  */
 export class ReactionCount extends Message<ReactionCount> {
@@ -198,9 +223,23 @@ export class ChatMessage extends Message<ChatMessage> {
   countryId = "";
 
   /**
-   * @generated from field: string text = 6;
+   * Neither once an operator removed it.
+   *
+   * @generated from oneof chat.v1.ChatMessage.body
    */
-  text = "";
+  body: {
+    /**
+     * @generated from field: string text = 6;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: chat.v1.Gif gif = 16;
+     */
+    value: Gif;
+    case: "gif";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
    * @generated from field: bool author_admin = 7;
@@ -223,16 +262,6 @@ export class ChatMessage extends Message<ChatMessage> {
   authorColor = NameColor.UNSPECIFIED;
 
   /**
-   * @generated from field: uint32 author_streak = 11;
-   */
-  authorStreak = 0;
-
-  /**
-   * @generated from field: player.v1.Title author_title = 12;
-   */
-  authorTitle?: Title;
-
-  /**
    * @generated from field: chat.v1.Quote reply_to = 13;
    */
   replyTo?: Quote;
@@ -245,7 +274,7 @@ export class ChatMessage extends Message<ChatMessage> {
   authorAccountId = "";
 
   /**
-   * An operator removed it: it keeps its place, with no text and no reactions.
+   * An operator removed it: it keeps its place, with no body and no reactions.
    *
    * @generated from field: bool removed = 15;
    */
@@ -263,13 +292,12 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 2, name: "sent_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 3, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 6, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
+    { no: 16, name: "gif", kind: "message", T: Gif, oneof: "body" },
     { no: 7, name: "author_admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 8, name: "reactions", kind: "message", T: ReactionCount, repeated: true },
     { no: 9, name: "reactions_version", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
     { no: 10, name: "author_color", kind: "enum", T: proto3.getEnumType(NameColor) },
-    { no: 11, name: "author_streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 12, name: "author_title", kind: "message", T: Title },
     { no: 13, name: "reply_to", kind: "message", T: Quote },
     { no: 14, name: "author_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 15, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
@@ -293,6 +321,57 @@ export class ChatMessage extends Message<ChatMessage> {
 }
 
 /**
+ * A GIF from KLIPY, at the address KLIPY gave for it.
+ *
+ * @generated from message chat.v1.Gif
+ */
+export class Gif extends Message<Gif> {
+  /**
+   * @generated from field: string url = 1;
+   */
+  url = "";
+
+  /**
+   * @generated from field: uint32 width = 2;
+   */
+  width = 0;
+
+  /**
+   * @generated from field: uint32 height = 3;
+   */
+  height = 0;
+
+  constructor(data?: PartialMessage<Gif>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.Gif";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "width", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "height", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Gif {
+    return new Gif().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Gif {
+    return new Gif().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Gif {
+    return new Gif().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Gif | PlainMessage<Gif> | undefined, b: Gif | PlainMessage<Gif> | undefined): boolean {
+    return proto3.util.equals(Gif, a, b);
+  }
+}
+
+/**
  * @generated from message chat.v1.Quote
  */
 export class Quote extends Message<Quote> {
@@ -312,13 +391,25 @@ export class Quote extends Message<Quote> {
   authorColor = NameColor.UNSPECIFIED;
 
   /**
-   * @generated from field: string text = 4;
+   * Neither when the message quoted was removed.
+   *
+   * @generated from oneof chat.v1.Quote.body
    */
-  text = "";
+  body: {
+    /**
+     * @generated from field: string text = 4;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: chat.v1.Gif gif = 6;
+     */
+    value: Gif;
+    case: "gif";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
-   * The message quoted was removed: no text.
-   *
    * @generated from field: bool removed = 5;
    */
   removed = false;
@@ -334,7 +425,8 @@ export class Quote extends Message<Quote> {
     { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "author_color", kind: "enum", T: proto3.getEnumType(NameColor) },
-    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
+    { no: 6, name: "gif", kind: "message", T: Gif, oneof: "body" },
     { no: 5, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
@@ -370,14 +462,36 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
   countryId = "";
 
   /**
-   * @generated from field: string text = 4;
+   * @generated from oneof chat.v1.SendMessageRequest.body
    */
-  text = "";
+  body: {
+    /**
+     * @generated from field: string text = 4;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * Refused, PermissionDenied, from a guest, and from an account a mute of the GIFs holds.
+     *
+     * @generated from field: chat.v1.Gif gif = 7;
+     */
+    value: Gif;
+    case: "gif";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
    * @generated from field: string reply_to_message_id = 5;
    */
   replyToMessageId = "";
+
+  /**
+   * The flag whose room it goes to: only the accounts that play for that flag read and write there. Empty for the chat
+   * everyone reads.
+   *
+   * @generated from field: string flag_room = 6;
+   */
+  flagRoom = "";
 
   constructor(data?: PartialMessage<SendMessageRequest>) {
     super();
@@ -389,8 +503,10 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 2, name: "author_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
+    { no: 7, name: "gif", kind: "message", T: Gif, oneof: "body" },
     { no: 5, name: "reply_to_message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SendMessageRequest {
@@ -456,6 +572,11 @@ export class MuteRefusal extends Message<MuteRefusal> {
    */
   mutedUntilUnixMs = protoInt64.zero;
 
+  /**
+   * @generated from field: chat.v1.MuteKind kind = 2;
+   */
+  kind = MuteKind.CHAT;
+
   constructor(data?: PartialMessage<MuteRefusal>) {
     super();
     proto3.util.initPartial(data, this);
@@ -465,6 +586,7 @@ export class MuteRefusal extends Message<MuteRefusal> {
   static readonly typeName = "chat.v1.MuteRefusal";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "muted_until_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(MuteKind) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MuteRefusal {
@@ -488,6 +610,13 @@ export class MuteRefusal extends Message<MuteRefusal> {
  * @generated from message chat.v1.GetHistoryRequest
  */
 export class GetHistoryRequest extends Message<GetHistoryRequest> {
+  /**
+   * As SendMessageRequest.flag_room. A flag's room has no announcements.
+   *
+   * @generated from field: string flag_room = 1;
+   */
+  flagRoom = "";
+
   constructor(data?: PartialMessage<GetHistoryRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -496,6 +625,7 @@ export class GetHistoryRequest extends Message<GetHistoryRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chat.v1.GetHistoryRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetHistoryRequest {
@@ -628,6 +758,13 @@ export class MarkSeenRequest extends Message<MarkSeenRequest> {
    */
   seenUntilUnixMs = protoInt64.zero;
 
+  /**
+   * As SendMessageRequest.flag_room: each room keeps its own mark.
+   *
+   * @generated from field: string flag_room = 2;
+   */
+  flagRoom = "";
+
   constructor(data?: PartialMessage<MarkSeenRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -637,6 +774,7 @@ export class MarkSeenRequest extends Message<MarkSeenRequest> {
   static readonly typeName = "chat.v1.MarkSeenRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "seen_until_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 2, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MarkSeenRequest {
@@ -783,6 +921,13 @@ export class ReactResponse extends Message<ReactResponse> {
  * @generated from message chat.v1.ListenForEventsRequest
  */
 export class ListenForEventsRequest extends Message<ListenForEventsRequest> {
+  /**
+   * As SendMessageRequest.flag_room. A flag's stream ends, FailedPrecondition, once the caller pledges another flag.
+   *
+   * @generated from field: string flag_room = 1;
+   */
+  flagRoom = "";
+
   constructor(data?: PartialMessage<ListenForEventsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -791,6 +936,7 @@ export class ListenForEventsRequest extends Message<ListenForEventsRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chat.v1.ListenForEventsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag_room", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListenForEventsRequest {

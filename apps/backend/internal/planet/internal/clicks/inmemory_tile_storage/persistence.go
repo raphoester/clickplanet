@@ -5,21 +5,27 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 type Persistence interface {
-	Load(ctx context.Context, visit func(tile uint32, owner string, shields int)) error
+	Load(ctx context.Context, visit func(tile Tile)) error
 	LoadLandmasses(ctx context.Context, asset string, visit func(landmass clicks.LandmassID, fortifiedBy string)) error
 	Save(ctx context.Context, tiles []Tile, landmasses []Landmass) error
+	// Wipe deletes every tile and every landmass's lock, in one transaction with keep, once keep says to.
+	Wipe(ctx context.Context, keep func(ctx context.Context) (bool, error)) (bool, error)
 }
 
 type Tile struct {
 	ID      uint32
 	Owner   string
 	Shields int
+	// NoAccount when no player's take holds it: an operator's write, or a take older than the holders.
+	Holder cpsession.AccountID
 }
 
 // Asset is the borders blob the id indexes: a new map numbers its landmasses again.
@@ -39,18 +45,22 @@ func (s *Storage) Load(ctx context.Context) error {
 		owned, outside int
 		internErr      error
 	)
-	err := s.persistence.Load(ctx, func(tile uint32, owner string, shields int) {
-		if tile > s.board.last() {
+	err := s.persistence.Load(ctx, func(tile Tile) {
+		if tile.ID > s.board.last() {
 			outside++
 			return
 		}
-		id, err := s.board.intern(owner)
+		id, err := s.board.intern(tile.Owner)
 		if err != nil {
 			internErr = err
 			return
 		}
-		s.board.restore(tile, tileState{owner: id, shields: uint8(min(max(shields, 0), math.MaxUint8))}) //nolint:gosec // clamped to a byte.
-		s.landmasses.moved(tile, unownedCode, id)
+		s.board.restore(tile.ID, tileState{
+			owner:   id,
+			shields: uint8(min(max(tile.Shields, 0), math.MaxUint8)), //nolint:gosec // clamped to a byte.
+			holder:  s.board.holders.intern(tile.Holder),
+		})
+		s.landmasses.moved(tile.ID, unownedCode, id)
 		owned++
 	})
 	if err != nil {
@@ -99,6 +109,10 @@ func (s *Storage) Load(ctx context.Context) error {
 func (s *Storage) Name() string { return "tiles-storage" }
 
 func (s *Storage) Run(ctx context.Context) {
+	var ticking sync.WaitGroup
+	ticking.Go(func() { s.publishTallyEvery(ctx, tallyInterval) })
+	defer ticking.Wait()
+
 	ticker := time.NewTicker(s.config.FlushInterval)
 	defer ticker.Stop()
 
@@ -123,6 +137,9 @@ func (s *Storage) flushOrLog(ctx context.Context) {
 }
 
 func (s *Storage) Flush(ctx context.Context) error {
+	s.flushing.Lock()
+	defer s.flushing.Unlock()
+
 	tiles, landmasses := s.takeDirty()
 	if len(tiles) == 0 && len(landmasses) == 0 {
 		return nil

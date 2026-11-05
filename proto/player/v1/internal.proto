@@ -2,47 +2,51 @@ syntax = "proto3";
 
 package player.v1;
 
-import "player/v1/color.proto";
-import "player/v1/title.proto";
+import "player/v1/player.proto";
 
 service InternalService {
-  rpc GetAuthor(GetAuthorRequest) returns (GetAuthorResponse);
+  // The player an account is, for the chat about to show who posts. Not a pure read: a guest is given its code the
+  // first time it is introduced, as the roster's announce gives it.
+  rpc IntroducePlayer(IntroducePlayerRequest) returns (IntroducePlayerResponse);
 
-  rpc GetAuthors(GetAuthorsRequest) returns (GetAuthorsResponse) {
+  // The players a page of accounts are, for a module showing many at once. A pure read: it draws nobody a guest code.
+  rpc GetPlayers(GetPlayersRequest) returns (GetPlayersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // What auth says of a page of accounts, for a module that must not ask auth: whether each signed in with a
+  // provider, and when it was made. An account auth does not answer is left out: read it as not linked, made at 0.
+  rpc GetAccounts(GetAccountsRequest) returns (GetAccountsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 }
 
-message GetAuthorRequest {
+message IntroducePlayerRequest {
   string account_id = 1;
-  reserved 2;
-  reserved "ip";
 }
 
-message GetAuthorResponse {
-  string name = 1;
-  reserved 2;
-  reserved "tag";
-  bool admin = 3;
-  NameColor color = 4;
-  uint32 streak = 5;
-  Title worn_title = 6;
+message IntroducePlayerResponse {
+  Player player = 1;
 }
 
-message GetAuthorsRequest {
+message GetPlayersRequest {
   repeated string account_ids = 1;
 }
 
-message GetAuthorsResponse {
-  repeated Author authors = 1;
+message GetPlayersResponse {
+  repeated Player players = 1;
 }
 
-message Author {
+message GetAccountsRequest {
+  repeated string account_ids = 1;
+}
+
+message GetAccountsResponse {
+  repeated Account accounts = 1;
+}
+
+message Account {
   string account_id = 1;
-  string name = 2;
-  bool admin = 3;
-  NameColor color = 4;
-  uint32 streak = 5;
-  Title worn_title = 6;
-  bool guest = 7;
+  bool linked = 2;
+  int64 created_at_unix_ms = 3;
 }

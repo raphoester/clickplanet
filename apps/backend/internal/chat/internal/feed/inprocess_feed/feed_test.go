@@ -32,7 +32,7 @@ func TestEverySubscriberHearsEveryUpdateInOrder(t *testing.T) {
 	second, err := updates.Subscribe(t.Context())
 	require.NoError(t, err)
 
-	tally := feed.ReactionsChanged(reactions.TallyFor("hello", nil, 0))
+	tally := feed.ReactionsChanged(messages.Restored(t, messages.Snapshot{ID: "hello"}), reactions.TallyFor("hello", nil, 0))
 	updates.Publish(sent(t, "hello"))
 	updates.Publish(tally)
 

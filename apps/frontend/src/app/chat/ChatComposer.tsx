@@ -1,12 +1,15 @@
 import {FormEvent, KeyboardEvent, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {ChatMessage, countRunes, MAX_TEXT_LENGTH} from "../../backends/chat.ts";
+import {GifChoice, GifQuery} from "../../backends/gifs.ts";
 import {quoteOf} from "../../domain/chatLog.ts";
 import {describeEnd} from "../../domain/endTime.ts";
 import {CloseIcon} from "../components/icons.tsx";
 import {useEscape} from "../components/useDialog.ts";
 import {quoteStyle} from "./authorStyle.ts";
+import GifPicker, {GifOffer} from "./GifPicker.tsx";
 import QuoteLine from "./QuoteLine.tsx";
-import {ChatSendFailure} from "./useChat.ts";
+import {ChatSendFailure} from "./useRoomLog.ts";
+import {useWordFilter} from "../crazygames/wordFilter.ts";
 
 export type ChatComposerProps = {
     username?: string
@@ -16,6 +19,8 @@ export type ChatComposerProps = {
     replyingTo?: ChatMessage
     onCancelReply?: () => void
     onSend: (text: string) => Promise<boolean>
+    gifs?: GifOffer
+    onSendGif?: (choice: GifChoice, query: GifQuery) => Promise<boolean>
 }
 
 const COUNTER_SHOWS_FROM = MAX_TEXT_LENGTH - 40
@@ -24,6 +29,7 @@ const FAILURES: Record<ChatSendFailure, string> = {
     'rate-limited': "You're sending messages too fast. Give it a few seconds.",
     'blocked': "This connection is not allowed to post.",
     'muted': "You are muted.",
+    'gifs-muted': "You may not post GIFs for now.",
     'rejected': "That message was refused.",
     'gone': "The message you replied to is gone.",
     'no-session': "Could not start a session to chat. Try again in a moment.",
@@ -32,7 +38,9 @@ const FAILURES: Record<ChatSendFailure, string> = {
 
 export default function ChatComposer(props: ChatComposerProps) {
     const [text, setText] = useState("")
+    const [picking, setPicking] = useState(false)
     const box = useRef<HTMLTextAreaElement>(null)
+    const words = useWordFilter()
 
     useLayoutEffect(() => {
         const field = box.current
@@ -66,8 +74,15 @@ export default function ChatComposer(props: ChatComposerProps) {
 
     const length = countRunes(text.trim())
 
+    const pick = (choice: GifChoice, query: GifQuery) => {
+        setPicking(false)
+        void props.onSendGif?.(choice, query)
+    }
+
     return <form className="chat-composer" onSubmit={submitMessage}>
         {replyingTo && <Replying to={replyingTo} onCancel={() => props.onCancelReply?.()}/>}
+
+        {picking && props.gifs && <GifPicker offer={props.gifs} onPick={pick} onClose={() => setPicking(false)}/>}
 
         <div className="chat-composer-row">
             <textarea className="field chat-input"
@@ -80,6 +95,13 @@ export default function ChatComposer(props: ChatComposerProps) {
                       enterKeyHint="send"
                       onKeyDown={sendOnEnter}
                       onChange={e => setText(e.target.value.replace(/[\r\n]+/g, " "))}/>
+            {props.gifs && <button type="button"
+                                   className="button button-mini button-secondary chat-gif"
+                                   aria-label="GIFs"
+                                   aria-expanded={picking}
+                                   onClick={() => setPicking(open => !open)}>
+                GIF
+            </button>}
             <button type="submit"
                     className="button button-mini button-action chat-send"
                     disabled={length === 0 || length > MAX_TEXT_LENGTH}>
@@ -90,10 +112,10 @@ export default function ChatComposer(props: ChatComposerProps) {
         <div className="chat-composer-foot">
             {props.username !== undefined
                 ? <span className="menu-label chat-identity" title="Change it in the account menu">
-                    as {props.username}
+                    as {words.masked(props.username)}
                 </span>
                 : <span className="menu-label chat-identity" title="Sign in to pick a username">
-                    as {props.guestName ?? "a guest"}
+                    as {props.guestName === undefined ? "a guest" : words.masked(props.guestName)}
                 </span>}
             {length >= COUNTER_SHOWS_FROM &&
                 <span className={length > MAX_TEXT_LENGTH ? "menu-label chat-counter-over" : "menu-label"}>
@@ -122,7 +144,10 @@ function Replying({to, onCancel}: {to: ChatMessage, onCancel: () => void}) {
 }
 
 function noticeOf(failure: ChatSendFailure, mutedUntil: number | undefined): string {
-    if (failure !== 'muted' || mutedUntil === undefined) return FAILURES[failure]
+    if (mutedUntil === undefined) return FAILURES[failure]
 
-    return `You are muted until ${describeEnd(mutedUntil, Date.now())}.`
+    const until = describeEnd(mutedUntil, Date.now())
+    if (failure === 'muted') return `You are muted until ${until}.`
+    if (failure === 'gifs-muted') return `You may not post GIFs until ${until}.`
+    return FAILURES[failure]
 }

@@ -6,8 +6,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/allegiancemessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/clickbudget"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetrefusal"
 )
 
 var callerErrors = []error{
@@ -21,7 +22,11 @@ func toConnect(err error, out click_usecase.Out) error {
 		return throttled(err, out)
 	}
 
-	if refused, banned := planetban.Refusal(err); banned {
+	if refused, ok := planetrefusal.Refusal(err); ok {
+		return refused
+	}
+
+	if refused, ok := allegiancemessage.Refusal(err); ok {
 		return refused
 	}
 

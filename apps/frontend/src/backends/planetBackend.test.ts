@@ -3,6 +3,7 @@ import {
     asBonusError,
     bindingsOf,
     bombOf,
+    countsOf,
     fortificationOf,
     catchOf,
     shieldsOf,
@@ -15,33 +16,67 @@ import {
 } from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
+    Allegiance as AllegianceMessage,
     BanRefusal,
+    FrozenRefusal,
     BombDropped,
     BonusKind,
     BonusOffered,
     BonusTaken,
     QuizOffered,
+    ChargesGranted,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
+    GetAllegianceResponse,
+    PledgeAllegianceResponse,
     GetBonusRulesResponse,
+    GetHoldingsResponse,
     GetMapResponse,
+    GetLandmassResponse,
+    Holding,
+    HoldingsChanged,
+    LandmassHoldings,
+    MapVersion as MapVersionMessage,
+    GetTileHolderResponse,
+    LandmassFortification as LandmassFortificationMessage,
+    LandmassHolder as LandmassHolderMessage,
     GlobePoint,
     Heartbeat,
     LandmassFortified,
     PlanetEvent,
+    RulesChanged,
     SharedWith,
     TilesEnclosed,
+    TileHolder as TileHolderMessage,
     TileShields,
     TilesSpread,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {BankFullError, BannedError, BonusLostError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
+import {AllegianceLockedError, BankFullError, BannedError, BonusLostError, FrozenError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusRules, Charges} from "../domain/bonus.ts"
+import type {Allegiance} from "../domain/allegiance.ts"
+import {tileRanges} from "../domain/mapTiles.ts"
+import type {Counts, MapVersion} from "./backend.ts"
+
+const NO_VERSION = {epoch: 0, seq: 0}
 
 function fixedSession(token: string): SessionProvider {
     return {token: async () => token, held: () => token, identity: async () => token, heldIdentity: () => token, invalidate: () => {}}
+}
+
+function sessionMinting(token: string): SessionProvider {
+    let minted: string | undefined
+    return {
+        token: async () => (minted = token),
+        held: () => minted,
+        identity: async () => minted,
+        heldIdentity: () => minted,
+        invalidate: () => {
+            minted = undefined
+        },
+    }
 }
 
 function rotatingSession(tokens: string[]) {
@@ -77,24 +112,24 @@ function failingSession(): SessionProvider {
     }
 }
 
-function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string, clicked?: boolean, shields?: number}): PlanetEvent {
+function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string, clicked?: boolean, shields?: number, version?: MapVersionMessage}): PlanetEvent {
     return new PlanetEvent({event: {case: "tileUpdate", value: new TileUpdate(fields)}})
 }
 
 describe("updateOf", () => {
     it("maps a tile update onto the shape the globe consumes", () => {
         expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", previousCountryId: "fr"})))
-            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp", clicked: false, shields: 0})
+            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp", clicked: false, shields: 0, version: NO_VERSION})
     })
 
     it("reports an unowned previous tile as undefined rather than an empty code", () => {
         expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "fr"})))
-            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr", clicked: false, shields: 0})
+            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr", clicked: false, shields: 0, version: NO_VERSION})
     })
 
     it("reports a tile given back to nobody as undefined, so nobody gets a leaderboard row", () => {
         expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "", previousCountryId: "ps"})))
-            .toEqual({tile: 1, previousCountry: "ps", newCountry: undefined, clicked: false, shields: 0})
+            .toEqual({tile: 1, previousCountry: "ps", newCountry: undefined, clicked: false, shields: 0, version: NO_VERSION})
     })
 
     it("says which update a click made, so the globe can animate it", () => {
@@ -103,6 +138,12 @@ describe("updateOf", () => {
 
     it("says how many shields stand on the tile after the update", () => {
         expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "fr", previousCountryId: "fr", shields: 3}))?.shields).toBe(3)
+    })
+
+    it("says the version of the map the update made", () => {
+        const version = new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(42)})
+
+        expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "fr", version}))?.version).toEqual({epoch: 1_790_000_000, seq: 42})
     })
 
     it("drops a heartbeat", () => {
@@ -175,6 +216,8 @@ function bonusReads() {
     return {
         getBonusRules: vi.fn().mockResolvedValue(new GetBonusRulesResponse({blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3})),
         getCharges: vi.fn().mockResolvedValue({charges: new ChargesHeld()}),
+        getAllegiance: vi.fn().mockResolvedValue(new GetAllegianceResponse({allegiance: new AllegianceMessage({countryId: "fr"})})),
+        pledgeAllegiance: vi.fn().mockResolvedValue(new PledgeAllegianceResponse()),
     }
 }
 
@@ -200,7 +243,7 @@ describe("shieldsOf", () => {
     })
 })
 
-describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
+describe("PlanetBackend.getOwnerships", () => {
     const backendWith = (getMap: GetMapMock) => {
         const client = {click: vi.fn(), getMap, getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents()} as never
         return new PlanetBackend(client, 1_000)
@@ -208,33 +251,76 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
 
     const collect = async (backend: PlanetBackend, signal?: AbortSignal) => {
         const seen: Map<number, string>[] = []
-        await backend.getCurrentOwnershipsByBatch(2, 4, o => seen.push(o.bindings), signal)
+        await backend.getOwnerships(tileRanges(4, 2), o => seen.push(o.bindings), signal)
         return seen
     }
 
-    it("hands each batch its shields beside its owners", async () => {
+    it("hands each batch its shields beside its owners, with its range and the version it was read at", async () => {
         const getMap = getMapMock(async () => new GetMapResponse({
             startTileId: 1, codes: ["", "fr"], tiles: tileBytes([1, 1]),
             shields: [new TileShields({tileId: 2, shields: 3})],
+            version: new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(9)}),
         }))
         const backend = backendWith(getMap)
 
-        const seen: Map<number, number>[] = []
-        await backend.getCurrentOwnershipsByBatch(2, 2, o => seen.push(o.shields))
+        const seen: unknown[] = []
+        await backend.getOwnerships([{start: 1, end: 2}], ({range, version, shields}) => seen.push({range, version, shields}))
 
-        expect(seen).toEqual([new Map([[2, 3]])])
+        expect(seen).toEqual([{range: {start: 1, end: 2}, version: {epoch: 1_790_000_000, seq: 9}, shields: new Map([[2, 3]])}])
         backend.close()
     })
 
-    it("walks the range one chunk at a time", async () => {
+    it("reads each tile once, from the first to the last", async () => {
         const getMap = getMapMock(async () => mapResponse(1, ["", "fr"], [1, 0]))
         const backend = backendWith(getMap)
 
-        expect(await collect(backend)).toEqual([new Map([[1, "fr"]]), new Map([[1, "fr"]])])
+        await backend.getOwnerships(tileRanges(5, 2), () => {})
+
         expect(getMap.mock.calls.map(c => c[0])).toEqual([
-            {startTileId: 1, endTileId: 3},
+            {startTileId: 1, endTileId: 2},
             {startTileId: 3, endTileId: 4},
+            {startTileId: 5, endTileId: 5},
         ])
+        backend.close()
+    })
+
+    it("keeps eight reads in flight", async () => {
+        let held = true
+        const answers: (() => void)[] = []
+        const getMap = getMapMock((req) => {
+            const response = mapResponse(req.startTileId, [""], [0])
+            if (!held) return Promise.resolve(response)
+            return new Promise((resolve) => answers.push(() => resolve(response)))
+        })
+        const backend = backendWith(getMap)
+
+        const loading = backend.getOwnerships(tileRanges(20, 1), () => {})
+        await vi.waitFor(() => expect(getMap).toHaveBeenCalledTimes(8))
+        answers[0]()
+        await vi.waitFor(() => expect(getMap).toHaveBeenCalledTimes(9))
+
+        held = false
+        answers.forEach((answer) => answer())
+        await loading
+        expect(getMap).toHaveBeenCalledTimes(20)
+        backend.close()
+    })
+
+    it("hands each batch over as it lands", async () => {
+        const answers = new Map<number, () => void>()
+        const getMap = getMapMock((req) => new Promise((resolve) => {
+            answers.set(req.startTileId, () => resolve(mapResponse(req.startTileId, ["", "fr"], [1, 1])))
+        }))
+        const backend = backendWith(getMap)
+
+        const seen: Map<number, string>[] = []
+        const loading = backend.getOwnerships(tileRanges(4, 2), o => seen.push(o.bindings))
+        await vi.waitFor(() => expect(answers.size).toBe(2))
+        answers.get(3)!()
+        answers.get(1)!()
+        await loading
+
+        expect(seen).toEqual([new Map([[3, "fr"], [4, "fr"]]), new Map([[1, "fr"], [2, "fr"]])])
         backend.close()
     })
 
@@ -254,8 +340,42 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
         const getMap = getMapMock().mockRejectedValue(new ConnectError("nope", Code.InvalidArgument))
         const backend = backendWith(getMap)
 
-        await expect(collect(backend)).rejects.toThrow(/nope/)
+        await expect(backend.getOwnerships(tileRanges(4, 4), () => {})).rejects.toThrow(/nope/)
         expect(getMap).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("stops the other reads when one fails", async () => {
+        const signals: AbortSignal[] = []
+        const getMap = vi.fn((req: GetMapRequestFields, {signal}: {signal: AbortSignal}) => {
+            signals.push(signal)
+            if (req.startTileId === 1) return Promise.reject(new ConnectError("nope", Code.InvalidArgument))
+            return new Promise<GetMapResponse>((_, reject) => signal.addEventListener("abort", () => reject(signal.reason)))
+        })
+        const backend = backendWith(getMap as never)
+
+        await expect(backend.getOwnerships(tileRanges(20, 1), () => {})).rejects.toThrow(/nope/)
+        expect(getMap.mock.calls.length).toBeLessThanOrEqual(8)
+        expect(signals.every((signal) => signal.aborted)).toBe(true)
+        backend.close()
+    })
+
+    it("hands over nothing that lands after the caller aborted", async () => {
+        const controller = new AbortController()
+        let answer = () => {}
+        const getMap = getMapMock(() => new Promise((resolve) => {
+            answer = () => resolve(mapResponse(1, ["", "fr"], [1]))
+        }))
+        const backend = backendWith(getMap)
+
+        const seen: Map<number, string>[] = []
+        const loading = backend.getOwnerships(tileRanges(1, 1), o => seen.push(o.bindings), controller.signal)
+        await vi.waitFor(() => expect(getMap).toHaveBeenCalledTimes(1))
+        controller.abort()
+        answer()
+
+        await expect(loading).rejects.toThrow()
+        expect(seen).toEqual([])
         backend.close()
     })
 
@@ -376,6 +496,32 @@ describe("PlanetBackend.clickTile", () => {
         backend.close()
     })
 
+    it("reports a click on a frozen map as a FrozenError", async () => {
+        const refused = new ConnectError("the map is frozen", Code.FailedPrecondition, undefined, [new FrozenRefusal()])
+        const click = vi.fn().mockRejectedValue(refused)
+        const backend = backendWith(click)
+
+        await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(FrozenError)
+        expect(click).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("says when the rules freeze the map", async () => {
+        const click = vi.fn()
+            .mockResolvedValueOnce({budget: new ClickBudgetMessage({tokens: 6, capacity: 10, refillPerSecond: 1, frozen: true})})
+            .mockResolvedValueOnce({budget: new ClickBudgetMessage({tokens: 6, capacity: 10, refillPerSecond: 1})})
+        const backend = backendWith(click)
+
+        const seen: (boolean | undefined)[] = []
+        backend.watchClickBudget(b => seen.push(b.frozen))
+        await backend.clickTile(1, "fr")
+        expect(seen.at(-1)).toBe(true)
+        await backend.clickTile(2, "fr")
+        expect(seen.at(-1)).toBe(false)
+
+        backend.close()
+    })
+
     it("reports a ban as a BannedError with its end, never as the VPN", async () => {
         const until = 1_700_003_600_000
         const refused = new ConnectError("the caller is banned", Code.PermissionDenied, undefined,
@@ -451,6 +597,71 @@ describe("PlanetBackend click budget", () => {
         await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(1))
 
         expect(watch(backend)).toEqual([7])
+        backend.close()
+    })
+
+    it("reads the allowance again when the rules change, so the meter follows the new pace", async () => {
+        const getBudget = vi.fn()
+            .mockResolvedValueOnce({budget: budget(4, 10, 0.2)})
+            .mockResolvedValueOnce({budget: budget(4, 10, 0.6)})
+        let changeRules = () => {}
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            await new Promise<void>(resolve => changeRules = resolve)
+            yield new PlanetEvent({event: {case: "rulesChanged", value: new RulesChanged()}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(
+            {click: vi.fn(), getMap: vi.fn(), getBudget, ...bonusReads(), mapDensity: vi.fn(), listenForEvents} as never,
+            1_000)
+        const rates: number[] = []
+        backend.watchClickBudget(b => rates.push(b.perSecond))
+        await vi.waitFor(() => expect(rates).toEqual([0.2]))
+
+        changeRules()
+
+        await vi.waitFor(() => expect(rates).toEqual([0.2, 0.6]))
+        backend.close()
+    })
+
+    it("reads the allowance and the bonus rules again on a stream that comes back, never on its first", async () => {
+        const getBudget = vi.fn()
+            .mockResolvedValueOnce({budget: budget(4, 10, 0.2)})
+            .mockResolvedValueOnce({budget: budget(4, 10, 0.6)})
+        const reads = bonusReads()
+        reads.getBonusRules
+            .mockResolvedValueOnce(new GetBonusRulesResponse({enclosureMaxTiles: 25}))
+            .mockResolvedValueOnce(new GetBonusRulesResponse({enclosureMaxTiles: 35}))
+        const heartbeat = new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+        let drop = () => {}
+        const listenForEvents = vi.fn()
+            .mockImplementationOnce(async function* () {
+                yield heartbeat
+                await new Promise<void>(resolve => drop = resolve)
+            })
+            .mockImplementationOnce(async function* () {
+                yield heartbeat
+                await new Promise(() => {})
+            })
+        const backend = new PlanetBackend(
+            {click: vi.fn(), getMap: vi.fn(), getBudget, ...reads, mapDensity: vi.fn(), listenForEvents} as never,
+            1_000)
+        const rates: number[] = []
+        backend.watchClickBudget(b => rates.push(b.perSecond))
+        const sizes: number[] = []
+        const stop = backend.listenForBonuses({
+            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onRules: rules => sizes.push(rules.enclosureMaxTiles),
+        })
+        await vi.waitFor(() => expect(rates).toEqual([0.2]))
+        expect(reads.getBonusRules).toHaveBeenCalledOnce()
+
+        drop()
+
+        await vi.waitFor(() => expect(rates).toEqual([0.2, 0.6]), {timeout: 3_000})
+        await vi.waitFor(() => expect(sizes.at(-1)).toBe(35))
+        expect(listenForEvents).toHaveBeenCalledTimes(2)
+        stop()
         backend.close()
     })
 
@@ -932,7 +1143,7 @@ describe("fortificationOf", () => {
             event: {case: "landmassFortified", value: new LandmassFortified({landmassId: 42, countryId: "us", tileId: 1234})},
         })
 
-        expect(fortificationOf(event)).toEqual({landmass: 42, countryId: "us", tile: 1234})
+        expect(fortificationOf(event)).toEqual({landmass: 42, countryId: "us", tile: 1234, version: NO_VERSION})
     })
 
     it("drops everything that is not a fortified landmass", () => {
@@ -951,7 +1162,7 @@ describe("updateOf with the bonus cases on the stream", () => {
 })
 
 describe("bombOf", () => {
-    const dropped = (fields: Partial<{tileId: number, clearedTileIds: number[], struckTileIds: number[]}> = {}) => new PlanetEvent({
+    const dropped = (fields: Partial<{tileId: number, clearedTileIds: number[], struck: TileShields[]}> = {}) => new PlanetEvent({
         event: {
             case: "bombDropped",
             value: new BombDropped({
@@ -960,20 +1171,23 @@ describe("bombOf", () => {
                 radius: 0.03,
                 clearedTileIds: [6, 7, 8],
                 struckTileIds: [5],
+                struck: [new TileShields({tileId: 5, shields: 2})],
                 point: new GlobePoint({x: 0, y: 1, z: 0}),
+                version: new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(12)}),
                 ...fields,
             }),
         },
     })
 
-    it("reads a blast on land, with every tile it cleared and every shielded tile it struck", () => {
+    it("reads a blast on land, with every tile it cleared and the shields each tile it struck kept", () => {
         expect(bombOf(dropped())).toEqual({
             tile: 7,
             point: {x: 0, y: 1, z: 0},
             countryId: "fr",
             radius: 0.03,
             cleared: [6, 7, 8],
-            struck: [5],
+            struck: [{tile: 5, shields: 2}],
+            version: {epoch: 1_790_000_000, seq: 12},
         })
     })
 
@@ -987,6 +1201,23 @@ describe("bombOf", () => {
     it("drops everything that is not a blast, and a tile update is not one", () => {
         expect(bombOf(tileUpdateEvent({tileId: 1, countryId: "fr"}))).toBeUndefined()
         expect(updateOf(dropped())).toBeUndefined()
+    })
+})
+
+function versionAt(seq: number): MapVersionMessage {
+    return new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(seq)})
+}
+
+function heartbeatAt(seq: number): PlanetEvent {
+    return new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat({version: versionAt(seq)})}})
+}
+
+describe("countsOf", () => {
+    it("reads a server from before the versions as version 0", () => {
+        const counts: Counts = countsOf(new GetHoldingsResponse())
+        const none: MapVersion = {epoch: 0, seq: 0}
+
+        expect(counts.version).toEqual(none)
     })
 })
 
@@ -1043,20 +1274,86 @@ describe("PlanetBackend bombs", () => {
         backend.close()
     })
 
-    it("hands over the tile updates that came before a gap, before saying the stream resumed", async () => {
+    it("hands over the tile updates that came before a gap, before saying the stream opened again", async () => {
         let connections = 0
         const listenForEvents = vi.fn(async function* () {
             connections++
-            yield tileUpdateEvent({tileId: connections, countryId: "jp"})
+            yield heartbeatAt(connections * 10)
+            yield tileUpdateEvent({tileId: connections, countryId: "jp", version: versionAt(connections * 10 + 1)})
             if (connections > 1) await new Promise(() => {})
         })
         const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000)
 
         const order: string[] = []
         backend.listenForUpdatesBatch((updates) => order.push(`updates ${updates.map(({tile}) => tile).join(",")}`))
-        backend.listenForResumes(() => order.push("resumed"))
+        backend.listenForOpenings(({seq}) => order.push(`opened ${seq}`))
 
-        await vi.waitFor(() => expect(order).toEqual(["updates 1", "resumed"]), {timeout: 2_000})
+        await vi.waitFor(() => expect(order).toEqual(["opened 10", "updates 1", "opened 20"]), {timeout: 2_000})
+        backend.close()
+    })
+
+    it("tells a listener that comes late the version the stream already passed, its updates handed over first", async () => {
+        const listenForEvents = vi.fn(async function* () {
+            yield heartbeatAt(10)
+            yield tileUpdateEvent({tileId: 3, countryId: "jp", version: versionAt(11)})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000)
+        const order: string[] = []
+        backend.listenForUpdatesBatch((updates) => order.push(`updates ${updates.map(({tile}) => tile).join(",")}`))
+        const heard: number[] = []
+        backend.listenForUpdates(({tile}) => heard.push(tile))
+        await vi.waitFor(() => expect(heard).toEqual([3]))
+
+        backend.listenForOpenings(({seq}) => order.push(`opened ${seq}`))
+
+        expect(order).toEqual(["updates 3", "opened 11"])
+        backend.close()
+    })
+
+    it("hands over the tile updates before the counts they moved, and maps the counts", async () => {
+        const listenForEvents = vi.fn(async function* () {
+            yield heartbeatAt(10)
+            yield tileUpdateEvent({tileId: 3, countryId: "jp", version: versionAt(11)})
+            yield new PlanetEvent({event: {case: "holdingsChanged", value: new HoldingsChanged({
+                version: versionAt(11),
+                countries: [new Holding({countryId: "jp", tiles: 4}), new Holding({countryId: "fr"})],
+                landmasses: [new LandmassHoldings({landmassId: 7, holdings: [new Holding({countryId: "jp", tiles: 4})]})],
+            })}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000)
+
+        const order: string[] = []
+        const changes: Counts[] = []
+        backend.listenForUpdatesBatch(() => order.push("updates"))
+        backend.listenForHoldings((change) => {
+            order.push("holdings")
+            changes.push(change)
+        })
+
+        await vi.waitFor(() => expect(order).toEqual(["updates", "holdings"]))
+        expect(changes).toEqual([{
+            version: {epoch: 1_790_000_000, seq: 11},
+            countries: new Map([["jp", 4], ["fr", 0]]),
+            landmasses: new Map([[7, new Map([["jp", 4]])]]),
+        }])
+        backend.close()
+    })
+
+    it("reads what each flag holds", async () => {
+        const getHoldings = vi.fn().mockResolvedValue(new GetHoldingsResponse({
+            version: versionAt(30),
+            countries: [new Holding({countryId: "fr", tiles: 3})],
+            landmasses: [new LandmassHoldings({landmassId: 2, holdings: [new Holding({countryId: "fr", tiles: 3})]})],
+        }))
+        const backend = new PlanetBackend(clientWith({getHoldings}), 60_000)
+
+        expect(await backend.getHoldings()).toEqual({
+            version: {epoch: 1_790_000_000, seq: 30},
+            countries: new Map([["fr", 3]]),
+            landmasses: new Map([[2, new Map([["fr", 3]])]]),
+        })
         backend.close()
     })
 })
@@ -1282,10 +1579,10 @@ describe("the rules", () => {
         ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(),
             listenForEvents: noEvents(), ...fields}) as never
 
-    it("reads the toll and the sizes of the charges", async () => {
+    it("reads the toll, the sizes of the charges and the sign-in refill", async () => {
         const getBonusRules = vi.fn().mockResolvedValue(new GetBonusRulesResponse({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
-            tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
+            tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true,
         }))
         const backend = new PlanetBackend(clientWith({getBonusRules}), 1_000)
 
@@ -1297,8 +1594,33 @@ describe("the rules", () => {
 
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
-            toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
+            toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true,
         }))
+        backend.close()
+    })
+
+    it("reads them again when the rules change, so a bigger blast is drawn with no reload", async () => {
+        const getBonusRules = vi.fn()
+            .mockResolvedValueOnce(new GetBonusRulesResponse({blastRadius: 0.03, enclosureMaxTiles: 25}))
+            .mockResolvedValueOnce(new GetBonusRulesResponse({blastRadius: 0.05, enclosureMaxTiles: 40}))
+        let changeRules = () => {}
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            await new Promise<void>(resolve => changeRules = resolve)
+            yield new PlanetEvent({event: {case: "rulesChanged", value: new RulesChanged()}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({getBonusRules, listenForEvents}), 1_000)
+        const radii: number[] = []
+        backend.listenForBonuses({
+            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onRules: (rules) => radii.push(rules.blastRadius),
+        })
+        await vi.waitFor(() => expect(radii.at(-1)).toBe(0.03))
+
+        changeRules()
+
+        await vi.waitFor(() => expect(radii.at(-1)).toBe(0.05))
         backend.close()
     })
 })
@@ -1324,6 +1646,26 @@ describe("the charges held", () => {
         const seen = follow(backend)
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 2, shields: 5}))
 
+        expect(getCharges).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("holds what a grant on the stream says, with no read", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({shields: 5})})
+        let grant = () => {}
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            await new Promise<void>(resolve => grant = resolve)
+            yield new PlanetEvent({event: {case: "chargesGranted", value: new ChargesGranted({charges: new ChargesHeld({bomb: true, shields: 25})})}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({getCharges, listenForEvents}), 1_000)
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.shields).toBe(5))
+
+        grant()
+
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 0, shields: 25}))
         expect(getCharges).toHaveBeenCalledTimes(1)
         backend.close()
     })
@@ -1497,6 +1839,312 @@ describe("the refill", () => {
         await expect(backend.useRefill("fr")).rejects.toBeInstanceOf(BonusLostError)
 
         expect(seen.at(-1)?.refill).toBe(false)
+        backend.close()
+    })
+})
+
+describe("PlanetBackend allegiance", () => {
+    const clientWith = (fields: Record<string, unknown>) =>
+        ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), ...fields}) as never
+
+    const held = (countryId: string, changeableAt?: number) => new GetAllegianceResponse({
+        allegiance: new AllegianceMessage({countryId, changeableAtUnixMs: BigInt(changeableAt ?? 0)}),
+    })
+
+    const lockedTo = (countryId: string, changeableAt: number) => new ConnectError("too soon", Code.FailedPrecondition, undefined,
+        [new AllegianceMessage({countryId, changeableAtUnixMs: BigInt(changeableAt)})])
+
+    const follow = (backend: PlanetBackend) => {
+        const seen: (Allegiance | undefined)[] = []
+        backend.listenForAllegiance((allegiance) => seen.push(allegiance))
+        return seen
+    }
+
+    it("reads the flag played for at load, as the identity the player holds", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(held("fr"))
+        const backend = new PlanetBackend(clientWith({getAllegiance}), 1_000, fixedSession("identity-1"))
+        const seen = follow(backend)
+
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "fr"}))
+        expect((getAllegiance.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("identity-1")
+        backend.close()
+    })
+
+    it("reads the flag again when the rules change, so a lock shows with no reload", async () => {
+        const getAllegiance = vi.fn()
+            .mockResolvedValueOnce(held("fr"))
+            .mockResolvedValueOnce(new GetAllegianceResponse({allegiance: new AllegianceMessage({countryId: "fr", locked: true})}))
+        let changeRules = () => {}
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            await new Promise<void>(resolve => changeRules = resolve)
+            yield new PlanetEvent({event: {case: "rulesChanged", value: new RulesChanged()}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({getAllegiance, listenForEvents}), 1_000, fixedSession("identity-1"))
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "fr"}))
+
+        changeRules()
+
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "fr", locked: true}))
+        backend.close()
+    })
+
+    it("pledges the flag clicked for before the first click of an account that holds none, and only then", async () => {
+        const calls: string[] = []
+        const getAllegiance = vi.fn()
+            .mockImplementationOnce(async () => new GetAllegianceResponse())
+            .mockImplementationOnce(async () => new GetAllegianceResponse())
+            .mockImplementation(async () => held("de"))
+        const pledgeAllegiance = vi.fn().mockImplementation(async () => {
+            calls.push("pledge")
+            return new PledgeAllegianceResponse()
+        })
+        const click = vi.fn().mockImplementation(async () => {
+            calls.push("click")
+            return {}
+        })
+        const session = sessionMinting("session-1")
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance, click}), 1_000, session)
+        const seen = follow(backend)
+
+        await Promise.all([backend.clickTile(7, "de"), backend.clickTile(8, "de")])
+        await backend.clickTile(9, "de")
+
+        expect(calls).toEqual(["pledge", "click", "click", "click"])
+        expect(pledgeAllegiance.mock.calls[0][0]).toEqual({countryId: "de"})
+        expect((pledgeAllegiance.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
+        expect(seen.at(-1)).toEqual({countryId: "de"})
+        backend.close()
+    })
+
+    it("pledges nothing before the click of an account that holds a flag", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(held("fr"))
+        const pledgeAllegiance = vi.fn()
+        const click = vi.fn().mockResolvedValue({})
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance, click}), 1_000, fixedSession("session-1"))
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "fr"}))
+
+        await backend.clickTile(7, "fr")
+        await backend.clickTile(8, "fr")
+
+        expect(pledgeAllegiance).not.toHaveBeenCalled()
+        expect(getAllegiance).toHaveBeenCalledTimes(1)
+        expect(click).toHaveBeenCalledTimes(2)
+        backend.close()
+    })
+
+    it("claims the flag the clicks are priced for, for an account that holds none, and the first click pledges no more", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(new GetAllegianceResponse())
+        const pledgeAllegiance = vi.fn().mockResolvedValue(new PledgeAllegianceResponse())
+        const click = vi.fn().mockResolvedValue({})
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance, click}), 1_000, sessionMinting("session-1"))
+        backend.priceFor("bg")
+
+        await backend.claimFlag()
+        expect(pledgeAllegiance).toHaveBeenCalledTimes(1)
+        expect(pledgeAllegiance.mock.calls[0][0]).toEqual({countryId: "bg"})
+        expect((pledgeAllegiance.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
+
+        await backend.clickTile(7, "bg")
+        expect(pledgeAllegiance).toHaveBeenCalledTimes(1)
+        expect(click).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("claims nothing for an account that holds a flag", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(held("fr"))
+        const pledgeAllegiance = vi.fn()
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance}), 1_000, fixedSession("session-1"))
+        backend.priceFor("fr")
+
+        await backend.claimFlag()
+
+        expect(pledgeAllegiance).not.toHaveBeenCalled()
+        backend.close()
+    })
+
+    it("claims nothing before the page names its flag", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(new GetAllegianceResponse())
+        const pledgeAllegiance = vi.fn()
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance}), 1_000, sessionMinting("session-1"))
+
+        await backend.claimFlag()
+
+        expect(pledgeAllegiance).not.toHaveBeenCalled()
+        backend.close()
+    })
+
+    it("sends no click when the pledge before it failed, and tries again on the next click", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(new GetAllegianceResponse())
+        const pledgeAllegiance = vi.fn()
+            .mockRejectedValueOnce(new ConnectError("bad flag", Code.InvalidArgument))
+            .mockResolvedValue(new PledgeAllegianceResponse())
+        const click = vi.fn().mockResolvedValue({})
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance, click}), 1_000, sessionMinting("session-1"))
+
+        await expect(backend.clickTile(7, "fr")).rejects.toBeDefined()
+        expect(click).not.toHaveBeenCalled()
+
+        await backend.clickTile(7, "fr")
+        expect(pledgeAllegiance).toHaveBeenCalledTimes(2)
+        expect(click).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("turns a click refused for its flag into the flag held and until when", async () => {
+        const click = vi.fn().mockRejectedValue(lockedTo("de", 1_700_000_000_000))
+        const backend = new PlanetBackend(clientWith({click}), 1_000, fixedSession("session-1"))
+        const seen = follow(backend)
+
+        const clicking = backend.clickTile(7, "fr")
+
+        await expect(clicking).rejects.toBeInstanceOf(AllegianceLockedError)
+        await expect(clicking).rejects.toMatchObject({allegiance: {countryId: "de", changeableAt: 1_700_000_000_000}})
+        expect(seen.at(-1)).toEqual({countryId: "de", changeableAt: 1_700_000_000_000})
+        backend.close()
+    })
+
+    it("turns a shield refused for its flag into the flag held, and gives the shield back", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({shields: 3})})
+        const placeShield = vi.fn().mockRejectedValue(lockedTo("de", 1_700_000_000_000))
+        const backend = new PlanetBackend(clientWith({getCharges, placeShield}), 1_000, fixedSession("session-1"))
+        const seen = follow(backend)
+        const charges: Charges[] = []
+        backend.listenForBonuses({
+            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onCharges: (held) => charges.push(held),
+        })
+        await vi.waitFor(() => expect(charges.at(-1)?.shields).toBe(3))
+
+        await expect(backend.placeShield(7, "fr")).rejects.toBeInstanceOf(AllegianceLockedError)
+
+        expect(seen.at(-1)).toEqual({countryId: "de", changeableAt: 1_700_000_000_000})
+        expect(charges.at(-1)?.shields).toBe(3)
+        backend.close()
+    })
+
+    it("pledges a flag as the identity the player holds, then holds the flag the server keeps", async () => {
+        const getAllegiance = vi.fn()
+            .mockResolvedValueOnce(held("fr"))
+            .mockResolvedValue(held("de", 1_700_000_000_000))
+        const pledgeAllegiance = vi.fn().mockResolvedValue(new PledgeAllegianceResponse())
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance}), 1_000, fixedSession("identity-1"))
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "fr"}))
+
+        await backend.pledgeAllegiance("de")
+
+        expect(pledgeAllegiance.mock.calls[0][0]).toEqual({countryId: "de"})
+        expect((pledgeAllegiance.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("identity-1")
+        expect(seen.at(-1)).toEqual({countryId: "de", changeableAt: 1_700_000_000_000})
+        backend.close()
+    })
+
+    it("pledges nothing for a visitor with no account: its first click will", async () => {
+        const pledgeAllegiance = vi.fn()
+        const backend = new PlanetBackend(clientWith({pledgeAllegiance}), 1_000, sessionMinting("session-1"))
+
+        await backend.pledgeAllegiance("de")
+
+        expect(pledgeAllegiance).not.toHaveBeenCalled()
+        backend.close()
+    })
+
+    it("turns a pledge refused into the flag held and until when", async () => {
+        const pledgeAllegiance = vi.fn().mockRejectedValue(lockedTo("fr", 1_700_000_000_000))
+        const backend = new PlanetBackend(clientWith({pledgeAllegiance}), 1_000, fixedSession("identity-1"))
+        const seen = follow(backend)
+
+        await expect(backend.pledgeAllegiance("de")).rejects.toBeInstanceOf(AllegianceLockedError)
+
+        expect(seen.at(-1)).toEqual({countryId: "fr", changeableAt: 1_700_000_000_000})
+        backend.close()
+    })
+
+    it("sends the click to a server that takes no pledge, as before", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(new GetAllegianceResponse())
+        const pledgeAllegiance = vi.fn().mockRejectedValue(new ConnectError("no such procedure", Code.Unimplemented))
+        const click = vi.fn().mockResolvedValue({})
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance, click}), 1_000, sessionMinting("session-1"))
+
+        await backend.clickTile(7, "de")
+
+        expect(click).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("holds no flag from a server that does not know one", async () => {
+        const getAllegiance = vi.fn().mockRejectedValue(new ConnectError("no such procedure", Code.Unimplemented))
+        const backend = new PlanetBackend(clientWith({getAllegiance}), 1_000, fixedSession("identity-1"))
+        const seen = follow(backend)
+
+        await vi.waitFor(() => expect(getAllegiance).toHaveBeenCalled())
+        expect(seen.at(-1)).toBeUndefined()
+        backend.close()
+    })
+})
+
+describe("PlanetBackend tile holder", () => {
+    const backendWith = (getTileHolder: ReturnType<typeof vi.fn>) => new PlanetBackend(
+        {click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), getTileHolder} as never,
+        1_000,
+    )
+
+    it("reads who holds a tile, with no token, and when it was taken", async () => {
+        const getTileHolder = vi.fn().mockResolvedValue(new GetTileHolderResponse({
+            holder: new TileHolderMessage({accountId: "account-ana", countryId: "fr", takenAtUnixMs: 1_761_393_600_000n}),
+        }))
+        const backend = backendWith(getTileHolder)
+
+        expect(await backend.tileHolder(7)).toEqual({accountId: "account-ana", countryCode: "fr", takenAt: 1_761_393_600_000})
+        expect(getTileHolder.mock.calls[0][0]).toEqual({tileId: 7})
+        expect((getTileHolder.mock.calls[0][1] as {headers?: Headers}).headers).toBeUndefined()
+        backend.close()
+    })
+
+    it("answers nobody for a tile the ledger names nobody on", async () => {
+        const backend = backendWith(vi.fn().mockResolvedValue(new GetTileHolderResponse()))
+
+        expect(await backend.tileHolder(7)).toBeUndefined()
+        backend.close()
+    })
+})
+
+describe("PlanetBackend landmass", () => {
+    const backendWith = (getLandmass: ReturnType<typeof vi.fn>) => new PlanetBackend(
+        {click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), getLandmass} as never,
+        1_000,
+    )
+
+    it("reads who holds a landmass and who fortified it last, with no token", async () => {
+        const getLandmass = vi.fn().mockResolvedValue(new GetLandmassResponse({
+            holders: [
+                new LandmassHolderMessage({accountId: "account-ana", countryId: "fr", tiles: 40}),
+                new LandmassHolderMessage({accountId: "account-kiran", countryId: "in", tiles: 3}),
+            ],
+            lastFortification: new LandmassFortificationMessage({accountId: "account-ana", countryId: "fr", fortifiedAtUnixMs: 1_761_393_600_000n}),
+        }))
+        const backend = backendWith(getLandmass)
+
+        expect(await backend.landmass(12)).toEqual({
+            holders: [
+                {accountId: "account-ana", countryCode: "fr", tiles: 40},
+                {accountId: "account-kiran", countryCode: "in", tiles: 3},
+            ],
+            lastFortification: {accountId: "account-ana", countryCode: "fr", at: 1_761_393_600_000},
+        })
+        expect(getLandmass.mock.calls[0][0]).toEqual({landmassId: 12})
+        expect((getLandmass.mock.calls[0][1] as {headers?: Headers}).headers).toBeUndefined()
+        backend.close()
+    })
+
+    it("answers no fortify for a landmass nobody fortified", async () => {
+        const backend = backendWith(vi.fn().mockResolvedValue(new GetLandmassResponse()))
+
+        expect(await backend.landmass(12)).toEqual({holders: [], lastFortification: undefined})
         backend.close()
     })
 })

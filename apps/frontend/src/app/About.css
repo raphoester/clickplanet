@@ -45,7 +45,6 @@
     justify-content: center;
     gap: var(--space-4);
     margin: 20px 0 0;
-    padding-bottom: 36px;
     font-family: var(--font-text);
     font-weight: 500;
     font-size: var(--text-xs);
@@ -60,7 +59,7 @@
     color: var(--text);
 }
 
-@media only screen and (max-width: 768px) {
+@media (max-width: 768px), (max-height: 600px) {
     .about-photo {
         width: 76px;
         height: 76px;

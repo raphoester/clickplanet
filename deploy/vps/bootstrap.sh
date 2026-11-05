@@ -165,7 +165,7 @@ SECRETS
 	cat <<PUSH
 $(log "push the box's secrets up, BEFORE the first deploy")
 
-  ssh ${DEPLOY_USER}@${SSH_HOST} 'grep -hE "^(CLOUDFLARE_API_TOKEN|CHAT_TAG_SALT|SESSION_SECRET|TURNSTILE_SECRET|POSTGRES_PASSWORD|GOOGLE_CLIENT_SECRET|DISCORD_CLIENT_SECRET|ADMIN_GOOGLE_CLIENT_SECRET)=." ${STACK_DIR}/.env ${STACK_DIR}/.env.caddy ${STACK_DIR}/.env.backend' \\
+  ssh ${DEPLOY_USER}@${SSH_HOST} 'grep -hE "^(CLOUDFLARE_API_TOKEN|CHAT_TAG_SALT|SESSION_SECRET|TURNSTILE_SECRET|POSTGRES_PASSWORD|REDIS_PASSWORD|GOOGLE_CLIENT_SECRET|DISCORD_CLIENT_SECRET|ADMIN_GOOGLE_CLIENT_SECRET)=." ${STACK_DIR}/.env ${STACK_DIR}/.env.caddy ${STACK_DIR}/.env.backend' \\
     | sort -u | while IFS='=' read -r name value; do \\
         printf '%s' "\$value" | gh secret set "\$name" --repo raphoester/clickplanet && echo "set \$name"; \\
       done
@@ -273,6 +273,11 @@ fi
 log "configuring firewall"
 ufw allow OpenSSH >/dev/null
 
+# Docker forwards Caddy's published ports past ufw's INPUT rules, so they are filtered again in DOCKER-USER.
+after_rules=/etc/ufw/after.rules
+sed -i '/^# BEGIN clickplanet-origin$/,/^# END clickplanet-origin$/d' "$after_rules"
+origin_filter=""
+
 if [[ $OPEN_ORIGIN -eq 1 ]]; then
 	warn "opening 80/443 to the world — the origin is reachable directly"
 	ufw allow 80/tcp >/dev/null
@@ -292,9 +297,25 @@ else
 		ufw allow from "$cidr" to any port 443 proto tcp >/dev/null
 	done <<<"$cf_ranges"
 	log "allowed $(grep -c . <<<"$cf_ranges") Cloudflare ranges"
+
+	public_if="$(ip -4 route show default | sed -n 's/.* dev \([^ ]*\).*/\1/p' | head -1)"
+	[[ -n "$public_if" ]] || die "no default IPv4 route, so no public interface to filter Caddy's ports on"
+	origin_filter="$(
+		echo ':clickplanet-origin - [0:0]'
+		echo "-A DOCKER-USER -i ${public_if} -p tcp -m multiport --dports 80,443 -j clickplanet-origin"
+		grep -v ':' <<<"$cf_ranges" | sed 's/^/-A clickplanet-origin -s /; s/$/ -j RETURN/'
+		echo '-A clickplanet-origin -j DROP'
+	)"
+	log "filtering Docker's forwarded 80/443 on ${public_if} to the same ranges"
 fi
 
+origin_block="$(printf '# BEGIN clickplanet-origin\n*filter\n:DOCKER-USER - [0:0]\n%s\nCOMMIT\n# END clickplanet-origin' "$origin_filter")"
+iptables-restore --test --noflush <<<"$origin_block" || die "the clickplanet-origin rules do not load:
+${origin_block}"
+printf '%s\n' "$origin_block" >> "$after_rules"
+
 ufw --force enable >/dev/null
+ufw reload >/dev/null
 
 if [[ -d "${CHECKOUT}/.git" ]]; then
 	log "updating existing checkout"
@@ -352,6 +373,7 @@ SECRETS_JSON="$(jq -n \
 	--arg CHAT_TAG_SALT "$(secret_value CHAT_TAG_SALT random_salt)" \
 	--arg SESSION_SECRET "$(secret_value SESSION_SECRET random_secret)" \
 	--arg POSTGRES_PASSWORD "$(secret_value POSTGRES_PASSWORD random_secret)" \
+	--arg REDIS_PASSWORD "$(secret_value REDIS_PASSWORD random_secret)" \
 	--arg TURNSTILE_SECRET "$(secret_value TURNSTILE_SECRET)" \
 	--arg GOOGLE_CLIENT_SECRET "$(secret_value GOOGLE_CLIENT_SECRET)" \
 	--arg DISCORD_CLIENT_SECRET "$(secret_value DISCORD_CLIENT_SECRET)" \

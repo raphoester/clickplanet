@@ -11,11 +11,25 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
+func bounds(change func(*Rules)) func() Rules {
+	r := Rules{
+		ReactionWindow: 5 * time.Second,
+		MinReactions:   12,
+		MaxSpread:      120 * time.Millisecond,
+		MaxMedian:      250 * time.Millisecond,
+	}
+	change(&r)
+	return func() Rules { return r }
+}
+
+func asIs(*Rules) {}
+
 func TestReactionsSurviveASaveAndLoad(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
-	config := Config{MinReactions: 5, TrackWindow: time.Hour}
+	config := Config{TrackWindow: time.Hour}
+	fewer := bounds(func(r *Rules) { r.MinReactions = 5 })
 
-	w := New(config, clock, nil)
+	w := New(config, fewer, clock, nil)
 	for tile := range uint32(6) {
 		player := detect.Click{Scope: "player", Tile: tile, Country: "FR", At: clock.Now()}
 		w.Watch(player)
@@ -29,7 +43,7 @@ func TestReactionsSurviveASaveAndLoad(t *testing.T) {
 	data, err := w.Save()
 	require.NoError(t, err)
 
-	restarted := New(config, clock, nil)
+	restarted := New(config, fewer, clock, nil)
 	require.NoError(t, restarted.Load(data))
 
 	next := detect.Click{Scope: "reflex", Tile: 99, Country: "PS", At: clock.Now(), NoOp: true}
@@ -45,7 +59,7 @@ func TestReactionsSurviveASaveAndLoad(t *testing.T) {
 func TestForgetDropsReactionsAndTakesBeforeTheCutoff(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: 24 * time.Hour}, clock, nil)
+	w := New(Config{TrackWindow: 24 * time.Hour}, bounds(asIs), clock, nil)
 	player := detect.Click{Scope: "player", Tile: 1, Country: "FR", At: clock.Now()}
 	w.Watch(player)
 	w.Committed(player)

@@ -8,8 +8,9 @@ build time:
 
 | app | copy | refreshed by |
 | --- | --- | --- |
-| frontend | `apps/frontend/static/<blob>`, fetched at runtime | `npm run map` |
+| frontend | `apps/frontend/static/<blob>`; the coordinates only when the rebuild below fails | `npm run map` |
 | backend | `apps/backend/generated/map/<blob>`, embedded | `make map` |
+| backoffice | `apps/backoffice/src/gen/map/coordinates-<hash>.bin` alone, bundled by Vite | `npm run map` |
 
 All three copies of each blob are committed and byte-identical, so git stores the bytes once.
 
@@ -19,8 +20,10 @@ makes a stale copy visible by eye rather than by symptom.
 ## One question, one answer
 
 **A tile exists exactly where a country does.** `apps/frontend/scripts/map/ground.mjs` is the one
-oracle: `groundOf(lon, lat)` answers a country code or `SEA`, from Natural Earth 1:50m, and
-`npm run map:generate` writes both blobs from that one answer. So "is this sea or land" and "which
+oracle: `groundOf(lon, lat)` answers a country code or `SEA`, from Natural Earth 1:50m; a vertex
+whose cell is mostly lake is `SEA` too; then each country too small for the lattice gets its seat
+(`latticeGround` in `scripts/map/oracle.mjs`), and `npm run map:generate` writes both blobs from that
+one answer. So "is this sea or land" and "which
 country is this" cannot disagree, and **a tile in no country cannot be built**.
 
 That used to be two questions asked of two datasets — a greyscale land mask decided which lattice
@@ -29,7 +32,8 @@ about 6,000 of the 906,012 lattice vertices, all of them on coasts and islands, 
 where anyone looks: 2,093 tiles floating on open water with no border drawn round them, 3,729 islands
 drawn in the globe's texture with nothing to click, and the Antarctic ice shelves missing whole.
 
-Three things follow from having one oracle, and they are worth knowing before changing it:
+Three things follow from having one oracle, and they are worth knowing before changing it, and one exception
+is written into it:
 
 - **The Natural Earth tag is pinned** (`NATURAL_EARTH_TAG` in `scripts/map/naturalEarth.mjs`,
   `v5.1.2`). These files decide where every tile is, so two runs a year apart have to produce the
@@ -38,6 +42,8 @@ Three things follow from having one oracle, and they are worth knowing before ch
   `ne_50m_antarctic_ice_shelves_polys` is a file of its own and is inside no country polygon, so
   before this Ross and Ronne were tileless holes in a continent the texture paints solid white.
   They are 2,633 tiles, which is about a tenth of `aq`.
+- **A cell that is mostly lake is water.** See below.
+- **Every country has at least one tile: its seat.** See below.
 - **The globe's texture follows, it does not decide.** A 4096×2048 photo blends a one-tile island
   into open water, so it can never be an authority. `npm run earth` cuts it *from* the tile field
   instead — see below — and `npm run map:audit` reports what is left but enforces nothing about it.
@@ -46,6 +52,45 @@ Three things follow from having one oracle, and they are worth knowing before ch
 cd apps/frontend && npm run map:generate   # both blobs, from the oracle
 cd apps/frontend && npm run map:audit      # the three sources against each other
 ```
+
+## Lakes are water
+
+Natural Earth draws each country over its lakes, so the Great Lakes, Victoria, Tanganyika, Malawi, Baikal and Ladoga
+were all tiles, painted over the water the photo shows. `ne_50m_lakes` is the third layer of the oracle, and
+**a vertex is sea when most of its cell is lake** (`mostlyLake` in `scripts/map/ground.mjs`): 19 points over the
+cell, the vertex and two rings, and more than half of them in a lake. It is the cell and not the vertex because a
+lake is often narrower than a cell — a reservoir down a valley, Lake Champlain — and a vertex that falls in one would
+cut water a cell wide out of the land; a cell is a fair answer for a lake as wide as one. 1,644 vertices are lake,
+and an island in one stays land.
+
+`DRY` lists the lakes that stay land: Australia's salt pans, which fill a few years a century; Kakhovka, drained in
+2023; and the steppe's shallow salt lakes (Tengiz, Qusmuryn, Siletitengiz), which the photo draws as steppe. Natural
+Earth draws them full, and a cell with no tile on what the globe draws as land is ground nobody can take.
+
+## A seat for each country the lattice misses
+
+The lattice is 25 km apart, so a country smaller than a cell — the Vatican, Monaco, Liechtenstein — or an island
+nation whose islands all fall between vertices — the Maldives, Palau, Tuvalu, Bahrain, which is bigger than a tile
+and still misses every vertex — would have no ground at all: no tile to take, no territory, no place for a first
+visit's camera to open on. `scripts/map/seats.mjs` gives each of them **one** vertex, after Natural Earth has
+answered for the rest, so `npm run map:generate` and `npm run map:audit` read the same answer. 34 countries have one.
+
+The rule is to follow the geography as closely as a 25 km cell allows, and never to put a tile on what the globe
+draws as open sea when the country is on land:
+
+- **A country on a continent takes its neighbour's vertex** nearest it (`takes`), on the coast or inland as the
+  country is (`coast`): the Vatican and San Marino from Italy, ringed by it; Liechtenstein from Switzerland, on the
+  Austrian border; Monaco from France, on the shore by Italy; Gibraltar from Spain, rather than the vertex in the
+  strait that touches Morocco; Macao from China. The neighbour keeps the rest, in one piece.
+- **An island country is one tile, on its capital's island**, at the vertex whose cell holds the most of that
+  island's land. Never a tile per island: the Seychelles' islands spread over 1,200 km, and a tile for each would
+  draw it far past its own waters. The vertex is sea to Natural Earth, because the island is smaller than the cell;
+  the texture then paints the cell as land (see below). Two of them touch a neighbour's tile, as the islands do:
+  Anguilla touches Sint Maarten and the US Virgin Islands touch the British.
+
+A seat for a country that has ground of its own, an island seat that would land on a country's ground, or two seats on
+one vertex refuse the generation. **The audit fails on a flag with no ground**, except the four flags of a region
+inside a country's ground (England, Scotland, Wales, Brittany: `REGIONS`), which share it.
 
 **Every fault between the tile set and the oracle is zero, and the audit fails on any one of them.**
 They are not a budget that creeps: both blobs are cut from one `groundOf` call, so a tile on open sea
@@ -69,6 +114,15 @@ in the same generation order, filtered by what each calls land — so it run-len
 thousand rows instead of a quarter of a million. `apps/backend/internal/planet/internal/migrations
 /migrations_test.go` runs it against a real postgres, both ways.
 
+**Every column of a tile goes with it** — its flag, shields and holder, and whatever a later migration adds —
+because the migration copies the row whole rather than naming columns. **A landmass id moves too**: it is a row of
+the borders blob's table, and a regeneration renumbers them. The migration follows each old landmass to the new one
+its tiles are on, for the same country, and moves the landmass each fortify in the ledger names (the territory card
+reads the last one by it) and copies the fortify locks to the new borders blob's name (the boot reads only those).
+A landmass that split goes to the piece that holds most of it — Canada keeps its lock when a lake cuts an island off
+it — and one with no such piece, or whose piece is another's too, is followed to nothing: its lock is settled at boot
+as any other.
+
 What the migration cannot give back: a take on a tile the new map does not have is deleted, because
 leaving it would let a revert write to an id that now means other ground.
 
@@ -80,6 +134,7 @@ first run. A second run over its own output would write an identity migration.
 ```bash
 cd apps/backend && make map          # copy both blobs, then commit all three copies of each
 cd apps/frontend && npm run borderLines   # traced from both blobs, stale until it is run
+cd apps/frontend && npm run landmask      # which lattice points are tiles, what the browser downloads
 cd apps/frontend && npm run earth         # the globe's texture, cut from the new tile field
 cd apps/frontend && npm run landmassNames # each landmass's name, keyed by the new borders blob
 cd apps/frontend && npm run map:audit     # every fault should read zero
@@ -98,8 +153,9 @@ and [`coordinates.go`](../apps/backend/internal/planet/internal/clicks/embedded_
 ```
 
 The 12-byte header keeps the float sections 4-byte aligned so the browser can take zero-copy views.
-The uvs are dead weight — neither shader reads them any more — and dropping them would take ~2 MB
-off a 5 MB download, but it touches the encoder, both decoders, the generator and the tests.
+The uvs are dead weight — nothing reads them. The browser downloads this blob only when it cannot
+rebuild the positions from its landmask, so dropping them would save players little for a change to
+the encoder, every decoder, the generator and the tests.
 
 **Positions are 0-indexed by array position; wire tile ids are 1-based.** Tile id = array index + 1.
 That is what `clicks.Board` (`tile > 0 && tile <= maxIndex`), `inmemory_tile_storage`
@@ -129,21 +185,24 @@ The frontend draws a black outline along the tile boundary between two countries
 geometry for it in a blob of its own — `apps/frontend/static/borderLines-<hash>.bin`, written by
 `npm run borderLines`. It is derived from both blobs here and from nothing else, so **regenerate it
 after these**; it stays out of `/map` because the backend has no use for it. See
-[`apps/frontend/CLAUDE.md`](../apps/frontend/CLAUDE.md), "The countries' outlines".
+[`apps/frontend/docs/country-outlines.md`](../apps/frontend/docs/country-outlines.md).
 
 ## The grid is a regular honeycomb
 
 The tiles are the land vertices of `THREE.IcosahedronGeometry(1, 300)`, deduplicated by position.
 That makes them a geodesic sphere's vertices, so **every interior vertex has exactly 6 neighbours**
 and the 12 icosahedron corners have 5 — which is what lets the backend compute adjacency exactly
-rather than by searching. See [apps/backend/CLAUDE.md](../apps/backend/CLAUDE.md), "Map geography".
+rather than by searching. It is also what lets the browser rebuild every position from one bit per
+vertex (`apps/frontend/static/landmask-<hash>.bin`, written by `npm run landmask` from the
+coordinates blob) instead of downloading them. See
+[`apps/frontend/docs/tile-positions.md`](../apps/frontend/docs/tile-positions.md). See [`apps/backend/docs/map-geography.md`](../apps/backend/docs/map-geography.md).
 
 | | |
 | --- | --- |
 | detail | 300, so `cols = 301` |
 | full sphere | `10 * 301² + 2` = 906,012 vertices |
-| land tiles | 262,119, which is `gameMap.maxIndex` |
-| landmasses | 658, across 205 countries |
+| land tiles | 260,503, which is `gameMap.maxIndex` |
+| landmasses | 694, across 239 countries |
 | spacing | ~25 km, ~563 km² per tile |
 
 `detail` is not recorded in the generator's output. It was recovered from this file and then
@@ -169,15 +228,24 @@ already agree**, which is most of the globe. The two colours are the photo's own
 the land and over the water, so nothing is repainted in a palette somebody chose. It took the land
 the photo draws as water from 8,599 lattice vertices to 2,053, and the water it draws as land to 13.
 
+**A block learns its land colour only from 128 pixels' worth of land it agrees about**, or takes a neighbour's
+(`LAND_ENOUGH`). A block of open ocean whose only land is atolls the photo draws as water used to learn it from the
+few pixels that half agreed — a blue a shade off the sea's — and leave a one-tile island looking like open water:
+14 of the 28 island seats did. All but Nauru read as land now (Nauru is a dark green-blue dot), and it took the land
+drawn as water across the whole globe from 2,053 to 1,903, for 0.08% more of the image moved, all of it on coasts and
+islands.
+
 `static/earth/earth-source.jpg` is the mosaic, kept in the repo and **not deployed**;
 `static/earth/earth-<hash>.jpg` is what the globe loads.
 
 ## What is left
 
-- **225 tiles have no neighbours at all** — single-tile islands. Anything reading adjacency has to
+- **250 tiles have no neighbours at all** — single-tile islands, 26 of them seats. Anything reading adjacency has to
   have an answer for an empty neighbour set. This is not a fault: an island a tile wide is an island
   a tile wide, and there are more of them now because the small ones finally have tiles.
-- **2,053 land vertices are still drawn as water, and 13 water vertices as land.** What is left is
+- **1,802 land vertices are still drawn as water, and 47 water vertices as land.** Most of the water drawn as land
+  is a lake the photo draws dark teal — the Quebec reservoirs, Itaipú, Kariba — which reads as water to the eye and
+  not to the audit's "is this pixel blue". What is left is
   where the photo gives the correction nothing to work with — land and water the same colour under
   cloud or on an ice shelf — and where the audit's own "does this pixel look blue" is stricter than
   an eye is. `npm run map:audit` is where those numbers live.

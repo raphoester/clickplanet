@@ -6,12 +6,11 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Authors interface {
-	Execute(ctx context.Context, account players.AccountID) (wearing.Author, error)
+type Introducer interface {
+	Execute(ctx context.Context, account players.AccountID) (players.Player, error)
 }
 
 type Visits interface {
@@ -29,15 +28,15 @@ type In struct {
 }
 
 type UseCase struct {
-	authors   Authors
-	visits    Visits
-	countries CountryChecker
-	clock     cptime.Clock
-	tagSalt   string
+	introducer Introducer
+	visits     Visits
+	countries  CountryChecker
+	clock      cptime.Clock
+	tagSalt    string
 }
 
-func New(authors Authors, visits Visits, countries CountryChecker, clock cptime.Clock, tagSalt string) *UseCase {
-	return &UseCase{authors: authors, visits: visits, countries: countries, clock: clock, tagSalt: tagSalt}
+func New(introducer Introducer, visits Visits, countries CountryChecker, clock cptime.Clock, tagSalt string) *UseCase {
+	return &UseCase{introducer: introducer, visits: visits, countries: countries, clock: clock, tagSalt: tagSalt}
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) error {
@@ -45,12 +44,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		return fmt.Errorf("%w: %q", presence.ErrUnknownCountry, in.Country)
 	}
 
-	author, err := u.authors.Execute(ctx, in.Account)
+	player, err := u.introducer.Execute(ctx, in.Account)
 	if err != nil {
 		return fmt.Errorf("failed to name the player: %w", err)
 	}
 
-	u.visits.Record(presence.NewVisit(in.Account, author, players.TagOf(u.tagSalt, in.IP), in.Country, u.clock.Now()))
+	u.visits.Record(presence.NewVisit(in.Account, player, players.TagOf(u.tagSalt, in.IP), in.Country, u.clock.Now()))
 
 	return nil
 }

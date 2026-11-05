@@ -11,33 +11,26 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ reports.Storage = (*Store)(nil)
 
 func (s *Store) Save(ctx context.Context, saved ...reports.Report) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin saving reports: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	for _, report := range saved {
-		if err := write(ctx, tx, report.TakeSnapshot()); err != nil {
-			return err
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		for _, report := range saved {
+			if err := write(ctx, tx, report.TakeSnapshot()); err != nil {
+				return err
+			}
 		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the reports saved: %w", err)
-	}
-	return nil
+		return nil
+	})
 }
 
 func write(ctx context.Context, tx cppg.Querier, kept reports.Snapshot) error {
@@ -93,7 +86,7 @@ func (s *Store) FiledBefore(ctx context.Context, cutoff time.Time, limit int) ([
 }
 
 func (s *Store) restored(ctx context.Context, query string, args ...any) ([]reports.Report, error) {
-	rows, err := s.db.QueryContext(ctx, query, args...)
+	rows, err := s.db.On(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read reports: %w", err)
 	}

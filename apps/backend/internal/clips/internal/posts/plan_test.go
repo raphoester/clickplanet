@@ -9,7 +9,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 )
 
-var plan = posts.Plan{Review: 4 * time.Hour, Spacing: 2 * time.Hour, Platforms: []posts.Platform{posts.TikTok, posts.YouTube}}
+var (
+	budget = posts.Budget{posts.TikTok: {PerDay: 10}, posts.YouTube: {PerDay: 8}}
+	plan   = posts.Plan{Review: 4 * time.Hour, Spacing: 2 * time.Hour, Platforms: []posts.Platform{posts.TikTok, posts.YouTube}, Budget: budget}
+	// As the job runs: no review, an hour between two posts on a platform.
+	asap = posts.Plan{Spacing: time.Hour, Platforms: []posts.Platform{posts.TikTok, posts.YouTube}, Budget: budget}
+)
 
 func times(planned []posts.Post) map[string]time.Time {
 	at := make(map[string]time.Time, len(planned))
@@ -18,6 +23,13 @@ func times(planned []posts.Post) map[string]time.Time {
 		at[snapshot.Title] = snapshot.At
 	}
 	return at
+}
+
+func next(t *testing.T, p posts.Plan, feed posts.Feed, at time.Time) (posts.PostSnapshot, bool) {
+	t.Helper()
+
+	post, room := p.Next(clip(t, 1, "BEST"), 1, 1, feed, at, posts.LoadedDice(0))
+	return post.TakeSnapshot(), room
 }
 
 func TestTheBestClipGoesOutAReviewFromNowAndEachNextOneASpacingLater(t *testing.T) {
@@ -33,6 +45,15 @@ func TestTheBestClipGoesOutAReviewFromNowAndEachNextOneASpacingLater(t *testing.
 	assert.Equal(t, "BEST", planned[0].TakeSnapshot().Title)
 }
 
+func TestWithNoReviewAPostGoesOutTheLeadFromNowOnAWholeMinute(t *testing.T) {
+	now := time.Date(2026, 10, 24, 12, 53, 27, 500, time.UTC)
+
+	snapshot, room := next(t, asap, nil, now)
+
+	assert.True(t, room)
+	assert.Equal(t, time.Date(2026, 10, 24, 12, 59, 0, 0, time.UTC), snapshot.At)
+}
+
 func TestAPostGoesOutOnAWholeMinuteNeverSoonerThanTheReview(t *testing.T) {
 	now := time.Date(2026, 10, 12, 12, 40, 27, 500, time.UTC)
 
@@ -41,24 +62,133 @@ func TestAPostGoesOutOnAWholeMinuteNeverSoonerThanTheReview(t *testing.T) {
 	assert.Equal(t, time.Date(2026, 10, 12, 16, 41, 0, 0, time.UTC), planned[0].TakeSnapshot().At)
 }
 
+func TestARunsSecondClipGoesOutASpacingAfterItsFirst(t *testing.T) {
+	now := time.Date(2026, 10, 24, 12, 53, 0, 0, time.UTC)
+
+	planned := asap.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now, posts.LoadedDice(0))
+
+	assert.Equal(t, map[string]time.Time{
+		"BEST":   time.Date(2026, 10, 24, 12, 58, 0, 0, time.UTC),
+		"SECOND": time.Date(2026, 10, 24, 13, 58, 0, 0, time.UTC),
+	}, times(planned))
+}
+
+func TestAPostKeepsASpacingAfterTheLastPostOnItsPlatformsWhoeverMadeIt(t *testing.T) {
+	now := time.Date(2026, 10, 24, 14, 53, 0, 0, time.UTC)
+	feed := posts.Feed{
+		{At: now.Add(-3 * time.Hour), Platforms: []posts.Platform{posts.TikTok, posts.YouTube}},
+		// The second clip of the run before, still to go out on TikTok.
+		{At: now.Add(20 * time.Minute), Platforms: []posts.Platform{posts.TikTok}},
+	}
+
+	snapshot, _ := next(t, asap, feed, now)
+
+	assert.Equal(t, now.Add(80*time.Minute), snapshot.At)
+}
+
+func TestAPostSoonAfterTheLastOneWaitsOnlyForTheSpacing(t *testing.T) {
+	now := time.Date(2026, 10, 24, 14, 53, 0, 0, time.UTC)
+	feed := posts.Feed{{At: now.Add(-50 * time.Minute), Platforms: []posts.Platform{posts.TikTok, posts.YouTube}}}
+
+	snapshot, _ := next(t, asap, feed, now)
+
+	assert.Equal(t, now.Add(10*time.Minute), snapshot.At)
+}
+
+func TestAPlatformWhoseDayIsFullIsLeftOutOfThePost(t *testing.T) {
+	now := time.Date(2026, 10, 24, 14, 53, 0, 0, time.UTC)
+	feed := postings(8, now.Add(-23*time.Hour), posts.TikTok, posts.YouTube)
+
+	snapshot, room := next(t, asap, feed, now)
+
+	assert.True(t, room)
+	assert.Equal(t, []posts.Platform{posts.TikTok}, snapshot.Platforms)
+}
+
+func TestAClipWithNoPlatformLeftIsNoPost(t *testing.T) {
+	now := time.Date(2026, 10, 24, 14, 53, 0, 0, time.UTC)
+	feed := append(postings(8, now.Add(-23*time.Hour), posts.TikTok, posts.YouTube), postings(2, now.Add(-2*time.Hour), posts.TikTok)...)
+
+	_, room := next(t, asap, feed, now)
+
+	assert.False(t, room)
+}
+
+func TestARunTakesNoMoreThanAPlatformHasLeft(t *testing.T) {
+	now := time.Date(2026, 10, 24, 14, 53, 0, 0, time.UTC)
+	tight := posts.Plan{Spacing: time.Hour, Platforms: []posts.Platform{posts.TikTok}, Budget: posts.Budget{posts.TikTok: {PerDay: 1}}}
+
+	planned := tight.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now, posts.LoadedDice(0))
+
+	assert.Len(t, planned, 1)
+	assert.Equal(t, "BEST", planned[0].TakeSnapshot().Title)
+}
+
 func TestNoClipIsNoPost(t *testing.T) {
 	assert.Empty(t, plan.Posts(nil, time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC), posts.LoadedDice(0)))
 }
 
-func TestAPostIsReviewableWhileItsTimeIsAnHourAway(t *testing.T) {
-	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
-	post := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))[0]
-
-	assert.True(t, post.Reviewable(now))
-	assert.True(t, post.Reviewable(now.Add(3*time.Hour)))
-	assert.False(t, post.Reviewable(now.Add(3*time.Hour+time.Second)))
-	assert.False(t, post.Reviewable(now.Add(5*time.Hour)))
-}
-
-func TestEachPostGoesToEveryPlatformOfThePlan(t *testing.T) {
+func TestEachPostGoesToEveryPlatformOfThePlanWithRoomLeft(t *testing.T) {
 	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now, posts.LoadedDice(0))
 
 	for _, post := range planned {
 		assert.Equal(t, []posts.Platform{posts.TikTok, posts.YouTube}, post.TakeSnapshot().Platforms)
 	}
+}
+
+func TestAPostSaysItsPlaceInItsRun(t *testing.T) {
+	planned := asap.Posts([]posts.Clip{clip(t, 2, "SECOND"), clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
+
+	assert.Equal(t, [][2]int{{1, 2}, {2, 2}}, [][2]int{
+		{planned[0].TakeSnapshot().RunPosition, planned[0].TakeSnapshot().RunSize},
+		{planned[1].TakeSnapshot().RunPosition, planned[1].TakeSnapshot().RunSize},
+	})
+}
+
+var paced = posts.Plan{Spacing: time.Hour, Platforms: []posts.Platform{posts.TikTok, posts.YouTube}, Budget: posts.Budget{
+	posts.TikTok:  {PerDay: 3, Hours: posts.Hours{From: 14, To: 20}, BestOnly: true},
+	posts.YouTube: {PerDay: 8},
+}}
+
+func TestAPlatformOutOfItsHoursIsLeftOutOfThePost(t *testing.T) {
+	snapshot, room := next(t, paced, nil, time.Date(2026, 10, 27, 12, 53, 0, 0, time.UTC))
+
+	assert.True(t, room)
+	assert.Equal(t, []posts.Platform{posts.YouTube}, snapshot.Platforms)
+}
+
+func TestAPostInAPlatformsHoursGoesOutThere(t *testing.T) {
+	snapshot, _ := next(t, paced, nil, time.Date(2026, 10, 27, 13, 55, 0, 0, time.UTC))
+
+	assert.Equal(t, time.Date(2026, 10, 27, 14, 0, 0, 0, time.UTC), snapshot.At)
+	assert.Equal(t, []posts.Platform{posts.TikTok, posts.YouTube}, snapshot.Platforms)
+}
+
+func TestAPlatformThatTakesTheBestOnlyIsLeftOutOfARunsNextClips(t *testing.T) {
+	now := time.Date(2026, 10, 27, 14, 53, 0, 0, time.UTC)
+
+	planned := paced.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now, posts.LoadedDice(0))
+
+	assert.Equal(t, []posts.Platform{posts.TikTok, posts.YouTube}, planned[0].TakeSnapshot().Platforms)
+	assert.Equal(t, []posts.Platform{posts.YouTube}, planned[1].TakeSnapshot().Platforms)
+}
+
+func TestAPlatformLeftOutForItsHoursNoLongerHoldsThePostBack(t *testing.T) {
+	now := time.Date(2026, 10, 27, 19, 0, 0, 0, time.UTC)
+	// A post by hand on TikTok: its spacing would push the clip past TikTok's hours.
+	feed := posts.Feed{{At: now.Add(30 * time.Minute), Platforms: []posts.Platform{posts.TikTok}}}
+
+	snapshot, _ := next(t, paced, feed, now)
+
+	assert.Equal(t, []posts.Platform{posts.YouTube}, snapshot.Platforms)
+	assert.Equal(t, now.Add(5*time.Minute), snapshot.At)
+}
+
+func TestAClipOutOfTheHoursOfItsOnlyPlatformIsNoPost(t *testing.T) {
+	tiktok := paced
+	tiktok.Platforms = []posts.Platform{posts.TikTok}
+
+	_, room := next(t, tiktok, nil, time.Date(2026, 10, 27, 20, 0, 0, 0, time.UTC))
+
+	assert.False(t, room)
 }

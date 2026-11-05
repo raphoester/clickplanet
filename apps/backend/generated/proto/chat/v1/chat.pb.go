@@ -113,6 +113,55 @@ func (Reaction) EnumDescriptor() ([]byte, []int) {
 	return file_chat_v1_chat_proto_rawDescGZIP(), []int{0}
 }
 
+// What a mute takes away.
+type MuteKind int32
+
+const (
+	// The whole chat: every post and every reaction.
+	MuteKind_MUTE_KIND_CHAT MuteKind = 0
+	// A post with a GIF. The player still writes and reacts.
+	MuteKind_MUTE_KIND_GIFS MuteKind = 1
+)
+
+// Enum value maps for MuteKind.
+var (
+	MuteKind_name = map[int32]string{
+		0: "MUTE_KIND_CHAT",
+		1: "MUTE_KIND_GIFS",
+	}
+	MuteKind_value = map[string]int32{
+		"MUTE_KIND_CHAT": 0,
+		"MUTE_KIND_GIFS": 1,
+	}
+)
+
+func (x MuteKind) Enum() *MuteKind {
+	p := new(MuteKind)
+	*p = x
+	return p
+}
+
+func (x MuteKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MuteKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_chat_v1_chat_proto_enumTypes[1].Descriptor()
+}
+
+func (MuteKind) Type() protoreflect.EnumType {
+	return &file_chat_v1_chat_proto_enumTypes[1]
+}
+
+func (x MuteKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MuteKind.Descriptor instead.
+func (MuteKind) EnumDescriptor() ([]byte, []int) {
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{1}
+}
+
 type ReactionCount struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Reaction      Reaction               `protobuf:"varint,1,opt,name=reaction,proto3,enum=chat.v1.Reaction" json:"reaction,omitempty"`
@@ -182,22 +231,26 @@ func (x *ReactionCount) GetReactors() []string {
 }
 
 type ChatMessage struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	SentAtUnixMs     int64                  `protobuf:"varint,2,opt,name=sent_at_unix_ms,json=sentAtUnixMs,proto3" json:"sent_at_unix_ms,omitempty"`
-	AuthorName       string                 `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
-	CountryId        string                 `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Text             string                 `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
-	AuthorAdmin      bool                   `protobuf:"varint,7,opt,name=author_admin,json=authorAdmin,proto3" json:"author_admin,omitempty"`
-	Reactions        []*ReactionCount       `protobuf:"bytes,8,rep,name=reactions,proto3" json:"reactions,omitempty"`
-	ReactionsVersion uint64                 `protobuf:"varint,9,opt,name=reactions_version,json=reactionsVersion,proto3" json:"reactions_version,omitempty"`
-	AuthorColor      v1.NameColor           `protobuf:"varint,10,opt,name=author_color,json=authorColor,proto3,enum=player.v1.NameColor" json:"author_color,omitempty"`
-	AuthorStreak     uint32                 `protobuf:"varint,11,opt,name=author_streak,json=authorStreak,proto3" json:"author_streak,omitempty"`
-	AuthorTitle      *v1.Title              `protobuf:"bytes,12,opt,name=author_title,json=authorTitle,proto3" json:"author_title,omitempty"`
-	ReplyTo          *Quote                 `protobuf:"bytes,13,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SentAtUnixMs int64                  `protobuf:"varint,2,opt,name=sent_at_unix_ms,json=sentAtUnixMs,proto3" json:"sent_at_unix_ms,omitempty"`
+	AuthorName   string                 `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
+	CountryId    string                 `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	// Neither once an operator removed it.
+	//
+	// Types that are valid to be assigned to Body:
+	//
+	//	*ChatMessage_Text
+	//	*ChatMessage_Gif
+	Body             isChatMessage_Body `protobuf_oneof:"body"`
+	AuthorAdmin      bool               `protobuf:"varint,7,opt,name=author_admin,json=authorAdmin,proto3" json:"author_admin,omitempty"`
+	Reactions        []*ReactionCount   `protobuf:"bytes,8,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	ReactionsVersion uint64             `protobuf:"varint,9,opt,name=reactions_version,json=reactionsVersion,proto3" json:"reactions_version,omitempty"`
+	AuthorColor      v1.NameColor       `protobuf:"varint,10,opt,name=author_color,json=authorColor,proto3,enum=player.v1.NameColor" json:"author_color,omitempty"`
+	ReplyTo          *Quote             `protobuf:"bytes,13,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
 	// Empty for a message kept before accounts, and for an account that was deleted.
 	AuthorAccountId string `protobuf:"bytes,14,opt,name=author_account_id,json=authorAccountId,proto3" json:"author_account_id,omitempty"`
-	// An operator removed it: it keeps its place, with no text and no reactions.
+	// An operator removed it: it keeps its place, with no body and no reactions.
 	Removed       bool `protobuf:"varint,15,opt,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -261,11 +314,29 @@ func (x *ChatMessage) GetCountryId() string {
 	return ""
 }
 
+func (x *ChatMessage) GetBody() isChatMessage_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
 func (x *ChatMessage) GetText() string {
 	if x != nil {
-		return x.Text
+		if x, ok := x.Body.(*ChatMessage_Text); ok {
+			return x.Text
+		}
 	}
 	return ""
+}
+
+func (x *ChatMessage) GetGif() *Gif {
+	if x != nil {
+		if x, ok := x.Body.(*ChatMessage_Gif); ok {
+			return x.Gif
+		}
+	}
+	return nil
 }
 
 func (x *ChatMessage) GetAuthorAdmin() bool {
@@ -296,20 +367,6 @@ func (x *ChatMessage) GetAuthorColor() v1.NameColor {
 	return v1.NameColor(0)
 }
 
-func (x *ChatMessage) GetAuthorStreak() uint32 {
-	if x != nil {
-		return x.AuthorStreak
-	}
-	return 0
-}
-
-func (x *ChatMessage) GetAuthorTitle() *v1.Title {
-	if x != nil {
-		return x.AuthorTitle
-	}
-	return nil
-}
-
 func (x *ChatMessage) GetReplyTo() *Quote {
 	if x != nil {
 		return x.ReplyTo
@@ -331,21 +388,103 @@ func (x *ChatMessage) GetRemoved() bool {
 	return false
 }
 
+type isChatMessage_Body interface {
+	isChatMessage_Body()
+}
+
+type ChatMessage_Text struct {
+	Text string `protobuf:"bytes,6,opt,name=text,proto3,oneof"`
+}
+
+type ChatMessage_Gif struct {
+	Gif *Gif `protobuf:"bytes,16,opt,name=gif,proto3,oneof"`
+}
+
+func (*ChatMessage_Text) isChatMessage_Body() {}
+
+func (*ChatMessage_Gif) isChatMessage_Body() {}
+
+// A GIF from KLIPY, at the address KLIPY gave for it.
+type Gif struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	Width         uint32                 `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
+	Height        uint32                 `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Gif) Reset() {
+	*x = Gif{}
+	mi := &file_chat_v1_chat_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Gif) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Gif) ProtoMessage() {}
+
+func (x *Gif) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_chat_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Gif.ProtoReflect.Descriptor instead.
+func (*Gif) Descriptor() ([]byte, []int) {
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Gif) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *Gif) GetWidth() uint32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *Gif) GetHeight() uint32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
 type Quote struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	MessageId   string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 	AuthorName  string                 `protobuf:"bytes,2,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
 	AuthorColor v1.NameColor           `protobuf:"varint,3,opt,name=author_color,json=authorColor,proto3,enum=player.v1.NameColor" json:"author_color,omitempty"`
-	Text        string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
-	// The message quoted was removed: no text.
-	Removed       bool `protobuf:"varint,5,opt,name=removed,proto3" json:"removed,omitempty"`
+	// Neither when the message quoted was removed.
+	//
+	// Types that are valid to be assigned to Body:
+	//
+	//	*Quote_Text
+	//	*Quote_Gif
+	Body          isQuote_Body `protobuf_oneof:"body"`
+	Removed       bool         `protobuf:"varint,5,opt,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Quote) Reset() {
 	*x = Quote{}
-	mi := &file_chat_v1_chat_proto_msgTypes[2]
+	mi := &file_chat_v1_chat_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -357,7 +496,7 @@ func (x *Quote) String() string {
 func (*Quote) ProtoMessage() {}
 
 func (x *Quote) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[2]
+	mi := &file_chat_v1_chat_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -370,7 +509,7 @@ func (x *Quote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Quote.ProtoReflect.Descriptor instead.
 func (*Quote) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{2}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Quote) GetMessageId() string {
@@ -394,11 +533,29 @@ func (x *Quote) GetAuthorColor() v1.NameColor {
 	return v1.NameColor(0)
 }
 
+func (x *Quote) GetBody() isQuote_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
 func (x *Quote) GetText() string {
 	if x != nil {
-		return x.Text
+		if x, ok := x.Body.(*Quote_Text); ok {
+			return x.Text
+		}
 	}
 	return ""
+}
+
+func (x *Quote) GetGif() *Gif {
+	if x != nil {
+		if x, ok := x.Body.(*Quote_Gif); ok {
+			return x.Gif
+		}
+	}
+	return nil
 }
 
 func (x *Quote) GetRemoved() bool {
@@ -408,19 +565,42 @@ func (x *Quote) GetRemoved() bool {
 	return false
 }
 
+type isQuote_Body interface {
+	isQuote_Body()
+}
+
+type Quote_Text struct {
+	Text string `protobuf:"bytes,4,opt,name=text,proto3,oneof"`
+}
+
+type Quote_Gif struct {
+	Gif *Gif `protobuf:"bytes,6,opt,name=gif,proto3,oneof"`
+}
+
+func (*Quote_Text) isQuote_Body() {}
+
+func (*Quote_Gif) isQuote_Body() {}
+
 type SendMessageRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	AuthorId         string                 `protobuf:"bytes,2,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
-	CountryId        string                 `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Text             string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
-	ReplyToMessageId string                 `protobuf:"bytes,5,opt,name=reply_to_message_id,json=replyToMessageId,proto3" json:"reply_to_message_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AuthorId  string                 `protobuf:"bytes,2,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	CountryId string                 `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	// Types that are valid to be assigned to Body:
+	//
+	//	*SendMessageRequest_Text
+	//	*SendMessageRequest_Gif
+	Body             isSendMessageRequest_Body `protobuf_oneof:"body"`
+	ReplyToMessageId string                    `protobuf:"bytes,5,opt,name=reply_to_message_id,json=replyToMessageId,proto3" json:"reply_to_message_id,omitempty"`
+	// The flag whose room it goes to: only the accounts that play for that flag read and write there. Empty for the chat
+	// everyone reads.
+	FlagRoom      string `protobuf:"bytes,6,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SendMessageRequest) Reset() {
 	*x = SendMessageRequest{}
-	mi := &file_chat_v1_chat_proto_msgTypes[3]
+	mi := &file_chat_v1_chat_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -432,7 +612,7 @@ func (x *SendMessageRequest) String() string {
 func (*SendMessageRequest) ProtoMessage() {}
 
 func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[3]
+	mi := &file_chat_v1_chat_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -445,7 +625,7 @@ func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendMessageRequest) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{3}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SendMessageRequest) GetAuthorId() string {
@@ -462,11 +642,29 @@ func (x *SendMessageRequest) GetCountryId() string {
 	return ""
 }
 
+func (x *SendMessageRequest) GetBody() isSendMessageRequest_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
 func (x *SendMessageRequest) GetText() string {
 	if x != nil {
-		return x.Text
+		if x, ok := x.Body.(*SendMessageRequest_Text); ok {
+			return x.Text
+		}
 	}
 	return ""
+}
+
+func (x *SendMessageRequest) GetGif() *Gif {
+	if x != nil {
+		if x, ok := x.Body.(*SendMessageRequest_Gif); ok {
+			return x.Gif
+		}
+	}
+	return nil
 }
 
 func (x *SendMessageRequest) GetReplyToMessageId() string {
@@ -475,6 +673,30 @@ func (x *SendMessageRequest) GetReplyToMessageId() string {
 	}
 	return ""
 }
+
+func (x *SendMessageRequest) GetFlagRoom() string {
+	if x != nil {
+		return x.FlagRoom
+	}
+	return ""
+}
+
+type isSendMessageRequest_Body interface {
+	isSendMessageRequest_Body()
+}
+
+type SendMessageRequest_Text struct {
+	Text string `protobuf:"bytes,4,opt,name=text,proto3,oneof"`
+}
+
+type SendMessageRequest_Gif struct {
+	// Refused, PermissionDenied, from a guest, and from an account a mute of the GIFs holds.
+	Gif *Gif `protobuf:"bytes,7,opt,name=gif,proto3,oneof"`
+}
+
+func (*SendMessageRequest_Text) isSendMessageRequest_Body() {}
+
+func (*SendMessageRequest_Gif) isSendMessageRequest_Body() {}
 
 type SendMessageResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -485,7 +707,7 @@ type SendMessageResponse struct {
 
 func (x *SendMessageResponse) Reset() {
 	*x = SendMessageResponse{}
-	mi := &file_chat_v1_chat_proto_msgTypes[4]
+	mi := &file_chat_v1_chat_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -497,7 +719,7 @@ func (x *SendMessageResponse) String() string {
 func (*SendMessageResponse) ProtoMessage() {}
 
 func (x *SendMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[4]
+	mi := &file_chat_v1_chat_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -510,7 +732,7 @@ func (x *SendMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageResponse.ProtoReflect.Descriptor instead.
 func (*SendMessageResponse) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{4}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SendMessageResponse) GetMessage() *ChatMessage {
@@ -523,13 +745,14 @@ func (x *SendMessageResponse) GetMessage() *ChatMessage {
 type MuteRefusal struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	MutedUntilUnixMs int64                  `protobuf:"varint,1,opt,name=muted_until_unix_ms,json=mutedUntilUnixMs,proto3" json:"muted_until_unix_ms,omitempty"`
+	Kind             MuteKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
 func (x *MuteRefusal) Reset() {
 	*x = MuteRefusal{}
-	mi := &file_chat_v1_chat_proto_msgTypes[5]
+	mi := &file_chat_v1_chat_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -541,7 +764,7 @@ func (x *MuteRefusal) String() string {
 func (*MuteRefusal) ProtoMessage() {}
 
 func (x *MuteRefusal) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[5]
+	mi := &file_chat_v1_chat_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -554,7 +777,7 @@ func (x *MuteRefusal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MuteRefusal.ProtoReflect.Descriptor instead.
 func (*MuteRefusal) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{5}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *MuteRefusal) GetMutedUntilUnixMs() int64 {
@@ -564,15 +787,24 @@ func (x *MuteRefusal) GetMutedUntilUnixMs() int64 {
 	return 0
 }
 
+func (x *MuteRefusal) GetKind() MuteKind {
+	if x != nil {
+		return x.Kind
+	}
+	return MuteKind_MUTE_KIND_CHAT
+}
+
 type GetHistoryRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As SendMessageRequest.flag_room. A flag's room has no announcements.
+	FlagRoom      string `protobuf:"bytes,1,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetHistoryRequest) Reset() {
 	*x = GetHistoryRequest{}
-	mi := &file_chat_v1_chat_proto_msgTypes[6]
+	mi := &file_chat_v1_chat_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -584,7 +816,7 @@ func (x *GetHistoryRequest) String() string {
 func (*GetHistoryRequest) ProtoMessage() {}
 
 func (x *GetHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[6]
+	mi := &file_chat_v1_chat_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -597,7 +829,14 @@ func (x *GetHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHistoryRequest.ProtoReflect.Descriptor instead.
 func (*GetHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{6}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetHistoryRequest) GetFlagRoom() string {
+	if x != nil {
+		return x.FlagRoom
+	}
+	return ""
 }
 
 type Announcement struct {
@@ -612,7 +851,7 @@ type Announcement struct {
 
 func (x *Announcement) Reset() {
 	*x = Announcement{}
-	mi := &file_chat_v1_chat_proto_msgTypes[7]
+	mi := &file_chat_v1_chat_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -624,7 +863,7 @@ func (x *Announcement) String() string {
 func (*Announcement) ProtoMessage() {}
 
 func (x *Announcement) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[7]
+	mi := &file_chat_v1_chat_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -637,7 +876,7 @@ func (x *Announcement) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Announcement.ProtoReflect.Descriptor instead.
 func (*Announcement) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{7}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Announcement) GetId() string {
@@ -679,7 +918,7 @@ type GetHistoryResponse struct {
 
 func (x *GetHistoryResponse) Reset() {
 	*x = GetHistoryResponse{}
-	mi := &file_chat_v1_chat_proto_msgTypes[8]
+	mi := &file_chat_v1_chat_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -691,7 +930,7 @@ func (x *GetHistoryResponse) String() string {
 func (*GetHistoryResponse) ProtoMessage() {}
 
 func (x *GetHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[8]
+	mi := &file_chat_v1_chat_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -704,7 +943,7 @@ func (x *GetHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHistoryResponse.ProtoReflect.Descriptor instead.
 func (*GetHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{8}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetHistoryResponse) GetMessages() []*ChatMessage {
@@ -731,13 +970,15 @@ func (x *GetHistoryResponse) GetSeenUntilUnixMs() int64 {
 type MarkSeenRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	SeenUntilUnixMs int64                  `protobuf:"varint,1,opt,name=seen_until_unix_ms,json=seenUntilUnixMs,proto3" json:"seen_until_unix_ms,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// As SendMessageRequest.flag_room: each room keeps its own mark.
+	FlagRoom      string `protobuf:"bytes,2,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MarkSeenRequest) Reset() {
 	*x = MarkSeenRequest{}
-	mi := &file_chat_v1_chat_proto_msgTypes[9]
+	mi := &file_chat_v1_chat_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -749,7 +990,7 @@ func (x *MarkSeenRequest) String() string {
 func (*MarkSeenRequest) ProtoMessage() {}
 
 func (x *MarkSeenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[9]
+	mi := &file_chat_v1_chat_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -762,7 +1003,7 @@ func (x *MarkSeenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkSeenRequest.ProtoReflect.Descriptor instead.
 func (*MarkSeenRequest) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{9}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *MarkSeenRequest) GetSeenUntilUnixMs() int64 {
@@ -770,6 +1011,13 @@ func (x *MarkSeenRequest) GetSeenUntilUnixMs() int64 {
 		return x.SeenUntilUnixMs
 	}
 	return 0
+}
+
+func (x *MarkSeenRequest) GetFlagRoom() string {
+	if x != nil {
+		return x.FlagRoom
+	}
+	return ""
 }
 
 type MarkSeenResponse struct {
@@ -780,7 +1028,7 @@ type MarkSeenResponse struct {
 
 func (x *MarkSeenResponse) Reset() {
 	*x = MarkSeenResponse{}
-	mi := &file_chat_v1_chat_proto_msgTypes[10]
+	mi := &file_chat_v1_chat_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -792,7 +1040,7 @@ func (x *MarkSeenResponse) String() string {
 func (*MarkSeenResponse) ProtoMessage() {}
 
 func (x *MarkSeenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[10]
+	mi := &file_chat_v1_chat_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -805,7 +1053,7 @@ func (x *MarkSeenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkSeenResponse.ProtoReflect.Descriptor instead.
 func (*MarkSeenResponse) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{10}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{11}
 }
 
 type ReactRequest struct {
@@ -819,7 +1067,7 @@ type ReactRequest struct {
 
 func (x *ReactRequest) Reset() {
 	*x = ReactRequest{}
-	mi := &file_chat_v1_chat_proto_msgTypes[11]
+	mi := &file_chat_v1_chat_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -831,7 +1079,7 @@ func (x *ReactRequest) String() string {
 func (*ReactRequest) ProtoMessage() {}
 
 func (x *ReactRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[11]
+	mi := &file_chat_v1_chat_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -844,7 +1092,7 @@ func (x *ReactRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReactRequest.ProtoReflect.Descriptor instead.
 func (*ReactRequest) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{11}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ReactRequest) GetMessageId() string {
@@ -878,7 +1126,7 @@ type ReactResponse struct {
 
 func (x *ReactResponse) Reset() {
 	*x = ReactResponse{}
-	mi := &file_chat_v1_chat_proto_msgTypes[12]
+	mi := &file_chat_v1_chat_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -890,7 +1138,7 @@ func (x *ReactResponse) String() string {
 func (*ReactResponse) ProtoMessage() {}
 
 func (x *ReactResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[12]
+	mi := &file_chat_v1_chat_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -903,7 +1151,7 @@ func (x *ReactResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReactResponse.ProtoReflect.Descriptor instead.
 func (*ReactResponse) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{12}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ReactResponse) GetReactions() []*ReactionCount {
@@ -921,14 +1169,16 @@ func (x *ReactResponse) GetVersion() uint64 {
 }
 
 type ListenForEventsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As SendMessageRequest.flag_room. A flag's stream ends, FailedPrecondition, once the caller pledges another flag.
+	FlagRoom      string `protobuf:"bytes,1,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListenForEventsRequest) Reset() {
 	*x = ListenForEventsRequest{}
-	mi := &file_chat_v1_chat_proto_msgTypes[13]
+	mi := &file_chat_v1_chat_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -940,7 +1190,7 @@ func (x *ListenForEventsRequest) String() string {
 func (*ListenForEventsRequest) ProtoMessage() {}
 
 func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[13]
+	mi := &file_chat_v1_chat_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -953,7 +1203,14 @@ func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{13}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ListenForEventsRequest) GetFlagRoom() string {
+	if x != nil {
+		return x.FlagRoom
+	}
+	return ""
 }
 
 type ChatEvent struct {
@@ -972,7 +1229,7 @@ type ChatEvent struct {
 
 func (x *ChatEvent) Reset() {
 	*x = ChatEvent{}
-	mi := &file_chat_v1_chat_proto_msgTypes[14]
+	mi := &file_chat_v1_chat_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -984,7 +1241,7 @@ func (x *ChatEvent) String() string {
 func (*ChatEvent) ProtoMessage() {}
 
 func (x *ChatEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[14]
+	mi := &file_chat_v1_chat_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -997,7 +1254,7 @@ func (x *ChatEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChatEvent.ProtoReflect.Descriptor instead.
 func (*ChatEvent) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{14}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ChatEvent) GetEvent() isChatEvent_Event {
@@ -1096,7 +1353,7 @@ type MessageRemoved struct {
 
 func (x *MessageRemoved) Reset() {
 	*x = MessageRemoved{}
-	mi := &file_chat_v1_chat_proto_msgTypes[15]
+	mi := &file_chat_v1_chat_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1108,7 +1365,7 @@ func (x *MessageRemoved) String() string {
 func (*MessageRemoved) ProtoMessage() {}
 
 func (x *MessageRemoved) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[15]
+	mi := &file_chat_v1_chat_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1121,7 +1378,7 @@ func (x *MessageRemoved) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessageRemoved.ProtoReflect.Descriptor instead.
 func (*MessageRemoved) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{15}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *MessageRemoved) GetMessageId() string {
@@ -1142,7 +1399,7 @@ type ReactionsChanged struct {
 
 func (x *ReactionsChanged) Reset() {
 	*x = ReactionsChanged{}
-	mi := &file_chat_v1_chat_proto_msgTypes[16]
+	mi := &file_chat_v1_chat_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1154,7 +1411,7 @@ func (x *ReactionsChanged) String() string {
 func (*ReactionsChanged) ProtoMessage() {}
 
 func (x *ReactionsChanged) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[16]
+	mi := &file_chat_v1_chat_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1167,7 +1424,7 @@ func (x *ReactionsChanged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReactionsChanged.ProtoReflect.Descriptor instead.
 func (*ReactionsChanged) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{16}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ReactionsChanged) GetMessageId() string {
@@ -1199,7 +1456,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_chat_v1_chat_proto_msgTypes[17]
+	mi := &file_chat_v1_chat_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1211,7 +1468,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_chat_proto_msgTypes[17]
+	mi := &file_chat_v1_chat_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1224,57 +1481,68 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_chat_v1_chat_proto_rawDescGZIP(), []int{17}
+	return file_chat_v1_chat_proto_rawDescGZIP(), []int{18}
 }
 
 var File_chat_v1_chat_proto protoreflect.FileDescriptor
 
 const file_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
-	"\x12chat/v1/chat.proto\x12\achat.v1\x1a\x15player/v1/color.proto\x1a\x15player/v1/title.proto\"\x84\x01\n" +
+	"\x12chat/v1/chat.proto\x12\achat.v1\x1a\x15player/v1/color.proto\"\x84\x01\n" +
 	"\rReactionCount\x12-\n" +
 	"\breaction\x18\x01 \x01(\x0e2\x11.chat.v1.ReactionR\breaction\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\rR\x05count\x12\x12\n" +
 	"\x04mine\x18\x03 \x01(\bR\x04mine\x12\x1a\n" +
-	"\breactors\x18\x04 \x03(\tR\breactors\"\xb4\x04\n" +
+	"\breactors\x18\x04 \x03(\tR\breactors\"\xaf\x04\n" +
 	"\vChatMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0fsent_at_unix_ms\x18\x02 \x01(\x03R\fsentAtUnixMs\x12\x1f\n" +
 	"\vauthor_name\x18\x03 \x01(\tR\n" +
 	"authorName\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x05 \x01(\tR\tcountryId\x12\x12\n" +
-	"\x04text\x18\x06 \x01(\tR\x04text\x12!\n" +
+	"country_id\x18\x05 \x01(\tR\tcountryId\x12\x14\n" +
+	"\x04text\x18\x06 \x01(\tH\x00R\x04text\x12 \n" +
+	"\x03gif\x18\x10 \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x12!\n" +
 	"\fauthor_admin\x18\a \x01(\bR\vauthorAdmin\x124\n" +
 	"\treactions\x18\b \x03(\v2\x16.chat.v1.ReactionCountR\treactions\x12+\n" +
 	"\x11reactions_version\x18\t \x01(\x04R\x10reactionsVersion\x127\n" +
 	"\fauthor_color\x18\n" +
-	" \x01(\x0e2\x14.player.v1.NameColorR\vauthorColor\x12#\n" +
-	"\rauthor_streak\x18\v \x01(\rR\fauthorStreak\x123\n" +
-	"\fauthor_title\x18\f \x01(\v2\x10.player.v1.TitleR\vauthorTitle\x12)\n" +
+	" \x01(\x0e2\x14.player.v1.NameColorR\vauthorColor\x12)\n" +
 	"\breply_to\x18\r \x01(\v2\x0e.chat.v1.QuoteR\areplyTo\x12*\n" +
 	"\x11author_account_id\x18\x0e \x01(\tR\x0fauthorAccountId\x12\x18\n" +
-	"\aremoved\x18\x0f \x01(\bR\aremovedJ\x04\b\x04\x10\x05R\n" +
-	"author_tag\"\xae\x01\n" +
+	"\aremoved\x18\x0f \x01(\bR\aremovedB\x06\n" +
+	"\x04bodyJ\x04\b\x04\x10\x05J\x04\b\v\x10\fJ\x04\b\f\x10\rR\n" +
+	"author_tagR\rauthor_streakR\fauthor_title\"E\n" +
+	"\x03Gif\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
+	"\x05width\x18\x02 \x01(\rR\x05width\x12\x16\n" +
+	"\x06height\x18\x03 \x01(\rR\x06height\"\xda\x01\n" +
 	"\x05Quote\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1f\n" +
 	"\vauthor_name\x18\x02 \x01(\tR\n" +
 	"authorName\x127\n" +
-	"\fauthor_color\x18\x03 \x01(\x0e2\x14.player.v1.NameColorR\vauthorColor\x12\x12\n" +
-	"\x04text\x18\x04 \x01(\tR\x04text\x12\x18\n" +
-	"\aremoved\x18\x05 \x01(\bR\aremoved\"\xa6\x01\n" +
+	"\fauthor_color\x18\x03 \x01(\x0e2\x14.player.v1.NameColorR\vauthorColor\x12\x14\n" +
+	"\x04text\x18\x04 \x01(\tH\x00R\x04text\x12 \n" +
+	"\x03gif\x18\x06 \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x12\x18\n" +
+	"\aremoved\x18\x05 \x01(\bR\aremovedB\x06\n" +
+	"\x04body\"\xef\x01\n" +
 	"\x12SendMessageRequest\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\tR\bauthorId\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x03 \x01(\tR\tcountryId\x12\x12\n" +
-	"\x04text\x18\x04 \x01(\tR\x04text\x12-\n" +
-	"\x13reply_to_message_id\x18\x05 \x01(\tR\x10replyToMessageIdJ\x04\b\x01\x10\x02R\vauthor_name\"E\n" +
+	"country_id\x18\x03 \x01(\tR\tcountryId\x12\x14\n" +
+	"\x04text\x18\x04 \x01(\tH\x00R\x04text\x12 \n" +
+	"\x03gif\x18\a \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x12-\n" +
+	"\x13reply_to_message_id\x18\x05 \x01(\tR\x10replyToMessageId\x12\x1b\n" +
+	"\tflag_room\x18\x06 \x01(\tR\bflagRoomB\x06\n" +
+	"\x04bodyJ\x04\b\x01\x10\x02R\vauthor_name\"E\n" +
 	"\x13SendMessageResponse\x12.\n" +
-	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageR\amessage\"<\n" +
+	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageR\amessage\"c\n" +
 	"\vMuteRefusal\x12-\n" +
-	"\x13muted_until_unix_ms\x18\x01 \x01(\x03R\x10mutedUntilUnixMs\"\x13\n" +
-	"\x11GetHistoryRequest\"}\n" +
+	"\x13muted_until_unix_ms\x18\x01 \x01(\x03R\x10mutedUntilUnixMs\x12%\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\"0\n" +
+	"\x11GetHistoryRequest\x12\x1b\n" +
+	"\tflag_room\x18\x01 \x01(\tR\bflagRoom\"}\n" +
 	"\fAnnouncement\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12/\n" +
 	"\x14announced_at_unix_ms\x18\x02 \x01(\x03R\x11announcedAtUnixMs\x12\x12\n" +
@@ -1283,9 +1551,10 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\x12GetHistoryResponse\x120\n" +
 	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.ChatMessageR\bmessages\x12;\n" +
 	"\rannouncements\x18\x02 \x03(\v2\x15.chat.v1.AnnouncementR\rannouncements\x12+\n" +
-	"\x12seen_until_unix_ms\x18\x03 \x01(\x03R\x0fseenUntilUnixMs\">\n" +
+	"\x12seen_until_unix_ms\x18\x03 \x01(\x03R\x0fseenUntilUnixMs\"[\n" +
 	"\x0fMarkSeenRequest\x12+\n" +
-	"\x12seen_until_unix_ms\x18\x01 \x01(\x03R\x0fseenUntilUnixMs\"\x12\n" +
+	"\x12seen_until_unix_ms\x18\x01 \x01(\x03R\x0fseenUntilUnixMs\x12\x1b\n" +
+	"\tflag_room\x18\x02 \x01(\tR\bflagRoom\"\x12\n" +
 	"\x10MarkSeenResponse\"l\n" +
 	"\fReactRequest\x12\x1d\n" +
 	"\n" +
@@ -1294,8 +1563,9 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\x02on\x18\x03 \x01(\bR\x02on\"_\n" +
 	"\rReactResponse\x124\n" +
 	"\treactions\x18\x01 \x03(\v2\x16.chat.v1.ReactionCountR\treactions\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\x04R\aversion\"\x18\n" +
-	"\x16ListenForEventsRequest\"\xb6\x02\n" +
+	"\aversion\x18\x02 \x01(\x04R\aversion\"5\n" +
+	"\x16ListenForEventsRequest\x12\x1b\n" +
+	"\tflag_room\x18\x01 \x01(\tR\bflagRoom\"\xb6\x02\n" +
 	"\tChatEvent\x120\n" +
 	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageH\x00R\amessage\x122\n" +
 	"\theartbeat\x18\x02 \x01(\v2\x12.chat.v1.HeartbeatH\x00R\theartbeat\x129\n" +
@@ -1330,7 +1600,10 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\x0eREACTION_PARTY\x10\r\x12\x17\n" +
 	"\x13REACTION_MIND_BLOWN\x10\x0e\x12\x11\n" +
 	"\rREACTION_NERD\x10\x0f\x12\x12\n" +
-	"\x0eREACTION_EARTH\x10\x102\xe6\x02\n" +
+	"\x0eREACTION_EARTH\x10\x10*2\n" +
+	"\bMuteKind\x12\x12\n" +
+	"\x0eMUTE_KIND_CHAT\x10\x00\x12\x12\n" +
+	"\x0eMUTE_KIND_GIFS\x10\x012\xe6\x02\n" +
 	"\vChatService\x12H\n" +
 	"\vSendMessage\x12\x1b.chat.v1.SendMessageRequest\x1a\x1c.chat.v1.SendMessageResponse\x12J\n" +
 	"\n" +
@@ -1352,64 +1625,68 @@ func file_chat_v1_chat_proto_rawDescGZIP() []byte {
 	return file_chat_v1_chat_proto_rawDescData
 }
 
-var file_chat_v1_chat_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_chat_v1_chat_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_chat_v1_chat_proto_goTypes = []any{
 	(Reaction)(0),                  // 0: chat.v1.Reaction
-	(*ReactionCount)(nil),          // 1: chat.v1.ReactionCount
-	(*ChatMessage)(nil),            // 2: chat.v1.ChatMessage
-	(*Quote)(nil),                  // 3: chat.v1.Quote
-	(*SendMessageRequest)(nil),     // 4: chat.v1.SendMessageRequest
-	(*SendMessageResponse)(nil),    // 5: chat.v1.SendMessageResponse
-	(*MuteRefusal)(nil),            // 6: chat.v1.MuteRefusal
-	(*GetHistoryRequest)(nil),      // 7: chat.v1.GetHistoryRequest
-	(*Announcement)(nil),           // 8: chat.v1.Announcement
-	(*GetHistoryResponse)(nil),     // 9: chat.v1.GetHistoryResponse
-	(*MarkSeenRequest)(nil),        // 10: chat.v1.MarkSeenRequest
-	(*MarkSeenResponse)(nil),       // 11: chat.v1.MarkSeenResponse
-	(*ReactRequest)(nil),           // 12: chat.v1.ReactRequest
-	(*ReactResponse)(nil),          // 13: chat.v1.ReactResponse
-	(*ListenForEventsRequest)(nil), // 14: chat.v1.ListenForEventsRequest
-	(*ChatEvent)(nil),              // 15: chat.v1.ChatEvent
-	(*MessageRemoved)(nil),         // 16: chat.v1.MessageRemoved
-	(*ReactionsChanged)(nil),       // 17: chat.v1.ReactionsChanged
-	(*Heartbeat)(nil),              // 18: chat.v1.Heartbeat
-	(v1.NameColor)(0),              // 19: player.v1.NameColor
-	(*v1.Title)(nil),               // 20: player.v1.Title
+	(MuteKind)(0),                  // 1: chat.v1.MuteKind
+	(*ReactionCount)(nil),          // 2: chat.v1.ReactionCount
+	(*ChatMessage)(nil),            // 3: chat.v1.ChatMessage
+	(*Gif)(nil),                    // 4: chat.v1.Gif
+	(*Quote)(nil),                  // 5: chat.v1.Quote
+	(*SendMessageRequest)(nil),     // 6: chat.v1.SendMessageRequest
+	(*SendMessageResponse)(nil),    // 7: chat.v1.SendMessageResponse
+	(*MuteRefusal)(nil),            // 8: chat.v1.MuteRefusal
+	(*GetHistoryRequest)(nil),      // 9: chat.v1.GetHistoryRequest
+	(*Announcement)(nil),           // 10: chat.v1.Announcement
+	(*GetHistoryResponse)(nil),     // 11: chat.v1.GetHistoryResponse
+	(*MarkSeenRequest)(nil),        // 12: chat.v1.MarkSeenRequest
+	(*MarkSeenResponse)(nil),       // 13: chat.v1.MarkSeenResponse
+	(*ReactRequest)(nil),           // 14: chat.v1.ReactRequest
+	(*ReactResponse)(nil),          // 15: chat.v1.ReactResponse
+	(*ListenForEventsRequest)(nil), // 16: chat.v1.ListenForEventsRequest
+	(*ChatEvent)(nil),              // 17: chat.v1.ChatEvent
+	(*MessageRemoved)(nil),         // 18: chat.v1.MessageRemoved
+	(*ReactionsChanged)(nil),       // 19: chat.v1.ReactionsChanged
+	(*Heartbeat)(nil),              // 20: chat.v1.Heartbeat
+	(v1.NameColor)(0),              // 21: player.v1.NameColor
 }
 var file_chat_v1_chat_proto_depIdxs = []int32{
 	0,  // 0: chat.v1.ReactionCount.reaction:type_name -> chat.v1.Reaction
-	1,  // 1: chat.v1.ChatMessage.reactions:type_name -> chat.v1.ReactionCount
-	19, // 2: chat.v1.ChatMessage.author_color:type_name -> player.v1.NameColor
-	20, // 3: chat.v1.ChatMessage.author_title:type_name -> player.v1.Title
-	3,  // 4: chat.v1.ChatMessage.reply_to:type_name -> chat.v1.Quote
-	19, // 5: chat.v1.Quote.author_color:type_name -> player.v1.NameColor
-	2,  // 6: chat.v1.SendMessageResponse.message:type_name -> chat.v1.ChatMessage
-	2,  // 7: chat.v1.GetHistoryResponse.messages:type_name -> chat.v1.ChatMessage
-	8,  // 8: chat.v1.GetHistoryResponse.announcements:type_name -> chat.v1.Announcement
-	0,  // 9: chat.v1.ReactRequest.reaction:type_name -> chat.v1.Reaction
-	1,  // 10: chat.v1.ReactResponse.reactions:type_name -> chat.v1.ReactionCount
-	2,  // 11: chat.v1.ChatEvent.message:type_name -> chat.v1.ChatMessage
-	18, // 12: chat.v1.ChatEvent.heartbeat:type_name -> chat.v1.Heartbeat
-	17, // 13: chat.v1.ChatEvent.reactions:type_name -> chat.v1.ReactionsChanged
-	8,  // 14: chat.v1.ChatEvent.announcement:type_name -> chat.v1.Announcement
-	16, // 15: chat.v1.ChatEvent.message_removed:type_name -> chat.v1.MessageRemoved
-	1,  // 16: chat.v1.ReactionsChanged.reactions:type_name -> chat.v1.ReactionCount
-	4,  // 17: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
-	7,  // 18: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
-	14, // 19: chat.v1.ChatService.ListenForEvents:input_type -> chat.v1.ListenForEventsRequest
-	12, // 20: chat.v1.ChatService.React:input_type -> chat.v1.ReactRequest
-	10, // 21: chat.v1.ChatService.MarkSeen:input_type -> chat.v1.MarkSeenRequest
-	5,  // 22: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
-	9,  // 23: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
-	15, // 24: chat.v1.ChatService.ListenForEvents:output_type -> chat.v1.ChatEvent
-	13, // 25: chat.v1.ChatService.React:output_type -> chat.v1.ReactResponse
-	11, // 26: chat.v1.ChatService.MarkSeen:output_type -> chat.v1.MarkSeenResponse
-	22, // [22:27] is the sub-list for method output_type
-	17, // [17:22] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	4,  // 1: chat.v1.ChatMessage.gif:type_name -> chat.v1.Gif
+	2,  // 2: chat.v1.ChatMessage.reactions:type_name -> chat.v1.ReactionCount
+	21, // 3: chat.v1.ChatMessage.author_color:type_name -> player.v1.NameColor
+	5,  // 4: chat.v1.ChatMessage.reply_to:type_name -> chat.v1.Quote
+	21, // 5: chat.v1.Quote.author_color:type_name -> player.v1.NameColor
+	4,  // 6: chat.v1.Quote.gif:type_name -> chat.v1.Gif
+	4,  // 7: chat.v1.SendMessageRequest.gif:type_name -> chat.v1.Gif
+	3,  // 8: chat.v1.SendMessageResponse.message:type_name -> chat.v1.ChatMessage
+	1,  // 9: chat.v1.MuteRefusal.kind:type_name -> chat.v1.MuteKind
+	3,  // 10: chat.v1.GetHistoryResponse.messages:type_name -> chat.v1.ChatMessage
+	10, // 11: chat.v1.GetHistoryResponse.announcements:type_name -> chat.v1.Announcement
+	0,  // 12: chat.v1.ReactRequest.reaction:type_name -> chat.v1.Reaction
+	2,  // 13: chat.v1.ReactResponse.reactions:type_name -> chat.v1.ReactionCount
+	3,  // 14: chat.v1.ChatEvent.message:type_name -> chat.v1.ChatMessage
+	20, // 15: chat.v1.ChatEvent.heartbeat:type_name -> chat.v1.Heartbeat
+	19, // 16: chat.v1.ChatEvent.reactions:type_name -> chat.v1.ReactionsChanged
+	10, // 17: chat.v1.ChatEvent.announcement:type_name -> chat.v1.Announcement
+	18, // 18: chat.v1.ChatEvent.message_removed:type_name -> chat.v1.MessageRemoved
+	2,  // 19: chat.v1.ReactionsChanged.reactions:type_name -> chat.v1.ReactionCount
+	6,  // 20: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
+	9,  // 21: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
+	16, // 22: chat.v1.ChatService.ListenForEvents:input_type -> chat.v1.ListenForEventsRequest
+	14, // 23: chat.v1.ChatService.React:input_type -> chat.v1.ReactRequest
+	12, // 24: chat.v1.ChatService.MarkSeen:input_type -> chat.v1.MarkSeenRequest
+	7,  // 25: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
+	11, // 26: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
+	17, // 27: chat.v1.ChatService.ListenForEvents:output_type -> chat.v1.ChatEvent
+	15, // 28: chat.v1.ChatService.React:output_type -> chat.v1.ReactResponse
+	13, // 29: chat.v1.ChatService.MarkSeen:output_type -> chat.v1.MarkSeenResponse
+	25, // [25:30] is the sub-list for method output_type
+	20, // [20:25] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_chat_proto_init() }
@@ -1417,7 +1694,19 @@ func file_chat_v1_chat_proto_init() {
 	if File_chat_v1_chat_proto != nil {
 		return
 	}
-	file_chat_v1_chat_proto_msgTypes[14].OneofWrappers = []any{
+	file_chat_v1_chat_proto_msgTypes[1].OneofWrappers = []any{
+		(*ChatMessage_Text)(nil),
+		(*ChatMessage_Gif)(nil),
+	}
+	file_chat_v1_chat_proto_msgTypes[3].OneofWrappers = []any{
+		(*Quote_Text)(nil),
+		(*Quote_Gif)(nil),
+	}
+	file_chat_v1_chat_proto_msgTypes[4].OneofWrappers = []any{
+		(*SendMessageRequest_Text)(nil),
+		(*SendMessageRequest_Gif)(nil),
+	}
+	file_chat_v1_chat_proto_msgTypes[15].OneofWrappers = []any{
 		(*ChatEvent_Message)(nil),
 		(*ChatEvent_Heartbeat)(nil),
 		(*ChatEvent_Reactions)(nil),
@@ -1429,8 +1718,8 @@ func file_chat_v1_chat_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chat_v1_chat_proto_rawDesc), len(file_chat_v1_chat_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   18,
+			NumEnums:      2,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

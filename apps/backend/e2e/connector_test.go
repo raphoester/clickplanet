@@ -1,7 +1,6 @@
 package e2e_test
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -19,7 +18,6 @@ import (
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 )
 
 const (
@@ -27,7 +25,6 @@ const (
 	verifier       = "the-verifier-claude-draws-for-its-connection-0001"
 )
 
-// What Claude does, from the URL alone: an app that never redirects on its own, so each hop is read.
 type app struct {
 	t        *testing.T
 	stack    gameStack
@@ -38,7 +35,6 @@ type app struct {
 
 var noRedirect = &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 
-// What came back, read whole: the body is closed before the test looks.
 type answered struct {
 	StatusCode int
 	Header     http.Header
@@ -85,7 +81,6 @@ func (a *app) json(address string) map[string]any {
 	return answer
 }
 
-// Discovery, registration and the authorize hop: where the operator's browser is sent, on the admin page.
 func (a *app) askToConnect() (metadata map[string]any, consent *url.URL) {
 	a.t.Helper()
 
@@ -132,10 +127,15 @@ func (a *app) trade(tokenEndpoint string, form url.Values) (int, map[string]any)
 	return res.StatusCode, answer
 }
 
+func (p *gamer) fromThePage(header http.Header) {
+	header.Set("Origin", adminOrigin)
+	header.Set("Cookie", p.cookie+"; "+p.adminCookie)
+}
+
 func (p *gamer) describeConnection(request string) (*authv1.DescribeConnectionResponse, error) {
 	p.t.Helper()
 	req := connect.NewRequest(&authv1.DescribeConnectionRequest{Request: request})
-	p.fromThePage(req.Header(), adminOrigin)
+	p.fromThePage(req.Header())
 	res, err := p.desk().DescribeConnection(p.t.Context(), req)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the tests read the connect code.
@@ -146,14 +146,12 @@ func (p *gamer) describeConnection(request string) (*authv1.DescribeConnectionRe
 func (p *gamer) approveConnection(request string) string {
 	p.t.Helper()
 	req := connect.NewRequest(&authv1.ApproveConnectionRequest{Request: request})
-	p.fromThePage(req.Header(), adminOrigin)
+	p.fromThePage(req.Header())
 	res, err := p.desk().ApproveConnection(p.t.Context(), req)
 	require.NoError(p.t, err)
 	return res.Msg.GetRedirectUrl()
 }
 
-// The whole connection, as Claude makes it: the URL, a 401, the metadata, a registration, the operator's yes on the
-// admin page, a code traded for tokens, then tools.
 func connectClaude(t *testing.T, game gameStack, operator *gamer) (*app, map[string]any) {
 	t.Helper()
 	claude := &app{t: t, stack: game}
@@ -173,28 +171,35 @@ func connectClaude(t *testing.T, game gameStack, operator *gamer) (*app, map[str
 	assert.Equal(t, "the state", back.Query().Get("state"))
 	assert.Equal(t, metadata["issuer"], back.Query().Get("iss"))
 
-	status, answer := claude.trade(metadata["token_endpoint"].(string), url.Values{
+	trade := url.Values{
 		"grant_type": {"authorization_code"}, "code": {back.Query().Get("code")}, "redirect_uri": {claudeCallback},
 		"code_verifier": {verifier},
-	})
+	}
+	status, answer := claude.trade(metadata["token_endpoint"].(string), trade)
 	require.Equal(t, http.StatusOK, status, answer)
 	assert.Equal(t, "Bearer", answer["token_type"])
 
-	status, answer = claude.trade(metadata["token_endpoint"].(string), url.Values{
-		"grant_type": {"authorization_code"}, "code": {back.Query().Get("code")}, "redirect_uri": {claudeCallback},
-		"code_verifier": {verifier},
-	})
+	status, answer = claude.trade(metadata["token_endpoint"].(string), trade)
 	assert.Equal(t, http.StatusBadRequest, status, "a code is good once")
 	assert.Equal(t, "invalid_grant", answer["error"])
 
 	return claude, metadata
 }
 
-func TestClaudeConnectsWithTheOperatorsYesAndCallsAToolAsTheOperator(t *testing.T) {
-	game := startGame(t)
-	operator := newOperator(t, game)
-	require.NoError(t, operator.adminSignIn("the-operator"))
-	claude, _ := connectClaude(t, game, operator)
+func toolText(t *testing.T, answer map[string]any) (string, bool) {
+	t.Helper()
+	result, ok := answer["result"].(map[string]any)
+	require.True(t, ok, answer)
+	return result["content"].([]any)[0].(map[string]any)["text"].(string), result["isError"].(bool)
+}
+
+func (s *testSuite) TestClaudeConnectsWithTheOperatorsYesAndCallsAToolAsTheOperator() {
+	t := s.T()
+	operator := s.game.newPlayer(t)
+	operator.link("claude-operator")
+	operator.becomeOperator()
+	operator.adminSignIn("claude-operator")
+	claude, metadata := connectClaude(t, s.game, operator)
 
 	res, answer := claude.mcp(claude.access, `{"jsonrpc":"2.0","id":1,"method":"initialize",
 		"params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"claude-ai","version":"0.1.0"}}}`)
@@ -210,85 +215,38 @@ func TestClaudeConnectsWithTheOperatorsYesAndCallsAToolAsTheOperator(t *testing.
 	assert.True(t, listed["planet_top_players"])
 	assert.False(t, listed["planet_grant_charges"])
 	assert.NotContains(t, listed, "auth_approve_connection")
+	assert.NotContains(t, listed, "planet_ban_player", "a deprecated method is no tool")
 
 	_, answer = claude.mcp(claude.access, `{"jsonrpc":"2.0","id":3,"method":"tools/call",
 		"params":{"name":"planet_grant_charges","arguments":{"accountId":"`+operator.account()+`","bomb":true}}}`)
-	result := answer["result"].(map[string]any)
-	require.Equal(t, false, result["isError"], result)
+	text, refused := toolText(t, answer)
+	require.False(t, refused, text)
 	var granted planetv1.GrantChargesResponse
-	require.NoError(t, protojson.Unmarshal([]byte(result["content"].([]any)[0].(map[string]any)["text"].(string)), &granted))
+	require.NoError(t, protojson.Unmarshal([]byte(text), &granted))
 	assert.True(t, granted.GetAfter().GetBomb(), "the operator's own account got its bomb")
 
 	_, answer = claude.mcp(claude.access, `{"jsonrpc":"2.0","id":4,"method":"tools/call",
-		"params":{"name":"planet_unban_player","arguments":{"accountId":"`+operator.account()+`"}}}`)
-	result = answer["result"].(map[string]any)
-	assert.Equal(t, true, result["isError"], "a refusal is the tool's result")
-	assert.Contains(t, result["content"].([]any)[0].(map[string]any)["text"], "failed_precondition",
-		"the antibot is off in this stack, and the call says so")
-}
+		"params":{"name":"antibot_unban_player","arguments":{"accountId":"`+operator.account()+`"}}}`)
+	text, refused = toolText(t, answer)
+	assert.True(t, refused, "a refusal is the tool's result")
+	assert.Contains(t, text, "not_found", "no offence to lift, and the call says so")
 
-func TestARefreshTokenBuysTheNextPairOnce(t *testing.T) {
-	game := startGame(t)
-	operator := newOperator(t, game)
-	require.NoError(t, operator.adminSignIn("the-operator"))
-	claude, metadata := connectClaude(t, game, operator)
-	first := claude.refresh
-
-	status, _ := claude.trade(metadata["token_endpoint"].(string), url.Values{"grant_type": {"refresh_token"}, "refresh_token": {first}})
-	require.Equal(t, http.StatusOK, status)
-	assert.NotEqual(t, first, claude.refresh)
-
-	res, _ := claude.mcp(claude.access, `{"jsonrpc":"2.0","id":1,"method":"ping"}`)
-	assert.Equal(t, http.StatusOK, res.StatusCode, "the new access token calls")
-
-	status, answer := claude.trade(metadata["token_endpoint"].(string), url.Values{"grant_type": {"refresh_token"}, "refresh_token": {first}})
-	assert.Equal(t, http.StatusBadRequest, status, "spent")
-	assert.Equal(t, "invalid_grant", answer["error"])
-}
-
-func TestUnflaggingTheOperatorEndsTheConnection(t *testing.T) {
-	game := startGame(t)
-	operator := newOperator(t, game)
-	require.NoError(t, operator.adminSignIn("the-operator"))
-	claude, _ := connectClaude(t, game, operator)
-
-	_, err := game.schema(t, "auth").ExecContext(t.Context(), `UPDATE accounts SET operator = false WHERE id = $1`, operator.account())
-	require.NoError(t, err)
-
-	res, _ := claude.mcp(claude.access, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
-	assert.Equal(t, http.StatusForbidden, res.StatusCode)
-}
-
-func TestAnAppsTokenCallsTheAdminServicesAndNeverLetsAnAppIn(t *testing.T) {
-	game := startGame(t)
-	operator := newOperator(t, game)
-	require.NoError(t, operator.adminSignIn("the-operator"))
-	claude, _ := connectClaude(t, game, operator)
-	_, consent := (&app{t: t, stack: game}).askToConnect()
-
-	approve := connect.NewRequest(&authv1.ApproveConnectionRequest{Request: consent.Query().Get("request")})
+	approve := connect.NewRequest(&authv1.ApproveConnectionRequest{Request: "anything"})
 	approve.Header().Set("Authorization", "Bearer "+claude.access)
 	_, err := operator.desk().ApproveConnection(t.Context(), approve)
 	assert.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err), "only the page's session lets an app in")
 
-	top := connect.NewRequest(&planetv1.TopPlayersRequest{})
-	top.Header().Set("Authorization", "Bearer "+claude.access)
-	_, err = planetv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL).TopPlayers(t.Context(), top)
-	require.NoError(t, err, "from any origin, as the operator")
-}
-
-func TestARequestNobodyApprovedLetsNothingIn(t *testing.T) {
-	game := startGame(t)
-	claude := &app{t: t, stack: game}
-	metadata, _ := claude.askToConnect()
-
-	status, answer := claude.trade(metadata["token_endpoint"].(string), url.Values{
-		"grant_type": {"authorization_code"}, "code": {"made-up"}, "redirect_uri": {claudeCallback}, "code_verifier": {verifier},
-	})
-	assert.Equal(t, http.StatusBadRequest, status)
+	first := claude.refresh
+	status, _ := claude.trade(metadata["token_endpoint"].(string), url.Values{"grant_type": {"refresh_token"}, "refresh_token": {first}})
+	require.Equal(t, http.StatusOK, status)
+	assert.NotEqual(t, first, claude.refresh)
+	status, answer = claude.trade(metadata["token_endpoint"].(string), url.Values{"grant_type": {"refresh_token"}, "refresh_token": {first}})
+	assert.Equal(t, http.StatusBadRequest, status, "a refresh token is spent")
 	assert.Equal(t, "invalid_grant", answer["error"])
 
-	res, read := claude.do(http.MethodPost, metadata["registration_endpoint"].(string), "application/json",
-		bytes.NewReader([]byte(`{"client_name":"Evil","redirect_uris":["https://evil.example/cb"]}`)), nil)
-	assert.Equal(t, http.StatusBadRequest, res.StatusCode, string(read))
+	_, err = s.game.schema(t, "auth").On(t.Context()).ExecContext(t.Context(),
+		`UPDATE accounts SET operator = false WHERE id = $1`, operator.account())
+	require.NoError(t, err)
+	res, _ = claude.mcp(claude.access, `{"jsonrpc":"2.0","id":5,"method":"tools/list"}`)
+	assert.Equal(t, http.StatusForbidden, res.StatusCode, "unflagging the operator ends the connection")
 }

@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -11,23 +12,34 @@ import (
 
 const Name = "sequencer"
 
-type Config struct {
+type Rules struct {
+	Enabled bool
+
 	MinSteps int
 	MinShare float64
 
 	CertainSteps int
 	CertainShare float64
+}
 
+func (r Rules) Validate() error {
+	return errors.Join(
+		detect.Positive("minSteps", r.MinSteps),
+		detect.Positive("minShare", r.MinShare),
+		detect.Share("minShare", r.MinShare),
+		detect.AtLeast("certainSteps", r.CertainSteps, "minSteps", r.MinSteps),
+		detect.AtLeast("certainShare", r.CertainShare, "minShare", r.MinShare),
+		detect.Share("certainShare", r.CertainShare),
+	)
+}
+
+type Config struct {
 	TrackWindow time.Duration
 
 	SweepInterval time.Duration
 }
 
 const (
-	defaultMinSteps      = 40
-	defaultMinShare      = 0.75
-	defaultCertainSteps  = 200
-	defaultCertainShare  = 0.95
 	defaultTrackWindow   = 15 * time.Minute
 	defaultSweepInterval = time.Minute
 
@@ -35,24 +47,6 @@ const (
 )
 
 func (c Config) withDefaults() Config {
-	if c.MinSteps <= 0 {
-		c.MinSteps = defaultMinSteps
-	}
-	if c.MinShare <= 0 {
-		c.MinShare = defaultMinShare
-	}
-	if c.CertainSteps <= 0 {
-		c.CertainSteps = defaultCertainSteps
-	}
-	if c.CertainShare <= 0 {
-		c.CertainShare = defaultCertainShare
-	}
-	if c.CertainSteps < c.MinSteps {
-		c.CertainSteps = c.MinSteps
-	}
-	if c.CertainShare < c.MinShare {
-		c.CertainShare = c.MinShare
-	}
 	if c.TrackWindow <= 0 {
 		c.TrackWindow = defaultTrackWindow
 	}
@@ -62,13 +56,14 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, clock cptime.Clock) *Watchdog {
+func New(config Config, rules func() Rules, clock cptime.Clock) *Watchdog {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
 	return &Watchdog{
 		config:  config.withDefaults(),
+		rules:   rules,
 		clock:   clock,
 		callers: make(map[string]*caller),
 	}
@@ -76,6 +71,7 @@ func New(config Config, clock cptime.Clock) *Watchdog {
 
 type Watchdog struct {
 	config Config
+	rules  func() Rules
 	clock  cptime.Clock
 
 	mu      sync.Mutex
@@ -98,11 +94,15 @@ type step struct {
 
 func (w *Watchdog) Name() string { return Name }
 
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
+
 func (w *Watchdog) Attempted(detect.Click) {}
 
 func (w *Watchdog) Committed(detect.Click) {}
 
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
+	rules := w.rules()
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -116,7 +116,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		c.record(step{
 			at:   click.At,
 			size: int64(click.Tile) - int64(c.lastTile),
-		}, w.config.TrackWindow, w.capacity())
+		}, w.config.TrackWindow, capacity(rules))
 	}
 
 	c.lastTile = click.Tile
@@ -124,18 +124,18 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 
 	c.prune(click.At.Add(-w.config.TrackWindow))
 
-	if len(c.steps) < w.config.MinSteps {
+	if len(c.steps) < rules.MinSteps {
 		return detect.Clear, detect.Evidence{}
 	}
 
 	stride, share := c.stride()
 
-	if stride == 0 || share < w.config.MinShare {
+	if stride == 0 || share < rules.MinShare {
 		return detect.Clear, detect.Evidence{}
 	}
 
 	verdict := detect.Suspect
-	if len(c.steps) >= w.config.CertainSteps && share >= w.config.CertainShare {
+	if len(c.steps) >= rules.CertainSteps && share >= rules.CertainShare {
 		verdict = detect.Certain
 	}
 
@@ -149,11 +149,8 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	}
 }
 
-func (w *Watchdog) capacity() int {
-	if w.config.CertainSteps > maxSamples {
-		return maxSamples
-	}
-	return w.config.CertainSteps
+func capacity(rules Rules) int {
+	return min(rules.CertainSteps, maxSamples)
 }
 
 func (c *caller) record(s step, window time.Duration, capacity int) {

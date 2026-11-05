@@ -1,15 +1,14 @@
 import {describe, expect, it, vi} from "vitest"
 import {drawsFrame, reportClaimFailure, reportClickFailure, spinStep} from "./globe.ts"
-import {BannedError, BonusLostError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
+import {AllegianceLockedError, BannedError, BonusLostError, FrozenError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
 import {SessionUnavailableError} from "../../backends/session.ts"
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts"
-import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts"
-import {Countries} from "../../domain/countries.ts"
 import {TileField} from "./tileField.ts"
 import {regions} from "./atlas.ts"
+import {PLAIN} from "./graphics.ts"
 
 function handlers() {
-    return {onRateLimited: vi.fn(), onVPNBlocked: vi.fn(), onBanned: vi.fn(), onSessionUnavailable: vi.fn()}
+    return {onRateLimited: vi.fn(), onFrozen: vi.fn(), onVPNBlocked: vi.fn(), onBanned: vi.fn(), onSessionUnavailable: vi.fn(), onAllegianceLocked: vi.fn()}
 }
 
 describe("reportClickFailure", () => {
@@ -21,6 +20,16 @@ describe("reportClickFailure", () => {
         expect(h.onRateLimited).toHaveBeenCalledTimes(1)
         expect(h.onVPNBlocked).not.toHaveBeenCalled()
         expect(h.onSessionUnavailable).not.toHaveBeenCalled()
+    })
+
+    it("sends a click on a frozen map to the meter, and to no dialog", () => {
+        const h = handlers()
+
+        expect(reportClickFailure(new FrozenError(), h)).toBe(true)
+
+        expect(h.onFrozen).toHaveBeenCalledTimes(1)
+        expect(h.onRateLimited).not.toHaveBeenCalled()
+        expect(h.onVPNBlocked).not.toHaveBeenCalled()
     })
 
     it("sends the VPN refusal to the VPN dialog, and nowhere else", () => {
@@ -53,6 +62,20 @@ describe("reportClickFailure", () => {
         expect(h.onSessionUnavailable).toHaveBeenCalledTimes(1)
         expect(h.onRateLimited).not.toHaveBeenCalled()
         expect(h.onVPNBlocked).not.toHaveBeenCalled()
+    })
+
+    it("says which flag a click was refused for and until when, with no dialog and no log", () => {
+        const h = handlers()
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {})
+
+        expect(reportClickFailure(new AllegianceLockedError({countryId: "de", changeableAt: 1}), h)).toBe(true)
+
+        expect(h.onAllegianceLocked).toHaveBeenCalledWith({countryId: "de", changeableAt: 1})
+        expect(logged).not.toHaveBeenCalled()
+        expect(h.onRateLimited).not.toHaveBeenCalled()
+        expect(h.onVPNBlocked).not.toHaveBeenCalled()
+        expect(h.onSessionUnavailable).not.toHaveBeenCalled()
+        logged.mockRestore()
     })
 
     it("logs anything else and raises no dialog", () => {
@@ -96,67 +119,65 @@ describe("a refused click, from the paint to the rollback", () => {
     function wiring() {
         const field = new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, {
             positions: new Float32Array(size * 3),
-            uvs: new Float32Array(size * 2),
             size,
-        }, false)
+        }, PLAIN)
         const ownership = new TileOwnership(size)
-        let leaderboard: LeaderboardEntry[] = []
 
         const applyChanges = (changes: OwnerChange[]) => {
-            if (changes.length === 0) return
-            field.setOwners(changes)
-            leaderboard = rankCountries(ownership.counts())
+            if (changes.length > 0) field.setOwners(changes)
+        }
+
+        const live = (tile: number, country: string) => {
+            const changes: OwnerChange[] = []
+            ownership.set(tile, country, changes)
+            applyChanges(changes)
         }
 
         const regionOf = (tile: number) => Array.from(
             (field.displayPoints.geometry.getAttribute("regionVector").array as Float32Array)
                 .slice((tile - 1) * 4, tile * 4))
 
-        return {ownership, applyChanges, regionOf, tiles: () => leaderboard}
+        return {ownership, applyChanges, live, regionOf}
     }
 
-    it("paints the tile and ranks it, then blanks it and drops it again", () => {
-        const {ownership, applyChanges, regionOf, tiles} = wiring()
+    it("paints the tile, then blanks it again", () => {
+        const {ownership, applyChanges, regionOf} = wiring()
         const fr = regions.get("fr")!
 
         const {changes, claim} = ownership.applyOptimistic(3, "fr")
         applyChanges(changes)
 
         expect(regionOf(3)).toEqual([fr.x, fr.y, fr.width, fr.height])
-        expect(tiles()).toEqual([{country: Countries.get("fr"), tiles: 1}])
 
         applyChanges(ownership.rollback(claim))
 
         expect(regionOf(3)).toEqual([0, 0, 0, 0])
-        expect(tiles()).toEqual([])
     })
 
-    it("gives the tile and the rank back to the country that held it", () => {
-        const {ownership, applyChanges, regionOf, tiles} = wiring()
+    it("gives the tile back to the country that held it", () => {
+        const {ownership, applyChanges, live, regionOf} = wiring()
         const jp = regions.get("jp")!
 
-        applyChanges(ownership.applyUpdates([{tile: 3, previousCountry: undefined, newCountry: "jp", clicked: true, shields: 0}]))
+        live(3, "jp")
 
         const {changes, claim} = ownership.applyOptimistic(3, "fr")
         applyChanges(changes)
         applyChanges(ownership.rollback(claim))
 
         expect(regionOf(3)).toEqual([jp.x, jp.y, jp.width, jp.height])
-        expect(tiles()).toEqual([{country: Countries.get("jp"), tiles: 1}])
     })
 
     it("leaves a click the server had already echoed alone", () => {
-        const {ownership, applyChanges, regionOf, tiles} = wiring()
+        const {ownership, applyChanges, live, regionOf} = wiring()
         const fr = regions.get("fr")!
 
         const {changes, claim} = ownership.applyOptimistic(3, "fr")
         applyChanges(changes)
-        applyChanges(ownership.applyUpdates([{tile: 3, previousCountry: undefined, newCountry: "fr", clicked: true, shields: 0}]))
+        live(3, "fr")
 
         applyChanges(ownership.rollback(claim))
 
         expect(regionOf(3)).toEqual([fr.x, fr.y, fr.width, fr.height])
-        expect(tiles()).toEqual([{country: Countries.get("fr"), tiles: 1}])
     })
 })
 

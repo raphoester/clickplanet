@@ -1,6 +1,7 @@
 package bonuses
 
 import (
+	"context"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
@@ -34,7 +35,7 @@ type Answered struct {
 }
 
 type Questions interface {
-	Draw() quizzes.Round
+	Draw(lean float64) quizzes.Round
 }
 
 type pendingQuiz struct {
@@ -51,18 +52,9 @@ type pendingQuiz struct {
 
 func (p *pendingQuiz) opened() bool { return !p.deadline.IsZero() }
 
-func (r *Registry) Quizzing(config quizzes.Config, bank Questions) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.quizConfig = config.Settings()
-	r.bank = bank
-}
-
-func (r *Registry) quizzing() bool { return r.bank != nil && r.quizConfig.Enabled }
-
 func (r *Registry) OpenQuiz(token string, entrant Entrant) (Asked, bool) {
 	now := r.clock.Now()
+	window := r.rules().Quiz.AnswerWindow
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -73,19 +65,20 @@ func (r *Registry) OpenQuiz(token string, entrant Entrant) (Asked, bool) {
 	}
 
 	if !quiz.opened() {
-		quiz.deadline = now.Add(r.quizConfig.AnswerWindow)
+		quiz.deadline = now.Add(window)
 	}
 
 	return Asked{
 		Question: quiz.round.Question.Text,
 		Options:  quiz.round.Options,
 		Deadline: quiz.deadline,
-		Window:   r.quizConfig.AnswerWindow,
+		Window:   window,
 	}, true
 }
 
 func (r *Registry) AnswerQuiz(token string, entrant Entrant, choice int) (Answered, bool) {
 	now := r.clock.Now()
+	rules := r.rules()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -105,7 +98,7 @@ func (r *Registry) AnswerQuiz(token string, entrant Entrant, choice int) (Answer
 	if known && entry.outstandingQuiz == token {
 		entry.outstandingQuiz = ""
 		entry.quizMisses = 0
-		entry.nextQuizAt = now.Add(r.quizWindow())
+		entry.nextQuizAt = now.Add(quizWait(rules))
 	}
 
 	answered := Answered{
@@ -125,59 +118,60 @@ func (r *Registry) AnswerQuiz(token string, entrant Entrant, choice int) (Answer
 	if known {
 		entry.quizGrants = append(entry.quizGrants, now)
 	}
-	answered.Reward = Reward{Kind: quiz.kind, Amount: r.amountOf(quiz.kind)}
+	answered.Reward = Reward{Kind: quiz.kind, Amount: amountOf(quiz.kind, rules)}
 
 	return answered, true
 }
 
-func (r *Registry) sweepQuizzes(now time.Time) {
-	if !r.quizzing() {
+// Switched off, no quiz is asked; one asked already can still be opened and answered until it lapses.
+func (r *Registry) sweepQuizzes(ctx context.Context, rules Rules, now time.Time) {
+	r.collectStaleQuizzes(rules, now)
+	if !rules.Quiz.Enabled {
 		return
 	}
 
-	r.collectStaleQuizzes(now)
-
 	for entrant, entry := range r.callers {
-		if !r.quizDue(entry, now) {
+		if !r.quizDue(entry, rules, now) {
 			continue
 		}
 
-		kinds := r.offerable(entry, now)
+		kinds := drawable(entry.owedQuiz, r.offerable(ctx, entry, rules, now))
+		entry.owedQuiz = ""
 		if kinds.Empty() {
-			entry.nextQuizAt = now.Add(r.quizWindow())
+			entry.nextQuizAt = now.Add(quizWait(rules))
 			continue
 		}
 
-		r.offerQuiz(entrant, entry, now, r.drawKind(kinds))
+		r.offerQuiz(entrant, entry, rules, now, drawKind(kinds, rules.Kinds))
 	}
 }
 
-func (r *Registry) quizDue(entry *caller, now time.Time) bool {
+func (r *Registry) quizDue(entry *caller, rules Rules, now time.Time) bool {
 	if !entry.watching() || entry.outstandingQuiz != "" || now.Before(entry.nextQuizAt) {
 		return false
 	}
 
-	if now.Sub(entry.lastClickAt) > r.config.ActiveWithin {
-		entry.nextQuizAt = now.Add(r.quizWindow())
+	if now.Sub(entry.lastClickAt) > rules.ActiveWithin {
+		entry.nextQuizAt = now.Add(quizWait(rules))
 		return false
 	}
 
-	if r.quizzesWonWithinTheHour(entry, now) >= r.quizConfig.MaxChargesPerHour {
-		entry.nextQuizAt = now.Add(r.quizWindow())
+	if r.quizzesWonWithinTheHour(entry, now) >= rules.Quiz.MaxChargesPerHour {
+		entry.nextQuizAt = now.Add(quizWait(rules))
 		return false
 	}
 
-	return true
+	return !near(entry.outstanding, entry.lastOfferAt, entry.owedQuiz, rules, now)
 }
 
-func (r *Registry) offerQuiz(entrant Entrant, entry *caller, now time.Time, kind Kind) {
+func (r *Registry) offerQuiz(entrant Entrant, entry *caller, rules Rules, now time.Time, kind Kind) {
 	token, err := newToken()
 	if err != nil {
 		return
 	}
 
-	round := r.bank.Draw()
-	offer := QuizOffer{Token: token, ExpiresAt: now.Add(r.quizConfig.OfferTTL)}
+	round := r.bank.Draw(rules.Quiz.LeaderBias)
+	offer := QuizOffer{Token: token, ExpiresAt: now.Add(rules.Quiz.OfferTTL)}
 
 	r.quizOffers[token] = &pendingQuiz{
 		entrant:   entrant,
@@ -189,13 +183,14 @@ func (r *Registry) offerQuiz(entrant Entrant, entry *caller, now time.Time, kind
 	}
 
 	entry.outstandingQuiz = token
-	entry.nextQuizAt = offer.ExpiresAt.Add(r.quizConfig.AnswerWindow).Add(r.quizWindow())
+	entry.lastQuizAt = now
+	entry.nextQuizAt = offer.ExpiresAt.Add(rules.Quiz.AnswerWindow).Add(quizWait(rules))
 
 	entry.send(Event{Quiz: &offer})
 	r.counted(r.report.QuizOffered)
 }
 
-func (r *Registry) collectStaleQuizzes(now time.Time) {
+func (r *Registry) collectStaleQuizzes(rules Rules, now time.Time) {
 	for token, quiz := range r.quizOffers {
 		gone := now.After(quiz.expiresAt)
 		if quiz.opened() {
@@ -213,9 +208,9 @@ func (r *Registry) collectStaleQuizzes(now time.Time) {
 		}
 
 		entry.outstandingQuiz = ""
-		entry.nextQuizAt = now.Add(r.quizWindow())
+		entry.nextQuizAt = now.Add(quizWait(rules))
 		if entry.quizMisses == 0 {
-			entry.nextQuizAt = now.Add(r.quizConfig.MissRetry)
+			entry.nextQuizAt = now.Add(rules.Quiz.MissRetry)
 		}
 		entry.quizMisses++
 
@@ -239,6 +234,6 @@ func (r *Registry) quizzesWonWithinTheHour(entry *caller, now time.Time) int {
 	return len(kept)
 }
 
-func (r *Registry) quizWindow() time.Duration {
-	return drawWindow(r.quizConfig.MinInterval, r.quizConfig.MaxInterval)
+func quizWait(rules Rules) time.Duration {
+	return drawWindow(rules.Quiz.MinInterval, rules.Quiz.MaxInterval)
 }

@@ -25,7 +25,6 @@ type handler struct {
 	logger  *slog.Logger
 }
 
-// RFC 7591's request: what an app asks for beyond its name and its redirects is answered with what it gets.
 type request struct {
 	ClientName   string   `json:"client_name"`
 	RedirectURIs []string `json:"redirect_uris"`

@@ -23,7 +23,6 @@ type handler struct {
 	logger  *slog.Logger
 }
 
-// The operator's browser arrives here from the app, and leaves for the admin page, where the operator says yes or no.
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	location, err := h.useCase.Execute(r.Context(), authorize_usecase.In{

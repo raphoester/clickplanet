@@ -12,9 +12,9 @@ import (
 var ErrNoShield = errors.New("no shield to place")
 
 type Shields interface {
-	SpendShield(holder bonuses.Holder) bool
-	Grant(holder bonuses.Holder, kind bonuses.Kind, amount int)
-	Held(holder bonuses.Holder) bonuses.Held
+	Spend(ctx context.Context, holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) error
+	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) error
+	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
 
 type Tiles interface {
@@ -27,20 +27,26 @@ type CountryChecker interface {
 	CheckCountry(country string) bool
 }
 
+type Allegiances interface {
+	PlayError(ctx context.Context, payer clicks.Payer, flag string) error
+}
+
 type In struct {
 	TileID    uint32
 	CountryID string
 }
 
-func New(shields Shields, tiles Tiles, countries CountryChecker, perTile int) *UseCase {
-	return &UseCase{shields: shields, tiles: tiles, countries: countries, perTile: perTile}
+func New(shields Shields, tiles Tiles, countries CountryChecker, allegiances Allegiances, rules func() bonuses.Rules) *UseCase {
+	return &UseCase{shields: shields, tiles: tiles, countries: countries, allegiances: allegiances, rules: rules}
 }
 
+// A tile above a smaller per-tile cap keeps its shields, and takes none until it is under it.
 type UseCase struct {
-	shields   Shields
-	tiles     Tiles
-	countries CountryChecker
-	perTile   int
+	shields     Shields
+	tiles       Tiles
+	countries   CountryChecker
+	allegiances Allegiances
+	rules       func() bonuses.Rules
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
@@ -53,19 +59,28 @@ func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
 		return bonuses.Held{}, fmt.Errorf("%w: %d", clicks.ErrTileOutOfRange, in.TileID)
 	}
 
-	if err := clicks.ShieldError(owner, in.CountryID, u.tiles.Shields(in.TileID), u.perTile); err != nil {
+	perTile := u.rules().Shield.PerTile
+	if err := clicks.ShieldError(owner, in.CountryID, u.tiles.Shields(in.TileID), perTile); err != nil {
 		return bonuses.Held{}, fmt.Errorf("tile %d: %w", in.TileID, err)
 	}
 
-	holder := bonuses.HolderOf(clicks.PayerOf(ctx))
-	if !u.shields.SpendShield(holder) {
-		return bonuses.Held{}, ErrNoShield
+	payer := clicks.PayerOf(ctx)
+	if err := u.allegiances.PlayError(ctx, payer, in.CountryID); err != nil {
+		return bonuses.Held{}, err
 	}
 
-	if err := u.tiles.Shield(ctx, in.TileID, in.CountryID, u.perTile); err != nil {
-		u.shields.Grant(holder, bonuses.KindShields, 1)
-		return bonuses.Held{}, fmt.Errorf("failed to place the shield: %w", err)
+	holder := bonuses.HolderOf(payer)
+	if err := u.shields.Spend(ctx, holder, bonuses.Held.AfterShield); err != nil {
+		if errors.Is(err, bonuses.ErrNotHeld) {
+			return bonuses.Held{}, ErrNoShield
+		}
+		return bonuses.Held{}, err
 	}
 
-	return u.shields.Held(holder), nil
+	if err := u.tiles.Shield(ctx, in.TileID, in.CountryID, perTile); err != nil {
+		return bonuses.Held{}, errors.Join(fmt.Errorf("failed to place the shield: %w", err),
+			u.shields.Grant(ctx, holder, bonuses.KindShields, 1))
+	}
+
+	return u.shields.Held(ctx, holder)
 }

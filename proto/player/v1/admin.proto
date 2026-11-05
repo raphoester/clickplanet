@@ -5,28 +5,57 @@ package player.v1;
 import "player/v1/color.proto";
 import "player/v1/internal.proto";
 import "player/v1/player.proto";
-import "player/v1/title.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
-// Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
-// without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
 service AdminService {
-  // Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
-  // adds a title or changes a rule. A second run changes nothing.
-  rpc ReconcileTitles(ReconcileTitlesRequest) returns (ReconcileTitlesResponse);
+  // InternalService/GetPlayers, for the admin page naming a page of players.
+  rpc GetPlayers(GetPlayersRequest) returns (GetPlayersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
-  // InternalService/GetAuthors, for the admin page naming a page of players.
-  rpc GetAuthors(GetAuthorsRequest) returns (GetAuthorsResponse);
+  // Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
+  // fronts are progression.v1.AdminService/GetProgress.
+  rpc GetPlayer(AdminGetPlayerRequest) returns (AdminGetPlayerResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
-  // Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
-  rpc GetPlayer(AdminGetPlayerRequest) returns (AdminGetPlayerResponse);
+  // PlayerService/GetRoster, for the admin page's home: who is playing now.
+  rpc GetRoster(GetRosterRequest) returns (GetRosterResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
+  rpc SearchPlayers(SearchPlayersRequest) returns (SearchPlayersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
+  rpc RenamePlayer(RenamePlayerRequest) returns (RenamePlayerResponse);
 }
 
-message ReconcileTitlesRequest {}
+message RenamePlayerRequest {
+  string account_id = 1;
+  string name = 2;
+}
 
-message ReconcileTitlesResponse {
-  uint32 granted = 1;
-  uint32 revoked = 2;
+message RenamePlayerResponse {
+  string name = 1;
+}
+
+message SearchPlayersRequest {
+  string name = 1;
+  uint32 limit = 2;
+}
+
+message SearchPlayersResponse {
+  repeated PlayerMatch players = 1;
+  uint32 total = 2;
+}
+
+message PlayerMatch {
+  string account_id = 1;
+  string name = 2;
+  bool guest = 3;
 }
 
 message AdminGetPlayerRequest {
@@ -40,10 +69,7 @@ message AdminGetPlayerResponse {
   bool admin = 4;
   NameColor color = 5;
   int64 created_at_unix_ms = 6;
-  Stats stats = 7;
-  uint64 messages_sent = 8;
-  repeated Title titles = 9;
-  Title worn_title = 10;
-  repeated CountryTiles plays_for = 11;
-  repeated CountryTiles plays_against = 12;
+  // progression.v1.AdminService/GetProgress.
+  reserved 7, 8, 9, 10, 11, 12;
+  reserved "stats", "messages_sent", "titles", "worn_title", "plays_for", "plays_against";
 }

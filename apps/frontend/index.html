@@ -4,7 +4,8 @@
     <meta charset="UTF-8"/>
     <script>
         try {
-            if (location.hash !== "#home" && localStorage.getItem("clickplanet-country") !== null) {
+            if (location.hostname === "crazygames.clickplanet.lol"
+                || (location.hash !== "#home" && localStorage.getItem("clickplanet-country") !== null)) {
                 location.replace("/play" + location.search + location.hash)
             }
         } catch (e) {
@@ -335,8 +336,19 @@
             line-height: 1.3;
         }
 
-        .season-pill {
+        .hero-pills {
             align-self: flex-start;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            max-width: 100%;
+        }
+
+        .hero-pills:not(:has(> :not([hidden]))) {
+            display: none;
+        }
+
+        .season-pill {
             display: inline-flex;
             align-items: center;
             gap: 10px;
@@ -367,6 +379,10 @@
             white-space: nowrap;
         }
 
+        .battle-pill, .battle-pill:hover, .battle-pill:focus-visible, .battle-pill .season-pill-left {
+            color: var(--war);
+        }
+
         .season-pill-left {
             padding-top: 0.15em;
             font-family: var(--font-display);
@@ -375,22 +391,6 @@
             color: var(--gold);
             text-shadow: var(--text-drop);
             white-space: nowrap;
-        }
-
-        .season-pill.finale-live {
-            animation: finale-pill-live 2.4s ease-in-out infinite;
-        }
-
-        .when-live {
-            display: none;
-        }
-
-        .finale-live .when-live {
-            display: inline;
-        }
-
-        .finale-live .when-before {
-            display: none;
         }
 
         .hero-shot {
@@ -481,10 +481,6 @@
             padding: 48px;
         }
 
-        .finale-live .finale-panel {
-            animation: finale-panel-live 2.4s ease-in-out infinite;
-        }
-
         .finale-text {
             display: flex;
             flex-direction: column;
@@ -565,7 +561,7 @@
         .finale-facts {
             grid-column: 1 / -1;
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 24px;
             margin: 0;
             padding: 32px 0 0;
@@ -592,10 +588,6 @@
             box-shadow: var(--drop-s);
         }
 
-        .finale-art--bomb {
-            background: var(--bomb);
-        }
-
         .finale-art svg {
             width: 36px;
             height: 36px;
@@ -606,27 +598,8 @@
             stroke-linecap: round;
         }
 
-        .bonus-icon-fuse, .bonus-icon-shine, .season-art-pole, .season-art-handle-ink, .season-art-handle, .season-art-shine {
+        .season-art-pole, .season-art-handle-ink, .season-art-handle, .season-art-shine {
             fill: none;
-        }
-
-        .bonus-icon-fuse {
-            stroke-width: 3;
-        }
-
-        .bonus-icon-dark {
-            fill: var(--ink);
-        }
-
-        .bonus-icon-shine {
-            stroke: var(--cream);
-            stroke-width: 3;
-            opacity: 0.8;
-        }
-
-        .bonus-icon-spark {
-            fill: var(--gold-light);
-            stroke-width: 1.5;
         }
 
         .season-art-tile {
@@ -685,21 +658,95 @@
             line-height: 1.4;
         }
 
-        @keyframes finale-pill-live {
-            0%, 100% {
-                box-shadow: var(--drop-s), 0 0 12px color-mix(in srgb, var(--action) 35%, transparent);
-            }
-            50% {
-                box-shadow: var(--drop-s), 0 0 22px color-mix(in srgb, var(--action) 65%, transparent);
-            }
+        .finale-battle {
+            position: relative;
+            margin-top: 32px;
+            padding-top: 64px;
+            overflow: hidden;
+            box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 28px color-mix(in srgb, var(--war) 30%, transparent);
         }
 
-        @keyframes finale-panel-live {
-            0%, 100% {
-                box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 18px color-mix(in srgb, var(--action) 30%, transparent);
-            }
+        .finale-battle::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 12px;
+            background: var(--tape);
+            border-bottom: var(--outline-thin) solid var(--ink);
+            pointer-events: none;
+        }
+
+        .finale-battle[data-live] {
+            animation: finale-battle-live 2.4s ease-in-out infinite;
+        }
+
+        .finale-battle .eyebrow, .finale-battle[data-live] .finale-clock-label {
+            color: var(--war);
+        }
+
+        .finale-live, .finale-battle[data-live] .finale-soon {
+            display: none;
+        }
+
+        .finale-battle[data-live] .finale-live {
+            display: inline;
+        }
+
+        .finale-rules {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            max-width: 520px;
+            padding: 14px 18px;
+            background: var(--panel-raised);
+            border: var(--outline-thin) solid var(--ink);
+            border-radius: var(--radius-m);
+            box-shadow: var(--drop-s);
+            font-size: var(--text-l);
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .finale-rules svg {
+            flex-shrink: 0;
+            color: var(--war);
+        }
+
+        .finale-art-glass {
+            fill: var(--cream);
+        }
+
+        .swords-art-blade {
+            fill: var(--cream);
+        }
+
+        .swords-art-ink, .swords-art-grip, .swords-art-guard {
+            fill: none;
+        }
+
+        .swords-art-ink {
+            stroke-width: 7.5;
+        }
+
+        .swords-art-grip {
+            stroke: var(--gold-shade);
+            stroke-width: 3.5;
+        }
+
+        .swords-art-guard {
+            stroke: var(--gold);
+            stroke-width: 3.5;
+        }
+
+        .swords-art-pommel {
+            fill: var(--gold);
+        }
+
+        @keyframes finale-battle-live {
             50% {
-                box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 36px color-mix(in srgb, var(--action) 60%, transparent);
+                box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 52px color-mix(in srgb, var(--war) 65%, transparent);
             }
         }
 
@@ -1018,16 +1065,8 @@
                 transform: none;
             }
 
-            .season-pill.finale-live, .finale-live .finale-panel {
+            .finale-battle[data-live] {
                 animation: none;
-            }
-
-            .season-pill.finale-live {
-                box-shadow: var(--drop-s), 0 0 16px color-mix(in srgb, var(--action) 50%, transparent);
-            }
-
-            .finale-live .finale-panel {
-                box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 28px color-mix(in srgb, var(--action) 45%, transparent);
             }
         }
 
@@ -1056,10 +1095,6 @@
 
             .finale-clock {
                 align-items: flex-start;
-            }
-
-            .finale-facts {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
             .rally {
@@ -1236,6 +1271,16 @@
             .finale-panel {
                 gap: 28px;
                 padding: 28px 20px;
+            }
+
+            .finale-battle {
+                margin-top: 24px;
+                padding-top: 40px;
+            }
+
+            .finale-rules {
+                padding: 12px 14px;
+                font-size: var(--text-m);
             }
 
             .finale h2 {
@@ -1428,8 +1473,7 @@
             <a href="#creator">Who made it</a>
         </nav>
         <div class="header-actions">
-            <a class="button button-discord" href="%DISCORD_INVITE%" target="_blank"
-               rel="noopener noreferrer">Discord</a>
+            <a class="button button-discord" href="/play?discord=join">Discord</a>
             <a class="button button-action" href="/play">Play</a>
         </div>
     </div>
@@ -1439,19 +1483,28 @@
     <section class="hero">
         <div class="wrap">
             <div class="hero-text">
-                <a class="season-pill" href="#final-battle" data-finale hidden>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="13" r="8"/>
-                        <path d="M12 9v4l2.5 2.5M9 2h6"/>
-                    </svg>
-                    <span class="season-pill-label">
-                        <span class="season-pill-season">Season <span data-season-number></span> ·</span>
-                        <span class="when-before">Final Battle in</span>
-                        <span class="when-live">Final Battle ends in</span>
-                    </span>
-                    <span class="season-pill-left" role="timer" data-finale-left></span>
-                </a>
+                <div class="hero-pills">
+                    <a class="season-pill" href="#season" data-season hidden>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="13" r="8"/>
+                            <path d="M12 9v4l2.5 2.5M9 2h6"/>
+                        </svg>
+                        <span class="season-pill-label">
+                            <span class="season-pill-season">Season <span data-season-number></span> ·</span>
+                            <span>ends in</span>
+                        </span>
+                        <span class="season-pill-left" role="timer" data-season-left></span>
+                    </a>
+                    <a class="season-pill battle-pill" href="/play" data-battle hidden>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M14.5 17.5L4 7 3 3l4 1 10.5 10.5M13 19l6-6M16 16l4 4M19 21l2-2M12 9l5-5 4-1-1 4-5 5M9 12l-2.5 2.5M12 15l-2.5 2.5M5 13l6 6M8 16l-4 4M3 19l2 2"/>
+                        </svg>
+                        <span class="season-pill-label" data-battle-label>Next battle in</span>
+                        <span class="season-pill-left" role="timer" data-battle-left></span>
+                    </a>
+                </div>
                 <ul class="chips">
                     <li>Free</li>
                     <li>In your browser</li>
@@ -1462,8 +1515,7 @@
                     globe to paint them with its flag. Everyone plays on the same planet, live.</p>
                 <div class="hero-actions">
                     <a class="button button-action button-large" href="/play">Play now</a>
-                    <a class="button button-discord button-large" href="%DISCORD_INVITE%" target="_blank"
-                       rel="noopener noreferrer">Discord</a>
+                    <a class="button button-discord button-large" href="/play?discord=join">Discord</a>
                 </div>
                 <ul class="stats panel">
                     <li><strong>262,000</strong><span>tiles to take</span></li>
@@ -1479,21 +1531,18 @@
         </div>
     </section>
 
-    <section id="final-battle" class="finale" data-finale hidden>
+    <section id="season" class="finale" data-season hidden>
         <div class="wrap">
             <div class="panel finale-panel">
                 <div class="finale-text">
-                    <span class="eyebrow">Season <span data-season-number></span> finale</span>
-                    <h2>The Final Battle</h2>
-                    <p class="finale-when"><span data-finale-date></span> · <span data-finale-time></span></p>
-                    <p class="finale-pitch">One last fight for the planet, with every country on it. Rally yours
-                        and be there when it starts.</p>
+                    <span class="eyebrow">Season <span data-season-number></span></span>
+                    <h2>The race for the planet</h2>
+                    <p class="finale-when">Ends <span data-season-ends></span></p>
+                    <p class="finale-pitch">One planet, with every country on it. Rally yours and take the most
+                        ground before the season ends.</p>
                 </div>
                 <div class="finale-clock">
-                    <span class="finale-clock-label">
-                        <span class="when-before">Starts in</span>
-                        <span class="when-live">Ends in</span>
-                    </span>
+                    <span class="finale-clock-label">Ends in</span>
                     <ol class="countdown" role="timer">
                         <li><strong data-countdown-days></strong><span>days</span></li>
                         <li><strong data-countdown-hours></strong><span>hours</span></li>
@@ -1504,23 +1553,6 @@
                 </div>
                 <ul class="finale-facts">
                     <li class="finale-fact">
-                        <span class="finale-art finale-art--bomb">
-                            <svg viewBox="0 0 48 48" aria-hidden="true">
-                                <path class="bonus-icon-fuse" d="M32 14 Q34 5 40 8"/>
-                                <rect class="bonus-icon-dark" x="27" y="11" width="9" height="8" rx="1.5"
-                                      transform="rotate(40 31.5 15)"/>
-                                <circle class="bonus-icon-dark" cx="22" cy="29" r="14"/>
-                                <path class="bonus-icon-shine" d="M13 27 A 9 9 0 0 1 20 20"/>
-                                <polygon class="bonus-icon-spark"
-                                         points="41,2 42.6,6.4 47,8 42.6,9.6 41,14 39.4,9.6 35,8 39.4,6.4"/>
-                            </svg>
-                        </span>
-                        <div>
-                            <h3>Power-ups for all</h3>
-                            <p>Everybody gets tons of them.</p>
-                        </div>
-                    </li>
-                    <li class="finale-fact">
                         <span class="finale-art">
                             <svg viewBox="0 0 48 48" aria-hidden="true">
                                 <polygon class="season-art-tile" points="24,18 36.5,25 36.5,39 24,46 11.5,39 11.5,25"/>
@@ -1530,7 +1562,7 @@
                         </span>
                         <div>
                             <h3>Win the day</h3>
-                            <p>Each day, the countries that held the most ground score points. The Final Battle scores triple.</p>
+                            <p>Each day, the countries holding the most ground when it ends score points.</p>
                         </div>
                     </li>
                     <li class="finale-fact">
@@ -1563,6 +1595,92 @@
                         <div>
                             <h3>Titles</h3>
                             <p>Every signed-in player gets a title, and one more if their country wins.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="panel finale-panel finale-battle" data-mood="battle" data-finale hidden>
+                <div class="finale-text">
+                    <span class="eyebrow">Season <span data-season-number></span> finale</span>
+                    <h2>The Final Battle</h2>
+                    <p class="finale-when" data-finale-when></p>
+                    <p class="finale-pitch">The season ends with one last fight for the whole planet. Rally your
+                        country and hold the most ground at the very end.</p>
+                    <p class="finale-rules" data-finale-rules hidden>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M14.5 17.5L4 7 3 3l4 1 10.5 10.5M13 19l6-6M16 16l4 4M19 21l2-2M12 9l5-5 4-1-1 4-5 5M9 12l-2.5 2.5M12 15l-2.5 2.5M5 13l6 6M8 16l-4 4M3 19l2 2"/>
+                        </svg>
+                        <span data-finale-words></span>
+                    </p>
+                </div>
+                <div class="finale-clock">
+                    <span class="finale-clock-label">
+                        <span class="finale-soon">Starts in</span>
+                        <span class="finale-live">Live now · ends in</span>
+                    </span>
+                    <ol class="countdown" role="timer">
+                        <li><strong data-finale-days></strong><span>days</span></li>
+                        <li><strong data-finale-hours></strong><span>hours</span></li>
+                        <li><strong data-finale-minutes></strong><span>min</span></li>
+                        <li><strong data-finale-seconds></strong><span>sec</span></li>
+                    </ol>
+                    <a class="button button-action button-large" href="/play">Play now</a>
+                </div>
+                <ul class="finale-facts">
+                    <li class="finale-fact">
+                        <span class="finale-art">
+                            <svg viewBox="0 0 48 48" aria-hidden="true">
+                                <path class="finale-art-glass"
+                                      d="M15 8h18c0 9-7 12-7 16s7 7 7 16H15c0-9 7-12 7-16s-7-7-7-16z"/>
+                                <path class="season-art-gold" d="M18.5 12h11c-1 4-5.5 6-5.5 8c0-2-4.5-4-5.5-8z"/>
+                                <path class="season-art-gold" d="M17 40c1-5 5-7.5 7-7.5s6 2.5 7 7.5z"/>
+                                <rect class="season-art-gold-shade" x="11" y="3" width="26" height="6" rx="2"/>
+                                <rect class="season-art-gold-shade" x="11" y="39" width="26" height="6" rx="2"/>
+                            </svg>
+                        </span>
+                        <div>
+                            <h3><span data-finale-length></span> of war</h3>
+                            <p>The end of the season, with every country fighting at once, live.</p>
+                        </div>
+                    </li>
+                    <li class="finale-fact" data-finale-times-row>
+                        <span class="finale-art">
+                            <svg viewBox="0 0 48 48" aria-hidden="true">
+                                <g transform="matrix(-1 0 0 1 48 0)">
+                                    <polygon class="swords-art-blade" points="29,35 8,14 6,6 14,8 35,29"/>
+                                    <path class="swords-art-ink" d="M26 38l12-12M32 32l7 7"/>
+                                    <path class="swords-art-grip" d="M32 32l7 7"/>
+                                    <path class="swords-art-guard" d="M26 38l12-12"/>
+                                    <circle class="swords-art-pommel" cx="40" cy="40" r="3.2"/>
+                                </g>
+                                <polygon class="swords-art-blade" points="29,35 8,14 6,6 14,8 35,29"/>
+                                <path class="swords-art-ink" d="M26 38l12-12M32 32l7 7"/>
+                                <path class="swords-art-grip" d="M32 32l7 7"/>
+                                <path class="swords-art-guard" d="M26 38l12-12"/>
+                                <circle class="swords-art-pommel" cx="40" cy="40" r="3.2"/>
+                            </svg>
+                        </span>
+                        <div>
+                            <h3>Points ×<span data-finale-times></span></h3>
+                            <p>The countries holding the most ground when it ends score the points of
+                                <span data-finale-times></span> days.</p>
+                        </div>
+                    </li>
+                    <li class="finale-fact">
+                        <span class="finale-art">
+                            <svg viewBox="0 0 48 48" aria-hidden="true">
+                                <path class="season-art-handle-ink" d="M33 10h6a4 4 0 0 1 0 8h-6M15 10H9a4 4 0 0 0 0 8h6"/>
+                                <path class="season-art-handle" d="M33 10h6a4 4 0 0 1 0 8h-6M15 10H9a4 4 0 0 0 0 8h6"/>
+                                <path class="season-art-gold" d="M14 6h20v10a10 10 0 0 1-20 0z"/>
+                                <path class="season-art-gold-shade" d="M21 27h6v7h-6z"/>
+                                <path class="season-art-gold" d="M15 34h18v7H15z"/>
+                                <path class="season-art-shine" d="M19 9v7"/>
+                            </svg>
+                        </span>
+                        <div>
+                            <h3>The last word</h3>
+                            <p>Nothing scores after it. It closes the season and crowns its champion.</p>
                         </div>
                     </li>
                 </ul>
@@ -1670,8 +1788,7 @@
                     <p>Talk to the whole planet in the live chat. Plan your next attack with your country on
                         Discord.</p>
                 </div>
-                <a class="button button-discord button-large" href="%DISCORD_INVITE%" target="_blank"
-                   rel="noopener noreferrer">Join Discord</a>
+                <a class="button button-discord button-large" href="/play?discord=join">Join Discord</a>
             </div>
         </div>
     </section>
@@ -1700,8 +1817,9 @@
                 <li><h3>Game</h3></li>
                 <li><a href="/play">Play</a></li>
                 <li><a href="#how">How it works</a></li>
-                <li><a href="%DISCORD_INVITE%" target="_blank" rel="noopener noreferrer">Discord</a></li>
+                <li><a href="/play?discord=join">Discord</a></li>
                 <li><a href="%TIKTOK_PROFILE%" target="_blank" rel="noopener noreferrer">TikTok</a></li>
+                <li><a href="%YOUTUBE_CHANNEL%" target="_blank" rel="noopener noreferrer">YouTube</a></li>
                 <li><a href="%INSTAGRAM_PROFILE%" target="_blank" rel="noopener noreferrer">Instagram</a></li>
             </ul>
             <ul class="footer-column">

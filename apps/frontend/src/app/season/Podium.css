@@ -1,0 +1,80 @@
+.podium {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: var(--space-1);
+    width: min(100%, 360px);
+    margin: 0 auto;
+    padding: 0;
+    border-bottom: var(--outline-thin) solid var(--ink);
+    list-style: none;
+}
+
+.podium-step {
+    --step: 40px;
+    --step-color: var(--bronze);
+    --step-shade: var(--bronze-shade);
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+}
+
+.podium-step-1 {
+    --step: 84px;
+    --step-color: var(--gold);
+    --step-shade: var(--gold-shade);
+}
+
+.podium-step-2 {
+    --step: 60px;
+    --step-color: var(--silver);
+    --step-shade: var(--silver-shade);
+}
+
+.podium-flag {
+    font-size: 36px;
+    line-height: 1;
+}
+
+.podium-step-1 .podium-flag {
+    font-size: 48px;
+}
+
+.podium-flag .country-flag {
+    margin: 0;
+    filter: drop-shadow(0 2px 0 var(--ink));
+}
+
+.podium-country {
+    max-width: 100%;
+    margin: var(--space-1) 0 var(--space-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--text);
+    text-shadow: var(--text-drop);
+}
+
+.podium-block {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    width: 100%;
+    height: var(--step);
+    padding-top: var(--space-2);
+    box-sizing: border-box;
+    border: var(--outline-thin) solid var(--ink);
+    border-bottom: none;
+    border-radius: var(--radius-m) var(--radius-m) 0 0;
+    background: var(--step-color);
+    box-shadow: inset -4px 0 0 var(--step-shade);
+    font-family: var(--font-display);
+    font-size: var(--display-l);
+    line-height: 1;
+    color: var(--cream);
+    text-shadow: var(--text-outline);
+}

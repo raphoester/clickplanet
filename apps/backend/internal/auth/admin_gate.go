@@ -70,13 +70,7 @@ var signInProcedures = []string{
 	authv1connect.AdminServiceSignOutProcedure,
 }
 
-// Beside its sign-in, what only the admin page's session calls: an app cannot let another app in, and WhoAmI names
-// the cookie's operator.
-var sessionOnlyProcedures = []string{
-	authv1connect.AdminServiceWhoAmIProcedure,
-	authv1connect.AdminServiceDescribeConnectionProcedure,
-	authv1connect.AdminServiceApproveConnectionProcedure,
-}
+const sessionOnlyService = "/" + authv1connect.AdminServiceName + "/"
 
 // No origin is no admin page, and so no gate: an admin listener then refuses the boot.
 func NewAdminGate(config AdminConfig, internalBindAddress string, logger *slog.Logger) (cpbootstrap.Gate, error) {
@@ -90,7 +84,7 @@ func NewAdminGate(config AdminConfig, internalBindAddress string, logger *slog.L
 	auth := authv1connect.NewInternalServiceClient(&http.Client{Transport: http.DefaultTransport}, "http://"+internalBindAddress)
 	admit := log_admit.New(
 		admit_usecase.New(
-			admission.NewPage(config.Origin, signInProcedures...).WithSessionOnly(sessionOnlyProcedures...),
+			admission.NewPage(config.Origin, signInProcedures...).WithSessionOnly(sessionOnlyService),
 			rpc_operators.New(auth),
 		),
 		logger,

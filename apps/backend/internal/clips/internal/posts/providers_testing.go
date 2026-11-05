@@ -48,6 +48,20 @@ func (s *ScriptedService) Schedule(_ context.Context, post Post) (Scheduled, err
 	return Scheduled{ID: PostID("post-" + post.clip.title), Refused: s.Refusing}, nil
 }
 
+// Dice that show these faces in turn, then the first again, each within the faces of the roll.
+type RolledDice struct {
+	Faces []int
+	rolls int
+}
+
+var _ Dice = (*RolledDice)(nil)
+
+func (d *RolledDice) IntN(n int) int {
+	face := d.Faces[d.rolls%len(d.Faces)]
+	d.rolls++
+	return face % n
+}
+
 // A dice that always shows the same face.
 type LoadedDice int
 
@@ -55,4 +69,22 @@ var _ Dice = LoadedDice(0)
 
 func (d LoadedDice) IntN(n int) int {
 	return int(d) % n
+}
+
+// The posts of a run on an empty feed, each planned once the one before it is taken everywhere, as the run plans them.
+func (p Plan) Posts(clips []Clip, now time.Time, dice Dice) []Post {
+	var (
+		planned []Post
+		feed    Feed
+	)
+	ranked := Ranked(clips)
+	for i, clip := range ranked {
+		post, room := p.Next(clip, i+1, len(ranked), feed, now, dice)
+		if !room {
+			continue
+		}
+		planned = append(planned, post)
+		feed = feed.With(post, Scheduled{ID: "planned"})
+	}
+	return planned
 }

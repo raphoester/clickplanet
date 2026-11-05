@@ -1,7 +1,7 @@
-import {CSSProperties} from "react"
-import {OAuthProvider} from "../../backends/account.ts"
+import {CSSProperties, ReactNode} from "react"
+import {ButtonProvider} from "../../backends/account.ts"
 
-const BRANDS: Record<OAuthProvider, CSSProperties> = {
+const BRANDS: Record<ButtonProvider, CSSProperties> = {
     google: {
         "--provider-background": "#131314",
         "--provider-hover": "#1F1F20",
@@ -14,10 +14,22 @@ const BRANDS: Record<OAuthProvider, CSSProperties> = {
         "--provider-border": "var(--discord)",
         "--provider-text": "var(--text)",
     } as CSSProperties,
+    crazygames: {
+        "--provider-background": "#6842FF",
+        "--provider-hover": "color-mix(in srgb, #6842FF 80%, var(--ink))",
+        "--provider-border": "#6842FF",
+        "--provider-text": "#FFFFFF",
+    } as CSSProperties,
+}
+
+const LOGOS: Record<ButtonProvider, ReactNode> = {
+    google: <GoogleLogo/>,
+    discord: <DiscordLogo/>,
+    crazygames: null,
 }
 
 export type ProviderButtonProps = {
-    provider: OAuthProvider
+    provider: ButtonProvider
     label: string
     disabled: boolean
     onClick: () => void
@@ -29,7 +41,7 @@ export default function ProviderButton({provider, label, disabled, onClick}: Pro
                    style={BRANDS[provider]}
                    disabled={disabled}
                    onClick={onClick}>
-        {provider === "google" ? <GoogleLogo/> : <DiscordLogo/>}
+        {LOGOS[provider]}
         <span className="provider-button-label">{label}</span>
     </button>
 }

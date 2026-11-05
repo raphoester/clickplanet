@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package progression.v1;
+
+import "progression/v1/progression.proto";
+import "progression/v1/title.proto";
+
+// No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
+service AdminService {
+  // Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
+  // adds a title or changes a rule. A second run changes nothing.
+  rpc ReconcileTitles(ReconcileTitlesRequest) returns (ReconcileTitlesResponse);
+
+  // What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
+  // An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.
+  rpc GetProgress(AdminGetProgressRequest) returns (AdminGetProgressResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message ReconcileTitlesRequest {}
+
+message ReconcileTitlesResponse {
+  uint32 granted = 1;
+  uint32 revoked = 2;
+}
+
+message AdminGetProgressRequest {
+  string account_id = 1;
+}
+
+message AdminGetProgressResponse {
+  Stats stats = 1;
+  uint64 messages_sent = 2;
+  repeated Title titles = 3;
+  Title worn_title = 4;
+  repeated CountryTiles plays_for = 5;
+  repeated CountryTiles plays_against = 6;
+}

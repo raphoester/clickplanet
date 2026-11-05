@@ -26,6 +26,13 @@ export function BackIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function HideIcon({size = 20}: IconProps) {
+    return <svg {...base(size)}>
+        <path d="M11.5 6.5 6 12l5.5 5.5"/>
+        <path d="M18 6.5 12.5 12l5.5 5.5"/>
+    </svg>
+}
+
 export function CloseIcon({size = 18}: IconProps) {
     return <svg {...base(size)}>
         <path d="M6 6 18 18"/>
@@ -37,6 +44,13 @@ export function SwapIcon({size = 14}: IconProps) {
     return <svg {...base(size)} strokeWidth={2.2}>
         <path d="M4 8h13l-3.5-3.5"/>
         <path d="M20 16H7l3.5 3.5"/>
+    </svg>
+}
+
+export function LockIcon({size = 14}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.2}>
+        <rect x="5" y="11" width="14" height="10" rx="2"/>
+        <path d="M8 11V8a4 4 0 0 1 8 0v3"/>
     </svg>
 }
 
@@ -134,6 +148,13 @@ export function InstagramIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function YouTubeIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <rect x="2.5" y="5" width="19" height="14" rx="4.5"/>
+        <path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/>
+    </svg>
+}
+
 export function UserIcon({size = 22}: IconProps) {
     return <svg {...base(size)} strokeWidth={2}>
         <circle cx="12" cy="8" r="4"/>
@@ -200,6 +221,14 @@ export function TrophyIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function TargetIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <circle cx="12" cy="12" r="8.5"/>
+        <circle cx="12" cy="12" r="4.5"/>
+        <circle cx="12" cy="12" r="0.8" fill="currentColor"/>
+    </svg>
+}
+
 export function ChatIcon({size = 22}: IconProps) {
     return <svg {...base(size)} strokeWidth={2}>
         <path d="M4 5h16v11H10l-5 4v-4H4z"/>
@@ -227,5 +256,11 @@ export function ClockIcon({size = 18}: IconProps) {
 export function HourglassIcon({size = 12}: IconProps) {
     return <svg {...base(size)} strokeWidth={2.6}>
         <path d="M6 3h12M6 21h12M7 3v3l5 6-5 6v3M17 3v3l-5 6 5 6v3"/>
+    </svg>
+}
+
+export function SwordsIcon({size = 18}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.6}>
+        <path d="M14.5 17.5L4 7 3 3l4 1 10.5 10.5M13 19l6-6M16 16l4 4M19 21l2-2M12 9l5-5 4-1-1 4-5 5M9 12l-2.5 2.5M12 15l-2.5 2.5M5 13l6 6M8 16l-4 4M3 19l2 2"/>
     </svg>
 }

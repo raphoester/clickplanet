@@ -76,6 +76,33 @@ func TestFillingOneKeyLeavesEveryOtherAlone(t *testing.T) {
 	assert.InDelta(t, 5.0, limiter.Peek(Key{Name: "other"}).Tokens, 1e-9)
 }
 
+func TestAddPutsTokensBackNeverPastTheCapacity(t *testing.T) {
+	limiter, _ := newTestLimiter()
+	for range 7 {
+		require.True(t, allow(limiter, key))
+	}
+
+	limiter.Add(Key{Name: key}, 4)
+	assert.InDelta(t, 7.0, limiter.Peek(Key{Name: key}).Tokens, 1e-9)
+
+	limiter.Add(Key{Name: key}, 40)
+	assert.InDelta(t, 10.0, limiter.Peek(Key{Name: key}).Tokens, 1e-9, "an add never banks past the burst")
+
+	for range 2 {
+		require.True(t, allow(limiter, key))
+	}
+	limiter.Add(Key{Name: key}, -5)
+	assert.InDelta(t, 8.0, limiter.Peek(Key{Name: key}).Tokens, 1e-9, "a negative add takes nothing")
+}
+
+func TestAddDoesNotMakeTheLimiterRememberAnUnknownKey(t *testing.T) {
+	limiter, _ := newTestLimiter()
+
+	limiter.Add(Key{Name: key}, 3)
+
+	assert.Empty(t, limiter.buckets)
+}
+
 func TestAFilledBucketKeepsItsPace(t *testing.T) {
 	limiter, _ := newTestLimiter()
 	_, _ = limiter.TakeAll(1, Key{Name: key, Pace: 0.5})

@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest"
 import home from "../index.html?raw"
 import play from "../play.html?raw"
+import archive from "../archive.html?raw"
 import privacy from "../privacy.html?raw"
 import terms from "../terms.html?raw"
 import {WEB_ANALYTICS_TOKEN, withoutAnalytics} from "./webAnalytics.ts"
@@ -8,7 +9,7 @@ import {WEB_ANALYTICS_TOKEN, withoutAnalytics} from "./webAnalytics.ts"
 const BEACON = `<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "%WEB_ANALYTICS_TOKEN%", "spa": false}'></script>`
 
 describe("Cloudflare Web Analytics", () => {
-    for (const [page, html] of Object.entries({home, play, privacy, terms})) {
+    for (const [page, html] of Object.entries({home, play, archive, privacy, terms})) {
         it(`loads on the ${page} page, its token from webAnalytics.ts`, () => {
             expect(html).toContain(BEACON)
             expect(html).not.toContain(WEB_ANALYTICS_TOKEN)

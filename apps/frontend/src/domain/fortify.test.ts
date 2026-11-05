@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {isNews, NEWS_FROM_TILES} from "./fortify.ts"
 
-const fortification = {landmass: 257, countryId: "bg", tile: 107526}
+const fortification = {landmass: 257, countryId: "bg", tile: 107526, version: {epoch: 1_790_000_000, seq: 9}}
 
 describe("isNews", () => {
     it("is always news to the flag that fortified", () => {

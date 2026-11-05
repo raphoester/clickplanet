@@ -19,7 +19,6 @@ type metadata struct {
 	AuthorizationResponseIssParameter bool     `json:"authorization_response_iss_parameter_supported"`
 }
 
-// RFC 8414: where an app finds the rest. Every app is a public client: PKCE is what proves a code is its own.
 func New(issuer string) http.Handler {
 	body, err := json.Marshal(metadata{
 		Issuer:                            issuer,

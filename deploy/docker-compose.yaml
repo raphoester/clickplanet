@@ -18,11 +18,25 @@ services:
       timeout: 3s
       retries: 15
 
+  redis:
+    image: redis:7.4-alpine
+    container_name: cp-redis
+    command: [ "redis-server", "--appendonly", "yes" ]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
   backend:
     image: clickplanet-back:local
     container_name: cp-backend
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - type: bind
@@ -32,3 +46,4 @@ services:
 
 volumes:
   pg_data:
+  redis_data:

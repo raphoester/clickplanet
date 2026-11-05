@@ -11,8 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/guard"
 )
 
-// Inside the guard: one line per call it let through, with who made it and what it asked, reads included. A call
-// the page's session made names no app.
 func New(logger *slog.Logger) connect.Interceptor {
 	return calls{logger: logger}
 }
@@ -54,10 +52,8 @@ func (c calls) log(ctx context.Context, procedure string, message any, err error
 		}
 	}
 
-	caller := guard.CallerOf(ctx)
 	c.logger.Info("admin call",
-		slog.String("operator", string(caller.Operator())),
-		slog.String("client", caller.Client()),
+		slog.Any("", guard.CallerOf(ctx)),
 		slog.String("procedure", procedure),
 		slog.String("request", request),
 		slog.String("code", code),

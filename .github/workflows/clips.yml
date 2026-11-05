@@ -1,8 +1,10 @@
 name: clips
 
 on:
+  # Every 2 hours but at night, when no platform posts, on a minute nobody else picks: GitHub starts a scheduled run late
+  # when many start on the hour.
   schedule:
-    - cron: '17 0,12 * * *'
+    - cron: '17 6-22/2 * * *'
   workflow_dispatch:
 
 permissions:
@@ -27,7 +29,9 @@ jobs:
           cache-dependency-path: apps/backend/go.sum
 
       # No npm here: the VPS key is in no job that installs the frontend's dependencies.
-      # The race tells the day of the season closed in the replay; a backend that does not answer it leaves it out.
+      # The race tells the day of the season closed in the replay, and the season who is called up to its Final Battle;
+      # the cast, the players who took tiles in it, numbered and named, never an account id (the artifact is public).
+      # A backend that does not answer one leaves it out.
       - name: fetch the last 12 hours
         working-directory: apps/backend
         env:
@@ -39,7 +43,8 @@ jobs:
           ssh-add -q - <<< "$VPS_SSH_KEY"
           install -m 700 -d ~/.ssh
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
-          go run ./cmd/clips fetch -hours 12 -out "$GITHUB_WORKSPACE/replay.json" -race "$GITHUB_WORKSPACE/race.json"
+          go run ./cmd/clips fetch -hours 12 -out "$GITHUB_WORKSPACE/replay.json" -race "$GITHUB_WORKSPACE/race.json" \
+            -season "$GITHUB_WORKSPACE/season.json" -cast "$GITHUB_WORKSPACE/cast.json"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -47,9 +52,11 @@ jobs:
           path: |
             replay.json
             race.json
+            season.json
+            cast.json
           retention-days: 1
 
-  shortlist:
+  findings:
     needs: fetch
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -70,21 +77,24 @@ jobs:
           name: replay
           path: apps/frontend
 
-      - name: list the stories worth a clip
+      # Every front, tour and place of the last 12 hours, measured and not judged, for the editor.
+      - name: measure what the replay holds
         working-directory: apps/frontend
         run: |
           race=$([ -f race.json ] && echo "--race race.json" || true)
-          npm run clip -- --replay replay.json $race --shortlist shortlist.json
+          season=$([ -f season.json ] && echo "--season season.json" || true)
+          cast=$([ -f cast.json ] && echo "--cast cast.json" || true)
+          npm run clip -- --replay replay.json $race $season $cast --findings findings.json
 
       - uses: actions/upload-artifact@v4
         with:
-          name: shortlist
-          path: apps/frontend/shortlist.json
+          name: findings
+          path: apps/frontend/findings.json
           retention-days: 1
 
-  # Its own job: the Zernio key is in no job that installs the frontend's dependencies.
+  # Its own job: the Zernio and Anthropic keys are in no job that installs the frontend's dependencies.
   choose:
-    needs: shortlist
+    needs: findings
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -99,29 +109,39 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: shortlist
+          name: findings
 
+      # Up to 2, within what each platform has left of its trailing day: the model's stories of the findings, each
+      # checked against them, with the arm of each experiment its clip is in:
+      # [{"pick":1,"story":{"front":3,"kind":"battle",...,"headline":"FRANCE VS TURKEY"},"variants":{}}].
+      # What the model's call cost goes to the summary; a model that fails leaves the run its day won alone, and the summary says why.
       - name: choose the clips of the run
         id: choose
         working-directory: apps/backend
         env:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PLATFORMS: ${{ vars.CLIPS_PLATFORMS }}
         run: |
-          picks=$(go run ./cmd/clips choose -shortlist "$GITHUB_WORKSPACE/shortlist.json")
+          picks=$(go run ./cmd/clips choose -findings "$GITHUB_WORKSPACE/findings.json" -platforms "$PLATFORMS" \
+            -summary "$GITHUB_STEP_SUMMARY")
           echo "picks=$picks" >> "$GITHUB_OUTPUT"
 
       - if: steps.choose.outputs.picks == '[]'
-        run: echo "No new story worth a clip in the last 12 hours." >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "No clip this run: the editor told no story of the last 12 hours, or every platform has posted its day (the log says which)." \
+            >> "$GITHUB_STEP_SUMMARY"
 
   render:
     needs: choose
     if: needs.choose.outputs.picks != '[]'
+    name: render ${{ matrix.clip.pick }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        pick: ${{ fromJSON(needs.choose.outputs.picks) }}
+        clip: ${{ fromJSON(needs.choose.outputs.picks) }}
     defaults:
       run:
         working-directory: apps/frontend
@@ -136,30 +156,38 @@ jobs:
 
       - run: npm ci
 
-      - name: install ffmpeg
+      # The fighters' names are any script: Rubik draws no CJK.
+      - name: install ffmpeg and the CJK fonts
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends ffmpeg
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg fonts-noto-cjk
 
       - uses: actions/download-artifact@v4
         with:
           name: replay
           path: apps/frontend
 
-      # One recorder: with no GPU each one draws every frame, so a second one adds nothing.
+      # One recorder: with no GPU each one draws every frame, so a second one adds nothing. The generator applies the
+      # arms it acts on, and writes every arm into the clip's record for schedule. The model's story, its headline in
+      # it, goes through the environment, never into the script: it is the model's text.
       - name: render the clip
         env:
-          PICK: ${{ matrix.pick }}
+          PICK: ${{ matrix.clip.pick }}
+          STORY: ${{ toJSON(matrix.clip.story) }}
+          VARIANTS: ${{ toJSON(matrix.clip.variants) }}
         run: |
           race=$([ -f race.json ] && echo "--race race.json" || true)
-          npm run clip -- --replay replay.json $race --pick "$PICK" --recorders 1
+          season=$([ -f season.json ] && echo "--season season.json" || true)
+          cast=$([ -f cast.json ] && echo "--cast cast.json" || true)
+          npm run clip -- --replay replay.json $race $season $cast --pick "$PICK" --story "$STORY" --variants "$VARIANTS" \
+            --recorders 1
 
       - uses: actions/upload-artifact@v4
         with:
-          name: clip-${{ matrix.pick }}
+          name: clip-${{ matrix.clip.pick }}
           path: |
-            apps/frontend/clip-${{ matrix.pick }}.mp4
-            apps/frontend/clip-${{ matrix.pick }}.json
+            apps/frontend/clip-${{ matrix.clip.pick }}.mp4
+            apps/frontend/clip-${{ matrix.clip.pick }}.json
           if-no-files-found: error
           retention-days: 3
 
@@ -184,9 +212,19 @@ jobs:
           merge-multiple: true
 
       # The repository variable CLIPS_PLATFORMS turns a platform off with no commit: "tiktok" alone. Unset is every platform.
+      # Then the backend keeps who each post names, over ssh, so the game tells them: no npm in this job either.
       - name: schedule the clips on TikTok and YouTube
         working-directory: apps/backend
         env:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
           PLATFORMS: ${{ vars.CLIPS_PLATFORMS }}
-        run: go run ./cmd/clips schedule -clips "$GITHUB_WORKSPACE/clips" -platforms "$PLATFORMS" -summary "$GITHUB_STEP_SUMMARY"
+          CLICKPLANET_SSH: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          eval "$(ssh-agent -s)" > /dev/null
+          ssh-add -q - <<< "$VPS_SSH_KEY"
+          install -m 700 -d ~/.ssh
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
+          go run ./cmd/clips schedule -clips "$GITHUB_WORKSPACE/clips" -platforms "$PLATFORMS" \
+            -summary "$GITHUB_STEP_SUMMARY"

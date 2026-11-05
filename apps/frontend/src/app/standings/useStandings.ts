@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react"
-import {Standing, StandingsBackend} from "../../backends/standings.ts"
+import {Boards, Standing} from "../../backends/standings.ts"
 
-export function useStandings(backend: StandingsBackend, countryCode: string): readonly Standing[] | undefined {
+export function useStandings(backend: Boards, countryCode: string): readonly Standing[] | undefined {
     const [read, setRead] = useState<{countryCode: string, standings: Standing[]}>()
 
     useEffect(() => {

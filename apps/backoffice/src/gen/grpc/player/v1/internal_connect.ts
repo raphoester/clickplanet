@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAuthorRequest, GetAuthorResponse, GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
+import { GetAccountsRequest, GetAccountsResponse, GetPlayersRequest, GetPlayersResponse, IntroducePlayerRequest, IntroducePlayerResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -13,21 +13,39 @@ export const InternalService = {
   typeName: "player.v1.InternalService",
   methods: {
     /**
-     * @generated from rpc player.v1.InternalService.GetAuthor
+     * The player an account is, for the chat about to show who posts. Not a pure read: a guest is given its code the
+     * first time it is introduced, as the roster's announce gives it.
+     *
+     * @generated from rpc player.v1.InternalService.IntroducePlayer
      */
-    getAuthor: {
-      name: "GetAuthor",
-      I: GetAuthorRequest,
-      O: GetAuthorResponse,
+    introducePlayer: {
+      name: "IntroducePlayer",
+      I: IntroducePlayerRequest,
+      O: IntroducePlayerResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * @generated from rpc player.v1.InternalService.GetAuthors
+     * The players a page of accounts are, for a module showing many at once. A pure read: it draws nobody a guest code.
+     *
+     * @generated from rpc player.v1.InternalService.GetPlayers
      */
-    getAuthors: {
-      name: "GetAuthors",
-      I: GetAuthorsRequest,
-      O: GetAuthorsResponse,
+    getPlayers: {
+      name: "GetPlayers",
+      I: GetPlayersRequest,
+      O: GetPlayersResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * What auth says of a page of accounts, for a module that must not ask auth: whether each signed in with a
+     * provider, and when it was made. An account auth does not answer is left out: read it as not linked, made at 0.
+     *
+     * @generated from rpc player.v1.InternalService.GetAccounts
+     */
+    getAccounts: {
+      name: "GetAccounts",
+      I: GetAccountsRequest,
+      O: GetAccountsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

@@ -8,18 +8,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections"
 )
 
-// The codes redeemed and not yet lapsed, so one is good once. In memory: a code lives a minute, so a restart forgets
-// a handful, and a replay of one still needs the verifier only the app holds.
+// In memory is enough: a code lives a minute, and a replay still needs the verifier.
 type Codes struct {
 	mu    sync.Mutex
-	spent map[string]time.Time
+	spent map[connections.CodeID]time.Time
 }
 
 func New() *Codes {
-	return &Codes{spent: map[string]time.Time{}}
+	return &Codes{spent: map[connections.CodeID]time.Time{}}
 }
 
-func (c *Codes) Spend(id string, until, now time.Time) error {
+func (c *Codes) Spend(code *connections.Code, now time.Time) error {
+	redeemed := code.TakeSnapshot()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -28,10 +28,10 @@ func (c *Codes) Spend(id string, until, now time.Time) error {
 			delete(c.spent, spent)
 		}
 	}
-	if _, spent := c.spent[id]; spent {
+	if _, spent := c.spent[redeemed.ID]; spent {
 		return fmt.Errorf("%w: redeemed already", connections.ErrInvalidGrant)
 	}
 
-	c.spent[id] = until
+	c.spent[redeemed.ID] = redeemed.ExpiresAt
 	return nil
 }

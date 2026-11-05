@@ -42,18 +42,18 @@ type stubAuthors struct {
 
 func (a stubAuthors) Authors(
 	_ context.Context, accounts []cpsession.AccountID,
-) (map[cpsession.AccountID]*playerv1.Author, error) {
+) (map[cpsession.AccountID]*playerv1.Player, error) {
 	if a.asked != nil {
 		*a.asked = append(*a.asked, accounts...)
 	}
 	if a.err != nil {
 		return nil, a.err
 	}
-	known := map[cpsession.AccountID]*playerv1.Author{
+	known := map[cpsession.AccountID]*playerv1.Player{
 		ada: {AccountId: ada.String(), Name: "Ada"},
 		bob: {AccountId: bob.String(), Name: "Bob"},
 	}
-	found := map[cpsession.AccountID]*playerv1.Author{}
+	found := map[cpsession.AccountID]*playerv1.Player{}
 	for _, account := range accounts {
 		if author, ok := known[account]; ok {
 			found[account] = author
@@ -246,7 +246,7 @@ func (s *testSuite) TestARemovedMessageIsReadAsItWasSentWithWhenItWasRemoved() {
 func (s *testSuite) TestEveryAuthorIsNamedAsNowAndAskedForOnce() {
 	asked := new([]cpsession.AccountID)
 	s.sent(messages.Snapshot{
-		ID: "legacy", SentAt: now.Add(-4 * time.Minute), Author: messages.AuthorOf("Old_Name", false, 0, 0, messages.Title{}),
+		ID: "legacy", SentAt: now.Add(-4 * time.Minute), Author: messages.AuthorOf("Old_Name", false, 0),
 		Country: "fr", Text: "old",
 	})
 	s.sent(messages.Snapshot{ID: "gone", SentAt: now.Add(-3 * time.Minute), Account: deleted, Country: "fr", Text: "bye"})
@@ -283,6 +283,23 @@ func (s *testSuite) TestAReplyCarriesWhatItAnswersAsItWasSent() {
 	s.Equal("Ada", quote.GetAuthorName())
 	s.Equal("come at me", quote.GetText(), "the operator reads what was removed")
 	s.Equal(now.Add(-time.Second), quote.GetRemovedAt().AsTime())
+}
+
+func (s *testSuite) TestAGifAndTheQuoteOfOneAreReadWithTheirAddress() {
+	gif := messages.Gif{URL: "https://static.klipy.com/ii/935d7ab9/14/af/SE72470w.webp", Width: 220, Height: 124}
+	s.sent(messages.Snapshot{ID: "dance", SentAt: now.Add(-time.Hour), Account: ada, Country: "fr", Gif: gif})
+	s.sent(messages.Snapshot{
+		ID: "answer", SentAt: now.Add(-time.Minute), Account: bob, Country: "fr", Text: "nice",
+		Quote: messages.Quote{MessageID: "dance"},
+	})
+
+	page := s.page(messages_query.Cursor{}, 10)
+
+	s.Require().Len(page, 2)
+	s.Equal(gif.URL, page[0].GetGif().GetUrl())
+	s.Equal(uint32(124), page[0].GetGif().GetHeight())
+	s.Nil(page[1].GetGif())
+	s.Equal(gif.URL, page[1].GetReplyTo().GetGif().GetUrl())
 }
 
 func (s *testSuite) TestAReplyToAMessagePastTheRetentionHasNoQuote() {

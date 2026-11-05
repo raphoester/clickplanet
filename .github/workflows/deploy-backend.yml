@@ -130,10 +130,14 @@ jobs:
             docker compose pull
             docker compose run --rm --no-deps -T caddy \
               caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
-            docker compose up -d
+            # Start cp-backend once: a second recreate kills the first boot mid-migration and leaves schema_migrations dirty.
+            recreate=
             if ! git -C /opt/clickplanet diff --quiet "$before" HEAD -- deploy/vps/backend.yaml; then
-              docker compose up -d --force-recreate --no-deps backend
+              recreate=--force-recreate
             fi
+            docker compose up -d $recreate backend
+            others=$(docker compose config --services | grep -vx backend)
+            docker compose up -d --no-deps $others
             # up -d ignores a Caddyfile edit; retry until a new Caddy's admin API listens.
             for i in $(seq 1 15); do
               docker compose exec -T caddy \

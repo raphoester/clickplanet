@@ -13,41 +13,30 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ messages.Storage = (*Store)(nil)
 
 func (s *Store) Append(ctx context.Context, record messages.Record) error {
-	if _, err := s.db.ExecContext(ctx, `
-		INSERT INTO messages (id, sent_at, account_id, name, author_admin, author_id, country, ip, user_agent, text, reply_to)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
+		WITH kept AS (
+			INSERT INTO messages (id, sent_at, account_id, name, author_admin, author_id, country, ip, user_agent, text,
+				reply_to, room)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			RETURNING seq
+		)
+		INSERT INTO gifs (message_seq, url, width, height)
+		SELECT seq, $13, $14, $15 FROM kept WHERE $13 <> ''
 	`, row(record)...); err != nil {
 		return fmt.Errorf("failed to insert a message: %w", err)
 	}
 	return nil
-}
-
-func (s *Store) Shown(ctx context.Context, id messages.MessageID, since time.Time, limit int) (bool, error) {
-	var shown bool
-	if err := s.db.QueryRowContext(ctx, `
-		SELECT EXISTS (
-			SELECT 1 FROM (
-				SELECT id FROM messages
-				WHERE sent_at >= $2
-				ORDER BY seq DESC LIMIT $3
-			) recent
-			WHERE recent.id = $1 AND NOT EXISTS (SELECT 1 FROM removals WHERE removals.message_id = recent.id)
-		)
-	`, string(id), since, limit).Scan(&shown); err != nil {
-		return false, fmt.Errorf("failed to read whether a message is shown: %w", err)
-	}
-	return shown, nil
 }
 
 func (s *Store) Message(ctx context.Context, id messages.MessageID, since time.Time, limit int) (messages.Message, error) {
@@ -56,21 +45,25 @@ func (s *Store) Message(ctx context.Context, id messages.MessageID, since time.T
 		account uuid.NullUUID
 		name    string
 		admin   bool
+		room    string
 		country string
 		text    string
 		replyTo sql.NullString
+		gif     messages.Gif
 	)
-	err := s.db.QueryRowContext(ctx, `
-		SELECT recent.sent_at, recent.account_id, recent.name, recent.author_admin, recent.country, recent.text,
-			recent.reply_to
+	err := s.db.On(ctx).QueryRowContext(ctx, `
+		SELECT recent.sent_at, recent.account_id, recent.name, recent.author_admin, recent.room, recent.country,
+			recent.text, recent.reply_to, COALESCE(gifs.url, ''), COALESCE(gifs.width, 0), COALESCE(gifs.height, 0)
 		FROM (
-			SELECT id, sent_at, account_id, name, author_admin, country, text, reply_to
+			SELECT seq, id, sent_at, account_id, name, author_admin, room, country, text, reply_to
 			FROM messages
-			WHERE sent_at >= $2
+			WHERE room = (SELECT room FROM messages WHERE id = $1 ORDER BY seq DESC LIMIT 1) AND sent_at >= $2
 			ORDER BY seq DESC LIMIT $3
 		) recent
+		LEFT JOIN gifs ON gifs.message_seq = recent.seq
 		WHERE recent.id = $1 AND NOT EXISTS (SELECT 1 FROM removals WHERE removals.message_id = recent.id)
-	`, string(id), since, limit).Scan(&sentAt, &account, &name, &admin, &country, &text, &replyTo)
+	`, string(id), since, limit).Scan(&sentAt, &account, &name, &admin, &room, &country, &text, &replyTo,
+		&gif.URL, &gif.Width, &gif.Height)
 	if errors.Is(err, sql.ErrNoRows) {
 		return messages.Message{}, messages.ErrNotShown
 	}
@@ -82,9 +75,11 @@ func (s *Store) Message(ctx context.Context, id messages.MessageID, since time.T
 		ID:      id,
 		SentAt:  sentAt.UTC(),
 		Account: messages.AccountID(account.UUID),
-		Author:  messages.AuthorOf(name, admin, 0, 0, messages.Title{}),
+		Author:  messages.AuthorOf(name, admin, 0),
+		Room:    messages.Room(room),
 		Country: country,
 		Text:    text,
+		Gif:     gif,
 		Quote:   messages.Quote{MessageID: messages.MessageID(replyTo.String)},
 	}.Restore()
 	if err != nil {
@@ -95,7 +90,7 @@ func (s *Store) Message(ctx context.Context, id messages.MessageID, since time.T
 
 func (s *Store) LatestAddress(ctx context.Context, account messages.AccountID) (string, error) {
 	var ip string
-	err := s.db.QueryRowContext(ctx, `
+	err := s.db.On(ctx).QueryRowContext(ctx, `
 		SELECT ip FROM messages WHERE account_id = $1 ORDER BY seq DESC LIMIT 1
 	`, uuid.UUID(account)).Scan(&ip)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -110,7 +105,7 @@ func (s *Store) LatestAddress(ctx context.Context, account messages.AccountID) (
 // Removed or not: a removal is of a message that was kept.
 func (s *Store) Kept(ctx context.Context, id messages.MessageID, since time.Time) (bool, error) {
 	var kept bool
-	if err := s.db.QueryRowContext(ctx, `
+	if err := s.db.On(ctx).QueryRowContext(ctx, `
 		SELECT EXISTS (SELECT 1 FROM messages WHERE id = $1 AND sent_at >= $2)
 	`, string(id), since).Scan(&kept); err != nil {
 		return false, fmt.Errorf("failed to read whether a message is kept: %w", err)
@@ -119,7 +114,7 @@ func (s *Store) Kept(ctx context.Context, id messages.MessageID, since time.Time
 }
 
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM messages WHERE sent_at < $1`, cutoff)
+	result, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM messages WHERE sent_at < $1`, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("failed to delete old messages: %w", err)
 	}
@@ -146,6 +141,10 @@ func row(record messages.Record) []any {
 		kept.UserAgent,
 		message.Text,
 		sql.NullString{String: string(message.Quote.MessageID), Valid: message.Quote.MessageID != ""},
+		string(message.Room),
+		message.Gif.URL,
+		message.Gif.Width,
+		message.Gif.Height,
 	}
 }
 

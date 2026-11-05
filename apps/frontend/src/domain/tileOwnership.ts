@@ -1,5 +1,3 @@
-import type {Ownerships, Update} from "../backends/backend.ts";
-
 export type OwnerChange = {
     tile: number
     country: string | undefined
@@ -18,88 +16,38 @@ export type OptimisticPaint = {
 type Pending = {
     readonly inFlight: Map<number, string>
     country: string | undefined
-    claimedLive: boolean
 }
 
+// The flag on each tile, and the player's own clicks painted before the server agreed to them.
 export class TileOwnership {
     private readonly owners: (string | undefined)[]
-    private readonly claimedLive: Uint8Array
-    private readonly countsByCountry = new Map<string, number>()
     private readonly pending = new Map<number, Pending>()
     private lastToken = 0
 
     constructor(public readonly size: number) {
         this.owners = new Array<string | undefined>(size + 1)
-        this.claimedLive = new Uint8Array(size + 1)
     }
 
     public ownerOf(tile: number): string | undefined {
         return this.owners[tile]
     }
 
-    public counts(): ReadonlyMap<string, number> {
-        return this.countsByCountry
-    }
-
-    public applyBatch(ownerships: Ownerships): OwnerChange[] {
-        const changes: OwnerChange[] = []
-        ownerships.bindings.forEach((country, tile) => {
-            if (this.inRange(tile)) this.takeFromMap(tile, country, changes)
-        })
-        return changes
-    }
-
-    public forgetLive(): void {
-        this.claimedLive.fill(0)
-        for (const [tile, pending] of this.pending) {
-            this.claimedLive[tile] = 1
-            pending.claimedLive = false
-        }
-    }
-
-    public resync(bindings: ReadonlyMap<number, string>): OwnerChange[] {
-        const changes: OwnerChange[] = []
-        for (let tile = 1; tile <= this.size; tile++) {
-            this.takeFromMap(tile, bindings.get(tile), changes)
-        }
-        return changes
-    }
-
-    private takeFromMap(tile: number, country: string | undefined, changes: OwnerChange[]) {
+    // From a read: a click in flight stays painted, and the read is what its rollback goes back to.
+    public take(tile: number, country: string | undefined, changes: OwnerChange[]): void {
+        if (!this.inRange(tile)) return
         const pending = this.pending.get(tile)
         if (pending) {
-            if (!pending.claimedLive) pending.country = country
+            pending.country = country
             return
         }
-
-        if (this.claimedLive[tile]) return
         if (this.assign(tile, country)) changes.push({tile, country})
     }
 
-    public applyUpdates(updates: Update[]): OwnerChange[] {
-        const changes: OwnerChange[] = []
-        for (const update of updates) {
-            const {tile, newCountry: country} = update
-            if (!this.inRange(tile)) continue
-
-            this.pending.delete(tile)
-
-            this.claimedLive[tile] = 1
-            if (this.assign(tile, country)) changes.push({tile, country})
-        }
-        return changes
-    }
-
-    public applyClears(tiles: number[]): OwnerChange[] {
-        const changes: OwnerChange[] = []
-        for (const tile of tiles) {
-            if (!this.inRange(tile)) continue
-
-            this.pending.delete(tile)
-            this.claimedLive[tile] = 1
-            if (this.assign(tile, undefined)) changes.push({tile, country: undefined})
-        }
-        return changes
+    // From the stream: what the server did wins over a click in flight, the click's own echo included.
+    public set(tile: number, country: string | undefined, changes: OwnerChange[]): void {
+        if (!this.inRange(tile)) return
+        this.pending.delete(tile)
+        if (this.assign(tile, country)) changes.push({tile, country})
     }
 
     public applyOptimistic(tile: number, country: string): OptimisticPaint {
@@ -110,14 +58,9 @@ export class TileOwnership {
         if (pending) {
             pending.inFlight.set(token, country)
         } else {
-            this.pending.set(tile, {
-                inFlight: new Map([[token, country]]),
-                country: this.owners[tile],
-                claimedLive: this.claimedLive[tile] === 1,
-            })
+            this.pending.set(tile, {inFlight: new Map([[token, country]]), country: this.owners[tile]})
         }
 
-        this.claimedLive[tile] = 1
         const changes = this.assign(tile, country) ? [{tile, country}] : []
         return {changes, claim: {tile, token}}
     }
@@ -132,7 +75,6 @@ export class TileOwnership {
         if (newest !== undefined) return this.change(claim.tile, newest)
 
         this.pending.delete(claim.tile)
-        this.claimedLive[claim.tile] = pending.claimedLive ? 1 : 0
         return this.change(claim.tile, pending.country)
     }
 
@@ -141,24 +83,9 @@ export class TileOwnership {
     }
 
     private assign(tile: number, country: string | undefined): boolean {
-        const previous = this.owners[tile]
-        if (previous === country) return false
-
-        if (previous !== undefined) this.decrement(previous)
+        if (this.owners[tile] === country) return false
         this.owners[tile] = country
-        if (country !== undefined) {
-            this.countsByCountry.set(country, (this.countsByCountry.get(country) ?? 0) + 1)
-        }
         return true
-    }
-
-    private decrement(country: string) {
-        const remaining = (this.countsByCountry.get(country) ?? 0) - 1
-        if (remaining > 0) {
-            this.countsByCountry.set(country, remaining)
-        } else {
-            this.countsByCountry.delete(country)
-        }
     }
 
     private inRange(tile: number): boolean {

@@ -1,5 +1,5 @@
 import {useId} from "react"
-import {CountryTiles, Fronts} from "../../backends/player.ts"
+import {CountryTiles, Fronts} from "../../backends/progression.ts"
 import {Countries} from "../../domain/countries.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import Fold from "../components/Fold.tsx"
@@ -54,7 +54,7 @@ function FrontFold({title, countries}: {title: string, countries: CountryTiles[]
     </Fold>
 }
 
-function FrontList({countries}: {countries: CountryTiles[]}) {
+export function FrontList({countries}: {countries: CountryTiles[]}) {
     const most = Math.max(...countries.map((country) => country.tiles))
     return <ol className="player-front-list">
         {countries.map(({countryCode, tiles}) => {

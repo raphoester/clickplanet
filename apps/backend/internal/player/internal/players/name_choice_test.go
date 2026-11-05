@@ -41,26 +41,26 @@ func TestAGivenNameIsNotAChoiceAndChangesAtOnce(t *testing.T) {
 	assert.Equal(t, players.Name("Ada"), profile.TakeSnapshot().Name)
 }
 
-func TestAChangeOnDay29IsRefusedAndSaysWhenOneIsAllowed(t *testing.T) {
-	for _, at := range []time.Time{chosenAt.Add(time.Minute), chosenAt.Add(29 * day), chosenAt.Add(30*day - time.Nanosecond)} {
+func TestAChangeOnDay6IsRefusedAndSaysWhenOneIsAllowed(t *testing.T) {
+	for _, at := range []time.Time{chosenAt.Add(time.Minute), chosenAt.Add(6 * day), chosenAt.Add(7*day - time.Nanosecond)} {
 		_, err := chosen(t).Renamed("Bob", at)
 
 		require.ErrorIs(t, err, players.ErrRenamedTooSoon, "%s", at)
 		var refusal players.RenameRefusal
 		require.ErrorAs(t, err, &refusal)
-		assert.Equal(t, chosenAt.Add(30*day), refusal.Until)
+		assert.Equal(t, chosenAt.Add(7*day), refusal.Until)
 	}
 }
 
-func TestAChangeOnDay30IsAllowedAndStartsTheWaitAgain(t *testing.T) {
-	renamed, err := chosen(t).Renamed("Bob", chosenAt.Add(30*day))
+func TestAChangeOnDay7IsAllowedAndStartsTheWaitAgain(t *testing.T) {
+	renamed, err := chosen(t).Renamed("Bob", chosenAt.Add(7*day))
 	require.NoError(t, err)
 
-	_, err = renamed.Renamed("Cyd", chosenAt.Add(59*day))
+	_, err = renamed.Renamed("Cyd", chosenAt.Add(13*day))
 
 	var refusal players.RenameRefusal
 	require.ErrorAs(t, err, &refusal)
-	assert.Equal(t, chosenAt.Add(60*day), refusal.Until)
+	assert.Equal(t, chosenAt.Add(14*day), refusal.Until)
 }
 
 func TestARenameKeepsTheAdminAndTheColor(t *testing.T) {
@@ -76,5 +76,5 @@ func TestARenameKeepsTheAdminAndTheColor(t *testing.T) {
 
 func TestANameNeverChosenIsRenamableAtAnyTime(t *testing.T) {
 	assert.True(t, players.NameChosenAt(time.Time{}).RenamableAt().IsZero())
-	assert.Equal(t, chosenAt.Add(30*day), players.NameChosenAt(chosenAt).RenamableAt())
+	assert.Equal(t, chosenAt.Add(7*day), players.NameChosenAt(chosenAt).RenamableAt())
 }

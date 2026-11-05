@@ -256,3 +256,46 @@ func TestAnEventOfAKindTheLedgerDoesNotKnowRefusesTheBoot(t *testing.T) {
 
 	require.ErrorIs(t, newStorage(inmemory_ledger_storage.Config{}, persistence).Load(t.Context()), ledger.ErrUnknownKind)
 }
+
+func saved(storage *inmemory_ledger_storage.Storage, from ledger.Position, most int) ([]ledger.Position, ledger.Position) {
+	var positions []ledger.Position
+	next := storage.ReplaySaved(from, most, func(position ledger.Position, _ ledger.Event) {
+		positions = append(positions, position)
+	})
+	return positions, next
+}
+
+func TestReplaySavedTellsOnlyWhatAFlushWrote(t *testing.T) {
+	storage := loaded(t, inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
+
+	storage.Append(take(1, "a", "fr", "", start))
+	storage.Append(take(2, "a", "fr", "", start))
+	require.NoError(t, storage.Flush(t.Context()))
+	storage.Append(take(3, "a", "fr", "", start))
+
+	positions, next := saved(storage, 0, 10)
+	assert.Equal(t, []ledger.Position{0, 1}, positions)
+	assert.Equal(t, ledger.Position(2), next)
+
+	positions, next = saved(storage, 2, 10)
+	assert.Empty(t, positions, "a take still in memory is not told")
+	assert.Equal(t, ledger.Position(2), next)
+
+	require.NoError(t, storage.Flush(t.Context()))
+	positions, next = saved(storage, 2, 10)
+	assert.Equal(t, []ledger.Position{2}, positions)
+	assert.Equal(t, ledger.Position(3), next)
+}
+
+func TestReplaySavedTellsAtMostABatch(t *testing.T) {
+	storage := loaded(t, inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
+	for tile := range uint32(5) {
+		storage.Append(take(tile, "a", "fr", "", start))
+	}
+	require.NoError(t, storage.Flush(t.Context()))
+
+	positions, next := saved(storage, 1, 2)
+
+	assert.Equal(t, []ledger.Position{1, 2}, positions)
+	assert.Equal(t, ledger.Position(3), next)
+}

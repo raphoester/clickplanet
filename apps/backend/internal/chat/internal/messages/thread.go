@@ -10,7 +10,7 @@ import (
 
 const DeletedName = "[deleted]"
 
-var deleted = AuthorOf(DeletedName, false, 0, 0, Title{})
+var deleted = AuthorOf(DeletedName, false, 0)
 
 type Shown interface {
 	Message(ctx context.Context, id MessageID, since time.Time, limit int) (Message, error)
@@ -49,7 +49,7 @@ func (t Thread) Reply(ctx context.Context, draft Message, replyTo MessageID) (Me
 	if err != nil {
 		return Message{}, err
 	}
-	return draft.Answering(named), nil
+	return draft.Answering(named)
 }
 
 func (t Thread) named(ctx context.Context, message Message) (Message, error) {

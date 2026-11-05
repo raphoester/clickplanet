@@ -1,0 +1,146 @@
+# The zoomed-out view
+
+Zoomed out, a tile is about a pixel and a half sampling a 100px flag out of one
+shared 1300×1232 atlas, so the GPU picks a mip level that is the whole atlas
+averaged and every country comes out the same mud. Turning mipmaps off swaps mud
+for sparkle. Neither end works, so from far enough away the globe is drawn from
+something coarser than a tile.
+
+Every tile resolves **offline** to a *landmass*: a country's tiles split into the
+separate pieces of land they actually form (Natural Earth 1:50m, 239 countries →
+694 landmasses). Neither borders nor tiles move, so `npm run map:generate` writes
+the whole table once and nothing recomputes it at runtime. Two tiles are the same
+piece when they **touch on the lattice** and carry the same country — not when
+they are within a tuned radius, which reached past the neighbours in places and
+joined two islands across a strait into one flag painted over the water between
+them. A landmass rather than a
+country because a flag belongs to a piece of ground — one frame spanning mainland
+France, Corsica, Guiana and Réunion would stretch the tricolour across half the
+planet and paint nothing recognisable anywhere.
+
+**The flags are painted in their landmass's frame**, with distance measured
+**along the surface**, so they bend with the globe and are cropped by their own
+coastline. A player picks how, under "Country flags" in Settings (`MapView` in the
+display settings): **Split**, the default, paints each tile in its own holder's
+flag, so a landmass one flag holds whole is one picture and a landmass several
+flags share is that many pieces; **Big** paints the whole landmass in the flag that
+leads it, at its share; **Off** paints nothing (below). The choice reaches the
+running globe through `Globe.setMapView` and the `splitFlags` uniform, so it never
+rebuilds it. The flag that leads the landmass gets the frame fitted to it and its slot:
+`BorderField` writes it from the server's row for the landmass (`setRows`, with
+`Holdings.leaderOf`: see [The counts are the server's](counts.md)) into one row
+per landmass of a `DataTexture` the vertex shader reads. Any other flag covers the
+landmass from its middle (`coverOf` in the display vertex shader), from the
+landmass's reach, which the same row keeps. A tile knows it holds the leader's flag
+when its own atlas rectangle is the one in the row.
+
+**The painted flag is read under the pixel, not per tile.** It still reaches the
+screen through the discs — that is what the widening is for — but what each
+fragment shows is the flag at the point of ground beneath it, so overlapping
+discs of one holder agree and its ground comes out as one image at the resolution
+of the screen. The vertex shader hands the fragment shader the frame rather than a
+colour: where the tile's own centre falls in the flag, and how far that slides
+under one screen pixel across and up. A pixel is a step on the *screen*, so the
+ground step behind it is the one whose projection is a pixel — the tangent part
+of the camera's axis over how much of itself the projection keeps, floored near
+the limb where that divisor runs to zero. Those same two vectors are the
+footprint the atlas is sampled over (`textureGrad`), which is the only reason a
+mip level can be chosen at all: the frame is flat across a sprite, so without
+them the driver takes the top one and point-samples a 100px flag into a few
+dozen pixels.
+
+One sample per disc was the whole flag's resolution before, and a landmass is
+often only a few tiles across at the zoom where its flag is painted — six or
+seven samples of Macedonia's sun or Serbia's arms, with neighbouring discs each
+landing on a different one. Bands survived it; anything carrying a device came
+out as pixel soup on exactly the countries that are too small to zoom past.
+
+The lookup is skipped outright while `flagPaint` is 0, which pays for it: zoomed
+in it was four vertex texture fetches and a frame per tile for a colour the
+fragment shader mixed straight back out, and the fragment shader now skips the
+tile's own atlas fetch at the other end, where the painted flag has the frame to
+itself.
+
+**The flags holding the biggest landmasses are drawn from their SVGs, not read
+from the atlas.** A sprite is 100px wide and a painted flag is as wide as its
+landmass: at the last zoom where the flag is painted alone, about 135 of the
+307 painted landmasses stretch their sprite past 1.5× on a plain screen, about
+180 on a retina one, and the biggest — Russia, Antarctica, Brazil — past 20×,
+so a motto or a device was mud. Eight slots (`SLOT_COUNT` in
+`slotRanking.ts`), cells of 768×512 in one 1536×2048 canvas (`flagSlots.ts`;
+12.6 MB on the GPU, 17 with its mipmaps, allocated the first time a flag is
+drawn into it), hold one flag each, rasterised from
+`static/countries/svg/<code>.svg` at its sprite's aspect, as large as fits
+inside a 32px margin that repeats its last column and row, so a coarse mip
+level finds the flag's own colours at its edge.
+
+`SlotRanking` decides which eight, with no GPU in reach and nothing about the
+camera: the flags holding the biggest painted landmasses, each by the
+half-width of the largest landmass it holds (`BorderField.flagNeeds`). A flag
+keeps its slot while it holds its place; a slot freed by a flag painted nowhere
+any more goes to the next in line, and the weakest holder is evicted only for a
+flag that needs `EVICTION_MARGIN` (1.2×) more, so a tile war over one landmass
+does not redraw the texture every second. The ranking runs on every recount,
+never per frame. **A slotted flag samples its slot wherever it is painted**,
+whatever the landmass's size and whether it leads it or not: `FlagSlots` keeps
+the atlas rectangle of each slot's flag in `slotRegions`, the vertex shader
+finds the tile's flag among them, reads that slot's frame from `slotFrames` and
+hands the fragment shader the frame to sample, with the same uv and the same
+`textureGrad` footprint as on the atlas. So one flag looks the same everywhere,
+and a flag beyond the eight stays on the atlas everywhere. One slot for the
+biggest flag in view was tried first, and a sharp Brazil beside a blurred Brazil
+on Peru looked worse than neither. The slot was then only for the landmasses a
+flag leads, and that gave the same defect on a contested landmass: a blurred
+Brazil on Argentina, led by Bulgaria. The SVG
+is fetched the first time its flag earns a slot and kept for the session; the
+atlas shows until it is drawn, and a flag whose SVG fails stays on the atlas
+and is not asked for again. Nothing is fetched on a page where no flag is
+painted.
+
+**Split is opaque.** It is how the season-end clips paint the map, every point in
+its own tile's holder's flag, and they looked much better than Big, where a
+contested landmass comes out as one faded flag over the photo and the ground the
+others hold does not show. Zoomed in, the tiles are still at 0.7 over the ground,
+so a country is a little fainter once its tiles have the frame.
+
+**Big's opacity is the leader's share, and the curve it goes through is not a free
+knob.** Zoomed in, that share is already on screen as the fraction of discs
+wearing the holder's flag, so the tiles show `share * 0.7` of ink no matter what;
+the painted flag shows `share * 0.94`. Bend the curve and the summary becomes
+fainter than the tiles it hands over to, and a country gets *brighter* as you zoom
+into it — measured at 5x for Sudan with the share cubed. `borderField.test.ts`
+pins this.
+
+**One schedule owns the whole handover** — `coarseHandover` in `pointSize.ts`
+drives the flag fading out, the tiles fading in, the disc widening being undone,
+and the outline moving from over the tiles to under them. They only work
+together: the flag reaches the ground only through the discs, so while it is
+painted they must cover the ground, and a tile you are about to aim at must not
+be fattened. Circles on a regular hex lattice cover it at 1.155x the spacing, but
+this lattice is up to 11% wider than its median spacing (its 99th percentile), so
+the discs are widened to 1.31x (`SPREAD`). At 1.16x half the globe had holes, and
+the opaque flag showed them as a fine dotted pattern. A disc only a few pixels wide
+is drawn square (`SQUARE_UNTIL` in the display fragment shader): a round one that
+small leaves whole pixels between its neighbours.
+Running them on separate schedules left a band where the flag was painted
+through a lattice with holes in it. `pointSize.test.ts` pins that too, and those
+tests fail if the two are split again.
+
+**A player can turn the painted flags off** — Off under "Country flags".
+Players draw pictures with the tiles, and the painted flag hides them. With it off
+(`MapView` `"tiles"`), the handover in `pointSize.ts` is held at 1 at every zoom, so the
+globe is drawn as it was before #52: each tile its own flag at its own size,
+and the outline always under the tiles. Zoomed out that is the mud described
+above, and that is the price of seeing every tile. It used to be a switch, "Big
+country flags": a setting saved by it as `"flags"` now reads as the default, Split.
+
+`npm run flagFit` decides the rest for the leader's flag: a flag that is only bands can be pulled to
+the country's own shape and still say what it is, while one carrying a device is
+cropped, anchored on the part that names it rather than on its middle. The
+result is `static/countries/flagFit.json`.
+
+**Every tile is in a country**, because both blobs come from one Natural Earth
+query: a tile exists exactly where `groundOf` answers a code, and that same answer
+is what the borders blob records. The 2,191 tiles that used to fall outside every
+country are what the globe drew as discs floating on open water with no outline
+round them. See [`/map/README.md`](../../../map/README.md).

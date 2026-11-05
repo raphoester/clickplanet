@@ -60,7 +60,7 @@ describe("RecruitLink", () => {
 
         await user.click(button("Copy link"))
 
-        expect(deliver).toHaveBeenCalledWith("copy", "https://clickplanet.lol/?f=fr",
+        expect(deliver).toHaveBeenCalledWith("copy", "https://clickplanet.lol/?f=fr&s=rc",
             "France is #2 on ClickPlanet with 1,500 tiles. Come and take them.")
         await waitFor(() => expect(button("Copied!")).toBeDefined())
     })

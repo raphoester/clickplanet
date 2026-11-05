@@ -1,15 +1,21 @@
-import {AccountBackend, AuthFailure, failureOf, Intent, Me, OAuthProvider, Provider, PROVIDERS} from "../../backends/account.ts"
 import {
-    Fronts,
-    NameColor,
-    PlayerBackend,
-    PlayerFailure,
-    playerFailureOf,
-    PlayerTitle,
-    RenameTooSoonError,
-    TitleDashboard,
-} from "../../backends/player.ts"
+    AccountBackend,
+    AuthFailure,
+    ButtonProvider,
+    failureOf,
+    Intent,
+    Me,
+    OAuthProvider,
+    Provider,
+    PROVIDERS,
+    SignInOutcome,
+} from "../../backends/account.ts"
+import {NameColor, PlayerBackend, PlayerFailure, playerFailureOf, RenameTooSoonError} from "../../backends/player.ts"
+import {Fronts, PlayerTitle, ProgressionBackend, TitleDashboard} from "../../backends/progression.ts"
 import {SessionProvider} from "../../backends/session.ts"
+import {useBadges} from "../badges/badgesStore.ts"
+import {CrazyGamesUser} from "../../backends/crazyGames.ts"
+import {crazyGamesUserOf, leaving, LeaverStore} from "../../domain/crazyGames.ts"
 
 export type AccountAction = "signIn" | "link" | "sendCode" | "checkCode" | "signOut" | "signOutEverywhere" | "deleteAccount"
 
@@ -33,6 +39,12 @@ export type AccountState =
         color?: NameColor
         coloring?: true
         colorFailure?: PlayerFailure
+        // This browser's sign-in gave the guest it was on its first identity, which earns a refill.
+        guestLinked?: true
+        // This browser's sign-in brought back an account its player had asked to delete, until the player is told.
+        restored?: true
+        // This browser's sign-in was Discord's, which joins the game's Discord server a moment after it comes back.
+        joiningDiscord?: true
     }
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -40,18 +52,26 @@ type Ready = Extract<AccountState, {kind: "ready"}>
 export type AccountStoreOptions = {
     navigate: (url: string) => void
     remember: (provider: OAuthProvider, intent: Intent) => void
+    // Pledges the page's flag to an account that holds none: Discord's sign-in joins the server with the flag's role.
+    claimFlag: () => Promise<void>
+    // On CrazyGames its account is the only way in, and the page plays as whoever CrazyGames says is signed in.
+    crazyGames?: CrazyGamesUser
+    // On CrazyGames, who asked on this device to delete their account: see leaving.
+    leavers?: LeaverStore
 }
 
 // Every change of account must invalidate the click token, which names the old account.
 export class AccountStore {
     private current: AccountState = {kind: "loading"}
     private loading?: Promise<void>
+    private following?: Promise<void>
     private generation = 0
     private readonly listeners = new Set<() => void>()
 
     constructor(
         private readonly backend: AccountBackend,
         private readonly player: PlayerBackend,
+        private readonly progression: ProgressionBackend,
         private readonly session: SessionProvider,
         private readonly options: AccountStoreOptions,
     ) {
@@ -59,11 +79,21 @@ export class AccountStore {
 
     public state = (): AccountState => this.current
 
-    public titles = (): Promise<TitleDashboard> => this.player.titles()
+    public titles = async (): Promise<TitleDashboard> => {
+        const generation = this.generation
+        const dashboard = await this.progression.titles()
+        this.wore(generation, dashboard.worn)
+        return dashboard
+    }
 
-    public wearTitle = (id: string): Promise<PlayerTitle | undefined> => this.player.wearTitle(id)
+    public wearTitle = async (id: string): Promise<PlayerTitle | undefined> => {
+        const generation = this.generation
+        const worn = await this.progression.wearTitle(id)
+        this.wore(generation, worn)
+        return worn
+    }
 
-    public fronts = (): Promise<Fronts> => this.player.fronts()
+    public fronts = (): Promise<Fronts> => this.progression.fronts()
 
     public subscribe = (listener: () => void): (() => void) => {
         this.listeners.add(listener)
@@ -86,8 +116,8 @@ export class AccountStore {
         return this.loading
     }
 
-    public signIn(provider: OAuthProvider): Promise<void> {
-        return this.go("signIn", provider, "signIn")
+    public signIn(provider: ButtonProvider): Promise<void> {
+        return provider === "crazygames" ? this.promptCrazyGames() : this.go("signIn", provider, "signIn")
     }
 
     public link(provider: OAuthProvider): Promise<void> {
@@ -123,16 +153,16 @@ export class AccountStore {
         const ready = this.begin("checkCode")
         if (!ready) return
 
+        let outcome: SignInOutcome
         try {
-            await this.backend.completeEmailSignIn(code)
+            outcome = await this.backend.completeEmailSignIn(code)
         } catch (e) {
             const failure = failureOf(e)
             const kept = failure === "wrongCode" || failure === "tooManyTries" || failure === "failed"
             this.refused(ready, "email", failure, kept ? ready.code : undefined)
             return
         }
-        this.session.invalidate()
-        await this.load()
+        await this.signedIn(outcome)
     }
 
     public cancelCode(): void {
@@ -153,33 +183,126 @@ export class AccountStore {
         this.settle(offered, ready.me, {...named(ready), failure, code})
     }
 
+    // Discord's sign-in joins the game's server too. An account signed in already links it, so the player stays on it;
+    // a guest signs in, and moves to the account that Discord user has, if any. Refused, it throws, and changes nothing.
+    public connectDiscord(): Promise<void> {
+        const ready = this.current
+        const intent: Intent = ready.kind === "ready" && ready.me.linked.length > 0 ? "link" : "signIn"
+        return this.leaveFor("discord", intent)
+    }
+
     public async leaveFor(provider: OAuthProvider, intent: Intent): Promise<void> {
+        if (provider === "discord") await this.claimFlag()
         const url = await this.backend.startSignIn(provider, intent)
         this.options.remember(provider, intent)
         this.options.navigate(url)
     }
 
-    public async completeSignIn(code: string, state: string): Promise<void> {
-        await this.backend.completeSignIn(code, state)
+    // A failed pledge still joins: the first click pledges, and the role follows the pledge.
+    private async claimFlag(): Promise<void> {
+        try {
+            await this.options.claimFlag()
+        } catch (e) {
+            console.error("Could not pledge the flag before Discord's sign-in", e)
+        }
+    }
+
+    // provider: the one the browser left for, when it is remembered.
+    public async completeSignIn(code: string, state: string, provider?: OAuthProvider): Promise<void> {
+        await this.signedIn(await this.backend.completeSignIn(code, state), provider)
+    }
+
+    private async signedIn(outcome: SignInOutcome, provider?: OAuthProvider): Promise<void> {
         this.session.invalidate()
         await this.load()
+
+        const ready = this.current
+        if (ready.kind !== "ready") return
+        const marked: Ready = {...ready}
+        if (outcome === "linked" && ready.me.linked.length === 1) marked.guestLinked = true
+        if (outcome === "restored") marked.restored = true
+        if (provider === "discord") marked.joiningDiscord = true
+        if (marked.guestLinked || marked.restored || marked.joiningDiscord) this.set(marked)
     }
 
-    public signOut(): Promise<void> {
-        return this.leave("signOut", () => this.backend.signOut())
+    public welcomedBack(): void {
+        const ready = this.current
+        if (ready.kind !== "ready" || !ready.restored) return
+        this.set({...ready, restored: undefined})
     }
 
-    public signOutEverywhere(): Promise<void> {
-        return this.leave("signOutEverywhere", () => this.backend.signOutEverywhere())
+    // At every start, and at every sign-in CrazyGames tells: a shared device, or a player signed out there, changes who plays.
+    public followCrazyGames(): Promise<void> {
+        const crazyGames = this.options.crazyGames
+        if (!crazyGames) return Promise.resolve()
+        this.following ??= this.signInAs(crazyGames).finally(() => {
+            this.following = undefined
+        })
+        return this.following
     }
 
-    public deleteAccount(): Promise<void> {
-        return this.leave("deleteAccount", () => this.backend.deleteAccount())
+    private async signInAs(crazyGames: CrazyGamesUser): Promise<void> {
+        const token = await crazyGames.token()
+        if (this.current.kind !== "ready") await this.load()
+        const ready = this.current
+        if (ready.kind !== "ready") return
+
+        if (token === undefined) {
+            if (ready.me.linked.includes("crazygames")) await this.signOut()
+            return
+        }
+        if (leaving(this.options.leavers?.read(), crazyGamesUserOf(token), Date.now())) return
+        if (!ready.offered.includes("crazygames") || !this.begin("signIn")) return
+
+        let outcome: SignInOutcome
+        try {
+            outcome = await this.backend.completeCrazyGamesSignIn(token)
+        } catch (e) {
+            this.refused(ready, "crazygames", failureOf(e))
+            return
+        }
+        await this.signedIn(outcome)
     }
 
-    private async leave(action: AccountAction, call: () => Promise<void>): Promise<void> {
-        const ready = this.begin(action)
+    private async promptCrazyGames(): Promise<void> {
+        const crazyGames = this.options.crazyGames
+        if (!crazyGames) return
+        const ready = this.begin("signIn")
         if (!ready) return
+
+        const signedIn = await crazyGames.prompt()
+        this.settle(ready.offered, ready.me, named(ready))
+        if (!signedIn) return
+        // The player asked to sign in: that brings back an account they asked to delete.
+        this.options.leavers?.write(undefined)
+        await this.followCrazyGames()
+    }
+
+    public async signOut(): Promise<void> {
+        await this.leave("signOut", () => this.backend.signOut())
+    }
+
+    public async signOutEverywhere(): Promise<void> {
+        await this.leave("signOutEverywhere", () => this.backend.signOutEverywhere())
+    }
+
+    // The server keeps the account 30 days, and a sign-in to it before then brings it back.
+    public async deleteAccount(): Promise<void> {
+        if (await this.leave("deleteAccount", () => this.backend.deleteAccount())) await this.rememberLeaver()
+    }
+
+    private async rememberLeaver(): Promise<void> {
+        const crazyGames = this.options.crazyGames
+        if (!crazyGames || !this.options.leavers) return
+        const token = await crazyGames.token()
+        const user = token === undefined ? undefined : crazyGamesUserOf(token)
+        if (user !== undefined) this.options.leavers.write({user, at: Date.now()})
+    }
+
+    // Whether the browser left the account: false when the server refused.
+    private async leave(action: AccountAction, call: () => Promise<void>): Promise<boolean> {
+        const ready = this.begin(action)
+        if (!ready) return false
 
         try {
             await call()
@@ -187,13 +310,14 @@ export class AccountStore {
             const failure = failureOf(e)
             if (failure !== "notSignedIn") {
                 this.settle(ready.offered, ready.me, {...named(ready), failure})
-                return
+                return false
             }
         }
 
         this.generation++
         this.session.invalidate()
         this.settle(ready.offered, {linked: []})
+        return true
     }
 
     public async setUsername(name: string): Promise<void> {
@@ -258,6 +382,13 @@ export class AccountStore {
         this.set({...ready, accountId, username: name, color, renamableAt})
     }
 
+    // The title this account wears now goes beside its name everywhere on the page, before any read of its badge.
+    private wore(generation: number, worn: PlayerTitle | undefined) {
+        const ready = this.current
+        if (generation !== this.generation || ready.kind !== "ready" || ready.accountId === undefined) return
+        useBadges.getState().wear(ready.accountId, worn)
+    }
+
     private begin(action: AccountAction) {
         if (this.current.kind !== "ready" || this.current.busy || this.current.naming || this.current.coloring) return undefined
 
@@ -273,7 +404,7 @@ export class AccountStore {
             failure?: AuthFailure, accountId?: string, username?: string, renamableAt?: number, color?: NameColor, code?: PendingCode
         } = {},
     ) {
-        const ordered = PROVIDERS.filter((p) => offered.includes(p))
+        const ordered = PROVIDERS.filter((p) => offered.includes(p) && (p === "crazygames") === (this.options.crazyGames !== undefined))
         if (ordered.length === 0 && me.linked.length === 0) {
             this.set({kind: "hidden"})
             return

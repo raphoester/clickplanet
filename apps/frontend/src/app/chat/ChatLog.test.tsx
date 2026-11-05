@@ -7,26 +7,54 @@ import {quoteOf} from "../../domain/chatLog.ts"
 import ChatLog from "./ChatLog.tsx"
 import {QUOTE_MAX_LENGTH} from "./QuoteLine.tsx"
 import {NameColor} from "../../backends/player.ts"
+import {wordFilterOf} from "../../domain/wordFilter.ts"
+import {WordFilterContext} from "../crazygames/wordFilter.ts"
+import {usePlayerCard} from "../players/playerCardStore.ts"
+import {useBadges} from "../badges/badgesStore.ts"
+import {useChat} from "./chatStore.ts"
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    usePlayerCard.setState({openable: false, player: undefined})
+    useChat.setState(useChat.getInitialState(), true)
+    useBadges.getState().serve(undefined)
+})
 
 const message = (id: string, authorName: string, countryCode: string): ChatMessage =>
-    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorAccountId: `account-${authorName}`, authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
+    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorAccountId: `account-${authorName}`, authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
 
 describe("ChatLog", () => {
+    const dancing = {url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124}
+
+    it("draws a GIF at its size, no wider than the line, and a reply to it says GIF", () => {
+        const gif = {...message("1", "Ana", "fr"), text: "", gif: dancing}
+        const reply = {...message("2", "Bo", "de"), text: "nice", replyTo: quoteOf(gif)}
+        render(<ChatLog loading={false} messages={[gif, reply]}/>)
+
+        const image = screen.getByRole("img", {name: "GIF"})
+        expect(image.getAttribute("src")).toBe(dancing.url)
+        expect([image.getAttribute("width"), image.getAttribute("height")]).toEqual(["200", "113"])
+        expect(screen.getByText("GIF", {selector: ".chat-quote-text"})).toBeDefined()
+    })
+
+    it("shows a removed GIF as removed, with no image", () => {
+        render(<ChatLog loading={false} messages={[{...message("1", "Ana", "fr"), text: "", removed: true}]}/>)
+
+        expect(screen.queryByRole("img", {name: "GIF"})).toBeNull()
+        expect(screen.getByText("This message has been deleted")).toBeDefined()
+    })
+
     it("opens the author of a message from its name, and tells a guest by its prefix", async () => {
-        const onOpenPlayer = vi.fn()
+        usePlayerCard.setState({openable: true})
         render(<ChatLog loading={false}
-                        onOpenPlayer={onOpenPlayer}
                         messages={[message("1", "Ana", "fr"), message("2", "guest_Bo", "de")]}/>)
 
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
+        expect(usePlayerCard.getState().player).toEqual(
+            {accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED})
         await userEvent.click(screen.getByRole("button", {name: "guest_Bo"}))
-
-        expect(onOpenPlayer.mock.calls).toEqual([
-            [{accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}],
-            [{accountId: "account-guest_Bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}],
-        ])
+        expect(usePlayerCard.getState().player).toEqual(
+            {accountId: "account-guest_Bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED})
     })
 
     it("shows a guest's name once, and nothing of its address", () => {
@@ -44,41 +72,40 @@ describe("ChatLog", () => {
     })
 
     it("crowns an admin's message, and keeps it on the player it opens", async () => {
-        const onOpenPlayer = vi.fn()
+        usePlayerCard.setState({openable: true})
         const admin = {...message("1", "Ana", "fr"), authorAdmin: true}
-        render(<ChatLog loading={false} onOpenPlayer={onOpenPlayer} messages={[admin, message("2", "kiran_07", "in")]}/>)
+        render(<ChatLog loading={false} messages={[admin, message("2", "kiran_07", "in")]}/>)
 
         expect(screen.getAllByRole("img", {name: "Admin"})).toHaveLength(1)
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
-        expect(onOpenPlayer).toHaveBeenCalledWith({
+        expect(usePlayerCard.getState().player).toEqual({
             accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.UNSPECIFIED,
-            streak: 0,
         })
     })
 
-    it("lights a flame beside a streak of three days or more, and keeps it on the player it opens", async () => {
-        const onOpenPlayer = vi.fn()
-        const burning = {...message("1", "Ana", "fr"), authorStreak: 12}
-        const starting = {...message("2", "kiran_07", "in"), authorStreak: 2}
-        render(<ChatLog loading={false} onOpenPlayer={onOpenPlayer} messages={[burning, starting]}/>)
+    it("lights a flame beside a streak of three days or more, from the badge kept for the author's account", () => {
+        useBadges.setState({badges: {"account-Ana": {streak: 12}, "account-kiran_07": {streak: 2}}})
+        render(<ChatLog loading={false} messages={[message("1", "Ana", "fr"), message("2", "kiran_07", "in")]}/>)
 
         expect(screen.getAllByRole("img", {name: /streak/})).toHaveLength(1)
         expect(screen.getByRole("img", {name: "12-day streak"}).textContent).toBe("12")
-        await userEvent.click(screen.getByRole("button", {name: "Ana"}))
-        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({streak: 12}))
     })
 
-    it("shows the title its author wears beside the name, and keeps it on the player it opens", async () => {
-        const onOpenPlayer = vi.fn()
+    it("shows the title its author wears beside the name, from the badge kept for its account", () => {
         const warlord = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
-        const dressed = {...message("1", "Ana", "fr"), authorTitle: warlord}
-        const bare = message("2", "kiran_07", "in")
-        render(<ChatLog loading={false} onOpenPlayer={onOpenPlayer} messages={[dressed, bare]}/>)
+        useBadges.setState({badges: {"account-Ana": {streak: 0, wornTitle: warlord}}})
+        render(<ChatLog loading={false} messages={[message("1", "Ana", "fr"), message("2", "kiran_07", "in")]}/>)
 
         expect(screen.getAllByRole("img", {name: "Warlord"})).toHaveLength(1)
         expect(screen.getByRole("img", {name: "Warlord"}).querySelector(".title-emblem")).not.toBeNull()
-        await userEvent.click(screen.getByRole("button", {name: "Ana"}))
-        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({wornTitle: warlord}))
+    })
+
+    it("shows no badge beside a message with no account: kept before accounts, or of one deleted", () => {
+        useBadges.setState({badges: {"": {streak: 12, wornTitle: {id: "og", name: "OG"}}}})
+        render(<ChatLog loading={false} messages={[{...message("1", "[deleted]", "fr"), authorAccountId: ""}]}/>)
+
+        expect(screen.queryByRole("img", {name: /streak/})).toBeNull()
+        expect(screen.queryByRole("img", {name: "OG"})).toBeNull()
     })
 
     it("paints a name in the color its player chose, and grey with none or as a guest", () => {
@@ -125,7 +152,8 @@ describe("ChatLog", () => {
         })
 
         it("shows a message already reported as reported, with nothing to press", () => {
-            render(<ChatLog loading={false} onReport={vi.fn()} reported={new Set(["2"])} messages={[first, second]}/>)
+            useChat.setState({reported: new Set(["2"])})
+            render(<ChatLog loading={false} onReport={vi.fn()} messages={[first, second]}/>)
 
             expect(screen.getAllByRole("button", {name: "Report this message from Ana"})).toHaveLength(1)
             expect(screen.getByRole("img", {name: "Reported"}).closest("[data-message]")?.getAttribute("data-message")).toBe("2")
@@ -242,5 +270,20 @@ describe("ChatLog", () => {
 
             expect(screen.queryByRole("button", {name: /^Reply to/})).toBeNull()
         })
+    })
+
+    it("masks the words of the filter in the text, the names and the quotes", () => {
+        const said = {...message("1", "ass", "fr"), text: "fuck that ass"}
+        const reply = {...message("2", "Bo", "de"), text: "no", replyTo: quoteOf(said)}
+        const mute = {kind: "mute" as const, id: "m", announcedAt: Date.UTC(2026, 8, 17, 12), name: "fuck", muteKind: "chat" as const, seconds: 3600}
+        const {container} = render(<WordFilterContext.Provider value={wordFilterOf(["ass", "fuck"])}>
+            <ChatLog loading={false} onReply={vi.fn()} messages={[said, reply]} announcements={[mute]}/>
+        </WordFilterContext.Provider>)
+
+        expect(container.textContent).not.toMatch(/fuck|ass/)
+        expect(container.querySelector(".chat-message-author")?.textContent).toBe("a*s")
+        expect(screen.getByRole("button", {name: "Reply to a*s"})).toBeDefined()
+        expect(container.querySelector(".chat-quote-text")?.textContent).toBe("f**k that a*s")
+        expect(screen.getByText("f**k", {selector: "strong"})).toBeDefined()
     })
 })

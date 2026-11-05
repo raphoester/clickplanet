@@ -13,17 +13,21 @@ export type SignInGateProps = {
 export default function SignInGate(props: SignInGateProps) {
     const [done, setDone] = useState(false)
 
-    if (done || !props.callback || !props.account) return props.children
+    if (done || !props.callback) return props.children
+
+    const onDone = () => {
+        window.history.replaceState(null, "", GAME_PATH)
+        setDone(true)
+    }
+
+    if (!props.account) return props.children
 
     const account = props.account
     const remembered = rememberedSignIn()
     return <SignInCallback
         callback={props.callback}
         provider={remembered?.provider}
-        complete={(code, state) => account.completeSignIn(code, state)}
+        complete={(code, state) => account.completeSignIn(code, state, remembered?.provider)}
         startAgain={remembered && (() => account.leaveFor(remembered.provider, remembered.intent))}
-        onDone={() => {
-            window.history.replaceState(null, "", GAME_PATH)
-            setDone(true)
-        }}/>
+        onDone={onDone}/>
 }

@@ -7,7 +7,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, account players.AccountID) (players.Profile, error)
+	Execute(ctx context.Context, account players.AccountID, suggested string) (players.Profile, error)
 }
 
 type Visits interface {
@@ -25,8 +25,8 @@ type Renaming struct {
 
 var _ UseCase = (*Renaming)(nil)
 
-func (r *Renaming) Execute(ctx context.Context, account players.AccountID) (players.Profile, error) {
-	profile, err := r.inner.Execute(ctx, account)
+func (r *Renaming) Execute(ctx context.Context, account players.AccountID, suggested string) (players.Profile, error) {
+	profile, err := r.inner.Execute(ctx, account, suggested)
 	if err != nil {
 		return profile, err //nolint:wrapcheck // a decorator adds a rename, not a sentence.
 	}

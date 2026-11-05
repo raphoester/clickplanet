@@ -20,17 +20,16 @@ var (
 	ErrNotAnOperator = errors.New("not an operator")
 )
 
-func NewPostgresQuery(db cppg.Querier, clock cptime.Clock) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, clock cptime.Clock) *PostgresQuery {
 	return &PostgresQuery{db: db, clock: clock}
 }
 
 type PostgresQuery struct {
-	db    cppg.Querier
+	db    cppg.Conn
 	clock cptime.Clock
 }
 
-// The flag is read again on every call, as for an admin session: unsetting it ends every connection of the account.
-// A refresh token is never one: it only buys the next pair, at the token endpoint.
+// The flag is read on every call: unsetting it ends every connection of the account.
 const operator = `
 	SELECT admin_tokens.client, accounts.id, accounts.operator
 	FROM admin_tokens
@@ -38,7 +37,6 @@ const operator = `
 	WHERE admin_tokens.token_hash = $1 AND admin_tokens.kind = 'access' AND admin_tokens.expires_at > $2
 `
 
-// The hash is the SHA-256 of the token as it was sent, the rule admintokens.Secret keeps it by.
 func (q *PostgresQuery) Operator(ctx context.Context, token string) (*authv1.GetTokenOperatorResponse, error) {
 	if token == "" {
 		return nil, fmt.Errorf("%w: the caller sent no token", ErrNoToken)
@@ -51,7 +49,7 @@ func (q *PostgresQuery) Operator(ctx context.Context, token string) (*authv1.Get
 		hash     = sha256.Sum256([]byte(token))
 		now      = q.clock.Now().UTC().Truncate(time.Microsecond)
 	)
-	err := q.db.QueryRowContext(ctx, operator, hash[:], now).Scan(&client, &account, &operates)
+	err := q.db.On(ctx).QueryRowContext(ctx, operator, hash[:], now).Scan(&client, &account, &operates)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%w: nobody holds this token, or it lapsed", ErrNoToken)
 	}

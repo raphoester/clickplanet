@@ -1,6 +1,5 @@
 import "./Leaderboard.css"
 import {PointerEvent, ReactNode, useEffect, useId, useRef, useState} from "react";
-import {Race} from "../backends/standings.ts";
 import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry} from "../domain/leaderboard.ts";
 import {CountryLine, countryLines, CountryOrder, shownOrder} from "../domain/race.ts";
@@ -8,8 +7,12 @@ import {Figure, FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts";
 import {DELTA_HOLD_MS, NO_TILE_DELTAS, signed, TileDelta, TileDeltas} from "../domain/tileDeltas.ts";
 import {truncate} from "./truncate.ts";
 import Bubble from "./components/Bubble.tsx";
+import ScrollArea from "./components/ScrollArea.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
+import {SwordsIcon} from "./components/icons.tsx";
 import RankCoin from "./components/RankCoin.tsx";
+import {useBoardGuide} from "./boardGuideStore.ts";
+import {useRace} from "./standings/raceStore.ts";
 
 type LeaderboardProps = {
     tilesCount: number,
@@ -17,13 +20,12 @@ type LeaderboardProps = {
     deltas?: TileDeltas,
     highlight?: Country,
     anthem?: ReactNode,
-    race?: Race,
     order?: CountryOrder,
-    guided?: boolean,
-    onGuided?: () => void,
 }
 
 const NAME_MAX_LENGTH = 18
+
+const count = new Intl.NumberFormat()
 
 const ORDERS: {order: CountryOrder, label: string}[] = [
     {order: "season", label: "Season"},
@@ -35,20 +37,21 @@ type Shown = {figure: Figure, at: "head" | "leader", ms?: number}
 export default function Leaderboard(props: LeaderboardProps) {
     const titleId = useId()
     const deltas = props.deltas ?? NO_TILE_DELTAS
-    const race = props.race
+    const race = useRace((standings) => standings.race)
+    const battle = race?.battle
     const [leader, ...rest] = countryLines(props.data, race, shownOrder(race, props.order))
     const [shown, setShown] = useState<Shown>()
     const [guiding, setGuiding] = useState(false)
+    const {guided, markGuided} = useBoardGuide()
 
-    if (race && rest.length > 0 && props.guided === false && !guiding) {
+    if (race && rest.length > 0 && !guided && !guiding) {
         setGuiding(true)
         setShown({figure: "points", at: "head", ms: GUIDE_MS})
     }
 
-    const onGuided = props.onGuided
     useEffect(() => {
-        if (guiding) onGuided?.()
-    }, [guiding, onGuided])
+        if (guiding) markGuided()
+    }, [guiding, markGuided])
 
     useEffect(() => {
         if (shown?.ms === undefined) return
@@ -69,13 +72,14 @@ export default function Leaderboard(props: LeaderboardProps) {
 
         {leader && <LeaderFrame line={leader}
                                 scored={race !== undefined}
+                                battle={battle !== undefined}
                                 tilesCount={props.tilesCount}
                                 delta={deltas.get(leader.country.code)}
                                 isPlayer={leader.country.code === props.highlight?.code}
                                 anthem={props.anthem}
                                 hint={(figure) => hint(figure, "leader")}/>}
 
-        {rest.length > 0 && <div className="leaderboard-table-container">
+        {rest.length > 0 && <ScrollArea className="leaderboard-table-container">
             <table className="leaderboard-table">
                 <thead>
                 <tr>
@@ -92,7 +96,11 @@ export default function Leaderboard(props: LeaderboardProps) {
                             <Hint {...hint("points", "head")}>Points</Hint>
                         </th>
                         <th className="leaderboard-table-head leaderboard-table-today" scope="col">
-                            <Hint {...hint("today", "head")}>Today</Hint>
+                            {battle
+                                ? <Hint {...hint("battle", "head")} className="leaderboard-battle">
+                                    <SwordsIcon size={12}/><span className="sr-only">Battle</span> ×{battle.times}
+                                </Hint>
+                                : <Hint {...hint("today", "head")}>Today</Hint>}
                         </th>
                     </>}
                 </tr>
@@ -111,21 +119,21 @@ export default function Leaderboard(props: LeaderboardProps) {
                             {truncate(line.country.name, NAME_MAX_LENGTH)}
                         </td>
                         <td className={tilesClass(delta?.net)}>
-                            {line.tiles}
+                            {count.format(line.tiles)}
                             <DeltaBadge delta={delta}/>
                         </td>
                         <td className="leaderboard-table-number leaderboard-table-share">
                             {share(line.tiles, props.tilesCount)}
                         </td>
                         {race && <>
-                            <td className="leaderboard-table-number leaderboard-table-points">{line.points}</td>
-                            <td className="leaderboard-table-today"><Today points={line.today}/></td>
+                            <td className="leaderboard-table-number leaderboard-table-points">{count.format(line.points)}</td>
+                            <td className="leaderboard-table-today"><Today points={line.today} battle={battle !== undefined}/></td>
                         </>}
                     </tr>
                 })}
                 </tbody>
             </table>
-        </div>}
+        </ScrollArea>}
     </section>
 }
 
@@ -144,6 +152,7 @@ export function OrderSwitch({order, onOrder}: {order: CountryOrder, onOrder: (or
 type LeaderFrameProps = {
     line: CountryLine
     scored: boolean
+    battle: boolean
     tilesCount: number
     delta?: TileDelta
     isPlayer: boolean
@@ -151,7 +160,7 @@ type LeaderFrameProps = {
     hint: (figure: Figure) => HintProps
 }
 
-function LeaderFrame({line, scored, tilesCount, delta, isPlayer, anthem, hint}: LeaderFrameProps) {
+function LeaderFrame({line, scored, battle, tilesCount, delta, isPlayer, anthem, hint}: LeaderFrameProps) {
     const className = isPlayer ? "leader-frame panel-box leader-frame--you" : "leader-frame panel-box"
 
     return <section className={className}
@@ -167,14 +176,14 @@ function LeaderFrame({line, scored, tilesCount, delta, isPlayer, anthem, hint}: 
                         <Hint {...hint("share")}>{share(line.tiles, tilesCount)}% of map</Hint>
                     </span>}
                     <span className={tilesClass(delta?.net, "leader-frame-tiles")}>
-                        {line.tiles} tiles
+                        {count.format(line.tiles)} tiles
                         <DeltaBadge delta={delta}/>
                     </span>
                 </span>
             </span>
             {scored
                 ? <Hint {...hint("points")} className="leader-frame-share">
-                    <span>{line.points}<Today points={line.today}/></span>
+                    <span>{count.format(line.points)}<Today points={line.today} battle={battle}/></span>
                     <span className="leader-frame-share-unit">points</span>
                 </Hint>
                 : <Hint {...hint("share")} className="leader-frame-share">
@@ -219,9 +228,9 @@ function Hint({figure, open, onShow, onHide, onLost, className, children}: HintP
     </>
 }
 
-function Today({points}: {points: number}) {
+function Today({points, battle}: {points: number, battle: boolean}) {
     if (points <= 0) return null
-    return <span className="leaderboard-today">+{points}<span className="sr-only"> today</span></span>
+    return <span className="leaderboard-today">+{points}<span className="sr-only">{battle ? " this battle" : " today"}</span></span>
 }
 
 function DeltaBadge({delta}: {delta?: TileDelta}) {

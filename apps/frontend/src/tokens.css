@@ -57,6 +57,9 @@
     --holo-2: #8FB8FF;
     --holo-3: #C79BFF;
     --holo-4: #FFE59A;
+    --pumpkin: #FF8A1F;
+    --pumpkin-shade: #E2600E;
+    --pumpkin-glow: #FFE066;
 
     --conquest: #E5402B;
     --conquest-enamel: #18224A;
@@ -64,8 +67,22 @@
     --chatter-enamel: #0B2E2B;
     --devotion: #FF813F;
     --devotion-enamel: #3A1606;
+    --defense: #8FA3BF;
+    --defense-enamel: #1C2533;
+    --bombs: #F5C518;
+    --bombs-enamel: #1F1D24;
+    --loot: #E94B9A;
+    --loot-enamel: #3A0E26;
+    --quiz: #4FA3FF;
+    --quiz-enamel: #0E3320;
+    --missions: #9BC53D;
+    --missions-enamel: #262B12;
     --og: #9C7BFF;
     --og-enamel: #2A1458;
+    --season: #C81E3A;
+    --season-enamel: #4D0A17;
+    --halloween: #5E8F2B;
+    --halloween-enamel: #16260E;
 
     --refill: #2F8CFF;
     --refill-light: #7CC4FF;
@@ -77,6 +94,9 @@
     --enclose-light: #FFC061;
     --shield: #7A8799;
     --shield-light: #D6DDE6;
+
+    --war: #FF5A1F;
+    --tape: repeating-linear-gradient(45deg, var(--war) 0 12px, var(--ink) 12px 24px);
 
     --discord: #5865F2;
 
@@ -106,4 +126,20 @@
     --space-4: 16px;
     --space-5: 24px;
     --space-6: 32px;
+}
+
+[data-mood="battle"] {
+    --panel: #2A2022;
+    --panel-raised: #3A2D2F;
+    --panel-sunk: #140C0D;
+    --secondary: #5A6B8A;
+    --secondary-light: #8A9BB8;
+}
+
+[data-mood="halloween"] {
+    --panel: #22183A;
+    --panel-raised: #2F2250;
+    --panel-sunk: #110A1F;
+    --secondary: #7A4DFF;
+    --secondary-light: #A07CFF;
 }

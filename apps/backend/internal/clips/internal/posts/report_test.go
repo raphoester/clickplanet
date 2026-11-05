@@ -3,6 +3,7 @@ package posts_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -49,9 +50,18 @@ func TestARunThatScheduledEveryClipOnEveryPlatformIsComplete(t *testing.T) {
 }
 
 func TestAClipThatIsNoPostIsNeverComplete(t *testing.T) {
-	planned := posts.Plan{}.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
+	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
 
 	assert.False(t, posts.Report{}.With(planned[0], posts.Scheduled{}, nil).Complete())
+}
+
+func TestAClipHeldForAFullDayIsInTheReportAndIsNoFailure(t *testing.T) {
+	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
+
+	report := posts.Report{}.With(planned[0], posts.Scheduled{ID: "post-1"}, nil).WithHeld(clip(t, 2, "SECOND"))
+
+	assert.Equal(t, posts.Outcome{Title: "SECOND", Held: true}, report[1])
+	assert.True(t, report.Complete())
 }
 
 func TestAddingToAReportLeavesItAsItWas(t *testing.T) {
@@ -61,4 +71,28 @@ func TestAddingToAReportLeavesItAsItWas(t *testing.T) {
 	_ = first.With(planned[1], posts.Scheduled{ID: "post-2"}, nil)
 
 	assert.Len(t, first, 1)
+}
+
+func TestOnlyAPostMadeThatNamesSomeoneIsAnAppearanceOnThePlatformsThatTookIt(t *testing.T) {
+	at := time.Date(2026, 10, 28, 15, 0, 0, 0, time.UTC)
+	report := posts.Report{
+		{
+			Title: "FRANCE VS TURKEY", At: at, Post: "p1", Cast: "c", Fighters: []posts.FighterNumber{2, 1},
+			Platforms: []posts.PlatformOutcome{{Platform: posts.TikTok, Failure: "refused"}, {Platform: posts.YouTube}},
+		},
+		{Title: "NOBODY NAMED", At: at, Post: "p2", Platforms: []posts.PlatformOutcome{{Platform: posts.YouTube}}},
+		{Title: "HELD", Held: true, Cast: "c", Fighters: []posts.FighterNumber{1}},
+		{
+			Title: "REFUSED EVERYWHERE", At: at, Post: "p3", Cast: "c", Fighters: []posts.FighterNumber{1},
+			Platforms: []posts.PlatformOutcome{{Platform: posts.YouTube, Failure: "refused"}},
+		},
+		{
+			Title: "NEVER MADE", At: at, Cast: "c", Fighters: []posts.FighterNumber{1},
+			Platforms: []posts.PlatformOutcome{{Platform: posts.YouTube, Failure: "down"}},
+		},
+	}
+
+	assert.Equal(t, []posts.Appearance{{
+		Cast: "c", Fighters: []posts.FighterNumber{2, 1}, Post: "p1", Title: "FRANCE VS TURKEY", Platforms: []posts.Platform{posts.YouTube}, At: at,
+	}}, report.Appearances())
 }

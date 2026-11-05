@@ -11,13 +11,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 )
 
-// The Store in a slice, for the use cases' tests. Kept is what it holds.
 type MemoryStore struct {
 	mu   sync.Mutex
 	kept []Snapshot
 }
-
-var _ Store = (*MemoryStore)(nil)
 
 func (m *MemoryStore) SaveTokens(_ context.Context, tokens []Snapshot) error {
 	m.mu.Lock()

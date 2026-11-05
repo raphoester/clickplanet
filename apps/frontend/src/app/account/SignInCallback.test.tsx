@@ -64,7 +64,7 @@ describe("SignInCallback", () => {
 
         expect((await screen.findByRole("alert")).textContent).toBe(
             "This Google account is already used by another ClickPlanet account. "
-            + "To move it here: sign in with it, delete that account, then link it here.",
+            + "To move it here: sign in with it and delete that account. Once it is gone for good, 30 days later, link it here.",
         )
         expect(screen.getByRole("heading", {name: "Not linked"})).toBeDefined()
         expect(screen.queryByRole("button", {name: "Try again"})).toBeNull()

@@ -54,6 +54,7 @@ func NewSessionInterceptor(verifier SenderSessionVerifier, clock cptime.Clock) c
 	return cpconnect.NewSessionReaderInterceptor(verifier, clock,
 		cpconnect.Attested(chatv1connect.ChatServiceSendMessageProcedure),
 		cpconnect.Identified(chatv1connect.ChatServiceGetHistoryProcedure),
+		cpconnect.Identified(chatv1connect.ChatServiceListenForEventsProcedure),
 		cpconnect.Attested(chatv1connect.ChatServiceReactProcedure),
 		cpconnect.Identified(chatv1connect.ChatServiceMarkSeenProcedure),
 	)

@@ -10,6 +10,7 @@ import (
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/proto_kind"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase"
 )
 
@@ -25,7 +26,11 @@ func (h MuteHandler) Mute(
 	ctx context.Context,
 	req *connect.Request[chatv1.MuteRequest],
 ) (*connect.Response[chatv1.MuteResponse], error) {
-	in := mute_usecase.In{Account: messages.AccountIDOf(req.Msg.GetAccountId())}
+	kind, err := proto_kind.Decode(req.Msg.GetKind())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	in := mute_usecase.In{Account: messages.AccountIDOf(req.Msg.GetAccountId()), Kind: kind}
 	if duration := req.Msg.GetDuration(); duration != nil {
 		in.Duration = duration.AsDuration()
 	}

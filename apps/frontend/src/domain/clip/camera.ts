@@ -8,7 +8,7 @@ export type Shot = {
 // Where a tile changed hands, and when in the clip's play, from 0 to 1.
 export type Beat = {share: number, point: Point}
 
-// When the camera comes back out of the tiles to the opening, which every clip ends on: for its last moments, to show
+// When the camera comes back out of the tiles to the overview, which every clip ends on: for its last moments, to show
 // the map as it is now, or halfway, so a steamroll's painted flags change on screen.
 export type PullBack = "atEnd" | "midway"
 
@@ -17,7 +17,6 @@ export type Script = {
     close: number
     seconds: number
     pullBack: PullBack
-    hold?: number
 }
 
 const FILL = 0.6
@@ -28,8 +27,8 @@ const MAX_ZOOM = 9
 
 const WIDEST = 1.2
 
-// About a continent: the opening is the map with its painted flags, however small the front.
-const OPENING_ZOOM = 1.5
+// About a continent: the overview is the map with its painted flags, however small the front.
+const OVERVIEW_ZOOM = 1.5
 
 const KEYS = 24
 
@@ -39,11 +38,6 @@ const KEY_WINDOW = 1 / 12
 const HEART_RADIANS = 0.1
 
 const MOST_POINTS = 300
-
-// The opening holds on the whole front, then the camera dives into the action.
-const HOLD_SECONDS = 0.3
-
-const DIVE_SECONDS = 0.7
 
 const REVEAL_SECONDS = 1.6
 
@@ -55,7 +49,7 @@ const MIDWAY = 0.5
 const MIDWAY_SECONDS = 1.2
 
 // Up close the camera has to cross about this many screens a second, or it breathes: out to where the painted
-// flags show and back into the tiles, every BREATH_SECONDS, halfway to the opening at most.
+// flags show and back into the tiles, every BREATH_SECONDS, halfway to the overview at most.
 const BRISK_SCREENS_PER_SECOND = 0.4
 
 const BREATH_SECONDS = 3
@@ -86,8 +80,8 @@ export function framingOf(points: readonly Point[], aspect: number): Shot {
     return {direction, zoom: Math.min(MAX_ZOOM, Math.max(least, zoom))}
 }
 
-export function openingOf(framing: Shot): Shot {
-    return {direction: framing.direction, zoom: Math.min(framing.zoom, OPENING_ZOOM)}
+export function overviewOf(framing: Shot): Shot {
+    return {direction: framing.direction, zoom: Math.min(framing.zoom, OVERVIEW_ZOOM)}
 }
 
 // How far the action moves up close, in screens: what a clip has to show beyond one place.
@@ -100,25 +94,25 @@ export function screensOf(beats: readonly Beat[], close: number): number {
     return travel / screenOf(close)
 }
 
-// Opens on the opening shot, dives down into the tiles where they change hands and follows them, and comes back out
-// as pullBack says. A bomb holds nothing still: the camera goes where the tiles change hands, and a bomb's crater is
-// tiles changing hands.
+// Opens down in the tiles where they change hands, since a viewer who sees nothing move in the first second swipes
+// away. Follows them, and comes back out to the overview as pullBack says. A bomb holds nothing still: the camera goes
+// where the tiles change hands, and a bomb's crater is tiles changing hands.
 export function cameraOf(
-    opening: Shot,
+    overview: Shot,
     beats: readonly Beat[],
-    {close, seconds, pullBack, hold = HOLD_SECONDS}: Script,
+    {close, seconds, pullBack}: Script,
 ): (share: number) => Shot {
-    const keys = keysOf(opening.direction, beats)
-    const out = outAt(pullBack, seconds, hold + DIVE_SECONDS)
+    const keys = keysOf(overview.direction, beats)
+    const out = outAt(pullBack, seconds)
     const still = stillnessOf(keys, close, seconds)
     const path = smoothed(Array.from({length: GRID + 1}, (_, i) => {
         const share = i / GRID
         const at = share * seconds
-        const breath = 1 - BREATH_DEPTH * still[i] * breathAt(at - hold - DIVE_SECONDS)
-        const near = closenessAt(at, hold) * breath * (pullBack === "midway" ? 1 - out(at) : 1)
-        const shot = {direction: blend(opening.direction, keyAt(keys, share), near), zoom: between(opening.zoom, close, near)}
+        const breath = 1 - BREATH_DEPTH * still[i] * breathAt(at)
+        const near = breath * (pullBack === "midway" ? 1 - out(at) : 1)
+        const shot = {direction: blend(overview.direction, keyAt(keys, share), near), zoom: between(overview.zoom, close, near)}
         const end = pullBack === "atEnd" ? out(at) : 0
-        return end > 0 ? {direction: blend(shot.direction, opening.direction, end), zoom: between(shot.zoom, opening.zoom, end)} : shot
+        return end > 0 ? {direction: blend(shot.direction, overview.direction, end), zoom: between(shot.zoom, overview.zoom, end)} : shot
     }))
 
     return (share) => {
@@ -150,9 +144,9 @@ function stillnessOf(keys: readonly Point[], close: number, seconds: number): nu
     })
 }
 
-// 0 in the tiles, 1 out at the painted flags, breathing from the moment the dive is down.
-function breathAt(since: number): number {
-    return since <= 0 ? 0 : (1 - Math.cos(2 * Math.PI * since / BREATH_SECONDS)) / 2
+// 0 in the tiles, 1 out at the painted flags.
+function breathAt(at: number): number {
+    return (1 - Math.cos(2 * Math.PI * at / BREATH_SECONDS)) / 2
 }
 
 function keysOf(fallback: Point, beats: readonly Beat[]): Point[] {
@@ -178,17 +172,12 @@ function keyAt(keys: readonly Point[], share: number): Point {
     return blend(keys[k], keys[k + 1], clamp(position - k))
 }
 
-// 0 down in the tiles, 1 back out on the opening.
-function outAt(pullBack: PullBack, seconds: number, down: number): (at: number) => number {
+// 0 down in the tiles, 1 back out on the overview.
+function outAt(pullBack: PullBack, seconds: number): (at: number) => number {
     const out = seconds - END_HOLD_SECONDS
-    const from = pullBack === "midway" ? Math.max(down, seconds * MIDWAY) : Math.max(down, out - REVEAL_SECONDS)
+    const from = pullBack === "midway" ? seconds * MIDWAY : Math.max(0, out - REVEAL_SECONDS)
     const length = pullBack === "midway" ? MIDWAY_SECONDS : Math.max(1e-3, out - from)
     return (at) => smooth(clamp((at - from) / length))
-}
-
-// 0 on the opening shot, 1 down in the action.
-function closenessAt(at: number, hold: number): number {
-    return at < hold ? 0 : smooth(clamp((at - hold) / DIVE_SECONDS))
 }
 
 // The keys turn the camera at a corner each; the zoom is smooth already.

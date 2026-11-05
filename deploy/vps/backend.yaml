@@ -4,8 +4,9 @@ httpServer:
   consoleBindAddress: 127.0.0.1:8081
   adminBindAddress: 0.0.0.0:8083
   internalBindAddress: 127.0.0.1:8082
+
 gameMap:
-  maxIndex: 262119
+  maxIndex: 260503
 
 database:
   host: postgres
@@ -18,32 +19,19 @@ database:
   pool:
     maxOpenConns: 4
 
+redis:
+  address: redis:6379
+  password: env://REDIS_PASSWORD
+
 tilesStorage:
   flushInterval: 1s
 
 ledger:
   retention: 72h
 
-chargeStorage:
-  flushInterval: 1s
-
 ledgerStorage:
   flushInterval: 1s
   maxTakes: 4000000
-
-rateLimiter:
-  perSecond: 0.2
-  burst: 60
-  scopeMultiplier: 10
-  guestScopeMultiplier: 1
-  linkedMultiplier: 2
-  newAccountClicks: 10
-
-toll:
-  steps:
-    - {share: 0.10, slowdown: 1.5}
-    - {share: 0.20, slowdown: 2.5}
-    - {share: 0.30, slowdown: 4}
 
 vpnBlocklist:
   enabled: true
@@ -64,14 +52,11 @@ antiBot:
     pool:
       maxOpenConns: 2
 
-  bans:
-    enforce: true
-    banDurations: [24h, 168h, 26280h]
-    reflagInterval: 5m
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
 
   jury:
-    minSuspects: 2
-    suspicionWindow: 10m
     trackWindow: 15m
     sweepInterval: 1m
 
@@ -80,192 +65,56 @@ antiBot:
     retention: 72h
 
   retaker:
-    enabled: true
-    detector:
-      reactionWindow: 5s
-      minReactions: 20
-      maxSpread: 300ms
-      maxMedian: 250ms
-      minTiles: 15
-      roamMedian: 600ms
-      trackWindow: 15m
-      sweepInterval: 1m
+    trackWindow: 15m
+    sweepInterval: 1m
 
   sequencer:
-    enabled: true
-    detector:
-      minSteps: 40
-      minShare: 0.75
-      certainSteps: 200
-      certainShare: 0.95
-      trackWindow: 15m
-      sweepInterval: 1m
+    trackWindow: 15m
+    sweepInterval: 1m
 
   metronome:
-    enabled: true
-    detector:
-      maxGap: 7s
-      maxSpread: 400ms
-      minClicks: 120
-      certainFor: 30m
-      certainClicks: 900
-      shape:
-        maxGap: 10s
-        clicks: 500
-        certainClicks: 1000
-      stamina:
-        slice: 10m
-        clicks: 40
-        window: 6h
-        minBusy: 5h30m
-      trackWindow: 15m
-      sweepInterval: 1m
+    stamina:
+      slice: 10m
+    trackWindow: 15m
+    sweepInterval: 1m
 
   defender:
-    enabled: true
-    detector:
-      retakeWindow: 2m
-      minClicks: 40
-      minShare: 0.6
-      certainClicks: 200
-      trackWindow: 10m
-      sweepInterval: 1m
+    trackWindow: 10m
+    sweepInterval: 1m
 
   catcher:
-    enabled: true
-    detector:
-      minCatches: 5
-      maxMedian: 3s
-      certainMedian: 1500ms
-      trackWindow: 1h
-      sweepInterval: 1m
+    trackWindow: 1h
+    sweepInterval: 1m
 
   cohort:
-    enabled: true
-    detector:
-      startWindow: 5s
-      minClicks: 20
-      minFlagShare: 0.9
-      rateRatio: 1.5
-      lengthRatio: 1.2
-      quietAfter: 1m
-      minMembers: 2
-      v4Bits: 24
-      v6Bits: 44
-      certainCohorts: 3
-      certainMembers: 6
-      chainWindow: 30m
-      trackWindow: 30m
-      sweepInterval: 1m
+    v4Bits: 24
+    v6Bits: 44
+    trackWindow: 30m
+    sweepInterval: 1m
 
   scraper:
-    enabled: true
-    detector:
-      minMaps: 5
-      certainMaps: 15
-      trackWindow: 15m
-      sweepInterval: 1m
+    trackWindow: 15m
+    sweepInterval: 1m
 
   churner:
-    enabled: true
-    detector:
-      window: 1h
-      v6:
-        minAccounts: 4
-        certainAccounts: 6
-      v4:
-        minAccounts: 10
-        certainAccounts: 20
-      relay:
-        handoff: 90s
-        maxLife: 5m
-        minClicks: 20
-        minFlagShare: 0.9
-        v4Bits: 24
-        v6Bits: 32
-        minLinks: 3
-        certainLinks: 6
-      sweepInterval: 1m
+    relay:
+      v4Bits: 24
+      v6Bits: 32
+    sweepInterval: 1m
 
   hopper:
-    enabled: true
-    detector:
-      minAngle: 45
-      minGap: 100ms
-      maxGap: 30s
-      minSteps: 40
-      minShare: 0.4
-      certainSteps: 200
-      trackWindow: 15m
-      sweepInterval: 1m
+    trackWindow: 15m
+    sweepInterval: 1m
 
   rotator:
-    enabled: true
-    detector:
-      slot: 5m
-      window: 24h
-      minSeconds: 15
-      minByChance: 90
-      maxShare: 0.05
-      minSlots: 24
-      sweepInterval: 1m
+    slot: 5m
+    sweepInterval: 1m
 
+# The game's rules are the rule set postgres keeps (planet.rule_sets), edited on the backoffice.
 bonus:
-  minInterval: 4m
-  maxInterval: 8m
-
-  missRetry: 2m
-
-  kinds:
-    refill: 5
-    spread_clicks: 3
-    enclose_clicks: 2
-    bomb: 1
-    shields: 3
-
-  offerTTL: 15s
-
-  spread:
-    clicks: 8
-    maxPerBox: 4
-
-  bomb:
-    rings: 4
-
-  enclose:
-    maxTiles: 25
-    held: 3
-    maxPerBox: 3
-
-  shield:
-    held: 30
-    minPerBox: 5
-    maxPerBox: 20
-    perTile: 10
-
-  activeWithin: 2m
-
   forgetAfter: 5m
 
-  maxChargesPerHour: 12
-
   sweepInterval: 1s
-
-  quiz:
-    enabled: true
-
-    minInterval: 4m
-    maxInterval: 8m
-
-    missRetry: 2m
-
-    offerTTL: 25s
-
-    answerWindow: 8s
-
-    leaderBias: 1
-
-    maxChargesPerHour: 12
 
 auth:
   enabled: true
@@ -282,6 +131,7 @@ auth:
     hostnames:
       - clickplanet.lol
       - www.clickplanet.lol
+      - crazygames.clickplanet.lol
     action: session
   database:
     host: postgres
@@ -293,6 +143,9 @@ auth:
     schema: auth
     pool:
       maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
   signIn:
     enabled: true
     redirectUrl: https://clickplanet.lol/auth/callback
@@ -302,6 +155,8 @@ auth:
   discord:
     clientId: "1549822806420885616"
     clientSecret: env://DISCORD_CLIENT_SECRET
+    # Every Discord sign-in also joins the game's Discord server, which the alerts module keeps.
+    joinServer: true
   # The origin comes from ADMIN_ORIGIN, through docker-compose.yaml.
   # Claude, as a custom connector: it signs in here once, and the operator lets it in on the admin page's /connect.
   # The issuer comes from API_DOMAIN, through docker-compose.yaml; Claude's callbacks are the default redirects.
@@ -323,6 +178,9 @@ auth:
   prune:
     idleFor: 2160h
     interval: 1h
+  deletion:
+    grace: 720h
+    interval: 1h
 
 chat:
   database:
@@ -335,6 +193,9 @@ chat:
     schema: chat
     pool:
       maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
   storage:
     historySize: 200
     retention: 720h
@@ -354,13 +215,12 @@ player:
     schema: player
     pool:
       maxOpenConns: 4
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
   tagSalt: env://CHAT_TAG_SALT
 
-seasons:
-  list:
-    - number: 0
-      endsAt: 2026-10-31T23:00:00Z
-      finale: 2h
+progression:
   database:
     host: postgres
     password: env://POSTGRES_PASSWORD
@@ -368,9 +228,58 @@ seasons:
     user: clickplanet
     dbName: clickplanet
     sslMode: disable
-    schema: seasons
+    schema: progression
+    pool:
+      maxOpenConns: 4
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+
+scoring:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: scoring
     pool:
       maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+
+gamemaster:
+  dailyCutoff: 21h
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: gamemaster
+    pool:
+      maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+
+missions:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: missions
+    pool:
+      maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
 
 support:
   database:
@@ -383,6 +292,9 @@ support:
     schema: support
     pool:
       maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
   retention: 2160h
   rateLimiter:
     perSecond: 0.0167
@@ -395,9 +307,86 @@ support:
     bucket:
       endpoint: https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com
       region: auto
-      name: clickplanet-support
-      accessKeyId: 9ec4cd4fdf48006b2944c522219f1eea
-      secretAccessKey: env://SUPPORT_BUCKET_SECRET
+      name: clickplanet-media
+      accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
+      secretAccessKey: env://MEDIA_BUCKET_SECRET
+
+# The numbers of the clips the clips job posted: `clips stats` sends a snapshot a day over ssh, the backoffice reads them.
+# And who each clip names: `clips fetch` makes a run's cast, `clips schedule` keeps who each post names.
+clips:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: clips
+    pool:
+      maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+  # The videos the operator posts by hand: the backoffice's Videos page. Same bucket and key as the support files,
+  # under clips/videos/.
+  videos:
+    enabled: true
+    maxBytes: 524288000
+    bucket:
+      endpoint: https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com
+      region: auto
+      name: clickplanet-media
+      accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
+      secretAccessKey: env://MEDIA_BUCKET_SECRET
+
+# The game's Discord server: a player's link, its flag's role, and the pings. A player joins it by signing in with
+# Discord (auth.discord.joinServer). See deploy/vps/README.md, "Discord pings".
+alerts:
+  enabled: true
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: alerts
+    pool:
+      maxOpenConns: 2
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+  # The bot of auth.discord's application.
+  discord:
+    botToken: env://DISCORD_BOT_TOKEN
+    guildId: "1310907949106860032"
+    alertsChannelId: "1566864909709607044"
+    battlesChannelId: "1566864959739011324"
+
+# A battle's teaser: each rule set's cards, over the backgrounds the operator uploads on the backoffice's Promo page.
+# Same bucket and key as the support files, under promo/backgrounds/; Cloudflare serves that prefix alone on
+# media.clickplanet.lol. See deploy/vps/README.md, "Battle teasers".
+promo:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: promo
+    pool:
+      maxOpenConns: 2
+  backgrounds:
+    enabled: true
+    maxBytes: 2097152
+    publicBaseURL: https://media.clickplanet.lol
+    bucket:
+      endpoint: https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com
+      region: auto
+      name: clickplanet-media
+      accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
+      secretAccessKey: env://MEDIA_BUCKET_SECRET
 
 # The connector's MCP endpoint, on the admin listener: every admin method is a tool. The url comes from API_DOMAIN,
 # through docker-compose.yaml.

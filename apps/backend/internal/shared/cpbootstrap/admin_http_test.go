@@ -90,7 +90,6 @@ func TestAnUnspecifiedAdminHostIsDialedOnLoopback(t *testing.T) {
 		var dialed string
 		public := listen(t)
 
-		// The modules are built before anything listens, so the boot fails only after the dial.
 		err := cpbootstrap.RunOn(t.Context(), cpbootstrap.Options{
 			Server:  cpbootstrap.ServerConfig{BindAddress: public.Addr().String(), AdminBindAddress: address},
 			Logger:  slog.New(slog.DiscardHandler),

@@ -7,12 +7,19 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster"
 	"github.com/raphoester/clickplanet.lol-backend/internal/mcp"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support"
@@ -23,12 +30,22 @@ type Config struct {
 
 	Planet planet.Config `koanf:",squash"`
 
-	Auth    auth.Config
-	Chat    chat.Config
-	Player  player.Config
-	Seasons seasons.Config
-	Support support.Config
-	MCP     mcp.Config
+	Auth        auth.Config
+	AntiBot     antibot.Config
+	Chat        chat.Config
+	Player      player.Config
+	Progression progression.Config
+	Scoring     scoring.Config
+	Gamemaster  gamemaster.Config
+	Missions    missions.Config
+	Support     support.Config
+	MCP         mcp.Config
+	// The numbers of the clips the clips job posted.
+	Clips clips.ModuleConfig
+	// The game's Discord server: a player's link, its flag's role, and the pings.
+	Alerts alerts.Config
+	// A battle's teaser: each rule set's cards, over the backgrounds the operator uploads.
+	Promo promo.Config
 }
 
 func main() {
@@ -66,10 +83,17 @@ func describeModules(config Config) []cpbootstrap.Module {
 	return []cpbootstrap.Module{
 		auth.NewModule(config.Auth),
 		planet.NewModule(config.Planet),
+		antibot.NewModule(config.AntiBot),
 		chat.NewModule(config.Chat),
 		player.NewModule(config.Player),
-		seasons.NewModule(config.Seasons),
+		progression.NewModule(config.Progression),
+		scoring.NewModule(config.Scoring),
+		gamemaster.NewModule(config.Gamemaster),
+		missions.NewModule(config.Missions),
 		support.NewModule(config.Support),
+		clips.NewModule(config.Clips),
+		alerts.NewModule(config.Alerts),
+		promo.NewModule(config.Promo),
 		mcp.NewModule(config.MCP),
 	}
 }
@@ -87,11 +111,18 @@ func (c Config) Validate() error {
 	return errors.Join(
 		c.HTTPServer.Validate(),
 		c.Planet.Validate(),
+		c.AntiBot.Validate(),
 		c.Chat.Validate(),
 		c.Auth.Validate(),
 		c.Player.Validate(),
-		c.Seasons.Validate(),
+		c.Progression.Validate(),
+		c.Scoring.Validate(),
+		c.Gamemaster.Validate(),
+		c.Missions.Validate(),
 		c.Support.Validate(),
+		c.Clips.Validate(),
+		c.Alerts.Validate(),
+		c.Promo.Validate(),
 		c.MCP.Validate(),
 	)
 }

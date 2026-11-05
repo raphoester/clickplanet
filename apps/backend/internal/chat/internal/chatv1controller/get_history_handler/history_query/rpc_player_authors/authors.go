@@ -14,10 +14,10 @@ import (
 )
 
 type Player interface {
-	GetAuthors(
+	GetPlayers(
 		ctx context.Context,
-		req *connect.Request[playerv1.GetAuthorsRequest],
-	) (*connect.Response[playerv1.GetAuthorsResponse], error)
+		req *connect.Request[playerv1.GetPlayersRequest],
+	) (*connect.Response[playerv1.GetPlayersResponse], error)
 }
 
 const askTimeout = time.Second
@@ -35,8 +35,8 @@ var _ history_query.Authors = (*Authors)(nil)
 func (a *Authors) Authors(
 	ctx context.Context,
 	accounts []cpsession.AccountID,
-) (map[cpsession.AccountID]*playerv1.Author, error) {
-	found := make(map[cpsession.AccountID]*playerv1.Author, len(accounts))
+) (map[cpsession.AccountID]*playerv1.Player, error) {
+	found := make(map[cpsession.AccountID]*playerv1.Player, len(accounts))
 	if len(accounts) == 0 {
 		return found, nil
 	}
@@ -49,18 +49,18 @@ func (a *Authors) Authors(
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	res, err := a.player.GetAuthors(ctx,
-		connect.NewRequest(&playerv1.GetAuthorsRequest{AccountIds: ids}))
+	res, err := a.player.GetPlayers(ctx,
+		connect.NewRequest(&playerv1.GetPlayersRequest{AccountIds: ids}))
 	if err != nil {
 		return nil, fmt.Errorf("failed to ask the player module who these accounts are: %w", err)
 	}
 
-	for _, author := range res.Msg.GetAuthors() {
-		id, err := uuid.Parse(author.GetAccountId())
+	for _, player := range res.Msg.GetPlayers() {
+		id, err := uuid.Parse(player.GetAccountId())
 		if err != nil {
-			return nil, fmt.Errorf("the player module answered for %q, which is not an account: %w", author.GetAccountId(), err)
+			return nil, fmt.Errorf("the player module answered for %q, which is not an account: %w", player.GetAccountId(), err)
 		}
-		found[cpsession.AccountID(id)] = author
+		found[cpsession.AccountID(id)] = player
 	}
 	return found, nil
 }

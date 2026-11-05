@@ -83,6 +83,200 @@ proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
 ]);
 
 /**
+ * @generated from message planet.v1.GetAllegianceRequest
+ */
+export class GetAllegianceRequest extends Message<GetAllegianceRequest> {
+  constructor(data?: PartialMessage<GetAllegianceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetAllegianceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAllegianceRequest {
+    return new GetAllegianceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAllegianceRequest {
+    return new GetAllegianceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAllegianceRequest {
+    return new GetAllegianceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAllegianceRequest | PlainMessage<GetAllegianceRequest> | undefined, b: GetAllegianceRequest | PlainMessage<GetAllegianceRequest> | undefined): boolean {
+    return proto3.util.equals(GetAllegianceRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetAllegianceResponse
+ */
+export class GetAllegianceResponse extends Message<GetAllegianceResponse> {
+  /**
+   * Unset for an account that never acted for a flag.
+   *
+   * @generated from field: planet.v1.Allegiance allegiance = 1;
+   */
+  allegiance?: Allegiance;
+
+  constructor(data?: PartialMessage<GetAllegianceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetAllegianceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "allegiance", kind: "message", T: Allegiance },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAllegianceResponse {
+    return new GetAllegianceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAllegianceResponse {
+    return new GetAllegianceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAllegianceResponse {
+    return new GetAllegianceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAllegianceResponse | PlainMessage<GetAllegianceResponse> | undefined, b: GetAllegianceResponse | PlainMessage<GetAllegianceResponse> | undefined): boolean {
+    return proto3.util.equals(GetAllegianceResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.PledgeAllegianceRequest
+ */
+export class PledgeAllegianceRequest extends Message<PledgeAllegianceRequest> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  constructor(data?: PartialMessage<PledgeAllegianceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.PledgeAllegianceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PledgeAllegianceRequest {
+    return new PledgeAllegianceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PledgeAllegianceRequest {
+    return new PledgeAllegianceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PledgeAllegianceRequest {
+    return new PledgeAllegianceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PledgeAllegianceRequest | PlainMessage<PledgeAllegianceRequest> | undefined, b: PledgeAllegianceRequest | PlainMessage<PledgeAllegianceRequest> | undefined): boolean {
+    return proto3.util.equals(PledgeAllegianceRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.PledgeAllegianceResponse
+ */
+export class PledgeAllegianceResponse extends Message<PledgeAllegianceResponse> {
+  constructor(data?: PartialMessage<PledgeAllegianceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.PledgeAllegianceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PledgeAllegianceResponse {
+    return new PledgeAllegianceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PledgeAllegianceResponse {
+    return new PledgeAllegianceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PledgeAllegianceResponse {
+    return new PledgeAllegianceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PledgeAllegianceResponse | PlainMessage<PledgeAllegianceResponse> | undefined, b: PledgeAllegianceResponse | PlainMessage<PledgeAllegianceResponse> | undefined): boolean {
+    return proto3.util.equals(PledgeAllegianceResponse, a, b);
+  }
+}
+
+/**
+ * Also the detail of a click, a shield or a pledge refused for its flag: with no
+ * country_id, the account plays for no flag yet and must pledge one.
+ *
+ * @generated from message planet.v1.Allegiance
+ */
+export class Allegiance extends Message<Allegiance> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * When another flag may be played: 0 for a flag never changed.
+   *
+   * @generated from field: int64 changeable_at_unix_ms = 2;
+   */
+  changeableAtUnixMs = protoInt64.zero;
+
+  /**
+   * The rules in force let no flag change, whatever changeable_at_unix_ms says.
+   *
+   * @generated from field: bool locked = 3;
+   */
+  locked = false;
+
+  constructor(data?: PartialMessage<Allegiance>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.Allegiance";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "changeable_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "locked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Allegiance {
+    return new Allegiance().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Allegiance {
+    return new Allegiance().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Allegiance {
+    return new Allegiance().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Allegiance | PlainMessage<Allegiance> | undefined, b: Allegiance | PlainMessage<Allegiance> | undefined): boolean {
+    return proto3.util.equals(Allegiance, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.ClickBudget
  */
 export class ClickBudget extends Message<ClickBudget> {
@@ -131,6 +325,13 @@ export class ClickBudget extends Message<ClickBudget> {
    */
   sharedWith = SharedWith.UNSPECIFIED;
 
+  /**
+   * The map takes no play: the rules in force freeze it. Set by GetBudget alone.
+   *
+   * @generated from field: bool frozen = 12;
+   */
+  frozen = false;
+
   constructor(data?: PartialMessage<ClickBudget>) {
     super();
     proto3.util.initPartial(data, this);
@@ -148,6 +349,7 @@ export class ClickBudget extends Message<ClickBudget> {
     { no: 9, name: "next_slowdown", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 10, name: "linked_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 11, name: "shared_with", kind: "enum", T: proto3.getEnumType(SharedWith) },
+    { no: 12, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBudget {
@@ -256,6 +458,40 @@ export class ClickResponse extends Message<ClickResponse> {
 
   static equals(a: ClickResponse | PlainMessage<ClickResponse> | undefined, b: ClickResponse | PlainMessage<ClickResponse> | undefined): boolean {
     return proto3.util.equals(ClickResponse, a, b);
+  }
+}
+
+/**
+ * The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz
+ * answer while the rules in force freeze the map.
+ *
+ * @generated from message planet.v1.FrozenRefusal
+ */
+export class FrozenRefusal extends Message<FrozenRefusal> {
+  constructor(data?: PartialMessage<FrozenRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.FrozenRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FrozenRefusal {
+    return new FrozenRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FrozenRefusal {
+    return new FrozenRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FrozenRefusal {
+    return new FrozenRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FrozenRefusal | PlainMessage<FrozenRefusal> | undefined, b: FrozenRefusal | PlainMessage<FrozenRefusal> | undefined): boolean {
+    return proto3.util.equals(FrozenRefusal, a, b);
   }
 }
 
@@ -507,6 +743,11 @@ export class GetMapResponse extends Message<GetMapResponse> {
    */
   shields: TileShields[] = [];
 
+  /**
+   * @generated from field: planet.v1.MapVersion version = 5;
+   */
+  version?: MapVersion;
+
   constructor(data?: PartialMessage<GetMapResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -519,6 +760,7 @@ export class GetMapResponse extends Message<GetMapResponse> {
     { no: 2, name: "codes", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 3, name: "tiles", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
     { no: 4, name: "shields", kind: "message", T: TileShields, repeated: true },
+    { no: 5, name: "version", kind: "message", T: MapVersion },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMapResponse {
@@ -535,6 +777,276 @@ export class GetMapResponse extends Message<GetMapResponse> {
 
   static equals(a: GetMapResponse | PlainMessage<GetMapResponse> | undefined, b: GetMapResponse | PlainMessage<GetMapResponse> | undefined): boolean {
     return proto3.util.equals(GetMapResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.MapVersion
+ */
+export class MapVersion extends Message<MapVersion> {
+  /**
+   * The second the server started: seq starts again from zero on every start.
+   *
+   * @generated from field: uint32 epoch = 1;
+   */
+  epoch = 0;
+
+  /**
+   * @generated from field: uint64 seq = 2;
+   */
+  seq = protoInt64.zero;
+
+  constructor(data?: PartialMessage<MapVersion>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.MapVersion";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "epoch", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "seq", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MapVersion {
+    return new MapVersion().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MapVersion {
+    return new MapVersion().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MapVersion {
+    return new MapVersion().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MapVersion | PlainMessage<MapVersion> | undefined, b: MapVersion | PlainMessage<MapVersion> | undefined): boolean {
+    return proto3.util.equals(MapVersion, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetHoldingsRequest
+ */
+export class GetHoldingsRequest extends Message<GetHoldingsRequest> {
+  constructor(data?: PartialMessage<GetHoldingsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetHoldingsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetHoldingsRequest {
+    return new GetHoldingsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetHoldingsRequest {
+    return new GetHoldingsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetHoldingsRequest {
+    return new GetHoldingsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetHoldingsRequest | PlainMessage<GetHoldingsRequest> | undefined, b: GetHoldingsRequest | PlainMessage<GetHoldingsRequest> | undefined): boolean {
+    return proto3.util.equals(GetHoldingsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetHoldingsResponse
+ */
+export class GetHoldingsResponse extends Message<GetHoldingsResponse> {
+  /**
+   * @generated from field: planet.v1.MapVersion version = 1;
+   */
+  version?: MapVersion;
+
+  /**
+   * @generated from field: repeated planet.v1.Holding countries = 2;
+   */
+  countries: Holding[] = [];
+
+  /**
+   * Every landmass with a tile held, each whole: a flag it does not list holds none of it.
+   *
+   * @generated from field: repeated planet.v1.LandmassHoldings landmasses = 3;
+   */
+  landmasses: LandmassHoldings[] = [];
+
+  constructor(data?: PartialMessage<GetHoldingsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetHoldingsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "version", kind: "message", T: MapVersion },
+    { no: 2, name: "countries", kind: "message", T: Holding, repeated: true },
+    { no: 3, name: "landmasses", kind: "message", T: LandmassHoldings, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetHoldingsResponse {
+    return new GetHoldingsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetHoldingsResponse {
+    return new GetHoldingsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetHoldingsResponse {
+    return new GetHoldingsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetHoldingsResponse | PlainMessage<GetHoldingsResponse> | undefined, b: GetHoldingsResponse | PlainMessage<GetHoldingsResponse> | undefined): boolean {
+    return proto3.util.equals(GetHoldingsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.Holding
+ */
+export class Holding extends Message<Holding> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 tiles = 2;
+   */
+  tiles = 0;
+
+  constructor(data?: PartialMessage<Holding>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.Holding";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Holding {
+    return new Holding().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Holding {
+    return new Holding().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Holding {
+    return new Holding().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Holding | PlainMessage<Holding> | undefined, b: Holding | PlainMessage<Holding> | undefined): boolean {
+    return proto3.util.equals(Holding, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.LandmassHoldings
+ */
+export class LandmassHoldings extends Message<LandmassHoldings> {
+  /**
+   * An index into the borders blob's landmass table.
+   *
+   * @generated from field: uint32 landmass_id = 1;
+   */
+  landmassId = 0;
+
+  /**
+   * @generated from field: repeated planet.v1.Holding holdings = 2;
+   */
+  holdings: Holding[] = [];
+
+  constructor(data?: PartialMessage<LandmassHoldings>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.LandmassHoldings";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "landmass_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "holdings", kind: "message", T: Holding, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LandmassHoldings {
+    return new LandmassHoldings().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LandmassHoldings {
+    return new LandmassHoldings().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LandmassHoldings {
+    return new LandmassHoldings().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: LandmassHoldings | PlainMessage<LandmassHoldings> | undefined, b: LandmassHoldings | PlainMessage<LandmassHoldings> | undefined): boolean {
+    return proto3.util.equals(LandmassHoldings, a, b);
+  }
+}
+
+/**
+ * Totals, never differences, of what the writes since the last one changed: at most one a second.
+ *
+ * @generated from message planet.v1.HoldingsChanged
+ */
+export class HoldingsChanged extends Message<HoldingsChanged> {
+  /**
+   * @generated from field: planet.v1.MapVersion version = 1;
+   */
+  version?: MapVersion;
+
+  /**
+   * A flag that holds no tile any more is listed with none.
+   *
+   * @generated from field: repeated planet.v1.Holding countries = 2;
+   */
+  countries: Holding[] = [];
+
+  /**
+   * Each whole, as in GetHoldingsResponse: a landmass nobody holds any more lists no flag.
+   *
+   * @generated from field: repeated planet.v1.LandmassHoldings landmasses = 3;
+   */
+  landmasses: LandmassHoldings[] = [];
+
+  constructor(data?: PartialMessage<HoldingsChanged>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.HoldingsChanged";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "version", kind: "message", T: MapVersion },
+    { no: 2, name: "countries", kind: "message", T: Holding, repeated: true },
+    { no: 3, name: "landmasses", kind: "message", T: LandmassHoldings, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): HoldingsChanged {
+    return new HoldingsChanged().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): HoldingsChanged {
+    return new HoldingsChanged().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): HoldingsChanged {
+    return new HoldingsChanged().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: HoldingsChanged | PlainMessage<HoldingsChanged> | undefined, b: HoldingsChanged | PlainMessage<HoldingsChanged> | undefined): boolean {
+    return proto3.util.equals(HoldingsChanged, a, b);
   }
 }
 
@@ -582,6 +1094,8 @@ export class TileShields extends Message<TileShields> {
 }
 
 /**
+ * Empty is every event, and stays so: the clip recorder sends it.
+ *
  * @generated from message planet.v1.ListenForEventsRequest
  */
 export class ListenForEventsRequest extends Message<ListenForEventsRequest> {
@@ -673,6 +1187,26 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: LandmassFortified;
     case: "landmassFortified";
+  } | {
+    /**
+     * @generated from field: planet.v1.HoldingsChanged holdings_changed = 10;
+     */
+    value: HoldingsChanged;
+    case: "holdingsChanged";
+  } | {
+    /**
+     * @generated from field: planet.v1.RulesChanged rules_changed = 11;
+     */
+    value: RulesChanged;
+    case: "rulesChanged";
+  } | {
+    /**
+     * Only on a stream opened with a signed-in account's token, and only that account's.
+     *
+     * @generated from field: planet.v1.ChargesGranted charges_granted = 12;
+     */
+    value: ChargesGranted;
+    case: "chargesGranted";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -692,6 +1226,9 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 7, name: "tiles_spread", kind: "message", T: TilesSpread, oneof: "event" },
     { no: 8, name: "quiz_offered", kind: "message", T: QuizOffered, oneof: "event" },
     { no: 9, name: "landmass_fortified", kind: "message", T: LandmassFortified, oneof: "event" },
+    { no: 10, name: "holdings_changed", kind: "message", T: HoldingsChanged, oneof: "event" },
+    { no: 11, name: "rules_changed", kind: "message", T: RulesChanged, oneof: "event" },
+    { no: 12, name: "charges_granted", kind: "message", T: ChargesGranted, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -708,6 +1245,393 @@ export class PlanetEvent extends Message<PlanetEvent> {
 
   static equals(a: PlanetEvent | PlainMessage<PlanetEvent> | undefined, b: PlanetEvent | PlainMessage<PlanetEvent> | undefined): boolean {
     return proto3.util.equals(PlanetEvent, a, b);
+  }
+}
+
+/**
+ * A grant from outside the player's own clicks, such as a mission paid: all it holds now.
+ *
+ * @generated from message planet.v1.ChargesGranted
+ */
+export class ChargesGranted extends Message<ChargesGranted> {
+  /**
+   * @generated from field: planet.v1.ChargesHeld charges = 1;
+   */
+  charges?: ChargesHeld;
+
+  constructor(data?: PartialMessage<ChargesGranted>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ChargesGranted";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "charges", kind: "message", T: ChargesHeld },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargesGranted {
+    return new ChargesGranted().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ChargesGranted {
+    return new ChargesGranted().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ChargesGranted {
+    return new ChargesGranted().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ChargesGranted | PlainMessage<ChargesGranted> | undefined, b: ChargesGranted | PlainMessage<ChargesGranted> | undefined): boolean {
+    return proto3.util.equals(ChargesGranted, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetTileHolderRequest
+ */
+export class GetTileHolderRequest extends Message<GetTileHolderRequest> {
+  /**
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  constructor(data?: PartialMessage<GetTileHolderRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetTileHolderRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTileHolderRequest {
+    return new GetTileHolderRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTileHolderRequest {
+    return new GetTileHolderRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTileHolderRequest {
+    return new GetTileHolderRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTileHolderRequest | PlainMessage<GetTileHolderRequest> | undefined, b: GetTileHolderRequest | PlainMessage<GetTileHolderRequest> | undefined): boolean {
+    return proto3.util.equals(GetTileHolderRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetTileHolderResponse
+ */
+export class GetTileHolderResponse extends Message<GetTileHolderResponse> {
+  /**
+   * Unset when the last change of the tile emptied it.
+   *
+   * @generated from field: planet.v1.TileHolder holder = 1;
+   */
+  holder?: TileHolder;
+
+  constructor(data?: PartialMessage<GetTileHolderResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetTileHolderResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "holder", kind: "message", T: TileHolder },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTileHolderResponse {
+    return new GetTileHolderResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTileHolderResponse {
+    return new GetTileHolderResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTileHolderResponse {
+    return new GetTileHolderResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTileHolderResponse | PlainMessage<GetTileHolderResponse> | undefined, b: GetTileHolderResponse | PlainMessage<GetTileHolderResponse> | undefined): boolean {
+    return proto3.util.equals(GetTileHolderResponse, a, b);
+  }
+}
+
+/**
+ * The last take of the tile: a tile that shows another flag changed hands since.
+ *
+ * @generated from message planet.v1.TileHolder
+ */
+export class TileHolder extends Message<TileHolder> {
+  /**
+   * Empty when the take names no account, as once its account is deleted.
+   *
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: int64 taken_at_unix_ms = 3;
+   */
+  takenAtUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<TileHolder>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.TileHolder";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "taken_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileHolder {
+    return new TileHolder().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TileHolder {
+    return new TileHolder().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TileHolder {
+    return new TileHolder().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TileHolder | PlainMessage<TileHolder> | undefined, b: TileHolder | PlainMessage<TileHolder> | undefined): boolean {
+    return proto3.util.equals(TileHolder, a, b);
+  }
+}
+
+/**
+ * The budget's rate may have moved: read it again.
+ *
+ * @generated from message planet.v1.RulesChanged
+ */
+export class RulesChanged extends Message<RulesChanged> {
+  constructor(data?: PartialMessage<RulesChanged>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.RulesChanged";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RulesChanged {
+    return new RulesChanged().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RulesChanged {
+    return new RulesChanged().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RulesChanged {
+    return new RulesChanged().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RulesChanged | PlainMessage<RulesChanged> | undefined, b: RulesChanged | PlainMessage<RulesChanged> | undefined): boolean {
+    return proto3.util.equals(RulesChanged, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetLandmassRequest
+ */
+export class GetLandmassRequest extends Message<GetLandmassRequest> {
+  /**
+   * @generated from field: uint32 landmass_id = 1;
+   */
+  landmassId = 0;
+
+  constructor(data?: PartialMessage<GetLandmassRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetLandmassRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "landmass_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLandmassRequest {
+    return new GetLandmassRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetLandmassRequest {
+    return new GetLandmassRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetLandmassRequest {
+    return new GetLandmassRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetLandmassRequest | PlainMessage<GetLandmassRequest> | undefined, b: GetLandmassRequest | PlainMessage<GetLandmassRequest> | undefined): boolean {
+    return proto3.util.equals(GetLandmassRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetLandmassResponse
+ */
+export class GetLandmassResponse extends Message<GetLandmassResponse> {
+  /**
+   * Most tiles first. A tile no player's take holds is in none: an operator wrote it, or its account was deleted.
+   *
+   * @generated from field: repeated planet.v1.LandmassHolder holders = 1;
+   */
+  holders: LandmassHolder[] = [];
+
+  /**
+   * The last fortify a player made of the landmass. Unset when none was kept: a flag can hold the lock with no fortify.
+   *
+   * @generated from field: planet.v1.LandmassFortification last_fortification = 2;
+   */
+  lastFortification?: LandmassFortification;
+
+  constructor(data?: PartialMessage<GetLandmassResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetLandmassResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "holders", kind: "message", T: LandmassHolder, repeated: true },
+    { no: 2, name: "last_fortification", kind: "message", T: LandmassFortification },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLandmassResponse {
+    return new GetLandmassResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetLandmassResponse {
+    return new GetLandmassResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetLandmassResponse {
+    return new GetLandmassResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetLandmassResponse | PlainMessage<GetLandmassResponse> | undefined, b: GetLandmassResponse | PlainMessage<GetLandmassResponse> | undefined): boolean {
+    return proto3.util.equals(GetLandmassResponse, a, b);
+  }
+}
+
+/**
+ * The tiles of the landmass one account's takes hold for one flag.
+ *
+ * @generated from message planet.v1.LandmassHolder
+ */
+export class LandmassHolder extends Message<LandmassHolder> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 tiles = 3;
+   */
+  tiles = 0;
+
+  constructor(data?: PartialMessage<LandmassHolder>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.LandmassHolder";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LandmassHolder {
+    return new LandmassHolder().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LandmassHolder {
+    return new LandmassHolder().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LandmassHolder {
+    return new LandmassHolder().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: LandmassHolder | PlainMessage<LandmassHolder> | undefined, b: LandmassHolder | PlainMessage<LandmassHolder> | undefined): boolean {
+    return proto3.util.equals(LandmassHolder, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.LandmassFortification
+ */
+export class LandmassFortification extends Message<LandmassFortification> {
+  /**
+   * Empty once its account is deleted.
+   *
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: int64 fortified_at_unix_ms = 3;
+   */
+  fortifiedAtUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<LandmassFortification>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.LandmassFortification";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "fortified_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LandmassFortification {
+    return new LandmassFortification().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LandmassFortification {
+    return new LandmassFortification().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LandmassFortification {
+    return new LandmassFortification().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: LandmassFortification | PlainMessage<LandmassFortification> | undefined, b: LandmassFortification | PlainMessage<LandmassFortification> | undefined): boolean {
+    return proto3.util.equals(LandmassFortification, a, b);
   }
 }
 
@@ -851,6 +1775,11 @@ export class LandmassFortified extends Message<LandmassFortified> {
    */
   tileId = 0;
 
+  /**
+   * @generated from field: planet.v1.MapVersion version = 4;
+   */
+  version?: MapVersion;
+
   constructor(data?: PartialMessage<LandmassFortified>) {
     super();
     proto3.util.initPartial(data, this);
@@ -862,6 +1791,7 @@ export class LandmassFortified extends Message<LandmassFortified> {
     { no: 1, name: "landmass_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "version", kind: "message", T: MapVersion },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LandmassFortified {
@@ -1082,6 +2012,13 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
    */
   tileShields = 0;
 
+  /**
+   * A guest's first sign-in earns a refill.
+   *
+   * @generated from field: bool sign_in_refill = 9;
+   */
+  signInRefill = false;
+
   constructor(data?: PartialMessage<GetBonusRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1097,6 +2034,7 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
     { no: 6, name: "toll_steps", kind: "message", T: TollStep, repeated: true },
     { no: 7, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 8, name: "tile_shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 9, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBonusRulesResponse {
@@ -1833,11 +2771,22 @@ export class BombDropped extends Message<BombDropped> {
   point?: GlobePoint;
 
   /**
-   * Each lost one shield and kept its flag.
-   *
-   * @generated from field: repeated uint32 struck_tile_ids = 6;
+   * @generated from field: repeated uint32 struck_tile_ids = 6 [deprecated = true];
+   * @deprecated
    */
   struckTileIds: number[] = [];
+
+  /**
+   * @generated from field: planet.v1.MapVersion version = 7;
+   */
+  version?: MapVersion;
+
+  /**
+   * Each lost one shield and kept its flag: with the shields it kept.
+   *
+   * @generated from field: repeated planet.v1.TileShields struck = 8;
+   */
+  struck: TileShields[] = [];
 
   constructor(data?: PartialMessage<BombDropped>) {
     super();
@@ -1853,6 +2802,8 @@ export class BombDropped extends Message<BombDropped> {
     { no: 4, name: "cleared_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
     { no: 5, name: "point", kind: "message", T: GlobePoint },
     { no: 6, name: "struck_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 7, name: "version", kind: "message", T: MapVersion },
+    { no: 8, name: "struck", kind: "message", T: TileShields, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BombDropped {
@@ -2066,6 +3017,13 @@ export class PlaceShieldResponse extends Message<PlaceShieldResponse> {
  * @generated from message planet.v1.Heartbeat
  */
 export class Heartbeat extends Message<Heartbeat> {
+  /**
+   * The last change this stream sent, or the map's when it opened.
+   *
+   * @generated from field: planet.v1.MapVersion version = 1;
+   */
+  version?: MapVersion;
+
   constructor(data?: PartialMessage<Heartbeat>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2074,6 +3032,7 @@ export class Heartbeat extends Message<Heartbeat> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.Heartbeat";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "version", kind: "message", T: MapVersion },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Heartbeat {
@@ -2126,6 +3085,11 @@ export class TileUpdate extends Message<TileUpdate> {
    */
   shields = 0;
 
+  /**
+   * @generated from field: planet.v1.MapVersion version = 6;
+   */
+  version?: MapVersion;
+
   constructor(data?: PartialMessage<TileUpdate>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2139,6 +3103,7 @@ export class TileUpdate extends Message<TileUpdate> {
     { no: 3, name: "previous_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "clicked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "version", kind: "message", T: MapVersion },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileUpdate {

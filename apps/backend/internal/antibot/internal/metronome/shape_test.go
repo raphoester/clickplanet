@@ -15,16 +15,16 @@ import (
 
 func skew(v float64) *float64 { return &v }
 
-func shapeConfig() metronome.Config {
-	c := config()
-	c.Shape = metronome.ShapeConfig{
+func shaped() (metronome.Rules, metronome.Config) {
+	rules, config := cadenced()
+	rules.Shape = metronome.ShapeRules{
 		MaxGap:        10 * time.Second,
 		Clicks:        500,
 		MaxSkew:       skew(0.25),
 		CertainClicks: 1000,
 		CertainSkew:   skew(0.15),
 	}
-	return c
+	return rules, config
 }
 
 func randomSleep(r *rand.Rand, click int) time.Duration {
@@ -55,7 +55,7 @@ func play(h *harness, clicks int, gap func(*rand.Rand, int) time.Duration) (dete
 }
 
 func TestARandomSleepIsStillAClock(t *testing.T) {
-	h := newHarness(shapeConfig())
+	h := newHarness(shaped())
 
 	verdict, evidence := play(h, 600, randomSleep)
 
@@ -64,7 +64,7 @@ func TestARandomSleepIsStillAClock(t *testing.T) {
 }
 
 func TestARandomSleepHeldLongIsCertain(t *testing.T) {
-	h := newHarness(shapeConfig())
+	h := newHarness(shaped())
 
 	verdict, evidence := play(h, 1100, randomSleep)
 
@@ -73,7 +73,7 @@ func TestARandomSleepHeldLongIsCertain(t *testing.T) {
 }
 
 func TestAHandLeansLong(t *testing.T) {
-	h := newHarness(shapeConfig())
+	h := newHarness(shaped())
 
 	verdict, _ := play(h, 3000, hand)
 
@@ -81,7 +81,7 @@ func TestAHandLeansLong(t *testing.T) {
 }
 
 func TestTheShapeIsNotJudgedBeforeItsWindowFills(t *testing.T) {
-	h := newHarness(shapeConfig())
+	h := newHarness(shaped())
 
 	verdict, _ := play(h, 400, randomSleep)
 
@@ -89,10 +89,10 @@ func TestTheShapeIsNotJudgedBeforeItsWindowFills(t *testing.T) {
 }
 
 func TestAShapeWithNoBoundOnlyMeasures(t *testing.T) {
-	c := shapeConfig()
-	c.Shape.MaxSkew = nil
-	c.Shape.CertainSkew = nil
-	h := newHarness(c)
+	rules, config := shaped()
+	rules.Shape.MaxSkew = nil
+	rules.Shape.CertainSkew = nil
+	h := newHarness(rules, config)
 
 	verdict, _ := play(h, 1100, randomSleep)
 
@@ -100,7 +100,7 @@ func TestAShapeWithNoBoundOnlyMeasures(t *testing.T) {
 }
 
 func TestAPauseDoesNotEndTheShape(t *testing.T) {
-	h := newHarness(shapeConfig())
+	h := newHarness(shaped())
 
 	_, _ = play(h, 450, randomSleep)
 	h.clock.Advance(time.Minute)
@@ -111,7 +111,7 @@ func TestAPauseDoesNotEndTheShape(t *testing.T) {
 }
 
 func TestTheStrongerRuleIsTheOneReported(t *testing.T) {
-	h := newHarness(shapeConfig())
+	h := newHarness(shaped())
 
 	gaps := []time.Duration{980, 1000, 1020, 990, 1010}
 	var (

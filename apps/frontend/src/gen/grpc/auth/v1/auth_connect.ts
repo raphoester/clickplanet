@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteEmailSignInRequest, CompleteEmailSignInResponse, CompleteSignInRequest, CompleteSignInResponse, CreateSessionRequest, CreateSessionResponse, DeleteAccountRequest, DeleteAccountResponse, GetMeRequest, GetMeResponse, GetSignInOptionsRequest, GetSignInOptionsResponse, ResumeSessionRequest, ResumeSessionResponse, SignOutEverywhereRequest, SignOutEverywhereResponse, SignOutRequest, SignOutResponse, StartEmailSignInRequest, StartEmailSignInResponse, StartSignInRequest, StartSignInResponse } from "./auth_pb.js";
+import { CompleteCrazyGamesSignInRequest, CompleteCrazyGamesSignInResponse, CompleteEmailSignInRequest, CompleteEmailSignInResponse, CompleteSignInRequest, CompleteSignInResponse, CreateSessionRequest, CreateSessionResponse, DeleteAccountRequest, DeleteAccountResponse, GetMeRequest, GetMeResponse, GetSignInOptionsRequest, GetSignInOptionsResponse, ResumeSessionRequest, ResumeSessionResponse, SignOutEverywhereRequest, SignOutEverywhereResponse, SignOutRequest, SignOutResponse, StartEmailSignInRequest, StartEmailSignInResponse, StartSignInRequest, StartSignInResponse } from "./auth_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -89,6 +89,17 @@ export const AuthService = {
       kind: MethodKind.Unary,
     },
     /**
+     * One step: the CrazyGames SDK already signed the player in, and its token says who.
+     *
+     * @generated from rpc auth.v1.AuthService.CompleteCrazyGamesSignIn
+     */
+    completeCrazyGamesSignIn: {
+      name: "CompleteCrazyGamesSignIn",
+      I: CompleteCrazyGamesSignInRequest,
+      O: CompleteCrazyGamesSignInResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
      * @generated from rpc auth.v1.AuthService.SignOut
      */
     signOut: {
@@ -107,6 +118,9 @@ export const AuthService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Signs the account out everywhere and hides it from the other players. It is erased after a grace period, unless a
+     * sign-in to it brings it back first.
+     *
      * @generated from rpc auth.v1.AuthService.DeleteAccount
      */
     deleteAccount: {

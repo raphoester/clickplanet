@@ -16,7 +16,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/postgres_decision_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/usecases/decide_report_usecase"
@@ -37,8 +38,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/usecases/prune_reports_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/usecases/report_player_usecase"
 	report_ids "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/uuid_id_provider"
-	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/decide_report_handler"
@@ -47,7 +48,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler/notes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler/reports_query"
-	report_authors "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler/reports_query/rpc_player_authors"
+	report_players "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler/reports_query/rpc_players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_bug_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/suggest_feature_handler"
@@ -57,8 +58,6 @@ import (
 )
 
 const moduleName = "support"
-
-const accountDeletedBuffer = 256
 
 const bucketTimeout = 4 * time.Second
 
@@ -90,6 +89,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 	}
 
+	streams := cpredis.New(config.Redis, props.Metrics)
+	if err := streams.ConnectCtx(ctx); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to connect the support module to redis: %w", err)
+	}
+	closeStores := func() {
+		_ = streams.Close()
+		_ = db.Close()
+	}
+
 	noteStore := postgres_note_store.New(db)
 	reportStore := postgres_report_store.New(db)
 	uploadStore := postgres_upload_store.New(db)
@@ -97,7 +106,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	bucket, err := s3_attachment_bucket.New(config.Attachments.bucket(), config.Attachments.lifetimes(), clock,
 		&http.Client{Timeout: bucketTimeout})
 	if err != nil {
-		_ = db.Close()
+		closeStores()
 		return fmt.Errorf("failed to build the bucket of the attachments: %w", err)
 	}
 	rules := config.Attachments.rules()
@@ -110,23 +119,24 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	unsentDiscard := log_prune.New(discard_unsent_usecase.New(config.Attachments.KeepUnsent, clock, uploadStore, bucket),
 		props.Logger.With(slog.String("pruned", "unsent files")))
 
-	noteDeletions, err := cpbootstrap.Subscribe(props.Events, "support-notes-accounts", accountDeletedBuffer,
-		log_subscriber.New(account_deleted_subscriber.New(anonymize_notes_usecase.New(noteStore)), props.Logger))
+	noteDeletions, err := cpredis.Subscribe(ctx, streams, "support-notes-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(anonymize_notes_usecase.New(noteStore)), props.Logger))
 	if err != nil {
-		_ = db.Close()
-		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+		closeStores()
+		return fmt.Errorf("failed to subscribe the notes to player.v1.PlayerForgotten: %w", err)
 	}
 
-	reportDeletions, err := cpbootstrap.Subscribe(props.Events, "support-reports-accounts", accountDeletedBuffer,
-		log_subscriber.New(account_deleted_subscriber.New(forget_reports_usecase.New(reportStore)), props.Logger))
+	reportDeletions, err := cpredis.Subscribe(ctx, streams, "support-reports-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_reports_usecase.New(reportStore)), props.Logger))
 	if err != nil {
-		_ = db.Close()
-		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+		closeStores()
+		return fmt.Errorf("failed to subscribe the reports to player.v1.PlayerForgotten: %w", err)
 	}
 
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
-		prune_usecase.NewRunner(config.PruneInterval, notePrune, reportPrune, unsentDiscard), noteDeletions, reportDeletions))
+		prune_usecase.NewRunner(config.PruneInterval, notePrune, reportPrune, unsentDiscard),
+		cpredis.CloseAfter(streams, props.Logger, noteDeletions, reportDeletions)))
 
 	limiter := cpratelimit.New("support-limiter", config.RateLimiter, clock)
 	props.Runners.Add(limiter)
@@ -145,11 +155,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetAttachmentRulesHandler: get_attachment_rules_handler.New(rules, shelf),
 		CreateUploadHandler:       create_upload_handler.New(create_upload_usecase.New(note_ids.Provider{}, rules, shelf, bucket)),
 	}
-	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return supportv1connect.NewSupportServiceHandler(service, options...)
 	},
-		supportv1controller.NewSessionInterceptor(verifier, clock, props.Metrics),
+		supportv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),
 		supportv1controller.NewRateLimitInterceptor(limiter),
 		supportv1controller.NewNoteLimitInterceptor(noteLimiter),
 		supportv1controller.NewUploadLimitInterceptor(uploadLimiter),
@@ -159,7 +168,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	adminService := supportv1controller.AdminService{
 		ListNotesHandler:   list_notes_handler.New(notes_query.NewPostgresQuery(db, bucket)),
-		ListReportsHandler: list_reports_handler.New(reports_query.NewPostgresQuery(db, report_authors.New(player))),
+		ListReportsHandler: list_reports_handler.New(reports_query.NewPostgresQuery(db, report_players.New(player))),
 		DecideReportHandler: decide_report_handler.New(audit_decide_report.New(
 			decide_report_usecase.New(postgres_decision_store.New(db), clock), props.Logger)),
 	}
@@ -177,6 +186,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 type Config struct {
 	Database cppg.Config
+	Redis    cpredis.Config
 
 	Retention     time.Duration
 	PruneInterval time.Duration
@@ -203,7 +213,7 @@ type AttachmentsConfig struct {
 	UploadTTL time.Duration
 	LinkTTL   time.Duration
 
-	Bucket s3_attachment_bucket.Config
+	Bucket cps3.Config
 }
 
 // Off, a note carries no file, and the bucket block is not read.
@@ -214,9 +224,9 @@ func (c AttachmentsConfig) rules() notes.AttachmentRules {
 	return notes.AttachmentRules{MaxPerNote: c.MaxPerNote, MaxBytes: c.MaxBytes}
 }
 
-func (c AttachmentsConfig) bucket() s3_attachment_bucket.Config {
+func (c AttachmentsConfig) bucket() cps3.Config {
 	if !c.Enabled {
-		return s3_attachment_bucket.Config{}
+		return cps3.Config{}
 	}
 	return c.Bucket
 }
@@ -302,6 +312,9 @@ func (c Config) Validate() error {
 	var errs []error
 	if err := c.Database.Validate(); err != nil {
 		errs = append(errs, fmt.Errorf("support.database: %w", err))
+	}
+	if err := c.Redis.Validate(); err != nil {
+		errs = append(errs, fmt.Errorf("support.redis: %w", err))
 	}
 	if !c.Attachments.Enabled {
 		return errors.Join(errs...)

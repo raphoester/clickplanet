@@ -3,7 +3,6 @@ package cohort
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"sort"
 	"sync"
@@ -16,7 +15,9 @@ import (
 
 const Name = "cohort"
 
-type Config struct {
+type Rules struct {
+	Enabled bool
+
 	StartWindow time.Duration
 
 	MinClicks    int
@@ -28,32 +29,42 @@ type Config struct {
 
 	MinMembers int
 
-	V4Bits int
-	V6Bits int
-
 	CertainCohorts int
 	CertainMembers int
 	ChainWindow    time.Duration
+}
 
+func (r Rules) Validate() error {
+	return errors.Join(
+		detect.Positive("startWindow", r.StartWindow),
+		detect.AtLeast("minClicks", r.MinClicks, "the two clicks a rate needs", 2),
+		detect.Positive("minFlagShare", r.MinFlagShare),
+		detect.Share("minFlagShare", r.MinFlagShare),
+		detect.AtLeast("rateRatio", r.RateRatio, "faster over slower, which is never under", 1),
+		detect.AtLeast("lengthRatio", r.LengthRatio, "longer over shorter, which is never under", 1),
+		detect.Positive("quietAfter", r.QuietAfter),
+		detect.AtLeast("minMembers", r.MinMembers, "the scopes a cohort is at least", 2),
+		detect.AtLeast("certainCohorts", r.CertainCohorts, "the cohorts a chain is at least", 2),
+		detect.AtLeast("certainMembers", r.CertainMembers, "minMembers", r.MinMembers),
+		detect.Positive("chainWindow", r.ChainWindow),
+	)
+}
+
+type Config struct {
+	// Read when a scope is first seen, to index it by its wider prefix.
+	V4Bits int
+	V6Bits int
+
+	// Raised to the rules' chainWindow if shorter.
 	TrackWindow time.Duration
 
 	SweepInterval time.Duration
 }
 
 const (
-	defaultStartWindow    = 5 * time.Second
-	defaultMinClicks      = 20
-	defaultMinFlagShare   = 0.9
-	defaultRateRatio      = 1.5
-	defaultLengthRatio    = 1.2
-	defaultQuietAfter     = time.Minute
-	defaultMinMembers     = 2
-	defaultV4Bits         = 24
-	defaultV6Bits         = 44
-	defaultCertainCohorts = 3
-	defaultCertainMembers = 6
-	defaultChainWindow    = 30 * time.Minute
-	defaultSweepInterval  = time.Minute
+	defaultV4Bits        = 24
+	defaultV6Bits        = 44
+	defaultSweepInterval = time.Minute
 
 	rejudgeAfter = 2 * time.Second
 
@@ -61,96 +72,22 @@ const (
 )
 
 func (c Config) Validate() error {
-	var errs []error
-
-	for _, d := range []struct {
-		name  string
-		value time.Duration
-	}{
-		{"startWindow", c.StartWindow},
-		{"quietAfter", c.QuietAfter},
-		{"chainWindow", c.ChainWindow},
-		{"trackWindow", c.TrackWindow},
-		{"sweepInterval", c.SweepInterval},
-	} {
-		if d.value < 0 {
-			errs = append(errs, fmt.Errorf("%s is %v: a duration must not be negative", d.name, d.value))
-		}
-	}
-
-	if c.MinClicks < 0 || c.MinClicks == 1 {
-		errs = append(errs, fmt.Errorf("minClicks is %d: a rate needs at least 2 clicks", c.MinClicks))
-	}
-	if c.MinFlagShare < 0 || c.MinFlagShare > 1 || math.IsNaN(c.MinFlagShare) {
-		errs = append(errs, fmt.Errorf("minFlagShare is %v: a share is between 0 and 1", c.MinFlagShare))
-	}
-	if c.RateRatio != 0 && (c.RateRatio < 1 || math.IsNaN(c.RateRatio)) {
-		errs = append(errs, fmt.Errorf("rateRatio is %v: faster over slower is never under 1", c.RateRatio))
-	}
-	if c.LengthRatio != 0 && (c.LengthRatio < 1 || math.IsNaN(c.LengthRatio)) {
-		errs = append(errs, fmt.Errorf("lengthRatio is %v: longer over shorter is never under 1", c.LengthRatio))
-	}
-	if c.MinMembers < 0 || c.MinMembers == 1 {
-		errs = append(errs, fmt.Errorf("minMembers is %d: a cohort is at least 2 scopes", c.MinMembers))
-	}
-	if c.CertainCohorts < 0 || c.CertainCohorts == 1 {
-		errs = append(errs, fmt.Errorf("certainCohorts is %d: one cohort is a suspicion, a chain is at least 2", c.CertainCohorts))
-	}
-	if c.CertainMembers < 0 {
-		errs = append(errs, fmt.Errorf("certainMembers is %d: it must not be negative", c.CertainMembers))
-	}
-	if c.V4Bits < 0 || c.V4Bits > 32 {
-		errs = append(errs, fmt.Errorf("v4Bits is %d: an IPv4 prefix is 1 to 32 bits", c.V4Bits))
-	}
-	if c.V6Bits < 0 || c.V6Bits > 64 {
-		errs = append(errs, fmt.Errorf("v6Bits is %d: a scope is a /64, so the prefix is 1 to 64 bits", c.V6Bits))
-	}
-
-	return errors.Join(errs...)
+	return errors.Join(
+		detect.NotNegative("trackWindow", c.TrackWindow),
+		detect.NotNegative("sweepInterval", c.SweepInterval),
+		detect.NotNegative("v4Bits", c.V4Bits),
+		detect.AtMost("v4Bits", c.V4Bits, "the bits of an IPv4 address", 32),
+		detect.NotNegative("v6Bits", c.V6Bits),
+		detect.AtMost("v6Bits", c.V6Bits, "the bits of a scope, a /64,", 64),
+	)
 }
 
 func (c Config) withDefaults() Config {
-	if c.StartWindow <= 0 {
-		c.StartWindow = defaultStartWindow
-	}
-	if c.MinClicks <= 0 {
-		c.MinClicks = defaultMinClicks
-	}
-	if c.MinFlagShare <= 0 {
-		c.MinFlagShare = defaultMinFlagShare
-	}
-	if c.RateRatio < 1 {
-		c.RateRatio = defaultRateRatio
-	}
-	if c.LengthRatio < 1 {
-		c.LengthRatio = defaultLengthRatio
-	}
-	if c.QuietAfter <= 0 {
-		c.QuietAfter = defaultQuietAfter
-	}
-	if c.MinMembers < 2 {
-		c.MinMembers = defaultMinMembers
-	}
 	if c.V4Bits <= 0 {
 		c.V4Bits = defaultV4Bits
 	}
 	if c.V6Bits <= 0 {
 		c.V6Bits = defaultV6Bits
-	}
-	if c.CertainCohorts < 2 {
-		c.CertainCohorts = defaultCertainCohorts
-	}
-	if c.CertainMembers <= 0 {
-		c.CertainMembers = defaultCertainMembers
-	}
-	if c.CertainMembers < c.MinMembers {
-		c.CertainMembers = c.MinMembers
-	}
-	if c.ChainWindow <= 0 {
-		c.ChainWindow = defaultChainWindow
-	}
-	if c.TrackWindow < c.ChainWindow {
-		c.TrackWindow = c.ChainWindow
 	}
 	if c.SweepInterval <= 0 {
 		c.SweepInterval = defaultSweepInterval
@@ -158,13 +95,14 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func New(config Config, clock cptime.Clock, onInStep func(scopes int)) *Watchdog {
+func New(config Config, rules func() Rules, clock cptime.Clock, onInStep func(scopes int)) *Watchdog {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
 	return &Watchdog{
 		config:   config.withDefaults(),
+		rules:    rules,
 		clock:    clock,
 		onInStep: onInStep,
 		members:  make(map[string]*member),
@@ -175,6 +113,7 @@ func New(config Config, clock cptime.Clock, onInStep func(scopes int)) *Watchdog
 
 type Watchdog struct {
 	config   Config
+	rules    func() Rules
 	clock    cptime.Clock
 	onInStep func(int)
 
@@ -204,6 +143,8 @@ type member struct {
 }
 
 func (w *Watchdog) Name() string { return Name }
+
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
 
 func (w *Watchdog) Attempted(click detect.Click) {
 	if click.Scope == "" {
@@ -240,7 +181,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	}
 
 	m.judgedAt = click.At
-	m.verdict, m.evidence, m.inStep = w.judgeLocked(m, click.At)
+	m.verdict, m.evidence, m.inStep = w.judgeLocked(m, click.At, w.rules())
 
 	return m.verdict, m.evidence
 }
@@ -268,14 +209,14 @@ func (w *Watchdog) memberLocked(click detect.Click) *member {
 	return m
 }
 
-func (w *Watchdog) judgeLocked(m *member, now time.Time) (detect.Verdict, detect.Evidence, bool) {
-	flag, ok := w.painting(m)
+func (w *Watchdog) judgeLocked(m *member, now time.Time, rules Rules) (detect.Verdict, detect.Evidence, bool) {
+	flag, ok := rules.painting(m)
 	if !ok {
 		return detect.Clear, detect.Evidence{}, false
 	}
 
-	cohort := w.partnersLocked(m, flag, now)
-	if len(cohort) < w.config.MinMembers {
+	cohort := w.partnersLocked(m, flag, now, rules)
+	if len(cohort) < rules.MinMembers {
 		return detect.Clear, detect.Evidence{}, len(cohort) > 1
 	}
 
@@ -293,15 +234,15 @@ func (w *Watchdog) judgeLocked(m *member, now time.Time) (detect.Verdict, detect
 		}
 	}
 
-	if sharing >= w.config.CertainMembers {
+	if sharing >= rules.CertainMembers {
 		return detect.Certain, detect.Evidence{
 			Rule:   "crowd",
 			Fields: append(fields, detect.Field{Key: "prefix", Value: m.prefix}),
 		}, true
 	}
 
-	if sharing >= w.config.MinMembers {
-		if cohorts := w.chainLocked(m, flag, now); cohorts >= w.config.CertainCohorts {
+	if sharing >= rules.MinMembers {
+		if cohorts := w.chainLocked(m, flag, now, rules); cohorts >= rules.CertainCohorts {
 			return detect.Certain, detect.Evidence{
 				Rule: "chain",
 				Fields: append(fields,
@@ -315,16 +256,16 @@ func (w *Watchdog) judgeLocked(m *member, now time.Time) (detect.Verdict, detect
 	return detect.Suspect, detect.Evidence{Rule: "lockstep", Fields: fields}, true
 }
 
-func (w *Watchdog) partnersLocked(m *member, flag string, now time.Time) []*member {
+func (w *Watchdog) partnersLocked(m *member, flag string, now time.Time, rules Rules) []*member {
 	cohort := []*member{m}
 
-	from := m.first.Add(-w.config.StartWindow).Unix()
-	to := m.first.Add(w.config.StartWindow).Unix()
+	from := m.first.Add(-rules.StartWindow).Unix()
+	to := m.first.Add(rules.StartWindow).Unix()
 
 	for second := from; second <= to; second++ {
 		w.starts[second].ForEach(func(scope string) {
 			other := w.members[scope]
-			if other != m && w.inStep(m, other, flag, now) {
+			if other != m && rules.inStep(m, other, flag, now) {
 				cohort = append(cohort, other)
 			}
 		})
@@ -333,15 +274,15 @@ func (w *Watchdog) partnersLocked(m *member, flag string, now time.Time) []*memb
 	return cohort
 }
 
-func (w *Watchdog) chainLocked(m *member, flag string, now time.Time) int {
+func (w *Watchdog) chainLocked(m *member, flag string, now time.Time, rules Rules) int {
 	var group []*member
 
 	w.prefixes[m.prefix].ForEach(func(scope string) {
 		other := w.members[scope]
-		if f, ok := w.painting(other); !ok || f != flag {
+		if f, ok := rules.painting(other); !ok || f != flag {
 			return
 		}
-		if absDuration(other.first.Sub(m.first)) > w.config.ChainWindow {
+		if absDuration(other.first.Sub(m.first)) > rules.ChainWindow {
 			return
 		}
 		group = append(group, other)
@@ -358,7 +299,7 @@ func (w *Watchdog) chainLocked(m *member, flag string, now time.Time) int {
 
 	for start := 0; start < len(group); {
 		end := start + 1
-		for end < len(group) && group[end].first.Sub(group[start].first) <= w.config.StartWindow {
+		for end < len(group) && group[end].first.Sub(group[start].first) <= rules.StartWindow {
 			end++
 		}
 
@@ -366,13 +307,13 @@ func (w *Watchdog) chainLocked(m *member, flag string, now time.Time) int {
 		inStep := 0
 		for _, a := range cluster {
 			for _, b := range cluster {
-				if a != b && w.inStep(a, b, flag, now) {
+				if a != b && rules.inStep(a, b, flag, now) {
 					inStep++
 					break
 				}
 			}
 		}
-		if inStep >= w.config.MinMembers {
+		if inStep >= rules.MinMembers {
 			cohorts++
 		}
 
@@ -382,15 +323,15 @@ func (w *Watchdog) chainLocked(m *member, flag string, now time.Time) int {
 	return cohorts
 }
 
-func (w *Watchdog) inStep(a, b *member, flag string, now time.Time) bool {
-	if f, ok := w.painting(b); !ok || f != flag {
+func (r Rules) inStep(a, b *member, flag string, now time.Time) bool {
+	if f, ok := r.painting(b); !ok || f != flag {
 		return false
 	}
-	if absDuration(a.first.Sub(b.first)) > w.config.StartWindow {
+	if absDuration(a.first.Sub(b.first)) > r.StartWindow {
 		return false
 	}
 
-	if ratio(rate(a), rate(b)) > w.config.RateRatio {
+	if ratio(rate(a), rate(b)) > r.RateRatio {
 		return false
 	}
 
@@ -399,15 +340,15 @@ func (w *Watchdog) inStep(a, b *member, flag string, now time.Time) bool {
 		shorter, longer = longer, shorter
 	}
 
-	if now.Sub(shorter.last) >= w.config.QuietAfter {
-		return ratio(float64(shorter.last.Sub(shorter.first)), float64(longer.last.Sub(longer.first))) <= w.config.LengthRatio
+	if now.Sub(shorter.last) >= r.QuietAfter {
+		return ratio(float64(shorter.last.Sub(shorter.first)), float64(longer.last.Sub(longer.first))) <= r.LengthRatio
 	}
 
 	return true
 }
 
-func (w *Watchdog) painting(m *member) (string, bool) {
-	if m.clicks < w.config.MinClicks || !m.last.After(m.first) {
+func (r Rules) painting(m *member) (string, bool) {
+	if m.clicks < r.MinClicks || !m.last.After(m.first) {
 		return "", false
 	}
 
@@ -421,7 +362,7 @@ func (w *Watchdog) painting(m *member) (string, bool) {
 		}
 	}
 
-	if top == "" || float64(count)/float64(m.clicks) < w.config.MinFlagShare {
+	if top == "" || float64(count)/float64(m.clicks) < r.MinFlagShare {
 		return "", false
 	}
 	return top, true
@@ -504,8 +445,9 @@ func (w *Watchdog) sweep() {
 
 	w.mu.Lock()
 
+	rules := w.rules()
 	inStep := 0
-	cutoff := now.Add(-w.config.TrackWindow)
+	cutoff := now.Add(-max(w.config.TrackWindow, rules.ChainWindow))
 
 	for scope, m := range w.members {
 		if m.last.Before(cutoff) {
@@ -517,7 +459,7 @@ func (w *Watchdog) sweep() {
 			continue
 		}
 
-		if m.inStep && now.Sub(m.last) < w.config.QuietAfter {
+		if m.inStep && now.Sub(m.last) < rules.QuietAfter {
 			inStep++
 		}
 	}

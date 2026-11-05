@@ -30,8 +30,6 @@ const MOST_STOP_ZOOM = 2.2
 // tiles, blurred: the flags changing hands are what a tour shows.
 const DIVE = 2
 
-const HOLD_SECONDS = 0.3
-
 const FLIGHT_SECONDS = 1.2
 
 const STAY_SECONDS = 2.6
@@ -81,36 +79,40 @@ export function stopsOf(visits: readonly Visit[], aspect: number): Stop[] {
 
 // How long a tour of so many stops plays.
 export function tourSecondsOf(stops: number): number {
-    return HOLD_SECONDS + stops * (FLIGHT_SECONDS + STAY_SECONDS) + REVEAL_SECONDS + END_HOLD_SECONDS
+    return stops * STAY_SECONDS + flightsOf(stops) * FLIGHT_SECONDS + REVEAL_SECONDS + END_HOLD_SECONDS
 }
 
-// Opens on the whole globe over the first stop and dives into it. At each stop it follows the flag's fighting there as
-// it happens, then flies to the next, in the order the flag got there, rising a little over a long way: no zooming out
-// and back in at every stop. It ends pulled back out to the globe over all of them, which it holds before the call to
-// act. closest: the zoom the painted flags start to blend into the tiles at.
+function flightsOf(stops: number): number {
+    return Math.max(0, stops - 1)
+}
+
+// Opens at the first stop, where the painted flags change hands from the first second. At each stop it follows the
+// flag's fighting there as it happens, then flies to the next, in the order the flag got there, rising a little over a
+// long way: no zooming out and back in at every stop. It ends pulled back out to the globe over all of them, which it
+// holds before the call to act. closest: the zoom the painted flags start to blend into the tiles at.
 export function tourOf(stops: readonly Stop[], aspect: number, seconds: number, closest: number): (share: number) => Shot {
     const globe = widestZoomOf(aspect)
     if (stops.length === 0) return () => ({direction: {x: 0, y: 0, z: 1}, zoom: globe})
 
-    const start = {direction: stops[0].shot.direction, zoom: globe}
-    const end = {direction: meanOf(stops.map(({shot}) => shot.direction)) ?? start.direction, zoom: globe}
-    const flying = HOLD_SECONDS + stops.length * FLIGHT_SECONDS + REVEAL_SECONDS + END_HOLD_SECONDS
+    const end = {direction: meanOf(stops.map(({shot}) => shot.direction)) ?? stops[0].shot.direction, zoom: globe}
+    const flying = flightsOf(stops.length) * FLIGHT_SECONDS + REVEAL_SECONDS + END_HOLD_SECONDS
     const stay = Math.max(0.5, (seconds - flying) / stops.length)
     const follow = stops.map(({shot, beats}) => followerOf(shot.direction, beats))
 
     const shotAt = (share: number): Shot => {
-        let at = share * seconds - HOLD_SECONDS
-        if (at < 0) return start
-        let from: Shot = start
+        let at = share * seconds
+        let from: Shot | undefined
         for (const [k, {shot}] of stops.entries()) {
             const close = {direction: follow[k](share), zoom: Math.min(closest, shot.zoom * DIVE)}
-            if (at < FLIGHT_SECONDS) return flight(from, close, at / FLIGHT_SECONDS, globe, k > 0)
-            at -= FLIGHT_SECONDS
+            if (from !== undefined) {
+                if (at < FLIGHT_SECONDS) return flight(from, close, at / FLIGHT_SECONDS, globe, true)
+                at -= FLIGHT_SECONDS
+            }
             if (at < stay) return close
             at -= stay
             from = close
         }
-        return at < REVEAL_SECONDS ? flight(from, end, at / REVEAL_SECONDS, globe, false) : end
+        return at < REVEAL_SECONDS && from !== undefined ? flight(from, end, at / REVEAL_SECONDS, globe, false) : end
     }
 
     const path = smoothed(Array.from({length: GRID + 1}, (_, i) => shotAt(i / GRID)))
@@ -137,8 +139,7 @@ function followerOf(fallback: Shot["direction"], beats: readonly Beat[]): (share
     return (share) => keys[Math.round(clamp(share) * GRID)]
 }
 
-// rises: between two stops, high enough to see where it goes, never to the globe; from the globe in, or out to it,
-// straight.
+// rises: between two stops, high enough to see where it goes, never to the globe; out to the globe, straight.
 function flight(from: Shot, to: Shot, t: number, globe: number, rises: boolean): Shot {
     const s = smooth(clamp(t))
     const zoom = between(from.zoom, to.zoom, s)

@@ -14,7 +14,6 @@ type Sealer interface {
 	SealedRequest(request *connections.Request) (string, error)
 }
 
-// The admin page's consent page, which the operator's browser is sent to with the request.
 func New(consentURL string, sealer Sealer, clock cptime.Clock) *UseCase {
 	return &UseCase{consentURL: consentURL, sealer: sealer, clock: clock}
 }
@@ -30,8 +29,6 @@ type In struct {
 	Ask      connections.Ask
 }
 
-// Where the browser goes next: the consent page. A *connections.Refusal carries where to send it back to the app
-// instead; ErrInvalidClient and ErrInvalidRedirect leave it here.
 func (u *UseCase) Execute(_ context.Context, in In) (string, error) {
 	client, err := u.sealer.OpenedClient(in.ClientID)
 	if err != nil {

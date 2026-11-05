@@ -35,23 +35,18 @@ func (s *Storage) Kept() []messages.Snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.recent(time.Time{}, len(s.records))
-}
-
-func (s *Storage) Shown(_ context.Context, id messages.MessageID, since time.Time, limit int) (bool, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return slices.ContainsFunc(s.recent(since, limit), func(message messages.Snapshot) bool {
-		return message.ID == id
-	}), nil
+	kept := make([]messages.Snapshot, 0, len(s.records))
+	for _, record := range s.records {
+		kept = append(kept, record.Message)
+	}
+	return kept
 }
 
 func (s *Storage) Message(_ context.Context, id messages.MessageID, since time.Time, limit int) (messages.Message, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, kept := range s.recent(since, limit) {
+	for _, kept := range s.recent(s.roomOf(id), since, limit) {
 		if kept.ID != id {
 			continue
 		}
@@ -89,10 +84,19 @@ func (s *Storage) DeleteBefore(_ context.Context, cutoff time.Time) (int64, erro
 	return int64(before - len(s.records)), nil
 }
 
-func (s *Storage) recent(since time.Time, limit int) []messages.Snapshot {
+func (s *Storage) roomOf(id messages.MessageID) messages.Room {
+	for _, record := range slices.Backward(s.records) {
+		if record.Message.ID == id {
+			return record.Message.Room
+		}
+	}
+	return ""
+}
+
+func (s *Storage) recent(room messages.Room, since time.Time, limit int) []messages.Snapshot {
 	var recent []messages.Snapshot
 	for _, record := range s.records {
-		if !record.Message.SentAt.Before(since) {
+		if record.Message.Room == room && !record.Message.SentAt.Before(since) {
 			recent = append(recent, record.Message)
 		}
 	}

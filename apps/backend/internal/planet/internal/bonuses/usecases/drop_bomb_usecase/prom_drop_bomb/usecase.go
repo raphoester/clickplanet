@@ -19,7 +19,7 @@ func New(implementation UseCase, registerer prometheus.Registerer) *Decorator {
 
 	drops := factory.NewCounterVec(prometheus.CounterOpts{
 		Name: "bonus_bombs_dropped_total",
-		Help: "Bomb drops, by outcome: land, sea, banned or refused",
+		Help: "Bomb drops, by outcome: land, sea, caller_refused, or refused for any other reason",
 	}, []string{"outcome"})
 
 	cleared := factory.NewCounter(prometheus.CounterOpts{
@@ -40,8 +40,8 @@ func (d *Decorator) Execute(ctx context.Context, in drop_bomb_usecase.In) (click
 	blast, err := d.implementation.Execute(ctx, in)
 
 	switch {
-	case errors.Is(err, clicks.ErrBanned):
-		d.drops.WithLabelValues("banned").Inc()
+	case errors.Is(err, clicks.ErrRefused):
+		d.drops.WithLabelValues("caller_refused").Inc()
 	case err != nil:
 		d.drops.WithLabelValues("refused").Inc()
 	case blast.Tile == 0:

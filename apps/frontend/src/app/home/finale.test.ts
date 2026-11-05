@@ -1,79 +1,90 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import home from "../../../index.html?raw"
-import {finaleWindow} from "../../domain/seasonClock.ts"
-import {showFinale} from "./finale.ts"
+import {FakeTurnBackend, SEASON_ZERO} from "../../backends/fakeTurnBackend.ts"
+import {finaleShown} from "./finale.ts"
 
 const SECOND = 1000
 const MINUTE = 60 * SECOND
 const HOUR = 60 * MINUTE
-const DAY = 24 * HOUR
 
-const endsAt = Date.UTC(2026, 9, 31, 23)
-const season = {number: 1, finaleStartsAt: endsAt - 2 * HOUR, endsAt}
+const now = Date.UTC(2026, 9, 30, 18)
 
 describe("the Final Battle on the home page", () => {
     let page: Document
+    let turns: FakeTurnBackend
     let stop: () => void = () => {}
 
-    const shown = () => [...page.querySelectorAll<HTMLElement>("[data-finale]")]
-    const text = (field: string) => page.querySelector(`[data-${field}]`)?.textContent
-    const countdown = () => ["days", "hours", "minutes", "seconds"].map((unit) => text(`countdown-${unit}`))
+    const panel = () => page.querySelector<HTMLElement>("[data-finale]")!
+    const field = (name: string) => page.querySelector(`[data-finale-${name}]`)?.textContent
+    const clock = () => ["days", "hours", "minutes", "seconds"].map(field).join(":")
+    const hidden = (name: string) => page.querySelector<HTMLElement>(`[data-finale-${name}]`)!.hidden
 
     beforeEach(() => {
+        vi.useFakeTimers({now})
         page = new DOMParser().parseFromString(home, "text/html")
+        turns = new FakeTurnBackend()
     })
+
+    const follow = () => {
+        const finale = finaleShown(page)
+        const unfollow = turns.follow({onTurn: finale.showTurn, onBattles: finale.showBattles, onSeasons: () => {}, onDebrief: () => {}})
+        return () => {
+            unfollow()
+            finale.stop()
+        }
+    }
 
     afterEach(() => {
         stop()
         vi.useRealTimers()
     })
 
-    it("stays hidden until the season is known", () => {
-        expect(shown()).toHaveLength(2)
-        expect(shown().every((element) => element.hidden)).toBe(true)
+    it("stays hidden while no finale is to come, even with a battle before it", () => {
+        turns.scheduleBattle(now + HOUR, 30)
+        stop = follow()
+        expect(panel().hidden).toBe(true)
     })
 
-    it("shows the season, the battle's day and hours, and the time left before it starts", () => {
-        vi.useFakeTimers({now: season.finaleStartsAt - (25 * DAY + 3 * HOUR + 7 * MINUTE + 9 * SECOND)})
-        stop = showFinale(page, season)
+    it("says when it plays, how long, what it is worth, and the operator's words", () => {
+        turns.scheduleFinale(120, "Triple points. A bonus box every minute.")
+        stop = follow()
 
-        const when = finaleWindow(season)
-        expect(shown().every((element) => !element.hidden && !element.classList.contains("finale-live"))).toBe(true)
-        expect(text("season-number")).toBe("1")
-        expect(text("finale-date")).toBe(when.day)
-        expect(text("finale-time")).toBe(`${when.from}–${when.to}`)
-        expect(text("finale-left")).toBe("25d 03h 07m 09s")
-        expect(countdown()).toEqual(["25", "03", "07", "09"])
+        expect(panel().hidden).toBe(false)
+        expect(field("when")).toMatch(/^\w{3} \d{1,2} \w{3} · \d\d:\d\d – \d\d:\d\d$/)
+        expect(field("length")).toBe("2 hours")
+        expect(field("times")).toBe("3")
+        expect(hidden("times-row")).toBe(false)
+        expect(field("words")).toBe("Triple points. A bonus box every minute.")
+        expect(hidden("rules")).toBe(false)
+    })
+
+    it("counts down to its start, then, live, to its end", () => {
+        turns.scheduleFinale(120)
+        stop = follow()
+
+        expect(panel().hasAttribute("data-live")).toBe(false)
+        expect(clock()).toBe("01:03:00:00")
 
         vi.advanceTimersByTime(SECOND)
-        expect(countdown()).toEqual(["25", "03", "07", "08"])
-    })
+        expect(clock()).toBe("01:02:59:59")
 
-    it("goes live and counts to the end once the battle starts", () => {
-        vi.useFakeTimers({now: season.finaleStartsAt - SECOND})
-        stop = showFinale(page, season)
-
+        vi.setSystemTime(SEASON_ZERO.endsAt - 2 * HOUR)
         vi.advanceTimersByTime(SECOND)
-        expect(shown().every((element) => element.classList.contains("finale-live"))).toBe(true)
-        expect(text("finale-left")).toBe("2h 00m 00s")
-        expect(countdown()).toEqual(["00", "02", "00", "00"])
+        expect(panel().hasAttribute("data-live")).toBe(true)
+        expect(clock()).toBe("00:01:59:59")
     })
 
-    it("hides and stops ticking when the season ends", () => {
-        vi.useFakeTimers({now: endsAt - SECOND})
-        stop = showFinale(page, season)
+    it("follows the turn that plays it, and hides once it ended", () => {
+        stop = follow()
+        turns.startFinale(now, "", 1)
 
-        vi.advanceTimersByTime(SECOND)
-        expect(shown().every((element) => element.hidden)).toBe(true)
-        expect(vi.getTimerCount()).toBe(0)
-    })
+        expect(panel().hidden).toBe(false)
+        expect(panel().hasAttribute("data-live")).toBe(true)
+        expect(hidden("rules")).toBe(true)
+        expect(hidden("times-row")).toBe(true)
 
-    it("shows nothing for a season already over", () => {
-        vi.useFakeTimers({now: endsAt})
-        stop = showFinale(page, season)
-
-        expect(shown().every((element) => element.hidden)).toBe(true)
-        expect(vi.getTimerCount()).toBe(0)
+        turns.endBattle()
+        expect(panel().hidden).toBe(true)
     })
 })

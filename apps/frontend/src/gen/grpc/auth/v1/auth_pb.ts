@@ -29,6 +29,11 @@ export enum Provider {
    * @generated from enum value: PROVIDER_EMAIL = 3;
    */
   EMAIL = 3,
+
+  /**
+   * @generated from enum value: PROVIDER_CRAZYGAMES = 4;
+   */
+  CRAZYGAMES = 4,
 }
 // Retrieve enum metadata with: proto3.getEnumType(Provider)
 proto3.util.setEnumType(Provider, "auth.v1.Provider", [
@@ -36,6 +41,7 @@ proto3.util.setEnumType(Provider, "auth.v1.Provider", [
   { no: 1, name: "PROVIDER_GOOGLE" },
   { no: 2, name: "PROVIDER_DISCORD" },
   { no: 3, name: "PROVIDER_EMAIL" },
+  { no: 4, name: "PROVIDER_CRAZYGAMES" },
 ]);
 
 /**
@@ -183,6 +189,11 @@ export class CreateSessionRequest extends Message<CreateSessionRequest> {
    */
   attestationToken = "";
 
+  /**
+   * @generated from field: auth.v1.Landing landing = 2;
+   */
+  landing?: Landing;
+
   constructor(data?: PartialMessage<CreateSessionRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -192,6 +203,7 @@ export class CreateSessionRequest extends Message<CreateSessionRequest> {
   static readonly typeName = "auth.v1.CreateSessionRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "attestation_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "landing", kind: "message", T: Landing },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateSessionRequest {
@@ -208,6 +220,55 @@ export class CreateSessionRequest extends Message<CreateSessionRequest> {
 
   static equals(a: CreateSessionRequest | PlainMessage<CreateSessionRequest> | undefined, b: CreateSessionRequest | PlainMessage<CreateSessionRequest> | undefined): boolean {
     return proto3.util.equals(CreateSessionRequest, a, b);
+  }
+}
+
+/**
+ * What the browser's first page said. Kept only when the call makes an account.
+ *
+ * @generated from message auth.v1.Landing
+ */
+export class Landing extends Message<Landing> {
+  /**
+   * The ?s= of the link: "rc" for a player's, "yt" for YouTube.
+   *
+   * @generated from field: string tag = 1;
+   */
+  tag = "";
+
+  /**
+   * The host alone, never a path or a query.
+   *
+   * @generated from field: string referrer = 2;
+   */
+  referrer = "";
+
+  constructor(data?: PartialMessage<Landing>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.Landing";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "referrer", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Landing {
+    return new Landing().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Landing {
+    return new Landing().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Landing {
+    return new Landing().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Landing | PlainMessage<Landing> | undefined, b: Landing | PlainMessage<Landing> | undefined): boolean {
+    return proto3.util.equals(Landing, a, b);
   }
 }
 
@@ -570,6 +631,11 @@ export class CompleteSignInRequest extends Message<CompleteSignInRequest> {
    */
   state = "";
 
+  /**
+   * @generated from field: auth.v1.Landing landing = 3;
+   */
+  landing?: Landing;
+
   constructor(data?: PartialMessage<CompleteSignInRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -580,6 +646,7 @@ export class CompleteSignInRequest extends Message<CompleteSignInRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "state", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "landing", kind: "message", T: Landing },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteSignInRequest {
@@ -613,6 +680,13 @@ export class CompleteSignInResponse extends Message<CompleteSignInResponse> {
    */
   outcome = SignInOutcome.UNSPECIFIED;
 
+  /**
+   * The account had asked to be deleted, and this sign-in brought it back.
+   *
+   * @generated from field: bool restored = 3;
+   */
+  restored = false;
+
   constructor(data?: PartialMessage<CompleteSignInResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -623,6 +697,7 @@ export class CompleteSignInResponse extends Message<CompleteSignInResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "outcome", kind: "enum", T: proto3.getEnumType(SignInOutcome) },
+    { no: 3, name: "restored", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteSignInResponse {
@@ -768,6 +843,11 @@ export class CompleteEmailSignInRequest extends Message<CompleteEmailSignInReque
    */
   code = "";
 
+  /**
+   * @generated from field: auth.v1.Landing landing = 2;
+   */
+  landing?: Landing;
+
   constructor(data?: PartialMessage<CompleteEmailSignInRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -777,6 +857,7 @@ export class CompleteEmailSignInRequest extends Message<CompleteEmailSignInReque
   static readonly typeName = "auth.v1.CompleteEmailSignInRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "landing", kind: "message", T: Landing },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteEmailSignInRequest {
@@ -810,6 +891,13 @@ export class CompleteEmailSignInResponse extends Message<CompleteEmailSignInResp
    */
   outcome = SignInOutcome.UNSPECIFIED;
 
+  /**
+   * The account had asked to be deleted, and this sign-in brought it back.
+   *
+   * @generated from field: bool restored = 3;
+   */
+  restored = false;
+
   constructor(data?: PartialMessage<CompleteEmailSignInResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -820,6 +908,7 @@ export class CompleteEmailSignInResponse extends Message<CompleteEmailSignInResp
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "outcome", kind: "enum", T: proto3.getEnumType(SignInOutcome) },
+    { no: 3, name: "restored", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteEmailSignInResponse {
@@ -836,6 +925,102 @@ export class CompleteEmailSignInResponse extends Message<CompleteEmailSignInResp
 
   static equals(a: CompleteEmailSignInResponse | PlainMessage<CompleteEmailSignInResponse> | undefined, b: CompleteEmailSignInResponse | PlainMessage<CompleteEmailSignInResponse> | undefined): boolean {
     return proto3.util.equals(CompleteEmailSignInResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.CompleteCrazyGamesSignInRequest
+ */
+export class CompleteCrazyGamesSignInRequest extends Message<CompleteCrazyGamesSignInRequest> {
+  /**
+   * The JWT of the SDK's user.getUserToken({signingKeyType: "IN_GAME_AUTH"}).
+   *
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  /**
+   * @generated from field: auth.v1.Landing landing = 2;
+   */
+  landing?: Landing;
+
+  constructor(data?: PartialMessage<CompleteCrazyGamesSignInRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.CompleteCrazyGamesSignInRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "landing", kind: "message", T: Landing },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteCrazyGamesSignInRequest {
+    return new CompleteCrazyGamesSignInRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CompleteCrazyGamesSignInRequest {
+    return new CompleteCrazyGamesSignInRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CompleteCrazyGamesSignInRequest {
+    return new CompleteCrazyGamesSignInRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CompleteCrazyGamesSignInRequest | PlainMessage<CompleteCrazyGamesSignInRequest> | undefined, b: CompleteCrazyGamesSignInRequest | PlainMessage<CompleteCrazyGamesSignInRequest> | undefined): boolean {
+    return proto3.util.equals(CompleteCrazyGamesSignInRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.CompleteCrazyGamesSignInResponse
+ */
+export class CompleteCrazyGamesSignInResponse extends Message<CompleteCrazyGamesSignInResponse> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: auth.v1.SignInOutcome outcome = 2;
+   */
+  outcome = SignInOutcome.UNSPECIFIED;
+
+  /**
+   * The account had asked to be deleted, and this sign-in brought it back.
+   *
+   * @generated from field: bool restored = 3;
+   */
+  restored = false;
+
+  constructor(data?: PartialMessage<CompleteCrazyGamesSignInResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.CompleteCrazyGamesSignInResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "outcome", kind: "enum", T: proto3.getEnumType(SignInOutcome) },
+    { no: 3, name: "restored", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CompleteCrazyGamesSignInResponse {
+    return new CompleteCrazyGamesSignInResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CompleteCrazyGamesSignInResponse {
+    return new CompleteCrazyGamesSignInResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CompleteCrazyGamesSignInResponse {
+    return new CompleteCrazyGamesSignInResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CompleteCrazyGamesSignInResponse | PlainMessage<CompleteCrazyGamesSignInResponse> | undefined, b: CompleteCrazyGamesSignInResponse | PlainMessage<CompleteCrazyGamesSignInResponse> | undefined): boolean {
+    return proto3.util.equals(CompleteCrazyGamesSignInResponse, a, b);
   }
 }
 

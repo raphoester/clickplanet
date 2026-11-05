@@ -31,6 +31,12 @@ func (b Bombing) Replay(see func(Taking)) {
 	}
 }
 
+func (b Bombing) Strikes(see func(Strike)) {
+	for i, tile := range b.Blast.Struck {
+		see(Strike{Tile: tile, Account: b.Account, Country: b.Blast.CountryID, Owner: b.Blast.StruckOwners[i], At: b.At})
+	}
+}
+
 func (b Bombing) Show(see func(Scene)) {
 	blast := b.Blast
 	see(Scene{At: b.At, Blast: &blast})
@@ -51,7 +57,7 @@ func (b Bombing) Entry() (Entry, error) {
 		}
 	}
 	for i, tile := range b.Blast.Struck {
-		payload.Struck = append(payload.Struck, strikeJSON{Tile: tile, Shields: b.Blast.Left[i]})
+		payload.Struck = append(payload.Struck, strikeJSON{Tile: tile, Owner: b.Blast.StruckOwners[i], Shields: b.Blast.Left[i]})
 	}
 
 	encoded, err := json.Marshal(payload)
@@ -82,6 +88,7 @@ func bombingOf(entry Entry) (Event, error) {
 	for _, struck := range payload.Struck {
 		blast.Struck = append(blast.Struck, struck.Tile)
 		blast.Left = append(blast.Left, struck.Shields)
+		blast.StruckOwners = append(blast.StruckOwners, struck.Owner)
 	}
 
 	return Bombing{Scope: entry.Scope, Account: entry.Account, At: entry.At, Blast: blast}, nil

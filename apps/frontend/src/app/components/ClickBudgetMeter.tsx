@@ -1,9 +1,21 @@
 import {ReactNode, useEffect, useRef} from 'react'
 import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
 import {factor} from "../../domain/clickPrice.ts"
-import {HourglassIcon, UsersIcon} from "./icons.tsx"
+import {DiscordIcon, HourglassIcon, LockIcon, UsersIcon} from "./icons.tsx"
+import {timeLeftTo} from "../../domain/seasonClock.ts"
+import {useNow} from "../season/useNow.ts"
 import {useEscape} from "./useDialog.ts"
 import {offerText, SHARED_WITH} from "./clickOffer.ts"
+import Bubble from "./Bubble.tsx"
+import CountryFlag from "./CountryFlag.tsx"
+import RecruitButton from "../share/RecruitButton.tsx"
+import InviteButton from "../share/InviteButton.tsx"
+import {Country} from "../../domain/countries.ts"
+import {breakHeadline} from "../../domain/shareCard.ts"
+import DiscordButton from "../alerts/DiscordButton.tsx"
+import {DiscordOffer} from "../alerts/useDiscordAlerts.ts"
+import {InviteLink} from "../../backends/crazyGames.ts"
+import {useScreen} from "../hud/screenStore.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
@@ -12,9 +24,12 @@ export type ClickBudgetMeterProps = {
     refusals?: number
     onSignIn?: () => void
     compact?: boolean
-    open?: boolean
-    onToggleOpen?: () => void
     popover?: ReactNode
+    said?: {text: string, id: number}
+    // The map takes no play: the dock says so, and when the next season starts when one is planned.
+    frozen?: {nextSeason?: {number: number, startsAt: number}, country: Country}
+    invite?: InviteLink
+    discord?: DiscordOffer
 }
 
 const MAX_PIPS = 12
@@ -31,13 +46,19 @@ export default function ClickBudgetMeter({
     refusals = 0,
     onSignIn,
     compact = false,
-    open = false,
-    onToggleOpen,
     popover,
+    said,
+    frozen,
+    invite,
+    discord,
 }: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
     const wait = useRef<HTMLSpanElement>(null)
+    const open = useScreen((screen) => compact ? screen.sheet === "clicks" : screen.popovers.clicks)
+    const toggleSheet = useScreen((screen) => screen.toggleSheet)
+    const togglePopover = useScreen((screen) => screen.togglePopover)
+    const toggleOpen = () => compact ? toggleSheet("clicks") : togglePopover("clicks")
 
     useEffect(() => {
         const box = root.current
@@ -107,6 +128,32 @@ export default function ClickBudgetMeter({
         return () => cancelAnimationFrame(frame)
     }, [budget])
 
+    if (frozen) {
+        return <div className="click-budget-dock panel">
+            <div ref={root} className="click-budget click-budget-frozen" role="status">
+                <LockIcon/>
+                <FrozenLines nextSeason={frozen.nextSeason}/>
+            </div>
+            <div className="click-budget-frozen-links">
+                {invite
+                    ? <InviteButton flag={frozen.country.code}
+                                    invite={invite}
+                                    className="button button-mini button-secondary click-budget-invite"
+                                    icon={<CountryFlag code={frozen.country.code}/>}
+                                    label="Invite"/>
+                    : <RecruitButton code={frozen.country.code}
+                                     text={breakHeadline(frozen.country, frozen.nextSeason?.number)}
+                                     className="button button-mini button-secondary click-budget-invite"
+                                     icon={<CountryFlag code={frozen.country.code}/>}
+                                     label="Invite"/>}
+                <DiscordButton offer={discord} className="button button-mini click-budget-discord">
+                    <DiscordIcon size={20}/>
+                    {!compact && <span aria-hidden="true">Discord</span>}
+                </DiscordButton>
+            </div>
+        </div>
+    }
+
     if (!budget) return children ? <div className="click-budget-dock panel">{children}</div> : null
 
     const pips = budget.capacity <= MAX_PIPS ? budget.capacity : 0
@@ -169,16 +216,18 @@ export default function ClickBudgetMeter({
                 </button>}
             </div>
 
-            {onToggleOpen && <button type="button"
-                                     className="click-budget-open"
-                                     aria-label="Your clicks"
-                                     aria-expanded={open}
-                                     onClick={onToggleOpen}/>}
+            {popover && <button type="button"
+                                className="click-budget-open"
+                                aria-label="Your clicks"
+                                aria-expanded={open}
+                                onClick={toggleOpen}/>}
         </div>
 
         {children}
 
-        {open && !compact && popover && onToggleOpen && <Popover onClose={onToggleOpen}>{popover}</Popover>}
+        {said && <Bubble key={said.id} anchor={root}>{said.text}</Bubble>}
+
+        {open && !compact && popover && <Popover onClose={toggleOpen}>{popover}</Popover>}
     </div>
 }
 
@@ -201,4 +250,14 @@ export function BoltIcon() {
                 aria-hidden="true">
         <path d="M13 2 4 14h7l-1 8 9-12h-7z"/>
     </svg>
+}
+
+function FrozenLines({nextSeason}: {nextSeason?: {number: number, startsAt: number}}) {
+    const now = useNow()
+    return <span className="click-budget-frozen-lines">
+        <span className="click-budget-frozen-head">The map is frozen</span>
+        {nextSeason && nextSeason.startsAt > now && <span className="click-budget-frozen-next">
+            Season {nextSeason.number} starts in <span role="timer">{timeLeftTo(nextSeason.startsAt, now)}</span>
+        </span>}
+    </span>
 }

@@ -16,6 +16,18 @@ service InternalService {
   // Whose an access token is, for the admin gate and the connector. Unauthenticated for a token nobody holds or past
   // its lifetime, PermissionDenied for an account that does not operate.
   rpc GetTokenOperator(GetTokenOperatorRequest) returns (GetTokenOperatorResponse);
+
+  // The leave a Discord sign-in gave, which DiscordJoinGranted names, while auth keeps it: ten minutes. NotFound for a
+  // grant it does not keep, or keeps no more. Reading it changes nothing, so a join tried again reads it again.
+  rpc GetDiscordGrant(GetDiscordGrantRequest) returns (GetDiscordGrantResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Every account signed in with Discord and its Discord user, a page at a time, in the order of the account ids. An
+  // account its player asked to delete is left out. A page shorter than the limit is the last one.
+  rpc GetDiscordUsers(GetDiscordUsersRequest) returns (GetDiscordUsersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetVerifyingKeyRequest {}
@@ -64,4 +76,32 @@ message GetTokenOperatorResponse {
   string account_id = 1;
   // The app the token was issued to, as it named itself.
   string client = 2;
+}
+
+message GetDiscordGrantRequest {
+  string grant_id = 1;
+}
+
+message GetDiscordGrantResponse {
+  string account_id = 1;
+  string discord_user_id = 2;
+  // A Discord access token with the scope guilds.join: it adds the user to the game's server. The caller keeps it
+  // for that call alone.
+  string access_token = 3;
+}
+
+message GetDiscordUsersRequest {
+  // Empty: from the first account. Else the accounts after this one.
+  string after_account_id = 1;
+  // 0 is 500, and more is 500.
+  uint32 limit = 2;
+}
+
+message GetDiscordUsersResponse {
+  repeated DiscordUser users = 1;
+}
+
+message DiscordUser {
+  string account_id = 1;
+  string discord_user_id = 2;
 }

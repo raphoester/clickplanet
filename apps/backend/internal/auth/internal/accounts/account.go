@@ -6,17 +6,39 @@ import (
 )
 
 type Account struct {
-	id         AccountID
-	createdAt  time.Time
-	identities []Identity
+	id                  AccountID
+	createdAt           time.Time
+	identities          []Identity
+	deletionRequestedAt time.Time
 }
 
 func AccountOf(id AccountID, createdAt time.Time, identities []Identity) *Account {
 	return &Account{id: id, createdAt: createdAt, identities: identities}
 }
 
+// The account as of when its player asked to delete it: kept whole for the grace period, then purged.
+func (a *Account) WithDeletionRequestedAt(at time.Time) *Account {
+	requested := *a
+	requested.deletionRequestedAt = at
+	return &requested
+}
+
 func (a *Account) ID() AccountID {
 	return a.id
+}
+
+// Its player asked to delete it, and the grace period has not purged it yet: a sign-in to it brings it back.
+func (a *Account) DeletionRequested() bool {
+	return !a.deletionRequestedAt.IsZero()
+}
+
+func (a *Account) DeletionRequestedAt() time.Time {
+	return a.deletionRequestedAt
+}
+
+// Only an identity can sign in to an account again, so a guest asked to be deleted is deleted at once.
+func (a *Account) Restorable() bool {
+	return len(a.identities) > 0
 }
 
 func (a *Account) Providers() []string {
@@ -83,14 +105,36 @@ type Claim struct {
 	subject       string
 	email         string
 	emailVerified bool
+	name          string
+	serverToken   string
 }
 
 func ClaimOf(subject string, email string, emailVerified bool) Claim {
 	return Claim{subject: subject, email: email, emailVerified: emailVerified}
 }
 
+func (c Claim) WithName(name string) Claim {
+	c.name = name
+	return c
+}
+
+// A token the provider traded that may join the game's Discord server: kept sealed with the sign-in for a few minutes,
+// for the alerts module to join with, and never in an event.
+func (c Claim) WithServerToken(token string) Claim {
+	c.serverToken = token
+	return c
+}
+
+func (c Claim) ServerToken() string {
+	return c.serverToken
+}
+
 func (c Claim) Subject() string {
 	return c.subject
+}
+
+func (c Claim) Name() string {
+	return c.name
 }
 
 func (c Claim) VerifiedEmail() string {
@@ -158,6 +202,7 @@ type SignIn struct {
 	identity   *Identity
 	session    *Session
 	replaces   TokenHash
+	restores   bool
 }
 
 func NewSignIn(session *Session) SignIn {
@@ -177,6 +222,16 @@ func (s SignIn) WithIdentity(identity *Identity) SignIn {
 func (s SignIn) WithReplaced(replaces TokenHash) SignIn {
 	s.replaces = replaces
 	return s
+}
+
+// The sign-in lands on an account whose deletion was asked for, and brings it back.
+func (s SignIn) WithRestored() SignIn {
+	s.restores = true
+	return s
+}
+
+func (s SignIn) Restores() bool {
+	return s.restores
 }
 
 func (s SignIn) NewAccount() bool {

@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 )
 
-// A verifier and the challenge it answers, for the tests that walk a connection through.
 const TestVerifier = "the-verifier-an-app-draws-for-its-request-0001"
 
 func TestChallenge() string {

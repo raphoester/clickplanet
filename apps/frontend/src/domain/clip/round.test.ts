@@ -5,7 +5,7 @@ import {Day, storyKeyOf} from "./story.ts"
 const CUTOFF = Date.parse("2026-10-17T21:00:00Z")
 
 const day: Day = {
-    season: 1, number: 5, finale: false, endedAt: CUTOFF,
+    season: 1, number: 5, finale: false, own: false, endedAt: CUTOFF,
     podium: [{country: "fr", rank: 1, points: 25}, {country: "pw", rank: 2, points: 18}, {country: "dz", rank: 3, points: 15}],
     table: [{country: "fr", rank: 1, points: 86}],
 }
@@ -15,7 +15,7 @@ describe("a day of the season", () => {
         const run = {since: Date.parse("2026-10-17T12:17:00Z"), until: Date.parse("2026-10-18T00:17:00Z")}
 
         expect(roundStoryOf(day, run.since, run.until)).toEqual({
-            kind: "round", attacker: "fr", rival: undefined, victims: ["pw", "dz"], place: {region: "the world"}, taken: 25, day,
+            kind: "round", attacker: "fr", rival: undefined, victims: ["pw", "dz"], place: {region: "the world"}, day,
         })
     })
 

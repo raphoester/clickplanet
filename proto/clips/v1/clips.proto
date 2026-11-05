@@ -2,15 +2,194 @@ syntax = "proto3";
 
 package clips.v1;
 
-message Shortlist {
-  // Best first: a story's place, from 1, is what the generator's --pick takes.
-  repeated Story stories = 1;
+import "google/protobuf/timestamp.proto";
+
+// What the generator found in a replay, for the job's editor to make the run's stories from: every front it
+// measured, every flag taking land across the world, what the map is at the end, and the stories data alone tells.
+message Findings {
+  google.protobuf.Timestamp since = 1;
+  google.protobuf.Timestamp until = 2;
+  // From 1, by their place in each list: what a Pick names.
+  repeated Front fronts = 3;
+  repeated Tour tours = 4;
+  repeated Place places = 5;
+  // A day of the season won, a country called up to its Final Battle: told first, with their own headlines.
+  repeated Seasonal seasonal = 6;
+  // How a clip says each country code of the findings: "pw": "Palau", "gb": "the UK".
+  map<string, string> names = 7;
+  repeated Continent continents = 8;
+  // The codes a clip has an anthem for, a continent's own flag among them: what a Pick's anthem names.
+  repeated string anthems = 9;
 }
 
-message Story {
+message Continent {
+  string name = 1;
+  // Its own flag, when it has one: "eu".
+  string flag = 2;
+}
+
+// Where tiles changed hands the most in one stretch of time: everything within about 2,900 km of it.
+message Front {
+  // The country whose ground alone it is measured on, a country fought over the most; empty for the whole map.
+  string scope = 1;
+  google.protobuf.Timestamp since = 2;
+  google.protobuf.Timestamp until = 3;
+  uint32 tiles_changed = 4;
+  // Of them, taken from another flag rather than off empty ground.
+  uint32 captured = 5;
+  // Where, by tiles changed, most first.
+  repeated FrontCountry countries = 6;
+  // Who, by tiles taken and lost, most first.
+  repeated FrontFlag flags = 7;
+  uint32 bombs = 8;
+  uint32 spreads = 9;
+  uint32 enclosures = 10;
+  double score = 11;
+}
+
+message FrontCountry {
+  string code = 1;
+  string continent = 2;
+  uint32 tiles = 3;
+  uint32 changed = 4;
+  // The flags holding the most of it when the front opens and when it ends: code to tiles.
+  map<string, uint32> holders_start = 5;
+  map<string, uint32> holders_end = 6;
+  // The flags that took the most from another flag there.
+  map<string, uint32> takers = 7;
+}
+
+message FrontFlag {
+  string code = 1;
+  string continent = 2;
+  // Tiles taken from another flag, taken off empty ground, and lost to another flag.
+  uint32 took = 3;
+  uint32 filled = 4;
+  uint32 lost = 5;
+  map<string, uint32> took_from = 6;
+  // Of what it took and holds at the end, from 0 (lines drawn on someone's land) to 1 (land taken whole).
+  double solidity = 7;
+  // The tiles of the landmasses whose painted flag switched to it on the front, big enough to read from far, by
+  // continent.
+  map<string, uint32> flipped_by_continent = 8;
+  // The players of the cast who took the most for it here, most first.
+  repeated TopFighter fighters = 9;
+}
+
+// A player of the cast, and the tiles it took from another flag.
+message TopFighter {
+  uint32 number = 1;
+  string name = 2;
+  uint32 took = 3;
+}
+
+// A flag taking land across the whole map in one stretch of time.
+message Tour {
+  string flag = 1;
+  google.protobuf.Timestamp since = 2;
+  google.protobuf.Timestamp until = 3;
+  uint32 took = 4;
+  map<string, uint32> by_continent = 5;
+  map<string, uint32> took_from = 6;
+  // What the flag taking the second most across the world took in the same stretch.
+  uint32 next_took = 7;
+  double solidity = 8;
+  uint32 bombs = 9;
+  // The tiles of the landmasses whose painted flag switched to it, big enough to read from far, by continent: all a
+  // tour shows.
+  map<string, uint32> flipped_by_continent = 10;
+  // The players of the cast who took the most for the flag in the stretch, most first.
+  repeated TopFighter fighters = 11;
+}
+
+// What the map is at the end: the flag holding the most of a place.
+message Place {
+  // "world", "continent" or "country".
+  string kind = 1;
+  // The country's code; empty for the world and a continent.
+  string code = 2;
+  // The continent, or a country's; empty for the world.
+  string continent = 3;
+  uint32 tiles = 4;
+  string holder = 5;
+  uint32 held = 6;
+  double share = 7;
+  // The flags holding the most after it.
+  map<string, uint32> rivals = 8;
+  // Tiles of the place that changed hands to the holder or from it in the window: what its clip plays.
+  uint32 changed = 9;
+  // The tiles of the landmasses whose painted flag switched to the holder in the window, by continent.
+  map<string, uint32> flipped_by_continent = 10;
+  // The players of the cast who took the most of the place for the holder in the window, most first.
+  repeated TopFighter fighters = 11;
+}
+
+message Seasonal {
   string title = 1;
   StoryKey key = 2;
   repeated string countries = 3;
+  StoryFacts facts = 4;
+  repeated string teasers = 5;
+}
+
+message StoryFacts {
+  string kind = 1;
+  string place = 2;
+  string camera = 3;
+  string attacker = 4;
+  string rival = 5;
+  repeated string taken_from = 6;
+  map<string, string> names = 7;
+  string line = 8;
+  string language = 9;
+  double span_minutes = 10;
+  google.protobuf.Timestamp story_ended_at = 11;
+  uint32 tiles_changed = 12;
+  uint32 story_tiles_changed = 13;
+  uint32 place_tiles = 14;
+  uint32 flag_tiles_start = 15;
+  uint32 flag_tiles_end = 16;
+  uint32 bombs = 17;
+  uint32 spreads = 18;
+  uint32 enclosures = 19;
+  double solidity = 20;
+  double share = 21;
+  double score = 22;
+}
+
+// A story to tell, as the generator's --story takes it: one front, one tour, one place or one seasonal story of the
+// findings, by its number from 1, for a front what the editor made of it, and the editor's words. A seasonal story has
+// words of its own, and none of the editor's.
+message Pick {
+  uint32 front = 1;
+  uint32 tour = 2;
+  uint32 place = 3;
+  uint32 seasonal = 4;
+  // attack, invasion, comeback, kickout, rout or battle.
+  string kind = 5;
+  string attacker = 6;
+  string rival = 7;
+  // The flags it took from, the main one first.
+  repeated string taken_from = 8;
+  // Where it is told: one or two countries, else a continent.
+  repeated string countries = 9;
+  string continent = 10;
+  // The continent whose flags strike back together, for a comeback of them.
+  string team = 11;
+  string headline = 12;
+  // The headline said in other words, for the caption.
+  repeated string teasers = 13;
+  // Under the headline; empty for none.
+  string line = 14;
+  // The call to act at the end, and the flags it asks the viewer to fight for.
+  string call = 15;
+  repeated string call_flags = 16;
+  // The code whose anthem plays under the clip, one of the findings' anthems; empty for none.
+  string anthem = 17;
+  // When the camera comes back out of the tiles, for a front or a place: "flags" halfway, "dive" at the end.
+  string look = 18;
+  // The players the clip names, by their number in the cast.
+  repeated uint32 fighters = 19;
 }
 
 message Clip {
@@ -20,32 +199,110 @@ message Clip {
   uint32 pick = 1;
   string title = 2;
   StoryKey key = 5;
-  // The headline said in other words: the job writes the caption, and picks one.
   repeated string teasers = 6;
-  // Every flag of the story that is a country, and its place's countries.
   repeated TaggedCountry countries = 7;
-  // With no #: "europe", "middleeast"; empty for the world.
   string continent_tag = 8;
-  // What the licence of the clip's music asks the caption to say; empty when none.
   string credit = 9;
+  ClipRecord record = 10;
+  repeated string teaser_names = 11;
+  // The cast the fighters are numbered in; empty for a clip that names nobody.
+  string cast = 12;
+  repeated ClipFighter fighters = 13;
+}
+
+// A player the clip names, with the flag it fought for.
+message ClipFighter {
+  uint32 number = 1;
+  string name = 2;
+  string flag = 3;
+}
+
+message ClipRecord {
+  string format = 1;
+  string generator = 2;
+  ClipCommon common = 3;
+  GlobeReplay globe = 4;
+  map<string, string> variants = 5;
+}
+
+message ClipCommon {
+  double duration_seconds = 1;
+  string music = 2;
+  double music_start_seconds = 3;
+  string language = 4;
+  // The players it names.
+  uint32 fighters = 5;
+}
+
+message GlobeReplay {
+  string camera = 1;
+  string look = 2;
+  string story_kind = 3;
+  double span_minutes = 4;
+  uint32 tiles_changed = 5;
+  uint32 story_tiles_changed = 6;
+  uint32 place_tiles = 7;
+  uint32 flag_tiles_start = 8;
+  uint32 flag_tiles_end = 9;
+  uint32 landmasses_flipped = 10;
+  uint32 bombs = 11;
+  uint32 spreads = 12;
+  uint32 enclosures = 13;
+  double screens_crossed = 14;
+  uint32 tour_stops = 15;
+  double solidity = 16;
+  google.protobuf.Timestamp story_ended_at = 17;
+}
+
+message PostRecord {
+  string schema = 1;
+  ClipRecord clip = 2;
+  PostFacts post = 3;
+}
+
+message PostFacts {
+  string teaser = 1;
+  string call_to_action = 2;
+  google.protobuf.Timestamp scheduled_at = 3;
+  uint32 run_position = 4;
+  uint32 run_size = 5;
+  reserved 6, 7;
+  reserved "variants", "sound";
 }
 
 message TaggedCountry {
   string code = 1;
-  // With no #: "uk", "christmasisland".
   string tag = 2;
 }
 
-// Two stories with one key are one story told twice, whatever their headlines.
 message StoryKey {
-  // The country code of the flag the clip is about: the loser when a flag is thrown out, the holder of a place, the
-  // winner of a day.
   string flag = 1;
-  // As the headlines name it: "Africa", "Middle East", "the world".
   string continent = 2;
-  // What the clip tells of the flag there: empty for what it did (an attack, a battle, a flag thrown out),
-  // "holding" for how much of the place it holds, "round" for a day of the season it won.
   string angle = 3;
-  // The day a "round" tells, as its season and its number: "1.5". Empty for any other angle.
   string round = 4;
+}
+
+// Who took which tiles in a window, under numbers of this cast alone: an account id never leaves the server, so a cast
+// can go in a run's public files. Only a player with a username who lets the clips show it is in it, and only its
+// takes from another flag.
+message Cast {
+  string id = 1;
+  google.protobuf.Timestamp since = 2;
+  google.protobuf.Timestamp until = 3;
+  // From 1, by tiles taken, most first.
+  repeated Fighter fighters = 4;
+  repeated CastTake takes = 5;
+}
+
+message Fighter {
+  uint32 number = 1;
+  string name = 2;
+}
+
+message CastTake {
+  google.protobuf.Timestamp at = 1;
+  uint32 tile_id = 2;
+  string country_id = 3;
+  string previous_country_id = 4;
+  uint32 fighter = 5;
 }

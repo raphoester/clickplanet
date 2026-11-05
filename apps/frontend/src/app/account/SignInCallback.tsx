@@ -54,7 +54,7 @@ export default function SignInCallback(props: SignInCallbackProps) {
     </button>
 
     if (props.callback.kind === "declined") {
-        return <Card title="You did not sign in">
+        return <CallbackCard title="You did not sign in">
             <p>You can play without an account.</p>
             <div className="sign-in-callback-actions">
                 {props.startAgain && <button type="button" className="button button-action" onClick={() => void startAgain()}>
@@ -62,23 +62,23 @@ export default function SignInCallback(props: SignInCallbackProps) {
                 </button>}
                 {back}
             </div>
-        </Card>
+        </CallbackCard>
     }
 
     if (props.callback.kind === "invalid") {
-        return <Card title="This sign-in link is not complete">
+        return <CallbackCard title="This sign-in link is not complete">
             <p>Start the sign-in again from the menu.</p>
             <div className="sign-in-callback-actions">{back}</div>
-        </Card>
+        </CallbackCard>
     }
 
     if (step.kind === "working") {
-        return <Card title="Signing you in…" working/>
+        return <CallbackCard title="Signing you in…" working/>
     }
 
     const retry = retryOf(step.failure)
     const notLinked = step.failure === "linkedElsewhere" || step.failure === "alreadyLinked"
-    return <Card title={notLinked ? "Not linked" : "Sign-in did not work"}>
+    return <CallbackCard title={notLinked ? "Not linked" : "Sign-in did not work"}>
         <p role="alert">{messageOf(step.failure, props.provider)}</p>
         <div className="sign-in-callback-actions">
             {retry === "complete" && <button type="button" className="button button-action" onClick={() => void complete()}>
@@ -89,10 +89,10 @@ export default function SignInCallback(props: SignInCallbackProps) {
             </button>}
             {back}
         </div>
-    </Card>
+    </CallbackCard>
 }
 
-function Card(props: {title: string, working?: boolean, children?: React.ReactNode}) {
+export function CallbackCard(props: {title: string, working?: boolean, children?: React.ReactNode}) {
     return <main className="sign-in-callback">
         <div className="panel sign-in-callback-card" aria-live="polite">
             {props.working && <div className="sign-in-callback-spinner"/>}

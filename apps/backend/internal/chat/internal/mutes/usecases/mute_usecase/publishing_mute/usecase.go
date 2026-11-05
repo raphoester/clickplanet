@@ -9,11 +9,12 @@ import (
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/proto_kind"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase"
 )
 
 type Publisher interface {
-	Publish(event proto.Message)
+	Publish(events ...proto.Message)
 }
 
 func New(implementation mute_usecase.Executor, events Publisher) *Decorator {
@@ -34,9 +35,11 @@ func (d *Decorator) Execute(ctx context.Context, in mute_usecase.In) (mutes.Mute
 	}
 
 	d.events.Publish(&chatv1.AccountMuted{
+		MuteId:    mute.ID().String(),
 		AccountId: mute.Caller().Account().String(),
 		MutedAt:   timestamppb.New(mute.At()),
 		Duration:  durationpb.New(mute.Duration()),
+		Kind:      proto_kind.Encode(mute.Kind()),
 	})
 	return mute, nil
 }

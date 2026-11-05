@@ -143,6 +143,7 @@ func TestEveryMediaTypeIsAPhotoOrAVideoAndTheListIsACopy(t *testing.T) {
 	for _, media := range types {
 		assert.Regexp(t, `^(image|video)/[a-z0-9]+$`, string(media))
 	}
+	assert.Contains(t, types, notes.MediaQuickTime, "an iPhone records its screen in QuickTime")
 
 	types[0] = "text/html"
 	assert.NotEqual(t, notes.MediaType("text/html"), notes.MediaTypes()[0])

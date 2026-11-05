@@ -44,6 +44,24 @@ describe("recolour", () => {
         expect(pixelAt(pixels, size, 220, 64)).toEqual(SEA)
     })
 
+    it("paints an island the photo draws a shade off the sea in the land of a block that has some", () => {
+        const {photo, cover, size} = world()
+        const OFF_BLUE = [30, 60, 125]
+        for (let y = 60; y < 64; y++) {
+            for (let x = 200; x < 204; x++) {
+                const at = y * size.width + x
+                cover[at] = 1
+                for (let c = 0; c < 3; c++) photo[at * 3 + c] = OFF_BLUE[c]
+            }
+        }
+
+        const {pixels} = recolour(photo, cover, size)
+
+        const [r, g, b] = pixelAt(pixels, size, 201, 61)
+        expect(g).toBeGreaterThan(b)
+        expect(near([r, g, b], LAND, 12)).toBe(true)
+    })
+
     it("turns land the tile field does not cover into water", () => {
         const {photo, cover, size} = world()
         for (let y = 60; y < 68; y++) for (let x = 40; x < 48; x++) cover[y * size.width + x] = 0

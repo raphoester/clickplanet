@@ -25,3 +25,5 @@ tls/
 
 nginx/
 .wrangler/
+
+/public/crazygames/

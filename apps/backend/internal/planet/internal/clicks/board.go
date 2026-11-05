@@ -15,3 +15,8 @@ func (b Board) CheckTile(tile uint32) bool {
 func (b Board) MaxIndex() uint32 {
 	return b.maxIndex
 }
+
+// A page load reads from tile 1 and clamps its last batch to the map, whatever its batch size.
+func (b Board) OffMap(start, end uint32) bool {
+	return start == 0 || end > b.maxIndex
+}

@@ -63,7 +63,7 @@ func (s *testSuite) TestAccountsAreKeptApartFromScopes() {
 
 	running, err := scopes.Running(ctx, until.Add(-time.Hour))
 	s.Require().NoError(err)
-	s.Zero(running)
+	s.Empty(running)
 }
 
 func (s *testSuite) TestAKeyThatIsNotAnAccountIsAnError() {
@@ -76,7 +76,7 @@ func (s *testSuite) TestAKeyThatIsNotAnAccountIsAnError() {
 
 	running, err := accounts.Running(s.T().Context(), until)
 	s.Require().NoError(err)
-	s.Zero(running)
+	s.Empty(running)
 }
 
 func (s *testSuite) TestEveryPardonIsKept() {
@@ -103,8 +103,8 @@ func (s *testSuite) TestEveryPardonIsKept() {
 	}
 
 	var pardons, accountPardons int
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT count(*) FROM pardons WHERE scope = $1`, scope).Scan(&pardons))
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT count(*) FROM account_pardons WHERE account = $1`, account).Scan(&accountPardons))
+	s.Require().NoError(s.db.On(ctx).QueryRowContext(ctx, `SELECT count(*) FROM pardons WHERE scope = $1`, scope).Scan(&pardons))
+	s.Require().NoError(s.db.On(ctx).QueryRowContext(ctx, `SELECT count(*) FROM account_pardons WHERE account = $1`, account).Scan(&accountPardons))
 	s.Equal(2, pardons)
 	s.Equal(2, accountPardons)
 }

@@ -3,105 +3,92 @@ package postgres_charge_store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
-	"maps"
-	"slices"
-
-	"github.com/lib/pq"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+const chargeLock = 0x63686172
+
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
-var _ inmemory_charge_storage.Persistence = (*Store)(nil)
+var _ bonuses.Store = (*Store)(nil)
 
-func (s *Store) Load(ctx context.Context, visit func(bonuses.Holder, bonuses.Held)) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT account::text, refill, bomb, enclosures, spread_clicks, shields FROM charges`)
-	if err != nil {
-		return fmt.Errorf("failed to read the charges: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var (
-			account string
-			held    bonuses.Held
-		)
-		if err := rows.Scan(&account, &held.Refill, &held.Bomb, &held.Enclosures, &held.SpreadClicks, &held.Shields); err != nil {
-			return fmt.Errorf("failed to scan a hand: %w", err)
+func (s *Store) Change(
+	ctx context.Context,
+	holder bonuses.Holder,
+	change func(bonuses.Held) (bonuses.Held, error),
+) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, chargeLock, string(holder)); err != nil {
+			return fmt.Errorf("failed to lock the charges: %w", err)
 		}
-		visit(bonuses.Holder(account), held)
+
+		before, err := heldBy(ctx, tx, holder)
+		if err != nil {
+			return err
+		}
+
+		after, err := change(before)
+		if err != nil {
+			return err
+		}
+
+		if after != before {
+			if err := keep(ctx, tx, holder, after); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (s *Store) Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error) {
+	return heldBy(ctx, s.db.On(ctx), holder)
+}
+
+func keep(ctx context.Context, tx cppg.Querier, holder bonuses.Holder, held bonuses.Held) error {
+	if held.Empty() {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM charges WHERE account = $1`, string(holder)); err != nil {
+			return fmt.Errorf("failed to delete a spent hand: %w", err)
+		}
+		return nil
 	}
 
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("failed to read the charges: %w", err)
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO charges (account, refill, bomb, enclosures, spread_clicks, shields) VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (account) DO UPDATE SET
+			refill = EXCLUDED.refill,
+			bomb = EXCLUDED.bomb,
+			enclosures = EXCLUDED.enclosures,
+			spread_clicks = EXCLUDED.spread_clicks,
+			shields = EXCLUDED.shields
+	`, string(holder), held.Refill, held.Bomb, held.Enclosures, held.SpreadClicks, held.Shields); err != nil {
+		return fmt.Errorf("failed to write the hand: %w", err)
 	}
-
 	return nil
 }
 
-func (s *Store) Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Held) error {
-	var (
-		gone                     []string
-		accounts                 []string
-		refills, bombs           []bool
-		enclosures, spreadClicks []int64
-		shields                  []int64
-	)
-	for _, holder := range slices.Sorted(maps.Keys(hands)) {
-		held := hands[holder]
-		if held.Empty() {
-			gone = append(gone, string(holder))
-			continue
-		}
-		accounts = append(accounts, string(holder))
-		refills = append(refills, held.Refill)
-		bombs = append(bombs, held.Bomb)
-		enclosures = append(enclosures, int64(held.Enclosures))
-		spreadClicks = append(spreadClicks, int64(held.SpreadClicks))
-		shields = append(shields, int64(held.Shields))
+func heldBy(ctx context.Context, db cppg.Querier, holder bonuses.Holder) (bonuses.Held, error) {
+	var held bonuses.Held
+	err := db.QueryRowContext(ctx,
+		`SELECT refill, bomb, enclosures, spread_clicks, shields FROM charges WHERE account = $1`, string(holder)).
+		Scan(&held.Refill, &held.Bomb, &held.Enclosures, &held.SpreadClicks, &held.Shields)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return bonuses.Held{}, nil
+	case err != nil:
+		return bonuses.Held{}, fmt.Errorf("failed to read the hand: %w", err)
 	}
 
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to save the charges: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if len(gone) > 0 {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM charges WHERE account = ANY($1::uuid[])`, pq.Array(gone)); err != nil {
-			return fmt.Errorf("failed to delete spent hands: %w", err)
-		}
-	}
-
-	if len(accounts) > 0 {
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO charges (account, refill, bomb, enclosures, spread_clicks, shields)
-			SELECT * FROM unnest($1::uuid[], $2::boolean[], $3::boolean[], $4::integer[], $5::integer[], $6::integer[])
-			ON CONFLICT (account) DO UPDATE SET
-				refill = EXCLUDED.refill,
-				bomb = EXCLUDED.bomb,
-				enclosures = EXCLUDED.enclosures,
-				spread_clicks = EXCLUDED.spread_clicks,
-				shields = EXCLUDED.shields
-		`, pq.Array(accounts), pq.Array(refills), pq.Array(bombs), pq.Array(enclosures), pq.Array(spreadClicks),
-			pq.Array(shields)); err != nil {
-			return fmt.Errorf("failed to write the hands: %w", err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the charges: %w", err)
-	}
-
-	return nil
+	return held, nil
 }

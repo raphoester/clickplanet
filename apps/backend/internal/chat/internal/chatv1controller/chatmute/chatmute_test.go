@@ -17,7 +17,7 @@ import (
 
 func TestAMutedCallerIsDeniedAndToldUntilWhen(t *testing.T) {
 	at := time.Date(2026, 10, 7, 20, 0, 0, 0, time.UTC)
-	refusal := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(messages.AccountID{15: 1}, ""), at, time.Hour).Refusal()
+	refusal := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(messages.AccountID{15: 1}, ""), mutes.Chat, at, time.Hour).Refusal()
 
 	refused, ok := chatmute.Refusal(fmt.Errorf("wrapped: %w", refusal))
 	require.True(t, ok)
@@ -30,6 +30,20 @@ func TestAMutedCallerIsDeniedAndToldUntilWhen(t *testing.T) {
 	mute, isMute := detail.(*chatv1.MuteRefusal)
 	require.True(t, isMute)
 	assert.Equal(t, at.Add(time.Hour).UnixMilli(), mute.GetMutedUntilUnixMs())
+	assert.Equal(t, chatv1.MuteKind_MUTE_KIND_CHAT, mute.GetKind())
+}
+
+func TestAMuteOfTheGifsSaysSo(t *testing.T) {
+	at := time.Date(2026, 11, 4, 20, 0, 0, 0, time.UTC)
+	refusal := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(messages.AccountID{15: 1}, ""), mutes.Gifs, at, time.Hour).Refusal()
+
+	refused, ok := chatmute.Refusal(refusal)
+	require.True(t, ok)
+
+	require.Len(t, refused.Details(), 1)
+	detail, err := refused.Details()[0].Value()
+	require.NoError(t, err)
+	assert.Equal(t, chatv1.MuteKind_MUTE_KIND_GIFS, detail.(*chatv1.MuteRefusal).GetKind())
 }
 
 func TestAnyOtherErrorIsNoMuteRefusal(t *testing.T) {

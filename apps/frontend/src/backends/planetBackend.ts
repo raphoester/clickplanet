@@ -1,4 +1,6 @@
 import {
+    AllegianceLockedError,
+    AllegianceSource,
     BankFullError,
     BannedError,
     BombDrop,
@@ -6,33 +8,49 @@ import {
     BonusCatch,
     BonusHandlers,
     BonusListener,
-    GlobePoint,
     BonusLostError,
     BonusOffer,
+    ChargesRefresher,
     ClaimedBonus,
-    ShieldRefusedError,
+    Counts,
     Enclosure,
     Fortification,
+    GlobePoint,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
     RateLimitedError,
     Refiller,
     Shielder,
+    ShieldRefusedError,
     SpreadClick,
     TileClicker,
+    LandmassReader,
+    LandmassState,
+    MapVersion,
+    TileHolder,
+    TileHolders,
+    TileRange,
     Update,
     UpdatesListener,
     VPNBlockedError,
+    FrozenError,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
+import {Allegiance} from "../domain/allegiance.ts";
 import {
+    Allegiance as AllegianceMessage,
     BanRefusal,
     BonusKind,
+    FrozenRefusal,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
+    GetHoldingsResponse,
     GetMapResponse,
+    HoldingsChanged,
+    LandmassHoldings,
+    MapVersion as MapVersionMessage,
     PlanetEvent,
     SharedWith,
 } from "../gen/grpc/planet/v1/planet_pb.ts";
@@ -56,7 +74,7 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -64,12 +82,18 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private readonly quizCallbacks = new Map<string, (offer: QuizOffer) => void>()
     private readonly bombCallbacks = new Map<string, (drop: BombDrop) => void>()
     private readonly budgetCallbacks = new Map<string, (budget: ClickBudget) => void>()
-    private readonly resumeCallbacks = new Map<string, () => void>()
+    private readonly openingCallbacks = new Map<string, (version: MapVersion) => void>()
+    private readonly holdingsCallbacks = new Map<string, (change: Counts) => void>()
     private readonly fortificationCallbacks = new Map<string, (fortification: Fortification) => void>()
+    private readonly allegianceCallbacks = new Map<string, (allegiance: Allegiance | undefined) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private stopListening: () => void
 
     private streamToken: string | undefined
+
+    // The version of the last thing the stream told its listeners, and whether the next message opens a connection.
+    private streamVersion: MapVersion | undefined
+    private opening = false
 
     private budgetAnchor: ClickBudget | undefined
 
@@ -80,6 +104,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private rules: BonusRules | undefined
 
     private charges: Charges = NO_CHARGES
+
+    private allegiance: Allegiance | undefined
+
+    private flagged: {token: string, ready: Promise<void>} | undefined
 
     constructor(
         private client: PromiseClient<typeof ClickService>,
@@ -115,8 +143,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.quizCallbacks.clear()
         this.bombCallbacks.clear()
         this.budgetCallbacks.clear()
-        this.resumeCallbacks.clear()
+        this.openingCallbacks.clear()
+        this.holdingsCallbacks.clear()
         this.fortificationCallbacks.clear()
+        this.allegianceCallbacks.clear()
         this.pendingUpdates = []
     }
 
@@ -146,6 +176,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private async click(tileId: number, countryId: string, {spread, enclose}: Switches): Promise<void> {
         const token = await this.session.token()
+        await this.ensureFlag(token, countryId)
 
         const headers = new Headers()
         if (token) headers.set(SESSION_HEADER, token)
@@ -162,6 +193,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             }
         } catch (e) {
             this.anchorBudget(budgetDetailOf(e), countryId)
+            this.holdRefusal(e)
             throw e
         }
     }
@@ -193,6 +225,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             price: priced ? priceOf(budget) : this.budgetAnchor?.price,
             linkedMultiplier: budget.linkedMultiplier > 1 ? budget.linkedMultiplier : undefined,
             sharedWith: SHARED_BY[budget.sharedWith],
+            frozen: budget.frozen,
             readAt: budgetNow(),
         }
 
@@ -225,23 +258,37 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         return () => this.budgetCallbacks.delete(id)
     }
 
-    public async getCurrentOwnershipsByBatch(
-        batchSize: number,
-        maxIndex: number,
+    public async getOwnerships(
+        ranges: readonly TileRange[],
         callback: (ownerships: Ownerships) => void,
         signal?: AbortSignal,
     ) {
-        for (let start = 1; start <= maxIndex; start += batchSize) {
-            const endTileId = Math.min(start + batchSize, maxIndex)
+        const reading = new AbortController()
+        const stop = () => reading.abort(signal?.reason)
+        if (signal?.aborted) stop()
+        signal?.addEventListener("abort", stop, {once: true})
 
-            const res = await retrying(
-                () => this.client.getMap({startTileId: start, endTileId}, {signal}),
-                `getMap ${start}..${endTileId}`,
-                signal,
-            )
-
-            callback({bindings: bindingsOf(res), shields: shieldsOf(res)})
+        const batches = [...ranges]
+        const read = async () => {
+            for (let range = batches.shift(); range; range = batches.shift()) {
+                const {start, end} = range
+                const res = await retrying(
+                    () => this.client.getMap({startTileId: start, endTileId: end}, {signal: reading.signal}),
+                    `getMap ${start}..${end}`,
+                    reading.signal,
+                )
+                reading.signal.throwIfAborted()
+                callback(ownershipsOf(res, range))
+            }
         }
+
+        await Promise.all(Array.from({length: MAP_READS_IN_FLIGHT}, () => read().catch((e) => reading.abort(e))))
+        signal?.removeEventListener("abort", stop)
+        reading.signal.throwIfAborted()
+    }
+
+    public async getHoldings(signal?: AbortSignal): Promise<Counts> {
+        return countsOf(await retrying(() => this.client.getHoldings({}, {signal}), "getHoldings", signal))
     }
 
     public async getFortresses(signal?: AbortSignal): Promise<Map<number, string>> {
@@ -255,6 +302,20 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
+    public async tileHolder(tile: number, signal?: AbortSignal): Promise<TileHolder | undefined> {
+        const {holder} = await this.client.getTileHolder({tileId: tile}, {signal})
+        if (!holder) return undefined
+        return {accountId: holder.accountId, countryCode: holder.countryId, takenAt: Number(holder.takenAtUnixMs)}
+    }
+
+    public async landmass(landmass: number, signal?: AbortSignal): Promise<LandmassState> {
+        const {holders, lastFortification: last} = await this.client.getLandmass({landmassId: landmass}, {signal})
+        return {
+            holders: holders.map(({accountId, countryId, tiles}) => ({accountId, countryCode: countryId, tiles})),
+            lastFortification: last && {accountId: last.accountId, countryCode: last.countryId, at: Number(last.fortifiedAtUnixMs)},
+        }
+    }
+
     private openEventStream(): () => void {
         return openStream(
             (signal) => {
@@ -264,12 +325,31 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 const headers = new Headers()
                 if (token) headers.set(SESSION_HEADER, token)
 
+                this.opening = true
                 return this.client.listenForEvents({}, {signal, headers, timeoutMs: NO_TIMEOUT})
             },
             (event) => {
+                const opened = this.opening
+                this.opening = false
+
+                const heartbeat = heartbeatOf(event)
+                if (heartbeat) {
+                    if (opened) this.streamOpened(heartbeat)
+                    return
+                }
+
                 const update = updateOf(event)
                 if (update) {
+                    this.streamVersion = update.version
                     this.updateCallbacks.forEach(callback => callback(update))
+                    return
+                }
+
+                const holdings = holdingsChangeOf(event)
+                if (holdings) {
+                    this.flushUpdates()
+                    this.streamVersion = holdings.version
+                    this.holdingsCallbacks.forEach(callback => callback(holdings))
                     return
                 }
 
@@ -295,7 +375,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 if (drop) {
                     // Earlier tile updates go first, or they repaint over the crater.
                     this.flushUpdates()
+                    this.streamVersion = drop.version
                     this.bombCallbacks.forEach(callback => callback(drop))
+                    return
+                }
+
+                if (rulesChanged(event)) {
+                    this.readRulesInForce()
                     return
                 }
 
@@ -303,6 +389,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 if (fortification) {
                     // Its shields go on the owners the earlier updates leave.
                     this.flushUpdates()
+                    this.streamVersion = fortification.version
                     this.fortificationCallbacks.forEach(callback => callback(fortification))
                     return
                 }
@@ -316,18 +403,36 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     return
                 }
 
+                const granted = grantedOf(event)
+                if (granted) {
+                    this.holdCharges(granted)
+                    return
+                }
+
                 const spread = spreadOf(event)
                 if (spread) this.bonusCallbacks.forEach(handlers => handlers.onSpread(spread))
             },
             "planet events",
-            {
-                onResumed: () => {
-                    // Updates from before the gap land before the globe forgets them, or they would outrank the catch-up.
-                    this.flushUpdates()
-                    this.resumeCallbacks.forEach(callback => callback())
-                },
-            },
+            // A gap in the stream may have hidden a rulesChanged or a grant.
+            {onResumed: () => {
+                this.readRulesInForce()
+                void this.refreshCharges()
+            }},
         )
+    }
+
+    private readRulesInForce(): void {
+        void this.readBudget()
+        void this.readRules()
+        const token = this.streamToken ?? this.session.heldIdentity()
+        if (token) void this.readAllegiance(token)
+    }
+
+    // Updates from before a gap land before the globe hears of it, or they would outrank what it reads again.
+    private streamOpened(version: MapVersion) {
+        this.flushUpdates()
+        this.streamVersion = version
+        this.openingCallbacks.forEach(callback => callback(version))
     }
 
     // A returning player is named from load on, with no Turnstile check.
@@ -337,7 +442,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             this.followSession(token)
             return
         }
-        await this.readCharges(token)
+        await Promise.all([this.readCharges(token), this.readAllegiance(token)])
     }
 
     private followSession(token: string | undefined): void {
@@ -348,6 +453,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.stopListening = this.openEventStream()
 
         void this.readCharges(token)
+        void this.readAllegiance(token)
     }
 
     private async readRules(): Promise<void> {
@@ -361,6 +467,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 shields: res.shields,
                 tileShields: res.tileShields,
                 toll: res.tollSteps.map(({share, slowdown}) => ({share, slowdown})),
+                signInRefill: res.signInRefill,
             }
             this.rules = rules
             this.bonusCallbacks.forEach(handlers => handlers.onRules(rules))
@@ -368,6 +475,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             if (e instanceof ConnectError && e.code === Code.Unimplemented) return
             console.error("could not read the bonus rules", e)
         }
+    }
+
+    public async refreshCharges(): Promise<void> {
+        await this.readCharges(this.streamToken ?? this.session.heldIdentity())
     }
 
     private async readCharges(token: string | undefined): Promise<void> {
@@ -389,6 +500,95 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.bonusCallbacks.forEach(handlers => handlers.onCharges(charges))
     }
 
+    private async readAllegiance(token: string | undefined): Promise<void> {
+        const headers = new Headers()
+        if (token) headers.set(SESSION_HEADER, token)
+
+        try {
+            const res = await retrying(() => this.client.getAllegiance({}, {headers}), "getAllegiance")
+            if (token !== this.streamToken && token !== this.session.heldIdentity()) return
+            const held = allegianceOfMessage(res.allegiance)
+            this.holdAllegiance(held)
+            if (held && token) this.flagged = {token, ready: Promise.resolve()}
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.Unimplemented) return
+            console.error("could not read the flag played for", e)
+        }
+    }
+
+    public async refreshAllegiance(): Promise<void> {
+        await this.readAllegiance(this.streamToken ?? this.session.heldIdentity())
+    }
+
+    public async pledgeAllegiance(countryId: string): Promise<void> {
+        const token = await this.session.identity()
+        if (token) await this.pledge(token, countryId)
+    }
+
+    // The page's flag is the one its clicks are priced for.
+    public async claimFlag(): Promise<void> {
+        if (this.budgetCountry === "") return
+        await this.ensureFlag(await this.session.token(), this.budgetCountry)
+    }
+
+    private ensureFlag(token: string | undefined, countryId: string): Promise<void> {
+        if (!token) return Promise.resolve()
+        if (this.flagged?.token === token) return this.flagged.ready
+
+        const flagged = {token, ready: this.claimFlagFor(token, countryId)}
+        this.flagged = flagged
+        flagged.ready.catch(() => {
+            if (this.flagged === flagged) this.flagged = undefined
+        })
+        return flagged.ready
+    }
+
+    private async claimFlagFor(token: string, countryId: string): Promise<void> {
+        if (await this.heldFor(token) === undefined) await this.pledge(token, countryId)
+    }
+
+    private async heldFor(token: string): Promise<Allegiance | undefined> {
+        const headers = new Headers({[SESSION_HEADER]: token})
+        const res = await retrying(() => this.client.getAllegiance({}, {headers}), "getAllegiance")
+        const held = allegianceOfMessage(res.allegiance)
+        this.holdAllegiance(held)
+        return held
+    }
+
+    private async pledge(token: string, countryId: string): Promise<void> {
+        const headers = new Headers({[SESSION_HEADER]: token})
+        try {
+            await retrying(() => this.client.pledgeAllegiance({countryId}, {headers}), "pledgeAllegiance")
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.Unimplemented) return
+            const locked = allegianceDetailOf(e)
+            if (!locked) throw e
+            this.holdAllegiance(locked)
+            throw new AllegianceLockedError(locked, {cause: e})
+        }
+
+        await this.heldFor(token)
+        this.flagged = {token, ready: Promise.resolve()}
+    }
+
+    private holdRefusal(e: unknown): void {
+        const locked = allegianceDetailOf(e)
+        if (locked) this.holdAllegiance(locked)
+    }
+
+    private holdAllegiance(allegiance: Allegiance | undefined): void {
+        this.allegiance = allegiance
+        this.allegianceCallbacks.forEach(callback => callback(allegiance))
+    }
+
+    public listenForAllegiance(callback: (allegiance: Allegiance | undefined) => void): () => void {
+        const id = generateUUID()
+        this.allegianceCallbacks.set(id, callback)
+        callback(this.allegiance)
+
+        return () => this.allegianceCallbacks.delete(id)
+    }
+
     public listenForUpdates(callback: (update: Update) => void): () => void {
         const id = generateUUID()
         this.updateCallbacks.set(id, callback)
@@ -396,11 +596,21 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         return () => this.updateCallbacks.delete(id)
     }
 
-    public listenForResumes(callback: () => void): () => void {
+    public listenForOpenings(callback: (version: MapVersion) => void): () => void {
         const id = generateUUID()
-        this.resumeCallbacks.set(id, callback)
+        this.openingCallbacks.set(id, callback)
 
-        return () => this.resumeCallbacks.delete(id)
+        // What it missed is older than this, and a read from now on holds it.
+        this.flushUpdates()
+        if (this.streamVersion) callback(this.streamVersion)
+
+        return () => this.openingCallbacks.delete(id)
+    }
+
+    public listenForHoldings(callback: (change: Counts) => void): () => void {
+        const id = generateUUID()
+        this.holdingsCallbacks.set(id, callback)
+        return () => this.holdingsCallbacks.delete(id)
     }
 
     public listenForFortifications(callback: (fortification: Fortification) => void): () => void {
@@ -624,13 +834,19 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private async place(tileId: number, countryId: string): Promise<void> {
         const sessionToken = await this.session.token()
+        await this.ensureFlag(sessionToken, countryId)
 
         const headers = new Headers()
         if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
 
-        const res = await this.client.placeShield({tileId, countryId}, {headers})
-        this.followSession(sessionToken)
-        this.holdCharges(chargesOfMessage(res.charges))
+        try {
+            const res = await this.client.placeShield({tileId, countryId}, {headers})
+            this.followSession(sessionToken)
+            this.holdCharges(chargesOfMessage(res.charges))
+        } catch (e) {
+            this.holdRefusal(e)
+            throw e
+        }
     }
 
     public listenForUpdatesBatch(
@@ -693,7 +909,12 @@ export function fortificationOf(event: PlanetEvent): Fortification | undefined {
     if (event.event.case !== "landmassFortified") return undefined
 
     const fortified = event.event.value
-    return {landmass: fortified.landmassId, countryId: fortified.countryId, tile: fortified.tileId}
+    return {landmass: fortified.landmassId, countryId: fortified.countryId, tile: fortified.tileId, version: versionOf(fortified.version)}
+}
+
+// The refill and the sizes of the charges may have moved, and only a reading says by how much.
+export function rulesChanged(event: PlanetEvent): boolean {
+    return event.event.case === "rulesChanged"
 }
 
 export function spreadOf(event: PlanetEvent): SpreadClick | undefined {
@@ -701,6 +922,12 @@ export function spreadOf(event: PlanetEvent): SpreadClick | undefined {
 
     const spread = event.event.value
     return {countryId: spread.countryId, tile: spread.tileId, spread: [...spread.spreadTileIds]}
+}
+
+export function grantedOf(event: PlanetEvent): Charges | undefined {
+    if (event.event.case !== "chargesGranted") return undefined
+
+    return chargesOfMessage(event.event.value.charges)
 }
 
 export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
@@ -715,7 +942,9 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
     }
 }
 
-const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, shields: 0, tileShields: 0, toll: []}
+const NO_RULES: BonusRules = {
+    blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, shields: 0, tileShields: 0, toll: [], signInRefill: false,
+}
 
 function rewardOf(
     kind: BonusKind,
@@ -748,7 +977,8 @@ export function bombOf(event: PlanetEvent): BombDrop | undefined {
         countryId: dropped.countryId,
         radius: dropped.radius,
         cleared: dropped.clearedTileIds,
-        struck: dropped.struckTileIds,
+        struck: dropped.struck.map(({tileId, shields}) => ({tile: tileId, shields})),
+        version: versionOf(dropped.version),
     }
 }
 
@@ -770,6 +1000,8 @@ function bannedOf(e: ConnectError): BannedError | undefined {
 }
 
 export function asShieldError(e: unknown): unknown {
+    const locked = allegianceDetailOf(e)
+    if (locked) return new AllegianceLockedError(locked, {cause: e})
     if (e instanceof ConnectError && e.code === Code.FailedPrecondition) return new ShieldRefusedError({cause: e})
 
     return asBonusError(e)
@@ -796,6 +1028,22 @@ export function priceOf(budget: ClickBudgetMessage): ClickPrice | undefined {
     }
 }
 
+export function allegianceOfMessage(message: AllegianceMessage | undefined): Allegiance | undefined {
+    if (!message || message.countryId === "") return undefined
+
+    const allegiance: Allegiance = {countryId: message.countryId}
+    const changeableAt = Number(message.changeableAtUnixMs)
+    if (changeableAt !== 0) allegiance.changeableAt = changeableAt
+    if (message.locked) allegiance.locked = true
+    return allegiance
+}
+
+export function allegianceDetailOf(e: unknown): Allegiance | undefined {
+    if (!(e instanceof ConnectError) || e.code !== Code.FailedPrecondition) return undefined
+
+    return allegianceOfMessage(e.findDetails(AllegianceMessage)[0])
+}
+
 export function budgetDetailOf(e: unknown): ClickBudgetMessage | undefined {
     if (!(e instanceof ConnectError)) return undefined
 
@@ -805,13 +1053,45 @@ export function budgetDetailOf(e: unknown): ClickBudgetMessage | undefined {
 export function asClickError(e: unknown): unknown {
     if (e instanceof SessionUnavailableError) return e
 
+    const locked = allegianceDetailOf(e)
+    if (locked) return new AllegianceLockedError(locked, {cause: e})
+
     if (e instanceof ConnectError) {
+        if (e.code === Code.FailedPrecondition && e.findDetails(FrozenRefusal).length > 0) return new FrozenError({cause: e})
         if (e.code === Code.ResourceExhausted) return new RateLimitedError({cause: e})
         if (e.code === Code.PermissionDenied) return bannedOf(e) ?? new VPNBlockedError({cause: e})
         if (e.code === Code.Unauthenticated) return new SessionUnavailableError({cause: e})
     }
 
     return e
+}
+
+const MAP_READS_IN_FLIGHT = 8
+
+export function versionOf(version: MapVersionMessage | undefined): MapVersion {
+    return {epoch: version?.epoch ?? 0, seq: Number(version?.seq ?? 0)}
+}
+
+export function ownershipsOf(res: GetMapResponse, range: TileRange): Ownerships {
+    return {range, version: versionOf(res.version), bindings: bindingsOf(res), shields: shieldsOf(res)}
+}
+
+export function countsOf(message: GetHoldingsResponse | HoldingsChanged): Counts {
+    return {
+        version: versionOf(message.version),
+        countries: new Map(message.countries.map(({countryId, tiles}) => [countryId, tiles])),
+        landmasses: new Map(message.landmasses.map((row: LandmassHoldings) => [
+            row.landmassId, new Map(row.holdings.map(({countryId, tiles}) => [countryId, tiles])),
+        ])),
+    }
+}
+
+export function holdingsChangeOf(event: PlanetEvent): Counts | undefined {
+    return event.event.case === "holdingsChanged" ? countsOf(event.event.value) : undefined
+}
+
+export function heartbeatOf(event: PlanetEvent): MapVersion | undefined {
+    return event.event.case === "heartbeat" ? versionOf(event.event.value.version) : undefined
 }
 
 export function bindingsOf(res: GetMapResponse): Map<number, string> {
@@ -841,5 +1121,6 @@ export function updateOf(event: PlanetEvent): Update | undefined {
         newCountry: update.countryId === "" ? undefined : update.countryId,
         clicked: update.clicked,
         shields: update.shields,
+        version: versionOf(update.version),
     }
 }

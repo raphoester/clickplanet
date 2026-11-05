@@ -12,21 +12,35 @@ import (
 func Encode(message messages.Message, counts []reactions.Count, version uint64) *chatv1.ChatMessage {
 	sent := message.TakeSnapshot()
 
-	return &chatv1.ChatMessage{
+	encoded := &chatv1.ChatMessage{
 		Id:               string(sent.ID),
 		SentAtUnixMs:     sent.SentAt.UnixMilli(),
 		AuthorAccountId:  accountOf(sent.Account),
 		AuthorName:       sent.Author.Name(),
 		AuthorAdmin:      sent.Author.Admin(),
 		AuthorColor:      playerv1.NameColor(sent.Author.Color()),
-		AuthorStreak:     sent.Author.Streak(),
-		AuthorTitle:      encodedTitle(sent.Author.Title()),
 		CountryId:        sent.Country,
-		Text:             sent.Text,
 		Reactions:        EncodeCounts(counts),
 		ReactionsVersion: version,
 		ReplyTo:          encodedQuote(sent.Quote),
 	}
+	if gif := EncodeGif(sent.Gif); gif != nil {
+		encoded.Body = &chatv1.ChatMessage_Gif{Gif: gif}
+	} else {
+		encoded.Body = &chatv1.ChatMessage_Text{Text: sent.Text}
+	}
+	return encoded
+}
+
+func EncodeGif(gif messages.Gif) *chatv1.Gif {
+	if gif.None() {
+		return nil
+	}
+	return &chatv1.Gif{Url: gif.URL, Width: gif.Width, Height: gif.Height}
+}
+
+func Gif(gif *chatv1.Gif) messages.Gif {
+	return messages.Gif{URL: gif.GetUrl(), Width: gif.GetWidth(), Height: gif.GetHeight()}
 }
 
 func accountOf(account messages.AccountID) string {
@@ -41,27 +55,15 @@ func encodedQuote(quote messages.Quote) *chatv1.Quote {
 		return nil
 	}
 
-	return &chatv1.Quote{
+	encoded := &chatv1.Quote{
 		MessageId:   string(quote.MessageID),
 		AuthorName:  quote.Author.Name(),
 		AuthorColor: playerv1.NameColor(quote.Author.Color()),
-		Text:        quote.Text,
 	}
-}
-
-func encodedTitle(title messages.Title) *playerv1.Title {
-	if title.Empty() {
-		return nil
-	}
-
-	encoded := &playerv1.Title{Id: title.ID(), Name: title.Name()}
-	if rank := title.Rank(); !rank.Empty() {
-		encoded.Rank = &playerv1.Rank{
-			TrackId:   rank.TrackID(),
-			TrackName: rank.TrackName(),
-			Number:    rank.Number(),
-			Count:     rank.Count(),
-		}
+	if gif := EncodeGif(quote.Gif); gif != nil {
+		encoded.Body = &chatv1.Quote_Gif{Gif: gif}
+	} else {
+		encoded.Body = &chatv1.Quote_Text{Text: quote.Text}
 	}
 	return encoded
 }

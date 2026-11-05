@@ -8,27 +8,25 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
 
 var now = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 
-func named(name players.Name, admin bool) wearing.Author {
+func named(name players.Name, admin bool) players.Player {
 	profile := players.ProfileSnapshot{Name: name, Admin: admin}.Restore()
-	return wearing.AuthorOf(players.NamedAuthor(profile, players.Streak{}), titles.Standing{})
+	return players.NamedPlayer(profile)
 }
 
-func player(name players.Name) wearing.Author {
+func player(name players.Name) players.Player {
 	return named(name, false)
 }
 
-func guest(code players.GuestCode) wearing.Author {
-	return wearing.AuthorOf(players.GuestAuthor(code, players.Streak{}), titles.Standing{})
+func guest(code players.GuestCode) players.Player {
+	return players.GuestPlayer(code)
 }
 
-func visit(key presence.Key, author wearing.Author, country string, at time.Time) presence.Visit {
-	return presence.NewVisit(players.AccountID{}, author, "", country, at).Keyed(key)
+func visit(key presence.Key, shown players.Player, country string, at time.Time) presence.Visit {
+	return presence.NewVisit(players.AccountID{}, shown, "", country, at).Keyed(key)
 }
 
 type line struct {
@@ -38,14 +36,12 @@ type line struct {
 	Guest   bool
 	Admin   bool
 	Color   players.Color
-	Streak  uint32
-	Title   titles.Standing
 }
 
 func lineOf(entry presence.Entry) line {
 	return line{
 		Key: entry.Key(), Name: entry.Name(), Country: entry.Country(), Guest: entry.Guest(), Admin: entry.Admin(),
-		Color: entry.Color(), Streak: entry.Streak(), Title: entry.Title(),
+		Color: entry.Color(),
 	}
 }
 
@@ -58,7 +54,7 @@ func linesOf(roster []presence.Entry) []line {
 }
 
 func TestAVisitIsFreshForTheTTL(t *testing.T) {
-	visit := presence.NewVisit(players.AccountID{}, wearing.Author{}, "", "", now)
+	visit := presence.NewVisit(players.AccountID{}, players.Player{}, "", "", now)
 
 	assert.True(t, visit.Fresh(now.Add(presence.TTL-time.Second)))
 	assert.False(t, visit.Fresh(now.Add(presence.TTL)))
@@ -126,27 +122,18 @@ func names(roster []presence.Entry) []string {
 	return names
 }
 
-func TestALineCarriesTheColorAndTheStreakItWasAnnouncedWith(t *testing.T) {
-	ada := players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L", Color: 3}.Restore(), players.StreakOf(12, players.DayOf(now)))
+func TestALineCarriesTheColorItWasAnnouncedWith(t *testing.T) {
+	ada := players.NamedPlayer(players.ProfileSnapshot{Name: "Ada_L", Color: 3}.Restore())
 
-	entry := presence.EntryOf(visit("1", wearing.AuthorOf(ada, titles.Standing{}), "fr", now))
+	entry := presence.EntryOf(visit("1", ada, "fr", now))
 
-	assert.Equal(t, line{Key: "1", Name: "Ada_L", Country: "fr", Color: 3, Streak: 12}, lineOf(entry))
+	assert.Equal(t, line{Key: "1", Name: "Ada_L", Country: "fr", Color: 3}, lineOf(entry))
 }
 
-func TestALineCarriesTheTitleItsPlayerWears(t *testing.T) {
-	og, _ := titles.NewCatalog().StandingOf("og")
+func TestARenamedLineKeepsItsMarkAndColor(t *testing.T) {
+	ada := players.NamedPlayer(players.ProfileSnapshot{Name: "Ada", Admin: true, Color: 3}.Restore())
 
-	entry := presence.EntryOf(visit("1", player("Ada_L").Wearing(og), "", now))
+	entry := presence.EntryOf(visit("1", ada.Renamed("Ada_L"), "fr", now))
 
-	assert.Equal(t, line{Key: "1", Name: "Ada_L", Title: og}, lineOf(entry))
-}
-
-func TestARenamedLineKeepsItsMarkColorStreakAndTitle(t *testing.T) {
-	og, _ := titles.NewCatalog().StandingOf("og")
-	ada := players.NamedAuthor(players.ProfileSnapshot{Name: "Ada", Admin: true, Color: 3}.Restore(), players.StreakOf(4, players.DayOf(now)))
-
-	entry := presence.EntryOf(visit("1", wearing.AuthorOf(ada, og).Renamed("Ada_L"), "fr", now))
-
-	assert.Equal(t, line{Key: "1", Name: "Ada_L", Country: "fr", Admin: true, Color: 3, Streak: 4, Title: og}, lineOf(entry))
+	assert.Equal(t, line{Key: "1", Name: "Ada_L", Country: "fr", Admin: true, Color: 3}, lineOf(entry))
 }

@@ -38,5 +38,6 @@ func (s *testSuite) TestAKindTheTypeDoesNotHoldIsRefused() {
 	meteor := announcements.NewAnnouncement(announcements.AnnouncementID{15: 1}, announcements.Kind("meteor"),
 		time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC), json.RawMessage(`{}`))
 
-	s.Error(s.NewStorage().Append(s.T().Context(), meteor))
+	_, err := s.NewStorage().AppendOnce(s.T().Context(), meteor)
+	s.Error(err)
 }

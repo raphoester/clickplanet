@@ -11,11 +11,20 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
+func bounds(change func(*Rules)) func() Rules {
+	r := Rules{MinSteps: 40, MinShare: 0.75, CertainSteps: 200, CertainShare: 0.95}
+	change(&r)
+	return func() Rules { return r }
+}
+
+func asIs(*Rules) {}
+
 func TestStepsSurviveASaveAndLoad(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
-	config := Config{MinSteps: 20, CertainSteps: 40, TrackWindow: time.Hour}
+	config := Config{TrackWindow: time.Hour}
+	shorter := bounds(func(r *Rules) { r.MinSteps, r.CertainSteps = 20, 40 })
 
-	w := New(config, clock)
+	w := New(config, shorter, clock)
 	for tile := range uint32(30) {
 		clock.Advance(time.Second)
 		w.Watch(detect.Click{Scope: "sweeper", Tile: 1000 + tile, Country: "FR", At: clock.Now()})
@@ -24,7 +33,7 @@ func TestStepsSurviveASaveAndLoad(t *testing.T) {
 	data, err := w.Save()
 	require.NoError(t, err)
 
-	restarted := New(config, clock)
+	restarted := New(config, shorter, clock)
 	require.NoError(t, restarted.Load(data))
 
 	clock.Advance(time.Second)
@@ -40,7 +49,7 @@ func TestStepsSurviveASaveAndLoad(t *testing.T) {
 func TestForgetDropsStepsBeforeTheCutoff(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: 24 * time.Hour}, clock)
+	w := New(Config{TrackWindow: 24 * time.Hour}, bounds(asIs), clock)
 	for tile := range uint32(3) {
 		clock.Advance(time.Second)
 		w.Watch(detect.Click{Scope: "sweeper", Tile: tile, Country: "FR", At: clock.Now()})

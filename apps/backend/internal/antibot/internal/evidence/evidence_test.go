@@ -210,3 +210,35 @@ func (s *shapeless) Load(data []byte) error {
 }
 
 func (s *shapeless) Forget(time.Time) {}
+
+type holding struct {
+	fake
+	journal *[]string
+}
+
+func (h *holding) Hold() func() {
+	*h.journal = append(*h.journal, "hold")
+	return func() { *h.journal = append(*h.journal, "release") }
+}
+
+type journaled struct {
+	fake
+	journal *[]string
+}
+
+func (j *journaled) Save() ([]byte, error) {
+	*j.journal = append(*j.journal, "save "+j.name)
+	return j.fake.Save()
+}
+
+func TestEverySectionIsEncodedWhileTheHoldersHold(t *testing.T) {
+	h := newHarness()
+	var journal []string
+
+	store := h.store(&journaled{fake: fake{name: "metronome"}, journal: &journal}, &holding{fake: fake{name: "marks"}, journal: &journal})
+	require.NoError(t, store.Flush(t.Context()))
+
+	assert.Equal(t, []string{"hold", "save metronome", "release"}, journal,
+		"a section saved before the holder is held as well: nothing feeds it between two sections")
+	assert.Equal(t, 1, h.persistence.Saves())
+}

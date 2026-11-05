@@ -13,6 +13,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/s3_attachment_bucket"
@@ -40,7 +41,7 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 
-	config s3_attachment_bucket.Config
+	config cps3.Config
 	bucket *s3_attachment_bucket.Bucket
 }
 
@@ -65,13 +66,13 @@ func (s *testSuite) SetupSuite() {
 	endpoint, err := container.PortEndpoint(ctx, port, "http")
 	s.Require().NoError(err)
 
-	s.config = s3_attachment_bucket.Config{
+	s.config = cps3.Config{
 		Endpoint: endpoint, Region: "us-east-1", Name: bucketName, AccessKeyID: keyID, SecretAccessKey: secret,
 	}
 	s.bucket = s.bucketOf(s.config, cptime.SystemClock{})
 }
 
-func (s *testSuite) bucketOf(config s3_attachment_bucket.Config, clock cptime.Clock) *s3_attachment_bucket.Bucket {
+func (s *testSuite) bucketOf(config cps3.Config, clock cptime.Clock) *s3_attachment_bucket.Bucket {
 	bucket, err := s3_attachment_bucket.New(config, lifetimes, clock, http.DefaultClient)
 	s.Require().NoError(err)
 	return bucket

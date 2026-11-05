@@ -11,11 +11,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
+func bounds() Rules {
+	return Rules{MinMaps: 5, CertainMaps: 15, CertainOffMap: 2}
+}
+
 func TestReadsSurviveASaveAndLoad(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 15, 21, 0, 0, 0, time.UTC))
-	config := Config{MinMaps: 5, CertainMaps: 15, TrackWindow: 15 * time.Minute}
+	config := Config{TrackWindow: 15 * time.Minute}
 
-	w := New(config, clock, func(float64) {})
+	w := New(config, bounds, clock, func(float64) {})
 	w.Listened("bot")
 	for i := range 500 {
 		clock.Advance(time.Second)
@@ -26,7 +30,7 @@ func TestReadsSurviveASaveAndLoad(t *testing.T) {
 	data, err := w.Save()
 	require.NoError(t, err)
 
-	restarted := New(config, clock, func(float64) {})
+	restarted := New(config, bounds, clock, func(float64) {})
 	require.NoError(t, restarted.Load(data))
 
 	next := detect.Click{Scope: "bot", Tile: 1, Country: "dz", At: clock.Now()}
@@ -42,7 +46,7 @@ func TestReadsSurviveASaveAndLoad(t *testing.T) {
 func TestForgetDropsSlicesBeforeTheCutoff(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 15, 21, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: 24 * time.Hour}, clock, func(float64) {})
+	w := New(Config{TrackWindow: 24 * time.Hour}, bounds, clock, func(float64) {})
 	w.Fetched("player", 1, false)
 	clock.Advance(time.Hour)
 	w.Fetched("player", 1, false)

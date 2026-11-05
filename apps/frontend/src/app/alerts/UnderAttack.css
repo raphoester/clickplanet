@@ -1,0 +1,28 @@
+.bomb-news.under-attack {
+    left: var(--space-4);
+    right: var(--space-4);
+    display: flex;
+    justify-content: center;
+    transform: none;
+}
+
+.under-attack-line {
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.under-attack-text {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    white-space: normal;
+}
+
+.under-attack-go {
+    pointer-events: auto;
+}
+
+.under-attack-ping {
+    pointer-events: auto;
+    background: var(--discord);
+}

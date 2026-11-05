@@ -1,10 +1,16 @@
 import {useId, useState} from "react"
 import {Season} from "../../backends/season.ts"
-import {countdownsOf, SeasonCountdown, seasonClock} from "../../domain/seasonClock.ts"
+import {BattleToCome} from "../../backends/turn.ts"
+import {Finale, finaleNear} from "../../domain/battle.ts"
+import {Champion, championNames, winsLine} from "../../domain/champion.ts"
+import {countdownsOf, SeasonCountdown, shortLeft} from "../../domain/seasonClock.ts"
+import CountryFlag from "../components/CountryFlag.tsx"
 import {ChevronIcon, ClockIcon} from "../components/icons.tsx"
 import {useBottomEdge} from "../components/useBottomEdge.ts"
 import {useEscape} from "../components/useDialog.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
+import {useScreen} from "../hud/screenStore.ts"
+import {FinaleDetails} from "./FinaleFacts.tsx"
 import SeasonFacts from "./SeasonFacts.tsx"
 import {useNow} from "./useNow.ts"
 import {useRotation} from "./useRotation.ts"
@@ -12,32 +18,36 @@ import "./Season.css"
 
 export type SeasonChipProps = {
     season: Season
+    nextBattle?: BattleToCome
+    finale?: Finale
+    dayEndsAt?: number
     compact: boolean
-    open: boolean
-    onToggle: () => void
 }
 
-export default function SeasonChip({season, compact, open, onToggle}: SeasonChipProps) {
+export default function SeasonChip({season, nextBattle, finale, dayEndsAt, compact}: SeasonChipProps) {
     const [chip, setChip] = useState<HTMLElement | null>(null)
     useBottomEdge(compact ? null : chip, STATUS_BOTTOM)
+    const open = useScreen((screen) => compact ? screen.sheet === "season" : screen.popovers.season)
+    const toggleSheet = useScreen((screen) => screen.toggleSheet)
+    const togglePopover = useScreen((screen) => screen.togglePopover)
+    const toggle = () => compact ? toggleSheet("season") : togglePopover("season")
 
     const now = useNow()
-    const countdowns = countdownsOf(season, now)
+    const countdowns = countdownsOf(season, now, nextBattle, dayEndsAt)
     const {shown, holds} = useRotation(countdowns.length)
 
-    const clock = seasonClock(season, now)
-    if (!clock) return null
+    if (countdowns.length === 0) return null
 
     const name = countdowns.map((countdown) => `${countdown.label} ${countdown.left}`).join(", ")
-    const className = ["season-chip", compact ? "season-chip--compact" : "panel", clock.finale && "season-chip--live"]
-        .filter(Boolean).join(" ")
+    const near = finaleNear(finale, now) ? " season-chip--final" : ""
+    const className = `season-chip ${compact ? "season-chip--compact" : "panel"}${near}`
 
     if (compact) {
         return <button type="button"
                        className={`panel-box ${className}`}
                        aria-label={name}
                        aria-expanded={open}
-                       onClick={onToggle}
+                       onClick={toggle}
                        {...holds}>
             <ClockIcon/>
             <Faces countdowns={countdowns} shown={shown} compact/>
@@ -46,18 +56,40 @@ export default function SeasonChip({season, compact, open, onToggle}: SeasonChip
 
     return <section ref={setChip}
                     className={className}
-                    aria-label={clock.finale ? "Final Battle" : `Season ${season.number}`}
+                    aria-label={`Season ${season.number}`}
                     {...holds}>
         <button type="button"
                 className="season-chip-head"
                 aria-label={name}
                 aria-expanded={open}
-                onClick={onToggle}>
+                onClick={toggle}>
             <ClockIcon/>
             <Faces countdowns={countdowns} shown={shown} compact={false}/>
             <span className="season-chip-chevron"><ChevronIcon size={16}/></span>
         </button>
-        {open && <SeasonPopover season={season} finale={clock.finale} onClose={onToggle}/>}
+        {open && <SeasonPopover finale={finale} onClose={toggle}/>}
+    </section>
+}
+
+export function ChampionChip({champion, compact}: {champion: Champion, compact: boolean}) {
+    const [chip, setChip] = useState<HTMLElement | null>(null)
+    useBottomEdge(compact ? null : chip, STATUS_BOTTOM)
+
+    const flags = champion.countryCodes.map((code) => <CountryFlag key={code} code={code}/>)
+
+    if (compact) {
+        return <section className="panel-box season-chip season-chip--compact season-chip--champion" aria-label={winsLine(champion)}>
+            <span className="season-chip-trophy" aria-hidden="true">🏆</span>
+            <span className="season-chip-left" aria-hidden="true">{flags}</span>
+        </section>
+    }
+
+    return <section ref={setChip} className="panel season-chip season-chip--champion" aria-label={winsLine(champion)}>
+        <div className="season-chip-head" aria-hidden="true">
+            <span className="season-chip-trophy">🏆</span>
+            <span className="season-chip-label">Season {champion.season} champion</span>
+            <span className="season-chip-left">{flags}<span className="season-chip-name">{championNames(champion)}</span></span>
+        </div>
     </section>
 }
 
@@ -66,7 +98,7 @@ function Faces({countdowns, shown, compact}: {countdowns: SeasonCountdown[], sho
 
     return <span className="season-chip-faces" aria-hidden="true">
         {countdowns.map((countdown, i) => <span key={countdown.label}
-                                                className={i === shown ? "season-chip-face" : "season-chip-face season-chip-face--away"}>
+                                                className={faceClassOf(countdown, i === shown)}>
             {compact
                 ? tagged && <span className="season-chip-tag">{countdown.tag}</span>
                 : <span className="season-chip-label">{countdown.label}</span>}
@@ -75,33 +107,44 @@ function Faces({countdowns, shown, compact}: {countdowns: SeasonCountdown[], sho
     </span>
 }
 
-function SeasonPopover({season, finale, onClose}: {season: Season, finale: boolean, onClose: () => void}) {
-    useEscape(onClose)
-    return <div className="season-chip-body"><SeasonFacts season={season} finale={finale}/></div>
+function faceClassOf(countdown: SeasonCountdown, shown: boolean): string {
+    const final = countdown.endsSeason ? " season-chip-face--final" : ""
+    return `season-chip-face${final}${shown ? "" : " season-chip-face--away"}`
 }
 
-export function SeasonDetails({season}: {season: Season}) {
-    const now = useNow()
-    const clock = seasonClock(season, now)
-    if (!clock) return null
+function SeasonPopover({finale, onClose}: {finale?: Finale, onClose: () => void}) {
+    useEscape(onClose)
+    return <div className="season-chip-body">
+        {finale && !finale.live && <FinaleDetails finale={finale}/>}
+        <SeasonFacts/>
+    </div>
+}
+
+export type SeasonDetailsProps = {
+    season: Season
+    nextBattle?: BattleToCome
+    finale?: Finale
+    dayEndsAt?: number
+}
+
+export function SeasonDetails({season, nextBattle, finale, dayEndsAt}: SeasonDetailsProps) {
+    const countdowns = countdownsOf(season, useNow(), nextBattle, dayEndsAt)
+    if (countdowns.length === 0) return null
 
     return <>
         <div className="panel-box season-details-countdowns">
-            {countdownsOf(season, now).map((countdown) => <DetailsCountdown key={countdown.label} countdown={countdown}/>)}
+            {countdowns.map((countdown) => <DetailsCountdown key={countdown.label} countdown={countdown}/>)}
         </div>
-        <div className="panel-box season-details-facts"><SeasonFacts season={season} finale={clock.finale}/></div>
+        {finale && !finale.live && <div className="panel-box season-details-facts"><FinaleDetails finale={finale}/></div>}
+        <div className="panel-box season-details-facts"><SeasonFacts/></div>
     </>
 }
 
 function DetailsCountdown({countdown}: {countdown: SeasonCountdown}) {
     const label = useId()
 
-    return <div className="season-details-countdown">
+    return <div className={countdown.endsSeason ? "season-details-countdown season-chip-face--final" : "season-details-countdown"}>
         <span id={label} className="menu-label">{countdown.label}</span>
         <span className="season-chip-left" role="timer" aria-labelledby={label}>{countdown.left}</span>
     </div>
-}
-
-function shortLeft(left: string): string {
-    return left.split(" ").slice(0, 2).join(" ")
 }

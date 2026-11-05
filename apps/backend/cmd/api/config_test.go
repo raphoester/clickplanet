@@ -10,10 +10,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-viper/mapstructure/v2"
+	"github.com/knadh/koanf/parsers/yaml"
+	kfile "github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -21,27 +28,11 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	require.True(t, config.Planet.AntiBot.Enabled)
+	require.True(t, config.AntiBot.Enabled)
 
-	assert.Equal(t, 25, config.Planet.Bonus.Enclose.MaxTiles)
-	assert.Equal(t, 8, config.Planet.Bonus.Spread.Clicks)
-	assert.Equal(t, 4, config.Planet.Bonus.Spread.MaxPerBox)
-	assert.Equal(t, 3, config.Planet.Bonus.Enclose.Held)
-	assert.Equal(t, 3, config.Planet.Bonus.Enclose.MaxPerBox)
-	assert.Equal(t, 30, config.Planet.Bonus.Shield.Held)
-	assert.Equal(t, 5, config.Planet.Bonus.Shield.MinPerBox)
-	assert.Equal(t, 20, config.Planet.Bonus.Shield.MaxPerBox)
-	assert.Equal(t, 12, config.Planet.Bonus.MaxChargesPerHour)
-
-	quiz := config.Planet.Bonus.Quiz
-	assert.True(t, quiz.Enabled)
-	assert.Equal(t, 4*time.Minute, quiz.MinInterval)
-	assert.Equal(t, 8*time.Minute, quiz.MaxInterval)
-	assert.Equal(t, 2*time.Minute, quiz.MissRetry)
-	assert.Equal(t, 25*time.Second, quiz.OfferTTL)
-	assert.Equal(t, 8*time.Second, quiz.AnswerWindow, "example.yaml must load the answerWindow it documents")
-	assert.InDelta(t, 1.0, quiz.LeaderBias, 1e-9)
-	assert.Equal(t, 12, quiz.MaxChargesPerHour)
+	assert.Equal(t, 5*time.Minute, config.Planet.Bonus.ForgetAfter)
+	assert.Equal(t, time.Second, config.Planet.Bonus.SweepInterval)
+	assert.Equal(t, time.Minute, config.Planet.RateLimiter.SweepInterval)
 
 	assert.False(t, config.Auth.Connector.Enabled, "the example connects nothing")
 	assert.False(t, config.MCP.Enabled, "the example connects nothing")
@@ -50,68 +41,24 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
 	assert.Equal(t, time.Second, config.Planet.LedgerStorage.FlushInterval)
 
-	assert.False(t, config.Planet.AntiBot.Bans.Enforce, "the example must ship observing only")
-	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.Bans.BanDurations)
-	assert.Equal(t, "antibot", config.Planet.AntiBot.Database.Schema)
-	assert.Equal(t, 5*time.Minute, config.Planet.AntiBot.Bans.ReflagInterval)
+	assert.Equal(t, "antibot", config.AntiBot.Database.Schema)
+	assert.Equal(t, 15*time.Minute, config.AntiBot.Jury.TrackWindow)
 
-	assert.Equal(t, 2, config.Planet.AntiBot.Jury.MinSuspects)
-	assert.Equal(t, 10*time.Minute, config.Planet.AntiBot.Jury.SuspicionWindow)
+	assert.Equal(t, time.Minute, config.AntiBot.Evidence.SaveInterval)
+	assert.Equal(t, 72*time.Hour, config.AntiBot.Evidence.Retention)
 
-	assert.Equal(t, time.Minute, config.Planet.AntiBot.Evidence.SaveInterval)
-	assert.Equal(t, 72*time.Hour, config.Planet.AntiBot.Evidence.Retention)
+	assert.Equal(t, 5*time.Minute, config.AntiBot.Retaker.TrackWindow)
+	assert.Equal(t, 10*time.Minute, config.AntiBot.Metronome.Stamina.Slice)
+	assert.Equal(t, 15*time.Minute, config.AntiBot.Scraper.TrackWindow)
+	assert.Equal(t, 44, config.AntiBot.Cohort.V6Bits)
 
-	require.True(t, config.Planet.AntiBot.Retaker.Enabled)
-	assert.Equal(t, 5*time.Second, config.Planet.AntiBot.Retaker.Detector.ReactionWindow)
-	assert.Equal(t, 12, config.Planet.AntiBot.Retaker.Detector.MinReactions)
-	assert.Equal(t, 120*time.Millisecond, config.Planet.AntiBot.Retaker.Detector.MaxSpread)
-	assert.Equal(t, 250*time.Millisecond, config.Planet.AntiBot.Retaker.Detector.MaxMedian)
+	churner := config.AntiBot.Churner
+	assert.Equal(t, 32, churner.Relay.V6Bits)
+	assert.Equal(t, time.Hour+2*time.Minute, churner.TrackWindow)
 
-	require.True(t, config.Planet.AntiBot.Sequencer.Enabled)
-	assert.Equal(t, 40, config.Planet.AntiBot.Sequencer.Detector.MinSteps)
-	assert.InDelta(t, 0.75, config.Planet.AntiBot.Sequencer.Detector.MinShare, 1e-9)
-	assert.Equal(t, 200, config.Planet.AntiBot.Sequencer.Detector.CertainSteps)
-	assert.InDelta(t, 0.95, config.Planet.AntiBot.Sequencer.Detector.CertainShare, 1e-9)
+	assert.Equal(t, 15*time.Minute, config.AntiBot.Hopper.TrackWindow)
 
-	require.True(t, config.Planet.AntiBot.Metronome.Enabled)
-	assert.Equal(t, 3*time.Second, config.Planet.AntiBot.Metronome.Detector.MaxGap)
-	assert.Equal(t, 120*time.Millisecond, config.Planet.AntiBot.Metronome.Detector.MaxSpread)
-	assert.Equal(t, 120, config.Planet.AntiBot.Metronome.Detector.MinClicks)
-	assert.Equal(t, 30*time.Minute, config.Planet.AntiBot.Metronome.Detector.CertainFor)
-	assert.Equal(t, 900, config.Planet.AntiBot.Metronome.Detector.CertainClicks)
-
-	require.True(t, config.Planet.AntiBot.Scraper.Enabled)
-	assert.InDelta(t, 5, config.Planet.AntiBot.Scraper.Detector.MinMaps, 1e-9)
-	assert.InDelta(t, 15, config.Planet.AntiBot.Scraper.Detector.CertainMaps, 1e-9)
-	assert.Equal(t, 15*time.Minute, config.Planet.AntiBot.Scraper.Detector.TrackWindow)
-
-	churner := config.Planet.AntiBot.Churner
-	require.True(t, churner.Enabled)
-	assert.Equal(t, time.Hour, churner.Detector.Window)
-	assert.Equal(t, 6, churner.Detector.V6.CertainAccounts)
-	assert.Equal(t, 20, churner.Detector.V4.CertainAccounts)
-	assert.Equal(t, 90*time.Second, churner.Detector.Relay.Handoff)
-	assert.Equal(t, 32, churner.Detector.Relay.V6Bits)
-	assert.Equal(t, 6, churner.Detector.Relay.CertainLinks)
-
-	hopper := config.Planet.AntiBot.Hopper
-	require.True(t, hopper.Enabled)
-	assert.InDelta(t, 45, hopper.Detector.MinAngle, 1e-9)
-	assert.Equal(t, 100*time.Millisecond, hopper.Detector.MinGap)
-	assert.Equal(t, 30*time.Second, hopper.Detector.MaxGap)
-	assert.Equal(t, 40, hopper.Detector.MinSteps)
-	assert.InDelta(t, 0.4, hopper.Detector.MinShare, 1e-9)
-	assert.Zero(t, hopper.Detector.CertainShare, "it only corroborates")
-
-	rotator := config.Planet.AntiBot.Rotator
-	require.True(t, rotator.Enabled)
-	assert.Equal(t, 5*time.Minute, rotator.Detector.Slot)
-	assert.Equal(t, 24*time.Hour, rotator.Detector.Window)
-	assert.Equal(t, 15, rotator.Detector.MinSeconds)
-	assert.InDelta(t, 90, rotator.Detector.MinByChance, 1e-9)
-	assert.InDelta(t, 0.05, rotator.Detector.MaxShare, 1e-9)
-	assert.Equal(t, 24, rotator.Detector.MinSlots)
-	assert.Zero(t, rotator.Detector.CertainSlots, "it only corroborates")
+	assert.Equal(t, 5*time.Minute, config.AntiBot.Rotator.Slot)
 }
 
 func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
@@ -121,11 +68,6 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.Equal(t, "0.0.0.0:8080", config.HTTPServer.BindAddress)
 	assert.Equal(t, time.Minute, config.HTTPServer.StartupTimeout)
 	assert.NotZero(t, config.Planet.GameMap.MaxIndex)
-	assert.InDelta(t, 0.2, config.Planet.RateLimiter.PerSecond, 1e-9, "one click every 5s")
-	assert.Equal(t, 60, config.Planet.RateLimiter.Burst)
-	require.Len(t, config.Planet.Toll.Steps, 3)
-	assert.InDelta(t, 0.30, config.Planet.Toll.Steps[2].Share, 1e-9)
-	assert.InDelta(t, 4, config.Planet.Toll.Steps[2].Slowdown, 1e-9)
 	require.NoError(t, config.Planet.Validate())
 	assert.Equal(t, time.Second, config.Planet.TilesStorage.FlushInterval)
 	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.ConsoleBindAddress)
@@ -140,16 +82,35 @@ func TestTheLocalStackConfigHasTheMapOfTheExampleAndAnInternalListener(t *testin
 	require.NoError(t, cpconfigs.Load(&local, cpconfigs.FromFile("../../../../deploy/backend.yaml")))
 
 	assert.Equal(t, example.Planet.GameMap.MaxIndex, local.Planet.GameMap.MaxIndex)
-	assert.NotEmpty(t, local.HTTPServer.InternalBindAddress, "chat, player and seasons dial it while they are built")
+	assert.NotEmpty(t, local.HTTPServer.InternalBindAddress, "chat, player and scoring dial it while they are built")
 }
 
-func TestTheExampleConfigReachesTheBombSettings(t *testing.T) {
-	var config Config
-	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+// planet's rules are kept in postgres (planet.rule_sets): a rule left in a file would be read by nothing.
+func TestEveryPlanetKeyIsOneTheConfigReads(t *testing.T) {
+	theirs := reflect.TypeOf(Config{})
+	for _, path := range []string{"example.yaml", "../../../../deploy/vps/backend.yaml", "../../../../deploy/backend.yaml"} {
+		t.Run(path, func(t *testing.T) {
+			file := koanf.New(".")
+			require.NoError(t, file.Load(kfile.Provider(path), yaml.Parser()))
+			for _, key := range file.MapKeys("") {
+				for i := range theirs.NumField() {
+					if field := theirs.Field(i); field.Name != "Planet" && strings.EqualFold(field.Name, key) {
+						file.Delete(key)
+					}
+				}
+			}
 
-	assert.InDelta(t, 4.0, config.Planet.Bonus.Bomb.Rings, 1e-9)
-	assert.InDelta(t, 1.0, config.Planet.Bonus.Kinds["bomb"], 1e-9)
-	require.NoError(t, config.Planet.Bonus.Validate())
+			var config planet.Config
+			require.NoError(t, file.UnmarshalWithConf("", &config, koanf.UnmarshalConf{
+				DecoderConfig: &mapstructure.DecoderConfig{
+					DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+					ErrorUnused:      true,
+					WeaklyTypedInput: true,
+					Result:           &config,
+				},
+			}))
+		})
+	}
 }
 
 func authBlock(t *testing.T, secret string) string {
@@ -164,20 +125,40 @@ httpServer:
 gameMap:
   maxIndex: 100
 database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: planet}
+redis: {address: localhost:6379}
 chat:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: chat}
+  redis: {address: localhost:6379}
 player:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: player}
-seasons:
-  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: seasons}
+  redis: {address: localhost:6379}
+progression:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: progression}
+  redis: {address: localhost:6379}
+scoring:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: scoring}
+  redis: {address: localhost:6379}
+gamemaster:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: gamemaster}
+  redis: {address: localhost:6379}
+missions:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: missions}
+  redis: {address: localhost:6379}
 support:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: support}
+  redis: {address: localhost:6379}
+clips:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: clips}
+  redis: {address: localhost:6379}
+promo:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: promo}
 auth:
   enabled: true
   enforce: true
   secret: "%s"
   ttl: 2h
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: auth}
+  redis: {address: localhost:6379}
 `, secret), 0o600))
 
 	return path
@@ -228,20 +209,28 @@ func TestTheExampleConfigReachesThePlayerBlock(t *testing.T) {
 	require.NoError(t, config.Player.Database.Validate())
 }
 
-func TestThePlayerModuleWithNoDatabaseIsRefused(t *testing.T) {
-	assert.ErrorContains(t, Config{}.Validate(), "player.database")
-}
-
-func TestTheExampleConfigReachesTheScopeMultiplier(t *testing.T) {
+func TestTheExampleConfigReachesTheProgressionBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	assert.InDelta(t, 10.0, config.Planet.RateLimiter.ScopeMultiplier, 1e-9)
-	assert.InDelta(t, 1.0, config.Planet.RateLimiter.GuestScopeMultiplier, 1e-9)
-	assert.InDelta(t, 2.0, config.Planet.RateLimiter.LinkedMultiplier, 1e-9)
-	require.NotNil(t, config.Planet.RateLimiter.NewAccountClicks)
-	assert.InDelta(t, 10.0, *config.Planet.RateLimiter.NewAccountClicks, 1e-9)
-	assert.Equal(t, 60, config.Planet.RateLimiter.Burst, "the squashed policy still reads rateLimiter.burst")
+	assert.Equal(t, "progression", config.Progression.Database.Schema)
+	require.NoError(t, config.Progression.Validate())
+}
+
+func TestTheExampleConfigReachesTheMissionsBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "missions", config.Missions.Database.Schema)
+	require.NoError(t, config.Missions.Validate())
+}
+
+func TestTheMissionsModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "missions.database")
+}
+
+func TestThePlayerModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "player.database")
 }
 
 func TestTheProcessRefusesToStartWithoutADatabase(t *testing.T) {
@@ -311,21 +300,29 @@ func TestAuthWithoutADatabaseIsRefused(t *testing.T) {
 	require.ErrorContains(t, config.Validate(), "auth.database: [host port user dbName sslMode schema] is empty")
 }
 
-func TestTheExampleConfigReachesTheSeasonsBlock(t *testing.T) {
+func TestTheExampleConfigReachesTheScoringBlock(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	require.Len(t, config.Seasons.Calendar.List, 1)
-	season := config.Seasons.Calendar.List[0]
-	assert.Zero(t, season.Number)
-	assert.True(t, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Equal(season.EndsAt))
-	assert.Equal(t, 2*time.Hour, season.Finale)
-	assert.Equal(t, "seasons", config.Seasons.Database.Schema)
-	require.NoError(t, config.Seasons.Database.Validate())
+	assert.Equal(t, "scoring", config.Scoring.Database.Schema)
+	require.NoError(t, config.Scoring.Database.Validate())
 }
 
-func TestTheSeasonsModuleWithNoDatabaseIsRefused(t *testing.T) {
-	assert.ErrorContains(t, Config{}.Validate(), "seasons.database")
+func TestTheScoringModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "scoring.database")
+}
+
+func TestTheExampleConfigReachesTheGamemasterBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "gamemaster", config.Gamemaster.Database.Schema)
+	assert.Equal(t, 21*time.Hour, config.Gamemaster.DailyCutoff, "the days end at 21:00 UTC")
+	require.NoError(t, config.Gamemaster.Validate())
+}
+
+func TestTheGamemasterModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "gamemaster.database")
 }
 
 func TestTheExampleConfigReachesTheSupportBlock(t *testing.T) {
@@ -344,19 +341,69 @@ func TestTheSupportModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "support.database")
 }
 
-func TestSeasonsThatDoNotCountUpAreRefused(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "config.yaml")
-	require.NoError(t, os.WriteFile(path, []byte(`
-seasons:
-  list:
-    - number: 1
-      endsAt: 2026-10-31T23:00:00Z
-      finale: 2h
-`), 0o600))
-
+func TestTheExampleConfigReachesTheAlertsBlockOff(t *testing.T) {
 	var config Config
-	err := cpconfigs.Load(&config, cpconfigs.FromFile(path))
-	require.ErrorContains(t, err, "seasons: list[0].number is 1")
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.False(t, config.Alerts.Enabled)
+	assert.Equal(t, "alerts", config.Alerts.Database.Schema)
+	assert.Equal(t, "https://clickplanet.lol/play", config.Alerts.GameURL)
+	assert.False(t, config.Auth.Discord.JoinServer, "a sign-in joins no server while the alerts are off")
+	require.NoError(t, config.Alerts.Validate())
+}
+
+func TestTheExampleConfigReachesTheClipsBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "clips", config.Clips.Database.Schema)
+	assert.Equal(t, "localhost:6379", config.Clips.Redis.Address)
+	require.NoError(t, config.Clips.Validate())
+}
+
+func TestTheClipsModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "clips.database")
+}
+
+func TestTheExampleConfigReachesThePromoBlockOff(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "promo", config.Promo.Database.Schema)
+	assert.False(t, config.Promo.Backgrounds.Enabled)
+	assert.Equal(t, "https://media.clickplanet.lol", config.Promo.Backgrounds.PublicBaseURL)
+	require.NoError(t, config.Promo.Validate())
+}
+
+func TestThePromoModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "promo.database")
+}
+
+func TestTheProductionBackgroundsShareTheSupportBucketAndItsKey(t *testing.T) {
+	config := productionConfig(t)
+
+	backgrounds := config.Promo.Backgrounds
+	assert.True(t, backgrounds.Enabled)
+	assert.Equal(t, config.Support.Attachments.Bucket, backgrounds.Bucket)
+	assert.Equal(t, "https://media.clickplanet.lol", backgrounds.PublicBaseURL)
+	require.NoError(t, config.Promo.Validate())
+
+	config.Promo.Backgrounds.Bucket.SecretAccessKey = ""
+	require.ErrorContains(t, config.Promo.Validate(), "promo.backgrounds.bucket")
+}
+
+func TestTheBackgroundsArePublicOnAnHTTPSOrigin(t *testing.T) {
+	config := productionConfig(t)
+
+	for _, base := range []string{
+		"", "media.clickplanet.lol", "http://media.clickplanet.lol",
+		"https://media.clickplanet.lol/promo", "https://media.clickplanet.lol?x=1", "https://",
+	} {
+		config.Promo.Backgrounds.PublicBaseURL = base
+		require.ErrorContains(t, config.Promo.Validate(), "promo.backgrounds.publicBaseURL", base)
+	}
+	config.Promo.Backgrounds.PublicBaseURL = "https://media.clickplanet.lol/"
+	require.NoError(t, config.Promo.Validate())
 }
 
 func TestTheExampleConfigReachesTheAttachments(t *testing.T) {
@@ -370,7 +417,7 @@ func TestTheExampleConfigReachesTheAttachments(t *testing.T) {
 	assert.Equal(t, 10*time.Minute, attachments.UploadTTL)
 	assert.Equal(t, time.Hour, attachments.LinkTTL)
 	assert.Equal(t, "auto", attachments.Bucket.Region)
-	assert.Equal(t, "clickplanet-support", attachments.Bucket.Name)
+	assert.Equal(t, "clickplanet-media", attachments.Bucket.Name)
 }
 
 func productionConfig(t *testing.T) Config {
@@ -384,7 +431,7 @@ func productionConfig(t *testing.T) Config {
 		t.Setenv(anchor[1], "a-secret")
 	}
 	t.Setenv("SESSION_SECRET", seed)
-	t.Setenv("SUPPORT_BUCKET_SECRET", "the-bucket-secret")
+	t.Setenv("MEDIA_BUCKET_SECRET", "the-bucket-secret")
 	t.Setenv("httpServer.allowedOrigin", "https://clickplanet.lol")
 	t.Setenv("auth.admin.origin", "https://backoffice.clickplanet.lol")
 	t.Setenv("auth.connector.issuer", "https://api.clickplanet.lol")
@@ -395,12 +442,24 @@ func productionConfig(t *testing.T) Config {
 	return config
 }
 
-func TestTheProductionConfigEnforcesBans(t *testing.T) {
-	config := productionConfig(t)
+// The antibot's rules are kept in postgres (antibot.rule_sets): a rule left in a file would be read by nothing.
+func TestEveryAntibotKeyIsOneTheConfigReads(t *testing.T) {
+	for _, path := range []string{"example.yaml", "../../../../deploy/vps/backend.yaml", "../../../../deploy/backend.yaml"} {
+		t.Run(path, func(t *testing.T) {
+			file := koanf.New(".")
+			require.NoError(t, file.Load(kfile.Provider(path), yaml.Parser()))
 
-	assert.True(t, config.Planet.AntiBot.Enabled)
-	assert.True(t, config.Planet.AntiBot.Bans.Enforce, "a key the config does not read leaves bans off without a word")
-	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.Bans.BanDurations)
+			var config antibot.Config
+			require.NoError(t, file.UnmarshalWithConf("antiBot", &config, koanf.UnmarshalConf{
+				DecoderConfig: &mapstructure.DecoderConfig{
+					DecodeHook:       mapstructure.StringToTimeDurationHookFunc(),
+					ErrorUnused:      true,
+					WeaklyTypedInput: true,
+					Result:           &config,
+				},
+			}))
+		})
+	}
 }
 
 func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T) {
@@ -409,16 +468,63 @@ func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T)
 	attachments := config.Support.Attachments
 	assert.True(t, attachments.Enabled)
 	assert.Equal(t, "the-bucket-secret", attachments.Bucket.SecretAccessKey)
-	assert.Equal(t, "9ec4cd4fdf48006b2944c522219f1eea", attachments.Bucket.AccessKeyID)
+	assert.Equal(t, "918067992c114dc8f4fcea4aa7ac7921", attachments.Bucket.AccessKeyID)
 	assert.Equal(t, "https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com", attachments.Bucket.Endpoint)
-	assert.Equal(t, "clickplanet-support", attachments.Bucket.Name)
+	assert.Equal(t, "clickplanet-media", attachments.Bucket.Name)
 	assert.Equal(t, "auto", attachments.Bucket.Region)
 	assert.Equal(t, int64(9<<30), attachments.MaxStoredBytes)
 	require.NoError(t, config.Support.Validate())
 
 	config.Support.Attachments.Bucket.SecretAccessKey = ""
 	require.ErrorContains(t, config.Support.Validate(), "secretAccessKey",
-		"a deploy before SUPPORT_BUCKET_SECRET is set refuses the boot")
+		"a deploy before MEDIA_BUCKET_SECRET is set refuses the boot")
+}
+
+func TestTheProductionVideosShareTheSupportBucketAndItsKey(t *testing.T) {
+	config := productionConfig(t)
+
+	videos := config.Clips.Videos
+	assert.True(t, videos.Enabled)
+	assert.Equal(t, config.Support.Attachments.Bucket, videos.Bucket)
+	require.NoError(t, config.Clips.Validate())
+
+	config.Clips.Videos.Bucket.SecretAccessKey = ""
+	require.ErrorContains(t, config.Clips.Validate(), "clips.videos.bucket")
+}
+
+func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
+	config := productionConfig(t)
+
+	for name, redis := range map[string]cpredis.Config{
+		"auth": config.Auth.Redis, "chat": config.Chat.Redis, "player": config.Player.Redis,
+		"progression": config.Progression.Redis,
+		"scoring":     config.Scoring.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
+		"antiBot": config.AntiBot.Redis, "gamemaster": config.Gamemaster.Redis, "clips": config.Clips.Redis,
+		"alerts": config.Alerts.Redis,
+	} {
+		assert.Equal(t, config.Planet.Redis, redis, "%s.redis is the planet's block", name)
+	}
+	assert.Equal(t, "redis:6379", config.Planet.Redis.Address)
+	assert.Equal(t, "a-secret", config.Planet.Redis.Password, "from REDIS_PASSWORD")
+}
+
+func TestTheProductionAlertsAreWhole(t *testing.T) {
+	config := productionConfig(t)
+
+	require.True(t, config.Alerts.Enabled)
+	assert.Equal(t, "alerts", config.Alerts.Database.Schema)
+	assert.True(t, config.Auth.Discord.JoinServer, "a Discord sign-in joins the server")
+	assert.Equal(t, "1310907949106860032", config.Alerts.Discord.GuildID, "an id, not a number YAML rounded")
+	require.NoError(t, config.Alerts.Validate())
+}
+
+func TestTheAntibotKeepsItsKeysOutsideThePlanetsBlock(t *testing.T) {
+	config := productionConfig(t)
+
+	require.True(t, config.AntiBot.Enabled)
+	assert.Equal(t, "antibot", config.AntiBot.Database.Schema)
+	assert.Equal(t, 10*time.Minute, config.AntiBot.Defender.TrackWindow)
+	require.NoError(t, config.AntiBot.Validate())
 }
 
 func TestTheProductionConfigConnectsClaudeOnTheAPIsDomain(t *testing.T) {
@@ -430,7 +536,6 @@ func TestTheProductionConfigConnectsClaudeOnTheAPIsDomain(t *testing.T) {
 		t.Setenv(anchor[1], "a-secret")
 	}
 	t.Setenv("SESSION_SECRET", seed)
-	// What docker-compose.yaml sets from env.public.
 	t.Setenv("httpServer.allowedOrigin", "https://clickplanet.lol")
 	t.Setenv("auth.admin.origin", "https://backoffice.clickplanet.lol")
 	t.Setenv("auth.connector.issuer", "https://api.clickplanet.lol")

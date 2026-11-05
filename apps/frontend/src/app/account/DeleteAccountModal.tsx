@@ -29,13 +29,10 @@ export default function DeleteAccountModal(props: DeleteAccountModalProps) {
                   </div>}
                   onClose={props.onClose}>
         <div className="account-confirm-text">
-            <p>This deletes:</p>
-            <ul>
-                <li>your account,</li>
-                {props.linked.length > 0 && <li>its link to {providerList(props.linked)},</li>}
-                <li>your sign-in on all your devices.</li>
-            </ul>
-            <p>You cannot undo this. You can continue to play as a guest.</p>
+            <p>You are signed out on all your devices, and the other players no longer see your account.</p>
+            <p>Changed your mind? Sign in again within 30 days, and your account comes back as you left it.</p>
+            <p>After 30 days, your account is deleted for good{props.linked.length > 0 &&
+                <>, with its link to {providerList(props.linked)}</>}. You can continue to play as a guest.</p>
             <p>The tiles you took stay, with no account. Chat messages are not linked to your account. They
                 go away on the schedule in the <a href="/privacy" target="_blank" rel="noopener noreferrer">privacy
                     policy</a>.</p>

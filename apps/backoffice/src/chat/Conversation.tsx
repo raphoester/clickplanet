@@ -1,12 +1,14 @@
-import {useCallback, useState} from "react"
+import {useCallback, useLayoutEffect, useRef, useState} from "react"
 import {ChatAdmin} from "../clients.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {clockOf, timeOf} from "../components/time.ts"
+import {countryLabel} from "../countries.ts"
 import {KeptMessage, KeptQuote} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {useOpenPlayer} from "../navigation.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
 import {Page, pageOf, Parties} from "./chatPages.ts"
+import {Body, wordsIn} from "./said.ts"
 
 // How many messages the first page on each side of the reported one holds, and each page asked for after.
 const FIRST_PAGE = 10
@@ -63,9 +65,17 @@ function Pages({chat, first, reported, parties}: PagesProps) {
     const [after, setAfter] = useState(first.after)
     const oldest = before.messages[0]?.messageId ?? reported.line.messageId
     const newest = after.messages.at(-1)?.messageId ?? reported.line.messageId
+    const box = useRef<HTMLDivElement>(null)
+
+    // The box opens on the reported line, in its middle, whatever was said before it.
+    useLayoutEffect(() => {
+        const line = box.current?.querySelector<HTMLElement>("[aria-current=true]")
+        if (box.current === null || line == null) return
+        box.current.scrollTop = line.offsetTop - (box.current.clientHeight - line.clientHeight) / 2
+    }, [])
 
     return (
-        <div className="conversation">
+        <div className="conversation chat-box" ref={box}>
             {before.messages.length === 0 && <p className="hint">Nothing said before it is kept.</p>}
             {before.more && (
                 <More
@@ -162,13 +172,14 @@ export function LineBody({line, parties, day, mark, removedAt}: LineProps) {
                 {mark !== undefined && <span className="badge badge-report">{mark}</span>}
                 <Author name={line.authorName} accountId={line.accountId}/>
                 {party !== undefined && <span className={`tag tag-${party}`}>{party}</span>}
+                {line.flagRoom !== "" && <span className="tag tag-room">{countryLabel(line.flagRoom)} room</span>}
                 <span className="muted">
                     {line.countryId !== "" && <>{line.countryId.toUpperCase()} · </>}
                     <Sent at={line.sentAt?.toDate()} day={day}/>
                 </span>
             </div>
             {line.replyTo !== undefined && <Quote quote={line.replyTo}/>}
-            <p className={removed === undefined ? "line-text" : "line-text line-removed"}>{line.text}</p>
+            <LineWords body={line.body} removed={removed !== undefined}/>
             {removed !== undefined && mark === undefined && <p className="hint">Removed at {timeOf(removed)}.</p>}
         </>
     )
@@ -209,8 +220,29 @@ function Quote({quote}: {quote: KeptQuote}) {
     return (
         <p className="line-quote">
             In reply to <span className="name">{quote.authorName === "" ? "no name" : quote.authorName}</span>:{" "}
-            <span className={removed ? "line-removed" : undefined}>{quote.text}</span>
+            <span className={removed ? "line-removed" : undefined}>{wordsIn(quote.body)}</span>
             {removed && " (removed)"}
+        </p>
+    )
+}
+
+const GIF_BOX = 160
+
+// What a line said: its text, or the GIF it showed.
+export function LineWords({body, removed}: {body: Body, removed: boolean}) {
+    const className = removed ? "line-text line-removed" : "line-text"
+    if (body.case !== "gif") return <p className={className}>{wordsIn(body)}</p>
+
+    const gif = body.value
+    const scale = Math.min(1, GIF_BOX / gif.width, GIF_BOX / gif.height)
+    return (
+        <p className={className}>
+            <img className="line-gif"
+                 src={gif.url}
+                 width={Math.round(gif.width * scale)}
+                 height={Math.round(gif.height * scale)}
+                 alt="GIF"
+                 loading="lazy"/>
         </p>
     )
 }

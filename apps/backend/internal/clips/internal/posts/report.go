@@ -6,10 +6,17 @@ import (
 )
 
 type Outcome struct {
-	Title     string
+	Title string
+	// The arm of each experiment the clip is in.
+	Variants  Variants
 	At        time.Time
 	Post      PostID
 	Platforms []PlatformOutcome
+	// Not sent: every platform's day was full. Not a failure: its story is still untold, for a later run.
+	Held bool
+	// The players it names, by their number in its cast.
+	Cast     string
+	Fighters []FighterNumber
 }
 
 type PlatformOutcome struct {
@@ -21,7 +28,10 @@ type Report []Outcome
 
 // failure: the post was made on no platform.
 func (r Report) With(post Post, scheduled Scheduled, failure error) Report {
-	outcome := Outcome{Title: post.clip.title, At: post.at, Post: scheduled.ID}
+	outcome := Outcome{
+		Title: post.clip.title, Variants: post.clip.variants, At: post.at, Post: scheduled.ID,
+		Cast: post.clip.cast, Fighters: post.clip.fighterNumbers(),
+	}
 	if failure != nil {
 		outcome.Post = ""
 	}
@@ -35,9 +45,15 @@ func (r Report) With(post Post, scheduled Scheduled, failure error) Report {
 	return append(slices.Clone(r), outcome)
 }
 
+func (r Report) WithHeld(clip Clip) Report {
+	return append(slices.Clone(r), Outcome{Title: clip.title, Variants: clip.variants, Held: true})
+}
+
+// A clip held for a full day is not missing.
 func (r Report) Complete() bool {
 	return !slices.ContainsFunc(r, func(outcome Outcome) bool {
-		return outcome.Post == "" || slices.ContainsFunc(outcome.Platforms, func(platform PlatformOutcome) bool { return platform.Failure != "" })
+		return !outcome.Held && (outcome.Post == "" ||
+			slices.ContainsFunc(outcome.Platforms, func(platform PlatformOutcome) bool { return platform.Failure != "" }))
 	})
 }
 
@@ -46,4 +62,36 @@ func messageOf(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+// A post that names players of a cast, on the platforms that took it: the server tells each in the game once it is out.
+type Appearance struct {
+	Cast      string
+	Fighters  []FighterNumber
+	Post      PostID
+	Title     string
+	Platforms []Platform
+	At        time.Time
+}
+
+// The posts made that name someone.
+func (r Report) Appearances() []Appearance {
+	var named []Appearance
+	for _, outcome := range r {
+		if outcome.Held || outcome.Post == "" || len(outcome.Fighters) == 0 {
+			continue
+		}
+		appearance := Appearance{
+			Cast: outcome.Cast, Fighters: outcome.Fighters, Post: outcome.Post, Title: outcome.Title, At: outcome.At,
+		}
+		for _, platform := range outcome.Platforms {
+			if platform.Failure == "" {
+				appearance.Platforms = append(appearance.Platforms, platform.Platform)
+			}
+		}
+		if len(appearance.Platforms) > 0 {
+			named = append(named, appearance)
+		}
+	}
+	return named
 }

@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from "react"
 import {NameColor} from "../../backends/player.ts"
-import {MySeason, StandingsBackend} from "../../backends/standings.ts"
+import {Boards, MySeason} from "../../backends/standings.ts"
 import {liveSeason, Takes, takesSince} from "../../domain/standings.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import {useOwnTakes, useReadsAfterClicks} from "../viewer/useAcceptedClicks.ts"
@@ -19,7 +19,7 @@ type Read = {
 }
 
 export function useMySeason(
-    backend: StandingsBackend,
+    backend: Boards,
     caller: Caller,
     listenForClicks: ListenForClicks,
     countryCode: string,

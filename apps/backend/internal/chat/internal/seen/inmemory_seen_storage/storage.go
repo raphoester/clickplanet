@@ -12,12 +12,17 @@ import (
 )
 
 func New() *Storage {
-	return &Storage{kept: map[messages.AccountID]time.Time{}}
+	return &Storage{kept: map[mark]time.Time{}}
+}
+
+type mark struct {
+	account messages.AccountID
+	room    messages.Room
 }
 
 type Storage struct {
 	mu   sync.Mutex
-	kept map[messages.AccountID]time.Time
+	kept map[mark]time.Time
 	err  error
 }
 
@@ -30,22 +35,23 @@ func (s *Storage) FailWith(err error) {
 	s.err = err
 }
 
-func (s *Storage) Kept(account messages.AccountID) time.Time {
+func (s *Storage) Kept(account messages.AccountID, room messages.Room) time.Time {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.kept[account]
+	return s.kept[mark{account: account, room: room}]
 }
 
-func (s *Storage) SaveSeen(_ context.Context, account messages.AccountID, until time.Time) error {
+func (s *Storage) SaveSeen(_ context.Context, account messages.AccountID, room messages.Room, until time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.err != nil {
 		return s.err
 	}
-	if until.After(s.kept[account]) {
-		s.kept[account] = until
+	at := mark{account: account, room: room}
+	if until.After(s.kept[at]) {
+		s.kept[at] = until
 	}
 	return nil
 }
@@ -57,6 +63,10 @@ func (s *Storage) DeleteSeen(_ context.Context, account messages.AccountID) erro
 	if s.err != nil {
 		return s.err
 	}
-	delete(s.kept, account)
+	for at := range s.kept {
+		if at.account == account {
+			delete(s.kept, at)
+		}
+	}
 	return nil
 }

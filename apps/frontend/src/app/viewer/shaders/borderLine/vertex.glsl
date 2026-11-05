@@ -10,9 +10,21 @@ attribute vec2 corner;
 attribute vec3 from;
 attribute vec3 to;
 
+#ifdef HIGHLIGHT
+uniform float landmass;
+attribute vec2 sides;
+#endif
+
 out float vAcross;
 
 void main() {
+#ifdef HIGHLIGHT
+    if (abs(sides.x - landmass) > 0.5 && abs(sides.y - landmass) > 0.5) {
+        gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+        return;
+    }
+#endif
+
     vec3 headDirection = normalize(from);
     vec3 tailDirection = normalize(to);
 

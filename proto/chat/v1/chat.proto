@@ -3,8 +3,8 @@ syntax = "proto3";
 package chat.v1;
 
 import "player/v1/color.proto";
-import "player/v1/title.proto";
 
+// A request for a flag's room is FailedPrecondition when the caller does not play for that flag.
 service ChatService {
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
 
@@ -53,26 +53,41 @@ message ChatMessage {
   reserved 4;
   reserved "author_tag";
   string country_id = 5;
-  string text = 6;
+  // Neither once an operator removed it.
+  oneof body {
+    string text = 6;
+    Gif gif = 16;
+  }
   bool author_admin = 7;
   repeated ReactionCount reactions = 8;
   uint64 reactions_version = 9;
   player.v1.NameColor author_color = 10;
-  uint32 author_streak = 11;
-  player.v1.Title author_title = 12;
+  // The author's badges are player.v1.PlayerService/GetBadges', by author_account_id.
+  reserved 11, 12;
+  reserved "author_streak", "author_title";
   Quote reply_to = 13;
   // Empty for a message kept before accounts, and for an account that was deleted.
   string author_account_id = 14;
-  // An operator removed it: it keeps its place, with no text and no reactions.
+  // An operator removed it: it keeps its place, with no body and no reactions.
   bool removed = 15;
+}
+
+// A GIF from KLIPY, at the address KLIPY gave for it.
+message Gif {
+  string url = 1;
+  uint32 width = 2;
+  uint32 height = 3;
 }
 
 message Quote {
   string message_id = 1;
   string author_name = 2;
   player.v1.NameColor author_color = 3;
-  string text = 4;
-  // The message quoted was removed: no text.
+  // Neither when the message quoted was removed.
+  oneof body {
+    string text = 4;
+    Gif gif = 6;
+  }
   bool removed = 5;
 }
 
@@ -81,19 +96,38 @@ message SendMessageRequest {
   reserved "author_name";
   string author_id = 2;
   string country_id = 3;
-  string text = 4;
+  oneof body {
+    string text = 4;
+    // Refused, PermissionDenied, from a guest, and from an account a mute of the GIFs holds.
+    Gif gif = 7;
+  }
   string reply_to_message_id = 5;
+  // The flag whose room it goes to: only the accounts that play for that flag read and write there. Empty for the chat
+  // everyone reads.
+  string flag_room = 6;
 }
 
 message SendMessageResponse {
   ChatMessage message = 1;
 }
 
-message MuteRefusal {
-  int64 muted_until_unix_ms = 1;
+// What a mute takes away.
+enum MuteKind {
+  // The whole chat: every post and every reaction.
+  MUTE_KIND_CHAT = 0;
+  // A post with a GIF. The player still writes and reacts.
+  MUTE_KIND_GIFS = 1;
 }
 
-message GetHistoryRequest {}
+message MuteRefusal {
+  int64 muted_until_unix_ms = 1;
+  MuteKind kind = 2;
+}
+
+message GetHistoryRequest {
+  // As SendMessageRequest.flag_room. A flag's room has no announcements.
+  string flag_room = 1;
+}
 
 message Announcement {
   string id = 1;
@@ -112,6 +146,8 @@ message GetHistoryResponse {
 
 message MarkSeenRequest {
   int64 seen_until_unix_ms = 1;
+  // As SendMessageRequest.flag_room: each room keeps its own mark.
+  string flag_room = 2;
 }
 
 message MarkSeenResponse {}
@@ -127,7 +163,10 @@ message ReactResponse {
   uint64 version = 2;
 }
 
-message ListenForEventsRequest {}
+message ListenForEventsRequest {
+  // As SendMessageRequest.flag_room. A flag's stream ends, FailedPrecondition, once the caller pledges another flag.
+  string flag_room = 1;
+}
 
 message ChatEvent {
   oneof event {

@@ -15,13 +15,18 @@ type Takes interface {
 	AnonymizeTakes(ctx context.Context, account ledger.AccountID) error
 }
 
+type Tiles interface {
+	ForgetHolder(ctx context.Context, account ledger.AccountID) (int, error)
+}
+
 type UseCase struct {
 	ledger Ledger
 	takes  Takes
+	tiles  Tiles
 }
 
-func New(ledger Ledger, takes Takes) *UseCase {
-	return &UseCase{ledger: ledger, takes: takes}
+func New(ledger Ledger, takes Takes, tiles Tiles) *UseCase {
+	return &UseCase{ledger: ledger, takes: takes, tiles: tiles}
 }
 
 func (u *UseCase) Execute(ctx context.Context, account ledger.AccountID) error {
@@ -31,6 +36,9 @@ func (u *UseCase) Execute(ctx context.Context, account ledger.AccountID) error {
 	}
 	if err := u.takes.AnonymizeTakes(ctx, account); err != nil {
 		return fmt.Errorf("failed to anonymize the takes: %w", err)
+	}
+	if _, err := u.tiles.ForgetHolder(ctx, account); err != nil {
+		return fmt.Errorf("failed to forget the tiles' holder: %w", err)
 	}
 	return nil
 }

@@ -23,6 +23,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/delete_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase/log_prune_guests"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/purge_deletions_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/purge_deletions_usecase/log_purge_deletions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/resume_session_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_everywhere_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_usecase"
@@ -34,8 +36,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/start_admin_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens/postgres_admin_token_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens/random_token_secret_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens/usecases/prune_tokens_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/postgres_arrival_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/usecases/anonymize_arrivals_usecase"
+	arrival_ids "github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/turnstile"
@@ -45,6 +50,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_sign_out_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_start_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/approve_connection_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_crazygames_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
@@ -54,6 +60,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_account_handler/account_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler/accounts_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_discord_grant_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_discord_users_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_discord_users_handler/discord_users_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler/me_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_operator_handler"
@@ -77,29 +86,43 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections/usecases/exchange_code_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections/usecases/refresh_tokens_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections/usecases/register_client_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/aes_grant_sealer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/postgres_grant_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/usecases/live_grant_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/usecases/prune_grants_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/usecases/prune_grants_usecase/log_prune_grants"
+	grant_ids "github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/oauthcontroller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/oauthcontroller/authorize_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/oauthcontroller/metadata_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/oauthcontroller/register_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/oauthcontroller/token_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionheader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/cloudflare_mailer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/crazygames_identity_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/discord_identity_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/embedded_disposable_domains"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/google_identity_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/log_mailer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/random_code_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/random_secret_generator"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_crazygames_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_email_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_sign_in_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/subscribers/account_deleted_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -117,9 +140,10 @@ func NewModule(config Config) cpbootstrap.Module {
 				return err
 			}
 			return build(ctx, config, props, signIns{
-				game:  newProviders(config),
-				admin: newAdminProviders(config.Admin),
-				mail:  mailing{mailer: mailer, codes: random_code_generator.Generator{}},
+				game:   newProviders(config),
+				tokens: newTokenProviders(config),
+				admin:  newAdminProviders(config.Admin),
+				mail:   mailing{mailer: mailer, codes: random_code_generator.Generator{}},
 			})
 		},
 	}
@@ -139,10 +163,21 @@ func newProviders(config Config) signin.Providers {
 			google_identity_provider.Production, httpClient, cptime.SystemClock{})
 	}
 	if config.Discord.Configured() {
-		providers[signin.Discord] = discord_identity_provider.New(config.Discord, config.SignIn.RedirectURL,
-			discord_identity_provider.Production, httpClient)
+		providers[signin.Discord] = discord_identity_provider.New(config.Discord.Client, config.SignIn.RedirectURL,
+			discord_identity_provider.Production, httpClient, config.Discord.JoinServer)
 	}
 	return providers
+}
+
+func newTokenProviders(config Config) signin.TokenProviders {
+	if !config.SignIn.Enabled || config.CrazyGames.GameID == "" {
+		return signin.TokenProviders{}
+	}
+	keys := crazygames_identity_provider.NewKeySet(crazygames_identity_provider.ProductionKeys,
+		&http.Client{Timeout: providerTimeout}, cptime.SystemClock{})
+	return signin.TokenProviders{
+		signin.CrazyGames: crazygames_identity_provider.New(config.CrazyGames.GameID, keys, cptime.SystemClock{}),
+	}
 }
 
 // Its own client and redirect: the admin page's sign-in is not the game's.
@@ -155,9 +190,10 @@ func newAdminProviders(config AdminConfig) signin.Providers {
 }
 
 type signIns struct {
-	game  signin.Providers
-	admin signin.Providers
-	mail  mailing
+	game   signin.Providers
+	tokens signin.TokenProviders
+	admin  signin.Providers
+	mail   mailing
 }
 
 const mailerTimeout = 10 * time.Second
@@ -189,7 +225,7 @@ func newMailer(config EmailConfig, logger *slog.Logger) (signin.Mailer, error) {
 }
 
 func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns signIns) error {
-	providers, mail := signIns.game, signIns.mail
+	providers, tokens, mail := signIns.game, signIns.tokens, signIns.mail
 
 	signer, err := cpsession.NewSigner(config.SignerConfig)
 	if err != nil {
@@ -209,7 +245,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		_ = db.Close()
 		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 	}
-	props.Closers.Add("auth-postgres", db.Close)
+
+	streams := cpredis.New(config.Redis, props.Metrics)
+	if err := streams.ConnectCtx(ctx); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to connect the auth module to redis: %w", err)
+	}
 
 	store := postgres_account_store.New(db)
 	clock := cptime.SystemClock{}
@@ -229,6 +270,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	if err != nil {
 		return fmt.Errorf("failed to build the sign-in cookie sealer: %w", err)
 	}
+	grantSealer, err := aes_grant_sealer.New(seed)
+	if err != nil {
+		return fmt.Errorf("failed to build the Discord grant sealer: %w", err)
+	}
+	grantStore := postgres_grant_store.New(db, grantSealer)
 
 	blocklist := embedded_disposable_domains.New()
 	if err := blocklist.Load(); err != nil {
@@ -239,12 +285,23 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	attemptLimiter := cpratelimit.New("email-attempt-limiter",
 		cpratelimit.Config{Burst: signin.MaxAttempts, PerSecond: 1 / signin.ChallengeTTL.Seconds()}, clock)
 	props.Runners.Add(attemptLimiter)
-	admitter := signin.NewAdmitter(store, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions, props.Events)
+	outbox := cpoutbox.New(db)
+	arrivalStore := postgres_arrival_store.New(db)
+	register := arrivals.NewRegister(arrivalStore, arrival_ids.Provider{})
+	admitter := signin.NewAdmitter(db, store, outbox, register, grants.NewRegister(grantStore, grant_ids.Provider{}),
+		uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions)
 	challenges := signin.NewChallenges(config.Email.Enabled, random_secret_generator.Generator{}, mail.codes, sealer, attemptLimiter)
 	post := signin.NewPost(blocklist, sendLimiter, mail.mailer)
 
 	resumer := accounts.NewResumer(store, config.Sessions)
-	guests := accounts.NewGuests(store, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions)
+	guests := arrivals.NewGuests(db,
+		accounts.NewGuests(store, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions), register)
+
+	arrivalDeletions, err := cpredis.Subscribe(ctx, streams, "auth-arrivals-accounts",
+		log_subscriber.New(account_deleted_subscriber.New(anonymize_arrivals_usecase.New(arrivalStore)), props.Logger))
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+	}
 
 	authService := authv1controller.AuthService{
 		CreateSessionHandler: create_session_handler.New(
@@ -253,7 +310,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		),
 		ResumeSessionHandler:    resume_session_handler.New(resume_session_usecase.New(resumer, signer, clock)),
 		GetMeHandler:            get_me_handler.New(me_query.NewPostgresQuery(db, clock)),
-		GetSignInOptionsHandler: get_sign_in_options_handler.New(signin.NewOffer(providers, config.Email.Enabled)),
+		GetSignInOptionsHandler: get_sign_in_options_handler.New(signin.NewOffer(providers, tokens, config.Email.Enabled)),
 		StartSignInHandler: start_sign_in_handler.New(
 			start_sign_in_usecase.New(providers, store, random_secret_generator.Generator{}, sealer, clock),
 		),
@@ -269,14 +326,24 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 			complete_email_sign_in_usecase.New(challenges, admitter, clock),
 			props.Logger,
 		),
-		SignOutHandler:           sign_out_handler.New(sign_out_usecase.New(store, props.Events)),
-		SignOutEverywhereHandler: sign_out_everywhere_handler.New(sign_out_everywhere_usecase.New(store, props.Events, clock)),
-		DeleteAccountHandler:     delete_account_handler.New(delete_account_usecase.New(store, props.Events, clock)),
+		CompleteCrazyGamesSignInHandler: complete_crazygames_sign_in_handler.New(
+			complete_crazygames_sign_in_usecase.New(tokens, admitter, clock),
+			props.Logger,
+		),
+		SignOutHandler:           sign_out_handler.New(sign_out_usecase.New(store, streams)),
+		SignOutEverywhereHandler: sign_out_everywhere_handler.New(sign_out_everywhere_usecase.New(store, streams, clock)),
+		DeleteAccountHandler:     delete_account_handler.New(delete_account_usecase.New(db, store, outbox, clock)),
 	}
-	props.Runners.Add(prune_guests_usecase.NewRunner(config.Prune,
-		log_prune_guests.New(prune_guests_usecase.New(config.Prune, store, props.Events, clock), props.Logger)))
+	// Not closers: closers run before the outbox's last send.
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
+		prune_guests_usecase.NewRunner(config.Prune, log_prune_guests.New(prune_guests_usecase.New(config.Prune, db, store, outbox, clock), props.Logger)),
+		purge_deletions_usecase.NewRunner(config.Deletion,
+			log_purge_deletions.New(purge_deletions_usecase.New(config.Deletion, db, store, outbox, clock), props.Logger)),
+		prune_grants_usecase.NewRunner(log_prune_grants.New(prune_grants_usecase.New(grantStore, clock), props.Logger)),
+		cpredis.CloseAfter(streams, props.Logger, cpoutbox.NewRelay("auth-outbox", db, streams, props.Logger), arrivalDeletions)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
-		return authv1connect.NewAuthServiceHandler(authService, options...)
+		path, handler := authv1connect.NewAuthServiceHandler(authService, options...)
+		return path, sessionheader.Carried(handler)
 	}, authv1controller.NewRateLimitInterceptor(mintLimiter),
 		authv1controller.NewResumeRateLimitInterceptor(resumeLimiter)); err != nil {
 		return fmt.Errorf("failed to mount auth.v1: %w", err)
@@ -288,6 +355,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		GetAccountHandler:       get_account_handler.New(account_query.NewPostgresQuery(db)),
 		GetAccountsHandler:      get_accounts_handler.New(accounts_query.NewPostgresQuery(db)),
 		GetOperatorHandler:      get_operator_handler.New(operators),
+		GetDiscordGrantHandler:  get_discord_grant_handler.New(live_grant_usecase.New(grantStore, clock)),
+		GetDiscordUsersHandler:  get_discord_users_handler.New(discord_users_query.NewPostgresQuery(db)),
 		GetTokenOperatorHandler: get_token_operator_handler.New(token_operator_query.NewPostgresQuery(db, clock)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -350,18 +419,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		slog.Bool("turnstile", config.Turnstile.Enabled),
 		slog.Duration("guestTTL", config.Sessions.GuestTTL),
 		slog.Duration("linkedTTL", config.Sessions.LinkedTTL),
-		slog.Any("signIn", signin.NewOffer(providers, config.Email.Enabled).Names()),
+		slog.Any("signIn", signin.NewOffer(providers, tokens, config.Email.Enabled).Names()),
 		slog.String("emailDelivery", config.Email.Delivery),
 		slog.Int("disposableDomains", blocklist.Size()),
 		slog.Duration("pruneIdleFor", config.Prune.IdleFor),
 		slog.Bool("connector", config.Connector.Enabled),
+		slog.Duration("deletionGrace", config.Deletion.Grace),
 	)
 
 	return nil
 }
 
-// The authorization server an app connects through, on the admin listener: the operator lets the app in on the
-// admin page's consent page, which the authorize endpoint sends the browser to.
 func mountConnector(
 	config Config,
 	props cpbootstrap.Props,
@@ -369,7 +437,7 @@ func mountConnector(
 	tokens *postgres_admin_token_store.Store,
 	clock cptime.Clock,
 ) error {
-	issuer := admintokens.NewIssuer(random_token_secret_generator.Generator{})
+	issuer := admintokens.NewIssuer(random_secret_generator.Generator{})
 	routes := map[string]http.Handler{
 		"GET " + oauthcontroller.MetadataPath: metadata_handler.New(config.Connector.Issuer),
 		"POST " + oauthcontroller.RegisterPath: register_handler.New(
@@ -393,7 +461,6 @@ func mountConnector(
 	return nil
 }
 
-// The admin page's route the operator lets an app in on.
 const consentPath = "/connect"
 
 func newAttester(config Config, logger *slog.Logger) (attestation.Attester, error) {
@@ -419,21 +486,41 @@ type Config struct {
 	Turnstile turnstile.Config
 
 	Database cppg.Config
+	Redis    cpredis.Config
 
 	Sessions accounts.Lifetime
 
 	SignIn signin.Config
 
 	Google  signin.Client
-	Discord signin.Client
+	Discord DiscordConfig
+
+	CrazyGames CrazyGamesConfig
 
 	Email EmailConfig
 
 	Prune prune_guests_usecase.Config
 
+	// How long an account whose deletion its player asked for is kept, for a sign-in to bring it back.
+	Deletion purge_deletions_usecase.Config
+
 	Admin AdminConfig
 
 	Connector ConnectorConfig
+}
+
+type DiscordConfig struct {
+	signin.Client `koanf:",squash"`
+
+	// Every Discord sign-in also joins the game's Discord server, which the alerts module keeps: the player is pinged
+	// there. Discord asks the player for that leave (guilds.join) on the same page, and auth keeps it, sealed, for the
+	// alerts module to join with (auth.v1.DiscordJoinGranted).
+	JoinServer bool
+}
+
+type CrazyGamesConfig struct {
+	// Every token names its game: one of another game is refused, or its developer could sign in as its players.
+	GameID string
 }
 
 type EmailConfig struct {
@@ -462,6 +549,7 @@ func (c Config) withDefaults() Config {
 		c.Prune.IdleFor = c.Sessions.GuestTTL
 	}
 	c.Prune = c.Prune.WithDefaults()
+	c.Deletion = c.Deletion.WithDefaults()
 	if c.Email.SendLimiter.Burst <= 0 {
 		c.Email.SendLimiter.Burst = 3
 	}
@@ -482,12 +570,15 @@ func (c Config) Validate() error {
 		return nil
 	}
 
-	var databaseErr error
+	var databaseErr, redisErr error
 	if err := c.Database.Validate(); err != nil {
 		databaseErr = fmt.Errorf("auth.database: %w", err)
 	}
-	return errors.Join(c.SignerConfig.Validate(), databaseErr, c.pruneError(), c.signInError(), c.emailError(), c.Admin.Validate(),
-		c.withDefaults().Connector.validate(c.Admin))
+	if err := c.Redis.Validate(); err != nil {
+		redisErr = fmt.Errorf("auth.redis: %w", err)
+	}
+	return errors.Join(c.SignerConfig.Validate(), databaseErr, redisErr, c.pruneError(), c.signInError(), c.emailError(),
+		c.Admin.Validate(), c.withDefaults().Connector.validate(c.Admin))
 }
 
 func (c Config) pruneError() error {
@@ -511,7 +602,7 @@ func (c Config) signInError() error {
 	}
 
 	offered := 0
-	for name, client := range map[string]signin.Client{"google": c.Google, "discord": c.Discord} {
+	for name, client := range map[string]signin.Client{"google": c.Google, "discord": c.Discord.Client} {
 		if !client.Configured() {
 			continue
 		}
@@ -520,8 +611,11 @@ func (c Config) signInError() error {
 			errs = append(errs, fmt.Errorf("auth.%s.clientSecret is empty while auth.%s.clientId is set", name, name))
 		}
 	}
+	if c.CrazyGames.GameID != "" {
+		offered++
+	}
 	if offered == 0 {
-		errs = append(errs, errors.New("auth.signIn.enabled is true and no provider has a clientId"))
+		errs = append(errs, errors.New("auth.signIn.enabled is true and no provider has a clientId or a gameId"))
 	}
 	return errors.Join(errs...)
 }

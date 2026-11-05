@@ -1,0 +1,1 @@
+ALTER TABLE tiles DROP COLUMN IF EXISTS holder;

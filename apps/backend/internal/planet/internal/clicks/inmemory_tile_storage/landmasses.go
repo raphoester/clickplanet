@@ -57,6 +57,17 @@ func (l *landmasses) heldBy(landmass clicks.LandmassID, flag uint16) int {
 	return int(held[flag])
 }
 
+// Whole: a flag it does not list holds none of the landmass.
+func (l *landmasses) row(landmass clicks.LandmassID, nameOf func(flag uint16) string) clicks.LandmassTiles {
+	row := clicks.LandmassTiles{Landmass: landmass}
+	for flag, tiles := range l.held[landmass] {
+		if flag != int(unownedCode) && tiles > 0 {
+			row.Flags = append(row.Flags, clicks.FlagTiles{Flag: nameOf(uint16(flag)), Tiles: tiles}) //nolint:gosec // an index of the code table.
+		}
+	}
+	return row
+}
+
 func (l *landmasses) lockedTo(landmass clicks.LandmassID) uint16 {
 	return l.locks[landmass]
 }

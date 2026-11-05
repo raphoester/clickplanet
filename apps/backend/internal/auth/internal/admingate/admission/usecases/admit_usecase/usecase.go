@@ -41,8 +41,7 @@ func (u *UseCase) Execute(ctx context.Context, visit admission.Visit) (admission
 	return admission.SessionOf(operator), nil
 }
 
-// A browser never sends a token on its own, as it does a cookie: a page can only call with one it already holds. So
-// the origin, which keeps other pages from riding the cookie, is not asked.
+// A browser never sends a bearer token on its own, so a token call skips the origin check.
 func (u *UseCase) keyed(ctx context.Context, visit admission.Visit) (admission.Caller, error) {
 	if err := u.page.TokenError(visit.Procedure); err != nil {
 		return admission.Caller{}, fmt.Errorf("failed to admit the token: %w", err)

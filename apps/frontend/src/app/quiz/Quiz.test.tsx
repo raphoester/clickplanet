@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
-import {useState} from "react"
 
 import {BonusLostError, QuizMaster} from "../../backends/backend.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../../domain/quiz.ts"
 import Quiz from "./Quiz.tsx"
-import {RESULT_MS, useQuiz} from "./useQuiz.ts"
+import {RESULT_MS, useQuiz} from "./quizStore.ts"
+import {useQuizMaster} from "./useQuizMaster.ts"
 
 const BANNER_MS = 20_000
 const ANSWER_MS = 5_000
@@ -57,13 +57,15 @@ class FakeMaster implements QuizMaster {
     }
 }
 
-function Harness({master, country = "bg", playSound}: {
-    master: QuizMaster,
+const silent: PlaySound = () => {}
+
+function Harness({master, country = "bg", playSound = silent}: {
+    master?: QuizMaster,
     country?: string,
     playSound?: PlaySound,
 }) {
-    const quiz = useQuiz(master, country, playSound)
-    return <Quiz state={quiz.state} onOpen={quiz.open} onAnswer={quiz.answer}/>
+    useQuizMaster(master, country, playSound)
+    return <Quiz/>
 }
 
 async function settle() {
@@ -83,6 +85,7 @@ describe("Quiz", () => {
 
     afterEach(() => {
         cleanup()
+        useQuiz.setState({state: {phase: "idle"}, link: undefined})
         vi.useRealTimers()
     })
 
@@ -189,7 +192,7 @@ describe("Quiz", () => {
         fireEvent.click(screen.getByRole("button", {name: "Riga"}))
         await settle()
 
-        expect(screen.queryAllByRole("button")).toEqual([])
+        expect(screen.getAllByRole("button")).toEqual([screen.getByRole("button", {name: "Close"})])
         expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
             "Riga, your pick",
             "Tallinn, the answer",
@@ -267,6 +270,37 @@ describe("Quiz", () => {
         act(() => void vi.advanceTimersByTime(RESULT_MS + 100))
 
         expect(screen.queryByText("Correct!")).toBeNull()
+    })
+
+    it("clears the result at once when it is closed", async () => {
+        render(<Harness master={master}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Close"}))
+
+        expect(screen.queryByText("Correct!")).toBeNull()
+        expect(useQuiz.getState().state.phase).toBe("idle")
+    })
+
+    it("lets the next banner in when a closed result's own timer runs out", async () => {
+        render(<Harness master={master}/>)
+        act(() => master.offer("t1"))
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
+        await settle()
+        fireEvent.click(screen.getByRole("button", {name: "Close"}))
+
+        act(() => master.offer("t2"))
+        act(() => void vi.advanceTimersByTime(RESULT_MS + 100))
+
+        expect(screen.getByRole("button", {name: /Answer a question/})).toBeTruthy()
     })
 
     it("leaves nothing on screen when the banner got away before it opened", async () => {
@@ -364,24 +398,8 @@ describe("Quiz", () => {
         expect(played).toHaveBeenCalledWith("quizWrong")
     })
 
-    it("works without a player at all, for a page with no sound wired", async () => {
-        render(<Harness master={master}/>)
-        act(() => master.offer())
-
-        fireEvent.click(screen.getByRole("button"))
-        await settle()
-
-        expect(screen.getByText(QUESTION.text)).toBeTruthy()
-    })
-
     it("shows nothing at all for a backend that asks no questions", () => {
-        function NoMaster() {
-            const [country] = useState("bg")
-            const quiz = useQuiz(undefined, country)
-            return <Quiz state={quiz.state} onOpen={quiz.open} onAnswer={quiz.answer}/>
-        }
-
-        render(<NoMaster/>)
+        render(<Harness/>)
 
         expect(screen.queryByRole("button")).toBeNull()
     })

@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 )
 
 var (
@@ -32,34 +33,45 @@ func (f fakeAuthors) Author(context.Context, messages.AccountID) (messages.Autho
 	if f.err != nil {
 		return messages.Author{}, f.err
 	}
-	return messages.AuthorOf("guest_a1b2c3", false, 0, 0, messages.Title{}), nil
+	return messages.AuthorOf("guest_a1b2c3", false, 0), nil
 }
 
 func TestAMuteIsAnnouncedUnderTheNameOfTheAccountAndForItsDuration(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 	updates := &recordedFeed{}
 
-	err := announce_mute_usecase.New(fakeAuthors{}, announce_usecase.New(store, updates, &announcements.SequentialIDs{})).Execute(t.Context(),
-		announce_mute_usecase.In{Account: bully, At: at, Duration: 90 * time.Minute})
+	err := announce_mute_usecase.New(fakeAuthors{}, announce_usecase.New(store, updates)).Execute(t.Context(),
+		announce_mute_usecase.In{Mute: mutes.MuteID{15: 9}, Account: bully, At: at, Duration: 90 * time.Minute})
 
 	require.NoError(t, err)
 	kept := store.Kept()
 	require.Len(t, kept, 1)
 	assert.Equal(t, announcements.KindMute, kept[0].Kind())
 	assert.Equal(t, at, kept[0].At())
-	assert.JSONEq(t, `{"name":"guest_a1b2c3","seconds":5400}`, string(kept[0].Payload()))
+	assert.JSONEq(t, `{"name":"guest_a1b2c3","kind":"chat","seconds":5400}`, string(kept[0].Payload()))
 	require.Len(t, updates.updates, 1)
 	published, announced := updates.updates[0].Announcement()
 	require.True(t, announced, "every open chat sees it at once")
 	assert.Equal(t, kept[0], published)
 }
 
+func TestAMuteOfTheGifsIsAnnouncedWithItsKind(t *testing.T) {
+	store := inmemory_announcement_storage.New()
+
+	err := announce_mute_usecase.New(fakeAuthors{}, announce_usecase.New(store, &recordedFeed{})).Execute(t.Context(),
+		announce_mute_usecase.In{Mute: mutes.MuteID{15: 9}, Account: bully, Kind: mutes.Gifs, At: at, Duration: time.Hour})
+
+	require.NoError(t, err)
+	require.Len(t, store.Kept(), 1)
+	assert.JSONEq(t, `{"name":"guest_a1b2c3","kind":"gifs","seconds":3600}`, string(store.Kept()[0].Payload()))
+}
+
 func TestAMuteNobodyCanNameIsNotAnnounced(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 	updates := &recordedFeed{}
 
-	err := announce_mute_usecase.New(fakeAuthors{err: errors.New("the player module is down")}, announce_usecase.New(store, updates, &announcements.SequentialIDs{})).
-		Execute(t.Context(), announce_mute_usecase.In{Account: bully, At: at, Duration: time.Hour})
+	err := announce_mute_usecase.New(fakeAuthors{err: errors.New("the player module is down")}, announce_usecase.New(store, updates)).
+		Execute(t.Context(), announce_mute_usecase.In{Mute: mutes.MuteID{15: 9}, Account: bully, At: at, Duration: time.Hour})
 
 	require.Error(t, err)
 	assert.Empty(t, store.Kept())

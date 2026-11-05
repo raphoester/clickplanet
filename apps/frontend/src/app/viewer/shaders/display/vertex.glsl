@@ -1,15 +1,24 @@
-#ifdef LIT
-#include ../light.glsl;
-#endif
-
 uniform float pointSize;
 
 uniform sampler2D landmassData;
 uniform float landmassCount;
 
 uniform float flagPaint;
+// 1: each tile paints its own holder's flag. 0: the landmass's leader paints all of it, at its share.
+uniform float splitFlags;
 
 uniform float pixelsPerRadian;
+
+uniform float highlight;
+
+uniform vec2 atlasTextureSize;
+
+// Must match SLOT_COUNT in slotRanking.ts.
+#define FLAG_SLOTS 8
+uniform vec4 slotFrames[FLAG_SLOTS];
+uniform vec4 slotRegions[FLAG_SLOTS];
+
+#include ../flagFrame.glsl;
 
 // Must match MAX_BLASTS and BLAST_TIMELINE in domain/blast.ts.
 #define MAX_BLASTS 4
@@ -37,35 +46,56 @@ varying float vGlow;
 varying float vScorch;
 varying float vFortify;
 
+#ifdef COMPACT
+uniform sampler2D flagRectangles;
+
+attribute vec2 ids;
+attribute vec4 marks;
+
+#define regionVector texelFetch(flagRectangles, ivec2(int(ids.x), 0), 0)
+#define landmassIndex ids.y
+#define hover marks.x
+#define pulse marks.y
+#define shield marks.z
+#else
 attribute float hover;
 attribute vec4 regionVector;
 attribute float landmassIndex;
 attribute float shield;
 attribute float pulse;
+#endif
 
 varying float vHover;
 flat out vec4 vRegionVector;
 flat out float vShield;
 flat out float vPulse;
-
-#ifdef LIT
-flat out float vShade;
-flat out float vHaze;
-#endif
+flat out float vHighlit;
 
 flat out vec2 vFlagUV;
 flat out vec4 vFlagStep;
-flat out vec4 vFlagRegion;
+flat out vec4 vFlagFrame;
 flat out float vFlagShare;
 
 flat out float vSpriteSize;
+flat out float vSlotted;
 
 vec2 flagUVof(vec3 ground, vec3 centre, vec3 east, vec3 north, vec2 halfSize, vec2 anchor) {
     vec2 offset = vec2(dot(ground, east), dot(ground, north));
     float reach = length(offset);
-    float angle = acos(clamp(dot(ground, centre), -1.0, 1.0));
+    // Not acos: a pixel from the centre tile, the dot rounds to 1 and the flag's step flickers to nothing.
+    float angle = atan(reach, dot(ground, centre));
     vec2 surface = reach > 1e-6 ? offset / reach * angle : vec2(0.0);
     return surface / halfSize * 0.5 + anchor;
+}
+
+// Must match MAX_FLAG_RADIUS in borderField.ts.
+const float MAX_FLAG_RADIUS = 0.42;
+const float LEAST_FLAG_RADIUS = 0.004;
+
+// A flag that does not lead the landmass covers its ground from the middle, as the leader's would with no fit.
+vec2 coverOf(vec2 reach, float aspect) {
+    float halfV = clamp(max(reach.y, reach.x / aspect), LEAST_FLAG_RADIUS, MAX_FLAG_RADIUS);
+    return vec2(halfV * aspect, halfV);
 }
 
 vec3 screenStep(vec3 ground, vec3 screenAxis, float perPixel) {
@@ -93,34 +123,35 @@ void main() {
     vRegionVector = regionVector;
     vShield = shield;
     vPulse = pulse;
+    vHighlit = highlight > 0.5 && abs(landmassIndex - highlight) < 0.5 ? 1.0 : 0.0;
 
-#ifdef LIT
-    vec3 normal = normalize(normalMatrix * ground);
-    vShade = shadeOf(normal);
-    vHaze = hazeOf(normal);
-#endif
-
-    vFlagRegion = vec4(0.0);
+    vFlagFrame = vec4(0.0);
     vFlagUV = vec2(0.0);
     vFlagStep = vec4(0.0);
     vFlagShare = 0.0;
+    vSlotted = 0.0;
 
+    bool split = splitFlags > 0.5;
     if (flagPaint > 0.0 && landmassIndex > 0.5) {
         float row = (landmassIndex + 0.5) / landmassCount;
         vec4 region = texture(landmassData, vec2(5.0 / 8.0, row));
         vec4 held = texture(landmassData, vec2(7.0 / 8.0, row));
 
-        float share = held.r;
-        vec2 anchor = held.ba;
+        vec4 flag = split ? regionVector : region;
+        float share = split ? 1.0 : held.r;
+        // Only the leader's flag is fitted to the ground and drawn large.
+        bool leads = all(equal(region, flag));
 
-        if (region.z > 0.0 && share > 0.0) {
+        if (flag.z > 0.0 && share > 0.0) {
             vec4 frame = texture(landmassData, vec2(1.0 / 8.0, row));
             vec4 axis = texture(landmassData, vec2(3.0 / 8.0, row));
+            vec2 halfSize = leads ? vec2(frame.w, axis.w) : coverOf(axis.xy, flag.z / flag.w);
+            vec2 anchor = leads ? held.ba : vec2(0.5);
+
             vec3 centre = frame.xyz;
             vec3 east = normalize(vec3(centre.z, 0.0, -centre.x));
             if (abs(centre.y) > 0.9999) east = vec3(1.0, 0.0, 0.0);
             vec3 north = cross(centre, east);
-            vec2 halfSize = vec2(frame.w, axis.w);
 
             if (dot(ground, centre) > 0.0) {
                 vec3 right = normalize(vec3(modelViewMatrix[0][0], modelViewMatrix[1][0], modelViewMatrix[2][0]));
@@ -137,8 +168,15 @@ void main() {
                     flagUVof(across, centre, east, north, halfSize, anchor) - uv,
                     flagUVof(upward, centre, east, north, halfSize, anchor) - uv
                 );
-                vFlagRegion = region;
-                vFlagShare = share;
+
+                vFlagShare = split ? 1.0 : share * (hover > 0.5 ? 1.0 : 0.94);
+
+                vec4 slotFrame = vec4(0.0);
+                for (int i = 0; i < FLAG_SLOTS; i++) {
+                    if (all(equal(slotRegions[i], flag))) slotFrame = slotFrames[i];
+                }
+                vSlotted = slotFrame.z > 0.0 ? 1.0 : 0.0;
+                vFlagFrame = vSlotted > 0.5 ? slotFrame : atlasFrameOf(flag);
             }
         }
     }

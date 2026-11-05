@@ -9,9 +9,17 @@ type ScriptedSource struct {
 	replay Replay
 	err    error
 
-	RacesAsked int
-	race       Race
-	raceErr    error
+	TurnsAsked int
+	turn       Turn
+	turnErr    error
+
+	RoundsAsked []RoundID
+	round       Round
+	roundErr    error
+
+	CastsAsked []Window
+	cast       Cast
+	castErr    error
 }
 
 func NewScriptedSource(replay Replay) *ScriptedSource {
@@ -29,25 +37,41 @@ func (s *ScriptedSource) Replay(_ context.Context, window Window) (Replay, error
 	return s.replay, s.err
 }
 
-var _ RaceSource = (*ScriptedSource)(nil)
+var _ TurnSource = (*ScriptedSource)(nil)
 
-func (s *ScriptedSource) AnswerRace(race Race) {
-	s.race = race
+func (s *ScriptedSource) AnswerTurn(turn Turn) {
+	s.turn = turn
 }
 
-func (s *ScriptedSource) FailRaceWith(err error) {
-	s.raceErr = err
+func (s *ScriptedSource) FailTurnWith(err error) {
+	s.turnErr = err
 }
 
-func (s *ScriptedSource) Race(context.Context) (Race, error) {
-	s.RacesAsked++
-	return s.race, s.raceErr
+func (s *ScriptedSource) Turn(context.Context) (Turn, error) {
+	s.TurnsAsked++
+	return s.turn, s.turnErr
+}
+
+var _ RoundSource = (*ScriptedSource)(nil)
+
+func (s *ScriptedSource) AnswerRound(round Round) {
+	s.round = round
+}
+
+func (s *ScriptedSource) FailRoundWith(err error) {
+	s.roundErr = err
+}
+
+func (s *ScriptedSource) Round(_ context.Context, round RoundID) (Round, error) {
+	s.RoundsAsked = append(s.RoundsAsked, round)
+	return s.round, s.roundErr
 }
 
 type MemoryStore struct {
-	Saved      []Replay
-	SavedRaces []Race
-	err        error
+	Saved       []Replay
+	SavedTurns  []Turn
+	SavedRounds []Round
+	err         error
 }
 
 var _ Store = (*MemoryStore)(nil)
@@ -64,12 +88,37 @@ func (s *MemoryStore) Save(_ context.Context, replay Replay) error {
 	return nil
 }
 
-var _ RaceStore = (*MemoryStore)(nil)
+var _ TurnStore = (*MemoryStore)(nil)
 
-func (s *MemoryStore) SaveRace(_ context.Context, race Race) error {
+func (s *MemoryStore) SaveTurn(_ context.Context, turn Turn) error {
 	if s.err != nil {
 		return s.err
 	}
-	s.SavedRaces = append(s.SavedRaces, race)
+	s.SavedTurns = append(s.SavedTurns, turn)
 	return nil
+}
+
+var _ RoundStore = (*MemoryStore)(nil)
+
+func (s *MemoryStore) SaveRound(_ context.Context, round Round) error {
+	if s.err != nil {
+		return s.err
+	}
+	s.SavedRounds = append(s.SavedRounds, round)
+	return nil
+}
+
+var _ CastSource = (*ScriptedSource)(nil)
+
+func (s *ScriptedSource) AnswerCast(cast Cast) {
+	s.cast = cast
+}
+
+func (s *ScriptedSource) FailCastWith(err error) {
+	s.castErr = err
+}
+
+func (s *ScriptedSource) Cast(_ context.Context, window Window) (Cast, error) {
+	s.CastsAsked = append(s.CastsAsked, window)
+	return s.cast, s.castErr
 }

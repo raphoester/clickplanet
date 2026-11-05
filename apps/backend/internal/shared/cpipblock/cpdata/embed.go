@@ -20,6 +20,9 @@ var TorExits []byte
 //go:embed vpn_netnames.txt
 var VPNNetnames []byte
 
+//go:embed cloudflare_warp.txt
+var CloudflareWARP []byte
+
 //go:embed datacenter_ipv4.txt
 var DatacenterV4 []byte
 

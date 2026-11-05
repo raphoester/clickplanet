@@ -30,7 +30,7 @@ the network tab open, and every quiz would be free.
 
 So the bank is the server's. `OpenQuiz` hands the client one question and three choices, and
 **which of the three is right never leaves the server**. `AnswerQuiz` is what compares, and
-`OpenQuiz` is what starts the clock — see the backend's CLAUDE.md.
+`OpenQuiz` is what starts the clock — see [`apps/backend/docs/quizzes.md`](../apps/backend/docs/quizzes.md).
 
 **Nothing about a question reaches the client before it is opened**, `subject` included. The banner
 carried the subject country once, so it could fly a flag: that flag was the answer to 417 of these

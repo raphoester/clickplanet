@@ -1,8 +1,10 @@
 import {useState} from "react";
-import {DisplaySettings} from "../../domain/displaySettings.ts";
+import {MapView} from "../../domain/displaySettings.ts";
 import {FeedbackBackend, PageContext} from "../../backends/support.ts";
 import About from "../About.tsx";
+import {DiscordOffer} from "../alerts/useDiscordAlerts.ts";
 import BuyMeACoffee from "../components/BuyMeACoffee.tsx";
+import Choices, {Choice} from "../components/Choices.tsx";
 import {InfoIcon, MailIcon} from "../components/icons.tsx";
 import Modal from "../components/Modal.tsx";
 import Switch from "../components/Switch.tsx";
@@ -10,34 +12,44 @@ import SoundSettingsPanel, {SoundSettingsPanelProps} from "../sound/SoundSetting
 import FeedbackModal from "../support/FeedbackModal.tsx";
 import {pageContextOf} from "../support/pageContext.ts";
 import {NO_GRAPHICS} from "../viewer/graphicsReport.ts";
+import {ON_CRAZYGAMES} from "../../platform.ts";
+import {useDisplaySettings} from "./displaySettingsStore.ts";
 import "./SettingsPlace.css"
 
 export type SettingsPlaceProps = {
-    display?: {settings: DisplaySettings, onChange: (settings: DisplaySettings) => void},
     sound?: SoundSettingsPanelProps,
     support?: FeedbackBackend,
     pageContext?: () => PageContext,
+    discord?: DiscordOffer,
 }
 
 const pageAlone = () => pageContextOf(window, NO_GRAPHICS, false)
 
-export default function SettingsPlace({display, sound, support, pageContext = pageAlone}: SettingsPlaceProps) {
+const MAP_VIEWS: Choice<MapView>[] = [
+    {value: "big", label: "Big"},
+    {value: "split", label: "Split"},
+    {value: "tiles", label: "Off"},
+]
+
+export default function SettingsPlace({sound, support, pageContext = pageAlone, discord}: SettingsPlaceProps) {
     const [open, setOpen] = useState<"feedback" | "about">()
     const close = () => setOpen(undefined)
+    const display = useDisplaySettings()
 
     return <div className="settings">
-        {display && <ul className="switch-list panel-box">
-            <li>
-                <Switch label="Big country flags"
-                        checked={display.settings.mapView === "flags"}
-                        onChange={(on) => display.onChange({...display.settings, mapView: on ? "flags" : "tiles"})}/>
+        <ul className="switch-list panel-box">
+            <li className="settings-choices">
+                <Choices label="Country flags"
+                         options={MAP_VIEWS}
+                         picked={display.mapView}
+                         onPick={display.setMapView}/>
             </li>
             <li>
                 <Switch label="HD graphics"
-                        checked={display.settings.rendering === "sharp"}
-                        onChange={(on) => display.onChange({...display.settings, rendering: on ? "sharp" : "plain"})}/>
+                        checked={display.rendering === "sharp"}
+                        onChange={(on) => display.setRendering(on ? "sharp" : "soft")}/>
             </li>
-        </ul>}
+        </ul>
         {sound && <SoundSettingsPanel {...sound}/>}
 
         <div className="menu-tiles settings-foot">
@@ -56,9 +68,9 @@ export default function SettingsPlace({display, sound, support, pageContext = pa
         </div>
 
         {open === "about" && <Modal title="About ClickPlanet"
-                                    footer={<BuyMeACoffee/>}
+                                    footer={ON_CRAZYGAMES ? undefined : <BuyMeACoffee/>}
                                     onClose={close}>
-            <About/>
+            <About discord={discord}/>
         </Modal>}
 
         {open === "feedback" && support && <FeedbackModal support={support}

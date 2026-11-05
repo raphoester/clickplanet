@@ -3,8 +3,25 @@ import {afterEach, describe, expect, it, vi} from 'vitest'
 import {cleanup, fireEvent, render, screen} from '@testing-library/react'
 import ClickBudgetMeter from './ClickBudgetMeter.tsx'
 import {ClickBudget} from "../../backends/clickBudget.ts"
+import {Countries} from "../../domain/countries.ts"
+import {useScreen} from "../hud/screenStore.ts"
 
-afterEach(cleanup)
+vi.mock("../share/deliverShare.ts", async (original) => ({
+    ...await original<typeof import("../share/deliverShare.ts")>(),
+    linkDeliveryOffered: vi.fn(() => "copy"),
+    deliverLink: vi.fn(),
+    copyLink: vi.fn(async () => "copied"),
+}))
+
+const {deliverLink, copyLink} = await import("../share/deliverShare.ts")
+const deliver = vi.mocked(deliverLink)
+
+const FRANCE = Countries.get("fr")!
+
+afterEach(() => {
+    cleanup()
+    useScreen.setState(useScreen.getInitialState(), true)
+})
 
 function reading(overrides: Partial<ClickBudget> = {}): ClickBudget {
     return {tokens: 4, capacity: 10, perSecond: 1, readAt: performance.now(), ...overrides}
@@ -15,6 +32,52 @@ const pips = () => Array.from(document.querySelectorAll(".click-budget-pip"))
 const tokens = () => meter().style.getPropertyValue("--click-budget-tokens")
 
 describe("ClickBudgetMeter", () => {
+    it("says the map is frozen in place of the clicks, and when the next season starts", () => {
+        render(<ClickBudgetMeter budget={reading()} frozen={{nextSeason: {number: 1, startsAt: Date.now() + 2 * 3600_000}, country: FRANCE}}/>)
+
+        expect(screen.queryByRole("meter")).toBeNull()
+        expect(screen.getByRole("status").textContent).toContain("The map is frozen")
+        expect(screen.getByText(/Season 1 starts in/)).toBeTruthy()
+        expect(screen.getByRole("timer").textContent).toMatch(/^(1h 59m|2h 00m)/)
+    })
+
+    it("says the map is frozen with no countdown when no season is planned", () => {
+        render(<ClickBudgetMeter budget={reading()} frozen={{country: FRANCE}}/>)
+
+        expect(screen.getByRole("status").textContent).toBe("The map is frozen")
+    })
+
+    it("invites friends to the flag played on a frozen map, with the next season in the text", async () => {
+        deliver.mockResolvedValue("copied")
+        render(<ClickBudgetMeter frozen={{nextSeason: {number: 1, startsAt: Date.now() + 3600_000}, country: FRANCE}}/>)
+
+        fireEvent.click(screen.getByRole("button", {name: "Invite"}))
+
+        expect(deliver).toHaveBeenCalledWith("copy", "https://clickplanet.lol/?f=fr&s=rc",
+            "Season 1 starts on a blank map. Play for France on ClickPlanet!")
+        expect(await screen.findByRole("button", {name: "Copied!"})).toBeTruthy()
+    })
+
+    it("invites with CrazyGames' link on a frozen map there", async () => {
+        const invite = vi.fn(async (flag: string) => `https://www.crazygames.com/game/clickplanet?czy_invite=true&f=${flag}`)
+        render(<ClickBudgetMeter frozen={{country: FRANCE}} invite={invite}/>)
+
+        fireEvent.click(screen.getByRole("button", {name: "Invite"}))
+
+        expect(await screen.findByRole("button", {name: "Copied!"})).toBeTruthy()
+        expect(copyLink).toHaveBeenCalledWith("https://www.crazygames.com/game/clickplanet?czy_invite=true&f=fr")
+    })
+
+    it("offers the Discord the game offers on a frozen map, and none when it offers nothing", () => {
+        const {unmount} = render(<ClickBudgetMeter frozen={{country: FRANCE}} discord={{serverUrl: "https://discord.com/channels/1/2"}} compact/>)
+        expect(screen.getByRole("link", {name: "Open Discord"}).getAttribute("href")).toBe("https://discord.com/channels/1/2")
+
+        unmount()
+        render(<ClickBudgetMeter frozen={{country: FRANCE}} discord={{}} compact/>)
+        expect(screen.queryByRole("link", {name: "Open Discord"})).toBeNull()
+        expect(screen.queryByRole("button", {name: "Join Discord"})).toBeNull()
+    })
+
     it("shows nothing against a server that reports no allowance", () => {
         const {container} = render(<ClickBudgetMeter/>)
         expect(container.innerHTML).toBe("")
@@ -252,30 +315,31 @@ describe("ClickBudgetMeter's dock", () => {
 
 describe("ClickBudgetMeter and your clicks", () => {
     it("opens them from the reading", () => {
-        const onToggleOpen = vi.fn()
-        render(<ClickBudgetMeter budget={reading()} onToggleOpen={onToggleOpen}/>)
+        render(<ClickBudgetMeter budget={reading()} popover={<p>steps</p>}/>)
 
         const open = screen.getByRole("button", {name: "Your clicks"})
         expect(open.getAttribute("aria-expanded")).toBe("false")
         expect(meter().contains(open)).toBe(false)
 
         fireEvent.click(open)
-        expect(onToggleOpen).toHaveBeenCalledTimes(1)
+        expect(useScreen.getState().popovers.clicks).toBe(true)
     })
 
     it("shows them over the dock on a desktop, and closes them on Escape", () => {
-        const onToggleOpen = vi.fn()
-        render(<ClickBudgetMeter budget={reading()} open onToggleOpen={onToggleOpen} popover={<p>steps</p>}/>)
+        useScreen.setState({popovers: {season: false, battle: false, clicks: true}})
+        render(<ClickBudgetMeter budget={reading()} popover={<p>steps</p>}/>)
 
         expect(screen.getByText("steps")).toBeTruthy()
         expect(screen.getByRole("button", {name: "Your clicks"}).getAttribute("aria-expanded")).toBe("true")
 
         fireEvent.keyDown(document, {key: "Escape"})
-        expect(onToggleOpen).toHaveBeenCalledTimes(1)
+        expect(screen.queryByText("steps")).toBeNull()
+        expect(useScreen.getState().popovers.clicks).toBe(false)
     })
 
     it("leaves them to a sheet on a phone", () => {
-        render(<ClickBudgetMeter compact budget={reading()} open onToggleOpen={vi.fn()} popover={<p>steps</p>}/>)
+        useScreen.setState({sheet: "clicks"})
+        render(<ClickBudgetMeter compact budget={reading()} popover={<p>steps</p>}/>)
 
         expect(screen.queryByText("steps")).toBeNull()
     })

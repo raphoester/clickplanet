@@ -10,6 +10,7 @@ var ErrUnknownKind = errors.New("an event of a kind this ledger does not know")
 
 type Event interface {
 	Replay(see func(Taking))
+	Strikes(see func(Strike))
 	Show(see func(Scene))
 	Entry() (Entry, error)
 }

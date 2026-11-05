@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package missions.v1;
+
+import "planet/v1/planet.proto";
+
+service MissionService {
+  rpc GetMissions(GetMissionsRequest) returns (GetMissionsResponse);
+
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream MissionEvent);
+}
+
+message GetMissionsRequest {}
+
+message ListenForEventsRequest {}
+
+message MissionEvent {
+  oneof event {
+    // The caller's day as GetMissions answers it: once as the stream opens, then each time missions are paid to it.
+    GetMissionsResponse day = 1;
+    Heartbeat heartbeat = 2;
+  }
+}
+
+message Heartbeat {}
+
+// The caller's own missions of the day, drawn at its first read or take for the flag it played then.
+message GetMissionsResponse {
+  string country_id = 1 [deprecated = true];
+  bool enlisted = 2 [deprecated = true];
+  int64 ends_at_unix_ms = 3;
+  repeated Mission missions = 4;
+  // The day's mission of the flag the caller plays now, the same for each of its players. Unset with no flag.
+  FlagMission flag_mission = 5;
+}
+
+// What every mission has. What it asks is its kind's own message: a client skips a kind it does not know.
+message Mission {
+  string id = 1;
+  MissionReward reward = 2;
+  bool done = 3;
+  // A done mission is paid at once, or a guest's when it signs in that day.
+  bool paid = 4;
+
+  oneof kind {
+    TakeFor take_for = 10;
+    TakeFrom take_from = 11;
+    TakeIn take_in = 12;
+    TakeFromIn take_from_in = 13;
+    CatchBoxes catch_boxes = 14;
+    AnswerQuizzes answer_quizzes = 15;
+    BombIn bomb_in = 16;
+    ShieldTiles shield_tiles = 17;
+    FortifyTiles fortify_tiles = 18;
+  }
+}
+
+// Take goal tiles for country_id.
+message TakeFor {
+  string country_id = 1;
+  uint32 goal = 2;
+  uint32 taken = 3;
+}
+
+// Take goal tiles that country_id held.
+message TakeFrom {
+  string country_id = 1;
+  uint32 goal = 2;
+  uint32 taken = 3;
+}
+
+// Take goal tiles on country_id's land.
+message TakeIn {
+  string country_id = 1;
+  uint32 goal = 2;
+  uint32 taken = 3;
+}
+
+// Take goal tiles that country_id held on ground_id's land.
+message TakeFromIn {
+  string country_id = 1;
+  string ground_id = 2;
+  uint32 goal = 3;
+  uint32 taken = 4;
+}
+
+// Catch goal boxes.
+message CatchBoxes {
+  uint32 goal = 1;
+  uint32 caught = 2;
+}
+
+// Answer goal quizzes right.
+message AnswerQuizzes {
+  uint32 goal = 1;
+  uint32 answered = 2;
+}
+
+// Drop goal bombs on country_id's land.
+message BombIn {
+  string country_id = 1;
+  uint32 goal = 2;
+  uint32 dropped = 3;
+}
+
+// Bring goal tiles to shields shields each.
+message ShieldTiles {
+  uint32 shields = 1;
+  uint32 goal = 2;
+  uint32 shielded = 3;
+}
+
+// Fortify goal tiles: each landmass made whole counts its tiles.
+message FortifyTiles {
+  uint32 goal = 1;
+  uint32 fortified = 2;
+}
+
+// Done once for the whole flag, it gives the flag `points` in the season. A client skips a kind it does not know.
+message FlagMission {
+  string id = 1;
+  uint32 points = 2;
+  bool done = 3;
+
+  oneof kind {
+    TakeIn take_in = 10;
+    BreakShields break_shields = 11;
+  }
+}
+
+// Break goal shields of country_id.
+message BreakShields {
+  string country_id = 1;
+  uint32 goal = 2;
+  uint32 broken = 3;
+}
+
+// A client skips a mission whose reward it does not know.
+message MissionReward {
+  oneof kind {
+    Charges charges = 1;
+  }
+}
+
+message Charges {
+  planet.v1.BonusKind kind = 1;
+  uint32 amount = 2;
+}

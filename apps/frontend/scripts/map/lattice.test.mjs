@@ -2,6 +2,7 @@ import {describe, expect, it} from "vitest"
 import * as THREE from "three"
 
 import {DETAIL, keyOf, lattice, lonLatOf} from "./lattice.mjs"
+import {LATTICE_DETAIL, latticePositions} from "../../src/domain/lattice.ts"
 
 describe("lattice", () => {
     it("holds 10*cols^2 + 2 vertices, the geodesic sphere's own count", () => {
@@ -64,5 +65,19 @@ describe("lattice", () => {
 
     it("defaults to the detail the shipped map was cut at", () => {
         expect(DETAIL).toBe(300)
+        expect(LATTICE_DETAIL).toBe(DETAIL)
     })
+
+    it("dedups to the same vertices, in the same order and to the bit, as the browser's rebuild", () => {
+        for (const detail of [1, 4, 10, DETAIL]) {
+            const {positions} = lattice(detail)
+            const rebuilt = latticePositions(detail)
+            expect(rebuilt.length).toBe(positions.length)
+            const want = new Uint32Array(positions.buffer)
+            const got = new Uint32Array(rebuilt.buffer)
+            let differing = 0
+            for (let k = 0; k < want.length; k++) if (got[k] !== want[k]) differing++
+            expect(differing).toBe(0)
+        }
+    }, 60_000)
 })

@@ -2,14 +2,77 @@ syntax = "proto3";
 
 package planet.v1;
 
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "planet/v1/history.proto";
+import "planet/v1/ledger.proto";
+import "planet/v1/planet.proto";
+import "planet/v1/rules.proto";
+import "planet/v1/totals.proto";
+
 service InternalService {
+  // AdminService/GetLedger, for the clips module's cast: who took which tile.
+  rpc GetLedger(GetLedgerRequest) returns (GetLedgerResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
   rpc GetTakesByCountry(GetTakesByCountryRequest) returns (GetTakesByCountryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
+  // keeps the answer. InvalidArgument unless since is before until.
+  rpc GetLedgerTotals(GetLedgerTotalsRequest) returns (GetLedgerTotalsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The map every step from since to until, replayed from the ledger's first event, for the gamemaster's season replay.
+  // A read of the whole ledger: the caller keeps the answer. InvalidArgument unless since is before until, and the step
+  // makes 5,000 frames at most.
+  rpc GetMapHistory(GetMapHistoryRequest) returns (GetMapHistoryResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
   rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc GetCountrySizes(GetCountrySizesRequest) returns (GetCountrySizesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  rpc GetAllegianceOf(GetAllegianceOfRequest) returns (GetAllegianceOfResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  rpc GetRuleSetNames(GetRuleSetNamesRequest) returns (GetRuleSetNamesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The values a set plays: default's, with the set's own written over them, for the promo module's cards. NotFound for
+  // a set postgres does not keep.
+  rpc GetRuleSet(GetRuleSetRequest) returns (GetRuleSetResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetMapHistoryRequest {
+  google.protobuf.Timestamp since = 1;
+  google.protobuf.Timestamp until = 2;
+  google.protobuf.Duration step = 3;
+}
+
+message GetMapHistoryResponse {
+  MapHistory history = 1;
+}
+
+message GetLedgerTotalsRequest {
+  google.protobuf.Timestamp since = 1;
+  google.protobuf.Timestamp until = 2;
+}
+
+message GetLedgerTotalsResponse {
+  LedgerTotals totals = 1;
 }
 
 message GetTakesByCountryRequest {
@@ -36,4 +99,49 @@ message GetTerritoriesResponse {
 message Territory {
   string country_id = 1;
   uint32 tiles = 2;
+  // Where the tiles are: how many on each country's land.
+  repeated Ground grounds = 3;
+}
+
+message Ground {
+  string country_id = 1;
+  uint32 tiles = 2;
+}
+
+message GetCountrySizesRequest {}
+
+// How many tiles of land each country has, all its landmasses together.
+message GetCountrySizesResponse {
+  repeated CountrySize country_sizes = 1;
+}
+
+message CountrySize {
+  string country_id = 1;
+  uint32 tiles = 2;
+}
+
+message GetAllegianceOfRequest {
+  string account_id = 1;
+}
+
+// Unset for an account that never pledged a flag.
+message GetAllegianceOfResponse {
+  Allegiance allegiance = 1;
+}
+
+
+message GetRuleSetNamesRequest {}
+
+// The name of every rule set postgres keeps.
+message GetRuleSetNamesResponse {
+  repeated string names = 1;
+}
+
+message GetRuleSetRequest {
+  string name = 1;
+}
+
+message GetRuleSetResponse {
+  // Every value, the set's own or default's.
+  Rules played = 1;
 }

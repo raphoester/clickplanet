@@ -37,7 +37,7 @@ func (o *operators) Connection(_ context.Context, token string) (admission.Calle
 }
 
 func page() admission.Page {
-	return admission.NewPage(adminOrigin, "/auth.v1.AdminService/StartSignIn").WithSessionOnly(approving)
+	return admission.NewPage(adminOrigin, "/auth.v1.AdminService/StartSignIn").WithSessionOnly("/auth.v1.AdminService/")
 }
 
 func TestTheOperatorOfTheAdminPageIsAdmitted(t *testing.T) {
@@ -73,7 +73,7 @@ func TestTheSignInCallsNeedTheOriginAndNoSession(t *testing.T) {
 
 	caller, err := useCase.Execute(t.Context(), admission.Visit{Origin: adminOrigin, Procedure: "/auth.v1.AdminService/StartSignIn"})
 	require.NoError(t, err)
-	assert.Empty(t, caller.Operator(), "nobody is signed in yet")
+	assert.Equal(t, admission.Caller{}, caller, "nobody is signed in yet")
 	assert.Empty(t, asked.asked, "auth is not asked who calls")
 
 	_, err = useCase.Execute(t.Context(), admission.Visit{Origin: "https://clickplanet.lol", Procedure: "/auth.v1.AdminService/StartSignIn"})

@@ -2,17 +2,24 @@ syntax = "proto3";
 
 package chat.v1;
 
+import "chat/v1/chat.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
-// Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
-// without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
 service AdminService {
   // Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
-  // the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. There is no
-  // unmute.
+  // the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. Of the kind
+  // asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
   rpc Mute(MuteRequest) returns (MuteResponse);
+
+  // Ends now every mute of the kind given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
+  rpc Unmute(UnmuteRequest) returns (UnmuteResponse);
+
+  // The mute of the kind that holds the account now, given to it or to another account on the network it last posted from; the one that ends last. Nothing set when none holds it.
+  rpc GetMute(GetMuteRequest) returns (GetMuteResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
   rpc RemoveMessage(RemoveMessageRequest) returns (RemoveMessageResponse);
@@ -32,11 +39,34 @@ message MuteRequest {
   string account_id = 1;
   // Unset is one hour; otherwise whole seconds.
   google.protobuf.Duration duration = 2;
+  MuteKind kind = 3;
 }
 
 message MuteResponse {
   string scope = 1;
   google.protobuf.Timestamp muted_until = 2;
+}
+
+message UnmuteRequest {
+  string account_id = 1;
+  MuteKind kind = 2;
+}
+
+message UnmuteResponse {
+  // The end of the mute that would have ended last.
+  google.protobuf.Timestamp muted_until = 1;
+}
+
+message GetMuteRequest {
+  string account_id = 1;
+  MuteKind kind = 2;
+}
+
+message GetMuteResponse {
+  // Unset when no mute holds the account.
+  google.protobuf.Timestamp muted_until = 1;
+  // The account the mute was given to: the one asked about, or another on its network, whose mute Unmute on this one leaves.
+  string muted_account_id = 2;
 }
 
 message RemoveMessageRequest {
@@ -55,11 +85,16 @@ message GetMessageResponse {
   string message_id = 1;
   // Empty for a message kept before accounts, or of a deleted account.
   string account_id = 2;
-  string text = 3;
+  oneof body {
+    string text = 3;
+    Gif gif = 8;
+  }
   google.protobuf.Timestamp sent_at = 4;
   string country_id = 5;
   // Unset while the message is shown.
   google.protobuf.Timestamp removed_at = 6;
+  // The flag whose room it was said in. Empty for the chat everyone reads.
+  string flag_room = 7;
 }
 
 message ListMessagesRequest {
@@ -85,13 +120,18 @@ message KeptMessage {
   string account_id = 2;
   // Its author's name now: the name it was sent under for a message kept before accounts, [deleted] for an account nobody can name any more.
   string author_name = 3;
-  string text = 4;
+  oneof body {
+    string text = 4;
+    Gif gif = 10;
+  }
   google.protobuf.Timestamp sent_at = 5;
   string country_id = 6;
   // Unset while the message is shown.
   google.protobuf.Timestamp removed_at = 7;
   // The message it answers. Unset for none, and for one past the retention.
   KeptQuote reply_to = 8;
+  // The flag whose room it was said in. Empty for the chat everyone reads.
+  string flag_room = 9;
 }
 
 // The message a reply answers, as it was sent, removed or not.
@@ -99,7 +139,10 @@ message KeptQuote {
   string message_id = 1;
   // As KeptMessage.author_name.
   string author_name = 2;
-  string text = 3;
+  oneof body {
+    string text = 3;
+    Gif gif = 5;
+  }
   // Unset while the message is shown.
   google.protobuf.Timestamp removed_at = 4;
 }

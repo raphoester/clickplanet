@@ -2,6 +2,7 @@ package catcher
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -11,76 +12,70 @@ import (
 
 const Name = "catcher"
 
-type Config struct {
+type Rules struct {
+	Enabled bool
+
 	MinCatches int
 
 	MaxMedian time.Duration
 
 	CertainMedian time.Duration
 
-	// Must hold MinCatches boxes at the slowest offer pace, or the rule never fires.
-	TrackWindow time.Duration
-
-	Foreign ForeignConfig
-
-	SweepInterval time.Duration
+	Foreign ForeignRules
 }
 
-type ForeignConfig struct {
+type ForeignRules struct {
 	Window        time.Duration
 	MinClaims     int
 	CertainClaims int
 }
 
+func (r Rules) Validate() error {
+	return errors.Join(
+		detect.Positive("minCatches", r.MinCatches),
+		detect.Positive("maxMedian", r.MaxMedian),
+		detect.Positive("certainMedian", r.CertainMedian),
+		detect.AtMost("certainMedian", r.CertainMedian, "maxMedian", r.MaxMedian),
+		detect.Positive("foreign.window", r.Foreign.Window),
+		detect.NotNegative("foreign.minClaims", r.Foreign.MinClaims),
+		detect.NotNegative("foreign.certainClaims", r.Foreign.CertainClaims),
+	)
+}
+
+type Config struct {
+	// Must hold MinCatches boxes at the slowest offer pace, or the rule never fires.
+	TrackWindow time.Duration
+
+	SweepInterval time.Duration
+}
+
 const (
-	defaultMinCatches    = 5
-	defaultMaxMedian     = 3 * time.Second
-	defaultCertainMedian = 1500 * time.Millisecond
 	defaultTrackWindow   = time.Hour
 	defaultSweepInterval = time.Minute
-
-	defaultForeignWindow = time.Hour
 )
 
 func (c Config) withDefaults() Config {
-	if c.MinCatches <= 0 {
-		c.MinCatches = defaultMinCatches
-	}
-	if c.MaxMedian <= 0 {
-		c.MaxMedian = defaultMaxMedian
-	}
-	if c.CertainMedian <= 0 {
-		c.CertainMedian = defaultCertainMedian
-	}
-	if c.CertainMedian > c.MaxMedian {
-		c.CertainMedian = c.MaxMedian
-	}
 	if c.TrackWindow <= 0 {
 		c.TrackWindow = defaultTrackWindow
 	}
 	if c.SweepInterval <= 0 {
 		c.SweepInterval = defaultSweepInterval
 	}
-	if c.Foreign.Window <= 0 {
-		c.Foreign.Window = defaultForeignWindow
-	}
-	if c.Foreign.CertainClaims > 0 && c.Foreign.CertainClaims < c.Foreign.MinClaims {
-		c.Foreign.CertainClaims = c.Foreign.MinClaims
-	}
 	return c
 }
 
-func (c ForeignConfig) kept() int {
-	return max(c.MinClaims, c.CertainClaims)
+func (r ForeignRules) kept() int {
+	return max(r.MinClaims, r.CertainClaims)
 }
 
-func New(config Config, clock cptime.Clock) *Watchdog {
+func New(config Config, rules func() Rules, clock cptime.Clock) *Watchdog {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
 	return &Watchdog{
 		config:  config.withDefaults(),
+		rules:   rules,
 		clock:   clock,
 		callers: make(map[string]*caller),
 	}
@@ -88,6 +83,7 @@ func New(config Config, clock cptime.Clock) *Watchdog {
 
 type Watchdog struct {
 	config Config
+	rules  func() Rules
 	clock  cptime.Clock
 
 	mu      sync.Mutex
@@ -120,6 +116,8 @@ type outcome struct {
 
 func (w *Watchdog) Name() string { return Name }
 
+func (w *Watchdog) Enabled() bool { return w.rules().Enabled }
+
 func (w *Watchdog) Attempted(detect.Click) {}
 
 func (w *Watchdog) Committed(detect.Click) {}
@@ -133,7 +131,7 @@ func (w *Watchdog) Missed(scope string) {
 }
 
 func (w *Watchdog) Foreign(scope string) {
-	kept := w.config.Foreign.kept()
+	kept := w.rules().Foreign.kept()
 	if scope == "" || kept == 0 {
 		return
 	}
@@ -153,13 +151,15 @@ func (w *Watchdog) record(scope string, o outcome) {
 		return
 	}
 
+	kept := w.rules().MinCatches
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	c := w.callerLocked(scope)
 	c.outcomes = append(c.outcomes, o)
-	if len(c.outcomes) > w.config.MinCatches {
-		c.outcomes = append(c.outcomes[:0], c.outcomes[len(c.outcomes)-w.config.MinCatches:]...)
+	if len(c.outcomes) > kept {
+		c.outcomes = append(c.outcomes[:0], c.outcomes[len(c.outcomes)-kept:]...)
 	}
 }
 
@@ -173,6 +173,8 @@ func (w *Watchdog) callerLocked(scope string) *caller {
 }
 
 func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
+	rules := w.rules()
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -181,8 +183,8 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		return detect.Clear, detect.Evidence{}
 	}
 
-	catch, catchEvidence := w.catch(c, click.At)
-	foreign, foreignEvidence := w.foreign(c, click.At)
+	catch, catchEvidence := w.catch(c, click.At, rules)
+	foreign, foreignEvidence := foreign(c, click.At, rules.Foreign)
 
 	if foreign > catch {
 		return foreign, foreignEvidence
@@ -190,15 +192,17 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	return catch, catchEvidence
 }
 
-func (w *Watchdog) catch(c *caller, at time.Time) (detect.Verdict, detect.Evidence) {
-	if len(c.outcomes) < w.config.MinCatches {
+func (w *Watchdog) catch(c *caller, at time.Time, rules Rules) (detect.Verdict, detect.Evidence) {
+	// A rule lowered since keeps more outcomes than it reads: the latest ones count.
+	outcomes := c.outcomes[max(0, len(c.outcomes)-rules.MinCatches):]
+	if len(outcomes) < rules.MinCatches {
 		return detect.Clear, detect.Evidence{}
 	}
 
 	cutoff := at.Add(-w.config.TrackWindow)
 
-	delays := make([]time.Duration, 0, len(c.outcomes))
-	for _, o := range c.outcomes {
+	delays := make([]time.Duration, 0, len(outcomes))
+	for _, o := range outcomes {
 		if !o.caught || o.at.Before(cutoff) {
 			return detect.Clear, detect.Evidence{}
 		}
@@ -206,12 +210,12 @@ func (w *Watchdog) catch(c *caller, at time.Time) (detect.Verdict, detect.Eviden
 	}
 
 	median, _ := detect.Spread(delays)
-	if median > w.config.MaxMedian {
+	if median > rules.MaxMedian {
 		return detect.Clear, detect.Evidence{}
 	}
 
 	verdict := detect.Suspect
-	if median <= w.config.CertainMedian {
+	if median <= rules.CertainMedian {
 		verdict = detect.Certain
 	}
 
@@ -225,10 +229,8 @@ func (w *Watchdog) catch(c *caller, at time.Time) (detect.Verdict, detect.Eviden
 	}
 }
 
-func (w *Watchdog) foreign(c *caller, at time.Time) (detect.Verdict, detect.Evidence) {
-	config := w.config.Foreign
-
-	cutoff := at.Add(-config.Window)
+func foreign(c *caller, at time.Time, rules ForeignRules) (detect.Verdict, detect.Evidence) {
+	cutoff := at.Add(-rules.Window)
 	claims := 0
 	for _, claimed := range c.foreign {
 		if claimed.After(cutoff) {
@@ -238,9 +240,9 @@ func (w *Watchdog) foreign(c *caller, at time.Time) (detect.Verdict, detect.Evid
 
 	verdict := detect.Clear
 	switch {
-	case config.CertainClaims > 0 && claims >= config.CertainClaims:
+	case rules.CertainClaims > 0 && claims >= rules.CertainClaims:
 		verdict = detect.Certain
-	case config.MinClaims > 0 && claims >= config.MinClaims:
+	case rules.MinClaims > 0 && claims >= rules.MinClaims:
 		verdict = detect.Suspect
 	}
 
@@ -252,7 +254,7 @@ func (w *Watchdog) foreign(c *caller, at time.Time) (detect.Verdict, detect.Evid
 		Rule: "foreign",
 		Fields: []detect.Field{
 			{Key: "claims", Value: claims},
-			{Key: "within", Value: config.Window},
+			{Key: "within", Value: rules.Window},
 		},
 	}
 }
@@ -277,7 +279,7 @@ func (w *Watchdog) sweep() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	cutoff := now.Add(-max(w.config.TrackWindow, w.config.Foreign.Window))
+	cutoff := now.Add(-max(w.config.TrackWindow, w.rules().Foreign.Window))
 	for scope, c := range w.callers {
 		if c.lastSeen().Before(cutoff) {
 			delete(w.callers, scope)

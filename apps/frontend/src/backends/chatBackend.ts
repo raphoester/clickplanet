@@ -1,6 +1,7 @@
 import {
     ChatAnnouncement,
     ChatBlockedError,
+    ChatFlagRooms,
     ChatHistory,
     ChatHistoryGetter,
     ChatListener,
@@ -8,12 +9,14 @@ import {
     ChatMessageGoneError,
     ChatMutedError,
     ChatNoSessionError,
+    ChatNotInRoomError,
     ChatQuote,
     ChatRateLimitedError,
     ChatReactor,
     ChatRejectedError,
     ChatSeenMarker,
     ChatSender,
+    Gif,
     OutgoingMessage,
     OutgoingReaction,
     PodiumPlace,
@@ -24,6 +27,8 @@ import {
     Announcement as AnnouncementPb,
     ChatEvent,
     ChatMessage as ChatMessagePb,
+    Gif as GifPb,
+    MuteKind as MuteKindPb,
     MuteRefusal,
     Quote as QuotePb,
     ReactionCount as ReactionCountPb,
@@ -33,7 +38,6 @@ import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrp
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
-import {titleOf} from "./title.ts";
 
 export function newChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
     return createPromiseClient(ChatService, createConnectTransport({
@@ -54,12 +58,19 @@ export function newKeepaliveChatServiceClient(config: Config): PromiseClient<typ
     }))
 }
 
-export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor, ChatSeenMarker {
+const WORLD = ""
+
+export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor, ChatSeenMarker, ChatFlagRooms {
     constructor(
         private client: PromiseClient<typeof ChatService>,
         private readonly session: SessionProvider,
         private readonly keepalive: PromiseClient<typeof ChatService>,
+        private readonly room: string = WORLD,
     ) {
+    }
+
+    public flagRoom(flag: string): ChatServiceBackend {
+        return new ChatServiceBackend(this.client, this.session, this.keepalive, flag)
     }
 
     public async sendMessage(message: OutgoingMessage): Promise<ChatMessage> {
@@ -67,8 +78,9 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
             const res = await this.authenticated((headers) => this.client.sendMessage({
                 authorId: message.authorId,
                 countryId: message.countryCode,
-                text: message.text,
+                body: message.gif ? {case: "gif", value: message.gif} : {case: "text", value: message.text},
                 replyToMessageId: message.replyTo,
+                flagRoom: this.room,
             }, {headers}))
 
             if (!res.message) throw new ChatRejectedError()
@@ -128,7 +140,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
 
         try {
             const res = await retrying(
-                () => this.client.getHistory({}, {signal, headers}),
+                () => this.client.getHistory({flagRoom: this.room}, {signal, headers}),
                 "chat history",
                 signal,
             )
@@ -151,7 +163,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         if (identity) headers.set(SESSION_HEADER, identity)
 
         try {
-            await this.keepalive.markSeen({seenUntilUnixMs: BigInt(Math.floor(until))}, {headers})
+            await this.keepalive.markSeen({seenUntilUnixMs: BigInt(Math.floor(until)), flagRoom: this.room}, {headers})
         } catch (e) {
             throw translate(e)
         }
@@ -163,9 +175,12 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         onAnnouncement?: (announcement: ChatAnnouncement) => void,
         onResumed?: () => void,
         onRemoved?: (messageId: string) => void,
+        onLeft?: () => void,
     ): () => void {
         return openStream(
-            (signal) => this.client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT}),
+            (signal) => this.room === WORLD
+                ? this.client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT})
+                : this.roomEvents(signal),
             (event) => {
                 const message = messageOf(event)
                 if (message) callback(message)
@@ -177,20 +192,37 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
                 if (removed !== undefined) onRemoved?.(removed)
             },
             "chat",
-            {onResumed},
+            {onResumed, stopsOn: notInRoom, onStopped: onLeft},
         )
     }
+
+    private async* roomEvents(signal: AbortSignal): AsyncIterable<ChatEvent> {
+        const headers = new Headers()
+        const identity = await this.session.identity()
+        if (identity) headers.set(SESSION_HEADER, identity)
+
+        yield* this.client.listenForEvents({flagRoom: this.room}, {signal, headers, timeoutMs: NO_TIMEOUT})
+    }
+}
+
+function notInRoom(e: unknown): boolean {
+    return e instanceof ConnectError && e.code === Code.FailedPrecondition
 }
 
 function translate(e: unknown): unknown {
     if (!(e instanceof ConnectError)) return e
 
     switch (e.code) {
+        case Code.FailedPrecondition:
+            return new ChatNotInRoomError({cause: e})
         case Code.ResourceExhausted:
             return new ChatRateLimitedError({cause: e})
         case Code.PermissionDenied: {
             const muted = e.findDetails(MuteRefusal)[0]
-            if (muted) return new ChatMutedError(Number(muted.mutedUntilUnixMs), {cause: e})
+            if (muted) {
+                const kind = muted.kind === MuteKindPb.GIFS ? 'gifs' : 'chat'
+                return new ChatMutedError(Number(muted.mutedUntilUnixMs), kind, {cause: e})
+            }
             return new ChatBlockedError({cause: e})
         }
         case Code.InvalidArgument:
@@ -218,15 +250,31 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
         authorName: message.authorName,
         authorAdmin: message.authorAdmin,
         authorColor: message.authorColor,
-        authorStreak: message.authorStreak,
-        authorTitle: titleOf(message.authorTitle),
         countryCode: message.countryId,
-        text: message.text,
+        ...saidIn(message.body),
         reactions: message.reactions.map(decodedCount),
         reactionsVersion: Number(message.reactionsVersion),
         replyTo: decodedQuote(message.replyTo),
         removed: message.removed,
     }
+}
+
+// Neither for a removed message.
+function saidIn(body: ChatMessagePb["body"] | QuotePb["body"]): {text: string, gif?: Gif} {
+    switch (body.case) {
+        case "text":
+            return {text: body.value}
+        case "gif":
+            return {text: "", gif: decodedGif(body.value)}
+        case undefined:
+            return {text: ""}
+    }
+}
+
+function decodedGif(gif: GifPb): Gif | undefined {
+    if (gif.url === "") return undefined
+
+    return {url: gif.url, width: gif.width, height: gif.height}
 }
 
 function decodedQuote(quote: QuotePb | undefined): ChatQuote | undefined {
@@ -236,7 +284,7 @@ function decodedQuote(quote: QuotePb | undefined): ChatQuote | undefined {
         messageId: quote.messageId,
         authorName: quote.authorName,
         authorColor: quote.authorColor,
-        text: quote.text,
+        ...saidIn(quote.body),
         removed: quote.removed,
     }
 }
@@ -282,6 +330,7 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 announcedAt: Number(announcement.announcedAtUnixMs),
                 country: values.country,
                 ground: typeof values.ground === "string" && values.ground !== "" ? values.ground : undefined,
+                landmass: typeof values.landmass === "number" && values.landmass > 0 ? values.landmass : undefined,
                 tile: typeof values.tile === "number" && values.tile > 0 ? values.tile : undefined,
                 cleared: typeof values.cleared === "number" ? values.cleared : 0,
             }
@@ -293,6 +342,7 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 id: announcement.id,
                 announcedAt: Number(announcement.announcedAtUnixMs),
                 name: values.name,
+                muteKind: values.kind === "gifs" ? "gifs" : "chat",
                 seconds: values.seconds,
             }
         case "fortify":
@@ -316,8 +366,23 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 announcedAt: Number(announcement.announcedAtUnixMs),
                 number: values.number,
                 finale: values.finale === true,
+                own: values.own === true,
+                times: typeof values.times === "number" && values.times > 0 ? values.times : 1,
                 podium: values.podium.filter(isPodiumPlace),
             }
+        case "champion": {
+            if (typeof values.season !== "number" || !(values.season >= 0)) return undefined
+            if (!Array.isArray(values.countries)) return undefined
+            const countries = values.countries.filter((country): country is string => typeof country === "string" && country !== "")
+            if (countries.length === 0) return undefined
+            return {
+                kind: "champion",
+                id: announcement.id,
+                announcedAt: Number(announcement.announcedAtUnixMs),
+                season: values.season,
+                countries,
+            }
+        }
         default:
             return undefined
     }

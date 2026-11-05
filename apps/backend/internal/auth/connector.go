@@ -6,14 +6,11 @@ import (
 	"net/url"
 )
 
-// The authorization server an app such as Claude connects to the admin services through. See internal/connections.
 type ConnectorConfig struct {
 	Enabled bool
 
-	// The API's public origin, where an app finds the authorization server: https://api.clickplanet.lol.
 	Issuer string
 
-	// Where an app may be sent back to once the operator lets it in. Claude's callbacks unless set.
 	RedirectURIs []string
 }
 
@@ -29,7 +26,6 @@ func (c ConnectorConfig) withDefaults() ConnectorConfig {
 	return c
 }
 
-// The operator lets an app in on the admin page, so there is no connector without one.
 func (c ConnectorConfig) validate(admin AdminConfig) error {
 	if !c.Enabled {
 		return nil

@@ -21,26 +21,26 @@ import (
 type stubPlayer struct {
 	playerv1connect.UnimplementedInternalServiceHandler
 
-	known map[string]*playerv1.Author
+	known map[string]*playerv1.Player
 	err   error
 	asked *[]string
 }
 
-func (s stubPlayer) GetAuthors(
+func (s stubPlayer) GetPlayers(
 	_ context.Context,
-	req *connect.Request[playerv1.GetAuthorsRequest],
-) (*connect.Response[playerv1.GetAuthorsResponse], error) {
+	req *connect.Request[playerv1.GetPlayersRequest],
+) (*connect.Response[playerv1.GetPlayersResponse], error) {
 	*s.asked = append(*s.asked, req.Msg.GetAccountIds()...)
 	if s.err != nil {
 		return nil, s.err
 	}
-	found := make([]*playerv1.Author, 0, len(req.Msg.GetAccountIds()))
+	found := make([]*playerv1.Player, 0, len(req.Msg.GetAccountIds()))
 	for _, id := range req.Msg.GetAccountIds() {
 		if author, known := s.known[id]; known {
 			found = append(found, author)
 		}
 	}
-	return connect.NewResponse(&playerv1.GetAuthorsResponse{Authors: found}), nil
+	return connect.NewResponse(&playerv1.GetPlayersResponse{Players: found}), nil
 }
 
 var (
@@ -60,13 +60,12 @@ func authors(t *testing.T, player stubPlayer) *rpc_player_authors.Authors {
 }
 
 func TestEachAccountTheModuleKnowsIsAnsweredAsItsAuthor(t *testing.T) {
-	card := &playerv1.Author{
-		AccountId: ada.String(), Name: "Ada_L", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 12,
-		WornTitle: &playerv1.Title{Id: "og", Name: "OG"},
+	card := &playerv1.Player{
+		AccountId: ada.String(), Name: "Ada_L", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
 	}
 	asked := new([]string)
 
-	found, err := authors(t, stubPlayer{known: map[string]*playerv1.Author{ada.String(): card}, asked: asked}).
+	found, err := authors(t, stubPlayer{known: map[string]*playerv1.Player{ada.String(): card}, asked: asked}).
 		Authors(t.Context(), []messages.AccountID{ada, deleted})
 
 	require.NoError(t, err)
@@ -87,7 +86,7 @@ func TestNobodyToNameAsksNothing(t *testing.T) {
 
 func TestAnAnswerForSomethingThatIsNotAnAccountIsAnError(t *testing.T) {
 	player := stubPlayer{
-		known: map[string]*playerv1.Author{ada.String(): {AccountId: "not-a-uuid", Name: "Ada_L"}},
+		known: map[string]*playerv1.Player{ada.String(): {AccountId: "not-a-uuid", Name: "Ada_L"}},
 		asked: new([]string),
 	}
 

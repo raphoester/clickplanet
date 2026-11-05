@@ -128,7 +128,6 @@ export default function NoteModal(props: NoteModalProps) {
 
     if (state.kind === "sent") {
         return <Modal title={props.title}
-                      className="modal-support"
                       footer={<button type="button" className="button support-wide" onClick={props.onClose}>Close</button>}
                       onClose={props.onClose}>
             <p className="support-sent" role="status">Sent. Thank you!</p>
@@ -136,7 +135,6 @@ export default function NoteModal(props: NoteModalProps) {
     }
 
     return <Modal title={props.title}
-                  className="modal-support"
                   stayOnBackdropClick={busy || length > 0 || files.length > 0}
                   footer={<button type="submit"
                                   form={formId}

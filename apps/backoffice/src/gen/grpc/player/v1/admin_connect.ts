@@ -3,14 +3,13 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AdminGetPlayerRequest, AdminGetPlayerResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
-import { GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
+import { GetPlayersRequest, GetPlayersResponse } from "./internal_pb.js";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
+import { AdminGetPlayerRequest, AdminGetPlayerResponse, RenamePlayerRequest, RenamePlayerResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
+import { GetRosterRequest, GetRosterResponse } from "./player_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
- * Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
- * without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
  *
  * @generated from service player.v1.AdminService
  */
@@ -18,30 +17,20 @@ export const AdminService = {
   typeName: "player.v1.AdminService",
   methods: {
     /**
-     * Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
-     * adds a title or changes a rule. A second run changes nothing.
+     * InternalService/GetPlayers, for the admin page naming a page of players.
      *
-     * @generated from rpc player.v1.AdminService.ReconcileTitles
+     * @generated from rpc player.v1.AdminService.GetPlayers
      */
-    reconcileTitles: {
-      name: "ReconcileTitles",
-      I: ReconcileTitlesRequest,
-      O: ReconcileTitlesResponse,
+    getPlayers: {
+      name: "GetPlayers",
+      I: GetPlayersRequest,
+      O: GetPlayersResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * InternalService/GetAuthors, for the admin page naming a page of players.
-     *
-     * @generated from rpc player.v1.AdminService.GetAuthors
-     */
-    getAuthors: {
-      name: "GetAuthors",
-      I: GetAuthorsRequest,
-      O: GetAuthorsResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
+     * Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
+     * fronts are progression.v1.AdminService/GetProgress.
      *
      * @generated from rpc player.v1.AdminService.GetPlayer
      */
@@ -49,6 +38,42 @@ export const AdminService = {
       name: "GetPlayer",
       I: AdminGetPlayerRequest,
       O: AdminGetPlayerResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * PlayerService/GetRoster, for the admin page's home: who is playing now.
+     *
+     * @generated from rpc player.v1.AdminService.GetRoster
+     */
+    getRoster: {
+      name: "GetRoster",
+      I: GetRosterRequest,
+      O: GetRosterResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
+     *
+     * @generated from rpc player.v1.AdminService.SearchPlayers
+     */
+    searchPlayers: {
+      name: "SearchPlayers",
+      I: SearchPlayersRequest,
+      O: SearchPlayersResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
+     *
+     * @generated from rpc player.v1.AdminService.RenamePlayer
+     */
+    renamePlayer: {
+      name: "RenamePlayer",
+      I: RenamePlayerRequest,
+      O: RenamePlayerResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -14,24 +14,11 @@ import (
 
 func coherence(v float64) *float64 { return &v }
 
-func clockConfig() metronome.Config {
-	return metronome.Config{
-		MaxGap:        7 * time.Second,
-		MaxSpread:     400 * time.Millisecond,
-		MinClicks:     120,
-		CertainFor:    30 * time.Minute,
-		CertainClicks: 900,
-		TrackWindow:   15 * time.Minute,
-		Shape:         metronome.ShapeConfig{MaxGap: 10 * time.Second, Clicks: 500, CertainClicks: 1000},
-		Clock: metronome.ClockConfig{
-			Period:           time.Second,
-			Clicks:           120,
-			MinCoherence:     coherence(0.6),
-			CertainClicks:    600,
-			CertainFor:       30 * time.Minute,
-			CertainCoherence: coherence(0.5),
-		},
-	}
+func clocked() (metronome.Rules, metronome.Config) {
+	rules := shipped()
+	rules.MaxGap, rules.MaxSpread = 7*time.Second, 400*time.Millisecond
+	rules.Clock.MinCoherence, rules.Clock.CertainCoherence = coherence(0.6), coherence(0.5)
+	return rules, metronome.Config{TrackWindow: 15 * time.Minute}
 }
 
 func (h *harness) at(instant time.Time) (detect.Verdict, detect.Evidence) {
@@ -74,7 +61,7 @@ func aboutASecond(r *rand.Rand, click int) time.Duration {
 }
 
 func TestAHiddenTabIsOnTheBeatWithinTwoBursts(t *testing.T) {
-	h := newHarness(clockConfig())
+	h := newHarness(clocked())
 	r := rand.New(rand.NewPCG(23, 9)) //nolint:gosec // a test draw, not a secret.
 
 	verdict, evidence := hiddenTab(h, r, 2)
@@ -84,7 +71,7 @@ func TestAHiddenTabIsOnTheBeatWithinTwoBursts(t *testing.T) {
 }
 
 func TestAHiddenTabHeldForAnHourIsCertain(t *testing.T) {
-	h := newHarness(clockConfig())
+	h := newHarness(clocked())
 	r := rand.New(rand.NewPCG(23, 9)) //nolint:gosec // a test draw, not a secret.
 
 	verdict, evidence := hiddenTab(h, r, 9)
@@ -95,7 +82,7 @@ func TestAHiddenTabHeldForAnHourIsCertain(t *testing.T) {
 }
 
 func TestTheBeatIsNotCertainBeforeItHasLastedHalfAnHour(t *testing.T) {
-	h := newHarness(clockConfig())
+	h := newHarness(clocked())
 
 	var verdict detect.Verdict
 	for range 700 {
@@ -107,7 +94,7 @@ func TestTheBeatIsNotCertainBeforeItHasLastedHalfAnHour(t *testing.T) {
 }
 
 func TestAHandClickingAboutOnceASecondKeepsNoBeat(t *testing.T) {
-	h := newHarness(clockConfig())
+	h := newHarness(clocked())
 
 	verdict, _ := play(h, 3000, aboutASecond)
 
@@ -115,7 +102,7 @@ func TestAHandClickingAboutOnceASecondKeepsNoBeat(t *testing.T) {
 }
 
 func TestAHandLeaningLongKeepsNoBeat(t *testing.T) {
-	h := newHarness(clockConfig())
+	h := newHarness(clocked())
 
 	verdict, _ := play(h, 3000, hand)
 
@@ -123,10 +110,10 @@ func TestAHandLeaningLongKeepsNoBeat(t *testing.T) {
 }
 
 func TestAClockWithNoBoundOnlyMeasures(t *testing.T) {
-	c := clockConfig()
-	c.Clock.MinCoherence = nil
-	c.Clock.CertainCoherence = nil
-	h := newHarness(c)
+	rules, config := clocked()
+	rules.Clock.MinCoherence = nil
+	rules.Clock.CertainCoherence = nil
+	h := newHarness(rules, config)
 	r := rand.New(rand.NewPCG(23, 9)) //nolint:gosec // a test draw, not a secret.
 
 	verdict, _ := hiddenTab(h, r, 9)
@@ -135,14 +122,14 @@ func TestAClockWithNoBoundOnlyMeasures(t *testing.T) {
 }
 
 func TestTheBeatSurvivesARestart(t *testing.T) {
-	h := newHarness(clockConfig())
+	h := newHarness(clocked())
 	r := rand.New(rand.NewPCG(23, 9)) //nolint:gosec // a test draw, not a secret.
 	_, _ = hiddenTab(h, r, 9)
 
 	saved, err := h.watchdog.Save()
 	require.NoError(t, err)
 
-	restarted := newHarness(clockConfig())
+	restarted := newHarness(clocked())
 	restarted.clock = h.clock
 	require.NoError(t, restarted.watchdog.Load(saved))
 

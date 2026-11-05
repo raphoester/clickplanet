@@ -14,12 +14,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ players.Store = (*Store)(nil)
@@ -32,7 +32,8 @@ func (s *Store) Profile(ctx context.Context, account players.AccountID) (players
 		admin     bool
 		color     int32
 	)
-	err := s.db.QueryRowContext(ctx,
+	err := s.db.On(ctx).QueryRowContext(
+		ctx,
 		`SELECT name, updated_at, name_chosen_at, admin, color FROM profiles WHERE account_id = $1`, uuid.UUID(account),
 	).Scan(&name, &updatedAt, &chosenAt, &admin, &color)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -57,7 +58,7 @@ const uniqueViolation = "23505"
 
 func (s *Store) SaveProfile(ctx context.Context, profile players.Profile) error {
 	kept := profile.TakeSnapshot()
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO profiles (account_id, name, name_folded, updated_at, name_chosen_at) VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (account_id) DO UPDATE SET
 			name = excluded.name, name_folded = excluded.name_folded, updated_at = excluded.updated_at,
@@ -74,17 +75,13 @@ func (s *Store) SaveProfile(ctx context.Context, profile players.Profile) error 
 	return nil
 }
 
+// A taken name raises no error, so the transaction it runs in, which records the player made, goes on to the next draw.
 func (s *Store) CreateProfile(ctx context.Context, profile players.Profile) error {
 	kept := profile.TakeSnapshot()
-	result, err := s.db.ExecContext(ctx, `
+	result, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO profiles (account_id, name, name_folded, updated_at, name_chosen_at) VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (account_id) DO NOTHING
+		ON CONFLICT DO NOTHING
 	`, uuid.UUID(kept.Account), string(kept.Name), kept.Name.Folded(), kept.UpdatedAt.UTC(), nullableTime(kept.ChosenAt))
-
-	var pqErr *pq.Error
-	if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
-		return players.ErrNameTaken
-	}
 	if err != nil {
 		return fmt.Errorf("failed to create the profile: %w", err)
 	}
@@ -92,14 +89,23 @@ func (s *Store) CreateProfile(ctx context.Context, profile players.Profile) erro
 	if err != nil {
 		return fmt.Errorf("failed to count the profiles created: %w", err)
 	}
-	if created == 0 {
+	if created == 1 {
+		return nil
+	}
+
+	var exists bool
+	if err := s.db.On(ctx).QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM profiles WHERE account_id = $1)`,
+		uuid.UUID(kept.Account)).Scan(&exists); err != nil {
+		return fmt.Errorf("failed to read whether the account has a profile: %w", err)
+	}
+	if exists {
 		return players.ErrProfileExists
 	}
-	return nil
+	return players.ErrNameTaken
 }
 
 func (s *Store) SaveColor(ctx context.Context, account players.AccountID, color players.Color) error {
-	result, err := s.db.ExecContext(ctx, `UPDATE profiles SET color = $2 WHERE account_id = $1`, uuid.UUID(account), int32(color))
+	result, err := s.db.On(ctx).ExecContext(ctx, `UPDATE profiles SET color = $2 WHERE account_id = $1`, uuid.UUID(account), int32(color))
 	if err != nil {
 		return fmt.Errorf("failed to save the color: %w", err)
 	}
@@ -115,7 +121,7 @@ func (s *Store) SaveColor(ctx context.Context, account players.AccountID, color 
 
 func (s *Store) GuestCode(ctx context.Context, account players.AccountID) (players.GuestCode, error) {
 	var code string
-	err := s.db.QueryRowContext(ctx, `SELECT code FROM guest_codes WHERE account_id = $1`, uuid.UUID(account)).Scan(&code)
+	err := s.db.On(ctx).QueryRowContext(ctx, `SELECT code FROM guest_codes WHERE account_id = $1`, uuid.UUID(account)).Scan(&code)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", players.ErrNoGuestCode
 	}
@@ -128,7 +134,7 @@ func (s *Store) GuestCode(ctx context.Context, account players.AccountID) (playe
 const uniqueGuestCode = "guest_codes_code_key"
 
 func (s *Store) SaveGuestCode(ctx context.Context, account players.AccountID, code players.GuestCode) error {
-	_, err := s.db.ExecContext(ctx, `
+	_, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO guest_codes (account_id, code) VALUES ($1, $2)
 		ON CONFLICT (account_id) DO NOTHING
 	`, uuid.UUID(account), string(code))
@@ -143,152 +149,19 @@ func (s *Store) SaveGuestCode(ctx context.Context, account players.AccountID, co
 	return nil
 }
 
-const statsColumns = `account_id, tiles_taken, streak_current, streak_best, streak_last_day, messages_sent`
-
-func (s *Store) Stats(ctx context.Context, account players.AccountID) (players.Stats, error) {
-	return statsOf(s.db.QueryRowContext(ctx, `SELECT `+statsColumns+` FROM stats WHERE account_id = $1`, uuid.UUID(account)))
-}
-
-const statsLock = 0x706c6179
-
-func (s *Store) RecordTake(ctx context.Context, account players.AccountID, at time.Time) error {
-	return s.record(ctx, account, func(stats players.Stats) players.Stats { return stats.WithTake(at) })
-}
-
-func (s *Store) RecordMessage(ctx context.Context, account players.AccountID) error {
-	return s.record(ctx, account, players.Stats.WithMessage)
-}
-
-func (s *Store) record(ctx context.Context, account players.AccountID, change func(players.Stats) players.Stats) (err error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin changing the stats: %w", err)
-	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
+func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		for _, statement := range []string{
+			`DELETE FROM profiles WHERE account_id = $1`,
+			`DELETE FROM guest_codes WHERE account_id = $1`,
+		} {
+			if _, err := tx.ExecContext(ctx, statement, uuid.UUID(account)); err != nil {
+				return fmt.Errorf("failed to delete the account's rows: %w", err)
+			}
 		}
-	}()
-
-	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, statsLock, account.String()); err != nil {
-		return fmt.Errorf("failed to lock the account's stats: %w", err)
-	}
-
-	current, err := statsOf(tx.QueryRowContext(ctx, `SELECT `+statsColumns+` FROM stats WHERE account_id = $1`, uuid.UUID(account)))
-	if errors.Is(err, players.ErrNoStats) {
-		current = players.NewStats(account)
-		err = nil
-	}
-	if err != nil {
-		return err
-	}
-
-	next := change(current)
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO stats (`+statsColumns+`)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (account_id) DO UPDATE SET
-			tiles_taken = excluded.tiles_taken,
-			streak_current = excluded.streak_current,
-			streak_best = excluded.streak_best,
-			streak_last_day = excluded.streak_last_day,
-			messages_sent = excluded.messages_sent
-	`, uuid.UUID(account), int64(next.TilesTaken()), //nolint:gosec // one a tile taken: never past int64.
-		int64(next.Streak().Days()), int64(next.StreakBest()), nullableDay(next.Streak().LastDay()),
-		int64(next.MessagesSent())); err != nil { //nolint:gosec // one a message sent: never past int64.
-		return fmt.Errorf("failed to save the stats: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the stats: %w", err)
-	}
-	return nil
-}
-
-func (s *Store) StatsAfter(ctx context.Context, after players.AccountID, limit int) ([]players.Stats, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT `+statsColumns+` FROM stats
-		WHERE account_id > $1 ORDER BY account_id LIMIT $2
-	`, uuid.UUID(after), limit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read a page of stats: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var page []players.Stats
-	for rows.Next() {
-		stats, err := statsOf(rows)
-		if err != nil {
-			return nil, err
-		}
-		page = append(page, stats)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read a page of stats: %w", err)
-	}
-	return page, nil
-}
-
-func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (err error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin deleting the account: %w", err)
-	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
-		}
-	}()
-
-	for _, statement := range []string{
-		`DELETE FROM profiles WHERE account_id = $1`,
-		`DELETE FROM guest_codes WHERE account_id = $1`,
-		`DELETE FROM stats WHERE account_id = $1`,
-	} {
-		if _, err := tx.ExecContext(ctx, statement, uuid.UUID(account)); err != nil {
-			return fmt.Errorf("failed to delete the account's rows: %w", err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the deletion: %w", err)
-	}
-	return nil
-}
-
-type scanner interface {
-	Scan(dest ...any) error
-}
-
-func statsOf(row scanner) (players.Stats, error) {
-	var (
-		account                        uuid.UUID
-		tiles, current, best, messages int64
-		lastDay                        sql.NullTime
-	)
-	err := row.Scan(&account, &tiles, &current, &best, &lastDay, &messages)
-	if errors.Is(err, sql.ErrNoRows) {
-		return players.Stats{}, players.ErrNoStats
-	}
-	if err != nil {
-		return players.Stats{}, fmt.Errorf("failed to read the stats: %w", err)
-	}
-
-	var day players.Day
-	if lastDay.Valid {
-		day = players.DayOf(lastDay.Time)
-	}
-	return players.StatsOf(
-		players.AccountID(account),
-		uint64(tiles),                          //nolint:gosec // CHECK (tiles_taken >= 0).
-		players.StreakOf(uint32(current), day), //nolint:gosec // CHECK (streak_current >= 0), and one a day.
-		uint32(best),                           //nolint:gosec // as above.
-		uint64(messages),                       //nolint:gosec // CHECK (messages_sent >= 0).
-	), nil
-}
-
-func nullableDay(day players.Day) sql.NullString {
-	return sql.NullString{String: day.String(), Valid: !day.Empty()}
+		return nil
+	})
 }
 
 func nullableTime(at time.Time) sql.NullTime {

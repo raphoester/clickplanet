@@ -10,14 +10,10 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/introduce_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/announce_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/inmemory_worn_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -30,8 +26,6 @@ var (
 
 type fixture struct {
 	store   *inmemory_player_store.Store
-	held    *inmemory_title_store.Store
-	worn    *inmemory_worn_title_store.Store
 	visits  *inmemory_visit_storage.Storage
 	useCase *announce_usecase.UseCase
 }
@@ -43,16 +37,12 @@ func setup(t *testing.T) fixture {
 	store := inmemory_player_store.New()
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada_L", now)))
 	visits := inmemory_visit_storage.New(clock)
-	held, worn := inmemory_title_store.New(), inmemory_worn_title_store.New()
-	wardrobe := wearing.NewWardrobe(worn, titles.NewBook(held, titles.NewCatalog()), titles.NewCatalog())
-	authors := get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}), wardrobe, cptime.NewFixedClock(now))
+	introducer := introduce_player_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}))
 
 	return fixture{
 		store:   store,
-		held:    held,
-		worn:    worn,
 		visits:  visits,
-		useCase: announce_usecase.New(authors, visits, cpcountries.New(), clock, "pepper"),
+		useCase: announce_usecase.New(introducer, visits, cpcountries.New(), clock, "pepper"),
 	}
 }
 
@@ -62,9 +52,9 @@ func TestAnAccountWithAUsernameIsRecordedUnderIt(t *testing.T) {
 	err := f.useCase.Execute(t.Context(), announce_usecase.In{Account: ada, Country: "fr", IP: "1.2.3.4"})
 
 	require.NoError(t, err)
-	author := wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore(), players.Streak{}), titles.Standing{})
+	player := players.NamedPlayer(players.ProfileSnapshot{Name: "Ada_L"}.Restore())
 	assert.Equal(t, []presence.Visit{
-		presence.NewVisit(ada, author, players.TagOf("pepper", "1.2.3.4"), "fr", now).Keyed("1"),
+		presence.NewVisit(ada, player, players.TagOf("pepper", "1.2.3.4"), "fr", now).Keyed("1"),
 	}, f.visits.Visits())
 }
 
@@ -76,20 +66,7 @@ func TestAnAdminIsRecordedAsOne(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, f.visits.Visits(), 1)
-	assert.True(t, f.visits.Visits()[0].Author().Admin())
-}
-
-func TestThePlayerIsRecordedWearingItsTitle(t *testing.T) {
-	f := setup(t)
-	require.NoError(t, f.held.Grant(t.Context(), titles.Holdings{ada: {"og", "settler"}}, now))
-	require.NoError(t, f.worn.Wear(t.Context(), ada, "og", now))
-
-	err := f.useCase.Execute(t.Context(), announce_usecase.In{Account: ada, Country: "fr", IP: "1.2.3.4"})
-
-	require.NoError(t, err)
-	require.Len(t, f.visits.Visits(), 1)
-	og, _ := titles.NewCatalog().StandingOf("og")
-	assert.Equal(t, og, f.visits.Visits()[0].Author().Worn())
+	assert.True(t, f.visits.Visits()[0].Player().Admin())
 }
 
 func TestAGuestIsRecordedUnderItsCodeWhateverItsAddress(t *testing.T) {
@@ -99,7 +76,7 @@ func TestAGuestIsRecordedUnderItsCodeWhateverItsAddress(t *testing.T) {
 	require.NoError(t, f.useCase.Execute(t.Context(), announce_usecase.In{Account: guest, Country: "de", IP: "5.6.7.8"}))
 
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Equal(t, wearing.AuthorOf(players.GuestAuthor("000001", players.Streak{}), titles.Standing{}), f.visits.Visits()[0].Author(),
+	assert.Equal(t, players.GuestPlayer("000001"), f.visits.Visits()[0].Player(),
 		"a new network is not a new name")
 }
 

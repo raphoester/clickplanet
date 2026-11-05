@@ -9,15 +9,12 @@ import (
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Pruner interface {
 	PruneGuests(ctx context.Context, idleSince time.Time, limit int) ([]accounts.AccountID, error)
-}
-
-type Publisher interface {
-	Publish(event proto.Message)
 }
 
 type Executor interface {
@@ -48,16 +45,19 @@ func (c Config) WithDefaults() Config {
 }
 
 type UseCase struct {
-	config Config
-	guests Pruner
-	events Publisher
-	clock  cptime.Clock
+	config        Config
+	transactioner cpatomic.Transactioner
+	guests        Pruner
+	outbox        cpatomic.Outbox
+	clock         cptime.Clock
 }
 
 var _ Executor = (*UseCase)(nil)
 
-func New(config Config, guests Pruner, events Publisher, clock cptime.Clock) *UseCase {
-	return &UseCase{config: config.WithDefaults(), guests: guests, events: events, clock: clock}
+func New(
+	config Config, transactioner cpatomic.Transactioner, guests Pruner, outbox cpatomic.Outbox, clock cptime.Clock,
+) *UseCase {
+	return &UseCase{config: config.WithDefaults(), transactioner: transactioner, guests: guests, outbox: outbox, clock: clock}
 }
 
 func (u *UseCase) Execute(ctx context.Context) (int, error) {
@@ -80,12 +80,23 @@ func (u *UseCase) pruneBatch(ctx context.Context, idleSince time.Time) (int, err
 	ctx, cancel := context.WithTimeout(ctx, batchTimeout)
 	defer cancel()
 
-	pruned, err := u.guests.PruneGuests(ctx, idleSince, batch)
+	var pruned []accounts.AccountID
+	err := u.transactioner.InTx(ctx, func(ctx context.Context) error {
+		var err error
+		if pruned, err = u.guests.PruneGuests(ctx, idleSince, batch); err != nil {
+			return fmt.Errorf("failed to prune a batch: %w", err)
+		}
+		deleted := make([]proto.Message, len(pruned))
+		for i, account := range pruned {
+			deleted[i] = &authv1.AccountDeleted{AccountId: account.String()}
+		}
+		if err := u.outbox.Record(ctx, deleted...); err != nil {
+			return fmt.Errorf("failed to record the pruned guests: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
-		return 0, fmt.Errorf("failed to prune a batch: %w", err)
-	}
-	for _, account := range pruned {
-		u.events.Publish(&authv1.AccountDeleted{AccountId: account.String()})
+		return 0, err
 	}
 	return len(pruned), nil
 }

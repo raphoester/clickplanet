@@ -1,6 +1,7 @@
 import {ReactNode, useId, useRef} from "react";
 import {createPortal} from "react-dom";
 import {CloseIcon} from "./icons.tsx";
+import ScrollArea from "./ScrollArea.tsx";
 import {useModalDialog} from "./useDialog.ts";
 import "./Modal.css"
 
@@ -43,11 +44,9 @@ export default function Modal(props: ModalProps) {
                         <CloseIcon/>
                     </button>
                 </div>
-                <div className="modal-scroll">
-                    <div className="modal-body">
-                        {props.children}
-                    </div>
-                </div>
+                <ScrollArea className="modal-body">
+                    {props.children}
+                </ScrollArea>
                 {props.footer && <div className="modal-footer">{props.footer}</div>}
             </div>
         </div>,

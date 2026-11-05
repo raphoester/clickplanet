@@ -14,8 +14,10 @@ type Message struct {
 	sentAt  time.Time
 	account AccountID
 	author  Author
+	room    Room
 	country string
 	text    string
+	gif     Gif
 	quote   Quote
 }
 
@@ -24,8 +26,10 @@ type Snapshot struct {
 	SentAt  time.Time
 	Account AccountID
 	Author  Author
+	Room    Room
 	Country string
 	Text    string
+	Gif     Gif
 	Quote   Quote
 }
 
@@ -33,11 +37,15 @@ type Quote struct {
 	MessageID MessageID
 	Author    Author
 	Text      string
+	Gif       Gif
 }
 
 func (s Snapshot) Restore() (Message, error) {
 	if s.ID == "" {
 		return Message{}, fmt.Errorf("%w: no id", ErrInvalidMessage)
+	}
+	if s.Room == "" {
+		return Message{}, fmt.Errorf("%w: no room", ErrInvalidMessage)
 	}
 
 	return Message{
@@ -45,8 +53,10 @@ func (s Snapshot) Restore() (Message, error) {
 		sentAt:  s.SentAt,
 		account: s.Account,
 		author:  s.Author,
+		room:    s.Room,
 		country: s.Country,
 		text:    s.Text,
+		gif:     s.Gif,
 		quote:   s.Quote,
 	}, nil
 }
@@ -57,8 +67,10 @@ func (m Message) TakeSnapshot() Snapshot {
 		SentAt:  m.sentAt,
 		Account: m.account,
 		Author:  m.author,
+		Room:    m.room,
 		Country: m.country,
 		Text:    m.text,
+		Gif:     m.gif,
 		Quote:   m.quote,
 	}
 }
@@ -68,9 +80,25 @@ func (m Message) Named(author Author) Message {
 	return m
 }
 
-func (m Message) Answering(answered Message) Message {
-	m.quote = Quote{MessageID: answered.id, Author: answered.author, Text: answered.text}
-	return m
+// A guest account is free, and a private tab is a new one, so a mute does not stop a guest who posts GIFs.
+func (m Message) SentBy(author Author) (Message, error) {
+	if author.guest && !m.gif.None() {
+		return Message{}, ErrGuestGif
+	}
+	return m.Named(author), nil
+}
+
+func (m Message) In(room Room) bool {
+	return m.room == room
+}
+
+// Only in its own room: a message of another room is not shown there.
+func (m Message) Answering(answered Message) (Message, error) {
+	if answered.room != m.room {
+		return Message{}, fmt.Errorf("%w: %q is in another room", ErrNotShown, answered.id)
+	}
+	m.quote = Quote{MessageID: answered.id, Author: answered.author, Text: answered.text, Gif: answered.gif}
+	return m, nil
 }
 
 var (
@@ -81,7 +109,7 @@ var (
 
 type Storage interface {
 	Append(ctx context.Context, record Record) error
-	Shown(ctx context.Context, id MessageID, since time.Time, limit int) (bool, error)
+	// Among the newest of its own room.
 	Message(ctx context.Context, id MessageID, since time.Time, limit int) (Message, error)
 	LatestAddress(ctx context.Context, account AccountID) (string, error)
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)

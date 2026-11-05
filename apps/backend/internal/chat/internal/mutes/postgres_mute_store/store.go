@@ -14,22 +14,25 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ mutes.Storage = (*Store)(nil)
 
 func (s *Store) Save(ctx context.Context, mute mutes.Mute) error {
-	if _, err := s.db.ExecContext(ctx, `
-		INSERT INTO mutes (id, account_id, scope, muted_at, muted_until)
-		VALUES ($1, $2, $3, $4, $5)
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
+		INSERT INTO mutes (id, account_id, scope, kind, muted_at, muted_until)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (id) DO UPDATE SET
+			account_id = EXCLUDED.account_id, scope = EXCLUDED.scope, kind = EXCLUDED.kind,
+			muted_at = EXCLUDED.muted_at, muted_until = EXCLUDED.muted_until
 	`,
-		uuid.UUID(mute.ID()), uuid.UUID(mute.Caller().Account()), scope(mute.Caller().Scope()),
+		uuid.UUID(mute.ID()), uuid.UUID(mute.Caller().Account()), scope(mute.Caller().Scope()), mute.Kind().String(),
 		mute.At().UTC(), mute.Until().UTC(),
 	); err != nil {
 		return fmt.Errorf("failed to insert a mute: %w", err)
@@ -37,7 +40,7 @@ func (s *Store) Save(ctx context.Context, mute mutes.Mute) error {
 	return nil
 }
 
-func (s *Store) Mute(ctx context.Context, caller mutes.Caller, at time.Time) (mutes.Mute, error) {
+func (s *Store) Mute(ctx context.Context, caller mutes.Caller, kind mutes.Kind, at time.Time) (mutes.Mute, error) {
 	var (
 		id      uuid.UUID
 		account uuid.UUID
@@ -45,13 +48,14 @@ func (s *Store) Mute(ctx context.Context, caller mutes.Caller, at time.Time) (mu
 		mutedAt time.Time
 		until   time.Time
 	)
-	err := s.db.QueryRowContext(ctx, `
+	err := s.db.On(ctx).QueryRowContext(ctx, `
 		SELECT id, account_id, scope, muted_at, muted_until
 		FROM mutes
-		WHERE muted_until > $3 AND (account_id = $1 OR scope = $2)
+		WHERE kind = $3 AND muted_until > $4 AND (account_id = $1 OR scope = $2)
 		ORDER BY muted_until DESC, id
 		LIMIT 1
-	`, uuid.UUID(caller.Account()), scope(caller.Scope()), at.UTC()).Scan(&id, &account, &kept, &mutedAt, &until)
+	`, uuid.UUID(caller.Account()), scope(caller.Scope()), kind.String(), at.UTC()).
+		Scan(&id, &account, &kept, &mutedAt, &until)
 	if errors.Is(err, sql.ErrNoRows) {
 		return mutes.Mute{}, mutes.ErrNotMuted
 	}
@@ -59,12 +63,47 @@ func (s *Store) Mute(ctx context.Context, caller mutes.Caller, at time.Time) (mu
 		return mutes.Mute{}, fmt.Errorf("failed to read a mute: %w", err)
 	}
 
-	return mutes.MuteOf(mutes.MuteID(id), mutes.CallerOf(messages.AccountID(account), mutes.Scope(kept.String)),
-		mutedAt.UTC(), until.UTC()), nil
+	return muteOf(id, account, kept, kind, mutedAt, until), nil
+}
+
+func (s *Store) MutesOf(ctx context.Context, account messages.AccountID, kind mutes.Kind) ([]mutes.Mute, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
+		SELECT id, account_id, scope, muted_at, muted_until
+		FROM mutes
+		WHERE account_id = $1 AND kind = $2
+	`, uuid.UUID(account), kind.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the account's mutes: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var found []mutes.Mute
+	for rows.Next() {
+		var (
+			id      uuid.UUID
+			owner   uuid.UUID
+			kept    sql.NullString
+			mutedAt time.Time
+			until   time.Time
+		)
+		if err := rows.Scan(&id, &owner, &kept, &mutedAt, &until); err != nil {
+			return nil, fmt.Errorf("failed to scan a mute: %w", err)
+		}
+		found = append(found, muteOf(id, owner, kept, kind, mutedAt, until))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the account's mutes: %w", err)
+	}
+	return found, nil
+}
+
+func muteOf(id uuid.UUID, account uuid.UUID, scope sql.NullString, kind mutes.Kind, at time.Time, until time.Time) mutes.Mute {
+	return mutes.MuteOf(mutes.MuteID(id), mutes.CallerOf(messages.AccountID(account), mutes.Scope(scope.String)),
+		kind, at.UTC(), until.UTC())
 }
 
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM mutes WHERE muted_until < $1`, cutoff)
+	result, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM mutes WHERE muted_until < $1`, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("failed to delete old mutes: %w", err)
 	}

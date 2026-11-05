@@ -63,6 +63,8 @@ func toConnect(err error) error {
 		return connect.NewError(connect.CodeNotFound, reactions.ErrUnknownMessage)
 	case errors.Is(err, messages.ErrNoAccount):
 		return connect.NewError(connect.CodeUnauthenticated, messages.ErrNoAccount)
+	case errors.Is(err, messages.ErrNotInRoom):
+		return connect.NewError(connect.CodeFailedPrecondition, messages.ErrNotInRoom)
 	default:
 		return err
 	}

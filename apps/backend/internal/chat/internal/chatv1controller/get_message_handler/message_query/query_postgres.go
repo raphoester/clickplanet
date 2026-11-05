@@ -11,26 +11,29 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var ErrNoMessage = errors.New("no message kept under this id")
 
-func NewPostgresQuery(db cppg.Querier, clock cptime.Clock, retention time.Duration) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, clock cptime.Clock, retention time.Duration) *PostgresQuery {
 	return &PostgresQuery{db: db, clock: clock, retention: retention}
 }
 
 type PostgresQuery struct {
-	db        cppg.Querier
+	db        cppg.Conn
 	clock     cptime.Clock
 	retention time.Duration
 }
 
 const message = `
-	SELECT messages.account_id, messages.text, messages.sent_at, messages.country, removals.removed_at
+	SELECT messages.account_id, messages.text, messages.sent_at, messages.country, messages.room, removals.removed_at,
+		COALESCE(gifs.url, ''), COALESCE(gifs.width, 0), COALESCE(gifs.height, 0)
 	FROM messages
 	LEFT JOIN removals ON removals.message_id = messages.id
+	LEFT JOIN gifs ON gifs.message_seq = messages.seq
 	WHERE messages.id = $1 AND messages.sent_at >= $2
 	ORDER BY messages.seq DESC
 	LIMIT 1
@@ -42,10 +45,12 @@ func (q *PostgresQuery) Message(ctx context.Context, id string) (*chatv1.GetMess
 		text      string
 		sentAt    time.Time
 		country   string
+		room      string
 		removedAt sql.NullTime
+		gif       = &chatv1.Gif{}
 	)
-	err := q.db.QueryRowContext(ctx, message, id, q.clock.Now().Add(-q.retention)).
-		Scan(&account, &text, &sentAt, &country, &removedAt)
+	err := q.db.On(ctx).QueryRowContext(ctx, message, id, q.clock.Now().Add(-q.retention)).
+		Scan(&account, &text, &sentAt, &country, &room, &removedAt, &gif.Url, &gif.Width, &gif.Height)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%w: %q", ErrNoMessage, id)
 	}
@@ -55,15 +60,22 @@ func (q *PostgresQuery) Message(ctx context.Context, id string) (*chatv1.GetMess
 
 	answer := &chatv1.GetMessageResponse{
 		MessageId: id,
-		Text:      text,
 		SentAt:    timestamppb.New(sentAt),
 		CountryId: country,
 	}
 	if account.Valid {
 		answer.AccountId = account.UUID.String()
 	}
+	if messages.Room(room) != messages.World {
+		answer.FlagRoom = room
+	}
 	if removedAt.Valid {
 		answer.RemovedAt = timestamppb.New(removedAt.Time)
+	}
+	if gif.GetUrl() != "" {
+		answer.Body = &chatv1.GetMessageResponse_Gif{Gif: gif}
+	} else {
+		answer.Body = &chatv1.GetMessageResponse_Text{Text: text}
 	}
 	return answer, nil
 }

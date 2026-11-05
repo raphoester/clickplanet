@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -191,6 +190,7 @@ func TestABombingIsWrittenDownOnTheTileItHit(t *testing.T) {
 	entry, err := ledger.Bombing{Scope: "A", Account: "guest", At: start, Blast: clicks.Blast{
 		Tile: 8, CountryID: "fr", Point: clicks.Vec3{X: 0.6, Z: 0.8}, Radius: 0.032,
 		Cleared: []uint32{7, 8, 9}, Owners: []string{"il", "de", "il"}, Struck: []uint32{10}, Left: []int{0},
+		StruckOwners: []string{"pl"},
 	}}.Entry()
 	require.NoError(t, err)
 
@@ -200,7 +200,7 @@ func TestABombingIsWrittenDownOnTheTileItHit(t *testing.T) {
 		"the tile it hit was emptied")
 	assert.JSONEq(t, `{"flag": "fr", "point": [0.6, 0, 0.8], "radius": 0.032,
 		"cleared": [{"tile": 7, "owner": "il"}, {"tile": 8, "owner": "de"}, {"tile": 9, "owner": "il"}],
-		"struck": [{"tile": 10, "shields": 0}]}`, string(payload))
+		"struck": [{"tile": 10, "owner": "pl", "shields": 0}]}`, string(payload))
 }
 
 func TestASpreadIsWrittenDownOnTheTileClickedWithWhatItTookAndStruck(t *testing.T) {
@@ -227,6 +227,16 @@ func TestAStrikeIsWrittenDownOnTheTileWithItsOwnerAndTheShieldsLeft(t *testing.T
 	}, entry)
 }
 
+func TestAShieldIsWrittenDownOnTheTileWithItsOwnFlagAndTheShieldsItNowHolds(t *testing.T) {
+	entry, err := ledger.Shielding{Tile: 4, Scope: "A", Account: "guest", Country: "fr", Shields: 3, At: start}.Entry()
+	require.NoError(t, err)
+
+	assert.Equal(t, ledger.Entry{
+		Kind: "shield", Tile: 4, Scope: "A", Account: "guest", Country: "fr", Previous: "fr", At: start,
+		Payload: []byte(`{"shields":3}`),
+	}, entry)
+}
+
 func TestEveryKindReadsBackAsItWasWrittenDown(t *testing.T) {
 	for _, event := range []ledger.Event{
 		ledger.Taking{Tile: 7, Scope: "A", Account: "guest", Country: "fr", Previous: "il", At: start},
@@ -238,6 +248,7 @@ func TestEveryKindReadsBackAsItWasWrittenDown(t *testing.T) {
 		ledger.Bombing{Scope: "A", At: start, Blast: clicks.Blast{CountryID: "fr", Point: clicks.Vec3{Y: 1}, Radius: 0.032}},
 		ledger.Bombing{Scope: "A", At: start, Blast: clicks.Blast{
 			Tile: 8, CountryID: "fr", Cleared: []uint32{7}, Owners: []string{"il"}, Struck: []uint32{8, 9}, Left: []int{2, 0},
+			StruckOwners: []string{"de", "pl"},
 		}},
 		ledger.Striking{Tile: 3, Scope: "A", Account: "guest", Country: "fr", Owner: "pl", Shields: 2, At: start},
 		ledger.Spreading{Tile: 1, Scope: "A", Account: "guest", Country: "fr", At: start, Impacts: []clicks.Impact{
@@ -251,9 +262,10 @@ func TestEveryKindReadsBackAsItWasWrittenDown(t *testing.T) {
 			{Tile: 9, Owner: "de", Outcome: clicks.Shielded},
 		}},
 		ledger.Shielding{Tile: 4, Scope: "A", Account: "guest", Country: "fr", Shields: 10, At: start},
-		ledger.Fortifying{Tile: 6, Landmass: 257, Scope: "A", Account: "guest", Country: "fr", At: start, Raised: []clicks.TileShields{
-			{Tile: 5, Shields: 1}, {Tile: 6, Shields: 10},
-		}},
+		ledger.Fortifying{
+			Tile: 6, Landmass: 257, Ground: "de", Tiles: 2, Scope: "A", Account: "guest", Country: "fr", At: start,
+			Raised: []clicks.TileShields{{Tile: 5, Shields: 1}, {Tile: 6, Shields: 10}},
+		},
 	} {
 		entry, err := event.Entry()
 		require.NoError(t, err)
@@ -468,11 +480,11 @@ func TestAPlayersRatesAreItsCountsOverTheTimeFromFirstToLastTake(t *testing.T) {
 	assert.Zero(t, single.TakesPerMinute())
 }
 
-func TestAServingPlayerCarriesTheSentence(t *testing.T) {
+func TestARefusedPlayerCarriesWhenItsRefusalEnds(t *testing.T) {
 	player := ledger.Player{Scope: "bot"}
-	player.Serving(antibot.Sentence{Offence: 2, Until: start})
+	player.Refused(clicks.NewRefusal(start))
 
-	assert.Equal(t, ledger.Player{Scope: "bot", Banned: true, BannedUntil: start, Offence: 2}, player)
+	assert.Equal(t, ledger.Player{Scope: "bot", RefusedUntil: start}, player)
 }
 
 func replay(storage ledger.Storage) []ledger.Taking {
@@ -559,6 +571,7 @@ func (s *stubTiles) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, 
 			s.shields[tile]--
 			cleared.Struck = append(cleared.Struck, tile)
 			cleared.Left = append(cleared.Left, s.shields[tile])
+			cleared.StruckOwners = append(cleared.StruckOwners, s.owners[tile])
 		case s.owners[tile] != "":
 			cleared.Cleared = append(cleared.Cleared, tile)
 			cleared.Owners = append(cleared.Owners, s.owners[tile])
@@ -570,7 +583,7 @@ func (s *stubTiles) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, 
 
 func recorded(tiles *stubTiles) (ledger.Recording, *inmemory_ledger_storage.Storage) {
 	events := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
-	return ledger.NewRecording(tiles, clicks.NewClaiming(tiles, 10), events, cptime.NewFixedClock(start)), events
+	return ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }), events, cptime.NewFixedClock(start)), events
 }
 
 func written(storage ledger.Storage) []ledger.Event {
@@ -596,6 +609,7 @@ func TestRecordingNotesABombWithTheFlagEachTileWoreAndTheShieldsEachStruckTileKe
 	assert.Equal(t, map[uint32]string{1: "", 2: "", 4: "pl"}, tiles.owners)
 	assert.Equal(t, []ledger.Event{ledger.Bombing{Scope: "1.2.3.4", Account: "a-guest", At: start, Blast: clicks.Blast{
 		Tile: 2, CountryID: "fr", Cleared: []uint32{1, 2}, Owners: []string{"de", "il"}, Struck: []uint32{4}, Left: []int{1},
+		StruckOwners: []string{"pl"},
 	}}}, written(events))
 	assert.Equal(t, []ledger.Taking{
 		{Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Previous: "de", At: start},
@@ -778,7 +792,7 @@ func TestRecordingNotesAShieldPlacedWithTheShieldsTheTileNowHolds(t *testing.T) 
 
 func TestRecordingNotesAFortifyAfterTheTakeThatEarnedIt(t *testing.T) {
 	tiles := newTiles(map[uint32]string{1: "fr", 2: "de"})
-	tiles.fortify = &clicks.Fortification{Landmass: 3, Country: "fr", Tile: 2, Tiles: 2, Raised: []clicks.TileShields{
+	tiles.fortify = &clicks.Fortification{Landmass: 3, Ground: "fr", Country: "fr", Tile: 2, Tiles: 2, Raised: []clicks.TileShields{
 		{Tile: 1, Shields: 1}, {Tile: 2, Shields: 1},
 	}}
 	recording, events := recorded(tiles)
@@ -789,7 +803,7 @@ func TestRecordingNotesAFortifyAfterTheTakeThatEarnedIt(t *testing.T) {
 	assert.Equal(t, []ledger.Event{
 		ledger.Taking{Tile: 2, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", Previous: "de", At: start},
 		ledger.Fortifying{
-			Tile: 2, Landmass: 3, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", At: start,
+			Tile: 2, Landmass: 3, Ground: "fr", Tiles: 2, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", At: start,
 			Raised: []clicks.TileShields{{Tile: 1, Shields: 1}, {Tile: 2, Shields: 1}},
 		},
 	}, written(events))
@@ -828,6 +842,21 @@ func TestEachAccountOnOneScopeIsAPlayerOfItsOwn(t *testing.T) {
 		{Scope: "campus", Account: "bob", Flag: "ps", Tiles: 2, Takes: 2, FirstAt: start, LastAt: start.Add(time.Second)},
 		{Scope: "campus", Account: "alice", Flag: "ps", Tiles: 1, Takes: 1, FirstAt: start, LastAt: start},
 	}, players)
+}
+
+func TestAnAccountIsOnePlayerAcrossScopesShownOnItsLatest(t *testing.T) {
+	players := tally([]ledger.Taking{
+		{Tile: 1, Scope: "phone", Account: "alice", Country: "ie", At: start},
+		{Tile: 2, Scope: "home", Account: "alice", Country: "ie", At: start.Add(time.Second)},
+		{Tile: 3, Scope: "phone", Account: "alice", Country: "ie", At: start.Add(2 * time.Second)},
+		{Tile: 4, Scope: "home", Account: "alice", Country: "ie", At: start.Add(2 * time.Second)},
+		{Tile: 5, Scope: "phone", Country: "ie", At: start.Add(3 * time.Second)},
+	}, owners{1: "ie", 2: "ie", 3: "ie", 4: "ie", 5: "ie"}, every)
+
+	assert.Equal(t, []ledger.Player{
+		{Scope: "phone", Flag: "ie", Tiles: 1, Takes: 1, FirstAt: start.Add(3 * time.Second), LastAt: start.Add(3 * time.Second)},
+		{Scope: "home", Account: "alice", Flag: "ie", Tiles: 4, Takes: 4, FirstAt: start, LastAt: start.Add(2 * time.Second)},
+	}, players, "a mobile network hands an account a new address every few hours, and a take with no account stays its scope's")
 }
 
 func TestARevertOfAnAccountFollowsItAcrossScopes(t *testing.T) {

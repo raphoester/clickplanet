@@ -33,6 +33,8 @@ type Out struct {
 	Limited bool
 
 	Outcome clicks.Outcome
+	// The flag the tile wore before the click.
+	Owner string
 }
 
 type IUseCase interface {
@@ -67,5 +69,5 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, fmt.Errorf("failed to set tile: %w", err)
 	}
 
-	return Out{Outcome: impact.Outcome}, nil
+	return Out{Outcome: impact.Outcome, Owner: impact.Owner}, nil
 }

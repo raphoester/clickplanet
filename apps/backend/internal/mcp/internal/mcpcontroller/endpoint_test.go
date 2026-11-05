@@ -79,7 +79,6 @@ func setUp(t *testing.T) *fixture {
 	return f
 }
 
-// What came back, read whole: the body is closed before the test looks.
 type answered struct {
 	status int
 	header http.Header

@@ -33,7 +33,8 @@ func getPlayer(t *testing.T, query *stubQuery, id string) (*connect.Response[pla
 	t.Helper()
 
 	return admin_get_player_handler.New(query).GetPlayer( //nolint:wrapcheck // the tests read the connect error.
-		t.Context(), connect.NewRequest(&playerv1.AdminGetPlayerRequest{AccountId: id}))
+		t.Context(), connect.NewRequest(&playerv1.AdminGetPlayerRequest{AccountId: id}),
+	)
 }
 
 func TestThePlayerIsTheQuerysAndIsNeverCached(t *testing.T) {

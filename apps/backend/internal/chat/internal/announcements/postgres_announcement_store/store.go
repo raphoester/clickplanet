@@ -11,30 +11,36 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func New(db cppg.QuerierBeginner) *Store {
+func New(db cppg.Conn) *Store {
 	return &Store{db: db}
 }
 
 type Store struct {
-	db cppg.QuerierBeginner
+	db cppg.Conn
 }
 
 var _ announcements.Storage = (*Store)(nil)
 
-func (s *Store) Append(ctx context.Context, announcement announcements.Announcement) error {
-	if _, err := s.db.ExecContext(ctx, `
+func (s *Store) AppendOnce(ctx context.Context, announcement announcements.Announcement) (bool, error) {
+	result, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO announcements (id, kind, payload, announced_at)
 		VALUES ($1, $2::announcement_kind, $3, $4)
+		ON CONFLICT (id) DO NOTHING
 	`,
 		uuid.UUID(announcement.ID()), string(announcement.Kind()), string(announcement.Payload()), announcement.At().UTC(),
-	); err != nil {
-		return fmt.Errorf("failed to insert an announcement: %w", err)
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to insert an announcement: %w", err)
 	}
-	return nil
+	appended, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("failed to count the announcement inserted: %w", err)
+	}
+	return appended == 1, nil
 }
 
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM announcements WHERE announced_at < $1`, cutoff)
+	result, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM announcements WHERE announced_at < $1`, cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("failed to delete old announcements: %w", err)
 	}

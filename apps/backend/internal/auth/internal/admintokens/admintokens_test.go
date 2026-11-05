@@ -20,8 +20,8 @@ func TestAPairIsAnAccessTokenForAnHourAndARefreshTokenForTheNext(t *testing.T) {
 	pair, err := admintokens.NewIssuer(&admintokens.SequentialSecrets{}).Pair(claude, now)
 	require.NoError(t, err)
 
-	assert.Equal(t, admintokens.Secret("cpat_secret-1"), pair.Access())
-	assert.Equal(t, admintokens.Secret("cprt_secret-2"), pair.Refresh())
+	assert.Equal(t, admintokens.Secret("cpat_secret-1"), pair.TakeSnapshot().Access)
+	assert.Equal(t, admintokens.Secret("cprt_secret-2"), pair.TakeSnapshot().Refresh)
 	assert.Equal(t, []admintokens.Snapshot{
 		{
 			Hash: accounts.TokenOf("cpat_secret-1").Hash(), Kind: admintokens.KindAccess, Holder: claude,

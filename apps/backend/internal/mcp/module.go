@@ -1,7 +1,3 @@
-// Package mcp is the connector: the operator's admin services as tools Claude can call, over the Model Context
-// Protocol, on the admin listener. Claude is let in through auth's authorization server (auth.connector), and each
-// call is made to the admin listener with the token it was issued, so the admin gate admits and logs it as the
-// operator, as it does the admin page.
 package mcp
 
 import (
@@ -10,8 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
-
-	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/descriptors"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
@@ -28,8 +22,6 @@ const moduleName = "mcp"
 type Config struct {
 	Enabled bool
 
-	// Where Claude reaches the connector: https://api.clickplanet.lol/mcp. Its origin is the authorization server's,
-	// which auth.connector.issuer must then be.
 	URL string
 }
 
@@ -45,13 +37,6 @@ func (c Config) Validate() error {
 	}
 	return nil
 }
-
-var (
-	// An app never signs in to the admin page, and never lets an app in.
-	leftOut = []protoreflect.FullName{"auth.v1"}
-	// Megabytes for a day of play: for the clip generator, not for a conversation.
-	hidden = []protoreflect.FullName{"planet.v1.AdminService.GetReplay"}
-)
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -69,7 +54,7 @@ func build(config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to read mcp.url: %w", err)
 	}
 
-	catalog, err := tools.CatalogOf(descriptors.Admin(), leftOut, hidden)
+	catalog, err := tools.CatalogOf(descriptors.Admin(), tools.LeftOut, tools.Hidden)
 	if err != nil {
 		return fmt.Errorf("failed to read the admin services' tools: %w", err)
 	}

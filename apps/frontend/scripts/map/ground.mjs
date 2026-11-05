@@ -9,6 +9,25 @@ const ANTARCTICA = "aq"
 // Natural Earth cuts Antarctica at ±180, and a point exactly on the cut misses every polygon.
 const SEAM = 179.99
 
+// Lakes that stay land. Australia's salt pans fill a few years a century, and Kakhovka was drained in 2023; the
+// steppe's salt lakes are so shallow that the photo shows steppe where they are. Natural Earth draws all of them full,
+// and a cell with no tile on what the globe draws as land would be ground nobody can take.
+export const DRY = new Set([
+    "Lake Eyre North", "Lake Eyre South", "Lake Torrens", "Lake Gairdner", "Lake Mackay", "Lake Frome", "Lake Barlee",
+    "Lake Disappointment", "Kakhovka Reservoir", "Tengiz Köli", "Qusmuryn Köli", "Siletitengiz Köli",
+])
+
+// Where a cell is read for lake: its vertex, a ring at a quarter of the spacing and one at 0.45, in units of the
+// spacing. The cell is a hexagon 0.5 to 0.58 of a spacing from its vertex to its edge.
+const STENCIL = [[0, 0]]
+for (let k = 0; k < 6; k++) STENCIL.push([0.25 * Math.cos(k * Math.PI / 3), 0.25 * Math.sin(k * Math.PI / 3)])
+for (let k = 0; k < 12; k++) {
+    const a = k * Math.PI / 6 + Math.PI / 12
+    STENCIL.push([0.45 * Math.cos(a), 0.45 * Math.sin(a)])
+}
+
+const seamed = (lon) => lon > SEAM || lon < -SEAM ? (lon > 0 ? SEAM : -SEAM) : lon
+
 /**
  * @param {{properties: Record<string, unknown>}} feature
  * @returns {string | null}
@@ -20,33 +39,57 @@ export function countryCodeOf(feature) {
 }
 
 /**
- * @param {{countries: {features: object[]}, iceShelves: {features: object[]}}} datasets
- * @returns {{groundOf: (lon: number, lat: number) => string}}
+ * @param {{countries: {features: object[]}, iceShelves: {features: object[]}, lakes?: {features: object[]}}} datasets
+ * @returns {{groundOf: (lon: number, lat: number) => string, lakeAt: (lon: number, lat: number) => boolean}}
  */
-export function groundIndex({countries, iceShelves}) {
+export function groundIndex({countries, iceShelves, lakes = {features: []}}) {
     const layers = [
         shapesOf(countries.features, countryCodeOf),
         shapesOf(iceShelves.features, () => ANTARCTICA),
     ]
+    const lake = shapesOf(lakes.features, (feature) => DRY.has(feature.properties.name) ? null : "lake")
 
     return {
         groundOf(lon, lat) {
-            const x = lon > SEAM || lon < -SEAM ? (lon > 0 ? SEAM : -SEAM) : lon
+            const x = seamed(lon)
             for (const layer of layers) {
                 const code = layer(x, lat)
                 if (code !== null) return code
             }
             return SEA
         },
+        lakeAt: (lon, lat) => lake(seamed(lon), lat) !== null,
     }
 }
 
+/**
+ * A cell is water when most of it is lake. Natural Earth draws its countries over their lakes, so the Great Lakes,
+ * Victoria and Baikal were tiles; but a lake narrower than a cell, a reservoir down a valley, is not water a cell
+ * wide, and a lake a cell across is not a tile.
+ * @param {{lakeAt: (lon: number, lat: number) => boolean}} ground
+ * @param {number} lon
+ * @param {number} lat
+ * @param {number} spacing radians between two touching vertices
+ */
+export function mostlyLake(ground, lon, lat, spacing) {
+    const degrees = spacing * 180 / Math.PI
+    const across = Math.max(Math.cos(lat * Math.PI / 180), 1e-6)
+    let wet = 0
+    for (const [east, north] of STENCIL) {
+        const y = Math.max(-90, Math.min(90, lat + north * degrees))
+        const x = ((lon + east * degrees / across + 540) % 360) - 180
+        if (ground.lakeAt(x, y)) wet++
+    }
+    return wet * 2 > STENCIL.length
+}
+
 export async function loadGround() {
-    const [countries, iceShelves] = await Promise.all([
+    const [countries, iceShelves, lakes] = await Promise.all([
         naturalEarth("ne_50m_admin_0_countries"),
         naturalEarth("ne_50m_antarctic_ice_shelves_polys"),
+        naturalEarth("ne_50m_lakes"),
     ])
-    return groundIndex({countries, iceShelves})
+    return groundIndex({countries, iceShelves, lakes})
 }
 
 const GX = 360, GY = 180

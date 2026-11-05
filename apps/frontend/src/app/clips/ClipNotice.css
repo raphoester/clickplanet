@@ -1,0 +1,51 @@
+.clip-notice {
+    --metal: var(--gold);
+}
+
+.clip-notice-head {
+    max-width: 100%;
+    font-size: clamp(var(--display-l), min(11vw, 9vh), var(--display-hero));
+    white-space: normal;
+    text-wrap: balance;
+}
+
+.clip-notice-disc {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--medal);
+    height: var(--medal);
+    box-sizing: border-box;
+    padding-left: 6%;
+    border: var(--outline) solid var(--ink);
+    border-radius: 50%;
+    color: var(--cream);
+    background: var(--gold);
+    box-shadow: var(--drop-l), inset 0 0 0 10px var(--gold-shade), inset 0 0 0 13px var(--ink);
+    animation: title-reveal-spin-in 750ms cubic-bezier(0.3, 0.6, 0.4, 1) calc(var(--impact) - 600ms) both;
+}
+
+.clip-notice-disc svg {
+    width: 46%;
+    height: auto;
+    stroke: var(--ink);
+}
+
+.clip-notice-title {
+    max-width: 100%;
+    font-size: clamp(var(--display-l), min(8vw, 6vh), var(--display-xxl));
+}
+
+.clip-notice-actions {
+    flex-direction: column;
+}
+
+.clip-notice-actions .button {
+    flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .clip-notice-disc {
+        animation: title-reveal-appear 400ms ease-out calc(var(--impact) - 300ms) both;
+    }
+}

@@ -4,7 +4,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 const defaultLimit = 20
@@ -18,9 +18,7 @@ type Player struct {
 	FirstAt time.Time
 	LastAt  time.Time
 
-	Banned      bool
-	BannedUntil time.Time
-	Offence     int
+	RefusedUntil time.Time
 }
 
 func NewTally(counts func(Taking) bool) *Tally {
@@ -50,7 +48,10 @@ func (t *Tally) See(event Event) {
 			return
 		}
 
-		key := Caller{Scope: taking.Scope, Account: taking.Account}
+		key := Caller{Scope: taking.Scope}
+		if taking.Account != "" {
+			key = Caller{Account: taking.Account}
+		}
 		index, ok := t.callers[key]
 		if !ok {
 			index = len(t.players)
@@ -64,8 +65,9 @@ func (t *Tally) See(event Event) {
 		if taking.At.Before(t.players[index].FirstAt) {
 			t.players[index].FirstAt = taking.At
 		}
-		if taking.At.After(t.players[index].LastAt) {
+		if !taking.At.Before(t.players[index].LastAt) {
 			t.players[index].LastAt = taking.At
+			t.players[index].Scope = taking.Scope
 		}
 
 		if taking.Cleared() {
@@ -155,8 +157,6 @@ func (p Player) perMinute(count int) float64 {
 	return float64(count) / active.Minutes()
 }
 
-func (p *Player) Serving(sentence antibot.Sentence) {
-	p.Banned = true
-	p.BannedUntil = sentence.Until
-	p.Offence = sentence.Offence
+func (p *Player) Refused(refusal clicks.Refusal) {
+	p.RefusedUntil = refusal.Until()
 }

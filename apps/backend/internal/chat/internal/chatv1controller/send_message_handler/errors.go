@@ -22,8 +22,16 @@ func toConnect(err error) error {
 		return connect.NewError(connect.CodeNotFound, messages.ErrNotShown)
 	}
 
+	if errors.Is(err, messages.ErrGuestGif) {
+		return connect.NewError(connect.CodePermissionDenied, messages.ErrGuestGif)
+	}
+
 	if errors.Is(err, messages.ErrNoAccount) {
 		return connect.NewError(connect.CodeUnauthenticated, messages.ErrNoAccount)
+	}
+
+	if errors.Is(err, messages.ErrNotInRoom) {
+		return connect.NewError(connect.CodeFailedPrecondition, messages.ErrNotInRoom)
 	}
 
 	if errors.Is(err, messages.ErrAuthorUnavailable) {

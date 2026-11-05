@@ -20,20 +20,30 @@ type stubQuery struct {
 	history *chatv1.GetHistoryResponse
 	err     error
 	viewer  *messages.AccountID
+	room    *messages.Room
 }
 
-func (s stubQuery) History(_ context.Context, viewer messages.AccountID) (*chatv1.GetHistoryResponse, error) {
+func (s stubQuery) History(
+	_ context.Context,
+	viewer messages.AccountID,
+	room messages.Room,
+) (*chatv1.GetHistoryResponse, error) {
 	*s.viewer = viewer
+	if s.room != nil {
+		*s.room = room
+	}
 	return s.history, s.err
 }
 
 const ada = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
 
+var rooms = messages.NewRooms(messages.FakeFlags{messages.AccountIDOf(ada): "fr"})
+
 func TestGetHistoryAnswersWhatTheQueryReadsForTheCaller(t *testing.T) {
-	history := &chatv1.GetHistoryResponse{Messages: []*chatv1.ChatMessage{{Id: "message-1", Text: "hello"}}}
+	history := &chatv1.GetHistoryResponse{Messages: []*chatv1.ChatMessage{{Id: "message-1", Body: &chatv1.ChatMessage_Text{Text: "hello"}}}}
 	viewer := new(messages.AccountID)
 
-	res, err := get_history_handler.New(stubQuery{history: history, viewer: viewer}).
+	res, err := get_history_handler.New(stubQuery{history: history, viewer: viewer}, rooms).
 		GetHistory(cpctx.AddAccountToContext(t.Context(), ada), connect.NewRequest(&chatv1.GetHistoryRequest{}))
 
 	require.NoError(t, err)
@@ -44,7 +54,7 @@ func TestGetHistoryAnswersWhatTheQueryReadsForTheCaller(t *testing.T) {
 func TestACallerWithNoTokenReadsAsNobody(t *testing.T) {
 	viewer := new(messages.AccountID)
 
-	_, err := get_history_handler.New(stubQuery{history: &chatv1.GetHistoryResponse{}, viewer: viewer}).
+	_, err := get_history_handler.New(stubQuery{history: &chatv1.GetHistoryResponse{}, viewer: viewer}, rooms).
 		GetHistory(t.Context(), connect.NewRequest(&chatv1.GetHistoryRequest{}))
 
 	require.NoError(t, err)
@@ -52,7 +62,7 @@ func TestACallerWithNoTokenReadsAsNobody(t *testing.T) {
 }
 
 func TestGetHistoryIsNeverCached(t *testing.T) {
-	res, err := get_history_handler.New(stubQuery{history: &chatv1.GetHistoryResponse{}, viewer: new(messages.AccountID)}).
+	res, err := get_history_handler.New(stubQuery{history: &chatv1.GetHistoryResponse{}, viewer: new(messages.AccountID)}, rooms).
 		GetHistory(t.Context(), connect.NewRequest(&chatv1.GetHistoryRequest{}))
 
 	require.NoError(t, err)
@@ -62,8 +72,35 @@ func TestGetHistoryIsNeverCached(t *testing.T) {
 func TestAFailedReadIsTheErrorNets(t *testing.T) {
 	failure := errors.New("postgres is down")
 
-	_, err := get_history_handler.New(stubQuery{err: failure, viewer: new(messages.AccountID)}).
+	_, err := get_history_handler.New(stubQuery{err: failure, viewer: new(messages.AccountID)}, rooms).
 		GetHistory(t.Context(), connect.NewRequest(&chatv1.GetHistoryRequest{}))
 
 	assert.ErrorIs(t, err, failure)
+}
+
+func TestAFlagsRoomIsReadForAPlayerOfThatFlag(t *testing.T) {
+	room := new(messages.Room)
+
+	_, err := get_history_handler.New(stubQuery{history: &chatv1.GetHistoryResponse{}, viewer: new(messages.AccountID), room: room}, rooms).
+		GetHistory(cpctx.AddAccountToContext(t.Context(), ada), connect.NewRequest(&chatv1.GetHistoryRequest{FlagRoom: "fr"}))
+
+	require.NoError(t, err)
+	assert.Equal(t, messages.FlagRoom("fr"), *room)
+}
+
+func TestTheRoomOfAnotherFlagIsAFailedPreconditionAndNothingIsRead(t *testing.T) {
+	viewer := new(messages.AccountID)
+
+	_, err := get_history_handler.New(stubQuery{viewer: viewer}, rooms).
+		GetHistory(cpctx.AddAccountToContext(t.Context(), ada), connect.NewRequest(&chatv1.GetHistoryRequest{FlagRoom: "de"}))
+
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	assert.Equal(t, messages.NoAccount, *viewer, "the query was not asked")
+}
+
+func TestAFlagsRoomNeedsAnAccount(t *testing.T) {
+	_, err := get_history_handler.New(stubQuery{viewer: new(messages.AccountID)}, rooms).
+		GetHistory(t.Context(), connect.NewRequest(&chatv1.GetHistoryRequest{FlagRoom: "fr"}))
+
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }

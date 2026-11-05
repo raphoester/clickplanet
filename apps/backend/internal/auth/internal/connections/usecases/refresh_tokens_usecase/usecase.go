@@ -31,8 +31,6 @@ type In struct {
 	ClientID     string
 }
 
-// OAuth 2.1 rotation: the refresh token is spent, and the pair that replaces it carries a new one. A refresh token
-// sent by another client is spent too, and buys nothing: whoever sent it should not hold it.
 func (u *UseCase) Execute(ctx context.Context, in In) (*admintokens.Pair, error) {
 	now := u.clock.Now()
 

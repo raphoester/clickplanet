@@ -12,8 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -24,17 +22,14 @@ func account(n int) players.AccountID {
 }
 
 func visit(n int, tag players.Tag, at time.Time) presence.Visit {
-	author := wearing.AuthorOf(players.GuestAuthor(players.GuestCode(tag), players.Streak{}), titles.Standing{})
-	return presence.NewVisit(account(n), author, tag, "fr", at)
+	shown := players.GuestPlayer(players.GuestCode(tag))
+	return presence.NewVisit(account(n), shown, tag, "fr", at)
 }
 
-var (
-	ada   = wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore(), players.Streak{}), titles.Standing{})
-	og, _ = titles.NewCatalog().StandingOf("og")
-)
+var ada = players.NamedPlayer(players.ProfileSnapshot{Name: "Ada_L"}.Restore())
 
-func named(visit presence.Visit, author wearing.Author) presence.Visit {
-	return visit.For(visit.Account(), author)
+func named(visit presence.Visit, shown players.Player) presence.Visit {
+	return visit.For(visit.Account(), shown)
 }
 
 func withoutKeys(visits []presence.Visit) []presence.Visit {
@@ -74,7 +69,7 @@ func TestALaterVisitReplacesTheAccountsLastOne(t *testing.T) {
 
 	storage.Record(visit(1, "aaaaaa", start))
 	base := visit(1, "bbbbbb", start.Add(time.Second))
-	later := presence.NewVisit(base.Account(), base.Author(), base.Tag(), "de", base.At())
+	later := presence.NewVisit(base.Account(), base.Player(), base.Tag(), "de", base.At())
 	storage.Record(later)
 
 	assert.Equal(t, []presence.Visit{later}, withoutKeys(storage.Visits()))
@@ -151,7 +146,7 @@ func TestAMoveToTheSameAccountRenamesIt(t *testing.T) {
 	storage.Move(account(1), account(1), ada)
 
 	require.Len(t, storage.Visits(), 1)
-	assert.Equal(t, ada, storage.Visits()[0].Author())
+	assert.Equal(t, ada, storage.Visits()[0].Player())
 }
 
 func TestAMoveReplacesTheVisitTheAccountHeld(t *testing.T) {
@@ -184,40 +179,14 @@ func TestARenameKeepsEverythingButTheName(t *testing.T) {
 	assert.Equal(t, []presence.Visit{renamed}, withoutKeys(storage.Visits()))
 }
 
-func TestARenameKeepsTheTitleWorn(t *testing.T) {
+func TestARenameKeepsTheColor(t *testing.T) {
 	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
-	storage.Record(named(visit(1, "aaaaaa", start), wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada"}.Restore(), players.Streak{}), og)))
+	storage.Record(named(visit(1, "aaaaaa", start), players.NamedPlayer(players.ProfileSnapshot{Name: "Ada", Color: 3}.Restore())))
 
 	storage.Rename(account(1), "Ada_L")
 
 	require.Len(t, storage.Visits(), 1)
-	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore(), players.Streak{}), og), storage.Visits()[0].Author())
-}
-
-func TestAWornTitleShowsOnTheLineAndIsAChange(t *testing.T) {
-	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
-	storage.Record(named(visit(1, "aaaaaa", start), ada))
-	_, changes := storage.Subscribe(t.Context())
-
-	storage.Wear(account(1), og)
-	storage.Wear(account(1), og)
-	storage.Wear(account(2), og)
-
-	require.Len(t, storage.Visits(), 1)
-	assert.Equal(t, ada.Wearing(og), storage.Visits()[0].Author())
-	read := changesOf(t, changes)
-	require.Len(t, read, 1, "wearing the title already worn is not a change")
-	assert.Equal(t, og, read[0].Entry().Title())
-}
-
-func TestAGuestLineWearsNoTitle(t *testing.T) {
-	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
-	storage.Record(visit(1, "aaaaaa", start))
-
-	storage.Wear(account(1), og)
-
-	require.Len(t, storage.Visits(), 1)
-	assert.True(t, storage.Visits()[0].Author().Worn().Empty())
+	assert.Equal(t, players.NamedPlayer(players.ProfileSnapshot{Name: "Ada_L", Color: 3}.Restore()), storage.Visits()[0].Player())
 }
 
 func TestForgetTakesOnlyThatAccountOff(t *testing.T) {

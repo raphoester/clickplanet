@@ -3,10 +3,11 @@ import {writeFileSync} from "node:fs"
 import {encodeBorders} from "./map/bordersBinary.mjs"
 import {SEA, loadGround} from "./map/ground.mjs"
 import {landmasses} from "./map/landmasses.mjs"
-import {DETAIL, keyOf, lattice, lonLatOf, neighbours} from "./map/lattice.mjs"
+import {DETAIL, keyOf, lattice, neighbours} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
-import {readCoordinates} from "./map/blob.mjs"
-import {remap, remapSQL} from "./map/remap.mjs"
+import {readBorders, readCoordinates} from "./map/blob.mjs"
+import {remap, remapLandmasses, remapSQL} from "./map/remap.mjs"
+import {latticeGround} from "./map/oracle.mjs"
 import {bordersPath, staticBordersPath, writeBordersAsset, writeCoordinatesBinary} from "./writeCoordinates.ts"
 
 const args = process.argv.slice(2)
@@ -14,8 +15,12 @@ const remapAt = args.includes("--remap") ? args[args.indexOf("--remap") + 1] : u
 if (args.includes("--remap") && !remapAt) throw new Error("--remap needs a path to write the migration to")
 
 const previous = readCoordinates()
+const previousBorders = readBorders()
 const ground = await loadGround()
 const {count: vertices, positions, uvs} = lattice(DETAIL)
+const edges = neighbours(DETAIL)
+const {at, to} = edges
+const {grounds: groundOfVertex, lakes, seated} = latticeGround(ground, {count: vertices, positions, uvs}, edges)
 
 // Keep lattice order: the remap migration relies on ids staying monotonic.
 const tilePositions: number[] = []
@@ -23,7 +28,7 @@ const tileUVs: number[] = []
 const grounds: string[] = []
 const tileOf = new Int32Array(vertices).fill(-1)
 for (let v = 0; v < vertices; v++) {
-    const code = ground.groundOf(...lonLatOf(uvs[v * 2], uvs[v * 2 + 1]))
+    const code = groundOfVertex[v]
     if (code === SEA) continue
     tileOf[v] = grounds.length
     grounds.push(code)
@@ -32,8 +37,12 @@ for (let v = 0; v < vertices; v++) {
 }
 const count = grounds.length
 console.log(`Natural Earth ${NATURAL_EARTH_TAG}, detail ${DETAIL}: ${count} tiles of ${vertices} lattice vertices`)
+console.log(`${lakes} lattice vertices on a country's ground are sea, because most of their cell is lake`)
+const islands = seated.filter(({was}) => was === SEA).map(({code}) => code)
+const onLand = seated.filter(({was}) => was !== SEA).map(({code, was}) => `${code} from ${was}`)
+console.log(`seated ${seated.length} countries the lattice misses: ${islands.length} on a tile of their own at sea`
+    + ` (${islands.join(" ")}), ${onLand.length} on a neighbour's (${onLand.join(", ")})`)
 
-const {at, to} = neighbours(DETAIL)
 const pieces = landmasses({
     count,
     positions: Float32Array.from(tilePositions),
@@ -81,7 +90,10 @@ if (remapAt) {
         after: count,
         from: previous.name,
         to: coordinates.fileName,
+        landmasses: remapLandmasses(previousBorders, {codes: pieces.codes, landmass: pieces.assignment}, moved.runs),
+        borders: {from: previousBorders.name, to: borders.fileName},
     }
+    console.log(`landmasses: ${plan.landmasses.length} of ${previousBorders.codes.length - 1} followed to the new blob`)
     const downAt = `${remapAt.slice(0, -".up.sql".length)}.down.sql`
     writeFileSync(remapAt, remapSQL(plan))
     writeFileSync(downAt, remapSQL(plan, {down: true}))
@@ -93,6 +105,7 @@ next:
   gameMap.maxIndex is now ${count} — update cmd/api/example.yaml and deploy/vps/backend.yaml
   cd ../backend && make map        # copy both blobs, then commit all three copies of each
   npm run borderLines              # traced from both blobs, stale until it is run
+  npm run landmask                 # which lattice points are tiles, what the browser downloads
   npm run earth                    # the globe's texture, cut from the new tile field
   npm run landmassNames            # each landmass's name, keyed by the new borders blob
   npm run map:audit                # every fault should read zero`)

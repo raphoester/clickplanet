@@ -14,15 +14,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_account_usecase/renaming_name_account"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var (
 	now   = time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)
 	ada   = players.AccountID{15: 1}
-	guest = wearing.AuthorOf(players.GuestAuthor("0b1c2d", players.Streak{}), titles.Standing{})
+	guest = players.GuestPlayer("0b1c2d")
 )
 
 func setup() (*inmemory_player_store.Store, *inmemory_visit_storage.Storage, *renaming_name_account.Renaming) {
@@ -31,25 +30,27 @@ func setup() (*inmemory_player_store.Store, *inmemory_visit_storage.Storage, *re
 	visits := inmemory_visit_storage.New(clock)
 	visits.Record(presence.NewVisit(ada, guest, "aaaaaa", "fr", now))
 	names := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42"))
-	return store, visits, renaming_name_account.New(name_account_usecase.New(names, store, clock), visits)
+	return store, visits, renaming_name_account.New(
+		name_account_usecase.New(cpatomic.FakeTransactioner{}, names, store, &cpatomic.FakeOutbox{}, clock), visits,
+	)
 }
 
 func TestAGeneratedNameShowsOnTheRosterAtOnce(t *testing.T) {
 	_, visits, useCase := setup()
 
-	_, err := useCase.Execute(t.Context(), ada)
+	_, err := useCase.Execute(t.Context(), ada, "")
 
 	require.NoError(t, err)
 	require.Len(t, visits.Visits(), 1)
-	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "BraveFox42"}.Restore(), players.Streak{}), titles.Standing{}), visits.Visits()[0].Author())
+	assert.Equal(t, players.NamedPlayer(players.ProfileSnapshot{Name: "BraveFox42"}.Restore()), visits.Visits()[0].Player())
 }
 
 func TestAFailureRenamesNothing(t *testing.T) {
 	store, visits, useCase := setup()
 	store.FailWith(errors.New("postgres is down"))
 
-	_, err := useCase.Execute(t.Context(), ada)
+	_, err := useCase.Execute(t.Context(), ada, "")
 
 	require.Error(t, err)
-	assert.Equal(t, guest, visits.Visits()[0].Author())
+	assert.Equal(t, guest, visits.Visits()[0].Player())
 }

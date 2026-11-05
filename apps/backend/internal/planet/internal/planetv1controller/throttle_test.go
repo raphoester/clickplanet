@@ -14,11 +14,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -188,17 +191,28 @@ func (accountVerifier) Verify(_ context.Context, token string, _ string, _ time.
 	return &cpsession.Claims{ID: "a-mint", Account: cpsession.AccountID(account), Linked: linked, Attested: !named}, nil
 }
 
-func accountServer(t *testing.T, config clicks.ThrottleConfig) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
+func accountServer(t *testing.T, change func(*clicks.Throttle)) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
+	t.Helper()
+	return refillServer(t, change, bonuses.NewMemoryStore())
+}
+
+func refillServer(t *testing.T, change func(*clicks.Throttle), refills *bonuses.MemoryStore) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
 	t.Helper()
 
+	throttle := clicks.TestThrottle()
+	change(&throttle)
+	buckets := clicks.NewBuckets(func() clicks.Throttle { return throttle })
+
 	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
-	limiter := cpratelimit.New("test", config.Config, clock)
+	limiter := cpratelimit.New("test", cpratelimit.Config{PerSecond: throttle.PerSecond, Burst: throttle.Burst}, clock)
 
 	mux := http.NewServeMux()
 	mux.Handle(planetv1connect.NewClickServiceHandler(
 		ClickService{
-			ClickHandler:     click_handler.New(throttle_click.New(stubService{}, limiter, onePrice, config.Buckets())),
-			GetBudgetHandler: get_budget_handler.New(get_budget_usecase.New(limiter, onePrice, config.Buckets())),
+			ClickHandler:     click_handler.New(throttle_click.New(stubService{}, limiter, onePrice, buckets)),
+			GetBudgetHandler: get_budget_handler.New(get_budget_usecase.New(limiter, onePrice, buckets, thawed)),
+			UseRefillHandler: use_refill_handler.New(use_refill_usecase.New(
+				bonuses.NewCharges(refills, bonuses.TestRules), limiter, onePrice, buckets)),
 		},
 		connect.WithInterceptors(
 			errorNet(),
@@ -235,9 +249,7 @@ func accountNumber(i int) uuid.UUID {
 }
 
 func TestManyAccountsOnOneScopeShareTheScopesBucket(t *testing.T) {
-	server, _, _ := accountServer(t, clicks.ThrottleConfig{
-		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, ScopeMultiplier: 3,
-	})
+	server, _, _ := accountServer(t, func(throttle *clicks.Throttle) { throttle.ScopeMultiplier, throttle.V6ScopeMultiplier = 3, 3 })
 
 	for i := range 3 {
 		for click := range 10 {
@@ -249,15 +261,38 @@ func TestManyAccountsOnOneScopeShareTheScopesBucket(t *testing.T) {
 	_, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+accountNumber(3).String())
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a fresh account behind a spent scope is refused")
 	require.InDelta(t, 0.0, budgetDetail(t, err).GetTokens(), 1e-9, "and is told the scope's reading, not its own full bucket")
-	require.Equal(t, uint32(30), budgetDetail(t, err).GetCapacity())
+	require.Equal(t, uint32(10), budgetDetail(t, err).GetCapacity(), "read against its own bank, not the scope's thirty")
 	require.Equal(t, planetv1.SharedWith_SHARED_WITH_NETWORK, budgetDetail(t, err).GetSharedWith(), "and that it is shared")
 
 	_, err = clickWithToken(t, server, "5.6.7.8", linkedPrefix+accountNumber(3).String())
 	require.NoError(t, err, "the same account elsewhere may click")
 }
 
+func TestTwoSignedInAccountsFillAnIPv6NetworkAndNotAnIPv4One(t *testing.T) {
+	server, _, _ := accountServer(t, func(throttle *clicks.Throttle) { throttle.V6ScopeMultiplier = 2 })
+
+	for i, address := range []string{"2001:db8::1", "2001:db8::2"} {
+		for click := range 10 {
+			_, err := clickWithToken(t, server, address, linkedPrefix+accountNumber(i).String())
+			require.NoErrorf(t, err, "account %d click %d", i, click)
+		}
+	}
+
+	_, err := clickWithToken(t, server, "2001:db8::3", linkedPrefix+accountNumber(2).String())
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a third account on the same /64 adds no clicks")
+	require.Equal(t, uint32(10), budgetDetail(t, err).GetCapacity(), "the network's twenty is a ceiling, not anybody's bank")
+	require.Equal(t, planetv1.SharedWith_SHARED_WITH_NETWORK, budgetDetail(t, err).GetSharedWith())
+
+	for i := range 3 {
+		for click := range 10 {
+			_, err := clickWithToken(t, server, "192.0.2.1", linkedPrefix+accountNumber(10+i).String())
+			require.NoErrorf(t, err, "account %d click %d behind one IPv4 address", i, click)
+		}
+	}
+}
+
 func TestGuestsOnOneScopeShareOneBank(t *testing.T) {
-	server, _, _ := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
+	server, _, _ := accountServer(t, func(*clicks.Throttle) {})
 
 	for click := range 10 {
 		res, err := clickWithToken(t, server, "1.2.3.4", accountNumber(0).String())
@@ -279,9 +314,7 @@ func TestGuestsOnOneScopeShareOneBank(t *testing.T) {
 }
 
 func TestTheScopesGuestsMayBeGivenMoreThanOneBank(t *testing.T) {
-	server, _, _ := accountServer(t, clicks.ThrottleConfig{
-		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, GuestScopeMultiplier: 2,
-	})
+	server, _, _ := accountServer(t, func(throttle *clicks.Throttle) { throttle.GuestScopeMultiplier = 2 })
 
 	for i := range 2 {
 		for click := range 10 {
@@ -291,11 +324,11 @@ func TestTheScopesGuestsMayBeGivenMoreThanOneBank(t *testing.T) {
 
 	err := clickAsAccount(t, server, "1.2.3.4", accountNumber(2))
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
-	require.Equal(t, uint32(20), budgetDetail(t, err).GetCapacity())
+	require.Equal(t, uint32(10), budgetDetail(t, err).GetCapacity(), "the guests' two banks are read against one")
 }
 
 func TestOneAccountOnManyScopesSpendsOneAllowance(t *testing.T) {
-	server, _, _ := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
+	server, _, _ := accountServer(t, func(*clicks.Throttle) {})
 
 	for click := range 10 {
 		require.NoErrorf(t, clickAsAccount(t, server, fmt.Sprintf("10.0.0.%d", click), accountNumber(0)), "click %d", click)
@@ -305,29 +338,55 @@ func TestOneAccountOnManyScopesSpendsOneAllowance(t *testing.T) {
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a new address is not a new allowance")
 }
 
-func TestARefillDoesNotFillTheScopesBucket(t *testing.T) {
-	server, limiter, _ := accountServer(t, clicks.ThrottleConfig{
-		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, ScopeMultiplier: 1,
-	})
+func useRefill(t *testing.T, server *httptest.Server, ip string, token string) (*planetv1.ClickBudget, error) {
+	t.Helper()
 
-	refilled := accountNumber(0)
-	for click := range 10 {
-		_, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+refilled.String())
-		require.NoErrorf(t, err, "click %d", click)
+	req := connect.NewRequest(&planetv1.UseRefillRequest{CountryId: "fr"})
+	req.Header().Set("X-Real-IP", ip)
+	req.Header().Set(cpconnect.SessionHeader, token)
+
+	res, err := planetv1connect.NewClickServiceClient(server.Client(), server.URL).UseRefill(t.Context(), req)
+	if err != nil {
+		return nil, fmt.Errorf("refill refused: %w", err)
+	}
+	return res.Msg.GetBudget(), nil
+}
+
+func TestARefillGivesABankWhenTheNetworksBucketIsTheTighter(t *testing.T) {
+	refills := bonuses.NewMemoryStore()
+	server, _, clock := refillServer(t, func(throttle *clicks.Throttle) { throttle.V6ScopeMultiplier = 2 }, refills)
+	me, partner := linkedPrefix+accountNumber(0).String(), linkedPrefix+accountNumber(1).String()
+	refills.Keep(bonuses.Holder(accountNumber(0).String()), bonuses.Held{Refill: true})
+
+	for _, token := range []string{me, partner} {
+		for click := range 10 {
+			_, err := clickWithToken(t, server, "2001:db8::1", token)
+			require.NoErrorf(t, err, "click %d", click)
+		}
+	}
+	clock.Advance(5 * time.Second)
+	for range 5 {
+		_, err := clickWithToken(t, server, "2001:db8::2", partner)
+		require.NoError(t, err)
 	}
 
-	filled, _ := limiter.Fill(cpratelimit.Key{Name: "account:" + refilled.String(), Scale: 1})
-	require.True(t, filled)
+	budget, err := useRefill(t, server, "2001:db8::1", me)
+	require.NoError(t, err, "my own bank is full, but the network's it shares is not")
+	require.InDelta(t, 10.0, budget.GetTokens(), 1e-9, "a refill is a full bank I can spend")
+	require.Equal(t, uint32(10), budget.GetCapacity())
 
-	_, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+refilled.String())
+	for click := range 10 {
+		_, err := clickWithToken(t, server, "2001:db8::1", me)
+		require.NoErrorf(t, err, "click %d of the refill", click)
+	}
+
+	_, err = clickWithToken(t, server, "2001:db8::2", partner)
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err),
-		"the account's bucket is full again, but the scope's it shares is still empty")
+		"the network was given what the refill gave me, and nothing for my partner")
 }
 
 func TestTheBudgetIsTheTighterBucket(t *testing.T) {
-	server, _, _ := accountServer(t, clicks.ThrottleConfig{
-		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, ScopeMultiplier: 2,
-	})
+	server, _, _ := accountServer(t, func(throttle *clicks.Throttle) { throttle.ScopeMultiplier, throttle.V6ScopeMultiplier = 2, 2 })
 
 	for click := range 15 {
 		_, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+accountNumber(click%2).String())
@@ -351,7 +410,7 @@ func TestTheBudgetIsTheTighterBucket(t *testing.T) {
 
 	budget := read(accountNumber(2).String())
 	require.InDelta(t, 5.0, budget.GetTokens(), 1e-9, "a fresh account holds ten, its scope five")
-	require.Equal(t, uint32(20), budget.GetCapacity())
+	require.Equal(t, uint32(10), budget.GetCapacity(), "against its own bank")
 	require.InDelta(t, 2.0, budget.GetRefillPerSecond(), 1e-9)
 	require.Equal(t, planetv1.SharedWith_SHARED_WITH_NETWORK, budget.GetSharedWith())
 
@@ -360,7 +419,7 @@ func TestTheBudgetIsTheTighterBucket(t *testing.T) {
 }
 
 func TestALinkedAccountClicksTwiceAsFastAsAGuest(t *testing.T) {
-	server, _, clock := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
+	server, _, clock := accountServer(t, func(*clicks.Throttle) {})
 	guest, linked := accountNumber(0).String(), linkedPrefix+accountNumber(1).String()
 
 	for click := range 10 {
@@ -392,8 +451,8 @@ func TestALinkedAccountClicksTwiceAsFastAsAGuest(t *testing.T) {
 
 func TestAFreshGuestOnAFreshAddressEveryMinuteIsNoFreshBank(t *testing.T) {
 	start := 2.0
-	server, _, clock := accountServer(t, clicks.ThrottleConfig{
-		Config: cpratelimit.Config{PerSecond: 0.2, Burst: 60}, NewAccountClicks: &start,
+	server, _, clock := accountServer(t, func(throttle *clicks.Throttle) {
+		throttle.PerSecond, throttle.Burst, throttle.NewAccountClicks = 0.2, 60, start
 	})
 
 	for minute := range 5 {
@@ -421,7 +480,7 @@ func TestAFreshGuestOnAFreshAddressEveryMinuteIsNoFreshBank(t *testing.T) {
 }
 
 func TestSigningInKeepsTheBankAndSpeedsUpItsRefill(t *testing.T) {
-	server, _, clock := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
+	server, _, clock := accountServer(t, func(*clicks.Throttle) {})
 	account := accountNumber(0).String()
 
 	for click := range 10 {

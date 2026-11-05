@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 
 	"connectrpc.com/connect"
 
@@ -33,15 +34,17 @@ func (h DescribeConnectionHandler) DescribeConnection(
 		return nil, err
 	}
 
+	redirect, err := url.Parse(out.Request.RedirectURI)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the redirect: %w", err)
+	}
 	res := connect.NewResponse(&authv1.DescribeConnectionResponse{
-		ClientName: out.Client, RedirectHost: out.RedirectHost, DenyUrl: out.DeniedURL,
+		ClientName: out.Request.Client, RedirectHost: redirect.Host, DenyUrl: out.DeniedURL,
 	})
 	res.Header().Set("Cache-Control", "no-store")
 	return res, nil
 }
 
-// For both halves of the consent page: a request past its time is to start again from the app, and one this server
-// did not seal is nothing to start from.
 func Refusal(err error) error {
 	switch {
 	case err == nil:

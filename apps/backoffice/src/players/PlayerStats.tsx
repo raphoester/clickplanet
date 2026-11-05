@@ -21,7 +21,7 @@ export function BanLine({player}: {player: Player}) {
     return (
         <span className="decision">
             <span className="badge badge-bug">Banned</span>
-            <span className="muted">offence {player.offence}, until</span>
+            <span className="muted">until</span>
             <When at={player.bannedUntil}/>
         </span>
     )

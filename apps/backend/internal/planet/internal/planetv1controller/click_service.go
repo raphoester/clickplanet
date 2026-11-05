@@ -6,15 +6,20 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_holdings_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/place_shield_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/pledge_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 )
 
@@ -23,6 +28,7 @@ type ClickService struct {
 	get_budget_handler.GetBudgetHandler
 	map_density_handler.MapDensityHandler
 	get_map_handler.GetMapHandler
+	get_holdings_handler.GetHoldingsHandler
 	listen_for_events_handler.ListenForEventsHandler
 	claim_bonus_handler.ClaimBonusHandler
 	drop_bomb_handler.DropBombHandler
@@ -33,6 +39,10 @@ type ClickService struct {
 	answer_quiz_handler.AnswerQuizHandler
 	place_shield_handler.PlaceShieldHandler
 	get_fortresses_handler.GetFortressesHandler
+	get_tile_holder_handler.GetTileHolderHandler
+	get_landmass_handler.GetLandmassHandler
+	get_allegiance_handler.GetAllegianceHandler
+	pledge_allegiance_handler.PledgeAllegianceHandler
 }
 
 var _ planetv1connect.ClickServiceHandler = ClickService{}

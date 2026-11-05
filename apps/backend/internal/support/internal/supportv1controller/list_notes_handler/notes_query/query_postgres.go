@@ -34,12 +34,12 @@ type Links interface {
 	ViewURL(attachment string) (string, error)
 }
 
-func NewPostgresQuery(db cppg.Querier, links Links) *PostgresQuery {
+func NewPostgresQuery(db cppg.Conn, links Links) *PostgresQuery {
 	return &PostgresQuery{db: db, links: links}
 }
 
 type PostgresQuery struct {
-	db    cppg.Querier
+	db    cppg.Conn
 	links Links
 }
 
@@ -73,7 +73,7 @@ func (q *PostgresQuery) Notes(
 		return nil, err
 	}
 
-	rows, err := q.db.QueryContext(ctx, notes,
+	rows, err := q.db.On(ctx).QueryContext(ctx, notes,
 		sql.NullTime{Time: since.UTC(), Valid: !since.IsZero()}, asked, limitOf(limit))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the notes: %w", err)

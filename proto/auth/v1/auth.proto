@@ -21,15 +21,31 @@ service AuthService {
 
   rpc CompleteEmailSignIn(CompleteEmailSignInRequest) returns (CompleteEmailSignInResponse);
 
+  // One step: the CrazyGames SDK already signed the player in, and its token says who.
+  rpc CompleteCrazyGamesSignIn(CompleteCrazyGamesSignInRequest) returns (CompleteCrazyGamesSignInResponse);
+
   rpc SignOut(SignOutRequest) returns (SignOutResponse);
 
   rpc SignOutEverywhere(SignOutEverywhereRequest) returns (SignOutEverywhereResponse);
 
+  // Signs the account out everywhere and hides it from the other players. It is erased after a grace period, unless a
+  // sign-in to it brings it back first.
   rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
 }
 
 message CreateSessionRequest {
   string attestation_token = 1;
+
+  Landing landing = 2;
+}
+
+// What the browser's first page said. Kept only when the call makes an account.
+message Landing {
+  // The ?s= of the link: "rc" for a player's, "yt" for YouTube.
+  string tag = 1;
+
+  // The host alone, never a path or a query.
+  string referrer = 2;
 }
 
 message CreateSessionResponse {
@@ -61,6 +77,7 @@ enum Provider {
   PROVIDER_GOOGLE = 1;
   PROVIDER_DISCORD = 2;
   PROVIDER_EMAIL = 3;
+  PROVIDER_CRAZYGAMES = 4;
 }
 
 enum AccountKind {
@@ -94,6 +111,8 @@ message StartSignInResponse {
 message CompleteSignInRequest {
   string code = 1;
   string state = 2;
+
+  Landing landing = 3;
 }
 
 enum SignInOutcome {
@@ -107,6 +126,9 @@ message CompleteSignInResponse {
   string account_id = 1;
 
   SignInOutcome outcome = 2;
+
+  // The account had asked to be deleted, and this sign-in brought it back.
+  bool restored = 3;
 }
 
 message LinkRefusal {
@@ -131,12 +153,33 @@ message StartEmailSignInResponse {}
 
 message CompleteEmailSignInRequest {
   string code = 1;
+
+  Landing landing = 2;
 }
 
 message CompleteEmailSignInResponse {
   string account_id = 1;
 
   SignInOutcome outcome = 2;
+
+  // The account had asked to be deleted, and this sign-in brought it back.
+  bool restored = 3;
+}
+
+message CompleteCrazyGamesSignInRequest {
+  // The JWT of the SDK's user.getUserToken({signingKeyType: "IN_GAME_AUTH"}).
+  string token = 1;
+
+  Landing landing = 2;
+}
+
+message CompleteCrazyGamesSignInResponse {
+  string account_id = 1;
+
+  SignInOutcome outcome = 2;
+
+  // The account had asked to be deleted, and this sign-in brought it back.
+  bool restored = 3;
 }
 
 message EmailRefusal {

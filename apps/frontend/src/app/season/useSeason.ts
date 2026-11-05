@@ -1,42 +1,28 @@
 import {useEffect, useState} from "react"
-import {Season, SeasonBackend} from "../../backends/season.ts"
+import {Season} from "../../backends/season.ts"
 
 // A longer setTimeout delay overflows and fires at once.
 const LONGEST_TIMEOUT_MS = 2 ** 31 - 1
 
-export function useSeason(backend: SeasonBackend | undefined): Season | undefined {
-    const [season, setSeason] = useState<Season>()
+// The season the timeline says runs, let go at its end on this clock.
+export function useSeason(current: Season | undefined): Season | undefined {
+    const [ended, setEnded] = useState<Season>()
 
     useEffect(() => {
-        if (!backend) return
-
-        let stale = false
-        backend.season().then(
-            (read) => {
-                if (!stale) setSeason(read)
-            },
-            (e) => console.error("Could not read the season", e),
-        )
-        return () => {
-            stale = true
-        }
-    }, [backend])
-
-    useEffect(() => {
-        if (!season) return
+        if (!current) return
 
         let timer: ReturnType<typeof setTimeout> | undefined
         const waitForTheEnd = () => {
-            const left = season.endsAt - Date.now()
+            const left = current.endsAt - Date.now()
             if (left <= 0) {
-                setSeason(undefined)
+                setEnded(current)
                 return
             }
             timer = setTimeout(waitForTheEnd, Math.min(left, LONGEST_TIMEOUT_MS))
         }
         waitForTheEnd()
         return () => clearTimeout(timer)
-    }, [season])
+    }, [current])
 
-    return season
+    return current && current !== ended ? current : undefined
 }

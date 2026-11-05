@@ -28,6 +28,7 @@ type MuteRequest struct {
 	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	// Unset is one hour; otherwise whole seconds.
 	Duration      *durationpb.Duration `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
+	Kind          MuteKind             `protobuf:"varint,3,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -74,6 +75,13 @@ func (x *MuteRequest) GetDuration() *durationpb.Duration {
 		return x.Duration
 	}
 	return nil
+}
+
+func (x *MuteRequest) GetKind() MuteKind {
+	if x != nil {
+		return x.Kind
+	}
+	return MuteKind_MUTE_KIND_CHAT
 }
 
 type MuteResponse struct {
@@ -128,6 +136,209 @@ func (x *MuteResponse) GetMutedUntil() *timestamppb.Timestamp {
 	return nil
 }
 
+type UnmuteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Kind          MuteKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnmuteRequest) Reset() {
+	*x = UnmuteRequest{}
+	mi := &file_chat_v1_admin_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnmuteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnmuteRequest) ProtoMessage() {}
+
+func (x *UnmuteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnmuteRequest.ProtoReflect.Descriptor instead.
+func (*UnmuteRequest) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *UnmuteRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *UnmuteRequest) GetKind() MuteKind {
+	if x != nil {
+		return x.Kind
+	}
+	return MuteKind_MUTE_KIND_CHAT
+}
+
+type UnmuteResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The end of the mute that would have ended last.
+	MutedUntil    *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=muted_until,json=mutedUntil,proto3" json:"muted_until,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnmuteResponse) Reset() {
+	*x = UnmuteResponse{}
+	mi := &file_chat_v1_admin_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnmuteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnmuteResponse) ProtoMessage() {}
+
+func (x *UnmuteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnmuteResponse.ProtoReflect.Descriptor instead.
+func (*UnmuteResponse) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *UnmuteResponse) GetMutedUntil() *timestamppb.Timestamp {
+	if x != nil {
+		return x.MutedUntil
+	}
+	return nil
+}
+
+type GetMuteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Kind          MuteKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMuteRequest) Reset() {
+	*x = GetMuteRequest{}
+	mi := &file_chat_v1_admin_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMuteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMuteRequest) ProtoMessage() {}
+
+func (x *GetMuteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMuteRequest.ProtoReflect.Descriptor instead.
+func (*GetMuteRequest) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetMuteRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *GetMuteRequest) GetKind() MuteKind {
+	if x != nil {
+		return x.Kind
+	}
+	return MuteKind_MUTE_KIND_CHAT
+}
+
+type GetMuteResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unset when no mute holds the account.
+	MutedUntil *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=muted_until,json=mutedUntil,proto3" json:"muted_until,omitempty"`
+	// The account the mute was given to: the one asked about, or another on its network, whose mute Unmute on this one leaves.
+	MutedAccountId string `protobuf:"bytes,2,opt,name=muted_account_id,json=mutedAccountId,proto3" json:"muted_account_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetMuteResponse) Reset() {
+	*x = GetMuteResponse{}
+	mi := &file_chat_v1_admin_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMuteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMuteResponse) ProtoMessage() {}
+
+func (x *GetMuteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMuteResponse.ProtoReflect.Descriptor instead.
+func (*GetMuteResponse) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetMuteResponse) GetMutedUntil() *timestamppb.Timestamp {
+	if x != nil {
+		return x.MutedUntil
+	}
+	return nil
+}
+
+func (x *GetMuteResponse) GetMutedAccountId() string {
+	if x != nil {
+		return x.MutedAccountId
+	}
+	return ""
+}
+
 type RemoveMessageRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MessageId     string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
@@ -137,7 +348,7 @@ type RemoveMessageRequest struct {
 
 func (x *RemoveMessageRequest) Reset() {
 	*x = RemoveMessageRequest{}
-	mi := &file_chat_v1_admin_proto_msgTypes[2]
+	mi := &file_chat_v1_admin_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -149,7 +360,7 @@ func (x *RemoveMessageRequest) String() string {
 func (*RemoveMessageRequest) ProtoMessage() {}
 
 func (x *RemoveMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_admin_proto_msgTypes[2]
+	mi := &file_chat_v1_admin_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -162,7 +373,7 @@ func (x *RemoveMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveMessageRequest.ProtoReflect.Descriptor instead.
 func (*RemoveMessageRequest) Descriptor() ([]byte, []int) {
-	return file_chat_v1_admin_proto_rawDescGZIP(), []int{2}
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RemoveMessageRequest) GetMessageId() string {
@@ -181,7 +392,7 @@ type RemoveMessageResponse struct {
 
 func (x *RemoveMessageResponse) Reset() {
 	*x = RemoveMessageResponse{}
-	mi := &file_chat_v1_admin_proto_msgTypes[3]
+	mi := &file_chat_v1_admin_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -193,7 +404,7 @@ func (x *RemoveMessageResponse) String() string {
 func (*RemoveMessageResponse) ProtoMessage() {}
 
 func (x *RemoveMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_admin_proto_msgTypes[3]
+	mi := &file_chat_v1_admin_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -206,7 +417,7 @@ func (x *RemoveMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveMessageResponse.ProtoReflect.Descriptor instead.
 func (*RemoveMessageResponse) Descriptor() ([]byte, []int) {
-	return file_chat_v1_admin_proto_rawDescGZIP(), []int{3}
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RemoveMessageResponse) GetRemovedAt() *timestamppb.Timestamp {
@@ -225,7 +436,7 @@ type GetMessageRequest struct {
 
 func (x *GetMessageRequest) Reset() {
 	*x = GetMessageRequest{}
-	mi := &file_chat_v1_admin_proto_msgTypes[4]
+	mi := &file_chat_v1_admin_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -237,7 +448,7 @@ func (x *GetMessageRequest) String() string {
 func (*GetMessageRequest) ProtoMessage() {}
 
 func (x *GetMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_admin_proto_msgTypes[4]
+	mi := &file_chat_v1_admin_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -250,7 +461,7 @@ func (x *GetMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMessageRequest.ProtoReflect.Descriptor instead.
 func (*GetMessageRequest) Descriptor() ([]byte, []int) {
-	return file_chat_v1_admin_proto_rawDescGZIP(), []int{4}
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetMessageRequest) GetMessageId() string {
@@ -264,19 +475,25 @@ type GetMessageResponse struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 	// Empty for a message kept before accounts, or of a deleted account.
-	AccountId string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Text      string                 `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
-	SentAt    *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
-	CountryId string                 `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	AccountId string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// Types that are valid to be assigned to Body:
+	//
+	//	*GetMessageResponse_Text
+	//	*GetMessageResponse_Gif
+	Body      isGetMessageResponse_Body `protobuf_oneof:"body"`
+	SentAt    *timestamppb.Timestamp    `protobuf:"bytes,4,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
+	CountryId string                    `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	// Unset while the message is shown.
-	RemovedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
+	RemovedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
+	// The flag whose room it was said in. Empty for the chat everyone reads.
+	FlagRoom      string `protobuf:"bytes,7,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetMessageResponse) Reset() {
 	*x = GetMessageResponse{}
-	mi := &file_chat_v1_admin_proto_msgTypes[5]
+	mi := &file_chat_v1_admin_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -288,7 +505,7 @@ func (x *GetMessageResponse) String() string {
 func (*GetMessageResponse) ProtoMessage() {}
 
 func (x *GetMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_admin_proto_msgTypes[5]
+	mi := &file_chat_v1_admin_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -301,7 +518,7 @@ func (x *GetMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMessageResponse.ProtoReflect.Descriptor instead.
 func (*GetMessageResponse) Descriptor() ([]byte, []int) {
-	return file_chat_v1_admin_proto_rawDescGZIP(), []int{5}
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetMessageResponse) GetMessageId() string {
@@ -318,11 +535,29 @@ func (x *GetMessageResponse) GetAccountId() string {
 	return ""
 }
 
+func (x *GetMessageResponse) GetBody() isGetMessageResponse_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
 func (x *GetMessageResponse) GetText() string {
 	if x != nil {
-		return x.Text
+		if x, ok := x.Body.(*GetMessageResponse_Text); ok {
+			return x.Text
+		}
 	}
 	return ""
+}
+
+func (x *GetMessageResponse) GetGif() *Gif {
+	if x != nil {
+		if x, ok := x.Body.(*GetMessageResponse_Gif); ok {
+			return x.Gif
+		}
+	}
+	return nil
 }
 
 func (x *GetMessageResponse) GetSentAt() *timestamppb.Timestamp {
@@ -346,6 +581,29 @@ func (x *GetMessageResponse) GetRemovedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *GetMessageResponse) GetFlagRoom() string {
+	if x != nil {
+		return x.FlagRoom
+	}
+	return ""
+}
+
+type isGetMessageResponse_Body interface {
+	isGetMessageResponse_Body()
+}
+
+type GetMessageResponse_Text struct {
+	Text string `protobuf:"bytes,3,opt,name=text,proto3,oneof"`
+}
+
+type GetMessageResponse_Gif struct {
+	Gif *Gif `protobuf:"bytes,8,opt,name=gif,proto3,oneof"`
+}
+
+func (*GetMessageResponse_Text) isGetMessageResponse_Body() {}
+
+func (*GetMessageResponse_Gif) isGetMessageResponse_Body() {}
+
 type ListMessagesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The page of the messages sent just before this one. Neither cursor is the newest page; both is InvalidArgument.
@@ -362,7 +620,7 @@ type ListMessagesRequest struct {
 
 func (x *ListMessagesRequest) Reset() {
 	*x = ListMessagesRequest{}
-	mi := &file_chat_v1_admin_proto_msgTypes[6]
+	mi := &file_chat_v1_admin_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -374,7 +632,7 @@ func (x *ListMessagesRequest) String() string {
 func (*ListMessagesRequest) ProtoMessage() {}
 
 func (x *ListMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_admin_proto_msgTypes[6]
+	mi := &file_chat_v1_admin_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -387,7 +645,7 @@ func (x *ListMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMessagesRequest.ProtoReflect.Descriptor instead.
 func (*ListMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_chat_v1_admin_proto_rawDescGZIP(), []int{6}
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListMessagesRequest) GetBeforeMessageId() string {
@@ -428,7 +686,7 @@ type ListMessagesResponse struct {
 
 func (x *ListMessagesResponse) Reset() {
 	*x = ListMessagesResponse{}
-	mi := &file_chat_v1_admin_proto_msgTypes[7]
+	mi := &file_chat_v1_admin_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -440,7 +698,7 @@ func (x *ListMessagesResponse) String() string {
 func (*ListMessagesResponse) ProtoMessage() {}
 
 func (x *ListMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_admin_proto_msgTypes[7]
+	mi := &file_chat_v1_admin_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -453,7 +711,7 @@ func (x *ListMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMessagesResponse.ProtoReflect.Descriptor instead.
 func (*ListMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_chat_v1_admin_proto_rawDescGZIP(), []int{7}
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListMessagesResponse) GetMessages() []*KeptMessage {
@@ -470,21 +728,27 @@ type KeptMessage struct {
 	// Empty for a message kept before accounts.
 	AccountId string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	// Its author's name now: the name it was sent under for a message kept before accounts, [deleted] for an account nobody can name any more.
-	AuthorName string                 `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
-	Text       string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
-	SentAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
-	CountryId  string                 `protobuf:"bytes,6,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	AuthorName string `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
+	// Types that are valid to be assigned to Body:
+	//
+	//	*KeptMessage_Text
+	//	*KeptMessage_Gif
+	Body      isKeptMessage_Body     `protobuf_oneof:"body"`
+	SentAt    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
+	CountryId string                 `protobuf:"bytes,6,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	// Unset while the message is shown.
 	RemovedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
 	// The message it answers. Unset for none, and for one past the retention.
-	ReplyTo       *KeptQuote `protobuf:"bytes,8,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
+	ReplyTo *KeptQuote `protobuf:"bytes,8,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
+	// The flag whose room it was said in. Empty for the chat everyone reads.
+	FlagRoom      string `protobuf:"bytes,9,opt,name=flag_room,json=flagRoom,proto3" json:"flag_room,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *KeptMessage) Reset() {
 	*x = KeptMessage{}
-	mi := &file_chat_v1_admin_proto_msgTypes[8]
+	mi := &file_chat_v1_admin_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -496,7 +760,7 @@ func (x *KeptMessage) String() string {
 func (*KeptMessage) ProtoMessage() {}
 
 func (x *KeptMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_admin_proto_msgTypes[8]
+	mi := &file_chat_v1_admin_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -509,7 +773,7 @@ func (x *KeptMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KeptMessage.ProtoReflect.Descriptor instead.
 func (*KeptMessage) Descriptor() ([]byte, []int) {
-	return file_chat_v1_admin_proto_rawDescGZIP(), []int{8}
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *KeptMessage) GetMessageId() string {
@@ -533,11 +797,29 @@ func (x *KeptMessage) GetAuthorName() string {
 	return ""
 }
 
+func (x *KeptMessage) GetBody() isKeptMessage_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
 func (x *KeptMessage) GetText() string {
 	if x != nil {
-		return x.Text
+		if x, ok := x.Body.(*KeptMessage_Text); ok {
+			return x.Text
+		}
 	}
 	return ""
+}
+
+func (x *KeptMessage) GetGif() *Gif {
+	if x != nil {
+		if x, ok := x.Body.(*KeptMessage_Gif); ok {
+			return x.Gif
+		}
+	}
+	return nil
 }
 
 func (x *KeptMessage) GetSentAt() *timestamppb.Timestamp {
@@ -568,13 +850,40 @@ func (x *KeptMessage) GetReplyTo() *KeptQuote {
 	return nil
 }
 
+func (x *KeptMessage) GetFlagRoom() string {
+	if x != nil {
+		return x.FlagRoom
+	}
+	return ""
+}
+
+type isKeptMessage_Body interface {
+	isKeptMessage_Body()
+}
+
+type KeptMessage_Text struct {
+	Text string `protobuf:"bytes,4,opt,name=text,proto3,oneof"`
+}
+
+type KeptMessage_Gif struct {
+	Gif *Gif `protobuf:"bytes,10,opt,name=gif,proto3,oneof"`
+}
+
+func (*KeptMessage_Text) isKeptMessage_Body() {}
+
+func (*KeptMessage_Gif) isKeptMessage_Body() {}
+
 // The message a reply answers, as it was sent, removed or not.
 type KeptQuote struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 	// As KeptMessage.author_name.
 	AuthorName string `protobuf:"bytes,2,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
-	Text       string `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	// Types that are valid to be assigned to Body:
+	//
+	//	*KeptQuote_Text
+	//	*KeptQuote_Gif
+	Body isKeptQuote_Body `protobuf_oneof:"body"`
 	// Unset while the message is shown.
 	RemovedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -583,7 +892,7 @@ type KeptQuote struct {
 
 func (x *KeptQuote) Reset() {
 	*x = KeptQuote{}
-	mi := &file_chat_v1_admin_proto_msgTypes[9]
+	mi := &file_chat_v1_admin_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -595,7 +904,7 @@ func (x *KeptQuote) String() string {
 func (*KeptQuote) ProtoMessage() {}
 
 func (x *KeptQuote) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_v1_admin_proto_msgTypes[9]
+	mi := &file_chat_v1_admin_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -608,7 +917,7 @@ func (x *KeptQuote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KeptQuote.ProtoReflect.Descriptor instead.
 func (*KeptQuote) Descriptor() ([]byte, []int) {
-	return file_chat_v1_admin_proto_rawDescGZIP(), []int{9}
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *KeptQuote) GetMessageId() string {
@@ -625,11 +934,29 @@ func (x *KeptQuote) GetAuthorName() string {
 	return ""
 }
 
+func (x *KeptQuote) GetBody() isKeptQuote_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
 func (x *KeptQuote) GetText() string {
 	if x != nil {
-		return x.Text
+		if x, ok := x.Body.(*KeptQuote_Text); ok {
+			return x.Text
+		}
 	}
 	return ""
+}
+
+func (x *KeptQuote) GetGif() *Gif {
+	if x != nil {
+		if x, ok := x.Body.(*KeptQuote_Gif); ok {
+			return x.Gif
+		}
+	}
+	return nil
 }
 
 func (x *KeptQuote) GetRemovedAt() *timestamppb.Timestamp {
@@ -639,19 +966,51 @@ func (x *KeptQuote) GetRemovedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type isKeptQuote_Body interface {
+	isKeptQuote_Body()
+}
+
+type KeptQuote_Text struct {
+	Text string `protobuf:"bytes,3,opt,name=text,proto3,oneof"`
+}
+
+type KeptQuote_Gif struct {
+	Gif *Gif `protobuf:"bytes,5,opt,name=gif,proto3,oneof"`
+}
+
+func (*KeptQuote_Text) isKeptQuote_Body() {}
+
+func (*KeptQuote_Gif) isKeptQuote_Body() {}
+
 var File_chat_v1_admin_proto protoreflect.FileDescriptor
 
 const file_chat_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x13chat/v1/admin.proto\x12\achat.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"c\n" +
+	"\x13chat/v1/admin.proto\x12\achat.v1\x1a\x12chat/v1/chat.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8a\x01\n" +
 	"\vMuteRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x125\n" +
-	"\bduration\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bduration\"a\n" +
+	"\bduration\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bduration\x12%\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\"a\n" +
 	"\fMuteResponse\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12;\n" +
 	"\vmuted_until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"mutedUntil\"5\n" +
+	"mutedUntil\"U\n" +
+	"\rUnmuteRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12%\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\"M\n" +
+	"\x0eUnmuteResponse\x12;\n" +
+	"\vmuted_until\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"mutedUntil\"V\n" +
+	"\x0eGetMuteRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12%\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\"x\n" +
+	"\x0fGetMuteResponse\x12;\n" +
+	"\vmuted_until\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"mutedUntil\x12(\n" +
+	"\x10muted_account_id\x18\x02 \x01(\tR\x0emutedAccountId\"5\n" +
 	"\x14RemoveMessageRequest\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\"R\n" +
@@ -660,18 +1019,21 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"removed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\"2\n" +
 	"\x11GetMessageRequest\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x01 \x01(\tR\tmessageId\"\xf5\x01\n" +
+	"message_id\x18\x01 \x01(\tR\tmessageId\"\xbe\x02\n" +
 	"\x12GetMessageResponse\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x02 \x01(\tR\taccountId\x12\x12\n" +
-	"\x04text\x18\x03 \x01(\tR\x04text\x123\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\x12\x14\n" +
+	"\x04text\x18\x03 \x01(\tH\x00R\x04text\x12 \n" +
+	"\x03gif\x18\b \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x123\n" +
 	"\asent_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x05 \x01(\tR\tcountryId\x129\n" +
 	"\n" +
-	"removed_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\"\xa0\x01\n" +
+	"removed_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\x12\x1b\n" +
+	"\tflag_room\x18\a \x01(\tR\bflagRoomB\x06\n" +
+	"\x04body\"\xa0\x01\n" +
 	"\x13ListMessagesRequest\x12*\n" +
 	"\x11before_message_id\x18\x01 \x01(\tR\x0fbeforeMessageId\x12(\n" +
 	"\x10after_message_id\x18\x02 \x01(\tR\x0eafterMessageId\x12\x14\n" +
@@ -679,31 +1041,39 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x04 \x01(\tR\taccountId\"H\n" +
 	"\x14ListMessagesResponse\x120\n" +
-	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.KeptMessageR\bmessages\"\xbe\x02\n" +
+	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.KeptMessageR\bmessages\"\x87\x03\n" +
 	"\vKeptMessage\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x02 \x01(\tR\taccountId\x12\x1f\n" +
 	"\vauthor_name\x18\x03 \x01(\tR\n" +
-	"authorName\x12\x12\n" +
-	"\x04text\x18\x04 \x01(\tR\x04text\x123\n" +
+	"authorName\x12\x14\n" +
+	"\x04text\x18\x04 \x01(\tH\x00R\x04text\x12 \n" +
+	"\x03gif\x18\n" +
+	" \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x123\n" +
 	"\asent_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x06 \x01(\tR\tcountryId\x129\n" +
 	"\n" +
 	"removed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\x12-\n" +
-	"\breply_to\x18\b \x01(\v2\x12.chat.v1.KeptQuoteR\areplyTo\"\x9a\x01\n" +
+	"\breply_to\x18\b \x01(\v2\x12.chat.v1.KeptQuoteR\areplyTo\x12\x1b\n" +
+	"\tflag_room\x18\t \x01(\tR\bflagRoomB\x06\n" +
+	"\x04body\"\xc6\x01\n" +
 	"\tKeptQuote\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1f\n" +
 	"\vauthor_name\x18\x02 \x01(\tR\n" +
-	"authorName\x12\x12\n" +
-	"\x04text\x18\x03 \x01(\tR\x04text\x129\n" +
+	"authorName\x12\x14\n" +
+	"\x04text\x18\x03 \x01(\tH\x00R\x04text\x12 \n" +
+	"\x03gif\x18\x05 \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x129\n" +
 	"\n" +
-	"removed_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt2\xb1\x02\n" +
+	"removed_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAtB\x06\n" +
+	"\x04body2\xaf\x03\n" +
 	"\fAdminService\x123\n" +
-	"\x04Mute\x12\x14.chat.v1.MuteRequest\x1a\x15.chat.v1.MuteResponse\x12N\n" +
+	"\x04Mute\x12\x14.chat.v1.MuteRequest\x1a\x15.chat.v1.MuteResponse\x129\n" +
+	"\x06Unmute\x12\x16.chat.v1.UnmuteRequest\x1a\x17.chat.v1.UnmuteResponse\x12A\n" +
+	"\aGetMute\x12\x17.chat.v1.GetMuteRequest\x1a\x18.chat.v1.GetMuteResponse\"\x03\x90\x02\x01\x12N\n" +
 	"\rRemoveMessage\x12\x1d.chat.v1.RemoveMessageRequest\x1a\x1e.chat.v1.RemoveMessageResponse\x12J\n" +
 	"\n" +
 	"GetMessage\x12\x1a.chat.v1.GetMessageRequest\x1a\x1b.chat.v1.GetMessageResponse\"\x03\x90\x02\x01\x12P\n" +
@@ -723,45 +1093,63 @@ func file_chat_v1_admin_proto_rawDescGZIP() []byte {
 	return file_chat_v1_admin_proto_rawDescData
 }
 
-var file_chat_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_chat_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_chat_v1_admin_proto_goTypes = []any{
 	(*MuteRequest)(nil),           // 0: chat.v1.MuteRequest
 	(*MuteResponse)(nil),          // 1: chat.v1.MuteResponse
-	(*RemoveMessageRequest)(nil),  // 2: chat.v1.RemoveMessageRequest
-	(*RemoveMessageResponse)(nil), // 3: chat.v1.RemoveMessageResponse
-	(*GetMessageRequest)(nil),     // 4: chat.v1.GetMessageRequest
-	(*GetMessageResponse)(nil),    // 5: chat.v1.GetMessageResponse
-	(*ListMessagesRequest)(nil),   // 6: chat.v1.ListMessagesRequest
-	(*ListMessagesResponse)(nil),  // 7: chat.v1.ListMessagesResponse
-	(*KeptMessage)(nil),           // 8: chat.v1.KeptMessage
-	(*KeptQuote)(nil),             // 9: chat.v1.KeptQuote
-	(*durationpb.Duration)(nil),   // 10: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil), // 11: google.protobuf.Timestamp
+	(*UnmuteRequest)(nil),         // 2: chat.v1.UnmuteRequest
+	(*UnmuteResponse)(nil),        // 3: chat.v1.UnmuteResponse
+	(*GetMuteRequest)(nil),        // 4: chat.v1.GetMuteRequest
+	(*GetMuteResponse)(nil),       // 5: chat.v1.GetMuteResponse
+	(*RemoveMessageRequest)(nil),  // 6: chat.v1.RemoveMessageRequest
+	(*RemoveMessageResponse)(nil), // 7: chat.v1.RemoveMessageResponse
+	(*GetMessageRequest)(nil),     // 8: chat.v1.GetMessageRequest
+	(*GetMessageResponse)(nil),    // 9: chat.v1.GetMessageResponse
+	(*ListMessagesRequest)(nil),   // 10: chat.v1.ListMessagesRequest
+	(*ListMessagesResponse)(nil),  // 11: chat.v1.ListMessagesResponse
+	(*KeptMessage)(nil),           // 12: chat.v1.KeptMessage
+	(*KeptQuote)(nil),             // 13: chat.v1.KeptQuote
+	(*durationpb.Duration)(nil),   // 14: google.protobuf.Duration
+	(MuteKind)(0),                 // 15: chat.v1.MuteKind
+	(*timestamppb.Timestamp)(nil), // 16: google.protobuf.Timestamp
+	(*Gif)(nil),                   // 17: chat.v1.Gif
 }
 var file_chat_v1_admin_proto_depIdxs = []int32{
-	10, // 0: chat.v1.MuteRequest.duration:type_name -> google.protobuf.Duration
-	11, // 1: chat.v1.MuteResponse.muted_until:type_name -> google.protobuf.Timestamp
-	11, // 2: chat.v1.RemoveMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
-	11, // 3: chat.v1.GetMessageResponse.sent_at:type_name -> google.protobuf.Timestamp
-	11, // 4: chat.v1.GetMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
-	8,  // 5: chat.v1.ListMessagesResponse.messages:type_name -> chat.v1.KeptMessage
-	11, // 6: chat.v1.KeptMessage.sent_at:type_name -> google.protobuf.Timestamp
-	11, // 7: chat.v1.KeptMessage.removed_at:type_name -> google.protobuf.Timestamp
-	9,  // 8: chat.v1.KeptMessage.reply_to:type_name -> chat.v1.KeptQuote
-	11, // 9: chat.v1.KeptQuote.removed_at:type_name -> google.protobuf.Timestamp
-	0,  // 10: chat.v1.AdminService.Mute:input_type -> chat.v1.MuteRequest
-	2,  // 11: chat.v1.AdminService.RemoveMessage:input_type -> chat.v1.RemoveMessageRequest
-	4,  // 12: chat.v1.AdminService.GetMessage:input_type -> chat.v1.GetMessageRequest
-	6,  // 13: chat.v1.AdminService.ListMessages:input_type -> chat.v1.ListMessagesRequest
-	1,  // 14: chat.v1.AdminService.Mute:output_type -> chat.v1.MuteResponse
-	3,  // 15: chat.v1.AdminService.RemoveMessage:output_type -> chat.v1.RemoveMessageResponse
-	5,  // 16: chat.v1.AdminService.GetMessage:output_type -> chat.v1.GetMessageResponse
-	7,  // 17: chat.v1.AdminService.ListMessages:output_type -> chat.v1.ListMessagesResponse
-	14, // [14:18] is the sub-list for method output_type
-	10, // [10:14] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	14, // 0: chat.v1.MuteRequest.duration:type_name -> google.protobuf.Duration
+	15, // 1: chat.v1.MuteRequest.kind:type_name -> chat.v1.MuteKind
+	16, // 2: chat.v1.MuteResponse.muted_until:type_name -> google.protobuf.Timestamp
+	15, // 3: chat.v1.UnmuteRequest.kind:type_name -> chat.v1.MuteKind
+	16, // 4: chat.v1.UnmuteResponse.muted_until:type_name -> google.protobuf.Timestamp
+	15, // 5: chat.v1.GetMuteRequest.kind:type_name -> chat.v1.MuteKind
+	16, // 6: chat.v1.GetMuteResponse.muted_until:type_name -> google.protobuf.Timestamp
+	16, // 7: chat.v1.RemoveMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
+	17, // 8: chat.v1.GetMessageResponse.gif:type_name -> chat.v1.Gif
+	16, // 9: chat.v1.GetMessageResponse.sent_at:type_name -> google.protobuf.Timestamp
+	16, // 10: chat.v1.GetMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
+	12, // 11: chat.v1.ListMessagesResponse.messages:type_name -> chat.v1.KeptMessage
+	17, // 12: chat.v1.KeptMessage.gif:type_name -> chat.v1.Gif
+	16, // 13: chat.v1.KeptMessage.sent_at:type_name -> google.protobuf.Timestamp
+	16, // 14: chat.v1.KeptMessage.removed_at:type_name -> google.protobuf.Timestamp
+	13, // 15: chat.v1.KeptMessage.reply_to:type_name -> chat.v1.KeptQuote
+	17, // 16: chat.v1.KeptQuote.gif:type_name -> chat.v1.Gif
+	16, // 17: chat.v1.KeptQuote.removed_at:type_name -> google.protobuf.Timestamp
+	0,  // 18: chat.v1.AdminService.Mute:input_type -> chat.v1.MuteRequest
+	2,  // 19: chat.v1.AdminService.Unmute:input_type -> chat.v1.UnmuteRequest
+	4,  // 20: chat.v1.AdminService.GetMute:input_type -> chat.v1.GetMuteRequest
+	6,  // 21: chat.v1.AdminService.RemoveMessage:input_type -> chat.v1.RemoveMessageRequest
+	8,  // 22: chat.v1.AdminService.GetMessage:input_type -> chat.v1.GetMessageRequest
+	10, // 23: chat.v1.AdminService.ListMessages:input_type -> chat.v1.ListMessagesRequest
+	1,  // 24: chat.v1.AdminService.Mute:output_type -> chat.v1.MuteResponse
+	3,  // 25: chat.v1.AdminService.Unmute:output_type -> chat.v1.UnmuteResponse
+	5,  // 26: chat.v1.AdminService.GetMute:output_type -> chat.v1.GetMuteResponse
+	7,  // 27: chat.v1.AdminService.RemoveMessage:output_type -> chat.v1.RemoveMessageResponse
+	9,  // 28: chat.v1.AdminService.GetMessage:output_type -> chat.v1.GetMessageResponse
+	11, // 29: chat.v1.AdminService.ListMessages:output_type -> chat.v1.ListMessagesResponse
+	24, // [24:30] is the sub-list for method output_type
+	18, // [18:24] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_admin_proto_init() }
@@ -769,13 +1157,26 @@ func file_chat_v1_admin_proto_init() {
 	if File_chat_v1_admin_proto != nil {
 		return
 	}
+	file_chat_v1_chat_proto_init()
+	file_chat_v1_admin_proto_msgTypes[9].OneofWrappers = []any{
+		(*GetMessageResponse_Text)(nil),
+		(*GetMessageResponse_Gif)(nil),
+	}
+	file_chat_v1_admin_proto_msgTypes[12].OneofWrappers = []any{
+		(*KeptMessage_Text)(nil),
+		(*KeptMessage_Gif)(nil),
+	}
+	file_chat_v1_admin_proto_msgTypes[13].OneofWrappers = []any{
+		(*KeptQuote_Text)(nil),
+		(*KeptQuote_Gif)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chat_v1_admin_proto_rawDesc), len(file_chat_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

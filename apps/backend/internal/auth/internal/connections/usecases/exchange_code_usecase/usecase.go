@@ -14,9 +14,8 @@ type Sealer interface {
 	OpenedCode(sealed string) (*connections.Code, error)
 }
 
-// A code is good once: Spend refuses one it was handed before with ErrInvalidGrant.
 type Spent interface {
-	Spend(id string, until, now time.Time) error
+	Spend(code *connections.Code, now time.Time) error
 }
 
 type Tokens interface {
@@ -50,7 +49,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*admintokens.Pair, error)
 	if err := code.RedeemError(in.Redemption, now); err != nil {
 		return nil, fmt.Errorf("failed to redeem the code: %w", err)
 	}
-	if err := u.spent.Spend(code.ID(), code.ExpiresAt(), now); err != nil {
+	if err := u.spent.Spend(code, now); err != nil {
 		return nil, fmt.Errorf("failed to redeem the code: %w", err)
 	}
 

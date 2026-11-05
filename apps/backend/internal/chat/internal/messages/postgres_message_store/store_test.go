@@ -41,7 +41,7 @@ var start = time.Date(2024, 1, 1, 12, 0, 0, 123_456_000, time.UTC)
 
 func (s *testSuite) sent(text string, name string, at time.Time) messages.Message {
 	return messages.Restored(s.T(), messages.Snapshot{
-		ID: messages.MessageID("id-" + text), SentAt: at, Author: messages.AuthorOf(name, false, 0, 0, messages.Title{}),
+		ID: messages.MessageID("id-" + text), SentAt: at, Author: messages.AuthorOf(name, false, 0),
 		Country: "fr", Text: text,
 	})
 }
@@ -54,7 +54,7 @@ func (s *testSuite) TestTheSenderIsStored() {
 	s.keep(s.sent("hello", "Bob", start))
 
 	var ip, userAgent, authorID string
-	s.Require().NoError(s.db.QueryRowContext(context.Background(),
+	s.Require().NoError(s.db.On(context.Background()).QueryRowContext(context.Background(),
 		`SELECT ip, user_agent, author_id FROM messages`).Scan(&ip, &userAgent, &authorID))
 
 	s.Equal([]string{"203.0.113.7", "test-agent", "some-uuid"}, []string{ip, userAgent, authorID})
@@ -64,9 +64,11 @@ func (s *testSuite) TestOnlyAReplyKeepsTheMessageItRepliesTo() {
 	ctx := context.Background()
 	question := s.sent("hello", "Bob", start)
 	s.keep(question)
-	s.keep(s.sent("reply", "Ada", start.Add(time.Minute)).Answering(question))
+	reply, err := s.sent("reply", "Ada", start.Add(time.Minute)).Answering(question)
+	s.Require().NoError(err)
+	s.keep(reply)
 
-	rows, err := s.db.QueryContext(ctx, `SELECT COALESCE(reply_to, 'none') FROM messages ORDER BY seq`)
+	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT COALESCE(reply_to, 'none') FROM messages ORDER BY seq`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 
@@ -96,12 +98,12 @@ func (s *testSuite) TestTheBackfillPrefixesOnlyTheMessagesFromBeforeUsernames() 
 func (s *testSuite) runMigration(name string) {
 	query, err := migrations.FS.ReadFile(name)
 	s.Require().NoError(err)
-	_, err = s.db.ExecContext(context.Background(), string(query))
+	_, err = s.db.On(context.Background()).ExecContext(context.Background(), string(query))
 	s.Require().NoError(err)
 }
 
 func (s *testSuite) names() []string {
-	rows, err := s.db.QueryContext(context.Background(), `SELECT name FROM messages ORDER BY seq`)
+	rows, err := s.db.On(context.Background()).QueryContext(context.Background(), `SELECT name FROM messages ORDER BY seq`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 
@@ -128,12 +130,8 @@ func (s *testSuite) TestARemovedMessageIsNeitherShownNorReadAndIsStillKept() {
 	s.keep(s.sent("hello", "Ada", start.Add(time.Second)))
 	s.removed(insult)
 
-	shown, err := s.store.Shown(ctx, "id-insult", start, 10)
-	s.Require().NoError(err)
-	s.False(shown, "nobody reacts to a removed message")
-
-	_, err = s.store.Message(ctx, "id-insult", start, 10)
-	s.Require().ErrorIs(err, messages.ErrNotShown, "nobody answers a removed message")
+	_, err := s.store.Message(ctx, "id-insult", start, 10)
+	s.Require().ErrorIs(err, messages.ErrNotShown, "nobody answers or reacts to a removed message")
 
 	kept, err := s.store.Kept(ctx, "id-insult", start)
 	s.Require().NoError(err)
@@ -147,9 +145,8 @@ func (s *testSuite) TestARemovedMessageKeepsItsPlaceInTheWindow() {
 	s.keep(insult)
 	s.removed(insult)
 
-	shown, err := s.store.Shown(context.Background(), "id-older", start, 1)
-	s.Require().NoError(err)
-	s.False(shown, "a window of one holds the removed message, as the history does")
+	_, err := s.store.Message(context.Background(), "id-older", start, 1)
+	s.Require().ErrorIs(err, messages.ErrNotShown, "a window of one holds the removed message, as the history does")
 }
 
 func (s *testSuite) TestAMessageIsKeptOnlyInsideTheRetention() {

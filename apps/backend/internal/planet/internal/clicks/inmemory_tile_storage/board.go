@@ -6,19 +6,21 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// Every tile's owner and shields, the codes they are written in, and how many tiles each country holds.
+// Every tile's owner, shields and holder, the codes they are written in, and how many tiles each country holds.
 type board struct {
-	tiles []tileState
-	codes *codebook
-	held  []uint32
-	dirty dirtySet
+	tiles   []tileState
+	codes   *codebook
+	holders *holderbook
+	held    []uint32
+	dirty   dirtySet
 }
 
 func newBoard(last uint32) *board {
 	return &board{
-		tiles: make([]tileState, int(last)+1),
-		codes: newCodebook(),
-		dirty: newDirtySet(int(last) + 1),
+		tiles:   make([]tileState, int(last)+1),
+		codes:   newCodebook(),
+		holders: newHolderbook(),
+		dirty:   newDirtySet(int(last) + 1),
 	}
 }
 
@@ -54,18 +56,23 @@ func (b *board) shieldsOn(tile uint32) int {
 	return int(b.tiles[tile].shields)
 }
 
-// A change of owner takes the tile's shields with it.
-func (b *board) move(tile uint32, to uint16) (from uint16) {
+// A change of owner takes the tile's shields with it, and its holder is whoever made the change.
+func (b *board) move(tile uint32, to uint16, holder uint32) (from uint16) {
 	from = b.tiles[tile].owner
 	if from != unownedCode {
 		b.held[from]--
 	}
 	b.count(to)
 
-	b.tiles[tile] = ownedBy(to)
+	b.tiles[tile] = heldFor(to, holder)
 	b.dirty.mark(tile)
 
 	return from
+}
+
+func (b *board) release(tile uint32) {
+	b.tiles[tile].holder = noHolder
+	b.dirty.mark(tile)
 }
 
 // A stored tile put back at boot: nothing to flush.
@@ -94,14 +101,22 @@ func (b *board) heldBy(country string) uint32 {
 	return b.held[id]
 }
 
-func (b *board) holdings() map[string]uint32 {
-	held := map[string]uint32{}
-	for id, count := range b.held {
-		if id != int(unownedCode) && count > 0 {
-			held[b.codes.nameOf(uint16(id))] = count //nolint:gosec // an index of the code table.
+func (b *board) counts() []clicks.FlagTiles {
+	var counts []clicks.FlagTiles
+	for code, tiles := range b.held {
+		if code != int(unownedCode) && tiles > 0 {
+			counts = append(counts, clicks.FlagTiles{Flag: b.codes.nameOf(uint16(code)), Tiles: tiles}) //nolint:gosec // an index of the code table.
 		}
 	}
-	return held
+	return counts
+}
+
+func (b *board) countOf(code uint16) clicks.FlagTiles {
+	count := clicks.FlagTiles{Flag: b.codes.nameOf(code)}
+	if int(code) < len(b.held) {
+		count.Tiles = b.held[code]
+	}
+	return count
 }
 
 func (b *board) batch(start, end uint32) clicks.DenseBatch {
@@ -122,7 +137,9 @@ func (b *board) drainDirty() []Tile {
 	var tiles []Tile
 	b.dirty.drain(func(tile uint32) {
 		state := b.tiles[tile]
-		tiles = append(tiles, Tile{ID: tile, Owner: b.codes.nameOf(state.owner), Shields: int(state.shields)})
+		tiles = append(tiles, Tile{
+			ID: tile, Owner: b.codes.nameOf(state.owner), Shields: int(state.shields), Holder: b.holders.accountOf(state.holder),
+		})
 	})
 	return tiles
 }

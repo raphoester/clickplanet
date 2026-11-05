@@ -4,12 +4,15 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {AccountBackend, Provider} from "../../backends/account.ts"
-import {NameColor, PlayerBackend, PlayerLine, PlayerTitle} from "../../backends/player.ts"
-import {MySeason, Standing, StandingsBackend} from "../../backends/standings.ts"
+import {NameColor, PlayerBackend} from "../../backends/player.ts"
+import {PlayerTitle, ProgressionBackend} from "../../backends/progression.ts"
+import {MySeason, Standing, Boards} from "../../backends/standings.ts"
 import {Countries, Country} from "../../domain/countries.ts"
 import {hueOf} from "../../domain/authorColor.ts"
 import {AccountStore} from "../account/accountStore.ts"
 import SignInPitchModal from "../account/SignInPitchModal.tsx"
+import {usePlayerCard} from "../players/playerCardStore.ts"
+import {useBadges} from "../badges/badgesStore.ts"
 import {AcceptedClicks, acceptedClicks} from "../viewer/acceptedClicks.ts"
 import BoardViews, {BoardView} from "./BoardViews.tsx"
 import {Caller} from "./useMySeason.ts"
@@ -24,7 +27,7 @@ const WARLORD: PlayerTitle = {id: "warlord", name: "Warlord", rank: {trackId: "c
 const DEVOTED: PlayerTitle = {id: "devoted", name: "Devoted", rank: {trackId: "devotion", trackName: "Devotion", number: 2, count: 3}}
 
 const WORLD = [
-    {...standing(1, "Ana", "fr", 1840, NameColor.PINK), wornTitle: WARLORD},
+    standing(1, "Ana", "fr", 1840, NameColor.PINK),
     standing(2, "kiran_07", "in", 1512),
     standing(2, "Mateus", "br", 1512, NameColor.TEAL),
 ]
@@ -56,29 +59,27 @@ function backendOf(mine?: Mine, world = WORLD, french = FRENCH) {
             void Promise.resolve().then(() => onStandings(countryCode === "" ? world : countryCode === "fr" ? french : []))
             return () => {}
         }),
-        listenForRace: vi.fn(() => () => {}),
+
         mySeason: vi.fn(async (countryCode: string) => mine?.(countryCode)),
-    } satisfies StandingsBackend
+    } satisfies Boards
 }
 
 type HarnessProps = {
-    backend: StandingsBackend
+    backend: Boards
     caller: Caller
     country?: Country
     view?: BoardView
     clicks?: AcceptedClicks
     onSignIn?: () => void
-    onOpenPlayer?: (player: PlayerLine) => void
 }
 
-function Harness({backend, caller, country = france, view: first = "countries", clicks, onSignIn, onOpenPlayer}: HarnessProps) {
+function Harness({backend, caller, country = france, view: first = "countries", clicks, onSignIn}: HarnessProps) {
     const [view, setView] = useState<BoardView>(first)
     const [own] = useState(acceptedClicks)
     return <BoardViews backend={backend}
                        caller={caller}
                        listenForClicks={(clicks ?? own).listenForClicks}
                        onSignIn={onSignIn}
-                       onOpenPlayer={onOpenPlayer}
                        view={view}
                        onView={setView}
                        country={country}
@@ -108,6 +109,8 @@ const stats = () => [...yours()!.querySelectorAll(".stat-tile")].map((tile) =>
 afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    usePlayerCard.setState({openable: false, player: undefined})
+    useBadges.getState().serve(undefined)
 })
 
 describe("BoardViews", () => {
@@ -147,9 +150,9 @@ describe("BoardViews", () => {
                 onStandings(WORLD)
                 return () => {}
             }),
-            listenForRace: vi.fn(() => () => {}),
+
             mySeason: vi.fn(async () => undefined),
-        } satisfies StandingsBackend
+        } satisfies Boards
         await shown({backend, caller: GUEST, view: "players"})
 
         act(() => send([
@@ -184,6 +187,7 @@ describe("BoardViews", () => {
     })
 
     it("draws the title each player wears after its name, and none for a player who wears none", async () => {
+        useBadges.setState({badges: {"account-Ana": {streak: 0, wornTitle: WARLORD}}})
         await shown({backend: backendOf(), caller: GUEST, view: "players"})
 
         const [ana, kiran] = rows()
@@ -248,7 +252,8 @@ describe("BoardViews", () => {
     })
 
     it("puts the title the caller wears on its own line", async () => {
-        const mine = season({countryCode: "fr", tiles: 12, rank: 42, wornTitle: DEVOTED})
+        useBadges.setState({badges: {"account-Zed": {streak: 0, wornTitle: DEVOTED}}})
+        const mine = season({countryCode: "fr", tiles: 12, rank: 42})
         await shown({backend: backendOf(mine), caller: ZED, view: "players"})
 
         expect(within(rows()[3]).getByRole("img", {name: "Devoted"})).toBeDefined()
@@ -326,15 +331,14 @@ describe("BoardViews", () => {
         expect(stats()).toEqual([["Tiles", "14"], ["Players", "#10"]])
     })
 
-    it("opens a player's card from its name, with the title it wears", async () => {
-        const onOpenPlayer = vi.fn()
-        const {user} = await shown({backend: backendOf(), caller: GUEST, view: "players", onOpenPlayer})
+    it("opens a player's card from its name", async () => {
+        usePlayerCard.setState({openable: true})
+        const {user} = await shown({backend: backendOf(), caller: GUEST, view: "players"})
 
         await user.click(within(rows()[0]).getByRole("button", {name: "Ana"}))
 
-        expect(onOpenPlayer).toHaveBeenCalledWith({
-            accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.PINK, streak: 0,
-            wornTitle: WARLORD,
+        expect(usePlayerCard.getState().player).toEqual({
+            accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.PINK,
         })
     })
 
@@ -435,9 +439,10 @@ async function guestStore() {
         signInOptions: vi.fn(async (): Promise<Provider[]> => ["google"]),
         me: vi.fn(async () => ({linked: []})),
         startSignIn: vi.fn(async () => "https://google.example/authorize"),
-        completeSignIn: vi.fn(async () => undefined),
+        completeSignIn: vi.fn(async () => "signedIn" as const),
         startEmailSignIn: vi.fn(async () => undefined),
-        completeEmailSignIn: vi.fn(async () => undefined),
+        completeEmailSignIn: vi.fn(async () => "signedIn" as const),
+        completeCrazyGamesSignIn: vi.fn(async () => "signedIn" as const),
         signOut: vi.fn(async () => undefined),
         signOutEverywhere: vi.fn(async () => undefined),
         deleteAccount: vi.fn(async () => undefined),
@@ -446,11 +451,13 @@ async function guestStore() {
         profile: vi.fn(async () => ({accountId: "account-1", name: "", color: NameColor.UNSPECIFIED})),
         setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
         setColor: vi.fn(async (color: NameColor) => color),
+    } satisfies PlayerBackend
+    const progression = {
         titles: vi.fn(async () => ({wearable: [], tracks: []})),
         fronts: vi.fn(async () => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),
-    } satisfies PlayerBackend
-    const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate: vi.fn(), remember: vi.fn()})
+    } satisfies ProgressionBackend
+    const store = new AccountStore(backend, player, progression, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate: vi.fn(), remember: vi.fn(), claimFlag: vi.fn()})
     await store.load()
     return store
 }

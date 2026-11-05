@@ -1,6 +1,7 @@
 import {PointerEvent, useEffect, useId, useRef, useState} from 'react'
 import {BonusNotice, BonusNoticeEvent, BonusRules, ChargeKind, Charges, slotOf, Switches} from '../../domain/bonus.ts'
-import {BonusGuide, FRESH_GUIDE, isLearning, isNew} from '../../domain/bonusGuide.ts'
+import {BonusGuide, isLearning, isNew} from '../../domain/bonusGuide.ts'
+import {useBonusGuide} from './bonusGuideStore.ts'
 import BonusIcon from './BonusIcon.tsx'
 import Bubble, {BUBBLE_MS} from './Bubble.tsx'
 import './Inventory.css'
@@ -22,8 +23,6 @@ export type InventoryProps = {
     onUseRefill?: () => boolean
     onToggleShield?: () => void
     notice?: BonusNoticeEvent
-    guide?: BonusGuide
-    onUsed?: (kind: ChargeKind) => void
 }
 
 type Said = {
@@ -43,9 +42,8 @@ export default function Inventory({
     onUseRefill,
     onToggleShield,
     notice,
-    guide = FRESH_GUIDE,
-    onUsed,
 }: InventoryProps) {
+    const {guide, markUsed} = useBonusGuide()
     const [said, setSaid] = useState<Said | undefined>()
     const [shownNotice, setShownNotice] = useState(notice?.seq)
 
@@ -73,7 +71,7 @@ export default function Inventory({
     const pressed = (kind: ChargeKind, turnsOn: boolean, learnText?: string) => {
         if (turnsOn && learnText && isLearning(guide, kind)) say(kind, learnText)
         else setSaid(undefined)
-        if (turnsOn) onUsed?.(kind)
+        if (turnsOn) markUsed(kind)
     }
 
     const active = bombArmed || switches.spread || switches.enclose || switches.shield
@@ -95,7 +93,7 @@ export default function Inventory({
                   held={charges.refill}
                   hint="Fill your clicks to full"
                   onPress={onUseRefill && (() => {
-                      onUsed?.("refill")
+                      markUsed("refill")
                       if (onUseRefill()) setSaid(undefined)
                       else say("refill", "Your clicks are already full", NOTICE_MS, "Full")
                   })}/>

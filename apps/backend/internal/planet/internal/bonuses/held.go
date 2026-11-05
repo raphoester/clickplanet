@@ -43,14 +43,7 @@ type Held struct {
 	Shields int
 }
 
-type ChargesConfig struct {
-	SpreadClicks      int
-	Enclosures        int
-	EnclosureMaxTiles int
-	Shields           int
-}
-
-func (h Held) Full(config ChargesConfig) []Kind {
+func (h Held) Full(rules Rules) []Kind {
 	var kinds []Kind
 	if h.Refill {
 		kinds = append(kinds, KindRefill)
@@ -58,13 +51,13 @@ func (h Held) Full(config ChargesConfig) []Kind {
 	if h.Bomb {
 		kinds = append(kinds, KindBomb)
 	}
-	if h.Enclosures >= config.Enclosures {
+	if h.Enclosures >= rules.Enclose.Held {
 		kinds = append(kinds, KindEncloseClicks)
 	}
-	if h.SpreadClicks >= config.SpreadClicks {
+	if h.SpreadClicks >= rules.Spread.Clicks {
 		kinds = append(kinds, KindSpreadClicks)
 	}
-	if h.Shields >= config.Shields {
+	if h.Shields >= rules.Shield.Held {
 		kinds = append(kinds, KindShields)
 	}
 
@@ -111,21 +104,43 @@ func (h Held) GrantError() error {
 	return nil
 }
 
-func (h Held) Granted(kind Kind, amount int, config ChargesConfig) Held {
+func GrantOf(kind Kind, amount int) Held {
+	switch kind {
+	case KindRefill:
+		return Held{Refill: amount > 0}
+	case KindBomb:
+		return Held{Bomb: amount > 0}
+	case KindEncloseClicks:
+		return Held{Enclosures: amount}
+	case KindSpreadClicks:
+		return Held{SpreadClicks: amount}
+	case KindShields:
+		return Held{Shields: amount}
+	}
+
+	return Held{}
+}
+
+// Granted caps a stack at its size, and never takes from a stack held above a size made smaller.
+func (h Held) Granted(kind Kind, amount int, rules Rules) Held {
 	switch kind {
 	case KindRefill:
 		h.Refill = true
 	case KindBomb:
 		h.Bomb = true
 	case KindEncloseClicks:
-		h.Enclosures = min(h.Enclosures+amount, config.Enclosures)
+		h.Enclosures = stacked(h.Enclosures, amount, rules.Enclose.Held)
 	case KindSpreadClicks:
-		h.SpreadClicks = min(h.SpreadClicks+amount, config.SpreadClicks)
+		h.SpreadClicks = stacked(h.SpreadClicks, amount, rules.Spread.Clicks)
 	case KindShields:
-		h.Shields = min(h.Shields+amount, config.Shields)
+		h.Shields = stacked(h.Shields, amount, rules.Shield.Held)
 	}
 
 	return h
+}
+
+func stacked(held, amount, size int) int {
+	return max(held, min(held+amount, size))
 }
 
 func (h Held) AfterRefill() (Held, bool) {

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
+import { AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetTileHolderRequest, GetTileHolderResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -49,6 +49,16 @@ export const ClickService = {
       name: "GetMap",
       I: GetMapRequest,
       O: GetMapResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.ClickService.GetHoldings
+     */
+    getHoldings: {
+      name: "GetHoldings",
+      I: GetHoldingsRequest,
+      O: GetHoldingsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },
@@ -145,6 +155,50 @@ export const ClickService = {
       O: GetFortressesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.ClickService.GetTileHolder
+     */
+    getTileHolder: {
+      name: "GetTileHolder",
+      I: GetTileHolderRequest,
+      O: GetTileHolderResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.ClickService.GetLandmass
+     */
+    getLandmass: {
+      name: "GetLandmass",
+      I: GetLandmassRequest,
+      O: GetLandmassResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
+     *
+     * @generated from rpc planet.v1.ClickService.GetAllegiance
+     */
+    getAllegiance: {
+      name: "GetAllegiance",
+      I: GetAllegianceRequest,
+      O: GetAllegianceResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The only way to set or change the flag: a click or a shield never does.
+     * Refused within the hour after a change, and while the rules in force lock the flags, as a click for another flag
+     * is.
+     *
+     * @generated from rpc planet.v1.ClickService.PledgeAllegiance
+     */
+    pledgeAllegiance: {
+      name: "PledgeAllegiance",
+      I: PledgeAllegianceRequest,
+      O: PledgeAllegianceResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

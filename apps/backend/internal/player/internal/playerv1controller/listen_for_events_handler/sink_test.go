@@ -12,8 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
 
 type recordingStream struct {
@@ -27,7 +25,7 @@ func (r *recordingStream) Send(event *playerv1.PlayerEvent) error {
 
 var ada = presence.EntryOf(presence.NewVisit(
 	players.AccountID{15: 1},
-	wearing.AuthorOf(players.NamedAuthor(players.NewProfile(players.AccountID{15: 1}, "Ada_L", time.Time{}), players.Streak{}), titles.Standing{}),
+	players.NamedPlayer(players.NewProfile(players.AccountID{15: 1}, "Ada_L", time.Time{})),
 	"", "fr", time.Time{},
 ).Keyed("k1"))
 
@@ -39,8 +37,6 @@ func TestEachFrameIsItsCaseOfTheEnvelope(t *testing.T) {
 	require.NoError(t, sink.SendChange(presence.ChangeOf(ada)))
 	require.NoError(t, sink.SendChange(presence.DepartureOf(ada)))
 	require.NoError(t, sink.SendHeartbeat())
-	conqueror, _ := titles.NewCatalog().StandingOf("conqueror")
-	require.NoError(t, sink.SendTitleEarned(conqueror))
 
 	entry := &playerv1.RosterEntry{Key: "k1", AccountId: players.AccountID{15: 1}.String(), Name: "Ada_L", CountryId: "fr"}
 	want := []*playerv1.PlayerEvent{
@@ -48,9 +44,6 @@ func TestEachFrameIsItsCaseOfTheEnvelope(t *testing.T) {
 		{Event: &playerv1.PlayerEvent_Entry{Entry: entry}},
 		{Event: &playerv1.PlayerEvent_Left{Left: &playerv1.PlayerLeft{Key: "k1"}}},
 		{Event: &playerv1.PlayerEvent_Heartbeat{Heartbeat: &playerv1.Heartbeat{}}},
-		{Event: &playerv1.PlayerEvent_TitleEarned{TitleEarned: &playerv1.TitleEarned{Title: &playerv1.Title{
-			Id: "conqueror", Name: "Conqueror", Rank: &playerv1.Rank{TrackId: "conquest", TrackName: "Conquest", Number: 4, Count: 5},
-		}}}},
 	}
 	require.Len(t, stream.sent, len(want))
 	for i := range want {

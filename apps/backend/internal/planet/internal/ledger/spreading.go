@@ -21,6 +21,10 @@ func (s Spreading) Replay(see func(Taking)) {
 	replayClaims(see, s.Impacts, Taking{Scope: s.Scope, Account: s.Account, Country: s.Country, At: s.At})
 }
 
+func (s Spreading) Strikes(see func(Strike)) {
+	strikeClaims(see, s.Impacts, Strike{Account: s.Account, Country: s.Country, At: s.At})
+}
+
 func (s Spreading) Show(see func(Scene)) {
 	showImpacts(see, s.At, s.Country, s.Impacts)
 	see(Scene{At: s.At, Spread: bonusAt(s.Tile, s.Country, s.Impacts)})

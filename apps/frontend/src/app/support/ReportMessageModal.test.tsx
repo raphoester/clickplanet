@@ -11,7 +11,7 @@ afterEach(cleanup)
 
 const insult: ChatMessage = {
     id: "message-1", sentAt: Date.UTC(2026, 9, 17, 12), authorAccountId: "account-bo", authorName: "guest_b0b0b0",
-    authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0, countryCode: "de",
+    authorAdmin: false, authorColor: NameColor.UNSPECIFIED, countryCode: "de",
     text: "you are all idiots", reactions: [], reactionsVersion: 0,
 }
 
