@@ -16,58 +16,54 @@ const (
 	fewestPoints = 3
 	mostPoints   = 10
 	goalStep     = 10
+	goalPercent  = 50
+
+	leastConquest = 100
+	leastShields  = 30
 )
 
-// A pace is what a goal asks for its points: a share of what the flag did the day before, and never less than least.
-type pace struct {
-	percent span
-	least   span
-}
-
-// From its value for the fewest points to its value for the most, evenly.
-type span struct {
-	fewest uint64
-	most   uint64
-}
-
-func (s span) at(points uint32) uint64 {
-	return s.fewest + (s.most-s.fewest)*uint64(points-fewestPoints)/(mostPoints-fewestPoints)
-}
-
-func (p pace) goal(points uint32, yesterday uint64) uint32 {
-	goal := max(p.least.at(points), yesterday*p.percent.at(points)/100)
+func goalOf(yesterday, least uint64) uint32 {
+	goal := max(least, yesterday*goalPercent/100)
 	goal -= goal % goalStep
 	return uint32(min(goal, uint64(^uint32(0)))) //nolint:gosec // capped just above.
 }
 
-var (
-	conquerPace = pace{percent: span{fewest: 50, most: 100}, least: span{fewest: 1_000, most: 2_000}}
-	shieldPace  = pace{percent: span{fewest: 50, most: 100}, least: span{fewest: 300, most: 600}}
-)
+// mostPoints for a flag with no tiles, fewestPoints for the biggest, and in proportion between, rounded.
+func pointsOf(flag string, world missions.World) uint32 {
+	var held, biggest uint64
+	for _, territory := range world.Territories {
+		biggest = max(biggest, uint64(territory.Tiles))
+		if territory.Flag == flag {
+			held = uint64(territory.Tiles)
+		}
+	}
+	if biggest == 0 {
+		return mostPoints
+	}
+	return mostPoints - uint32(((mostPoints-fewestPoints)*held*2+biggest)/(2*biggest)) //nolint:gosec // at most 7.
+}
 
 var drawnSpace = uuid.MustParse("466c6167-4d69-4373-8000-696f6e66c167")
 
-// One mission for the whole flag: a big ground to take tiles on, or a rival's shields to break, evenly; the more
-// points, the bigger the share of yesterday it asks, and never more tiles than a ground has that the flag does not hold.
+// One mission for the whole flag: a big ground to take tiles on, or a rival's shields to break, evenly.
 func Draw(day days.Day, flag string, world missions.World, yesterday Day) Day {
 	seed := fnv.New64a()
 	_, _ = seed.Write([]byte(day.String() + "/" + flag))
 	random := rand.New(rand.NewPCG(seed.Sum64(), 0)) //nolint:gosec // a draw every player can see, not a secret.
 
-	points := fewestPoints + random.Uint32N(mostPoints-fewestPoints+1)
 	var orders []Order
 	if grounds := world.GroundsOf(flag); len(grounds) > 0 {
-		orders = append(orders, conquest(random, grounds, conquerPace.goal(points, yesterday.takes)))
+		orders = append(orders, conquest(random, grounds, goalOf(yesterday.takes, leastConquest)))
 	}
 	if rivals := world.RivalsOf(flag); len(rivals) > 0 {
-		orders = append(orders, BreakShields{Flag: byGround(random, rivals), Goal: shieldPace.goal(points, yesterday.strikes)})
+		orders = append(orders, BreakShields{Flag: byGround(random, rivals), Goal: goalOf(yesterday.strikes, leastShields)})
 	}
 	if len(orders) == 0 {
 		return Day{}
 	}
 
 	id := MissionID(uuid.NewSHA1(drawnSpace, []byte(day.String()+"/"+flag)))
-	return Day{mission: &MissionSnapshot{ID: id, Order: orders[random.IntN(len(orders))], Points: points}}
+	return Day{mission: &MissionSnapshot{ID: id, Order: orders[random.IntN(len(orders))], Points: pointsOf(flag, world)}}
 }
 
 // A ground with room for the goal, the tiles the flag does not hold there, drawn evenly; with none, the ground with the
