@@ -130,7 +130,7 @@
 
 /* The cards: a 3:4 portrait each, as tall as the screen leaves room for under the head and above the button. */
 .teaser-carousel {
-    --card: min(300px, 74vw, calc((100dvh - 360px) * 0.75));
+    --card: min(420px, 74vw, calc((100dvh - 360px) * 0.75));
     position: relative;
     z-index: 1;
     display: grid;
@@ -212,13 +212,11 @@
     place-items: center;
     width: 40px;
     height: 40px;
-    padding: 0 0 3px;
+    padding: 0;
     border: var(--outline-thin) solid var(--ink);
     border-radius: var(--radius-pill);
     background: var(--secondary);
     box-shadow: var(--drop-s);
-    font-family: var(--font-display);
-    font-size: var(--display-l);
     color: var(--text);
     cursor: pointer;
 }
@@ -227,14 +225,81 @@
     right: calc(50% + var(--card) / 2 + var(--space-3));
 }
 
+.teaser-arrow--previous svg {
+    transform: rotate(90deg);
+}
+
 .teaser-arrow--next {
     left: calc(50% + var(--card) / 2 + var(--space-3));
+}
+
+.teaser-arrow--next svg {
+    transform: rotate(-90deg);
 }
 
 /* A phone swipes, and has no room beside the card. */
 @media (hover: none), (max-width: 480px) {
     .teaser-arrow {
         display: none;
+    }
+}
+
+/* A wide screen puts the words beside the cards, so the cards take the screen's height. */
+@media (min-width: 1024px) and (min-aspect-ratio: 5 / 4) {
+    .battle-teaser .title-reveal-stage {
+        display: grid;
+        grid-template-columns: auto minmax(0, 440px);
+        grid-template-rows: 1fr repeat(5, auto) 1fr;
+        justify-content: center;
+        justify-items: center;
+        column-gap: var(--space-5);
+        max-width: none;
+    }
+
+    .battle-teaser .title-reveal-stage > * {
+        grid-column: 2;
+    }
+
+    .battle-teaser .title-reveal-head {
+        grid-row: 2;
+        font-size: clamp(var(--display-l), 9vh, 80px);
+    }
+
+    .battle-teaser-left {
+        grid-row: 3;
+    }
+
+    .battle-teaser-when {
+        grid-row: 4;
+    }
+
+    .battle-teaser-words {
+        grid-row: 5;
+    }
+
+    .battle-teaser .title-reveal-actions {
+        grid-row: 6;
+    }
+
+    .battle-teaser .teaser-carousel {
+        --card: min(600px, calc((100dvh - 120px) * 0.75), calc(100vw - 640px));
+        grid-column: 1;
+        grid-row: 1 / -1;
+        align-self: center;
+        margin-top: 0;
+        padding-inline: calc(40px + var(--space-3) * 2);
+    }
+
+    .battle-teaser .teaser-card figcaption {
+        padding: var(--space-5) var(--space-5) var(--space-6);
+    }
+
+    .battle-teaser .teaser-card-headline {
+        font-size: max(var(--display-l), calc(var(--card) * 0.07));
+    }
+
+    .battle-teaser .teaser-card-line {
+        font-size: max(var(--text-m), calc(var(--card) * 0.034));
     }
 }
 

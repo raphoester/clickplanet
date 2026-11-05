@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import {afterEach, beforeEach, describe, expect, it} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, waitFor} from "@testing-library/react"
 import {FakePromoBackend} from "../../backends/fakePromoBackend.ts"
 import {BattleToCome} from "../../backends/turn.ts"
@@ -24,12 +24,17 @@ function Harness({next = battle, at = now, guided = false}: {next?: BattleToCome
 }
 
 beforeEach(() => {
+    vi.useFakeTimers({toFake: ["Date"]})
+    vi.setSystemTime(now)
     window.localStorage.clear()
     clicks = acceptedClicks()
     promo = new FakePromoBackend()
 })
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+})
 
 describe("useBattleTeaser", () => {
     it("teases the next battle with promo's cards", async () => {

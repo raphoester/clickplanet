@@ -87,7 +87,9 @@ tease anything"). The Final Battle's own teaser, once per browser in the two day
   player's time with its points' times (`battleWhenLine`: "Today · 22:00 – 23:00 · Points ×2"), the operator's words
   on the entry, then the cards, and "To the globe" once it settled (`TITLE_REVEAL.ready`).
 - **The cards** (`TeaserCarousel`) are 3:4 portraits, as tall as the screen leaves room for, one shown at a time,
-  the words on a band of shade along the top. A row moved by a transform, so the card shown is always the one the
+  the words on a band of shade along the top. **On a wide screen** (1024px and wider, in landscape) the screen's words
+  and its button go beside the cards, so a card takes the screen's height (600px wide at most) and its words grow with
+  it: the image is the screen's hero, not a thumbnail under the head. A row moved by a transform, so the card shown is always the one the
   dots say: a swipe of 40px turns it (pointer events; an upright swipe still scrolls), the arrows beside it on a
   wide screen and the dots under it are the buttons, and **it turns on its own every 5 seconds** (`TEASER_TURN_MS`)
   until the player touches it. Under `prefers-reduced-motion` it never turns on its own, and slides with no
