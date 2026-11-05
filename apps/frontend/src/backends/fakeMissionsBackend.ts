@@ -59,14 +59,11 @@ export class FakeMissionsBackend implements MissionsBackend {
 
     private payDone(): void {
         if (!this.flag) return
-        let paid = false
         for (const mission of this.brief(this.flag)) {
             if (!mission.done || this.paid.has(mission.id)) continue
             this.paid.add(mission.id)
             this.grant(mission.reward.kind)
-            paid = true
         }
-        if (!paid) return
         const day = this.day()
         this.followers.forEach((onDay) => onDay(day))
     }

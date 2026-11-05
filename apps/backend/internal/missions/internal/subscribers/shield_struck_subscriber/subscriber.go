@@ -36,7 +36,7 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.ShieldStruck) er
 	defer cancel()
 
 	return s.useCase.Execute(ctx, flagmissions.Strike{ //nolint:wrapcheck // the use case named it.
-		Flag: event.GetCountry(), Owner: event.GetOwner(), Position: event.GetPosition(), Index: event.GetIndex(),
+		Account: subscribers.AccountOrNone(event.GetAccountId()), Flag: event.GetCountry(), Owner: event.GetOwner(), Position: event.GetPosition(), Index: event.GetIndex(),
 		At: event.GetStruckAt().AsTime(),
 	})
 }

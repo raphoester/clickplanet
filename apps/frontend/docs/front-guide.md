@@ -25,8 +25,9 @@ the players who left in their first two minutes left after fewer than 30 clicks.
   the globe of radius 1, the next ring at least 0.0048, so two tiles touch within 0.0046. The tiles are sorted by a
   grid cell of twice that, and a tile's neighbours are in the two cells around it on each axis.
   `neighbours.test.ts` checks it on the shipped map: no tile has more than six.
-- **The ring shares the fortify pulse's slot**: bit 1 is the gold ring, bit 2 the white one (`TileField.setPulses`,
-  `setFront`); the fragment shader reads them back with `mod` and a threshold, gold first. The ring beats at
+- **The ring shares the fortify pulse's slot**: bit 1 is the gold ring, bit 2 the white one, bit 4 a mission's still
+  red ring (`TileField.setPulses`, `setFront`, `setMissionMarks`, see [Missions](missions.md)); the shaders read them
+  back with `mod` and a threshold, gold first, and only bits 1 and 2 beat. The ring beats at
   `AMBIENT_FRAME_MS` while a lit tile faces the camera (`pulsing`).
 - **Trying it in fake mode**: every tile starts French there, so a guided Bulgaria holds nothing. Clear the page's
   storage, reload, and `fakeBackend.takeLandmass(39, "bg", 120)` in the console lights the front around most of

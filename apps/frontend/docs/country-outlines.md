@@ -89,6 +89,12 @@ one landmass; the generator checks it and refuses otherwise. The highlight is a 
 pass over the coarse pieces, which carry the pair, drawn over the tiles and only while a
 territory is lit; the vertex shader drops every piece that does not border it.
 
+**A mission's ground is outlined in red**, the red of a mission's ring on a tile (`setAimed`, see [Missions](missions.md)), a fourth pass drawn over the tiles at
+every zoom, `MISSION_WIDTH` (2px) wide: a ground is looked at pushed in as well as from orbit. It shares the fine pass's
+pieces and adds the pair of landmasses each piece runs between, and the vertex shader reads in a texture of
+`AIMED_COLUMNS` (1024) a row whether each landmass is a mission's: a piece is drawn when one side is and the other is not,
+so the outline runs round the ground's coasts and its borders with every other country, and never inside it.
+
 It stays out of `/map`, unlike the two blobs it is built from: the backend has no
 use for it. Where a tile is and who owns the ground under it are the game's rules
 and are shared; how thick a line is drawn between them is this app's.

@@ -235,7 +235,7 @@ void main() {
         swell = max(swell, lit * 0.6);
     }
 
-    if (pulse > 0.5) swell = max(swell, 0.12 * (0.5 + 0.5 * sin(time * PULSE_RATE)));
+    if (mod(pulse, 4.0) > 0.5) swell = max(swell, 0.12 * (0.5 + 0.5 * sin(time * PULSE_RATE)));
 
     vSpriteSize = pointSize * (1.0 + motion * swell);
     gl_PointSize = vSpriteSize;

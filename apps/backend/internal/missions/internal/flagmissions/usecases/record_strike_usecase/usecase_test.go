@@ -35,14 +35,23 @@ var (
 	today = days.TestingDayAt(at)
 )
 
-func setUp() (*record_strike_usecase.UseCase, *inmemory_flag_day_store.Store, *cpatomic.FakeOutbox) {
+type recordingStreams struct {
+	woken []missions.AccountID
+}
+
+func (s *recordingStreams) Publish(account missions.AccountID) {
+	s.woken = append(s.woken, account)
+}
+
+func setUp() (*record_strike_usecase.UseCase, *inmemory_flag_day_store.Store, *cpatomic.FakeOutbox, *recordingStreams) {
 	store, outbox, calendar := inmemory_flag_day_store.New(), &cpatomic.FakeOutbox{}, inmemory_day_store.New(today)
+	streams := &recordingStreams{}
 	return record_strike_usecase.New(calendar, flagmissions.NewBriefing(store, calendar, fixedPlanet{}, noPledges{}), store,
-		cpatomic.FakeTransactioner{}, outbox), store, outbox
+		cpatomic.FakeTransactioner{}, outbox, streams), store, outbox, streams
 }
 
 func TestTheShieldsBrokenFinishTheMissionAndGiveTheFlagItsPointsOnce(t *testing.T) {
-	useCase, store, outbox := setUp()
+	useCase, store, outbox, _ := setUp()
 	drawn := flagmissions.Draw(today, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}},
 		flagmissions.Day{})
 	status, ok := drawn.Status()
@@ -66,11 +75,20 @@ func TestTheShieldsBrokenFinishTheMissionAndGiveTheFlagItsPointsOnce(t *testing.
 }
 
 func TestAStrikeWhenNoDayRunsCountsNothing(t *testing.T) {
-	useCase, store, outbox := setUp()
+	useCase, store, outbox, _ := setUp()
 
 	require.NoError(t, useCase.Execute(t.Context(), flagmissions.Strike{Flag: "fr", Owner: "dz", At: today.Snapshot().EndsAt}))
 
 	_, err := store.Day(t.Context(), today, "fr")
 	require.ErrorIs(t, err, flagmissions.ErrNoDay)
 	assert.Empty(t, outbox.Recorded())
+}
+
+func TestAShieldBrokenWakesTheStreamsOfTheAccountThatBrokeIt(t *testing.T) {
+	useCase, _, _, streams := setUp()
+	ada := missions.AccountID{15: 1}
+
+	require.NoError(t, useCase.Execute(t.Context(), flagmissions.Strike{Account: ada, Flag: "fr", Owner: "dz", Position: 1, At: at}))
+
+	assert.Equal(t, []missions.AccountID{ada}, streams.woken)
 }

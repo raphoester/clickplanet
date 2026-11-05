@@ -33,19 +33,20 @@ describe("FakeMissionsBackend", () => {
         expect(grant.mock.calls.map(([kind]) => kind)).toEqual(["shields", "spreadClicks", "bomb", "encloseClicks", "shields"])
     })
 
-    it("hands its followers the day at once, then again only when a take pays a mission", async () => {
+    it("hands its followers the day at once, then again after each take, paid or not", async () => {
         const fake = new FakeMissionsBackend(vi.fn(), pledged("fr"), () => Date.UTC(2026, 9, 26, 12, 0))
         const clicking = fake.counting(clicker)
         const onDay = vi.fn()
 
         fake.follow(onDay)
         await clicking.clickTile(1, "fr")
-        expect(onDay).toHaveBeenCalledTimes(1)
+        expect(onDay).toHaveBeenCalledTimes(2)
+        expect(onDay.mock.lastCall?.[0].missions[0].order.taken).toBe(1)
 
         fake.prime()
         await clicking.clickTile(2, "fr")
 
-        expect(onDay).toHaveBeenCalledTimes(2)
+        expect(onDay).toHaveBeenCalledTimes(3)
         expect(onDay.mock.lastCall?.[0].missions.every((mission: {paid: boolean}) => mission.paid)).toBe(true)
     })
 })

@@ -34,6 +34,10 @@ const float ROUND_FROM = 6.0;
 const float HIGHLIGHT_LIFT = 0.2;
 const float HIGHLIGHT_FLOOR = 0.35;
 
+// Must match MISSION_COLOUR in borderLines.ts.
+const vec3 MISSION = vec3(0.93, 0.16, 0.14);
+const float MISSION_RING_PX = 2.5;
+
 #include ../flagFrame.glsl;
 
 vec2 atlasUVof(vec4 region, vec2 uv) {
@@ -116,12 +120,23 @@ void main() {
     vec3 ember = mix(vec3(0.07, 0.02, 0.01), vec3(1.0, 0.32, 0.04), vScorch * vScorch);
     colour = mix(colour, vec4(ember, 0.95), vScorch * 0.9);
 
-    if (vPulse > 0.5) {
+    float aimed = vPulse > 3.5 ? (1.0 - flagPaint) * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
+    if (aimed > 0.0) {
+        float pixel = 1.0 / vSpriteSize;
+        float inner = 0.5 - pixel - max(MISSION_RING_PX * pixelRatio * pixel, 0.06);
+        float r = length(coordinates);
+        float ring = smoothstep(inner - pixel, inner + pixel, r) * (1.0 - smoothstep(0.5 - 2.0 * pixel, 0.5, r));
+        colour.rgb = mix(colour.rgb, MISSION, ring * aimed);
+        colour.a = max(colour.a, ring * aimed);
+    }
+
+    float rings = mod(vPulse, 4.0);
+    if (rings > 0.5) {
         float beat = 0.5 + 0.5 * sin(time * 6.2831853 / 1.1);
         float r = length(coordinates);
         float ring = smoothstep(0.31, 0.38, r) * (1.0 - smoothstep(0.46, 0.5, r));
         vec3 gold = vec3(1.0, 0.8, 0.22);
-        vec3 tint = mod(vPulse, 2.0) > 0.5 ? gold : vec3(1.0);
+        vec3 tint = mod(rings, 2.0) > 0.5 ? gold : vec3(1.0);
         colour.rgb = mix(colour.rgb, tint, ring * (0.5 + 0.5 * beat));
         colour.a = max(colour.a, ring * (0.6 + 0.4 * beat));
     }

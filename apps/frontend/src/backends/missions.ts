@@ -77,6 +77,6 @@ export type DayMissions = {
 export interface MissionsBackend {
     missions(): Promise<DayMissions>
 
-    // The day at once, then again each time missions are paid.
+    // The day at once, then again after each fact of the caller, once a second at most.
     follow(onDay: (day: DayMissions) => void): () => void
 }

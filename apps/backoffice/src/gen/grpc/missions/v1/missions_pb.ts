@@ -78,7 +78,7 @@ export class MissionEvent extends Message<MissionEvent> {
    */
   event: {
     /**
-     * The caller's day as GetMissions answers it: once as the stream opens, then each time missions are paid to it.
+     * The caller's day as GetMissions answers it: once as the stream opens, then after each fact of its own, once a second at most.
      *
      * @generated from field: missions.v1.GetMissionsResponse day = 1;
      */

@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/scoringgrant"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
@@ -24,10 +25,18 @@ type FlagDays interface {
 	ChangeDay(ctx context.Context, day days.Day, flag string, change func(flagmissions.Day) flagmissions.Day) error
 }
 
+type Streams interface {
+	Publish(account missions.AccountID)
+}
+
 func New(
 	calendar Calendar, briefing Briefing, flagDays FlagDays, transactioner cpatomic.Transactioner, outbox cpatomic.Outbox,
+	streams Streams,
 ) *UseCase {
-	return &UseCase{calendar: calendar, briefing: briefing, flagDays: flagDays, transactioner: transactioner, outbox: outbox}
+	return &UseCase{
+		calendar: calendar, briefing: briefing, flagDays: flagDays, transactioner: transactioner, outbox: outbox,
+		streams: streams,
+	}
 }
 
 type UseCase struct {
@@ -36,6 +45,7 @@ type UseCase struct {
 	flagDays      FlagDays
 	transactioner cpatomic.Transactioner
 	outbox        cpatomic.Outbox
+	streams       Streams
 }
 
 func (u *UseCase) Execute(ctx context.Context, take flagmissions.Take) error {
@@ -50,7 +60,7 @@ func (u *UseCase) Execute(ctx context.Context, take flagmissions.Take) error {
 		return fmt.Errorf("failed to read %s's mission: %w", take.Flag, err)
 	}
 
-	return u.transactioner.InTx(ctx, func(ctx context.Context) error {
+	if err := u.transactioner.InTx(ctx, func(ctx context.Context) error {
 		var done []flagmissions.Done
 		if err := u.flagDays.ChangeDay(ctx, day, take.Flag, func(current flagmissions.Day) flagmissions.Day {
 			next, finished := current.WithTake(take)
@@ -63,5 +73,10 @@ func (u *UseCase) Execute(ctx context.Context, take flagmissions.Take) error {
 			return nil
 		}
 		return u.outbox.Record(ctx, scoringgrant.Of(take.Flag, done, take.At)...) //nolint:wrapcheck // the outbox named it.
-	})
+	}); err != nil {
+		return err //nolint:wrapcheck // the transaction's own error.
+	}
+
+	u.streams.Publish(take.Account)
+	return nil
 }

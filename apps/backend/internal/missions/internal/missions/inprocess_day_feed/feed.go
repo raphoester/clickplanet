@@ -1,4 +1,4 @@
-package inprocess_payment_feed
+package inprocess_day_feed
 
 import (
 	"context"
@@ -17,15 +17,15 @@ func New() *Feed {
 	return &Feed{subscribers: map[missions.AccountID]*cpcolls.Set[chan struct{}]{}}
 }
 
-// One slot: payments told while a stream reads the day are one more read, not one each.
+// One slot: changes told while a stream reads the day are one more read, not one each.
 func (f *Feed) Subscribe(ctx context.Context, account missions.AccountID) <-chan struct{} {
-	paid := make(chan struct{}, 1)
+	changed := make(chan struct{}, 1)
 
 	f.mu.Lock()
 	if f.subscribers[account] == nil {
 		f.subscribers[account] = cpcolls.NewSet[chan struct{}]()
 	}
-	f.subscribers[account].Add(paid)
+	f.subscribers[account].Add(changed)
 	f.mu.Unlock()
 
 	go func() {
@@ -33,14 +33,14 @@ func (f *Feed) Subscribe(ctx context.Context, account missions.AccountID) <-chan
 
 		f.mu.Lock()
 		defer f.mu.Unlock()
-		f.subscribers[account].Delete(paid)
+		f.subscribers[account].Delete(changed)
 		if f.subscribers[account].Empty() {
 			delete(f.subscribers, account)
 		}
-		close(paid)
+		close(changed)
 	}()
 
-	return paid
+	return changed
 }
 
 func (f *Feed) Publish(account missions.AccountID) {

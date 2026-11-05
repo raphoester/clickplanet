@@ -1,7 +1,9 @@
 import {useEffect} from "react"
-import {FlagMission, Mission} from "../../backends/missions.ts"
+import {FlagMission, FlagMissionOrder, Mission, MissionOrder} from "../../backends/missions.ts"
 import {timeLeft} from "../../domain/missions.ts"
+import {MissionTarget, targetOf} from "../../domain/missionTargets.ts"
 import BonusIcon from "../components/BonusIcon.tsx"
+import {TargetIcon} from "../components/icons.tsx"
 import {useNow} from "../season/useNow.ts"
 import {partsOf} from "./orderParts.tsx"
 import {MissionsState} from "./useMissions.ts"
@@ -11,9 +13,10 @@ import "./Missions.css"
 export type MissionsPlaceProps = {
     state: MissionsState
     onSignIn?: () => void
+    onGo?: (target: MissionTarget) => void
 }
 
-export default function MissionsPlace({state, onSignIn}: MissionsPlaceProps) {
+export default function MissionsPlace({state, onSignIn, onGo}: MissionsPlaceProps) {
     const now = useNow()
     const markSeen = useSeenMissions((seenMissions) => seenMissions.markSeen)
 
@@ -32,14 +35,14 @@ export default function MissionsPlace({state, onSignIn}: MissionsPlaceProps) {
 
     return <div className="missions">
         <p className="missions-left">Ends in {timeLeft(state.day.endsAt, now)}</p>
-        {state.day.flagMission && <FlagMissionRow mission={state.day.flagMission}/>}
+        {state.day.flagMission && <FlagMissionRow mission={state.day.flagMission} onGo={onGo}/>}
         <ol className="missions-list">
-            {state.day.missions.map((mission) => <MissionRow key={mission.id} mission={mission} onSignIn={onSignIn}/>)}
+            {state.day.missions.map((mission) => <MissionRow key={mission.id} mission={mission} onSignIn={onSignIn} onGo={onGo}/>)}
         </ol>
     </div>
 }
 
-function FlagMissionRow({mission}: {mission: FlagMission}) {
+function FlagMissionRow({mission, onGo}: {mission: FlagMission, onGo?: (target: MissionTarget) => void}) {
     const parts = partsOf(mission.order)
 
     return <section className={`panel-box mission${mission.done ? " mission--paid" : ""}`}
@@ -51,7 +54,9 @@ function FlagMissionRow({mission}: {mission: FlagMission}) {
         </div>
         <div className="mission-foot">
             {parts.progress}
-            {mission.done && <span className="chip mission-done">Done</span>}
+            {mission.done
+                ? <span className="chip mission-done">Done</span>
+                : <GoButton order={mission.order} onGo={onGo}/>}
         </div>
     </section>
 }
@@ -59,9 +64,10 @@ function FlagMissionRow({mission}: {mission: FlagMission}) {
 type MissionRowProps = {
     mission: Mission
     onSignIn?: () => void
+    onGo?: (target: MissionTarget) => void
 }
 
-function MissionRow({mission, onSignIn}: MissionRowProps) {
+function MissionRow({mission, onSignIn, onGo}: MissionRowProps) {
     const parts = partsOf(mission.order)
 
     return <li className={`panel-box mission${mission.paid ? " mission--paid" : ""}`}>
@@ -75,9 +81,21 @@ function MissionRow({mission, onSignIn}: MissionRowProps) {
         </div>
         <div className="mission-foot">
             {parts.progress}
-            {mission.done && (!mission.paid && onSignIn
-                ? <button type="button" className="button button-mini" onClick={onSignIn}>Sign in to get it</button>
-                : <span className="chip mission-done">Done</span>)}
+            {mission.done
+                ? (!mission.paid && onSignIn
+                    ? <button type="button" className="button button-mini" onClick={onSignIn}>Sign in to get it</button>
+                    : <span className="chip mission-done">Done</span>)
+                : <GoButton order={mission.order} onGo={onGo}/>}
         </div>
     </li>
+}
+
+function GoButton({order, onGo}: {order: MissionOrder | FlagMissionOrder, onGo?: (target: MissionTarget) => void}) {
+    const target = targetOf(order)
+    if (!target || !onGo) return null
+
+    return <button type="button" className="button button-mini button-secondary mission-go" onClick={() => onGo(target)}>
+        <TargetIcon size={16}/>
+        Go
+    </button>
 }
