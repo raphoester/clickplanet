@@ -26,6 +26,8 @@ const ring: Enclosure = {
     closingTile: 2,
     wall: [2, 3, 4, 5, 6, 7],
     filled: [1],
+    struck: [],
+    version: {epoch: 1, seq: 1},
 }
 
 const startOf = (enclosure: Enclosure, tile: number) =>

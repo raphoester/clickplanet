@@ -396,6 +396,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
                 const enclosure = enclosureOf(event)
                 if (enclosure) {
+                    // Earlier tile updates go first, or they repaint over the tiles it took.
+                    this.flushUpdates()
+                    this.streamVersion = enclosure.version
                     if (enclosure.yours && this.charges.enclosures > 0) {
                         this.holdCharges({...this.charges, enclosures: this.charges.enclosures - 1})
                     }
@@ -901,8 +904,15 @@ export function enclosureOf(event: PlanetEvent): Enclosure | undefined {
         closingTile: enclosed.closingTileId,
         wall: [...enclosed.wallTileIds],
         filled: [...enclosed.filledTileIds],
+        struck: enclosed.struck.map(({tileId, shields}) => ({tile: tileId, shields})),
+        version: versionOf(enclosed.version),
         yours: enclosed.yours || undefined,
     }
+}
+
+export function takenOf(enclosure: Enclosure): number[] {
+    const struck = new Set(enclosure.struck.map(({tile}) => tile))
+    return enclosure.filled.filter((tile) => !struck.has(tile))
 }
 
 export function fortificationOf(event: PlanetEvent): Fortification | undefined {

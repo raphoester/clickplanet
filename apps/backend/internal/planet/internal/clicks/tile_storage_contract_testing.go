@@ -767,6 +767,84 @@ func (s *TileStorageContractSuite) TestConcurrentWritesReachEverySubscriberInVer
 	}
 }
 
+func (s *TileStorageContractSuite) TestAnEnclosureIsOneChangeAtOneVersionWithEveryTileItWrote() {
+	background := context.Background()
+	s.Require().NoError(s.storage.Set(background, 12, "de"))
+	s.Require().NoError(s.storage.Shield(background, 12, "de", 10))
+	s.Require().NoError(s.storage.Shield(background, 12, "de", 10))
+	ctx, cancel := context.WithTimeout(background, 2*time.Second)
+	s.T().Cleanup(cancel)
+	listener, opened, err := s.storage.Subscribe(ctx)
+	s.Require().NoError(err)
+
+	shape := Enclosure{Country: "fr", ClosingTile: 9, Wall: []uint32{9, 13}}
+	s.Require().NoError(s.storage.Enclose(ctx, shape, func(tiles Claimable) error {
+		s.Require().NoError(tiles.Set(ctx, 10, "fr"))
+		s.Require().NoError(tiles.Set(ctx, 11, "fr"))
+		s.True(tiles.Strike(ctx, 12, "de"))
+		return nil
+	}))
+
+	change := s.next(ctx, listener)
+	s.Equal(opened.Seq+1, change.Version.Seq, "the whole enclosure counts one")
+	s.Equal(&Enclosure{
+		Country: "fr", ClosingTile: 9, Wall: []uint32{9, 13}, Filled: []uint32{10, 11, 12},
+		Struck: []TileShields{{Tile: 12, Shields: 1}},
+	}, change.Enclosure)
+	s.Equal(map[uint32]string{10: "fr", 11: "fr", 12: "de"}, s.owners(10, 12))
+	s.Empty(listener, "no tile update besides it")
+}
+
+func (s *TileStorageContractSuite) TestAnEnclosureThatChangesNothingPublishesNothing() {
+	s.Require().NoError(s.storage.Set(context.Background(), 10, "fr"))
+	listener, ctx := s.subscribe(200 * time.Millisecond)
+
+	s.Require().NoError(s.storage.Enclose(context.Background(), Enclosure{Country: "fr"}, func(tiles Claimable) error {
+		return tiles.Set(context.Background(), 10, "fr")
+	}))
+
+	select {
+	case <-ctx.Done():
+	case change, open := <-listener:
+		if open {
+			s.T().Errorf("unexpected change %v", change)
+		}
+	}
+}
+
+func (s *TileStorageContractSuite) TestAnEnclosureThatFailsPublishesTheTilesItWrote() {
+	listener, ctx := s.subscribe(2 * time.Second)
+
+	err := s.storage.Enclose(ctx, Enclosure{Country: "fr"}, func(tiles Claimable) error {
+		s.Require().NoError(tiles.Set(ctx, 10, "fr"))
+		return tiles.Set(ctx, contractMaxIndex+1, "fr")
+	})
+
+	s.Require().Error(err)
+	s.Equal([]uint32{10}, s.next(ctx, listener).Enclosure.Filled)
+	s.Equal(map[uint32]string{10: "fr"}, s.owners(10, 10))
+}
+
+func (s *TileStorageContractSuite) TestAnEnclosureIsFollowedByTheFortifiesItEarned() {
+	listener, ctx := s.subscribe(2 * time.Second)
+
+	s.Require().NoError(s.storage.Enclose(ctx, Enclosure{Country: "fr"}, func(tiles Claimable) error {
+		for _, tile := range contractIsland {
+			s.Require().NoError(tiles.Set(ctx, tile, "fr"))
+		}
+		_, err := tiles.Fortify(ctx, contractIsland[2], "fr", 10)
+		s.Require().NoError(err)
+		return nil
+	}))
+
+	enclosure := s.next(ctx, listener)
+	s.Equal(contractIsland, enclosure.Enclosure.Filled)
+	fortified := s.next(ctx, listener)
+	s.Require().NotNil(fortified.Fortification)
+	s.Greater(fortified.Version.Seq, enclosure.Version.Seq)
+	s.Equal(1, s.storage.Shields(contractIsland[0]))
+}
+
 func (s *TileStorageContractSuite) TestAStateBatchIsAtTheVersionOfTheLastWriteItHolds() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	s.T().Cleanup(cancel)

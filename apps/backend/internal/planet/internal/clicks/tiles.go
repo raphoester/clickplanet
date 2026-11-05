@@ -25,10 +25,20 @@ type Blast struct {
 	StruckOwners []string
 }
 
+type Enclosure struct {
+	Country     string
+	ClosingTile uint32
+	Wall        []uint32
+	By          Payer
+	Filled      []uint32
+	Struck      []TileShields
+}
+
 type Change struct {
 	Version       MapVersion
 	Update        *TileUpdate
 	Blast         *Blast
+	Enclosure     *Enclosure
 	Fortification *Fortification
 	// The rows the writes since the last tally changed, each whole: a flag at zero is listed.
 	Tally *Tally

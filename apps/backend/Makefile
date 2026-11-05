@@ -1,4 +1,4 @@
-.PHONY: proto map quiz test lint lint-ci tidy check-format check-quiz setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains zernio zernio-spec metrics
+.PHONY: proto map quiz test lint lint-ci tidy check-format check-quiz setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains historic-scripts zernio zernio-spec metrics
 
 TEST_TAG := testing
 
@@ -155,6 +155,19 @@ DISPOSABLE_DOMAINS_FILE := internal/auth/internal/signin/embedded_disposable_dom
 disposable-domains:
 	@curl -sSf $(DISPOSABLE_DOMAINS_URL) -o $(DISPOSABLE_DOMAINS_FILE)
 	@wc -l $(DISPOSABLE_DOMAINS_FILE)
+
+IDENTIFIER_TYPES_URL := https://www.unicode.org/Public/security/latest/IdentifierType.txt
+HISTORIC_SCRIPTS_FILE := internal/shared/cpscripts/historic.txt
+
+historic-scripts:
+	@set -e; tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT; \
+		curl -sSf $(IDENTIFIER_TYPES_URL) -o "$$tmp"; \
+		{ sed -n '1,/^# Version:/p' "$$tmp"; \
+			echo "#"; \
+			echo "# Only the lines whose Identifier_Type is Exclusion: the historic scripts. Kept by make historic-scripts."; \
+			echo; \
+			awk -F'#' '/^[0-9A-F]/ && $$1 ~ /Exclusion/' "$$tmp"; } > $(HISTORIC_SCRIPTS_FILE)
+	@grep -c '^[0-9A-F]' $(HISTORIC_SCRIPTS_FILE)
 
 OAPI_CODEGEN := go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.0
 ZERNIO_SPEC_URL := https://zernio.com/openapi.json

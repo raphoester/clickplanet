@@ -41,6 +41,9 @@ make vpn-lists
 # Refresh the vendored disposable email domains from upstream, then commit them
 make disposable-domains
 
+# Refresh the vendored historic scripts from Unicode's IdentifierType.txt, then commit them
+make historic-scripts
+
 # Refresh the vendored Zernio OpenAPI document from upstream, then regenerate the client from it; commit both
 make zernio-spec
 make zernio

@@ -68,21 +68,30 @@ func (s *Storage) Click(ctx context.Context, tile uint32, value string) error {
 }
 
 func (s *Storage) put(update clicks.TileUpdate, holder cpsession.AccountID) error {
-	if update.Tile > s.board.last() {
-		return fmt.Errorf("tile %d out of range (max %d)", update.Tile, s.board.last())
-	}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	written, changed, err := s.putLocked(update, holder)
+	if changed {
+		s.publishLocked(clicks.Change{Update: &written})
+	}
+
+	return err
+}
+
+func (s *Storage) putLocked(update clicks.TileUpdate, holder cpsession.AccountID) (clicks.TileUpdate, bool, error) {
+	if update.Tile > s.board.last() {
+		return clicks.TileUpdate{}, false, fmt.Errorf("tile %d out of range (max %d)", update.Tile, s.board.last())
+	}
+
 	update.Previous = s.board.ownerOf(update.Tile)
 	if update.Previous == update.Value {
-		return nil
+		return clicks.TileUpdate{}, false, nil
 	}
 
 	id, err := s.board.intern(update.Value)
 	if err != nil {
-		return err
+		return clicks.TileUpdate{}, false, err
 	}
 
 	held := noHolder
@@ -90,9 +99,8 @@ func (s *Storage) put(update clicks.TileUpdate, holder cpsession.AccountID) erro
 		held = s.board.holders.intern(holder)
 	}
 	s.moveLocked(update.Tile, id, held)
-	s.publishLocked(clicks.Change{Update: &update})
 
-	return nil
+	return update, true, nil
 }
 
 func (s *Storage) moveLocked(tile uint32, to uint16, holder uint32) {
@@ -192,20 +200,23 @@ func (s *Storage) Shields(tile uint32) int {
 }
 
 func (s *Storage) Strike(_ context.Context, tile uint32, owner string) bool {
-	if tile > s.board.last() {
-		return false
-	}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.board.ownerOf(tile) != owner || s.board.shieldsOn(tile) == 0 {
-		return false
+	left, struck := s.strikeLocked(tile, owner)
+	if struck {
+		s.publishLocked(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: owner, Previous: owner, Shields: left}})
 	}
-	left := s.board.strike(tile)
-	s.publishLocked(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: owner, Previous: owner, Shields: left}})
 
-	return true
+	return struck
+}
+
+func (s *Storage) strikeLocked(tile uint32, owner string) (int, bool) {
+	if tile > s.board.last() || s.board.ownerOf(tile) != owner || s.board.shieldsOn(tile) == 0 {
+		return 0, false
+	}
+
+	return s.board.strike(tile), true
 }
 
 func (s *Storage) Shield(_ context.Context, tile uint32, country string, most int) error {

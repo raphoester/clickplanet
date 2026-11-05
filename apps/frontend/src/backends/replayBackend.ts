@@ -15,7 +15,7 @@ import {
     Update,
     UpdatesListener,
 } from "./backend.ts"
-import {bindingsOf, bombOf, enclosureOf, shieldsOf, spreadOf, updateOf} from "./planetBackend.ts"
+import {bindingsOf, bombOf, enclosureOf, shieldsOf, spreadOf, takenOf, updateOf} from "./planetBackend.ts"
 import {TileChange} from "../domain/clip/changes.ts"
 import {FakeTally} from "./fakeTally.ts"
 
@@ -100,7 +100,12 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
                 owners.delete(tile)
                 shields.delete(tile)
             }
-            for (const {tile, shields: left} of struckOf(event, shields)) {
+            const enclosure = enclosureOf(event)
+            for (const tile of enclosure ? takenOf(enclosure) : []) {
+                owners.set(tile, enclosure!.countryId)
+                shields.delete(tile)
+            }
+            for (const {tile, shields: left} of [...struckOf(event, shields), ...enclosure?.struck ?? []]) {
                 if (left > 0) shields.set(tile, left)
                 else shields.delete(tile)
             }
@@ -131,6 +136,8 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
             const update = updateOf(event)
             if (update) change(update.tile, update.newCountry, at)
             for (const tile of bombOf(event)?.cleared ?? []) change(tile, undefined, at)
+            const enclosure = enclosureOf(event)
+            for (const tile of enclosure ? takenOf(enclosure) : []) change(tile, enclosure!.countryId, at)
         }
 
         return changes
@@ -184,8 +191,13 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
             }
             const spread = spreadOf(event)
             if (spread) for (const handlers of this.bonusHandlers) handlers.onSpread(spread)
-            const enclosure = enclosureOf(event)
-            if (enclosure) for (const handlers of this.bonusHandlers) handlers.onEnclosed(enclosure)
+            const enclosed = enclosureOf(event)
+            if (enclosed) {
+                const enclosure = {...enclosed, version}
+                for (const tile of takenOf(enclosure)) this.own(tile, enclosure.countryId, 0)
+                for (const {tile, shields} of enclosure.struck) this.own(tile, this.owners.get(tile), shields)
+                for (const handlers of this.bonusHandlers) handlers.onEnclosed(enclosure)
+            }
         }
 
         flush()

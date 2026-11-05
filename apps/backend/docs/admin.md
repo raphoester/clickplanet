@@ -71,11 +71,11 @@ and how many it could not check. Served only while the alerts module is on. See 
 stream sent it. The frontend's clip generator plays it back (see its [Clips](../../frontend/docs/clips.md)).
 
 - **An event shows what every screen saw** (`Event.Show`), as `ledger.Scene`s: a click, a strike, a shield placed
-  and each tile a spread or an enclosure took or struck is a `Change` (a `clicks.TileUpdate` and the shields the tile
-  held before); a bomb is its `clicks.Blast`; a spread or an enclosure is then one `Bonus` too, for its effect. So
-  a replay goes out as `tile_update`, `bomb_dropped`, `tiles_spread` and `tiles_enclosed`, which
-  `planetv1controller/planetmessage` encodes for the stream and the replay alike. An enclosure has no wall: the
-  ledger does not keep it.
+  and each tile a spread took or struck is a `Change` (a `clicks.TileUpdate` and the shields the tile held before),
+  and a spread is then one `Bonus` too, for its effect; a bomb is its `clicks.Blast`, and an enclosure its
+  `ledger.Enclosure` with every tile it took or struck, as the live stream sends each as one event. So a replay goes
+  out as `tile_update`, `bomb_dropped`, `tiles_spread` and `tiles_enclosed`, which `planetv1controller/planetmessage`
+  encodes for the stream and the replay alike. An enclosure has no wall: the ledger does not keep it.
 - **`ledger.Footage` rewinds the map**: each tile opens on what it held before its first scene at or after `since`,
   owner and shields apart, and every other tile on the map now. It reads the scenes past `until` too, to rewind
   across them. The use case reads the map before the ledger, so a change made between the two reads is rewound.

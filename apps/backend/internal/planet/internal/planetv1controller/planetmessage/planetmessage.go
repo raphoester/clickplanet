@@ -96,11 +96,22 @@ func TilesSpread(country string, tile uint32, spread []uint32) *planetv1.PlanetE
 	}
 }
 
-func TilesEnclosed(country string, closing uint32, wall, filled []uint32, yours bool) *planetv1.PlanetEvent {
+func TilesEnclosed(enclosure *clicks.Enclosure, version clicks.MapVersion, yours bool) *planetv1.PlanetEvent {
+	struck := make([]*planetv1.TileShields, len(enclosure.Struck))
+	for i, tile := range enclosure.Struck {
+		struck[i] = &planetv1.TileShields{TileId: tile.Tile, Shields: uint32(tile.Shields)} //nolint:gosec // a byte in the tile storage.
+	}
+
 	return &planetv1.PlanetEvent{
 		Event: &planetv1.PlanetEvent_TilesEnclosed{
 			TilesEnclosed: &planetv1.TilesEnclosed{
-				CountryId: country, ClosingTileId: closing, WallTileIds: wall, FilledTileIds: filled, Yours: yours,
+				CountryId:     enclosure.Country,
+				ClosingTileId: enclosure.ClosingTile,
+				WallTileIds:   enclosure.Wall,
+				FilledTileIds: enclosure.Filled,
+				Yours:         yours,
+				Struck:        struck,
+				Version:       Version(version),
 			},
 		},
 	}

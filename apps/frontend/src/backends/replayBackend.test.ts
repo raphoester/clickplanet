@@ -39,6 +39,15 @@ function spread(seconds: number): ReplayedEvent {
     })
 }
 
+function enclosure(seconds: number, filled: number[], struck: {tileId: number, shields: number}[] = []): ReplayedEvent {
+    return new ReplayedEvent({
+        at: at(seconds),
+        event: new PlanetEvent({event: {case: "tilesEnclosed", value: new TilesEnclosed({
+            countryId: "fr", closingTileId: 4, filledTileIds: filled, struck: struck.map((tile) => new TileShields(tile)),
+        })}}),
+    })
+}
+
 // Tiles 1 and 2 are landmass 1, tile 3 landmass 2; the map opens with 1 and 2 held by pl, 2 with 3 shields.
 const LANDMASSES = {assignment: new Uint16Array([1, 1, 2]), count: 3}
 
@@ -145,6 +154,27 @@ describe("a replay", () => {
             {tile: 2, from: "pl", to: undefined, at: SINCE + 2_000},
             {tile: 3, from: undefined, to: "de", at: SINCE + 3_000},
         ])
+    })
+
+    it("plays an enclosure as the one step that takes its tiles and strikes its shields", async () => {
+        const backend = replay(enclosure(1, [1, 2, 3], [{tileId: 2, shields: 2}]))
+        const seen: {seq: number, filled: number[]}[] = []
+        backend.listenForBonuses({
+            onEnclosed: ({version, filled}) => seen.push({seq: version.seq, filled}),
+            onOffered: () => {}, onTaken: () => {}, onSpread: () => {}, onCharges: () => {}, onRules: () => {},
+        })
+
+        backend.advanceTo(SINCE + 1_000)
+
+        expect(seen).toEqual([{seq: 1, filled: [1, 2, 3]}])
+        expect(rows(await backend.getHoldings())).toEqual({countries: {pl: 1, fr: 2}, landmasses: {1: {pl: 1, fr: 1}, 2: {fr: 1}}})
+        expect(backend.changes()).toEqual([
+            {tile: 1, from: "pl", to: "fr", at: SINCE + 1_000},
+            {tile: 3, from: undefined, to: "fr", at: SINCE + 1_000},
+        ])
+        const [read] = await readOf(backend.cut(SINCE + 1_500, SINCE + 60_000))
+        expect(read.bindings.get(1)).toBe("fr")
+        expect(read.shields?.get(2)).toBe(2)
     })
 
     it("lists its bombs, with when each fell", () => {

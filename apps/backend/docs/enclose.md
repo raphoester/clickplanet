@@ -22,8 +22,8 @@ tells closed from open — there is no second rule.
   is still the other flag's. The rule answers `Out.Outcome`, so this is read after
   the write, not guessed before it.
 - **Each tile inside meets its shields**: a shielded tile loses one and is not
-  taken. A bonus is never a way around the rule. `tiles_enclosed` still lists it
-  among the filled tiles; no tile update says it was taken.
+  taken. A bonus is never a way around the rule. `tiles_enclosed` lists it among the filled tiles, and in `struck`
+  with the shields it kept.
 - **An enclosure is one shape**, spent through `Charges.SpendEnclose` only by a
   click sent with enclose on that closed a pocket, so a click that closes nothing
   (too big, open to the coast, no inside) keeps it. With enclose off, closing a
@@ -35,24 +35,29 @@ tells closed from open — there is no second rule.
 **The use case only wires three objects together.** `bonuses.Terrain` is the map as
 the search sees it — who holds a tile, what touches it — and finds the pockets a
 click closed. `bonuses.Charges` says whether the caller holds the charge, and
-the rule set's `bonuses.enclose.maxTiles`, read at each click, how big a shape may be. `Annexer` spends the charge on the first pocket, takes its
-tiles and announces them. `Execute` asks whether the charge is held, lets the
+the rule set's `bonuses.enclose.maxTiles`, read at each click, how big a shape may be. `Annexer` spends the charge
+and hands the first pocket's shape and inside to the encloser. `Execute` asks whether the charge is held, lets the
 rule write, and hands the pockets to the annexer.
 
 It sits beside `spread_click`, against the rule and inside everything else, so
 it is one click to the throttle and to `prom_click`, a click the ban refuses never
 reaches it, and the tiles it takes are not reported to the antibot jury. The
-annexer hands the inside to `ledger.Recording.Enclose`, which claims each tile as
-an ordinary `Set` and keeps the enclosure as one event. The search holds no lock across the map, so a
+annexer hands the shape to `ledger.Recording.Enclose`, which claims it through `Claiming.Enclose` and keeps the
+enclosure as one ledger event. The search holds no lock across the map, so a
 tile can change under it; the worst that does is fill a pocket that opened a
 moment ago.
 
-**Then it tells the planet, with `tiles_enclosed`.** The tiles already travel as
-tile updates, but a patch flipping at once says nothing about why, so every
-client is sent the shape — closing tile, wall, and filled tiles nearest the
-closing tile first — to animate. `Registry.PublishEnclosed` sends it after the
-tiles are set, to every caller. The caller who closed it gets a copy of their own
-with `yours`: an enclosure is one shape, so a shape of your own is one spent.
+**An enclosure is one event on the stream, `tiles_enclosed`, and no `tile_update`** (2026-11-05), as a bomb is one
+`bomb_dropped`. `Claiming.Enclose` claims every tile inside, each with its shields and its fortify, as
+`Storage.Enclose` holds the tiles lock through all of them; the storage then publishes one `clicks.Change{Enclosure}`
+at one map version, with every tile it wrote (`filled`, nearest the closing tile first) and the shields each struck
+tile kept (`struck`), then the fortifies the takes earned, each a `landmass_fortified` of its own. So a pocket of any
+size takes one slot in each stream's buffer (`tilesStorage.subscriberBuffer`, 1,024: a stream that falls that far
+behind is cut, see [The live streams](live-streams.md)), and one frame on the wire. Until then each tile went out as
+a `tile_update` and the shape again in `tiles_enclosed`, and a pocket of more than about 1,000 tiles would have cut
+every stream at once. **Each stream tells its own** `yours`: the change names who closed it (`Enclosure.By`), and the
+stream compares its entrant (`bonuses.EntrantOf`); an enclosure of your own is one charge spent. The client applies
+the tiles at the version, then animates the shape (see the frontend's [Charges](../../frontend/docs/charges.md)).
 
-`prom_enclose` wraps that publisher, so it counts exactly the shapes that were
+`prom_enclose` wraps the encloser, so it counts exactly the shapes that were
 closed: `bonus_enclosures_total` and `bonus_enclosed_tiles_total`.

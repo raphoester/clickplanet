@@ -20,7 +20,8 @@ no read. `ClaimBonusResponse.charges` replaces them on a claim, and
 `UseRefillResponse.charges` on a refill, which also brings the full budget, and
 `PlaceShieldResponse.charges` on a shield placed. Otherwise
 it follows its own calls: an accepted click **sent with spread on** takes a spread
-click off, this player's own `tilesEnclosed` takes an enclosure off, and a drop
+click off, this player's own `tilesEnclosed` takes an enclosure off (the event also brings the tiles it took, see
+[Viewer](viewer.md)), and a drop
 takes the bomb off at once and gives it back unless the server says it holds
 none (a ban refusal gives it back too); a shield is taken off the same way. The click answer says nothing about charges, on purpose (see the backend's
 [Charges](../../backend/docs/charges.md)). A charge spent in another tab stays on screen until the next read. It

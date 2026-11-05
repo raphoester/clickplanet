@@ -136,13 +136,18 @@ func TestAClickShowsAsAClickedTile(t *testing.T) {
 	}, footage.Scenes())
 }
 
-func TestAnEnclosureShowsAsItsTilesThenTheEnclosure(t *testing.T) {
-	footage := footageOf(start, start.Add(time.Hour), ledger.Enclosing{
-		Tile: 9, Country: "fr", At: start, Impacts: []clicks.Impact{{Tile: 4, Outcome: clicks.Taken}},
-	})
+func TestAnEnclosureShowsAsOneSceneWithItsTiles(t *testing.T) {
+	impacts := []clicks.Impact{
+		{Tile: 2, Owner: "de", Outcome: clicks.Taken},
+		{Tile: 3, Owner: "pl", Outcome: clicks.Shielded, Shields: 1},
+	}
+	footage := footageOf(start, start.Add(time.Hour), ledger.Enclosing{Tile: 9, Country: "fr", At: start, Impacts: impacts})
 
 	assert.Equal(t, []ledger.Scene{
-		{At: start, Change: &ledger.Change{TileUpdate: clicks.TileUpdate{Tile: 4, Value: "fr"}}},
-		{At: start, Enclosure: &ledger.Bonus{Tile: 9, Country: "fr", Tiles: []uint32{4}}},
+		{At: start, Enclosure: &ledger.Enclosure{Tile: 9, Country: "fr", Impacts: impacts}},
 	}, footage.Scenes())
+
+	opening := footage.Opening(denseOf("it", "fr", "pl"))
+	assert.Equal(t, []string{"it", "de", "pl"}, ownersOf(opening), "the tile taken is shown as it was")
+	assert.Equal(t, []clicks.TileShields{{Tile: 3, Shields: 2}}, opening.Shields, "the tile struck had a shield more")
 }

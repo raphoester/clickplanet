@@ -352,12 +352,28 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (this.charges.enclosures === 0) return
 
         const wall = [0, 1, 2, 3, 4, 5].map(step => tileId + step).filter(id => id <= this.tileCount)
-        const filled = [6, 7, 8].map(step => tileId + step).filter(id => id <= this.tileCount)
-        filled.forEach(id => this.applyClick(id, countryId, false, FAKE_YOU))
+        const inside = [6, 7, 8].map(step => tileId + step).filter(id => id <= this.tileCount)
+        const filled: number[] = []
+        const struck: {tile: number, shields: number}[] = []
+        for (const id of inside) {
+            const owner = this.tileBindings.get(id)
+            if (owner === countryId) continue
+            filled.push(id)
+            const left = owner === undefined ? undefined : this.strike(id)
+            if (left !== undefined) {
+                struck.push({tile: id, shields: left})
+                continue
+            }
+            this.tileBindings.set(id, countryId)
+            this.holders.set(id, {accountId: FAKE_YOU, countryCode: countryId, takenAt: Date.now()})
+            this.shields.delete(id)
+            this.tally?.moved(id, owner, countryId)
+        }
 
         this.hold({...this.charges, enclosures: this.charges.enclosures - 1})
 
-        const enclosure: Enclosure = {countryId, closingTile: tileId, wall, filled, yours: true}
+        const enclosure: Enclosure = {countryId, closingTile: tileId, wall, filled, struck, version: this.write(), yours: true}
+        this.flushUpdates()
         this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
     }
 

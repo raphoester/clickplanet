@@ -217,22 +217,29 @@ func TestASinkFramesAFortifiedLandmass(t *testing.T) {
 	assert.Equal(t, uint32(1234), fortified.GetTileId())
 }
 
-func TestASinkFramesAClosedShape(t *testing.T) {
+func TestASinkFramesAnEnclosureAsOneEventWithItsTilesAndItsVersion(t *testing.T) {
 	stream := &recorder{}
 
 	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Enclosed: &bonuses.Enclosed{
-			CountryID: "jp", ClosingTile: 4, Wall: []uint32{4, 5, 6}, Filled: []uint32{9, 10},
-			Yours: true,
+		Version: clicks.MapVersion{Epoch: 7, Seq: 42},
+		Enclosure: &clicks.Enclosure{
+			Country: "jp", ClosingTile: 4, Wall: []uint32{4, 5, 6}, Filled: []uint32{9, 10},
+			Struck: []clicks.TileShields{{Tile: 10, Shields: 3}},
 		},
+		Yours: true,
 	}))
 
+	require.Len(t, stream.sent, 1)
 	enclosed := stream.sent[0].GetTilesEnclosed()
 	require.NotNil(t, enclosed)
 	assert.Equal(t, "jp", enclosed.GetCountryId())
 	assert.Equal(t, uint32(4), enclosed.GetClosingTileId())
 	assert.Equal(t, []uint32{4, 5, 6}, enclosed.GetWallTileIds())
 	assert.Equal(t, []uint32{9, 10}, enclosed.GetFilledTileIds())
+	require.Len(t, enclosed.GetStruck(), 1)
+	assert.Equal(t, uint32(10), enclosed.GetStruck()[0].GetTileId())
+	assert.Equal(t, uint32(3), enclosed.GetStruck()[0].GetShields())
+	assert.Equal(t, uint64(42), enclosed.GetVersion().GetSeq())
 	assert.True(t, enclosed.GetYours())
 }
 

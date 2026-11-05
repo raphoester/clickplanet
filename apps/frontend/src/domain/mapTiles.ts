@@ -135,6 +135,18 @@ export class MapTiles {
         }
     }
 
+    public applyEnclosure(flag: string, taken: readonly number[], struck: readonly {tile: number, shields: number}[], version: MapVersion, changes: TileChanges): void {
+        if (!this.clock.counts(version)) return
+        for (const tile of taken) {
+            if (!this.take(tile, version.seq)) continue
+            this.ownership.set(tile, flag, changes.owners)
+            this.shields.set(tile, 0, changes.shields)
+        }
+        for (const {tile, shields} of struck) {
+            if (this.take(tile, version.seq)) this.shields.set(tile, shields, changes.shields)
+        }
+    }
+
     // The server raised every tile of the landmass below the most: its flag held them all.
     public applyFortification(tiles: ArrayLike<number>, flag: string, most: number, version: MapVersion): ShieldChange[] {
         const changes: ShieldChange[] = []

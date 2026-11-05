@@ -758,6 +758,16 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
         onTaken: (taken) => onBonusTaken(taken),
         onEnclosed: (enclosure) => {
+            tiles.heard(enclosure.version)
+            const struck = new Set(enclosure.struck.map(({tile}) => tile))
+            const taken = enclosure.filled.filter((tile) => !struck.has(tile))
+            releaseGhosts(enclosure.filled)
+            if (enclosure.countryId !== country.code) lost = taken.find((tile) => ownership.ownerOf(tile) === country.code) ?? lost
+            const changes = noChanges()
+            tiles.applyEnclosure(enclosure.countryId, taken, enclosure.struck, enclosure.version, changes)
+            applyChanges(changes.owners)
+            showShields(changes.shields)
+            playShields(changes.shields)
             enclosures.play(enclosure)
             if (!enclosure.yours) return
             playSound("enclose")

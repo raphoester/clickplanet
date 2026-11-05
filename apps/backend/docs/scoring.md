@@ -301,7 +301,7 @@ add nothing to (a refill or a bomb held, a full stack or pool) is not offered.
 **A caller is an entrant, not a connection.** `bonuses.EntrantOf(payer)` is the
 account (`account:<id>`) when the click token says it is linked, and its scope
 (`cpipscope.Of`) otherwise. `Attend`, `Clicked`, `Claim`, `OpenQuiz`,
-`AnswerQuiz` and `PublishEnclosed` are all keyed on it, and it holds every
+`AnswerQuiz` are all keyed on it, and so is the `yours` each stream tells of an enclosure; it holds every
 stream sharing it — so twenty tabs are one entrant on one schedule, and all of
 them are sent the box. Two signed-in players behind one address are two
 entrants: each gets its own boxes and quizzes, and neither can claim the other's.

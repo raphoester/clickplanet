@@ -38,6 +38,13 @@ func TestANameTakesLettersOfAnyScriptDigitsUnderscoresAndSpaces(t *testing.T) {
 	}
 }
 
+func TestANameRefusesTheLettersOfAHistoricScript(t *testing.T) {
+	for _, value := range []string{"𒁜𒁝𒁞", "Ada𒁜", "𓀀𓀁𓀂", "ᚠᚢᚦ"} {
+		_, err := players.NameOf(value)
+		require.ErrorIs(t, err, players.ErrInvalidName, "%q", value)
+	}
+}
+
 func TestANameIsPutInNFC(t *testing.T) {
 	name, err := players.NameOf("E\u0301mile")
 
