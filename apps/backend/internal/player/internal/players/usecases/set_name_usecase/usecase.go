@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"google.golang.org/protobuf/proto"
+
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
@@ -71,10 +73,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (players.Profile, error) {
 		if err := u.profiles.SaveProfile(ctx, profile); err != nil {
 			return err //nolint:wrapcheck // wrapped below, past the sentinel.
 		}
-		if !made {
-			return nil
+		told := []proto.Message{&playerv1.PlayerNamed{AccountId: in.Account.String()}}
+		if made {
+			told = append(told, &playerv1.PlayerCreated{AccountId: in.Account.String()})
 		}
-		return u.outbox.Record(ctx, &playerv1.PlayerCreated{AccountId: in.Account.String()}) //nolint:wrapcheck // wrapped below.
+		return u.outbox.Record(ctx, told...) //nolint:wrapcheck // wrapped below.
 	})
 	if errors.Is(err, players.ErrNameTaken) {
 		return players.Profile{}, err //nolint:wrapcheck // the handler maps the port's sentinel.

@@ -40,6 +40,29 @@ func TestAForgottenLinkTakesItsFlagsRoleOffTheUser(t *testing.T) {
 	assert.True(t, link.TakeSnapshot().Forgotten)
 }
 
+func TestALinkGivesItsUserTheAccountsUsername(t *testing.T) {
+	link := links.NewLink(account, "42", "ie", now)
+
+	nickname, renamed := link.Rename("BraveFox42")
+	require.True(t, renamed)
+	assert.Equal(t, links.Nickname{User: "42", Name: "BraveFox42"}, nickname)
+	assert.Equal(t, links.Name("BraveFox42"), link.TakeSnapshot().Name)
+
+	_, renamed = link.Rename("BraveFox42")
+	assert.False(t, renamed, "the user wears it already")
+
+	nickname, renamed = link.Rename("")
+	require.True(t, renamed)
+	assert.Equal(t, links.Nickname{User: "42"}, nickname, "no name takes the nickname off")
+}
+
+func TestANewLinkGaveNoNameYet(t *testing.T) {
+	link := links.NewLink(account, "42", "ie", now)
+
+	_, renamed := link.Rename("")
+	assert.False(t, renamed)
+}
+
 func TestAJoinAgainOfTheSameUserChangesNothing(t *testing.T) {
 	link := links.NewLink(account, "42", "ie", now)
 

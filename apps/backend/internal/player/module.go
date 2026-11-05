@@ -252,7 +252,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetRosterHandler:      getRoster,
 		SearchPlayersHandler:  search_players_handler.New(matches_query.NewPostgresQuery(db)),
 		RenamePlayerHandler: rename_player_handler.New(
-			audit_rename_player.New(rename_player_usecase.New(store, clock), props.Logger),
+			audit_rename_player.New(rename_player_usecase.New(db, store, outbox, clock), props.Logger),
 		),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

@@ -30,6 +30,13 @@ message PlayerReturned {
   google.protobuf.Timestamp decided_at = 2;
 }
 
+// The account's username was set: drawn at its first sign-in, chosen by its player, or given by the operator. The name
+// is not in the event: a receiver asks player for it (InternalService/GetPlayers), so two told close together, or one
+// told twice, leave it with the latest.
+message PlayerNamed {
+  string account_id = 1;
+}
+
 // Player forgot the account: its name and its guest code. What another module keeps of the account goes too.
 message PlayerForgotten {
   string account_id = 1;

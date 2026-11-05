@@ -20,10 +20,13 @@ a rule). It asks first, and it is harmless twice.
 **Link Discord members** (`DiscordMembersPanel`, `alerts.v1.AdminService/LinkMembers`): for the players who signed in
 with Discord before the sign-in joined the server, or whose join failed. Each one already in the server (by the
 invite) gets its flag's role and is linked, with no action of theirs; the others cannot be added by anyone but
-themselves, and the game offers them "Join Discord". It asks first, takes the long timeout, and says how many it
-linked, how many are not in the server, and how many it could not check (`membersLinkedWords`, `discordMembers.ts`);
-the server's log says why. It is harmless twice, but it links again an account unlinked on the player page that is
-still in the server. Alerts off, it says so. See the backend's
+themselves, and the game offers them "Join Discord". Every linked player, new or not, is also given their username
+as their nickname in the server when they do not wear it yet: the first run after the nicknames came names everyone
+linked before. It asks first, takes the long timeout, and says how many it linked, how many it named, how many are not
+in the server, and how many it could not link or name (`membersLinkedWords`, `discordMembers.ts`); the server's log says
+why. The server's owner and the members whose role is above the bot's cannot be renamed, and are counted there at each
+run. It is harmless twice, but it links again an account unlinked on the player page that is still in the server.
+Alerts off, it says so. See the backend's
 [Discord pings](../../backend/docs/alerts.md#the-players-a-sign-in-never-joined-linkmembers).
 
 **Both rule pages edit a set the same way.** The list of sets marks the one playing ("Playing now") and shows each set

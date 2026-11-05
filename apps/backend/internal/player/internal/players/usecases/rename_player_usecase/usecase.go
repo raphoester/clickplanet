@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -15,12 +17,14 @@ type Profiles interface {
 }
 
 type UseCase struct {
-	profiles Profiles
-	clock    cptime.Clock
+	transactioner cpatomic.Transactioner
+	profiles      Profiles
+	outbox        cpatomic.Outbox
+	clock         cptime.Clock
 }
 
-func New(profiles Profiles, clock cptime.Clock) *UseCase {
-	return &UseCase{profiles: profiles, clock: clock}
+func New(transactioner cpatomic.Transactioner, profiles Profiles, outbox cpatomic.Outbox, clock cptime.Clock) *UseCase {
+	return &UseCase{transactioner: transactioner, profiles: profiles, outbox: outbox, clock: clock}
 }
 
 type In struct {
@@ -43,7 +47,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) (players.Profile, error) {
 	}
 
 	profile := current.RenamedByOperator(name, u.clock.Now())
-	err = u.profiles.SaveProfile(ctx, profile)
+	err = u.transactioner.InTx(ctx, func(ctx context.Context) error {
+		if err := u.profiles.SaveProfile(ctx, profile); err != nil {
+			return err //nolint:wrapcheck // wrapped below, past the sentinel.
+		}
+		return u.outbox.Record(ctx, &playerv1.PlayerNamed{AccountId: in.Account.String()}) //nolint:wrapcheck // wrapped below.
+	})
 	if errors.Is(err, players.ErrNameTaken) {
 		return players.Profile{}, err //nolint:wrapcheck // the handler maps the port's sentinel.
 	}

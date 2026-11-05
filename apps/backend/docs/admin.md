@@ -60,10 +60,11 @@ hour of wait after a change of flag (see [Allegiance](allegiance.md)), so its ne
 ## A player's Discord link: `alerts.v1.AdminService`
 
 `GetPlayerLink(account_id)` reads the account's Discord link, and `UnlinkPlayer(account_id)` forgets it and takes the
-flag's role off the Discord user, who stays in the server: the game then offers that account to join Discord again,
-which is how the offer is tried. `LinkMembers()` links every account signed in with Discord that has no link and whose
-user is in the server already, with its flag's role, and answers how many it linked, how many are not in the server,
-and how many it could not check. Served only while the alerts module is on. See [Discord pings](alerts.md#the-players-a-sign-in-never-joined-linkmembers).
+flag's role and the nickname the bot gave off the Discord user, who stays in the server: the game then offers that
+account to join Discord again, which is how the offer is tried. `LinkMembers()` links every account signed in with
+Discord that has no link and whose user is in the server already, with its flag's role, gives every linked one its
+username as its nickname, and answers how many it linked, how many it named, how many are not in the server, and how
+many it could not link or name. Served only while the alerts module is on. See [Discord pings](alerts.md#the-players-a-sign-in-never-joined-linkmembers).
 
 ## `GetReplay`
 

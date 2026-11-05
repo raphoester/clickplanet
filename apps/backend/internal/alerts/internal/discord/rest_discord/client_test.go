@@ -96,6 +96,28 @@ func TestAUserWhoLeftTheServerIsNoMember(t *testing.T) {
 	assert.ErrorIs(t, c.Grant(t.Context(), "4242", "2"), discord.ErrRefused)
 }
 
+func TestAMemberIsGivenItsNicknameAndAnEmptyOneTakesItOff(t *testing.T) {
+	c, fake := client(t, nil)
+
+	require.NoError(t, c.Rename(t.Context(), "4242", "BraveFox42"))
+	require.NoError(t, c.Rename(t.Context(), "4242", ""))
+
+	require.Len(t, fake.calls, 2)
+	assert.Equal(t, "PATCH /api/guilds/900/members/4242", fake.calls[0].Method+" "+fake.calls[0].Path)
+	assert.JSONEq(t, `{"nick":"BraveFox42"}`, fake.calls[0].Body)
+	assert.JSONEq(t, `{"nick":null}`, fake.calls[1].Body)
+}
+
+func TestAMemberTheBotMayNotRenameIsRefused(t *testing.T) {
+	c, _ := client(t, map[string]func(w http.ResponseWriter){
+		"PATCH /api/guilds/900/members/1": answering(http.StatusForbidden, `{"code":50013,"message":"Missing Permissions"}`),
+		"PATCH /api/guilds/900/members/2": answering(http.StatusNotFound, `{"code":10007,"message":"Unknown Member"}`),
+	})
+
+	assert.ErrorIs(t, c.Rename(t.Context(), "1", "BraveFox42"), discord.ErrRefused)
+	assert.ErrorIs(t, c.Rename(t.Context(), "2", "BraveFox42"), discord.ErrNotMember)
+}
+
 func TestARoleIsMadeMentionableInItsColor(t *testing.T) {
 	c, fake := client(t, map[string]func(w http.ResponseWriter){
 		"POST /api/guilds/900/roles": answering(http.StatusOK, `{"id":"77"}`),

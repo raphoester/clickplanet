@@ -259,11 +259,18 @@ export class LinkMembersResponse extends Message<LinkMembersResponse> {
   outside = 0;
 
   /**
-   * Discord or the game could not be asked: a run again tries them again.
+   * Discord or the game could not be asked, or Discord refused a nickname: a run again tries them again.
    *
    * @generated from field: uint32 failed = 3;
    */
   failed = 0;
+
+  /**
+   * Linked, new or not, and given its username as its nickname in the server now.
+   *
+   * @generated from field: uint32 named = 4;
+   */
+  named = 0;
 
   constructor(data?: PartialMessage<LinkMembersResponse>) {
     super();
@@ -276,6 +283,7 @@ export class LinkMembersResponse extends Message<LinkMembersResponse> {
     { no: 1, name: "linked", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "outside", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "failed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "named", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LinkMembersResponse {

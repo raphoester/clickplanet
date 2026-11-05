@@ -33,12 +33,17 @@ type DiscordAccount struct {
 	User    discord.UserID
 }
 
-// A player's Discord user, in the server with the role of the flag it last took a tile for. No flag yet: the account
-// never pledged one, and the first take gives it.
+// An account's username, as player shows it to the other players: the nickname the bot gives its Discord user in the
+// server. Empty: none to show, for a guest or an account its player asked to delete.
+type Name string
+
+// A player's Discord user, in the server with the role of the flag it pledged and its username as its nickname. No
+// flag yet: the account never pledged one, and the first pledge gives it. No name: the bot gave the user none yet.
 type Link struct {
 	account   AccountID
 	user      discord.UserID
 	flag      nations.Flag
+	name      Name
 	linkedAt  time.Time
 	forgotten bool
 }
@@ -63,6 +68,21 @@ func (l *Link) Follow(flag nations.Flag) (Move, bool) {
 	return move, true
 }
 
+// What the user is called in the server: no name takes the nickname off, and Discord shows its own name again.
+type Nickname struct {
+	User discord.UserID
+	Name Name
+}
+
+// The user wears the account's username as its nickname, and none for no name: false when it wears it already.
+func (l *Link) Rename(name Name) (Nickname, bool) {
+	if name == l.name {
+		return Nickname{}, false
+	}
+	l.name = name
+	return Nickname{User: l.user, Name: name}, true
+}
+
 // The flag's role leaves the user with the link.
 func (l *Link) Forget() Move {
 	l.forgotten = true
@@ -82,20 +102,34 @@ type LinkSnapshot struct {
 	Account   AccountID
 	User      discord.UserID
 	Flag      nations.Flag
+	Name      Name
 	LinkedAt  time.Time
 	Forgotten bool
 }
 
 func (l Link) TakeSnapshot() LinkSnapshot {
-	return LinkSnapshot{Account: l.account, User: l.user, Flag: l.flag, LinkedAt: l.linkedAt, Forgotten: l.forgotten}
+	return LinkSnapshot{
+		Account: l.account, User: l.user, Flag: l.flag, Name: l.name, LinkedAt: l.linkedAt, Forgotten: l.forgotten,
+	}
 }
 
 func (s LinkSnapshot) Restore() Link {
-	return Link{account: s.Account, user: s.User, flag: s.Flag, linkedAt: s.LinkedAt, forgotten: s.Forgotten}
+	return Link{
+		account: s.Account, user: s.User, flag: s.Flag, name: s.Name, linkedAt: s.LinkedAt, forgotten: s.Forgotten,
+	}
+}
+
+// Who an account is to the other players, from player.
+type Names interface {
+	NameOf(ctx context.Context, account AccountID) (Name, error)
 }
 
 type Store interface {
 	LinkOf(ctx context.Context, account AccountID) (Link, error)
 	LinkOfUser(ctx context.Context, user discord.UserID) (Link, error)
+	// A link kept with the same user keeps its name: SaveName alone changes it.
 	SaveLinks(ctx context.Context, links ...Link) error
+	// The link's name alone, so a nickname given while the flag moves keeps the flag's move: nothing when the account
+	// is no longer linked to that user.
+	SaveName(ctx context.Context, link Link) error
 }
