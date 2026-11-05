@@ -1,5 +1,6 @@
 import {Reaction} from "../gen/grpc/chat/v1/chat_pb.ts";
 import {NameColor} from "../gen/grpc/player/v1/color_pb.ts";
+import {FlagMissionOrder} from "./missions.ts";
 
 export {Reaction}
 
@@ -45,6 +46,7 @@ export type ChatQuote = {
 }
 
 export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | RoundAnnouncement | FortifyAnnouncement | ChampionAnnouncement
+    | FlagMissionAnnouncement
 
 export type BombAnnouncement = {
     kind: "bomb"
@@ -100,6 +102,17 @@ export type ChampionAnnouncement = {
     announcedAt: number
     season: number
     countries: string[]
+}
+
+// Told in the World and in the flag's own room.
+export type FlagMissionAnnouncement = {
+    kind: "flag_mission"
+    id: string
+    announcedAt: number
+    country: string
+    points: number
+    // None for a kind of flag mission this build does not know: the line only says it was done.
+    order?: FlagMissionOrder
 }
 
 export type ChatHistory = {

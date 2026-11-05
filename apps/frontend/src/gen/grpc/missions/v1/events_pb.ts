@@ -4,7 +4,8 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { FlagMission } from "./missions_pb.js";
 
 /**
  * @generated from message missions.v1.MissionsPaid
@@ -48,6 +49,59 @@ export class MissionsPaid extends Message<MissionsPaid> {
 
   static equals(a: MissionsPaid | PlainMessage<MissionsPaid> | undefined, b: MissionsPaid | PlainMessage<MissionsPaid> | undefined): boolean {
     return proto3.util.equals(MissionsPaid, a, b);
+  }
+}
+
+/**
+ * A flag finished its mission of the day. Told once, with the points it gave the flag.
+ *
+ * @generated from message missions.v1.FlagMissionDone
+ */
+export class FlagMissionDone extends Message<FlagMissionDone> {
+  /**
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * The mission as its players see it, done. A listener skips the kind it does not know.
+   *
+   * @generated from field: missions.v1.FlagMission mission = 2;
+   */
+  mission?: FlagMission;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp done_at = 3;
+   */
+  doneAt?: Timestamp;
+
+  constructor(data?: PartialMessage<FlagMissionDone>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.FlagMissionDone";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "mission", kind: "message", T: FlagMission },
+    { no: 3, name: "done_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FlagMissionDone {
+    return new FlagMissionDone().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FlagMissionDone {
+    return new FlagMissionDone().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FlagMissionDone {
+    return new FlagMissionDone().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FlagMissionDone | PlainMessage<FlagMissionDone> | undefined, b: FlagMissionDone | PlainMessage<FlagMissionDone> | undefined): boolean {
+    return proto3.util.equals(FlagMissionDone, a, b);
   }
 }
 

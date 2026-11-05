@@ -29,7 +29,7 @@ const (
 	NamedReactors = 20
 )
 
-var kinds = cpcolls.NewSet("bomb", "mute", "round", "fortify", "champion")
+var kinds = cpcolls.NewSet("bomb", "mute", "round", "fortify", "champion", "flag_mission")
 
 var (
 	ErrUnknownReaction = errors.New("a kept reaction the proto does not name")
@@ -48,7 +48,7 @@ type PostgresQuery struct {
 	retention time.Duration
 }
 
-// A flag's room has no announcements.
+// A flag's room shows the announcements told in it, and the world every one.
 func (q *PostgresQuery) History(
 	ctx context.Context,
 	viewer cpsession.AccountID,
@@ -67,13 +67,11 @@ func (q *PostgresQuery) History(
 		shown, err = q.shown(ctx, since, room, viewer)
 		return err
 	})
-	if room == messages.World {
-		group.Go(func() error {
-			var err error
-			announced, err = q.announced(ctx, since)
-			return err
-		})
-	}
+	group.Go(func() error {
+		var err error
+		announced, err = q.announced(ctx, since, room)
+		return err
+	})
 	group.Go(func() error {
 		var err error
 		seenUntil, err = q.seenUntil(ctx, viewer, room)
@@ -440,15 +438,15 @@ const shownAnnouncements = `
 	FROM (
 		SELECT id, kind, payload, announced_at
 		FROM announcements
-		WHERE announced_at >= (SELECT at FROM beginning)
+		WHERE announced_at >= (SELECT at FROM beginning) AND ($3 = $4 OR room = $3)
 		ORDER BY announced_at DESC, id DESC
 		LIMIT $2
 	) newest
 	ORDER BY newest.announced_at, newest.id
 `
 
-func (q *PostgresQuery) announced(ctx context.Context, since time.Time) ([]*chatv1.Announcement, error) {
-	result, err := q.db.On(ctx).QueryContext(ctx, shownAnnouncements, since, q.size, string(messages.World))
+func (q *PostgresQuery) announced(ctx context.Context, since time.Time, room messages.Room) ([]*chatv1.Announcement, error) {
+	result, err := q.db.On(ctx).QueryContext(ctx, shownAnnouncements, since, q.size, string(room), string(messages.World))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the chat announcements: %w", err)
 	}

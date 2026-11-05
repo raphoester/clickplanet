@@ -2,7 +2,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {ChatMessage} from "../../backends/chat.ts"
+import {ChatMessage, FlagMissionAnnouncement} from "../../backends/chat.ts"
 import {quoteOf} from "../../domain/chatLog.ts"
 import ChatLog from "./ChatLog.tsx"
 import {QUOTE_MAX_LENGTH} from "./QuoteLine.tsx"
@@ -22,6 +22,27 @@ afterEach(() => {
 
 const message = (id: string, authorName: string, countryCode: string): ChatMessage =>
     ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorAccountId: `account-${authorName}`, authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
+
+describe("ChatLog's flag mission line", () => {
+    const done: FlagMissionAnnouncement = {
+        kind: "flag_mission", id: "a1", announcedAt: Date.UTC(2026, 10, 5, 12), country: "fr", points: 6,
+        order: {kind: "takeIn", country: "br", goal: 3000, taken: 3000},
+    }
+
+    it("says which flag finished which mission and the points it won", () => {
+        render(<ChatLog loading={false} messages={[]} announcements={[done]}/>)
+
+        const line = screen.getByText((_, element) => element?.classList.contains("chat-announcement-text") ?? false)
+        expect(line.textContent).toBe("France completed its flag mission: Take 3000 tiles in  Brazil (+6 season points)")
+    })
+
+    it("says only that it was done for a kind this build does not know", () => {
+        render(<ChatLog loading={false} messages={[]} announcements={[{...done, order: undefined, points: 1}]}/>)
+
+        const line = screen.getByText((_, element) => element?.classList.contains("chat-announcement-text") ?? false)
+        expect(line.textContent).toBe("France completed its flag mission (+1 season point)")
+    })
+})
 
 describe("ChatLog", () => {
     const dancing = {url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124}

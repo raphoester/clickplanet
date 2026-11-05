@@ -1,7 +1,8 @@
 # Inside the chat module: the same shape
 
 Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has seven:
-`messages`, `reactions` (which imports `messages`), `announcements`, `seen` (which imports `messages`), `mutes`
+`messages`, `reactions` (which imports `messages`), `announcements` (which imports `messages`, for the room it is told
+in), `seen` (which imports `messages`), `mutes`
 (which imports `messages`), `removals` (which imports `messages`), and `feed`, the live stream, which carries the
 first three and the removals. `subscribers/` is its edge for events, as `chatv1controller/` is
 its edge for the wire. A read is a query under its handler: see [Reads are queries](queries.md).
@@ -35,10 +36,11 @@ internal/chat/internal/
     inmemory_reaction_storage/          Storage in a slice — behind the testing tag, tests only
     usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher, Authors
       muting_react/                     refuses a muted caller before anything else — Mutes
-  announcements/                        Announcement, AnnouncementID, Kind (Kinds, Known: announce_usecase refuses
-                                        any other), Bomb, Fortify, Muted, Round and Champion: each builds its
-                                        Announcement, named after the fact it tells; RoundID and BookID, scoring's
-                                        ids; the Storage port and the suite; FakeResults behind the testing tag
+  announcements/                        Announcement (its Room, WithRoom, In), AnnouncementID, Kind (Kinds, Known:
+                                        announce_usecase refuses any other), Bomb, Fortify, Muted, Round, Champion
+                                        and FlagMission: each builds its Announcement, named after the fact it tells;
+                                        RoundID and BookID, scoring's ids; FlagMissionID, missions'; the Storage port
+                                        and the suite; FakeResults behind the testing tag
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
     usecases/announce_usecase/          keeps an announcement once, publishes it the first time — Appender, Publisher
@@ -99,6 +101,8 @@ internal/chat/internal/
     day_ended_subscriber/               gamemaster.v1.DayEnded → announce_round_usecase, as a DayOf
     battle_ended_subscriber/            gamemaster.v1.BattleEnded → announce_round_usecase, as a BattleOf
     season_ended_subscriber/            gamemaster.v1.SeasonEnded → announce_champion_usecase
+    flag_mission_done_subscriber/       missions.v1.FlagMissionDone → announce_usecase, as a FlagMission, in the
+                                        flag's room and the world
     player_forgotten_subscriber/        player.v1.PlayerForgotten → forget_seen_usecase
     allegiance_pledged_subscriber/      planet.v1.AllegiancePledged → leave_room_usecase, for the flag left
     log_subscriber/                     logs an event a subscriber refused (player's, copied)

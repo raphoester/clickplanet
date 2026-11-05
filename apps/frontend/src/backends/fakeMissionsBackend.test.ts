@@ -33,6 +33,23 @@ describe("FakeMissionsBackend", () => {
         expect(grant.mock.calls.map(([kind]) => kind)).toEqual(["shields", "spreadClicks", "bomb", "encloseClicks", "shields"])
     })
 
+    it("tells its flag's mission done once, as the server tells the chat", async () => {
+        const fake = new FakeMissionsBackend(vi.fn(), pledged("fr"), () => Date.UTC(2026, 9, 26, 12, 0))
+        const clicking = fake.counting(clicker)
+        const onDone = vi.fn()
+        fake.listenForFlagMissionsDone(onDone)
+
+        await clicking.clickTile(1, "fr")
+        expect(onDone).not.toHaveBeenCalled()
+
+        fake.prime()
+        await clicking.clickTile(2, "fr")
+        await clicking.clickTile(3, "fr")
+
+        expect(onDone).toHaveBeenCalledTimes(1)
+        expect(onDone.mock.lastCall).toEqual(["fr", expect.objectContaining({done: true, points: 2})])
+    })
+
     it("hands its followers the day at once, then again after each take, paid or not", async () => {
         const fake = new FakeMissionsBackend(vi.fn(), pledged("fr"), () => Date.UTC(2026, 9, 26, 12, 0))
         const clicking = fake.counting(clicker)

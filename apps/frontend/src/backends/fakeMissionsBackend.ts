@@ -13,6 +13,8 @@ export class FakeMissionsBackend implements MissionsBackend {
     private finished = false
     private readonly paid = new Set<string>()
     private readonly followers = new Set<(day: DayMissions) => void>()
+    private readonly flagMissionsDone = new Set<(flag: string, mission: FlagMission) => void>()
+    private flagMissionTold = false
 
     constructor(
         private readonly grant: (kind: ChargeKind) => void,
@@ -51,6 +53,12 @@ export class FakeMissionsBackend implements MissionsBackend {
         return () => this.followers.delete(onDay)
     }
 
+    // As the server tells the chat, once the flag's mission is done.
+    public listenForFlagMissionsDone(onDone: (flag: string, mission: FlagMission) => void): () => void {
+        this.flagMissionsDone.add(onDone)
+        return () => this.flagMissionsDone.delete(onDone)
+    }
+
     private day(): DayMissions {
         this.flag ??= this.pledged
         if (!this.flag) return {endsAt: this.endOfDay(), missions: []}
@@ -63,6 +71,12 @@ export class FakeMissionsBackend implements MissionsBackend {
             if (!mission.done || this.paid.has(mission.id)) continue
             this.paid.add(mission.id)
             this.grant(mission.reward.kind)
+        }
+        const flagMission = this.flagMission(this.flag)
+        if (flagMission.done && !this.flagMissionTold) {
+            this.flagMissionTold = true
+            const flag = this.flag
+            this.flagMissionsDone.forEach((onDone) => onDone(flag, flagMission))
         }
         const day = this.day()
         this.followers.forEach((onDay) => onDay(day))

@@ -35,7 +35,7 @@ func (o Outbox) Send(ctx context.Context, messages ...proto.Message) error {
 		switch message.(type) {
 		case *planetv1.GrantCharges, *scoringv1.GrantPoints:
 			commands = append(commands, message)
-		case *missionsv1.MissionsPaid:
+		case *missionsv1.MissionsPaid, *missionsv1.FlagMissionDone:
 			events = append(events, message)
 		default:
 			return fmt.Errorf("%w: %s", errUnknown, message.ProtoReflect().Descriptor().FullName())
@@ -46,7 +46,7 @@ func (o Outbox) Send(ctx context.Context, messages ...proto.Message) error {
 		return fmt.Errorf("failed to send the grants: %w", err)
 	}
 	if err := o.events.Send(ctx, events...); err != nil {
-		return fmt.Errorf("failed to tell the missions paid: %w", err)
+		return fmt.Errorf("failed to tell the missions paid and done: %w", err)
 	}
 	return nil
 }

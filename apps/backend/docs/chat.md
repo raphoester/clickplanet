@@ -36,20 +36,21 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 ## Announcements
 
 **The chat also says things on its own**: a line between the messages with no sender, which the client draws
-without a bubble. Five kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
+without a bubble. Six kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
 mute an operator gave (see [Mutes](#mutes)), `round`, every day and battle of a season scoring scored, `fortify`, every
 landmass of 50 tiles or more a flag fortified (`{country, ground, landmass, tiles}`: the client names the landmass
-from its own table, `ground` for a country's main one; see [Fortify](fortify.md)), and `champion`, the country that
-won a season.
+from its own table, `ground` for a country's main one; see [Fortify](fortify.md)), `champion`, the country that
+won a season, and `flag_mission`, every flag that finished its mission of the day (see
+[The flag's mission](missions.md#the-flags-mission)), told in that flag's room too.
 
 - **A separate type and a separate table, not a message with no author.** An announcement has no name, tag, IP,
   text or reactions, and a message has no kind or payload; sharing a base would make every column of one
-  optional in the other. So `announcements.Announcement` is `{ID, Kind, At, Payload}`, in `chat.announcements`
-  (`id uuid` primary key, `kind` of the type `announcement_kind`, `payload jsonb`, `announced_at`), with its own store, its own contract suite and
+  optional in the other. So `announcements.Announcement` is `{ID, Kind, At, Room, Payload}`, in `chat.announcements`
+  (`id uuid` primary key, `kind` of the type `announcement_kind`, `room`, `payload jsonb`, `announced_at`), with its own store, its own contract suite and
   its own case on the wire (`chat.v1.Announcement`: `kind` and `payload` as a JSON string).
 - **The id is the fact's**, `announcements.AnnouncementID` (`type AnnouncementID uuid.UUID`): a SHA-1 UUID of what
   the line tells (`https://clickplanet.lol/ledger/<position>/bomb`, `…/fortify`, `mutes/<mute id>`,
-  `seasons/<n>/rounds/<n>`, `seasons/<n>/champion`), built by each value's `Announcement(at)`. So a fact told twice
+  `seasons/<n>/rounds/<n>`, `seasons/<n>/champion`, `flag-missions/<mission id>`), built by each value's `Announcement(at)`. So a fact told twice
   is one row: `announce_usecase` keeps it with `Storage.AppendOnce` (`ON CONFLICT DO NOTHING`, saying whether it did)
   and publishes it only the first time. That is what makes an event the bus delivers again harmless here. A message's
   id is `text` with a `seq` beside it because it is not trusted to be unique; nothing here has that history. A read
@@ -84,6 +85,15 @@ won a season.
   (`announcements.ChampionOf`; level on everything, they win together) as a `{season, countries}` payload at the
   season's end. A season nobody scored in announces nothing. Its id is the season's, so a second `SeasonEnded`
   shows nothing new.
+- **How a flag mission gets here**: missions finishes a flag's mission and tells `missions.v1.FlagMissionDone`, from its
+  outbox, in the transaction that gives the flag its points: the flag, the mission as its players see it
+  (`missions.v1.FlagMission`) and the time of the take or the shield broken that finished it.
+  `flag_mission_done_subscriber` (`chat-announcements-flag-missions`) makes it an `announcements.FlagMission`, under the
+  mission's id (`flag-missions/<mission id>`), and `announce_usecase` keeps it. Payload `{country, points, mission,
+  ground | rival, goal}`: `mission` is `take_in`, with the `ground` to take tiles in, or `break_shields`, with the
+  `rival` whose shields to break. **A kind the chat does not know is still told**, as `{country, points}` alone, so a new
+  kind of flag mission in missions never silences the line. It is the only kind told in a flag's room: see
+  [Rooms](#rooms).
 - **`GetHistory` returns them beside the messages**, in `announcements`, the newest `historySize` within
   `retention`, bounded apart from the messages so a burst of bombs never pushes one out. The client puts the two
   lists in one by time. **Once the messages fill the window, none is older than the oldest of them**
@@ -327,10 +337,15 @@ wire each request says its room in `flag_room`: empty for the world, a country f
   world's), with an index on `(room, seq)`. **Each room has its own window**: the newest `historySize` of that room, so
   a busy world never pushes a flag's room out. `Storage.Message` reads a message within the window of its own room.
 - **A reply stays in its room**: `Message.Answering` refuses a message of another room as `ErrNotShown`.
-- **A flag's room has no announcements.** Bombs, rounds, mutes, fortifies and champions are the world's.
+- **An announcement is told in a room, as a message is, and the world shows every one.** `chat.announcements.room` is
+  `world` for bombs, rounds, mutes, fortifies and champions (migration `20261105200000_flag_mission_announcements`:
+  every row from before is the world's), and the flag's room for a flag mission (`Announcement.WithRoom`). A flag's
+  room shows what was told in it alone (`Announcement.In`): France's room shows France's flag missions, never
+  Germany's, and never a bomb. Each room's announcements begin where a full window of its own messages does, as the
+  world's do. Until 2026-11-05 a flag's room had no announcements.
 - **A stream is one room's.** `ListenForEvents` reads the identity token (`Identified`), as `GetHistory` does.
   `feed.Update.For(room)` says what goes to it: a message, or the tally of a message, of that room; an announcement to
-  the world; a removal to every room, since it carries an id alone.
+  the world and to the room it was told in; a removal to every room, since it carries an id alone.
 - **A pledge of another flag ends the stream of the room left.** `chat-rooms` hears `planet.v1.AllegiancePledged`, and
   `leave_room_usecase` publishes `feed.RoomLeft` with the room of the flag left. That account's stream of that room ends
   with `ErrNotInRoom`. A first flag leaves nothing. The client must not open it again: see its

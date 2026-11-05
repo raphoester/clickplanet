@@ -275,6 +275,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     Object.assign(window, {fakeBadges})
     const clicker = fakeMissions.counting(fakeStandings.counting(fake))
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
+    fakeMissions.listenForFlagMissionsDone((flag, mission) => fakeChat.announceFlagMission(flag, mission))
     fake.listenForFortifications((fortification) => void borders.then(({codes}) => fakeChat.announceFortify({
         ...fortification, ground: codes[fortification.landmass], tiles: fake.landmassTiles(fortification.landmass),
     })))

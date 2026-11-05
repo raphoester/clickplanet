@@ -53,10 +53,14 @@ func (d Day) Snapshot() DaySnapshot {
 	return snapshot
 }
 
-// The mission the flag finished, and what it is worth.
+// The mission the flag finished, what it is worth, and the progress that finished it.
 type Done struct {
-	Mission MissionID
-	Points  uint32
+	Mission  MissionSnapshot
+	Progress uint32
+}
+
+func (d Done) Status() Status {
+	return Status{Mission: d.Mission, Progress: d.Progress, Done: true}
 }
 
 // A take can be told twice: one below the mark was counted already. Takes come in ledger order, and the takes of one
@@ -98,7 +102,7 @@ func (d Day) finished() (Day, []Done) {
 		return d, nil
 	}
 	d.done = true
-	return d, []Done{{Mission: d.mission.ID, Points: d.mission.Points}}
+	return d, []Done{{Mission: *d.mission, Progress: d.progress}}
 }
 
 type Status struct {

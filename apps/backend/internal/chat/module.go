@@ -75,6 +75,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/battle_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/day_ended_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/flag_mission_done_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/player_forgotten_subscriber"
@@ -166,6 +167,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to planet.v1.Fortified: %w", err)
 	}
 
+	flagMissions, err := cpredis.Subscribe(ctx, streams, "chat-announcements-flag-missions",
+		log_subscriber.New(flag_mission_done_subscriber.New(announce), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to missions.v1.FlagMissionDone: %w", err)
+	}
+
 	deletions, err := cpredis.Subscribe(ctx, streams, "chat-seen-forgotten",
 		log_subscriber.New(player_forgotten_subscriber.New(forget_seen_usecase.New(seenStore)), props.Logger))
 	if err != nil {
@@ -210,8 +218,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune_usecase.NewRunner(storage.PruneInterval, prune),
-		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, deletions, mutings, days, battles, champions,
-			departures)))
+		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, flagMissions, deletions, mutings, days, battles,
+			champions, departures)))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)

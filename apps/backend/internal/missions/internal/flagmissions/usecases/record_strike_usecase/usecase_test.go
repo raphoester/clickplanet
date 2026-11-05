@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/inmemory_day_store"
@@ -64,11 +65,19 @@ func TestTheShieldsBrokenFinishTheMissionAndGiveTheFlagItsPointsOnce(t *testing.
 		}))
 	}
 
-	require.Len(t, outbox.Recorded(), 1)
+	require.Len(t, outbox.Recorded(), 2)
 	assert.True(t, proto.Equal(&scoringv1.GrantPoints{
 		GrantId: status.Mission.ID.String(), Country: "fr", Points: status.Mission.Points,
 		GrantedAt: timestamppb.New(at.Add(time.Duration(goal) * time.Millisecond)),
 	}, outbox.Recorded()[0]), "the strike that broke the last shield")
+	assert.True(t, proto.Equal(&missionsv1.FlagMissionDone{
+		Flag: "fr",
+		Mission: &missionsv1.FlagMission{
+			Id: status.Mission.ID.String(), Points: status.Mission.Points, Done: true,
+			Kind: &missionsv1.FlagMission_BreakShields{BreakShields: &missionsv1.BreakShields{CountryId: "dz", Goal: goal, Broken: goal}},
+		},
+		DoneAt: timestamppb.New(at.Add(time.Duration(goal) * time.Millisecond)),
+	}, outbox.Recorded()[1]), "told once, with the grant")
 	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
 	assert.Equal(t, uint64(goal+1), day.Snapshot().Strikes)

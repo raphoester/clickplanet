@@ -6,7 +6,8 @@ It reads planet's facts (`TileTaken`, `BonusClaimed`, `QuizAnswered`, `BombLande
 `ShieldStruck`, `GetTerritories`, `GetCountrySizes`, `GetAllegianceOf`), the gamemaster's days (`DayStarted`), player's
 word on an account (`PlayerSignedIn`, `PlayerForgotten`, `GetAccounts`), and commands planet to grant a reward
 (`planet.v1.GrantCharges`) and scoring to grant points (`scoring.v1.GrantPoints`), over Redis, as scoring asks planet
-what each country holds: neither ever imports, calls or hears missions.
+what each country holds: neither ever imports, calls or hears missions. It tells what it did (`MissionsPaid`,
+`FlagMissionDone`) to whoever listens: progression and the chat.
 Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/caddy/Caddyfile`, as every service's is.
 
 ```
@@ -27,7 +28,8 @@ internal/missions/internal/
     rpc_player_accounts/            whether an account is signed in, from player.v1.InternalService/GetAccounts (2s timeout)
     payroll/                        pays each mission done once: the payments and their grants, in one transaction
     planetgrant/                    a payment as the planet.v1.GrantCharges command
-    redis_outbox_sender/            what the outbox relay sends with: the grants as commands, MissionsPaid as an event
+    redis_outbox_sender/            what the outbox relay sends with: the grants as commands, MissionsPaid and
+                                    FlagMissionDone as events
     inprocess_day_feed/             wakes the account's open streams when its day changed, in this process
     usecases/record_fact_usecase/  get_missions_usecase/  pay_signed_in_usecase/  forget_account_usecase/
               listen_for_events_usecase/
@@ -36,6 +38,8 @@ internal/missions/internal/
     postgres_flag_day_store/        the Store over missions.flag_days and flag_missions
     inmemory_flag_day_store/        the same port in a map, behind the testing tag
     scoringgrant/                   a flag mission done as the scoring.v1.GrantPoints command
+    flagmessage/                    a flag mission as missions.v1.FlagMission (GetMissions answers it too), and a
+                                    flag mission done as the missions.v1.FlagMissionDone event
     usecases/record_flag_take_usecase/  record_strike_usecase/
   missionsv1controller/             MissionService (a bag), the session interceptors, the caller, missionmessage
     get_missions_handler/  listen_for_events_handler/
@@ -231,6 +235,12 @@ day and a flag), so it has its own package and store (`flagmissions`).
   that counts it, the use case records `scoring.v1.GrantPoints` in missions' outbox (`scoringgrant.Of`): the mission's id
   as `grant_id`, the flag, the points, and the fact's time as `granted_at`, so scoring counts them in the books open
   then. `missions-outbox` sends it with the charges.
+- **And tells it, once** (`flagmessage.Done`): in the same transaction, `missions.v1.FlagMissionDone`, the flag, the
+  mission as `GetMissions` shows it, done (`flagmessage.Mission`, the one encoder of a flag mission), and the fact's time
+  as `done_at`. The chat hears it and announces it in the world and in the flag's room (see the chat's
+  [Announcements](chat.md#announcements)); missions never learns who listens. Through the outbox because it is told
+  once: a lost publish would never be told again. Migration `20261105200000_flag_mission_done` adds it to
+  `outbox_event`.
 - **`GetMissions` answers `flag_mission`**, the mission of the flag the caller plays now: its id, its points, `done`,
   and its kind (`take_in` with the tiles taken, `break_shields` with the shields broken). None with no flag, or no
   mission that day.

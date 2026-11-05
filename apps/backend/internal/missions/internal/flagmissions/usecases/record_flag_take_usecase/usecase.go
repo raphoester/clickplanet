@@ -8,6 +8,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/flagmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/scoringgrant"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
@@ -72,7 +73,11 @@ func (u *UseCase) Execute(ctx context.Context, take flagmissions.Take) error {
 		if len(done) == 0 {
 			return nil
 		}
-		return u.outbox.Record(ctx, scoringgrant.Of(take.Flag, done, take.At)...) //nolint:wrapcheck // the outbox named it.
+		told, err := flagmessage.Done(take.Flag, done, take.At)
+		if err != nil {
+			return fmt.Errorf("failed to tell %s's mission done: %w", take.Flag, err)
+		}
+		return u.outbox.Record(ctx, append(scoringgrant.Of(take.Flag, done, take.At), told...)...) //nolint:wrapcheck // the outbox named it.
 	}); err != nil {
 		return err //nolint:wrapcheck // the transaction's own error.
 	}
