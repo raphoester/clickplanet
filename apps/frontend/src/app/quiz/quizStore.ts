@@ -31,6 +31,7 @@ type QuizStore = {
     offer: (offer: QuizOffer) => void
     open: () => void
     answer: (choice: number) => void
+    dismiss: () => void
 }
 
 const IDLE: QuizState = {phase: 'idle'}
@@ -84,6 +85,10 @@ export const useQuiz = create<QuizStore>()((set, get) => {
                     if (!(error instanceof BonusLostError)) console.error('could not answer the quiz', error)
                     set({state: IDLE})
                 })
+        },
+        dismiss: () => {
+            const {state} = get()
+            if (state.phase === 'answered') leave(state)
         },
     }
 })

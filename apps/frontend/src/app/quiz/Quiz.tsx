@@ -3,7 +3,7 @@ import {BonusReward, describeReward} from '../../domain/bonus.ts'
 import {QuizOutcome, QuizQuestion, secondsLeft, timeLeft, untilNextSecond} from '../../domain/quiz.ts'
 import {now as budgetNow} from '../../backends/clickBudget.ts'
 import BonusIcon from '../components/BonusIcon.tsx'
-import {PlayIcon} from '../components/icons.tsx'
+import {CloseIcon, PlayIcon} from '../components/icons.tsx'
 import {useQuiz} from './quizStore.ts'
 import './Quiz.css'
 
@@ -27,6 +27,7 @@ export default function Quiz() {
     const state = useQuiz((quiz) => quiz.state)
     const open = useQuiz((quiz) => quiz.open)
     const answer = useQuiz((quiz) => quiz.answer)
+    const dismiss = useQuiz((quiz) => quiz.dismiss)
 
     switch (state.phase) {
         case 'idle':
@@ -38,7 +39,7 @@ export default function Quiz() {
         case 'answering':
             return <Question key={state.token} question={state.question} onAnswer={answer}/>
         case 'answered':
-            return <Result question={state.question} outcome={state.outcome} chosen={state.chosen}/>
+            return <Result question={state.question} outcome={state.outcome} chosen={state.chosen} onClose={dismiss}/>
     }
 }
 
@@ -124,7 +125,12 @@ function Question({question, onAnswer}: {question: QuizQuestion, onAnswer: (choi
     </div>
 }
 
-function Result({question, outcome, chosen}: {question: QuizQuestion, outcome: QuizOutcome, chosen?: number}) {
+function Result({question, outcome, chosen, onClose}: {
+    question: QuizQuestion,
+    outcome: QuizOutcome,
+    chosen?: number,
+    onClose: () => void,
+}) {
     const won = outcome.reward
     const reward = won && describeReward(won)
 
@@ -140,6 +146,9 @@ function Result({question, outcome, chosen}: {question: QuizQuestion, outcome: Q
                     {reward?.detail && <p className="quiz-reward-detail">{reward.detail}</p>}
                     {outcome.correct && !reward && <p className="quiz-reward-detail">Your inventory is already full</p>}
                 </div>
+                <button type="button" className="icon-button quiz-close" aria-label="Close" onClick={onClose}>
+                    <CloseIcon/>
+                </button>
             </div>
 
             <p className="quiz-question">{question.text}</p>

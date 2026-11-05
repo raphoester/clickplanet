@@ -192,7 +192,7 @@ describe("Quiz", () => {
         fireEvent.click(screen.getByRole("button", {name: "Riga"}))
         await settle()
 
-        expect(screen.queryAllByRole("button")).toEqual([])
+        expect(screen.getAllByRole("button")).toEqual([screen.getByRole("button", {name: "Close"})])
         expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
             "Riga, your pick",
             "Tallinn, the answer",
@@ -270,6 +270,37 @@ describe("Quiz", () => {
         act(() => void vi.advanceTimersByTime(RESULT_MS + 100))
 
         expect(screen.queryByText("Correct!")).toBeNull()
+    })
+
+    it("clears the result at once when it is closed", async () => {
+        render(<Harness master={master}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Close"}))
+
+        expect(screen.queryByText("Correct!")).toBeNull()
+        expect(useQuiz.getState().state.phase).toBe("idle")
+    })
+
+    it("lets the next banner in when a closed result's own timer runs out", async () => {
+        render(<Harness master={master}/>)
+        act(() => master.offer("t1"))
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
+        await settle()
+        fireEvent.click(screen.getByRole("button", {name: "Close"}))
+
+        act(() => master.offer("t2"))
+        act(() => void vi.advanceTimersByTime(RESULT_MS + 100))
+
+        expect(screen.getByRole("button", {name: /Answer a question/})).toBeTruthy()
     })
 
     it("leaves nothing on screen when the banner got away before it opened", async () => {
