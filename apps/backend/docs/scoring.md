@@ -43,6 +43,7 @@ internal/scoring/internal/
     get_scores_handler/scores_query/        a book's scores, the scores around a round, the table (GetTable)
     get_table_handler/                      InternalService/GetTable, through scores_query
     get_round_players_handler/round_players_query/   InternalService/GetRoundPlayers: every account of a round
+    get_rank_points_handler/                InternalService/GetRankPoints: books.RankPointsOf, nothing kept
     (each */rpc_players/                  Players, from player.v1.InternalService/GetPlayers)
     listen_for_events_handler/    the stream: a book's board and scores, the rounds asked, a heartbeat
       inprocess_feed/             Feed[K, V]: each key the streams follow, read once a period, sent when it changed
@@ -95,7 +96,8 @@ again changes nothing.
 - **`Round.Results` ranks a round**: countries by the tiles held at its end, ties sharing a rank and its points, the top
   10 scoring 25, 18, 15, 12, 10, 8, 6, 4, 2, 1, times the round's `times`. A win is worth the same at 1% as at 30%, so
   an early lead cannot be banked. Until 2026-10-27 (season 0) a round was scored on each country's average share; those
-  rounds keep their results.
+  rounds keep their results. `books.RankPointsOf(times)` is the same points for each rank before any round opens, and
+  a test runs a ×3 round through both.
 - **`books.TableOf` ranks a book**: points, then rounds won, then the points of its tiebreak round (`ScoresOf`; none
   while the book is open, or when the close named none). Countries level on all three share the rank.
 - **A grant counts in every book open at its time** (`Book.Table` keeps the grants it `Holds`): its points add to the
@@ -193,6 +195,11 @@ id that is not one is `InvalidArgument`.
   guests too, each under the flag it took the most tiles for there (a tie goes to the country first by code), with
   those tiles; NotFound for a round never opened. Progression reads it for the fighters of a season's finale (see [Season
   titles](season-titles.md)).
+- **`InternalService/GetRankPoints(times)`**: what each rank of a round of `times` scores, the first's first, every rank
+  that scores (`books.RankPointsOf`, which `Round.Results` scores by too); InvalidArgument for times outside 1 to
+  `books.MaxTimes`. A rule and not a read of the books, so it needs no round opened: promo names a battle's points on
+  its teaser before the battle starts (see [Promo](promo.md)). **The table stays here alone**: no other module keeps a
+  copy.
 - **`ListenForEvents(book_id, country_id, round_ids)`**: the book's board and scores, each round asked (10 at most, a
   round asked twice followed once), then each one again once it changed, and a `heartbeat` every
   `httpServer.streamHeartbeat`. No `book_id` follows no board and no scores. A round not opened yet is sent once it

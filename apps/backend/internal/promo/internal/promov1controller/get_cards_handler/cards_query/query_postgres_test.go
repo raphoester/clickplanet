@@ -39,6 +39,15 @@ func (p planet) Played(_ context.Context, set string) (*planetv1.Rules, error) {
 	return played, nil
 }
 
+type scoring struct{}
+
+func (scoring) Battle(_ context.Context, times uint32) (placeholders.Battle, error) {
+	if times != 3 {
+		return placeholders.Battle{}, fmt.Errorf("asked a battle of %d times", times)
+	}
+	return placeholders.Battle{Times: times, Points: map[uint32]uint32{1: 75, 2: 54, 3: 45}}, nil
+}
+
 func TestEverySetPlanetKeepsIsListedWithItsCardsAsWrittenAndAsRead(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "promo", migrations.FS)
 	background, err := backgrounds.Keep(backgrounds.File{ID: war, MediaType: "image/png", Size: 1}, "The war", time.Now(),
@@ -48,6 +57,7 @@ func TestEverySetPlanetKeepsIsListedWithItsCardsAsWrittenAndAsRead(t *testing.T)
 	deck, err := cards.NewDeck("urf", []cards.Draft{
 		{Background: war, Headline: "Clicks refill {clicks.tempo}× faster", Line: "Every country at once."},
 		{Background: war, Headline: "Bombs blast {bonuses.bomb.rings} rings"},
+		{Background: war, Headline: "Triple points", Line: "1st place wins {battle.points.first} points"},
 	})
 	require.NoError(t, err)
 	require.NoError(t, postgres_card_store.New(db).Save(t.Context(), deck))
@@ -56,6 +66,7 @@ func TestEverySetPlanetKeepsIsListedWithItsCardsAsWrittenAndAsRead(t *testing.T)
 
 	answer, err := cards_query.NewPostgresQuery(db,
 		planet{names: []string{"default", "urf"}, played: map[string]*planetv1.Rules{"default": defaults, "urf": urf}},
+		scoring{},
 		backgrounds.NewMemoryBucket(),
 	).Cards(t.Context())
 
@@ -64,7 +75,7 @@ func TestEverySetPlanetKeepsIsListedWithItsCardsAsWrittenAndAsRead(t *testing.T)
 	assert.True(t, proto.Equal(&promov1.SetCards{RuleSet: "default"}, answer.GetSets()[0]))
 	urfCards := answer.GetSets()[1].GetCards()
 	assert.Equal(t, "urf", answer.GetSets()[1].GetRuleSet())
-	require.Len(t, urfCards, 2)
+	require.Len(t, urfCards, 3)
 	assert.True(t, proto.Equal(&promov1.Card{
 		Draft: &promov1.CardDraft{BackgroundId: war.String(), Headline: "Clicks refill {clicks.tempo}× faster", Line: "Every country at once."},
 		Filled: &promov1.TeaserCard{
@@ -74,9 +85,16 @@ func TestEverySetPlanetKeepsIsListedWithItsCardsAsWrittenAndAsRead(t *testing.T)
 	}, urfCards[0]), "%v", urfCards[0])
 	assert.Nil(t, urfCards[1].GetFilled(), "the set plays no rings")
 	assert.Contains(t, urfCards[1].GetProblem(), "{bonuses.bomb.rings}")
+	assert.Equal(t, "1st place wins 75 points", urfCards[2].GetFilled().GetLine(), "a set's cards read as in a ×3 battle")
 
-	assert.Len(t, answer.GetPlaceholders(), len(placeholders.Paths()))
+	assert.Len(t, answer.GetPlaceholders(), len(placeholders.RulePaths()))
 	assert.True(t, proto.Equal(&promov1.Placeholder{Path: "clicks.tempo", Example: "1"}, answer.GetPlaceholders()[0]))
+	assert.True(t, proto.Equal(&promov1.ExampleBattle{Times: 3, Placeholders: []*promov1.Placeholder{
+		{Path: "battle.times", Example: "3"},
+		{Path: "battle.points.first", Example: "75"},
+		{Path: "battle.points.second", Example: "54"},
+		{Path: "battle.points.third", Example: "45"},
+	}}, answer.GetExampleBattle()), "%v", answer.GetExampleBattle())
 }
 
 func TestASetWhoseValuesPlanetWillNotTellSaysWhy(t *testing.T) {
@@ -91,6 +109,7 @@ func TestASetWhoseValuesPlanetWillNotTellSaysWhy(t *testing.T) {
 
 	answer, err := cards_query.NewPostgresQuery(db,
 		planet{names: []string{"default", "urf"}, played: map[string]*planetv1.Rules{"default": {}}},
+		scoring{},
 		backgrounds.NewMemoryBucket(),
 	).Cards(t.Context())
 

@@ -38,14 +38,33 @@ func (r Round) Results(snapshot Snapshot) []Result {
 		if i > 0 && held[country] == held[countries[i-1]] {
 			rank = results[i-1].Rank
 		}
-		results = append(results, Result{Country: country, Rank: rank, Points: r.pointsAt(rank), Share: float64(held[country]) / float64(snapshot.Tiles)})
+		results = append(results, Result{Country: country, Rank: rank, Points: pointsAt(rank, r.Times), Share: float64(held[country]) / float64(snapshot.Tiles)})
 	}
 	return results
 }
 
-func (r Round) pointsAt(rank uint32) uint32 {
+func pointsAt(rank, times uint32) uint32 {
 	if int(rank) > len(points) {
 		return 0
 	}
-	return points[rank-1] * r.Times
+	return points[rank-1] * times
+}
+
+// RankPoints is what a rank of a round scores.
+type RankPoints struct {
+	Rank   uint32
+	Points uint32
+}
+
+// RankPointsOf is what each rank of a round of times scores, the first's first: every rank that scores.
+func RankPointsOf(times uint32) ([]RankPoints, error) {
+	if err := checkTimes(times); err != nil {
+		return nil, err
+	}
+	ranks := make([]RankPoints, 0, len(points))
+	for i := range points {
+		rank := uint32(i + 1) //nolint:gosec // ten ranks.
+		ranks = append(ranks, RankPoints{Rank: rank, Points: pointsAt(rank, times)})
+	}
+	return ranks, nil
 }

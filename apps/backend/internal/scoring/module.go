@@ -38,6 +38,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler/my_tally_query"
 	tally_players "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler/my_tally_query/rpc_players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_rank_points_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_handler/round_query"
 	round_players "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_handler/round_query/rpc_players"
@@ -203,6 +204,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetRoundHandler:        getRound,
 		GetTableHandler:        get_table_handler.New(scoresQuery),
 		GetRoundPlayersHandler: get_round_players_handler.New(round_players_query.NewPostgresQuery(db)),
+		GetRankPointsHandler:   get_rank_points_handler.New(),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return scoringv1connect.NewInternalServiceHandler(internalService, options...)

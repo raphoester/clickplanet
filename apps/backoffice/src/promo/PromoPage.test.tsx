@@ -98,6 +98,21 @@ describe("PromoPage", () => {
             .toBe("Bombs blast 4" + "Every country at once.")
     })
 
+    it("fills a value of the battle as in the example battle, and says so", async () => {
+        show(withUrf())
+        const first = await card(1)
+        expect(within(first).queryByText("Example: a ×3 battle")).toBeNull()
+
+        fireEvent.change(within(first).getByLabelText(/^Line/), {target: {value: "1st place wins "}})
+        fireEvent.change(within(first).getByLabelText("Insert a value in Card 1"), {target: {value: "battle.points.first"}})
+
+        expect((within(first).getByLabelText(/^Line/) as HTMLInputElement).value).toBe("1st place wins {battle.points.first}")
+        expect(within(first).getByLabelText("Card 1 as players read it").textContent)
+            .toBe("Clicks refill 3× faster" + "1st place wins 75")
+        expect(within(first).getByText("Example: a ×3 battle")).toBeTruthy()
+        expect(within(first).getByRole("option", {name: "battle.points.first (×3: 75)"})).toBeTruthy()
+    })
+
     it("saves the set's cards, in order, once asked", async () => {
         const admin = withUrf()
         show(admin)
@@ -120,7 +135,7 @@ describe("PromoPage", () => {
 
         fireEvent.change(within(first).getByLabelText(/^Headline/), {target: {value: "Clicks refill {clicks.speed}× faster"}})
 
-        expect(within(first).getByRole("alert").textContent).toContain("{clicks.speed} names no number or duration of the rules.")
+        expect(within(first).getByRole("alert").textContent).toContain("{clicks.speed} names no number or duration of the rules or the battle.")
         expect((screen.getByRole("button", {name: "Save"}) as HTMLButtonElement).disabled).toBe(true)
     })
 

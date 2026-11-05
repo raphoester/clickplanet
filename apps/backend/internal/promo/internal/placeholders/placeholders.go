@@ -1,6 +1,6 @@
-// Package placeholders reads the `{path}` a card's words name a rule by, and fills it with the value a set plays. A
+// Package placeholders reads the `{path}` a card's words name a value by, and fills it with the value a battle plays. A
 // path is a field of planet.v1.Rules as protojson names it, such as `clicks.tempo` or `bonuses.boxes.minInterval`, and
-// only a number or a duration reads as a word in a sentence.
+// only a number or a duration reads as a word in a sentence; or a value of the battle, such as `battle.points.first`.
 package placeholders
 
 import (
@@ -27,8 +27,45 @@ var placeholder = regexp.MustCompile(`\{([^{}]*)\}`)
 
 var durationName = (&durationpb.Duration{}).ProtoReflect().Descriptor().FullName()
 
-// Paths is every path a card may name, in the order planet.v1.Rules declares them.
-func Paths() []string {
+// Battle is what a card may name of the battle that plays its set: its points' times, and what each rank scores in
+// it, by rank.
+type Battle struct {
+	Times  uint32
+	Points map[uint32]uint32
+}
+
+const battleTimes = "battle.times"
+
+// The ranks whose points a card may name, the first's first.
+var places = []string{"first", "second", "third"}
+
+// BattlePaths is every path a card may name of the battle.
+func BattlePaths() []string {
+	paths := make([]string, 0, 1+len(places))
+	paths = append(paths, battleTimes)
+	for _, place := range places {
+		paths = append(paths, "battle.points."+place)
+	}
+	return paths
+}
+
+func (b Battle) valueOf(path string) (string, error) {
+	if path == battleTimes {
+		return strconv.FormatUint(uint64(b.Times), 10), nil
+	}
+	place := slices.Index(places, strings.TrimPrefix(path, "battle.points."))
+	if place < 0 {
+		return "", fmt.Errorf("%w: {%s}", ErrInvalidPlaceholder, path)
+	}
+	points, ok := b.Points[uint32(place+1)] //nolint:gosec // three places.
+	if !ok {
+		return "", fmt.Errorf("%w: {%s}", ErrNoValue, path)
+	}
+	return strconv.FormatUint(uint64(points), 10), nil
+}
+
+// RulePaths is every path a card may name of the rules, in the order planet.v1.Rules declares them.
+func RulePaths() []string {
 	var paths []string
 	walk((&planetv1.Rules{}).ProtoReflect().Descriptor(), "", func(path string, _ protoreflect.FieldDescriptor) {
 		paths = append(paths, path)
@@ -69,11 +106,11 @@ func number(kind protoreflect.Kind) bool {
 
 // Check refuses words with a placeholder no path names, or a brace that opens or closes none.
 func Check(words string) error {
-	paths := Paths()
+	paths := slices.Concat(RulePaths(), BattlePaths())
 	var reasons []string
 	for _, match := range placeholder.FindAllStringSubmatch(words, -1) {
 		if !slices.Contains(paths, match[1]) {
-			reasons = append(reasons, fmt.Sprintf("{%s} names no number or duration of the rules", match[1]))
+			reasons = append(reasons, fmt.Sprintf("{%s} names no number or duration of the rules or the battle", match[1]))
 		}
 	}
 	if strings.ContainsAny(placeholder.ReplaceAllString(words, ""), "{}") {
@@ -85,15 +122,25 @@ func Check(words string) error {
 	return nil
 }
 
-// Fill writes each placeholder's value as the set plays it: a number with no trailing zero, a duration in its largest
-// whole unit.
-func Fill(words string, played *planetv1.Rules) (string, error) {
+// Fill writes each placeholder's value as the battle and its set play it: a number with no trailing zero, a duration
+// in its largest whole unit.
+func Fill(words string, played *planetv1.Rules, battle Battle) (string, error) {
 	if err := Check(words); err != nil {
 		return "", err
 	}
+	battlePaths := BattlePaths()
 	var failed error
 	filled := placeholder.ReplaceAllStringFunc(words, func(found string) string {
-		value, err := valueOf(played.ProtoReflect(), strings.Trim(found, "{}"))
+		path := strings.Trim(found, "{}")
+		var (
+			value string
+			err   error
+		)
+		if slices.Contains(battlePaths, path) {
+			value, err = battle.valueOf(path)
+		} else {
+			value, err = valueOf(played.ProtoReflect(), path)
+		}
 		if err != nil {
 			failed = errors.Join(failed, err)
 		}

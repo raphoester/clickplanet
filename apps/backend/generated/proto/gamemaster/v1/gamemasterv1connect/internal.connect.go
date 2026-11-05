@@ -33,17 +33,17 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// InternalServiceGetBattleSetProcedure is the fully-qualified name of the InternalService's
-	// GetBattleSet RPC.
-	InternalServiceGetBattleSetProcedure = "/gamemaster.v1.InternalService/GetBattleSet"
+	// InternalServiceGetBattleProcedure is the fully-qualified name of the InternalService's GetBattle
+	// RPC.
+	InternalServiceGetBattleProcedure = "/gamemaster.v1.InternalService/GetBattle"
 )
 
 // InternalServiceClient is a client for the gamemaster.v1.InternalService service.
 type InternalServiceClient interface {
-	// The rule set a battle plays, by the id the timeline names it by: its entry's id, or `season-N/finale` for a season's
+	// What a battle plays, by the id the timeline names it by: its entry's id, or `season-N/finale` for a season's
 	// finale. For the promo module's teaser. NotFound for an entry the schedule does not keep or that is no battle, and
 	// for a season with no finale.
-	GetBattleSet(context.Context, *connect.Request[v1.GetBattleSetRequest]) (*connect.Response[v1.GetBattleSetResponse], error)
+	GetBattle(context.Context, *connect.Request[v1.GetBattleRequest]) (*connect.Response[v1.GetBattleResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the gamemaster.v1.InternalService service. By
@@ -57,10 +57,10 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	internalServiceMethods := v1.File_gamemaster_v1_internal_proto.Services().ByName("InternalService").Methods()
 	return &internalServiceClient{
-		getBattleSet: connect.NewClient[v1.GetBattleSetRequest, v1.GetBattleSetResponse](
+		getBattle: connect.NewClient[v1.GetBattleRequest, v1.GetBattleResponse](
 			httpClient,
-			baseURL+InternalServiceGetBattleSetProcedure,
-			connect.WithSchema(internalServiceMethods.ByName("GetBattleSet")),
+			baseURL+InternalServiceGetBattleProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetBattle")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
@@ -69,20 +69,20 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
-	getBattleSet *connect.Client[v1.GetBattleSetRequest, v1.GetBattleSetResponse]
+	getBattle *connect.Client[v1.GetBattleRequest, v1.GetBattleResponse]
 }
 
-// GetBattleSet calls gamemaster.v1.InternalService.GetBattleSet.
-func (c *internalServiceClient) GetBattleSet(ctx context.Context, req *connect.Request[v1.GetBattleSetRequest]) (*connect.Response[v1.GetBattleSetResponse], error) {
-	return c.getBattleSet.CallUnary(ctx, req)
+// GetBattle calls gamemaster.v1.InternalService.GetBattle.
+func (c *internalServiceClient) GetBattle(ctx context.Context, req *connect.Request[v1.GetBattleRequest]) (*connect.Response[v1.GetBattleResponse], error) {
+	return c.getBattle.CallUnary(ctx, req)
 }
 
 // InternalServiceHandler is an implementation of the gamemaster.v1.InternalService service.
 type InternalServiceHandler interface {
-	// The rule set a battle plays, by the id the timeline names it by: its entry's id, or `season-N/finale` for a season's
+	// What a battle plays, by the id the timeline names it by: its entry's id, or `season-N/finale` for a season's
 	// finale. For the promo module's teaser. NotFound for an entry the schedule does not keep or that is no battle, and
 	// for a season with no finale.
-	GetBattleSet(context.Context, *connect.Request[v1.GetBattleSetRequest]) (*connect.Response[v1.GetBattleSetResponse], error)
+	GetBattle(context.Context, *connect.Request[v1.GetBattleRequest]) (*connect.Response[v1.GetBattleResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -92,17 +92,17 @@ type InternalServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	internalServiceMethods := v1.File_gamemaster_v1_internal_proto.Services().ByName("InternalService").Methods()
-	internalServiceGetBattleSetHandler := connect.NewUnaryHandler(
-		InternalServiceGetBattleSetProcedure,
-		svc.GetBattleSet,
-		connect.WithSchema(internalServiceMethods.ByName("GetBattleSet")),
+	internalServiceGetBattleHandler := connect.NewUnaryHandler(
+		InternalServiceGetBattleProcedure,
+		svc.GetBattle,
+		connect.WithSchema(internalServiceMethods.ByName("GetBattle")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/gamemaster.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case InternalServiceGetBattleSetProcedure:
-			internalServiceGetBattleSetHandler.ServeHTTP(w, r)
+		case InternalServiceGetBattleProcedure:
+			internalServiceGetBattleHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -112,6 +112,6 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 // UnimplementedInternalServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedInternalServiceHandler struct{}
 
-func (UnimplementedInternalServiceHandler) GetBattleSet(context.Context, *connect.Request[v1.GetBattleSetRequest]) (*connect.Response[v1.GetBattleSetResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("gamemaster.v1.InternalService.GetBattleSet is not implemented"))
+func (UnimplementedInternalServiceHandler) GetBattle(context.Context, *connect.Request[v1.GetBattleRequest]) (*connect.Response[v1.GetBattleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("gamemaster.v1.InternalService.GetBattle is not implemented"))
 }

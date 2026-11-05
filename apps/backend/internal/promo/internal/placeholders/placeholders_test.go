@@ -27,8 +27,10 @@ var played = &planetv1.Rules{
 	Frozen: proto.Bool(false),
 }
 
-func TestPathsAreTheNumbersAndDurationsOfTheRules(t *testing.T) {
-	paths := placeholders.Paths()
+var triple = placeholders.Battle{Times: 3, Points: map[uint32]uint32{1: 75, 2: 54, 3: 45, 4: 36}}
+
+func TestRulePathsAreTheNumbersAndDurationsOfTheRules(t *testing.T) {
+	paths := placeholders.RulePaths()
 
 	for _, path := range []string{
 		"clicks.tempo", "clicks.burst", "bonuses.boxes.minInterval", "bonuses.bomb.rings",
@@ -38,6 +40,14 @@ func TestPathsAreTheNumbersAndDurationsOfTheRules(t *testing.T) {
 	}
 	for _, path := range []string{"frozen", "allegianceLocked", "bonuses.quiz.enabled", "toll.steps", "clicks", "bonuses.boxes"} {
 		assert.NotContains(t, paths, path, "a boolean, a list or a message reads as no word")
+	}
+}
+
+func TestBattlePathsAreItsTimesAndThePointsOfItsFirstThreePlaces(t *testing.T) {
+	assert.Equal(t, []string{"battle.times", "battle.points.first", "battle.points.second", "battle.points.third"},
+		placeholders.BattlePaths())
+	for _, path := range placeholders.RulePaths() {
+		assert.NotContains(t, placeholders.BattlePaths(), path, "a rule and the battle never share a path")
 	}
 }
 
@@ -53,14 +63,35 @@ func TestFillWritesTheValuesTheSetPlays(t *testing.T) {
 		"No placeholder at all":                                                  "No placeholder at all",
 		"":                                                                       "",
 	} {
-		filled, err := placeholders.Fill(words, played)
+		filled, err := placeholders.Fill(words, played, triple)
 		require.NoError(t, err, words)
 		assert.Equal(t, want, filled)
 	}
 }
 
+func TestFillWritesTheBattlesPoints(t *testing.T) {
+	words := "×{battle.times}: 1st place wins {battle.points.first} points, 2nd {battle.points.second}, 3rd {battle.points.third}"
+	for _, each := range []struct {
+		battle placeholders.Battle
+		want   string
+	}{
+		{triple, "×3: 1st place wins 75 points, 2nd 54, 3rd 45"},
+		{placeholders.Battle{Times: 2, Points: map[uint32]uint32{1: 50, 2: 36, 3: 30}}, "×2: 1st place wins 50 points, 2nd 36, 3rd 30"},
+	} {
+		filled, err := placeholders.Fill(words, played, each.battle)
+		require.NoError(t, err)
+		assert.Equal(t, each.want, filled)
+	}
+}
+
 func TestAValueTheSetDoesNotPlayFillsNothing(t *testing.T) {
-	_, err := placeholders.Fill("{bonuses.bomb.rings} rings", played)
+	_, err := placeholders.Fill("{bonuses.bomb.rings} rings", played, triple)
+
+	require.ErrorIs(t, err, placeholders.ErrNoValue)
+}
+
+func TestARankTheBattleDoesNotScoreFillsNothing(t *testing.T) {
+	_, err := placeholders.Fill("{battle.points.third}", played, placeholders.Battle{Times: 1, Points: map[uint32]uint32{1: 25}})
 
 	require.ErrorIs(t, err, placeholders.ErrNoValue)
 }
@@ -75,10 +106,15 @@ func TestCheckRefusesWhatNamesNoValue(t *testing.T) {
 		"an { alone",
 		"a } alone",
 		"{{clicks.tempo}}",
+		"{battle}",
+		"{battle.points}",
+		"{battle.points.fourth}",
+		"{battle.rule_set}",
 	} {
 		require.ErrorIs(t, placeholders.Check(words), placeholders.ErrInvalidPlaceholder, words)
-		_, err := placeholders.Fill(words, played)
+		_, err := placeholders.Fill(words, played, triple)
 		require.ErrorIs(t, err, placeholders.ErrInvalidPlaceholder, words)
 	}
 	require.NoError(t, placeholders.Check("{clicks.tempo}× faster, {bonuses.boxes.minInterval} a box"))
+	require.NoError(t, placeholders.Check("1st place wins {battle.points.first} points"))
 }

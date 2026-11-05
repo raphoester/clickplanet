@@ -54,6 +54,7 @@ import {
     KeepBackgroundResponse,
     ListBackgroundsRequest,
     ListBackgroundsResponse,
+    ExampleBattle,
     Placeholder,
     RemoveBackgroundRequest,
     RemoveBackgroundResponse,
@@ -829,6 +830,7 @@ export class FakePromo implements PromoAdmin {
     ]
     decks = new Map<string, CardDraft[]>()
     placeholders: Placeholder[] = PLACEHOLDER_PATHS.map(path => new Placeholder({path, example: ""}))
+    exampleBattle = new ExampleBattle({times: 3, placeholders: Object.entries(TRIPLE).map(([path, example]) => new Placeholder({path, example}))})
     private readonly uploads = new Map<string, PartialMessage<CreateBackgroundUploadRequest>>()
 
     constructor(private readonly admin: FakeAdmin) {}
@@ -872,12 +874,13 @@ export class FakePromo implements PromoAdmin {
 
     getCards(request: PartialMessage<GetCardsRequest>): Promise<GetCardsResponse> {
         const played = playedBySet(this.admin.rules)
-        const paths = this.placeholders.map(placeholder => placeholder.path)
+        const rules = this.placeholders.map(placeholder => placeholder.path)
         const sets = this.admin.rules.sets.map(set => new SetCards({
             ruleSet: set.name,
             cards: (this.decks.get(set.name) ?? []).map(draft => {
-                const headline = fill(draft.headline, played.get(set.name), paths)
-                const line = fill(draft.line, played.get(set.name), paths)
+                const values = {played: played.get(set.name), rules, battle: this.exampleBattle.placeholders}
+                const headline = fill(draft.headline, values)
+                const line = fill(draft.line, values)
                 const problems = [...headline.problems, ...line.problems]
                 const url = this.backgrounds.find(each => each.backgroundId === draft.backgroundId)?.url ?? ""
                 return problems.length > 0
@@ -885,7 +888,9 @@ export class FakePromo implements PromoAdmin {
                     : new Card({draft, filled: new TeaserCard({backgroundUrl: url, headline: headline.text, line: line.text})})
             }),
         }))
-        return this.admin.answer("getCards", request, new GetCardsResponse({sets, placeholders: this.placeholders}))
+        return this.admin.answer("getCards", request, new GetCardsResponse({
+            sets, placeholders: this.placeholders, exampleBattle: this.exampleBattle,
+        }))
     }
 
     saveCards(request: PartialMessage<SaveCardsRequest>): Promise<SaveCardsResponse> {
@@ -899,3 +904,6 @@ export class FakePromo implements PromoAdmin {
 
 // A few of planet.v1.Rules' numbers and durations, as GetCards lists them.
 const PLACEHOLDER_PATHS = ["clicks.tempo", "clicks.burst", "bonuses.boxes.minInterval", "bonuses.boxes.maxInterval", "bonuses.bomb.rings"]
+
+// The example battle's values, as scoring scores a ×3 battle.
+const TRIPLE = {"battle.times": "3", "battle.points.first": "75", "battle.points.second": "54", "battle.points.third": "45"}

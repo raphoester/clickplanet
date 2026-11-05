@@ -20,6 +20,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/cards"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/cards/postgres_card_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/placeholders"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/get_teaser_handler/teaser_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
@@ -33,14 +34,20 @@ var (
 	}
 )
 
-type battles map[string]string
+type battles map[string]teaser_query.Battle
 
-func (b battles) SetOf(_ context.Context, battleID string) (string, error) {
-	set, ok := b[battleID]
+func (b battles) Battle(_ context.Context, battleID string) (teaser_query.Battle, error) {
+	battle, ok := b[battleID]
 	if !ok {
-		return "", fmt.Errorf("%w: %q", teaser_query.ErrNoBattle, battleID)
+		return teaser_query.Battle{}, fmt.Errorf("%w: %q", teaser_query.ErrNoBattle, battleID)
 	}
-	return set, nil
+	return battle, nil
+}
+
+type scoring map[uint32]map[uint32]uint32
+
+func (s scoring) Battle(_ context.Context, times uint32) (placeholders.Battle, error) {
+	return placeholders.Battle{Times: times, Points: s[times]}, nil
 }
 
 type planet map[string]*planetv1.Rules
@@ -72,7 +79,13 @@ func seeded(t *testing.T, decks map[cards.SetName][]cards.Draft) cppg.Conn {
 
 func query(db cppg.Conn, log *bytes.Buffer) *teaser_query.PostgresQuery {
 	return teaser_query.NewPostgresQuery(db,
-		battles{"tonight": "urf", "season-1/finale": "urf", "calm": "calm", "gone": "gone"},
+		battles{
+			"tonight":         {Set: "urf", Times: 3},
+			"season-1/finale": {Set: "urf", Times: 2},
+			"calm":            {Set: "calm", Times: 1},
+			"gone":            {Set: "gone", Times: 1},
+		},
+		scoring{2: {1: 50, 2: 36, 3: 30}, 3: {1: 75, 2: 54, 3: 45}},
 		planet{"urf": urf, "calm": urf},
 		backgrounds.NewMemoryBucket(),
 		slog.New(slog.NewTextHandler(log, nil)))
@@ -96,6 +109,23 @@ func TestABattlesCardsAreFilledWithWhatItsSetPlays(t *testing.T) {
 			{BackgroundUrl: url(war), Headline: "Clicks refill 3× faster", Line: "Every country at once."},
 			{BackgroundUrl: url(points), Headline: "A box every 1 min"},
 		}}, teaser), "%s: %v", battle, teaser)
+	}
+}
+
+func TestABattlesCardsNameItsOwnPoints(t *testing.T) {
+	db := seeded(t, map[cards.SetName][]cards.Draft{"urf": {{
+		Background: points, Headline: "×{battle.times} points",
+		Line: "1st place wins {battle.points.first} points, 2nd {battle.points.second}, 3rd {battle.points.third}.",
+	}}})
+
+	for battle, want := range map[string]*promov1.TeaserCard{
+		"tonight":         {BackgroundUrl: url(points), Headline: "×3 points", Line: "1st place wins 75 points, 2nd 54, 3rd 45."},
+		"season-1/finale": {BackgroundUrl: url(points), Headline: "×2 points", Line: "1st place wins 50 points, 2nd 36, 3rd 30."},
+	} {
+		teaser, err := query(db, &bytes.Buffer{}).Teaser(t.Context(), battle)
+
+		require.NoError(t, err)
+		assert.True(t, proto.Equal(&promov1.GetTeaserResponse{Cards: []*promov1.TeaserCard{want}}, teaser), "%s: %v", battle, teaser)
 	}
 }
 

@@ -42,6 +42,9 @@ const (
 	// InternalServiceGetRoundPlayersProcedure is the fully-qualified name of the InternalService's
 	// GetRoundPlayers RPC.
 	InternalServiceGetRoundPlayersProcedure = "/scoring.v1.InternalService/GetRoundPlayers"
+	// InternalServiceGetRankPointsProcedure is the fully-qualified name of the InternalService's
+	// GetRankPoints RPC.
+	InternalServiceGetRankPointsProcedure = "/scoring.v1.InternalService/GetRankPoints"
 )
 
 // InternalServiceClient is a client for the scoring.v1.InternalService service.
@@ -49,6 +52,8 @@ type InternalServiceClient interface {
 	GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error)
 	GetTable(context.Context, *connect.Request[v1.GetTableRequest]) (*connect.Response[v1.GetTableResponse], error)
 	GetRoundPlayers(context.Context, *connect.Request[v1.GetRoundPlayersRequest]) (*connect.Response[v1.GetRoundPlayersResponse], error)
+	// The points a round of `times` scores each rank, before it opens. InvalidArgument for times outside 1 to 10.
+	GetRankPoints(context.Context, *connect.Request[v1.GetRankPointsRequest]) (*connect.Response[v1.GetRankPointsResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the scoring.v1.InternalService service. By
@@ -83,6 +88,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getRankPoints: connect.NewClient[v1.GetRankPointsRequest, v1.GetRankPointsResponse](
+			httpClient,
+			baseURL+InternalServiceGetRankPointsProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetRankPoints")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -91,6 +103,7 @@ type internalServiceClient struct {
 	getRound        *connect.Client[v1.GetRoundRequest, v1.GetRoundResponse]
 	getTable        *connect.Client[v1.GetTableRequest, v1.GetTableResponse]
 	getRoundPlayers *connect.Client[v1.GetRoundPlayersRequest, v1.GetRoundPlayersResponse]
+	getRankPoints   *connect.Client[v1.GetRankPointsRequest, v1.GetRankPointsResponse]
 }
 
 // GetRound calls scoring.v1.InternalService.GetRound.
@@ -108,11 +121,18 @@ func (c *internalServiceClient) GetRoundPlayers(ctx context.Context, req *connec
 	return c.getRoundPlayers.CallUnary(ctx, req)
 }
 
+// GetRankPoints calls scoring.v1.InternalService.GetRankPoints.
+func (c *internalServiceClient) GetRankPoints(ctx context.Context, req *connect.Request[v1.GetRankPointsRequest]) (*connect.Response[v1.GetRankPointsResponse], error) {
+	return c.getRankPoints.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the scoring.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error)
 	GetTable(context.Context, *connect.Request[v1.GetTableRequest]) (*connect.Response[v1.GetTableResponse], error)
 	GetRoundPlayers(context.Context, *connect.Request[v1.GetRoundPlayersRequest]) (*connect.Response[v1.GetRoundPlayersResponse], error)
+	// The points a round of `times` scores each rank, before it opens. InvalidArgument for times outside 1 to 10.
+	GetRankPoints(context.Context, *connect.Request[v1.GetRankPointsRequest]) (*connect.Response[v1.GetRankPointsResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -143,6 +163,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetRankPointsHandler := connect.NewUnaryHandler(
+		InternalServiceGetRankPointsProcedure,
+		svc.GetRankPoints,
+		connect.WithSchema(internalServiceMethods.ByName("GetRankPoints")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/scoring.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetRoundProcedure:
@@ -151,6 +178,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetTableHandler.ServeHTTP(w, r)
 		case InternalServiceGetRoundPlayersProcedure:
 			internalServiceGetRoundPlayersHandler.ServeHTTP(w, r)
+		case InternalServiceGetRankPointsProcedure:
+			internalServiceGetRankPointsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -170,4 +199,8 @@ func (UnimplementedInternalServiceHandler) GetTable(context.Context, *connect.Re
 
 func (UnimplementedInternalServiceHandler) GetRoundPlayers(context.Context, *connect.Request[v1.GetRoundPlayersRequest]) (*connect.Response[v1.GetRoundPlayersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.InternalService.GetRoundPlayers is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetRankPoints(context.Context, *connect.Request[v1.GetRankPointsRequest]) (*connect.Response[v1.GetRankPointsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.InternalService.GetRankPoints is not implemented"))
 }

@@ -1,4 +1,4 @@
-package battle_set_query_test
+package battle_query_test
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_battle_set_handler/battle_set_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_battle_handler/battle_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/postgres_entry_store"
@@ -21,7 +21,7 @@ var (
 	calm   = schedule.EntryID(uuid.UUID{15: 2})
 )
 
-func seeded(t *testing.T) *battle_set_query.PostgresQuery {
+func seeded(t *testing.T) *battle_query.PostgresQuery {
 	t.Helper()
 	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
 	store := postgres_entry_store.New(db)
@@ -31,22 +31,24 @@ func seeded(t *testing.T) *battle_set_query.PostgresQuery {
 	} {
 		require.NoError(t, store.Save(t.Context(), entry.Restore()))
 	}
-	return battle_set_query.NewPostgresQuery(db)
+	return battle_query.NewPostgresQuery(db)
 }
 
-func TestABattleEntryPlaysItsSet(t *testing.T) {
-	set, err := seeded(t).RuleSet(t.Context(), urf.String())
+func TestABattleEntryPlaysItsSetAndItsTimes(t *testing.T) {
+	battle, err := seeded(t).Battle(t.Context(), urf.String())
 
 	require.NoError(t, err)
-	assert.Equal(t, "urf", set)
+	assert.Equal(t, "urf", battle.GetRuleSet())
+	assert.Equal(t, uint32(2), battle.GetTimes())
 }
 
-func TestASeasonsFinalePlaysItsSet(t *testing.T) {
-	// Season 0's finale is seeded with rush.
-	set, err := seeded(t).RuleSet(t.Context(), "season-0/finale")
+func TestASeasonsFinalePlaysItsSetAndItsTimes(t *testing.T) {
+	// Season 0's finale is seeded with rush, triple points.
+	battle, err := seeded(t).Battle(t.Context(), "season-0/finale")
 
 	require.NoError(t, err)
-	assert.Equal(t, "rush", set)
+	assert.Equal(t, "rush", battle.GetRuleSet())
+	assert.Equal(t, uint32(3), battle.GetTimes())
 }
 
 func TestWhatIsNoBattleIsNone(t *testing.T) {
@@ -59,7 +61,7 @@ func TestWhatIsNoBattleIsNone(t *testing.T) {
 		"rush",            // nothing the timeline names
 		"",
 	} {
-		_, err := query.RuleSet(t.Context(), id)
-		require.ErrorIs(t, err, battle_set_query.ErrNoBattle, id)
+		_, err := query.Battle(t.Context(), id)
+		require.ErrorIs(t, err, battle_query.ErrNoBattle, id)
 	}
 }

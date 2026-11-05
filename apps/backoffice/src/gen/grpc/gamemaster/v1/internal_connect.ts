@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetBattleSetRequest, GetBattleSetResponse } from "./internal_pb.js";
+import { GetBattleRequest, GetBattleResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,16 +15,16 @@ export const InternalService = {
   typeName: "gamemaster.v1.InternalService",
   methods: {
     /**
-     * The rule set a battle plays, by the id the timeline names it by: its entry's id, or `season-N/finale` for a season's
+     * What a battle plays, by the id the timeline names it by: its entry's id, or `season-N/finale` for a season's
      * finale. For the promo module's teaser. NotFound for an entry the schedule does not keep or that is no battle, and
      * for a season with no finale.
      *
-     * @generated from rpc gamemaster.v1.InternalService.GetBattleSet
+     * @generated from rpc gamemaster.v1.InternalService.GetBattle
      */
-    getBattleSet: {
-      name: "GetBattleSet",
-      I: GetBattleSetRequest,
-      O: GetBattleSetResponse,
+    getBattle: {
+      name: "GetBattle",
+      I: GetBattleRequest,
+      O: GetBattleResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

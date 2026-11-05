@@ -118,7 +118,8 @@ and says what is in it. Read the doc before you change its area.
   scoring); why progress is not read from the ledger.
 - [Promo](docs/promo.md) — a battle's teaser: each rule set's cards, kept under its name, over backgrounds the operator
   uploads to the bucket and Cloudflare serves publicly; words with `{path}` placeholders filled from the values the set
-  plays at each read (`GetTeaser`); the set from the gamemaster (`GetBattleSet`), its values from planet (`GetRuleSet`).
+  plays and the battle's points at each read (`GetTeaser`); the set and times from the gamemaster (`GetBattle`), the
+  values from planet (`GetRuleSet`), the points from scoring (`GetRankPoints`).
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
 - [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role; the role
   follows the flag pledged, in a color of its own; the pings when its flag is attacked, with a link that opens the

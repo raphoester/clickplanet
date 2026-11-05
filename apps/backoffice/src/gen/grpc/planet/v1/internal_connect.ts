@@ -104,7 +104,7 @@ export const InternalService = {
     },
     /**
      * The values a set plays: default's, with the set's own written over them, for the promo module's cards. NotFound for
-     * a set postgres does not keep, FailedPrecondition for one that cannot play.
+     * a set postgres does not keep.
      *
      * @generated from rpc planet.v1.InternalService.GetRuleSet
      */

@@ -1,21 +1,32 @@
 import {JsonValue} from "@bufbuild/protobuf"
+import {Placeholder} from "../gen/grpc/promo/v1/admin_pb.ts"
 
 // A card's words with each `{path}` written as the server writes it (the backend's promo placeholders): a number with no
 // trailing zero, a duration in its largest whole unit. The page fills a card still being written; a saved card is
 // shown as the server filled it.
 export type Filled = {text: string, problems: string[]}
 
+// What a card's words may name: the values the set plays, by their path in the rules, and the example battle's, as the
+// server wrote them.
+export type Values = {played: JsonValue | undefined, rules: string[], battle: Placeholder[]}
+
 const PLACEHOLDER = /\{([^{}]*)\}/g
 const DURATION = /^(-?\d+(?:\.\d+)?)s$/
 
-export function fill(words: string, played: JsonValue | undefined, paths: string[]): Filled {
+export function fill(words: string, values: Values): Filled {
     const problems: string[] = []
     const text = words.replace(PLACEHOLDER, (found, path: string) => {
-        if (!paths.includes(path)) {
-            problems.push(`{${path}} names no number or duration of the rules.`)
+        const battle = values.battle.find(placeholder => placeholder.path === path)
+        if (battle !== undefined) {
+            if (battle.example !== "") return battle.example
+            problems.push(`The battle has no value at {${path}}.`)
             return found
         }
-        const value = valueAt(played, path)
+        if (!values.rules.includes(path)) {
+            problems.push(`{${path}} names no number or duration of the rules or the battle.`)
+            return found
+        }
+        const value = valueAt(values.played, path)
         if (value === undefined) {
             problems.push(`The set plays no value at {${path}}.`)
             return found
@@ -24,6 +35,10 @@ export function fill(words: string, played: JsonValue | undefined, paths: string
     })
     if (/[{}]/.test(words.replace(PLACEHOLDER, ""))) problems.push("A brace opens or closes no placeholder.")
     return {text, problems}
+}
+
+export function namesBattle(words: string, battle: Placeholder[]): boolean {
+    return [...words.matchAll(PLACEHOLDER)].some(([, path]) => battle.some(placeholder => placeholder.path === path))
 }
 
 function valueAt(played: JsonValue | undefined, path: string): string | undefined {

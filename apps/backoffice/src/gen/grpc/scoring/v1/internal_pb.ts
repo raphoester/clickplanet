@@ -8,6 +8,125 @@ import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { TablePlace } from "./scoring_pb.js";
 
 /**
+ * @generated from message scoring.v1.GetRankPointsRequest
+ */
+export class GetRankPointsRequest extends Message<GetRankPointsRequest> {
+  /**
+   * @generated from field: uint32 times = 1;
+   */
+  times = 0;
+
+  constructor(data?: PartialMessage<GetRankPointsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.GetRankPointsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRankPointsRequest {
+    return new GetRankPointsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRankPointsRequest {
+    return new GetRankPointsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRankPointsRequest {
+    return new GetRankPointsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRankPointsRequest | PlainMessage<GetRankPointsRequest> | undefined, b: GetRankPointsRequest | PlainMessage<GetRankPointsRequest> | undefined): boolean {
+    return proto3.util.equals(GetRankPointsRequest, a, b);
+  }
+}
+
+/**
+ * Every rank that scores, the first's first.
+ *
+ * @generated from message scoring.v1.GetRankPointsResponse
+ */
+export class GetRankPointsResponse extends Message<GetRankPointsResponse> {
+  /**
+   * @generated from field: repeated scoring.v1.RankPoints ranks = 1;
+   */
+  ranks: RankPoints[] = [];
+
+  constructor(data?: PartialMessage<GetRankPointsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.GetRankPointsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "ranks", kind: "message", T: RankPoints, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRankPointsResponse {
+    return new GetRankPointsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRankPointsResponse {
+    return new GetRankPointsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRankPointsResponse {
+    return new GetRankPointsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRankPointsResponse | PlainMessage<GetRankPointsResponse> | undefined, b: GetRankPointsResponse | PlainMessage<GetRankPointsResponse> | undefined): boolean {
+    return proto3.util.equals(GetRankPointsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message scoring.v1.RankPoints
+ */
+export class RankPoints extends Message<RankPoints> {
+  /**
+   * @generated from field: uint32 rank = 1;
+   */
+  rank = 0;
+
+  /**
+   * @generated from field: uint32 points = 2;
+   */
+  points = 0;
+
+  constructor(data?: PartialMessage<RankPoints>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.RankPoints";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "points", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RankPoints {
+    return new RankPoints().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RankPoints {
+    return new RankPoints().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RankPoints {
+    return new RankPoints().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RankPoints | PlainMessage<RankPoints> | undefined, b: RankPoints | PlainMessage<RankPoints> | undefined): boolean {
+    return proto3.util.equals(RankPoints, a, b);
+  }
+}
+
+/**
  * @generated from message scoring.v1.GetRoundPlayersRequest
  */
 export class GetRoundPlayersRequest extends Message<GetRoundPlayersRequest> {

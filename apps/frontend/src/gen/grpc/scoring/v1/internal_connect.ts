@@ -5,7 +5,7 @@
 
 import { GetRoundRequest, GetRoundResponse } from "./scoring_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { GetRoundPlayersRequest, GetRoundPlayersResponse, GetTableRequest, GetTableResponse } from "./internal_pb.js";
+import { GetRankPointsRequest, GetRankPointsResponse, GetRoundPlayersRequest, GetRoundPlayersResponse, GetTableRequest, GetTableResponse } from "./internal_pb.js";
 
 /**
  * What another module reads of scoring's books, by the ids it was given.
@@ -42,6 +42,18 @@ export const InternalService = {
       name: "GetRoundPlayers",
       I: GetRoundPlayersRequest,
       O: GetRoundPlayersResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The points a round of `times` scores each rank, before it opens. InvalidArgument for times outside 1 to 10.
+     *
+     * @generated from rpc scoring.v1.InternalService.GetRankPoints
+     */
+    getRankPoints: {
+      name: "GetRankPoints",
+      I: GetRankPointsRequest,
+      O: GetRankPointsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

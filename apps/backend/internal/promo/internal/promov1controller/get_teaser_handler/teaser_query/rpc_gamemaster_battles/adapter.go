@@ -11,25 +11,25 @@ import (
 )
 
 type Gamemaster interface {
-	GetBattleSet(context.Context, *connect.Request[gamemasterv1.GetBattleSetRequest]) (*connect.Response[gamemasterv1.GetBattleSetResponse], error)
+	GetBattle(context.Context, *connect.Request[gamemasterv1.GetBattleRequest]) (*connect.Response[gamemasterv1.GetBattleResponse], error)
 }
 
 func New(gamemaster Gamemaster) *Adapter {
 	return &Adapter{gamemaster: gamemaster}
 }
 
-// The set a battle plays, in the gamemaster's words.
+// What a battle plays, in the gamemaster's words.
 type Adapter struct {
 	gamemaster Gamemaster
 }
 
-func (a *Adapter) SetOf(ctx context.Context, battleID string) (string, error) {
-	res, err := a.gamemaster.GetBattleSet(ctx, connect.NewRequest(&gamemasterv1.GetBattleSetRequest{BattleId: battleID}))
+func (a *Adapter) Battle(ctx context.Context, battleID string) (teaser_query.Battle, error) {
+	res, err := a.gamemaster.GetBattle(ctx, connect.NewRequest(&gamemasterv1.GetBattleRequest{BattleId: battleID}))
 	switch {
 	case connect.CodeOf(err) == connect.CodeNotFound:
-		return "", fmt.Errorf("%w: %q", teaser_query.ErrNoBattle, battleID)
+		return teaser_query.Battle{}, fmt.Errorf("%w: %q", teaser_query.ErrNoBattle, battleID)
 	case err != nil:
-		return "", fmt.Errorf("failed to ask the gamemaster which set the battle %q plays: %w", battleID, err)
+		return teaser_query.Battle{}, fmt.Errorf("failed to ask the gamemaster what the battle %q plays: %w", battleID, err)
 	}
-	return res.Msg.GetRuleSet(), nil
+	return teaser_query.Battle{Set: res.Msg.GetRuleSet(), Times: res.Msg.GetTimes()}, nil
 }

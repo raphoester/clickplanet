@@ -501,8 +501,10 @@ type GetCardsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Every set planet keeps, by name, each with its cards, none for most.
 	Sets []*SetCards `protobuf:"bytes,1,rep,name=sets,proto3" json:"sets,omitempty"`
-	// What a placeholder may name, by path.
-	Placeholders  []*Placeholder `protobuf:"bytes,2,rep,name=placeholders,proto3" json:"placeholders,omitempty"`
+	// What a placeholder may name of the rules, by path, with default's value.
+	Placeholders []*Placeholder `protobuf:"bytes,2,rep,name=placeholders,proto3" json:"placeholders,omitempty"`
+	// A set plays in no battle of its own: its cards are filled as in this one.
+	ExampleBattle *ExampleBattle `protobuf:"bytes,3,opt,name=example_battle,json=exampleBattle,proto3" json:"example_battle,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -551,6 +553,68 @@ func (x *GetCardsResponse) GetPlaceholders() []*Placeholder {
 	return nil
 }
 
+func (x *GetCardsResponse) GetExampleBattle() *ExampleBattle {
+	if x != nil {
+		return x.ExampleBattle
+	}
+	return nil
+}
+
+// The battle a set's cards are filled as, on this page only.
+type ExampleBattle struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Times uint32                 `protobuf:"varint,1,opt,name=times,proto3" json:"times,omitempty"`
+	// What a placeholder may name of the battle, by path, with this battle's value: `battle.times`,
+	// `battle.points.first`.
+	Placeholders  []*Placeholder `protobuf:"bytes,2,rep,name=placeholders,proto3" json:"placeholders,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExampleBattle) Reset() {
+	*x = ExampleBattle{}
+	mi := &file_promo_v1_admin_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExampleBattle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExampleBattle) ProtoMessage() {}
+
+func (x *ExampleBattle) ProtoReflect() protoreflect.Message {
+	mi := &file_promo_v1_admin_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExampleBattle.ProtoReflect.Descriptor instead.
+func (*ExampleBattle) Descriptor() ([]byte, []int) {
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ExampleBattle) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
+}
+
+func (x *ExampleBattle) GetPlaceholders() []*Placeholder {
+	if x != nil {
+		return x.Placeholders
+	}
+	return nil
+}
+
 type SetCards struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RuleSet       string                 `protobuf:"bytes,1,opt,name=rule_set,json=ruleSet,proto3" json:"rule_set,omitempty"`
@@ -561,7 +625,7 @@ type SetCards struct {
 
 func (x *SetCards) Reset() {
 	*x = SetCards{}
-	mi := &file_promo_v1_admin_proto_msgTypes[11]
+	mi := &file_promo_v1_admin_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -573,7 +637,7 @@ func (x *SetCards) String() string {
 func (*SetCards) ProtoMessage() {}
 
 func (x *SetCards) ProtoReflect() protoreflect.Message {
-	mi := &file_promo_v1_admin_proto_msgTypes[11]
+	mi := &file_promo_v1_admin_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -586,7 +650,7 @@ func (x *SetCards) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetCards.ProtoReflect.Descriptor instead.
 func (*SetCards) Descriptor() ([]byte, []int) {
-	return file_promo_v1_admin_proto_rawDescGZIP(), []int{11}
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SetCards) GetRuleSet() string {
@@ -606,7 +670,7 @@ func (x *SetCards) GetCards() []*Card {
 type Card struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Draft *CardDraft             `protobuf:"bytes,1,opt,name=draft,proto3" json:"draft,omitempty"`
-	// As players read it now. Unset when a placeholder no longer fills, and `problem` says why.
+	// As players read it now, in the example battle. Unset when a placeholder no longer fills, and `problem` says why.
 	Filled        *TeaserCard `protobuf:"bytes,2,opt,name=filled,proto3" json:"filled,omitempty"`
 	Problem       string      `protobuf:"bytes,3,opt,name=problem,proto3" json:"problem,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -615,7 +679,7 @@ type Card struct {
 
 func (x *Card) Reset() {
 	*x = Card{}
-	mi := &file_promo_v1_admin_proto_msgTypes[12]
+	mi := &file_promo_v1_admin_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -627,7 +691,7 @@ func (x *Card) String() string {
 func (*Card) ProtoMessage() {}
 
 func (x *Card) ProtoReflect() protoreflect.Message {
-	mi := &file_promo_v1_admin_proto_msgTypes[12]
+	mi := &file_promo_v1_admin_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -640,7 +704,7 @@ func (x *Card) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Card.ProtoReflect.Descriptor instead.
 func (*Card) Descriptor() ([]byte, []int) {
-	return file_promo_v1_admin_proto_rawDescGZIP(), []int{12}
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Card) GetDraft() *CardDraft {
@@ -665,7 +729,8 @@ func (x *Card) GetProblem() string {
 }
 
 // A card as the operator writes it: `{path}` in the headline or the line is a value of the set, by its path in
-// planet.v1.Rules as protojson writes it, such as `{clicks.tempo}` or `{bonuses.boxes.minInterval}`.
+// planet.v1.Rules as protojson writes it, such as `{clicks.tempo}` or `{bonuses.boxes.minInterval}`, or of the battle
+// that plays it, such as `{battle.times}` or `{battle.points.first}`.
 type CardDraft struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	BackgroundId string                 `protobuf:"bytes,1,opt,name=background_id,json=backgroundId,proto3" json:"background_id,omitempty"`
@@ -679,7 +744,7 @@ type CardDraft struct {
 
 func (x *CardDraft) Reset() {
 	*x = CardDraft{}
-	mi := &file_promo_v1_admin_proto_msgTypes[13]
+	mi := &file_promo_v1_admin_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -691,7 +756,7 @@ func (x *CardDraft) String() string {
 func (*CardDraft) ProtoMessage() {}
 
 func (x *CardDraft) ProtoReflect() protoreflect.Message {
-	mi := &file_promo_v1_admin_proto_msgTypes[13]
+	mi := &file_promo_v1_admin_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -704,7 +769,7 @@ func (x *CardDraft) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CardDraft.ProtoReflect.Descriptor instead.
 func (*CardDraft) Descriptor() ([]byte, []int) {
-	return file_promo_v1_admin_proto_rawDescGZIP(), []int{13}
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CardDraft) GetBackgroundId() string {
@@ -728,7 +793,7 @@ func (x *CardDraft) GetLine() string {
 	return ""
 }
 
-// A number or a duration of planet.v1.Rules, with default's value as it reads on a card.
+// A number or a duration a card may name, with a value as it reads on a card.
 type Placeholder struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
@@ -739,7 +804,7 @@ type Placeholder struct {
 
 func (x *Placeholder) Reset() {
 	*x = Placeholder{}
-	mi := &file_promo_v1_admin_proto_msgTypes[14]
+	mi := &file_promo_v1_admin_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -751,7 +816,7 @@ func (x *Placeholder) String() string {
 func (*Placeholder) ProtoMessage() {}
 
 func (x *Placeholder) ProtoReflect() protoreflect.Message {
-	mi := &file_promo_v1_admin_proto_msgTypes[14]
+	mi := &file_promo_v1_admin_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -764,7 +829,7 @@ func (x *Placeholder) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Placeholder.ProtoReflect.Descriptor instead.
 func (*Placeholder) Descriptor() ([]byte, []int) {
-	return file_promo_v1_admin_proto_rawDescGZIP(), []int{14}
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Placeholder) GetPath() string {
@@ -791,7 +856,7 @@ type SaveCardsRequest struct {
 
 func (x *SaveCardsRequest) Reset() {
 	*x = SaveCardsRequest{}
-	mi := &file_promo_v1_admin_proto_msgTypes[15]
+	mi := &file_promo_v1_admin_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -803,7 +868,7 @@ func (x *SaveCardsRequest) String() string {
 func (*SaveCardsRequest) ProtoMessage() {}
 
 func (x *SaveCardsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_promo_v1_admin_proto_msgTypes[15]
+	mi := &file_promo_v1_admin_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -816,7 +881,7 @@ func (x *SaveCardsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveCardsRequest.ProtoReflect.Descriptor instead.
 func (*SaveCardsRequest) Descriptor() ([]byte, []int) {
-	return file_promo_v1_admin_proto_rawDescGZIP(), []int{15}
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SaveCardsRequest) GetRuleSet() string {
@@ -841,7 +906,7 @@ type SaveCardsResponse struct {
 
 func (x *SaveCardsResponse) Reset() {
 	*x = SaveCardsResponse{}
-	mi := &file_promo_v1_admin_proto_msgTypes[16]
+	mi := &file_promo_v1_admin_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -853,7 +918,7 @@ func (x *SaveCardsResponse) String() string {
 func (*SaveCardsResponse) ProtoMessage() {}
 
 func (x *SaveCardsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_promo_v1_admin_proto_msgTypes[16]
+	mi := &file_promo_v1_admin_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -866,7 +931,7 @@ func (x *SaveCardsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveCardsResponse.ProtoReflect.Descriptor instead.
 func (*SaveCardsResponse) Descriptor() ([]byte, []int) {
-	return file_promo_v1_admin_proto_rawDescGZIP(), []int{16}
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{17}
 }
 
 var File_promo_v1_admin_proto protoreflect.FileDescriptor
@@ -901,9 +966,13 @@ const file_promo_v1_admin_proto_rawDesc = "" +
 	"\x17RemoveBackgroundRequest\x12#\n" +
 	"\rbackground_id\x18\x01 \x01(\tR\fbackgroundId\"\x1a\n" +
 	"\x18RemoveBackgroundResponse\"\x11\n" +
-	"\x0fGetCardsRequest\"u\n" +
+	"\x0fGetCardsRequest\"\xb5\x01\n" +
 	"\x10GetCardsResponse\x12&\n" +
 	"\x04sets\x18\x01 \x03(\v2\x12.promo.v1.SetCardsR\x04sets\x129\n" +
+	"\fplaceholders\x18\x02 \x03(\v2\x15.promo.v1.PlaceholderR\fplaceholders\x12>\n" +
+	"\x0eexample_battle\x18\x03 \x01(\v2\x17.promo.v1.ExampleBattleR\rexampleBattle\"`\n" +
+	"\rExampleBattle\x12\x14\n" +
+	"\x05times\x18\x01 \x01(\rR\x05times\x129\n" +
 	"\fplaceholders\x18\x02 \x03(\v2\x15.promo.v1.PlaceholderR\fplaceholders\"K\n" +
 	"\bSetCards\x12\x19\n" +
 	"\brule_set\x18\x01 \x01(\tR\aruleSet\x12$\n" +
@@ -945,7 +1014,7 @@ func file_promo_v1_admin_proto_rawDescGZIP() []byte {
 	return file_promo_v1_admin_proto_rawDescData
 }
 
-var file_promo_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_promo_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_promo_v1_admin_proto_goTypes = []any{
 	(*CreateBackgroundUploadRequest)(nil),  // 0: promo.v1.CreateBackgroundUploadRequest
 	(*CreateBackgroundUploadResponse)(nil), // 1: promo.v1.CreateBackgroundUploadResponse
@@ -958,41 +1027,44 @@ var file_promo_v1_admin_proto_goTypes = []any{
 	(*RemoveBackgroundResponse)(nil),       // 8: promo.v1.RemoveBackgroundResponse
 	(*GetCardsRequest)(nil),                // 9: promo.v1.GetCardsRequest
 	(*GetCardsResponse)(nil),               // 10: promo.v1.GetCardsResponse
-	(*SetCards)(nil),                       // 11: promo.v1.SetCards
-	(*Card)(nil),                           // 12: promo.v1.Card
-	(*CardDraft)(nil),                      // 13: promo.v1.CardDraft
-	(*Placeholder)(nil),                    // 14: promo.v1.Placeholder
-	(*SaveCardsRequest)(nil),               // 15: promo.v1.SaveCardsRequest
-	(*SaveCardsResponse)(nil),              // 16: promo.v1.SaveCardsResponse
-	(*timestamppb.Timestamp)(nil),          // 17: google.protobuf.Timestamp
-	(*TeaserCard)(nil),                     // 18: promo.v1.TeaserCard
+	(*ExampleBattle)(nil),                  // 11: promo.v1.ExampleBattle
+	(*SetCards)(nil),                       // 12: promo.v1.SetCards
+	(*Card)(nil),                           // 13: promo.v1.Card
+	(*CardDraft)(nil),                      // 14: promo.v1.CardDraft
+	(*Placeholder)(nil),                    // 15: promo.v1.Placeholder
+	(*SaveCardsRequest)(nil),               // 16: promo.v1.SaveCardsRequest
+	(*SaveCardsResponse)(nil),              // 17: promo.v1.SaveCardsResponse
+	(*timestamppb.Timestamp)(nil),          // 18: google.protobuf.Timestamp
+	(*TeaserCard)(nil),                     // 19: promo.v1.TeaserCard
 }
 var file_promo_v1_admin_proto_depIdxs = []int32{
 	6,  // 0: promo.v1.ListBackgroundsResponse.backgrounds:type_name -> promo.v1.Background
-	17, // 1: promo.v1.Background.kept_at:type_name -> google.protobuf.Timestamp
-	11, // 2: promo.v1.GetCardsResponse.sets:type_name -> promo.v1.SetCards
-	14, // 3: promo.v1.GetCardsResponse.placeholders:type_name -> promo.v1.Placeholder
-	12, // 4: promo.v1.SetCards.cards:type_name -> promo.v1.Card
-	13, // 5: promo.v1.Card.draft:type_name -> promo.v1.CardDraft
-	18, // 6: promo.v1.Card.filled:type_name -> promo.v1.TeaserCard
-	13, // 7: promo.v1.SaveCardsRequest.cards:type_name -> promo.v1.CardDraft
-	0,  // 8: promo.v1.AdminService.CreateBackgroundUpload:input_type -> promo.v1.CreateBackgroundUploadRequest
-	2,  // 9: promo.v1.AdminService.KeepBackground:input_type -> promo.v1.KeepBackgroundRequest
-	4,  // 10: promo.v1.AdminService.ListBackgrounds:input_type -> promo.v1.ListBackgroundsRequest
-	7,  // 11: promo.v1.AdminService.RemoveBackground:input_type -> promo.v1.RemoveBackgroundRequest
-	9,  // 12: promo.v1.AdminService.GetCards:input_type -> promo.v1.GetCardsRequest
-	15, // 13: promo.v1.AdminService.SaveCards:input_type -> promo.v1.SaveCardsRequest
-	1,  // 14: promo.v1.AdminService.CreateBackgroundUpload:output_type -> promo.v1.CreateBackgroundUploadResponse
-	3,  // 15: promo.v1.AdminService.KeepBackground:output_type -> promo.v1.KeepBackgroundResponse
-	5,  // 16: promo.v1.AdminService.ListBackgrounds:output_type -> promo.v1.ListBackgroundsResponse
-	8,  // 17: promo.v1.AdminService.RemoveBackground:output_type -> promo.v1.RemoveBackgroundResponse
-	10, // 18: promo.v1.AdminService.GetCards:output_type -> promo.v1.GetCardsResponse
-	16, // 19: promo.v1.AdminService.SaveCards:output_type -> promo.v1.SaveCardsResponse
-	14, // [14:20] is the sub-list for method output_type
-	8,  // [8:14] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	18, // 1: promo.v1.Background.kept_at:type_name -> google.protobuf.Timestamp
+	12, // 2: promo.v1.GetCardsResponse.sets:type_name -> promo.v1.SetCards
+	15, // 3: promo.v1.GetCardsResponse.placeholders:type_name -> promo.v1.Placeholder
+	11, // 4: promo.v1.GetCardsResponse.example_battle:type_name -> promo.v1.ExampleBattle
+	15, // 5: promo.v1.ExampleBattle.placeholders:type_name -> promo.v1.Placeholder
+	13, // 6: promo.v1.SetCards.cards:type_name -> promo.v1.Card
+	14, // 7: promo.v1.Card.draft:type_name -> promo.v1.CardDraft
+	19, // 8: promo.v1.Card.filled:type_name -> promo.v1.TeaserCard
+	14, // 9: promo.v1.SaveCardsRequest.cards:type_name -> promo.v1.CardDraft
+	0,  // 10: promo.v1.AdminService.CreateBackgroundUpload:input_type -> promo.v1.CreateBackgroundUploadRequest
+	2,  // 11: promo.v1.AdminService.KeepBackground:input_type -> promo.v1.KeepBackgroundRequest
+	4,  // 12: promo.v1.AdminService.ListBackgrounds:input_type -> promo.v1.ListBackgroundsRequest
+	7,  // 13: promo.v1.AdminService.RemoveBackground:input_type -> promo.v1.RemoveBackgroundRequest
+	9,  // 14: promo.v1.AdminService.GetCards:input_type -> promo.v1.GetCardsRequest
+	16, // 15: promo.v1.AdminService.SaveCards:input_type -> promo.v1.SaveCardsRequest
+	1,  // 16: promo.v1.AdminService.CreateBackgroundUpload:output_type -> promo.v1.CreateBackgroundUploadResponse
+	3,  // 17: promo.v1.AdminService.KeepBackground:output_type -> promo.v1.KeepBackgroundResponse
+	5,  // 18: promo.v1.AdminService.ListBackgrounds:output_type -> promo.v1.ListBackgroundsResponse
+	8,  // 19: promo.v1.AdminService.RemoveBackground:output_type -> promo.v1.RemoveBackgroundResponse
+	10, // 20: promo.v1.AdminService.GetCards:output_type -> promo.v1.GetCardsResponse
+	17, // 21: promo.v1.AdminService.SaveCards:output_type -> promo.v1.SaveCardsResponse
+	16, // [16:22] is the sub-list for method output_type
+	10, // [10:16] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_promo_v1_admin_proto_init() }
@@ -1007,7 +1079,7 @@ func file_promo_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_promo_v1_admin_proto_rawDesc), len(file_promo_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

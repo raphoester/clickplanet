@@ -2142,6 +2142,12 @@ a.button {
     }
 }
 
+.promo-shown {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+}
+
 .promo-preview {
     position: relative;
     aspect-ratio: 3 / 4;

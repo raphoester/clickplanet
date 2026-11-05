@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1/gamemasterv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/promo/v1/promov1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/backgrounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/backgrounds/postgres_background_store"
@@ -26,6 +27,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/cards/rpc_planet_rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/cards/usecases/save_cards_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/placeholders/rpc_scoring_points"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/create_background_upload_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/get_cards_handler"
@@ -71,10 +73,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the promo module asks planet what each set plays and the gamemaster which set a battle plays: %w", err)
+		return fmt.Errorf("the promo module asks planet what each set plays, the gamemaster what a battle plays and "+
+			"scoring what its ranks score: %w", err)
 	}
 	planet := rpc_planet_rules.New(planetv1connect.NewInternalServiceClient(internal, baseURL))
 	battles := rpc_gamemaster_battles.New(gamemasterv1connect.NewInternalServiceClient(internal, baseURL))
+	points := rpc_scoring_points.New(scoringv1connect.NewInternalServiceClient(internal, baseURL))
 
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
@@ -94,7 +98,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		KeepBackgroundHandler:   keep_background_handler.New(keep_background_usecase.New(bucket, library, rules, clock)),
 		ListBackgroundsHandler:  list_backgrounds_handler.New(backgrounds_query.NewPostgresQuery(db, bucket)),
 		RemoveBackgroundHandler: remove_background_handler.New(remove_background_usecase.New(bucket, library)),
-		GetCardsHandler:         get_cards_handler.New(cards_query.NewPostgresQuery(db, planet, bucket)),
+		GetCardsHandler:         get_cards_handler.New(cards_query.NewPostgresQuery(db, planet, points, bucket)),
 		SaveCardsHandler:        save_cards_handler.New(save_cards_usecase.New(planet, postgres_card_store.New(db), db)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -104,7 +108,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	public := promov1controller.PromoService{
-		GetTeaserHandler: get_teaser_handler.New(teaser_query.NewPostgresQuery(db, battles, planet, bucket, props.Logger)),
+		GetTeaserHandler: get_teaser_handler.New(teaser_query.NewPostgresQuery(db, battles, points, planet, bucket, props.Logger)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return promov1connect.NewPromoServiceHandler(public, options...)

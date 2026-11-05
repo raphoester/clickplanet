@@ -21,6 +21,147 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type GetRankPointsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Times         uint32                 `protobuf:"varint,1,opt,name=times,proto3" json:"times,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRankPointsRequest) Reset() {
+	*x = GetRankPointsRequest{}
+	mi := &file_scoring_v1_internal_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRankPointsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRankPointsRequest) ProtoMessage() {}
+
+func (x *GetRankPointsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_internal_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRankPointsRequest.ProtoReflect.Descriptor instead.
+func (*GetRankPointsRequest) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *GetRankPointsRequest) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
+}
+
+// Every rank that scores, the first's first.
+type GetRankPointsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ranks         []*RankPoints          `protobuf:"bytes,1,rep,name=ranks,proto3" json:"ranks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRankPointsResponse) Reset() {
+	*x = GetRankPointsResponse{}
+	mi := &file_scoring_v1_internal_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRankPointsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRankPointsResponse) ProtoMessage() {}
+
+func (x *GetRankPointsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_internal_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRankPointsResponse.ProtoReflect.Descriptor instead.
+func (*GetRankPointsResponse) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GetRankPointsResponse) GetRanks() []*RankPoints {
+	if x != nil {
+		return x.Ranks
+	}
+	return nil
+}
+
+type RankPoints struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rank          uint32                 `protobuf:"varint,1,opt,name=rank,proto3" json:"rank,omitempty"`
+	Points        uint32                 `protobuf:"varint,2,opt,name=points,proto3" json:"points,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RankPoints) Reset() {
+	*x = RankPoints{}
+	mi := &file_scoring_v1_internal_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RankPoints) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RankPoints) ProtoMessage() {}
+
+func (x *RankPoints) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_internal_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RankPoints.ProtoReflect.Descriptor instead.
+func (*RankPoints) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RankPoints) GetRank() uint32 {
+	if x != nil {
+		return x.Rank
+	}
+	return 0
+}
+
+func (x *RankPoints) GetPoints() uint32 {
+	if x != nil {
+		return x.Points
+	}
+	return 0
+}
+
 type GetRoundPlayersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RoundId       string                 `protobuf:"bytes,1,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
@@ -30,7 +171,7 @@ type GetRoundPlayersRequest struct {
 
 func (x *GetRoundPlayersRequest) Reset() {
 	*x = GetRoundPlayersRequest{}
-	mi := &file_scoring_v1_internal_proto_msgTypes[0]
+	mi := &file_scoring_v1_internal_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +183,7 @@ func (x *GetRoundPlayersRequest) String() string {
 func (*GetRoundPlayersRequest) ProtoMessage() {}
 
 func (x *GetRoundPlayersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_internal_proto_msgTypes[0]
+	mi := &file_scoring_v1_internal_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +196,7 @@ func (x *GetRoundPlayersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoundPlayersRequest.ProtoReflect.Descriptor instead.
 func (*GetRoundPlayersRequest) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{0}
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetRoundPlayersRequest) GetRoundId() string {
@@ -75,7 +216,7 @@ type GetRoundPlayersResponse struct {
 
 func (x *GetRoundPlayersResponse) Reset() {
 	*x = GetRoundPlayersResponse{}
-	mi := &file_scoring_v1_internal_proto_msgTypes[1]
+	mi := &file_scoring_v1_internal_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -87,7 +228,7 @@ func (x *GetRoundPlayersResponse) String() string {
 func (*GetRoundPlayersResponse) ProtoMessage() {}
 
 func (x *GetRoundPlayersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_internal_proto_msgTypes[1]
+	mi := &file_scoring_v1_internal_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -100,7 +241,7 @@ func (x *GetRoundPlayersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoundPlayersResponse.ProtoReflect.Descriptor instead.
 func (*GetRoundPlayersResponse) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{1}
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetRoundPlayersResponse) GetPlayers() []*RoundPlayer {
@@ -122,7 +263,7 @@ type RoundPlayer struct {
 
 func (x *RoundPlayer) Reset() {
 	*x = RoundPlayer{}
-	mi := &file_scoring_v1_internal_proto_msgTypes[2]
+	mi := &file_scoring_v1_internal_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -134,7 +275,7 @@ func (x *RoundPlayer) String() string {
 func (*RoundPlayer) ProtoMessage() {}
 
 func (x *RoundPlayer) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_internal_proto_msgTypes[2]
+	mi := &file_scoring_v1_internal_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -147,7 +288,7 @@ func (x *RoundPlayer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoundPlayer.ProtoReflect.Descriptor instead.
 func (*RoundPlayer) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{2}
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RoundPlayer) GetAccountId() string {
@@ -180,7 +321,7 @@ type GetTableRequest struct {
 
 func (x *GetTableRequest) Reset() {
 	*x = GetTableRequest{}
-	mi := &file_scoring_v1_internal_proto_msgTypes[3]
+	mi := &file_scoring_v1_internal_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -192,7 +333,7 @@ func (x *GetTableRequest) String() string {
 func (*GetTableRequest) ProtoMessage() {}
 
 func (x *GetTableRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_internal_proto_msgTypes[3]
+	mi := &file_scoring_v1_internal_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -205,7 +346,7 @@ func (x *GetTableRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTableRequest.ProtoReflect.Descriptor instead.
 func (*GetTableRequest) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{3}
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetTableRequest) GetBookId() string {
@@ -226,7 +367,7 @@ type GetTableResponse struct {
 
 func (x *GetTableResponse) Reset() {
 	*x = GetTableResponse{}
-	mi := &file_scoring_v1_internal_proto_msgTypes[4]
+	mi := &file_scoring_v1_internal_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -238,7 +379,7 @@ func (x *GetTableResponse) String() string {
 func (*GetTableResponse) ProtoMessage() {}
 
 func (x *GetTableResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_internal_proto_msgTypes[4]
+	mi := &file_scoring_v1_internal_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -251,7 +392,7 @@ func (x *GetTableResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTableResponse.ProtoReflect.Descriptor instead.
 func (*GetTableResponse) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{4}
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetTableResponse) GetTable() []*TablePlace {
@@ -273,7 +414,15 @@ var File_scoring_v1_internal_proto protoreflect.FileDescriptor
 const file_scoring_v1_internal_proto_rawDesc = "" +
 	"\n" +
 	"\x19scoring/v1/internal.proto\x12\n" +
-	"scoring.v1\x1a\x18scoring/v1/scoring.proto\"3\n" +
+	"scoring.v1\x1a\x18scoring/v1/scoring.proto\",\n" +
+	"\x14GetRankPointsRequest\x12\x14\n" +
+	"\x05times\x18\x01 \x01(\rR\x05times\"E\n" +
+	"\x15GetRankPointsResponse\x12,\n" +
+	"\x05ranks\x18\x01 \x03(\v2\x16.scoring.v1.RankPointsR\x05ranks\"8\n" +
+	"\n" +
+	"RankPoints\x12\x12\n" +
+	"\x04rank\x18\x01 \x01(\rR\x04rank\x12\x16\n" +
+	"\x06points\x18\x02 \x01(\rR\x06points\"3\n" +
 	"\x16GetRoundPlayersRequest\x12\x19\n" +
 	"\bround_id\x18\x01 \x01(\tR\aroundId\"L\n" +
 	"\x17GetRoundPlayersResponse\x121\n" +
@@ -288,11 +437,12 @@ const file_scoring_v1_internal_proto_rawDesc = "" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\"X\n" +
 	"\x10GetTableResponse\x12,\n" +
 	"\x05table\x18\x01 \x03(\v2\x16.scoring.v1.TablePlaceR\x05table\x12\x16\n" +
-	"\x06closed\x18\x02 \x01(\bR\x06closed2\x8a\x02\n" +
+	"\x06closed\x18\x02 \x01(\bR\x06closed2\xe5\x02\n" +
 	"\x0fInternalService\x12J\n" +
 	"\bGetRound\x12\x1b.scoring.v1.GetRoundRequest\x1a\x1c.scoring.v1.GetRoundResponse\"\x03\x90\x02\x01\x12J\n" +
 	"\bGetTable\x12\x1b.scoring.v1.GetTableRequest\x1a\x1c.scoring.v1.GetTableResponse\"\x03\x90\x02\x01\x12_\n" +
-	"\x0fGetRoundPlayers\x12\".scoring.v1.GetRoundPlayersRequest\x1a#.scoring.v1.GetRoundPlayersResponse\"\x03\x90\x02\x01B\xbc\x01\n" +
+	"\x0fGetRoundPlayers\x12\".scoring.v1.GetRoundPlayersRequest\x1a#.scoring.v1.GetRoundPlayersResponse\"\x03\x90\x02\x01\x12Y\n" +
+	"\rGetRankPoints\x12 .scoring.v1.GetRankPointsRequest\x1a!.scoring.v1.GetRankPointsResponse\"\x03\x90\x02\x01B\xbc\x01\n" +
 	"\x0ecom.scoring.v1B\rInternalProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1;scoringv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Scoring.V1\xca\x02\n" +
 	"Scoring\\V1\xe2\x02\x16Scoring\\V1\\GPBMetadata\xea\x02\vScoring::V1b\x06proto3"
@@ -309,31 +459,37 @@ func file_scoring_v1_internal_proto_rawDescGZIP() []byte {
 	return file_scoring_v1_internal_proto_rawDescData
 }
 
-var file_scoring_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_scoring_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_scoring_v1_internal_proto_goTypes = []any{
-	(*GetRoundPlayersRequest)(nil),  // 0: scoring.v1.GetRoundPlayersRequest
-	(*GetRoundPlayersResponse)(nil), // 1: scoring.v1.GetRoundPlayersResponse
-	(*RoundPlayer)(nil),             // 2: scoring.v1.RoundPlayer
-	(*GetTableRequest)(nil),         // 3: scoring.v1.GetTableRequest
-	(*GetTableResponse)(nil),        // 4: scoring.v1.GetTableResponse
-	(*TablePlace)(nil),              // 5: scoring.v1.TablePlace
-	(*GetRoundRequest)(nil),         // 6: scoring.v1.GetRoundRequest
-	(*GetRoundResponse)(nil),        // 7: scoring.v1.GetRoundResponse
+	(*GetRankPointsRequest)(nil),    // 0: scoring.v1.GetRankPointsRequest
+	(*GetRankPointsResponse)(nil),   // 1: scoring.v1.GetRankPointsResponse
+	(*RankPoints)(nil),              // 2: scoring.v1.RankPoints
+	(*GetRoundPlayersRequest)(nil),  // 3: scoring.v1.GetRoundPlayersRequest
+	(*GetRoundPlayersResponse)(nil), // 4: scoring.v1.GetRoundPlayersResponse
+	(*RoundPlayer)(nil),             // 5: scoring.v1.RoundPlayer
+	(*GetTableRequest)(nil),         // 6: scoring.v1.GetTableRequest
+	(*GetTableResponse)(nil),        // 7: scoring.v1.GetTableResponse
+	(*TablePlace)(nil),              // 8: scoring.v1.TablePlace
+	(*GetRoundRequest)(nil),         // 9: scoring.v1.GetRoundRequest
+	(*GetRoundResponse)(nil),        // 10: scoring.v1.GetRoundResponse
 }
 var file_scoring_v1_internal_proto_depIdxs = []int32{
-	2, // 0: scoring.v1.GetRoundPlayersResponse.players:type_name -> scoring.v1.RoundPlayer
-	5, // 1: scoring.v1.GetTableResponse.table:type_name -> scoring.v1.TablePlace
-	6, // 2: scoring.v1.InternalService.GetRound:input_type -> scoring.v1.GetRoundRequest
-	3, // 3: scoring.v1.InternalService.GetTable:input_type -> scoring.v1.GetTableRequest
-	0, // 4: scoring.v1.InternalService.GetRoundPlayers:input_type -> scoring.v1.GetRoundPlayersRequest
-	7, // 5: scoring.v1.InternalService.GetRound:output_type -> scoring.v1.GetRoundResponse
-	4, // 6: scoring.v1.InternalService.GetTable:output_type -> scoring.v1.GetTableResponse
-	1, // 7: scoring.v1.InternalService.GetRoundPlayers:output_type -> scoring.v1.GetRoundPlayersResponse
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	2,  // 0: scoring.v1.GetRankPointsResponse.ranks:type_name -> scoring.v1.RankPoints
+	5,  // 1: scoring.v1.GetRoundPlayersResponse.players:type_name -> scoring.v1.RoundPlayer
+	8,  // 2: scoring.v1.GetTableResponse.table:type_name -> scoring.v1.TablePlace
+	9,  // 3: scoring.v1.InternalService.GetRound:input_type -> scoring.v1.GetRoundRequest
+	6,  // 4: scoring.v1.InternalService.GetTable:input_type -> scoring.v1.GetTableRequest
+	3,  // 5: scoring.v1.InternalService.GetRoundPlayers:input_type -> scoring.v1.GetRoundPlayersRequest
+	0,  // 6: scoring.v1.InternalService.GetRankPoints:input_type -> scoring.v1.GetRankPointsRequest
+	10, // 7: scoring.v1.InternalService.GetRound:output_type -> scoring.v1.GetRoundResponse
+	7,  // 8: scoring.v1.InternalService.GetTable:output_type -> scoring.v1.GetTableResponse
+	4,  // 9: scoring.v1.InternalService.GetRoundPlayers:output_type -> scoring.v1.GetRoundPlayersResponse
+	1,  // 10: scoring.v1.InternalService.GetRankPoints:output_type -> scoring.v1.GetRankPointsResponse
+	7,  // [7:11] is the sub-list for method output_type
+	3,  // [3:7] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_scoring_v1_internal_proto_init() }
@@ -348,7 +504,7 @@ func file_scoring_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scoring_v1_internal_proto_rawDesc), len(file_scoring_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

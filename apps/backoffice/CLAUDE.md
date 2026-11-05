@@ -33,7 +33,8 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of the posted clips, and a CSV of them.
 - [Videos](docs/videos.md) — the season-end videos: uploaded from the Mac, downloaded with their caption on a phone.
 - [Promo](docs/promo.md) — the battle teasers: the background library (upload, remove) and each rule set's cards, written with
-  `{path}` placeholders from a picker and shown as players will read them; `promo.v1.AdminService`.
+  `{path}` placeholders of the rules or the battle's points from a picker and shown as players will read them, in a ×3
+  example battle; `promo.v1.AdminService`.
 - [Ops](docs/ops.md) — the Timeline: what the gamemaster does next, drawn from its reads; `ReconcileTitles`, after a
   deploy; Link Discord members, the players in the Discord server no sign-in linked; Game rules: planet's sets, made
   and edited; the antibot's rule sets, in a form read off the proto; both show what a save changes; the rule schedule:
