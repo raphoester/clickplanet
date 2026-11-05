@@ -3,13 +3,7 @@
 // arm this app acts on is applied when the clip is rendered; an experiment that acts only when the clip is posted is
 // listed here too, with nothing reading it, so the generator still refuses an arm nobody knows and carries the rest to
 // the job in `ClipRecord.variants`.
-export const EXPERIMENTS = {
-    // TikTok's sound, applied by the job when it posts: anthem, as before, or a track trending on TikTok attached over
-    // the muted video. Nothing to apply here: the video is the same in both, anthem included. The job's own fell-back
-    // (a trending clip posted with the anthem, the chart unread) is decided after the render, so it never reaches this
-    // app and is refused here like any arm the job does not draw.
-    sound: ["anthem", "trending"],
-} as const satisfies Record<string, readonly string[]>
+export const EXPERIMENTS = {} as const satisfies Record<string, readonly string[]>
 
 type Experiments = typeof EXPERIMENTS
 
@@ -17,7 +11,7 @@ export type Variants = {readonly [Name in keyof Experiments]?: Experiments[Name]
 
 const known = (name: string): name is keyof Experiments => Object.hasOwn(EXPERIMENTS, name)
 
-// written: the arms as the job wrote them, a JSON object of words, `{"sound":"trending"}`; none is no experiment. An
+// written: the arms as the job wrote them, a JSON object of words, `{"length":"short"}`; none is no experiment. An
 // experiment or an arm this app does not know fails the clip: a clip made in the wrong arm would be counted in it.
 export function variantsOf(written: string | null): Variants {
     if (written === null || written.trim() === "") return {}

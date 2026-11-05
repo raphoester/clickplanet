@@ -1573,16 +1573,6 @@ export class PostFacts extends Message<PostFacts> {
    */
   runSize = 0;
 
-  /**
-   * @generated from field: map<string, string> variants = 6;
-   */
-  variants: { [key: string]: string } = {};
-
-  /**
-   * @generated from field: clips.v1.TikTokSound sound = 7;
-   */
-  sound?: TikTokSound;
-
   constructor(data?: PartialMessage<PostFacts>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1596,8 +1586,6 @@ export class PostFacts extends Message<PostFacts> {
     { no: 3, name: "scheduled_at", kind: "message", T: Timestamp },
     { no: 4, name: "run_position", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "run_size", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 6, name: "variants", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
-    { no: 7, name: "sound", kind: "message", T: TikTokSound },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PostFacts {
@@ -1614,91 +1602,6 @@ export class PostFacts extends Message<PostFacts> {
 
   static equals(a: PostFacts | PlainMessage<PostFacts> | undefined, b: PostFacts | PlainMessage<PostFacts> | undefined): boolean {
     return proto3.util.equals(PostFacts, a, b);
-  }
-}
-
-/**
- * @generated from message clips.v1.TikTokSound
- */
-export class TikTokSound extends Message<TikTokSound> {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * @generated from field: string id_of = 2;
-   */
-  idOf = "";
-
-  /**
-   * @generated from field: string title = 3;
-   */
-  title = "";
-
-  /**
-   * @generated from field: string artist = 4;
-   */
-  artist = "";
-
-  /**
-   * @generated from field: uint32 rank = 5;
-   */
-  rank = 0;
-
-  /**
-   * @generated from field: string chart_country = 6;
-   */
-  chartCountry = "";
-
-  /**
-   * @generated from field: uint32 duration_seconds = 7;
-   */
-  durationSeconds = 0;
-
-  /**
-   * @generated from field: uint32 track_volume = 8;
-   */
-  trackVolume = 0;
-
-  /**
-   * @generated from field: uint32 original_volume = 9;
-   */
-  originalVolume = 0;
-
-  constructor(data?: PartialMessage<TikTokSound>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "clips.v1.TikTokSound";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "id_of", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "artist", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 6, name: "chart_country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "duration_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 8, name: "track_volume", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 9, name: "original_volume", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TikTokSound {
-    return new TikTokSound().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TikTokSound {
-    return new TikTokSound().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TikTokSound {
-    return new TikTokSound().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: TikTokSound | PlainMessage<TikTokSound> | undefined, b: TikTokSound | PlainMessage<TikTokSound> | undefined): boolean {
-    return proto3.util.equals(TikTokSound, a, b);
   }
 }
 

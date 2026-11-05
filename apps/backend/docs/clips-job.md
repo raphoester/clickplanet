@@ -11,7 +11,7 @@ rendered (`proto/clips/v1/clips.proto`).
 ```
 clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-cast <cast.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
 clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-summary <file>]
-clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-sound-country US] [-ssh <user@host>] [-summary <file>]
+clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
 clips edit -findings <findings.json> [-count 2] [-prompt]
 clips stats [-ssh <user@host>] [-since 2026-10-13]
 ```
@@ -37,7 +37,7 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   once; the generator searches its last 12 hours anyway (`newsSince`).
 - **`choose` prints the stories to render**, as a JSON array on the standard output, each with its number in the
   run, the story as the generator's `--story` takes it, and the arm of every experiment its clip is in
-  (`[{"pick":1,"story":{"front":3,"kind":"battle",…,"headline":"FRANCE VS TURKEY"},"variants":{"sound":"trending"}}]`,
+  (`[{"pick":1,"story":{"front":3,"kind":"battle",…,"headline":"FRANCE VS TURKEY"},"variants":{}}]`,
   or `[]` on a quiet run or a full day): the workflow makes one render job of each. The log goes to the standard
   error, with each story of the editor's skipped and why, and each one chosen with its key and its arms. It needs
   `ZERNIO_API_KEY`, to read what was told and what each platform holds, and `ANTHROPIC_API_KEY`, the editor's.
@@ -64,10 +64,7 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   headline. One the backend refuses, or a run with no ssh host, is a warning (`log_keep_appearances`, counts and the
   post, never a name): the clip is out already.
   The workflow passes the repository variable `CLIPS_PLATFORMS` (Settings → Variables), so `tiktok` alone turns
-  YouTube off with no commit; unset is every platform. **`-sound-country` is the country of TikTok's trending chart**
-  a clip of the experiment `sound` drawn for a trending track gets one from (below, "Experiments"): two letters,
-  ISO 3166-1, `US` when empty or left out. The workflow passes the repository variable `CLIPS_SOUND_COUNTRY`, so the
-  chart changes with no commit.
+  YouTube off with no commit; unset is every platform.
 - **`stats` keeps a snapshot of the numbers of every post of the job**, once a day in a workflow of its own
   (`.github/workflows/clips-stats.yml`), so the experiments can be read from them: a row for each platform of each
   post, with what the post was beside it, **sent over ssh to the server's clips module**, which keeps it in
@@ -101,7 +98,8 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
 `record`, below), and an experiment is what makes that comparison fair: the arm is a coin, not a choice made from the
 story, so a short clip is not short because its story was small.
 
-- **`running` in `experiments.go` is the one list of the experiments that run.** Each has a name, its arms with their
+- **`running` in `experiments.go` is the one list of the experiments that run**, empty since `sound` stopped
+  (2026-11-05). Each has a name, its arms with their
   weights (`posts.Arm{Name, Weight}`: 1 to 1 is an even split, 3 to 1 is three clips in four), and its
   control, **the arm that is exactly what a clip was before the experiment**. `posts.ExperimentsOf` refuses a list
   with no name or one name twice, an experiment of fewer than two arms, an arm with no name, twice or with no weight,
@@ -115,92 +113,31 @@ story, so a short clip is not short because its story was small.
   experiment on which stories are told needs a coin of the run's instead**, flipped once before anything is chosen
   and carried by every clip of the run, since a coin per clip would let one run mix two editors' stories: `editor`
   had one (below), and its code went with it.
-- **An arm of weight 0 is never drawn** (`posts.Arm{Name, Weight: 0}`): it is where a clip goes when the arm it was
-  drawn for could not be applied, so it is still checked and counted, apart (`sound`'s `fell-back`). An experiment
-  needs two arms a coin draws.
 - **The arms travel with the clip, as data**: `choose` prints them with the story; the workflow's render job of the
-  clip hands them to the generator (`--variants '{"sound":"trending"}'`), which applies the ones it acts on, refuses
+  clip hands them to the generator (`--variants '{"length":"short"}'`), which applies the ones it acts on, refuses
   one it does not know, and writes them all into the clip's `ClipRecord.variants` (the frontend's
   [Clips](../../frontend/docs/clips.md)); `schedule` reads them back from `clip-<n>.json` (`posts.ClipSnapshot.Variants`), checks every clip
   against `running` before it posts any, carries them on each post (`posts.PostSnapshot.Variants`) and writes them in
   the summary. The record, and so the post's Zernio metadata, keeps them as the generator wrote them: what the
   analysis reads.
-- **An arm acts where its difference is made.** At render time, in the generator (the length below); at post time,
-  in the job: the schedule use case turns the arm into what the post carries (`PostSnapshot.Sound`), and an adapter
-  writes it, for the platform the experiment is about (the sound below). **The control of each is what is sent without
-  it**, and a test pins that a clip in it sends Zernio the same body as a clip in none, its record aside. The generator
-  still lists an experiment it has nothing to apply for, so it refuses an arm nobody knows on every experiment, and
-  carries the arms of the rest to `schedule`.
-- **An arm that cannot be applied at post time moves the post to the arm of weight 0** (`Post.FellBack`), never fails
-  the run: the post goes out as the control would, its report and its log say why, and the summary shows it. The
-  clip's record keeps the arm the coin drew, as the generator wrote it (`clip.variants`), and the post's the arm it
-  went out in (`post.variants`, written only when the job moved one): intent to treat reads the first, what the arm
-  did the second.
+- **An arm acts where its difference is made**: at render time in the generator (the length below), or at post time
+  in the job, through what the post carries (`posts.PostSnapshot`) and the adapter that writes it (as the sound did, below).
+  **The control of each is what is sent without it.** The generator still lists an experiment it has nothing to apply
+  for, so it refuses an arm nobody knows on every experiment, and carries the arms of the rest to `schedule`.
 - **Adding one** is an entry in `running`, its name and arms in the generator's `src/clip/experiments.ts`, and the
   code that acts on its arms, never on its control.
 - **`length` ran from 2026-10-24 to 2026-10-28**: `as-chosen`, the control, against `short`, the shortest a story of
   its kind plays (8.5s for a front, 10 with a day's podium). It was stopped by judgment, not on the numbers: an 8.5s
   clip is too short a format. Its posts keep their arm in their record. The teaser rolled when posting is an
   experiment of its own, at random and recorded (`teaser`), and the arms do not touch it.
-- **`sound`** (started 2026-10-25, per clip, even, on TikTok alone): does a clip do better with its
-  national anthem, or with a track trending on TikTok now? It waited on the account's music library, which answers
-  only for an account connected through the TikTok for Business app, a Business account or not: the stats of
-  2026-10-25 found `clickplanetlol` `personal`, `commercialMusic=true` and its business lane live. `anthem`, the
-  control, is the clip as before. `trending` is the same video with a track of TikTok's Commercial Music Library
-  attached when it is posted, the anthem muted under it (`posts.Soundtracks`, `schedule_clips_usecase`, and
-  `posts/zernio`'s TikTok target). `fell-back` is a clip drawn for a track that went out with its anthem.
-  - **The track is one of the top 20 of the chart that play the whole clip, at random** (`trendingTop`,
-    `Track.plays`). The chart lists 100, rank 1 first: its top is what a viewer hears everywhere now, and 20 is wide
-    enough that, at a trending clip or two a day, the arm is not one song's, nor one song's fatigue. Its rank is
-    recorded, so the analysis can tell whether a higher one did better, and narrow or widen the top. A track the chart
-    gives no id is skipped. **So is one shorter than the clip**: the chart ranks sound effects beside the songs (on
-    2026-10-27 the US chart had a 1s horn at 6, and effects of 2 to 9s at 23, 26, 27, 30, 31 and 33), TikTok does not
-    loop a track, and the anthem is muted under it, so a 10s clip went out with half a second of horn and silence
-    after it (TikTok video 7701207323607305504, the run of 04:30 UTC). The chart says how long each plays
-    (`durationSec`, or the excerpt's `clip.durationSec` when that is what is sent: `Track.Seconds`), and the clip's
-    length is its record's (`ClipCommon.duration_seconds`, `ClipSnapshot.Seconds`, 6.5 to 19s): a track plays the
-    clip when it is at least as long, and a track or a clip whose length is unknown never does. The top 20 is counted
-    after that, so for a 20s clip it reached rank 24 on that chart.
-    **And so is one outside the game's genres** (`genresOfTheGame`, `Track.fits`): the chart tags each track with
-    TikTok's genres (`genres`; 18 tags on 2026-10-27, `ALL` on the library's effects and beds, a third of the chart),
-    and every tag of a track has to be one the game plays: ELECTRONIC, HIP_HOP/RAP, ROCK, TECHNO, TRANCE or POP_ROCK.
-    Listened to on 2026-10-27, the chart's pop, jazz, kids' songs, drama themes and a cello sonata were not the
-    game's, nor its trap and indie: so a track tagged hip hop and trap is out, as one tagged electronic and tropical
-    house, and one with no tag. A genre new to the chart is let in by the set, never by the chart. That day's US chart
-    kept 30 of its 100, and a 10s clip's top 20 reached rank 78. The chart has no mood or theme tag, so "epic" cannot
-    be asked for, and Zernio exposes no search of the library, only this chart. Both are rules of the game, as the
-    length is, never a list of sounds by hand. A chart with none that fits falls back, as one that cannot be read
-    (below).
-  - **The id sent is its trending excerpt's** (`clip.id`), the whole track's (`id`) only when it has none: Zernio's
-    note on the operation says the whole track's has shown viewers "This song is not available in your country" on
-    the sound's page (observed from Germany, 2026-10-06), and the excerpt's not. It plays **from 0**
-    (`musicSoundStart`): the excerpt already is the part that trends. Its end is left to the video's length.
-  - **The video's own sound at 0** (`videoOriginalSoundVolume`), said rather than left to the API's default (0 today,
-    by Zernio's note, where the app's is 50): a default that moved would play the anthem under the song, and the arm
-    would be neither.
-    **The track at 100** (`musicSoundVolume`, which Zernio defaults to 50): it is all a viewer hears, so there is no mix
-    to balance, and a track at half its level would set a softer clip against the anthem's, its loudness confounded
-    with its sound.
-  - **The chart read is `-sound-country`'s, `US` by default** (`defaultSoundCountry`): the largest audience of a game
-    captioned in English, until the stats say where the views come from. **It should follow them**: the snapshot keeps
-    `audienceCountries` for each TikTok post, and the country most views come from is the chart to read, a change of
-    `CLIPS_SOUND_COUNTRY` with no commit. The record keeps the chart's country, so the analysis tells them apart.
-  - **The chart is read once a run, when a clip first needs it, and each clip picks its own track**
-    (`Service.Trending`: `GET /v1/accounts` for the TikTok account, then
-    `GET /v1/accounts/{id}/tiktok/commercial-music?countryCode=US`), on a client of its own with a minute's timeout,
-    not the upload's 10. A run with no clip drawn for a track, or one going to YouTube alone (TikTok's day full, or
-    `CLIPS_PLATFORMS`), reads nothing: its clip keeps `trending`, and its post carries no track, which the analysis
-    reads per platform as it reads every arm.
-  - **A chart that cannot be read, or lists nothing to attach that plays the clip, falls back** (above): the clip goes
-    out with its anthem, `sound: fell-back` in `post.variants`, a warning in the log (`a clip drawn for a trending track
-    goes out with its anthem`, with why), and its TikTok row of the summary says so in bold. Never retried: the clip
-    goes out on time.
-  - **What went out is in the record** (`post.sound`, a `clips.v1.TikTokSound`): the id sent and which it is
-    (`excerpt` or `track`), the title, the artist, the rank, the chart's country, how long it plays, and both volumes
-    (protojson leaves out a zero, so no `originalVolume` is the anthem muted). The summary's TikTok row and the log
-    name the track too.
-  - **YouTube is sent the video as it is in every arm**, its target untouched: the arm is recorded on the whole post.
-    **TikTok's daily cap is unchanged** (`dailyBudget`): a track changes what a post plays, not how many go out.
+- **`sound` ran from 2026-10-25 to 2026-11-05, per clip, even, on TikTok alone**: `anthem`, the control, against
+  `trending`, a track of the top of TikTok's Commercial Music Library chart attached when the clip was posted, the
+  anthem muted under it, and `fell-back`, a clip drawn for a track that went out with its anthem. **Stopped on the
+  numbers**: from 2026-10-28 to 2026-11-04, 5 `anthem` and 10 `trending` TikToks had the same views (median 618 and
+  595), completion (16%) and hold at 3s (51%), and the sound's page brought none of their views: the library's chart is
+  music nobody searches for. Some of its tracks did not fit the game either (a horn of half a second, 1940s jazz).
+  Its posts keep their arm in their record, the track in `post.sound` and the arm they went out in in
+  `post.variants`, both fields now `reserved` in `clips.v1.PostFacts`; the code that attached a track went with it.
 - **`editor` ran from 2026-10-24 to 2026-10-26, per run, even**: `rules`, the control, the run as before, against
   `model`, Claude Haiku choosing among the stories the rules let through and writing their headlines, and `fell-back`,
   a run drawn for the model that the rules made. **Stopped with the model the editor of every run**, on the owner's
@@ -421,9 +358,7 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
     (`posts.ClipRecord`, which the job never reads); absent for a clip written before the generator kept one. `post`
     is what this job made of the clip: `teaser`, the name of the teaser rolled (`editor` for the model's,
     `takes-the-day` for the generator's own; `unnamed` for a clip whose teasers have none), `callToAction`, `scheduledAt` (the time planned: the dashboard can move the post, this
-    does not move), `runPosition` and `runSize`, its place in its run from 1 and how many it has, and, for the
-    experiment `sound`, `sound` (the trending track attached on TikTok) and `variants` (the arms it went out in, only
-    when the job moved one, `sound: fell-back`; see "Experiments"). **How fresh a
+    does not move), and `runPosition` and `runSize`, its place in its run from 1 and how many it has. **How fresh a
     story was** is `scheduledAt` minus the clip's `globe.storyEndedAt`, when the stretch it plays ends, which the
     generator writes.
   - **Every code in it is a word that says what it means; a number is a quantity.** The flat columns of a table are
@@ -508,8 +443,7 @@ for now** (2026-10-17): a third account is 6 USD a month. A change of service is
   `client.gen.go`, by oapi-codegen (pinned in the `Makefile`) from Zernio's own OpenAPI document, vendored
   beside it as `openapi.json`. `make zernio-spec` fetches the document Zernio builds its SDKs from, `make zernio`
   generates. `oapi-codegen.yaml` names the seven operations the job calls (`include-operation-ids`): four to post,
-  and `getAnalytics`, `getYouTubeVideoRetention` and `listTikTokCommercialMusic` for the snapshot,
-  `listTikTokCommercialMusic` also for the trending chart of the experiment `sound`. So the client
+  and `getAnalytics`, `getYouTubeVideoRetention` and `listTikTokCommercialMusic` for the snapshot. So the client
   holds those and the types they reach, not the 631 paths of the document; `overlay.yaml` drops its webhooks. **An
   operation not named there is not in the client**: a new call is a line there and `make zernio`. The adapter keeps what
   no document says: which account, the upload, the idempotency key, and which answer is "busy".
@@ -523,14 +457,12 @@ for now** (2026-10-17): a third account is 6 USD a month. A change of service is
 - **Four calls a clip**: `GET /v1/accounts`, `POST /v1/media/presign`, a `PUT` of the video to the address that
   answers (the storage, not the API: raw HTTP, and no key), then `POST /v1/posts` with `scheduledFor`, 5 minutes
   ahead at the soonest. **Never `publishNow`**: it publishes inside the request (see "No review" above). And one
-  `GET /v1/posts` a run, for what each platform holds; `choose` makes it twice, for what was told too. A run with a
-  clip drawn for a trending track reads the chart once more (`GET /v1/accounts`, then the commercial music library).
+  `GET /v1/posts` a run, for what each platform holds; `choose` makes it twice, for what was told too.
 - **One clip is one Zernio post, with a target for each platform**, so one cancel in the dashboard stops it
   everywhere. Each target carries its own words (`customContent`) and its own settings (`platformSpecificData`), so
-  a change for one platform (TikTok's sound) touches no other. Zernio publishes each target on its own: one
+  a change for one platform touches no other. Zernio publishes each target on its own: one
   platform that fails at its time leaves the post `partial`, and the next run's history says which (`tiktok: …`).
-  - TikTok: public, comments, duets and stitches on; with a trending track, `musicSoundInfo` (its id, volume 100,
-    from 0) and `videoOriginalSoundVolume: 0`, and with none not a key more (`tiktokSettingsOf`).
+  - TikTok: public, comments, duets and stitches on (`tiktokSettings`).
   - YouTube: public, category Gaming (`20`), and **not made for kids**, sent every time since YouTube may block the
     views of a video with no answer. It is the user's legal choice (2026-10-17): "made for kids" turns comments
     off for good. The tags go at the root of the post, where Zernio sends them to YouTube alone. Zernio uploads a

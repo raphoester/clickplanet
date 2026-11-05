@@ -10,7 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// The arm of each experiment a clip is in, by experiment: {"sound": "trending"}.
+// The arm of each experiment a clip is in, by experiment: {"length": "short"}.
 type Variants map[string]string
 
 func (v Variants) String() string {
@@ -22,15 +22,9 @@ func (v Variants) String() string {
 }
 
 type Arm struct {
-	Name string
-	// Its share of the clips is its weight over the sum of the experiment's. 0 is an arm no coin draws: what a clip is
-	// moved to when the arm it was drawn for could not be applied (a clip drawn for a trending track that went out with
-	// its anthem), so it is still counted, apart.
+	Name   string
 	Weight int
 }
-
-// The arm of weight 0 an experiment moves a clip to when the arm it drew could not be applied.
-const FellBack = "fell-back"
 
 type Experiment struct {
 	Name string
@@ -75,19 +69,16 @@ func ExperimentsOf(experiments ...Experiment) (Experiments, error) {
 		}
 		named.Add(experiment.Name)
 
-		arms, drawn := cpcolls.NewSet[string](), 0
+		arms := cpcolls.NewSet[string]()
 		for _, arm := range experiment.Arms {
-			if arm.Name == "" || arms.Contains(arm.Name) || arm.Weight < 0 {
-				return nil, fmt.Errorf("%w: %q has an arm %q with no name, twice, or with a weight under 0",
+			if arm.Name == "" || arms.Contains(arm.Name) || arm.Weight < 1 {
+				return nil, fmt.Errorf("%w: %q has an arm %q with no name, twice, or with no weight",
 					ErrInvalidExperiment, experiment.Name, arm.Name)
 			}
 			arms.Add(arm.Name)
-			if arm.Weight > 0 {
-				drawn++
-			}
 		}
-		if drawn < 2 {
-			return nil, fmt.Errorf("%w: %q has fewer than two arms a coin draws", ErrInvalidExperiment, experiment.Name)
+		if len(experiment.Arms) < 2 {
+			return nil, fmt.Errorf("%w: %q has fewer than two arms", ErrInvalidExperiment, experiment.Name)
 		}
 		if !arms.Contains(experiment.Control) {
 			return nil, fmt.Errorf("%w: %q has no arm %q for its control", ErrInvalidExperiment, experiment.Name, experiment.Control)

@@ -117,23 +117,6 @@ func TestScheduleTellsTheBackendWhoThePostsNameOverTheSSHOfTheFetch(t *testing.T
 	assert.Equal(t, "other@vps.example", parsed.Job.Replay.SSH)
 }
 
-func TestScheduleFlagsSayWhichCountrysChartATrendingTrackIsPickedFrom(t *testing.T) {
-	for given, country := range map[string]string{"FR": "FR", "gb": "GB", "": "", " ": ""} {
-		t.Run(given, func(t *testing.T) {
-			parsed, err := flags.Parse([]string{"schedule", "-clips", "clips", "-sound-country", given})
-
-			require.NoError(t, err)
-			assert.Equal(t, country, parsed.Job.SoundCountry)
-		})
-	}
-	for _, given := range []string{"USA", "U", "1A"} {
-		_, err := flags.Parse([]string{"schedule", "-clips", "clips", "-sound-country", given})
-
-		require.ErrorIs(t, err, clips.ErrChartCountry, given)
-		assert.Contains(t, err.Error(), "usage:")
-	}
-}
-
 func TestChooseCountsTheRoomOfThePlatformsItIsGiven(t *testing.T) {
 	parsed, err := flags.Parse([]string{"choose", "-findings", "findings.json", "-platforms", "tiktok"})
 
