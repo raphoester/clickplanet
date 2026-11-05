@@ -30,8 +30,8 @@ const float ROUND_FROM = 6.0;
 const float HIGHLIGHT_LIFT = 0.2;
 const float HIGHLIGHT_FLOOR = 0.35;
 
-// Must match MISSION_COLOUR in borderLines.ts.
-const vec3 MISSION = vec3(0.93, 0.16, 0.14);
+// Must match MISSION_COLOUR in borderLines.ts and --mission in tokens.css.
+const vec3 MISSION = vec3(0.784, 0.341, 0.298);
 const float MISSION_RING_PX = 2.5;
 
 #include ../flagFrame.glsl;

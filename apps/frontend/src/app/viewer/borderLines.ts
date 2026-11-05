@@ -151,8 +151,8 @@ export const ORBIT_INK = 0.7
 
 const HIGHLIGHT_COLOUR = new THREE.Color(1, 1, 1)
 
-// Must match MISSION in shaders/display/fragment.glsl: one colour for a mission's place.
-const MISSION_COLOUR = new THREE.Color(0.93, 0.16, 0.14)
+// Must match MISSION in shaders/display/fragment.glsl and --mission in tokens.css: one colour for a mission's place.
+const MISSION_COLOUR = new THREE.Color(0.784, 0.341, 0.298)
 export const MISSION_WIDTH = 2
 const MISSION_INK = 0.9
 
