@@ -30,6 +30,9 @@ itself, with nothing to press.
   [The front, for a first visit](front-guide.md)). Each new list of targets is a scan of every tile, so the hook keeps
   its identity while the targets are the same. On 2026-11-05 the owner judged a cyan dot in a tile's corner horrible:
   the ring is the target, red and centred, and the outline went from cyan to the same red.
+- **The cards beside the pointer name them**: the tile's and the territory's say which missions the red is for, in a
+  strip with a small ring of the same red (`MissionsHere`, see [Who holds a tile](tile-holder.md) and
+  [A territory, from orbit](territory-card.md)). The owner, 2026-11-05: the red alone did not say why it was red.
 - **The progress line** (`MissionProgress`, `useMissionProgress`, `domain/missionProgress.ts`): when a day read or
   streamed moved a mission, the Moments zone shows it in one line, its words short ("Take from Algeria"), a small bar
   and the count. **One mission at a time**: the line keeps the mission it shows while it moves, and goes

@@ -14,7 +14,7 @@ const ANA: PlayerLine = {
     accountId: "account-ana", name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK,
 }
 
-const PEEK: Peek = {tile: 7, countryCode: "fr", point: {x: 300, y: 200}, touch: false}
+const PEEK: Peek = {tile: 7, countryCode: "fr", ground: "fr", shields: 0, point: {x: 300, y: 200}, touch: false}
 
 const ANA_INFO: PlayerInfo = {
     name: "Ana", guest: false, tilesTaken: 4_000, streakCurrent: 12, streakBest: 30, admin: true, color: NameColor.PINK,
@@ -45,7 +45,7 @@ describe("HolderCardPlace", () => {
         </StrictMode>)
 
         await waitFor(() => expect(shown()).toEqual({
-            line: ANA, playsFor: ANA_INFO.playsFor, mine: false, takenAt: 1_000, point: PEEK.point, touch: false, id: 1,
+            line: ANA, tile: {owner: "fr", ground: "fr", shields: 0}, playsFor: ANA_INFO.playsFor, mine: false, takenAt: 1_000, point: PEEK.point, touch: false, id: 1,
         }))
         expect(players.playerInfo).toHaveBeenLastCalledWith("account-ana")
         expect(screen.getByRole("region", {name: "Ana"}).textContent).toContain("Took it for France")
@@ -78,7 +78,7 @@ describe("HolderCardPlace", () => {
 
         await waitFor(() => expect(shown()).toEqual({
             line: {accountId: "", name: DELETED_ACCOUNT, countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED},
-            playsFor: [], mine: false, takenAt: 1_000, point: PEEK.point, touch: false, id: 1,
+            tile: {owner: "fr", ground: "fr", shields: 0}, playsFor: [], mine: false, takenAt: 1_000, point: PEEK.point, touch: false, id: 1,
         }))
         expect(players.playerInfo).not.toHaveBeenCalled()
     })

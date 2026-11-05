@@ -599,7 +599,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const owner = ownership.ownerOf(tile)
         if (!owner || ghosts.flagOf(tile) !== undefined) return
         peeking = tile
-        onPeek({tile, countryCode: owner, point, touch})
+        onPeek({tile, countryCode: owner, ground: missionGround.groundOf(tile), shields: shielded.shieldsOf(tile), point, touch})
     }
 
     const endPeek = () => {

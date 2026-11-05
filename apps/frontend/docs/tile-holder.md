@@ -12,6 +12,11 @@ outside the layout, so the card keeps `EDGE_PX` (12px) from the screen's edges. 
 guest shows its name and the footer alone: a guest has no public card. A tap takes a tile, so a tap cannot ask: a hold is the one press a
 tap never is, and the bomb's hold-to-drop is already one.
 
+- **It names the missions the map draws on the tile** (`MissionsHere`, `missionsOnTile`): a strip above the footer,
+  one line each, a small ring in `--mission` red, then "Mission:" (or "Flag mission:") and the mission's own words, as
+  the Missions tab writes them. A mission counts here when the tile wears its red ring or stands on the ground it
+  outlines; the peek brings the tile's ground and shields for it. None on a first visit, as the map draws none. See
+  [Missions](missions.md).
 - **Only past orbit.** In orbit a tile is too small to aim at, and the same
   gestures open a card on the territory instead: see [A territory, from
   orbit](territory-card.md).

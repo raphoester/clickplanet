@@ -211,4 +211,14 @@ describe("TerritoryCard", () => {
 
         expect(onClose).toHaveBeenCalled()
     })
+
+    it("names the missions on its ground or on a rival holding some of it, the flag's included", () => {
+        show(SICILY, {missions: {endsAt: 0, missions: [
+            {id: "ground", order: {kind: "takeIn", country: "it", goal: 300, taken: 0}, reward: {kind: "bomb", amount: 1}, done: false, paid: false},
+            {id: "far", order: {kind: "takeIn", country: "br", goal: 300, taken: 0}, reward: {kind: "bomb", amount: 1}, done: false, paid: false},
+        ], flagMission: {id: "flag", order: {kind: "breakShields", country: "es", goal: 30, reached: 0}, points: 5, done: false}}})
+
+        const lines = within(screen.getByRole("list", {name: "Your missions here"})).getAllByRole("listitem")
+        expect(lines.map((line) => line.textContent?.replace(/\s+/g, " "))).toEqual(["Mission: Take 300 tiles in Italy", "Flag mission: Break 30 shields of Spain"])
+    })
 })

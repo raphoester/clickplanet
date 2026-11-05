@@ -27,7 +27,7 @@ const pressed = (pointerType: string) => Object.assign(new Event("pointerdown", 
 const FRONTS = [{countryCode: "fr", tiles: 9_000}, {countryCode: "be", tiles: 300}]
 
 const shown = (line: PlayerLine): HolderShown => ({
-    line, playsFor: line.guest ? [] : FRONTS, mine: false, takenAt: NOW - 3 * 60_000, point: {x: 300, y: 200}, touch: false, id: 1,
+    line, tile: {owner: line.countryCode, ground: "dz", shields: 0}, playsFor: line.guest ? [] : FRONTS, mine: false, takenAt: NOW - 3 * 60_000, point: {x: 300, y: 200}, touch: false, id: 1,
 })
 
 function show(line: PlayerLine, props: Partial<Parameters<typeof HolderCard>[0]> = {}) {
@@ -158,5 +158,23 @@ describe("HolderCard", () => {
         expect(onClose).toHaveBeenCalledTimes(1)
         expect(globe).toHaveBeenCalledTimes(1)
         outside.remove()
+    })
+
+    it("names the missions the map draws on the tile, after a ring of their red", () => {
+        show(FOX, {missions: {endsAt: 0, missions: [
+            {id: "rival", order: {kind: "takeFrom", country: "fr", goal: 80, taken: 3}, reward: {kind: "bomb", amount: 1}, done: false, paid: false},
+            {id: "ground", order: {kind: "takeIn", country: "br", goal: 300, taken: 0}, reward: {kind: "bomb", amount: 1}, done: false, paid: false},
+        ]}})
+
+        const here = screen.getByRole("list", {name: "Your missions here"})
+        expect(here.textContent?.replace(/\s+/g, " ")).toBe("Mission: Take 80 tiles from France")
+    })
+
+    it("names no mission on a tile the map draws nothing on", () => {
+        show(FOX, {missions: {endsAt: 0, missions: [
+            {id: "ground", order: {kind: "takeIn", country: "br", goal: 300, taken: 0}, reward: {kind: "bomb", amount: 1}, done: false, paid: false},
+        ]}})
+
+        expect(screen.queryByRole("list", {name: "Your missions here"})).toBeNull()
     })
 })

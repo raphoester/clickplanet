@@ -31,6 +31,8 @@ the globe. A click or a tap flies down to it.
   flag that fortified it last (`FortifyTargets.lockOf`, "Never fortified" without
   one) and, when a flag is close to fortifying it, how many tiles that flag still
   misses (`targetOf`, the same rule as the gold pulse, see [Fortify](fortify.md)).
+- **Above the foot, the missions on the territory** (`MissionsHere`, `missionsOnTerritory`): one whose ground it is,
+  or one against a rival that holds some of it, in the tile card's strip (see [Who holds a tile](tile-holder.md)).
 - **The flags are already on the client**: `Holdings` keeps the tiles each flag
   holds of each landmass, as the server counts them (see [The counts are the
   server's](counts.md)), and the locks come from `GetFortresses`.
