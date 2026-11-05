@@ -47,15 +47,31 @@ func drawn(t *testing.T, count int, flag string, yesterday flagmissions.Day) []f
 	return statuses
 }
 
-func TestADayHasOneMissionOfEitherKindWorthThreeToTenPoints(t *testing.T) {
-	points, kinds := cpcolls.NewSet[uint32](), cpcolls.NewSet[string]()
+func TestADayHasOneMissionOfEitherKind(t *testing.T) {
+	kinds := cpcolls.NewSet[string]()
 	for _, status := range drawn(t, 60, "fr", flagmissions.Day{}) {
-		points.Add(status.Mission.Points)
 		kinds.Add(fmt.Sprintf("%T", status.Mission.Order))
 	}
 
-	assert.Equal(t, cpcolls.NewSet[uint32](3, 4, 5, 6, 7, 8, 9, 10), points)
 	assert.Equal(t, cpcolls.NewSet("flagmissions.TakeIn", "flagmissions.BreakShields"), kinds)
+}
+
+func TestTheSmallerTheFlagBesideTheBiggestTheMoreItsMissionIsWorth(t *testing.T) {
+	want := map[string]uint32{"dz": 3, "pw": 6, "us": 9, "fr": 10}
+
+	for flag, points := range want {
+		for _, status := range drawn(t, 10, flag, flagmissions.Day{}) {
+			assert.Equal(t, points, status.Mission.Points, "%s: 60,000 tiles is the biggest, 30,000 half of it, 10,000 a sixth, none", flag)
+		}
+	}
+}
+
+func TestWithNoTileHeldAnywhereAMissionIsWorthTheMost(t *testing.T) {
+	blank := missions.World{CountrySizes: world.CountrySizes, Territories: []missions.Territory{{Flag: "dz"}}}
+
+	status := statusOf(t, flagmissions.Draw(days.TestingDayAt(monday), "fr", blank, flagmissions.Day{}))
+
+	assert.Equal(t, uint32(10), status.Mission.Points)
 }
 
 func TestAConquestIsOnABigGroundThatIsNotTheFlags(t *testing.T) {
@@ -86,9 +102,9 @@ func TestAConquestIsOnAGroundWithRoomForItsGoalBesideTheTilesTheFlagHoldsThere(t
 	}
 
 	assert.Equal(t, cpcolls.NewSet("br"), groundsOf(t, held, dayOf(t, flagmissions.DaySnapshot{Takes: 10_005})),
-		"goals of 5,000 to 10,000: Sudan has 3,536 tiles, and France holds 5,000 of China's 9,000")
+		"a goal of 5,000: Sudan has 3,536 tiles, and France holds 5,000 of China's 9,000")
 	assert.Equal(t, cpcolls.NewSet("br", "cn", "sd"), groundsOf(t, held, flagmissions.Day{}),
-		"goals of 1,000 to 2,000 fit on each")
+		"a goal of 100 fits on each")
 }
 
 func TestWithNoGroundRoomyEnoughTheGoalIsTheMostRoomThereIs(t *testing.T) {
@@ -129,29 +145,32 @@ func goalOf(order flagmissions.Order) uint32 {
 	return 0
 }
 
-func TestTheGoalIsAShareOfWhatTheFlagDidYesterdayByItsPoints(t *testing.T) {
-	busy := dayOf(t, flagmissions.DaySnapshot{Takes: 10_005, Strikes: 1_009})
-	want := map[string]map[uint32]uint32{
-		"flagmissions.TakeIn":       {3: 5_000, 4: 5_700, 5: 6_400, 6: 7_100, 7: 7_800, 8: 8_500, 9: 9_200, 10: 10_000},
-		"flagmissions.BreakShields": {3: 500, 4: 570, 5: 640, 6: 710, 7: 780, 8: 850, 9: 920, 10: 1_000},
-	}
+func goalsOf(t *testing.T, yesterday flagmissions.Day) map[string]uint32 {
+	t.Helper()
 
-	for _, status := range drawn(t, 60, "fr", busy) {
-		kind := fmt.Sprintf("%T", status.Mission.Order)
-		assert.Equal(t, want[kind][status.Mission.Points], goalOf(status.Mission.Order), "%s worth %d", kind, status.Mission.Points)
+	goals := map[string]uint32{}
+	for _, status := range drawn(t, 60, "fr", yesterday) {
+		goals[fmt.Sprintf("%T", status.Mission.Order)] = goalOf(status.Mission.Order)
 	}
+	return goals
+}
+
+func TestTheGoalIsHalfOfWhatTheFlagDidYesterday(t *testing.T) {
+	goals := goalsOf(t, dayOf(t, flagmissions.DaySnapshot{Takes: 10_005, Strikes: 1_009}))
+
+	assert.Equal(t, map[string]uint32{"flagmissions.TakeIn": 5_000, "flagmissions.BreakShields": 500}, goals)
+}
+
+func TestASmallFlagsGoalIsHalfOfItsSmallDay(t *testing.T) {
+	goals := goalsOf(t, dayOf(t, flagmissions.DaySnapshot{Takes: 356, Strikes: 181}))
+
+	assert.Equal(t, map[string]uint32{"flagmissions.TakeIn": 170, "flagmissions.BreakShields": 90}, goals)
 }
 
 func TestAFlagThatDidLittleYesterdayHasTheLeastGoal(t *testing.T) {
-	want := map[string]map[uint32]uint32{
-		"flagmissions.TakeIn":       {3: 1_000, 4: 1_140, 5: 1_280, 6: 1_420, 7: 1_570, 8: 1_710, 9: 1_850, 10: 2_000},
-		"flagmissions.BreakShields": {3: 300, 4: 340, 5: 380, 6: 420, 7: 470, 8: 510, 9: 550, 10: 600},
-	}
+	goals := goalsOf(t, dayOf(t, flagmissions.DaySnapshot{Takes: 40, Strikes: 3}))
 
-	for _, status := range drawn(t, 60, "fr", dayOf(t, flagmissions.DaySnapshot{Takes: 40, Strikes: 3})) {
-		kind := fmt.Sprintf("%T", status.Mission.Order)
-		assert.Equal(t, want[kind][status.Mission.Points], goalOf(status.Mission.Order), "%s worth %d", kind, status.Mission.Points)
-	}
+	assert.Equal(t, map[string]uint32{"flagmissions.TakeIn": 100, "flagmissions.BreakShields": 30}, goals)
 }
 
 func TestWithNothingToAimAtTheDayHasNoMission(t *testing.T) {

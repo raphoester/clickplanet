@@ -170,14 +170,19 @@ internal/missions/internal/
 ## The flag's mission
 
 **One mission a day for the whole flag, the same for each of its players: done once, it gives the flag 3 to 10 season
-points.** It is hard on purpose, since every player of the flag counts on it. A new concept with its own lifecycle (a
+points, the more the smaller the flag.** Every player of the flag counts on it. A new concept with its own lifecycle (a
 day and a flag), so it has its own package and store (`flagmissions`).
 
-- **`Draw(day, flag, world, yesterday)` is the mission**, seeded by the day and the flag: **its points**, 3 to 10, evenly,
-  then **its kind**, evenly between the ones the map allows: `TakeIn{Ground, Goal}`, tiles taken for the flag on a big
-  ground (`World.GroundsOf`, the grounds of the player missions), or `BreakShields{Flag, Goal}`, shields of a rival broken
-  (`World.RivalsOf`, drawn by the ground it holds, so the leaders share the heat). A map with neither gives a day with
-  no mission.
+- **`Draw(day, flag, world, yesterday)` is the mission**, seeded by the day and the flag: **its kind**, evenly between
+  the ones the map allows: `TakeIn{Ground, Goal}`, tiles taken for the flag on a big ground (`World.GroundsOf`, the
+  grounds of the player missions), or `BreakShields{Flag, Goal}`, shields of a rival broken (`World.RivalsOf`, drawn by
+  the ground it holds, so the leaders share the heat). A map with neither gives a day with no mission.
+- **Its points come from the flag's size beside the biggest flag's** (`pointsOf`, the user's choice, 2026-11-05):
+  10 − 7 × the flag's tiles ÷ the biggest flag's tiles, rounded, from the map at the draw. The biggest flag gets 3, a
+  flag half its size 6, a flag under 1/14 of its size 10; on a blank map every flag gets 10. On 5 Nov 2026 that was
+  Ireland 3, Russia and Brazil 5, Czechia 6, Sweden and Bulgaria 7, Poland 8, Hungary, Palau, France and the UK 9, every
+  smaller flag 10. Until then the points were drawn 3 to 10 evenly: in Season 1's first five days the flags holding 5% of the map or
+  more won 57 points from missions, the flags under 0.5% won 13.
 - **A ground has room for its goal** (`conquest`): its room is its tiles the flag does not hold (`Ground.Open`), and the
   ground is drawn evenly among those with room for the goal, so a busy flag is sent to Russia, Antarctica, the US, China,
   Canada, Brazil or Australia, and a quiet one anywhere big. With none, the ground with the most room, and the goal cut
@@ -187,14 +192,16 @@ day and a flag), so it has its own package and store (`flagmissions`).
   so each of those flags drew again with the room at its next take or read, from 0 progress, keeping what its day had
   counted (the owner's choice: tile missions only, and tomorrow's goal sized from the whole day). A conquest done kept its
   points, and a shield mission, which the bug never touched, stayed.
-- **The goal is the team's whole day before**, all on the one target, so a busy flag gets a big goal and a small one a
-  small one (the user's choice, 2026-10-28): for a ground, of all the tiles its players took anywhere (50% for 3 points to
-  100% for 10, and at least 1,000 to 2,000); for shields, of all the shields they broke on anyone (the same shares, at
-  least 300 to 600). The points between ask for a pace between, evenly (`span`), and the goal is rounded down to 10
-  (`pace`). Until 2026-11-01 a mission gave 1 to 3 points, for the same goals (the owner: "1 to 3 is ridiculous").
-  **Never a solo-sized goal**: until 2026-10-29 it was 20% to 40%, at least 300 tiles or 100 shields, which one
-  player's own missions reach on their own; the first day after the deploy, with no day before, every flag got "break
-  150 shields" for 2 points (the owner: "the WHOLE TEAM works for it").
+- **The goal is half of the team's day before**, all on the one target, so a busy flag gets a big goal and a small one a
+  small one (`goalOf`): for a ground, half of all the tiles its players took anywhere, at least 100 (`leastConquest`);
+  for shields, half of all the shields they broke on anyone, at least 30 (`leastShields`); rounded down to 10. The
+  least is for a flag nobody played the day before and for a season's first day. **The goal follows the team, not one
+  player**: a flag of one player gets a goal of one player's half day. Until 2026-11-05 the goal was 50% for 3 points to
+  100% for 10, at least 1,000 to 2,000 tiles or 300 to 600 shields: a flag under 0.5% of the map finished 2% of its
+  140 days in Season 1's first five, its median goal 1,570 tiles while all its players took 180 to 360 a day (the user:
+  "easier to reach for underdogs"). Until 2026-11-01 a mission gave 1 to 3 points (the owner: "1 to 3 is ridiculous").
+  Until 2026-10-29 it was 20% to 40%, at least 300 tiles or 100 shields, and the first day after the deploy every flag
+  got "break 150 shields" for 2 points (the owner: "the WHOLE TEAM works for it").
 - **A flag's day counts what all its players did** (`Day`): every take for it (`takes`) and every shield it broke
   (`strikes`), for the next day's goal, and the mission's progress, one counter from 0. **`Briefing.Of(day, flag)`
   draws once and keeps it**, at the flag's first take, shield broken or read of the day, from the map then and the day
