@@ -74,6 +74,16 @@ import {
 } from "../gen/grpc/support/v1/admin_pb.ts"
 import {ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
+import {
+    Background as PromoBackground,
+    CardDraft,
+    CreateBackgroundUploadRequest,
+    CreateBackgroundUploadResponse,
+    KeepBackgroundRequest,
+    KeepBackgroundResponse,
+    RemoveBackgroundRequest,
+    RemoveBackgroundResponse,
+} from "../gen/grpc/promo/v1/admin_pb.ts"
 
 export const OPERATOR = "00000000-0000-4000-8000-00000000c0de"
 
@@ -240,6 +250,12 @@ export class DemoAdmin extends FakeAdmin {
             new RuleSet({name: "frozen", rules: PlanetRules.fromJson({frozen: true})}),
             new RuleSet({name: "rush", rules: PlanetRules.fromJson({clicks: {tempo: 3}, allegianceLocked: true})}),
         ]})
+        this.promo.backgrounds = DEMO_BACKGROUNDS
+        this.promo.decks.set("rush", [
+            new CardDraft({backgroundId: "demo-war", headline: "Clicks refill {clicks.tempo}× faster", line: "Every country fights at once."}),
+            new CardDraft({backgroundId: "demo-points", headline: "A box every {bonuses.boxes.minInterval}", line: "Keep your bombs for it."}),
+            new CardDraft({backgroundId: "demo-rally", headline: "Bring your friends", line: "Your flag needs every click."}),
+        ])
         this.antibotRules = new AntibotGetRulesResponse({playing: "calm", sets: [
             antibotDefault,
             ...["calm", "frozen"].map(name => new AntibotRuleSet({name})),
@@ -468,6 +484,42 @@ export class DemoAdmin extends FakeAdmin {
         },
     }
 
+    // promo.v1, as the server answers it: an image only, the file in the made-up bucket, and no background a card shows
+    // removed.
+    readonly demoPromo = {
+        createBackgroundUpload: (request: PartialMessage<CreateBackgroundUploadRequest>) => {
+            const type = request.contentType ?? ""
+            if (!IMAGE_TYPES.includes(type)) {
+                return this.refuseLater<CreateBackgroundUploadResponse>("createBackgroundUpload", request, `"${type}" is not a JPEG, a PNG or a WebP`, Code.InvalidArgument)
+            }
+            return this.promo.createBackgroundUpload(request)
+        },
+        keepBackground: async (request: PartialMessage<KeepBackgroundRequest>) => {
+            const file = this.bucket.get(request.backgroundId ?? "")
+            if (file === undefined) {
+                return this.refuseLater<KeepBackgroundResponse>("keepBackground", request, "the file is not in the bucket",
+                    Code.FailedPrecondition)
+            }
+            const answer = await this.promo.keepBackground(request)
+            this.promo.backgrounds = this.promo.backgrounds.map(background => background.backgroundId === request.backgroundId
+                ? new PromoBackground({...background, url: URL.createObjectURL(file)})
+                : background)
+            return answer
+        },
+        listBackgrounds: this.promo.listBackgrounds.bind(this.promo),
+        removeBackground: (request: PartialMessage<RemoveBackgroundRequest>) => {
+            const sets = [...this.promo.decks].filter(([, cards]) => cards.some(card => card.backgroundId === request.backgroundId))
+            if (sets.length > 0) {
+                return this.refuseLater<RemoveBackgroundResponse>("removeBackground", request,
+                    `a card shows this background: ${request.backgroundId}, on the cards of ${sets.map(([set]) => set).join(", ")}`,
+                    Code.FailedPrecondition)
+            }
+            return this.promo.removeBackground(request)
+        },
+        getCards: this.promo.getCards.bind(this.promo),
+        saveCards: this.promo.saveCards.bind(this.promo),
+    }
+
     readonly demoProgression = {
         getProgress: (request: PartialMessage<AdminGetProgressRequest>) =>
             this.answer("getProgress", request, this.progressOf(request.accountId ?? "")),
@@ -515,3 +567,21 @@ export class DemoAdmin extends FakeAdmin {
 function muteKeyOf(request: {accountId?: string, kind?: MuteKind}): string {
     return `${request.kind ?? MuteKind.CHAT}:${request.accountId ?? ""}`
 }
+
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
+
+// Made-up backgrounds: a gradient and a few shapes each, drawn in the page.
+function svgOf(top: string, bottom: string, shapes: string): string {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">` +
+        `<stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient></defs>` +
+        `<rect width="300" height="400" fill="url(#g)"/>${shapes}</svg>`
+    return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
+
+const DEMO_BACKGROUNDS = [
+    ["demo-war", "The war", svgOf("#1d2b53", "#7e2553", `<circle cx="150" cy="260" r="90" fill="#ff004d" opacity=".7"/><circle cx="90" cy="300" r="40" fill="#ffa300"/>`)],
+    ["demo-points", "The points", svgOf("#0b3d2e", "#1d2b53", `<rect x="60" y="220" width="50" height="120" fill="#ffec27"/><rect x="125" y="180" width="50" height="160" fill="#ffec27"/><rect x="190" y="250" width="50" height="90" fill="#ffec27"/>`)],
+    ["demo-rally", "The rally", svgOf("#5f574f", "#000000", `<path d="M150 170 L180 260 L270 260 L195 310 L225 390 L150 340 L75 390 L105 310 L30 260 L120 260 Z" fill="#ff77a8"/>`)],
+].map(([backgroundId, name, url]) => new PromoBackground({
+    backgroundId, name, contentType: "image/svg+xml", sizeBytes: BigInt(url.length), keptAt: at(Date.now() - 3 * 24 * HOUR), url,
+}))

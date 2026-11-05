@@ -18,5 +18,7 @@ to `proto/` alone ships nothing: the generated code is committed.
   straight from the R2 link `ListNotes` signs (`support.attachments.bucket.endpoint` in `deploy/vps/backend.yaml`).
   **Another bucket is a change here too**, or every attachment shows "not shown here".
 - **KLIPY's three media hosts are in `img-src`** too: a chat GIF loads from the address KLIPY gave it.
+- **`https://media.clickplanet.lol` is in `img-src`**: the battle teasers' backgrounds load from their public URL (see
+  [Promo](promo.md)). Their upload goes to the support bucket's host, already in `connect-src`.
 - `Referrer-Policy: no-referrer` and `X-Robots-Tag: noindex`.
 - `/assets/*` is immutable, `/index.html` is revalidated.

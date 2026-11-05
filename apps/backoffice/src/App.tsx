@@ -26,6 +26,7 @@ import {NoteList} from "./support/NoteList.tsx"
 import {useCall} from "./useCall.ts"
 import {useRoute} from "./useRoute.ts"
 import {useWide} from "./useWide.ts"
+import {PromoPage} from "./promo/PromoPage.tsx"
 import {VideosPage} from "./videos/VideosPage.tsx"
 
 export function App({callback}: {callback: Callback | undefined}) {
@@ -101,6 +102,7 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
                 {page === "clips" && <ClipStatsPage clips={CLIENTS.clips}/>}
                 {page === "videos" && <VideosPage clips={CLIENTS.clips}/>}
+                {page === "promo" && <PromoPage promo={CLIENTS.promo} planet={CLIENTS.planet}/>}
                 {page === "titles" && <TitlesPanel progression={CLIENTS.progression}/>}
                 {page === "discord" && <DiscordMembersPanel alerts={CLIENTS.alerts}/>}
                 {page === "rules" && <RulesPanel planet={CLIENTS.planet}/>}

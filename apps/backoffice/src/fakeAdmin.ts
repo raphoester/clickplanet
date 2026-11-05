@@ -43,6 +43,28 @@ import {
 } from "./gen/grpc/alerts/v1/admin_pb.ts"
 import {Rules as PlanetRules} from "./gen/grpc/planet/v1/rules_pb.ts"
 import {
+    Background as PromoBackground,
+    Card,
+    CardDraft,
+    CreateBackgroundUploadRequest,
+    CreateBackgroundUploadResponse,
+    GetCardsRequest,
+    GetCardsResponse,
+    KeepBackgroundRequest,
+    KeepBackgroundResponse,
+    ListBackgroundsRequest,
+    ListBackgroundsResponse,
+    Placeholder,
+    RemoveBackgroundRequest,
+    RemoveBackgroundResponse,
+    SaveCardsRequest,
+    SaveCardsResponse,
+    SetCards,
+} from "./gen/grpc/promo/v1/admin_pb.ts"
+import {TeaserCard} from "./gen/grpc/promo/v1/promo_pb.ts"
+import {playedBySet} from "./promo/actions.ts"
+import {fill} from "./promo/fill.ts"
+import {
     FindPlayersRequest,
     FindPlayersResponse,
     GetReplayRequest,
@@ -142,7 +164,7 @@ import {
 } from "./gen/grpc/support/v1/admin_pb.ts"
 import {
     AlertsAdmin, AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, PlanetAdmin, PlayerAdmin, ProgressionAdmin,
-    SupportAdmin,
+    PromoAdmin, SupportAdmin,
 } from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
@@ -165,6 +187,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     readonly alerts: FakeAlerts = new FakeAlerts(this)
     readonly progression: FakeProgression = new FakeProgression(this)
     readonly gamemaster: FakeGamemaster = new FakeGamemaster(this)
+    readonly promo: FakePromo = new FakePromo(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
     private readonly holds = new Map<string, Promise<void>>()
@@ -358,7 +381,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     clients(): Clients {
         return {
             alerts: this.alerts, antibot: this.antibot, chat: this, planet: this, player: this, progression: this.progression,
-            gamemaster: this.gamemaster, support: this, clips: this,
+            gamemaster: this.gamemaster, support: this, clips: this, promo: this.promo,
         }
     }
 
@@ -790,3 +813,89 @@ function daysOf(startsAt: Date, endsAt: Date): Day[] {
     }
     return days
 }
+
+// promo.v1's calls, asked of the same fake. GetCards lists the sets planet's fake keeps (`rules`), each with the cards
+// `decks` holds, filled the way the page fills a draft.
+export class FakePromo implements PromoAdmin {
+    backgrounds: PromoBackground[] = [
+        new PromoBackground({
+            backgroundId: "background-war", name: "The war", contentType: "image/webp", sizeBytes: 300_000n,
+            keptAt: Timestamp.fromDate(AT), url: "https://media.test/promo/backgrounds/background-war",
+        }),
+        new PromoBackground({
+            backgroundId: "background-points", name: "The points", contentType: "image/png", sizeBytes: 900_000n,
+            keptAt: Timestamp.fromDate(AT), url: "https://media.test/promo/backgrounds/background-points",
+        }),
+    ]
+    decks = new Map<string, CardDraft[]>()
+    placeholders: Placeholder[] = PLACEHOLDER_PATHS.map(path => new Placeholder({path, example: ""}))
+    private readonly uploads = new Map<string, PartialMessage<CreateBackgroundUploadRequest>>()
+
+    constructor(private readonly admin: FakeAdmin) {}
+
+    createBackgroundUpload(request: PartialMessage<CreateBackgroundUploadRequest>): Promise<CreateBackgroundUploadResponse> {
+        const backgroundId = `background-${this.uploads.size + 1}`
+        const answer = this.admin.answer("createBackgroundUpload", request, new CreateBackgroundUploadResponse({
+            backgroundId, uploadUrl: `https://bucket.test/promo/backgrounds/${backgroundId}`,
+        }))
+        if (!this.admin.refusals.has("createBackgroundUpload")) this.uploads.set(backgroundId, request)
+        return answer
+    }
+
+    keepBackground(request: PartialMessage<KeepBackgroundRequest>): Promise<KeepBackgroundResponse> {
+        const answer = this.admin.answer("keepBackground", request, new KeepBackgroundResponse())
+        const upload = this.uploads.get(request.backgroundId ?? "")
+        if (!this.admin.refusals.has("keepBackground") && upload !== undefined) {
+            this.backgrounds = [new PromoBackground({
+                backgroundId: request.backgroundId, name: request.name, contentType: upload.contentType,
+                sizeBytes: upload.sizeBytes, keptAt: Timestamp.fromDate(AT), url: this.urlOf(request.backgroundId ?? ""),
+            }), ...this.backgrounds]
+        }
+        return answer
+    }
+
+    urlOf(backgroundId: string): string {
+        return `https://media.test/promo/backgrounds/${backgroundId}`
+    }
+
+    listBackgrounds(request: PartialMessage<ListBackgroundsRequest>): Promise<ListBackgroundsResponse> {
+        return this.admin.answer("listBackgrounds", request, new ListBackgroundsResponse({backgrounds: this.backgrounds}))
+    }
+
+    removeBackground(request: PartialMessage<RemoveBackgroundRequest>): Promise<RemoveBackgroundResponse> {
+        const answer = this.admin.answer("removeBackground", request, new RemoveBackgroundResponse())
+        if (!this.admin.refusals.has("removeBackground")) {
+            this.backgrounds = this.backgrounds.filter(background => background.backgroundId !== request.backgroundId)
+        }
+        return answer
+    }
+
+    getCards(request: PartialMessage<GetCardsRequest>): Promise<GetCardsResponse> {
+        const played = playedBySet(this.admin.rules)
+        const paths = this.placeholders.map(placeholder => placeholder.path)
+        const sets = this.admin.rules.sets.map(set => new SetCards({
+            ruleSet: set.name,
+            cards: (this.decks.get(set.name) ?? []).map(draft => {
+                const headline = fill(draft.headline, played.get(set.name), paths)
+                const line = fill(draft.line, played.get(set.name), paths)
+                const problems = [...headline.problems, ...line.problems]
+                const url = this.backgrounds.find(each => each.backgroundId === draft.backgroundId)?.url ?? ""
+                return problems.length > 0
+                    ? new Card({draft, problem: problems.join(" ")})
+                    : new Card({draft, filled: new TeaserCard({backgroundUrl: url, headline: headline.text, line: line.text})})
+            }),
+        }))
+        return this.admin.answer("getCards", request, new GetCardsResponse({sets, placeholders: this.placeholders}))
+    }
+
+    saveCards(request: PartialMessage<SaveCardsRequest>): Promise<SaveCardsResponse> {
+        const answer = this.admin.answer("saveCards", request, new SaveCardsResponse())
+        if (!this.admin.refusals.has("saveCards")) {
+            this.decks.set(request.ruleSet ?? "", (request.cards ?? []).map(card => new CardDraft(card)))
+        }
+        return answer
+    }
+}
+
+// A few of planet.v1.Rules' numbers and durations, as GetCards lists them.
+const PLACEHOLDER_PATHS = ["clicks.tempo", "clicks.burst", "bonuses.boxes.minInterval", "bonuses.boxes.maxInterval", "bonuses.bomb.rings"]
