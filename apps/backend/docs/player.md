@@ -22,6 +22,7 @@ internal/player/internal/
       rename_player_usecase/audit_rename_player/   logs every rename at Warn
     usecases/name_account_usecase/  — a username for an account signed in to with none; on auth.v1.SignedIn; then player.v1.PlayerCreated
       name_account_usecase/renaming_name_account/   shows the name on the roster at once
+    usecases/tell_sign_in_usecase/  — on auth.v1.SignedIn: player.v1.PlayerSignedIn, every time
   departures/                       Departure (Decided, Leaving), Decision (Leaves, Returns, TakeSnapshot): an account its player
                                     asked to delete, hidden from the others; the Store port and its contract suite
     postgres_departure_store/       the Store over player.departures, under an advisory lock per account
@@ -47,13 +48,13 @@ internal/player/internal/
     caller/                         the account on the context, or Unauthenticated
     playermessage/                  Profile and the roster lines as player.v1 messages, for the commands and the adapters
   subscribers/                      the edge for events, as the controller is for the wire
-    account_deleted_subscriber/  signed_in_subscriber/  signed_out_subscriber/  signed_in_account_subscriber/
+    account_deleted_subscriber/  signed_in_subscriber/  signed_out_subscriber/  signed_in_account_subscriber/  signed_in_told_subscriber/
     deletion_requested_subscriber/  restored_subscriber/  deletion_requested_account_subscriber/
     log_subscriber/
   migrations/
 ```
 
-- **The caller is the account in the click token.** Every call of `PlayerService` but `GetRoster`, `GetPlayer` and `ListenForEvents` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, on the key `auth` hands over the internal listener, as `planet` does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
+- **The caller is the account in the click token.** Every call of `PlayerService` but `GetRoster`, `GetPlayer` and `ListenForEvents` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, with the process's one verifier (`props.Sessions`), on the key `auth` hands over the internal listener, as every module does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
 - **`GetProfile`** answers the account id and its name, empty when none was chosen, when the name may change again, and its color. The caller's own stats, titles and fronts are progression's `GetStats`, `GetTitles` and `GetFronts`.
 - **`SetName` chooses a username.** `players.NameOf` is the rule. It puts the name in **NFC** and cuts the spaces (U+0020) at its ends — the same text, as it shows — and changes nothing else. Then:
   - **3 to 15 characters, counted in code points after NFC**, as postgres' `char_length` counts, so both agree. A letter with a combining mark NFC cannot compose counts two.
@@ -160,7 +161,7 @@ internal/player/internal/
 
   **Two steps, and the write names the account.** A name is a handle: a rename frees it, and another account can take it between the moment you read it and the moment you write. So read the id, check it is the player you mean, and act on the id. An account with no username has no profile row, so it cannot be one: pick the name first.
 - **`GetPlayer(account_id)` is what anybody may know about who a player with a username is**: the name it holds now, its color, `admin`, and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). How far it went (its stats as of today, its titles, the countries it plays for and against) is progression's `GetProgress`, which the page asks beside it ([The public card](progression.md#the-public-card)); fields 2 and 6 to 9 are reserved. It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **The account id is the only thing that names a player**: a chat message, a roster line and a standing each carry it, so a card opened from one is the card of that account, whatever it is called now. A name cannot do that: a rename frees it, and the next account to take it would get the first one's card. **It never answers the account id**: the caller holds it. An id that is not an account, an empty one included, is `InvalidArgument` (`players.AccountIDOf`). **A guest is its name alone**: `guest_` and its code, and `guest`, with every other field unset, and nothing asked of auth. It shows no streak and wears no title anywhere else, and the card is what a username gives; the globe names who holds a tile with it (planet's `GetTileHolder`). An account the game never named is `NotFound` (`player_query.ErrNoPlayer`): one that never existed, a deleted one, or one never shown, which has no guest code. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
-- **`auth.v1.AccountDeleted` deletes the profile and the guest code** (`player-accounts`, `forget_account_usecase`), and tells `player.v1.PlayerForgotten` (below).
+- **`auth.v1.AccountDeleted` deletes the profile and the guest code** (`player-profiles-accounts`, `forget_account_usecase`), and tells `player.v1.PlayerForgotten` (below). The group was `player-accounts` until 2026-11-04: see [The deploy that moved the others to player's events](#the-deploy-that-moved-the-others-to-players-events).
 - **Errors are real errors.** Every `Store` method returns one; absence is `ErrNoProfile`, which the use cases answer as an empty profile. On a request a database error is the error net's `internal`. On an event it is counted in `events_failed_total`, logged by `log_subscriber`, and the event tried again, then buried in `events:dead`. Each event's write has a 5s timeout (`subscribers.Timeout`), so a stuck database cannot hold a subscriber.
 - **`players.StoreContractSuite`** is the port's behaviour, run on `inmemory_player_store` and on postgres. The use cases are tested over the in-memory one, which can `FailWith` an error.
 - **The pool closes after the subscribers stop** (`cppg.CloseAfter`), so what they read before the shutdown is still written.
@@ -169,12 +170,26 @@ internal/player/internal/
 ## What player tells the others
 
 **Player is the other modules' one source on an account**, so they need not hear auth: auth is player's detail. Each
-event goes through player's outbox (relay `player-outbox`; `outbox_event` gained the three below in migration
-`20261104190000_departure_events`), in the transaction of what it tells, since a lost one would leave a module
+event goes through player's outbox (relay `player-outbox`; `outbox_event` gained `PlayerLeaving`, `PlayerReturned` and
+`PlayerForgotten` in migration `20261104190000_departure_events`, `PlayerSignedIn` in
+`20261104220000_signed_in_event`), in the transaction of what it tells, since a lost one would leave a module
 disagreeing with player for good (see [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox)).
-Progression hears all four; the other modules still hear auth's events, and moving them to these is a later step.
+**Who hears them**: `PlayerCreated`, planet (the sign-in refill) and progression (a nameplate); `PlayerSignedIn`,
+missions (what a guest finished that day is paid); `PlayerLeaving` and `PlayerReturned`, progression;
+`PlayerForgotten`, every module that keeps something of an account: progression, planet, chat, scoring, support,
+missions, alerts and clips. `GetAccounts` is asked by progression and missions. Since 2026-11-04 no game module but
+alerts hears or asks auth, which needs it for a Discord join's token (see [Discord pings](alerts.md)):
+`TestOnlyPlayerAndAlertsSpeakAuthsLanguage` pins it.
 
 - **`player.v1.PlayerCreated{account_id}`**: an account became a player (above).
+- **`player.v1.PlayerSignedIn{account_id}`**: a player signed in to the account, which is signed in now.
+  `tell_sign_in_usecase` records it on **every** `auth.v1.SignedIn` (`player-sign-ins`, `signed_in_told_subscriber`):
+  a first link, a sign-in to an account linked long ago, a switch from the browser's guest to another account, a new
+  account. It is not `PlayerCreated`, which is told once per profile, never for an account that held one already, and
+  not when no name could be drawn (`ErrNoFreeName`); its own group, so a name drawn or not changes nothing to it.
+  Missions pays then what the account finished as a guest (see [Missions](missions.md)).
+  `TestEverySignInIsToldToTheOtherModules` pins it; migration `20261104220000_signed_in_event` gives it its place in
+  `outbox_event`, and `TestEveryEventPlayerTellsHasAPlaceInItsOutbox` pins every event's.
 - **`player.v1.PlayerLeaving{account_id, decided_at}`** and **`PlayerReturned{account_id, decided_at}`**: its player
   asked to delete it, or a sign-in brought it back (see [An account asked deleted](#an-account-asked-deleted)).
   `decide_departure_usecase` records one **for every decision, applied or not**, in the transaction of the departure:
@@ -182,8 +197,9 @@ Progression hears all four; the other modules still hear auth's events, and movi
   do so. `TestEachDecisionIsToldToTheOtherModules` pins it.
 - **`player.v1.PlayerForgotten{account_id}`**: player forgot the account, its name and its guest code, and what
   another module keeps of it goes too. `forget_account_usecase` records it on `auth.v1.AccountDeleted`
-  (`player-accounts`), in the transaction that deletes the profile and the guest code, **for every account deleted,
-  even one player kept nothing about**: progression may keep its stats (a guest that took tiles). The roster and the
+  (`player-profiles-accounts`), in the transaction that deletes the profile and the guest code, **for every account deleted,
+  even one player kept nothing about**: a guest that took tiles, chatted or did a mission has no profile, and the
+  modules that hear it keep its takes, its stats and its seen mark. The roster and the
   departure forget the account on their own groups (`player-presence-accounts`, `player-departures-accounts`).
   `TestAnAccountPlayerNeverKnewIsToldForgottenToo` pins it.
 - **`InternalService/GetAccounts(account_ids)`** is the read beside them: what auth says of a page of accounts, as
@@ -191,7 +207,8 @@ Progression hears all four; the other modules still hear auth's events, and movi
   `rpc_account_reader`): each one's `account_id`, `linked` and `created_at_unix_ms`, in the order asked, once each.
   An account auth does not answer is left out, and the caller reads it as a guest with no date. An id that is not an
   account is `InvalidArgument`, and reads nothing; a failure to ask auth is the error net's `internal`.
-  `NO_SIDE_EFFECTS`. Progression asks it on each title award and once per page of a reconciliation.
+  `NO_SIDE_EFFECTS`. Progression asks it on each title award and once per page of a reconciliation, missions whether
+  an account is signed in before it pays.
 
 ## An account asked deleted
 
@@ -220,3 +237,45 @@ decision (`PlayerLeaving`, `PlayerReturned`), so progression hides the account's
   so it would only age out.
 - **`auth.v1.AccountDeleted` forgets the departure** (`player-departures-accounts`, `forget_departure_usecase`), with the
   rest of the account.
+
+## The deploy that moved the others to player's events
+
+**On 2026-11-04 the modules that heard `auth.v1.AccountDeleted` to forget an account moved to `PlayerForgotten`, and
+missions' sign-in to `PlayerSignedIn`**, each on a new group. A new group reads its stream from its start, but the
+start is only what is left of it: every subscription trims its stream to the oldest entry one of the stream's groups
+has not handled (see [Telling other modules what
+happened](composite-layer.md#telling-other-modules-what-happened)). So a `PlayerForgotten` progression's six groups had
+handled before the deploy may be gone. An `AccountDeleted` that a module's old group had not handled when the old
+server stopped (read at the last moment, or failing and tried again) while player had already told it forgotten would
+then never reach that module.
+
+**So player read auth's two streams again, from what is left of them, under new groups.** Its forget moved from
+`player-accounts` to `player-profiles-accounts`, and the sign-ins it tells are a new group, `player-sign-ins`. The old
+groups nobody subscribes with any more stay in Redis and hold their stream's trim back to the oldest entry each had not
+handled, so **every deletion and every sign-in a module had not handled is still in auth's streams at the boot**.
+Player tells each one again, from its outbox, after the module's new group exists: every group is made while the
+modules are built, before any runner reads or trims. A forget deletes what is left, which is nothing the second time,
+and missions pays only what is due, so the ones told twice change nothing. The cost is the entries still in the two
+streams told once more: the last few, and whatever an old group had left.
+
+**By hand, once the release is out and the new groups caught up** (`events_lag` 0 for `player-profiles-accounts` and
+`player-sign-ins`), not before, since the old groups are what keep those entries:
+
+```bash
+XGROUP DESTROY events:auth.v1.AccountDeleted player-accounts
+XGROUP DESTROY events:auth.v1.AccountDeleted planet-ledger-accounts
+XGROUP DESTROY events:auth.v1.AccountDeleted chat-seen
+XGROUP DESTROY events:auth.v1.AccountDeleted seasons-standings-accounts
+XGROUP DESTROY events:auth.v1.AccountDeleted seasons-rounds-accounts
+XGROUP DESTROY events:auth.v1.AccountDeleted support-notes-accounts
+XGROUP DESTROY events:auth.v1.AccountDeleted support-reports-accounts
+XGROUP DESTROY events:auth.v1.AccountDeleted missions-accounts
+XGROUP DESTROY events:auth.v1.AccountDeleted alerts-accounts
+XGROUP DESTROY events:auth.v1.AccountDeleted clips-casts-accounts
+XGROUP DESTROY events:auth.v1.AccountDeleted clips-appearances-accounts
+XGROUP DESTROY events:auth.v1.AccountDeleted clips-optouts-accounts
+XGROUP DESTROY events:auth.v1.SignedIn missions-sign-ins
+```
+
+`alerts-accounts` exists only where alerts was ever on. Until they go, each holds its stream back, bounded by
+`redis.maxLen`.

@@ -8,9 +8,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1/missionsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/postgres_day_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/usecases/keep_day_usecase"
@@ -24,9 +24,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/payroll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/postgres_mission_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/redis_outbox_sender"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_auth_accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_planet_allegiance"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_planet_world"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_player_accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/get_missions_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/listen_for_events_usecase"
@@ -35,7 +35,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_missions_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/listen_for_events_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bonus_claimed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/day_started_subscriber"
@@ -43,16 +42,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/missions_paid_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/player_forgotten_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/player_signed_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/quiz_answered_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/shield_placed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/shield_struck_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/sign_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -73,10 +72,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the missions module asks planet about the map and auth about accounts: %w", err)
+		return fmt.Errorf("the missions module asks planet about the map and player about accounts: %w", err)
 	}
 	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
-	auth := authv1connect.NewInternalServiceClient(internal, baseURL)
+	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
 
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
@@ -101,7 +100,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	store := postgres_mission_store.New(db)
 	world, allegiances, outbox := rpc_planet_world.New(planet), rpc_planet_allegiance.New(planet), cpoutbox.New(db)
 	briefing := missions.NewBriefing(store, world, allegiances)
-	pay := payroll.New(store, rpc_auth_accounts.New(auth), outbox)
+	pay := payroll.New(store, rpc_player_accounts.New(player), outbox)
 	flagDays := postgres_flag_day_store.New(db)
 	flags := flagmissions.NewBriefing(flagDays, calendar, world, allegiances)
 
@@ -130,17 +129,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.ShieldStruck: %w", err)
 	}
-	deletions, err := cpredis.Subscribe(ctx, streams, "missions-accounts",
-		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(store)), props.Logger))
+	deletions, err := cpredis.Subscribe(ctx, streams, "missions-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_account_usecase.New(store)), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+		return fmt.Errorf("failed to subscribe to player.v1.PlayerForgotten: %w", err)
 	}
-	signIns, err := cpredis.Subscribe(ctx, streams, "missions-sign-ins",
-		log_subscriber.New(sign_in_subscriber.New(pay_signed_in_usecase.New(calendar, clock, db, pay)), props.Logger))
+	signIns, err := cpredis.Subscribe(ctx, streams, "missions-signed-in",
+		log_subscriber.New(player_signed_in_subscriber.New(pay_signed_in_usecase.New(calendar, clock, db, pay)), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to auth.v1.SignedIn: %w", err)
+		return fmt.Errorf("failed to subscribe to player.v1.PlayerSignedIn: %w", err)
 	}
 	payments := inprocess_payment_feed.New()
 	paid, err := cpredis.Subscribe(ctx, streams, "missions-streams",
@@ -160,11 +159,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			listen_for_events_usecase.New(payments, getMissions, props.Server.StreamHeartbeat),
 		),
 	}
-	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return missionsv1connect.NewMissionServiceHandler(service, options...)
-	}, missionsv1controller.NewSessionInterceptor(verifier, clock, props.Metrics),
-		missionsv1controller.NewStreamSessionReader(verifier, clock)); err != nil {
+	}, missionsv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),
+		missionsv1controller.NewStreamSessionReader(props.Sessions, clock)); err != nil {
 		return fmt.Errorf("failed to mount missions.v1.MissionService: %w", err)
 	}
 

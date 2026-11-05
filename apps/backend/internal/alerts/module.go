@@ -41,17 +41,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles/postgres_role_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles/tidy_roles_runner"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/allegiance_pledged_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/battle_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/discord_join_granted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/season_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -126,7 +125,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 				announce), props.Logger))
 		},
 		func() (cpbootstrap.Runner, error) {
-			return cpredis.Subscribe(ctx, streams, "alerts-accounts", log_subscriber.New(account_deleted_subscriber.New(
+			return cpredis.Subscribe(ctx, streams, "alerts-forgotten", log_subscriber.New(player_forgotten_subscriber.New(
 				forget_link_usecase.New(linkStore)), props.Logger))
 		},
 		func() (cpbootstrap.Runner, error) {
@@ -151,11 +150,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	service := alertsv1controller.AlertsService{
 		GetDiscordLinkHandler: get_discord_link_handler.New(link_query.NewPostgresQuery(db), config.Discord.serverURL()),
 	}
-	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return alertsv1connect.NewAlertsServiceHandler(service, options...)
 	},
-		alertsv1controller.NewSessionInterceptor(verifier, clock, props.Metrics),
+		alertsv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),
 	); err != nil {
 		return fmt.Errorf("failed to mount alerts.v1.AlertsService: %w", err)
 	}

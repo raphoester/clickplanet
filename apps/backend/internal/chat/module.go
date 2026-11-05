@@ -70,7 +70,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/postgres_seen_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/usecases/forget_seen_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/usecases/mark_seen_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_muted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/allegiance_pledged_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/battle_ended_subscriber"
@@ -78,6 +77,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/day_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/season_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
@@ -85,7 +85,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -167,11 +166,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to planet.v1.Fortified: %w", err)
 	}
 
-	deletions, err := cpredis.Subscribe(ctx, streams, "chat-seen",
-		log_subscriber.New(account_deleted_subscriber.New(forget_seen_usecase.New(seenStore)), props.Logger))
+	deletions, err := cpredis.Subscribe(ctx, streams, "chat-seen-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_seen_usecase.New(seenStore)), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+		return fmt.Errorf("failed to subscribe to player.v1.PlayerForgotten: %w", err)
 	}
 
 	mutings, err := cpredis.Subscribe(ctx, streams, "chat-announcements-mutes",
@@ -241,8 +240,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		MarkSeenHandler: mark_seen_handler.New(mark_seen_usecase.New(seenStore, rooms, cptime.SystemClock{})),
 	}
 
-	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "chat")))
-
 	err = props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return chatv1connect.NewChatServiceHandler(chatService, options...)
 	},
@@ -250,7 +247,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		chatv1controller.NewRateLimitInterceptor(messageLimiter),
 		chatv1controller.NewReactionRateLimitInterceptor(reactionLimiter),
 		chatv1controller.NewSeenRateLimitInterceptor(seenLimiter),
-		chatv1controller.NewSessionInterceptor(verifier, cptime.SystemClock{}),
+		chatv1controller.NewSessionInterceptor(props.Sessions, cptime.SystemClock{}),
 	)
 	if err != nil {
 		return err

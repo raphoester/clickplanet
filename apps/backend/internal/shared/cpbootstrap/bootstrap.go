@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpprom"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsecrets"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 )
 
 type Module struct {
@@ -43,6 +44,9 @@ type Props struct {
 
 	InternalRPC RPCRegistrar
 	Internal    InternalDialer
+
+	// The click token's check, one for the whole process: it asks auth for the verifying key once, on the first token.
+	Sessions cpconnect.SessionVerifier
 }
 
 type InternalDialer interface {
@@ -286,6 +290,9 @@ func buildModules(
 	ctx, cancel := context.WithTimeout(ctx, options.Server.StartupTimeout)
 	defer cancel()
 
+	internal := internalDialer{address: options.Server.InternalBindAddress}
+	sessions := cpsessionverifier.New(internal, options.Logger)
+
 	for _, module := range options.Modules {
 		if !module.Enabled {
 			options.Logger.Info("module disabled", slog.String("module", module.Name))
@@ -301,7 +308,8 @@ func buildModules(
 			RPC:         registrars.routes.forModule(module.Name),
 			AdminRPC:    registrars.admin.forModule(module.Name),
 			InternalRPC: registrars.internal.forModule(module.Name),
-			Internal:    internalDialer{address: options.Server.InternalBindAddress},
+			Internal:    internal,
+			Sessions:    sessions,
 			Runners:     runners,
 			Closers:     closers,
 		})

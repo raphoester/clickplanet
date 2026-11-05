@@ -40,9 +40,12 @@ the [Clip stats](clip-stats.md): **the cast of each run, who each post names, an
   so the game never tells a clip before it plays. **A link is the video's address once a snapshot of the stats read
   it** (the newest `snapshot_rows.document->>'url'` of that post and platform, `snapshot_rows_post`), else empty: the
   daily snapshot is the one read of Zernio that has it, and the game links to the channel until then.
-- **A deleted account is forgotten** (`auth.v1.AccountDeleted`, so the module subscribes to Redis): its appearances
-  and its opt-out are deleted (`clips-appearances-accounts`, `clips-optouts-accounts`), and in a cast its number stays and names no one (`clips-casts-accounts`,
-  `account` and `name` set to NULL), so a post of that run keeps the others.
+- **A deleted account is forgotten** (`player.v1.PlayerForgotten`, which player tells for every account auth deletes,
+  so the module subscribes to Redis): its appearances and its opt-out are deleted (`clips-appearances-forgotten`,
+  `clips-optouts-forgotten`), and in a cast its number stays and names no one (`clips-casts-forgotten`, `account` and
+  `name` set to NULL), so a post of that run keeps the others. Until 2026-11-04 the three heard `auth.v1.AccountDeleted`
+  (`clips-casts-accounts`, `clips-appearances-accounts`, `clips-optouts-accounts`); why the new groups miss no deletion
+  is in [Player](player.md#the-deploy-that-moved-the-others-to-players-events).
 - **What it does not undo**: a player who turns the clips off after a run's cast is still named by that run's clips,
   posted within the next 3 hours, and a posted clip stays on TikTok and YouTube.
 - **Tests**: the domain and the use cases on in-memory stores (`casts.MemoryStore`, `appearances.MemoryStore`,

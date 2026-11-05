@@ -1,9 +1,9 @@
-package account_deleted_subscriber
+package player_forgotten_subscriber
 
 import (
 	"context"
 
-	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/casts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -21,9 +21,9 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpredis.Handler[*authv1.AccountDeleted] = Subscriber{}
+var _ cpredis.Handler[*playerv1.PlayerForgotten] = Subscriber{}
 
-func (s Subscriber) Handle(ctx context.Context, event *authv1.AccountDeleted) error {
+func (s Subscriber) Handle(ctx context.Context, event *playerv1.PlayerForgotten) error {
 	account, err := casts.AccountIDOf(event.GetAccountId())
 	if err != nil {
 		return err //nolint:wrapcheck // the id is the whole event: the sentinel already says what is wrong.

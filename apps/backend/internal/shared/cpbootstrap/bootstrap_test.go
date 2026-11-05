@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 )
 
 func TestAModuleThatFailsToBuildNamesItselfInTheError(t *testing.T) {
@@ -143,6 +144,26 @@ func TestARunnerIsCancelledOnShutdown(t *testing.T) {
 	default:
 		t.Fatal("the runner was never cancelled")
 	}
+}
+
+func TestEveryModuleIsHandedTheOneSessionVerifier(t *testing.T) {
+	var handed []cpconnect.SessionVerifier
+	keep := func(props cpbootstrap.Props) error {
+		handed = append(handed, props.Sessions)
+		return nil
+	}
+	built := errors.New("every module built")
+
+	err := run(t, []cpbootstrap.Module{
+		newModule("planet", keep),
+		newModule("chat", keep),
+		newModule("last", func(cpbootstrap.Props) error { return built }),
+	})
+
+	require.ErrorIs(t, err, built)
+	require.Len(t, handed, 2)
+	require.NotNil(t, handed[0])
+	assert.Same(t, handed[0], handed[1], "one verifier, so the process asks auth for the key once")
 }
 
 func TestAProcessWithNoModuleIsRefused(t *testing.T) {

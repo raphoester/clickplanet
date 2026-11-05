@@ -1,4 +1,4 @@
-package account_deleted_subscriber_test
+package player_forgotten_subscriber_test
 
 import (
 	"log/slog"
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
@@ -17,7 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/anonymize_takes_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/account_deleted_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -43,8 +43,8 @@ func TestADeletedAccountIsTakenOffEveryTakeItMade(t *testing.T) {
 	require.NoError(t, takings.Flush(ctx))
 	takings.Append(ledger.Taking{Tile: 3, Scope: "1.2.3.4", Account: gone, Country: "de", Previous: "fr", At: at.Add(2 * time.Hour)})
 
-	err := account_deleted_subscriber.New(anonymize_takes_usecase.New(takings, store, tiles())).
-		Handle(ctx, &authv1.AccountDeleted{AccountId: gone})
+	err := player_forgotten_subscriber.New(anonymize_takes_usecase.New(takings, store, tiles())).
+		Handle(ctx, &playerv1.PlayerForgotten{AccountId: gone})
 	require.NoError(t, err)
 
 	var all, named, held int
@@ -60,8 +60,8 @@ func TestAnEventWithNoAccountIsRefused(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, persistence, slog.New(slog.DiscardHandler))
 
-	err := account_deleted_subscriber.New(anonymize_takes_usecase.New(takings, persistence, tiles())).
-		Handle(t.Context(), &authv1.AccountDeleted{})
+	err := player_forgotten_subscriber.New(anonymize_takes_usecase.New(takings, persistence, tiles())).
+		Handle(t.Context(), &playerv1.PlayerForgotten{})
 
 	assert.ErrorIs(t, err, ledger.ErrInvalidAccount)
 }

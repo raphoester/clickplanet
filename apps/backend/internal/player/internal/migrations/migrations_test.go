@@ -1,6 +1,7 @@
 package migrations_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -8,8 +9,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -85,4 +89,21 @@ func TestTheBattleTopsAlreadyGivenAreRenamedAndKeepTheirHolders(t *testing.T) {
 	var worn string
 	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT title FROM worn_titles`).Scan(&worn))
 	assert.Equal(t, "season_0_battle_top_1", worn)
+}
+
+func TestEveryEventPlayerTellsHasAPlaceInItsOutbox(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "player", migrations.FS)
+	account := "00000000-0000-0000-0000-000000000001"
+
+	for _, event := range []proto.Message{
+		&playerv1.PlayerCreated{AccountId: account},
+		&playerv1.PlayerSignedIn{AccountId: account},
+		&playerv1.PlayerLeaving{AccountId: account},
+		&playerv1.PlayerReturned{AccountId: account},
+		&playerv1.PlayerForgotten{AccountId: account},
+	} {
+		assert.NoError(t, db.InTx(t.Context(), func(ctx context.Context) error {
+			return cpoutbox.New(db).Record(ctx, event)
+		}), "%s", event.ProtoReflect().Descriptor().FullName())
+	}
 }

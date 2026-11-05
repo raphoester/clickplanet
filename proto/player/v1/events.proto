@@ -9,6 +9,12 @@ message PlayerCreated {
   string account_id = 1;
 }
 
+// A player signed in to this account, which is signed in now: told at every sign-in and link, the first or not, and
+// whatever account the browser was on before.
+message PlayerSignedIn {
+  string account_id = 1;
+}
+
 // The account's player asked to delete it: the other players see it as deleted until it returns or is forgotten.
 // PlayerLeaving and PlayerReturned are on two streams, so a receiver keeps the later of them by decided_at.
 message PlayerLeaving {

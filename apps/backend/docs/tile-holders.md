@@ -15,7 +15,7 @@ thousands of index probes, or a scan of the whole ledger, for one card on the 1-
 - **Kept in `planet.tiles.holder`** (NULL for nobody), loaded at boot. Migration `20261026180000_tile_holders`
   filled it once from the ledger: the account of each tile's last change, while that change gave the tile the flag
   it wears.
-- **A deleted account is forgotten**: `anonymize_takes_usecase` calls `ForgetHolder` after it blanks the ledger's
+- **A deleted account is forgotten** (`player.v1.PlayerForgotten`): `anonymize_takes_usecase` calls `ForgetHolder` after it blanks the ledger's
   rows. The tiles keep their flag and shields; the next flush writes NULL.
 - **`ClickService/GetLandmass(landmass_id)`** (`NO_SIDE_EFFECTS`, cached 5s like the map) answers who holds the
   landmass now, `{account_id, country_id, tiles}` per account and flag, most tiles first, and its last fortify,

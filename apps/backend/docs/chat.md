@@ -4,7 +4,7 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 **Always on.** There is no `chat.enabled`: the module is built on every boot, and its database block is required.
 
-**Identity: a username, or a guest code, and always an account.** `SendMessage` reads the click token (`chatv1controller.NewSessionInterceptor`, over `cpconnect.NewSessionReaderInterceptor`, on the key `auth` hands over the internal listener). **A sender with no token, a bad one or a token with no account is refused** with `Unauthenticated` (`messages.ErrNoAccount`) before anything is asked. Every browser that passed Turnstile has an account, a guest one until it signs in, so the web client mints for a post as it does for a click. **The name is the player module's**, asked of `player.v1.InternalService/IntroducePlayer` on every post: the account's username, or `guest_` and the account's guest code (see [Player](player.md)). Nobody types a guest's name, so no guest can pass for a player or for another guest. **A post the player module could not answer for is refused** with `Unavailable` (`messages.ErrAuthorUnavailable`): no answer within a second, or an error. `log_authors`, a decorator around the adapter, logs it at Error. Messages sent before usernames existed got the prefix from migration `20260917200000_guest_prefix_backfill`, and messages sent before guest codes keep the name a guest typed then, until the retention drops them.
+**Identity: a username, or a guest code, and always an account.** `SendMessage` reads the click token (`chatv1controller.NewSessionInterceptor`, over `cpconnect.NewSessionReaderInterceptor`, with the process's one verifier, `props.Sessions`, on the key `auth` hands over the internal listener). **A sender with no token, a bad one or a token with no account is refused** with `Unauthenticated` (`messages.ErrNoAccount`) before anything is asked. Every browser that passed Turnstile has an account, a guest one until it signs in, so the web client mints for a post as it does for a click. **The name is the player module's**, asked of `player.v1.InternalService/IntroducePlayer` on every post: the account's username, or `guest_` and the account's guest code (see [Player](player.md)). Nobody types a guest's name, so no guest can pass for a player or for another guest. **A post the player module could not answer for is refused** with `Unavailable` (`messages.ErrAuthorUnavailable`): no answer within a second, or an error. `log_authors`, a decorator around the adapter, logs it at Error. Messages sent before usernames existed got the prefix from migration `20260917200000_guest_prefix_backfill`, and messages sent before guest codes keep the name a guest typed then, until the retention drops them.
 
 **A message is kept as an account, not as a copy of a name.** `chat.messages.account_id` is who sent it; the name, the crown and the color are read from the player module when the message is *shown*, never stored beside it. That is what makes a rename show on everything its player ever said, and a deleted account stop being named at all — a frozen copy could do neither, and the copy outliving the account it named was a small privacy hole of its own.
 
@@ -272,8 +272,11 @@ while it was away: the badge counts it, and the lines light up as the chat opens
   hour, so a player back the next day holds none at load: exactly the visit the mark is for. The identity token
   the cookie resumes names it with no Turnstile check. A seen mark is a write, but only of the caller's own state,
   so it needs no proof of a check.
-- **Forgotten with the account**: `account_deleted_subscriber` hears `auth.v1.AccountDeleted` and deletes the row.
-  There is no prune: a row lives as long as its account, and auth's guest prune deletes the guests.
+- **Forgotten with the account**: `player_forgotten_subscriber` hears `player.v1.PlayerForgotten` (`chat-seen-forgotten`),
+  which player tells for every account auth deletes, and deletes the row. There is no prune: a row lives as long as its
+  account, and auth's guest prune deletes the guests. Until 2026-11-04 it heard `auth.v1.AccountDeleted`
+  (`chat-seen`); why the new group misses no deletion is in
+  [Player](player.md#the-deploy-that-moved-the-others-to-players-events).
 - `TestAnIdentityTokenNamesTheReaderAndTheSeenMarkOnly` pins the identity path, the history query's
   `TestTheSeenMarkOnlyMovesForward` the mark, and `TestADeletedSeenMarkIsGoneAndOnlyThatOne` the deletion.
 

@@ -142,16 +142,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/play_rules_usecase/log_play_rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase/audit_save_rule_set"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_created_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -272,12 +271,12 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to subscribe the charges to player.v1.PlayerCreated: %w", err)
 			}
 
-			deletions, err := cpredis.Subscribe(ctx, streams, "planet-ledger-accounts",
-				log_subscriber.New(account_deleted_subscriber.New(
+			deletions, err := cpredis.Subscribe(ctx, streams, "planet-ledger-forgotten",
+				log_subscriber.New(player_forgotten_subscriber.New(
 					anonymize_takes_usecase.New(takings, ledgerStore, tilesStorage)), props.Logger))
 			if err != nil {
 				closeStores()
-				return fmt.Errorf("failed to subscribe the ledger to auth.v1.AccountDeleted: %w", err)
+				return fmt.Errorf("failed to subscribe the ledger to player.v1.PlayerForgotten: %w", err)
 			}
 
 			relay := relay_ledger_usecase.NewRunner(ledgerRelayInterval, log_relay_ledger.New(
@@ -410,10 +409,9 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			if config.Auth.Enabled {
-				verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "planet")))
 				interceptors = append(interceptors,
-					planetv1controller.NewSessionInterceptor(verifier, clock, config.Auth.Enforce, props.Metrics),
-					planetv1controller.NewSessionReaderInterceptor(verifier, clock))
+					planetv1controller.NewSessionInterceptor(props.Sessions, clock, config.Auth.Enforce, props.Metrics),
+					planetv1controller.NewSessionReaderInterceptor(props.Sessions, clock))
 			}
 
 			claimBonus, counters := prom_claim_bonus.New(

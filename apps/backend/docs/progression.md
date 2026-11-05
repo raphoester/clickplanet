@@ -93,7 +93,8 @@ package (it calls it, hears its events or sends it commands), `TestTheModulesDep
 **Progression knows player, never auth: auth is player's detail.** It hears an account's sign-in, its deletion asked,
 its return and its end in player's words (`PlayerCreated`, `PlayerLeaving`, `PlayerReturned`, `PlayerForgotten`), and
 asks player, not auth, whether an account is linked and when it was made (`player.v1.InternalService/GetAccounts`). The
-one exception, as for every module, is the session token: `cpsessionverifier` takes auth's verifying key.
+session token is the platform's: `cpbootstrap` hands every module one verifier (`props.Sessions`), which takes auth's
+key, so progression's code never names auth.
 
 ## The wire
 
