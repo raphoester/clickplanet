@@ -140,12 +140,6 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to mount antibot.v1.InternalService: %w", err)
 			}
 
-			for _, alias := range antibotv1controller.PlanetAliases(admin) {
-				if err := props.AdminRPC.Mount(alias); err != nil {
-					return fmt.Errorf("failed to mount a planet.v1 path on antibot.v1: %w", err)
-				}
-			}
-
 			return nil
 		},
 	}
