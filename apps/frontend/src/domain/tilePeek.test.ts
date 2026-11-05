@@ -74,7 +74,7 @@ describe("TilePeek", () => {
 })
 
 describe("holderShown", () => {
-    const peek = {tile: 7, countryCode: "fr", point: at(100), touch: false}
+    const peek = {tile: 7, countryCode: "fr", ground: "fr", shields: 0, point: at(100), touch: false}
     const holder = {accountId: "account-ana", countryCode: "fr", takenAt: 0}
 
     it("is the holder of a tile that still wears its flag", () => {

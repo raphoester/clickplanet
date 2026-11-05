@@ -1,6 +1,7 @@
 import {DayMissions, FlagMissionOrder, MissionOrder} from "../backends/missions.ts"
 import {dot, Point, pointOf} from "./clip/geometry.ts"
 import {FrontChanges} from "./front.ts"
+import {Territory} from "./territory.ts"
 
 export type MissionTarget = {
     ground?: string
@@ -28,12 +29,39 @@ export function targetOf(order: MissionOrder | FlagMissionOrder): MissionTarget 
     }
 }
 
-export function openTargetsOf(day: DayMissions): MissionTarget[] {
-    const orders = [
-        ...day.missions.filter((mission) => !mission.done).map((mission) => mission.order),
-        ...(day.flagMission && !day.flagMission.done ? [day.flagMission.order] : []),
+export type OpenMission = {
+    id: string
+    order: MissionOrder | FlagMissionOrder
+    flag: boolean
+}
+
+function openOf(day: DayMissions): OpenMission[] {
+    return [
+        ...day.missions.filter((mission) => !mission.done).map(({id, order}) => ({id, order, flag: false})),
+        ...(day.flagMission && !day.flagMission.done ? [{id: day.flagMission.id, order: day.flagMission.order, flag: true}] : []),
     ]
-    return orders.map(targetOf).filter((target) => target !== undefined)
+}
+
+export function openTargetsOf(day: DayMissions): MissionTarget[] {
+    return openOf(day).map(({order}) => targetOf(order)).filter((target) => target !== undefined)
+}
+
+function aimedBy(day: DayMissions, aims: (target: MissionTarget) => boolean): OpenMission[] {
+    return openOf(day).filter(({order}) => {
+        const target = targetOf(order)
+        return target !== undefined && aims(target)
+    })
+}
+
+// What the map draws on it: its ring, or the outline of its ground.
+export function missionsOnTile(day: DayMissions, tile: TileFacts): OpenMission[] {
+    return aimedBy(day, (target) => target.ground !== undefined && tile.ground === target.ground || counts(target, tile))
+}
+
+export function missionsOnTerritory(day: DayMissions, territory: Pick<Territory, "ground" | "holdings">): OpenMission[] {
+    return aimedBy(day, (target) => target.ground !== undefined
+        ? territory.ground === target.ground
+        : territory.holdings.some(({flag}) => flag === target.flag))
 }
 
 export function groundsOf(targets: readonly MissionTarget[]): Set<string> {
@@ -46,14 +74,24 @@ export type MissionGround = {
     groundOf(tile: number): string | undefined
 }
 
-function counts(target: MissionTarget, tile: number, ground: MissionGround): boolean {
-    if (target.flag === undefined || ground.ownerOf(tile) !== target.flag) return false
-    if (target.ground !== undefined && ground.groundOf(tile) !== target.ground) return false
-    return !target.shielded || ground.shieldsOf(tile) > 0
+export type TileFacts = {
+    owner: string | undefined
+    ground: string | undefined
+    shields: number
+}
+
+function factsOf(tile: number, ground: MissionGround): TileFacts {
+    return {owner: ground.ownerOf(tile), ground: ground.groundOf(tile), shields: ground.shieldsOf(tile)}
+}
+
+function counts(target: MissionTarget, tile: TileFacts): boolean {
+    if (target.flag === undefined || tile.owner !== target.flag) return false
+    if (target.ground !== undefined && tile.ground !== target.ground) return false
+    return !target.shielded || tile.shields > 0
 }
 
 function playable(target: MissionTarget, tile: number, ground: MissionGround, own: string): boolean {
-    if (target.flag !== undefined) return counts(target, tile, ground)
+    if (target.flag !== undefined) return counts(target, factsOf(tile, ground))
     return ground.groundOf(tile) === target.ground && ground.ownerOf(tile) !== own
 }
 
@@ -110,6 +148,7 @@ export class MissionMarks {
     }
 
     private counts(tile: number): boolean {
-        return this.targets.some((target) => counts(target, tile, this.ground))
+        const facts = factsOf(tile, this.ground)
+        return this.targets.some((target) => counts(target, facts))
     }
 }

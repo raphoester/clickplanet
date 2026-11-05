@@ -1,5 +1,7 @@
+import {DayMissions} from "../../backends/missions.ts"
 import {PlayerLine} from "../../backends/player.ts"
 import {Countries} from "../../domain/countries.ts"
+import {missionsOnTerritory} from "../../domain/missionTargets.ts"
 import {freeTilesOf, sharePercent} from "../../domain/territory.ts"
 import {agoOf} from "../../domain/tilePeek.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
@@ -7,6 +9,7 @@ import AdminCrown from "../components/AdminCrown.tsx"
 import BonusIcon from "../components/BonusIcon.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import PointerCard from "../components/PointerCard.tsx"
+import MissionsHere from "../missions/MissionsHere.tsx"
 import RankCoin from "../components/RankCoin.tsx"
 import StreakFlame from "../components/StreakFlame.tsx"
 import {useBadge} from "../badges/badgesStore.ts"
@@ -27,12 +30,13 @@ export type TerritoryCardProps = {
     shown: TerritoryShown
     flag: string
     players?: TerritoryPlayers
+    missions?: DayMissions
     now?: number
     onHold: (held: boolean) => void
     onClose: () => void
 }
 
-export default function TerritoryCard({shown, flag, players, now = Date.now(), onHold, onClose}: TerritoryCardProps) {
+export default function TerritoryCard({shown, flag, players, missions, now = Date.now(), onHold, onClose}: TerritoryCardProps) {
     const {territory, point, touch} = shown
     const {name, ground, size, holdings, fortifiedBy, target} = territory
     const free = freeTilesOf(territory)
@@ -92,6 +96,7 @@ export default function TerritoryCard({shown, flag, players, now = Date.now(), o
                 </li>)}
             </ol>
         </section>}
+        {missions && <MissionsHere missions={missionsOnTerritory(missions, territory)}/>}
         <div className="pointer-card-foot territory-card-fortify">
             <p className="territory-card-fortify-line">
                 <span className="territory-card-shield"><BonusIcon kind="shields"/></span>

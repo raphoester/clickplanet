@@ -68,6 +68,7 @@ system exists to stop.
 | `--secondary` | Every other button |
 | `--gold` | Reward and progress: panel headers, title names, progress fills, first place |
 | `--gain`, `--loss` | Tiles won and lost, nowhere else |
+| `--mission` | A mission's place: the ring that names it in a card, the red of the ring and the outline the globe draws for it |
 | `--streak` | The streak flame |
 | `--war`, `--tape` | A battle: its chip, the warning tape along the dock and the chip, the start moment; the Final Battle to come: its face and tape on the season chip, the home page's panel; a battle to come: its teaser, its cards' dots. Nowhere else |
 | `--refill`, `--spread`, `--bomb`, `--enclose`, `--shield` (and `-light`) | A bonus kind: its box, its slot, its reward line |

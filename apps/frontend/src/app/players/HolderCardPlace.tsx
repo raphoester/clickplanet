@@ -1,6 +1,7 @@
 import {useEffect} from "react"
 import {TileHolder, TileHolders} from "../../backends/backend.ts"
 import {PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
+import {DayMissions} from "../../backends/missions.ts"
 import {CountryTiles} from "../../backends/progression.ts"
 import {holderShown, Peek} from "../../domain/tilePeek.ts"
 import HolderCard from "./HolderCard.tsx"
@@ -12,10 +13,11 @@ export type HolderCardPlaceProps = {
     players?: PlayerInfoBackend
     pointing?: {peek: Peek, id: number}
     accountId?: string
+    missions?: DayMissions
 }
 
 // Asks who holds the tile pointed at, keeps the answer in the store, and shows it.
-export default function HolderCardPlace({holders, players, pointing, accountId}: HolderCardPlaceProps) {
+export default function HolderCardPlace({holders, players, pointing, accountId, missions}: HolderCardPlaceProps) {
     const holder = useTileHolder((card) => card.holder)
     const held = useTileHolder(holderHeld)
     const show = useTileHolder((card) => card.show)
@@ -34,6 +36,7 @@ export default function HolderCardPlace({holders, players, pointing, accountId}:
             show(held && player
                 ? {
                     ...player, mine: held.accountId === accountId,
+                    tile: {owner: peek.countryCode, ground: peek.ground, shields: peek.shields},
                     takenAt: held.takenAt, point: peek.point, touch: peek.touch, id,
                 }
                 : undefined)
@@ -56,6 +59,7 @@ export default function HolderCardPlace({holders, players, pointing, accountId}:
     if (!holder) return null
     return <HolderCard key={`holder-${holder.id}`}
                        holder={holder}
+                       missions={missions}
                        onHold={hold}
                        onClose={dismiss}/>
 }

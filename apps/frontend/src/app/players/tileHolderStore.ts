@@ -1,10 +1,12 @@
 import {create} from "zustand"
 import {PlayerLine} from "../../backends/player.ts"
 import {CountryTiles} from "../../backends/progression.ts"
+import {TileFacts} from "../../domain/missionTargets.ts"
 import {Point} from "../../domain/tilePeek.ts"
 
 export type HolderShown = {
     line: PlayerLine
+    tile: TileFacts
     playsFor: CountryTiles[]
     mine: boolean
     takenAt: number

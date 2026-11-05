@@ -4,7 +4,7 @@ import {HolderShown, holderHeld, useTileHolder} from "./tileHolderStore.ts"
 
 const shown = (id: number): HolderShown => ({
     line: {accountId: "account-ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED},
-    playsFor: [], mine: false, takenAt: 1_000, point: {x: 300, y: 200}, touch: false, id,
+    tile: {owner: "fr", ground: "fr", shields: 0}, playsFor: [], mine: false, takenAt: 1_000, point: {x: 300, y: 200}, touch: false, id,
 })
 
 afterEach(() => useTileHolder.setState({holder: undefined, heldId: undefined}))

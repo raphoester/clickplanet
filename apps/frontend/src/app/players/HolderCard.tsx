@@ -1,8 +1,11 @@
+import {DayMissions} from "../../backends/missions.ts"
 import {Countries} from "../../domain/countries.ts"
+import {missionsOnTile} from "../../domain/missionTargets.ts"
 import {agoOf} from "../../domain/tilePeek.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
+import MissionsHere from "../missions/MissionsHere.tsx"
 import PointerCard from "../components/PointerCard.tsx"
 import Streak from "../badges/Streak.tsx"
 import WornTitle from "../badges/WornTitle.tsx"
@@ -18,12 +21,13 @@ const FLAGS_SHOWN = 3
 
 export type HolderCardProps = {
     holder: HolderShown
+    missions?: DayMissions
     now?: number
     onHold: (held: boolean) => void
     onClose: () => void
 }
 
-export default function HolderCard({holder, now = Date.now(), onHold, onClose}: HolderCardProps) {
+export default function HolderCard({holder, missions, now = Date.now(), onHold, onClose}: HolderCardProps) {
     const {line, playsFor, mine, takenAt, point, touch} = holder
     const country = Countries.get(line.countryCode)?.name ?? line.countryCode
     const name = useWordFilter().masked(line.name)
@@ -62,6 +66,7 @@ export default function HolderCard({holder, now = Date.now(), onHold, onClose}: 
                 </span>}
             </div>
         </div>
+        {missions && <MissionsHere missions={missionsOnTile(missions, holder.tile)}/>}
         <p className="pointer-card-foot holder-card-take">
             <CountryFlag code={line.countryCode}/>
             {mine ? "You took it" : "Took it"} for {country} {agoOf(takenAt, now)}

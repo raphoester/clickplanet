@@ -5,6 +5,8 @@ export type Point = {x: number, y: number}
 export type Peek = {
     tile: number
     countryCode: string
+    ground: string | undefined
+    shields: number
     point: Point
     touch: boolean
 }

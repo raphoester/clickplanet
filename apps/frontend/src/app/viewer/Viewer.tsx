@@ -257,6 +257,7 @@ export default function Viewer(props: ViewerProps) {
     const missionsState = useMissions(props.missions, ownAccountId, allegiance?.countryId, accepted.listenForClicks)
     const guided = props.showFront ?? false
     const missionTargets = useMissionTargets(missionsState, guided)
+    const missionsShown = !guided && missionsState.kind === "ready" ? missionsState.day : undefined
     const progress = useMissionProgress(missionsState, guided)
 
     const {
@@ -571,12 +572,14 @@ export default function Viewer(props: ViewerProps) {
         <HolderCardPlace holders={props.tileHolders}
                          players={props.playerInfo}
                          pointing={pointing}
-                         accountId={ownAccountId}/>
+                         accountId={ownAccountId}
+                         missions={missionsShown}/>
 
         <TerritoryCardPlace shown={territoryCard.shown}
                             flag={countryState.code}
                             reader={props.landmasses}
                             players={props.playerInfo}
+                            missions={missionsShown}
                             onHold={territoryCard.hold}
                             onClose={territoryCard.dismiss}/>
 

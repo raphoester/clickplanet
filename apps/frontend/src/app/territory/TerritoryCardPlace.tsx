@@ -1,5 +1,6 @@
 import {useEffect} from "react"
 import {LandmassFortification, LandmassReader} from "../../backends/backend.ts"
+import {DayMissions} from "../../backends/missions.ts"
 import {PlayerInfoBackend} from "../../backends/player.ts"
 import {deletedLineOf, playerLineOf} from "../players/tileHolder.ts"
 import TerritoryCard from "./TerritoryCard.tsx"
@@ -13,12 +14,13 @@ export type TerritoryCardPlaceProps = {
     flag: string
     reader?: LandmassReader
     players?: PlayerInfoBackend
+    missions?: DayMissions
     onHold: (held: boolean) => void
     onClose: () => void
 }
 
 // The planet says which accounts hold the territory shown and who fortified it; the players' cards say who they are.
-export default function TerritoryCardPlace({shown, flag, reader, players, onHold, onClose}: TerritoryCardPlaceProps) {
+export default function TerritoryCardPlace({shown, flag, reader, players, missions, onHold, onClose}: TerritoryCardPlaceProps) {
     const landmass = shown?.territory.landmass
     const read = useTerritoryPlayers(playersOf(landmass))
     const show = useTerritoryPlayers((territory) => territory.show)
@@ -54,6 +56,7 @@ export default function TerritoryCardPlace({shown, flag, reader, players, onHold
                           shown={shown}
                           flag={flag}
                           players={read}
+                          missions={missions}
                           onHold={onHold}
                           onClose={onClose}/>
 }

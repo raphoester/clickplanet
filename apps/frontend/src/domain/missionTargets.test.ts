@@ -1,6 +1,8 @@
 import {describe, expect, it} from "vitest"
 import {DayMissions, Mission, MissionOrder} from "../backends/missions.ts"
-import {MissionGround, MissionMarks, nearestPlayable, openTargetsOf, targetOf} from "./missionTargets.ts"
+import {
+    MissionGround, MissionMarks, missionsOnTerritory, missionsOnTile, nearestPlayable, openTargetsOf, targetOf,
+} from "./missionTargets.ts"
 
 type Tile = {owner?: string, ground?: string, shields?: number}
 
@@ -111,5 +113,34 @@ describe("nearestPlayable", () => {
     it("finds nothing when no tile counts", () => {
         expect(nearestPlayable({flag: "ie", shielded: false}, "fr", groundOf([{owner: "fr"}]), positions, {x: 1, y: 0, z: 0}))
             .toBeUndefined()
+    })
+})
+
+describe("the missions on a tile and on a territory", () => {
+    const day: DayMissions = {
+        endsAt: 0,
+        missions: [
+            mission({kind: "takeIn", country: "kz", goal: 300, taken: 0}),
+            mission({kind: "takeFromIn", country: "ie", ground: "ru", goal: 40, taken: 0}),
+            mission({kind: "takeFrom", country: "pw", goal: 80, taken: 80}, true),
+        ],
+        flagMission: {id: "flag", order: {kind: "breakShields", country: "ie", goal: 30, reached: 0}, points: 5, done: false},
+    }
+    const ids = (missions: {id: string}[]) => missions.map(({id}) => id)
+
+    it("names a mission whose ground the tile is on, and one whose ring it wears", () => {
+        expect(ids(missionsOnTile(day, {owner: "fr", ground: "kz", shields: 0}))).toEqual(["takeIn"])
+        expect(ids(missionsOnTile(day, {owner: "ie", ground: "ru", shields: 2}))).toEqual(["takeFromIn", "flag"])
+        expect(ids(missionsOnTile(day, {owner: "ie", ground: "fr", shields: 0}))).toEqual([])
+    })
+
+    it("never names a mission done", () => {
+        expect(missionsOnTile(day, {owner: "pw", ground: "pw", shields: 0})).toEqual([])
+    })
+
+    it("names a mission on a territory's ground, or on a rival holding some of it", () => {
+        expect(ids(missionsOnTerritory(day, {ground: "ru", holdings: [{flag: "fr", tiles: 9}]}))).toEqual(["takeFromIn"])
+        expect(ids(missionsOnTerritory(day, {ground: "gb", holdings: [{flag: "ie", tiles: 9}]}))).toEqual(["flag"])
+        expect(missionsOnTerritory(day, {ground: "gb", holdings: [{flag: "fr", tiles: 9}]})).toEqual([])
     })
 })
