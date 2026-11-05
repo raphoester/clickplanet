@@ -5,6 +5,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpscripts"
 )
 
 const defaultMaxTextLength = 280
@@ -56,6 +58,9 @@ func clean(value string, maxLength int) (string, error) {
 		}
 		if unicode.IsControl(r) {
 			continue
+		}
+		if cpscripts.Historic(r) {
+			return "", fmt.Errorf("%q is of a historic script", r)
 		}
 		b.WriteRune(r)
 	}

@@ -11,6 +11,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpscripts"
 )
 
 const (
@@ -59,6 +60,8 @@ func checkRunes(value string) error {
 		// Before the letter case: Hangul fillers are letters, yet invisible.
 		case unicode.In(r, unicode.Other_Default_Ignorable_Code_Point, unicode.Variation_Selector):
 			return fmt.Errorf("%w: %q is invisible", ErrInvalidName, r)
+		case cpscripts.Historic(r):
+			return fmt.Errorf("%w: %q is of a historic script", ErrInvalidName, r)
 		case unicode.IsLetter(r), unicode.Is(unicode.Nd, r), r == '_', r == ' ':
 			marks = 0
 		case unicode.In(r, unicode.Mn, unicode.Mc) && (unicode.IsLetter(previous) || unicode.IsMark(previous)) &&

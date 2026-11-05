@@ -10,7 +10,7 @@ and says what is in it. Read the doc before you change its area.
 
 - [Commands](docs/commands.md) — `make test` (Docker for the postgres and Redis tests), `-race`, `make deadcode`,
   `make lint`, `make tidy`, `make check-format`, `go run ./cmd/api`, `make proto`, the vendoring targets (`quiz`,
-  `map`, `vpn-lists`, `disposable-domains`, `zernio`), `make dBuild`, and `cmd/clips`.
+  `map`, `vpn-lists`, `disposable-domains`, `historic-scripts`, `zernio`), `make dBuild`, and `cmd/clips`.
 - [Configuration](docs/configuration.md) — `cpconfigs` loads YAML and environment with koanf; the full schema.
 - [Testing](docs/testing.md) — testify; which suites need Docker (postgres, S3, Redis); `e2e/` holds smoke tests
   only, rules go in lower tests; the `testing` tag.
