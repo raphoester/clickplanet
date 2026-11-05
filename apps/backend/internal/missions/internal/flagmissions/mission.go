@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
 
 var ErrNoOrder = errors.New("a flag mission has no order")
@@ -13,8 +15,9 @@ type MissionID uuid.UUID
 
 func (id MissionID) String() string { return uuid.UUID(id).String() }
 
-// A tile taken for Flag on Ground: Position in the ledger, Index in its spread or enclose.
+// A tile taken for Flag on Ground: Position in the ledger, Index in its spread or enclose. Account is zero for none.
 type Take struct {
+	Account  missions.AccountID
 	Flag     string
 	Ground   string
 	Position uint64
@@ -23,8 +26,9 @@ type Take struct {
 }
 
 // A shield of Owner that a click, a spread, an enclose or a bomb for Flag broke: Position in the ledger, Index in its
-// event.
+// event. Account is zero for none.
 type Strike struct {
+	Account  missions.AccountID
 	Flag     string
 	Owner    string
 	Position uint64

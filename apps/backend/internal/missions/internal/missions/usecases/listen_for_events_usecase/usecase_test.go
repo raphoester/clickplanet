@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inprocess_payment_feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inprocess_day_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/get_missions_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/listen_for_events_usecase"
 )
@@ -63,18 +63,18 @@ func (s *recordingSink) sent() (int, int) {
 }
 
 func listen(
-	ctx context.Context, feed *inprocess_payment_feed.Feed, days *countingDays, sink *recordingSink, heartbeat time.Duration,
+	ctx context.Context, feed *inprocess_day_feed.Feed, days *countingDays, sink *recordingSink, heartbeat, gap time.Duration,
 ) <-chan error {
 	done := make(chan error, 1)
-	go func() { done <- listen_for_events_usecase.New(feed, days, heartbeat).Execute(ctx, ada, sink) }()
+	go func() { done <- listen_for_events_usecase.New(feed, days, heartbeat, gap).Execute(ctx, ada, sink) }()
 	return done
 }
 
-func TestTheDayIsSentAtOnceThenAgainAtEachPayment(t *testing.T) {
-	feed := inprocess_payment_feed.New()
+func TestTheDayIsSentAtOnceThenAgainAtEachChange(t *testing.T) {
+	feed := inprocess_day_feed.New()
 	days, sink := &countingDays{}, &recordingSink{}
 	ctx, cancel := context.WithCancel(t.Context())
-	done := listen(ctx, feed, days, sink, time.Hour)
+	done := listen(ctx, feed, days, sink, time.Hour, 0)
 
 	require.Eventually(t, func() bool { sent, _ := sink.sent(); return sent == 1 }, time.Second, time.Millisecond)
 	feed.Publish(ada)
@@ -85,11 +85,11 @@ func TestTheDayIsSentAtOnceThenAgainAtEachPayment(t *testing.T) {
 	assert.Equal(t, []missions.AccountID{ada, ada}, days.reads)
 }
 
-func TestAnotherAccountsPaymentSendsNothing(t *testing.T) {
-	feed := inprocess_payment_feed.New()
+func TestAnotherAccountsChangeSendsNothing(t *testing.T) {
+	feed := inprocess_day_feed.New()
 	days, sink := &countingDays{}, &recordingSink{}
 	ctx, cancel := context.WithCancel(t.Context())
-	done := listen(ctx, feed, days, sink, time.Hour)
+	done := listen(ctx, feed, days, sink, time.Hour, 0)
 
 	require.Eventually(t, func() bool { sent, _ := sink.sent(); return sent == 1 }, time.Second, time.Millisecond)
 	feed.Publish(missions.AccountID{15: 2})
@@ -101,11 +101,31 @@ func TestAnotherAccountsPaymentSendsNothing(t *testing.T) {
 	assert.Equal(t, 1, sent)
 }
 
+func TestChangesWithinTheGapAreOneDay(t *testing.T) {
+	feed := inprocess_day_feed.New()
+	days, sink := &countingDays{}, &recordingSink{}
+	ctx, cancel := context.WithCancel(t.Context())
+	done := listen(ctx, feed, days, sink, time.Hour, 100*time.Millisecond)
+
+	require.Eventually(t, func() bool { sent, _ := sink.sent(); return sent == 1 }, time.Second, time.Millisecond)
+	for range 5 {
+		feed.Publish(ada)
+		time.Sleep(10 * time.Millisecond)
+	}
+	require.Eventually(t, func() bool { sent, _ := sink.sent(); return sent == 2 }, time.Second, time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
+	cancel()
+
+	require.NoError(t, <-done)
+	sent, _ := sink.sent()
+	assert.Equal(t, 2, sent, "five takes in 50 ms, then one day once the gap is over")
+}
+
 func TestAQuietStreamGetsHeartbeats(t *testing.T) {
-	feed := inprocess_payment_feed.New()
+	feed := inprocess_day_feed.New()
 	sink := &recordingSink{}
 	ctx, cancel := context.WithCancel(t.Context())
-	done := listen(ctx, feed, &countingDays{}, sink, time.Millisecond)
+	done := listen(ctx, feed, &countingDays{}, sink, time.Millisecond, 0)
 
 	require.Eventually(t, func() bool { _, beats := sink.sent(); return beats >= 2 }, time.Second, time.Millisecond)
 	cancel()
@@ -116,7 +136,7 @@ func TestAQuietStreamGetsHeartbeats(t *testing.T) {
 func TestAFailedReadEndsTheStream(t *testing.T) {
 	failed := errors.New("postgres is gone")
 
-	err := <-listen(t.Context(), inprocess_payment_feed.New(), &countingDays{err: failed}, &recordingSink{}, time.Hour)
+	err := <-listen(t.Context(), inprocess_day_feed.New(), &countingDays{err: failed}, &recordingSink{}, time.Hour, 0)
 
 	require.ErrorIs(t, err, failed)
 }
@@ -124,7 +144,7 @@ func TestAFailedReadEndsTheStream(t *testing.T) {
 func TestASinkFailureEndsTheStream(t *testing.T) {
 	gone := errors.New("the stream is gone")
 
-	err := <-listen(t.Context(), inprocess_payment_feed.New(), &countingDays{}, &recordingSink{err: gone}, time.Hour)
+	err := <-listen(t.Context(), inprocess_day_feed.New(), &countingDays{}, &recordingSink{err: gone}, time.Hour, 0)
 
 	require.ErrorIs(t, err, gone)
 }

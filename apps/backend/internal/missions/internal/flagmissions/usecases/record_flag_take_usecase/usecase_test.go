@@ -40,10 +40,26 @@ var (
 	today = days.TestingDayAt(at)
 )
 
+type recordingStreams struct {
+	woken []missions.AccountID
+}
+
+func (s *recordingStreams) Publish(account missions.AccountID) {
+	s.woken = append(s.woken, account)
+}
+
 func setUp(planet *countingPlanet, told ...days.Day) (*record_flag_take_usecase.UseCase, *inmemory_flag_day_store.Store, *cpatomic.FakeOutbox) {
+	useCase, store, outbox, _ := setUpWatched(planet, told...)
+	return useCase, store, outbox
+}
+
+func setUpWatched(
+	planet *countingPlanet, told ...days.Day,
+) (*record_flag_take_usecase.UseCase, *inmemory_flag_day_store.Store, *cpatomic.FakeOutbox, *recordingStreams) {
 	store, outbox, calendar := inmemory_flag_day_store.New(), &cpatomic.FakeOutbox{}, inmemory_day_store.New(append(told, today)...)
+	streams := &recordingStreams{}
 	return record_flag_take_usecase.New(calendar, flagmissions.NewBriefing(store, calendar, planet, noPledges{}), store,
-		cpatomic.FakeTransactioner{}, outbox), store, outbox
+		cpatomic.FakeTransactioner{}, outbox, streams), store, outbox, streams
 }
 
 func take(position uint64) flagmissions.Take {
@@ -155,4 +171,14 @@ func TestASeasonsFirstDayHasTheLeastGoal(t *testing.T) {
 	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
 	assert.Equal(t, flagmissions.Draw(today, "fr", world, flagmissions.Day{}).Snapshot().Mission, day.Snapshot().Mission)
+}
+
+func TestATakeWakesTheStreamsOfTheAccountThatTookIt(t *testing.T) {
+	useCase, _, _, streams := setUpWatched(&countingPlanet{})
+	ada := missions.AccountID{15: 1}
+
+	require.NoError(t, useCase.Execute(t.Context(), flagmissions.Take{Account: ada, Flag: "fr", Ground: "br", At: at, Position: 1}))
+	require.NoError(t, useCase.Execute(t.Context(), flagmissions.Take{Flag: "fr", Ground: "br", At: today.Snapshot().EndsAt}))
+
+	assert.Equal(t, []missions.AccountID{ada}, streams.woken, "a take when no day runs counts nothing and wakes nothing")
 }

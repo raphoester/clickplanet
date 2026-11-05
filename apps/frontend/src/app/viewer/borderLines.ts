@@ -151,6 +151,14 @@ export const ORBIT_INK = 0.7
 
 const HIGHLIGHT_COLOUR = new THREE.Color(1, 1, 1)
 
+// Must match MISSION in shaders/display/fragment.glsl: one colour for a mission's place.
+const MISSION_COLOUR = new THREE.Color(0.93, 0.16, 0.14)
+export const MISSION_WIDTH = 2
+const MISSION_INK = 0.9
+
+// Must match AIMED_COLUMNS in shaders/borderLine/vertex.glsl.
+const AIMED_COLUMNS = 1024
+
 export function halfWidthOf(pixelRatio: number, width = WIDTH): number {
     return width * pixelRatio / 2 + FEATHER
 }
@@ -159,7 +167,16 @@ export type BorderLines = {
     object: THREE.Object3D
     update(zoom: number, width: number, height: number, pixelRatio: number, view: MapView): void
     setHighlight(landmass: number): void
+    setAimed(landmasses: ReadonlySet<number>): void
     dispose(): void
+}
+
+function aimedTexture(data: BorderLineData): THREE.DataTexture {
+    const landmasses = data.sides.reduce((most, side) => Math.max(most, side), 0) + 1
+    const rows = Math.ceil(landmasses / AIMED_COLUMNS)
+    const texture = new THREE.DataTexture(new Uint8Array(AIMED_COLUMNS * rows), AIMED_COLUMNS, rows, THREE.RedFormat)
+    texture.needsUpdate = true
+    return texture
 }
 
 function outlineGeometry(data: BorderLineData, samples: number, sided: boolean): THREE.InstancedBufferGeometry {
@@ -230,15 +247,48 @@ export function createBorderLines(data: BorderLineData): BorderLines {
     highlight.frustumCulled = false
     highlight.visible = false
 
-    const widthOf = (pass: THREE.Mesh) => pass === highlight ? HIGHLIGHT_WIDTH : pass === over ? ORBIT_WIDTH : WIDTH
+    const fine = geometries[1]
+    const aimedGeometry = new THREE.InstancedBufferGeometry()
+    for (const name of ["corner", "from", "to"]) aimedGeometry.setAttribute(name, fine.getAttribute(name))
+    aimedGeometry.setIndex(fine.getIndex())
+    aimedGeometry.setAttribute("sides", new THREE.InstancedBufferAttribute(pieceSides(data, SAMPLES), 2))
+    aimedGeometry.instanceCount = fine.instanceCount
+    const aimed = aimedTexture(data)
+    const mission = new THREE.Mesh(aimedGeometry, new THREE.ShaderMaterial({
+        defines: {MISSION: true},
+        uniforms: {
+            halfViewport: {value: new THREE.Vector2(1, 1)},
+            halfWidth: {value: halfWidthOf(1, MISSION_WIDTH)},
+            lift: {value: OVER},
+            limb: {value: limbOf(OVER)},
+            colour: {value: MISSION_COLOUR},
+            ink: {value: MISSION_INK},
+            aimed: {value: aimed},
+        },
+        vertexShader,
+        fragmentShader,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+    }))
+    mission.renderOrder = 2
+    mission.frustumCulled = false
+    mission.visible = false
+
+    const widthOf = (pass: THREE.Mesh) => {
+        if (pass === highlight) return HIGHLIGHT_WIDTH
+        if (pass === mission) return MISSION_WIDTH
+        return pass === over ? ORBIT_WIDTH : WIDTH
+    }
+    const drawn = [...passes, highlight, mission]
 
     const object = new THREE.Group()
-    object.add(over, under, highlight)
+    object.add(over, under, highlight, mission)
 
     return {
         object,
         update(zoom: number, width: number, height: number, pixelRatio: number, view: MapView) {
-            for (const pass of [...passes, highlight]) {
+            for (const pass of drawn) {
                 const {uniforms} = pass.material as THREE.ShaderMaterial
                 uniforms.halfViewport.value.set(width / 2, height / 2)
                 uniforms.halfWidth.value = halfWidthOf(pixelRatio, widthOf(pass))
@@ -253,9 +303,17 @@ export function createBorderLines(data: BorderLineData): BorderLines {
             ;(highlight.material as THREE.ShaderMaterial).uniforms.landmass.value = landmass
             highlight.visible = landmass > 0
         },
+        setAimed(landmasses: ReadonlySet<number>) {
+            const marks = aimed.image.data as Uint8Array
+            marks.fill(0)
+            for (const landmass of landmasses) marks[landmass] = 255
+            aimed.needsUpdate = true
+            mission.visible = landmasses.size > 0
+        },
         dispose() {
-            for (const geometry of geometries) geometry.dispose()
-            for (const pass of [...passes, highlight]) disposeMaterial(pass.material as THREE.Material)
+            for (const geometry of [...geometries, aimedGeometry]) geometry.dispose()
+            for (const pass of drawn) disposeMaterial(pass.material as THREE.Material)
+            aimed.dispose()
         },
     }
 }

@@ -129,8 +129,14 @@
     color: var(--text-soft);
 }
 
-.mission-done {
+.mission-done,
+.mission-go {
     flex-shrink: 0;
+}
+
+.mission-go {
+    height: 30px;
+    padding: 3px 10px 0;
 }
 
 .missions-done {
@@ -162,4 +168,64 @@
     padding: 2px;
     border-radius: var(--radius-xs);
     background: var(--bonus-box);
+}
+
+.bomb-news-line.mission-progress-line {
+    animation: mission-progress-in 0.2s ease-out;
+}
+
+.mission-progress-line .bonus-icon {
+    width: 18px;
+    height: 18px;
+    vertical-align: -3px;
+}
+
+.mission-progress-kicker {
+    font-size: var(--text-s);
+    font-weight: 700;
+    color: var(--gold);
+}
+
+.mission-progress-order {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.mission-progress-bar {
+    flex: none;
+    width: 72px;
+    height: 10px;
+}
+
+.mission-progress-bar .mission-bar-filled {
+    transition: width 0.3s ease-out;
+}
+
+.mission-progress-count {
+    font-size: var(--text-s);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-soft);
+}
+
+@keyframes mission-progress-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+}
+
+@media (max-width: 768px), (max-height: 600px) {
+    .mission-progress-bar {
+        width: 48px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bomb-news-line.mission-progress-line {
+        animation: none;
+    }
+
+    .mission-progress-bar .mission-bar-filled {
+        transition: none;
+    }
 }

@@ -28,7 +28,7 @@ internal/missions/internal/
     payroll/                        pays each mission done once: the payments and their grants, in one transaction
     planetgrant/                    a payment as the planet.v1.GrantCharges command
     redis_outbox_sender/            what the outbox relay sends with: the grants as commands, MissionsPaid as an event
-    inprocess_payment_feed/         wakes the account's open streams when MissionsPaid is heard, in this process
+    inprocess_day_feed/             wakes the account's open streams when its day changed, in this process
     usecases/record_fact_usecase/  get_missions_usecase/  pay_signed_in_usecase/  forget_account_usecase/
               listen_for_events_usecase/
   flagmissions/                     Take and Strike, Order (TakeIn, BreakShields), MissionID, Day (a flag's day), Done, Draw,
@@ -138,14 +138,21 @@ internal/missions/internal/
     `progression` keeps it for the Missions title track. A running total, not one event per mission: told twice or late it
     changes nothing, and the first one brings every payment before it. So one outbox holds a command and an event, and
     `redis_outbox_sender` sends each on its own kind of stream.
-  - **The player hears the payment on a stream, with no read** (`MissionService.ListenForEvents`, `stream MissionEvent`).
-    The stream sends the caller's day as `GetMissions` answers it (`day`, `missionmessage.Day`) as it opens, then
-    again each time missions are paid to it, and a `heartbeat` every `httpServer.streamHeartbeat`. Missions hears its
-    own `MissionsPaid` (`missions-streams`, `missions_paid_subscriber`), so the day is read once the payment is
-    committed, and the same relay pass sends the grant to planet: the card and the charges come within about a second
-    of each other, about 2 to 4 s after the act that finished the mission, whatever its kind. `inprocess_payment_feed`
-    wakes each open stream of the account; payments told while a stream reads its day are one more read, not one each
-    (`listen_for_events_usecase`). Delivery is at most once, and a stream that opens again starts from the whole day.
+  - **The player hears its progress and its payments on a stream, with no read** (`MissionService.ListenForEvents`,
+    `stream MissionEvent`). The stream sends the caller's day as `GetMissions` answers it (`day`, `missionmessage.Day`)
+    as it opens, then again after each fact of the caller is counted, and a `heartbeat` every
+    `httpServer.streamHeartbeat`. **A fact wakes the stream once its transaction is committed**: `record_fact_usecase`
+    for the player's missions, `record_flag_take_usecase` and `record_strike_usecase` for the flag's, with the account
+    the take or the strike names (`subscribers.AccountOrNone`: a flag's fact with no account wakes nobody). **A stream
+    sends at most one day a second** (`listen_for_events_usecase.DefaultGap`): every take moves a mission, and a run of
+    clicks would read the day once per take; what changes during the wait is in the day read after it. That is what
+    the game's progress line reads (see the frontend's [Missions](../../frontend/docs/missions.md)). A payment wakes it
+    too: missions hears its own `MissionsPaid` (`missions-streams`, `missions_paid_subscriber`), so the day is read once
+    the payment is committed, and the same relay pass sends the grant to planet: the card and the charges come within
+    about a second of each other, about 2 to 4 s after the act that finished the mission, whatever its kind.
+    `inprocess_day_feed` wakes each open stream of the account; changes told while a stream reads its day are one more
+    read, not one each. Delivery is at most once, and a stream that opens again starts from the whole day. Until
+    2026-11-05 only a payment woke the stream, and progress came with the read 2 s after a run of clicks.
     Until 2026-11-03 the client read `GetMissions` after each run of clicks and 3 s later, and nothing after a box, a
     quiz, a shield or a bomb: a mission those finished showed paid only after the next run of clicks, up to a minute
     later (the owner: "it's perceived as a bug"). The stream needs an account: `NewStreamSessionReader` reads the token,

@@ -93,7 +93,10 @@ import {Mission, MissionsBackend} from "../../backends/missions.ts";
 import {unseen} from "../../domain/missions.ts";
 import MissionsDone from "../missions/MissionsDone.tsx";
 import {useSeenMissions} from "../missions/seenMissionsStore.ts";
-import {usePaidMissions} from "../missions/usePaidMissions.ts";
+import {usePaidMissions} from "../missions/usePaidMissions.ts"
+import {useMissionTargets} from "../missions/useMissionTargets.ts"
+import {useMissionProgress} from "../missions/useMissionProgress.ts"
+import MissionProgress from "../missions/MissionProgress.tsx";
 import {boardsOf, StandingsBackend} from "../../backends/standings.ts";
 import {SupportBackend} from "../../backends/support.ts";
 import {pageContextOf} from "../support/pageContext.ts";
@@ -252,6 +255,11 @@ export default function Viewer(props: ViewerProps) {
         closeAll()
     }, [compact, closeAll])
 
+    const missionsState = useMissions(props.missions, ownAccountId, allegiance?.countryId, accepted.listenForClicks)
+    const guided = props.showFront ?? false
+    const missionTargets = useMissionTargets(missionsState, guided)
+    const progress = useMissionProgress(missionsState, guided)
+
     const {
         status,
         tilesLoading,
@@ -289,6 +297,7 @@ export default function Viewer(props: ViewerProps) {
         territoryOf,
         showTerritory,
         flyToLastLoss,
+        flyToMission,
     } = useGlobe({
         container,
         linkedShot: props.linkedShot,
@@ -308,6 +317,7 @@ export default function Viewer(props: ViewerProps) {
         mapView,
         halo: haloOf(battle, halloween),
         bonusLook: halloween ? "pumpkin" : "box",
+        missions: missionTargets,
         rendering,
     })
 
@@ -392,7 +402,6 @@ export default function Viewer(props: ViewerProps) {
         onCountryOrder: setCountryOrder,
         hallOfFame,
     }
-    const missionsState = useMissions(props.missions, ownAccountId, allegiance?.countryId, accepted.listenForClicks)
     const [missionsDone, setMissionsDone] = useState<Mission[]>()
     usePaidMissions(missionsState, setMissionsDone)
     useFlagMissionDone(missionsState, (mission) => {
@@ -401,6 +410,10 @@ export default function Viewer(props: ViewerProps) {
     const missions: MissionsPlaceProps | undefined = props.missions && {
         state: missionsState,
         onSignIn: guest ? openPitch ?? (() => openSheet("you")) : undefined,
+        onGo: (target) => {
+            closeSheet()
+            flyToMission(target)
+        },
     }
     const missionsNews = useSeenMissions((seenMissions) => missionsState.kind === "ready" ? unseen(missionsState.day.missions, seenMissions.seen) : 0)
 
@@ -606,6 +619,8 @@ export default function Viewer(props: ViewerProps) {
             close={lastClose.close}
             onDone={dismissClose}
         />}
+
+        {progress && !newest && !missionsDone && <MissionProgress key={progress.id} moved={progress}/>}
 
         {lastFortified && newest === lastFortified && <FortifyNews
             key={`fortify-${lastFortified.id}`}

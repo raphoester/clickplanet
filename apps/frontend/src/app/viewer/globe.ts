@@ -72,6 +72,7 @@ import {rankHoldings, Territory, TerritoryPeek} from "../../domain/territory.ts"
 import {FLIGHT_SECONDS, flightAt, territoryShotOf} from "../../domain/flight.ts";
 import {dot, pointOf} from "../../domain/clip/geometry.ts";
 import {Front, FrontChanges} from "../../domain/front.ts";
+import {MissionGround, MissionMarks, MissionTarget, groundsOf, nearestPlayable} from "../../domain/missionTargets.ts";
 import {Neighbours} from "../../domain/neighbours.ts";
 import {GhostTake, Ghosts} from "../../domain/ghosts.ts";
 import {GhostArmy, Ground, Sight} from "../../domain/ghostArmy.ts";
@@ -253,6 +254,8 @@ export type Globe = {
     territoryOf(landmass: number): Territory
     showTerritory(landmass: number | undefined): void
     flyToLastLoss(): void
+    setMissions(targets: readonly MissionTarget[]): void
+    flyToMission(target: MissionTarget): void
     capture(): Promise<CapturedFrame>
     graphics(): GraphicsReport
     dispose(): void
@@ -461,6 +464,20 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
+    const missionGround: MissionGround = {
+        ownerOf: (tile) => ownership.ownerOf(tile),
+        shieldsOf: (tile) => shielded.shieldsOf(tile),
+        groundOf: (tile) => borders.codes[borders.assignment[tile - 1]] || undefined,
+    }
+    const missionMarks = new MissionMarks(missionGround, field.size)
+
+    const markMissions = ({on, off}: FrontChanges) => {
+        if (on.length === 0 && off.length === 0) return
+        field.setMissionMarks(off, false)
+        field.setMissionMarks(on, true)
+        invalidate()
+    }
+
     const pulsing = (camera: THREE.Camera) => {
         for (const landmass of targets.landmasses()) {
             const at = landmass * 5
@@ -508,6 +525,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (live) releaseGhosts(tiles)
         field.setOwners(ghosts.size === 0 ? changes : changes.filter(({tile}) => ghosts.flagOf(tile) === undefined))
         if (front) lightFront(front.touch(tiles))
+        markMissions(missionMarks.touch(tiles))
         if (tracking) {
             const entered = targets.touch(tiles)
             if (live) announceClose(entered)
@@ -518,6 +536,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const showShields = (changes: ShieldChange[]) => {
         if (changes.length === 0) return
         field.setShields(changes)
+        markMissions(missionMarks.touch(changes.map(({tile}) => tile)))
         invalidate()
     }
 
@@ -1220,6 +1239,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const members = landmasses.tilesOf(fortification.landmass)
         releaseGhosts(members)
         const raised = tiles.applyFortification(members, fortification.countryId, uniforms.shieldMost.value, fortification.version)
+        markMissions(missionMarks.touch(raised.map(({tile}) => tile)))
         if (document.hidden || uniforms.motion.value === 0) showShields(raised)
         else waves.start(fortification.landmass, members, fortification.tile, performance.now() / 1000)
 
@@ -1373,6 +1393,23 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
         flyToLastLoss: () => {
             if (lost !== undefined) flyDown(lost)
+        },
+        setMissions: (targets: readonly MissionTarget[]) => {
+            markMissions(missionMarks.follow(targets))
+            const grounds = groundsOf(targets)
+            const aimed = new Set<number>()
+            for (let landmass = 1; landmass < borders.codes.length; landmass++) {
+                if (grounds.has(borders.codes[landmass])) aimed.add(landmass)
+            }
+            outline.setAimed(aimed)
+            invalidate()
+        },
+        flyToMission: (target: MissionTarget) => {
+            const from = camera.position.clone().normalize()
+            const tile = nearestPlayable(target, country.code, missionGround, geometryData.positions, from)
+            if (tile === undefined) return
+            pilot.cancel()
+            flyDown(tile)
         },
         capture: () => new Promise<CapturedFrame>((resolve, reject) => {
             if (lifetime.signal.aborted) {

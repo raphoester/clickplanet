@@ -165,7 +165,7 @@ type isMissionEvent_Event interface {
 }
 
 type MissionEvent_Day struct {
-	// The caller's day as GetMissions answers it: once as the stream opens, then each time missions are paid to it.
+	// The caller's day as GetMissions answers it: once as the stream opens, then after each fact of its own, once a second at most.
 	Day *GetMissionsResponse `protobuf:"bytes,1,opt,name=day,proto3,oneof"`
 }
 

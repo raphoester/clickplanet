@@ -17,9 +17,10 @@ const MAX_INDIVIDUAL_RANGES = 64
 
 const UNOWNED = 0
 
-// The pulse slot holds two marks: the display fragment shader reads them back with mod and a threshold.
+// The pulse slot holds three marks: the display shaders read them back with mod and a threshold.
 const FORTIFY_PULSE = 1
 const FRONT_PULSE = 2
+const MISSION_MARK = 4
 
 const RECTANGLE = 4
 
@@ -116,6 +117,10 @@ export class TileField {
 
     setFront(tiles: readonly number[], on: boolean) {
         this.mark(tiles, FRONT_PULSE, on)
+    }
+
+    setMissionMarks(tiles: readonly number[], on: boolean) {
+        this.mark(tiles, MISSION_MARK, on)
     }
 
     setLandmasses(assignment: Uint16Array) {

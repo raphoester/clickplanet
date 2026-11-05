@@ -15,11 +15,30 @@ uniform float landmass;
 attribute vec2 sides;
 #endif
 
+#ifdef MISSION
+// Must match AIMED_COLUMNS in borderLines.ts.
+#define AIMED_COLUMNS 1024
+uniform sampler2D aimed;
+attribute vec2 sides;
+
+float aimedAt(float landmass) {
+    int at = int(landmass + 0.5);
+    return texelFetch(aimed, ivec2(at % AIMED_COLUMNS, at / AIMED_COLUMNS), 0).r;
+}
+#endif
+
 out float vAcross;
 
 void main() {
 #ifdef HIGHLIGHT
     if (abs(sides.x - landmass) > 0.5 && abs(sides.y - landmass) > 0.5) {
+        gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+        return;
+    }
+#endif
+
+#ifdef MISSION
+    if (abs(aimedAt(sides.x) - aimedAt(sides.y)) < 0.5) {
         gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
         return;
     }

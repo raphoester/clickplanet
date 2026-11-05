@@ -16,6 +16,28 @@ itself, with nothing to press.
   pay waits for the sign-in that day. "Ends in" is the day's own end, 21:00 UTC. With no mission (no flag
   pledged yet, or no day), a guest sees "Sign in to get missions." and a **Sign in** button to the pitch, a
   signed-in player "No missions right now.": an empty place looked broken.
+- **Go**, on each mission open with a place (`GoButton`, the flag's included): the sheet closes and the camera flies
+  down to the nearest tile, from where it looks, that counts on it (`Globe.flyToMission`, `nearestPlayable` in
+  `domain/missionTargets.ts`): a rival's tile for a rival, a tile of the ground the flag does not hold for a ground.
+- **The missions are drawn on the map** (`useMissionTargets`, `Globe.setMissions`, `domain/missionTargets.ts`): what an
+  open mission names is its `MissionTarget`. **One red for a mission's place**, the outline and the rings alike (the
+  owner, 2026-11-05: one colour for one concept). **A ground** (tiles or bombs in a country, a rival in a country) **is
+  outlined** at every zoom (`setAimed` on the border lines, see [The countries' outlines](country-outlines.md)).
+  **A rival's tiles that count** (all of them, those in its ground, or only the shielded ones for shields to break) **get
+  a red ring** (`MissionMarks`, bit 4 of the tile's `pulse` slot): still, never beating, so it is not the gold fortify
+  ring nor the white front, and only pushed in, since in orbit the painted flag already says whose the ground is. A
+  mission done is no longer drawn. **A first visit draws none**: its front is lit already (see
+  [The front, for a first visit](front-guide.md)). Each new list of targets is a scan of every tile, so the hook keeps
+  its identity while the targets are the same. On 2026-11-05 the owner judged a cyan dot in a tile's corner horrible:
+  the ring is the target, red and centred, and the outline went from cyan to the same red.
+- **The progress line** (`MissionProgress`, `useMissionProgress`, `domain/missionProgress.ts`): when a day read or
+  streamed moved a mission, the Moments zone shows it in one line, its words short ("Take from Algeria"), a small bar
+  and the count. **One mission at a time**: the line keeps the mission it shows while it moves, and goes
+  `PROGRESS_LINE_MS` (3 s) after its last move; only then can another take it, the one nearest its goal. **Never the
+  bank for the flag**, which every take moves: the line would never go. A mission done takes it away at once, for
+  its card. It gives way to every other Moments line (a bomb, a fortify, an attack) and to the "Mission done" card,
+  and a first visit shows none. It moves while the player clicks because the stream sends the day after each fact,
+  once a second at most (see the backend's [Missions](../../backend/docs/missions.md)).
 - **The flag's mission comes first**, in a panel of its own (`FlagMissionRow`): "Flag mission", its order ("Break 300
   shields of", then the flag; or a ground's tiles), its bar, and the season points it gives the flag in gold. The
   whole flag counts on it, and the backend says when it is done. The badge does not count it.
@@ -27,9 +49,9 @@ itself, with nothing to press.
   owner, who finished France's, could not tell if the points were granted.
 - **`useMissions` lives in `Viewer`, not in the place**, so the badge is right with the tab closed. It reads `GetMissions` at load, on a change of the account or of the pledged flag (`useAllegiance`), after
   each run of clicks (`useReadsAfterClicks`, 2 s after the last one, for the bars), and once the day ends.
-  **A mission paid comes on the missions stream** (`MissionsBackend.follow`, `MissionService.ListenForEvents`),
+  **Progress and payments come on the missions stream** (`MissionsBackend.follow`, `MissionService.ListenForEvents`),
   followed while the account is known and again when it changes: the stream sends the whole day as it opens and
-  each time missions are paid, whatever finished them (a take, a box, a quiz, a shield, a bomb). A read that
+  after each fact of the player, once a second at most, whatever it was (a take, a box, a quiz, a shield, a bomb). A read that
   started before a streamed day is dropped (`streamed`), or it could put a paid mission back to unpaid and show
   its card twice. Until 2026-11-03 a second read 3 s after the clicks was what caught a mission finished: a box,
   a quiz, a shield or a bomb read nothing, and its reward showed up to a minute late.
@@ -54,6 +76,6 @@ itself, with nothing to press.
   not know.
 - `backends/missions.ts` is the contract, `ConnectMissionsBackend` (`missions.v1.MissionService`) the real one,
   `FakeMissionsBackend` the fake: it draws the day for the flag pledged at its first read (or its first
-  take's), with a flag mission to break a rival's shields that this tab's takes stand for, counts every take of this tab, pays each mission done at once and hands its followers the day then, and `finishMissions()` in the console puts
+  take's), with a flag mission to break a rival's shields that this tab's takes stand for, counts every take of this tab, pays each mission done at once and hands its followers the day after each take, and `finishMissions()` in the console puts
   every mission one tile from done: the next take finishes and pays them all, as a take does on the server, and
   cheers the flag's. The fake has no missions before the tab's first take: take a tile, then call it.

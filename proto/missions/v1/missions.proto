@@ -16,7 +16,7 @@ message ListenForEventsRequest {}
 
 message MissionEvent {
   oneof event {
-    // The caller's day as GetMissions answers it: once as the stream opens, then each time missions are paid to it.
+    // The caller's day as GetMissions answers it: once as the stream opens, then after each fact of its own, once a second at most.
     GetMissionsResponse day = 1;
     Heartbeat heartbeat = 2;
   }

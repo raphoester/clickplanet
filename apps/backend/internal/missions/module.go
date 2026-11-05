@@ -20,7 +20,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/usecases/record_strike_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inprocess_payment_feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inprocess_day_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/payroll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/postgres_mission_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/redis_outbox_sender"
@@ -110,20 +110,21 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to gamemaster.v1.DayStarted: %w", err)
 	}
-	facts, err := subscribeFacts(ctx, streams, record_fact_usecase.New(calendar, briefing, store, db, pay), props.Logger)
+	changes := inprocess_day_feed.New()
+	facts, err := subscribeFacts(ctx, streams, record_fact_usecase.New(calendar, briefing, store, db, pay, changes), props.Logger)
 	if err != nil {
 		closeStores()
 		return err
 	}
 	flagTakes, err := cpredis.Subscribe(ctx, streams, "missions-flag-takes", log_subscriber.New(flag_tile_taken_subscriber.New(
-		record_flag_take_usecase.New(calendar, flags, flagDays, db, outbox),
+		record_flag_take_usecase.New(calendar, flags, flagDays, db, outbox, changes),
 	), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken for the flags: %w", err)
 	}
 	strikes, err := cpredis.Subscribe(ctx, streams, "missions-flag-strikes", log_subscriber.New(shield_struck_subscriber.New(
-		record_strike_usecase.New(calendar, flags, flagDays, db, outbox),
+		record_strike_usecase.New(calendar, flags, flagDays, db, outbox, changes),
 	), props.Logger))
 	if err != nil {
 		closeStores()
@@ -141,9 +142,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to player.v1.PlayerSignedIn: %w", err)
 	}
-	payments := inprocess_payment_feed.New()
 	paid, err := cpredis.Subscribe(ctx, streams, "missions-streams",
-		log_subscriber.New(missions_paid_subscriber.New(payments), props.Logger))
+		log_subscriber.New(missions_paid_subscriber.New(changes), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to missions.v1.MissionsPaid: %w", err)
@@ -156,7 +156,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	service := missionsv1controller.MissionService{
 		GetMissionsHandler: get_missions_handler.New(getMissions),
 		ListenForEventsHandler: listen_for_events_handler.New(
-			listen_for_events_usecase.New(payments, getMissions, props.Server.StreamHeartbeat),
+			listen_for_events_usecase.New(changes, getMissions, props.Server.StreamHeartbeat, listen_for_events_usecase.DefaultGap),
 		),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

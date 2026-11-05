@@ -123,4 +123,18 @@ describe("MissionsPlace", () => {
 
         expect(screen.getByRole("alert").textContent).toBe("Your missions could not be loaded.")
     })
+
+    it("offers Go on each mission open with a place, and flies to its target", () => {
+        const onGo = vi.fn()
+        render(<MissionsPlace state={day(
+            mission({id: "bank", order: {kind: "takeFor", country: "fr", goal: 60, taken: 37}}),
+            mission({id: "rival", order: {kind: "takeFrom", country: "dz", goal: 40, taken: 3}}),
+            mission({id: "done", order: {kind: "takeIn", country: "br", goal: 200, taken: 200}, done: true, paid: true}),
+        )} onGo={onGo}/>)
+
+        const goes = screen.getAllByRole("button", {name: "Go"})
+        expect(goes).toHaveLength(1)
+        fireEvent.click(goes[0])
+        expect(onGo).toHaveBeenCalledWith({flag: "dz", shielded: false})
+    })
 })

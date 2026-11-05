@@ -19,6 +19,7 @@ import {BUBBLE_MS} from '../components/Bubble.tsx';
 import {Peek} from '../../domain/tilePeek.ts';
 import {Territory, TerritoryPeek} from '../../domain/territory.ts';
 import {Shot} from '../../domain/clip/camera.ts';
+import {MissionTarget} from '../../domain/missionTargets.ts';
 
 export type GlobeStatus =
     | {state: 'loading', territories?: number}
@@ -49,12 +50,14 @@ export type UseGlobeOptions = {
     mapView: MapView
     halo: Halo
     bonusLook: BoxLook
+    // Each change is a scan of every tile: keep its identity while the targets are the same.
+    missions: readonly MissionTarget[]
     // A change rebuilds the globe: antialiasing is fixed when the context is made.
     rendering: Rendering
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, crowd, clickHue, mapView, halo, bonusLook, rendering} = options
+    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, crowd, clickHue, mapView, halo, bonusLook, missions, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -129,6 +132,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const latestMapView = useRef(mapView)
     const latestHalo = useRef(halo)
     const latestBonusLook = useRef(bonusLook)
+    const latestMissions = useRef(missions)
 
     useEffect(() => {
         const element = container.current
@@ -196,6 +200,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globe.setMapView(latestMapView.current)
             globe.setHalo(latestHalo.current)
             globe.setBonusLook(latestBonusLook.current)
+            globe.setMissions(latestMissions.current)
             if (import.meta.env.DEV) Object.assign(window, {clickplanetGlobe: globe})
             setTilesCount(globe.tilesCount)
             publishLeaderboard()
@@ -244,6 +249,11 @@ export function useGlobe(options: UseGlobeOptions) {
         globeRef.current?.setBonusLook(bonusLook)
     }, [bonusLook])
 
+    useEffect(() => {
+        latestMissions.current = missions
+        globeRef.current?.setMissions(missions)
+    }, [missions])
+
     const capture = useCallback((): Promise<CapturedFrame> => {
         const globe = globeRef.current
         if (!globe) return Promise.reject(new Error("the globe is not running yet"))
@@ -255,6 +265,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const territoryOf = useCallback((landmass: number): Territory | undefined => globeRef.current?.territoryOf(landmass), [])
     const showTerritory = useCallback((landmass: number | undefined) => globeRef.current?.showTerritory(landmass), [])
     const flyToLastLoss = useCallback(() => globeRef.current?.flyToLastLoss(), [])
+    const flyToMission = useCallback((target: MissionTarget) => globeRef.current?.flyToMission(target), [])
 
     const dismissAward = useCallback(() => setAward(undefined), [])
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
@@ -301,6 +312,7 @@ export function useGlobe(options: UseGlobeOptions) {
         territoryOf,
         showTerritory,
         flyToLastLoss,
+        flyToMission,
     }
 }
 

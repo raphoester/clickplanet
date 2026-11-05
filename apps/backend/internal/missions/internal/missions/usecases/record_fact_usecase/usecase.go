@@ -27,6 +27,10 @@ type Payroll interface {
 	Pay(ctx context.Context, day days.Day, account missions.AccountID) error
 }
 
+type Streams interface {
+	Publish(account missions.AccountID)
+}
+
 type In struct {
 	Account missions.AccountID
 	At      time.Time
@@ -35,8 +39,12 @@ type In struct {
 
 func New(
 	calendar Calendar, briefing Briefing, sheets Sheets, transactioner cpatomic.Transactioner, payroll Payroll,
+	streams Streams,
 ) *UseCase {
-	return &UseCase{calendar: calendar, briefing: briefing, sheets: sheets, transactioner: transactioner, payroll: payroll}
+	return &UseCase{
+		calendar: calendar, briefing: briefing, sheets: sheets, transactioner: transactioner, payroll: payroll,
+		streams: streams,
+	}
 }
 
 type UseCase struct {
@@ -45,6 +53,7 @@ type UseCase struct {
 	sheets        Sheets
 	transactioner cpatomic.Transactioner
 	payroll       Payroll
+	streams       Streams
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) error {
@@ -61,7 +70,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		return fmt.Errorf("failed to read the account's missions: %w", err)
 	}
 
-	return u.transactioner.InTx(ctx, func(ctx context.Context) error {
+	if err := u.transactioner.InTx(ctx, func(ctx context.Context) error {
 		finished := false
 		if err := u.sheets.ChangeSheet(ctx, day, in.Account, func(sheet missions.Sheet) missions.Sheet {
 			next := sheet.WithFact(in.Fact, brief)
@@ -76,5 +85,10 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 			return nil
 		}
 		return u.payroll.Pay(ctx, day, in.Account) //nolint:wrapcheck // the payroll named it.
-	})
+	}); err != nil {
+		return err //nolint:wrapcheck // the transaction's own error.
+	}
+
+	u.streams.Publish(in.Account)
+	return nil
 }

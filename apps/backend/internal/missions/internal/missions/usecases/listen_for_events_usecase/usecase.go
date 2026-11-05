@@ -11,7 +11,9 @@ import (
 // Must stay well under Cloudflare's ~125s idle cut, which kills a silent stream.
 const DefaultHeartbeat = 30 * time.Second
 
-type Payments interface {
+const DefaultGap = time.Second
+
+type Changes interface {
 	Subscribe(ctx context.Context, account missions.AccountID) <-chan struct{}
 }
 
@@ -24,29 +26,31 @@ type Sink interface {
 	SendHeartbeat() error
 }
 
-func New(payments Payments, days Days, heartbeat time.Duration) *UseCase {
+func New(changes Changes, days Days, heartbeat, gap time.Duration) *UseCase {
 	if heartbeat <= 0 {
 		heartbeat = DefaultHeartbeat
 	}
 
-	return &UseCase{payments: payments, days: days, heartbeat: heartbeat}
+	return &UseCase{changes: changes, days: days, heartbeat: heartbeat, gap: gap}
 }
 
 type UseCase struct {
-	payments  Payments
+	changes   Changes
 	days      Days
 	heartbeat time.Duration
+	gap       time.Duration
 }
 
-// Subscribed before the first read, so a payment told during it is read again.
+// Subscribed before the first read, so a change told during it is read again.
 func (u *UseCase) Execute(ctx context.Context, account missions.AccountID, sink Sink) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	paid := u.payments.Subscribe(ctx, account)
+	changed := u.changes.Subscribe(ctx, account)
 	if err := u.sendDay(ctx, account, sink); err != nil {
 		return err
 	}
+	sent := time.Now()
 
 	heartbeat := time.NewTicker(u.heartbeat)
 	defer heartbeat.Stop()
@@ -61,15 +65,33 @@ func (u *UseCase) Execute(ctx context.Context, account missions.AccountID, sink 
 				return err //nolint:wrapcheck // the stream's own error.
 			}
 
-		case _, open := <-paid:
-			if !open {
+		case _, open := <-changed:
+			if !open || !waitUntil(ctx, sent.Add(u.gap)) {
 				return nil
+			}
+			// A change told during the wait is in the day read now.
+			select {
+			case <-changed:
+			default:
 			}
 
 			if err := u.sendDay(ctx, account, sink); err != nil {
 				return err
 			}
+			sent = time.Now()
 		}
+	}
+}
+
+func waitUntil(ctx context.Context, at time.Time) bool {
+	timer := time.NewTimer(time.Until(at))
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
 	}
 }
 

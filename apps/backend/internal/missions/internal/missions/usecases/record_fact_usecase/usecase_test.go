@@ -41,6 +41,14 @@ func (p *recordingPayroll) Pay(_ context.Context, _ days.Day, account missions.A
 	return nil
 }
 
+type recordingStreams struct {
+	woken []missions.AccountID
+}
+
+func (s *recordingStreams) Publish(account missions.AccountID) {
+	s.woken = append(s.woken, account)
+}
+
 var (
 	at       = time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
 	ada      = missions.AccountID{15: 1}
@@ -50,7 +58,7 @@ var (
 func TestATakeCountsOnTheMissionsOfItsDay(t *testing.T) {
 	store := inmemory_mission_store.New()
 	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, &recordingPayroll{})
+		cpatomic.FakeTransactioner{}, &recordingPayroll{}, &recordingStreams{})
 
 	require.NoError(t, useCase.Execute(t.Context(), record_fact_usecase.In{
 		Account: ada, At: at, Fact: missions.Take{Flag: "fr", Previous: "dz", Position: 41},
@@ -69,7 +77,7 @@ func TestATakeCountsOnTheMissionsOfItsDay(t *testing.T) {
 func TestASpreadCountsEachTileItTookOnce(t *testing.T) {
 	store := inmemory_mission_store.New()
 	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, &recordingPayroll{})
+		cpatomic.FakeTransactioner{}, &recordingPayroll{}, &recordingStreams{})
 
 	for range 2 {
 		for index := range uint32(7) {
@@ -89,7 +97,7 @@ func TestAnAccountsMissionsAreDrawnOnceADay(t *testing.T) {
 	store := inmemory_mission_store.New()
 	planet := &countingPlanet{}
 	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, planet, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, &recordingPayroll{})
+		cpatomic.FakeTransactioner{}, &recordingPayroll{}, &recordingStreams{})
 
 	for range 3 {
 		require.NoError(t, useCase.Execute(t.Context(), record_fact_usecase.In{Account: ada, At: at, Fact: missions.Take{Flag: "fr"}}))
@@ -102,7 +110,7 @@ func TestAnAccountsMissionsAreDrawnOnceADay(t *testing.T) {
 func TestAFactWhenNoDayRunsCountsNothing(t *testing.T) {
 	store, planet := inmemory_mission_store.New(), &countingPlanet{}
 	useCase := record_fact_usecase.New(inmemory_day_store.New(), missions.NewBriefing(store, planet, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, &recordingPayroll{})
+		cpatomic.FakeTransactioner{}, &recordingPayroll{}, &recordingStreams{})
 
 	require.NoError(t, useCase.Execute(t.Context(), record_fact_usecase.In{Account: ada, At: at, Fact: missions.Take{Flag: "fr"}}))
 
@@ -115,7 +123,7 @@ func TestAFactWhenNoDayRunsCountsNothing(t *testing.T) {
 func TestAMapThatCannotBeReadCountsNothing(t *testing.T) {
 	store := inmemory_mission_store.New()
 	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{err: errors.New("down")}, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, &recordingPayroll{})
+		cpatomic.FakeTransactioner{}, &recordingPayroll{}, &recordingStreams{})
 
 	require.Error(t, useCase.Execute(t.Context(), record_fact_usecase.In{Account: ada, At: at, Fact: missions.Take{Flag: "fr"}}))
 
@@ -128,7 +136,7 @@ func TestOnlyTheTakeThatFinishesAMissionPaysIt(t *testing.T) {
 	store := inmemory_mission_store.New()
 	payroll := &recordingPayroll{}
 	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, payroll)
+		cpatomic.FakeTransactioner{}, payroll, &recordingStreams{})
 
 	drawn := missions.Draw(days.TestingDayAt(at), ada, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}).Snapshot()
 	goal := drawn[0].Order.(missions.TakeFor).Goal
@@ -143,4 +151,15 @@ func TestOnlyTheTakeThatFinishesAMissionPaysIt(t *testing.T) {
 	}
 
 	assert.Equal(t, []missions.AccountID{ada}, payroll.paid, "the take that finished the bank paid it, the next nothing")
+}
+
+func TestACountedFactWakesTheAccountsStreams(t *testing.T) {
+	store, streams := inmemory_mission_store.New(), &recordingStreams{}
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store,
+		cpatomic.FakeTransactioner{}, &recordingPayroll{}, streams)
+
+	require.NoError(t, useCase.Execute(t.Context(), record_fact_usecase.In{Account: ada, At: at, Fact: missions.Take{Flag: "fr", Position: 1}}))
+	require.NoError(t, useCase.Execute(t.Context(), record_fact_usecase.In{Account: ada, At: at.AddDate(0, 0, 2), Fact: missions.Take{Flag: "fr"}}))
+
+	assert.Equal(t, []missions.AccountID{ada}, streams.woken, "a fact when no day runs wakes nothing")
 }

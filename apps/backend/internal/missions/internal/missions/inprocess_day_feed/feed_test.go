@@ -1,4 +1,4 @@
-package inprocess_payment_feed_test
+package inprocess_day_feed_test
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inprocess_payment_feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inprocess_day_feed"
 )
 
 var (
@@ -17,9 +17,9 @@ var (
 	bob = missions.AccountID{15: 2}
 )
 
-func told(paid <-chan struct{}) bool {
+func told(changed <-chan struct{}) bool {
 	select {
-	case <-paid:
+	case <-changed:
 		return true
 	default:
 		return false
@@ -27,7 +27,7 @@ func told(paid <-chan struct{}) bool {
 }
 
 func TestEveryStreamOfTheAccountIsToldAndNoOtherAccountIs(t *testing.T) {
-	feed := inprocess_payment_feed.New()
+	feed := inprocess_day_feed.New()
 	first, second := feed.Subscribe(t.Context(), ada), feed.Subscribe(t.Context(), ada)
 	other := feed.Subscribe(t.Context(), bob)
 
@@ -38,28 +38,28 @@ func TestEveryStreamOfTheAccountIsToldAndNoOtherAccountIs(t *testing.T) {
 	assert.False(t, told(other))
 }
 
-func TestPaymentsToldBeforeTheStreamReadsAreOneRead(t *testing.T) {
-	feed := inprocess_payment_feed.New()
-	paid := feed.Subscribe(t.Context(), ada)
+func TestChangesToldBeforeTheStreamReadsAreOneRead(t *testing.T) {
+	feed := inprocess_day_feed.New()
+	changed := feed.Subscribe(t.Context(), ada)
 
 	for range 5 {
 		feed.Publish(ada)
 	}
 
-	assert.True(t, told(paid))
-	assert.False(t, told(paid))
+	assert.True(t, told(changed))
+	assert.False(t, told(changed))
 }
 
 func TestAClosedStreamIsForgottenAndItsChannelClosed(t *testing.T) {
-	feed := inprocess_payment_feed.New()
+	feed := inprocess_day_feed.New()
 	ctx, cancel := context.WithCancel(t.Context())
-	paid := feed.Subscribe(ctx, ada)
+	changed := feed.Subscribe(ctx, ada)
 
 	cancel()
 
 	require.Eventually(t, func() bool {
 		select {
-		case _, open := <-paid:
+		case _, open := <-changed:
 			return !open
 		default:
 			return false
@@ -69,5 +69,5 @@ func TestAClosedStreamIsForgottenAndItsChannelClosed(t *testing.T) {
 }
 
 func TestPublishingToAnAccountWithNoStreamDoesNothing(t *testing.T) {
-	assert.NotPanics(t, func() { inprocess_payment_feed.New().Publish(ada) })
+	assert.NotPanics(t, func() { inprocess_day_feed.New().Publish(ada) })
 }
