@@ -67,7 +67,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [The season](docs/season.md) — the season chip and its clocks, the Final Battle to come in its look and its
   details, and the home page's countdowns and Final Battle panel.
 - [Battles](docs/battle.md) — the schedule's stream, the countdown to the next battle or the Final Battle, the
-  Final Battle's one-time teaser, and the
+  teaser of a battle to come with its rule set's cards in a carousel, and the
   battle look: the mood, the chip and its clock, the start moment, the debrief's three screens when the gamemaster
   debriefs its round, matched by the round's id, and the announcements queue that shows one full-screen moment at a
   time.

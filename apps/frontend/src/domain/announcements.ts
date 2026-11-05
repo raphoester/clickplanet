@@ -1,13 +1,16 @@
 import {Appearance} from "../backends/clips.ts"
 import {FlagMission} from "../backends/missions.ts"
 import {PlayerTitle} from "../backends/progression.ts"
-import {Battle, battleKeyOf, Finale} from "./battle.ts"
+import {TeaserCard} from "../backends/promo.ts"
+import {BattleToCome} from "../backends/turn.ts"
+import {Battle, battleKeyOf} from "./battle.ts"
+import {teaserKeyOf} from "./battleTeaser.ts"
 import {Reveal, revealKeyOf} from "./roundReveal.ts"
 
 export type Announcement =
     | {kind: "title", title: PlayerTitle}
     | {kind: "battle", battle: Battle}
-    | {kind: "finale", finale: Finale}
+    | {kind: "teaser", battle: BattleToCome, cards: TeaserCard[]}
     | {kind: "clip", appearance: Appearance}
     | {kind: "flagMission", mission: FlagMission, country: string}
     | Reveal
@@ -18,8 +21,8 @@ export function announcementKeyOf(announcement: Announcement): string {
             return `title:${announcement.title.id}`
         case "battle":
             return `battle:${battleKeyOf(announcement.battle)}`
-        case "finale":
-            return `finale:${announcement.finale.roundId}`
+        case "teaser":
+            return `teaser:${teaserKeyOf(announcement.battle)}`
         case "clip":
             return `clip:${announcement.appearance.postId}`
         case "flagMission":

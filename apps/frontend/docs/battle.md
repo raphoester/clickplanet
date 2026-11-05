@@ -59,20 +59,40 @@ next battle has `endsSeason`, the countdown says "Final Battle in" (tag "Final")
 battle; the client never guesses it from times. A finale has no entry: its
 `entryId` is empty and its round, `season-N/finale`, is its key (`battleKeyOf`).
 
-**`finaleOf` is the season's finale while it is to come or plays**, for the season chip's details, the teaser
-below and the home page's Final Battle panel (see [The season](season.md)): the turn while it plays, else the
+**`finaleOf` is the season's finale while it is to come or plays**, for the season chip's details and the home
+page's Final Battle panel (see [The season](season.md)): the turn while it plays, else the
 listed battle with `endsSeason` that has not ended. The timeline lists only battles that have not started, so a
 finale whose start passed stays, live, until its turn arrives.
 
-**The Final Battle is teased once per browser, in the two days before it starts** (`FinaleTeaser`,
-`useFinaleTeaser`, rule `finaleTeaserDue`), **once the page took 30 clicks** (`FINALE_TEASER_AFTER_CLICKS`): a
-newcomer plays before a full screen talks of a battle, and 30 is half the start bank, before it runs dry. A visit
-count would miss most newcomers, who never come back the next day, and a clock would fire on a player still
-reading. It is a full screen in the start moment's look, with the battle mood and the
-tape along the top. "Final Battle" over the swords disc, "Starts in" and its clock to the second, when it plays,
-then the details' rows (`FinaleFacts`) in a box, and "To the globe" once it settled. Close keeps the finale's
-round in `clickplanet-finale-teased`. It plays through the announcements queue (below). A finale that plays is
-never teased: its start moment says it.
+## The teaser
+
+**A battle to come is teased full screen, the Final Battle as any other** (`BattleTeaser`, `useBattleTeaser`, rules
+in `domain/battleTeaser.ts`), with its rule set's cards: each a background and words over it, which the operator keeps
+on the backoffice's Promo page and the backend's promo module fills with the values the set plays (see the backend's
+[Promo](../../backend/docs/promo.md)). **No cards, no teaser** (the owner: "If there is no carousel let's just not
+tease anything"). The Final Battle's own teaser, once per browser in the two days before it, is gone (2026-11-05).
+
+- **When** (`battleTeaserDue`): the next battle (`nextBattleOf`), **within the 24 hours before it starts**
+  (`BATTLE_TEASER_WITHIN_MS`), as a page opens and again **at most every 6 hours** (`BATTLE_TEASER_EVERY_MS`): Close
+  keeps the battle's key and the time in `clickplanet-battle-teased`. A player who comes back in the evening hears of
+  it again, one who reloads does not. **A first visit plays first** (`guided`, the front guide's): it waits for 30
+  clicks on the page (`TEASER_AFTER_CLICKS`), half the start bank, before a full screen talks of a battle.
+- **Its key** (`teaserKeyOf`) is the battle's entry id, or `season-N/finale` for a season's finale, which has no
+  entry: the id the timeline names it by, and the one `promo.v1.PromoService/GetTeaser` takes.
+- **Its cards are asked once due** (`PromoBackend.teaser`, `ConnectPromoBackend`: a cached GET, a minute in
+  Cloudflare). A battle whose set has none, one the schedule no longer holds and a server without promo all answer
+  none, and nothing is kept: cards written later show on the next page.
+- **The screen** is the start moment's look, with the battle mood and the tape along the top: "Battle" ("Final
+  Battle" for the season's finale, `battleNameOf`), "Starts in" and its clock to the second, when it plays in the
+  player's time with its points' times (`battleWhenLine`: "Today · 22:00 – 23:00 · Points ×2"), the operator's words
+  on the entry, then the cards, and "To the globe" once it settled (`TITLE_REVEAL.ready`).
+- **The cards** (`TeaserCarousel`) are 3:4 portraits, as tall as the screen leaves room for, one shown at a time,
+  the words on a band of shade along the top. A row moved by a transform, so the card shown is always the one the
+  dots say: a swipe of 40px turns it (pointer events; an upright swipe still scrolls), the arrows beside it on a
+  wide screen and the dots under it are the buttons, and **it turns on its own every 5 seconds** (`TEASER_TURN_MS`)
+  until the player touches it. Under `prefers-reduced-motion` it never turns on its own, and slides with no
+  movement.
+- It plays through the announcements queue (below).
 
 ## The look
 
@@ -176,11 +196,11 @@ screen and the rays in `--war`.
 
 **One full-screen moment at a time, in the order they arrive.** `domain/announcements.ts`
 and the store `useAnnouncements` (`app/announcements/announcementsStore.ts`, see [Stores](stores.md)) keep the
-queue: a title unlocked, a battle's start, the Final Battle's teaser, a day closed (the cutoff's reveal), a battle's
+queue: a title unlocked, a battle's start, a battle's teaser, a day closed (the cutoff's reveal), a battle's
 three debrief screens, the season's results, a clip that names the player (see
 [In a clip](clip-appearances.md)), the flag's mission done (see [Missions](missions.md)).
 `app/announcements/Moments.tsx` runs the hooks that say what is due (`useRoundReveal`, `useBattleReveal`,
-`useFinaleTeaser`, `useClipNotice`) and announces each; `Viewer` announces the title and the flag's mission.
+`useBattleTeaser`, `useClipNotice`) and announces each; `Viewer` announces the title and the flag's mission.
 `Moments` shows the head of the queue once the map is loaded, tells the hook it came from when the player closes
 it, and the next starts. An
 announcement is queued once, by its key. So a round that closes while the player
@@ -199,5 +219,6 @@ board's battle column follow at once, and the day that runs ends a second later,
 undebriefed, so "The results are coming" stays; `closeBattle()` scores it and the fake
 gamemaster debriefs it, so the debrief plays; `closeFinale()` debriefs it as the Final
 Battle, then the season, and the season's results follow. `scheduleFinale(inMinutes, minutes)` plans one: under
-two days away, the chip wears its look and the teaser plays after 30 clicks (clear `clickplanet-finale-teased` to see
-it again).
+two days away, the chip wears its look. **A battle planned within a day is teased** (`scheduleBattle(90, 60)`), with
+the fake promo's three cards over made-up backgrounds (`FakePromoBackend`); `fakePromo.cards = []` teases nothing,
+and `localStorage.removeItem("clickplanet-battle-teased")` teases it again.

@@ -117,6 +117,7 @@ import {endedBookOf} from "../../domain/debrief.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
 import {useGuidedTakes} from "./frontGuide.ts";
 import {ClipsBackend, ClipsNameBackend} from "../../backends/clips.ts";
+import {PromoBackend} from "../../backends/promo.ts";
 import {useFlagMissionDone} from "../missions/useFlagMissionDone.ts";
 import {CrazyGamesPage} from "../../backends/crazyGames.ts";
 import {useCrazyGames, useGameplay, useInvites, useRoom} from "../crazygames/useCrazyGames.ts";
@@ -164,6 +165,8 @@ export type ViewerProps = {
     missions?: MissionsBackend
     chargesRefresher?: ChargesRefresher
     clips?: ClipsBackend & ClipsNameBackend
+    // A battle's teaser cards.
+    promo?: PromoBackend
     crazyGames?: CrazyGamesPage
     alerts?: DiscordAlerts
     gifs?: GifSearch
@@ -574,7 +577,9 @@ export default function Viewer(props: ViewerProps) {
         <Moments shown={ready}
                  battle={battle}
                  closed={closed}
-                 finale={finale}
+                 nextBattle={nextBattle}
+                 guided={props.showFront ?? false}
+                 promo={props.promo}
                  listenForClicks={accepted.listenForClicks}
                  clips={props.clips}
                  clipsAccount={linked && username !== undefined ? ownAccountId : undefined}

@@ -41,6 +41,7 @@ export default function App(props: AppProps) {
             missions={props.missions}
             chargesRefresher={props.chargesRefresher}
             clips={props.clips}
+            promo={props.promo}
             crazyGames={props.crazyGames}
             alerts={props.alerts}
             gifs={props.gifs}

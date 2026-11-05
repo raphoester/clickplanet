@@ -42,6 +42,8 @@ import SignInGate from "./app/account/SignInGate.tsx"
 import {callbackOf, CALLBACK_PATH} from "./domain/signInCallback.ts"
 import {ConnectClipsBackend, newClipsServiceClient} from "./backends/clipsBackend.ts"
 import {FakeClipsBackend} from "./backends/fakeClipsBackend.ts"
+import {FakePromoBackend} from "./backends/fakePromoBackend.ts"
+import {ConnectPromoBackend, newPromoServiceClient} from "./backends/promoBackend.ts"
 import {FakeAccountBackend} from "./backends/fakeAccountBackend.ts"
 import {SHARE_FLAG_PARAM, sharedCountry, withoutSharedFlag} from "./domain/shareCard.ts"
 import {linkedShot, withoutLinkedShot} from "./domain/linkedShot.ts"
@@ -141,6 +143,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const alerts = discordAlertsOf(
         new FakeAlertsBackend(async () => (await fakeAccount.me()).linked.length > 0, FAKE_JOIN_LANDS_MS), account)
     const fakeClips = new FakeClipsBackend()
+    const fakePromo = new FakePromoBackend()
     const fakeMissions = new FakeMissionsBackend((kind) => {
         if (kind === "bomb") fake.grantBomb()
         else fake.grantBonus(kind)
@@ -260,7 +263,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 
     const fakeChat = new FakeChatBackend()
     const fakeSupport = new FakeSupportBackend()
-    Object.assign(window, {fakeChat, fakeSupport})
+    Object.assign(window, {fakeChat, fakeSupport, fakePromo})
     const fakeTurn = new FakeTurnBackend(seasonRunningAt(Date.now()))
     Object.assign(window, battleCommands(fakeTurn))
     const fakeStandings = new FakeStandingsBackend()
@@ -304,6 +307,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     chargesRefresher={fake}
                     account={account}
                     clips={fakeClips}
+                    promo={fakePromo}
                     crazyGames={crazyGames}
                     alerts={alerts}
                     gifs={gifsOf(new FakeGifs())}
@@ -322,6 +326,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const missions = new ConnectMissionsBackend(newMissionServiceClient(config), session)
     const support = new ConnectSupportBackend(newSupportServiceClient(config), session)
     const clips = new ConnectClipsBackend(newClipsServiceClient(config), session)
+    const promo = new ConnectPromoBackend(newPromoServiceClient(config))
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest, landing), player, progression, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
@@ -364,6 +369,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     missions={missions}
                     chargesRefresher={backend}
                     clips={clips}
+                    promo={promo}
                     crazyGames={crazyGames}
                     alerts={alerts}
                     gifs={gifsOf(klipyKey ? new KlipyGifs(klipyKey) : undefined)}

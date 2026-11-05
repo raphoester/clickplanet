@@ -2,14 +2,16 @@ import {useEffect} from "react"
 import {ClipsBackend} from "../../backends/clips.ts"
 import {ClosedRound} from "../../backends/standings.ts"
 import {announcementKeyOf} from "../../domain/announcements.ts"
-import {Battle, Finale} from "../../domain/battle.ts"
+import {PromoBackend} from "../../backends/promo.ts"
+import {BattleToCome} from "../../backends/turn.ts"
+import {Battle} from "../../domain/battle.ts"
 import {briefDescriptionOf} from "../../domain/battleBrief.ts"
 import {revealFollowed} from "../../domain/roundReveal.ts"
 import BattleDebrief from "../battle/BattleDebrief.tsx"
 import BattleReveal from "../battle/BattleReveal.tsx"
-import FinaleTeaser from "../battle/FinaleTeaser.tsx"
+import BattleTeaser from "../battle/BattleTeaser.tsx"
 import {useBattleReveal} from "../battle/useBattleReveal.ts"
-import {useFinaleTeaser} from "../battle/useFinaleTeaser.ts"
+import {useBattleTeaser} from "../battle/useBattleTeaser.ts"
 import {useSeenBattle} from "../battle/useSeenBattle.ts"
 import ClipNotice from "../clips/ClipNotice.tsx"
 import {useClipNotice} from "../clips/useClipNotice.ts"
@@ -25,7 +27,10 @@ export type MomentsProps = {
     shown: boolean
     battle?: Battle
     closed?: ClosedRound
-    finale?: Finale
+    nextBattle?: BattleToCome
+    // A first visit, which plays its clicks before a battle's teaser.
+    guided: boolean
+    promo?: PromoBackend
     listenForClicks: ListenForClicks
     clips?: ClipsBackend
     clipsAccount?: string
@@ -43,7 +48,7 @@ export default function Moments(props: MomentsProps) {
     const seenBattle = useSeenBattle(props.battle)
     const reveal = useRoundReveal(props.closed, seenBattle)
     const battleReveal = useBattleReveal(props.battle, props.closed)
-    const finaleTeaser = useFinaleTeaser(props.finale, Date.now(), props.listenForClicks)
+    const battleTeaser = useBattleTeaser(props.nextBattle, Date.now(), props.guided, props.listenForClicks, props.promo)
     const clipNotice = useClipNotice(props.clips, props.clipsAccount)
 
     useEffect(() => {
@@ -53,8 +58,8 @@ export default function Moments(props: MomentsProps) {
         if (battleReveal.battle) announce({kind: "battle", battle: battleReveal.battle})
     }, [announce, battleReveal.battle])
     useEffect(() => {
-        if (finaleTeaser.finale) announce({kind: "finale", finale: finaleTeaser.finale})
-    }, [announce, finaleTeaser.finale])
+        if (battleTeaser.teaser) announce({kind: "teaser", ...battleTeaser.teaser})
+    }, [announce, battleTeaser.teaser])
     useEffect(() => {
         if (clipNotice.appearance) announce({kind: "clip", appearance: clipNotice.appearance})
     }, [announce, clipNotice.appearance])
@@ -103,12 +108,13 @@ export default function Moments(props: MomentsProps) {
                                      battleReveal.dismiss()
                                      dismiss()
                                  }}/>
-        case "finale":
-            return <FinaleTeaser key={key}
-                                 finale={current.finale}
+        case "teaser":
+            return <BattleTeaser key={key}
+                                 battle={current.battle}
+                                 cards={current.cards}
                                  play={props.play}
                                  onClose={() => {
-                                     finaleTeaser.dismiss(current.finale)
+                                     battleTeaser.dismiss(current.battle)
                                      dismiss()
                                  }}/>
         case "clip":

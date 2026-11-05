@@ -69,7 +69,7 @@ system exists to stop.
 | `--gold` | Reward and progress: panel headers, title names, progress fills, first place |
 | `--gain`, `--loss` | Tiles won and lost, nowhere else |
 | `--streak` | The streak flame |
-| `--war`, `--tape` | A battle: its chip, the warning tape along the dock and the chip, the start moment; the Final Battle to come: its face and tape on the season chip, its teaser, the home page's panel. Nowhere else |
+| `--war`, `--tape` | A battle: its chip, the warning tape along the dock and the chip, the start moment; the Final Battle to come: its face and tape on the season chip, the home page's panel; a battle to come: its teaser, its cards' dots. Nowhere else |
 | `--refill`, `--spread`, `--bomb`, `--enclose`, `--shield` (and `-light`) | A bonus kind: its box, its slot, its reward line |
 | `--bronze` … `--pumpkin-glow`, `--conquest` … `--halloween-enamel` | Medals only (below) |
 
@@ -171,7 +171,7 @@ feature goes in one of them; there is no fifth panel and no new fold.
 `[data-mood="battle"]` or `[data-mood="halloween"]` in `tokens.css`. A component never asks which mood is
 on; it reads its tokens. `useMood` (`app/battle/`) writes the attribute on the
 root from what the schedule plays (see [Battles](docs/battle.md)). One element
-may wear it alone, for itself and what it holds: the Final Battle's teaser and
+may wear it alone, for itself and what it holds: a battle's teaser and
 the home page's Final Battle panel.
 
 - **Battle**: the toys are repainted for war. The panels go charcoal

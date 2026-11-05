@@ -10,7 +10,6 @@ import {
     finaleLengthLine,
     finaleNear,
     finaleOf,
-    finaleTeaserDue,
     finaleWhenLine,
     nextBattleOf,
 } from "./battle.ts"
@@ -90,15 +89,6 @@ describe("finaleOf", () => {
         expect(finaleNear(at(now + 48 * HOUR + SECOND), now)).toBe(false)
         expect(finaleNear(at(now), now)).toBe(false)
         expect(finaleNear(undefined, now)).toBe(false)
-    })
-
-    it("is teased once per browser, while it is near, once the page took its clicks", () => {
-        const found = finaleOf([finale], plain, now)
-        expect(finaleTeaserDue(found, null, now, 30)).toBe(true)
-        expect(finaleTeaserDue(found, "season-0/day-23", now, 30)).toBe(true)
-        expect(finaleTeaserDue(found, "season-0/finale", now, 30)).toBe(false)
-        expect(finaleTeaserDue(found, null, now - 48 * HOUR, 30)).toBe(false)
-        expect(finaleTeaserDue(found, null, now, 29)).toBe(false)
     })
 
     it("says how long it lasts", () => {
