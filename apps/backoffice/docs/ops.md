@@ -88,9 +88,13 @@ off the proto, so a new one shows with no edit here.
 - **What plays now, its kind and since when**, from `GetSchedule.playing`, and what planet and the antibot each
   play. When a module does not play the schedule's set, the page says so in red: a module refused it, since it
   keeps no such set.
-- **The schedule**: every entry, by start, with its kind, a battle's times (`3×`) and its description (cut at 60
-  characters, whole on hover), the row playing marked, an ended one muted. A row that has not ended and names a set a module keeps none of says
-  which ("No set rush in planet or the antibot.").
+- **The schedule**: every entry, by start, with its start and end on one line, what they share said once ("5 nov.
+  2026, 22:00 – 23:00", `spanOf`), its kind, a battle's times (`3×`) and its description (cut at 60 characters, whole
+  on hover), the row playing marked, an ended one muted. A row that has not ended and names a set a module keeps none
+  of says which ("No set rush in planet or the antibot.").
+- **On a phone (below 720px) each entry is a card**, not a row of seven columns: its set, kind, times and priority on
+  the first line, then its span, its description and its buttons (`.schedule` in `index.css`). A cell breaks a word
+  only when it cannot fit, so no column is squeezed to a letter wide.
 - **Only an entry to come has Edit and Delete.** A running entry runs to its end; to change what plays, add an entry
   at a higher priority. There is no button that changes which set plays at once; the set playing is edited on its rules page.
 - **Add an entry** opens a form: the set (only the ones both modules keep), its kind, a battle's times, its description, its start and
