@@ -98,7 +98,7 @@ has read the answer wants to play again. `dismiss` acts only on `answered`, and
 the timer that was to clear the result finds another state and does nothing.
 
 **The quiz and the lines of news all want the band at the top**, and the news
-gives it up: `BombNews`, `FortifyNews`, `FortifyHint`, `UnderAttack`,
+gives it up: `BombNews`, `FortifyNews`, `UnderAttack`,
 `BattleOver` and `ConnectionLost` each read `quizShown` from the store and move
 down under the quiz while it shows (`--lowered`). Four seconds of news nobody
 presses moves, a question somebody is answering does not. The sign-in nudge reads

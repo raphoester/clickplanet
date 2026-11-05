@@ -32,9 +32,6 @@ A landmass is a row of the borders blob's table.
   `GetFortresses` at load and after a gap, then from the events; nothing pulses before
   they are read. **The pulse is drawn at `AMBIENT_FRAME_MS` (20 fps), and only while a
   pulsing landmass faces the camera** (`drawsFrame`'s `ambient`).
-- **Your own flag getting close** is a Moments line (`FortifyHint`, "Sicily: 23 tiles to
-  fortify"), once per approach, never during the load. Moments show one at a time: the
-  newest of a bomb, a fortify and this line.
 - **Names** (`domain/landmassNames.ts`): `static/landmassNames.json`, written by
   `npm run landmassNames` from Natural Earth at the map's pin (`scripts/map/names/`:
   subunits, islands, island groups, admin-1 and its region, by tiles in common), one
