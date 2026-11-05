@@ -3,7 +3,6 @@ import {agoOf} from "../../domain/tilePeek.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
-import {UserIcon} from "../components/icons.tsx"
 import PointerCard from "../components/PointerCard.tsx"
 import Streak from "../badges/Streak.tsx"
 import WornTitle from "../badges/WornTitle.tsx"
@@ -11,6 +10,7 @@ import {truncate} from "../truncate.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {usePlayerCard} from "./playerCardStore.ts"
 import {HolderShown} from "./tileHolderStore.ts"
+import "./PlayerCard.css"
 import "./HolderCard.css"
 
 const NAME_MAX_LENGTH = 18
@@ -40,7 +40,17 @@ export default function HolderCard({holder, now = Date.now(), onHold, onClose}: 
             <WornTitle accountId={line.accountId} size={48}/>
             <div className="holder-card-who">
                 <span className="holder-card-name">
-                    <span className="holder-card-name-text" title={name}>{truncate(name, NAME_MAX_LENGTH)}</span>
+                    {openPlayer && !line.guest && line.accountId
+                        ? <button type="button"
+                                  className="holder-card-name-text player-name-button"
+                                  title={name}
+                                  onClick={() => {
+                                      onClose()
+                                      openPlayer(line)
+                                  }}>
+                            {truncate(name, NAME_MAX_LENGTH)}
+                        </button>
+                        : <span className="holder-card-name-text" title={name}>{truncate(name, NAME_MAX_LENGTH)}</span>}
                     {line.admin && <AdminCrown/>}
                     <Streak accountId={line.accountId}/>
                 </span>
@@ -51,16 +61,6 @@ export default function HolderCard({holder, now = Date.now(), onHold, onClose}: 
                     })}
                 </span>}
             </div>
-            {openPlayer && !line.guest && line.accountId && <button type="button"
-                                                   className="icon-button holder-card-profile"
-                                                   aria-label="View profile"
-                                                   title="View profile"
-                                                   onClick={() => {
-                                                       onClose()
-                                                       openPlayer(line)
-                                                   }}>
-                <UserIcon size={20}/>
-            </button>}
         </div>
         <p className="pointer-card-foot holder-card-take">
             <CountryFlag code={line.countryCode}/>

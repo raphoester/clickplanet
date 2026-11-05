@@ -70,15 +70,21 @@ describe("HolderCard", () => {
         expect(within(flags).getAllByRole("img").map((flag) => flag.getAttribute("aria-label"))).toEqual(["France", "Belgium"])
     })
 
-    it("closes, then opens the player's card, from its profile button", () => {
+    it("closes, then opens the player's card, from its name", () => {
         usePlayerCard.setState({openable: true})
         const onClose = vi.fn()
         show(FOX, {onClose})
 
-        fireEvent.click(screen.getByRole("button", {name: "View profile"}))
+        fireEvent.click(screen.getByRole("button", {name: "BraveFox42"}))
 
         expect(onClose).toHaveBeenCalledTimes(1)
         expect(usePlayerCard.getState().player).toEqual(FOX)
+    })
+
+    it("shows the name as plain text when no player card can open", () => {
+        show(FOX)
+
+        expect(screen.queryByRole("button", {name: "BraveFox42"})).toBeNull()
     })
 
     it("shows a guest by its guest name alone, with no profile to open", () => {
@@ -86,7 +92,7 @@ describe("HolderCard", () => {
         show(GUEST)
 
         expect(screen.getByRole("region", {name: "guest_91aa3d"}).textContent).toContain("Took it for Germany 3 min ago")
-        expect(screen.queryByRole("button", {name: "View profile"})).toBeNull()
+        expect(screen.queryByRole("button", {name: "guest_91aa3d"})).toBeNull()
         expect(screen.queryByRole("group", {name: "Fought for"})).toBeNull()
     })
 
@@ -96,7 +102,7 @@ describe("HolderCard", () => {
         render(<HolderCard holder={{...shown(deleted), playsFor: []}} now={NOW} onHold={() => {}} onClose={() => {}}/>)
 
         expect(screen.getByRole("region", {name: "Deleted account"}).textContent).toContain("Took it for Turkey 3 min ago")
-        expect(screen.queryByRole("button", {name: "View profile"})).toBeNull()
+        expect(screen.queryByRole("button", {name: "Deleted account"})).toBeNull()
     })
 
     it("says when the pointer is on it, and closes on Escape", () => {

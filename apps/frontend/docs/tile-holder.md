@@ -5,8 +5,8 @@ half a second, opens a card beside the pointer on the player whose take holds
 it** (`HolderCard`). One row: the medal of the title it wears (its name only as
 the medal's label), the name in its colour with its crown and streak over the
 first three flags it fought for (from its public card, `GetProgress`; the medal and the streak are its badges, by the
-take's account, see [Badges](badges.md)), and a round
-profile button that opens that card. Under it, a footer strip: the flag it took
+take's account, see [Badges](badges.md)); the name is
+a button that opens that card. Under it, a footer strip: the flag it took
 the tile for, with the country's name, and how long ago. The close is a round badge on the top-right corner,
 outside the layout, so the card keeps `EDGE_PX` (12px) from the screen's edges. A
 guest shows its name and the footer alone: a guest has no public card. A tap takes a tile, so a tap cannot ask: a hold is the one press a
@@ -22,7 +22,7 @@ tap never is, and the bomb's hold-to-drop is already one.
   a `PointerCard`, which holds the placement, the close badge, Escape and the press
   outside.
 - **It stays while the pointer is on the tile or on the card**, and goes
-  `LEAVE_GRACE_MS` (300ms) after it left both, so a mouse can reach the button.
+  `LEAVE_GRACE_MS` (300ms) after it left both, so a mouse can reach the name.
   On a phone it stays after the finger lifts. Its close button, Escape and a
   press anywhere outside it close it. **A tap that closes it does nothing else**
   (`swallowNextClick`), so closing the card never takes a tile; a mouse click
@@ -48,7 +48,7 @@ tap never is, and the bomb's hold-to-drop is already one.
   territory card shares.
 - **A take with no account is a deleted account** (`DELETED_ACCOUNT`): the ledger
   keeps a deleted account's takes with no account, so the card says "Deleted
-  account", the flag and when, with no profile button, and asks for no card.
+  account", the flag and when, with a name that opens nothing, and asks for no card.
 - **The card shows only while the tile wears the flag of its last take**
   (`holderShown`): the ledger is a second behind, and an operator's write keeps no
   take, so a tile that changed hands since says nothing rather than the wrong

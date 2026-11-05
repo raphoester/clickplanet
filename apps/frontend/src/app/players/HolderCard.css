@@ -42,10 +42,6 @@
     margin-right: 0;
 }
 
-.holder-card-profile {
-    background: var(--secondary);
-}
-
 .holder-card-take {
     display: flex;
     align-items: center;
