@@ -77,7 +77,7 @@ export function finaleWhenLine(finale: Finale, timeZone?: string): string {
 }
 
 // "2 hours", "1 hour", or "90 minutes" when it is not whole hours.
-export function finaleLengthLine(finale: Finale): string {
+export function finaleLengthLine(finale: {startsAt: number, endsAt: number}): string {
     const minutes = Math.round((finale.endsAt - finale.startsAt) / 60_000)
     if (minutes % 60 !== 0) return `${minutes} minutes`
     return minutes === 60 ? "1 hour" : `${minutes / 60} hours`
@@ -104,7 +104,7 @@ export function battleEndsLine(battle: Battle, now: number, timeZone?: string): 
     return sameDay ? `Ends at ${time}` : `Ends ${end("weekday")} at ${time}`
 }
 
-function partsOf(ms: number, timeZone?: string): (type: Intl.DateTimeFormatPartTypes) => string {
+export function partsOf(ms: number, timeZone?: string): (type: Intl.DateTimeFormatPartTypes) => string {
     const parts = new Intl.DateTimeFormat("en-GB", {
         weekday: "short",
         day: "numeric",
