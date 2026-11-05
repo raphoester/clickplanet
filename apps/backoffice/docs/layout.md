@@ -31,6 +31,9 @@ src/
   map/              Reassign a country, Paint random tiles, Download a replay
   clips/            Clip stats: ClipStatsPage, actions.ts (the CSV's file), table.ts (its columns)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)
+  promo/            Promo, the battle teasers: PromoPage, BackgroundsPanel (the library and its uploads), CardsPanel (a set's cards,
+                    edited and previewed), actions.ts (the upload's steps, the refusals, each set's values, a card's
+                    problems), fill.ts (a card's words filled as the server fills them)
   ops/              Reconcile titles, Link Discord members (discordMembers.ts, its words), Game rules, Anti-bot rules (a
                     form read off the proto), Rule schedule, Seasons, Timeline; cutoff.ts (the daily cutoff: when days
                     end, a battle off it)

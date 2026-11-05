@@ -1,6 +1,7 @@
 import {PromiseClient} from "@connectrpc/connect"
 import {
-    alertsAdmin, antibotAdmin, chatAdmin, clipsAdmin, gamemasterAdmin, planetAdmin, playerAdmin, progressionAdmin, supportAdmin,
+    alertsAdmin, antibotAdmin, chatAdmin, clipsAdmin, gamemasterAdmin, planetAdmin, playerAdmin, progressionAdmin, promoAdmin,
+    supportAdmin,
 } from "./api.ts"
 import {AdminService as AlertsAdminService} from "./gen/grpc/alerts/v1/admin_connect.ts"
 import {AdminService as AntibotAdminService} from "./gen/grpc/antibot/v1/admin_connect.ts"
@@ -10,6 +11,7 @@ import {AdminService as PlanetAdminService} from "./gen/grpc/planet/v1/admin_con
 import {AdminService as PlayerAdminService} from "./gen/grpc/player/v1/admin_connect.ts"
 import {AdminService as ProgressionAdminService} from "./gen/grpc/progression/v1/admin_connect.ts"
 import {AdminService as GamemasterAdminService} from "./gen/grpc/gamemaster/v1/admin_connect.ts"
+import {AdminService as PromoAdminService} from "./gen/grpc/promo/v1/admin_connect.ts"
 import {AdminService as SupportAdminService} from "./gen/grpc/support/v1/admin_connect.ts"
 
 // Each page takes the services it calls as these, so a test hands it FakeAdmin (fakeAdmin.ts) instead.
@@ -29,12 +31,15 @@ export type ClipsAdmin = Pick<
     "listSnapshots" | "listRows" | "createVideoUpload" | "keepVideo" | "listVideos" | "removeVideo"
 >
 
+// The battle teasers: the background library and each rule set's cards.
+export type PromoAdmin = PromiseClient<typeof PromoAdminService>
+
 export type Clients = {
     alerts: AlertsAdmin, antibot: AntibotAdmin, chat: ChatAdmin, planet: PlanetAdmin, player: PlayerAdmin, progression: ProgressionAdmin,
-    gamemaster: GamemasterAdmin, support: SupportAdmin, clips: ClipsAdmin,
+    gamemaster: GamemasterAdmin, support: SupportAdmin, clips: ClipsAdmin, promo: PromoAdmin,
 }
 
 export const CLIENTS: Clients = {
     alerts: alertsAdmin, antibot: antibotAdmin, chat: chatAdmin, planet: planetAdmin, player: playerAdmin, progression: progressionAdmin,
-    gamemaster: gamemasterAdmin, support: supportAdmin, clips: clipsAdmin,
+    gamemaster: gamemasterAdmin, support: supportAdmin, clips: clipsAdmin, promo: promoAdmin,
 }
