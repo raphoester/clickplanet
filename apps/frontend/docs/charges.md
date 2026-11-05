@@ -2,7 +2,7 @@
 
 A bonus box holds a **charge**, which has no clock and is never used on its own:
 a refill (the click bank, filled when the player presses it), a bomb (one drop), a
-stack of enclosures (one shape each, `maxTiles` at most), a pool of spread
+stack of enclosures (one click each, which fills every shape it closes, `maxTiles` at most a shape), a pool of spread
 clicks and a pool of shields. The server keeps them per account, in postgres:
 a refill and a bomb at most, up to 3 enclosures, up to 8 spread clicks and up to
 30 shields. A box adds a random 1 to 3 enclosures, 1 to 4 spread clicks or 5
@@ -20,8 +20,8 @@ no read. `ClaimBonusResponse.charges` replaces them on a claim, and
 `UseRefillResponse.charges` on a refill, which also brings the full budget, and
 `PlaceShieldResponse.charges` on a shield placed. Otherwise
 it follows its own calls: an accepted click **sent with spread on** takes a spread
-click off, this player's own `tilesEnclosed` takes an enclosure off (the event also brings the tiles it took, see
-[Viewer](viewer.md)), and a drop
+click off, this player's own `tilesEnclosed` takes an enclosure off (not while enclosures are unlimited; the event
+also brings the tiles it took, see [Viewer](viewer.md)), and a drop
 takes the bomb off at once and gives it back unless the server says it holds
 none (a ban refusal gives it back too); a shield is taken off the same way. The click answer says nothing about charges, on purpose (see the backend's
 [Charges](../../backend/docs/charges.md)). A charge spent in another tab stays on screen until the next read. It
@@ -30,15 +30,16 @@ inventory.
 
 **The sizes are rules**: `GetBonusRules` (a GET no cache keeps) answers the
 blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
-stack's size, the shields' pool size and how many can stand on one tile
-(`tileShields`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
+stack's size, the shields' pool size, how many can stand on one tile
+(`tileShields`) and whether enclosures are unlimited (`enclosuresUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
 planet stream, and again when the stream comes back after a gap, which may have hidden one, so an open page follows a
 new set in force (the backend's [Rules](../../backend/docs/rules.md)).
 
 ## Off by default, one at a time
 
 **Nothing is used until the player says so.** Spread, enclose and shield are
-switches (`Switches`), off at load and never turned on by the client. Every click carries
+switches (`Switches`), off at load and never turned on by the client, but for enclose while enclosures are
+unlimited (below). Every click carries
 them: `TileClicker.clickTile(tile, country, switches)` sends
 `ClickRequest.spread` and `enclose`, and the server spends a charge only when its
 switch is on. Shield is not sent: it changes what a click on the player's own tile
@@ -50,6 +51,18 @@ when one goes on, aiming the bomb switches them all off, and switching one on pu
 bomb away. `globe.ts` holds the one copy (`setSwitch`, `onSwitchesChange`). The
 server refuses a click with both switches on (`INVALID_ARGUMENT`), before it
 writes or spends anything.
+
+### Enclose at rest, while enclosures are unlimited
+
+**A rule set with unlimited enclosures** (the backend's
+[Unlimited enclosures](../../backend/docs/enclose.md#unlimited-enclosures-bonusesencloseunlimited), for a battle)
+**makes enclose the switch at rest**: on whenever no other switch is on and the bomb is not aimed (`atRest`, applied
+by `switchTo` in `globe.ts` to every change). So it is on at load and when the set starts playing, and comes back
+when spread or shield goes off, runs out, or the bomb is dropped or put away. **The player can still turn it off**,
+and it stays off until they turn it on again (`encloseSwitchedOff`), or until the set stops or starts again. When the
+set stops, enclose goes off, so a click never spends one of the enclosures held by surprise. Turning spread or shield
+on, or aiming the bomb, turns it off, as ever. No enclosure is needed (`switchesHeld`), and no "Shape is not closed"
+bubble is said: nearly every click would say it.
 
 ## The inventory
 
@@ -72,6 +85,9 @@ its size (`5/8`, `2/3`), and a word over the icon says what the slot is doing
 - **Bomb** aims it, or puts it away (`Globe.setArmed`).
 - **Spread**, **Enclose** and **Shield** switch (`Globe.setSwitch`),
   `aria-pressed`.
+- **Enclose, while enclosures are unlimited**, counts `∞`, is never empty and never "New" (the game gave it, not a
+  box), and while on, a dashed outline runs round the slot without end (`.inventory-loop`, still under
+  `prefers-reduced-motion`): a loop that keeps closing.
 
 **A slot speaks in a bubble, never a `title`.** Most of the players who came from
 TikTok play on a phone, where a `title` never shows, and they asked in the chat
@@ -90,7 +106,7 @@ charge is spent. The same line is in the slot's `aria-describedby`.
   player's own tiles when a shield stopped the click.
 - **Shield on, a full tile**: "Full" on the slot and a line saying so.
 - **Enclose on, a click that took a tile and closed no shape**: "Shape is not
-  closed or is too big (25 tiles max)". **This is guessed on the client**:
+  closed or is too big (25 tiles max)", never while enclosures are unlimited. **This is guessed on the client**:
   `Click` answers nothing about bonuses (it once hid a shadow ban; see the
   backend's [Charges](../../backend/docs/charges.md)), and the server cannot tell an open shape from one too big
   either. The globe waits `ENCLOSURE_WAIT_MS` (1.5s) after the click is accepted

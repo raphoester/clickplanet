@@ -102,6 +102,8 @@ wait for another flag; `lockFlags()` locks the flags as a battle's rule set does
 [The flag played for](flag.md)), and `fakeBackend.shareClicks()` as the
 player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
+`unlimitEnclosures()` plays a set with unlimited enclosures (enclose on, ∞, nothing spent), and
+`unlimitEnclosures(false)` stops it.
 `fakeBackend.ban(90)` refuses this player's clicks, bombs and shields for 90
 minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
 `fakeBackend.setTempo(3)` refills the bank three times as fast, as a rule set

@@ -75,7 +75,8 @@ export default function Inventory({
     }
 
     const active = bombArmed || switches.spread || switches.enclose || switches.shield
-    const max = rules?.enclosureMaxTiles
+    const max = rules?.enclosureMaxTiles?.toLocaleString("en")
+    const unlimited = rules?.enclosuresUnlimited ?? false
 
     const slot = (kind: ChargeKind) => ({
         kind,
@@ -120,8 +121,9 @@ export default function Inventory({
                   })}/>
             <Slot {...slot("encloseClicks")}
                   name="Enclose"
-                  held={charges.enclosures > 0}
-                  count={countOf(charges.enclosures, rules?.enclosures)}
+                  held={unlimited || charges.enclosures > 0}
+                  count={unlimited ? "∞" : countOf(charges.enclosures, rules?.enclosures)}
+                  endless={unlimited}
                   on={switches.enclose}
                   state={switches.enclose ? "On" : undefined}
                   hint={switches.enclose
@@ -157,7 +159,7 @@ function noticeSaid(notice: BonusNotice, rules: BonusRules | undefined): Omit<Sa
         case "shieldNotYours":
             return {text: "Shields go on your own tiles", ms: NOTICE_MS}
         case "nothingEnclosed": {
-            const max = rules?.enclosureMaxTiles
+            const max = rules?.enclosureMaxTiles?.toLocaleString("en")
             return {
                 text: max ? `Shape is not closed or is too big (${max} tiles max)` : "Shape is not closed or is too big",
                 ms: NOT_ENCLOSED_MS,
@@ -171,6 +173,7 @@ type SlotProps = {
     name: string
     held: boolean
     count?: string
+    endless?: boolean
     on?: boolean
     state?: string
     hint: string
@@ -182,11 +185,11 @@ type SlotProps = {
     onEmpty: () => void
 }
 
-function Slot({kind, name, held, count, on, state, hint, guide, said, onPress, onHint, onUnhint, onEmpty}: SlotProps) {
+function Slot({kind, name, held, count, endless, on, state, hint, guide, said, onPress, onHint, onUnhint, onEmpty}: SlotProps) {
     const button = useRef<HTMLButtonElement>(null)
     const described = useId()
     const usable = held && onPress !== undefined
-    const fresh = usable && isNew(guide, kind)
+    const fresh = usable && !endless && isNew(guide, kind)
     const shownState = said?.chip ?? state ?? (fresh ? "New" : undefined)
 
     const className = [
@@ -214,6 +217,7 @@ function Slot({kind, name, held, count, on, state, hint, guide, said, onPress, o
                    onPointerEnter={(event) => mouse(event) && onHint(description)}
                    onPointerLeave={(event) => mouse(event) && onUnhint()}
                    onClick={usable ? onPress : onEmpty}>
+        {endless && on && <svg className="inventory-loop" aria-hidden="true"><rect width="100%" height="100%"/></svg>}
         <span className="inventory-box"><BonusIcon kind={kind}/></span>
         {shownState && <span className="chip inventory-state" aria-hidden="true">{shownState}</span>}
         {count && <span className="inventory-count" aria-hidden="true">{count}</span>}

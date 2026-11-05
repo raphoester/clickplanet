@@ -2019,6 +2019,13 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
    */
   signInRefill = false;
 
+  /**
+   * Enclose needs no charge and spends none.
+   *
+   * @generated from field: bool enclosures_unlimited = 10;
+   */
+  enclosuresUnlimited = false;
+
   constructor(data?: PartialMessage<GetBonusRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2035,6 +2042,7 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
     { no: 7, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 8, name: "tile_shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 9, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 10, name: "enclosures_unlimited", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBonusRulesResponse {

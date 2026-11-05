@@ -44,7 +44,7 @@ describe("the rules", () => {
     })
 
     it("edits every value of a set", () => {
-        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "bonuses.quiz.enabled", "bonuses.signInRefill", "toll.steps", "frozen", "allegianceLocked"])
+        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "bonuses.quiz.enabled", "bonuses.signInRefill", "bonuses.enclose.unlimited", "toll.steps", "frozen", "allegianceLocked"])
 
         const values = leaves(played().rules!.toJson({emitDefaultValues: true}))
 
@@ -85,6 +85,15 @@ describe("the rules", () => {
         expect(before.signInRefill).toBe(true)
         expect(ruleSetOf(after).rules?.bonuses?.signInRefill).toBe(false)
         expect(changesOf(before, after)).toEqual([{label: "Refill at first sign-in", before: "yes", after: "no"}])
+    })
+
+    it("sends unlimited enclosures switched on, and says it changed", () => {
+        const before = draftOf(played())
+        const after = {...before, enclosuresUnlimited: true}
+
+        expect(before.enclosuresUnlimited).toBe(false)
+        expect(ruleSetOf(after).rules?.bonuses?.enclose?.unlimited).toBe(true)
+        expect(changesOf(before, after)).toEqual([{label: "Enclosures unlimited", before: "no", after: "yes"}])
     })
 
     it("freezes a set, and says so in the list", () => {

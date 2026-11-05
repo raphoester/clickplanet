@@ -371,6 +371,9 @@ message GetBonusRulesResponse {
 
   // A guest's first sign-in earns a refill.
   bool sign_in_refill = 9;
+
+  // Enclose needs no charge and spends none.
+  bool enclosures_unlimited = 10;
 }
 
 message TollStep {

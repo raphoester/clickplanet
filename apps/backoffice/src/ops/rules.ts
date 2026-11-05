@@ -101,7 +101,7 @@ export type TollStep = {share: string, slowdown: string}
 // A set as the form edits it: every value as typed. Outside default, "" and undefined are default's value.
 export type Draft = {
     name: string, values: Record<string, string>, quiz?: boolean, signInRefill?: boolean, frozen?: boolean,
-    allegianceLocked?: boolean, toll?: TollStep[]
+    allegianceLocked?: boolean, enclosuresUnlimited?: boolean, toll?: TollStep[]
 }
 
 export function draftOf(set: RuleSet): Draft {
@@ -113,6 +113,7 @@ export function draftOf(set: RuleSet): Draft {
         values: Object.fromEntries(FIELDS.map(field => [field.path, textOf(valueAt(json, field.path))])),
         quiz: rules.bonuses?.quiz?.enabled,
         signInRefill: rules.bonuses?.signInRefill,
+        enclosuresUnlimited: rules.bonuses?.enclose?.unlimited,
         frozen: rules.frozen,
         allegianceLocked: rules.allegianceLocked,
         toll: rules.toll?.steps.map(step => ({
@@ -163,6 +164,7 @@ export const SWITCHES = [
     {key: "allegianceLocked", label: "Flags locked"},
     {key: "quiz", label: "Quizzes on"},
     {key: "signInRefill", label: "Refill at first sign-in"},
+    {key: "enclosuresUnlimited", label: "Enclosures unlimited"},
 ] as const
 
 // Every value the draft holds otherwise than `before`, the set it started from.
@@ -216,7 +218,7 @@ export function ruleSetOf(draft: Draft): RuleSet {
     const json: JsonObject = {}
     const switches = {
         "frozen": draft.frozen, "allegianceLocked": draft.allegianceLocked, "bonuses.quiz.enabled": draft.quiz,
-        "bonuses.signInRefill": draft.signInRefill,
+        "bonuses.signInRefill": draft.signInRefill, "bonuses.enclose.unlimited": draft.enclosuresUnlimited,
     }
     for (const [path, on] of Object.entries(switches)) {
         if (on !== undefined) put(json, path, on)

@@ -14,8 +14,49 @@ func (p Pocket) Inside() []uint32 {
 	return p.inside
 }
 
+func (p Pocket) Empty() bool {
+	return len(p.inside) == 0
+}
+
 func (p Pocket) Enclosure(country string, closingTile uint32) clicks.Enclosure {
 	return clicks.Enclosure{Country: country, ClosingTile: closingTile, Wall: p.wall}
+}
+
+func joined(shapes []Pocket) Pocket {
+	if len(shapes) == 1 {
+		return shapes[0]
+	}
+
+	var pocket Pocket
+	walls := cpcolls.NewSet[uint32]()
+	for _, shape := range shapes {
+		for _, tile := range shape.wall {
+			if !walls.Contains(tile) {
+				walls.Add(tile)
+				pocket.wall = append(pocket.wall, tile)
+			}
+		}
+	}
+
+	pocket.inside = make([]uint32, 0, insideOf(shapes))
+	for index := 0; len(pocket.inside) < cap(pocket.inside); index++ {
+		for _, shape := range shapes {
+			if index < len(shape.inside) {
+				pocket.inside = append(pocket.inside, shape.inside[index])
+			}
+		}
+	}
+
+	return pocket
+}
+
+func insideOf(shapes []Pocket) int {
+	total := 0
+	for _, shape := range shapes {
+		total += len(shape.inside)
+	}
+
+	return total
 }
 
 type pocketBuilder struct {

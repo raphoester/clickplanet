@@ -36,6 +36,7 @@ func RulesOf(m *planetv1.BonusRules) Rules {
 			MaxTiles:  int(m.GetEnclose().GetMaxTiles()),
 			Held:      int(m.GetEnclose().GetHeld()),
 			MaxPerBox: int(m.GetEnclose().GetMaxPerBox()),
+			Unlimited: m.GetEnclose().GetUnlimited(),
 		},
 		Shield: ShieldRules{
 			Held:      int(m.GetShield().GetHeld()),

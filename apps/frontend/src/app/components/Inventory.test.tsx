@@ -13,7 +13,10 @@ afterEach(() => {
 })
 beforeEach(() => window.localStorage.clear())
 
-const rules = {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [], signInRefill: false}
+const rules = {
+    blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [],
+    signInRefill: false, enclosuresUnlimited: false,
+}
 
 function inventory({guide = FRESH_GUIDE, ...props}: Partial<InventoryProps> & {guide?: BonusGuide} = {}) {
     act(() => useBonusGuide.setState({guide}))
@@ -61,6 +64,23 @@ describe("Inventory", () => {
         expect(slot(/^Spread, 5\/8/)).toBeTruthy()
         expect(slot(/^Enclose, 2\/3/)).toBeTruthy()
         expect(slot(/^Shield, 7\/12/)).toBeTruthy()
+    })
+
+    it("offers enclose with none held while enclosures are unlimited, and lets it be switched off", () => {
+        const toggle = vi.fn()
+        const unlimited = {...rules, enclosuresUnlimited: true}
+        const {container, rerender} = render(inventory({rules: unlimited, onToggle: toggle,
+            switches: {...ALL_OFF, enclose: true}}))
+
+        expect(slot(/^Enclose, ∞, On/).getAttribute("aria-disabled")).toBeNull()
+        expect(container.querySelector(".inventory-loop")).toBeTruthy()
+
+        fireEvent.click(slot(/^Enclose/))
+        expect(toggle.mock.calls).toEqual([["enclose"]])
+
+        rerender(inventory({rules: unlimited, onToggle: toggle}))
+        expect(slot(/^Enclose, ∞$/).getAttribute("aria-pressed"), "no New: the game gave it, not a box").toBe("false")
+        expect(container.querySelector(".inventory-loop")).toBeNull()
     })
 
     it("switches spread and enclose, and says which are on", () => {

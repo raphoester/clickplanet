@@ -44,12 +44,21 @@ export function switched(switches: Switches, name: keyof Switches, on: boolean):
     return on ? {...ALL_OFF, [name]: true} : {...switches, [name]: false}
 }
 
-export function switchesHeld(switches: Switches, charges: Charges): Switches {
+export function switchesHeld(switches: Switches, charges: Charges, enclosuresUnlimited: boolean): Switches {
     const spread = switches.spread && charges.spreadClicksLeft > 0
-    const enclose = switches.enclose && charges.enclosures > 0
+    const enclose = switches.enclose && (enclosuresUnlimited || charges.enclosures > 0)
     const shield = switches.shield && charges.shields > 0
     if (spread === switches.spread && enclose === switches.enclose && shield === switches.shield) return switches
     return {spread, enclose, shield}
+}
+
+export function atRest(switches: Switches, encloseAtRest: boolean): Switches {
+    if (!encloseAtRest || switches.spread || switches.enclose || switches.shield) return switches
+    return {...switches, enclose: true}
+}
+
+export function sameSwitches(a: Switches, b: Switches): boolean {
+    return a.spread === b.spread && a.enclose === b.enclose && a.shield === b.shield
 }
 
 export type BonusNotice = "shieldFull" | "shieldTaken" | "shieldNotYours" | "nothingEnclosed"
@@ -72,6 +81,7 @@ export type BonusRules = {
     tileShields: number
     toll: readonly TollStep[]
     signInRefill: boolean
+    enclosuresUnlimited: boolean
 }
 
 export function describeReward(reward: BonusReward): {

@@ -534,6 +534,13 @@ export class EncloseRules extends Message<EncloseRules> {
    */
   maxPerBox?: number;
 
+  /**
+   * A click with enclose on needs no charge and spends none.
+   *
+   * @generated from field: optional bool unlimited = 4;
+   */
+  unlimited?: boolean;
+
   constructor(data?: PartialMessage<EncloseRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -545,6 +552,7 @@ export class EncloseRules extends Message<EncloseRules> {
     { no: 1, name: "max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 2, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 3, name: "max_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 4, name: "unlimited", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EncloseRules {

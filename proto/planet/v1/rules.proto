@@ -91,6 +91,8 @@ message EncloseRules {
   // The stack a hand holds at most.
   optional uint32 held = 2;
   optional uint32 max_per_box = 3;
+  // A click with enclose on needs no charge and spends none.
+  optional bool unlimited = 4;
 }
 
 message ShieldRules {

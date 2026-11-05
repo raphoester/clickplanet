@@ -39,7 +39,7 @@ func TestEveryShapeIsCountedWithTheTilesItTookAndStillEnclosed(t *testing.T) {
 # HELP bonus_enclosed_tiles_total Tiles taken inside shapes closed with the enclose bonus
 # TYPE bonus_enclosed_tiles_total counter
 bonus_enclosed_tiles_total 4
-# HELP bonus_enclosures_total Shapes closed with the enclose bonus
+# HELP bonus_enclosures_total Clicks that closed shapes with the enclose bonus
 # TYPE bonus_enclosures_total counter
 bonus_enclosures_total 2
 `)))
@@ -56,7 +56,7 @@ func TestAFailedEnclosureIsNotCounted(t *testing.T) {
 # HELP bonus_enclosed_tiles_total Tiles taken inside shapes closed with the enclose bonus
 # TYPE bonus_enclosed_tiles_total counter
 bonus_enclosed_tiles_total 0
-# HELP bonus_enclosures_total Shapes closed with the enclose bonus
+# HELP bonus_enclosures_total Clicks that closed shapes with the enclose bonus
 # TYPE bonus_enclosures_total counter
 bonus_enclosures_total 0
 `)))

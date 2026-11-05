@@ -169,6 +169,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fake.freeze(false)
             return "the map takes play again"
         },
+        unlimitEnclosures: (on = true) => {
+            fake.unlimitEnclosures(on)
+            return on ? "enclosures are unlimited: enclose is on, and spends nothing" : "enclosures are spent again"
+        },
         lockFlags: () => {
             fake.lockFlags(true)
             return "the flags are locked: no change of country"

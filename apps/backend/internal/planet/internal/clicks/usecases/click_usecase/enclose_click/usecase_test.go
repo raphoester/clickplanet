@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
@@ -134,6 +135,7 @@ type fixture struct {
 	shields   shields
 	charges   *bonuses.MemoryStore
 	published *recorder
+	rules     *bonuses.Rules
 	useCase   *enclose_click.UseCase
 }
 
@@ -152,6 +154,7 @@ func setup(charged bool, err error) fixture {
 	claiming := clicks.NewClaiming(board{tiles: f.tiles, shields: f.shields}, func() int { return 10 })
 	rules := bonuses.TestRules()
 	rules.Enclose.MaxTiles = 10
+	f.rules = &rules
 	inForce := func() bonuses.Rules { return rules }
 	charges := bonuses.NewCharges(f.charges, inForce)
 	f.useCase = enclose_click.New(rule{claiming: claiming, err: err}, charges,
@@ -324,22 +327,34 @@ func TestClickingTheOutlineOfAShapeAlreadyClosedTakesNothing(t *testing.T) {
 	assert.Empty(t, f.published.published)
 }
 
-func TestOneClickClosingTwoShapesTakesTheFirstForItsOneCharge(t *testing.T) {
+func TestOneClickClosingTwoShapesFillsBothForOneCharge(t *testing.T) {
 	f := setup(true, nil)
+	f.charges.Keep(caller, bonuses.Held{Enclosures: 2})
 	top, bottom := f.grid.id(5, 4), f.grid.id(4, 6)
 	f.carve(f.grid.id(5, 5), []uint32{top, bottom})
 
 	f.click(t, f.grid.id(5, 5))
 
-	require.Len(t, f.published.published, 1)
+	assert.Equal(t, "fr", f.tiles[top])
+	assert.Equal(t, "fr", f.tiles[bottom])
+	require.Len(t, f.published.published, 1, "one click, one shape announced")
+	assert.Equal(t, 1, f.charges.Kept(caller).Enclosures, "one click, one charge")
 
-	taken := 0
-	for _, tile := range []uint32{top, bottom} {
-		if f.tiles[tile] == "fr" {
-			taken++
-		}
-	}
-	assert.Equal(t, 1, taken, "only the shape that was paid for is filled")
+	walls := cpcolls.NewSet(f.grid.ring(5, 4)...)
+	walls.Add(f.grid.ring(4, 6)...)
+	assert.Len(t, f.published.published[0].Wall, walls.Len(), "a wall both shapes share is told once")
+}
+
+func TestTwoShapesFillSideBySideFromTheClosingTile(t *testing.T) {
+	f := setup(true, nil)
+	top := [2]uint32{f.grid.id(5, 4), f.grid.id(5, 3)}
+	bottom := [2]uint32{f.grid.id(4, 6), f.grid.id(4, 7)}
+	f.carve(f.grid.id(5, 5), []uint32{top[0], top[1], bottom[0], bottom[1]})
+
+	f.click(t, f.grid.id(5, 5))
+
+	require.Len(t, f.published.published, 1)
+	assert.Equal(t, []uint32{top[0], bottom[0], top[1], bottom[1]}, f.published.published[0].Filled)
 }
 
 func TestAChargeSpentClosesNothingMore(t *testing.T) {
@@ -393,4 +408,47 @@ func TestAClickWithEncloseSwitchedOffClosesNothingAndKeepsTheCharge(t *testing.T
 	assert.Equal(t, "de", f.tiles[centre])
 	assert.Empty(t, f.published.published)
 	assert.Equal(t, 1, f.charges.Kept(caller).Enclosures, "the charge is used only when the player chooses")
+}
+
+func TestUnlimitedEnclosuresCloseAShapeWithNoCharge(t *testing.T) {
+	f := setup(false, nil)
+	f.rules.Enclose.Unlimited = true
+	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
+	f.own("de", centre)
+	f.own("fr", ring[1:]...)
+
+	f.click(t, ring[0])
+
+	assert.Equal(t, "fr", f.tiles[centre])
+	assert.Len(t, f.published.published, 1)
+}
+
+func TestUnlimitedEnclosuresSpendNoneOfTheChargesHeld(t *testing.T) {
+	f := setup(true, nil)
+	f.rules.Enclose.Unlimited = true
+	first, firstRing := f.grid.id(3, 3), f.grid.ring(3, 3)
+	second, secondRing := f.grid.id(8, 8), f.grid.ring(8, 8)
+	f.own("fr", firstRing[1:]...)
+	f.own("fr", secondRing[1:]...)
+
+	f.click(t, firstRing[0])
+	f.click(t, secondRing[0])
+
+	assert.Equal(t, "fr", f.tiles[first])
+	assert.Equal(t, "fr", f.tiles[second])
+	assert.Equal(t, 1, f.charges.Kept(caller).Enclosures, "the charge held is still there after the battle")
+}
+
+func TestUnlimitedEnclosuresWaitForEncloseSwitchedOn(t *testing.T) {
+	f := setup(false, nil)
+	f.rules.Enclose.Unlimited = true
+	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
+	f.own("de", centre)
+	f.own("fr", ring[1:]...)
+
+	_, err := f.useCase.Execute(played(t), click_usecase.In{TileID: ring[0], CountryID: "fr"})
+	require.NoError(t, err)
+
+	assert.Equal(t, "de", f.tiles[centre])
+	assert.Empty(t, f.published.published)
 }

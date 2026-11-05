@@ -15,7 +15,7 @@ func New(implementation enclose_click.Encloser, registerer prometheus.Registerer
 
 	shapes := factory.NewCounter(prometheus.CounterOpts{
 		Name: "bonus_enclosures_total",
-		Help: "Shapes closed with the enclose bonus",
+		Help: "Clicks that closed shapes with the enclose bonus",
 	})
 
 	tiles := factory.NewCounter(prometheus.CounterOpts{

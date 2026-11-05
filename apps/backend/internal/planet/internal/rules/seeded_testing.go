@@ -34,7 +34,7 @@ func Seeded() Snapshot {
 				ActiveWithin: d(2 * time.Minute),
 				Spread:       &planetv1.SpreadRules{Clicks: n(8), MaxPerBox: n(4)},
 				Bomb:         &planetv1.BombRules{Rings: f(4)},
-				Enclose:      &planetv1.EncloseRules{MaxTiles: n(25), Held: n(3), MaxPerBox: n(3)},
+				Enclose:      &planetv1.EncloseRules{MaxTiles: n(25), Held: n(3), MaxPerBox: n(3), Unlimited: on(false)},
 				Shield:       &planetv1.ShieldRules{Held: n(30), MinPerBox: n(5), MaxPerBox: n(20), PerTile: n(10)},
 				Welcome:      &planetv1.WelcomeRules{Within: d(10 * time.Minute), BoxAfter: d(time.Minute)},
 				Quiz: &planetv1.QuizRules{

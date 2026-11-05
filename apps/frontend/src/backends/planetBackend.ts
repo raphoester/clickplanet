@@ -399,7 +399,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     // Earlier tile updates go first, or they repaint over the tiles it took.
                     this.flushUpdates()
                     this.streamVersion = enclosure.version
-                    if (enclosure.yours && this.charges.enclosures > 0) {
+                    if (enclosure.yours && !this.rules?.enclosuresUnlimited && this.charges.enclosures > 0) {
                         this.holdCharges({...this.charges, enclosures: this.charges.enclosures - 1})
                     }
                     this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
@@ -471,6 +471,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 tileShields: res.tileShields,
                 toll: res.tollSteps.map(({share, slowdown}) => ({share, slowdown})),
                 signInRefill: res.signInRefill,
+                enclosuresUnlimited: res.enclosuresUnlimited,
             }
             this.rules = rules
             this.bonusCallbacks.forEach(handlers => handlers.onRules(rules))
@@ -954,6 +955,7 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
 
 const NO_RULES: BonusRules = {
     blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, shields: 0, tileShields: 0, toll: [], signInRefill: false,
+    enclosuresUnlimited: false,
 }
 
 function rewardOf(
