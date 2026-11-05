@@ -4,6 +4,12 @@ export function timeOf(date: Date): string {
     return FORMAT.format(date)
 }
 
+// From one time to the other, what they share said once: "5 nov. 2026, 22:00 – 23:00".
+export function spanOf(from: Date | undefined, to: Date | undefined): string {
+    if (from !== undefined && to !== undefined) return FORMAT.formatRange(from, to)
+    return [from, to].filter(date => date !== undefined).map(timeOf).join(" – ")
+}
+
 const CLOCK = new Intl.DateTimeFormat(undefined, {timeStyle: "short"})
 
 // The time of day alone, for a line whose day is shown elsewhere.

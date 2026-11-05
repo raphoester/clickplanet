@@ -20,7 +20,7 @@ src/
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
   components/       Menu and Sidebar, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
                     Fact, Person, When and Ago, Fold (a panel read once opened), ChangeList (what a form changes);
-                    time.ts (a time in words, as a datetime-local holds it, the operator's time zone)
+                    time.ts (a time in words, a span of two, as a datetime-local holds it, the operator's time zone)
   home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over ledger.ts (the counts),
                     heat.ts (the picture), places.ts (the tile coordinates) and activity.ts
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
@@ -46,4 +46,4 @@ page each opens.
 Plain CSS in `src/index.css`, tokens on `:root`, dark from `prefers-color-scheme`. The page is up to 1280px wide, so a
 list and the one open sit side by side on a wide screen. **It must work on a phone**: 16px gutter, and nothing may
 scroll sideways, so every id and text wraps (`overflow-wrap: anywhere`), and a table hides its wide columns
-(`col-wide`) below 720px.
+(`col-wide`) below 720px, or turns each row into a card (the rule schedule, `.schedule`).

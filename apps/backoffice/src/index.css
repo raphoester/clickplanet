@@ -1589,6 +1589,124 @@ button.chip:hover {
     background: color-mix(in srgb, var(--idea) 6%, transparent);
 }
 
+/* A word breaks only when it cannot fit the page, so no column is squeezed to a letter wide. */
+.schedule td {
+    overflow-wrap: break-word;
+}
+
+.schedule-buttons {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.schedule-buttons .button {
+    white-space: nowrap;
+    overflow-wrap: normal;
+}
+
+.schedule-priority::before {
+    display: none;
+}
+
+/* The schedule on a phone: a card per entry, its set and kind first, then its times, its words and its buttons. */
+@media (max-width: 719px) {
+    .schedule, .schedule caption, .schedule tbody {
+        display: block;
+    }
+
+    .schedule {
+        margin-bottom: 12px;
+    }
+
+    .schedule caption {
+        text-align: left;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .schedule thead {
+        display: none;
+    }
+
+    .schedule tbody {
+        display: grid;
+        gap: 8px;
+    }
+
+    .schedule tr {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 8px;
+        padding: 10px 12px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+    }
+
+    .schedule tr[aria-current="true"] {
+        border-color: var(--idea);
+        background: color-mix(in srgb, var(--idea) 6%, var(--surface));
+    }
+
+    .schedule td, .schedule tr[aria-current="true"] td {
+        padding: 0;
+        border: 0;
+        background: none;
+    }
+
+    .schedule td:empty {
+        display: none;
+    }
+
+    .schedule-set {
+        order: 1;
+    }
+
+    .schedule-kind {
+        order: 2;
+    }
+
+    .schedule-times {
+        order: 3;
+    }
+
+    .schedule-priority {
+        order: 4;
+        margin-left: auto;
+        color: var(--muted);
+    }
+
+    .schedule-priority::before {
+        display: inline;
+        content: attr(data-label) " ";
+    }
+
+    .schedule-when {
+        order: 5;
+        flex-basis: 100%;
+    }
+
+    .schedule-words {
+        order: 6;
+        flex-basis: 100%;
+    }
+
+    .schedule-actions {
+        order: 7;
+        flex-basis: 100%;
+    }
+
+    .schedule-actions:has(.schedule-buttons) {
+        margin-top: 4px;
+    }
+
+    .schedule-buttons {
+        flex-wrap: wrap;
+    }
+}
+
 .confirm-question {
     font-weight: 600;
 }

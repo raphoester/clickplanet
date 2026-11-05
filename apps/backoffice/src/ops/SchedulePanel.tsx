@@ -3,7 +3,7 @@ import {useCallback, useState} from "react"
 import {AntibotAdmin, PlanetAdmin, GamemasterAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
-import {zoneOf} from "../components/time.ts"
+import {spanOf, zoneOf} from "../components/time.ts"
 import {When} from "../components/When.tsx"
 import {Entry, GetScheduleResponse} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
@@ -111,10 +111,10 @@ function Rows({read, gamemaster, onEdit, onDeleted}: {
     const playing = read.schedule.playing?.entryId ?? ""
 
     return (
-        <table className="table">
+        <table className="table schedule">
             <caption>Schedule</caption>
             <thead>
-                <tr><th>From</th><th>To</th><th>Set</th><th>Kind</th><th>Times</th><th>Description</th><th>Priority</th><th/></tr>
+                <tr><th>When</th><th>Set</th><th>Kind</th><th>Times</th><th>Description</th><th>Priority</th><th/></tr>
             </thead>
             <tbody>
                 {linesOf(read.schedule).map(row => "finale" in row ? (
@@ -125,17 +125,16 @@ function Rows({read, gamemaster, onEdit, onDeleted}: {
                         aria-current={row.entry.id === playing ? "true" : undefined}
                         className={ended(row, now) ? "muted" : undefined}
                     >
-                        <td><When at={row.startsAt}/></td>
-                        <td><When at={row.endsAt}/></td>
-                        <td>
+                        <td className="schedule-when">{spanOf(row.startsAt, row.endsAt)}</td>
+                        <td className="schedule-set">
                             <strong>{row.entry.ruleSet}</strong>
                             {!ended(row, now) && <Lacking set={row.entry.ruleSet} read={read}/>}
                         </td>
-                        <td>{wordOf(row.entry.kind)}</td>
-                        <td>{row.entry.kind === EntryKind.BATTLE && `${row.entry.times}×`}</td>
-                        <td title={row.entry.description}>{shortOf(row.entry.description)}</td>
-                        <td>{row.entry.priority}</td>
-                        <td>{changeable(row, now) && (
+                        <td className="schedule-kind">{wordOf(row.entry.kind)}</td>
+                        <td className="schedule-times">{row.entry.kind === EntryKind.BATTLE && `${row.entry.times}×`}</td>
+                        <td className="schedule-words" title={row.entry.description}>{shortOf(row.entry.description)}</td>
+                        <td className="schedule-priority" data-label="priority">{row.entry.priority}</td>
+                        <td className="schedule-actions">{changeable(row, now) && (
                             <EntryActions row={row} gamemaster={gamemaster} onEdit={onEdit} onDeleted={onDeleted}/>
                         )}</td>
                     </tr>
@@ -152,17 +151,16 @@ function FinaleLine({row, read, now}: {row: FinaleRow, read: Read, now: Date}) {
             aria-current={read.schedule.playing?.finaleSeason === row.finale.season ? "true" : undefined}
             className={ended(row, now) ? "muted" : undefined}
         >
-            <td><When at={row.startsAt}/></td>
-            <td><When at={row.endsAt}/></td>
-            <td>
+            <td className="schedule-when">{spanOf(row.startsAt, row.endsAt)}</td>
+            <td className="schedule-set">
                 <strong>{set}</strong>
                 {!ended(row, now) && <Lacking set={set} read={read}/>}
             </td>
-            <td>{wordOf(EntryKind.BATTLE)}</td>
-            <td>{`${row.finale.finale?.times ?? 0}×`}</td>
-            <td title={row.finale.finale?.description}>{shortOf(row.finale.finale?.description ?? "")}</td>
-            <td>above all</td>
-            <td className="muted">Season {row.finale.season}'s final battle</td>
+            <td className="schedule-kind">{wordOf(EntryKind.BATTLE)}</td>
+            <td className="schedule-times">{`${row.finale.finale?.times ?? 0}×`}</td>
+            <td className="schedule-words" title={row.finale.finale?.description}>{shortOf(row.finale.finale?.description ?? "")}</td>
+            <td className="schedule-priority" data-label="priority">above all</td>
+            <td className="schedule-actions muted">Season {row.finale.season}'s final battle</td>
         </tr>
     )
 }
@@ -178,8 +176,8 @@ function EntryActions({row, gamemaster, onEdit, onDeleted}: {
     row: Row, gamemaster: GamemasterAdmin, onEdit: (entry: Entry) => void, onDeleted: () => void,
 }) {
     return (
-        <>
-            <button type="button" className="button-mini" onClick={() => onEdit(row.entry)}>Edit</button>
+        <div className="schedule-buttons">
+            <button type="button" className="button" onClick={() => onEdit(row.entry)}>Edit</button>
             <ConfirmAction
                 label="Delete"
                 tone="danger"
@@ -189,7 +187,7 @@ function EntryActions({row, gamemaster, onEdit, onDeleted}: {
                 refusal={refusal}
                 onDone={onDeleted}
             />
-        </>
+        </div>
     )
 }
 

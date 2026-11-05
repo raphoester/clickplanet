@@ -2,7 +2,7 @@
 import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {afterEach, describe, expect, it} from "vitest"
-import {clockOf, localOf} from "../components/time.ts"
+import {clockOf, localOf, spanOf} from "../components/time.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {GetRulesResponse as AntibotRules, RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
@@ -13,7 +13,7 @@ import {SchedulePanel} from "./SchedulePanel.tsx"
 afterEach(cleanup)
 
 const rowOf = (set: string) =>
-    screen.getAllByRole("row").find(row => row.querySelector("strong")?.textContent === set) as HTMLElement
+    screen.getAllByRole("row").find(row => row.querySelector("strong")?.textContent === set) as HTMLTableRowElement
 
 const type = (label: string, value: string) =>
     fireEvent.change(screen.getByLabelText(label), {target: {value}})
@@ -56,6 +56,15 @@ describe("the rule schedule page", () => {
         expect(screen.getByText(/a plain entry, since/)).toBeTruthy()
         expect(screen.getByText(/the antibot plays/)).toBeTruthy()
         expect(screen.queryByRole("alert")).toBeNull()
+    })
+
+    it("says an entry's start and end on one line", async () => {
+        const admin = keeping()
+        show(admin)
+
+        await screen.findByRole("table")
+        const frozen = admin.schedule.entries.find(entry => entry.ruleSet === "frozen")
+        expect(rowOf("frozen").cells[0].textContent).toBe(spanOf(frozen?.startsAt?.toDate(), frozen?.endsAt?.toDate()))
     })
 
     it("shows a season's final battle among the entries, above all, changed only on its season", async () => {
