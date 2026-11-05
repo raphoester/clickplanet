@@ -84,11 +84,13 @@ func (x *MessageSent) GetSentAt() *timestamppb.Timestamp {
 }
 
 type AccountMuted struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	MutedAt       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=muted_at,json=mutedAt,proto3" json:"muted_at,omitempty"`
-	Duration      *durationpb.Duration   `protobuf:"bytes,3,opt,name=duration,proto3" json:"duration,omitempty"`
-	MuteId        string                 `protobuf:"bytes,4,opt,name=mute_id,json=muteId,proto3" json:"mute_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	MutedAt   *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=muted_at,json=mutedAt,proto3" json:"muted_at,omitempty"`
+	Duration  *durationpb.Duration   `protobuf:"bytes,3,opt,name=duration,proto3" json:"duration,omitempty"`
+	MuteId    string                 `protobuf:"bytes,4,opt,name=mute_id,json=muteId,proto3" json:"mute_id,omitempty"`
+	// What the mute takes away: the chat announces a mute of the GIFs as such.
+	Kind          MuteKind `protobuf:"varint,5,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -151,23 +153,31 @@ func (x *AccountMuted) GetMuteId() string {
 	return ""
 }
 
+func (x *AccountMuted) GetKind() MuteKind {
+	if x != nil {
+		return x.Kind
+	}
+	return MuteKind_MUTE_KIND_CHAT
+}
+
 var File_chat_v1_events_proto protoreflect.FileDescriptor
 
 const file_chat_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x14chat/v1/events.proto\x12\achat.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x80\x01\n" +
+	"\x14chat/v1/events.proto\x12\achat.v1\x1a\x12chat/v1/chat.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x80\x01\n" +
 	"\vMessageSent\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x02 \x01(\tR\taccountId\x123\n" +
-	"\asent_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"\xb4\x01\n" +
+	"\asent_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"\xdb\x01\n" +
 	"\fAccountMuted\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x125\n" +
 	"\bmuted_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\amutedAt\x125\n" +
 	"\bduration\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\bduration\x12\x17\n" +
-	"\amute_id\x18\x04 \x01(\tR\x06muteIdB\xa5\x01\n" +
+	"\amute_id\x18\x04 \x01(\tR\x06muteId\x12%\n" +
+	"\x04kind\x18\x05 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kindB\xa5\x01\n" +
 	"\vcom.chat.v1B\vEventsProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1;chatv1\xa2\x02\x03CXX\xaa\x02\aChat.V1\xca\x02\aChat\\V1\xe2\x02\x13Chat\\V1\\GPBMetadata\xea\x02\bChat::V1b\x06proto3"
 
 var (
@@ -188,16 +198,18 @@ var file_chat_v1_events_proto_goTypes = []any{
 	(*AccountMuted)(nil),          // 1: chat.v1.AccountMuted
 	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
 	(*durationpb.Duration)(nil),   // 3: google.protobuf.Duration
+	(MuteKind)(0),                 // 4: chat.v1.MuteKind
 }
 var file_chat_v1_events_proto_depIdxs = []int32{
 	2, // 0: chat.v1.MessageSent.sent_at:type_name -> google.protobuf.Timestamp
 	2, // 1: chat.v1.AccountMuted.muted_at:type_name -> google.protobuf.Timestamp
 	3, // 2: chat.v1.AccountMuted.duration:type_name -> google.protobuf.Duration
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 3: chat.v1.AccountMuted.kind:type_name -> chat.v1.MuteKind
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_events_proto_init() }
@@ -205,6 +217,7 @@ func file_chat_v1_events_proto_init() {
 	if File_chat_v1_events_proto != nil {
 		return
 	}
+	file_chat_v1_chat_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

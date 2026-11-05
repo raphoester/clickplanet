@@ -291,16 +291,12 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         this.listeners.forEach(listener => listener.announcement?.(announcement))
     }
 
-    // A mute of the GIFs is not announced, as on the server.
     public mute(seconds = 3600, name = OWN_GUEST_NAME, kind: MuteKind = 'chat') {
         const until = Date.now() + seconds * 1000
         const world = this.world ?? this
-        if (kind === 'gifs') {
-            if (name === OWN_GUEST_NAME) world.gifsMutedUntil = until
-            return
-        }
-        if (name === OWN_GUEST_NAME) world.mutedUntil = until
-        this.announce({kind: "mute", id: UUIDv4(), announcedAt: Date.now(), name, seconds})
+        if (name === OWN_GUEST_NAME && kind === 'gifs') world.gifsMutedUntil = until
+        if (name === OWN_GUEST_NAME && kind === 'chat') world.mutedUntil = until
+        this.announce({kind: "mute", id: UUIDv4(), announcedAt: Date.now(), name, muteKind: kind, seconds})
     }
 
     public remove(messageId = this.messages[this.messages.length - 1]?.id): string {

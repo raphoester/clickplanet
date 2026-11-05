@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chat.v1;
 
+import "chat/v1/chat.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -16,4 +17,6 @@ message AccountMuted {
   google.protobuf.Timestamp muted_at = 2;
   google.protobuf.Duration duration = 3;
   string mute_id = 4;
+  // What the mute takes away: the chat announces a mute of the GIFs as such.
+  MuteKind kind = 5;
 }

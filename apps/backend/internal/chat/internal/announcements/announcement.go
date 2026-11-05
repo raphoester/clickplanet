@@ -121,20 +121,23 @@ func (f Fortify) Announcement(at time.Time) (Announcement, error) {
 type Muted struct {
 	mute     mutes.MuteID
 	name     string
+	kind     mutes.Kind
 	duration time.Duration
 }
 
-func MutedOf(mute mutes.MuteID, name string, duration time.Duration) Muted {
-	return Muted{mute: mute, name: name, duration: duration}
+func MutedOf(mute mutes.MuteID, name string, kind mutes.Kind, duration time.Duration) Muted {
+	return Muted{mute: mute, name: name, kind: kind, duration: duration}
 }
 
+// A line kept before kinds has no kind: it was a mute of the whole chat.
 type mutedPayload struct {
 	Name    string `json:"name"`
+	Kind    string `json:"kind"`
 	Seconds int64  `json:"seconds"`
 }
 
 func (m Muted) Announcement(at time.Time) (Announcement, error) {
-	payload, err := json.Marshal(mutedPayload{Name: m.name, Seconds: int64(m.duration / time.Second)})
+	payload, err := json.Marshal(mutedPayload{Name: m.name, Kind: m.kind.String(), Seconds: int64(m.duration / time.Second)})
 	if err != nil {
 		return Announcement{}, fmt.Errorf("failed to encode a mute announcement: %w", err)
 	}

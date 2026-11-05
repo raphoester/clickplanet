@@ -19,9 +19,11 @@ func payloadOf(t *testing.T, told func(time.Time) (announcements.Announcement, e
 	return string(announcement.Payload())
 }
 
-func TestAMuteSaysWhoAndForHowManySeconds(t *testing.T) {
-	assert.JSONEq(t, `{"name":"guest_a1b2c3","seconds":3600}`,
-		payloadOf(t, announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", time.Hour).Announcement))
+func TestAMuteSaysWhoWhatAndForHowManySeconds(t *testing.T) {
+	assert.JSONEq(t, `{"name":"guest_a1b2c3","kind":"chat","seconds":3600}`,
+		payloadOf(t, announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", mutes.Chat, time.Hour).Announcement))
+	assert.JSONEq(t, `{"name":"guest_a1b2c3","kind":"gifs","seconds":86400}`,
+		payloadOf(t, announcements.MutedOf(mutes.MuteID{15: 2}, "guest_a1b2c3", mutes.Gifs, 24*time.Hour).Announcement))
 }
 
 func TestAMuteIsAKindTheChatKnows(t *testing.T) {
@@ -131,7 +133,7 @@ func TestAFactIsAnnouncedUnderAnIDOfItsOwn(t *testing.T) {
 		"bomb 7":        announcements.BombOf(7, "fr", "de", 7, 42, 3).Announcement,
 		"bomb 8":        announcements.BombOf(8, "fr", "de", 7, 42, 3).Announcement,
 		"fortify 7":     announcements.FortifyOf(7, "fr", "is", 3, 60).Announcement,
-		"mute 1":        announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", time.Hour).Announcement,
+		"mute 1":        announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", mutes.Chat, time.Hour).Announcement,
 		"day 5":         announcements.DayOf(0, 5).Announcement,
 		"day 5 of 1":    announcements.DayOf(1, 5).Announcement,
 		"battle 5":      announcements.BattleOf(0, 5, false, 2).Announcement,

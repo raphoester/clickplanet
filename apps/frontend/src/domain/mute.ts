@@ -6,7 +6,10 @@ const UNITS: [name: string, seconds: number][] = [
     ["second", 1],
 ]
 
-export function describeMute(seconds: number): string {
+import {MuteKind} from "../backends/chat.ts"
+
+export function describeMute(seconds: number, kind: MuteKind = 'chat'): string {
+    if (kind === 'gifs') return `may not post GIFs for ${muteLength(seconds)}`
     return `has been muted for ${muteLength(seconds)}`
 }
 

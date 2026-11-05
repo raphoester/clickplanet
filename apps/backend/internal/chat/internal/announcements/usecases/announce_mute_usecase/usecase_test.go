@@ -48,11 +48,22 @@ func TestAMuteIsAnnouncedUnderTheNameOfTheAccountAndForItsDuration(t *testing.T)
 	require.Len(t, kept, 1)
 	assert.Equal(t, announcements.KindMute, kept[0].Kind())
 	assert.Equal(t, at, kept[0].At())
-	assert.JSONEq(t, `{"name":"guest_a1b2c3","seconds":5400}`, string(kept[0].Payload()))
+	assert.JSONEq(t, `{"name":"guest_a1b2c3","kind":"chat","seconds":5400}`, string(kept[0].Payload()))
 	require.Len(t, updates.updates, 1)
 	published, announced := updates.updates[0].Announcement()
 	require.True(t, announced, "every open chat sees it at once")
 	assert.Equal(t, kept[0], published)
+}
+
+func TestAMuteOfTheGifsIsAnnouncedWithItsKind(t *testing.T) {
+	store := inmemory_announcement_storage.New()
+
+	err := announce_mute_usecase.New(fakeAuthors{}, announce_usecase.New(store, &recordedFeed{})).Execute(t.Context(),
+		announce_mute_usecase.In{Mute: mutes.MuteID{15: 9}, Account: bully, Kind: mutes.Gifs, At: at, Duration: time.Hour})
+
+	require.NoError(t, err)
+	require.Len(t, store.Kept(), 1)
+	assert.JSONEq(t, `{"name":"guest_a1b2c3","kind":"gifs","seconds":3600}`, string(store.Kept()[0].Payload()))
 }
 
 func TestAMuteNobodyCanNameIsNotAnnounced(t *testing.T) {

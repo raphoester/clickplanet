@@ -279,7 +279,9 @@ describe("ChatPanel", () => {
     })
 
     it("says who was muted and for how long, as a line between the messages", async () => {
-        const mute: ChatAnnouncement = {kind: "mute", id: "hush", announcedAt: 1_700_000_000_500, name: "guest_a1b2c3", seconds: 3600}
+        const mute: ChatAnnouncement = {
+            kind: "mute", id: "hush", announcedAt: 1_700_000_000_500, name: "guest_a1b2c3", muteKind: "chat", seconds: 3600,
+        }
         const {backend} = stubBackend([message("a", "We target the players"), message("b", "thanks", 1_700_000_001_000)], [mute])
         setup(backend)
 
@@ -294,9 +296,20 @@ describe("ChatPanel", () => {
         setup(backend)
 
         await screen.findByText("Nobody has said anything yet. Go on.")
-        act(() => announce({kind: "mute", id: "hush", announcedAt: Date.now(), name: "Ada_L", seconds: 7200}))
+        act(() => announce({kind: "mute", id: "hush", announcedAt: Date.now(), name: "Ada_L", muteKind: "chat", seconds: 7200}))
 
         expect(await screen.findByText("has been muted for 2 hours", {exact: false})).toBeDefined()
+    })
+
+    it("says a mute of the GIFs takes the GIFs alone", async () => {
+        const {backend, announce} = stubBackend()
+        setup(backend)
+
+        await screen.findByText("Nobody has said anything yet. Go on.")
+        act(() => announce({kind: "mute", id: "gifs", announcedAt: Date.now(), name: "Ada_L", muteKind: "gifs", seconds: 86400}))
+
+        const line = (await screen.findByText("may not post GIFs for one day", {exact: false})).closest("li")!
+        expect(line.textContent).toContain("Ada_L may not post GIFs for one day")
     })
 
     it("shows a bomb that lands while the chat is open", async () => {

@@ -51,16 +51,18 @@ func TestAKeptMuteIsPublishedWithItsAccountTimeAndDuration(t *testing.T) {
 	}, events.Published()[0]), "and never the network it holds")
 }
 
-func TestAMuteOfTheGifsIsNotAnnounced(t *testing.T) {
+func TestAMuteOfTheGifsIsPublishedWithItsKind(t *testing.T) {
 	events := cpredis.NewRecordedEvents()
 	gifs := mutes.NewMute(mutes.MuteID{15: 1}, mutes.CallerOf(bully, mutes.NoScope), mutes.Gifs, at, time.Hour)
 
-	mute, err := publishing_mute.New(stubExecutor{mute: gifs}, events).
+	_, err := publishing_mute.New(stubExecutor{mute: gifs}, events).
 		Execute(t.Context(), mute_usecase.In{Account: bully, Kind: mutes.Gifs})
 
 	require.NoError(t, err)
-	assert.Equal(t, gifs, mute)
-	assert.Empty(t, events.Published())
+	require.Len(t, events.Published(), 1)
+	muted, ok := events.Published()[0].(*chatv1.AccountMuted)
+	require.True(t, ok)
+	assert.Equal(t, chatv1.MuteKind_MUTE_KIND_GIFS, muted.GetKind())
 }
 
 func TestAMuteThatWasNotKeptPublishesNothing(t *testing.T) {

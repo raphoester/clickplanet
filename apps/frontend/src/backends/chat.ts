@@ -72,6 +72,8 @@ export type MuteAnnouncement = {
     id: string
     announcedAt: number
     name: string
+    // What the mute takes away. A line kept before kinds is the whole chat's.
+    muteKind: MuteKind
     seconds: number
 }
 

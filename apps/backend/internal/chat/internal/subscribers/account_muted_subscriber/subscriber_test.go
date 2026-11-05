@@ -46,12 +46,29 @@ func TestAMuteIsAnnouncedForItsAccountAtItsTimeForItsDuration(t *testing.T) {
 	}, useCase.ins)
 }
 
+func TestAMuteOfTheGifsIsAnnouncedAsSuch(t *testing.T) {
+	useCase := &recordingUseCase{}
+
+	err := account_muted_subscriber.New(useCase).Handle(t.Context(), &chatv1.AccountMuted{
+		MuteId: muteID, AccountId: bullyID, MutedAt: timestamppb.New(at), Duration: durationpb.New(time.Hour),
+		Kind: chatv1.MuteKind_MUTE_KIND_GIFS,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, useCase.ins, 1)
+	assert.Equal(t, mutes.Gifs, useCase.ins[0].Kind)
+}
+
 func TestAMuteMissingAPartIsRefused(t *testing.T) {
 	for name, event := range map[string]*chatv1.AccountMuted{
 		"no mute":     {AccountId: bullyID, MutedAt: timestamppb.New(at), Duration: durationpb.New(time.Hour)},
 		"no account":  {MuteId: muteID, MutedAt: timestamppb.New(at), Duration: durationpb.New(time.Hour)},
 		"no time":     {MuteId: muteID, AccountId: bullyID, Duration: durationpb.New(time.Hour)},
 		"no duration": {MuteId: muteID, AccountId: bullyID, MutedAt: timestamppb.New(at)},
+		"unknown kind": {
+			MuteId: muteID, AccountId: bullyID, MutedAt: timestamppb.New(at), Duration: durationpb.New(time.Hour),
+			Kind: chatv1.MuteKind(7),
+		},
 	} {
 		useCase := &recordingUseCase{}
 

@@ -381,7 +381,7 @@ function MuteLine({announcement}: {announcement: MuteAnnouncement}) {
     return <li className="chat-announcement" data-at={announcement.announcedAt}>
         <span className="chat-announcement-icon" aria-hidden="true">🔇</span>
         <span className="chat-announcement-text">
-            <strong>{words.masked(announcement.name)}</strong> {describeMute(announcement.seconds)}
+            <strong>{words.masked(announcement.name)}</strong> {describeMute(announcement.seconds, announcement.muteKind)}
         </span>
         <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
             {clock.format(announcement.announcedAt)}
