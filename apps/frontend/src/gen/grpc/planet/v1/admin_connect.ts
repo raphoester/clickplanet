@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, ReleaseAllegianceRequest, ReleaseAllegianceResponse, RevertPlayerRequest, RevertPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, ReleaseAllegianceRequest, ReleaseAllegianceResponse, RevertPlayerRequest, RevertPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, TopPlayersRequest, TopPlayersResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
@@ -44,30 +44,6 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deprecated: antibot.v1.AdminService/BanPlayer, which answers it on this path until the backoffice calls it there.
-     *
-     * @generated from rpc planet.v1.AdminService.BanPlayer
-     * @deprecated
-     */
-    banPlayer: {
-      name: "BanPlayer",
-      I: BanPlayerRequest,
-      O: BanPlayerResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Deprecated: antibot.v1.AdminService/UnbanPlayer, which answers it on this path until the backoffice calls it there.
-     *
-     * @generated from rpc planet.v1.AdminService.UnbanPlayer
-     * @deprecated
-     */
-    unbanPlayer: {
-      name: "UnbanPlayer",
-      I: UnbanPlayerRequest,
-      O: UnbanPlayerResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
      * @generated from rpc planet.v1.AdminService.RevertPlayer
      */
     revertPlayer: {
@@ -83,18 +59,6 @@ export const AdminService = {
       name: "PaintRandomTiles",
       I: PaintRandomTilesRequest,
       O: PaintRandomTilesResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Deprecated: antibot.v1.AdminService/InspectPlayer, which answers it on this path until the backoffice calls it there.
-     *
-     * @generated from rpc planet.v1.AdminService.InspectPlayer
-     * @deprecated
-     */
-    inspectPlayer: {
-      name: "InspectPlayer",
-      I: InspectPlayerRequest,
-      O: InspectPlayerResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -1475,8 +1475,7 @@ with a new cookie.
 `"enforced":false` in the answer means the rule `bans.enforce` is off: the
 ban is kept but refuses nothing. With it on, planet refuses the player a moment
 after the answer, once the antibot's command reaches it. The three ban calls are
-the antibot's (`antibot.v1`); `planet.v1` answers them on its old paths until the
-backoffice has moved, then drops them. To lift a ban, see [Unban a player](#unban-a-player).
+the antibot's (`antibot.v1`). To lift a ban, see [Unban a player](#unban-a-player).
 
 Then revert, dry run first:
 
