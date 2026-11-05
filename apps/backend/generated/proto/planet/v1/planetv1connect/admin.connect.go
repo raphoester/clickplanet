@@ -41,20 +41,12 @@ const (
 	AdminServiceFindPlayersProcedure = "/planet.v1.AdminService/FindPlayers"
 	// AdminServiceTopPlayersProcedure is the fully-qualified name of the AdminService's TopPlayers RPC.
 	AdminServiceTopPlayersProcedure = "/planet.v1.AdminService/TopPlayers"
-	// AdminServiceBanPlayerProcedure is the fully-qualified name of the AdminService's BanPlayer RPC.
-	AdminServiceBanPlayerProcedure = "/planet.v1.AdminService/BanPlayer"
-	// AdminServiceUnbanPlayerProcedure is the fully-qualified name of the AdminService's UnbanPlayer
-	// RPC.
-	AdminServiceUnbanPlayerProcedure = "/planet.v1.AdminService/UnbanPlayer"
 	// AdminServiceRevertPlayerProcedure is the fully-qualified name of the AdminService's RevertPlayer
 	// RPC.
 	AdminServiceRevertPlayerProcedure = "/planet.v1.AdminService/RevertPlayer"
 	// AdminServicePaintRandomTilesProcedure is the fully-qualified name of the AdminService's
 	// PaintRandomTiles RPC.
 	AdminServicePaintRandomTilesProcedure = "/planet.v1.AdminService/PaintRandomTiles"
-	// AdminServiceInspectPlayerProcedure is the fully-qualified name of the AdminService's
-	// InspectPlayer RPC.
-	AdminServiceInspectPlayerProcedure = "/planet.v1.AdminService/InspectPlayer"
 	// AdminServiceGrantChargesProcedure is the fully-qualified name of the AdminService's GrantCharges
 	// RPC.
 	AdminServiceGrantChargesProcedure = "/planet.v1.AdminService/GrantCharges"
@@ -83,19 +75,12 @@ type AdminServiceClient interface {
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
 	// Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
 	// per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
-	// IPv6. The scope and the account_id are what BanPlayer, UnbanPlayer, RevertPlayer and InspectPlayer take.
+	// IPv6. The scope and the account_id are what RevertPlayer and antibot's BanPlayer, UnbanPlayer and InspectPlayer
+	// take.
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
 	// Who takes the most tiles, every flag and the whole map, within the ledger's last 72 hours: most takes first, then
 	// most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
-	// Deprecated: antibot.v1.AdminService/BanPlayer, which answers it on this path until the backoffice calls it there.
-	//
-	// Deprecated: do not use.
-	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
-	// Deprecated: antibot.v1.AdminService/UnbanPlayer, which answers it on this path until the backoffice calls it there.
-	//
-	// Deprecated: do not use.
-	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
 	// Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
 	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
 	// from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
@@ -103,10 +88,6 @@ type AdminServiceClient interface {
 	// Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
 	// between stays theirs. The ledger does not see it.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
-	// Deprecated: antibot.v1.AdminService/InspectPlayer, which answers it on this path until the backoffice calls it there.
-	//
-	// Deprecated: do not use.
-	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
 	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
@@ -157,18 +138,6 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
-		banPlayer: connect.NewClient[v1.BanPlayerRequest, v1.BanPlayerResponse](
-			httpClient,
-			baseURL+AdminServiceBanPlayerProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("BanPlayer")),
-			connect.WithClientOptions(opts...),
-		),
-		unbanPlayer: connect.NewClient[v1.UnbanPlayerRequest, v1.UnbanPlayerResponse](
-			httpClient,
-			baseURL+AdminServiceUnbanPlayerProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("UnbanPlayer")),
-			connect.WithClientOptions(opts...),
-		),
 		revertPlayer: connect.NewClient[v1.RevertPlayerRequest, v1.RevertPlayerResponse](
 			httpClient,
 			baseURL+AdminServiceRevertPlayerProcedure,
@@ -179,12 +148,6 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServicePaintRandomTilesProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("PaintRandomTiles")),
-			connect.WithClientOptions(opts...),
-		),
-		inspectPlayer: connect.NewClient[v1.InspectPlayerRequest, v1.InspectPlayerResponse](
-			httpClient,
-			baseURL+AdminServiceInspectPlayerProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
 			connect.WithClientOptions(opts...),
 		),
 		grantCharges: connect.NewClient[v1.GrantChargesRequest, v1.GrantChargesResponse](
@@ -241,11 +204,8 @@ type adminServiceClient struct {
 	reassignCountry   *connect.Client[v1.ReassignCountryRequest, v1.ReassignCountryResponse]
 	findPlayers       *connect.Client[v1.FindPlayersRequest, v1.FindPlayersResponse]
 	topPlayers        *connect.Client[v1.TopPlayersRequest, v1.TopPlayersResponse]
-	banPlayer         *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
-	unbanPlayer       *connect.Client[v1.UnbanPlayerRequest, v1.UnbanPlayerResponse]
 	revertPlayer      *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
 	paintRandomTiles  *connect.Client[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse]
-	inspectPlayer     *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
 	grantCharges      *connect.Client[v1.GrantChargesRequest, v1.GrantChargesResponse]
 	getReplay         *connect.Client[v1.GetReplayRequest, v1.GetReplayResponse]
 	releaseAllegiance *connect.Client[v1.ReleaseAllegianceRequest, v1.ReleaseAllegianceResponse]
@@ -270,20 +230,6 @@ func (c *adminServiceClient) TopPlayers(ctx context.Context, req *connect.Reques
 	return c.topPlayers.CallUnary(ctx, req)
 }
 
-// BanPlayer calls planet.v1.AdminService.BanPlayer.
-//
-// Deprecated: do not use.
-func (c *adminServiceClient) BanPlayer(ctx context.Context, req *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error) {
-	return c.banPlayer.CallUnary(ctx, req)
-}
-
-// UnbanPlayer calls planet.v1.AdminService.UnbanPlayer.
-//
-// Deprecated: do not use.
-func (c *adminServiceClient) UnbanPlayer(ctx context.Context, req *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error) {
-	return c.unbanPlayer.CallUnary(ctx, req)
-}
-
 // RevertPlayer calls planet.v1.AdminService.RevertPlayer.
 func (c *adminServiceClient) RevertPlayer(ctx context.Context, req *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error) {
 	return c.revertPlayer.CallUnary(ctx, req)
@@ -292,13 +238,6 @@ func (c *adminServiceClient) RevertPlayer(ctx context.Context, req *connect.Requ
 // PaintRandomTiles calls planet.v1.AdminService.PaintRandomTiles.
 func (c *adminServiceClient) PaintRandomTiles(ctx context.Context, req *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error) {
 	return c.paintRandomTiles.CallUnary(ctx, req)
-}
-
-// InspectPlayer calls planet.v1.AdminService.InspectPlayer.
-//
-// Deprecated: do not use.
-func (c *adminServiceClient) InspectPlayer(ctx context.Context, req *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {
-	return c.inspectPlayer.CallUnary(ctx, req)
 }
 
 // GrantCharges calls planet.v1.AdminService.GrantCharges.
@@ -344,19 +283,12 @@ type AdminServiceHandler interface {
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
 	// Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
 	// per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
-	// IPv6. The scope and the account_id are what BanPlayer, UnbanPlayer, RevertPlayer and InspectPlayer take.
+	// IPv6. The scope and the account_id are what RevertPlayer and antibot's BanPlayer, UnbanPlayer and InspectPlayer
+	// take.
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
 	// Who takes the most tiles, every flag and the whole map, within the ledger's last 72 hours: most takes first, then
 	// most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
-	// Deprecated: antibot.v1.AdminService/BanPlayer, which answers it on this path until the backoffice calls it there.
-	//
-	// Deprecated: do not use.
-	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
-	// Deprecated: antibot.v1.AdminService/UnbanPlayer, which answers it on this path until the backoffice calls it there.
-	//
-	// Deprecated: do not use.
-	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
 	// Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
 	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
 	// from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
@@ -364,10 +296,6 @@ type AdminServiceHandler interface {
 	// Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
 	// between stays theirs. The ledger does not see it.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
-	// Deprecated: antibot.v1.AdminService/InspectPlayer, which answers it on this path until the backoffice calls it there.
-	//
-	// Deprecated: do not use.
-	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
 	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
@@ -414,18 +342,6 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminServiceBanPlayerHandler := connect.NewUnaryHandler(
-		AdminServiceBanPlayerProcedure,
-		svc.BanPlayer,
-		connect.WithSchema(adminServiceMethods.ByName("BanPlayer")),
-		connect.WithHandlerOptions(opts...),
-	)
-	adminServiceUnbanPlayerHandler := connect.NewUnaryHandler(
-		AdminServiceUnbanPlayerProcedure,
-		svc.UnbanPlayer,
-		connect.WithSchema(adminServiceMethods.ByName("UnbanPlayer")),
-		connect.WithHandlerOptions(opts...),
-	)
 	adminServiceRevertPlayerHandler := connect.NewUnaryHandler(
 		AdminServiceRevertPlayerProcedure,
 		svc.RevertPlayer,
@@ -436,12 +352,6 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServicePaintRandomTilesProcedure,
 		svc.PaintRandomTiles,
 		connect.WithSchema(adminServiceMethods.ByName("PaintRandomTiles")),
-		connect.WithHandlerOptions(opts...),
-	)
-	adminServiceInspectPlayerHandler := connect.NewUnaryHandler(
-		AdminServiceInspectPlayerProcedure,
-		svc.InspectPlayer,
-		connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceGrantChargesHandler := connect.NewUnaryHandler(
@@ -498,16 +408,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceFindPlayersHandler.ServeHTTP(w, r)
 		case AdminServiceTopPlayersProcedure:
 			adminServiceTopPlayersHandler.ServeHTTP(w, r)
-		case AdminServiceBanPlayerProcedure:
-			adminServiceBanPlayerHandler.ServeHTTP(w, r)
-		case AdminServiceUnbanPlayerProcedure:
-			adminServiceUnbanPlayerHandler.ServeHTTP(w, r)
 		case AdminServiceRevertPlayerProcedure:
 			adminServiceRevertPlayerHandler.ServeHTTP(w, r)
 		case AdminServicePaintRandomTilesProcedure:
 			adminServicePaintRandomTilesHandler.ServeHTTP(w, r)
-		case AdminServiceInspectPlayerProcedure:
-			adminServiceInspectPlayerHandler.ServeHTTP(w, r)
 		case AdminServiceGrantChargesProcedure:
 			adminServiceGrantChargesHandler.ServeHTTP(w, r)
 		case AdminServiceGetReplayProcedure:
@@ -543,24 +447,12 @@ func (UnimplementedAdminServiceHandler) TopPlayers(context.Context, *connect.Req
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.TopPlayers is not implemented"))
 }
 
-func (UnimplementedAdminServiceHandler) BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.BanPlayer is not implemented"))
-}
-
-func (UnimplementedAdminServiceHandler) UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.UnbanPlayer is not implemented"))
-}
-
 func (UnimplementedAdminServiceHandler) RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.RevertPlayer is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.PaintRandomTiles is not implemented"))
-}
-
-func (UnimplementedAdminServiceHandler) InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.InspectPlayer is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error) {

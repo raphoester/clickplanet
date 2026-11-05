@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, ReleaseAllegianceRequest, ReleaseAllegianceResponse, RevertPlayerRequest, RevertPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, ReleaseAllegianceRequest, ReleaseAllegianceResponse, RevertPlayerRequest, RevertPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, TopPlayersRequest, TopPlayersResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
@@ -32,7 +32,8 @@ export const AdminService = {
     /**
      * Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
      * per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
-     * IPv6. The scope and the account_id are what BanPlayer, UnbanPlayer, RevertPlayer and InspectPlayer take.
+     * IPv6. The scope and the account_id are what RevertPlayer and antibot's BanPlayer, UnbanPlayer and InspectPlayer
+     * take.
      *
      * @generated from rpc planet.v1.AdminService.FindPlayers
      */
@@ -57,30 +58,6 @@ export const AdminService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * Deprecated: antibot.v1.AdminService/BanPlayer, which answers it on this path until the backoffice calls it there.
-     *
-     * @generated from rpc planet.v1.AdminService.BanPlayer
-     * @deprecated
-     */
-    banPlayer: {
-      name: "BanPlayer",
-      I: BanPlayerRequest,
-      O: BanPlayerResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Deprecated: antibot.v1.AdminService/UnbanPlayer, which answers it on this path until the backoffice calls it there.
-     *
-     * @generated from rpc planet.v1.AdminService.UnbanPlayer
-     * @deprecated
-     */
-    unbanPlayer: {
-      name: "UnbanPlayer",
-      I: UnbanPlayerRequest,
-      O: UnbanPlayerResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
      * Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
      * caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
      * from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
@@ -103,18 +80,6 @@ export const AdminService = {
       name: "PaintRandomTiles",
       I: PaintRandomTilesRequest,
       O: PaintRandomTilesResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Deprecated: antibot.v1.AdminService/InspectPlayer, which answers it on this path until the backoffice calls it there.
-     *
-     * @generated from rpc planet.v1.AdminService.InspectPlayer
-     * @deprecated
-     */
-    inspectPlayer: {
-      name: "InspectPlayer",
-      I: InspectPlayerRequest,
-      O: InspectPlayerResponse,
       kind: MethodKind.Unary,
     },
     /**

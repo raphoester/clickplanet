@@ -12,7 +12,7 @@ import {ALL_OFF, BonusNotice, BonusNoticeEvent, BonusReward, BonusRules, Charges
 import {BombDrop, Bomber, BonusCatch, BonusListener, Shielder} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 import {AcceptedClick} from './acceptedClicks.ts';
-import {CloseToFortify, Fortified} from '../../domain/fortify.ts';
+import {Fortified} from '../../domain/fortify.ts';
 import {ClickBudgetSource} from '../../backends/clickBudget.ts';
 import {Allegiance} from '../../domain/allegiance.ts';
 import {BUBBLE_MS} from '../components/Bubble.tsx';
@@ -105,11 +105,6 @@ export function useGlobe(options: UseGlobeOptions) {
         setLastFortified((previous) => ({fortified, id: (previous?.id ?? 0) + 1, at: performance.now()}))
     }, [])
 
-    const [lastClose, setLastClose] = useState<{close: CloseToFortify, id: number, at: number} | undefined>()
-    const recordClose = useCallback((close: CloseToFortify) => {
-        setLastClose((previous) => ({close, id: (previous?.id ?? 0) + 1, at: performance.now()}))
-    }, [])
-
     const [pointing, setPointing] = useState<{peek: Peek, id: number} | undefined>()
     const peekCount = useRef(0)
     const recordPeek = useCallback((peek: Peek) => setPointing({peek, id: ++peekCount.current}), [])
@@ -177,7 +172,6 @@ export function useGlobe(options: UseGlobeOptions) {
             onNotice: notify,
             onClickAccepted,
             onFortified: recordFortified,
-            onCloseToFortify: recordClose,
             onPeek: recordPeek,
             onPeekEnd: endPeek,
             onTerritoryPeek: recordTerritoryPeek,
@@ -212,7 +206,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek, notify, recordLockedOut])
+    }, [container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek, notify, recordLockedOut])
 
     useEffect(() => {
         initialCountry.current = country
@@ -261,7 +255,6 @@ export function useGlobe(options: UseGlobeOptions) {
     const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !switches[name]), [switches])
     const dismissBomb = useCallback(() => setLastBomb(undefined), [])
     const dismissFortified = useCallback(() => setLastFortified(undefined), [])
-    const dismissClose = useCallback(() => setLastClose(undefined), [])
 
     return {
         status,
@@ -294,8 +287,6 @@ export function useGlobe(options: UseGlobeOptions) {
         dismissBomb,
         lastFortified,
         dismissFortified,
-        lastClose,
-        dismissClose,
         pointing,
         pointingTerritory,
         territoryOf,

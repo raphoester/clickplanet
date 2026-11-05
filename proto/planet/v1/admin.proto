@@ -18,7 +18,8 @@ service AdminService {
 
   // Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
   // per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
-  // IPv6. The scope and the account_id are what BanPlayer, UnbanPlayer, RevertPlayer and InspectPlayer take.
+  // IPv6. The scope and the account_id are what RevertPlayer and antibot's BanPlayer, UnbanPlayer and InspectPlayer
+  // take.
   rpc FindPlayers(FindPlayersRequest) returns (FindPlayersResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -29,16 +30,6 @@ service AdminService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // Deprecated: antibot.v1.AdminService/BanPlayer, which answers it on this path until the backoffice calls it there.
-  rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse) {
-    option deprecated = true;
-  }
-
-  // Deprecated: antibot.v1.AdminService/UnbanPlayer, which answers it on this path until the backoffice calls it there.
-  rpc UnbanPlayer(UnbanPlayerRequest) returns (UnbanPlayerResponse) {
-    option deprecated = true;
-  }
-
   // Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
   // caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
   // from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
@@ -47,11 +38,6 @@ service AdminService {
   // Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
   // between stays theirs. The ledger does not see it.
   rpc PaintRandomTiles(PaintRandomTilesRequest) returns (PaintRandomTilesResponse);
-
-  // Deprecated: antibot.v1.AdminService/InspectPlayer, which answers it on this path until the backoffice calls it there.
-  rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse) {
-    option deprecated = true;
-  }
 
   // Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
   // one each, the rest stack. before and after say what fit. The player sees them at its next page load.
@@ -150,46 +136,6 @@ message PaintRandomTilesResponse {
   uint32 outside_area = 4;
 }
 
-message InspectPlayerRequest {
-  // An address, read as its scope. Never with account_id.
-  string scope = 1;
-  // Never with scope.
-  string account_id = 2;
-}
-
-message InspectPlayerResponse {
-  string scope = 1;
-  string account_id = 17;
-
-  optional bool tracked = 2;
-
-  optional bool banned = 3;
-  google.protobuf.Timestamp banned_until = 4;
-  uint32 offence = 5;
-  uint32 flags = 6;
-  google.protobuf.Timestamp pardoned_until = 18;
-
-  repeated WatchdogReading readings = 7;
-
-  uint32 suspects = 8;
-  uint32 min_suspects = 9;
-  optional bool guilty = 10;
-
-  uint32 clicks = 11;
-  google.protobuf.Duration active_for = 12;
-  google.protobuf.Duration longest_gap = 13;
-  google.protobuf.Timestamp last_click_at = 14;
-  string top_country = 15;
-  uint32 top_country_clicks = 16;
-}
-
-message WatchdogReading {
-  string watchdog = 1;
-  string level = 2;
-  string evidence = 3;
-  google.protobuf.Timestamp at = 4;
-}
-
 message FindPlayersRequest {
   // A country id: ISO 3166-1 alpha-2 in lower case, "fr".
   string flag_country_id = 1;
@@ -215,6 +161,9 @@ message TopPlayersResponse {
 }
 
 message Player {
+  reserved 7;
+  reserved "offence";
+
   string scope = 1;
   string account_id = 12;
   uint32 tiles = 2;
@@ -222,46 +171,11 @@ message Player {
   google.protobuf.Timestamp last_at = 4;
   optional bool banned = 5;
   google.protobuf.Timestamp banned_until = 6;
-  // Planet keeps no offence: antibot.v1.AdminService/InspectPlayer says it.
-  uint32 offence = 7 [deprecated = true];
   google.protobuf.Duration active_for = 8;
   double tiles_per_minute = 9;
   uint32 takes = 10;
   double takes_per_minute = 11;
   string flag_country_id = 13;
-}
-
-message BanPlayerRequest {
-  // An address, banned as its scope. Never with account_id.
-  string scope = 1;
-  // Never with scope.
-  string account_id = 3;
-  // Unset is the ladder's step for this offence.
-  google.protobuf.Duration duration = 2;
-}
-
-message BanPlayerResponse {
-  string scope = 1;
-  string account_id = 5;
-  uint32 offence = 2;
-  google.protobuf.Timestamp banned_until = 3;
-  bool enforced = 4;
-}
-
-message UnbanPlayerRequest {
-  // An address, read as its scope. Never with account_id.
-  string scope = 1;
-  // Never with scope.
-  string account_id = 2;
-}
-
-// The ban that was lifted. Its offence no longer counts.
-message UnbanPlayerResponse {
-  string scope = 1;
-  string account_id = 2;
-  uint32 offence = 3;
-  google.protobuf.Timestamp banned_until = 4;
-  google.protobuf.Timestamp pardoned_until = 5;
 }
 
 message RevertPlayerRequest {

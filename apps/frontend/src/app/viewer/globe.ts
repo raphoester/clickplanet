@@ -80,8 +80,8 @@ import {OwnClicks} from "../../domain/ownClicks.ts";
 import {ShieldChange, outcomeOf, placementOf} from "../../domain/shields.ts";
 import {Landmasses} from "../../domain/landmasses.ts";
 import {landmassName} from "../../domain/landmassNames.ts";
-import {CloseToFortify, Fortified, isNews} from "../../domain/fortify.ts";
-import {Entered, FortifyTargets} from "../../domain/fortifyTargets.ts";
+import {Fortified, isNews} from "../../domain/fortify.ts";
+import {FortifyTargets} from "../../domain/fortifyTargets.ts";
 import {createFortifyWaves, FortifyUniforms, fortifyUniforms} from "./fortifyWaves.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 import {drawShieldMarks, shieldCellsOf} from "./shieldMarks.ts";
@@ -227,7 +227,6 @@ export type GlobeOptions = {
     onNotice?: (notice: BonusNotice) => void
     onClickAccepted?: (click: AcceptedClick) => void
     onFortified?: (fortified: Fortified) => void
-    onCloseToFortify?: (close: CloseToFortify) => void
     onPeek?: (peek: Peek) => void
     onPeekEnd?: () => void
     onTerritoryPeek?: (peek: TerritoryPeek) => void
@@ -297,7 +296,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onNotice = () => {},
         onClickAccepted = () => {},
         onFortified = () => {},
-        onCloseToFortify = () => {},
         onPeek = () => {},
         onPeekEnd = () => {},
         onTerritoryPeek = () => {},
@@ -434,13 +432,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // Off until the locks are read: without them a pulse would show for the flag that fortified last.
     let tracking = false
 
-    const announceClose = (entered: Entered[]) => {
-        for (const {landmass, target} of entered) {
-            if (target.flag !== country.code) continue
-            onCloseToFortify({landmass, name: landmassName(landmass, borders.codes[landmass]), missing: target.missing})
-        }
-    }
-
     const readFortresses = async () => {
         try {
             const locks = await ownershipsGetter.getFortresses(lifetime.signal)
@@ -508,10 +499,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (live) releaseGhosts(tiles)
         field.setOwners(ghosts.size === 0 ? changes : changes.filter(({tile}) => ghosts.flagOf(tile) === undefined))
         if (front) lightFront(front.touch(tiles))
-        if (tracking) {
-            const entered = targets.touch(tiles)
-            if (live) announceClose(entered)
-        }
+        if (tracking) targets.touch(tiles)
         invalidate()
     }
 
@@ -527,10 +515,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (landmasses.length > 0) {
             territories.setRows(landmasses, (landmass) => holdings.leaderOf(landmass))
             slotFlags()
-            if (tracking) {
-                const entered = targets.recount(landmasses)
-                if (live) announceClose(entered)
-            }
+            if (tracking) targets.recount(landmasses)
             invalidate()
         }
         if (countries) publishBoard(live)

@@ -9,8 +9,6 @@ export type Holdings = {
     landmassOf(tile: number): number
 }
 
-export type Entered = {landmass: number, target: Target}
-
 // Which landmasses a flag is close to fortifying, from the server's counts, and which of their tiles it still misses, from the tiles read.
 export class FortifyTargets {
     private readonly locks = new Map<number, string>()
@@ -33,28 +31,22 @@ export class FortifyTargets {
         return this.targets.keys()
     }
 
-    public lockAll(locks: ReadonlyMap<number, string>, landmasses: number): Entered[] {
+    public lockAll(locks: ReadonlyMap<number, string>, landmasses: number) {
         this.locks.clear()
         locks.forEach((flag, landmass) => this.locks.set(landmass, flag))
-        const entered: Entered[] = []
-        for (let landmass = 1; landmass < landmasses; landmass++) this.settle(landmass, [], entered)
-        return entered
+        for (let landmass = 1; landmass < landmasses; landmass++) this.settle(landmass, [])
     }
 
-    public lock(landmass: number, flag: string): Entered[] {
+    public lock(landmass: number, flag: string) {
         this.locks.set(landmass, flag)
-        const entered: Entered[] = []
-        this.settle(landmass, [], entered)
-        return entered
+        this.settle(landmass, [])
     }
 
-    public recount(landmasses: readonly number[]): Entered[] {
-        const entered: Entered[] = []
-        for (const landmass of landmasses) this.settle(landmass, [], entered)
-        return entered
+    public recount(landmasses: readonly number[]) {
+        for (const landmass of landmasses) this.settle(landmass, [])
     }
 
-    public touch(tiles: readonly number[]): Entered[] {
+    public touch(tiles: readonly number[]) {
         const byLandmass = new Map<number, number[]>()
         for (const tile of tiles) {
             const landmass = this.holdings.landmassOf(tile)
@@ -64,12 +56,10 @@ export class FortifyTargets {
             else byLandmass.set(landmass, [tile])
         }
 
-        const entered: Entered[] = []
-        byLandmass.forEach((touched, landmass) => this.settle(landmass, touched, entered))
-        return entered
+        byLandmass.forEach((touched, landmass) => this.settle(landmass, touched))
     }
 
-    private settle(landmass: number, touched: readonly number[], entered: Entered[]) {
+    private settle(landmass: number, touched: readonly number[]) {
         const leader = this.holdings.leaderOf(landmass)
         const before = this.targets.get(landmass)
         const after = targetOf(this.holdings.sizeOf(landmass), leader?.holder, leader?.held ?? 0, this.locks.get(landmass))
@@ -91,7 +81,6 @@ export class FortifyTargets {
             const missing = Array.from(this.holdings.tilesOf(landmass)).filter((tile) => this.missing(tile, after.flag))
             this.setPulses(missing, true)
             this.targets.set(landmass, after)
-            entered.push({landmass, target: after})
         }
     }
 

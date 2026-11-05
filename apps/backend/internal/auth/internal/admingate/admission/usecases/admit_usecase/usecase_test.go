@@ -79,7 +79,7 @@ func TestTheSignInCallsNeedTheOriginAndNoSession(t *testing.T) {
 	_, err = useCase.Execute(t.Context(), admission.Visit{Origin: "https://clickplanet.lol", Procedure: "/auth.v1.AdminService/StartSignIn"})
 	require.ErrorIs(t, err, admission.ErrForeignOrigin, "the origin still holds")
 
-	_, err = useCase.Execute(t.Context(), admission.Visit{Origin: adminOrigin, Procedure: "/planet.v1.AdminService/BanPlayer"})
+	_, err = useCase.Execute(t.Context(), admission.Visit{Origin: adminOrigin, Procedure: "/antibot.v1.AdminService/BanPlayer"})
 	require.ErrorIs(t, err, admission.ErrNotAnOperator, "every other call needs a session")
 }
 
