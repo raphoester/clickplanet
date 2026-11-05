@@ -89,8 +89,13 @@ it.
 **The result says which one was right whether or not that was the one pressed.**
 A wrong answer costs nothing, so the only thing left to give back is the answer.
 It draws the three choices again where they were, the right one green and a
-wrong pick red, **as list items and not buttons**: nothing on the result can be
-pressed, so nothing on it reacts to the pointer.
+wrong pick red, **as list items and not buttons**: no choice on the result can be
+pressed, so none of them reacts to the pointer.
+
+**The result goes away by itself after `RESULT_MS`, and its close button takes it
+away sooner.** On a phone the card covers the top of the globe, and a player who
+has read the answer wants to play again. `dismiss` acts only on `answered`, and
+the timer that was to clear the result finds another state and does nothing.
 
 **The quiz and the lines of news all want the band at the top**, and the news
 gives it up: `BombNews`, `FortifyNews`, `FortifyHint`, `UnderAttack`,
