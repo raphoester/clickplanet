@@ -158,6 +158,10 @@ auth:
     # Every Discord sign-in also joins the game's Discord server, which the alerts module keeps.
     joinServer: true
   # The origin comes from ADMIN_ORIGIN, through docker-compose.yaml.
+  # Claude, as a custom connector: it signs in here once, and the operator lets it in on the admin page's /connect.
+  # The issuer comes from API_DOMAIN, through docker-compose.yaml; Claude's callbacks are the default redirects.
+  connector:
+    enabled: true
   admin:
     redirectUrl: https://backoffice.clickplanet.lol/auth/callback
     google:
@@ -383,3 +387,8 @@ promo:
       name: clickplanet-media
       accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
       secretAccessKey: env://MEDIA_BUCKET_SECRET
+
+# The connector's MCP endpoint, on the admin listener: every admin method is a tool. The url comes from API_DOMAIN,
+# through docker-compose.yaml.
+mcp:
+  enabled: true

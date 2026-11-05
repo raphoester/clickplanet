@@ -201,16 +201,22 @@ export class SaveRuleSetResponse extends Message<SaveRuleSetResponse> {
  */
 export class BanPlayerRequest extends Message<BanPlayerRequest> {
   /**
+   * An address, banned as its scope. Never with account_id.
+   *
    * @generated from field: string scope = 1;
    */
   scope = "";
 
   /**
+   * Never with scope.
+   *
    * @generated from field: string account_id = 3;
    */
   accountId = "";
 
   /**
+   * Unset is the ladder's step for this offence.
+   *
    * @generated from field: google.protobuf.Duration duration = 2;
    */
   duration?: Duration;
@@ -311,11 +317,15 @@ export class BanPlayerResponse extends Message<BanPlayerResponse> {
  */
 export class UnbanPlayerRequest extends Message<UnbanPlayerRequest> {
   /**
+   * An address, read as its scope. Never with account_id.
+   *
    * @generated from field: string scope = 1;
    */
   scope = "";
 
   /**
+   * Never with scope.
+   *
    * @generated from field: string account_id = 2;
    */
   accountId = "";
@@ -417,11 +427,15 @@ export class UnbanPlayerResponse extends Message<UnbanPlayerResponse> {
  */
 export class InspectPlayerRequest extends Message<InspectPlayerRequest> {
   /**
+   * An address, read as its scope. Never with account_id.
+   *
    * @generated from field: string scope = 1;
    */
   scope = "";
 
   /**
+   * Never with scope.
+   *
    * @generated from field: string account_id = 2;
    */
   accountId = "";

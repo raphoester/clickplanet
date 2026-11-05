@@ -45,6 +45,9 @@ const (
 	// InternalServiceGetOperatorProcedure is the fully-qualified name of the InternalService's
 	// GetOperator RPC.
 	InternalServiceGetOperatorProcedure = "/auth.v1.InternalService/GetOperator"
+	// InternalServiceGetTokenOperatorProcedure is the fully-qualified name of the InternalService's
+	// GetTokenOperator RPC.
+	InternalServiceGetTokenOperatorProcedure = "/auth.v1.InternalService/GetTokenOperator"
 	// InternalServiceGetDiscordGrantProcedure is the fully-qualified name of the InternalService's
 	// GetDiscordGrant RPC.
 	InternalServiceGetDiscordGrantProcedure = "/auth.v1.InternalService/GetDiscordGrant"
@@ -60,6 +63,9 @@ type InternalServiceClient interface {
 	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
 	// Unauthenticated with no live session in the cookie, PermissionDenied for an account that does not operate.
 	GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error)
+	// Whose an access token is, for the admin gate and the connector. Unauthenticated for a token nobody holds or past
+	// its lifetime, PermissionDenied for an account that does not operate.
+	GetTokenOperator(context.Context, *connect.Request[v1.GetTokenOperatorRequest]) (*connect.Response[v1.GetTokenOperatorResponse], error)
 	// The leave a Discord sign-in gave, which DiscordJoinGranted names, while auth keeps it: ten minutes. NotFound for a
 	// grant it does not keep, or keeps no more. Reading it changes nothing, so a join tried again reads it again.
 	GetDiscordGrant(context.Context, *connect.Request[v1.GetDiscordGrantRequest]) (*connect.Response[v1.GetDiscordGrantResponse], error)
@@ -104,6 +110,12 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(internalServiceMethods.ByName("GetOperator")),
 			connect.WithClientOptions(opts...),
 		),
+		getTokenOperator: connect.NewClient[v1.GetTokenOperatorRequest, v1.GetTokenOperatorResponse](
+			httpClient,
+			baseURL+InternalServiceGetTokenOperatorProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetTokenOperator")),
+			connect.WithClientOptions(opts...),
+		),
 		getDiscordGrant: connect.NewClient[v1.GetDiscordGrantRequest, v1.GetDiscordGrantResponse](
 			httpClient,
 			baseURL+InternalServiceGetDiscordGrantProcedure,
@@ -123,12 +135,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
-	getVerifyingKey *connect.Client[v1.GetVerifyingKeyRequest, v1.GetVerifyingKeyResponse]
-	getAccount      *connect.Client[v1.GetAccountRequest, v1.GetAccountResponse]
-	getAccounts     *connect.Client[v1.GetAccountsRequest, v1.GetAccountsResponse]
-	getOperator     *connect.Client[v1.GetOperatorRequest, v1.GetOperatorResponse]
-	getDiscordGrant *connect.Client[v1.GetDiscordGrantRequest, v1.GetDiscordGrantResponse]
-	getDiscordUsers *connect.Client[v1.GetDiscordUsersRequest, v1.GetDiscordUsersResponse]
+	getVerifyingKey  *connect.Client[v1.GetVerifyingKeyRequest, v1.GetVerifyingKeyResponse]
+	getAccount       *connect.Client[v1.GetAccountRequest, v1.GetAccountResponse]
+	getAccounts      *connect.Client[v1.GetAccountsRequest, v1.GetAccountsResponse]
+	getOperator      *connect.Client[v1.GetOperatorRequest, v1.GetOperatorResponse]
+	getTokenOperator *connect.Client[v1.GetTokenOperatorRequest, v1.GetTokenOperatorResponse]
+	getDiscordGrant  *connect.Client[v1.GetDiscordGrantRequest, v1.GetDiscordGrantResponse]
+	getDiscordUsers  *connect.Client[v1.GetDiscordUsersRequest, v1.GetDiscordUsersResponse]
 }
 
 // GetVerifyingKey calls auth.v1.InternalService.GetVerifyingKey.
@@ -151,6 +164,11 @@ func (c *internalServiceClient) GetOperator(ctx context.Context, req *connect.Re
 	return c.getOperator.CallUnary(ctx, req)
 }
 
+// GetTokenOperator calls auth.v1.InternalService.GetTokenOperator.
+func (c *internalServiceClient) GetTokenOperator(ctx context.Context, req *connect.Request[v1.GetTokenOperatorRequest]) (*connect.Response[v1.GetTokenOperatorResponse], error) {
+	return c.getTokenOperator.CallUnary(ctx, req)
+}
+
 // GetDiscordGrant calls auth.v1.InternalService.GetDiscordGrant.
 func (c *internalServiceClient) GetDiscordGrant(ctx context.Context, req *connect.Request[v1.GetDiscordGrantRequest]) (*connect.Response[v1.GetDiscordGrantResponse], error) {
 	return c.getDiscordGrant.CallUnary(ctx, req)
@@ -168,6 +186,9 @@ type InternalServiceHandler interface {
 	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
 	// Unauthenticated with no live session in the cookie, PermissionDenied for an account that does not operate.
 	GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error)
+	// Whose an access token is, for the admin gate and the connector. Unauthenticated for a token nobody holds or past
+	// its lifetime, PermissionDenied for an account that does not operate.
+	GetTokenOperator(context.Context, *connect.Request[v1.GetTokenOperatorRequest]) (*connect.Response[v1.GetTokenOperatorResponse], error)
 	// The leave a Discord sign-in gave, which DiscordJoinGranted names, while auth keeps it: ten minutes. NotFound for a
 	// grant it does not keep, or keeps no more. Reading it changes nothing, so a join tried again reads it again.
 	GetDiscordGrant(context.Context, *connect.Request[v1.GetDiscordGrantRequest]) (*connect.Response[v1.GetDiscordGrantResponse], error)
@@ -208,6 +229,12 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithSchema(internalServiceMethods.ByName("GetOperator")),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetTokenOperatorHandler := connect.NewUnaryHandler(
+		InternalServiceGetTokenOperatorProcedure,
+		svc.GetTokenOperator,
+		connect.WithSchema(internalServiceMethods.ByName("GetTokenOperator")),
+		connect.WithHandlerOptions(opts...),
+	)
 	internalServiceGetDiscordGrantHandler := connect.NewUnaryHandler(
 		InternalServiceGetDiscordGrantProcedure,
 		svc.GetDiscordGrant,
@@ -232,6 +259,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetAccountsHandler.ServeHTTP(w, r)
 		case InternalServiceGetOperatorProcedure:
 			internalServiceGetOperatorHandler.ServeHTTP(w, r)
+		case InternalServiceGetTokenOperatorProcedure:
+			internalServiceGetTokenOperatorHandler.ServeHTTP(w, r)
 		case InternalServiceGetDiscordGrantProcedure:
 			internalServiceGetDiscordGrantHandler.ServeHTTP(w, r)
 		case InternalServiceGetDiscordUsersProcedure:
@@ -259,6 +288,10 @@ func (UnimplementedInternalServiceHandler) GetAccounts(context.Context, *connect
 
 func (UnimplementedInternalServiceHandler) GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetOperator is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetTokenOperator(context.Context, *connect.Request[v1.GetTokenOperatorRequest]) (*connect.Response[v1.GetTokenOperatorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetTokenOperator is not implemented"))
 }
 
 func (UnimplementedInternalServiceHandler) GetDiscordGrant(context.Context, *connect.Request[v1.GetDiscordGrantRequest]) (*connect.Response[v1.GetDiscordGrantResponse], error) {

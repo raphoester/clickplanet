@@ -56,6 +56,7 @@ const (
 
 // AdminServiceClient is a client for the gamemaster.v1.AdminService service.
 type AdminServiceClient interface {
+	// Every entry of the rule schedule by start, the past ones too, what plays now, and every season's finale.
 	GetSchedule(context.Context, *connect.Request[v1.GetScheduleRequest]) (*connect.Response[v1.GetScheduleResponse], error)
 	// Adds an entry that starts later. Its set must be one planet and the antibot keep, and a battle must start or end at
 	// the daily cutoff, overlap no other battle nor a season's finale, and leave each day some time: FailedPrecondition
@@ -94,6 +95,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceGetScheduleProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetSchedule")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		addEntry: connect.NewClient[v1.AddEntryRequest, v1.AddEntryResponse](
@@ -118,6 +120,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceGetSeasonsProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetSeasons")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		addSeason: connect.NewClient[v1.AddSeasonRequest, v1.AddSeasonResponse](
@@ -195,6 +198,7 @@ func (c *adminServiceClient) DeleteSeason(ctx context.Context, req *connect.Requ
 
 // AdminServiceHandler is an implementation of the gamemaster.v1.AdminService service.
 type AdminServiceHandler interface {
+	// Every entry of the rule schedule by start, the past ones too, what plays now, and every season's finale.
 	GetSchedule(context.Context, *connect.Request[v1.GetScheduleRequest]) (*connect.Response[v1.GetScheduleResponse], error)
 	// Adds an entry that starts later. Its set must be one planet and the antibot keep, and a battle must start or end at
 	// the daily cutoff, overlap no other battle nor a season's finale, and leave each day some time: FailedPrecondition
@@ -229,6 +233,7 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceGetScheduleProcedure,
 		svc.GetSchedule,
 		connect.WithSchema(adminServiceMethods.ByName("GetSchedule")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceAddEntryHandler := connect.NewUnaryHandler(
@@ -253,6 +258,7 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceGetSeasonsProcedure,
 		svc.GetSeasons,
 		connect.WithSchema(adminServiceMethods.ByName("GetSeasons")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceAddSeasonHandler := connect.NewUnaryHandler(

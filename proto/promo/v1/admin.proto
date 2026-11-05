@@ -12,12 +12,15 @@ service AdminService {
   // InvalidArgument for a file that is no JPEG, PNG or WebP, or past the size; FailedPrecondition while backgrounds are
   // off.
   rpc CreateBackgroundUpload(CreateBackgroundUploadRequest) returns (CreateBackgroundUploadResponse);
-  // FailedPrecondition for a file the bucket does not hold.
+  // Puts a file sent to CreateBackgroundUpload's link in the library, under a name. FailedPrecondition for a file the
+  // bucket does not hold.
   rpc KeepBackground(KeepBackgroundRequest) returns (KeepBackgroundResponse);
+  // The library of teaser backgrounds, newest first, each with its public link.
   rpc ListBackgrounds(ListBackgroundsRequest) returns (ListBackgroundsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-  // FailedPrecondition while a set's card shows it, naming the sets.
+  // Deletes a background from the library and the bucket. FailedPrecondition while a set's card shows it, naming
+  // the sets.
   rpc RemoveBackground(RemoveBackgroundRequest) returns (RemoveBackgroundResponse);
   // Every set planet keeps, with its cards as written and as players read them now, and the values a placeholder may
   // name.

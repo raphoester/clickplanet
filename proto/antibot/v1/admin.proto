@@ -10,13 +10,28 @@ import "google/protobuf/timestamp.proto";
 // its gate. Never the public router. Each message reads on the wire as the planet.v1 one of the same name, which
 // served these calls until the antibot was a module of its own.
 service AdminService {
+  // A shadow ban: the caller's clicks and bombs are answered OK and dropped, so it learns nothing. Takes a scope or
+  // an account_id, never both; an account is banned alone, a scope bans everybody behind it. It counts as an offence,
+  // and an unset duration takes the next step of the ladder. Ban before planet's RevertPlayer, or the player repaints
+  // behind the revert.
   rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse);
 
+  // Lifts a caller's latest ban, for a false positive, and forgets that offence. The evidence stays: a watchdog that
+  // still reads certain bans the caller again on its next click, so fix the rule that misfired first. A guest the jury
+  // banned is banned on its account and its scope: two calls. NotFound when no offence is left.
   rpc UnbanPlayer(UnbanPlayerRequest) returns (UnbanPlayerResponse);
 
-  rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse);
+  // What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
+  // and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
+  // is read on the scope of its latest take.
+  rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
-  rpc GetRules(GetRulesRequest) returns (GetRulesResponse);
+  // Every rule set the antibot keeps, and the one it judges with now. SaveRuleSet changes one.
+  rpc GetRules(GetRulesRequest) returns (GetRulesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // Makes a set, or replaces its values. A save of the set that plays now takes over at once.
   rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
@@ -43,8 +58,11 @@ message SaveRuleSetRequest {
 message SaveRuleSetResponse {}
 
 message BanPlayerRequest {
+  // An address, banned as its scope. Never with account_id.
   string scope = 1;
+  // Never with scope.
   string account_id = 3;
+  // Unset is the ladder's step for this offence.
   google.protobuf.Duration duration = 2;
 }
 
@@ -57,7 +75,9 @@ message BanPlayerResponse {
 }
 
 message UnbanPlayerRequest {
+  // An address, read as its scope. Never with account_id.
   string scope = 1;
+  // Never with scope.
   string account_id = 2;
 }
 
@@ -71,7 +91,9 @@ message UnbanPlayerResponse {
 }
 
 message InspectPlayerRequest {
+  // An address, read as its scope. Never with account_id.
   string scope = 1;
+  // Never with scope.
   string account_id = 2;
 }
 

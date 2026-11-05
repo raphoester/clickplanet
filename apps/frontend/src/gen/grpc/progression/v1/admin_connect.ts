@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import { AdminGetProgressRequest, AdminGetProgressResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -15,6 +15,9 @@ export const AdminService = {
   typeName: "progression.v1.AdminService",
   methods: {
     /**
+     * Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
+     * adds a title or changes a rule. A second run changes nothing.
+     *
      * @generated from rpc progression.v1.AdminService.ReconcileTitles
      */
     reconcileTitles: {
@@ -34,6 +37,7 @@ export const AdminService = {
       I: AdminGetProgressRequest,
       O: AdminGetProgressResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

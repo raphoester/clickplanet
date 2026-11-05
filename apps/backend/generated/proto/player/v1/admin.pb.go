@@ -443,13 +443,13 @@ const file_player_v1_admin_proto_rawDesc = "" +
 	"\x12created_at_unix_ms\x18\x06 \x01(\x03R\x0fcreatedAtUnixMsJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
 	"J\x04\b\n" +
 	"\x10\vJ\x04\b\v\x10\fJ\x04\b\f\x10\rR\x05statsR\rmessages_sentR\x06titlesR\n" +
-	"worn_titleR\tplays_forR\rplays_against2\x98\x03\n" +
-	"\fAdminService\x12I\n" +
+	"worn_titleR\tplays_forR\rplays_against2\xac\x03\n" +
+	"\fAdminService\x12N\n" +
 	"\n" +
-	"GetPlayers\x12\x1c.player.v1.GetPlayersRequest\x1a\x1d.player.v1.GetPlayersResponse\x12P\n" +
-	"\tGetPlayer\x12 .player.v1.AdminGetPlayerRequest\x1a!.player.v1.AdminGetPlayerResponse\x12F\n" +
-	"\tGetRoster\x12\x1b.player.v1.GetRosterRequest\x1a\x1c.player.v1.GetRosterResponse\x12R\n" +
-	"\rSearchPlayers\x12\x1f.player.v1.SearchPlayersRequest\x1a .player.v1.SearchPlayersResponse\x12O\n" +
+	"GetPlayers\x12\x1c.player.v1.GetPlayersRequest\x1a\x1d.player.v1.GetPlayersResponse\"\x03\x90\x02\x01\x12U\n" +
+	"\tGetPlayer\x12 .player.v1.AdminGetPlayerRequest\x1a!.player.v1.AdminGetPlayerResponse\"\x03\x90\x02\x01\x12K\n" +
+	"\tGetRoster\x12\x1b.player.v1.GetRosterRequest\x1a\x1c.player.v1.GetRosterResponse\"\x03\x90\x02\x01\x12W\n" +
+	"\rSearchPlayers\x12\x1f.player.v1.SearchPlayersRequest\x1a .player.v1.SearchPlayersResponse\"\x03\x90\x02\x01\x12O\n" +
 	"\fRenamePlayer\x12\x1e.player.v1.RenamePlayerRequest\x1a\x1f.player.v1.RenamePlayerResponseB\xb2\x01\n" +
 	"\rcom.player.v1B\n" +
 	"AdminProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +

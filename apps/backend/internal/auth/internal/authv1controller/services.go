@@ -5,11 +5,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_complete_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_sign_out_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_start_sign_in_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/approve_connection_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_crazygames_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/delete_account_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/describe_connection_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_account_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_discord_grant_handler"
@@ -17,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_operator_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_sign_in_options_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_token_operator_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/resume_session_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_everywhere_handler"
@@ -50,6 +53,7 @@ type InternalService struct {
 	get_operator_handler.GetOperatorHandler
 	get_discord_grant_handler.GetDiscordGrantHandler
 	get_discord_users_handler.GetDiscordUsersHandler
+	get_token_operator_handler.GetTokenOperatorHandler
 }
 
 var _ authv1connect.InternalServiceHandler = InternalService{}
@@ -59,6 +63,8 @@ type AdminService struct {
 	admin_complete_sign_in_handler.AdminCompleteSignInHandler
 	admin_sign_out_handler.AdminSignOutHandler
 	who_am_i_handler.WhoAmIHandler
+	describe_connection_handler.DescribeConnectionHandler
+	approve_connection_handler.ApproveConnectionHandler
 }
 
 var _ authv1connect.AdminServiceHandler = AdminService{}

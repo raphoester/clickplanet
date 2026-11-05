@@ -41,16 +41,26 @@ internal/auth/internal/
     get_accounts_handler/accounts_query/   PostgresQuery: GetAccountsResponse, a page at once
     get_discord_users_handler/discord_users_query/  PostgresQuery: each Discord account and its user, a page after an account
     get_operator_handler/operator_query/   PostgresQuery: GetOperatorResponse, the cp_admin cookie's live session if it operates
+    get_token_operator_handler/token_operator_query/   PostgresQuery: a live access token's operator and app
+    describe_connection_handler/  approve_connection_handler/   the consent page's half of the connector
     get_discord_grant_handler/             GetDiscordGrant, for the alerts module: a grant's token, through live_grant_usecase
   adminsignin/                             the admin page's sign-in: Candidate, Session (Snapshot), Issuer, the cookies, the Store port
     postgres_admin_session_store/          the Store over identities, accounts and admin_sessions
     usecases/start_admin_sign_in_usecase/  complete_admin_sign_in_usecase/  sign_out_admin_usecase/
   admingate/                               what the admin listener sits behind; NewAdminGate builds it, main injects it
     admission/                             Page (the admin page's origin), Visit, Operator, the refusals
-      rpc_operators/                       who operates, from InternalService/GetOperator
+      rpc_operators/                       who operates, from InternalService/GetOperator, and GetTokenOperator for an app
       usecases/admit_usecase/              the origin, then who calls — and log_admit/, which logs each refusal
     guard/                                 the interceptor: a refusal's code, the operator on the context
       log_calls/                           one line per admitted call
+  connections/                             the OAuth 2.1 server Claude connects through: Client, Request, Code, Redirects, the
+                                           Sealer port; nothing is stored, each is sealed into the string the app carries
+    aes_connection_sealer/  inmemory_spent_codes/
+    usecases/register_client_usecase/  authorize_usecase/  describe_connection_usecase/
+    usecases/approve_connection_usecase/ (and audit_approve_connection/)  exchange_code_usecase/  refresh_tokens_usecase/
+  admintokens/                             what an app holds: Secret, Token, Pair, Issuer (Connected, Trade); only the hashes are kept
+    postgres_admin_token_store/            Connection (every token of one) and SaveTokens (an upsert)
+  oauthcontroller/                         the connector's plain HTTP edge: metadata_handler/  register_handler/  authorize_handler/  token_handler/
   sessionheader/                           the cp_sid of a page that keeps no cookie, carried in X-Account-Session
   sessionv1controller/                     deprecated SessionService
     operator_query/                        PostgresQuery: the cookie's live session, its account and whether it operates

@@ -15,6 +15,8 @@ export const AdminService = {
   typeName: "alerts.v1.AdminService",
   methods: {
     /**
+     * The Discord user one account is linked to, and the flag role it holds. Unset when the account is not linked.
+     *
      * @generated from rpc alerts.v1.AdminService.GetPlayerLink
      */
     getPlayerLink: {

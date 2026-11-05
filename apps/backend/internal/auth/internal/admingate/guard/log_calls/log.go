@@ -11,7 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/guard"
 )
 
-// Inside the guard: one line per call it let through, with who made it and what it asked, reads included.
 func New(logger *slog.Logger) connect.Interceptor {
 	return calls{logger: logger}
 }
@@ -54,7 +53,7 @@ func (c calls) log(ctx context.Context, procedure string, message any, err error
 	}
 
 	c.logger.Info("admin call",
-		slog.String("operator", string(guard.OperatorOf(ctx))),
+		slog.Any("", guard.CallerOf(ctx)),
 		slog.String("procedure", procedure),
 		slog.String("request", request),
 		slog.String("code", code),

@@ -77,24 +77,28 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceGetPlayersProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetPlayers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		getPlayer: connect.NewClient[v1.AdminGetPlayerRequest, v1.AdminGetPlayerResponse](
 			httpClient,
 			baseURL+AdminServiceGetPlayerProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetPlayer")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		getRoster: connect.NewClient[v1.GetRosterRequest, v1.GetRosterResponse](
 			httpClient,
 			baseURL+AdminServiceGetRosterProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetRoster")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		searchPlayers: connect.NewClient[v1.SearchPlayersRequest, v1.SearchPlayersResponse](
 			httpClient,
 			baseURL+AdminServiceSearchPlayersProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("SearchPlayers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		renamePlayer: connect.NewClient[v1.RenamePlayerRequest, v1.RenamePlayerResponse](
@@ -166,24 +170,28 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceGetPlayersProcedure,
 		svc.GetPlayers,
 		connect.WithSchema(adminServiceMethods.ByName("GetPlayers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceGetPlayerHandler := connect.NewUnaryHandler(
 		AdminServiceGetPlayerProcedure,
 		svc.GetPlayer,
 		connect.WithSchema(adminServiceMethods.ByName("GetPlayer")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceGetRosterHandler := connect.NewUnaryHandler(
 		AdminServiceGetRosterProcedure,
 		svc.GetRoster,
 		connect.WithSchema(adminServiceMethods.ByName("GetRoster")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceSearchPlayersHandler := connect.NewUnaryHandler(
 		AdminServiceSearchPlayersProcedure,
 		svc.SearchPlayers,
 		connect.WithSchema(adminServiceMethods.ByName("SearchPlayers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceRenamePlayerHandler := connect.NewUnaryHandler(

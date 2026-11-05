@@ -256,10 +256,10 @@ const file_progression_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"worn_title\x18\x04 \x01(\v2\x15.progression.v1.TitleR\twornTitle\x129\n" +
 	"\tplays_for\x18\x05 \x03(\v2\x1c.progression.v1.CountryTilesR\bplaysFor\x12A\n" +
-	"\rplays_against\x18\x06 \x03(\v2\x1c.progression.v1.CountryTilesR\fplaysAgainst2\xd4\x01\n" +
+	"\rplays_against\x18\x06 \x03(\v2\x1c.progression.v1.CountryTilesR\fplaysAgainst2\xd9\x01\n" +
 	"\fAdminService\x12b\n" +
-	"\x0fReconcileTitles\x12&.progression.v1.ReconcileTitlesRequest\x1a'.progression.v1.ReconcileTitlesResponse\x12`\n" +
-	"\vGetProgress\x12'.progression.v1.AdminGetProgressRequest\x1a(.progression.v1.AdminGetProgressResponseB\xd5\x01\n" +
+	"\x0fReconcileTitles\x12&.progression.v1.ReconcileTitlesRequest\x1a'.progression.v1.ReconcileTitlesResponse\x12e\n" +
+	"\vGetProgress\x12'.progression.v1.AdminGetProgressRequest\x1a(.progression.v1.AdminGetProgressResponse\"\x03\x90\x02\x01B\xd5\x01\n" +
 	"\x12com.progression.v1B\n" +
 	"AdminProtoP\x01ZZgithub.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1;progressionv1\xa2\x02\x03PXX\xaa\x02\x0eProgression.V1\xca\x02\x0eProgression\\V1\xe2\x02\x1aProgression\\V1\\GPBMetadata\xea\x02\x0fProgression::V1b\x06proto3"
 

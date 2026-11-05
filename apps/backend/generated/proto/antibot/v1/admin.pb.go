@@ -246,10 +246,13 @@ func (*SaveRuleSetResponse) Descriptor() ([]byte, []int) {
 }
 
 type BanPlayerRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	AccountId     string                 `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Duration      *durationpb.Duration   `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// An address, banned as its scope. Never with account_id.
+	Scope string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Never with scope.
+	AccountId string `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// Unset is the ladder's step for this offence.
+	Duration      *durationpb.Duration `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -382,9 +385,11 @@ func (x *BanPlayerResponse) GetEnforced() bool {
 }
 
 type UnbanPlayerRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	AccountId     string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// An address, read as its scope. Never with account_id.
+	Scope string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Never with scope.
+	AccountId     string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -511,9 +516,11 @@ func (x *UnbanPlayerResponse) GetPardonedUntil() *timestamppb.Timestamp {
 }
 
 type InspectPlayerRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	AccountId     string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// An address, read as its scope. Never with account_id.
+	Scope string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Never with scope.
+	AccountId     string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -885,12 +892,12 @@ const file_antibot_v1_admin_proto_rawDesc = "" +
 	"\bwatchdog\x18\x01 \x01(\tR\bwatchdog\x12\x14\n" +
 	"\x05level\x18\x02 \x01(\tR\x05level\x12\x1a\n" +
 	"\bevidence\x18\x03 \x01(\tR\bevidence\x12*\n" +
-	"\x02at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x02at2\x95\x03\n" +
+	"\x02at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x02at2\x9f\x03\n" +
 	"\fAdminService\x12H\n" +
 	"\tBanPlayer\x12\x1c.antibot.v1.BanPlayerRequest\x1a\x1d.antibot.v1.BanPlayerResponse\x12N\n" +
-	"\vUnbanPlayer\x12\x1e.antibot.v1.UnbanPlayerRequest\x1a\x1f.antibot.v1.UnbanPlayerResponse\x12T\n" +
-	"\rInspectPlayer\x12 .antibot.v1.InspectPlayerRequest\x1a!.antibot.v1.InspectPlayerResponse\x12E\n" +
-	"\bGetRules\x12\x1b.antibot.v1.GetRulesRequest\x1a\x1c.antibot.v1.GetRulesResponse\x12N\n" +
+	"\vUnbanPlayer\x12\x1e.antibot.v1.UnbanPlayerRequest\x1a\x1f.antibot.v1.UnbanPlayerResponse\x12Y\n" +
+	"\rInspectPlayer\x12 .antibot.v1.InspectPlayerRequest\x1a!.antibot.v1.InspectPlayerResponse\"\x03\x90\x02\x01\x12J\n" +
+	"\bGetRules\x12\x1b.antibot.v1.GetRulesRequest\x1a\x1c.antibot.v1.GetRulesResponse\"\x03\x90\x02\x01\x12N\n" +
 	"\vSaveRuleSet\x12\x1e.antibot.v1.SaveRuleSetRequest\x1a\x1f.antibot.v1.SaveRuleSetResponseB\xb9\x01\n" +
 	"\x0ecom.antibot.v1B\n" +
 	"AdminProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1;antibotv1\xa2\x02\x03AXX\xaa\x02\n" +

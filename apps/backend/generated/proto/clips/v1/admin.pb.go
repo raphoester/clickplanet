@@ -1484,17 +1484,17 @@ const file_clips_v1_admin_proto_rawDesc = "" +
 	"\fdownload_url\x18\b \x01(\tR\vdownloadUrl\"/\n" +
 	"\x12RemoveVideoRequest\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\"\x15\n" +
-	"\x13RemoveVideoResponse2\xc3\x05\n" +
+	"\x13RemoveVideoResponse2\xd2\x05\n" +
 	"\fAdminService\x12M\n" +
-	"\fKeepSnapshot\x12\x1d.clips.v1.KeepSnapshotRequest\x1a\x1e.clips.v1.KeepSnapshotResponse\x12P\n" +
-	"\rListSnapshots\x12\x1e.clips.v1.ListSnapshotsRequest\x1a\x1f.clips.v1.ListSnapshotsResponse\x12A\n" +
-	"\bListRows\x12\x19.clips.v1.ListRowsRequest\x1a\x1a.clips.v1.ListRowsResponse\x12A\n" +
+	"\fKeepSnapshot\x12\x1d.clips.v1.KeepSnapshotRequest\x1a\x1e.clips.v1.KeepSnapshotResponse\x12U\n" +
+	"\rListSnapshots\x12\x1e.clips.v1.ListSnapshotsRequest\x1a\x1f.clips.v1.ListSnapshotsResponse\"\x03\x90\x02\x01\x12F\n" +
+	"\bListRows\x12\x19.clips.v1.ListRowsRequest\x1a\x1a.clips.v1.ListRowsResponse\"\x03\x90\x02\x01\x12A\n" +
 	"\bMakeCast\x12\x19.clips.v1.MakeCastRequest\x1a\x1a.clips.v1.MakeCastResponse\x12S\n" +
 	"\x0eKeepAppearance\x12\x1f.clips.v1.KeepAppearanceRequest\x1a .clips.v1.KeepAppearanceResponse\x12\\\n" +
 	"\x11CreateVideoUpload\x12\".clips.v1.CreateVideoUploadRequest\x1a#.clips.v1.CreateVideoUploadResponse\x12D\n" +
-	"\tKeepVideo\x12\x1a.clips.v1.KeepVideoRequest\x1a\x1b.clips.v1.KeepVideoResponse\x12G\n" +
+	"\tKeepVideo\x12\x1a.clips.v1.KeepVideoRequest\x1a\x1b.clips.v1.KeepVideoResponse\x12L\n" +
 	"\n" +
-	"ListVideos\x12\x1b.clips.v1.ListVideosRequest\x1a\x1c.clips.v1.ListVideosResponse\x12J\n" +
+	"ListVideos\x12\x1b.clips.v1.ListVideosRequest\x1a\x1c.clips.v1.ListVideosResponse\"\x03\x90\x02\x01\x12J\n" +
 	"\vRemoveVideo\x12\x1c.clips.v1.RemoveVideoRequest\x1a\x1d.clips.v1.RemoveVideoResponseB\xab\x01\n" +
 	"\fcom.clips.v1B\n" +
 	"AdminProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1;clipsv1\xa2\x02\x03CXX\xaa\x02\bClips.V1\xca\x02\bClips\\V1\xe2\x02\x14Clips\\V1\\GPBMetadata\xea\x02\tClips::V1b\x06proto3"

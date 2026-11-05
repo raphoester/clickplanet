@@ -18,6 +18,9 @@
   called, and hears `PlayerForgotten`. Most of the clips is a job of its own, `cmd/clips`, in the same package (below).
   See [Clip stats](clip-stats.md), [Clip videos](clip-videos.md) and [The players a clip
   names](clip-appearances.md).
+- **`internal/mcp/` is not a context: it is the operator's connector**, every admin method as a tool Claude calls.
+  It owns no data and no proto package, and reaches the modules only as the admin page does: through the admin
+  listener, behind the gate. See [Claude as a connector](connector.md).
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
@@ -66,7 +69,7 @@ root package**:
 |---|---|
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `StorageConfig`, `NewModule` |
-| `auth` | `Config`, `NewModule`, `AdminGateConfig`, `NewAdminGate`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
+| `auth` | `Config`, `NewModule`, `AdminGateConfig`, `NewAdminGate`, `ConnectorConfig`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
 | `player` | `Config`, `NewModule` |
 | `progression` | `Config`, `NewModule` |
 | `scoring` | `Config`, `NewModule` |
@@ -76,6 +79,7 @@ root package**:
 | `gamemaster` | `Config`, `NewModule` |
 | `alerts` | `Config`, `DiscordConfig`, `NewModule` |
 | `promo` | `Config`, `NewModule` |
+| `mcp` | `Config`, `NewModule` |
 | `clips` | `ModuleConfig`, `NewModule` (the server's); `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Stats`, `Pick`, `Platform`, `PlatformsOf`, `Report`, `PlatformOutcome`, `StatsReport`, `TikTokLane`, `TikTokAccount`, `Unread` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot

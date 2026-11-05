@@ -62,11 +62,14 @@ func listenLoopback(options Options, listen listenFunc, name, key, address strin
 	}, nil
 }
 
-func listenAdmin(options Options, listen listenFunc, routes *rpcRoutes) (*sideServer, error) {
+func listenAdmin(options Options, listen listenFunc, routes *rpcRoutes, handlers *adminHandlers) (*sideServer, error) {
 	address, gate := options.Server.AdminBindAddress, options.AdminGate
 	if address == "" {
 		if !gate.empty() {
 			options.Logger.Info("admin listener off, its gate unused")
+		}
+		if len(handlers.handlers) > 0 {
+			options.Logger.Info("admin listener off, its handlers not served", slog.Int("handlers", len(handlers.handlers)))
 		}
 		return nil, nil //nolint:nilnil // nil means "no such listener"; serve skips it.
 	}
@@ -85,10 +88,12 @@ func listenAdmin(options Options, listen listenFunc, routes *rpcRoutes) (*sideSe
 	}
 
 	router := http.NewServeMux()
-	middlewares := cphttpserver.MiddlewareStack(append(
-		[]func(http.Handler) http.Handler{cphttpserver.NewLoggingMiddleware(options.Logger)}, gate.Middlewares...,
-	)...)
+	logging := cphttpserver.NewLoggingMiddleware(options.Logger)
+	middlewares := cphttpserver.MiddlewareStack(append([]func(http.Handler) http.Handler{logging}, gate.Middlewares...)...)
 	if err := routes.mountBehind(router, middlewares, gate.Interceptors...); err != nil {
+		return nil, err
+	}
+	if err := handlers.mountOn(router, cphttpserver.MiddlewareStack(logging)); err != nil {
 		return nil, err
 	}
 

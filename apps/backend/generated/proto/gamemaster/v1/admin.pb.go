@@ -1354,14 +1354,14 @@ const file_gamemaster_v1_admin_proto_rawDesc = "" +
 	"\x12EditSeasonResponse\"-\n" +
 	"\x13DeleteSeasonRequest\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\rR\x06number\"\x16\n" +
-	"\x14DeleteSeasonResponse2\xa6\x05\n" +
-	"\fAdminService\x12T\n" +
-	"\vGetSchedule\x12!.gamemaster.v1.GetScheduleRequest\x1a\".gamemaster.v1.GetScheduleResponse\x12K\n" +
+	"\x14DeleteSeasonResponse2\xb0\x05\n" +
+	"\fAdminService\x12Y\n" +
+	"\vGetSchedule\x12!.gamemaster.v1.GetScheduleRequest\x1a\".gamemaster.v1.GetScheduleResponse\"\x03\x90\x02\x01\x12K\n" +
 	"\bAddEntry\x12\x1e.gamemaster.v1.AddEntryRequest\x1a\x1f.gamemaster.v1.AddEntryResponse\x12N\n" +
 	"\tEditEntry\x12\x1f.gamemaster.v1.EditEntryRequest\x1a .gamemaster.v1.EditEntryResponse\x12T\n" +
-	"\vDeleteEntry\x12!.gamemaster.v1.DeleteEntryRequest\x1a\".gamemaster.v1.DeleteEntryResponse\x12Q\n" +
+	"\vDeleteEntry\x12!.gamemaster.v1.DeleteEntryRequest\x1a\".gamemaster.v1.DeleteEntryResponse\x12V\n" +
 	"\n" +
-	"GetSeasons\x12 .gamemaster.v1.GetSeasonsRequest\x1a!.gamemaster.v1.GetSeasonsResponse\x12N\n" +
+	"GetSeasons\x12 .gamemaster.v1.GetSeasonsRequest\x1a!.gamemaster.v1.GetSeasonsResponse\"\x03\x90\x02\x01\x12N\n" +
 	"\tAddSeason\x12\x1f.gamemaster.v1.AddSeasonRequest\x1a .gamemaster.v1.AddSeasonResponse\x12Q\n" +
 	"\n" +
 	"EditSeason\x12 .gamemaster.v1.EditSeasonRequest\x1a!.gamemaster.v1.EditSeasonResponse\x12W\n" +

@@ -77,8 +77,11 @@ type AdminServiceClient interface {
 	KeepAppearance(context.Context, *connect.Request[v1.KeepAppearanceRequest]) (*connect.Response[v1.KeepAppearanceResponse], error)
 	// A link the page sends one video to, straight to the bucket. The video is listed once KeepVideo names it.
 	CreateVideoUpload(context.Context, *connect.Request[v1.CreateVideoUploadRequest]) (*connect.Response[v1.CreateVideoUploadResponse], error)
+	// Lists a video sent to CreateVideoUpload's link, under a name and with the caption to post it with.
 	KeepVideo(context.Context, *connect.Request[v1.KeepVideoRequest]) (*connect.Response[v1.KeepVideoResponse], error)
+	// The videos the operator keeps to post by hand, newest first, each with a link to download it.
 	ListVideos(context.Context, *connect.Request[v1.ListVideosRequest]) (*connect.Response[v1.ListVideosResponse], error)
+	// Deletes a video from the list and from the bucket.
 	RemoveVideo(context.Context, *connect.Request[v1.RemoveVideoRequest]) (*connect.Response[v1.RemoveVideoResponse], error)
 }
 
@@ -103,12 +106,14 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceListSnapshotsProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("ListSnapshots")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		listRows: connect.NewClient[v1.ListRowsRequest, v1.ListRowsResponse](
 			httpClient,
 			baseURL+AdminServiceListRowsProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("ListRows")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		makeCast: connect.NewClient[v1.MakeCastRequest, v1.MakeCastResponse](
@@ -139,6 +144,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceListVideosProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("ListVideos")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		removeVideo: connect.NewClient[v1.RemoveVideoRequest, v1.RemoveVideoResponse](
@@ -227,8 +233,11 @@ type AdminServiceHandler interface {
 	KeepAppearance(context.Context, *connect.Request[v1.KeepAppearanceRequest]) (*connect.Response[v1.KeepAppearanceResponse], error)
 	// A link the page sends one video to, straight to the bucket. The video is listed once KeepVideo names it.
 	CreateVideoUpload(context.Context, *connect.Request[v1.CreateVideoUploadRequest]) (*connect.Response[v1.CreateVideoUploadResponse], error)
+	// Lists a video sent to CreateVideoUpload's link, under a name and with the caption to post it with.
 	KeepVideo(context.Context, *connect.Request[v1.KeepVideoRequest]) (*connect.Response[v1.KeepVideoResponse], error)
+	// The videos the operator keeps to post by hand, newest first, each with a link to download it.
 	ListVideos(context.Context, *connect.Request[v1.ListVideosRequest]) (*connect.Response[v1.ListVideosResponse], error)
+	// Deletes a video from the list and from the bucket.
 	RemoveVideo(context.Context, *connect.Request[v1.RemoveVideoRequest]) (*connect.Response[v1.RemoveVideoResponse], error)
 }
 
@@ -249,12 +258,14 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceListSnapshotsProcedure,
 		svc.ListSnapshots,
 		connect.WithSchema(adminServiceMethods.ByName("ListSnapshots")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceListRowsHandler := connect.NewUnaryHandler(
 		AdminServiceListRowsProcedure,
 		svc.ListRows,
 		connect.WithSchema(adminServiceMethods.ByName("ListRows")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceMakeCastHandler := connect.NewUnaryHandler(
@@ -285,6 +296,7 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceListVideosProcedure,
 		svc.ListVideos,
 		connect.WithSchema(adminServiceMethods.ByName("ListVideos")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceRemoveVideoHandler := connect.NewUnaryHandler(

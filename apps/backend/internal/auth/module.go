@@ -34,6 +34,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/complete_admin_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/sign_out_admin_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/start_admin_sign_in_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens/postgres_admin_token_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/postgres_arrival_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/usecases/anonymize_arrivals_usecase"
@@ -46,11 +48,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_complete_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_sign_out_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_start_sign_in_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/approve_connection_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_crazygames_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/delete_account_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/describe_connection_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_account_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_account_handler/account_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler"
@@ -63,6 +67,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_operator_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_operator_handler/operator_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_sign_in_options_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_token_operator_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_token_operator_handler/token_operator_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/resume_session_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_everywhere_handler"
@@ -70,6 +76,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/who_am_i_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections/aes_connection_sealer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections/inmemory_spent_codes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections/usecases/approve_connection_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections/usecases/approve_connection_usecase/audit_approve_connection"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections/usecases/authorize_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections/usecases/describe_connection_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections/usecases/exchange_code_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections/usecases/refresh_tokens_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections/usecases/register_client_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/aes_grant_sealer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/postgres_grant_store"
@@ -78,6 +93,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/usecases/prune_grants_usecase/log_prune_grants"
 	grant_ids "github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/oauthcontroller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/oauthcontroller/authorize_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/oauthcontroller/metadata_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/oauthcontroller/register_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/oauthcontroller/token_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionheader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
@@ -97,6 +117,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -330,12 +351,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 
 	operators := operator_query.NewPostgresQuery(db, clock)
 	internalService := authv1controller.InternalService{
-		GetVerifyingKeyHandler: get_verifying_key_handler.New(signer),
-		GetAccountHandler:      get_account_handler.New(account_query.NewPostgresQuery(db)),
-		GetAccountsHandler:     get_accounts_handler.New(accounts_query.NewPostgresQuery(db)),
-		GetOperatorHandler:     get_operator_handler.New(operators),
-		GetDiscordGrantHandler: get_discord_grant_handler.New(live_grant_usecase.New(grantStore, clock)),
-		GetDiscordUsersHandler: get_discord_users_handler.New(discord_users_query.NewPostgresQuery(db)),
+		GetVerifyingKeyHandler:  get_verifying_key_handler.New(signer),
+		GetAccountHandler:       get_account_handler.New(account_query.NewPostgresQuery(db)),
+		GetAccountsHandler:      get_accounts_handler.New(accounts_query.NewPostgresQuery(db)),
+		GetOperatorHandler:      get_operator_handler.New(operators),
+		GetDiscordGrantHandler:  get_discord_grant_handler.New(live_grant_usecase.New(grantStore, clock)),
+		GetDiscordUsersHandler:  get_discord_users_handler.New(discord_users_query.NewPostgresQuery(db)),
+		GetTokenOperatorHandler: get_token_operator_handler.New(token_operator_query.NewPostgresQuery(db, clock)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewInternalServiceHandler(internalService, options...)
@@ -344,6 +366,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	}
 
 	adminSessions := postgres_admin_session_store.New(db)
+	adminTokens := postgres_admin_token_store.New(db)
+	connectionSealer, err := aes_connection_sealer.New(seed)
+	if err != nil {
+		return fmt.Errorf("failed to build the connection sealer: %w", err)
+	}
 	adminService := authv1controller.AdminService{
 		AdminStartSignInHandler: admin_start_sign_in_handler.New(
 			start_admin_sign_in_usecase.New(signIns.admin, random_secret_generator.Generator{}, sealer, clock),
@@ -355,11 +382,24 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		),
 		AdminSignOutHandler: admin_sign_out_handler.New(sign_out_admin_usecase.New(adminSessions)),
 		WhoAmIHandler:       who_am_i_handler.New(operators),
+		DescribeConnectionHandler: describe_connection_handler.New(
+			describe_connection_usecase.New(connectionSealer, clock),
+		),
+		ApproveConnectionHandler: approve_connection_handler.New(operators, audit_approve_connection.New(
+			approve_connection_usecase.New(config.Connector.Issuer, connectionSealer, random_secret_generator.Generator{}, clock),
+			props.Logger,
+		)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewAdminServiceHandler(adminService, options...)
 	}, authv1controller.NewAdminRateLimitInterceptor(mintLimiter)); err != nil {
 		return fmt.Errorf("failed to mount auth.v1.AdminService: %w", err)
+	}
+
+	if config.Connector.Enabled {
+		if err := mountConnector(config, props, connectionSealer, adminTokens, db, clock); err != nil {
+			return err
+		}
 	}
 
 	sessionService := sessionv1controller.NewSessionService(
@@ -382,11 +422,46 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		slog.String("emailDelivery", config.Email.Delivery),
 		slog.Int("disposableDomains", blocklist.Size()),
 		slog.Duration("pruneIdleFor", config.Prune.IdleFor),
+		slog.Bool("connector", config.Connector.Enabled),
 		slog.Duration("deletionGrace", config.Deletion.Grace),
 	)
 
 	return nil
 }
+
+func mountConnector(
+	config Config,
+	props cpbootstrap.Props,
+	sealer *aes_connection_sealer.Sealer,
+	tokens *postgres_admin_token_store.Store,
+	transactioner cpatomic.Transactioner,
+	clock cptime.Clock,
+) error {
+	issuer := admintokens.NewIssuer(random_secret_generator.Generator{})
+	routes := map[string]http.Handler{
+		"GET " + oauthcontroller.MetadataPath: metadata_handler.New(config.Connector.Issuer),
+		"POST " + oauthcontroller.RegisterPath: register_handler.New(
+			register_client_usecase.New(config.Connector.RedirectURIs, sealer, clock), props.Logger,
+		),
+		"GET " + oauthcontroller.AuthorizePath: authorize_handler.New(
+			authorize_usecase.New(config.Admin.Origin+consentPath, sealer, clock), props.Logger,
+		),
+		"POST " + oauthcontroller.TokenPath: token_handler.New(
+			exchange_code_usecase.New(sealer, inmemory_spent_codes.New(), issuer, tokens, clock),
+			refresh_tokens_usecase.New(issuer, tokens, transactioner, clock),
+			props.Logger,
+		),
+	}
+
+	for pattern, handler := range routes {
+		if err := props.AdminHTTP.Handle(pattern, handler); err != nil {
+			return fmt.Errorf("failed to mount the connector: %w", err)
+		}
+	}
+	return nil
+}
+
+const consentPath = "/connect"
 
 func newAttester(config Config, logger *slog.Logger) (attestation.Attester, error) {
 	if !config.Turnstile.Enabled {
@@ -430,6 +505,8 @@ type Config struct {
 	Deletion purge_deletions_usecase.Config
 
 	Admin AdminConfig
+
+	Connector ConnectorConfig
 }
 
 type DiscordConfig struct {
@@ -463,6 +540,7 @@ const defaultTurnstileAction = "session"
 
 func (c Config) withDefaults() Config {
 	c.Admin = c.Admin.withDefaults()
+	c.Connector = c.Connector.withDefaults()
 	if c.Turnstile.Action == "" {
 		c.Turnstile.Action = defaultTurnstileAction
 	}
@@ -486,6 +564,9 @@ func (c Config) Validate() error {
 		if c.Admin.Origin != "" {
 			return errors.New("auth.admin.origin is set and auth is off: the admin gate could admit nobody")
 		}
+		if c.Connector.Enabled {
+			return errors.New("auth.connector.enabled is true and auth is off: there is nobody to connect as")
+		}
 		return nil
 	}
 
@@ -497,7 +578,7 @@ func (c Config) Validate() error {
 		redisErr = fmt.Errorf("auth.redis: %w", err)
 	}
 	return errors.Join(c.SignerConfig.Validate(), databaseErr, redisErr, c.pruneError(), c.signInError(), c.emailError(),
-		c.Admin.Validate())
+		c.Admin.Validate(), c.withDefaults().Connector.validate(c.Admin))
 }
 
 func (c Config) pruneError() error {

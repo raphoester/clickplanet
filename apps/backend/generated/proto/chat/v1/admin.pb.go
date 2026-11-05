@@ -24,10 +24,11 @@ const (
 )
 
 type MuteRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Duration      *durationpb.Duration   `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
-	Kind          MuteKind               `protobuf:"varint,3,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// Unset is one hour; otherwise whole seconds.
+	Duration      *durationpb.Duration `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
+	Kind          MuteKind             `protobuf:"varint,3,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1068,15 +1069,15 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"\x03gif\x18\x05 \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x129\n" +
 	"\n" +
 	"removed_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAtB\x06\n" +
-	"\x04body2\xa0\x03\n" +
+	"\x04body2\xaf\x03\n" +
 	"\fAdminService\x123\n" +
 	"\x04Mute\x12\x14.chat.v1.MuteRequest\x1a\x15.chat.v1.MuteResponse\x129\n" +
-	"\x06Unmute\x12\x16.chat.v1.UnmuteRequest\x1a\x17.chat.v1.UnmuteResponse\x12<\n" +
-	"\aGetMute\x12\x17.chat.v1.GetMuteRequest\x1a\x18.chat.v1.GetMuteResponse\x12N\n" +
-	"\rRemoveMessage\x12\x1d.chat.v1.RemoveMessageRequest\x1a\x1e.chat.v1.RemoveMessageResponse\x12E\n" +
+	"\x06Unmute\x12\x16.chat.v1.UnmuteRequest\x1a\x17.chat.v1.UnmuteResponse\x12A\n" +
+	"\aGetMute\x12\x17.chat.v1.GetMuteRequest\x1a\x18.chat.v1.GetMuteResponse\"\x03\x90\x02\x01\x12N\n" +
+	"\rRemoveMessage\x12\x1d.chat.v1.RemoveMessageRequest\x1a\x1e.chat.v1.RemoveMessageResponse\x12J\n" +
 	"\n" +
-	"GetMessage\x12\x1a.chat.v1.GetMessageRequest\x1a\x1b.chat.v1.GetMessageResponse\x12K\n" +
-	"\fListMessages\x12\x1c.chat.v1.ListMessagesRequest\x1a\x1d.chat.v1.ListMessagesResponseB\xa4\x01\n" +
+	"GetMessage\x12\x1a.chat.v1.GetMessageRequest\x1a\x1b.chat.v1.GetMessageResponse\"\x03\x90\x02\x01\x12P\n" +
+	"\fListMessages\x12\x1c.chat.v1.ListMessagesRequest\x1a\x1d.chat.v1.ListMessagesResponse\"\x03\x90\x02\x01B\xa4\x01\n" +
 	"\vcom.chat.v1B\n" +
 	"AdminProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1;chatv1\xa2\x02\x03CXX\xaa\x02\aChat.V1\xca\x02\aChat\\V1\xe2\x02\x13Chat\\V1\\GPBMetadata\xea\x02\bChat::V1b\x06proto3"
 

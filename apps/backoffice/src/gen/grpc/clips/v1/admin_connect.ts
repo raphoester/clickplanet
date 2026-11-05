@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import { CreateVideoUploadRequest, CreateVideoUploadResponse, KeepAppearanceRequest, KeepAppearanceResponse, KeepSnapshotRequest, KeepSnapshotResponse, KeepVideoRequest, KeepVideoResponse, ListRowsRequest, ListRowsResponse, ListSnapshotsRequest, ListSnapshotsResponse, ListVideosRequest, ListVideosResponse, MakeCastRequest, MakeCastResponse, RemoveVideoRequest, RemoveVideoResponse } from "./admin_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * What became of the clips the clips job posts: a snapshot a day of each post's numbers on each platform, sent by the
@@ -43,6 +43,7 @@ export const AdminService = {
       I: ListSnapshotsRequest,
       O: ListSnapshotsResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * The rows of the snapshots taken in a window, the oldest snapshot first, a page at a time.
@@ -54,6 +55,7 @@ export const AdminService = {
       I: ListRowsRequest,
       O: ListRowsResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Numbers each player who took tiles from another flag in a window, at most 72 hours, and keeps which account each
@@ -92,6 +94,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Lists a video sent to CreateVideoUpload's link, under a name and with the caption to post it with.
+     *
      * @generated from rpc clips.v1.AdminService.KeepVideo
      */
     keepVideo: {
@@ -101,6 +105,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * The videos the operator keeps to post by hand, newest first, each with a link to download it.
+     *
      * @generated from rpc clips.v1.AdminService.ListVideos
      */
     listVideos: {
@@ -108,8 +114,11 @@ export const AdminService = {
       I: ListVideosRequest,
       O: ListVideosResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
+     * Deletes a video from the list and from the bucket.
+     *
      * @generated from rpc clips.v1.AdminService.RemoveVideo
      */
     removeVideo: {

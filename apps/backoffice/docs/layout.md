@@ -18,6 +18,7 @@ src/
   countries.ts      a country id's name and its flag
   App.tsx           the callback, or WhoAmI first, then the page the menu picked
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
+  connect/          ConnectPage (Allow or Deny an app), pending.ts (the request kept for the tab)
   components/       Menu and Sidebar, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
                     Fact, Person, When and Ago, Fold (a panel read once opened), ChangeList (what a form changes);
                     time.ts (a time in words, a span of two, as a datetime-local holds it, the operator's time zone)

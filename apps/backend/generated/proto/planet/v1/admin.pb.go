@@ -432,12 +432,16 @@ func (x *ReleaseAllegianceResponse) GetLocked() bool {
 }
 
 type PaintRandomTilesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FlagCountryId string                 `protobuf:"bytes,1,opt,name=flag_country_id,json=flagCountryId,proto3" json:"flag_country_id,omitempty"`
-	AreaCountryId string                 `protobuf:"bytes,2,opt,name=area_country_id,json=areaCountryId,proto3" json:"area_country_id,omitempty"`
-	Count         uint32                 `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
-	Proximity     float64                `protobuf:"fixed64,4,opt,name=proximity,proto3" json:"proximity,omitempty"`
-	DryRun        bool                   `protobuf:"varint,5,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The flag painted: a country id, "fr".
+	FlagCountryId string `protobuf:"bytes,1,opt,name=flag_country_id,json=flagCountryId,proto3" json:"flag_country_id,omitempty"`
+	// The country whose ground a patch starts on; empty is anywhere on the map. A patch grows across the border.
+	AreaCountryId string `protobuf:"bytes,2,opt,name=area_country_id,json=areaCountryId,proto3" json:"area_country_id,omitempty"`
+	Count         uint32 `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
+	// 0 to 1: how likely each next tile touches one already picked. 0 scatters them, 1 grows one patch.
+	Proximity float64 `protobuf:"fixed64,4,opt,name=proximity,proto3" json:"proximity,omitempty"`
+	// Picks the tiles, and paints nothing.
+	DryRun        bool `protobuf:"varint,5,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -576,10 +580,13 @@ func (x *PaintRandomTilesResponse) GetOutsideArea() uint32 {
 }
 
 type FindPlayersRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FlagCountryId string                 `protobuf:"bytes,1,opt,name=flag_country_id,json=flagCountryId,proto3" json:"flag_country_id,omitempty"`
-	AreaCountryId string                 `protobuf:"bytes,2,opt,name=area_country_id,json=areaCountryId,proto3" json:"area_country_id,omitempty"`
-	Limit         uint32                 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A country id: ISO 3166-1 alpha-2 in lower case, "fr".
+	FlagCountryId string `protobuf:"bytes,1,opt,name=flag_country_id,json=flagCountryId,proto3" json:"flag_country_id,omitempty"`
+	// Empty is the whole map.
+	AreaCountryId string `protobuf:"bytes,2,opt,name=area_country_id,json=areaCountryId,proto3" json:"area_country_id,omitempty"`
+	// Unset is every player.
+	Limit         uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -688,8 +695,9 @@ func (x *FindPlayersResponse) GetTotal() uint32 {
 }
 
 type TopPlayersRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Limit         uint32                 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unset is every player.
+	Limit         uint32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -916,10 +924,13 @@ func (x *Player) GetFlagCountryId() string {
 }
 
 type RevertPlayerRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	AccountId     string                 `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	DryRun        bool                   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// An address, read as its scope. Never with account_id.
+	Scope string `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Never with scope.
+	AccountId string `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// Counts what would go back, and changes nothing.
+	DryRun        bool `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1052,10 +1063,12 @@ func (x *RevertPlayerResponse) GetRestored() uint32 {
 }
 
 type ReassignCountryRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FromCountryId string                 `protobuf:"bytes,1,opt,name=from_country_id,json=fromCountryId,proto3" json:"from_country_id,omitempty"`
-	ToCountryId   string                 `protobuf:"bytes,2,opt,name=to_country_id,json=toCountryId,proto3" json:"to_country_id,omitempty"`
-	DryRun        bool                   `protobuf:"varint,3,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A country id: ISO 3166-1 alpha-2 in lower case, "fr".
+	FromCountryId string `protobuf:"bytes,1,opt,name=from_country_id,json=fromCountryId,proto3" json:"from_country_id,omitempty"`
+	ToCountryId   string `protobuf:"bytes,2,opt,name=to_country_id,json=toCountryId,proto3" json:"to_country_id,omitempty"`
+	// Counts what would move, and moves nothing.
+	DryRun        bool `protobuf:"varint,3,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1518,20 +1531,20 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x05rules\x18\x02 \x01(\v2\x10.planet.v1.RulesR\x05rules\":\n" +
 	"\x12SaveRuleSetRequest\x12$\n" +
 	"\x03set\x18\x01 \x01(\v2\x12.planet.v1.RuleSetR\x03set\"\x15\n" +
-	"\x13SaveRuleSetResponse2\xda\a\n" +
+	"\x13SaveRuleSetResponse2\xf8\a\n" +
 	"\fAdminService\x12X\n" +
-	"\x0fReassignCountry\x12!.planet.v1.ReassignCountryRequest\x1a\".planet.v1.ReassignCountryResponse\x12L\n" +
-	"\vFindPlayers\x12\x1d.planet.v1.FindPlayersRequest\x1a\x1e.planet.v1.FindPlayersResponse\x12I\n" +
+	"\x0fReassignCountry\x12!.planet.v1.ReassignCountryRequest\x1a\".planet.v1.ReassignCountryResponse\x12Q\n" +
+	"\vFindPlayers\x12\x1d.planet.v1.FindPlayersRequest\x1a\x1e.planet.v1.FindPlayersResponse\"\x03\x90\x02\x01\x12N\n" +
 	"\n" +
-	"TopPlayers\x12\x1c.planet.v1.TopPlayersRequest\x1a\x1d.planet.v1.TopPlayersResponse\x12O\n" +
+	"TopPlayers\x12\x1c.planet.v1.TopPlayersRequest\x1a\x1d.planet.v1.TopPlayersResponse\"\x03\x90\x02\x01\x12O\n" +
 	"\fRevertPlayer\x12\x1e.planet.v1.RevertPlayerRequest\x1a\x1f.planet.v1.RevertPlayerResponse\x12[\n" +
 	"\x10PaintRandomTiles\x12\".planet.v1.PaintRandomTilesRequest\x1a#.planet.v1.PaintRandomTilesResponse\x12O\n" +
-	"\fGrantCharges\x12\x1e.planet.v1.GrantChargesRequest\x1a\x1f.planet.v1.GrantChargesResponse\x12^\n" +
-	"\x11ReleaseAllegiance\x12#.planet.v1.ReleaseAllegianceRequest\x1a$.planet.v1.ReleaseAllegianceResponse\x12F\n" +
-	"\tGetReplay\x12\x1b.planet.v1.GetReplayRequest\x1a\x1c.planet.v1.GetReplayResponse\x12F\n" +
-	"\tGetLedger\x12\x1b.planet.v1.GetLedgerRequest\x1a\x1c.planet.v1.GetLedgerResponse\x12U\n" +
-	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\x12C\n" +
-	"\bGetRules\x12\x1a.planet.v1.GetRulesRequest\x1a\x1b.planet.v1.GetRulesResponse\x12L\n" +
+	"\fGrantCharges\x12\x1e.planet.v1.GrantChargesRequest\x1a\x1f.planet.v1.GrantChargesResponse\x12K\n" +
+	"\tGetReplay\x12\x1b.planet.v1.GetReplayRequest\x1a\x1c.planet.v1.GetReplayResponse\"\x03\x90\x02\x01\x12^\n" +
+	"\x11ReleaseAllegiance\x12#.planet.v1.ReleaseAllegianceRequest\x1a$.planet.v1.ReleaseAllegianceResponse\x12K\n" +
+	"\tGetLedger\x12\x1b.planet.v1.GetLedgerRequest\x1a\x1c.planet.v1.GetLedgerResponse\"\x03\x90\x02\x01\x12Z\n" +
+	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\"\x03\x90\x02\x01\x12H\n" +
+	"\bGetRules\x12\x1a.planet.v1.GetRulesRequest\x1a\x1b.planet.v1.GetRulesResponse\"\x03\x90\x02\x01\x12L\n" +
 	"\vSaveRuleSet\x12\x1d.planet.v1.SaveRuleSetRequest\x1a\x1e.planet.v1.SaveRuleSetResponseB\xb2\x01\n" +
 	"\rcom.planet.v1B\n" +
 	"AdminProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
@@ -1611,8 +1624,8 @@ var file_planet_v1_admin_proto_depIdxs = []int32{
 	14, // 22: planet.v1.AdminService.RevertPlayer:input_type -> planet.v1.RevertPlayerRequest
 	7,  // 23: planet.v1.AdminService.PaintRandomTiles:input_type -> planet.v1.PaintRandomTilesRequest
 	3,  // 24: planet.v1.AdminService.GrantCharges:input_type -> planet.v1.GrantChargesRequest
-	5,  // 25: planet.v1.AdminService.ReleaseAllegiance:input_type -> planet.v1.ReleaseAllegianceRequest
-	0,  // 26: planet.v1.AdminService.GetReplay:input_type -> planet.v1.GetReplayRequest
+	0,  // 25: planet.v1.AdminService.GetReplay:input_type -> planet.v1.GetReplayRequest
+	5,  // 26: planet.v1.AdminService.ReleaseAllegiance:input_type -> planet.v1.ReleaseAllegianceRequest
 	29, // 27: planet.v1.AdminService.GetLedger:input_type -> planet.v1.GetLedgerRequest
 	30, // 28: planet.v1.AdminService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
 	18, // 29: planet.v1.AdminService.GetRules:input_type -> planet.v1.GetRulesRequest
@@ -1623,8 +1636,8 @@ var file_planet_v1_admin_proto_depIdxs = []int32{
 	15, // 34: planet.v1.AdminService.RevertPlayer:output_type -> planet.v1.RevertPlayerResponse
 	8,  // 35: planet.v1.AdminService.PaintRandomTiles:output_type -> planet.v1.PaintRandomTilesResponse
 	4,  // 36: planet.v1.AdminService.GrantCharges:output_type -> planet.v1.GrantChargesResponse
-	6,  // 37: planet.v1.AdminService.ReleaseAllegiance:output_type -> planet.v1.ReleaseAllegianceResponse
-	1,  // 38: planet.v1.AdminService.GetReplay:output_type -> planet.v1.GetReplayResponse
+	1,  // 37: planet.v1.AdminService.GetReplay:output_type -> planet.v1.GetReplayResponse
+	6,  // 38: planet.v1.AdminService.ReleaseAllegiance:output_type -> planet.v1.ReleaseAllegianceResponse
 	31, // 39: planet.v1.AdminService.GetLedger:output_type -> planet.v1.GetLedgerResponse
 	32, // 40: planet.v1.AdminService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
 	19, // 41: planet.v1.AdminService.GetRules:output_type -> planet.v1.GetRulesResponse

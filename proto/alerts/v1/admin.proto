@@ -4,6 +4,7 @@ package alerts.v1;
 
 // The operator's view of a player's Discord link.
 service AdminService {
+  // The Discord user one account is linked to, and the flag role it holds. Unset when the account is not linked.
   rpc GetPlayerLink(GetPlayerLinkRequest) returns (GetPlayerLinkResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }

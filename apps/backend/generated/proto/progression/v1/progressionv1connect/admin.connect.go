@@ -43,6 +43,8 @@ const (
 
 // AdminServiceClient is a client for the progression.v1.AdminService service.
 type AdminServiceClient interface {
+	// Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
+	// adds a title or changes a rule. A second run changes nothing.
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
 	// What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
 	// An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.
@@ -70,6 +72,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceGetProgressProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetProgress")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -93,6 +96,8 @@ func (c *adminServiceClient) GetProgress(ctx context.Context, req *connect.Reque
 
 // AdminServiceHandler is an implementation of the progression.v1.AdminService service.
 type AdminServiceHandler interface {
+	// Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
+	// adds a title or changes a rule. A second run changes nothing.
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
 	// What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
 	// An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.
@@ -116,6 +121,7 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceGetProgressProcedure,
 		svc.GetProgress,
 		connect.WithSchema(adminServiceMethods.ByName("GetProgress")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/progression.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

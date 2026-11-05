@@ -19,10 +19,14 @@ service AdminService {
   rpc KeepSnapshot(KeepSnapshotRequest) returns (KeepSnapshotResponse);
 
   // The summaries of the snapshots taken in a window, the newest first.
-  rpc ListSnapshots(ListSnapshotsRequest) returns (ListSnapshotsResponse);
+  rpc ListSnapshots(ListSnapshotsRequest) returns (ListSnapshotsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // The rows of the snapshots taken in a window, the oldest snapshot first, a page at a time.
-  rpc ListRows(ListRowsRequest) returns (ListRowsResponse);
+  rpc ListRows(ListRowsRequest) returns (ListRowsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // Numbers each player who took tiles from another flag in a window, at most 72 hours, and keeps which account each
   // number is, for 3 days. The answer holds names and numbers, never an account id.
@@ -36,10 +40,15 @@ service AdminService {
   // A link the page sends one video to, straight to the bucket. The video is listed once KeepVideo names it.
   rpc CreateVideoUpload(CreateVideoUploadRequest) returns (CreateVideoUploadResponse);
 
+  // Lists a video sent to CreateVideoUpload's link, under a name and with the caption to post it with.
   rpc KeepVideo(KeepVideoRequest) returns (KeepVideoResponse);
 
-  rpc ListVideos(ListVideosRequest) returns (ListVideosResponse);
+  // The videos the operator keeps to post by hand, newest first, each with a link to download it.
+  rpc ListVideos(ListVideosRequest) returns (ListVideosResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
+  // Deletes a video from the list and from the bucket.
   rpc RemoveVideo(RemoveVideoRequest) returns (RemoveVideoResponse);
 }
 

@@ -45,7 +45,12 @@ const (
 
 // AdminServiceClient is a client for the support.v1.AdminService service.
 type AdminServiceClient interface {
+	// The feature suggestions and bug reports players sent, newest first, each with what the page said of itself and a
+	// link to each photo or video it carries.
 	ListNotes(context.Context, *connect.Request[v1.ListNotesRequest]) (*connect.Response[v1.ListNotesResponse], error)
+	// Players' reports of other players, newest first, both accounts named as the game shows them now, with any
+	// decision. reported_account_id is what InspectPlayer, BanPlayer and Mute take; message_id is what GetMessage and
+	// RemoveMessage take.
 	ListReports(context.Context, *connect.Request[v1.ListReportsRequest]) (*connect.Response[v1.ListReportsResponse], error)
 	// Closes a report with what the operator did about it. A report decided again keeps the last decision. NotFound for a report no longer kept.
 	DecideReport(context.Context, *connect.Request[v1.DecideReportRequest]) (*connect.Response[v1.DecideReportResponse], error)
@@ -66,12 +71,14 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceListNotesProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("ListNotes")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		listReports: connect.NewClient[v1.ListReportsRequest, v1.ListReportsResponse](
 			httpClient,
 			baseURL+AdminServiceListReportsProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("ListReports")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		decideReport: connect.NewClient[v1.DecideReportRequest, v1.DecideReportResponse](
@@ -107,7 +114,12 @@ func (c *adminServiceClient) DecideReport(ctx context.Context, req *connect.Requ
 
 // AdminServiceHandler is an implementation of the support.v1.AdminService service.
 type AdminServiceHandler interface {
+	// The feature suggestions and bug reports players sent, newest first, each with what the page said of itself and a
+	// link to each photo or video it carries.
 	ListNotes(context.Context, *connect.Request[v1.ListNotesRequest]) (*connect.Response[v1.ListNotesResponse], error)
+	// Players' reports of other players, newest first, both accounts named as the game shows them now, with any
+	// decision. reported_account_id is what InspectPlayer, BanPlayer and Mute take; message_id is what GetMessage and
+	// RemoveMessage take.
 	ListReports(context.Context, *connect.Request[v1.ListReportsRequest]) (*connect.Response[v1.ListReportsResponse], error)
 	// Closes a report with what the operator did about it. A report decided again keeps the last decision. NotFound for a report no longer kept.
 	DecideReport(context.Context, *connect.Request[v1.DecideReportRequest]) (*connect.Response[v1.DecideReportResponse], error)
@@ -124,12 +136,14 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceListNotesProcedure,
 		svc.ListNotes,
 		connect.WithSchema(adminServiceMethods.ByName("ListNotes")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceListReportsHandler := connect.NewUnaryHandler(
 		AdminServiceListReportsProcedure,
 		svc.ListReports,
 		connect.WithSchema(adminServiceMethods.ByName("ListReports")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceDecideReportHandler := connect.NewUnaryHandler(

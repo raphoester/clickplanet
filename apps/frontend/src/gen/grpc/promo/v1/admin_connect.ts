@@ -29,7 +29,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * FailedPrecondition for a file the bucket does not hold.
+     * Puts a file sent to CreateBackgroundUpload's link in the library, under a name. FailedPrecondition for a file the
+     * bucket does not hold.
      *
      * @generated from rpc promo.v1.AdminService.KeepBackground
      */
@@ -40,6 +41,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * The library of teaser backgrounds, newest first, each with its public link.
+     *
      * @generated from rpc promo.v1.AdminService.ListBackgrounds
      */
     listBackgrounds: {
@@ -50,7 +53,8 @@ export const AdminService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * FailedPrecondition while a set's card shows it, naming the sets.
+     * Deletes a background from the library and the bucket. FailedPrecondition while a set's card shows it, naming
+     * the sets.
      *
      * @generated from rpc promo.v1.AdminService.RemoveBackground
      */

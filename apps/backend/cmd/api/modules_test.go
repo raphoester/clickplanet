@@ -98,9 +98,7 @@ func TestNothingButTheBrowserAndTheOperatorTalksToProgression(t *testing.T) {
 	}
 }
 
-// Auth is player's detail: the game asks player who an account is. Alerts is the one exception, for the Discord join's
-// token, which auth keeps sealed and never puts on Redis.
-func TestOnlyPlayerAndAlertsSpeakAuthsLanguage(t *testing.T) {
+func TestOnlyPlayerAlertsAndTheConnectorSpeakAuthsLanguage(t *testing.T) {
 	var speakers []string
 	for module, upstream := range moduleEdges(t) {
 		if slices.Contains(upstream, "auth") {
@@ -109,7 +107,7 @@ func TestOnlyPlayerAndAlertsSpeakAuthsLanguage(t *testing.T) {
 	}
 	slices.Sort(speakers)
 
-	assert.Equal(t, []string{"alerts", "player"}, speakers)
+	assert.Equal(t, []string{"alerts", "mcp", "player"}, speakers)
 }
 
 func TestProgressionKnowsPlayerAndNotAuth(t *testing.T) {

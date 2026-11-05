@@ -50,9 +50,20 @@ const (
 
 // AdminServiceClient is a client for the antibot.v1.AdminService service.
 type AdminServiceClient interface {
+	// A shadow ban: the caller's clicks and bombs are answered OK and dropped, so it learns nothing. Takes a scope or
+	// an account_id, never both; an account is banned alone, a scope bans everybody behind it. It counts as an offence,
+	// and an unset duration takes the next step of the ladder. Ban before planet's RevertPlayer, or the player repaints
+	// behind the revert.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
+	// Lifts a caller's latest ban, for a false positive, and forgets that offence. The evidence stays: a watchdog that
+	// still reads certain bans the caller again on its next click, so fix the rule that misfired first. A guest the jury
+	// banned is banned on its account and its scope: two calls. NotFound when no offence is left.
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
+	// What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
+	// and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
+	// is read on the scope of its latest take.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
+	// Every rule set the antibot keeps, and the one it judges with now. SaveRuleSet changes one.
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
 	// Makes a set, or replaces its values. A save of the set that plays now takes over at once.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
@@ -85,12 +96,14 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceInspectPlayerProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		getRules: connect.NewClient[v1.GetRulesRequest, v1.GetRulesResponse](
 			httpClient,
 			baseURL+AdminServiceGetRulesProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		saveRuleSet: connect.NewClient[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse](
@@ -138,9 +151,20 @@ func (c *adminServiceClient) SaveRuleSet(ctx context.Context, req *connect.Reque
 
 // AdminServiceHandler is an implementation of the antibot.v1.AdminService service.
 type AdminServiceHandler interface {
+	// A shadow ban: the caller's clicks and bombs are answered OK and dropped, so it learns nothing. Takes a scope or
+	// an account_id, never both; an account is banned alone, a scope bans everybody behind it. It counts as an offence,
+	// and an unset duration takes the next step of the ladder. Ban before planet's RevertPlayer, or the player repaints
+	// behind the revert.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
+	// Lifts a caller's latest ban, for a false positive, and forgets that offence. The evidence stays: a watchdog that
+	// still reads certain bans the caller again on its next click, so fix the rule that misfired first. A guest the jury
+	// banned is banned on its account and its scope: two calls. NotFound when no offence is left.
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
+	// What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
+	// and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
+	// is read on the scope of its latest take.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
+	// Every rule set the antibot keeps, and the one it judges with now. SaveRuleSet changes one.
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
 	// Makes a set, or replaces its values. A save of the set that plays now takes over at once.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
@@ -169,12 +193,14 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceInspectPlayerProcedure,
 		svc.InspectPlayer,
 		connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceGetRulesHandler := connect.NewUnaryHandler(
 		AdminServiceGetRulesProcedure,
 		svc.GetRules,
 		connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceSaveRuleSetHandler := connect.NewUnaryHandler(

@@ -13,6 +13,10 @@ service InternalService {
   // Unauthenticated with no live session in the cookie, PermissionDenied for an account that does not operate.
   rpc GetOperator(GetOperatorRequest) returns (GetOperatorResponse);
 
+  // Whose an access token is, for the admin gate and the connector. Unauthenticated for a token nobody holds or past
+  // its lifetime, PermissionDenied for an account that does not operate.
+  rpc GetTokenOperator(GetTokenOperatorRequest) returns (GetTokenOperatorResponse);
+
   // The leave a Discord sign-in gave, which DiscordJoinGranted names, while auth keeps it: ten minutes. NotFound for a
   // grant it does not keep, or keeps no more. Reading it changes nothing, so a join tried again reads it again.
   rpc GetDiscordGrant(GetDiscordGrantRequest) returns (GetDiscordGrantResponse) {
@@ -61,6 +65,17 @@ message GetOperatorRequest {
 
 message GetOperatorResponse {
   string account_id = 1;
+}
+
+message GetTokenOperatorRequest {
+  // As the caller sent it, after "Bearer ".
+  string token = 1;
+}
+
+message GetTokenOperatorResponse {
+  string account_id = 1;
+  // The app the token was issued to, as it named itself.
+  string client = 2;
 }
 
 message GetDiscordGrantRequest {

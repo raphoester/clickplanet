@@ -46,6 +46,7 @@ const (
 
 // AdminServiceClient is a client for the alerts.v1.AdminService service.
 type AdminServiceClient interface {
+	// The Discord user one account is linked to, and the flag role it holds. Unset when the account is not linked.
 	GetPlayerLink(context.Context, *connect.Request[v1.GetPlayerLinkRequest]) (*connect.Response[v1.GetPlayerLinkResponse], error)
 	// Forgets the link and takes the flag's role off the Discord user, who stays in the server: the game offers that
 	// account to connect Discord again, and its next Discord sign-in joins it again.
@@ -113,6 +114,7 @@ func (c *adminServiceClient) LinkMembers(ctx context.Context, req *connect.Reque
 
 // AdminServiceHandler is an implementation of the alerts.v1.AdminService service.
 type AdminServiceHandler interface {
+	// The Discord user one account is linked to, and the flag role it holds. Unset when the account is not linked.
 	GetPlayerLink(context.Context, *connect.Request[v1.GetPlayerLinkRequest]) (*connect.Response[v1.GetPlayerLinkResponse], error)
 	// Forgets the link and takes the flag's role off the Discord user, who stays in the server: the game offers that
 	// account to connect Discord again, and its next Discord sign-in joins it again.

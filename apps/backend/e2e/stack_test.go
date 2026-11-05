@@ -24,6 +24,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster"
+	"github.com/raphoester/clickplanet.lol-backend/internal/mcp"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
@@ -78,6 +79,8 @@ func startGame(t *testing.T) gameStack {
 	// Short enough for a test to see an account purged, long enough to see it kept first.
 	authConfig.Deletion.Grace = deletionGrace
 	authConfig.Deletion.Interval = 50 * time.Millisecond
+	authConfig.Admin.Origin = adminOrigin
+	authConfig.Connector = auth.ConnectorConfig{Enabled: true, Issuer: "http://" + server.AdminBindAddress}
 
 	planetConfig := planet.Config{Database: postgres.ConfigFor("planet"), Redis: redis}
 	clickAtWill(t, planetConfig.Database)
@@ -133,6 +136,7 @@ func startGame(t *testing.T) gameStack {
 				progression.NewModule(progressionConfig),
 				chat.NewModule(chatConfig), scoring.NewModule(scoringConfig), support.NewModule(supportConfig),
 				missions.NewModule(missionsConfig), gamemaster.NewModule(gamemasterConfig), promo.NewModule(promoConfig),
+				mcp.NewModule(mcp.Config{Enabled: true, URL: "http://" + server.AdminBindAddress + "/mcp"}),
 			},
 			AdminGate: gate,
 		}, public, internal, console, admin)

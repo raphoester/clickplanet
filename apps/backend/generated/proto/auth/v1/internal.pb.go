@@ -433,6 +433,104 @@ func (x *GetOperatorResponse) GetAccountId() string {
 	return ""
 }
 
+type GetTokenOperatorRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As the caller sent it, after "Bearer ".
+	Token         string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTokenOperatorRequest) Reset() {
+	*x = GetTokenOperatorRequest{}
+	mi := &file_auth_v1_internal_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTokenOperatorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTokenOperatorRequest) ProtoMessage() {}
+
+func (x *GetTokenOperatorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_internal_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTokenOperatorRequest.ProtoReflect.Descriptor instead.
+func (*GetTokenOperatorRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetTokenOperatorRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+type GetTokenOperatorResponse struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// The app the token was issued to, as it named itself.
+	Client        string `protobuf:"bytes,2,opt,name=client,proto3" json:"client,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTokenOperatorResponse) Reset() {
+	*x = GetTokenOperatorResponse{}
+	mi := &file_auth_v1_internal_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTokenOperatorResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTokenOperatorResponse) ProtoMessage() {}
+
+func (x *GetTokenOperatorResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_internal_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTokenOperatorResponse.ProtoReflect.Descriptor instead.
+func (*GetTokenOperatorResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetTokenOperatorResponse) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *GetTokenOperatorResponse) GetClient() string {
+	if x != nil {
+		return x.Client
+	}
+	return ""
+}
+
 type GetDiscordGrantRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	GrantId       string                 `protobuf:"bytes,1,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
@@ -442,7 +540,7 @@ type GetDiscordGrantRequest struct {
 
 func (x *GetDiscordGrantRequest) Reset() {
 	*x = GetDiscordGrantRequest{}
-	mi := &file_auth_v1_internal_proto_msgTypes[9]
+	mi := &file_auth_v1_internal_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -454,7 +552,7 @@ func (x *GetDiscordGrantRequest) String() string {
 func (*GetDiscordGrantRequest) ProtoMessage() {}
 
 func (x *GetDiscordGrantRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[9]
+	mi := &file_auth_v1_internal_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -467,7 +565,7 @@ func (x *GetDiscordGrantRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDiscordGrantRequest.ProtoReflect.Descriptor instead.
 func (*GetDiscordGrantRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{9}
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetDiscordGrantRequest) GetGrantId() string {
@@ -490,7 +588,7 @@ type GetDiscordGrantResponse struct {
 
 func (x *GetDiscordGrantResponse) Reset() {
 	*x = GetDiscordGrantResponse{}
-	mi := &file_auth_v1_internal_proto_msgTypes[10]
+	mi := &file_auth_v1_internal_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -502,7 +600,7 @@ func (x *GetDiscordGrantResponse) String() string {
 func (*GetDiscordGrantResponse) ProtoMessage() {}
 
 func (x *GetDiscordGrantResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[10]
+	mi := &file_auth_v1_internal_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -515,7 +613,7 @@ func (x *GetDiscordGrantResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDiscordGrantResponse.ProtoReflect.Descriptor instead.
 func (*GetDiscordGrantResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{10}
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetDiscordGrantResponse) GetAccountId() string {
@@ -551,7 +649,7 @@ type GetDiscordUsersRequest struct {
 
 func (x *GetDiscordUsersRequest) Reset() {
 	*x = GetDiscordUsersRequest{}
-	mi := &file_auth_v1_internal_proto_msgTypes[11]
+	mi := &file_auth_v1_internal_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -563,7 +661,7 @@ func (x *GetDiscordUsersRequest) String() string {
 func (*GetDiscordUsersRequest) ProtoMessage() {}
 
 func (x *GetDiscordUsersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[11]
+	mi := &file_auth_v1_internal_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -576,7 +674,7 @@ func (x *GetDiscordUsersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDiscordUsersRequest.ProtoReflect.Descriptor instead.
 func (*GetDiscordUsersRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{11}
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetDiscordUsersRequest) GetAfterAccountId() string {
@@ -602,7 +700,7 @@ type GetDiscordUsersResponse struct {
 
 func (x *GetDiscordUsersResponse) Reset() {
 	*x = GetDiscordUsersResponse{}
-	mi := &file_auth_v1_internal_proto_msgTypes[12]
+	mi := &file_auth_v1_internal_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -614,7 +712,7 @@ func (x *GetDiscordUsersResponse) String() string {
 func (*GetDiscordUsersResponse) ProtoMessage() {}
 
 func (x *GetDiscordUsersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[12]
+	mi := &file_auth_v1_internal_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -627,7 +725,7 @@ func (x *GetDiscordUsersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDiscordUsersResponse.ProtoReflect.Descriptor instead.
 func (*GetDiscordUsersResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{12}
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetDiscordUsersResponse) GetUsers() []*DiscordUser {
@@ -647,7 +745,7 @@ type DiscordUser struct {
 
 func (x *DiscordUser) Reset() {
 	*x = DiscordUser{}
-	mi := &file_auth_v1_internal_proto_msgTypes[13]
+	mi := &file_auth_v1_internal_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -659,7 +757,7 @@ func (x *DiscordUser) String() string {
 func (*DiscordUser) ProtoMessage() {}
 
 func (x *DiscordUser) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[13]
+	mi := &file_auth_v1_internal_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -672,7 +770,7 @@ func (x *DiscordUser) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscordUser.ProtoReflect.Descriptor instead.
 func (*DiscordUser) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{13}
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DiscordUser) GetAccountId() string {
@@ -718,7 +816,13 @@ const file_auth_v1_internal_proto_rawDesc = "" +
 	"\x06cookie\x18\x01 \x01(\tR\x06cookie\"4\n" +
 	"\x13GetOperatorResponse\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\"3\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"/\n" +
+	"\x17GetTokenOperatorRequest\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"Q\n" +
+	"\x18GetTokenOperatorResponse\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x16\n" +
+	"\x06client\x18\x02 \x01(\tR\x06client\"3\n" +
 	"\x16GetDiscordGrantRequest\x12\x19\n" +
 	"\bgrant_id\x18\x01 \x01(\tR\agrantId\"\x83\x01\n" +
 	"\x17GetDiscordGrantResponse\x12\x1d\n" +
@@ -734,13 +838,14 @@ const file_auth_v1_internal_proto_rawDesc = "" +
 	"\vDiscordUser\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12&\n" +
-	"\x0fdiscord_user_id\x18\x02 \x01(\tR\rdiscordUserId2\xfd\x03\n" +
+	"\x0fdiscord_user_id\x18\x02 \x01(\tR\rdiscordUserId2\xd6\x04\n" +
 	"\x0fInternalService\x12T\n" +
 	"\x0fGetVerifyingKey\x12\x1f.auth.v1.GetVerifyingKeyRequest\x1a .auth.v1.GetVerifyingKeyResponse\x12E\n" +
 	"\n" +
 	"GetAccount\x12\x1a.auth.v1.GetAccountRequest\x1a\x1b.auth.v1.GetAccountResponse\x12M\n" +
 	"\vGetAccounts\x12\x1b.auth.v1.GetAccountsRequest\x1a\x1c.auth.v1.GetAccountsResponse\"\x03\x90\x02\x01\x12H\n" +
-	"\vGetOperator\x12\x1b.auth.v1.GetOperatorRequest\x1a\x1c.auth.v1.GetOperatorResponse\x12Y\n" +
+	"\vGetOperator\x12\x1b.auth.v1.GetOperatorRequest\x1a\x1c.auth.v1.GetOperatorResponse\x12W\n" +
+	"\x10GetTokenOperator\x12 .auth.v1.GetTokenOperatorRequest\x1a!.auth.v1.GetTokenOperatorResponse\x12Y\n" +
 	"\x0fGetDiscordGrant\x12\x1f.auth.v1.GetDiscordGrantRequest\x1a .auth.v1.GetDiscordGrantResponse\"\x03\x90\x02\x01\x12Y\n" +
 	"\x0fGetDiscordUsers\x12\x1f.auth.v1.GetDiscordUsersRequest\x1a .auth.v1.GetDiscordUsersResponse\"\x03\x90\x02\x01B\xa7\x01\n" +
 	"\vcom.auth.v1B\rInternalProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
@@ -757,40 +862,44 @@ func file_auth_v1_internal_proto_rawDescGZIP() []byte {
 	return file_auth_v1_internal_proto_rawDescData
 }
 
-var file_auth_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_auth_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_auth_v1_internal_proto_goTypes = []any{
-	(*GetVerifyingKeyRequest)(nil),  // 0: auth.v1.GetVerifyingKeyRequest
-	(*GetVerifyingKeyResponse)(nil), // 1: auth.v1.GetVerifyingKeyResponse
-	(*GetAccountRequest)(nil),       // 2: auth.v1.GetAccountRequest
-	(*GetAccountResponse)(nil),      // 3: auth.v1.GetAccountResponse
-	(*GetAccountsRequest)(nil),      // 4: auth.v1.GetAccountsRequest
-	(*GetAccountsResponse)(nil),     // 5: auth.v1.GetAccountsResponse
-	(*Account)(nil),                 // 6: auth.v1.Account
-	(*GetOperatorRequest)(nil),      // 7: auth.v1.GetOperatorRequest
-	(*GetOperatorResponse)(nil),     // 8: auth.v1.GetOperatorResponse
-	(*GetDiscordGrantRequest)(nil),  // 9: auth.v1.GetDiscordGrantRequest
-	(*GetDiscordGrantResponse)(nil), // 10: auth.v1.GetDiscordGrantResponse
-	(*GetDiscordUsersRequest)(nil),  // 11: auth.v1.GetDiscordUsersRequest
-	(*GetDiscordUsersResponse)(nil), // 12: auth.v1.GetDiscordUsersResponse
-	(*DiscordUser)(nil),             // 13: auth.v1.DiscordUser
+	(*GetVerifyingKeyRequest)(nil),   // 0: auth.v1.GetVerifyingKeyRequest
+	(*GetVerifyingKeyResponse)(nil),  // 1: auth.v1.GetVerifyingKeyResponse
+	(*GetAccountRequest)(nil),        // 2: auth.v1.GetAccountRequest
+	(*GetAccountResponse)(nil),       // 3: auth.v1.GetAccountResponse
+	(*GetAccountsRequest)(nil),       // 4: auth.v1.GetAccountsRequest
+	(*GetAccountsResponse)(nil),      // 5: auth.v1.GetAccountsResponse
+	(*Account)(nil),                  // 6: auth.v1.Account
+	(*GetOperatorRequest)(nil),       // 7: auth.v1.GetOperatorRequest
+	(*GetOperatorResponse)(nil),      // 8: auth.v1.GetOperatorResponse
+	(*GetTokenOperatorRequest)(nil),  // 9: auth.v1.GetTokenOperatorRequest
+	(*GetTokenOperatorResponse)(nil), // 10: auth.v1.GetTokenOperatorResponse
+	(*GetDiscordGrantRequest)(nil),   // 11: auth.v1.GetDiscordGrantRequest
+	(*GetDiscordGrantResponse)(nil),  // 12: auth.v1.GetDiscordGrantResponse
+	(*GetDiscordUsersRequest)(nil),   // 13: auth.v1.GetDiscordUsersRequest
+	(*GetDiscordUsersResponse)(nil),  // 14: auth.v1.GetDiscordUsersResponse
+	(*DiscordUser)(nil),              // 15: auth.v1.DiscordUser
 }
 var file_auth_v1_internal_proto_depIdxs = []int32{
 	6,  // 0: auth.v1.GetAccountsResponse.accounts:type_name -> auth.v1.Account
-	13, // 1: auth.v1.GetDiscordUsersResponse.users:type_name -> auth.v1.DiscordUser
+	15, // 1: auth.v1.GetDiscordUsersResponse.users:type_name -> auth.v1.DiscordUser
 	0,  // 2: auth.v1.InternalService.GetVerifyingKey:input_type -> auth.v1.GetVerifyingKeyRequest
 	2,  // 3: auth.v1.InternalService.GetAccount:input_type -> auth.v1.GetAccountRequest
 	4,  // 4: auth.v1.InternalService.GetAccounts:input_type -> auth.v1.GetAccountsRequest
 	7,  // 5: auth.v1.InternalService.GetOperator:input_type -> auth.v1.GetOperatorRequest
-	9,  // 6: auth.v1.InternalService.GetDiscordGrant:input_type -> auth.v1.GetDiscordGrantRequest
-	11, // 7: auth.v1.InternalService.GetDiscordUsers:input_type -> auth.v1.GetDiscordUsersRequest
-	1,  // 8: auth.v1.InternalService.GetVerifyingKey:output_type -> auth.v1.GetVerifyingKeyResponse
-	3,  // 9: auth.v1.InternalService.GetAccount:output_type -> auth.v1.GetAccountResponse
-	5,  // 10: auth.v1.InternalService.GetAccounts:output_type -> auth.v1.GetAccountsResponse
-	8,  // 11: auth.v1.InternalService.GetOperator:output_type -> auth.v1.GetOperatorResponse
-	10, // 12: auth.v1.InternalService.GetDiscordGrant:output_type -> auth.v1.GetDiscordGrantResponse
-	12, // 13: auth.v1.InternalService.GetDiscordUsers:output_type -> auth.v1.GetDiscordUsersResponse
-	8,  // [8:14] is the sub-list for method output_type
-	2,  // [2:8] is the sub-list for method input_type
+	9,  // 6: auth.v1.InternalService.GetTokenOperator:input_type -> auth.v1.GetTokenOperatorRequest
+	11, // 7: auth.v1.InternalService.GetDiscordGrant:input_type -> auth.v1.GetDiscordGrantRequest
+	13, // 8: auth.v1.InternalService.GetDiscordUsers:input_type -> auth.v1.GetDiscordUsersRequest
+	1,  // 9: auth.v1.InternalService.GetVerifyingKey:output_type -> auth.v1.GetVerifyingKeyResponse
+	3,  // 10: auth.v1.InternalService.GetAccount:output_type -> auth.v1.GetAccountResponse
+	5,  // 11: auth.v1.InternalService.GetAccounts:output_type -> auth.v1.GetAccountsResponse
+	8,  // 12: auth.v1.InternalService.GetOperator:output_type -> auth.v1.GetOperatorResponse
+	10, // 13: auth.v1.InternalService.GetTokenOperator:output_type -> auth.v1.GetTokenOperatorResponse
+	12, // 14: auth.v1.InternalService.GetDiscordGrant:output_type -> auth.v1.GetDiscordGrantResponse
+	14, // 15: auth.v1.InternalService.GetDiscordUsers:output_type -> auth.v1.GetDiscordUsersResponse
+	9,  // [9:16] is the sub-list for method output_type
+	2,  // [2:9] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name
@@ -807,7 +916,7 @@ func file_auth_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_internal_proto_rawDesc), len(file_auth_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

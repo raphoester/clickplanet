@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import { BanPlayerRequest, BanPlayerResponse, GetRulesRequest, GetRulesResponse, InspectPlayerRequest, InspectPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * The operator's bans and the rules the antibot judges with. No authentication of its own: served on the console listener, and on the admin listener behind
@@ -17,6 +17,11 @@ export const AdminService = {
   typeName: "antibot.v1.AdminService",
   methods: {
     /**
+     * A shadow ban: the caller's clicks and bombs are answered OK and dropped, so it learns nothing. Takes a scope or
+     * an account_id, never both; an account is banned alone, a scope bans everybody behind it. It counts as an offence,
+     * and an unset duration takes the next step of the ladder. Ban before planet's RevertPlayer, or the player repaints
+     * behind the revert.
+     *
      * @generated from rpc antibot.v1.AdminService.BanPlayer
      */
     banPlayer: {
@@ -26,6 +31,10 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Lifts a caller's latest ban, for a false positive, and forgets that offence. The evidence stays: a watchdog that
+     * still reads certain bans the caller again on its next click, so fix the rule that misfired first. A guest the jury
+     * banned is banned on its account and its scope: two calls. NotFound when no offence is left.
+     *
      * @generated from rpc antibot.v1.AdminService.UnbanPlayer
      */
     unbanPlayer: {
@@ -35,6 +44,10 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
+     * and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
+     * is read on the scope of its latest take.
+     *
      * @generated from rpc antibot.v1.AdminService.InspectPlayer
      */
     inspectPlayer: {
@@ -42,8 +55,11 @@ export const AdminService = {
       I: InspectPlayerRequest,
       O: InspectPlayerResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
+     * Every rule set the antibot keeps, and the one it judges with now. SaveRuleSet changes one.
+     *
      * @generated from rpc antibot.v1.AdminService.GetRules
      */
     getRules: {
@@ -51,6 +67,7 @@ export const AdminService = {
       I: GetRulesRequest,
       O: GetRulesResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Makes a set, or replaces its values. A save of the set that plays now takes over at once.

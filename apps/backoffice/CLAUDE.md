@@ -41,3 +41,5 @@ each line names a doc in [`docs/`](docs) and says what is in it.
   which set plays when, a battle's points' times, entries to come added and changed, and each season's Final Battle
   among them; the seasons: picked by their start and end times, with their Final Battles, added, moved and deleted;
   every time in the operator's own zone, and what the server will refuse in red as it is typed.
+- [Connecting Claude](docs/connect.md) — `/connect`, off the menu: the operator lets Claude in as a connector, Allow or
+  Deny; the request kept for the tab through the Google sign-in.

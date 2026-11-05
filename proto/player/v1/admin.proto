@@ -9,17 +9,25 @@ import "player/v1/player.proto";
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
 service AdminService {
   // InternalService/GetPlayers, for the admin page naming a page of players.
-  rpc GetPlayers(GetPlayersRequest) returns (GetPlayersResponse);
+  rpc GetPlayers(GetPlayersRequest) returns (GetPlayersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
   // fronts are progression.v1.AdminService/GetProgress.
-  rpc GetPlayer(AdminGetPlayerRequest) returns (AdminGetPlayerResponse);
+  rpc GetPlayer(AdminGetPlayerRequest) returns (AdminGetPlayerResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // PlayerService/GetRoster, for the admin page's home: who is playing now.
-  rpc GetRoster(GetRosterRequest) returns (GetRosterResponse);
+  rpc GetRoster(GetRosterRequest) returns (GetRosterResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
-  rpc SearchPlayers(SearchPlayersRequest) returns (SearchPlayersResponse);
+  rpc SearchPlayers(SearchPlayersRequest) returns (SearchPlayersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
   rpc RenamePlayer(RenamePlayerRequest) returns (RenamePlayerResponse);

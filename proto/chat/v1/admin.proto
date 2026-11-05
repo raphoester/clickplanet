@@ -8,27 +8,36 @@ import "google/protobuf/timestamp.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
 service AdminService {
-  // Of the kind asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
+  // Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
+  // the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. Of the kind
+  // asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
   rpc Mute(MuteRequest) returns (MuteResponse);
 
   // Ends now every mute of the kind given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
   rpc Unmute(UnmuteRequest) returns (UnmuteResponse);
 
   // The mute of the kind that holds the account now, given to it or to another account on the network it last posted from; the one that ends last. Nothing set when none holds it.
-  rpc GetMute(GetMuteRequest) returns (GetMuteResponse);
+  rpc GetMute(GetMuteRequest) returns (GetMuteResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
   rpc RemoveMessage(RemoveMessageRequest) returns (RemoveMessageResponse);
 
   // A message as it was sent, removed or not. NotFound past the retention.
-  rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
+  rpc GetMessage(GetMessageRequest) returns (GetMessageResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention. With an account, that account's messages alone.
-  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse);
+  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message MuteRequest {
   string account_id = 1;
+  // Unset is one hour; otherwise whole seconds.
   google.protobuf.Duration duration = 2;
   MuteKind kind = 3;
 }

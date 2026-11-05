@@ -57,10 +57,13 @@ type AdminServiceClient interface {
 	// InvalidArgument for a file that is no JPEG, PNG or WebP, or past the size; FailedPrecondition while backgrounds are
 	// off.
 	CreateBackgroundUpload(context.Context, *connect.Request[v1.CreateBackgroundUploadRequest]) (*connect.Response[v1.CreateBackgroundUploadResponse], error)
-	// FailedPrecondition for a file the bucket does not hold.
+	// Puts a file sent to CreateBackgroundUpload's link in the library, under a name. FailedPrecondition for a file the
+	// bucket does not hold.
 	KeepBackground(context.Context, *connect.Request[v1.KeepBackgroundRequest]) (*connect.Response[v1.KeepBackgroundResponse], error)
+	// The library of teaser backgrounds, newest first, each with its public link.
 	ListBackgrounds(context.Context, *connect.Request[v1.ListBackgroundsRequest]) (*connect.Response[v1.ListBackgroundsResponse], error)
-	// FailedPrecondition while a set's card shows it, naming the sets.
+	// Deletes a background from the library and the bucket. FailedPrecondition while a set's card shows it, naming
+	// the sets.
 	RemoveBackground(context.Context, *connect.Request[v1.RemoveBackgroundRequest]) (*connect.Response[v1.RemoveBackgroundResponse], error)
 	// Every set planet keeps, with its cards as written and as players read them now, and the values a placeholder may
 	// name.
@@ -168,10 +171,13 @@ type AdminServiceHandler interface {
 	// InvalidArgument for a file that is no JPEG, PNG or WebP, or past the size; FailedPrecondition while backgrounds are
 	// off.
 	CreateBackgroundUpload(context.Context, *connect.Request[v1.CreateBackgroundUploadRequest]) (*connect.Response[v1.CreateBackgroundUploadResponse], error)
-	// FailedPrecondition for a file the bucket does not hold.
+	// Puts a file sent to CreateBackgroundUpload's link in the library, under a name. FailedPrecondition for a file the
+	// bucket does not hold.
 	KeepBackground(context.Context, *connect.Request[v1.KeepBackgroundRequest]) (*connect.Response[v1.KeepBackgroundResponse], error)
+	// The library of teaser backgrounds, newest first, each with its public link.
 	ListBackgrounds(context.Context, *connect.Request[v1.ListBackgroundsRequest]) (*connect.Response[v1.ListBackgroundsResponse], error)
-	// FailedPrecondition while a set's card shows it, naming the sets.
+	// Deletes a background from the library and the bucket. FailedPrecondition while a set's card shows it, naming
+	// the sets.
 	RemoveBackground(context.Context, *connect.Request[v1.RemoveBackgroundRequest]) (*connect.Response[v1.RemoveBackgroundResponse], error)
 	// Every set planet keeps, with its cards as written and as players read them now, and the values a placeholder may
 	// name.

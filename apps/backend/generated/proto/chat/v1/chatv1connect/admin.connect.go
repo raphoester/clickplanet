@@ -51,7 +51,9 @@ const (
 
 // AdminServiceClient is a client for the chat.v1.AdminService service.
 type AdminServiceClient interface {
-	// Of the kind asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
+	// Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
+	// the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. Of the kind
+	// asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
 	// Ends now every mute of the kind given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
 	Unmute(context.Context, *connect.Request[v1.UnmuteRequest]) (*connect.Response[v1.UnmuteResponse], error)
@@ -92,6 +94,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceGetMuteProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetMute")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		removeMessage: connect.NewClient[v1.RemoveMessageRequest, v1.RemoveMessageResponse](
@@ -104,12 +107,14 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceGetMessageProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetMessage")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		listMessages: connect.NewClient[v1.ListMessagesRequest, v1.ListMessagesResponse](
 			httpClient,
 			baseURL+AdminServiceListMessagesProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("ListMessages")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -157,7 +162,9 @@ func (c *adminServiceClient) ListMessages(ctx context.Context, req *connect.Requ
 
 // AdminServiceHandler is an implementation of the chat.v1.AdminService service.
 type AdminServiceHandler interface {
-	// Of the kind asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
+	// Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
+	// the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. Of the kind
+	// asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
 	// Ends now every mute of the kind given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
 	Unmute(context.Context, *connect.Request[v1.UnmuteRequest]) (*connect.Response[v1.UnmuteResponse], error)
@@ -194,6 +201,7 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceGetMuteProcedure,
 		svc.GetMute,
 		connect.WithSchema(adminServiceMethods.ByName("GetMute")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceRemoveMessageHandler := connect.NewUnaryHandler(
@@ -206,12 +214,14 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceGetMessageProcedure,
 		svc.GetMessage,
 		connect.WithSchema(adminServiceMethods.ByName("GetMessage")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceListMessagesHandler := connect.NewUnaryHandler(
 		AdminServiceListMessagesProcedure,
 		svc.ListMessages,
 		connect.WithSchema(adminServiceMethods.ByName("ListMessages")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/chat.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

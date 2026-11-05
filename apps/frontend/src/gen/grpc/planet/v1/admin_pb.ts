@@ -352,11 +352,15 @@ export class ReleaseAllegianceResponse extends Message<ReleaseAllegianceResponse
  */
 export class PaintRandomTilesRequest extends Message<PaintRandomTilesRequest> {
   /**
+   * The flag painted: a country id, "fr".
+   *
    * @generated from field: string flag_country_id = 1;
    */
   flagCountryId = "";
 
   /**
+   * The country whose ground a patch starts on; empty is anywhere on the map. A patch grows across the border.
+   *
    * @generated from field: string area_country_id = 2;
    */
   areaCountryId = "";
@@ -367,11 +371,15 @@ export class PaintRandomTilesRequest extends Message<PaintRandomTilesRequest> {
   count = 0;
 
   /**
+   * 0 to 1: how likely each next tile touches one already picked. 0 scatters them, 1 grows one patch.
+   *
    * @generated from field: double proximity = 4;
    */
   proximity = 0;
 
   /**
+   * Picks the tiles, and paints nothing.
+   *
    * @generated from field: bool dry_run = 5;
    */
   dryRun = false;
@@ -468,16 +476,22 @@ export class PaintRandomTilesResponse extends Message<PaintRandomTilesResponse> 
  */
 export class FindPlayersRequest extends Message<FindPlayersRequest> {
   /**
+   * A country id: ISO 3166-1 alpha-2 in lower case, "fr".
+   *
    * @generated from field: string flag_country_id = 1;
    */
   flagCountryId = "";
 
   /**
+   * Empty is the whole map.
+   *
    * @generated from field: string area_country_id = 2;
    */
   areaCountryId = "";
 
   /**
+   * Unset is every player.
+   *
    * @generated from field: uint32 limit = 3;
    */
   limit = 0;
@@ -560,6 +574,8 @@ export class FindPlayersResponse extends Message<FindPlayersResponse> {
  */
 export class TopPlayersRequest extends Message<TopPlayersRequest> {
   /**
+   * Unset is every player.
+   *
    * @generated from field: uint32 limit = 1;
    */
   limit = 0;
@@ -743,16 +759,22 @@ export class Player extends Message<Player> {
  */
 export class RevertPlayerRequest extends Message<RevertPlayerRequest> {
   /**
+   * An address, read as its scope. Never with account_id.
+   *
    * @generated from field: string scope = 1;
    */
   scope = "";
 
   /**
+   * Never with scope.
+   *
    * @generated from field: string account_id = 3;
    */
   accountId = "";
 
   /**
+   * Counts what would go back, and changes nothing.
+   *
    * @generated from field: bool dry_run = 2;
    */
   dryRun = false;
@@ -853,6 +875,8 @@ export class RevertPlayerResponse extends Message<RevertPlayerResponse> {
  */
 export class ReassignCountryRequest extends Message<ReassignCountryRequest> {
   /**
+   * A country id: ISO 3166-1 alpha-2 in lower case, "fr".
+   *
    * @generated from field: string from_country_id = 1;
    */
   fromCountryId = "";
@@ -863,6 +887,8 @@ export class ReassignCountryRequest extends Message<ReassignCountryRequest> {
   toCountryId = "";
 
   /**
+   * Counts what would move, and moves nothing.
+   *
    * @generated from field: bool dry_run = 3;
    */
   dryRun = false;

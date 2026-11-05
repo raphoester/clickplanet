@@ -50,11 +50,11 @@ const (
 	// AdminServiceGrantChargesProcedure is the fully-qualified name of the AdminService's GrantCharges
 	// RPC.
 	AdminServiceGrantChargesProcedure = "/planet.v1.AdminService/GrantCharges"
+	// AdminServiceGetReplayProcedure is the fully-qualified name of the AdminService's GetReplay RPC.
+	AdminServiceGetReplayProcedure = "/planet.v1.AdminService/GetReplay"
 	// AdminServiceReleaseAllegianceProcedure is the fully-qualified name of the AdminService's
 	// ReleaseAllegiance RPC.
 	AdminServiceReleaseAllegianceProcedure = "/planet.v1.AdminService/ReleaseAllegiance"
-	// AdminServiceGetReplayProcedure is the fully-qualified name of the AdminService's GetReplay RPC.
-	AdminServiceGetReplayProcedure = "/planet.v1.AdminService/GetReplay"
 	// AdminServiceGetLedgerProcedure is the fully-qualified name of the AdminService's GetLedger RPC.
 	AdminServiceGetLedgerProcedure = "/planet.v1.AdminService/GetLedger"
 	// AdminServiceGetTerritoriesProcedure is the fully-qualified name of the AdminService's
@@ -69,20 +69,39 @@ const (
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
 type AdminServiceClient interface {
+	// Gives every tile one country holds to another, while the game runs: paced in batches, each tile an ordinary
+	// update every screen repaints. The ledger does not see it, so no revert undoes it. A tile the first country
+	// retakes during the move stays its own; from_after says whether to run it again.
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
+	// Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
+	// per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
+	// IPv6. The scope and the account_id are what RevertPlayer and antibot's BanPlayer, UnbanPlayer and InspectPlayer
+	// take.
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
+	// Who takes the most tiles, every flag and the whole map, within the ledger's last 72 hours: most takes first, then
+	// most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
+	// Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
+	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
+	// from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
+	// Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
+	// between stays theirs. The ledger does not see it.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
+	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
+	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
+	// The map as it was at since, and every act on it until until, for the clip generator. Megabytes for a day, so the
+	// connector does not offer it.
+	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
 	// Lifts the account's hour of wait, so its next change of flag goes at once. A lock of the rules in force still holds.
 	ReleaseAllegiance(context.Context, *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error)
-	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
 	// Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
 	// time.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	// Every rule set postgres keeps, and the one the game plays now. SaveRuleSet changes one.
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
 	// Makes a set, or replaces its values. A save of the set that plays now takes over at once.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
@@ -109,12 +128,14 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceFindPlayersProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("FindPlayers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		topPlayers: connect.NewClient[v1.TopPlayersRequest, v1.TopPlayersResponse](
 			httpClient,
 			baseURL+AdminServiceTopPlayersProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("TopPlayers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		revertPlayer: connect.NewClient[v1.RevertPlayerRequest, v1.RevertPlayerResponse](
@@ -135,34 +156,38 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("GrantCharges")),
 			connect.WithClientOptions(opts...),
 		),
+		getReplay: connect.NewClient[v1.GetReplayRequest, v1.GetReplayResponse](
+			httpClient,
+			baseURL+AdminServiceGetReplayProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetReplay")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		releaseAllegiance: connect.NewClient[v1.ReleaseAllegianceRequest, v1.ReleaseAllegianceResponse](
 			httpClient,
 			baseURL+AdminServiceReleaseAllegianceProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("ReleaseAllegiance")),
 			connect.WithClientOptions(opts...),
 		),
-		getReplay: connect.NewClient[v1.GetReplayRequest, v1.GetReplayResponse](
-			httpClient,
-			baseURL+AdminServiceGetReplayProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("GetReplay")),
-			connect.WithClientOptions(opts...),
-		),
 		getLedger: connect.NewClient[v1.GetLedgerRequest, v1.GetLedgerResponse](
 			httpClient,
 			baseURL+AdminServiceGetLedgerProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetLedger")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		getTerritories: connect.NewClient[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse](
 			httpClient,
 			baseURL+AdminServiceGetTerritoriesProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetTerritories")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		getRules: connect.NewClient[v1.GetRulesRequest, v1.GetRulesResponse](
 			httpClient,
 			baseURL+AdminServiceGetRulesProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		saveRuleSet: connect.NewClient[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse](
@@ -182,8 +207,8 @@ type adminServiceClient struct {
 	revertPlayer      *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
 	paintRandomTiles  *connect.Client[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse]
 	grantCharges      *connect.Client[v1.GrantChargesRequest, v1.GrantChargesResponse]
-	releaseAllegiance *connect.Client[v1.ReleaseAllegianceRequest, v1.ReleaseAllegianceResponse]
 	getReplay         *connect.Client[v1.GetReplayRequest, v1.GetReplayResponse]
+	releaseAllegiance *connect.Client[v1.ReleaseAllegianceRequest, v1.ReleaseAllegianceResponse]
 	getLedger         *connect.Client[v1.GetLedgerRequest, v1.GetLedgerResponse]
 	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
 	getRules          *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
@@ -220,14 +245,14 @@ func (c *adminServiceClient) GrantCharges(ctx context.Context, req *connect.Requ
 	return c.grantCharges.CallUnary(ctx, req)
 }
 
-// ReleaseAllegiance calls planet.v1.AdminService.ReleaseAllegiance.
-func (c *adminServiceClient) ReleaseAllegiance(ctx context.Context, req *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error) {
-	return c.releaseAllegiance.CallUnary(ctx, req)
-}
-
 // GetReplay calls planet.v1.AdminService.GetReplay.
 func (c *adminServiceClient) GetReplay(ctx context.Context, req *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error) {
 	return c.getReplay.CallUnary(ctx, req)
+}
+
+// ReleaseAllegiance calls planet.v1.AdminService.ReleaseAllegiance.
+func (c *adminServiceClient) ReleaseAllegiance(ctx context.Context, req *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error) {
+	return c.releaseAllegiance.CallUnary(ctx, req)
 }
 
 // GetLedger calls planet.v1.AdminService.GetLedger.
@@ -252,20 +277,39 @@ func (c *adminServiceClient) SaveRuleSet(ctx context.Context, req *connect.Reque
 
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
 type AdminServiceHandler interface {
+	// Gives every tile one country holds to another, while the game runs: paced in batches, each tile an ordinary
+	// update every screen repaints. The ledger does not see it, so no revert undoes it. A tile the first country
+	// retakes during the move stays its own; from_after says whether to run it again.
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
+	// Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
+	// per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
+	// IPv6. The scope and the account_id are what RevertPlayer and antibot's BanPlayer, UnbanPlayer and InspectPlayer
+	// take.
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
+	// Who takes the most tiles, every flag and the whole map, within the ledger's last 72 hours: most takes first, then
+	// most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
+	// Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
+	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
+	// from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
+	// Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
+	// between stays theirs. The ledger does not see it.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
+	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
+	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
+	// The map as it was at since, and every act on it until until, for the clip generator. Megabytes for a day, so the
+	// connector does not offer it.
+	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
 	// Lifts the account's hour of wait, so its next change of flag goes at once. A lock of the rules in force still holds.
 	ReleaseAllegiance(context.Context, *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error)
-	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
 	// Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
 	// time.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	// InternalService/GetTerritories, for the admin page: the tiles each country holds now.
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	// Every rule set postgres keeps, and the one the game plays now. SaveRuleSet changes one.
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
 	// Makes a set, or replaces its values. A save of the set that plays now takes over at once.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
@@ -288,12 +332,14 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceFindPlayersProcedure,
 		svc.FindPlayers,
 		connect.WithSchema(adminServiceMethods.ByName("FindPlayers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceTopPlayersHandler := connect.NewUnaryHandler(
 		AdminServiceTopPlayersProcedure,
 		svc.TopPlayers,
 		connect.WithSchema(adminServiceMethods.ByName("TopPlayers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceRevertPlayerHandler := connect.NewUnaryHandler(
@@ -314,34 +360,38 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("GrantCharges")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceGetReplayHandler := connect.NewUnaryHandler(
+		AdminServiceGetReplayProcedure,
+		svc.GetReplay,
+		connect.WithSchema(adminServiceMethods.ByName("GetReplay")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceReleaseAllegianceHandler := connect.NewUnaryHandler(
 		AdminServiceReleaseAllegianceProcedure,
 		svc.ReleaseAllegiance,
 		connect.WithSchema(adminServiceMethods.ByName("ReleaseAllegiance")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminServiceGetReplayHandler := connect.NewUnaryHandler(
-		AdminServiceGetReplayProcedure,
-		svc.GetReplay,
-		connect.WithSchema(adminServiceMethods.ByName("GetReplay")),
-		connect.WithHandlerOptions(opts...),
-	)
 	adminServiceGetLedgerHandler := connect.NewUnaryHandler(
 		AdminServiceGetLedgerProcedure,
 		svc.GetLedger,
 		connect.WithSchema(adminServiceMethods.ByName("GetLedger")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceGetTerritoriesHandler := connect.NewUnaryHandler(
 		AdminServiceGetTerritoriesProcedure,
 		svc.GetTerritories,
 		connect.WithSchema(adminServiceMethods.ByName("GetTerritories")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceGetRulesHandler := connect.NewUnaryHandler(
 		AdminServiceGetRulesProcedure,
 		svc.GetRules,
 		connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceSaveRuleSetHandler := connect.NewUnaryHandler(
@@ -364,10 +414,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServicePaintRandomTilesHandler.ServeHTTP(w, r)
 		case AdminServiceGrantChargesProcedure:
 			adminServiceGrantChargesHandler.ServeHTTP(w, r)
-		case AdminServiceReleaseAllegianceProcedure:
-			adminServiceReleaseAllegianceHandler.ServeHTTP(w, r)
 		case AdminServiceGetReplayProcedure:
 			adminServiceGetReplayHandler.ServeHTTP(w, r)
+		case AdminServiceReleaseAllegianceProcedure:
+			adminServiceReleaseAllegianceHandler.ServeHTTP(w, r)
 		case AdminServiceGetLedgerProcedure:
 			adminServiceGetLedgerHandler.ServeHTTP(w, r)
 		case AdminServiceGetTerritoriesProcedure:
@@ -409,12 +459,12 @@ func (UnimplementedAdminServiceHandler) GrantCharges(context.Context, *connect.R
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GrantCharges is not implemented"))
 }
 
-func (UnimplementedAdminServiceHandler) ReleaseAllegiance(context.Context, *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.ReleaseAllegiance is not implemented"))
-}
-
 func (UnimplementedAdminServiceHandler) GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetReplay is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ReleaseAllegiance(context.Context, *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.ReleaseAllegiance is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error) {

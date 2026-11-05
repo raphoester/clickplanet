@@ -349,6 +349,201 @@ func (x *WhoAmIResponse) GetAccountId() string {
 	return ""
 }
 
+type DescribeConnectionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Request       string                 `protobuf:"bytes,1,opt,name=request,proto3" json:"request,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DescribeConnectionRequest) Reset() {
+	*x = DescribeConnectionRequest{}
+	mi := &file_auth_v1_admin_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DescribeConnectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DescribeConnectionRequest) ProtoMessage() {}
+
+func (x *DescribeConnectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_admin_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DescribeConnectionRequest.ProtoReflect.Descriptor instead.
+func (*DescribeConnectionRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DescribeConnectionRequest) GetRequest() string {
+	if x != nil {
+		return x.Request
+	}
+	return ""
+}
+
+type DescribeConnectionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As the app named itself when it registered: shown to the operator, and trusted for nothing.
+	ClientName string `protobuf:"bytes,1,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`
+	// The host the browser goes back to, which the operator can check.
+	RedirectHost string `protobuf:"bytes,2,opt,name=redirect_host,json=redirectHost,proto3" json:"redirect_host,omitempty"`
+	// Where to send the browser to refuse: the app's own callback, with access_denied.
+	DenyUrl       string `protobuf:"bytes,3,opt,name=deny_url,json=denyUrl,proto3" json:"deny_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DescribeConnectionResponse) Reset() {
+	*x = DescribeConnectionResponse{}
+	mi := &file_auth_v1_admin_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DescribeConnectionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DescribeConnectionResponse) ProtoMessage() {}
+
+func (x *DescribeConnectionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_admin_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DescribeConnectionResponse.ProtoReflect.Descriptor instead.
+func (*DescribeConnectionResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DescribeConnectionResponse) GetClientName() string {
+	if x != nil {
+		return x.ClientName
+	}
+	return ""
+}
+
+func (x *DescribeConnectionResponse) GetRedirectHost() string {
+	if x != nil {
+		return x.RedirectHost
+	}
+	return ""
+}
+
+func (x *DescribeConnectionResponse) GetDenyUrl() string {
+	if x != nil {
+		return x.DenyUrl
+	}
+	return ""
+}
+
+type ApproveConnectionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Request       string                 `protobuf:"bytes,1,opt,name=request,proto3" json:"request,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApproveConnectionRequest) Reset() {
+	*x = ApproveConnectionRequest{}
+	mi := &file_auth_v1_admin_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApproveConnectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApproveConnectionRequest) ProtoMessage() {}
+
+func (x *ApproveConnectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_admin_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApproveConnectionRequest.ProtoReflect.Descriptor instead.
+func (*ApproveConnectionRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ApproveConnectionRequest) GetRequest() string {
+	if x != nil {
+		return x.Request
+	}
+	return ""
+}
+
+type ApproveConnectionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RedirectUrl   string                 `protobuf:"bytes,1,opt,name=redirect_url,json=redirectUrl,proto3" json:"redirect_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApproveConnectionResponse) Reset() {
+	*x = ApproveConnectionResponse{}
+	mi := &file_auth_v1_admin_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApproveConnectionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApproveConnectionResponse) ProtoMessage() {}
+
+func (x *ApproveConnectionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_admin_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApproveConnectionResponse.ProtoReflect.Descriptor instead.
+func (*ApproveConnectionResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ApproveConnectionResponse) GetRedirectUrl() string {
+	if x != nil {
+		return x.RedirectUrl
+	}
+	return ""
+}
+
 var File_auth_v1_admin_proto protoreflect.FileDescriptor
 
 const file_auth_v1_admin_proto_rawDesc = "" +
@@ -368,12 +563,25 @@ const file_auth_v1_admin_proto_rawDesc = "" +
 	"\rWhoAmIRequest\"/\n" +
 	"\x0eWhoAmIResponse\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId2\xc2\x02\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"5\n" +
+	"\x19DescribeConnectionRequest\x12\x18\n" +
+	"\arequest\x18\x01 \x01(\tR\arequest\"}\n" +
+	"\x1aDescribeConnectionResponse\x12\x1f\n" +
+	"\vclient_name\x18\x01 \x01(\tR\n" +
+	"clientName\x12#\n" +
+	"\rredirect_host\x18\x02 \x01(\tR\fredirectHost\x12\x19\n" +
+	"\bdeny_url\x18\x03 \x01(\tR\adenyUrl\"4\n" +
+	"\x18ApproveConnectionRequest\x12\x18\n" +
+	"\arequest\x18\x01 \x01(\tR\arequest\">\n" +
+	"\x19ApproveConnectionResponse\x12!\n" +
+	"\fredirect_url\x18\x01 \x01(\tR\vredirectUrl2\x82\x04\n" +
 	"\fAdminService\x12R\n" +
 	"\vStartSignIn\x12 .auth.v1.AdminStartSignInRequest\x1a!.auth.v1.AdminStartSignInResponse\x12[\n" +
 	"\x0eCompleteSignIn\x12#.auth.v1.AdminCompleteSignInRequest\x1a$.auth.v1.AdminCompleteSignInResponse\x12F\n" +
 	"\aSignOut\x12\x1c.auth.v1.AdminSignOutRequest\x1a\x1d.auth.v1.AdminSignOutResponse\x129\n" +
-	"\x06WhoAmI\x12\x16.auth.v1.WhoAmIRequest\x1a\x17.auth.v1.WhoAmIResponseB\xa4\x01\n" +
+	"\x06WhoAmI\x12\x16.auth.v1.WhoAmIRequest\x1a\x17.auth.v1.WhoAmIResponse\x12b\n" +
+	"\x12DescribeConnection\x12\".auth.v1.DescribeConnectionRequest\x1a#.auth.v1.DescribeConnectionResponse\"\x03\x90\x02\x01\x12Z\n" +
+	"\x11ApproveConnection\x12!.auth.v1.ApproveConnectionRequest\x1a\".auth.v1.ApproveConnectionResponseB\xa4\x01\n" +
 	"\vcom.auth.v1B\n" +
 	"AdminProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
 
@@ -389,7 +597,7 @@ func file_auth_v1_admin_proto_rawDescGZIP() []byte {
 	return file_auth_v1_admin_proto_rawDescData
 }
 
-var file_auth_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_auth_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_auth_v1_admin_proto_goTypes = []any{
 	(*AdminStartSignInRequest)(nil),     // 0: auth.v1.AdminStartSignInRequest
 	(*AdminStartSignInResponse)(nil),    // 1: auth.v1.AdminStartSignInResponse
@@ -399,21 +607,29 @@ var file_auth_v1_admin_proto_goTypes = []any{
 	(*AdminSignOutResponse)(nil),        // 5: auth.v1.AdminSignOutResponse
 	(*WhoAmIRequest)(nil),               // 6: auth.v1.WhoAmIRequest
 	(*WhoAmIResponse)(nil),              // 7: auth.v1.WhoAmIResponse
+	(*DescribeConnectionRequest)(nil),   // 8: auth.v1.DescribeConnectionRequest
+	(*DescribeConnectionResponse)(nil),  // 9: auth.v1.DescribeConnectionResponse
+	(*ApproveConnectionRequest)(nil),    // 10: auth.v1.ApproveConnectionRequest
+	(*ApproveConnectionResponse)(nil),   // 11: auth.v1.ApproveConnectionResponse
 }
 var file_auth_v1_admin_proto_depIdxs = []int32{
-	0, // 0: auth.v1.AdminService.StartSignIn:input_type -> auth.v1.AdminStartSignInRequest
-	2, // 1: auth.v1.AdminService.CompleteSignIn:input_type -> auth.v1.AdminCompleteSignInRequest
-	4, // 2: auth.v1.AdminService.SignOut:input_type -> auth.v1.AdminSignOutRequest
-	6, // 3: auth.v1.AdminService.WhoAmI:input_type -> auth.v1.WhoAmIRequest
-	1, // 4: auth.v1.AdminService.StartSignIn:output_type -> auth.v1.AdminStartSignInResponse
-	3, // 5: auth.v1.AdminService.CompleteSignIn:output_type -> auth.v1.AdminCompleteSignInResponse
-	5, // 6: auth.v1.AdminService.SignOut:output_type -> auth.v1.AdminSignOutResponse
-	7, // 7: auth.v1.AdminService.WhoAmI:output_type -> auth.v1.WhoAmIResponse
-	4, // [4:8] is the sub-list for method output_type
-	0, // [0:4] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0,  // 0: auth.v1.AdminService.StartSignIn:input_type -> auth.v1.AdminStartSignInRequest
+	2,  // 1: auth.v1.AdminService.CompleteSignIn:input_type -> auth.v1.AdminCompleteSignInRequest
+	4,  // 2: auth.v1.AdminService.SignOut:input_type -> auth.v1.AdminSignOutRequest
+	6,  // 3: auth.v1.AdminService.WhoAmI:input_type -> auth.v1.WhoAmIRequest
+	8,  // 4: auth.v1.AdminService.DescribeConnection:input_type -> auth.v1.DescribeConnectionRequest
+	10, // 5: auth.v1.AdminService.ApproveConnection:input_type -> auth.v1.ApproveConnectionRequest
+	1,  // 6: auth.v1.AdminService.StartSignIn:output_type -> auth.v1.AdminStartSignInResponse
+	3,  // 7: auth.v1.AdminService.CompleteSignIn:output_type -> auth.v1.AdminCompleteSignInResponse
+	5,  // 8: auth.v1.AdminService.SignOut:output_type -> auth.v1.AdminSignOutResponse
+	7,  // 9: auth.v1.AdminService.WhoAmI:output_type -> auth.v1.WhoAmIResponse
+	9,  // 10: auth.v1.AdminService.DescribeConnection:output_type -> auth.v1.DescribeConnectionResponse
+	11, // 11: auth.v1.AdminService.ApproveConnection:output_type -> auth.v1.ApproveConnectionResponse
+	6,  // [6:12] is the sub-list for method output_type
+	0,  // [0:6] is the sub-list for method input_type
+	0,  // [0:0] is the sub-list for extension type_name
+	0,  // [0:0] is the sub-list for extension extendee
+	0,  // [0:0] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_admin_proto_init() }
@@ -427,7 +643,7 @@ func file_auth_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_admin_proto_rawDesc), len(file_auth_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

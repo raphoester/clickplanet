@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import { GetMessageRequest, GetMessageResponse, GetMuteRequest, GetMuteResponse, ListMessagesRequest, ListMessagesResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse, UnmuteRequest, UnmuteResponse } from "./admin_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -15,7 +15,9 @@ export const AdminService = {
   typeName: "chat.v1.AdminService",
   methods: {
     /**
-     * Of the kind asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
+     * Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
+     * the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. Of the kind
+     * asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
      *
      * @generated from rpc chat.v1.AdminService.Mute
      */
@@ -46,6 +48,7 @@ export const AdminService = {
       I: GetMuteRequest,
       O: GetMuteResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
@@ -68,6 +71,7 @@ export const AdminService = {
       I: GetMessageRequest,
       O: GetMessageResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention. With an account, that account's messages alone.
@@ -79,6 +83,7 @@ export const AdminService = {
       I: ListMessagesRequest,
       O: ListMessagesResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

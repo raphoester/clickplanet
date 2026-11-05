@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import { AddEntryRequest, AddEntryResponse, AddSeasonRequest, AddSeasonResponse, DeleteEntryRequest, DeleteEntryResponse, DeleteSeasonRequest, DeleteSeasonResponse, EditEntryRequest, EditEntryResponse, EditSeasonRequest, EditSeasonResponse, GetScheduleRequest, GetScheduleResponse, GetSeasonsRequest, GetSeasonsResponse } from "./admin_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * The rule schedule: which rule set planet and the antibot play, and when; and the seasons. No authentication of its
@@ -17,6 +17,8 @@ export const AdminService = {
   typeName: "gamemaster.v1.AdminService",
   methods: {
     /**
+     * Every entry of the rule schedule by start, the past ones too, what plays now, and every season's finale.
+     *
      * @generated from rpc gamemaster.v1.AdminService.GetSchedule
      */
     getSchedule: {
@@ -24,6 +26,7 @@ export const AdminService = {
       I: GetScheduleRequest,
       O: GetScheduleResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Adds an entry that starts later. Its set must be one planet and the antibot keep, and a battle must start or end at
@@ -70,6 +73,7 @@ export const AdminService = {
       I: GetSeasonsRequest,
       O: GetSeasonsResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Adds a season after the last one, under the next number: it starts a break after the last one's end, and must

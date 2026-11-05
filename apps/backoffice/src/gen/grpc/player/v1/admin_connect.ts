@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import { GetPlayersRequest, GetPlayersResponse } from "./internal_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { AdminGetPlayerRequest, AdminGetPlayerResponse, RenamePlayerRequest, RenamePlayerResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
 import { GetRosterRequest, GetRosterResponse } from "./player_pb.js";
 
@@ -26,6 +26,7 @@ export const AdminService = {
       I: GetPlayersRequest,
       O: GetPlayersResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
@@ -38,6 +39,7 @@ export const AdminService = {
       I: AdminGetPlayerRequest,
       O: AdminGetPlayerResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * PlayerService/GetRoster, for the admin page's home: who is playing now.
@@ -49,6 +51,7 @@ export const AdminService = {
       I: GetRosterRequest,
       O: GetRosterResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
@@ -60,6 +63,7 @@ export const AdminService = {
       I: SearchPlayersRequest,
       O: SearchPlayersResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.

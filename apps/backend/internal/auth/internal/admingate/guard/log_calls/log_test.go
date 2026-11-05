@@ -23,11 +23,14 @@ const procedure = "/test.v1.AdminService/Do"
 
 type admitAll struct{}
 
-func (admitAll) Execute(context.Context, admission.Visit) (admission.Operator, error) {
-	return "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10", nil
+func (admitAll) Execute(_ context.Context, visit admission.Visit) (admission.Caller, error) {
+	if visit.Token != "" {
+		return admission.ConnectionOf("0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10", "Claude"), nil
+	}
+	return admission.SessionOf("0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"), nil
 }
 
-func TestEveryCallIsLoggedWithItsOperatorWhatItAskedAndItsOutcome(t *testing.T) {
+func TestEveryCallIsLoggedWithItsOperatorItsAppWhatItAskedAndItsOutcome(t *testing.T) {
 	var logs bytes.Buffer
 	handler := connect.NewUnaryHandler(procedure,
 		func(_ context.Context, req *connect.Request[wrapperspb.StringValue]) (*connect.Response[wrapperspb.StringValue], error) {
@@ -50,6 +53,15 @@ func TestEveryCallIsLoggedWithItsOperatorWhatItAskedAndItsOutcome(t *testing.T) 
 	require.Error(t, err)
 
 	assert.Contains(t, logs.String(),
-		`level=INFO msg="admin call" operator=0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10 procedure=/test.v1.AdminService/Do request="\"1.2.3.4\"" code=ok`)
+		`level=INFO msg="admin call" operator=0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10 client="" procedure=/test.v1.AdminService/Do request="\"1.2.3.4\"" code=ok`)
 	assert.Contains(t, logs.String(), `request="\"missing\"" code=not_found`)
+
+	request := connect.NewRequest(wrapperspb.String("by token"))
+	request.Header().Set("Authorization", "Bearer cpat_the-secret")
+	_, err = client.CallUnary(t.Context(), request)
+	require.NoError(t, err)
+
+	assert.Contains(t, logs.String(),
+		`operator=0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10 client=Claude procedure=`)
+	assert.NotContains(t, logs.String(), "the-secret")
 }

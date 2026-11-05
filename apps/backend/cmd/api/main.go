@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster"
+	"github.com/raphoester/clickplanet.lol-backend/internal/mcp"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
@@ -38,6 +39,7 @@ type Config struct {
 	Gamemaster  gamemaster.Config
 	Missions    missions.Config
 	Support     support.Config
+	MCP         mcp.Config
 	// The numbers of the clips the clips job posted.
 	Clips clips.ModuleConfig
 	// The game's Discord server: a player's link, its flag's role, and the pings.
@@ -92,6 +94,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 		clips.NewModule(config.Clips),
 		alerts.NewModule(config.Alerts),
 		promo.NewModule(config.Promo),
+		mcp.NewModule(config.MCP),
 	}
 }
 
@@ -120,5 +123,6 @@ func (c Config) Validate() error {
 		c.Clips.Validate(),
 		c.Alerts.Validate(),
 		c.Promo.Validate(),
+		c.MCP.Validate(),
 	)
 }

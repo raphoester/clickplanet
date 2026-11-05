@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import { FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, ReleaseAllegianceRequest, ReleaseAllegianceResponse, RevertPlayerRequest, RevertPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, TopPlayersRequest, TopPlayersResponse } from "./admin_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 
@@ -17,6 +17,10 @@ export const AdminService = {
   typeName: "planet.v1.AdminService",
   methods: {
     /**
+     * Gives every tile one country holds to another, while the game runs: paced in batches, each tile an ordinary
+     * update every screen repaints. The ledger does not see it, so no revert undoes it. A tile the first country
+     * retakes during the move stays its own; from_after says whether to run it again.
+     *
      * @generated from rpc planet.v1.AdminService.ReassignCountry
      */
     reassignCountry: {
@@ -26,6 +30,11 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
+     * per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
+     * IPv6. The scope and the account_id are what RevertPlayer and antibot's BanPlayer, UnbanPlayer and InspectPlayer
+     * take.
+     *
      * @generated from rpc planet.v1.AdminService.FindPlayers
      */
     findPlayers: {
@@ -33,8 +42,12 @@ export const AdminService = {
       I: FindPlayersRequest,
       O: FindPlayersResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
+     * Who takes the most tiles, every flag and the whole map, within the ledger's last 72 hours: most takes first, then
+     * most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
+     *
      * @generated from rpc planet.v1.AdminService.TopPlayers
      */
     topPlayers: {
@@ -42,8 +55,13 @@ export const AdminService = {
       I: TopPlayersRequest,
       O: TopPlayersResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
+     * Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
+     * caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
+     * from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
+     *
      * @generated from rpc planet.v1.AdminService.RevertPlayer
      */
     revertPlayer: {
@@ -53,6 +71,9 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
+     * between stays theirs. The ledger does not see it.
+     *
      * @generated from rpc planet.v1.AdminService.PaintRandomTiles
      */
     paintRandomTiles: {
@@ -62,6 +83,9 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
+     * one each, the rest stack. before and after say what fit. The player sees them at its next page load.
+     *
      * @generated from rpc planet.v1.AdminService.GrantCharges
      */
     grantCharges: {
@@ -69,6 +93,19 @@ export const AdminService = {
       I: GrantChargesRequest,
       O: GrantChargesResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * The map as it was at since, and every act on it until until, for the clip generator. Megabytes for a day, so the
+     * connector does not offer it.
+     *
+     * @generated from rpc planet.v1.AdminService.GetReplay
+     */
+    getReplay: {
+      name: "GetReplay",
+      I: GetReplayRequest,
+      O: GetReplayResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Lifts the account's hour of wait, so its next change of flag goes at once. A lock of the rules in force still holds.
@@ -82,15 +119,6 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * @generated from rpc planet.v1.AdminService.GetReplay
-     */
-    getReplay: {
-      name: "GetReplay",
-      I: GetReplayRequest,
-      O: GetReplayResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
      * Every change the live stream showed in a window of at most 72 hours, from postgres, and who made it, a page at a
      * time.
      *
@@ -101,6 +129,7 @@ export const AdminService = {
       I: GetLedgerRequest,
       O: GetLedgerResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * InternalService/GetTerritories, for the admin page: the tiles each country holds now.
@@ -112,8 +141,11 @@ export const AdminService = {
       I: GetTerritoriesRequest,
       O: GetTerritoriesResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
+     * Every rule set postgres keeps, and the one the game plays now. SaveRuleSet changes one.
+     *
      * @generated from rpc planet.v1.AdminService.GetRules
      */
     getRules: {
@@ -121,6 +153,7 @@ export const AdminService = {
       I: GetRulesRequest,
       O: GetRulesResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Makes a set, or replaces its values. A save of the set that plays now takes over at once.
