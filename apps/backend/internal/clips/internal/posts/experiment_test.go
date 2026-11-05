@@ -14,11 +14,6 @@ var (
 	music  = posts.Experiment{
 		Name: "music", Arms: []posts.Arm{{Name: "anthem", Weight: 3}, {Name: "trending", Weight: 1}}, Control: "anthem",
 	}
-	sound = posts.Experiment{
-		Name:    "sound",
-		Arms:    []posts.Arm{{Name: "anthem", Weight: 1}, {Name: "trending", Weight: 1}, {Name: posts.FellBack}},
-		Control: "anthem",
-	}
 )
 
 func experimentsOf(t *testing.T, experiments ...posts.Experiment) posts.Experiments {
@@ -83,29 +78,17 @@ func TestEachStoryChosenIsPutInItsOwnArmsInTheOrderOfTheRun(t *testing.T) {
 	}, assigned)
 }
 
-func TestAnArmOfNoWeightIsNeverDrawnButIsAnArmAClipCanBeIn(t *testing.T) {
-	experiments := experimentsOf(t, sound)
-
-	drawn := map[string]int{}
-	for face := range 2 {
-		drawn[experiments.Assign(posts.LoadedDice(face))["sound"]]++
-	}
-
-	assert.Equal(t, map[string]int{"anthem": 1, "trending": 1}, drawn)
-	require.NoError(t, experiments.Check(posts.Variants{"sound": "fell-back"}))
-}
-
 func TestAnExperimentThatCannotRunIsRefused(t *testing.T) {
 	for name, experiments := range map[string][]posts.Experiment{
-		"no name":           {{Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}}, Control: "a"}},
-		"two of one name":   {length, length},
-		"one arm":           {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}}, Control: "a"}},
-		"an arm twice":      {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "a", Weight: 1}}, Control: "a"}},
-		"an arm of no name": {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "", Weight: 1}}, Control: "a"}},
-		"one arm drawn":     {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b"}}, Control: "a"}},
-		"a weight under 0":  {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}, {Name: "c", Weight: -1}}, Control: "a"}},
-		"no control":        {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}}}},
-		"a control no arm":  {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}}, Control: "c"}},
+		"no name":             {{Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}}, Control: "a"}},
+		"two of one name":     {length, length},
+		"one arm":             {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}}, Control: "a"}},
+		"an arm twice":        {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "a", Weight: 1}}, Control: "a"}},
+		"an arm of no name":   {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "", Weight: 1}}, Control: "a"}},
+		"an arm of no weight": {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}, {Name: "c"}}, Control: "a"}},
+		"a weight under 0":    {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}, {Name: "c", Weight: -1}}, Control: "a"}},
+		"no control":          {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}}}},
+		"a control no arm":    {{Name: "x", Arms: []posts.Arm{{Name: "a", Weight: 1}, {Name: "b", Weight: 1}}, Control: "c"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := posts.ExperimentsOf(experiments...)

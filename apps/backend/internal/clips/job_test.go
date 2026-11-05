@@ -52,13 +52,6 @@ type keptTarget struct {
 func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 	t.Helper()
 
-	return zernioWith(t, posts, func(string) (int, string) { return http.StatusNotFound, `{"error":"not asked"}` })
-}
-
-// chart: what the TikTok account's commercial music library answers for a country.
-func zernioWith(t *testing.T, posts *[]sentPost, chart func(country string) (int, string)) *httptest.Server {
-	t.Helper()
-
 	var server *httptest.Server
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, err := io.ReadAll(r.Body)
@@ -75,10 +68,6 @@ func zernioWith(t *testing.T, posts *[]sentPost, chart func(country string) (int
 			assert.NoError(t, json.Unmarshal(raw, &asked))
 			_, _ = fmt.Fprintf(w, `{"uploadUrl":%q,"publicUrl":%q}`, server.URL+"/storage/"+asked.Filename, "https://media.example/"+asked.Filename)
 		case "PUT /storage/clip-1.mp4", "PUT /storage/clip-2.mp4":
-		case "GET /v1/accounts/acc-1/tiktok/commercial-music":
-			status, body := chart(r.URL.Query().Get("countryCode"))
-			w.WriteHeader(status)
-			_, _ = fmt.Fprint(w, body)
 		case "POST /v1/posts":
 			var post sentPost
 			assert.NoError(t, json.Unmarshal(raw, &post))
@@ -245,15 +234,13 @@ func configFor(server *httptest.Server) clips.Config {
 	return config
 }
 
-// The stories told, each in an arm of the sound experiment: the coins are the system's, so which arm is not known.
-// With no ANTHROPIC_API_KEY the run is its seasonal stories alone.
+// The stories told, in no experiment. With no ANTHROPIC_API_KEY the run is its seasonal stories alone.
 func toldBy(t *testing.T, choice clips.Choice) []clips.Story {
 	t.Helper()
 
 	stories := make([]clips.Story, 0, len(choice.Assigned))
 	for i, assignment := range choice.Assigned {
-		assert.Contains(t, []string{"anthem", "trending"}, assignment.Variants["sound"])
-		assert.NotContains(t, assignment.Variants, "editor")
+		assert.Empty(t, assignment.Variants)
 		assert.Equal(t, clips.Pick(i+1), assignment.Pick)
 		stories = append(stories, assignment.Story)
 	}
@@ -353,102 +340,13 @@ func renderedIn(t *testing.T, folder string, pick int, title, variants string) {
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.mp4", pick)), []byte(title), 0o600))
 }
 
-func TestTheArmsAClipWasMadeInAreKeptWithItsPostAndReported(t *testing.T) {
+func TestAClipInAnExperimentThatDoesNotRunIsNotPosted(t *testing.T) {
 	var posts []sentPost
 	folder := t.TempDir()
-	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "anthem"}`)
-
-	report, err := clips.Schedule(t.Context(), folder, configFor(zernio(t, &posts)), inTikToksHours(), slog.New(slog.DiscardHandler))
-
-	require.NoError(t, err)
-	require.Len(t, posts, 1)
-	record, ok := posts[0].Metadata["record"].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, map[string]any{"sound": "anthem"}, record["clip"].(map[string]any)["variants"])
-	assert.Equal(t, clips.Variants{"sound": "anthem"}, report[0].Variants)
-}
-
-func TestAClipInAnArmThatDoesNotRunIsNotPosted(t *testing.T) {
-	var posts []sentPost
-	folder := t.TempDir()
-	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "loud"}`)
+	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "trending"}`)
 
 	_, err := clips.Schedule(t.Context(), folder, configFor(zernio(t, &posts)), inTikToksHours(), slog.New(slog.DiscardHandler))
 
-	require.ErrorContains(t, err, `the experiment "sound" has no arm "loud"`)
+	require.ErrorContains(t, err, `no experiment "sound" runs`)
 	assert.Empty(t, posts)
-}
-
-func TestAClipDrawnForATrendingTrackGoesOutOnTikTokWithOneOfTheChartOfTheCountry(t *testing.T) {
-	var (
-		posts     []sentPost
-		countries []string
-	)
-	folder := t.TempDir()
-	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "trending"}`)
-	server := zernioWith(t, &posts, func(country string) (int, string) {
-		countries = append(countries, country)
-		return http.StatusOK, `{"tracks":[{"id":"track-1","name":"Song One","artist":"Singer","rank":1,"genres":["ROCK"],"clip":{"id":"clip-1","durationSec":30}}]}`
-	})
-	config := configFor(server)
-	config.SoundCountry = "FR"
-
-	report, err := clips.Schedule(t.Context(), folder, config, inTikToksHours(), slog.New(slog.DiscardHandler))
-
-	require.NoError(t, err)
-	require.Len(t, posts, 1)
-	assert.Equal(t, []string{"FR"}, countries)
-	tiktok, youtube := posts[0].Platforms[0], posts[0].Platforms[1]
-	assert.Equal(t, map[string]any{"musicSoundId": "clip-1", "musicSoundVolume": float64(100), "musicSoundStart": float64(0)},
-		tiktok.PlatformSpecificData["musicSoundInfo"])
-	assert.Contains(t, tiktok.PlatformSpecificData, "videoOriginalSoundVolume")
-	assert.Zero(t, tiktok.PlatformSpecificData["videoOriginalSoundVolume"])
-	assert.NotContains(t, youtube.PlatformSpecificData, "musicSoundInfo")
-	assert.Equal(t, "Song One", report[0].Sound.Track.Title)
-	assert.Equal(t, clips.Variants{"sound": "trending"}, report[0].Variants)
-	assert.True(t, report.Complete())
-}
-
-func TestTheChartIsTheUSOnesWhenNoCountryIsSet(t *testing.T) {
-	var (
-		posts     []sentPost
-		countries []string
-	)
-	folder := t.TempDir()
-	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "trending"}`)
-	server := zernioWith(t, &posts, func(country string) (int, string) {
-		countries = append(countries, country)
-		return http.StatusOK, `{"tracks":[{"id":"track-1","name":"Song One","artist":"Singer","rank":1}]}`
-	})
-
-	_, err := clips.Schedule(t.Context(), folder, configFor(server), inTikToksHours(), slog.New(slog.DiscardHandler))
-
-	require.NoError(t, err)
-	assert.Equal(t, []string{"US"}, countries)
-}
-
-// The run is never failed for it: the clip goes out with its anthem, counted apart, and the log says why.
-func TestAChartThatCannotBeReadSendsTheClipWithItsAnthemAndSaysWhy(t *testing.T) {
-	var posts []sentPost
-	folder := t.TempDir()
-	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "trending"}`)
-	server := zernioWith(t, &posts, func(string) (int, string) {
-		return http.StatusBadRequest, `{"error":"Not a business account","code":"tiktok_business_required"}`
-	})
-	var logs bytes.Buffer
-
-	report, err := clips.Schedule(t.Context(), folder, configFor(server), inTikToksHours(), slog.New(slog.NewTextHandler(&logs, nil)))
-
-	require.NoError(t, err)
-	require.Len(t, posts, 1)
-	assert.NotContains(t, posts[0].Platforms[0].PlatformSpecificData, "musicSoundInfo")
-	assert.NotContains(t, posts[0].Platforms[0].PlatformSpecificData, "videoOriginalSoundVolume")
-	record, ok := posts[0].Metadata["record"].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, map[string]any{"sound": "fell-back"}, record["post"].(map[string]any)["variants"])
-	assert.Equal(t, map[string]any{"sound": "trending"}, record["clip"].(map[string]any)["variants"])
-	assert.Equal(t, clips.Variants{"sound": "fell-back"}, report[0].Variants)
-	assert.Contains(t, report[0].SoundMissed, "Not a business account")
-	assert.True(t, report.Complete())
-	assert.Contains(t, logs.String(), `level=WARN msg="a clip drawn for a trending track goes out with its anthem" clip="ALGERIA STRIKES BACK"`)
 }

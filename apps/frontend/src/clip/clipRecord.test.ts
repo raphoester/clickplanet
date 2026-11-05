@@ -37,8 +37,7 @@ describe("what a clip was", () => {
         expect([tour.common?.music, tour.common?.musicStartSeconds]).toEqual(["none", 0])
     })
 
-    it("keeps the arm of each experiment the clip was made in, and none when it is in none", () => {
-        expect(clipRecordOf({...shown, variants: {sound: "trending"}}).toJson()).toMatchObject({variants: {sound: "trending"}})
+    it("keeps no arm when the clip is in no experiment", () => {
         expect(clipRecordOf(shown).toJson()).not.toHaveProperty("variants")
     })
 

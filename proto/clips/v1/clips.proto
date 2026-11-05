@@ -266,20 +266,8 @@ message PostFacts {
   google.protobuf.Timestamp scheduled_at = 3;
   uint32 run_position = 4;
   uint32 run_size = 5;
-  map<string, string> variants = 6;
-  TikTokSound sound = 7;
-}
-
-message TikTokSound {
-  string id = 1;
-  string id_of = 2;
-  string title = 3;
-  string artist = 4;
-  uint32 rank = 5;
-  string chart_country = 6;
-  uint32 duration_seconds = 7;
-  uint32 track_volume = 8;
-  uint32 original_volume = 9;
+  reserved 6, 7;
+  reserved "variants", "sound";
 }
 
 message TaggedCountry {
