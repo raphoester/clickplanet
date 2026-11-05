@@ -60,8 +60,23 @@ describe("countdownsOf", () => {
         ])
     })
 
+    it("counts a battle that starts as the day ends once, as the day's end", () => {
+        const lastHour = {...raid, startsAt: lastDayEndsAt - DAY - HOUR, endsAt: lastDayEndsAt - DAY}
+        expect(countdownsOf(season, lastHour.startsAt - 12 * HOUR, lastHour, lastHour.startsAt)).toEqual([
+            {label: "Today ends with a battle in", tag: "Battle", left: "12h 00m 00s"},
+            {label: "Season ends in", tag: "Season", left: "1d 15h 00m 00s"},
+        ])
+    })
+
+    it("counts the Final Battle that starts as the last day ends once", () => {
+        expect(countdownsOf(season, battle.startsAt - 3 * HOUR, battle, lastDayEndsAt)).toEqual([
+            {label: "Final Battle in", tag: "Final", left: "3h 00m 00s", endsSeason: true},
+            {label: "Season ends in", tag: "Season", left: "5h 00m 00s"},
+        ])
+    })
+
     it("drops the battle once it starts", () => {
-        expect(countdownsOf(season, battle.startsAt - SECOND, battle, lastDayEndsAt).map((c) => c.tag)).toEqual(["Today", "Final", "Season"])
+        expect(countdownsOf(season, battle.startsAt - SECOND, battle, lastDayEndsAt).map((c) => c.tag)).toEqual(["Final", "Season"])
         expect(countdownsOf(season, battle.startsAt, battle, lastDayEndsAt).map((c) => c.tag)).toEqual(["Season"])
     })
 })

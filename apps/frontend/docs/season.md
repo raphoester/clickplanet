@@ -14,9 +14,13 @@ rounds' `roundId` (see [Season standings](season-standings.md)).
 - `domain/seasonClock.ts` — `countdownsOf`, the chip's faces: the time left to
   today's cutoff to the second (`13h 05m 12s`, `52m 10s`), to the next battle's
   start when one is to come, and to the season's end. **Today's end is the
-  gamemaster's**: `Timeline.today.ends_at`, the daily cutoff. With no day
+  gamemaster's**: `Timeline.today.ends_at`, the daily cutoff, or the start of a battle that takes the day's
+  last hours (the backend's [gamemaster](../../backend/docs/gamemaster.md#a-battle-and-the-days)). With no day
   running (after the season's last cutoff), or a day that
-  ends with the season, there is one face, the season's. After the season, none. `endClock` is the season's
+  ends with the season, there is one face, the season's. After the season, none.
+  **A battle that starts as the day ends is one face**, "Today ends with a battle in" (tag "Battle"): two faces
+  counted to one instant and read as a mistake (the owner, 2026-11-05). The Final Battle keeps "Final Battle in"
+  there, since "Today ends with the Final Battle in" is wider than the desktop chip. `endClock` is the season's
   countdown unit by unit, for the home page, and `endsLine` its end in the
   player's own time zone ("Sat 31 Oct · 23:00").
 - **The next battle is the schedule's** (see [Battles](battle.md#the-battles-to-come)):

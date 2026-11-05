@@ -19,18 +19,27 @@ export type SeasonCountdown = {
     endsSeason?: boolean
 }
 
-// The day's end while a day runs, the next battle's start, then the season's end. None once the season ended.
+// The day's end while a day runs, the next battle's start, then the season's end. A battle that starts as the day
+// ends is one face: the gamemaster ends the day at the battle's start, so two would count to one instant. None once
+// the season ended.
 export function countdownsOf(season: Season, now: number, battle?: BattleToCome, dayEndsAt?: number): SeasonCountdown[] {
     if (now >= season.endsAt) return []
 
     const ends = {label: "Season ends in", tag: "Season", left: timeLeft(countdownTo(season.endsAt, now))}
-    const battles = battle && battle.startsAt > now
-        ? [battle.endsSeason
-            ? {label: "Final Battle in", tag: "Final", left: timeLeft(countdownTo(battle.startsAt, now)), endsSeason: true}
-            : {label: "Next battle in", tag: "Battle", left: timeLeft(countdownTo(battle.startsAt, now))}]
-        : []
-    if (dayEndsAt === undefined || dayEndsAt <= now || dayEndsAt >= season.endsAt) return [...battles, ends]
-    return [{label: "Today ends in", tag: "Today", left: timeLeft(countdownTo(dayEndsAt, now))}, ...battles, ends]
+    const next = battle && battle.startsAt > now ? battle : undefined
+    const today = dayEndsAt !== undefined && dayEndsAt > now && dayEndsAt < season.endsAt ? dayEndsAt : undefined
+    if (next && next.startsAt === today) return [battleFaceOf(next, now, true), ends]
+
+    const battles = next ? [battleFaceOf(next, now, false)] : []
+    if (today === undefined) return [...battles, ends]
+    return [{label: "Today ends in", tag: "Today", left: timeLeft(countdownTo(today, now))}, ...battles, ends]
+}
+
+// The Final Battle keeps its name when it ends the day: "Today ends with the Final Battle in" is wider than the chip.
+function battleFaceOf(battle: BattleToCome, now: number, endsToday: boolean): SeasonCountdown {
+    const left = timeLeft(countdownTo(battle.startsAt, now))
+    if (battle.endsSeason) return {label: "Final Battle in", tag: "Final", left, endsSeason: true}
+    return {label: endsToday ? "Today ends with a battle in" : "Next battle in", tag: "Battle", left}
 }
 
 export type EndClock = {
