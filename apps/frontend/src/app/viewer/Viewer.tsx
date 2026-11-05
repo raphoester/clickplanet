@@ -18,7 +18,6 @@ import {
 import BombNews from "../components/BombNews.tsx";
 import FortifyNews from "../components/FortifyNews.tsx";
 import FortifyCard from "../components/FortifyCard.tsx";
-import FortifyHint from "../components/FortifyHint.tsx";
 import {useFortifyGuide} from "../components/useFortifyGuide.ts";
 import {Fortified} from "../../domain/fortify.ts";
 import ConnectionLost from "../components/ConnectionLost.tsx";
@@ -290,8 +289,6 @@ export default function Viewer(props: ViewerProps) {
         dismissBomb,
         lastFortified,
         dismissFortified,
-        lastClose,
-        dismissClose,
         pointing,
         pointingTerritory,
         territoryOf,
@@ -338,7 +335,7 @@ export default function Viewer(props: ViewerProps) {
     }, [lastFortified, fortifyGuide.seen])
     const underAttack = useUnderAttack(countryState.code, tileDeltas, accepted.listenForClicks)
     // Moments show one at a time: the newest of them.
-    const newest = [lastBomb, lastFortified, lastClose, underAttack.moment].reduce<{at: number} | undefined>(
+    const newest = [lastBomb, lastFortified, underAttack.moment].reduce<{at: number} | undefined>(
         (latest, moment) => moment && (!latest || moment.at > latest.at) ? moment : latest, undefined)
 
     const refiller = props.refiller
@@ -613,12 +610,6 @@ export default function Viewer(props: ViewerProps) {
                               }}/>}
 
         {ready && connection === "down" && <ConnectionLost/>}
-
-        {lastClose && newest === lastClose && <FortifyHint
-            key={`close-${lastClose.id}`}
-            close={lastClose.close}
-            onDone={dismissClose}
-        />}
 
         {progress && !newest && !missionsDone && <MissionProgress key={progress.id} moved={progress}/>}
 

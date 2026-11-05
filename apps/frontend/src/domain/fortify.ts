@@ -9,12 +9,6 @@ export function isNews(fortification: Fortification, tiles: number, flag: string
     return fortification.countryId === flag || tiles >= NEWS_FROM_TILES
 }
 
-export type CloseToFortify = {
-    landmass: number
-    name: string
-    missing: number
-}
-
 export type Fortified = {
     fortification: Fortification
     name: string

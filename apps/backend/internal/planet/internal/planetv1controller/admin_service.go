@@ -1,12 +1,6 @@
 package planetv1controller
 
 import (
-	"context"
-	"errors"
-
-	"connectrpc.com/connect"
-
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler"
@@ -38,24 +32,3 @@ type AdminService struct {
 }
 
 var _ planetv1connect.AdminServiceHandler = AdminService{}
-
-// The antibot answers these three on their paths until the backoffice calls antibot.v1: a call never reaches here.
-var errMoved = errors.New("moved to antibot.v1.AdminService")
-
-func (AdminService) BanPlayer(
-	context.Context, *connect.Request[planetv1.BanPlayerRequest],
-) (*connect.Response[planetv1.BanPlayerResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errMoved)
-}
-
-func (AdminService) UnbanPlayer(
-	context.Context, *connect.Request[planetv1.UnbanPlayerRequest],
-) (*connect.Response[planetv1.UnbanPlayerResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errMoved)
-}
-
-func (AdminService) InspectPlayer(
-	context.Context, *connect.Request[planetv1.InspectPlayerRequest],
-) (*connect.Response[planetv1.InspectPlayerResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errMoved)
-}
