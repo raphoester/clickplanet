@@ -1,7 +1,6 @@
 package postgres_admin_token_store_test
 
 import (
-	"encoding/hex"
 	"testing"
 	"time"
 
@@ -46,76 +45,53 @@ func (s *testSuite) SetupTest() {
 	s.issuer = admintokens.NewIssuer(&admintokens.SequentialSecrets{})
 }
 
-func (s *testSuite) issued(at time.Time) *admintokens.Pair {
-	pair, err := s.issuer.Pair(claude, at)
+func (s *testSuite) connected(at time.Time) *admintokens.Pair {
+	pair, err := s.issuer.Connected(claude, at)
 	s.Require().NoError(err)
-	s.Require().NoError(s.store.SaveTokens(s.T().Context(), pair.TakeSnapshots()))
+	s.Require().NoError(s.store.SaveTokens(s.T().Context(), pair.Tokens()...))
 	return pair
 }
 
-func (s *testSuite) kinds() map[string]string {
-	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(), `SELECT encode(token_hash, 'hex'), kind::text FROM admin_tokens`)
+func (s *testSuite) connectionOf(secret admintokens.Secret) []admintokens.Snapshot {
+	connection, err := s.store.Connection(s.T().Context(), secret.Hash())
 	s.Require().NoError(err)
-	defer func() { _ = rows.Close() }()
-
-	kept := map[string]string{}
-	for rows.Next() {
-		var hash, kind string
-		s.Require().NoError(rows.Scan(&hash, &kind))
-		kept[hash] = kind
+	kept := make([]admintokens.Snapshot, 0, len(connection))
+	for _, token := range connection {
+		kept = append(kept, token.TakeSnapshot())
 	}
-	s.Require().NoError(rows.Err())
 	return kept
 }
 
-func hexOf(secret admintokens.Secret) string {
-	return hex.EncodeToString(secret.Hash())
+func (s *testSuite) TestAConnectionIsReadBackAsItWasSaved() {
+	pair := s.connected(start)
+	s.connected(start)
+
+	s.ElementsMatch(pair.Tokens(), s.connectionOf(pair.TakeSnapshot().Access))
+	s.ElementsMatch(pair.Tokens(), s.connectionOf(pair.TakeSnapshot().Refresh), "from either of its tokens, and none of another")
 }
 
-func (s *testSuite) TestAPairIsKeptAsTheHashesOfItsTwoTokens() {
-	pair := s.issued(start)
+func (s *testSuite) TestASavedTokenReplacesTheOneKeptUnderItsHash() {
+	pair := s.connected(start)
+	spent := pair.Tokens()[1]
+	spent.Kind = admintokens.KindSpent
+	spent.ExpiresAt = start.Add(time.Minute)
 
-	s.Equal(map[string]string{hexOf(pair.TakeSnapshot().Access): "access", hexOf(pair.TakeSnapshot().Refresh): "refresh"}, s.kinds())
+	s.Require().NoError(s.store.SaveTokens(s.T().Context(), spent))
+
+	s.ElementsMatch([]admintokens.Snapshot{pair.Tokens()[0], spent}, s.connectionOf(pair.TakeSnapshot().Access))
 }
 
-func (s *testSuite) TestARefreshTokenIsSpentOnceAndNamesItsHolder() {
-	pair := s.issued(start)
+func (s *testSuite) TestATokenNobodyHoldsIsNoConnection() {
+	s.connected(start)
 
-	holder, err := s.store.SpendRefresh(s.T().Context(), pair.TakeSnapshot().Refresh.Hash(), start.Add(time.Hour))
-	s.Require().NoError(err)
-	s.Equal(claude, holder)
-
-	_, err = s.store.SpendRefresh(s.T().Context(), pair.TakeSnapshot().Refresh.Hash(), start.Add(time.Hour))
-	s.Require().ErrorIs(err, admintokens.ErrUnknownToken, "spent")
-	s.Equal(map[string]string{hexOf(pair.TakeSnapshot().Access): "access"}, s.kinds())
-}
-
-func (s *testSuite) TestAnAccessTokenOrALapsedOneBuysNothing() {
-	pair := s.issued(start)
-
-	_, err := s.store.SpendRefresh(s.T().Context(), pair.TakeSnapshot().Access.Hash(), start)
-	s.Require().ErrorIs(err, admintokens.ErrUnknownToken, "an access token is not a refresh token")
-
-	_, err = s.store.SpendRefresh(s.T().Context(), pair.TakeSnapshot().Refresh.Hash(), start.Add(admintokens.RefreshLifetime))
-	s.Require().ErrorIs(err, admintokens.ErrUnknownToken, "lapsed")
-}
-
-func (s *testSuite) TestTheLapsedTokensGoAndTheLiveOnesStay() {
-	old := s.issued(start)
-	fresh := s.issued(start.Add(2 * time.Hour))
-
-	s.Require().NoError(s.store.DeleteLapsed(s.T().Context(), start.Add(2*time.Hour)))
-
-	s.Equal(map[string]string{
-		hexOf(old.TakeSnapshot().Refresh): "refresh", hexOf(fresh.TakeSnapshot().Access): "access", hexOf(fresh.TakeSnapshot().Refresh): "refresh",
-	}, s.kinds())
+	s.Empty(s.connectionOf("cprt_made-up"))
 }
 
 func (s *testSuite) TestATokenGoesWithItsAccount() {
-	s.issued(start)
+	pair := s.connected(start)
 
 	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `DELETE FROM accounts WHERE id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
 
-	s.Empty(s.kinds())
+	s.Empty(s.connectionOf(pair.TakeSnapshot().Access))
 }

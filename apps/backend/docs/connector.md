@@ -78,8 +78,12 @@ Auth's `connections` (the rules) and `oauthcontroller` (the plain HTTP edge), on
   backoffice's ([Connecting Claude](../../backoffice/docs/connect.md)).
 - **`POST /oauth/token`** trades the code once, within a minute, for the client and the redirect it was issued to,
   with the verifier. It answers a pair: an access token for an hour (`cpat_…`) and a refresh token for 90 days
-  (`cprt_…`). **A refresh token is good once**: each trade spends it and answers a new pair, so a connection used
-  once a season never lapses. One sent by another client is spent and buys nothing.
+  (`cprt_…`). **A refresh token is good once**: each trade spends it and answers a new pair of the same connection, so
+  a connection used once a season never lapses. One sent by another client is spent and buys nothing.
+- **A spent refresh token traded again ends its whole connection** (`admintokens.ErrReused`): somebody holds a copy,
+  so every token of the connection lapses, the thief's pair and the app's alike, and the operator connects again.
+  The rule is `Issuer.Trade`, over every token of the connection, read in one transaction with `FOR UPDATE`, so two
+  trades of one token never both win. A client that retries a refresh it already won ends its own connection too.
 
 ## What is kept
 
@@ -87,9 +91,11 @@ Auth's `connections` (the rules) and `oauthcontroller` (the plain HTTP edge), on
   AES-256-GCM under a key of their own derived from `auth.secret` (`aes_connection_sealer`), so a sealed client never
   opens as a code. A spent code is kept in memory until it lapses (`inmemory_spent_codes`).
 - **The tokens are `auth.admin_tokens`** (migration `20261105120000_admin_tokens`): the SHA-256 of each, its kind
-  (the enum `admin_token_kind`), the account (cascade), the app's client id hash and name, and when it ends. A
-  refresh token is spent by the `DELETE … RETURNING` that reads it. `prune_tokens_usecase` deletes the lapsed rows at
-  boot and hourly.
+  (the enum `admin_token_kind`: `access`, `refresh`, or `spent`, a refresh token traded), the account (cascade), the
+  app's client id hash and name, the connection it belongs to (one code exchange starts one), and when it ends.
+- **The store only finds and saves**: `Connection(hash)` reads every token of the connection a hash belongs to, and
+  `SaveTokens` upserts snapshots in one statement. Spending and ending are the domain's (`Issuer.Trade`). Nothing is
+  pruned: a lapsed row is refused anyway, and one operator makes a few dozen rows a day.
 - **Ending a connection:** take the account's operator flag away (every connection at once, and the backoffice
   too), or delete its rows of `auth.admin_tokens` (`deploy/vps/README.md`, "Connect Claude"). The page has no list of
   connections.

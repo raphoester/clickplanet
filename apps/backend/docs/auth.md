@@ -58,9 +58,8 @@ internal/auth/internal/
     aes_connection_sealer/  inmemory_spent_codes/
     usecases/register_client_usecase/  authorize_usecase/  describe_connection_usecase/
     usecases/approve_connection_usecase/ (and audit_approve_connection/)  exchange_code_usecase/  refresh_tokens_usecase/
-  admintokens/                             what an app holds: Secret, Pair, Issuer, the Store port; only the hashes are kept
-    postgres_admin_token_store/  random_token_secret_generator/
-    usecases/prune_tokens_usecase/         deletes the lapsed tokens, at boot and hourly; a Runner
+  admintokens/                             what an app holds: Secret, Token, Pair, Issuer (Connected, Trade); only the hashes are kept
+    postgres_admin_token_store/            Connection (every token of one) and SaveTokens (an upsert)
   oauthcontroller/                         the connector's plain HTTP edge: metadata_handler/  register_handler/  authorize_handler/  token_handler/
   sessionheader/                           the cp_sid of a page that keeps no cookie, carried in X-Account-Session
   sessionv1controller/                     deprecated SessionService

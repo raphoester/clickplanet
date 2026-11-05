@@ -25,7 +25,7 @@ import (
 
 func pair(t *testing.T) *admintokens.Pair {
 	t.Helper()
-	issued, err := admintokens.NewIssuer(&admintokens.SequentialSecrets{}).Pair(admintokens.Holder{Client: "Claude"}, time.Now())
+	issued, err := admintokens.NewIssuer(&admintokens.SequentialSecrets{}).Connected(admintokens.Holder{Client: "Claude"}, time.Now())
 	require.NoError(t, err)
 	return issued
 }
@@ -99,7 +99,7 @@ func TestACodeIsTradedForABearerPairNobodyCaches(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, map[string]any{ //nolint:gosec // SequentialSecrets, not credentials.
-		"access_token": "cpat_secret-1", "token_type": "Bearer", "expires_in": float64(3600), "refresh_token": "cprt_secret-2",
+		"access_token": "cpat_secret-2", "token_type": "Bearer", "expires_in": float64(3600), "refresh_token": "cprt_secret-3",
 	}, answer)
 	assert.Equal(t, "no-store", header.Get("Cache-Control"))
 	assert.Equal(t, exchange_code_usecase.In{Code: "the code", Redemption: connections.Redemption{

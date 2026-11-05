@@ -36,7 +36,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/start_admin_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens/postgres_admin_token_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens/usecases/prune_tokens_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/postgres_arrival_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/usecases/anonymize_arrivals_usecase"
@@ -118,6 +117,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/start_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -367,7 +367,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 
 	adminSessions := postgres_admin_session_store.New(db)
 	adminTokens := postgres_admin_token_store.New(db)
-	props.Runners.Add(prune_tokens_usecase.NewRunner(prune_tokens_usecase.New(adminTokens, clock), props.Logger))
 	connectionSealer, err := aes_connection_sealer.New(seed)
 	if err != nil {
 		return fmt.Errorf("failed to build the connection sealer: %w", err)
@@ -398,7 +397,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	}
 
 	if config.Connector.Enabled {
-		if err := mountConnector(config, props, connectionSealer, adminTokens, clock); err != nil {
+		if err := mountConnector(config, props, connectionSealer, adminTokens, db, clock); err != nil {
 			return err
 		}
 	}
@@ -435,6 +434,7 @@ func mountConnector(
 	props cpbootstrap.Props,
 	sealer *aes_connection_sealer.Sealer,
 	tokens *postgres_admin_token_store.Store,
+	transactioner cpatomic.Transactioner,
 	clock cptime.Clock,
 ) error {
 	issuer := admintokens.NewIssuer(random_secret_generator.Generator{})
@@ -448,7 +448,7 @@ func mountConnector(
 		),
 		"POST " + oauthcontroller.TokenPath: token_handler.New(
 			exchange_code_usecase.New(sealer, inmemory_spent_codes.New(), issuer, tokens, clock),
-			refresh_tokens_usecase.New(issuer, tokens, clock),
+			refresh_tokens_usecase.New(issuer, tokens, transactioner, clock),
 			props.Logger,
 		),
 	}

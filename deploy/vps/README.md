@@ -1291,6 +1291,10 @@ Claude (Anthropic's servers) → api.clickplanet.lol/mcp → Caddy → backend:8
 
 - **Each tool is an admin method**, and its comment in `admin.proto` is what
   Claude reads. A method added to an `admin.proto` is a tool after the next deploy.
+  The deprecated methods and the hidden ones (`tools.Hidden`: the big reads and
+  the clips job's writes) are not offered.
+- **A refresh token traded twice ends its connection**: somebody holds a copy.
+  Claude then asks you to connect again.
 - **Every call goes through the admin gate** with the connector's token, so it is
   logged like the page's, with `client=Claude`:
   `journalctl CONTAINER_NAME=cp-backend | grep "admin call"`. Each approval is

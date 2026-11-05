@@ -19,7 +19,7 @@ type Spent interface {
 }
 
 type Tokens interface {
-	SaveTokens(ctx context.Context, tokens []admintokens.Snapshot) error
+	SaveTokens(ctx context.Context, tokens ...admintokens.Snapshot) error
 }
 
 func New(sealer Sealer, spent Spent, issuer *admintokens.Issuer, tokens Tokens, clock cptime.Clock) *UseCase {
@@ -53,11 +53,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*admintokens.Pair, error)
 		return nil, fmt.Errorf("failed to redeem the code: %w", err)
 	}
 
-	pair, err := u.issuer.Pair(code.Holder(), now)
+	pair, err := u.issuer.Connected(code.Holder(), now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to issue the tokens: %w", err)
 	}
-	if err := u.tokens.SaveTokens(ctx, pair.TakeSnapshots()); err != nil {
+	if err := u.tokens.SaveTokens(ctx, pair.Tokens()...); err != nil {
 		return nil, fmt.Errorf("failed to keep the tokens: %w", err)
 	}
 

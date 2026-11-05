@@ -62,8 +62,8 @@ func TestACodeBuysAPairForTheOperatorOnce(t *testing.T) {
 
 	pair, err := f.useCase.Execute(t.Context(), in(f.code, connections.TestVerifier))
 	require.NoError(t, err)
-	assert.Equal(t, admintokens.Secret("cpat_secret-1"), pair.TakeSnapshot().Access)
-	assert.Equal(t, pair.TakeSnapshots(), f.tokens.Kept())
+	assert.Equal(t, admintokens.Secret("cpat_secret-2"), pair.TakeSnapshot().Access)
+	assert.Equal(t, pair.Tokens(), f.tokens.Kept())
 	assert.Equal(t, claude, f.tokens.Kept()[0].Holder)
 
 	_, err = f.useCase.Execute(t.Context(), in(f.code, connections.TestVerifier))

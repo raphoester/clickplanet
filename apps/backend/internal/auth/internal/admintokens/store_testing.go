@@ -6,9 +6,9 @@ import (
 	"context"
 	"slices"
 	"sync"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 type MemoryStore struct {
@@ -16,30 +16,40 @@ type MemoryStore struct {
 	kept []Snapshot
 }
 
-func (m *MemoryStore) SaveTokens(_ context.Context, tokens []Snapshot) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.kept = append(m.kept, tokens...)
-	return nil
-}
-
-func (m *MemoryStore) SpendRefresh(_ context.Context, hash accounts.TokenHash, now time.Time) (Holder, error) {
+func (m *MemoryStore) Connection(_ context.Context, hash accounts.TokenHash) ([]*Token, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for i, token := range m.kept {
-		if token.Kind == KindRefresh && slices.Equal(token.Hash, hash) && now.Before(token.ExpiresAt) {
-			m.kept = slices.Delete(m.kept, i, i+1)
-			return token.Holder, nil
+	found := slices.IndexFunc(m.kept, func(token Snapshot) bool { return slices.Equal(token.Hash, hash) })
+	if found < 0 {
+		return nil, nil
+	}
+	var connection []*Token
+	for _, token := range m.kept {
+		if token.Connection == m.kept[found].Connection {
+			restored, err := token.Restore()
+			if err != nil {
+				return nil, err
+			}
+			connection = append(connection, restored)
 		}
 	}
-	return Holder{}, ErrUnknownToken
+	return connection, nil
 }
 
-func (m *MemoryStore) DeleteLapsed(_ context.Context, now time.Time) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.kept = slices.DeleteFunc(m.kept, func(token Snapshot) bool { return !now.Before(token.ExpiresAt) })
+func (m *MemoryStore) SaveTokens(ctx context.Context, tokens ...Snapshot) error {
+	cpatomic.OnCommit(ctx, func() {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		for _, token := range tokens {
+			found := slices.IndexFunc(m.kept, func(kept Snapshot) bool { return slices.Equal(kept.Hash, token.Hash) })
+			if found < 0 {
+				m.kept = append(m.kept, token)
+			} else {
+				m.kept[found] = token
+			}
+		}
+	})
 	return nil
 }
 

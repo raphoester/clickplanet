@@ -3,27 +3,28 @@ package refresh_tokens_usecase
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/connections"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Tokens interface {
-	SaveTokens(ctx context.Context, tokens []admintokens.Snapshot) error
-	SpendRefresh(ctx context.Context, hash accounts.TokenHash, now time.Time) (admintokens.Holder, error)
+	Connection(ctx context.Context, hash accounts.TokenHash) ([]*admintokens.Token, error)
+	SaveTokens(ctx context.Context, tokens ...admintokens.Snapshot) error
 }
 
-func New(issuer *admintokens.Issuer, tokens Tokens, clock cptime.Clock) *UseCase {
-	return &UseCase{issuer: issuer, tokens: tokens, clock: clock}
+func New(issuer *admintokens.Issuer, tokens Tokens, transactioner cpatomic.Transactioner, clock cptime.Clock) *UseCase {
+	return &UseCase{issuer: issuer, tokens: tokens, transactioner: transactioner, clock: clock}
 }
 
 type UseCase struct {
-	issuer *admintokens.Issuer
-	tokens Tokens
-	clock  cptime.Clock
+	issuer        *admintokens.Issuer
+	tokens        Tokens
+	transactioner cpatomic.Transactioner
+	clock         cptime.Clock
 }
 
 type In struct {
@@ -34,21 +35,27 @@ type In struct {
 func (u *UseCase) Execute(ctx context.Context, in In) (*admintokens.Pair, error) {
 	now := u.clock.Now()
 
-	holder, err := u.tokens.SpendRefresh(ctx, in.RefreshToken.Hash(), now)
+	var trade admintokens.Trade
+	err := u.transactioner.InTx(ctx, func(ctx context.Context) error {
+		connection, err := u.tokens.Connection(ctx, in.RefreshToken.Hash())
+		if err != nil {
+			return fmt.Errorf("failed to read the connection: %w", err)
+		}
+		trade, err = u.issuer.Trade(connection, in.RefreshToken, connections.IDOf(in.ClientID), now)
+		if err != nil {
+			return fmt.Errorf("failed to issue the tokens: %w", err)
+		}
+		if err := u.tokens.SaveTokens(ctx, trade.Kept...); err != nil {
+			return fmt.Errorf("failed to keep the tokens: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to spend the refresh token: %w", err)
+		return nil, err //nolint:wrapcheck // each step already says what failed.
 	}
-	if holder.ClientID != connections.IDOf(in.ClientID) {
-		return nil, fmt.Errorf("%w: issued to another client", admintokens.ErrUnknownToken)
+	if trade.Refusal != nil {
+		return nil, fmt.Errorf("failed to trade the refresh token: %w", trade.Refusal)
 	}
 
-	pair, err := u.issuer.Pair(holder, now)
-	if err != nil {
-		return nil, fmt.Errorf("failed to issue the tokens: %w", err)
-	}
-	if err := u.tokens.SaveTokens(ctx, pair.TakeSnapshots()); err != nil {
-		return nil, fmt.Errorf("failed to keep the tokens: %w", err)
-	}
-
-	return pair, nil
+	return trade.Pair, nil
 }

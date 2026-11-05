@@ -51,9 +51,9 @@ func (s *testSuite) operates(operates bool) {
 }
 
 func (s *testSuite) issued() *admintokens.Pair {
-	pair, err := admintokens.NewIssuer(&admintokens.SequentialSecrets{}).Pair(claude, start)
+	pair, err := admintokens.NewIssuer(&admintokens.SequentialSecrets{}).Connected(claude, start)
 	s.Require().NoError(err)
-	s.Require().NoError(s.tokens.SaveTokens(s.T().Context(), pair.TakeSnapshots()))
+	s.Require().NoError(s.tokens.SaveTokens(s.T().Context(), pair.Tokens()...))
 	return pair
 }
 

@@ -240,13 +240,19 @@ func (s *testSuite) TestClaudeConnectsWithTheOperatorsYesAndCallsAToolAsTheOpera
 	status, _ := claude.trade(metadata["token_endpoint"].(string), url.Values{"grant_type": {"refresh_token"}, "refresh_token": {first}})
 	require.Equal(t, http.StatusOK, status)
 	assert.NotEqual(t, first, claude.refresh)
+	res, _ = claude.mcp(claude.access, `{"jsonrpc":"2.0","id":5,"method":"ping"}`)
+	assert.Equal(t, http.StatusOK, res.StatusCode, "the new access token calls")
+
 	status, answer = claude.trade(metadata["token_endpoint"].(string), url.Values{"grant_type": {"refresh_token"}, "refresh_token": {first}})
 	assert.Equal(t, http.StatusBadRequest, status, "a refresh token is spent")
 	assert.Equal(t, "invalid_grant", answer["error"])
+	res, _ = claude.mcp(claude.access, `{"jsonrpc":"2.0","id":6,"method":"ping"}`)
+	assert.Equal(t, http.StatusUnauthorized, res.StatusCode, "a spent refresh token traded again ends its connection")
 
+	again, _ := connectClaude(t, s.game, operator)
 	_, err = s.game.schema(t, "auth").On(t.Context()).ExecContext(t.Context(),
 		`UPDATE accounts SET operator = false WHERE id = $1`, operator.account())
 	require.NoError(t, err)
-	res, _ = claude.mcp(claude.access, `{"jsonrpc":"2.0","id":5,"method":"tools/list"}`)
-	assert.Equal(t, http.StatusForbidden, res.StatusCode, "unflagging the operator ends the connection")
+	res, _ = again.mcp(again.access, `{"jsonrpc":"2.0","id":7,"method":"tools/list"}`)
+	assert.Equal(t, http.StatusForbidden, res.StatusCode, "unflagging the operator ends every connection")
 }
