@@ -83,3 +83,29 @@ func TestARoundScoredKeepsItsEndAndItsResults(t *testing.T) {
 		Results: []books.Result{{Country: "fr", Rank: 1, Points: 25, Share: 0.3}},
 	}, scored)
 }
+
+func TestEachRankScoresWhatARoundOfItsTimesWouldGiveIt(t *testing.T) {
+	ranks, err := books.RankPointsOf(3)
+
+	require.NoError(t, err)
+	require.Len(t, ranks, 10)
+	assert.Equal(t, books.RankPoints{Rank: 1, Points: 75}, ranks[0])
+	assert.Equal(t, books.RankPoints{Rank: 2, Points: 54}, ranks[1])
+	assert.Equal(t, books.RankPoints{Rank: 10, Points: 3}, ranks[9])
+
+	held := map[books.Country]uint32{}
+	for i := range 10 {
+		held[books.Country(fmt.Sprintf("c%02d", i))] = uint32(100 - i) //nolint:gosec // 10 countries.
+	}
+	battle := books.Round{ID: "0192f5a0-7c00-7000-8000-000000000031", Book: "season-0", StartsAt: utc(31, 21), Times: 3}
+	for i, result := range battle.Results(books.Snapshot{Tiles: 2000, Held: held}) {
+		assert.Equal(t, books.RankPoints{Rank: result.Rank, Points: result.Points}, ranks[i])
+	}
+}
+
+func TestNoRankPointsOutsideTheTimesARoundTakes(t *testing.T) {
+	for _, times := range []uint32{0, books.MaxTimes + 1} {
+		_, err := books.RankPointsOf(times)
+		require.ErrorIs(t, err, books.ErrInvalidTimes, times)
+	}
+}

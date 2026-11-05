@@ -3,10 +3,10 @@ import {useRef, useState} from "react"
 import {PromoAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {GetRulesResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {Background, Card, CardDraft, GetCardsResponse, Placeholder, SetCards} from "../gen/grpc/promo/v1/admin_pb.ts"
+import {Background, Card, CardDraft, ExampleBattle, GetCardsResponse, Placeholder, SetCards} from "../gen/grpc/promo/v1/admin_pb.ts"
 import {DEFAULT_SET} from "../ops/rules.ts"
 import {draftProblems, MAX_CARDS, MAX_HEADLINE, MAX_LINE, playedBySet, saveRefusalOf} from "./actions.ts"
-import {fill} from "./fill.ts"
+import {fill, namesBattle, Values} from "./fill.ts"
 
 type Props = {
     promo: PromoAdmin
@@ -49,6 +49,7 @@ export function CardsPanel({promo, library, cards, rules, onSaved}: Props) {
                         set={set}
                         library={library}
                         placeholders={cards.placeholders}
+                        example={cards.exampleBattle ?? new ExampleBattle()}
                         played={played.get(set.ruleSet)}
                         onSaved={onSaved}
                     />
@@ -60,13 +61,13 @@ export function CardsPanel({promo, library, cards, rules, onSaved}: Props) {
 type Field = "headline" | "line"
 type Cursor = {field: Field, start: number, end: number}
 
-function SetEditor({promo, set, library, placeholders, played, onSaved}: {
-    promo: PromoAdmin, set: SetCards, library: Background[], placeholders: Placeholder[], played: JsonValue | undefined,
-    onSaved: () => void,
+function SetEditor({promo, set, library, placeholders, example, played, onSaved}: {
+    promo: PromoAdmin, set: SetCards, library: Background[], placeholders: Placeholder[], example: ExampleBattle,
+    played: JsonValue | undefined, onSaved: () => void,
 }) {
     const [drafts, setDrafts] = useState<CardDraft[]>(() => set.cards.map(card => new CardDraft(card.draft)))
-    const paths = placeholders.map(placeholder => placeholder.path)
-    const problems = drafts.map(draft => draftProblems(draft, played, paths))
+    const values: Values = {played, rules: placeholders.map(placeholder => placeholder.path), battle: example.placeholders}
+    const problems = drafts.map(draft => draftProblems(draft, values))
     const changed = !sameDrafts(drafts, set.cards.map(card => card.draft ?? new CardDraft()))
     const ready = changed && problems.every(each => each.length === 0)
 
@@ -92,8 +93,8 @@ function SetEditor({promo, set, library, placeholders, played, onSaved}: {
                         saved={set.cards[index]}
                         library={library}
                         placeholders={placeholders}
-                        played={played}
-                        paths={paths}
+                        example={example}
+                        values={values}
                         problems={problems[index]}
                         onEdit={change => edit(index, change)}
                         onMove={by => move(index, by)}
@@ -129,9 +130,9 @@ function SetEditor({promo, set, library, placeholders, played, onSaved}: {
     )
 }
 
-function CardEditor({index, count, draft, saved, library, placeholders, played, paths, problems, onEdit, onMove, onRemove}: {
+function CardEditor({index, count, draft, saved, library, placeholders, example, values, problems, onEdit, onMove, onRemove}: {
     index: number, count: number, draft: CardDraft, saved: Card | undefined, library: Background[],
-    placeholders: Placeholder[], played: JsonValue | undefined, paths: string[], problems: string[],
+    placeholders: Placeholder[], example: ExampleBattle, values: Values, problems: string[],
     onEdit: (change: Partial<CardDraft>) => void, onMove: (by: number) => void, onRemove: () => void,
 }) {
     const cursor = useRef<Cursor>({field: "headline", start: draft.headline.length, end: draft.headline.length})
@@ -153,7 +154,7 @@ function CardEditor({index, count, draft, saved, library, placeholders, played, 
     const background = library.find(each => each.backgroundId === draft.backgroundId)
     const shown = unchanged && saved.filled !== undefined
         ? {headline: saved.filled.headline, line: saved.filled.line}
-        : {headline: fill(draft.headline, played, paths).text, line: fill(draft.line, played, paths).text}
+        : {headline: fill(draft.headline, values).text, line: fill(draft.line, values).text}
     const said = unchanged && saved.problem !== "" ? [saved.problem] : problems
     const name = `Card ${index + 1}`
 
@@ -170,13 +171,18 @@ function CardEditor({index, count, draft, saved, library, placeholders, played, 
                 </span>
             </div>
             <div className="promo-card-body">
-                <div className="promo-preview" aria-label={`${name} as players read it`}>
-                    {background !== undefined && <img src={background.url} alt=""/>}
-                    <div className="promo-preview-words">
-                        <strong>{shown.headline}</strong>
-                        {shown.line !== "" && <span>{shown.line}</span>}
+                <figure className="promo-shown">
+                    <div className="promo-preview" aria-label={`${name} as players read it`}>
+                        {background !== undefined && <img src={background.url} alt=""/>}
+                        <div className="promo-preview-words">
+                            <strong>{shown.headline}</strong>
+                            {shown.line !== "" && <span>{shown.line}</span>}
+                        </div>
                     </div>
-                </div>
+                    {namesBattle(draft.headline + draft.line, example.placeholders) && (
+                        <figcaption className="muted">Example: a ×{example.times} battle</figcaption>
+                    )}
+                </figure>
                 <div className="fields">
                     <label className="field">
                         <span className="muted">Background</span>
@@ -218,12 +224,21 @@ function CardEditor({index, count, draft, saved, library, placeholders, played, 
                                 if (event.target.value !== "") insert(event.target.value)
                             }}
                         >
-                            <option value="">A value of the rules…</option>
-                            {placeholders.map(placeholder => (
-                                <option key={placeholder.path} value={placeholder.path}>
-                                    {placeholder.path}{placeholder.example !== "" ? ` (default: ${placeholder.example})` : ""}
-                                </option>
-                            ))}
+                            <option value="">A value…</option>
+                            <optgroup label="The rules">
+                                {placeholders.map(placeholder => (
+                                    <option key={placeholder.path} value={placeholder.path}>
+                                        {placeholder.path}{placeholder.example !== "" ? ` (default: ${placeholder.example})` : ""}
+                                    </option>
+                                ))}
+                            </optgroup>
+                            <optgroup label={`The battle (example: ×${example.times})`}>
+                                {example.placeholders.map(placeholder => (
+                                    <option key={placeholder.path} value={placeholder.path}>
+                                        {placeholder.path}{placeholder.example !== "" ? ` (×${example.times}: ${placeholder.example})` : ""}
+                                    </option>
+                                ))}
+                            </optgroup>
                         </select>
                     </label>
                     {said.length > 0 && (

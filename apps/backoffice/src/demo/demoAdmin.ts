@@ -253,7 +253,10 @@ export class DemoAdmin extends FakeAdmin {
         this.promo.backgrounds = DEMO_BACKGROUNDS
         this.promo.decks.set("rush", [
             new CardDraft({backgroundId: "demo-war", headline: "Clicks refill {clicks.tempo}× faster", line: "Every country fights at once."}),
-            new CardDraft({backgroundId: "demo-points", headline: "A box every {bonuses.boxes.minInterval}", line: "Keep your bombs for it."}),
+            new CardDraft({
+                backgroundId: "demo-points", headline: "×{battle.times} points",
+                line: "1st place wins {battle.points.first} points, 2nd {battle.points.second}, 3rd {battle.points.third}.",
+            }),
             new CardDraft({backgroundId: "demo-rally", headline: "Bring your friends", line: "Your flag needs every click."}),
         ])
         this.antibotRules = new AntibotGetRulesResponse({playing: "calm", sets: [

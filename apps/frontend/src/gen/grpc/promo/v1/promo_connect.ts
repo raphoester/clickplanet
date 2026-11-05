@@ -18,7 +18,8 @@ export const PromoService = {
     /**
      * The teaser's cards of a battle, by the id the gamemaster's timeline names it by: its entry's id, or its round,
      * `season-N/finale`, for a season's finale. Their words are filled from the values the battle's rule set plays at the
-     * read. No cards for a battle whose set has none. NotFound for a battle the schedule does not hold. A cached GET.
+     * read, and the battle's points. No cards for a battle whose set has none. NotFound for a battle the schedule does
+     * not hold. A cached GET.
      *
      * @generated from rpc promo.v1.PromoService.GetTeaser
      */

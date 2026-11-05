@@ -85,7 +85,7 @@ internal/gamemaster/
                                     debrief, in the players' words
       listen_for_events_handler/    the stream: the turn, the timeline and the debrief, then each change, and heartbeats
         inprocess_turn_feed/        reads them each second while a stream follows them; log_turn_reader
-      get_battle_set_handler/battle_set_query/  PostgresQuery: the set a battle plays, for the promo module
+      get_battle_handler/battle_query/  PostgresQuery: the set and the times a battle plays, for the promo module
       schedulemessage/              DraftOf, KindOf, and Refusal: the code of each refusal
       seasonmessage/                DraftOf, ScheduledOf, SeasonOf and Refusal, for the seasons
 ```
@@ -381,12 +381,12 @@ season has is logged at Warn and dropped** (acked, not kept). A second delivery 
 
 ## What another module asks
 
-**`gamemaster.v1.InternalService/GetBattleSet(battle_id)`, on the internal listener, is the rule set a battle plays**,
-for the promo module's teaser (see [Promo](promo.md)): `battle_id` is the id the timeline names the battle by, an
-entry's id or `season-N/finale` for a season's finale (`moments.NamedOf`). It answers the entry's set when the entry is
-of kind battle, the finale's set when the season has one, and NotFound for anything else: a plain entry, an entry not
-kept, a day, a season with no finale. The set's name stays among the modules: the client asks promo by the battle's
-id, and promo never answers the name. `battle_set_query`'s test pins each case on postgres.
+**`gamemaster.v1.InternalService/GetBattle(battle_id)`, on the internal listener, is what a battle plays: its rule set
+and its points' `times`**, for the promo module's teaser (see [Promo](promo.md)): `battle_id` is the id the timeline
+names the battle by, an entry's id or `season-N/finale` for a season's finale (`moments.NamedOf`). It answers the
+entry's set and times when the entry is of kind battle, the finale's when the season has one, and NotFound for anything
+else: a plain entry, an entry not kept, a day, a season with no finale. The set's name stays among the modules: the
+client asks promo by the battle's id, and promo never answers the name. `battle_query`'s test pins each case on postgres.
 
 ## The game client
 

@@ -10,7 +10,9 @@ internal/promo/
   module.go                         Config (database, backgrounds), NewModule
   internal/
     migrations/                     backgrounds, cards
-    placeholders/                   Paths, Check, Fill: `{path}` in a card's words, filled with a value of planet.v1.Rules
+    placeholders/                   RulePaths, BattlePaths, Battle, Check, Fill: `{path}` in a card's words, filled with
+                                    a value of planet.v1.Rules or of the battle
+      rpc_scoring_points/           a battle's points by its times, from scoring.v1.InternalService
     backgrounds/                    BackgroundID, MediaType, File, Rules (FileError), Background (Keep, TakeSnapshot),
                                     BackgroundSnapshot (Restore); the IDProvider port; fakes behind the testing tag
       s3_background_bucket/         the files, in the bucket under promo/backgrounds/<id>: upload links, what a file
@@ -32,7 +34,7 @@ internal/promo/
       list_backgrounds_handler/backgrounds_query/   PostgresQuery: the library, the newest first, with public URLs
       get_cards_handler/cards_query/   PostgresQuery: every set planet keeps, its cards as written and as read
       get_teaser_handler/teaser_query/ PostgresQuery: a battle's cards, filled
-        rpc_gamemaster_battles/     the set a battle plays, from gamemaster.v1.InternalService
+        rpc_gamemaster_battles/     the set and the times a battle plays, from gamemaster.v1.InternalService
 ```
 
 ## A card
@@ -44,16 +46,31 @@ with no cards (the owner: "If there is no carousel let's just not tease anything
 
 **Words name a rule's value with a placeholder**, `{path}`, the path of a field of `planet.v1.Rules` as protojson
 writes it: `Clicks refill {clicks.tempo}× faster`, `A box every {bonuses.boxes.minInterval}`
-(`placeholders.Paths`, `Check`). **Only a number or a duration**: a boolean, a list (the toll's steps) or a whole
+(`placeholders.RulePaths`, `Check`). **Only a number or a duration**: a boolean, a list (the toll's steps) or a whole
 message reads as no word in a sentence, and is refused. A brace that opens or closes no placeholder is refused too.
+
+**Words name the battle's points too** (`placeholders.BattlePaths`): `{battle.times}`, the battle's points' times (1
+to 10), and `{battle.points.first}`, `{battle.points.second}`, `{battle.points.third}`, what the first three ranks of
+its round score. `1st place wins {battle.points.first} points` reads `75` in a ×3 battle and `50` in a ×2 one, with
+nothing to edit. A set's cards follow every battle that plays it, so the words never hold the number. **The lengths
+count the placeholder as written**: `1st place wins {battle.points.first} points` is 43 characters, a line and not a
+headline.
 
 **The values are read when a player reads the cards, never written into them** (`placeholders.Fill`): a number with
 no trailing zero (`3`, `0.2`), a duration in its largest whole unit (`1 h`, `2 min`, `90 s`, `500 ms`, `0 s`). A save
-of the set in planet shows on the next read, with no event and no lag. An earlier design rendered the words into the
+of the set in planet, or of the battle's times in the schedule, shows on the next read, with no event and no lag. An earlier design rendered the words into the
 images and re-rendered them on each rule change; the owner dropped it as over-engineered (2026-11-05).
 
 **A set's cards are kept under its name**, and only for a set planet keeps (`save_cards_usecase` asks planet's
 `GetRuleSetNames`, `ErrUnknownSet`). Cards kept for a set planet later deletes stay, read by nobody.
+
+## The battle's points
+
+**Scoring keeps the one table of points** (`books.points`: 25, 18, 15, 12, 10, 8, 6, 4, 2, 1, times the round's
+`times`), and promo asks it (`scoring.v1.InternalService/GetRankPoints(times)`) rather than keeping a copy that would
+drift the day scoring changes it. The gamemaster cannot answer the points: it only sends scoring the times, and scoring's
+round does not exist before the battle starts, so `GetRound` cannot either. `GetRankPoints` is scoring's rule for any
+times, not a read of a round.
 
 ## The backgrounds
 
@@ -81,22 +98,26 @@ keeps the type and the size the bucket holds. **A JPEG, a PNG or a WebP of 2 MiB
 
 **`promo.v1.PromoService/GetTeaser(battle_id)`, on the public router, is a battle's cards as players read them**: the
 id the gamemaster's timeline names the battle by, its entry's id or `season-N/finale` for a season's finale. The query
-asks the gamemaster which set the battle plays (`gamemaster.v1.InternalService/GetBattleSet`), reads the set's cards,
-asks planet what the set plays (`planet.v1.InternalService/GetRuleSet`) and fills them. It answers **no cards** for a
+asks the gamemaster what the battle plays (`gamemaster.v1.InternalService/GetBattle`: its set and its times), reads the
+set's cards, asks planet what the set plays (`planet.v1.InternalService/GetRuleSet`) and scoring what each rank of a
+round of those times scores (`scoring.v1.InternalService/GetRankPoints`), and fills them. It answers **no cards** for a
 set with none, and **NotFound** for a battle the schedule does not hold. Never the set's name.
 
 - **A card whose words no longer fill is left out**, logged at Error (`a teaser card does not fill`, with the set, the
   card and the battle), and the other cards still show: a rule renamed after the cards were written, or a value
   neither the set nor default holds. **A set planet no longer keeps teases nothing**, logged the same way.
 - **A cached GET**: `NO_SIDE_EFFECTS`, so Connect sends it as an HTTP GET, and `NewCacheInterceptor` sets
-  `Cache-Control: public, max-age=60, s-maxage=60`. A card or a rule changed reaches a page within a minute.
+  `Cache-Control: public, max-age=60, s-maxage=60`. A card, a rule or a battle's times changed reaches a page within a
+  minute.
 
 ## The operator
 
 `promo.v1.AdminService`, on the console and admin listeners (see [Operator tools](admin.md)), for the backoffice's
 Promo page: `CreateBackgroundUpload`, `KeepBackground`, `ListBackgrounds`, `RemoveBackground` for the library;
 **`GetCards`**, every set planet keeps with its cards as written and as players read them now (`filled`, or a
-`problem` saying why not), and every placeholder with default's value as an example, for the page's picker; and
+`problem` saying why not), and every placeholder of the rules with default's value as an example, for the page's
+picker. **A set plays in no battle of its own**, so `GetCards` fills its cards as in an example battle of 3 times, the
+Final Battle's (`example_battle`: its times, and each battle placeholder with its value there); and
 **`SaveCards(rule_set, cards)`**, which replaces a set's cards (none removes them): `InvalidArgument` for cards the
 rules refuse, `FailedPrecondition` for a set planet does not keep or a background not in the library.
 
@@ -109,23 +130,26 @@ closer, once the listeners shut down.
 
 ## Who it asks
 
-**Promo depends on planet and the gamemaster, and nothing depends on promo.** It asks planet the sets it keeps
-(`GetRuleSetNames`, on each `SaveCards` and `GetCards`) and the values one plays (`GetRuleSet`, on each teaser read
-and once per set with cards on each `GetCards`), and the gamemaster which set a battle plays (`GetBattleSet`, on each
-teaser read). The gamemaster stays unaware of promo: the client asks promo for a battle's cards when it shows the
+**Promo depends on planet, the gamemaster and scoring, and nothing depends on promo.** It asks planet the sets it
+keeps (`GetRuleSetNames`, on each `SaveCards` and `GetCards`) and the values one plays (`GetRuleSet`, on each teaser
+read and once per set with cards on each `GetCards`), the gamemaster what a battle plays (`GetBattle`, on each teaser
+read), and scoring what each rank of a round of its times scores (`GetRankPoints`, on each teaser read with cards, and
+once for the example battle on each `GetCards`). The gamemaster stays unaware of promo: the client asks promo for a battle's cards when it shows the
 teaser, rather than the gamemaster's timeline carrying them every second.
 
 ## Tests
 
-`placeholders`' tests pin the paths (numbers and durations, no boolean, list or message), the words filled (a number,
-a duration in each unit), a value the set does not play, and every refusal. `cards`' pin the deck (order, none, every
+`placeholders`' tests pin the paths (numbers and durations, no boolean, list or message; the battle's, which no rule
+shares), the words filled (a number, a duration in each unit, a battle's points at ×3 and ×2), a value the set does not
+play, a rank the battle does not score, and every refusal. `cards`' pin the deck (order, none, every
 reason at once, characters and not bytes), `backgrounds`' the file rules, the name and the id. The use cases run on
 the memory fakes: a background kept as the bucket holds it, a file never sent, a background a card shows that stays
 with its file, the cards of a set planet does not keep. The stores and queries run on postgres: a background kept again
 renamed, removed, refused with the sets named; a save that replaces a set's cards, none that removes them, a card on a
-background not kept; the library newest first with its URLs; every set with its cards as written and as read, a card
-that does not fill, a set planet will not tell; a battle's cards filled (an entry, a finale), none, no battle, a card
-left out and logged, a set planet no longer keeps. `cache_interceptor_test.go` pins the GET and its header. The smoke
+background not kept; the library newest first with its URLs; every set with its cards as written and as read in the ×3 example battle, its battle placeholders, a card
+that does not fill, a set planet will not tell; a battle's cards filled (an entry, a finale), its own points (×3 and
+×2), none, no battle, a card left out and logged, a set planet no longer keeps. `cache_interceptor_test.go` pins the GET and its header. The smoke
 test `TestAnOperatorWritesASetsCardsAndAPageReadsTheBattlesTeaserFilled` gives planet `rush`, uploads a background
 to the fake bucket, saves `rush`'s cards on the console listener, reads season 0's finale's teaser on the public
-listener, filled, and is refused the background's removal.
+listener, filled with rush's values and the finale's points (`1st place wins 75 points`, ×3), and is refused the
+background's removal.

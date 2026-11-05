@@ -20,25 +20,35 @@ type Planet interface {
 	Played(ctx context.Context, set string) (*planetv1.Rules, error)
 }
 
+// Points is a battle's points by its times: placeholders/rpc_scoring_points.
+type Points interface {
+	Battle(ctx context.Context, times uint32) (placeholders.Battle, error)
+}
+
 type Links interface {
 	PublicURL(id backgrounds.BackgroundID) string
 }
 
-// The set whose values a placeholder's example reads.
-const defaultSet = "default"
+const (
+	// The set whose values a placeholder's example reads.
+	defaultSet = "default"
+	// The battle a set's cards are filled as: the Final Battle's times.
+	exampleTimes = 3
+)
 
-func NewPostgresQuery(db cppg.Conn, planet Planet, links Links) *PostgresQuery {
-	return &PostgresQuery{db: db, planet: planet, links: links}
+func NewPostgresQuery(db cppg.Conn, planet Planet, points Points, links Links) *PostgresQuery {
+	return &PostgresQuery{db: db, planet: planet, points: points, links: links}
 }
 
 type PostgresQuery struct {
 	db     cppg.Conn
 	planet Planet
+	points Points
 	links  Links
 }
 
-// Cards is every set planet keeps with its cards, as written and as players read them now. A set whose values planet
-// will not tell, or a card that does not fill, says why instead.
+// Cards is every set planet keeps with its cards, as written and as players read them now in the example battle. A set
+// whose values planet will not tell, or a card that does not fill, says why instead.
 func (q *PostgresQuery) Cards(ctx context.Context) (*promov1.GetCardsResponse, error) {
 	names, err := q.planet.Names(ctx)
 	if err != nil {
@@ -52,14 +62,14 @@ func (q *PostgresQuery) Cards(ctx context.Context) (*promov1.GetCardsResponse, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to read what default plays: %w", err)
 	}
+	battle, err := q.points.Battle(ctx, exampleTimes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the points of a battle of %d times: %w", exampleTimes, err)
+	}
 
-	out := &promov1.GetCardsResponse{}
-	for _, path := range placeholders.Paths() {
-		example, err := placeholders.Fill("{"+path+"}", defaults)
-		if err != nil {
-			example = ""
-		}
-		out.Placeholders = append(out.Placeholders, &promov1.Placeholder{Path: path, Example: example})
+	out := &promov1.GetCardsResponse{
+		Placeholders:  examples(placeholders.RulePaths(), defaults, battle),
+		ExampleBattle: &promov1.ExampleBattle{Times: exampleTimes, Placeholders: examples(placeholders.BattlePaths(), defaults, battle)},
 	}
 	for _, name := range names {
 		set := &promov1.SetCards{RuleSet: name}
@@ -72,7 +82,7 @@ func (q *PostgresQuery) Cards(ctx context.Context) (*promov1.GetCardsResponse, e
 				case playedErr != nil:
 					card.Problem = playedErr.Error()
 				default:
-					filled, err := q.filled(draft, played)
+					filled, err := q.filled(draft, played, battle)
 					if err != nil {
 						card.Problem = err.Error()
 					}
@@ -86,12 +96,24 @@ func (q *PostgresQuery) Cards(ctx context.Context) (*promov1.GetCardsResponse, e
 	return out, nil
 }
 
-func (q *PostgresQuery) filled(draft *promov1.CardDraft, played *planetv1.Rules) (*promov1.TeaserCard, error) {
+func examples(paths []string, played *planetv1.Rules, battle placeholders.Battle) []*promov1.Placeholder {
+	out := make([]*promov1.Placeholder, 0, len(paths))
+	for _, path := range paths {
+		example, err := placeholders.Fill("{"+path+"}", played, battle)
+		if err != nil {
+			example = ""
+		}
+		out = append(out, &promov1.Placeholder{Path: path, Example: example})
+	}
+	return out
+}
+
+func (q *PostgresQuery) filled(draft *promov1.CardDraft, played *planetv1.Rules, battle placeholders.Battle) (*promov1.TeaserCard, error) {
 	id, err := uuid.Parse(draft.GetBackgroundId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read a background id: %w", err)
 	}
-	filled, err := promoread.Filled(q.links.PublicURL(backgrounds.BackgroundID(id)), draft.GetHeadline(), draft.GetLine(), played)
+	filled, err := promoread.Filled(q.links.PublicURL(backgrounds.BackgroundID(id)), draft.GetHeadline(), draft.GetLine(), played, battle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fill a card: %w", err)
 	}

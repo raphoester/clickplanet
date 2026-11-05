@@ -75,7 +75,17 @@ message GetCardsRequest {}
 message GetCardsResponse {
   // Every set planet keeps, by name, each with its cards, none for most.
   repeated SetCards sets = 1;
-  // What a placeholder may name, by path.
+  // What a placeholder may name of the rules, by path, with default's value.
+  repeated Placeholder placeholders = 2;
+  // A set plays in no battle of its own: its cards are filled as in this one.
+  ExampleBattle example_battle = 3;
+}
+
+// The battle a set's cards are filled as, on this page only.
+message ExampleBattle {
+  uint32 times = 1;
+  // What a placeholder may name of the battle, by path, with this battle's value: `battle.times`,
+  // `battle.points.first`.
   repeated Placeholder placeholders = 2;
 }
 
@@ -86,13 +96,14 @@ message SetCards {
 
 message Card {
   CardDraft draft = 1;
-  // As players read it now. Unset when a placeholder no longer fills, and `problem` says why.
+  // As players read it now, in the example battle. Unset when a placeholder no longer fills, and `problem` says why.
   TeaserCard filled = 2;
   string problem = 3;
 }
 
 // A card as the operator writes it: `{path}` in the headline or the line is a value of the set, by its path in
-// planet.v1.Rules as protojson writes it, such as `{clicks.tempo}` or `{bonuses.boxes.minInterval}`.
+// planet.v1.Rules as protojson writes it, such as `{clicks.tempo}` or `{bonuses.boxes.minInterval}`, or of the battle
+// that plays it, such as `{battle.times}` or `{battle.points.first}`.
 message CardDraft {
   string background_id = 1;
   // 1 to 40 characters, as written.
@@ -101,7 +112,7 @@ message CardDraft {
   string line = 3;
 }
 
-// A number or a duration of planet.v1.Rules, with default's value as it reads on a card.
+// A number or a duration a card may name, with a value as it reads on a card.
 message Placeholder {
   string path = 1;
   string example = 2;

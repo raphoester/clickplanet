@@ -17,6 +17,25 @@ service InternalService {
   rpc GetRoundPlayers(GetRoundPlayersRequest) returns (GetRoundPlayersResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // The points a round of `times` scores each rank, before it opens. InvalidArgument for times outside 1 to 10.
+  rpc GetRankPoints(GetRankPointsRequest) returns (GetRankPointsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetRankPointsRequest {
+  uint32 times = 1;
+}
+
+// Every rank that scores, the first's first.
+message GetRankPointsResponse {
+  repeated RankPoints ranks = 1;
+}
+
+message RankPoints {
+  uint32 rank = 1;
+  uint32 points = 2;
 }
 
 message GetRoundPlayersRequest {

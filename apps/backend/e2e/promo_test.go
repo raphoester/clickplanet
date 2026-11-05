@@ -14,8 +14,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/promo/v1/promov1connect"
 )
 
-// Season 0's finale is seeded with the set rush: planet is given it, the operator writes its cards over a background,
-// and a page reads the finale's teaser with the values rush plays.
+// Season 0's finale is seeded with the set rush, triple points: planet is given it, the operator writes its cards over a
+// background, and a page reads the finale's teaser with the values rush plays and the points the finale gives.
 func (s *testSuite) TestAnOperatorWritesASetsCardsAndAPageReadsTheBattlesTeaserFilled() {
 	t := s.T()
 	ctx := t.Context()
@@ -47,18 +47,20 @@ func (s *testSuite) TestAnOperatorWritesASetsCardsAndAPageReadsTheBattlesTeaserF
 	require.NoError(t, err, "the promo module reads the file back from the bucket")
 
 	_, err = promo.SaveCards(ctx, connect.NewRequest(&promov1.SaveCardsRequest{RuleSet: "rush", Cards: []*promov1.CardDraft{{
-		BackgroundId: upload.Msg.GetBackgroundId(), Headline: "Clicks refill {clicks.tempo}× faster", Line: "A bank of {clicks.burst}",
+		BackgroundId: upload.Msg.GetBackgroundId(), Headline: "Clicks refill {clicks.tempo}× faster",
+		Line: "1st place wins {battle.points.first} points",
 	}}}))
 	require.NoError(t, err, "the promo module asks planet over the internal listener whether it keeps the set")
 
 	teasers := promov1connect.NewPromoServiceClient(http.DefaultClient, s.game.baseURL, connect.WithHTTPGet())
 	teaser, err := teasers.GetTeaser(ctx, connect.NewRequest(&promov1.GetTeaserRequest{BattleId: "season-0/finale"}))
-	require.NoError(t, err, "the promo module asks the gamemaster which set the finale plays, and planet what it plays")
+	require.NoError(t, err, "the promo module asks the gamemaster what the finale plays, scoring what its ranks score, "+
+		"and planet what rush plays")
 	require.Len(t, teaser.Msg.GetCards(), 1)
 	card := teaser.Msg.GetCards()[0]
 	assert.Equal(t, mediaOrigin+"/promo/backgrounds/"+upload.Msg.GetBackgroundId(), card.GetBackgroundUrl())
 	assert.Regexp(t, `^Clicks refill [0-9.]+× faster$`, card.GetHeadline())
-	assert.Regexp(t, `^A bank of [0-9]+$`, card.GetLine())
+	assert.Equal(t, "1st place wins 75 points", card.GetLine())
 	assert.Equal(t, "public, max-age=60, s-maxage=60", teaser.Header().Get("Cache-Control"))
 
 	_, err = promo.RemoveBackground(ctx, connect.NewRequest(&promov1.RemoveBackgroundRequest{

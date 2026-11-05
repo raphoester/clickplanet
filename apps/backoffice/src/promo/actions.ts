@@ -6,7 +6,7 @@ import {CardDraft} from "../gen/grpc/promo/v1/admin_pb.ts"
 import {DEFAULT_SET} from "../ops/rules.ts"
 import {overlay} from "../ops/overlay.ts"
 import {wordsOf} from "../refusal.ts"
-import {fill} from "./fill.ts"
+import {fill, Values} from "./fill.ts"
 
 export type Put = (url: string, file: Blob, contentType: string, onSent: (bytes: number) => void) => Promise<void>
 
@@ -73,12 +73,12 @@ export function playedBySet(rules: GetRulesResponse): Map<string, JsonValue> {
 }
 
 // What the server would refuse of a card, before it is sent.
-export function draftProblems(draft: CardDraft, played: JsonValue | undefined, paths: string[]): string[] {
+export function draftProblems(draft: CardDraft, values: Values): string[] {
     const problems: string[] = []
     if (draft.backgroundId === "") problems.push("Pick a background.")
     const headline = draft.headline.trim()
     if (headline === "" || [...headline].length > MAX_HEADLINE) problems.push(`A headline of 1 to ${MAX_HEADLINE} characters.`)
     if ([...draft.line.trim()].length > MAX_LINE) problems.push(`A line of ${MAX_LINE} characters at most.`)
-    for (const words of [draft.headline, draft.line]) problems.push(...fill(words, played, paths).problems)
+    for (const words of [draft.headline, draft.line]) problems.push(...fill(words, values).problems)
     return [...new Set(problems)]
 }

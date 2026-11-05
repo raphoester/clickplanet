@@ -21,27 +21,27 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GetBattleSetRequest struct {
+type GetBattleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BattleId      string                 `protobuf:"bytes,1,opt,name=battle_id,json=battleId,proto3" json:"battle_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetBattleSetRequest) Reset() {
-	*x = GetBattleSetRequest{}
+func (x *GetBattleRequest) Reset() {
+	*x = GetBattleRequest{}
 	mi := &file_gamemaster_v1_internal_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetBattleSetRequest) String() string {
+func (x *GetBattleRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetBattleSetRequest) ProtoMessage() {}
+func (*GetBattleRequest) ProtoMessage() {}
 
-func (x *GetBattleSetRequest) ProtoReflect() protoreflect.Message {
+func (x *GetBattleRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_gamemaster_v1_internal_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -53,39 +53,41 @@ func (x *GetBattleSetRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetBattleSetRequest.ProtoReflect.Descriptor instead.
-func (*GetBattleSetRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetBattleRequest.ProtoReflect.Descriptor instead.
+func (*GetBattleRequest) Descriptor() ([]byte, []int) {
 	return file_gamemaster_v1_internal_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GetBattleSetRequest) GetBattleId() string {
+func (x *GetBattleRequest) GetBattleId() string {
 	if x != nil {
 		return x.BattleId
 	}
 	return ""
 }
 
-type GetBattleSetResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RuleSet       string                 `protobuf:"bytes,1,opt,name=rule_set,json=ruleSet,proto3" json:"rule_set,omitempty"`
+type GetBattleResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	RuleSet string                 `protobuf:"bytes,1,opt,name=rule_set,json=ruleSet,proto3" json:"rule_set,omitempty"`
+	// The battle's points' times, 1 to 10: its round scores each rank that many times a day's points.
+	Times         uint32 `protobuf:"varint,2,opt,name=times,proto3" json:"times,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetBattleSetResponse) Reset() {
-	*x = GetBattleSetResponse{}
+func (x *GetBattleResponse) Reset() {
+	*x = GetBattleResponse{}
 	mi := &file_gamemaster_v1_internal_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetBattleSetResponse) String() string {
+func (x *GetBattleResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetBattleSetResponse) ProtoMessage() {}
+func (*GetBattleResponse) ProtoMessage() {}
 
-func (x *GetBattleSetResponse) ProtoReflect() protoreflect.Message {
+func (x *GetBattleResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_gamemaster_v1_internal_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -97,29 +99,37 @@ func (x *GetBattleSetResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetBattleSetResponse.ProtoReflect.Descriptor instead.
-func (*GetBattleSetResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetBattleResponse.ProtoReflect.Descriptor instead.
+func (*GetBattleResponse) Descriptor() ([]byte, []int) {
 	return file_gamemaster_v1_internal_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetBattleSetResponse) GetRuleSet() string {
+func (x *GetBattleResponse) GetRuleSet() string {
 	if x != nil {
 		return x.RuleSet
 	}
 	return ""
 }
 
+func (x *GetBattleResponse) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
+}
+
 var File_gamemaster_v1_internal_proto protoreflect.FileDescriptor
 
 const file_gamemaster_v1_internal_proto_rawDesc = "" +
 	"\n" +
-	"\x1cgamemaster/v1/internal.proto\x12\rgamemaster.v1\"2\n" +
-	"\x13GetBattleSetRequest\x12\x1b\n" +
-	"\tbattle_id\x18\x01 \x01(\tR\bbattleId\"1\n" +
-	"\x14GetBattleSetResponse\x12\x19\n" +
-	"\brule_set\x18\x01 \x01(\tR\aruleSet2o\n" +
-	"\x0fInternalService\x12\\\n" +
-	"\fGetBattleSet\x12\".gamemaster.v1.GetBattleSetRequest\x1a#.gamemaster.v1.GetBattleSetResponse\"\x03\x90\x02\x01B\xd1\x01\n" +
+	"\x1cgamemaster/v1/internal.proto\x12\rgamemaster.v1\"/\n" +
+	"\x10GetBattleRequest\x12\x1b\n" +
+	"\tbattle_id\x18\x01 \x01(\tR\bbattleId\"D\n" +
+	"\x11GetBattleResponse\x12\x19\n" +
+	"\brule_set\x18\x01 \x01(\tR\aruleSet\x12\x14\n" +
+	"\x05times\x18\x02 \x01(\rR\x05times2f\n" +
+	"\x0fInternalService\x12S\n" +
+	"\tGetBattle\x12\x1f.gamemaster.v1.GetBattleRequest\x1a .gamemaster.v1.GetBattleResponse\"\x03\x90\x02\x01B\xd1\x01\n" +
 	"\x11com.gamemaster.v1B\rInternalProtoP\x01ZXgithub.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1;gamemasterv1\xa2\x02\x03GXX\xaa\x02\rGamemaster.V1\xca\x02\rGamemaster\\V1\xe2\x02\x19Gamemaster\\V1\\GPBMetadata\xea\x02\x0eGamemaster::V1b\x06proto3"
 
 var (
@@ -136,12 +146,12 @@ func file_gamemaster_v1_internal_proto_rawDescGZIP() []byte {
 
 var file_gamemaster_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_gamemaster_v1_internal_proto_goTypes = []any{
-	(*GetBattleSetRequest)(nil),  // 0: gamemaster.v1.GetBattleSetRequest
-	(*GetBattleSetResponse)(nil), // 1: gamemaster.v1.GetBattleSetResponse
+	(*GetBattleRequest)(nil),  // 0: gamemaster.v1.GetBattleRequest
+	(*GetBattleResponse)(nil), // 1: gamemaster.v1.GetBattleResponse
 }
 var file_gamemaster_v1_internal_proto_depIdxs = []int32{
-	0, // 0: gamemaster.v1.InternalService.GetBattleSet:input_type -> gamemaster.v1.GetBattleSetRequest
-	1, // 1: gamemaster.v1.InternalService.GetBattleSet:output_type -> gamemaster.v1.GetBattleSetResponse
+	0, // 0: gamemaster.v1.InternalService.GetBattle:input_type -> gamemaster.v1.GetBattleRequest
+	1, // 1: gamemaster.v1.InternalService.GetBattle:output_type -> gamemaster.v1.GetBattleResponse
 	1, // [1:2] is the sub-list for method output_type
 	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name

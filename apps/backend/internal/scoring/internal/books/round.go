@@ -37,10 +37,17 @@ type Round struct {
 }
 
 func NewRound(id RoundID, book BookID, times uint32, startsAt time.Time) (Round, error) {
-	if times < 1 || times > MaxTimes {
-		return Round{}, fmt.Errorf("%w: round %q: %w, not %d", ErrRefused, id, ErrInvalidTimes, times)
+	if err := checkTimes(times); err != nil {
+		return Round{}, fmt.Errorf("%w: round %q: %w", ErrRefused, id, err)
 	}
 	return Round{ID: id, Book: book, Times: times, StartsAt: startsAt.UTC()}, nil
+}
+
+func checkTimes(times uint32) error {
+	if times < 1 || times > MaxTimes {
+		return fmt.Errorf("%w, not %d", ErrInvalidTimes, times)
+	}
+	return nil
 }
 
 // Holds says whether a take at a time counts in the round's numbers: from its start, and before its end once scored.

@@ -419,11 +419,18 @@ export class GetCardsResponse extends Message<GetCardsResponse> {
   sets: SetCards[] = [];
 
   /**
-   * What a placeholder may name, by path.
+   * What a placeholder may name of the rules, by path, with default's value.
    *
    * @generated from field: repeated promo.v1.Placeholder placeholders = 2;
    */
   placeholders: Placeholder[] = [];
+
+  /**
+   * A set plays in no battle of its own: its cards are filled as in this one.
+   *
+   * @generated from field: promo.v1.ExampleBattle example_battle = 3;
+   */
+  exampleBattle?: ExampleBattle;
 
   constructor(data?: PartialMessage<GetCardsResponse>) {
     super();
@@ -435,6 +442,7 @@ export class GetCardsResponse extends Message<GetCardsResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "sets", kind: "message", T: SetCards, repeated: true },
     { no: 2, name: "placeholders", kind: "message", T: Placeholder, repeated: true },
+    { no: 3, name: "example_battle", kind: "message", T: ExampleBattle },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCardsResponse {
@@ -451,6 +459,54 @@ export class GetCardsResponse extends Message<GetCardsResponse> {
 
   static equals(a: GetCardsResponse | PlainMessage<GetCardsResponse> | undefined, b: GetCardsResponse | PlainMessage<GetCardsResponse> | undefined): boolean {
     return proto3.util.equals(GetCardsResponse, a, b);
+  }
+}
+
+/**
+ * The battle a set's cards are filled as, on this page only.
+ *
+ * @generated from message promo.v1.ExampleBattle
+ */
+export class ExampleBattle extends Message<ExampleBattle> {
+  /**
+   * @generated from field: uint32 times = 1;
+   */
+  times = 0;
+
+  /**
+   * What a placeholder may name of the battle, by path, with this battle's value: `battle.times`,
+   * `battle.points.first`.
+   *
+   * @generated from field: repeated promo.v1.Placeholder placeholders = 2;
+   */
+  placeholders: Placeholder[] = [];
+
+  constructor(data?: PartialMessage<ExampleBattle>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "promo.v1.ExampleBattle";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "placeholders", kind: "message", T: Placeholder, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ExampleBattle {
+    return new ExampleBattle().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ExampleBattle {
+    return new ExampleBattle().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ExampleBattle {
+    return new ExampleBattle().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ExampleBattle | PlainMessage<ExampleBattle> | undefined, b: ExampleBattle | PlainMessage<ExampleBattle> | undefined): boolean {
+    return proto3.util.equals(ExampleBattle, a, b);
   }
 }
 
@@ -507,7 +563,7 @@ export class Card extends Message<Card> {
   draft?: CardDraft;
 
   /**
-   * As players read it now. Unset when a placeholder no longer fills, and `problem` says why.
+   * As players read it now, in the example battle. Unset when a placeholder no longer fills, and `problem` says why.
    *
    * @generated from field: promo.v1.TeaserCard filled = 2;
    */
@@ -550,7 +606,8 @@ export class Card extends Message<Card> {
 
 /**
  * A card as the operator writes it: `{path}` in the headline or the line is a value of the set, by its path in
- * planet.v1.Rules as protojson writes it, such as `{clicks.tempo}` or `{bonuses.boxes.minInterval}`.
+ * planet.v1.Rules as protojson writes it, such as `{clicks.tempo}` or `{bonuses.boxes.minInterval}`, or of the battle
+ * that plays it, such as `{battle.times}` or `{battle.points.first}`.
  *
  * @generated from message promo.v1.CardDraft
  */
@@ -605,7 +662,7 @@ export class CardDraft extends Message<CardDraft> {
 }
 
 /**
- * A number or a duration of planet.v1.Rules, with default's value as it reads on a card.
+ * A number or a duration a card may name, with a value as it reads on a card.
  *
  * @generated from message promo.v1.Placeholder
  */
