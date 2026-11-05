@@ -46,5 +46,5 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 
 	pockets := u.terrain.PocketsClosedBy(in.TileID, in.CountryID, u.rules().Enclose.MaxTiles)
 
-	return out, u.annexer.Annex(ctx, bonuses.EntrantOf(payer), holder, in, pockets)
+	return out, u.annexer.Annex(ctx, holder, in, pockets)
 }

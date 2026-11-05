@@ -787,27 +787,6 @@ func TestACallerThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 	assert.Len(t, events, eventBuffer)
 }
 
-func TestAClosedShapeReachesEveryoneAndOnlyItsCloserIsToldItIsTheirs(t *testing.T) {
-	registry, _ := newTestRegistry()
-	mine := attend(t, registry, "scope-a")
-	theirs := attend(t, registry, "scope-b")
-
-	registry.PublishEnclosed("scope-a", Enclosed{
-		CountryID: "fr", ClosingTile: 7, Wall: []uint32{7, 8}, Filled: []uint32{9},
-	})
-
-	yours := (<-mine).Enclosed
-	require.NotNil(t, yours)
-	assert.True(t, yours.Yours)
-	assert.Equal(t, []uint32{9}, yours.Filled)
-
-	seen := (<-theirs).Enclosed
-	require.NotNil(t, seen)
-	assert.False(t, seen.Yours)
-	assert.Equal(t, "fr", seen.CountryID)
-	assert.Equal(t, []uint32{7, 8}, seen.Wall)
-}
-
 func TestAGrantReachesOnlyTheSignedInAccountsOwnStreams(t *testing.T) {
 	registry, _ := newTestRegistry()
 	mine := attend(t, registry, EntrantOf(clicks.Payer{Scope: "scope-a", Account: "acc-1", Linked: true}))

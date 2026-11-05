@@ -26,8 +26,7 @@ func (e Enclosing) Strikes(see func(Strike)) {
 }
 
 func (e Enclosing) Show(see func(Scene)) {
-	showImpacts(see, e.At, e.Country, e.Impacts)
-	see(Scene{At: e.At, Enclosure: bonusAt(e.Tile, e.Country, e.Impacts)})
+	see(Scene{At: e.At, Enclosure: &Enclosure{Tile: e.Tile, Country: e.Country, Impacts: e.Impacts}})
 }
 
 func (e Enclosing) Entry() (Entry, error) {

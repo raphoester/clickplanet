@@ -42,6 +42,31 @@ func (s *testSuite) newStorageOn(cfg inmemory_tile_storage.Config, persistence i
 	return inmemory_tile_storage.New(borders, cfg, persistence, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 }
 
+func (s *testSuite) TestAnEnclosureBiggerThanAStreamsBufferTakesOneSlotAndCutsNoStream() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	storage := s.newStorage(inmemory_tile_storage.Config{SubscriberBuffer: 1})
+	listener, _, err := storage.Subscribe(ctx)
+	s.Require().NoError(err)
+
+	s.Require().NoError(storage.Enclose(ctx, clicks.Enclosure{Country: "fr"}, func(tiles clicks.Claimable) error {
+		for tile := uint32(1); tile <= 1000; tile++ {
+			s.Require().NoError(tiles.Set(ctx, tile, "fr"))
+		}
+		return nil
+	}))
+
+	change, open := <-listener
+	s.Require().True(open)
+	s.Len(change.Enclosure.Filled, 1000)
+
+	s.Require().NoError(storage.Set(ctx, 2000, "fr"))
+	next, open := <-listener
+	s.Require().True(open, "the stream is still open")
+	s.Equal(uint32(2000), next.Update.Tile)
+}
+
 func (s *testSuite) TestASlowSubscriberIsClosedRatherThanHoldingTheWriters() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

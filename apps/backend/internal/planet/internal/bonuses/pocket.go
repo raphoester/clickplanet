@@ -1,6 +1,9 @@
 package bonuses
 
-import "github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
+import (
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
+)
 
 type Pocket struct {
 	inside []uint32
@@ -11,13 +14,8 @@ func (p Pocket) Inside() []uint32 {
 	return p.inside
 }
 
-func (p Pocket) Announcement(country string, closingTile uint32) Enclosed {
-	return Enclosed{
-		CountryID:   country,
-		ClosingTile: closingTile,
-		Wall:        p.wall,
-		Filled:      p.inside,
-	}
+func (p Pocket) Enclosure(country string, closingTile uint32) clicks.Enclosure {
+	return clicks.Enclosure{Country: country, ClosingTile: closingTile, Wall: p.wall}
 }
 
 type pocketBuilder struct {

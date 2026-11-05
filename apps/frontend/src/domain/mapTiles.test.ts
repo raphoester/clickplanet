@@ -86,6 +86,21 @@ describe("a tile takes a value only when its version is newer", () => {
         expect(tiles.ownership.ownerOf(1)).toBe("jp")
     })
 
+    it("gives an enclosure's tiles to its flag and keeps what each struck tile kept, a later update winning", () => {
+        const tiles = tilesOf()
+        tiles.opened(at(10))
+        read(tiles, batch(1, 4, at(10), {1: "fr", 2: "fr", 3: "de"}, {3: 3}))
+        live(tiles, update(1, "it", at(12)))
+
+        const enclosed = changes()
+        tiles.applyEnclosure("jp", [1, 2], [{tile: 3, shields: 2}], at(11), enclosed)
+
+        expect(enclosed.owners).toEqual([{tile: 2, country: "jp"}])
+        expect(tiles.ownership.ownerOf(1)).toBe("it")
+        expect(tiles.ownership.ownerOf(3)).toBe("de")
+        expect(tiles.shields.shieldsOf(3)).toBe(2)
+    })
+
     it("sets the shields a struck tile kept, however many times the strike is heard", () => {
         const tiles = tilesOf()
         tiles.opened(at(10))

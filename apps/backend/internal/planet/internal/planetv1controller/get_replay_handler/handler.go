@@ -69,8 +69,24 @@ func eventOf(scene ledger.Scene) *planetv1.PlanetEvent {
 	case scene.Spread != nil:
 		return planetmessage.TilesSpread(scene.Spread.Country, scene.Spread.Tile, scene.Spread.Tiles)
 	case scene.Enclosure != nil:
-		return planetmessage.TilesEnclosed(scene.Enclosure.Country, scene.Enclosure.Tile, nil, scene.Enclosure.Tiles, false)
+		return planetmessage.TilesEnclosed(enclosureOf(scene.Enclosure), clicks.MapVersion{}, false)
 	default:
 		return planetmessage.TileUpdate(scene.Change.TileUpdate, clicks.MapVersion{})
 	}
+}
+
+func enclosureOf(scene *ledger.Enclosure) *clicks.Enclosure {
+	enclosure := &clicks.Enclosure{Country: scene.Country, ClosingTile: scene.Tile}
+	for _, impact := range scene.Impacts {
+		switch impact.Outcome {
+		case clicks.Taken:
+			enclosure.Filled = append(enclosure.Filled, impact.Tile)
+		case clicks.Shielded:
+			enclosure.Filled = append(enclosure.Filled, impact.Tile)
+			enclosure.Struck = append(enclosure.Struck, clicks.TileShields{Tile: impact.Tile, Shields: impact.Shields})
+		case clicks.Unchanged:
+		}
+	}
+
+	return enclosure
 }

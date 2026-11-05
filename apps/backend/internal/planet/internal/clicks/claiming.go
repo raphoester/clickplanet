@@ -22,27 +22,57 @@ type Claimable interface {
 	Fortify(ctx context.Context, tile uint32, flag string, most int) (Fortification, error)
 }
 
-func NewClaiming(tiles Claimable, shieldsPerTile func() int) Claiming {
-	return Claiming{tiles: tiles, shielding: NewShielding(tiles), shieldsPerTile: shieldsPerTile}
+type Enclosing interface {
+	Enclose(ctx context.Context, enclosure Enclosure, write func(tiles Claimable) error) error
+}
+
+type ClaimableTiles interface {
+	Claimable
+	Enclosing
+}
+
+func NewClaiming(tiles ClaimableTiles, shieldsPerTile func() int) Claiming {
+	return Claiming{tiles: tiles, shieldsPerTile: shieldsPerTile}
 }
 
 type Claiming struct {
-	tiles          Claimable
-	shielding      Shielding
+	tiles          ClaimableTiles
 	shieldsPerTile func() int
 }
 
 func (c Claiming) Click(ctx context.Context, tile uint32, flag string) (Impact, error) {
-	return c.claim(ctx, tile, flag, c.tiles.Click)
+	return claim(ctx, c.tiles, tile, flag, c.tiles.Click, c.shieldsPerTile())
 }
 
 func (c Claiming) Claim(ctx context.Context, tile uint32, flag string) (Impact, error) {
-	return c.claim(ctx, tile, flag, c.tiles.Set)
+	return claim(ctx, c.tiles, tile, flag, c.tiles.Set, c.shieldsPerTile())
 }
 
-func (c Claiming) claim(ctx context.Context, tile uint32, flag string, write func(context.Context, uint32, string) error) (Impact, error) {
-	owner, _ := c.tiles.Owner(tile)
-	outcome := c.shielding.Strike(ctx, tile, owner, flag)
+// Enclose claims the tiles inside as one write, which every stream hears as one change.
+func (c Claiming) Enclose(ctx context.Context, enclosure Enclosure, inside []uint32) ([]Impact, error) {
+	enclosure.By = PayerOf(ctx)
+	most := c.shieldsPerTile()
+	impacts := make([]Impact, 0, len(inside))
+	err := c.tiles.Enclose(ctx, enclosure, func(tiles Claimable) error {
+		for _, tile := range inside {
+			impact, err := claim(ctx, tiles, tile, enclosure.Country, tiles.Set, most)
+			if err != nil {
+				return err
+			}
+			impacts = append(impacts, impact)
+		}
+
+		return nil
+	})
+
+	return impacts, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
+}
+
+func claim(
+	ctx context.Context, tiles Claimable, tile uint32, flag string, write func(context.Context, uint32, string) error, most int,
+) (Impact, error) {
+	owner, _ := tiles.Owner(tile)
+	outcome := NewShielding(tiles).Strike(ctx, tile, owner, flag)
 
 	if err := write(ctx, tile, outcome.OwnerAfter(owner, flag)); err != nil {
 		return Impact{}, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
@@ -50,7 +80,7 @@ func (c Claiming) claim(ctx context.Context, tile uint32, flag string, write fun
 
 	var fortified *Fortification
 	if outcome == Taken {
-		fortification, err := c.tiles.Fortify(ctx, tile, flag, c.shieldsPerTile())
+		fortification, err := tiles.Fortify(ctx, tile, flag, most)
 		switch {
 		case err == nil:
 			fortified = &fortification
@@ -59,5 +89,5 @@ func (c Claiming) claim(ctx context.Context, tile uint32, flag string, write fun
 		}
 	}
 
-	return Impact{Tile: tile, Owner: owner, Outcome: outcome, Shields: c.tiles.Shields(tile), Fortified: fortified}, nil
+	return Impact{Tile: tile, Owner: owner, Outcome: outcome, Shields: tiles.Shields(tile), Fortified: fortified}, nil
 }

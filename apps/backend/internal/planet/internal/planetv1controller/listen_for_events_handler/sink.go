@@ -50,10 +50,8 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		return s.stream.Send(planetmessage.LandmassFortified(event.Fortification, event.Version))
 	case event.Tally != nil:
 		return s.stream.Send(planetmessage.HoldingsChanged(event.Tally, event.Version))
-	case event.Enclosed != nil:
-		enclosed := event.Enclosed
-		return s.stream.Send(planetmessage.TilesEnclosed(
-			enclosed.CountryID, enclosed.ClosingTile, enclosed.Wall, enclosed.Filled, enclosed.Yours))
+	case event.Enclosure != nil:
+		return s.stream.Send(planetmessage.TilesEnclosed(event.Enclosure, event.Version, event.Yours))
 	case event.Spread != nil:
 		return s.stream.Send(planetmessage.TilesSpread(event.Spread.CountryID, event.Spread.Tile, event.Spread.Neighbours))
 	case event.Granted != nil:

@@ -32,8 +32,7 @@ The spread click is spent either way, since the click was accepted.
 `tiles_spread` still lists every neighbour touched; the tile updates say which
 were taken and which lost a shield.
 
-**Then it tells the planet, with `tiles_spread`**, as an enclose does with
-`tiles_enclosed`: the tile clicked and the neighbours it took, after they are set,
+**Then it tells the planet, with `tiles_spread`**: the tile clicked and the neighbours it took, after they are set,
 so every client can animate why seven tiles flipped. `Registry.PublishSpread`
 sends it to every caller.
 

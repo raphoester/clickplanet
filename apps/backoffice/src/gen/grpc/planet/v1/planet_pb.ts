@@ -2824,6 +2824,8 @@ export class BombDropped extends Message<BombDropped> {
 }
 
 /**
+ * The one event of an enclosure on the stream: no tile_update is sent for the tiles it fills.
+ *
  * @generated from message planet.v1.TilesEnclosed
  */
 export class TilesEnclosed extends Message<TilesEnclosed> {
@@ -2843,6 +2845,8 @@ export class TilesEnclosed extends Message<TilesEnclosed> {
   wallTileIds: number[] = [];
 
   /**
+   * Every tile inside, nearest the closing tile first: each is country_id's now, but those in struck.
+   *
    * @generated from field: repeated uint32 filled_tile_ids = 4;
    */
   filledTileIds: number[] = [];
@@ -2851,6 +2855,18 @@ export class TilesEnclosed extends Message<TilesEnclosed> {
    * @generated from field: bool yours = 5;
    */
   yours = false;
+
+  /**
+   * Each lost one shield and kept its flag: with the shields it kept.
+   *
+   * @generated from field: repeated planet.v1.TileShields struck = 6;
+   */
+  struck: TileShields[] = [];
+
+  /**
+   * @generated from field: planet.v1.MapVersion version = 7;
+   */
+  version?: MapVersion;
 
   constructor(data?: PartialMessage<TilesEnclosed>) {
     super();
@@ -2865,6 +2881,8 @@ export class TilesEnclosed extends Message<TilesEnclosed> {
     { no: 3, name: "wall_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
     { no: 4, name: "filled_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
     { no: 5, name: "yours", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "struck", kind: "message", T: TileShields, repeated: true },
+    { no: 7, name: "version", kind: "message", T: MapVersion },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TilesEnclosed {

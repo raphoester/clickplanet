@@ -8,6 +8,7 @@ import {
     catchOf,
     shieldsOf,
     enclosureOf,
+    takenOf,
     offerOf,
     PlanetBackend,
     quizOf,
@@ -1103,14 +1104,17 @@ describe("enclosureOf", () => {
         },
     })
 
-    it("reads the shape and what it took", () => {
-        expect(enclosureOf(enclosed())).toEqual({
+    it("reads the shape, what it filled, what it struck and its version", () => {
+        expect(enclosureOf(enclosed({struck: [new TileShields({tileId: 10, shields: 2})], version: versionAt(42)}))).toEqual({
             countryId: "jp",
             closingTile: 4,
             wall: [4, 5, 6],
             filled: [9, 10],
+            struck: [{tile: 10, shields: 2}],
+            version: {epoch: versionAt(42).epoch, seq: 42},
             yours: undefined,
         })
+        expect(takenOf(enclosureOf(enclosed({struck: [new TileShields({tileId: 10, shields: 2})]}))!)).toEqual([9])
     })
 
     it("says when the shape is this client's", () => {
@@ -1271,6 +1275,30 @@ describe("PlanetBackend bombs", () => {
         backend.listenForBombs(() => order.push("bomb"))
 
         await vi.waitFor(() => expect(order).toEqual(["updates", "bomb"]))
+        backend.close()
+    })
+
+    it("hands over the tile updates that came before an enclosure, before the enclosure", async () => {
+        const events = [
+            tileUpdateEvent({tileId: 7, countryId: "jp"}),
+            new PlanetEvent({
+                event: {case: "tilesEnclosed", value: new TilesEnclosed({countryId: "fr", closingTileId: 6, filledTileIds: [7]})},
+            }),
+        ]
+        const listenForEvents = vi.fn(async function* () {
+            yield* events
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000)
+
+        const order: string[] = []
+        backend.listenForUpdatesBatch(() => order.push("updates"))
+        backend.listenForBonuses({
+            onEnclosed: () => order.push("enclosure"),
+            onOffered: () => {}, onTaken: () => {}, onSpread: () => {}, onCharges: () => {}, onRules: () => {},
+        })
+
+        await vi.waitFor(() => expect(order).toEqual(["updates", "enclosure"]))
         backend.close()
     })
 

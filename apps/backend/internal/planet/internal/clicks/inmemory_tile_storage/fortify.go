@@ -10,10 +10,8 @@ import (
 )
 
 func (s *Storage) Fortify(ctx context.Context, tile uint32, flag string, most int) (clicks.Fortification, error) {
-	landmass := s.landmasses.of(tile)
-
 	s.mu.RLock()
-	err := s.fortifyErrorLocked(landmass, flag)
+	err := s.fortifyErrorLocked(s.landmasses.of(tile), flag)
 	s.mu.RUnlock()
 	if err != nil {
 		return clicks.Fortification{}, err
@@ -22,6 +20,17 @@ func (s *Storage) Fortify(ctx context.Context, tile uint32, flag string, most in
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	fortification, err := s.fortifyLocked(ctx, tile, flag, most)
+	if err != nil {
+		return clicks.Fortification{}, err
+	}
+	s.publishLocked(clicks.Change{Fortification: &fortification})
+
+	return fortification, nil
+}
+
+func (s *Storage) fortifyLocked(ctx context.Context, tile uint32, flag string, most int) (clicks.Fortification, error) {
+	landmass := s.landmasses.of(tile)
 	if err := s.fortifyErrorLocked(landmass, flag); err != nil {
 		return clicks.Fortification{}, err
 	}
@@ -36,13 +45,10 @@ func (s *Storage) Fortify(ctx context.Context, tile uint32, flag string, most in
 	}
 	s.lockLocked(landmass, flag)
 
-	fortification := clicks.Fortification{
+	return clicks.Fortification{
 		Landmass: landmass, Ground: s.landmasses.groundOf(tile), Country: flag, Tile: tile,
 		Account: cpctx.GetAccount(ctx), Tiles: len(members), Raised: raised,
-	}
-	s.publishLocked(clicks.Change{Fortification: &fortification})
-
-	return fortification, nil
+	}, nil
 }
 
 // The flag each locked landmass is locked to: the one that fortified it last, or settled on it whole.

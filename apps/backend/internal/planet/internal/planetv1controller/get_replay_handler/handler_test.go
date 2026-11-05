@@ -78,7 +78,10 @@ func TestEachSceneGoesOutAsTheLiveStreamSentIt(t *testing.T) {
 			}},
 			{At: at.Add(time.Second), Blast: &blast},
 			{At: at.Add(2 * time.Second), Spread: &ledger.Bonus{Tile: 1, Country: "fr", Tiles: []uint32{2, 3}}},
-			{At: at.Add(3 * time.Second), Enclosure: &ledger.Bonus{Tile: 9, Country: "fr", Tiles: []uint32{4}}},
+			{At: at.Add(3 * time.Second), Enclosure: &ledger.Enclosure{Tile: 9, Country: "fr", Impacts: []clicks.Impact{
+				{Tile: 4, Owner: "de", Outcome: clicks.Taken},
+				{Tile: 8, Owner: "it", Outcome: clicks.Shielded, Shields: 2},
+			}}},
 		},
 	}}
 
@@ -122,6 +125,11 @@ func TestEachSceneGoesOutAsTheLiveStreamSentIt(t *testing.T) {
 
 	enclosure := events[3].GetEvent().GetTilesEnclosed()
 	assert.Equal(t, uint32(9), enclosure.GetClosingTileId())
-	assert.Equal(t, []uint32{4}, enclosure.GetFilledTileIds())
+	assert.Equal(t, "fr", enclosure.GetCountryId())
+	assert.Equal(t, []uint32{4, 8}, enclosure.GetFilledTileIds())
+	require.Len(t, enclosure.GetStruck(), 1)
+	assert.Equal(t, uint32(8), enclosure.GetStruck()[0].GetTileId())
+	assert.Equal(t, uint32(2), enclosure.GetStruck()[0].GetShields())
 	assert.Empty(t, enclosure.GetWallTileIds(), "the ledger keeps no wall")
+	assert.Nil(t, enclosure.GetVersion(), "a replay is not the live map: no version")
 }

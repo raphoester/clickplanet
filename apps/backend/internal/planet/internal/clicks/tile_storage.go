@@ -18,6 +18,7 @@ type TileStorage interface {
 	Strike(ctx context.Context, tile uint32, owner string) bool
 	Shield(ctx context.Context, tile uint32, country string, most int) error
 	Fortify(ctx context.Context, tile uint32, flag string, most int) (Fortification, error)
+	Enclose(ctx context.Context, enclosure Enclosure, write func(tiles Claimable) error) error
 	Fortresses() map[LandmassID]string
 	// A player's take holds its tile for the account in its context; any other write leaves the tile held by nobody.
 	HoldingsOf(landmass LandmassID) []Holding

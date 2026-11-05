@@ -157,7 +157,15 @@ func (s *testSuite) TestTheQueryAnswersWhatEventShowShowsForEveryKind() {
 				for i, tile := range scene.Blast.Cleared {
 					shown = append(shown, change(by, wire(clicks.TileUpdate{Tile: tile, Previous: scene.Blast.Owners[i]})))
 				}
-			case scene.Spread != nil, scene.Enclosure != nil:
+			case scene.Enclosure != nil:
+				for _, impact := range scene.Enclosure.Impacts {
+					update := clicks.TileUpdate{Tile: impact.Tile, Value: scene.Enclosure.Country, Previous: impact.Owner}
+					if impact.Outcome == clicks.Shielded {
+						update = clicks.TileUpdate{Tile: impact.Tile, Value: impact.Owner, Previous: impact.Owner, Shields: impact.Shields}
+					}
+					shown = append(shown, change(by, wire(update)))
+				}
+			case scene.Spread != nil:
 			}
 		})
 	}

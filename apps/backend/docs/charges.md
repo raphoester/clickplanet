@@ -70,7 +70,7 @@ its own.
   `ClaimBonusResponse.charges` answers the claim, `PlaceShieldResponse.charges` a
   shield placed. After that the client follows
   its own calls: a drop spends the bomb, an accepted click sent with spread on a
-  spread click, its own `tiles_enclosed` an enclosure. A charge spent in another
+  spread click, its own `tiles_enclosed` (`yours`) an enclosure. A charge spent in another
   tab shows until the next read. **`Click` answers nothing about them.** It was so
   a shadow-banned caller could not tell its clicks were dropped; a ban is told now
   (see [A ban is told](antibot.md#a-ban-is-told)), so the answer could carry them.

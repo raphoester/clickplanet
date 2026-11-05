@@ -130,6 +130,9 @@ export type Enclosure = {
     closingTile: number
     wall: number[]
     filled: number[]
+    // Each lost a shield and kept its flag.
+    struck: {tile: number, shields: number}[]
+    version: MapVersion
     yours?: boolean
 }
 

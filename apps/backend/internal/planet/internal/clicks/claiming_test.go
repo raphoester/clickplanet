@@ -9,6 +9,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -85,4 +86,28 @@ func TestAClaimOfATileTheFlagHoldsDoesNotFortify(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Zero(t, tiles.Shields(20))
+}
+
+func TestAnEnclosureClaimsItsTilesAsOneChangeNamingWhoClosedIt(t *testing.T) {
+	tiles := claimable(t, map[uint32]string{7: "de", 8: "de"})
+	require.NoError(t, tiles.Shield(t.Context(), 8, "de", 10))
+	listener, _, err := tiles.Subscribe(t.Context())
+	require.NoError(t, err)
+	ctx := cpctx.AddAccountToContext(t.Context(), "a-player")
+
+	impacts, err := clicks.NewClaiming(tiles, tenAShield).Enclose(ctx, clicks.Enclosure{Country: "fr", ClosingTile: 6}, []uint32{7, 8, 20, 21, 22})
+	require.NoError(t, err)
+
+	require.Len(t, impacts, 5)
+	assert.Equal(t, clicks.Taken, impacts[0].Outcome)
+	assert.Equal(t, clicks.Shielded, impacts[1].Outcome, "a bonus is never a way around a shield")
+	assert.NotNil(t, impacts[4].Fortified, "the take that made the island whole fortified it")
+
+	enclosure := (<-listener).Enclosure
+	require.NotNil(t, enclosure)
+	assert.Equal(t, []uint32{7, 8, 20, 21, 22}, enclosure.Filled)
+	assert.Equal(t, []clicks.TileShields{{Tile: 8, Shields: 0}}, enclosure.Struck)
+	assert.Equal(t, "a-player", enclosure.By.Account)
+	assert.NotNil(t, (<-listener).Fortification)
+	assert.Empty(t, listener, "nothing else was published")
 }
