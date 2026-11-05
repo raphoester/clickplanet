@@ -57,6 +57,9 @@ const (
 	// InternalServiceGetRuleSetNamesProcedure is the fully-qualified name of the InternalService's
 	// GetRuleSetNames RPC.
 	InternalServiceGetRuleSetNamesProcedure = "/planet.v1.InternalService/GetRuleSetNames"
+	// InternalServiceGetRuleSetProcedure is the fully-qualified name of the InternalService's
+	// GetRuleSet RPC.
+	InternalServiceGetRuleSetProcedure = "/planet.v1.InternalService/GetRuleSet"
 )
 
 // InternalServiceClient is a client for the planet.v1.InternalService service.
@@ -75,6 +78,9 @@ type InternalServiceClient interface {
 	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)
 	GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error)
 	GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error)
+	// The values a set plays: default's, with the set's own written over them, for the promo module's cards. NotFound for
+	// a set postgres does not keep.
+	GetRuleSet(context.Context, *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the planet.v1.InternalService service. By
@@ -144,6 +150,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getRuleSet: connect.NewClient[v1.GetRuleSetRequest, v1.GetRuleSetResponse](
+			httpClient,
+			baseURL+InternalServiceGetRuleSetProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetRuleSet")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -157,6 +170,7 @@ type internalServiceClient struct {
 	getCountrySizes   *connect.Client[v1.GetCountrySizesRequest, v1.GetCountrySizesResponse]
 	getAllegianceOf   *connect.Client[v1.GetAllegianceOfRequest, v1.GetAllegianceOfResponse]
 	getRuleSetNames   *connect.Client[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse]
+	getRuleSet        *connect.Client[v1.GetRuleSetRequest, v1.GetRuleSetResponse]
 }
 
 // GetLedger calls planet.v1.InternalService.GetLedger.
@@ -199,6 +213,11 @@ func (c *internalServiceClient) GetRuleSetNames(ctx context.Context, req *connec
 	return c.getRuleSetNames.CallUnary(ctx, req)
 }
 
+// GetRuleSet calls planet.v1.InternalService.GetRuleSet.
+func (c *internalServiceClient) GetRuleSet(ctx context.Context, req *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error) {
+	return c.getRuleSet.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the planet.v1.InternalService service.
 type InternalServiceHandler interface {
 	// AdminService/GetLedger, for the clips module's cast: who took which tile.
@@ -215,6 +234,9 @@ type InternalServiceHandler interface {
 	GetCountrySizes(context.Context, *connect.Request[v1.GetCountrySizesRequest]) (*connect.Response[v1.GetCountrySizesResponse], error)
 	GetAllegianceOf(context.Context, *connect.Request[v1.GetAllegianceOfRequest]) (*connect.Response[v1.GetAllegianceOfResponse], error)
 	GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error)
+	// The values a set plays: default's, with the set's own written over them, for the promo module's cards. NotFound for
+	// a set postgres does not keep.
+	GetRuleSet(context.Context, *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -280,6 +302,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetRuleSetHandler := connect.NewUnaryHandler(
+		InternalServiceGetRuleSetProcedure,
+		svc.GetRuleSet,
+		connect.WithSchema(internalServiceMethods.ByName("GetRuleSet")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetLedgerProcedure:
@@ -298,6 +327,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetAllegianceOfHandler.ServeHTTP(w, r)
 		case InternalServiceGetRuleSetNamesProcedure:
 			internalServiceGetRuleSetNamesHandler.ServeHTTP(w, r)
+		case InternalServiceGetRuleSetProcedure:
+			internalServiceGetRuleSetHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -337,4 +368,8 @@ func (UnimplementedInternalServiceHandler) GetAllegianceOf(context.Context, *con
 
 func (UnimplementedInternalServiceHandler) GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetRuleSetNames is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetRuleSet(context.Context, *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetRuleSet is not implemented"))
 }

@@ -875,11 +875,100 @@ func (x *GetRuleSetNamesResponse) GetNames() []string {
 	return nil
 }
 
+type GetRuleSetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRuleSetRequest) Reset() {
+	*x = GetRuleSetRequest{}
+	mi := &file_planet_v1_internal_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRuleSetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRuleSetRequest) ProtoMessage() {}
+
+func (x *GetRuleSetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRuleSetRequest.ProtoReflect.Descriptor instead.
+func (*GetRuleSetRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *GetRuleSetRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type GetRuleSetResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every value, the set's own or default's.
+	Played        *Rules `protobuf:"bytes,1,opt,name=played,proto3" json:"played,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRuleSetResponse) Reset() {
+	*x = GetRuleSetResponse{}
+	mi := &file_planet_v1_internal_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRuleSetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRuleSetResponse) ProtoMessage() {}
+
+func (x *GetRuleSetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRuleSetResponse.ProtoReflect.Descriptor instead.
+func (*GetRuleSetResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetRuleSetResponse) GetPlayed() *Rules {
+	if x != nil {
+		return x.Played
+	}
+	return nil
+}
+
 var File_planet_v1_internal_proto protoreflect.FileDescriptor
 
 const file_planet_v1_internal_proto_rawDesc = "" +
 	"\n" +
-	"\x18planet/v1/internal.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17planet/v1/history.proto\x1a\x16planet/v1/ledger.proto\x1a\x16planet/v1/planet.proto\x1a\x16planet/v1/totals.proto\"\xa9\x01\n" +
+	"\x18planet/v1/internal.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17planet/v1/history.proto\x1a\x16planet/v1/ledger.proto\x1a\x16planet/v1/planet.proto\x1a\x15planet/v1/rules.proto\x1a\x16planet/v1/totals.proto\"\xa9\x01\n" +
 	"\x14GetMapHistoryRequest\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
 	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12-\n" +
@@ -931,7 +1020,11 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"allegiance\"\x18\n" +
 	"\x16GetRuleSetNamesRequest\"/\n" +
 	"\x17GetRuleSetNamesResponse\x12\x14\n" +
-	"\x05names\x18\x01 \x03(\tR\x05names2\xf4\x05\n" +
+	"\x05names\x18\x01 \x03(\tR\x05names\"'\n" +
+	"\x11GetRuleSetRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\">\n" +
+	"\x12GetRuleSetResponse\x12(\n" +
+	"\x06played\x18\x01 \x01(\v2\x10.planet.v1.RulesR\x06played2\xc4\x06\n" +
 	"\x0fInternalService\x12K\n" +
 	"\tGetLedger\x12\x1b.planet.v1.GetLedgerRequest\x1a\x1c.planet.v1.GetLedgerResponse\"\x03\x90\x02\x01\x12c\n" +
 	"\x11GetTakesByCountry\x12#.planet.v1.GetTakesByCountryRequest\x1a$.planet.v1.GetTakesByCountryResponse\"\x03\x90\x02\x01\x12]\n" +
@@ -940,7 +1033,9 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\"\x03\x90\x02\x01\x12]\n" +
 	"\x0fGetCountrySizes\x12!.planet.v1.GetCountrySizesRequest\x1a\".planet.v1.GetCountrySizesResponse\"\x03\x90\x02\x01\x12]\n" +
 	"\x0fGetAllegianceOf\x12!.planet.v1.GetAllegianceOfRequest\x1a\".planet.v1.GetAllegianceOfResponse\"\x03\x90\x02\x01\x12]\n" +
-	"\x0fGetRuleSetNames\x12!.planet.v1.GetRuleSetNamesRequest\x1a\".planet.v1.GetRuleSetNamesResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
+	"\x0fGetRuleSetNames\x12!.planet.v1.GetRuleSetNamesRequest\x1a\".planet.v1.GetRuleSetNamesResponse\"\x03\x90\x02\x01\x12N\n" +
+	"\n" +
+	"GetRuleSet\x12\x1c.planet.v1.GetRuleSetRequest\x1a\x1d.planet.v1.GetRuleSetResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
 	"\rcom.planet.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -956,7 +1051,7 @@ func file_planet_v1_internal_proto_rawDescGZIP() []byte {
 	return file_planet_v1_internal_proto_rawDescData
 }
 
-var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_planet_v1_internal_proto_goTypes = []any{
 	(*GetMapHistoryRequest)(nil),      // 0: planet.v1.GetMapHistoryRequest
 	(*GetMapHistoryResponse)(nil),     // 1: planet.v1.GetMapHistoryResponse
@@ -976,49 +1071,55 @@ var file_planet_v1_internal_proto_goTypes = []any{
 	(*GetAllegianceOfResponse)(nil),   // 15: planet.v1.GetAllegianceOfResponse
 	(*GetRuleSetNamesRequest)(nil),    // 16: planet.v1.GetRuleSetNamesRequest
 	(*GetRuleSetNamesResponse)(nil),   // 17: planet.v1.GetRuleSetNamesResponse
-	(*timestamppb.Timestamp)(nil),     // 18: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),       // 19: google.protobuf.Duration
-	(*MapHistory)(nil),                // 20: planet.v1.MapHistory
-	(*LedgerTotals)(nil),              // 21: planet.v1.LedgerTotals
-	(*Allegiance)(nil),                // 22: planet.v1.Allegiance
-	(*GetLedgerRequest)(nil),          // 23: planet.v1.GetLedgerRequest
-	(*GetLedgerResponse)(nil),         // 24: planet.v1.GetLedgerResponse
+	(*GetRuleSetRequest)(nil),         // 18: planet.v1.GetRuleSetRequest
+	(*GetRuleSetResponse)(nil),        // 19: planet.v1.GetRuleSetResponse
+	(*timestamppb.Timestamp)(nil),     // 20: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),       // 21: google.protobuf.Duration
+	(*MapHistory)(nil),                // 22: planet.v1.MapHistory
+	(*LedgerTotals)(nil),              // 23: planet.v1.LedgerTotals
+	(*Allegiance)(nil),                // 24: planet.v1.Allegiance
+	(*Rules)(nil),                     // 25: planet.v1.Rules
+	(*GetLedgerRequest)(nil),          // 26: planet.v1.GetLedgerRequest
+	(*GetLedgerResponse)(nil),         // 27: planet.v1.GetLedgerResponse
 }
 var file_planet_v1_internal_proto_depIdxs = []int32{
-	18, // 0: planet.v1.GetMapHistoryRequest.since:type_name -> google.protobuf.Timestamp
-	18, // 1: planet.v1.GetMapHistoryRequest.until:type_name -> google.protobuf.Timestamp
-	19, // 2: planet.v1.GetMapHistoryRequest.step:type_name -> google.protobuf.Duration
-	20, // 3: planet.v1.GetMapHistoryResponse.history:type_name -> planet.v1.MapHistory
-	18, // 4: planet.v1.GetLedgerTotalsRequest.since:type_name -> google.protobuf.Timestamp
-	18, // 5: planet.v1.GetLedgerTotalsRequest.until:type_name -> google.protobuf.Timestamp
-	21, // 6: planet.v1.GetLedgerTotalsResponse.totals:type_name -> planet.v1.LedgerTotals
+	20, // 0: planet.v1.GetMapHistoryRequest.since:type_name -> google.protobuf.Timestamp
+	20, // 1: planet.v1.GetMapHistoryRequest.until:type_name -> google.protobuf.Timestamp
+	21, // 2: planet.v1.GetMapHistoryRequest.step:type_name -> google.protobuf.Duration
+	22, // 3: planet.v1.GetMapHistoryResponse.history:type_name -> planet.v1.MapHistory
+	20, // 4: planet.v1.GetLedgerTotalsRequest.since:type_name -> google.protobuf.Timestamp
+	20, // 5: planet.v1.GetLedgerTotalsRequest.until:type_name -> google.protobuf.Timestamp
+	23, // 6: planet.v1.GetLedgerTotalsResponse.totals:type_name -> planet.v1.LedgerTotals
 	6,  // 7: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
 	6,  // 8: planet.v1.GetTakesByCountryResponse.taken_from:type_name -> planet.v1.CountryTakes
 	9,  // 9: planet.v1.GetTerritoriesResponse.territories:type_name -> planet.v1.Territory
 	10, // 10: planet.v1.Territory.grounds:type_name -> planet.v1.Ground
 	13, // 11: planet.v1.GetCountrySizesResponse.country_sizes:type_name -> planet.v1.CountrySize
-	22, // 12: planet.v1.GetAllegianceOfResponse.allegiance:type_name -> planet.v1.Allegiance
-	23, // 13: planet.v1.InternalService.GetLedger:input_type -> planet.v1.GetLedgerRequest
-	4,  // 14: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
-	2,  // 15: planet.v1.InternalService.GetLedgerTotals:input_type -> planet.v1.GetLedgerTotalsRequest
-	0,  // 16: planet.v1.InternalService.GetMapHistory:input_type -> planet.v1.GetMapHistoryRequest
-	7,  // 17: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
-	11, // 18: planet.v1.InternalService.GetCountrySizes:input_type -> planet.v1.GetCountrySizesRequest
-	14, // 19: planet.v1.InternalService.GetAllegianceOf:input_type -> planet.v1.GetAllegianceOfRequest
-	16, // 20: planet.v1.InternalService.GetRuleSetNames:input_type -> planet.v1.GetRuleSetNamesRequest
-	24, // 21: planet.v1.InternalService.GetLedger:output_type -> planet.v1.GetLedgerResponse
-	5,  // 22: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
-	3,  // 23: planet.v1.InternalService.GetLedgerTotals:output_type -> planet.v1.GetLedgerTotalsResponse
-	1,  // 24: planet.v1.InternalService.GetMapHistory:output_type -> planet.v1.GetMapHistoryResponse
-	8,  // 25: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	12, // 26: planet.v1.InternalService.GetCountrySizes:output_type -> planet.v1.GetCountrySizesResponse
-	15, // 27: planet.v1.InternalService.GetAllegianceOf:output_type -> planet.v1.GetAllegianceOfResponse
-	17, // 28: planet.v1.InternalService.GetRuleSetNames:output_type -> planet.v1.GetRuleSetNamesResponse
-	21, // [21:29] is the sub-list for method output_type
-	13, // [13:21] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	24, // 12: planet.v1.GetAllegianceOfResponse.allegiance:type_name -> planet.v1.Allegiance
+	25, // 13: planet.v1.GetRuleSetResponse.played:type_name -> planet.v1.Rules
+	26, // 14: planet.v1.InternalService.GetLedger:input_type -> planet.v1.GetLedgerRequest
+	4,  // 15: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
+	2,  // 16: planet.v1.InternalService.GetLedgerTotals:input_type -> planet.v1.GetLedgerTotalsRequest
+	0,  // 17: planet.v1.InternalService.GetMapHistory:input_type -> planet.v1.GetMapHistoryRequest
+	7,  // 18: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
+	11, // 19: planet.v1.InternalService.GetCountrySizes:input_type -> planet.v1.GetCountrySizesRequest
+	14, // 20: planet.v1.InternalService.GetAllegianceOf:input_type -> planet.v1.GetAllegianceOfRequest
+	16, // 21: planet.v1.InternalService.GetRuleSetNames:input_type -> planet.v1.GetRuleSetNamesRequest
+	18, // 22: planet.v1.InternalService.GetRuleSet:input_type -> planet.v1.GetRuleSetRequest
+	27, // 23: planet.v1.InternalService.GetLedger:output_type -> planet.v1.GetLedgerResponse
+	5,  // 24: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
+	3,  // 25: planet.v1.InternalService.GetLedgerTotals:output_type -> planet.v1.GetLedgerTotalsResponse
+	1,  // 26: planet.v1.InternalService.GetMapHistory:output_type -> planet.v1.GetMapHistoryResponse
+	8,  // 27: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
+	12, // 28: planet.v1.InternalService.GetCountrySizes:output_type -> planet.v1.GetCountrySizesResponse
+	15, // 29: planet.v1.InternalService.GetAllegianceOf:output_type -> planet.v1.GetAllegianceOfResponse
+	17, // 30: planet.v1.InternalService.GetRuleSetNames:output_type -> planet.v1.GetRuleSetNamesResponse
+	19, // 31: planet.v1.InternalService.GetRuleSet:output_type -> planet.v1.GetRuleSetResponse
+	23, // [23:32] is the sub-list for method output_type
+	14, // [14:23] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_internal_proto_init() }
@@ -1029,6 +1130,7 @@ func file_planet_v1_internal_proto_init() {
 	file_planet_v1_history_proto_init()
 	file_planet_v1_ledger_proto_init()
 	file_planet_v1_planet_proto_init()
+	file_planet_v1_rules_proto_init()
 	file_planet_v1_totals_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1036,7 +1138,7 @@ func file_planet_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_internal_proto_rawDesc), len(file_planet_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

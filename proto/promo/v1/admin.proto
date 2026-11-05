@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package promo.v1;
+
+import "google/protobuf/timestamp.proto";
+import "promo/v1/promo.proto";
+
+// The operator's teaser cards: a library of backgrounds, and each rule set's cards, written with placeholders that the
+// set's values fill.
+service AdminService {
+  // A link the page sends one background to, straight to the bucket. It is in the library once KeepBackground names it.
+  // InvalidArgument for a file that is no JPEG, PNG or WebP, or past the size; FailedPrecondition while backgrounds are
+  // off.
+  rpc CreateBackgroundUpload(CreateBackgroundUploadRequest) returns (CreateBackgroundUploadResponse);
+  // FailedPrecondition for a file the bucket does not hold.
+  rpc KeepBackground(KeepBackgroundRequest) returns (KeepBackgroundResponse);
+  rpc ListBackgrounds(ListBackgroundsRequest) returns (ListBackgroundsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // FailedPrecondition while a set's card shows it, naming the sets.
+  rpc RemoveBackground(RemoveBackgroundRequest) returns (RemoveBackgroundResponse);
+  // Every set planet keeps, with its cards as written and as players read them now, and the values a placeholder may
+  // name.
+  rpc GetCards(GetCardsRequest) returns (GetCardsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Replaces a set's cards, in order: none to remove them, at most 5. InvalidArgument for a card the rules refuse;
+  // FailedPrecondition for a set planet does not keep, or a background not in the library.
+  rpc SaveCards(SaveCardsRequest) returns (SaveCardsResponse);
+}
+
+message CreateBackgroundUploadRequest {
+  string content_type = 1;
+  uint64 size_bytes = 2;
+}
+
+message CreateBackgroundUploadResponse {
+  string background_id = 1;
+  // A PUT with this content type and this exact size, before it expires.
+  string upload_url = 2;
+}
+
+message KeepBackgroundRequest {
+  string background_id = 1;
+  string name = 2;
+}
+
+message KeepBackgroundResponse {}
+
+message ListBackgroundsRequest {}
+
+message ListBackgroundsResponse {
+  // The newest first.
+  repeated Background backgrounds = 1;
+}
+
+message Background {
+  string background_id = 1;
+  string name = 2;
+  string content_type = 3;
+  uint64 size_bytes = 4;
+  google.protobuf.Timestamp kept_at = 5;
+  // Public: what a card shows.
+  string url = 6;
+}
+
+message RemoveBackgroundRequest {
+  string background_id = 1;
+}
+
+message RemoveBackgroundResponse {}
+
+message GetCardsRequest {}
+
+message GetCardsResponse {
+  // Every set planet keeps, by name, each with its cards, none for most.
+  repeated SetCards sets = 1;
+  // What a placeholder may name, by path.
+  repeated Placeholder placeholders = 2;
+}
+
+message SetCards {
+  string rule_set = 1;
+  repeated Card cards = 2;
+}
+
+message Card {
+  CardDraft draft = 1;
+  // As players read it now. Unset when a placeholder no longer fills, and `problem` says why.
+  TeaserCard filled = 2;
+  string problem = 3;
+}
+
+// A card as the operator writes it: `{path}` in the headline or the line is a value of the set, by its path in
+// planet.v1.Rules as protojson writes it, such as `{clicks.tempo}` or `{bonuses.boxes.minInterval}`.
+message CardDraft {
+  string background_id = 1;
+  // 1 to 40 characters, as written.
+  string headline = 2;
+  // 120 characters at most, as written.
+  string line = 3;
+}
+
+// A number or a duration of planet.v1.Rules, with default's value as it reads on a card.
+message Placeholder {
+  string path = 1;
+  string example = 2;
+}
+
+message SaveCardsRequest {
+  string rule_set = 1;
+  repeated CardDraft cards = 2;
+}
+
+message SaveCardsResponse {}

@@ -8,6 +8,7 @@ import { Duration, Message, proto3, protoInt64, Timestamp } from "@bufbuild/prot
 import { MapHistory } from "./history_pb.js";
 import { LedgerTotals } from "./totals_pb.js";
 import { Allegiance } from "./planet_pb.js";
+import { Rules } from "./rules_pb.js";
 
 /**
  * @generated from message planet.v1.GetMapHistoryRequest
@@ -722,6 +723,82 @@ export class GetRuleSetNamesResponse extends Message<GetRuleSetNamesResponse> {
 
   static equals(a: GetRuleSetNamesResponse | PlainMessage<GetRuleSetNamesResponse> | undefined, b: GetRuleSetNamesResponse | PlainMessage<GetRuleSetNamesResponse> | undefined): boolean {
     return proto3.util.equals(GetRuleSetNamesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetRuleSetRequest
+ */
+export class GetRuleSetRequest extends Message<GetRuleSetRequest> {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name = "";
+
+  constructor(data?: PartialMessage<GetRuleSetRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetRuleSetRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRuleSetRequest {
+    return new GetRuleSetRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRuleSetRequest {
+    return new GetRuleSetRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRuleSetRequest {
+    return new GetRuleSetRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRuleSetRequest | PlainMessage<GetRuleSetRequest> | undefined, b: GetRuleSetRequest | PlainMessage<GetRuleSetRequest> | undefined): boolean {
+    return proto3.util.equals(GetRuleSetRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetRuleSetResponse
+ */
+export class GetRuleSetResponse extends Message<GetRuleSetResponse> {
+  /**
+   * Every value, the set's own or default's.
+   *
+   * @generated from field: planet.v1.Rules played = 1;
+   */
+  played?: Rules;
+
+  constructor(data?: PartialMessage<GetRuleSetResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetRuleSetResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "played", kind: "message", T: Rules },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRuleSetResponse {
+    return new GetRuleSetResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRuleSetResponse {
+    return new GetRuleSetResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRuleSetResponse {
+    return new GetRuleSetResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRuleSetResponse | PlainMessage<GetRuleSetResponse> | undefined, b: GetRuleSetResponse | PlainMessage<GetRuleSetResponse> | undefined): boolean {
+    return proto3.util.equals(GetRuleSetResponse, a, b);
   }
 }
 

@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
@@ -41,6 +42,8 @@ type Config struct {
 	Clips clips.ModuleConfig
 	// The game's Discord server: a player's link, its flag's role, and the pings.
 	Alerts alerts.Config
+	// A battle's teaser: each rule set's cards, over the backgrounds the operator uploads.
+	Promo promo.Config
 }
 
 func main() {
@@ -88,6 +91,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 		support.NewModule(config.Support),
 		clips.NewModule(config.Clips),
 		alerts.NewModule(config.Alerts),
+		promo.NewModule(config.Promo),
 	}
 }
 
@@ -115,5 +119,6 @@ func (c Config) Validate() error {
 		c.Support.Validate(),
 		c.Clips.Validate(),
 		c.Alerts.Validate(),
+		c.Promo.Validate(),
 	)
 }

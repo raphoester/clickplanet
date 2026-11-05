@@ -5,7 +5,7 @@
 
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
 
 /**
  * @generated from service planet.v1.InternalService
@@ -99,6 +99,19 @@ export const InternalService = {
       name: "GetRuleSetNames",
       I: GetRuleSetNamesRequest,
       O: GetRuleSetNamesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The values a set plays: default's, with the set's own written over them, for the promo module's cards. NotFound for
+     * a set postgres does not keep, FailedPrecondition for one that cannot play.
+     *
+     * @generated from rpc planet.v1.InternalService.GetRuleSet
+     */
+    getRuleSet: {
+      name: "GetRuleSet",
+      I: GetRuleSetRequest,
+      O: GetRuleSetResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },
