@@ -1,5 +1,6 @@
 import {PointerEvent, useCallback, useEffect, useRef, useState} from "react"
 import {TeaserCard} from "../../backends/promo.ts"
+import {ChevronIcon} from "../components/icons.tsx"
 
 // A card a few seconds: long enough to read a headline and its line.
 export const TEASER_TURN_MS = 5000
@@ -83,9 +84,9 @@ export default function TeaserCarousel({cards, turnMs = TEASER_TURN_MS}: {cards:
             {many && (
                 <>
                     <button type="button" className="teaser-arrow teaser-arrow--previous" aria-label="Previous card"
-                            onClick={() => step(-1)}>‹</button>
+                            onClick={() => step(-1)}><ChevronIcon size={22}/></button>
                     <button type="button" className="teaser-arrow teaser-arrow--next" aria-label="Next card"
-                            onClick={() => step(1)}>›</button>
+                            onClick={() => step(1)}><ChevronIcon size={22}/></button>
                     <div className="teaser-dots">
                         {cards.map((_, i) => (
                             <button
