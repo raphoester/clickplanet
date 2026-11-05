@@ -147,6 +147,8 @@ support:
 clips:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: clips}
   redis: {address: localhost:6379}
+promo:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: promo}
 auth:
   enabled: true
   enforce: true
@@ -358,6 +360,47 @@ func TestTheExampleConfigReachesTheClipsBlock(t *testing.T) {
 
 func TestTheClipsModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "clips.database")
+}
+
+func TestTheExampleConfigReachesThePromoBlockOff(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "promo", config.Promo.Database.Schema)
+	assert.False(t, config.Promo.Backgrounds.Enabled)
+	assert.Equal(t, "https://media.clickplanet.lol", config.Promo.Backgrounds.PublicBaseURL)
+	require.NoError(t, config.Promo.Validate())
+}
+
+func TestThePromoModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "promo.database")
+}
+
+func TestTheProductionBackgroundsShareTheSupportBucketAndItsKey(t *testing.T) {
+	config := productionConfig(t)
+
+	backgrounds := config.Promo.Backgrounds
+	assert.True(t, backgrounds.Enabled)
+	assert.Equal(t, config.Support.Attachments.Bucket, backgrounds.Bucket)
+	assert.Equal(t, "https://media.clickplanet.lol", backgrounds.PublicBaseURL)
+	require.NoError(t, config.Promo.Validate())
+
+	config.Promo.Backgrounds.Bucket.SecretAccessKey = ""
+	require.ErrorContains(t, config.Promo.Validate(), "promo.backgrounds.bucket")
+}
+
+func TestTheBackgroundsArePublicOnAnHTTPSOrigin(t *testing.T) {
+	config := productionConfig(t)
+
+	for _, base := range []string{
+		"", "media.clickplanet.lol", "http://media.clickplanet.lol",
+		"https://media.clickplanet.lol/promo", "https://media.clickplanet.lol?x=1", "https://",
+	} {
+		config.Promo.Backgrounds.PublicBaseURL = base
+		require.ErrorContains(t, config.Promo.Validate(), "promo.backgrounds.publicBaseURL", base)
+	}
+	config.Promo.Backgrounds.PublicBaseURL = "https://media.clickplanet.lol/"
+	require.NoError(t, config.Promo.Validate())
 }
 
 func TestTheExampleConfigReachesTheAttachments(t *testing.T) {

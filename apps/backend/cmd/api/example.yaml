@@ -392,3 +392,30 @@ clips:
       name: clickplanet-media
       accessKeyId: ""
       secretAccessKey: ""
+
+# A battle's teaser: each rule set's cards, over backgrounds the operator uploads on the backoffice's Promo page. Off:
+# every background call is refused and the bucket below is not read, so no card is saved and no battle is teased. It
+# is the support module's bucket: the backgrounds are under promo/backgrounds/, and Cloudflare serves that prefix alone
+# on publicBaseURL.
+promo:
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: promo
+    pool:
+      maxOpenConns: 2
+  backgrounds:
+    enabled: false
+    maxBytes: 2097152
+    uploadTTL: 10m
+    publicBaseURL: https://media.clickplanet.lol
+    bucket:
+      endpoint: https://ACCOUNT_ID.r2.cloudflarestorage.com
+      region: auto
+      name: clickplanet-media
+      accessKeyId: ""
+      secretAccessKey: ""

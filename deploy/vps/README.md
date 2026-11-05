@@ -1812,6 +1812,34 @@ video uploaded on the Videos page plays there.
 - The privacy page says Cloudflare stores these files. With another provider,
   change that line.
 
+## 13. Battle teasers
+
+A battle is teased in the game with cards: a background and words over it, kept per rule set by the backend's promo
+module (see the backend's [Promo](../../apps/backend/docs/promo.md)). The operator uploads the backgrounds on the
+backoffice's Promo page, **into `clickplanet-media` under `promo/backgrounds/`**, with the same key and secret as the
+support files (`promo.backgrounds` in `backend.yaml`). Players load them by their plain URL on
+`https://media.clickplanet.lol`, which serves that prefix and nothing else of the bucket.
+
+1. **A WAF custom rule on the `clickplanet.lol` zone, before the domain**, so the bucket is never public for a minute:
+   block `(http.host eq "media.clickplanet.lol" and (not starts_with(http.request.uri.path, "/promo/") or not
+   http.request.method in {"GET" "HEAD"}))`. The support files at the bucket's root and the clip videos under
+   `clips/videos/` stay readable only through the backend's signed links.
+2. **Connect `media.clickplanet.lol` to `clickplanet-media`** (R2 → the bucket → Settings → Custom Domains). **Leave
+   the bucket's `r2.dev` URL off**: the zone's rules do not apply to it, so it would serve every file of the bucket.
+3. **A cache rule for `media.clickplanet.lol`**: edge and browser TTL of a year. A background's id is drawn once and
+   its file never changes, so a URL can be kept for good; a background removed may still be served from the cache.
+4. The upload needs nothing new: the bucket's CORS already lets `https://backoffice.clickplanet.lol` `PUT`.
+
+To check it: `curl -sI https://media.clickplanet.lol/promo/does-not-exist` answers 404 (it reached the bucket), and
+`curl -sI https://media.clickplanet.lol/anything-else` and `.../clips/videos/x` answer 403. The boot logs `promo built
+... backgrounds=true`.
+
+- **The pages load the backgrounds from that domain**, so the game's and the backoffice's Content-Security-Policy name
+  `https://media.clickplanet.lol` in `img-src`.
+- **The promo module adds a pool of 2 connections**: postgres runs with `max_connections=42` since, 10 above the sum of
+  the pools (`docker-compose.yaml`; `cmd/api` tests it). A deploy that changes it recreates the postgres container, a
+  few seconds without the database.
+
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` appended to `.env` on the box, then `docker compose up -d backend`. The next deploy renders `.env` again and drops the pin, so fix forward rather than leaving it.

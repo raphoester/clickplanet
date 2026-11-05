@@ -358,3 +358,28 @@ alerts:
     guildId: "1310907949106860032"
     alertsChannelId: "1566864909709607044"
     battlesChannelId: "1566864959739011324"
+
+# A battle's teaser: each rule set's cards, over the backgrounds the operator uploads on the backoffice's Promo page.
+# Same bucket and key as the support files, under promo/backgrounds/; Cloudflare serves that prefix alone on
+# media.clickplanet.lol. See deploy/vps/README.md, "Battle teasers".
+promo:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: promo
+    pool:
+      maxOpenConns: 2
+  backgrounds:
+    enabled: true
+    maxBytes: 2097152
+    publicBaseURL: https://media.clickplanet.lol
+    bucket:
+      endpoint: https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com
+      region: auto
+      name: clickplanet-media
+      accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
+      secretAccessKey: env://MEDIA_BUCKET_SECRET

@@ -145,3 +145,9 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `clips.videos.maxBytes` — the most bytes of one video (524288000, 500 MiB)
 - `clips.videos.uploadTTL`, `clips.videos.linkTTL` — how long an upload link is good for (30m), and a view or download link (6h). More than 7 days refuses the boot
 - `clips.videos.bucket.*` — the same five keys as `support.attachments.bucket`; production names the same bucket and key. Any of them empty with videos on refuses the boot
+- `promo.database.*` — the teasers' backgrounds and each rule set's cards, same shape as `database`, schema `promo`; required. `promo.database.password` belongs in the environment. See [Promo](promo.md)
+- `promo.backgrounds.enabled` — off, every background call of `promo.v1.AdminService` is refused and the bucket block is not read, so no card is saved and no battle is teased
+- `promo.backgrounds.maxBytes` — the most bytes of one background (2097152, 2 MiB)
+- `promo.backgrounds.uploadTTL` — how long an upload link is good for (10m). More than 7 days refuses the boot
+- `promo.backgrounds.publicBaseURL` — the public domain's origin the backgrounds are read from, `https://media.clickplanet.lol` in production: an `https` scheme and a host, no path. Anything else with backgrounds on refuses the boot
+- `promo.backgrounds.bucket.*` — the same five keys as `support.attachments.bucket`; production names the same bucket and key. Any of them empty with backgrounds on refuses the boot

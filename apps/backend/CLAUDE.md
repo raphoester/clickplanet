@@ -21,8 +21,8 @@ and says what is in it. Read the doc before you change its area.
 
 ## How the code is shaped
 
-- [Twelve bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, progression, scoring,
-  support, missions, antibot, gamemaster, alerts and clips. A module publishes its root package and hides the rest; the
+- [Thirteen bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, progression,
+  scoring, support, missions, antibot, gamemaster, alerts, clips and promo. A module publishes its root package and hides the rest; the
   modules depend on each other with no cycle, and only player and alerts speak auth's language.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
   calls another one, how it tells the others what happened and asks one to change something: Redis Streams,
@@ -116,6 +116,9 @@ and says what is in it. Read the doc before you change its area.
   (`DayStarted`), counted from planet's facts (takes, boxes, right answers, bombs, shields, fortifies), paid once done
   with a `GrantCharges` command to planet; one flag mission a day per flag, worth season points (`GrantPoints` to
   scoring); why progress is not read from the ledger.
+- [Promo](docs/promo.md) — a battle's teaser: each rule set's cards, kept under its name, over backgrounds the operator
+  uploads to the bucket and Cloudflare serves publicly; words with `{path}` placeholders filled from the values the set
+  plays at each read (`GetTeaser`); the set from the gamemaster (`GetBattleSet`), its values from planet (`GetRuleSet`).
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
 - [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role; the role
   follows the flag pledged, in a color of its own; the pings when its flag is attacked, with a link that opens the

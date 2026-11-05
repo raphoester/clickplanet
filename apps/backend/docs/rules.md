@@ -175,6 +175,15 @@ The config keeps the machine: addresses, `database`, `redis`, secrets, `gameMap.
 `bonus.sweepInterval` (see [Configuration](configuration.md)). `TestEveryPlanetKeyIsOneTheConfigReads` decodes each
 YAML file's planet keys with unused keys refused: a rule left in a file would be read by nothing.
 
+## What another module asks
+
+`planet.v1.InternalService`, on the internal listener: **`GetRuleSetNames`**, every set postgres keeps, for the
+gamemaster's check of an entry and the promo module's cards, and **`GetRuleSet(name)`**, the values a set plays,
+default's with the set's own written over them (`cpproto.Overlay`), for the words of the promo module's teaser cards
+(see [Promo](promo.md)). NotFound for a set postgres does not keep. `rule_set_query` reads both rows in one statement
+and overlays them; it does not check that the set can play. Its test pins a set over default, default alone and a set
+not kept.
+
 ## The operator
 
 `planet.v1.AdminService` (see [Operator tools](admin.md)):

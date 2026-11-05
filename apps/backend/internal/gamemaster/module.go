@@ -19,6 +19,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/delete_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/edit_entry_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/edit_season_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_battle_set_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_battle_set_handler/battle_set_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_schedule_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_schedule_handler/schedule_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_season_replay_handler"
@@ -180,6 +182,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return gamemasterv1connect.NewAdminServiceHandler(admin, options...)
 	}); err != nil {
 		return fmt.Errorf("failed to mount gamemaster.v1.AdminService: %w", err)
+	}
+
+	internalService := gamemasterv1controller.InternalService{
+		GetBattleSetHandler: get_battle_set_handler.New(battle_set_query.NewPostgresQuery(db)),
+	}
+	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return gamemasterv1connect.NewInternalServiceHandler(internalService, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount gamemaster.v1.InternalService: %w", err)
 	}
 
 	public := gamemasterv1controller.GamemasterService{

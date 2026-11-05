@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package gamemaster.v1;
+
+// What another module asks the gamemaster.
+service InternalService {
+  // The rule set a battle plays, by the id the timeline names it by: its entry's id, or `season-N/finale` for a season's
+  // finale. For the promo module's teaser. NotFound for an entry the schedule does not keep or that is no battle, and
+  // for a season with no finale.
+  rpc GetBattleSet(GetBattleSetRequest) returns (GetBattleSetResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetBattleSetRequest {
+  string battle_id = 1;
+}
+
+message GetBattleSetResponse {
+  string rule_set = 1;
+}

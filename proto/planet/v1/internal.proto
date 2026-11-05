@@ -7,6 +7,7 @@ import "google/protobuf/timestamp.proto";
 import "planet/v1/history.proto";
 import "planet/v1/ledger.proto";
 import "planet/v1/planet.proto";
+import "planet/v1/rules.proto";
 import "planet/v1/totals.proto";
 
 service InternalService {
@@ -45,6 +46,12 @@ service InternalService {
   }
 
   rpc GetRuleSetNames(GetRuleSetNamesRequest) returns (GetRuleSetNamesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The values a set plays: default's, with the set's own written over them, for the promo module's cards. NotFound for
+  // a set postgres does not keep.
+  rpc GetRuleSet(GetRuleSetRequest) returns (GetRuleSetResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 }
@@ -128,4 +135,13 @@ message GetRuleSetNamesRequest {}
 // The name of every rule set postgres keeps.
 message GetRuleSetNamesResponse {
   repeated string names = 1;
+}
+
+message GetRuleSetRequest {
+  string name = 1;
+}
+
+message GetRuleSetResponse {
+  // Every value, the set's own or default's.
+  Rules played = 1;
 }

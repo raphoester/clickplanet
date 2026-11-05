@@ -28,6 +28,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -40,6 +41,7 @@ const (
 	deletionGrace = 3 * time.Second
 	callerIP      = "203.0.113.7"
 	adminOrigin   = "https://backoffice.clickplanet.lol"
+	mediaOrigin   = "https://media.example"
 	mapTiles      = 260503
 )
 
@@ -109,6 +111,11 @@ func startGame(t *testing.T) gameStack {
 	supportConfig.Attachments.Bucket.AccessKeyID = "the-key-id"
 	supportConfig.Attachments.Bucket.SecretAccessKey = "the-secret-key"
 
+	promoConfig := promo.Config{Database: postgres.ConfigFor("promo")}
+	promoConfig.Backgrounds.Enabled = true
+	promoConfig.Backgrounds.PublicBaseURL = mediaOrigin
+	promoConfig.Backgrounds.Bucket = supportConfig.Attachments.Bucket
+
 	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
 
 	logger := slog.New(slog.DiscardHandler)
@@ -125,7 +132,7 @@ func startGame(t *testing.T) gameStack {
 				authModule, planet.NewModule(planetConfig), antibot.NewModule(antibotConfig), player.NewModule(playerConfig),
 				progression.NewModule(progressionConfig),
 				chat.NewModule(chatConfig), scoring.NewModule(scoringConfig), support.NewModule(supportConfig),
-				missions.NewModule(missionsConfig), gamemaster.NewModule(gamemasterConfig),
+				missions.NewModule(missionsConfig), gamemaster.NewModule(gamemasterConfig), promo.NewModule(promoConfig),
 			},
 			AdminGate: gate,
 		}, public, internal, console, admin)
