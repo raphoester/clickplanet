@@ -45,6 +45,8 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   one every guest behind an address shares, in accounts (10, 4, 1)
 - `clicks.linkedMultiplier` — how many times as fast a signed-in account refills (2)
 - `clicks.newAccountClicks` — what a new account's bank holds; it earns the rest at `clicks.perSecond` (10)
+- `clicks.fastStart` — how long a new account refills at the signed-in pace, guest or not; `0s` is off (30 min, since
+  migration `20261106120000_fast_start`). See [Rate limiting](rate-limiting.md)
 - `toll.steps` — rising `{share, slowdown}`: from `share` of the map, a country refills `slowdown` times slower (10%
   1.5×, 20% 2.5×, 30% 4×). No step is no toll. See [A big country refills slower](rate-limiting.md#a-big-country-refills-slower-clickstoll)
 - `bonuses.boxes.minInterval`, `maxInterval`, `maxChargesPerHour` — a box's wait and the hourly cap (4–8 min, 12).
@@ -118,7 +120,7 @@ message is already the wire's, so the store, the RPC and the page read one shape
 `rules.Reader(inForce, <package>.Part)`, a `func() R` that reads its part of the set in force each time it is called.
 The readers call it where they use the rules, not when they are built: a set taken applies from the next use.
 
-- `clicks.ThrottlePart` — `clicks.Buckets` (the multipliers, `newAccountClicks`), `try_click` (`ClickTried.tempo`),
+- `clicks.ThrottlePart` — `clicks.Buckets` (the multipliers, `newAccountClicks`, `fastStart`), `try_click` (`ClickTried.tempo`),
   and the click limiter: `cpratelimit.NewRuled` reads `Throttle.Policy(inForce.Since())`, its rate, bank and tempo.
 - `clicks.TollPart` — `clicks.Toll`: the price of each click, and `GetBonusRules.toll_steps`.
 - `allegiances.LockPart` — `allegiances.Book` (a pledge and a click for another flag) and `allegiance_query`

@@ -159,6 +159,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private tempo = 1
     private sharedWith: SharedBy | undefined
     private frozen = false
+    private fast = false
     private flagsLocked = false
     private shapesClose = true
 
@@ -472,6 +473,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.reportBudget()
     }
 
+    public fastStart(on: boolean): void {
+        this.refill()
+        this.fast = on
+        this.reportBudget()
+    }
+
     public shareClicks(sharedWith?: SharedBy): void {
         this.sharedWith = sharedWith
         this.reportBudget()
@@ -488,13 +495,18 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return {
             tokens: this.tokens,
             capacity: CLICK_BURST,
-            perSecond: CLICKS_PER_SECOND * this.pace * this.tempo,
+            perSecond: this.perSecond(),
             price: this.price(this.budgetCountry),
             linkedMultiplier: LINKED_MULTIPLIER,
             sharedWith: this.sharedWith,
             frozen: this.frozen,
+            fastStart: this.fast,
             readAt: budgetNow(),
         }
+    }
+
+    private perSecond(): number {
+        return CLICKS_PER_SECOND * this.pace * this.tempo * (this.fast ? LINKED_MULTIPLIER : 1)
     }
 
     private price(countryId: string): ClickPrice {
@@ -613,7 +625,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const now = Date.now()
         this.tokens = Math.min(
             CLICK_BURST,
-            this.tokens + ((now - this.lastRefillMs) / 1000) * CLICKS_PER_SECOND * this.pace * this.tempo,
+            this.tokens + ((now - this.lastRefillMs) / 1000) * this.perSecond(),
         )
         this.lastRefillMs = now
     }

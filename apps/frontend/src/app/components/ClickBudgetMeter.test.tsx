@@ -271,6 +271,12 @@ describe("ClickBudgetMeter for a guest", () => {
 
         expect(screen.getByRole("button", {name: "Sign in: your own clicks"})).toBeTruthy()
     })
+
+    it("offers a guest in its fast start to keep the speed it has", () => {
+        render(<ClickBudgetMeter budget={reading({linkedMultiplier: 2, fastStart: true})} onSignIn={vi.fn()}/>)
+
+        expect(screen.getByRole("button", {name: "Sign in: keep this speed"})).toBeTruthy()
+    })
 })
 
 describe("ClickBudgetMeter's shared bucket", () => {

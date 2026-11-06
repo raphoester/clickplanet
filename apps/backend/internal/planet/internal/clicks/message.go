@@ -19,6 +19,7 @@ func ThrottleOf(m *planetv1.ClickRules) Throttle {
 		GuestScopeMultiplier: m.GetGuestScopeMultiplier(),
 		LinkedMultiplier:     m.GetLinkedMultiplier(),
 		NewAccountClicks:     m.GetNewAccountClicks(),
+		FastStart:            m.GetFastStart().AsDuration(),
 	}
 }
 

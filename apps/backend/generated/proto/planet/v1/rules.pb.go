@@ -120,8 +120,10 @@ type ClickRules struct {
 	LinkedMultiplier *float64 `protobuf:"fixed64,7,opt,name=linked_multiplier,json=linkedMultiplier,proto3,oneof" json:"linked_multiplier,omitempty"`
 	// What a new account's bank holds when it is made; it earns the rest at per_second.
 	NewAccountClicks *float64 `protobuf:"fixed64,8,opt,name=new_account_clicks,json=newAccountClicks,proto3,oneof" json:"new_account_clicks,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// How long a new account refills at the signed-in pace, guest or not. 0 is off.
+	FastStart     *durationpb.Duration `protobuf:"bytes,9,opt,name=fast_start,json=fastStart,proto3" json:"fast_start,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ClickRules) Reset() {
@@ -208,6 +210,13 @@ func (x *ClickRules) GetNewAccountClicks() float64 {
 		return *x.NewAccountClicks
 	}
 	return 0
+}
+
+func (x *ClickRules) GetFastStart() *durationpb.Duration {
+	if x != nil {
+		return x.FastStart
+	}
+	return nil
 }
 
 type TollRules struct {
@@ -932,7 +941,7 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x06frozen\x18\x04 \x01(\bH\x00R\x06frozen\x88\x01\x01\x120\n" +
 	"\x11allegiance_locked\x18\x05 \x01(\bH\x01R\x10allegianceLocked\x88\x01\x01B\t\n" +
 	"\a_frozenB\x14\n" +
-	"\x12_allegiance_locked\"\x83\x04\n" +
+	"\x12_allegiance_locked\"\xbd\x04\n" +
 	"\n" +
 	"ClickRules\x12\x19\n" +
 	"\x05tempo\x18\x01 \x01(\x01H\x00R\x05tempo\x88\x01\x01\x12\"\n" +
@@ -943,7 +952,9 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x13v6_scope_multiplier\x18\x05 \x01(\x01H\x04R\x11v6ScopeMultiplier\x88\x01\x01\x129\n" +
 	"\x16guest_scope_multiplier\x18\x06 \x01(\x01H\x05R\x14guestScopeMultiplier\x88\x01\x01\x120\n" +
 	"\x11linked_multiplier\x18\a \x01(\x01H\x06R\x10linkedMultiplier\x88\x01\x01\x121\n" +
-	"\x12new_account_clicks\x18\b \x01(\x01H\aR\x10newAccountClicks\x88\x01\x01B\b\n" +
+	"\x12new_account_clicks\x18\b \x01(\x01H\aR\x10newAccountClicks\x88\x01\x01\x128\n" +
+	"\n" +
+	"fast_start\x18\t \x01(\v2\x19.google.protobuf.DurationR\tfastStartB\b\n" +
 	"\x06_tempoB\r\n" +
 	"\v_per_secondB\b\n" +
 	"\x06_burstB\x13\n" +
@@ -1064,39 +1075,40 @@ var file_planet_v1_rules_proto_goTypes = []any{
 	(*ShieldRules)(nil),         // 9: planet.v1.ShieldRules
 	(*WelcomeRules)(nil),        // 10: planet.v1.WelcomeRules
 	(*QuizRules)(nil),           // 11: planet.v1.QuizRules
-	(*TollStep)(nil),            // 12: planet.v1.TollStep
-	(*durationpb.Duration)(nil), // 13: google.protobuf.Duration
+	(*durationpb.Duration)(nil), // 12: google.protobuf.Duration
+	(*TollStep)(nil),            // 13: planet.v1.TollStep
 }
 var file_planet_v1_rules_proto_depIdxs = []int32{
 	1,  // 0: planet.v1.Rules.clicks:type_name -> planet.v1.ClickRules
 	2,  // 1: planet.v1.Rules.toll:type_name -> planet.v1.TollRules
 	3,  // 2: planet.v1.Rules.bonuses:type_name -> planet.v1.BonusRules
-	12, // 3: planet.v1.TollRules.steps:type_name -> planet.v1.TollStep
-	4,  // 4: planet.v1.BonusRules.boxes:type_name -> planet.v1.BoxPace
-	5,  // 5: planet.v1.BonusRules.kinds:type_name -> planet.v1.KindWeights
-	13, // 6: planet.v1.BonusRules.offer_ttl:type_name -> google.protobuf.Duration
-	13, // 7: planet.v1.BonusRules.miss_retry:type_name -> google.protobuf.Duration
-	13, // 8: planet.v1.BonusRules.active_within:type_name -> google.protobuf.Duration
-	6,  // 9: planet.v1.BonusRules.spread:type_name -> planet.v1.SpreadRules
-	7,  // 10: planet.v1.BonusRules.bomb:type_name -> planet.v1.BombRules
-	8,  // 11: planet.v1.BonusRules.enclose:type_name -> planet.v1.EncloseRules
-	9,  // 12: planet.v1.BonusRules.shield:type_name -> planet.v1.ShieldRules
-	10, // 13: planet.v1.BonusRules.welcome:type_name -> planet.v1.WelcomeRules
-	11, // 14: planet.v1.BonusRules.quiz:type_name -> planet.v1.QuizRules
-	13, // 15: planet.v1.BoxPace.min_interval:type_name -> google.protobuf.Duration
-	13, // 16: planet.v1.BoxPace.max_interval:type_name -> google.protobuf.Duration
-	13, // 17: planet.v1.WelcomeRules.within:type_name -> google.protobuf.Duration
-	13, // 18: planet.v1.WelcomeRules.box_after:type_name -> google.protobuf.Duration
-	13, // 19: planet.v1.QuizRules.min_interval:type_name -> google.protobuf.Duration
-	13, // 20: planet.v1.QuizRules.max_interval:type_name -> google.protobuf.Duration
-	13, // 21: planet.v1.QuizRules.miss_retry:type_name -> google.protobuf.Duration
-	13, // 22: planet.v1.QuizRules.offer_ttl:type_name -> google.protobuf.Duration
-	13, // 23: planet.v1.QuizRules.answer_window:type_name -> google.protobuf.Duration
-	24, // [24:24] is the sub-list for method output_type
-	24, // [24:24] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	12, // 3: planet.v1.ClickRules.fast_start:type_name -> google.protobuf.Duration
+	13, // 4: planet.v1.TollRules.steps:type_name -> planet.v1.TollStep
+	4,  // 5: planet.v1.BonusRules.boxes:type_name -> planet.v1.BoxPace
+	5,  // 6: planet.v1.BonusRules.kinds:type_name -> planet.v1.KindWeights
+	12, // 7: planet.v1.BonusRules.offer_ttl:type_name -> google.protobuf.Duration
+	12, // 8: planet.v1.BonusRules.miss_retry:type_name -> google.protobuf.Duration
+	12, // 9: planet.v1.BonusRules.active_within:type_name -> google.protobuf.Duration
+	6,  // 10: planet.v1.BonusRules.spread:type_name -> planet.v1.SpreadRules
+	7,  // 11: planet.v1.BonusRules.bomb:type_name -> planet.v1.BombRules
+	8,  // 12: planet.v1.BonusRules.enclose:type_name -> planet.v1.EncloseRules
+	9,  // 13: planet.v1.BonusRules.shield:type_name -> planet.v1.ShieldRules
+	10, // 14: planet.v1.BonusRules.welcome:type_name -> planet.v1.WelcomeRules
+	11, // 15: planet.v1.BonusRules.quiz:type_name -> planet.v1.QuizRules
+	12, // 16: planet.v1.BoxPace.min_interval:type_name -> google.protobuf.Duration
+	12, // 17: planet.v1.BoxPace.max_interval:type_name -> google.protobuf.Duration
+	12, // 18: planet.v1.WelcomeRules.within:type_name -> google.protobuf.Duration
+	12, // 19: planet.v1.WelcomeRules.box_after:type_name -> google.protobuf.Duration
+	12, // 20: planet.v1.QuizRules.min_interval:type_name -> google.protobuf.Duration
+	12, // 21: planet.v1.QuizRules.max_interval:type_name -> google.protobuf.Duration
+	12, // 22: planet.v1.QuizRules.miss_retry:type_name -> google.protobuf.Duration
+	12, // 23: planet.v1.QuizRules.offer_ttl:type_name -> google.protobuf.Duration
+	12, // 24: planet.v1.QuizRules.answer_window:type_name -> google.protobuf.Duration
+	25, // [25:25] is the sub-list for method output_type
+	25, // [25:25] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_rules_proto_init() }

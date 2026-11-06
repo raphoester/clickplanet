@@ -109,6 +109,9 @@ message ClickBudget {
 
   // The map takes no play: the rules in force freeze it. Set by GetBudget alone.
   bool frozen = 12;
+
+  // A guest in its fast start: it refills at the signed-in pace until this is false again.
+  bool fast_start = 13;
 }
 
 enum SharedWith {

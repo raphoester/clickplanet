@@ -53,7 +53,7 @@ export default function ClicksPanel({budget, countryName, share, toll, onSignIn}
 
         {speedUp && <button type="button" className="button button-mini button-action clicks-sign-in" onClick={onSignIn}>
             <BoltIcon/>
-            <span>{offerText(budget?.sharedWith, speedUp)}</span>
+            <span>{offerText(budget?.sharedWith, speedUp, budget?.fastStart)}</span>
         </button>}
     </div>
 }

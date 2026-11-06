@@ -368,7 +368,9 @@ type ClickBudget struct {
 	LinkedMultiplier float64                `protobuf:"fixed64,10,opt,name=linked_multiplier,json=linkedMultiplier,proto3" json:"linked_multiplier,omitempty"`
 	SharedWith       SharedWith             `protobuf:"varint,11,opt,name=shared_with,json=sharedWith,proto3,enum=planet.v1.SharedWith" json:"shared_with,omitempty"`
 	// The map takes no play: the rules in force freeze it. Set by GetBudget alone.
-	Frozen        bool `protobuf:"varint,12,opt,name=frozen,proto3" json:"frozen,omitempty"`
+	Frozen bool `protobuf:"varint,12,opt,name=frozen,proto3" json:"frozen,omitempty"`
+	// A guest in its fast start: it refills at the signed-in pace until this is false again.
+	FastStart     bool `protobuf:"varint,13,opt,name=fast_start,json=fastStart,proto3" json:"fast_start,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -469,6 +471,13 @@ func (x *ClickBudget) GetSharedWith() SharedWith {
 func (x *ClickBudget) GetFrozen() bool {
 	if x != nil {
 		return x.Frozen
+	}
+	return false
+}
+
+func (x *ClickBudget) GetFastStart() bool {
+	if x != nil {
+		return x.FastStart
 	}
 	return false
 }
@@ -3915,7 +3924,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x121\n" +
 	"\x15changeable_at_unix_ms\x18\x02 \x01(\x03R\x12changeableAtUnixMs\x12\x16\n" +
-	"\x06locked\x18\x03 \x01(\bR\x06locked\"\xec\x02\n" +
+	"\x06locked\x18\x03 \x01(\bR\x06locked\"\x8b\x03\n" +
 	"\vClickBudget\x12\x16\n" +
 	"\x06tokens\x18\x01 \x01(\x01R\x06tokens\x12\x1a\n" +
 	"\bcapacity\x18\x02 \x01(\rR\bcapacity\x12*\n" +
@@ -3929,7 +3938,9 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	" \x01(\x01R\x10linkedMultiplier\x126\n" +
 	"\vshared_with\x18\v \x01(\x0e2\x15.planet.v1.SharedWithR\n" +
 	"sharedWith\x12\x16\n" +
-	"\x06frozen\x18\f \x01(\bR\x06frozenJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"x\n" +
+	"\x06frozen\x18\f \x01(\bR\x06frozen\x12\x1d\n" +
+	"\n" +
+	"fast_start\x18\r \x01(\bR\tfastStartJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"x\n" +
 	"\fClickRequest\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +

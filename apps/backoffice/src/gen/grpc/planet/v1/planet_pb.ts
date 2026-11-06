@@ -332,6 +332,13 @@ export class ClickBudget extends Message<ClickBudget> {
    */
   frozen = false;
 
+  /**
+   * A guest in its fast start: it refills at the signed-in pace until this is false again.
+   *
+   * @generated from field: bool fast_start = 13;
+   */
+  fastStart = false;
+
   constructor(data?: PartialMessage<ClickBudget>) {
     super();
     proto3.util.initPartial(data, this);
@@ -350,6 +357,7 @@ export class ClickBudget extends Message<ClickBudget> {
     { no: 10, name: "linked_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 11, name: "shared_with", kind: "enum", T: proto3.getEnumType(SharedWith) },
     { no: 12, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 13, name: "fast_start", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBudget {

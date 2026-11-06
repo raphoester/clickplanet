@@ -359,7 +359,7 @@ export default function Viewer(props: ViewerProps) {
     // CrazyGames forbids a sign-in that pops up or is the main call to action.
     const nudge = useSignInNudge(
         !props.crazyGames && guest && clickBudget?.linkedMultiplier !== undefined && !clickBudget.frozen && !charges.refill && !pitchOpen,
-        refusals)
+        refusals, clickBudget?.fastStart === true)
     useSignInRefill(account.kind === 'ready' && account.guestLinked === true && signInRefill, charges.refill,
         () => void props.chargesRefresher?.refreshCharges().catch((e) => console.error("could not read the charges held", e)),
         () => void spendRefill?.())
@@ -565,7 +565,9 @@ export default function Viewer(props: ViewerProps) {
         {nudge.open && guest && props.account && clickBudget?.linkedMultiplier && <SignInNudgeModal
             state={account}
             store={props.account}
+            nudge={nudge.open}
             multiplier={clickBudget.linkedMultiplier}
+            fastStart={clickBudget.fastStart === true}
             fullBank={signInRefill}
             onClose={nudge.close}/>}
 

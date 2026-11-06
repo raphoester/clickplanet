@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 // Throttle is what the rule set in force says of the click buckets.
@@ -25,6 +26,7 @@ type Throttle struct {
 	LinkedMultiplier     float64
 
 	NewAccountClicks float64
+	FastStart        time.Duration
 }
 
 func (t Throttle) Validate() error {
@@ -41,6 +43,7 @@ func (t Throttle) Validate() error {
 		rules.Finite("linkedMultiplier", t.LinkedMultiplier),
 		rules.NotNegative("newAccountClicks", t.NewAccountClicks),
 		rules.AtMost("newAccountClicks", t.NewAccountClicks, "burst", float64(t.Burst)),
+		rules.NotNegative("fastStart", t.FastStart),
 	)
 }
 
@@ -49,12 +52,13 @@ func (t Throttle) Policy(since time.Time) cpratelimit.Policy {
 	return cpratelimit.Policy{PerSecond: t.PerSecond, Burst: t.Burst, Tempo: t.Tempo, Since: since}
 }
 
-func NewBuckets(throttle func() Throttle) Buckets {
-	return Buckets{throttle: throttle}
+func NewBuckets(throttle func() Throttle, clock cptime.Clock) Buckets {
+	return Buckets{throttle: throttle, clock: clock}
 }
 
 type Buckets struct {
 	throttle func() Throttle
+	clock    cptime.Clock
 }
 
 type SharedWith int
@@ -72,11 +76,13 @@ func (b Buckets) BudgetOf(payer Payer, states []cpratelimit.State, price Price) 
 	state := states[i]
 	state.Capacity = states[0].Capacity
 
+	throttle := b.throttle()
 	return Budget{
 		State:            state,
 		SharedWith:       b.pools(payer, price)[i].sharedWith,
 		Price:            price,
-		LinkedMultiplier: b.throttle().LinkedMultiplier,
+		LinkedMultiplier: throttle.LinkedMultiplier,
+		FastStart:        !payer.Linked && throttle.fastStart(payer, b.clock.Now()),
 	}
 }
 
@@ -143,10 +149,14 @@ func (b Buckets) pools(payer Payer, price Price) []pool {
 	}
 
 	throttle := b.throttle()
+	if payer.Linked || throttle.fastStart(payer, b.clock.Now()) {
+		pace *= throttle.LinkedMultiplier
+	}
+
 	scope := pool{key: cpratelimit.Key{Name: "scope:" + payer.Scope, Scale: throttle.scopeScale(payer.Scope)}, sharedWith: SharedWithScope}
 
 	if payer.Linked {
-		return []pool{{key: throttle.own(payer, pace*throttle.LinkedMultiplier), sharedWith: SharedWithNobody}, scope}
+		return []pool{{key: throttle.own(payer, pace), sharedWith: SharedWithNobody}, scope}
 	}
 
 	return []pool{
@@ -161,6 +171,10 @@ func (t Throttle) scopeScale(scope string) float64 {
 		return t.V6ScopeMultiplier
 	}
 	return t.ScopeMultiplier
+}
+
+func (t Throttle) fastStart(payer Payer, now time.Time) bool {
+	return !payer.Created.IsZero() && now.Sub(payer.Created) < t.FastStart
 }
 
 func (t Throttle) own(payer Payer, pace float64) cpratelimit.Key {
