@@ -41,16 +41,23 @@ With no book there are no boards. `app/standings/` draws it.
   empty once it stops. `Leaderboard`, `Menu` and `BoardSheet` read it themselves;
   `Viewer` reads it only for the order it ranks by, which it hands the anthem, the
   status bar's rank and the shared picture. With a race the
-  board keeps "% of map" and adds two columns: Points, each country's points from
+  board adds two columns: Points, each country's points from
   the days closed, right-aligned, and Today, what it scores if the day ends now, in
-  green ("+18") and left-aligned. **Today is its own column so the points line up**:
+  green ("+18") and left-aligned. **While a round runs, "% of map" becomes Gained**:
+  the tiles the country holds now less what it held when the round opened (`Round.start`,
+  `countryLines`' `gain`), signed, green up and red down (`--gain`, `--loss`), with its
+  own hint (`gained`, `gainedBattle`). A round ranks that gain (see the backend's
+  [Scoring](../../backend/docs/scoring.md#the-rules)), so the number beside the points
+  is the one that earns them; it moves with the tiles, live, while the points follow
+  the round's read every 10s. The owner asked for it on 2026-11-06: the points alone
+  did not say why a smaller flag won the day. **Today is its own column so the points line up**:
   as a badge beside the points it pushed only the rows that had one. **While a
   battle's round is open** (`race.battle`, `scoringNow`), the column is
   the battle's: crossed swords and its times ("×3", in `--war`) for "Today", its own
   hint (`battle`), and its points, already ×times, read "this battle" to a screen
   reader. The leader
-  frame shows the points where it showed the share, and the share beside its tiles,
-  first, so the tiles' delta badge floats into the room after them. On a narrow
+  frame shows the points where it showed the share, and its gain ("+120 today", "-10
+  this battle") beside its tiles, first, or its share while no round runs, so the tiles' delta badge floats into the room after them. On a narrow
   phone the two wrap onto two lines rather than run into the points.
 - **Each number says what it means** (`Hint` in `Leaderboard`, the texts in
   `boardFigures.ts`), as a bonus does: the column heads and the leader frame's

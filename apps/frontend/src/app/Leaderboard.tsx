@@ -2,7 +2,7 @@ import "./Leaderboard.css"
 import {PointerEvent, ReactNode, useEffect, useId, useRef, useState} from "react";
 import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry} from "../domain/leaderboard.ts";
-import {CountryLine, countryLines, CountryOrder, shownOrder} from "../domain/race.ts";
+import {CountryLine, countryLines, CountryOrder, scoringNow, shownOrder} from "../domain/race.ts";
 import {Figure, FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts";
 import {DELTA_HOLD_MS, NO_TILE_DELTAS, signed, TileDelta, TileDeltas} from "../domain/tileDeltas.ts";
 import {truncate} from "./truncate.ts";
@@ -26,6 +26,7 @@ type LeaderboardProps = {
 const NAME_MAX_LENGTH = 18
 
 const count = new Intl.NumberFormat()
+const gained = new Intl.NumberFormat(undefined, {signDisplay: "exceptZero"})
 
 const ORDERS: {order: CountryOrder, label: string}[] = [
     {order: "season", label: "Season"},
@@ -39,6 +40,8 @@ export default function Leaderboard(props: LeaderboardProps) {
     const deltas = props.deltas ?? NO_TILE_DELTAS
     const race = useRace((standings) => standings.race)
     const battle = race?.battle
+    const gaining = scoringNow(race) !== undefined
+    const gainFigure: Figure = battle ? "gainedBattle" : "gained"
     const [leader, ...rest] = countryLines(props.data, race, shownOrder(race, props.order))
     const [shown, setShown] = useState<Shown>()
     const [guiding, setGuiding] = useState(false)
@@ -73,6 +76,7 @@ export default function Leaderboard(props: LeaderboardProps) {
         {leader && <LeaderFrame line={leader}
                                 scored={race !== undefined}
                                 battle={battle !== undefined}
+                                gainFigure={gainFigure}
                                 tilesCount={props.tilesCount}
                                 delta={deltas.get(leader.country.code)}
                                 isPlayer={leader.country.code === props.highlight?.code}
@@ -89,7 +93,9 @@ export default function Leaderboard(props: LeaderboardProps) {
                         <Hint {...hint("tiles", "head")}>Tiles</Hint>
                     </th>
                     <th className="leaderboard-table-head leaderboard-table-number leaderboard-table-share" scope="col">
-                        <Hint {...hint("share", "head")}>% of map</Hint>
+                        {gaining
+                            ? <Hint {...hint(gainFigure, "head")}>Gained</Hint>
+                            : <Hint {...hint("share", "head")}>% of map</Hint>}
                     </th>
                     {race && <>
                         <th className="leaderboard-table-head leaderboard-table-number leaderboard-table-points" scope="col">
@@ -123,7 +129,9 @@ export default function Leaderboard(props: LeaderboardProps) {
                             <DeltaBadge delta={delta}/>
                         </td>
                         <td className="leaderboard-table-number leaderboard-table-share">
-                            {share(line.tiles, props.tilesCount)}
+                            {line.gain === undefined
+                                ? share(line.tiles, props.tilesCount)
+                                : <span className={gainClass(line.gain)}>{gained.format(line.gain)}</span>}
                         </td>
                         {race && <>
                             <td className="leaderboard-table-number leaderboard-table-points">{count.format(line.points)}</td>
@@ -153,6 +161,7 @@ type LeaderFrameProps = {
     line: CountryLine
     scored: boolean
     battle: boolean
+    gainFigure: Figure
     tilesCount: number
     delta?: TileDelta
     isPlayer: boolean
@@ -160,7 +169,7 @@ type LeaderFrameProps = {
     hint: (figure: Figure) => HintProps
 }
 
-function LeaderFrame({line, scored, battle, tilesCount, delta, isPlayer, anthem, hint}: LeaderFrameProps) {
+function LeaderFrame({line, scored, battle, gainFigure, tilesCount, delta, isPlayer, anthem, hint}: LeaderFrameProps) {
     const className = isPlayer ? "leader-frame panel-box leader-frame--you" : "leader-frame panel-box"
 
     return <section className={className}
@@ -173,7 +182,11 @@ function LeaderFrame({line, scored, battle, tilesCount, delta, isPlayer, anthem,
                 <span className="leader-frame-name">{truncate(line.country.name, NAME_MAX_LENGTH)}</span>
                 <span className="leader-frame-line">
                     {scored && <span className="leader-frame-map">
-                        <Hint {...hint("share")}>{share(line.tiles, tilesCount)}% of map</Hint>
+                        {line.gain === undefined
+                            ? <Hint {...hint("share")}>{share(line.tiles, tilesCount)}% of map</Hint>
+                            : <Hint {...hint(gainFigure)}>
+                                <span className={gainClass(line.gain)}>{gained.format(line.gain)}</span> {battle ? "this battle" : "today"}
+                            </Hint>}
                     </span>}
                     <span className={tilesClass(delta?.net, "leader-frame-tiles")}>
                         {count.format(line.tiles)} tiles
@@ -245,6 +258,11 @@ function share(tiles: number, tilesCount: number): string {
     const percent = tiles / tilesCount * 100
     const rounded = percent.toFixed(2)
     return percent > 0 && rounded === "0.00" ? "<0.01" : rounded
+}
+
+function gainClass(gain: number): string | undefined {
+    if (gain === 0) return undefined
+    return gain > 0 ? "leaderboard-gain-up" : "leaderboard-gain-down"
 }
 
 function tilesClass(net: number | undefined, base = "leaderboard-table-number leaderboard-table-tiles"): string {

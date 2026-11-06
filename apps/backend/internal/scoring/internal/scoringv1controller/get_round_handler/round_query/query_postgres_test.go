@@ -114,6 +114,7 @@ func (s *testSuite) TestAnOpenRoundRanksTheTilesGainedSinceItOpened() {
 			{Rank: 1, CountryId: "de", Share: 0.2, Points: 25}, {Rank: 2, CountryId: "fr", Share: 0.25},
 		},
 		Takes: []*scoringv1.RoundTakes{}, Players: []*scoringv1.Standing{},
+		Start: []*scoringv1.RoundStart{{CountryId: "fr", Tiles: 30}, {CountryId: "de", Tiles: 5}},
 	}, s.round(day25.ID)), s.round(day25.ID))
 }
 

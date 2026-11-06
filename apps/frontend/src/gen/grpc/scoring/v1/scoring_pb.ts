@@ -388,6 +388,14 @@ export class Round extends Message<Round> {
    */
   after: Score[] = [];
 
+  /**
+   * What each country held when the round opened, most first; empty for a round that counts from nothing. A country's
+   * gain is the tiles it holds minus its start.
+   *
+   * @generated from field: repeated scoring.v1.RoundStart start = 11;
+   */
+  start: RoundStart[] = [];
+
   constructor(data?: PartialMessage<Round>) {
     super();
     proto3.util.initPartial(data, this);
@@ -406,6 +414,7 @@ export class Round extends Message<Round> {
     { no: 8, name: "players", kind: "message", T: Standing, repeated: true },
     { no: 9, name: "before", kind: "message", T: Score, repeated: true },
     { no: 10, name: "after", kind: "message", T: Score, repeated: true },
+    { no: 11, name: "start", kind: "message", T: RoundStart, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Round {
@@ -422,6 +431,49 @@ export class Round extends Message<Round> {
 
   static equals(a: Round | PlainMessage<Round> | undefined, b: Round | PlainMessage<Round> | undefined): boolean {
     return proto3.util.equals(Round, a, b);
+  }
+}
+
+/**
+ * @generated from message scoring.v1.RoundStart
+ */
+export class RoundStart extends Message<RoundStart> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint64 tiles = 2;
+   */
+  tiles = protoInt64.zero;
+
+  constructor(data?: PartialMessage<RoundStart>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.RoundStart";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoundStart {
+    return new RoundStart().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoundStart {
+    return new RoundStart().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoundStart {
+    return new RoundStart().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoundStart | PlainMessage<RoundStart> | undefined, b: RoundStart | PlainMessage<RoundStart> | undefined): boolean {
+    return proto3.util.equals(RoundStart, a, b);
   }
 }
 

@@ -135,6 +135,7 @@ function roundOf(round: RoundPb): Round {
         players: round.players.map(standingOf),
         before: round.before.map(scoreOf),
         after: round.after.map(scoreOf),
+        start: round.start.map((start) => ({countryCode: start.countryId, tiles: Number(start.tiles)})),
     }
 }
 

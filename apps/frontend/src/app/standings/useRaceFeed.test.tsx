@@ -9,7 +9,7 @@ import {useRaceFeed} from "./useRaceFeed.ts"
 const SCORES: Score[] = [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}]
 
 const roundOf = (roundId: string): Round =>
-    ({roundId, times: 1, startedAt: 0, endedAt: 0, standings: [], takes: [], players: [], before: [], after: []})
+    ({roundId, times: 1, startedAt: 0, endedAt: 0, standings: [], takes: [], players: [], before: [], after: [], start: []})
 
 type Ids = {bookId?: string, today?: string, battle?: string}
 

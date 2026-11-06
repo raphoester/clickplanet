@@ -30,7 +30,7 @@ const france = Countries.get("fr")!
 const RACE: Race = {
     today: {
         roundId: "season-0/day-5", times: 1, startedAt: 0, endedAt: 0,
-        standings: [{rank: 1, countryCode: "fr", share: 0.5, points: 25}], takes: [], players: [], before: [], after: [],
+        standings: [{rank: 1, countryCode: "fr", share: 0.5, points: 25}], takes: [], players: [], before: [], after: [], start: [],
     },
     scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}],
 }
