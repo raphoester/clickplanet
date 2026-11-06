@@ -98,8 +98,8 @@ and says what is in it. Read the doc before you change its area.
   replies, reactions, and what each account saw.
 - [Player](docs/player.md) — who an account is: names and guest codes, colors, who is playing now, and an account
   asked deleted, hidden from the other players until it is purged or comes back; what it tells the other modules of
-  an account (`PlayerCreated`, `PlayerSignedIn`, `PlayerLeaving`, `PlayerReturned`, `PlayerForgotten`, `GetAccounts`), so
-  no game module but alerts hears or asks auth; the deploy that moved them to it.
+  an account (`PlayerCreated`, `PlayerNamed`, `PlayerSignedIn`, `PlayerLeaving`, `PlayerReturned`, `PlayerForgotten`,
+  `GetAccounts`), so no game module but alerts hears or asks auth; the deploy that moved them to it.
 - [Progression](docs/progression.md) — how far an account went: stats, streaks, titles and their tracks, the title
   worn, the fronts, the badges, the title-earned stream and the reconciliation; why it left `player`, and its tables
   moved from schema `player`.
@@ -122,10 +122,11 @@ and says what is in it. Read the doc before you change its area.
   plays and the battle's points at each read (`GetTeaser`); the set and times from the gamemaster (`GetBattle`), the
   values from planet (`GetRuleSet`), the points from scoring (`GetRankPoints`).
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
-- [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role; the role
-  follows the flag pledged, in a color of its own; the pings when its flag is attacked, with a link that opens the
-  globe on the attack, and `@everyone` when a battle or a season starts; the operator's unlink; `LinkMembers`, which
-  links the players in the server no sign-in linked; off by default.
+- [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role and its username
+  as its nickname; the role follows the flag pledged, in a color of its own, and the nickname the username; the pings
+  when its flag is attacked, with a link that opens the globe on the attack, and `@everyone` when a battle or a season
+  starts; the operator's unlink; `LinkMembers`, which links the players in the server no sign-in linked and names
+  every member; off by default.
 - [Clip stats](docs/clip-stats.md) — where the posted clips' daily numbers are kept, for the backoffice.
 - [Clip videos](docs/clip-videos.md) — the videos the operator posts by hand: uploaded and downloaded on the backoffice,
   the files in the bucket under `clips/videos/`, a row each in `clips.videos`.

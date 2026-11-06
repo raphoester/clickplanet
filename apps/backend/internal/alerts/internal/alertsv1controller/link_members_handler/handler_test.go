@@ -26,13 +26,13 @@ func (s stubUseCase) Execute(context.Context) (link_members_usecase.Out, error) 
 
 func TestTheRunIsCounted(t *testing.T) {
 	useCase := stubUseCase{out: link_members_usecase.Out{
-		Linked: 7, Outside: 13, Failed: []link_members_usecase.Failure{{User: "4242", Err: errors.New("discord answered 500")}},
+		Linked: 7, Named: 5, Outside: 13, Failed: []link_members_usecase.Failure{{User: "4242", Err: errors.New("discord answered 500")}},
 	}}
 
 	res, err := link_members_handler.New(useCase).LinkMembers(t.Context(), connect.NewRequest(&alertsv1.LinkMembersRequest{}))
 
 	require.NoError(t, err)
-	assert.True(t, proto.Equal(&alertsv1.LinkMembersResponse{Linked: 7, Outside: 13, Failed: 1}, res.Msg), "got %v", res.Msg)
+	assert.True(t, proto.Equal(&alertsv1.LinkMembersResponse{Linked: 7, Outside: 13, Failed: 1, Named: 5}, res.Msg), "got %v", res.Msg)
 }
 
 func TestARunThatStoppedIsAnError(t *testing.T) {

@@ -18,9 +18,9 @@ internal/player/internal/
     usecases/set_name_usecase/  set_color_usecase/  introduce_player_usecase/
       set_name_usecase/renaming_set_name/   shows a kept name on the roster at once
     usecases/forget_account_usecase/  — on auth.v1.AccountDeleted: the profile and the guest code, then player.v1.PlayerForgotten
-    usecases/rename_player_usecase/  — the operator's name for an account; player.v1.AdminService/RenamePlayer
+    usecases/rename_player_usecase/  — the operator's name for an account; player.v1.AdminService/RenamePlayer; then player.v1.PlayerNamed
       rename_player_usecase/audit_rename_player/   logs every rename at Warn
-    usecases/name_account_usecase/  — a username for an account signed in to with none; on auth.v1.SignedIn; then player.v1.PlayerCreated
+    usecases/name_account_usecase/  — a username for an account signed in to with none; on auth.v1.SignedIn; then player.v1.PlayerNamed and PlayerCreated
       name_account_usecase/renaming_name_account/   shows the name on the roster at once
     usecases/tell_sign_in_usecase/  — on auth.v1.SignedIn: player.v1.PlayerSignedIn, every time
   departures/                       Departure (Decided, Leaving), Decision (Leaves, Returns, TakeSnapshot): an account its player
@@ -125,8 +125,9 @@ internal/player/internal/
     (`ErrNoProfile`). It makes no profile, so it makes no player.
   - **It is not the player's choice**: `Profile.RenamedByOperator` clears `name_chosen_at`, as a name given at
     sign-in keeps none, so the player's next `SetName` goes at once.
-  - **Nothing pushes it**: the chat names a sender when it shows a message, and the roster takes the name at the
-    player's next announce, within 30s.
+  - **Nothing pushes it in the game**: the chat names a sender when it shows a message, and the roster takes the name
+    at the player's next announce, within 30s. It tells `PlayerNamed`, in the transaction of the save, so the Discord
+    member's nickname follows (see [Discord pings](alerts.md#the-nickname-linksnamer)).
 - **Migration `20260918190000_unicode_usernames`** moves to this rule. Every name kept before is ASCII of 3 to 20, so only length breaks the new rule: **a name over 15 is cut to its first 15 characters**, the player keeping most of it. A cut name that another would then hold, ignoring case — a name of 15 or fewer, or an older cut name (`updated_at`, then `account_id`) — is **deleted** instead, and its player chooses again; an untouched name is never the one to go. Then it fills `name_folded` with an ASCII-only `translate()` (exact for these names, in any locale), replaces the `CHECK`, and moves `profiles_name_key` to `name_folded`. The down migration deletes the names the old rule refuses, drops the column and puts the old `CHECK` and the `lower(name)` index back; cut names stay cut. `migrations_test.go` migrates to the version before, writes names, and migrates the rest.
 - **Migration `20260917180000_usernames`** deletes the profiles whose name breaks the new rule, then, of names that differ only in case, every one but the oldest (`updated_at`, then `account_id`), replaces the name `CHECK` with the new pattern and adds the unique index. No client called `SetName` before usernames existed, so nothing a player chose is lost. The down migration drops the index and puts the old `CHECK` back; the deleted rows stay deleted.
 - **A guest code names an account that chose no username**: 6 lowercase hex characters (`players.GuestCode`), shown as `guest_` and the code (`players.DisplayNameOf`). It is drawn by `random_code_generator` the first time the account is shown (`players.GuestCodes.Assign`), kept in `player.guest_codes`, and deleted with the account, which frees it. **It is unique**: the table's `guest_codes_code_key` refuses a code another account holds, the store answers `ErrGuestCodeTaken`, and `Assign` draws again, up to 10 times (`ErrNoFreeGuestCode`). An account keeps its first code: a second save for it changes nothing, so two first announces at once leave one code. **It does not change with the network**, unlike the address, and says nothing about the account or the address. A linked account with no username keeps the code it had as a guest until it picks a name.
@@ -172,10 +173,11 @@ internal/player/internal/
 **Player is the other modules' one source on an account**, so they need not hear auth: auth is player's detail. Each
 event goes through player's outbox (relay `player-outbox`; `outbox_event` gained `PlayerLeaving`, `PlayerReturned` and
 `PlayerForgotten` in migration `20261104190000_departure_events`, `PlayerSignedIn` in
-`20261104220000_signed_in_event`), in the transaction of what it tells, since a lost one would leave a module
+`20261104220000_signed_in_event`, `PlayerNamed` in `20261105120000_named_event`), in the transaction of what it tells, since a lost one would leave a module
 disagreeing with player for good (see [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox)).
 **Who hears them**: `PlayerCreated`, planet (the sign-in refill) and progression (a nameplate); `PlayerSignedIn`,
-missions (what a guest finished that day is paid); `PlayerLeaving` and `PlayerReturned`, progression;
+missions (what a guest finished that day is paid); `PlayerNamed`, alerts (the Discord member's nickname);
+`PlayerLeaving` and `PlayerReturned`, progression and alerts (a nickname taken off and given back);
 `PlayerForgotten`, every module that keeps something of an account: progression, planet, chat, scoring, support,
 missions, alerts and clips. `GetAccounts` is asked by progression and missions. Since 2026-11-04 no game module but
 alerts hears or asks auth, which needs it for a Discord join's token (see [Discord pings](alerts.md)):
@@ -190,6 +192,12 @@ alerts hears or asks auth, which needs it for a Discord join's token (see [Disco
   Missions pays then what the account finished as a guest (see [Missions](missions.md)).
   `TestEverySignInIsToldToTheOtherModules` pins it; migration `20261104220000_signed_in_event` gives it its place in
   `outbox_event`, and `TestEveryEventPlayerTellsHasAPlaceInItsOutbox` pins every event's.
+- **`player.v1.PlayerNamed{account_id}`**: the account's username was set. `name_account_usecase` records it with
+  `PlayerCreated` when it draws the first name, `set_name_usecase` with every name it keeps (a first one, a rename, the
+  same name in another case), and `rename_player_usecase` with every operator's rename, each in the transaction of the
+  save; a name refused (invalid, taken, too soon) tells nothing. **The name is not in it**: the alerts module asks
+  `GetPlayers` for the name now, so two told close together, or one told twice, leave it with the latest, whichever
+  stream it read first. `TestEveryNameKeptIsTold`, `TestARenameIsTold` and the name-account test pin it.
 - **`player.v1.PlayerLeaving{account_id, decided_at}`** and **`PlayerReturned{account_id, decided_at}`**: its player
   asked to delete it, or a sign-in brought it back (see [An account asked deleted](#an-account-asked-deleted)).
   `decide_departure_usecase` records one **for every decision, applied or not**, in the transaction of the departure:

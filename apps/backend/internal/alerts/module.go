@@ -14,6 +14,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/alerts/v1/alertsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_discord_link_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/get_discord_link_handler/link_query"
@@ -23,15 +25,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/alertsv1controller/unlink_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/discord/rest_discord"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/postgres_link_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/rpc_auth_discord_accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/rpc_auth_grants"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/rpc_planet_allegiance"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/rpc_player_names"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/follow_flag_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/forget_link_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/join_server_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/link_members_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/link_members_usecase/log_link_members"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/name_member_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/usecases/unlink_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
@@ -45,6 +50,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/battle_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/discord_join_granted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/nickname_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/season_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/tile_taken_subscriber"
@@ -73,10 +79,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the alerts module asks the planet module the flag a player pledged, and the auth module "+
-			"what a Discord sign-in joins with and who signed in with Discord: %w", err)
+		return fmt.Errorf("the alerts module asks the planet module the flag a player pledged, the player module its "+
+			"name, and the auth module what a Discord sign-in joins with and who signed in with Discord: %w", err)
 	}
 	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
+	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
 	auth := authv1connect.NewInternalServiceClient(internal, baseURL)
 	allegiances := rpc_planet_allegiance.New(planet)
 
@@ -105,6 +112,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	book := roles.NewBook(postgres_role_store.New(db), server)
 	herald := pings.NewHerald(book, server, config.Discord.channels(), config.GameURL)
 	announce := announce_start_usecase.New(clock, pingStore, herald, db)
+	namer := links.NewNamer(linkStore, rpc_player_names.New(player), server)
+	nameMember := name_member_usecase.New(namer)
 
 	var subscriptions []cpbootstrap.Runner
 	for _, subscribe := range []func() (cpbootstrap.Runner, error){
@@ -126,13 +135,26 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		},
 		func() (cpbootstrap.Runner, error) {
 			return cpredis.Subscribe(ctx, streams, "alerts-forgotten", log_subscriber.New(player_forgotten_subscriber.New(
-				forget_link_usecase.New(linkStore)), props.Logger))
+				forget_link_usecase.New(linkStore, server)), props.Logger))
 		},
 		func() (cpbootstrap.Runner, error) {
 			return cpredis.Subscribe(ctx, streams, "alerts-joins", log_subscriber.New(discord_join_granted_subscriber.New(
 				rpc_auth_grants.New(auth),
 				join_server_usecase.New(clock, linkStore, server, allegiances, book),
+				nameMember,
 				props.Logger), props.Logger))
+		},
+		func() (cpbootstrap.Runner, error) {
+			return cpredis.Subscribe(ctx, streams, "alerts-names", log_subscriber.New(
+				nickname_subscriber.New[*playerv1.PlayerNamed](nameMember, props.Logger), props.Logger))
+		},
+		func() (cpbootstrap.Runner, error) {
+			return cpredis.Subscribe(ctx, streams, "alerts-names-leaving", log_subscriber.New(
+				nickname_subscriber.New[*playerv1.PlayerLeaving](nameMember, props.Logger), props.Logger))
+		},
+		func() (cpbootstrap.Runner, error) {
+			return cpredis.Subscribe(ctx, streams, "alerts-names-returns", log_subscriber.New(
+				nickname_subscriber.New[*playerv1.PlayerReturned](nameMember, props.Logger), props.Logger))
 		},
 	} {
 		subscription, err := subscribe()
@@ -162,7 +184,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetPlayerLinkHandler: get_player_link_handler.New(player_link_query.NewPostgresQuery(db)),
 		UnlinkPlayerHandler:  unlink_player_handler.New(unlink_player_usecase.New(linkStore, book, server)),
 		LinkMembersHandler: link_members_handler.New(log_link_members.New(link_members_usecase.New(
-			clock, linkStore, rpc_auth_discord_accounts.New(auth), server, allegiances, book), props.Logger)),
+			clock, linkStore, rpc_auth_discord_accounts.New(auth), server, allegiances, book, namer), props.Logger)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return alertsv1connect.NewAdminServiceHandler(adminService, options...)

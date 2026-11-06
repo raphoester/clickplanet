@@ -42,7 +42,9 @@ func (u *UseCase) Execute(ctx context.Context, account players.AccountID, sugges
 		if !created {
 			return nil
 		}
-		if err := u.outbox.Record(ctx, &playerv1.PlayerCreated{AccountId: account.String()}); err != nil {
+		if err := u.outbox.Record(ctx,
+			&playerv1.PlayerNamed{AccountId: account.String()}, &playerv1.PlayerCreated{AccountId: account.String()},
+		); err != nil {
 			return fmt.Errorf("failed to record the player made: %w", err)
 		}
 		return nil

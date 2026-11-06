@@ -446,8 +446,9 @@ frontend has the button and the privacy policy page is live: we store email.
 ### Discord pings
 
 Off in `backend.yaml` (`alerts.enabled: false`). On, signing in with Discord also adds the player to the game's
-Discord server with the role of their flag ("Join Discord" in the game's chat is that sign-in), and the server pings
-that role when their flag is attacked, and everybody (`@everyone`) when a battle or a season starts.
+Discord server with the role of their flag and their username in the game as their nickname ("Join Discord" in the
+game's chat is that sign-in), and the server pings that role when their flag is attacked, and everybody (`@everyone`)
+when a battle or a season starts.
 
 **It is the same Discord application as the sign-in** (client id `1549822806420885616`): the application gets a bot,
 and the bot joins your server. There is no second trip and no new redirect URI: the sign-in asks Discord for the
@@ -477,8 +478,9 @@ leave to add the player to the server (`guilds.join`) when `auth.discord.joinSer
 1. In the left menu, click **OAuth2**. Check that **Redirects** lists `https://clickplanet.lol/auth/callback` (the
    sign-in added it). Add nothing.
 2. Further down, in **OAuth2 URL Generator**, tick the scope **bot** only. A **Bot Permissions** box appears below it.
-   Tick these five, and nothing else:
+   Tick these six, and nothing else:
    - **Manage Roles**: the bot makes one role per flag, paints it, and gives it to players.
+   - **Manage Nicknames**: the bot gives each player their username in the game as their nickname in the server.
    - **Create Instant Invite**: Discord needs it to add a player to the server.
    - **View Channels**
    - **Send Messages**
@@ -486,11 +488,20 @@ leave to add the player to the server (`guilds.join`) when `auth.discord.joinSer
      pings nobody.
 3. Leave **Integration Type** on **Guild Install**. Copy the **Generated URL** at the bottom and open it in your
    browser.
-4. Pick the game's server under **Add to server**, click **Continue**, keep the five permissions ticked, and click
+4. Pick the game's server under **Add to server**, click **Continue**, keep the six permissions ticked, and click
    **Authorize**.
 5. In Discord, the bot is now in the server's member list, offline. That is normal: it only posts through the API.
    It also has a role of its own with the application's name. The roles the bot makes go below that role, so leave
-   the bot's role where it is or above.
+   the bot's role where it is or above. The bot renames only members whose highest role is below its own: keep it
+   above every role players get, and expect the server's owner and the moderators above it to keep their own names.
+
+**A bot added before the nicknames** (it has the five other permissions, not **Manage Nicknames**): **Server
+Settings** > **Roles**, open the role with the application's name, **Permissions**, turn **Manage Nicknames** on, and
+**Save Changes**. No new token, no new link.
+
+**Lock the nicknames**, so a player's name in the server is their name in the game: **Server Settings** > **Roles** >
+**Default Permissions** (`@everyone`) > turn **Change Nickname** off > **Save Changes**. Check that no other role
+players get turns it back on. Players change their name in the game, and the bot follows.
 
 #### 3. Make the two channels
 
@@ -539,18 +550,20 @@ secret or id refuses the boot, so set the secret (step 1) before you merge.
 1. Open the game, then press **Join Discord** in the chat's Discord bar (or sign in with Discord from the menu).
    Discord asks to let ClickPlanet sign you in and join servers for you: **Authorize**. You are back in the game,
    signed in, and the bar says **Open Discord**.
-2. In the server, you now have your flag's role, in a color of its own. Change flag in the game: the role follows.
+2. In the server, you now have your flag's role, in a color of its own, and your username in the game as your
+   nickname. Change flag in the game: the role follows. Change your name in the game: the nickname follows. (As the
+   server's owner, you keep your own name: Discord lets no bot rename the owner. Try it with another account.)
 3. To see the offer again, unlink your account on the backoffice: **Players**, open yours, the **Discord** tool,
-   **Unlink Discord**. The bot takes the flag's role off you, you stay in the server, and the game offers **Join
-   Discord** again on the next load.
+   **Unlink Discord**. The bot takes the flag's role and the nickname off you, you stay in the server, and the game
+   offers **Join Discord** again on the next load.
 4. The backend log says why a join or a ping failed:
 
    ```bash
    ssh root@64.225.102.150 'journalctl CONTAINER_TAG=cp-backend --since "10 min ago" -o cat | grep -i "alerts\|discord"'
    ```
 
-   `Missing Permissions` (50013) means a permission from step 2 is missing, or a role the bot must give is above the
-   bot's own role.
+   `Missing Permissions` (50013) means a permission from step 2 is missing, a role the bot must give is above the
+   bot's own role, or the member the bot must rename is the server's owner or above the bot.
 
 #### The players who signed in with Discord before the alerts
 
@@ -565,8 +578,15 @@ but it does link again an account you unlinked to try the offer, if it is still 
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/alerts.v1.AdminService/LinkMembers
 ```
 
-The answer is `{"linked":N,"outside":M,"failed":F}` (a count of 0 is left out). A `failed` one is in the log above
-with its reason (`failed to link a Discord member`).
+The answer is `{"linked":N,"outside":M,"failed":F,"named":K}` (a count of 0 is left out). A `failed` one is in the
+log above with its reason (`failed to link or name a Discord member`).
+
+#### The players linked before the nicknames (November 2026)
+
+The players linked before the bot gave nicknames still show their own Discord name. Once **Manage Nicknames** is on
+(above) and the backend runs this version, run **Link Discord members** once, as above: it gives every linked member
+their username as their nickname (`named`), and links nobody twice. Each later rename in the game follows by itself.
+Its `failed` count then holds the server's owner and any member above the bot, which no bot can rename, at every run.
 
 #### A server set up before the one connection (November 2026)
 

@@ -88,6 +88,8 @@ type fixture struct {
 	members  *fakeMembers
 	maker    *roles.FakeMaker
 	flags    pledged
+	names    *links.FakeNames
+	renamer  *links.FakeRenamer
 	useCase  *link_members_usecase.UseCase
 }
 
@@ -98,11 +100,13 @@ func setUp() *fixture {
 		members: &fakeMembers{
 			in: cpcolls.NewSet[discord.UserID](), failing: cpcolls.NewSet[discord.UserID](), leaving: cpcolls.NewSet[discord.UserID](),
 		},
-		maker: &roles.FakeMaker{},
-		flags: pledged{},
+		maker:   &roles.FakeMaker{},
+		flags:   pledged{},
+		names:   links.NewFakeNames(),
+		renamer: &links.FakeRenamer{},
 	}
 	f.useCase = link_members_usecase.New(cptime.NewFixedClock(now), f.store, f.accounts, f.members, f.flags,
-		roles.NewBook(roles.NewInMemoryStore(), f.maker))
+		roles.NewBook(roles.NewInMemoryStore(), f.maker), links.NewNamer(f.store, f.names, f.renamer))
 	return f
 }
 
@@ -234,6 +238,69 @@ func TestEveryPageIsRead(t *testing.T) {
 	assert.Equal(t, link_members_usecase.PageSize+1, out.Linked)
 	assert.Equal(t, 2, f.accounts.asked)
 	assert.Len(t, f.store.Links(), link_members_usecase.PageSize+1)
+}
+
+func TestAMemberLinkedNowIsGivenItsUsername(t *testing.T) {
+	f := setUp()
+	f.signedIn(ada, "1111", "ie", true)
+	f.names.Name(ada, "BraveFox42")
+
+	out, err := f.useCase.Execute(t.Context())
+	require.NoError(t, err)
+
+	assert.Equal(t, link_members_usecase.Out{Linked: 1, Named: 1}, out)
+	assert.Equal(t, []string{"1111 BraveFox42"}, f.renamer.Renamed())
+	assert.Equal(t, []links.LinkSnapshot{{Account: ada, User: "1111", Flag: "ie", Name: "BraveFox42", LinkedAt: now}},
+		f.store.Links())
+}
+
+func TestAnAccountLinkedBeforeIsGivenItsUsernameOnce(t *testing.T) {
+	f := setUp()
+	f.signedIn(ada, "1111", "ie", true)
+	require.NoError(t, f.store.SaveLinks(t.Context(), links.NewLink(ada, "1111", "gb", now.Add(-time.Hour))))
+	f.names.Name(ada, "BraveFox42")
+
+	first, err := f.useCase.Execute(t.Context())
+	require.NoError(t, err)
+	second, err := f.useCase.Execute(t.Context())
+	require.NoError(t, err)
+
+	assert.Equal(t, link_members_usecase.Out{Named: 1}, first)
+	assert.Equal(t, link_members_usecase.Out{}, second)
+	assert.Empty(t, f.members.checked, "Discord is not asked whether it is in the server")
+	assert.Equal(t, []string{"1111 BraveFox42"}, f.renamer.Renamed())
+}
+
+func TestAUserOutsideOrLinkedFromAnotherAccountIsNotNamed(t *testing.T) {
+	f := setUp()
+	f.signedIn(ada, "1111", "ie", false)
+	f.signedIn(bob, "2222", "fr", true)
+	require.NoError(t, f.store.SaveLinks(t.Context(), links.NewLink(links.AccountID{15: 3}, "2222", "fr", now)))
+	f.names.Name(ada, "Ada")
+	f.names.Name(bob, "Bob")
+
+	out, err := f.useCase.Execute(t.Context())
+	require.NoError(t, err)
+
+	assert.Equal(t, link_members_usecase.Out{Outside: 1}, out)
+	assert.Empty(t, f.renamer.Renamed())
+}
+
+func TestANicknameDiscordRefusedIsAFailureAndTheLinkKept(t *testing.T) {
+	f := setUp()
+	f.signedIn(ada, "1111", "ie", true)
+	f.names.Name(ada, "TheOwner")
+	f.renamer.Refused = map[discord.UserID]bool{"1111": true}
+
+	out, err := f.useCase.Execute(t.Context())
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, out.Linked)
+	assert.Zero(t, out.Named)
+	require.Len(t, out.Failed, 1)
+	assert.ErrorIs(t, out.Failed[0].Err, discord.ErrRefused)
+	assert.Equal(t, []links.LinkSnapshot{{Account: ada, User: "1111", Flag: "ie", LinkedAt: now}}, f.store.Links(),
+		"a run again tries to name it")
 }
 
 func TestAuthThatDoesNotAnswerStopsTheRun(t *testing.T) {

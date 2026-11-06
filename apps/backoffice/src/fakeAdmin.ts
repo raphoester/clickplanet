@@ -202,7 +202,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         discordUserId: "80351110224678912", countryId: "fr", linkedAtUnixMs: BigInt(AT.getTime()),
     })
     // What LinkMembers answers.
-    membersLinked = new LinkMembersResponse({linked: 7, outside: 13})
+    membersLinked = new LinkMembersResponse({linked: 7, named: 5, outside: 13})
     message = new GetMessageResponse({
         messageId: "message-1", accountId: "account-reported", body: textBody("you all suck"),
         sentAt: Timestamp.fromDate(AT), countryId: "fr",

@@ -1,8 +1,9 @@
 # Discord pings (`internal/alerts/`)
 
 **A player connects Discord once, by signing in with it, and the game's Discord server pings it.** The sign-in adds the
-player to the server with the role of the flag it plays for. The server pings a flag's role when that flag is
-attacked, and everybody in the server (`@everyone`) when a battle or a season starts. Off by default
+player to the server with the role of the flag it plays for, and its username in the game as its nickname there. The
+server pings a flag's role when that flag is attacked, and everybody in the server (`@everyone`) when a battle or a
+season starts. Off by default
 (`alerts.enabled`); off, the module is not built, `alerts.v1` 404s, which the client reads as no offer, and a Discord
 sign-in joins no server.
 
@@ -33,7 +34,11 @@ other. Now auth names no module, and the join lands a second or two after the si
   the server since is not added back by each one. A grant heard twice is the same: the second finds the link.
 - **One Discord user, one account.** A user linked from another account moves here: the first link is forgotten.
 - **Alerts never keeps the access token**: it joins the user once. Auth keeps it, sealed, ten minutes, and the bus
-  tries a join again for about four. A link keeps the account, the Discord user id, the flag of its role, and when.
+  tries a join again for about four. A link keeps the account, the Discord user id, the flag of its role, the name the
+  bot gave the user as its nickname (`links.name`, migration `20261105120000_link_names`), and when.
+- **Joined, the user is given its username** (below): `discord_join_granted_subscriber` asks `name_member_usecase`
+  once the join passed. A nickname that fails may pass is tried again with the join, which finds the link and joins
+  nobody twice; one Discord refused is logged, and the user stays linked under its own Discord name.
 - **A failure never fails the sign-in**: the sign-in was saved before alerts heard of it. What cannot pass is logged
   and not tried again: a grant auth keeps no more (`NotFound`, `links.ErrNoGrant`), and a token Discord refused
   (`discord.ErrRefused`, a 4xx: no `guilds.join`). The player is signed in, not linked, and the game offers to join
@@ -45,7 +50,10 @@ other. Now auth names no module, and the join lands a second or two after the si
   click kept being pinged for the old one. A user who left the server (`10007 Unknown Member`) is forgotten: it asked
   for no more pings.
 - **A deleted account is forgotten** (`alerts-forgotten`, `player.v1.PlayerForgotten`, which player tells for every
-  account auth deletes). The Discord user stays in the server with its roles: that is its own Discord account. Until
+  account auth deletes). The Discord user stays in the server with its roles: that is its own Discord account. The
+  nickname the bot gave it is the game's, the username player forgot, so it is taken off first, and Discord shows the
+  user's own name again. A user who left the server, or one the bot may no longer rename, is forgotten all the same;
+  Discord busy or down keeps the link until the bus tries again. Until
   2026-11-04 it heard `auth.v1.AccountDeleted` (`alerts-accounts`); why the new group misses no deletion is in
   [Player](player.md#the-deploy-that-moved-the-others-to-players-events).
 - **Alerts is the one game module besides player that talks to auth, on purpose.** Every other module asks player
@@ -63,13 +71,14 @@ shows no offer.
 On the console and admin listeners, as every operator tool (see [Operator tools](admin.md)):
 
 - **`GetPlayerLink(account_id)`**: the account's link (the Discord user, its role's flag, when), or none.
-- **`UnlinkPlayer(account_id)`**: forgets the link and takes the flag's role off the user (`unlink_player_usecase`).
-  The user stays in the server; a user who left it already is unlinked all the same. `unlinked` false: there was no
-  link. A role Discord would not take off keeps the link (`FailedPrecondition`). Unlinked, the game offers that account
+- **`UnlinkPlayer(account_id)`**: forgets the link and takes the flag's role and the nickname the bot gave off the user
+  (`unlink_player_usecase`). The user stays in the server; a user who left it already is unlinked all the same.
+  `unlinked` false: there was no link. A role or a nickname Discord would not take off keeps the link
+  (`FailedPrecondition`). Unlinked, the game offers that account
   to join again, and its next Discord sign-in joins it again: this is how the offer is tried. Players cannot unlink
   themselves; leaving the server is how they stop the pings.
-- **`LinkMembers()`**: links the players already in the server who have no link (`link_members_usecase`), and counts
-  them. See below.
+- **`LinkMembers()`**: links the players already in the server who have no link (`link_members_usecase`), gives every
+  linked one its username as its nickname, and counts them. See below.
 
 ### The players a sign-in never joined (`LinkMembers`)
 
@@ -89,14 +98,44 @@ sign-in asked `guilds.join` (before the alerts, November 2026), or whose join fa
   linked sees "Join Discord" in the chat's Discord bar and "Get pinged" when its flag is attacked, and that Discord
   sign-in, a link of the identity it holds already, joins the server (see [Auth](auth.md)). `LinkMembers` counts them
   (`outside`) and changes nothing.
-- **A second run links nobody twice**: an account linked already is skipped before Discord is asked, and a user linked
-  from another account is never moved. The ones outside are asked again: they may have joined since. **An account
+- **Every linked account is named** (`links.Namer`, below), the ones linked before the nicknames too: the first run
+  after they came names every member, and counts each in `named`. Discord is asked only for a member that does not
+  wear its name yet, so a second run renames nobody. A member the bot may not rename (the server's owner, a member
+  above the bot) is counted in `failed` at each run, its reason logged.
+- **A second run links nobody twice**: an account linked already is skipped before Discord is asked whether its user
+  is in the server, and a user linked from another account is never moved. The ones outside are asked again: they may have joined since. **An account
   the operator unlinked, still in the server, is linked again**: unlinking stops nothing once a run follows.
 - **One account that fails does not stop the others**: it is counted (`failed`) and logged with its reason
   (`log_link_members`), and a run again tries it. The run stops only when `auth` does not answer or the call is cut
   short. It is sequential: a few hundred accounts take a minute or two, within the backoffice's long timeout.
 - **It is an operator's run**, from the backoffice's Ops page ("Link Discord members"), not a boot runner: a boot that
   linked every member would undo each unlink an operator made to try the offer.
+
+## The nickname (`links.Namer`)
+
+**A linked member's nickname in the server is its account's username in the game**, so the players on Discord are
+the ones they know from the chat and the boards. Discord gives a bot no field of its own on a member: the server
+nickname is the one place a name can go, so the bot owns it, and the operator takes **Change Nickname** off
+`@everyone` so nobody wears another name (the server's owner and the moderators keep theirs, see below).
+
+- **`links.Namer.Name(account)`** reads the link, asks player the name it shows for the account now
+  (`links/rpc_player_names`, `player.v1.InternalService/GetPlayers`), and when the user does not wear it yet sets the
+  nickname (`PATCH /guilds/{guild}/members/{user}`, `nick`) and keeps it on the link (`Store.SaveName`, the name
+  column alone, so a nickname given while the flag moves keeps the flag's move; and `SaveLinks` keeps the name of a
+  link saved with the same user, so the flag's move saved after keeps the nickname). True when the nickname changed.
+- **No name takes the nickname off** (`nick` null), and Discord shows the user's own name again: a guest has its code
+  alone, and an account its player asked to delete is hidden from the other players, as it is in the game.
+- **Who asks it**: the join (above), `LinkMembers` (above), and three subscribers of player's events, through
+  `name_member_usecase` and `nickname_subscriber`: `alerts-names` (`player.v1.PlayerNamed`, a name drawn at the first
+  sign-in, chosen by the player or given by the operator), `alerts-names-leaving` (`PlayerLeaving`) and
+  `alerts-names-returns` (`PlayerReturned`). **The events name the account alone, and the namer asks player the name
+  now**, so whichever of them comes last, from whichever stream, leaves the nickname right, and one told twice changes
+  nothing.
+- **A user who left the server is forgotten** (`10007 Unknown Member`), as when its flag moves.
+- **The server's owner, and a member whose highest role is above the bot's, cannot be renamed by any bot**: Discord
+  answers `50013 Missing Permissions`, `discord.ErrRefused`. The subscribers log it at Warn and try no more; the link
+  keeps no name, so its next rename and each `LinkMembers` try again. Discord refuses a nickname it takes for no name
+  the same way; a game username (3 to 15 letters, digits, `_` and spaces) is well within its 32 characters.
 
 ## The roles (`roles/`)
 
@@ -154,13 +193,14 @@ posts the text and pings nobody.
 
 ## The Discord client (`discord/rest_discord`)
 
-The bot (`Authorization: Bot …`) on API v10: members (`Join`, `IsMember`, `Grant`, `Revoke`), roles and posts. The
+The bot (`Authorization: Bot …`) on API v10: members (`Join`, `IsMember`, `Grant`, `Revoke`, `Rename`), roles and
+posts. The
 OAuth trade is `auth`'s. A `4xx` is `discord.ErrRefused` (`ErrNotMember` for `10007`, `ErrNoRole` for `10011`), a `5xx`
 a plain error that a subscriber tries again. **A `429` whose `Retry-After` is 5 s or less is waited out and sent
 again, twice at most**, so a run of `LinkMembers` rides Discord's per-route limit; a longer wait, or none named, is a
-plain error, tried again by its caller as before. The bot needs **Manage Roles**, **Create Instant Invite** (to add a
-member), **View Channels**, **Send Messages** and **Mention @everyone, @here, and All Roles**; the setup is in
-`deploy/vps/README.md`, "Discord pings".
+plain error, tried again by its caller as before. The bot needs **Manage Roles**, **Manage Nicknames**, **Create
+Instant Invite** (to add a member), **View Channels**, **Send Messages** and **Mention @everyone, @here, and All
+Roles**; the setup is in `deploy/vps/README.md`, "Discord pings".
 
 ## Config
 
@@ -177,3 +217,7 @@ the grants, which wait in their stream up to `redis.maxLen`, and a group made la
 `roles.FakeMaker`, `pings.RecordedPoster`; `cpatomic.OnCommit` keeps an in-memory write until the fake transaction
 commits. `rest_discord` runs against an `httptest` Discord. `discord_join_granted_subscriber`'s test pins what is
 tried again and what is not, and that the token is not logged; `rpc_auth_grants`' what auth's answers mean.
+`links/namer_test.go` pins the nickname: given once, followed, taken off with no name, a user who left forgotten, a
+refusal that keeps the link unnamed, and a name kept without the flag's move undone; `links.FakeNames` and
+`links.FakeRenamer` stand in for player and Discord. `nickname_subscriber`'s test pins the three events and what is
+tried again; `rpc_player_names`' what player's answer means.

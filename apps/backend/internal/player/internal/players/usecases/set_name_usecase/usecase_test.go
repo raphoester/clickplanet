@@ -56,8 +56,46 @@ func TestOnlyTheFirstNameOfAnAccountWithNoProfileMakesAPlayer(t *testing.T) {
 	_, err = useCase.Execute(t.Context(), set_name_usecase.In{Account: bob, Name: "Bobby"})
 	require.NoError(t, err)
 
-	require.Len(t, outbox.Recorded(), 1)
-	assert.True(t, proto.Equal(&playerv1.PlayerCreated{AccountId: ada.String()}, outbox.Recorded()[0]))
+	var created []proto.Message
+	for _, event := range outbox.Recorded() {
+		if _, ok := event.(*playerv1.PlayerCreated); ok {
+			created = append(created, event)
+		}
+	}
+	require.Len(t, created, 1)
+	assert.True(t, proto.Equal(&playerv1.PlayerCreated{AccountId: ada.String()}, created[0]))
+}
+
+func TestEveryNameKeptIsTold(t *testing.T) {
+	store, accounts := setUp()
+	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(bob, "Bob", now)))
+	outbox := &cpatomic.FakeOutbox{}
+	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, outbox, cptime.NewFixedClock(now))
+
+	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada_L"})
+	require.NoError(t, err)
+	_, err = useCase.Execute(t.Context(), set_name_usecase.In{Account: bob, Name: "Bobby"})
+	require.NoError(t, err)
+
+	var named []string
+	for _, event := range outbox.Recorded() {
+		if told, ok := event.(*playerv1.PlayerNamed); ok {
+			named = append(named, told.GetAccountId())
+		}
+	}
+	assert.Equal(t, []string{ada.String(), bob.String()}, named)
+}
+
+func TestANameRefusedIsNotTold(t *testing.T) {
+	store, accounts := setUp()
+	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(bob, "Bob", now)))
+	outbox := &cpatomic.FakeOutbox{}
+
+	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, outbox, cptime.NewFixedClock(now)).
+		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "BOB"})
+
+	require.ErrorIs(t, err, players.ErrNameTaken)
+	assert.Empty(t, outbox.Recorded())
 }
 
 func TestAnInvalidNameChangesNothingAndAsksNobody(t *testing.T) {

@@ -220,6 +220,53 @@ func (x *PlayerReturned) GetDecidedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// The account's username was set: drawn at its first sign-in, chosen by its player, or given by the operator. The name
+// is not in the event: a receiver asks player for it (InternalService/GetPlayers), so two told close together, or one
+// told twice, leave it with the latest.
+type PlayerNamed struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlayerNamed) Reset() {
+	*x = PlayerNamed{}
+	mi := &file_player_v1_events_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlayerNamed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlayerNamed) ProtoMessage() {}
+
+func (x *PlayerNamed) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_events_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlayerNamed.ProtoReflect.Descriptor instead.
+func (*PlayerNamed) Descriptor() ([]byte, []int) {
+	return file_player_v1_events_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PlayerNamed) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
 // Player forgot the account: its name and its guest code. What another module keeps of the account goes too.
 type PlayerForgotten struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -230,7 +277,7 @@ type PlayerForgotten struct {
 
 func (x *PlayerForgotten) Reset() {
 	*x = PlayerForgotten{}
-	mi := &file_player_v1_events_proto_msgTypes[4]
+	mi := &file_player_v1_events_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -242,7 +289,7 @@ func (x *PlayerForgotten) String() string {
 func (*PlayerForgotten) ProtoMessage() {}
 
 func (x *PlayerForgotten) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_events_proto_msgTypes[4]
+	mi := &file_player_v1_events_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -255,7 +302,7 @@ func (x *PlayerForgotten) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerForgotten.ProtoReflect.Descriptor instead.
 func (*PlayerForgotten) Descriptor() ([]byte, []int) {
-	return file_player_v1_events_proto_rawDescGZIP(), []int{4}
+	return file_player_v1_events_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PlayerForgotten) GetAccountId() string {
@@ -285,7 +332,10 @@ const file_player_v1_events_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x129\n" +
 	"\n" +
-	"decided_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\"0\n" +
+	"decided_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\",\n" +
+	"\vPlayerNamed\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"0\n" +
 	"\x0fPlayerForgotten\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountIdB\xb3\x01\n" +
@@ -304,18 +354,19 @@ func file_player_v1_events_proto_rawDescGZIP() []byte {
 	return file_player_v1_events_proto_rawDescData
 }
 
-var file_player_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_player_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_player_v1_events_proto_goTypes = []any{
 	(*PlayerCreated)(nil),         // 0: player.v1.PlayerCreated
 	(*PlayerSignedIn)(nil),        // 1: player.v1.PlayerSignedIn
 	(*PlayerLeaving)(nil),         // 2: player.v1.PlayerLeaving
 	(*PlayerReturned)(nil),        // 3: player.v1.PlayerReturned
-	(*PlayerForgotten)(nil),       // 4: player.v1.PlayerForgotten
-	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
+	(*PlayerNamed)(nil),           // 4: player.v1.PlayerNamed
+	(*PlayerForgotten)(nil),       // 5: player.v1.PlayerForgotten
+	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
 }
 var file_player_v1_events_proto_depIdxs = []int32{
-	5, // 0: player.v1.PlayerLeaving.decided_at:type_name -> google.protobuf.Timestamp
-	5, // 1: player.v1.PlayerReturned.decided_at:type_name -> google.protobuf.Timestamp
+	6, // 0: player.v1.PlayerLeaving.decided_at:type_name -> google.protobuf.Timestamp
+	6, // 1: player.v1.PlayerReturned.decided_at:type_name -> google.protobuf.Timestamp
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -334,7 +385,7 @@ func file_player_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_events_proto_rawDesc), len(file_player_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

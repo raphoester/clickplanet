@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/rename_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rename_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -34,7 +35,7 @@ func handler(t *testing.T) rename_player_handler.RenamePlayerHandler {
 		require.NoError(t, err)
 		require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(account, name, now)))
 	}
-	return rename_player_handler.New(rename_player_usecase.New(store, cptime.NewFixedClock(now)))
+	return rename_player_handler.New(rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)))
 }
 
 func rename(t *testing.T, account, name string) (*playerv1.RenamePlayerResponse, error) {

@@ -22,6 +22,7 @@ type Roles interface {
 
 type Members interface {
 	Revoke(ctx context.Context, user discord.UserID, role discord.RoleID) error
+	Rename(ctx context.Context, user discord.UserID, nick string) error
 }
 
 const timeout = 10 * time.Second
@@ -37,7 +38,8 @@ type UseCase struct {
 }
 
 // False when the account was not linked. The user stays in the server, without the flag's role, which no flag the
-// account pledges would move any more; a user who left the server already has no role to lose.
+// account pledges would move any more, and without the nickname the bot gave it, which no rename would follow; a user
+// who left the server already has neither to lose.
 func (u *UseCase) Execute(ctx context.Context, account links.AccountID) (bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -49,6 +51,9 @@ func (u *UseCase) Execute(ctx context.Context, account links.AccountID) (bool, e
 	if err != nil {
 		return false, fmt.Errorf("failed to read the link: %w", err)
 	}
+	if err := u.unname(ctx, &link); err != nil {
+		return false, err
+	}
 	if err := u.revoke(ctx, link.Forget()); err != nil {
 		return false, err
 	}
@@ -56,6 +61,18 @@ func (u *UseCase) Execute(ctx context.Context, account links.AccountID) (bool, e
 		return false, fmt.Errorf("failed to forget the link: %w", err)
 	}
 	return true, nil
+}
+
+func (u *UseCase) unname(ctx context.Context, link *links.Link) error {
+	nickname, renamed := link.Rename("")
+	if !renamed {
+		return nil
+	}
+	err := u.members.Rename(ctx, nickname.User, "")
+	if err != nil && !errors.Is(err, discord.ErrNotMember) {
+		return err //nolint:wrapcheck // the client named it.
+	}
+	return nil
 }
 
 func (u *UseCase) revoke(ctx context.Context, move links.Move) error {

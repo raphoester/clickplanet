@@ -35,8 +35,9 @@ func TestANamelessAccountIsGivenAGeneratedNameAndBecomesAPlayer(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, players.Name("BraveFox42"), profile.TakeSnapshot().Name)
 	assert.True(t, now.Equal(profile.TakeSnapshot().UpdatedAt))
-	require.Len(t, outbox.Recorded(), 1)
-	assert.True(t, proto.Equal(&playerv1.PlayerCreated{AccountId: ada.String()}, outbox.Recorded()[0]))
+	require.Len(t, outbox.Recorded(), 2)
+	assert.True(t, proto.Equal(&playerv1.PlayerNamed{AccountId: ada.String()}, outbox.Recorded()[0]))
+	assert.True(t, proto.Equal(&playerv1.PlayerCreated{AccountId: ada.String()}, outbox.Recorded()[1]))
 }
 
 func TestAnAccountWithANameKeepsItAndIsNoNewPlayer(t *testing.T) {
