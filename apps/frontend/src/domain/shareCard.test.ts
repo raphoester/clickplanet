@@ -114,7 +114,7 @@ describe("reading the player's standing off the board", () => {
 
     it("ranks by the order of the board it is given, the season's as well", () => {
         const race: Race = {scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}, {rank: 2, countryCode: "it", points: 30, roundsWon: 0}]}
-        const season = countryLines([entry("jp", 500), entry("fr", 250)], race, "season")
+        const season = countryLines([entry("jp", 500), entry("fr", 250)], race, "points")
 
         expect(shareStats(season, france)).toEqual({country: france, rank: 1, tiles: 250})
         expect(shareStats(season, japan)).toEqual({country: japan, rank: 3, tiles: 500})

@@ -2,7 +2,7 @@ import {Race, Round, Score} from "../backends/standings.ts"
 import {Countries, Country} from "./countries.ts"
 import {LeaderboardEntry} from "./leaderboard.ts"
 
-export type CountryOrder = "season" | "territory"
+export type CountryOrder = "points" | "tiles" | "gain"
 
 export type CountryLine = {
     country: Country
@@ -13,8 +13,10 @@ export type CountryLine = {
     gain: number | undefined
 }
 
-export function shownOrder(race: Race | undefined, picked: CountryOrder = "season"): CountryOrder {
-    return race ? picked : "territory"
+export function shownOrder(race: Race | undefined, picked: CountryOrder = "points"): CountryOrder {
+    if (!race) return "tiles"
+    if (picked === "gain" && !scoringNow(race)) return "points"
+    return picked
 }
 
 export function countryLines(
@@ -34,7 +36,7 @@ export function countryLines(
     })
 
     const lines = leaderboard.map(line)
-    if (order === "territory") return lines
+    if (order === "tiles") return lines
 
     const held = new Set(leaderboard.map((entry) => entry.country.code))
     for (const code of new Set([...points.keys(), ...today.keys()])) {
@@ -43,7 +45,16 @@ export function countryLines(
     }
     return lines
         .filter((l) => l.tiles > 0 || l.points + l.today > 0)
-        .sort((a, b) => b.points - a.points || b.tiles - a.tiles || a.country.code.localeCompare(b.country.code))
+        .sort((a, b) => lead(b, order) - lead(a, order) || b.tiles - a.tiles || a.country.code.localeCompare(b.country.code))
+}
+
+function lead(line: CountryLine, order: "points" | "gain"): number {
+    switch (order) {
+        case "points":
+            return line.points
+        case "gain":
+            return line.gain ?? 0
+    }
 }
 
 // What the board's column scores now: the running battle's round, else today's.

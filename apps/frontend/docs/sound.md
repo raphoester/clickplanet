@@ -44,8 +44,8 @@ message of its own came back, so its first can still ping.
 The one sound that **is** a file. `src/app/anthem/` plays the national anthem of
 the country first on the board, in the order picked, on a loop, with a player in
 the leader's frame on the board. So the frame and the music always name one
-country: the season's leader under Season, the country with the most tiles under
-Territory or with no race.
+country: the first under the column head the board is sorted by (Points, Tiles or
+Gained), the country with the most tiles with no race.
 The recordings are the US Navy Band's (public domain); `npm run anthems` downloads
 them, normalises loudness, trims the silence so the loop has no gap, and writes
 `static/anthems/<code>-<hash>.m4a` plus `anthemsAsset.ts`, which pairs each file

@@ -22,16 +22,14 @@ export type BoardStandings = {
 export type BoardViewsProps = BoardStandings & {
     country: Country
     countries: ReactNode
-    order?: ReactNode
     headless?: boolean
 }
 
 export type BoardHeadingProps = Pick<BoardStandings, "view" | "onView"> & {
     country: Country
-    order?: ReactNode
 }
 
-export function BoardHeading({view, onView, country, order}: BoardHeadingProps) {
+export function BoardHeading({view, onView, country}: BoardHeadingProps) {
     const choices: HeadingChoice<BoardView>[] = [
         {value: "countries", name: "Countries", label: <span>Countries</span>},
         {value: "players", name: "Players", label: <span>Players</span>},
@@ -44,13 +42,12 @@ export function BoardHeading({view, onView, country, order}: BoardHeadingProps) 
 
     return <div className="board-heading">
         <HeadingSelect label="Leaderboard" choices={choices} value={view} onChange={onView}/>
-        {view === "countries" && order}
     </div>
 }
 
 export default function BoardViews(props: BoardViewsProps) {
     return <>
-        {!props.headless && <BoardHeading view={props.view} onView={props.onView} country={props.country} order={props.order}/>}
+        {!props.headless && <BoardHeading view={props.view} onView={props.onView} country={props.country}/>}
 
         {props.view === "countries" && props.countries}
         {(props.view === "players" || props.view === "country") &&

@@ -9,7 +9,7 @@ import {truncate} from "./truncate.ts";
 import Bubble from "./components/Bubble.tsx";
 import ScrollArea from "./components/ScrollArea.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
-import {SwordsIcon} from "./components/icons.tsx";
+import {ChevronIcon, SwordsIcon} from "./components/icons.tsx";
 import RankCoin from "./components/RankCoin.tsx";
 import {useBoardGuide} from "./boardGuideStore.ts";
 import {useRace} from "./standings/raceStore.ts";
@@ -21,17 +21,13 @@ type LeaderboardProps = {
     highlight?: Country,
     anthem?: ReactNode,
     order?: CountryOrder,
+    onOrder?: (order: CountryOrder) => void,
 }
 
 const NAME_MAX_LENGTH = 18
 
 const count = new Intl.NumberFormat()
 const gained = new Intl.NumberFormat(undefined, {signDisplay: "exceptZero"})
-
-const ORDERS: {order: CountryOrder, label: string}[] = [
-    {order: "season", label: "Season"},
-    {order: "territory", label: "Territory"},
-]
 
 type Shown = {figure: Figure, at: "head" | "leader", ms?: number}
 
@@ -42,7 +38,8 @@ export default function Leaderboard(props: LeaderboardProps) {
     const battle = race?.battle
     const gaining = scoringNow(race) !== undefined
     const gainFigure: Figure = battle ? "gainedBattle" : "gained"
-    const [leader, ...rest] = countryLines(props.data, race, shownOrder(race, props.order))
+    const order = shownOrder(race, props.order)
+    const [leader, ...rest] = countryLines(props.data, race, order)
     const [shown, setShown] = useState<Shown>()
     const [guiding, setGuiding] = useState(false)
     const {guided, markGuided} = useBoardGuide()
@@ -70,6 +67,10 @@ export default function Leaderboard(props: LeaderboardProps) {
         onLost: () => setShown((now) => now?.figure === figure && now.at === at ? undefined : now),
     })
 
+    const onOrder = race ? props.onOrder : undefined
+    const sort = (by: CountryOrder): Sort | undefined => onOrder && {on: order === by, pick: () => onOrder(by)}
+    const sorted = (by: CountryOrder) => onOrder && order === by ? "descending" : undefined
+
     return <section className="leaderboard" aria-labelledby={titleId}>
         <h2 className="sr-only" id={titleId}>Leaderboard</h2>
 
@@ -89,17 +90,19 @@ export default function Leaderboard(props: LeaderboardProps) {
                 <tr>
                     <th className="leaderboard-table-head leaderboard-table-rank" scope="col">#</th>
                     <th className="leaderboard-table-head" scope="col">Country</th>
-                    <th className="leaderboard-table-head leaderboard-table-number" scope="col">
-                        <Hint {...hint("tiles", "head")}>Tiles</Hint>
+                    <th className="leaderboard-table-head leaderboard-table-number" scope="col" aria-sort={sorted("tiles")}>
+                        <Hint {...hint("tiles", "head")} sort={sort("tiles")}>Tiles</Hint>
                     </th>
-                    <th className="leaderboard-table-head leaderboard-table-number leaderboard-table-share" scope="col">
+                    <th className="leaderboard-table-head leaderboard-table-number leaderboard-table-share" scope="col"
+                        aria-sort={gaining ? sorted("gain") : undefined}>
                         {gaining
-                            ? <Hint {...hint(gainFigure, "head")}>Gained</Hint>
+                            ? <Hint {...hint(gainFigure, "head")} sort={sort("gain")}>Gained</Hint>
                             : <Hint {...hint("share", "head")}>% of map</Hint>}
                     </th>
                     {race && <>
-                        <th className="leaderboard-table-head leaderboard-table-number leaderboard-table-points" scope="col">
-                            <Hint {...hint("points", "head")}>Points</Hint>
+                        <th className="leaderboard-table-head leaderboard-table-number leaderboard-table-points" scope="col"
+                            aria-sort={sorted("points")}>
+                            <Hint {...hint("points", "head")} sort={sort("points")}>Points</Hint>
                         </th>
                         <th className="leaderboard-table-head leaderboard-table-today" scope="col">
                             {battle
@@ -143,18 +146,6 @@ export default function Leaderboard(props: LeaderboardProps) {
             </table>
         </ScrollArea>}
     </section>
-}
-
-export function OrderSwitch({order, onOrder}: {order: CountryOrder, onOrder: (order: CountryOrder) => void}) {
-    return <div className="leaderboard-order" role="group" aria-label="Order">
-        {ORDERS.map(({order: each, label}) => <button key={each}
-                                                      type="button"
-                                                      className="leaderboard-order-choice"
-                                                      aria-pressed={order === each}
-                                                      onClick={() => onOrder(each)}>
-            {label}
-        </button>)}
-    </div>
 }
 
 type LeaderFrameProps = {
@@ -216,7 +207,9 @@ type HintProps = {
     onLost: () => void
 }
 
-function Hint({figure, open, onShow, onHide, onLost, className, children}: HintProps & {className?: string, children: ReactNode}) {
+type Sort = {on: boolean, pick: () => void}
+
+function Hint({figure, open, onShow, onHide, onLost, sort, className, children}: HintProps & {sort?: Sort, className?: string, children: ReactNode}) {
     const anchor = useRef<HTMLButtonElement>(null)
     const pointer = useRef("")
     const described = useId()
@@ -225,15 +218,19 @@ function Hint({figure, open, onShow, onHide, onLost, className, children}: HintP
     return <>
         <button type="button"
                 ref={anchor}
-                className={className ? `leaderboard-hint ${className}` : "leaderboard-hint"}
+                className={["leaderboard-hint", sort && "leaderboard-sortable", className].filter(Boolean).join(" ")}
                 aria-describedby={described}
                 onPointerEnter={(event) => mouse(event) && onShow(false)}
                 onPointerLeave={(event) => mouse(event) && onHide()}
                 onPointerDown={(event) => pointer.current = event.pointerType}
                 onClick={() => {
+                    sort?.pick()
                     if (pointer.current !== "mouse") onShow(true)
                     pointer.current = ""
                 }}>
+            {sort && <span className={sort.on ? "leaderboard-sort leaderboard-sort-on" : "leaderboard-sort"} aria-hidden="true">
+                <ChevronIcon size={9}/>
+            </span>}
             {children}
             <span id={described} hidden>{FIGURES[figure]}</span>
         </button>

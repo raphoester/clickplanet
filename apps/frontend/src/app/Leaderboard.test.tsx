@@ -2,7 +2,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import {Race} from "../backends/standings.ts"
-import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx"
+import Leaderboard from "./Leaderboard.tsx"
 import {FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts"
 import {useBoardGuide} from "./boardGuideStore.ts"
 import {useRace} from "./standings/raceStore.ts"
@@ -312,25 +312,49 @@ describe("Leaderboard with the season's race", () => {
         expect(screen.queryByRole("status")).toBeNull()
     })
 
-    it("leaves its order to the switch beside the heading", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP}/>)
-        expect(screen.queryByRole("group", {name: "Order"})).toBeNull()
+    const sortable = () => ["#", "Country", "Tiles", "Gained", "% of map", "Points", "Today"].flatMap((name) => {
+        const head = screen.queryByRole("columnheader", {name})
+        return head?.querySelector(".leaderboard-sort") ? [[name, head.getAttribute("aria-sort")]] : []
     })
 
-    it("offers to order by the season or by the territory, and says which is on", () => {
+    it("sorts by the head picked among the tiles, the gain and the points, and says which", () => {
         const onOrder = vi.fn()
-        render(<OrderSwitch order="season" onOrder={onOrder}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP} order="points" onOrder={onOrder}/>)
 
-        const order = screen.getByRole("group", {name: "Order"})
-        expect(within(order).getAllByRole("button").map(b => [b.textContent, b.getAttribute("aria-pressed")]))
-            .toEqual([["Season", "true"], ["Territory", "false"]])
+        expect(sortable()).toEqual([["Tiles", null], ["Gained", null], ["Points", "descending"]])
 
-        fireEvent.click(within(order).getByRole("button", {name: "Territory"}))
-        expect(onOrder).toHaveBeenCalledWith("territory")
+        fireEvent.click(screen.getByRole("button", {name: "Gained"}))
+        expect(onOrder).toHaveBeenCalledWith("gain")
     })
 
-    it("ranks by the tiles held now when ordered by territory, the points still beside them", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} order="territory"/>)
+    it("does not sort by the share of the map, which is the tiles' order", () => {
+        useRace.setState({race: {scores: RACE.scores}})
+        render(<Leaderboard tilesCount={1000} data={MAP} order="gain" onOrder={vi.fn()}/>)
+
+        expect(sortable()).toEqual([["Tiles", null], ["Points", "descending"]])
+    })
+
+    it("offers no sort with no race, or with no one to tell", () => {
+        const {rerender} = render(<Leaderboard tilesCount={1000} data={MAP}/>)
+        expect(sortable()).toEqual([])
+
+        useRace.setState({race: undefined})
+        rerender(<Leaderboard tilesCount={1000} data={MAP} onOrder={vi.fn()}/>)
+        expect(sortable()).toEqual([])
+    })
+
+    it("ranks by the tiles gained since the day began when ordered by the gain", () => {
+        render(<Leaderboard tilesCount={1000} data={MAP} order="gain"/>)
+
+        expect(leader()!.getAttribute("aria-label")).toBe("First: Germany")
+        expect(cells()).toEqual([
+            ["2", "Spain", "100", "+100", "0", ""],
+            ["3", "France", "300", "-10", "43", "+18 today"],
+        ])
+    })
+
+    it("ranks by the tiles held now when ordered by the tiles, the points still beside them", () => {
+        render(<Leaderboard tilesCount={1000} data={MAP} order="tiles"/>)
 
         expect(leader()!.getAttribute("aria-label")).toBe("First: Germany")
         expect(cells()).toEqual([

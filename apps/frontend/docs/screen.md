@@ -54,7 +54,7 @@ that does not.
 - **The desktop menu is a rail and a panel that folds.** The rail is the
   places as a vertical `tablist`; the panel beside it shows the open one,
   headed by its title (the board's Countries / Players heading on the board,
-  with the Hall of Fame's crown and the order switch), a hide button, and
+  with the Hall of Fame's crown), a hide button, and
   "playing for". The hide button, or the open place pressed again, folds the
   panel away: the rail stays, with the flag, its rank and Change as a pill
   beside it, and any place opens the panel again. Folded or open is kept in

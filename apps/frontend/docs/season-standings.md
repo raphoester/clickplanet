@@ -71,18 +71,23 @@ With no book there are no boards. `app/standings/` draws it.
   six columns. It stops at 380px below about 1120px so it stays clear of the season
   chip at the top centre. On a phone the sheet is the screen's width; a long
   country name ends in "…" before a column moves.
-- **A switch orders the countries, Season or Territory** (`OrderSwitch`,
-  `.leaderboard-order`, `aria-pressed`), Season first. It is a small pill on the
-  heading's line, beside the view picked, and only on the Countries view: a row of
-  its own with two full buttons cost the table two of its rows on a phone. Season ranks by the points of the days closed, then
-  by tiles (`domain/race.ts`, `countryLines`), and lists a country with points that
-  holds no ground. **Today's points do not move the order**: they are what the
-  tiles held now would score, so they follow the tiles, which already break the
-  ties. When a day was won on its average, ranked by them, two countries at 0
-  points swapped against their tiles, which read as a bug (2026-10-08).
-  Territory is the order by tiles held now, as the board was. `Viewer` holds the
-  choice. With no race, there is no switch and the board is as it was
-  (`shownOrder`). **The rank and the anthem follow the order picked**: the rank
+- **The column heads sort the countries**: Tiles, Gained and Points (`Leaderboard`'s
+  `onOrder`, `aria-sort` on the head sorted by). Each has a small arrow before its word
+  (`.leaderboard-sort`), faint, and in `--text` on the head sorted by; before the word
+  so the word stays over its column's right-aligned numbers. Points first. A tap on a
+  head sorts by it and, as on any head, says what it means. Country and Today do not
+  sort: the board ranks by a number, not a name, and Today follows Gained, since a
+  round scores the gain. "% of map" does not either: it is the order of Tiles. It
+  replaced a switch of two pills, Season and Territory, on the heading's line, on
+  2026-11-06: once a round scored the gain, a third order was one pill too many.
+  Points ranks by the points of the days closed, then by tiles (`domain/race.ts`,
+  `countryLines`), and lists a country with points that holds no ground; Gained ranks
+  the same countries by the tiles gained since the round opened, then by tiles. **Today's
+  points do not move the Points order**: when a day was won on its average, ranked
+  by them, two countries at 0 points swapped against their tiles, which read as a bug
+  (2026-10-08). Tiles is the map's order. `Viewer` holds the choice. With no round
+  open, Gained falls back to Points; with no race, no head sorts and the board is
+  the order of Tiles (`shownOrder`). **The rank and the anthem follow the order picked**: the rank
   beside "playing for" and on the phone's status bar is the country's place in
   that order (`rankShown` in `Menu`, `rankOf` over `countryLines` in `Viewer`),
   the shared picture's rank too (see [Sharing the globe](sharing.md)),
@@ -91,7 +96,7 @@ With no book there are no boards. `app/standings/` draws it.
   France 2nd under "France #4", and played Portugal's anthem in Poland's frame
   (2026-10-12).
 - **On a phone the heading is the sheet's head** (`BoardSheet`, `BoardHeading`):
-  the view picked and the order take the place of the "Leaderboard" title, which
+  the view picked takes the place of the "Leaderboard" title, which
   stays for a screen reader, and `BoardViews` is `headless`. Under it "playing
   for" is one line with Change and no box, since the status bar right above
   already names the country and its rank. The leader's frame is as tight as it

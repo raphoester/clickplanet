@@ -6,7 +6,7 @@ import {NO_TILE_DELTAS, TileDeltas} from "../domain/tileDeltas.ts";
 import {Race} from "../backends/standings.ts";
 import {Allegiance, Lock, lockOf, minutesLeftOf} from "../domain/allegiance.ts";
 import {describeEnd} from "../domain/endTime.ts";
-import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx";
+import Leaderboard from "./Leaderboard.tsx";
 import CountryPicker from "./CountryPicker.tsx";
 import MenuPanel from "./components/MenuPanel.tsx";
 import HomeLogo from "./components/HomeLogo.tsx";
@@ -146,8 +146,7 @@ export default function Menu(props: MenuProps) {
                             {shown.id === "board" && props.standings
                                 ? <BoardHeading view={props.standings.view}
                                                 onView={props.standings.onView}
-                                                country={props.country}
-                                                order={orderOf(props, race)}/>
+                                                country={props.country}/>
                                 : <h2 className="menu-title">{shown.title}</h2>}
                             {shown.id === "board" && props.hallOfFame && <HallOfFameButton {...props.hallOfFame} icon/>}
                             <button type="button"
@@ -302,14 +301,13 @@ function lockedChangeTextOf(lock: Lock, now: number): string {
 }
 
 export function BoardPlace(props: BoardPlaceProps & {headless?: boolean}) {
-    const race = useRace((standings) => standings.race)
-    const order = orderOf(props, race)
     const countries = <Leaderboard data={props.leaderboard}
                                    deltas={props.tileDeltas ?? NO_TILE_DELTAS}
                                    tilesCount={props.tilesCount}
                                    highlight={props.country}
                                    anthem={props.anthem}
-                                   order={props.countryOrder}/>
+                                   order={props.countryOrder}
+                                   onOrder={props.onCountryOrder}/>
 
     const hallOfFame = props.hallOfFame && <HallOfFameButton {...props.hallOfFame}/>
 
@@ -319,13 +317,11 @@ export function BoardPlace(props: BoardPlaceProps & {headless?: boolean}) {
             <BoardViews {...props.standings}
                         country={props.country}
                         countries={countries}
-                        order={order}
                         headless={props.headless}/>
         </>
     }
     return <>
         {hallOfFame}
-        {order && <div className="board-heading">{order}</div>}
         {countries}
     </>
 }
@@ -335,7 +331,7 @@ export function BoardSheet({onClose, ...props}: BoardPlaceProps & {onClose: () =
     const race = useRace((standings) => standings.race)
     const standings = props.standings
     const head = standings && !picker.picking
-        ? <BoardHeading view={standings.view} onView={standings.onView} country={props.country} order={orderOf(props, race)}/>
+        ? <BoardHeading view={standings.view} onView={standings.onView} country={props.country}/>
         : undefined
 
     return <Sheet title="Leaderboard" head={head} className="board-sheet" onClose={onClose}>
@@ -356,12 +352,6 @@ export function BoardSheet({onClose, ...props}: BoardPlaceProps & {onClose: () =
                 <BoardPlace {...props} headless={head !== undefined}/>
             </>}
     </Sheet>
-}
-
-function orderOf(props: BoardPlaceProps, race: Race | undefined): ReactNode {
-    const onOrder = props.onCountryOrder
-    if (!race || !onOrder) return undefined
-    return <OrderSwitch order={shownOrder(race, props.countryOrder)} onOrder={onOrder}/>
 }
 
 function linesShown(props: BoardPlaceProps, race: Race | undefined) {

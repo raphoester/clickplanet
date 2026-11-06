@@ -249,7 +249,7 @@ export default function Viewer(props: ViewerProps) {
     useMood(mood)
     const battleOver = useBattleOver(battle, schedule.debrief)
     const champion = reigningChampionOf(season, closed)
-    const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
+    const [countryOrder, setCountryOrder] = useState<CountryOrder>("points")
     const [pitchOpen, setPitchOpen] = useState(false)
     const guest = account.kind === 'ready' && account.offered.length > 0 && account.me.linked.length === 0
 
