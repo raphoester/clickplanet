@@ -41,8 +41,10 @@ internal/missions/internal/
     flagmessage/                    a flag mission as missions.v1.FlagMission (GetMissions answers it too), and a
                                     flag mission done as the missions.v1.FlagMissionDone event
     usecases/record_flag_take_usecase/  record_strike_usecase/
-  missionsv1controller/             MissionService (a bag), the session interceptors, the caller, missionmessage
+  missionsv1controller/             MissionService and AdminService (bags), the session interceptors, the caller,
+                                    missionmessage
     get_missions_handler/  listen_for_events_handler/
+    list_flag_days_handler/flag_days_query/  get_mission_totals_handler/totals_query/
   subscribers/                      tile_taken_subscriber/  bonus_claimed_subscriber/  quiz_answered_subscriber/
                                     bomb_landed_subscriber/  shield_placed_subscriber/  fortified_subscriber/
                                     day_started_subscriber/  flag_tile_taken_subscriber/  shield_struck_subscriber/
@@ -252,3 +254,25 @@ day and a flag), so it has its own package and store (`flagmissions`).
 - **Kept in `flag_days`** (`day`, the day's id, `flag`, `takes`, `counted_takes_below`, `counted_takes_below_index`, `strikes`,
   `counted_strikes_below`, `counted_strikes_below_index`) and **`flag_missions`** (`mission_id`, `kind` of the enum `flag_mission_kind`, the kind's
   own fields in `payload`, `points`, `progress`, `done`): a day with no mission has no row there. They name no account, so `PlayerForgotten` leaves them.
+
+## The operator's reads
+
+**What the game gave and how far the players took it, to tune the goals and the points from numbers, not guesses**
+(the owner, 2026-11-06: "find good numbers rather than guess day after day"). `missions.v1.AdminService`, on the
+console and admin listeners like every admin service, so each method is a tool of the connector too
+(`missions_list_flag_days`, `missions_get_mission_totals`, see [Claude as a connector](connector.md)). Both read the
+days told that **started** in the window, oldest first, and both are queries (see [Reads are queries](queries.md)).
+
+- **`ListFlagDays(since, until)`** (`flag_days_query`): each day with every flag's day in it, the flag's mission as
+  `GetMissions` shows it (`FlagMission`: target, goal, progress, points, done) and what all its players did
+  (`tiles_taken`, `shields_broken`, the counts the next day's goal is drawn from). A window of 7 days at most: a day of
+  every flag is about 15 KB of JSON, and a tool's answer must stay readable. The payload of each kind is read again in
+  the query; `TestEveryKindTheStoreKeepsReadsAsItsPlayersSeeIt` keeps each through `postgres_flag_day_store` and asks
+  for what `flagmessage.Mission` encodes.
+- **`GetMissionTotals(since, until)`** (`totals_query`): each day's briefs, the accounts that finished one mission and
+  all of them, and by `MissionKind` how many missions were drawn, started, done and paid, their goals and their
+  progress summed. Counts, not rows: a day's briefs are about 700 missions, too many for a tool's answer. A mission is
+  done once its progress reaches its goal, every kind's rule, written again in SQL;
+  `TestEveryKindIsCountedDoneAndPaidAsTheSheetSaysItIs` keeps one of each kind through `postgres_mission_store` and
+  asks for what `Sheet.Statuses` says. A window of 31 days at most.
+- **Neither keeps when a flag mission was done**: `flag_missions` has no time. The chat's announcement has it.

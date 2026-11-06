@@ -33,7 +33,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/pay_signed_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/record_fact_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_mission_totals_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_mission_totals_handler/totals_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_missions_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/list_flag_days_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/list_flag_days_handler/flag_days_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bonus_claimed_subscriber"
@@ -164,6 +168,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}, missionsv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),
 		missionsv1controller.NewStreamSessionReader(props.Sessions, clock)); err != nil {
 		return fmt.Errorf("failed to mount missions.v1.MissionService: %w", err)
+	}
+
+	adminService := missionsv1controller.AdminService{
+		ListFlagDaysHandler:     list_flag_days_handler.New(flag_days_query.NewPostgresQuery(db, clock)),
+		GetMissionTotalsHandler: get_mission_totals_handler.New(totals_query.NewPostgresQuery(db, clock)),
+	}
+	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return missionsv1connect.NewAdminServiceHandler(adminService, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount missions.v1.AdminService: %w", err)
 	}
 
 	props.Logger.Info("missions built", slog.String("schema", config.Database.Schema))
