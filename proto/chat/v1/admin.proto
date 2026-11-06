@@ -24,12 +24,6 @@ service AdminService {
   // Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
   rpc RemoveMessage(RemoveMessageRequest) returns (RemoveMessageResponse);
 
-  // Removes many messages at once, each with its own reason, as RemoveMessage removes one: a run's removals in one
-  // call. All or none: one message past the retention (NotFound), the same message twice or a reason refused
-  // (InvalidArgument) removes nothing, and the refusal names it. Removing a message already removed keeps its first
-  // action in the moderation history, so a call tried again never counts twice. 200 messages at most.
-  rpc RemoveMessages(RemoveMessagesRequest) returns (RemoveMessagesResponse);
-
   // A message as it was sent, removed or not. NotFound past the retention.
   rpc GetMessage(GetMessageRequest) returns (GetMessageResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -93,23 +87,6 @@ message RemoveMessageRequest {
 }
 
 message RemoveMessageResponse {
-  google.protobuf.Timestamp removed_at = 1;
-}
-
-message RemoveMessagesRequest {
-  // The messages to remove, each once, with why: 1 to 200.
-  repeated MessageRemoval removals = 1;
-}
-
-// One message RemoveMessages takes out, and why.
-message MessageRemoval {
-  string message_id = 1;
-  // Why, in a few words, kept in the moderation history (ListModeration). Optional; 500 characters at most.
-  string reason = 2;
-}
-
-message RemoveMessagesResponse {
-  // When every one of them was removed: the same time for all.
   google.protobuf.Timestamp removed_at = 1;
 }
 
