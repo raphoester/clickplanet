@@ -160,7 +160,11 @@ func (s *testSuite) reacted(text string, reaction reactions.Reaction, reactor re
 }
 
 func (s *testSuite) announced(id announcements.AnnouncementID, kind announcements.Kind, at time.Time) {
-	_, err := s.announcements.AppendOnce(s.T().Context(), announcements.NewAnnouncement(id, kind, at, json.RawMessage(`{"country":"fr","ground":"de","tile":42,"cleared":3}`)))
+	s.announcedIn(id, kind, at, messages.World)
+}
+
+func (s *testSuite) announcedIn(id announcements.AnnouncementID, kind announcements.Kind, at time.Time, room messages.Room) {
+	_, err := s.announcements.AppendOnce(s.T().Context(), announcements.NewAnnouncement(id, kind, at, json.RawMessage(`{"country":"fr","ground":"de","tile":42,"cleared":3}`)).WithRoom(room))
 	s.Require().NoError(err)
 }
 
@@ -596,7 +600,7 @@ func (s *testSuite) TestARemovedGifIsNotShownNorQuoted() {
 	s.Nil(shown[1].GetReplyTo().GetBody())
 }
 
-func (s *testSuite) TestAFlagsRoomHoldsWhatIsSaidThereAloneAndNoAnnouncement() {
+func (s *testSuite) TestAFlagsRoomHoldsWhatIsSaidThereAloneAndNoAnnouncementOfTheWorld() {
 	s.sent("hello", 3*time.Hour)
 	s.keep(messages.Snapshot{
 		ID: "plan", SentAt: now.Add(-2 * time.Hour), Account: ada, Room: messages.FlagRoom("fr"), Country: "fr", Text: "plan",
@@ -613,6 +617,29 @@ func (s *testSuite) TestAFlagsRoomHoldsWhatIsSaidThereAloneAndNoAnnouncement() {
 	world := s.history(ada)
 	s.Equal([]string{"hello"}, texts(world))
 	s.Equal([]string{uuidOf(latest)}, ids(world))
+}
+
+func (s *testSuite) TestAnAnnouncementToldInAFlagsRoomIsShownThereAndInTheWorldAlone() {
+	s.announced(old, announcements.KindBomb, now.Add(-3*time.Hour))
+	s.announcedIn(middle, announcements.KindFlagMission, now.Add(-2*time.Hour), messages.FlagRoom("fr"))
+	s.announcedIn(latest, announcements.KindFlagMission, now.Add(-time.Hour), messages.FlagRoom("de"))
+
+	s.Equal([]string{uuidOf(middle)}, ids(s.historyIn(ada, messages.FlagRoom("fr"))))
+	s.Equal([]string{uuidOf(latest)}, ids(s.historyIn(bob, messages.FlagRoom("de"))))
+	s.Equal([]string{uuidOf(middle), uuidOf(latest)}, ids(s.history(ada)), "the newest the world's window holds")
+}
+
+func (s *testSuite) TestAFlagsRoomsAnnouncementsBeginWhereAFullWindowOfItsOwnMessagesDoes() {
+	s.announcedIn(old, announcements.KindFlagMission, now.Add(-5*time.Hour), messages.FlagRoom("fr"))
+	for i := range historySize {
+		s.keep(messages.Snapshot{
+			ID: messages.MessageID(fmt.Sprintf("plan-%d", i)), SentAt: now.Add(-time.Duration(historySize-i) * time.Minute),
+			Account: ada, Room: messages.FlagRoom("fr"), Country: "fr", Text: "plan",
+		})
+	}
+	s.announcedIn(latest, announcements.KindFlagMission, now.Add(-30*time.Second), messages.FlagRoom("fr"))
+
+	s.Equal([]string{uuidOf(latest)}, ids(s.historyIn(ada, messages.FlagRoom("fr"))))
 }
 
 func (s *testSuite) TestABusyChatDoesNotPushAFlagsRoomOutOfItsWindow() {

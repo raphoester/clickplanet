@@ -23,11 +23,12 @@ var _ announcements.Storage = (*Store)(nil)
 
 func (s *Store) AppendOnce(ctx context.Context, announcement announcements.Announcement) (bool, error) {
 	result, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO announcements (id, kind, payload, announced_at)
-		VALUES ($1, $2::announcement_kind, $3, $4)
+		INSERT INTO announcements (id, kind, room, payload, announced_at)
+		VALUES ($1, $2::announcement_kind, $3, $4, $5)
 		ON CONFLICT (id) DO NOTHING
 	`,
-		uuid.UUID(announcement.ID()), string(announcement.Kind()), string(announcement.Payload()), announcement.At().UTC(),
+		uuid.UUID(announcement.ID()), string(announcement.Kind()), string(announcement.Room()), string(announcement.Payload()),
+		announcement.At().UTC(),
 	)
 	if err != nil {
 		return false, fmt.Errorf("failed to insert an announcement: %w", err)

@@ -44,6 +44,25 @@ describe("FakeChatBackend.announceChampion", () => {
     })
 })
 
+describe("FakeChatBackend.announceFlagMission", () => {
+    const mission = {id: "flag", order: {kind: "breakShields", country: "dz", goal: 300, reached: 300}, points: 2, done: true} as const
+    const flagMissionsIn = async (chat: FakeChatBackend) =>
+        (await chat.getHistory()).announcements.filter((announcement) => announcement.kind === "flag_mission")
+
+    it("announces it once in the World and in the flag's own room, and in no other", async () => {
+        const world = new FakeChatBackend()
+
+        world.announceFlagMission("fr", mission)
+        world.flagRoom("fr").announceFlagMission("fr", mission)
+
+        const told = {kind: "flag_mission", country: "fr", points: 2, order: mission.order}
+        expect(await flagMissionsIn(world)).toMatchObject([told])
+        expect(await flagMissionsIn(world.flagRoom("fr"))).toMatchObject([told])
+        expect(await flagMissionsIn(world.flagRoom("de"))).toEqual([])
+        world.close()
+    })
+})
+
 describe("FakeChatBackend.sendMessage", () => {
     const gif = {url: "data:image/svg+xml,", width: 220, height: 124}
 

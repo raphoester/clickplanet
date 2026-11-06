@@ -2,6 +2,7 @@ package listen_for_events_usecase_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
@@ -241,6 +243,29 @@ func TestTheChatEveryoneReadsCarriesNothingSaidInAFlagsRoom(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Update: hello}}, events)
+}
+
+func announced(id byte, room messages.Room) feed.Update {
+	return feed.Announced(announcements.NewAnnouncement(announcements.AnnouncementID{15: id}, announcements.KindFlagMission,
+		time.Time{}, json.RawMessage(`{"country":"fr"}`)).WithRoom(room))
+}
+
+func TestAFlagsStreamCarriesTheAnnouncementsToldInItsRoomAlone(t *testing.T) {
+	ours := announced(1, messages.FlagRoom("fr"))
+
+	events, err := listened(t, team, announced(2, messages.World), ours, announced(3, messages.FlagRoom("de")))
+
+	require.NoError(t, err)
+	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Update: ours}}, events)
+}
+
+func TestTheChatEveryoneReadsCarriesEveryAnnouncement(t *testing.T) {
+	everyone, ours, theirs := announced(1, messages.World), announced(2, messages.FlagRoom("fr")), announced(3, messages.FlagRoom("de"))
+
+	events, err := listened(t, world, everyone, ours, theirs)
+
+	require.NoError(t, err)
+	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Update: everyone}, {Update: ours}, {Update: theirs}}, events)
 }
 
 func TestAStreamForTheRoomOfAnotherFlagIsRefusedBeforeAnythingIsSent(t *testing.T) {

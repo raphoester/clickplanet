@@ -197,8 +197,10 @@ for it read and write. The server checks the flag on every call (the backend's
   reply being written is dropped when another tab is picked.
 - **The seen mark is per room**: `MarkSeen` and `GetHistory` name the room, and
   `useSeenMark` starts again from zero for a new one.
-- **A flag room has no announcements**: the bombs, rounds and mutes are the
-  World's.
+- **A flag room shows the announcements told in it**: today a flag mission its
+  flag finished, which the World shows too. The bombs, rounds, mutes, fortifies
+  and champions are the World's alone. Each room's `useRoomLog` takes what its
+  own history and stream carry, so nothing on the client picks the room.
 - **`FailedPrecondition` is `ChatNotInRoomError`**: the player does not play for
   that flag any more, most often after a pledge on another device. Its stream
   ends with it too. **The stream then stops for good** (`openStream`'s
@@ -344,10 +346,12 @@ is the list, and the backend refuses any other.
 ## Announcements
 
 The chat also shows lines nobody sent: `ChatEvent.announcement` on the stream,
-and `GetHistoryResponse.announcements` beside the messages. Five kinds today:
+and `GetHistoryResponse.announcements` beside the messages. Six kinds today:
 `bomb`, every bomb that went off, `mute`, every mute an operator gave,
 `round`, every round of a season that closed, `fortify`, every landmass of 50
-tiles or more a flag fortified, and `champion`, the country that won a season.
+tiles or more a flag fortified, `champion`, the country that won a season, and
+`flag_mission`, every flag that finished its mission of the day, in the World
+and in that flag's room.
 
 - **Decoded, not trusted**: `decodedAnnouncement` reads the `kind` and parses
   the JSON `payload` into a typed `ChatAnnouncement`. A kind this build does not
@@ -390,11 +394,22 @@ tiles or more a flag fortified, and `champion`, the country that won a season.
   words of the reveal). The payload is `{season, countries}`; a champion with
   no country is dropped. Its time is the season's end. The server keeps one a
   season, so it shows once.
+- **A flag mission is a plain line** (`FlagMissionLine`): 🎯, the flag, "France
+  completed its flag mission: Take 3000 tiles in 🇧🇷 Brazil (+6 season
+  points)". The order is `partsOf(order).line`, the words of the Missions tab
+  and of the moment the flag's own players see (`FlagMissionDone`). The payload
+  is `{country, points, mission, ground | rival, goal}`, decoded as a
+  `FlagMissionOrder` whose progress is its goal; a `mission` this build does not
+  know has no order, and the line only says it was done. A line with no country
+  or no points is dropped.
 - In fake mode `main.tsx` hands every `FakeBackend` bomb to
   `FakeChatBackend.announceBomb`, with no ground: the fake has no borders.
   `closeDay()`, `closeBattle()` and `closeFinale()` announce their round through
   `FakeChatBackend.announceRound`, and `closeFinale()` its champion through
   `FakeChatBackend.announceChampion`, once a season as the server does.
+  `FakeMissionsBackend.listenForFlagMissionsDone` hands the flag's mission, once
+  done (`finishMissions()` then a take), to `FakeChatBackend.announceFlagMission`,
+  which tells it once in the World and in the flag's room.
   `fakeChat.mute()` in the console announces a mute of the player for an hour
   and refuses its posts and reactions until it ends; `fakeChat.mute(600, "Ana")`
   only announces somebody else's. `fakeChat.mute(600, undefined, "gifs")` refuses

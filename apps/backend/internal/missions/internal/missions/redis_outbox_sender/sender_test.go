@@ -33,15 +33,16 @@ var (
 	other = &planetv1.GrantCharges{GrantId: "g2", AccountId: "ada"}
 	paid  = &missionsv1.MissionsPaid{AccountId: "ada", PaidInAll: 2}
 	flag  = &scoringv1.GrantPoints{GrantId: "f1", Country: "fr", Points: 2}
+	done  = &missionsv1.FlagMissionDone{Flag: "fr", Mission: &missionsv1.FlagMission{Id: "f1", Points: 2, Done: true}}
 )
 
-func TestTheGrantsGoToTheirHandlersAndTheMissionsPaidToEveryListener(t *testing.T) {
+func TestTheGrantsGoToTheirHandlersAndWhatMissionsTellsToEveryListener(t *testing.T) {
 	events, commands := &sender{}, &sender{}
 
-	require.NoError(t, redis_outbox_sender.New(events, commands).Send(t.Context(), grant, flag, other, paid))
+	require.NoError(t, redis_outbox_sender.New(events, commands).Send(t.Context(), grant, flag, done, other, paid))
 
 	assert.Equal(t, []proto.Message{grant, flag, other}, commands.sent, "in the order kept")
-	assert.Equal(t, []proto.Message{paid}, events.sent)
+	assert.Equal(t, []proto.Message{done, paid}, events.sent, "in the order kept")
 }
 
 func TestAMessageTheOutboxDoesNotKeepSendsNothing(t *testing.T) {

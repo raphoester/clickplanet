@@ -284,6 +284,31 @@ describe("decodedAnnouncement", () => {
         })
     })
 
+    it("reads a flag mission done, its goal reached", () => {
+        expect(decodedAnnouncement(bomb(`{"country":"fr","points":6,"mission":"take_in","ground":"br","goal":3000}`, "flag_mission")))
+            .toEqual({
+                kind: "flag_mission",
+                id: "announcement-1",
+                announcedAt: 1_700_000_000_000,
+                country: "fr",
+                points: 6,
+                order: {kind: "takeIn", country: "br", goal: 3000, taken: 3000},
+            })
+        expect(decodedAnnouncement(bomb(`{"country":"fr","points":9,"mission":"break_shields","rival":"de","goal":300}`, "flag_mission")))
+            .toMatchObject({order: {kind: "breakShields", country: "de", goal: 300, reached: 300}})
+    })
+
+    it("reads a flag mission of a kind this build does not know with no order", () => {
+        expect(decodedAnnouncement(bomb(`{"country":"fr","points":6,"mission":"raze","goal":10}`, "flag_mission")))
+            .toMatchObject({kind: "flag_mission", country: "fr", points: 6, order: undefined})
+        expect(decodedAnnouncement(bomb(`{"country":"fr","points":6}`, "flag_mission"))).toMatchObject({order: undefined})
+    })
+
+    it("drops a flag mission with no flag or no points", () => {
+        expect(decodedAnnouncement(bomb(`{"points":6}`, "flag_mission"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"country":"fr"}`, "flag_mission"))).toBeUndefined()
+    })
+
     it("drops a fortify with no flag or no territory", () => {
         expect(decodedAnnouncement(bomb(`{"landmass":359,"tiles":137}`, "fortify"))).toBeUndefined()
         expect(decodedAnnouncement(bomb(`{"country":"es","tiles":137}`, "fortify"))).toBeUndefined()

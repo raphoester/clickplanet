@@ -49,7 +49,9 @@ itself, with nothing to press.
   is done (`useFlagMissionDone`, `newlyDoneFlagMission`: the same mission read not done before; the first read of
   the page tells nothing), so a player who stopped clicking sees it at the next run of clicks. It plays through the
   announcements queue (see [Battles](battle.md#the-announcements-queue)). Until 2026-10-29 nothing said it, and the
-  owner, who finished France's, could not tell if the points were granted.
+  owner, who finished France's, could not tell if the points were granted. **Every other player reads it in the chat**:
+  the server announces each flag mission done in the World and in the flag's room (see the
+  [Live chat](chat.md#announcements)).
 - **`useMissions` lives in `Viewer`, not in the place**, so the badge is right with the tab closed. It reads `GetMissions` at load, on a change of the account or of the pledged flag (`useAllegiance`), after
   each run of clicks (`useReadsAfterClicks`, 2 s after the last one, for the bars), and once the day ends.
   **Progress and payments come on the missions stream** (`MissionsBackend.follow`, `MissionService.ListenForEvents`),
@@ -81,4 +83,4 @@ itself, with nothing to press.
   `FakeMissionsBackend` the fake: it draws the day for the flag pledged at its first read (or its first
   take's), with a flag mission to break a rival's shields that this tab's takes stand for, counts every take of this tab, pays each mission done at once and hands its followers the day after each take, and `finishMissions()` in the console puts
   every mission one tile from done: the next take finishes and pays them all, as a take does on the server, and
-  cheers the flag's. The fake has no missions before the tab's first take: take a tile, then call it.
+  cheers the flag's, which it tells the fake chat once (`listenForFlagMissionsDone`). The fake has no missions before the tab's first take: take a tile, then call it.

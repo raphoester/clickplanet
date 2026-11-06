@@ -38,6 +38,7 @@ import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrp
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
+import {FlagMissionOrder} from "./missions.ts";
 
 export function newChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
     return createPromiseClient(ChatService, createConnectTransport({
@@ -383,6 +384,32 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 countries,
             }
         }
+        case "flag_mission":
+            if (typeof values.country !== "string" || values.country === "") return undefined
+            if (typeof values.points !== "number" || !(values.points > 0)) return undefined
+            return {
+                kind: "flag_mission",
+                id: announcement.id,
+                announcedAt: Number(announcement.announcedAtUnixMs),
+                country: values.country,
+                points: values.points,
+                order: flagMissionOrderOf(values),
+            }
+        default:
+            return undefined
+    }
+}
+
+// The mission done, so its progress is its goal.
+function flagMissionOrderOf(values: Record<string, unknown>): FlagMissionOrder | undefined {
+    if (typeof values.goal !== "number" || !(values.goal > 0)) return undefined
+    switch (values.mission) {
+        case "take_in":
+            if (typeof values.ground !== "string" || values.ground === "") return undefined
+            return {kind: "takeIn", country: values.ground, goal: values.goal, taken: values.goal}
+        case "break_shields":
+            if (typeof values.rival !== "string" || values.rival === "") return undefined
+            return {kind: "breakShields", country: values.rival, goal: values.goal, reached: values.goal}
         default:
             return undefined
     }

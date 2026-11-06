@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 )
 
@@ -18,28 +19,39 @@ type AnnouncementID uuid.UUID
 type Kind string
 
 const (
-	KindBomb     Kind = "bomb"
-	KindMute     Kind = "mute"
-	KindRound    Kind = "round"
-	KindFortify  Kind = "fortify"
-	KindChampion Kind = "champion"
+	KindBomb        Kind = "bomb"
+	KindMute        Kind = "mute"
+	KindRound       Kind = "round"
+	KindFortify     Kind = "fortify"
+	KindChampion    Kind = "champion"
+	KindFlagMission Kind = "flag_mission"
 )
 
 var ErrUnknownKind = errors.New("an announcement of a kind nobody knows")
 
-func Kinds() []Kind { return []Kind{KindBomb, KindMute, KindRound, KindFortify, KindChampion} }
+func Kinds() []Kind {
+	return []Kind{KindBomb, KindMute, KindRound, KindFortify, KindChampion, KindFlagMission}
+}
 
 func (k Kind) Known() bool { return slices.Contains(Kinds(), k) }
 
+// An announcement is told in a room, as a message is: the world, or a flag's room. The world shows every one.
 type Announcement struct {
 	id      AnnouncementID
 	kind    Kind
 	at      time.Time
+	room    messages.Room
 	payload json.RawMessage
 }
 
 func NewAnnouncement(id AnnouncementID, kind Kind, at time.Time, payload json.RawMessage) Announcement {
-	return Announcement{id: id, kind: kind, at: at, payload: payload}
+	return Announcement{id: id, kind: kind, at: at, room: messages.World, payload: payload}
+}
+
+// The same line told in room: the world shows it still.
+func (a Announcement) WithRoom(room messages.Room) Announcement {
+	a.room = room
+	return a
 }
 
 func (a Announcement) ID() AnnouncementID { return a.id }
@@ -47,6 +59,10 @@ func (a Announcement) ID() AnnouncementID { return a.id }
 func (a Announcement) Kind() Kind { return a.kind }
 
 func (a Announcement) At() time.Time { return a.at }
+
+func (a Announcement) Room() messages.Room { return a.room }
+
+func (a Announcement) In(room messages.Room) bool { return room == messages.World || room == a.room }
 
 func (a Announcement) Payload() json.RawMessage { return a.payload }
 
@@ -243,6 +259,63 @@ func (c Champion) Announcement(at time.Time) (Announcement, error) {
 		return Announcement{}, fmt.Errorf("failed to encode a champion announcement: %w", err)
 	}
 	return NewAnnouncement(toldOnce(fmt.Sprintf("seasons/%d/champion", c.season)), KindChampion, at, payload), nil
+}
+
+type FlagMissionID string
+
+var ErrNoFlagMission = errors.New("no flag mission id")
+
+func FlagMissionIDOf(id string) (FlagMissionID, error) {
+	if id == "" {
+		return "", ErrNoFlagMission
+	}
+	return FlagMissionID(id), nil
+}
+
+// A flag finished its mission of the day: told in the world and in the flag's room.
+type FlagMission struct {
+	id      FlagMissionID
+	country string
+	points  uint32
+	// A kind the chat does not know has none, and its line says the mission was done.
+	mission string
+	ground  string
+	rival   string
+	goal    uint32
+}
+
+func FlagMissionOf(id FlagMissionID, country string, points uint32) FlagMission {
+	return FlagMission{id: id, country: country, points: points}
+}
+
+func (f FlagMission) TakingIn(ground string, goal uint32) FlagMission {
+	f.mission, f.ground, f.rival, f.goal = "take_in", ground, "", goal
+	return f
+}
+
+func (f FlagMission) BreakingShieldsOf(rival string, goal uint32) FlagMission {
+	f.mission, f.ground, f.rival, f.goal = "break_shields", "", rival, goal
+	return f
+}
+
+type flagMissionPayload struct {
+	Country string `json:"country"`
+	Points  uint32 `json:"points"`
+	Mission string `json:"mission,omitempty"`
+	Ground  string `json:"ground,omitempty"`
+	Rival   string `json:"rival,omitempty"`
+	Goal    uint32 `json:"goal,omitempty"`
+}
+
+func (f FlagMission) Announcement(at time.Time) (Announcement, error) {
+	payload, err := json.Marshal(flagMissionPayload{
+		Country: f.country, Points: f.points, Mission: f.mission, Ground: f.ground, Rival: f.rival, Goal: f.goal,
+	})
+	if err != nil {
+		return Announcement{}, fmt.Errorf("failed to encode a flag mission announcement: %w", err)
+	}
+	return NewAnnouncement(toldOnce("flag-missions/"+string(f.id)), KindFlagMission, at, payload).
+		WithRoom(messages.FlagRoom(f.country)), nil
 }
 
 type RoundID string

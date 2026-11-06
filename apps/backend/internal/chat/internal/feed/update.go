@@ -48,7 +48,7 @@ func (u Update) For(room messages.Room) bool {
 	case u.reactions != nil:
 		return u.reactedTo.In(room)
 	case u.announcement != nil:
-		return room == messages.World
+		return u.announcement.In(room)
 	case u.removed != nil:
 		return true
 	case u.left != nil:

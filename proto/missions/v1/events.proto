@@ -2,8 +2,19 @@ syntax = "proto3";
 
 package missions.v1;
 
+import "google/protobuf/timestamp.proto";
+import "missions/v1/missions.proto";
+
 message MissionsPaid {
   string account_id = 1;
   // How many missions the account was paid in all, these included: an event told twice or lost, the next one repairs.
   uint64 paid_in_all = 2;
+}
+
+// A flag finished its mission of the day. Told once, with the points it gave the flag.
+message FlagMissionDone {
+  string flag = 1;
+  // The mission as its players see it, done. A listener skips the kind it does not know.
+  FlagMission mission = 2;
+  google.protobuf.Timestamp done_at = 3;
 }

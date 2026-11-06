@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 )
 
@@ -130,14 +131,16 @@ func TestAChampionIsAnnouncedUnderItsSeasonsID(t *testing.T) {
 func TestAFactIsAnnouncedUnderAnIDOfItsOwn(t *testing.T) {
 	ids := map[announcements.AnnouncementID]string{}
 	for name, told := range map[string]func(time.Time) (announcements.Announcement, error){
-		"bomb 7":        announcements.BombOf(7, "fr", "de", 7, 42, 3).Announcement,
-		"bomb 8":        announcements.BombOf(8, "fr", "de", 7, 42, 3).Announcement,
-		"fortify 7":     announcements.FortifyOf(7, "fr", "is", 3, 60).Announcement,
-		"mute 1":        announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", mutes.Chat, time.Hour).Announcement,
-		"day 5":         announcements.DayOf(0, 5).Announcement,
-		"day 5 of 1":    announcements.DayOf(1, 5).Announcement,
-		"battle 5":      announcements.BattleOf(0, 5, false, 2).Announcement,
-		"champion of 0": announcements.ChampionOf(0, nil).Announcement,
+		"bomb 7":         announcements.BombOf(7, "fr", "de", 7, 42, 3).Announcement,
+		"bomb 8":         announcements.BombOf(8, "fr", "de", 7, 42, 3).Announcement,
+		"fortify 7":      announcements.FortifyOf(7, "fr", "is", 3, 60).Announcement,
+		"mute 1":         announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", mutes.Chat, time.Hour).Announcement,
+		"day 5":          announcements.DayOf(0, 5).Announcement,
+		"day 5 of 1":     announcements.DayOf(1, 5).Announcement,
+		"battle 5":       announcements.BattleOf(0, 5, false, 2).Announcement,
+		"champion of 0":  announcements.ChampionOf(0, nil).Announcement,
+		"flag mission":   announcements.FlagMissionOf("f1", "fr", 6).Announcement,
+		"flag mission 2": announcements.FlagMissionOf("f2", "fr", 6).Announcement,
 	} {
 		first, err := told(at)
 		require.NoError(t, err)
@@ -148,5 +151,40 @@ func TestAFactIsAnnouncedUnderAnIDOfItsOwn(t *testing.T) {
 		ids[first.ID()] += name
 	}
 
-	assert.Len(t, ids, 8, "each fact has an id no other fact has")
+	assert.Len(t, ids, 10, "each fact has an id no other fact has")
+}
+
+func TestAFlagMissionSaysWhichFlagDidWhatForHowManyPoints(t *testing.T) {
+	assert.JSONEq(t, `{"country":"fr","points":6,"mission":"take_in","ground":"br","goal":3000}`,
+		payloadOf(t, announcements.FlagMissionOf("f1", "fr", 6).TakingIn("br", 3_000).Announcement))
+	assert.JSONEq(t, `{"country":"fr","points":9,"mission":"break_shields","rival":"de","goal":300}`,
+		payloadOf(t, announcements.FlagMissionOf("f1", "fr", 9).BreakingShieldsOf("de", 300).Announcement))
+	assert.JSONEq(t, `{"country":"fr","points":3}`, payloadOf(t, announcements.FlagMissionOf("f1", "fr", 3).Announcement),
+		"a kind the chat does not know")
+}
+
+func TestAFlagMissionIsToldInItsFlagsRoomAndTheWorld(t *testing.T) {
+	announcement, err := announcements.FlagMissionOf("f1", "fr", 6).Announcement(at)
+	require.NoError(t, err)
+
+	assert.Equal(t, announcements.KindFlagMission, announcement.Kind())
+	assert.True(t, announcement.Kind().Known())
+	assert.Equal(t, messages.FlagRoom("fr"), announcement.Room())
+	assert.True(t, announcement.In(messages.FlagRoom("fr")))
+	assert.True(t, announcement.In(messages.World))
+	assert.False(t, announcement.In(messages.FlagRoom("de")))
+}
+
+func TestEveryOtherAnnouncementIsTheWorldsAlone(t *testing.T) {
+	announcement, err := announcements.BombOf(7, "fr", "de", 7, 42, 3).Announcement(at)
+	require.NoError(t, err)
+
+	assert.Equal(t, messages.World, announcement.Room())
+	assert.False(t, announcement.In(messages.FlagRoom("fr")), "a bomb by France is not France's room's news")
+}
+
+func TestAFlagMissionWithNoIDIsRefused(t *testing.T) {
+	_, err := announcements.FlagMissionIDOf("")
+
+	assert.ErrorIs(t, err, announcements.ErrNoFlagMission)
 }

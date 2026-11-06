@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/inmemory_day_store"
@@ -92,10 +93,17 @@ func TestTheTakeThatFinishesTheMissionGivesTheFlagItsPointsOnce(t *testing.T) {
 	require.NoError(t, useCase.Execute(t.Context(), take(1)))
 	require.NoError(t, useCase.Execute(t.Context(), take(2)))
 
-	require.Len(t, outbox.Recorded(), 1)
+	require.Len(t, outbox.Recorded(), 2)
 	assert.True(t, proto.Equal(&scoringv1.GrantPoints{
 		GrantId: mission.String(), Country: "fr", Points: 3, GrantedAt: timestamppb.New(at),
 	}, outbox.Recorded()[0]))
+	assert.True(t, proto.Equal(&missionsv1.FlagMissionDone{
+		Flag: "fr",
+		Mission: &missionsv1.FlagMission{Id: mission.String(), Points: 3, Done: true, Kind: &missionsv1.FlagMission_TakeIn{
+			TakeIn: &missionsv1.TakeIn{CountryId: "br", Goal: 2, Taken: 2},
+		}},
+		DoneAt: timestamppb.New(at),
+	}, outbox.Recorded()[1]), "told in the transaction that gives the points")
 }
 
 func TestADayClearedOfItsMissionIsDrawnAgainAndKeepsWhatItCounted(t *testing.T) {

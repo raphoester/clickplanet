@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/flagmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/planetgrant"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/get_missions_usecase"
@@ -26,9 +26,9 @@ func Day(day get_missions_usecase.Out) (*missionsv1.GetMissionsResponse, error) 
 		encoded.Missions = append(encoded.Missions, mission)
 	}
 	if status, ok := day.Flag.Status(); ok {
-		flag, err := FlagMission(status)
+		flag, err := flagmessage.Mission(status)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to encode the flag's mission: %w", err)
 		}
 		encoded.FlagMission = flag
 	}
@@ -81,24 +81,6 @@ func Mission(status missions.MissionStatus) (*missionsv1.Mission, error) {
 	case missions.FortifyTiles:
 		encoded.Kind = &missionsv1.Mission_FortifyTiles{FortifyTiles: &missionsv1.FortifyTiles{
 			Goal: order.Goal, Fortified: status.Progress,
-		}}
-	default:
-		return nil, fmt.Errorf("%w: %T", ErrUnknownKind, order)
-	}
-	return encoded, nil
-}
-
-func FlagMission(status flagmissions.Status) (*missionsv1.FlagMission, error) {
-	encoded := &missionsv1.FlagMission{Id: status.Mission.ID.String(), Points: status.Mission.Points, Done: status.Done}
-
-	switch order := status.Mission.Order.(type) {
-	case flagmissions.TakeIn:
-		encoded.Kind = &missionsv1.FlagMission_TakeIn{TakeIn: &missionsv1.TakeIn{
-			CountryId: order.Ground, Goal: order.Goal, Taken: status.Progress,
-		}}
-	case flagmissions.BreakShields:
-		encoded.Kind = &missionsv1.FlagMission_BreakShields{BreakShields: &missionsv1.BreakShields{
-			CountryId: order.Flag, Goal: order.Goal, Broken: status.Progress,
 		}}
 	default:
 		return nil, fmt.Errorf("%w: %T", ErrUnknownKind, order)

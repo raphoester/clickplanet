@@ -1,5 +1,5 @@
 import {Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {BombAnnouncement, ChampionAnnouncement, ChatAnnouncement, ChatMessage, ChatQuote, FortifyAnnouncement, MuteAnnouncement, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
+import {BombAnnouncement, ChampionAnnouncement, ChatAnnouncement, ChatMessage, ChatQuote, FlagMissionAnnouncement, FortifyAnnouncement, MuteAnnouncement, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
 import {landmassName} from "../../domain/landmassNames.ts";
 import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
@@ -21,6 +21,7 @@ import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
 import {usePlayerCard} from "../players/playerCardStore.ts";
 import {useChat} from "./chatStore.ts";
+import {partsOf} from "../missions/orderParts.tsx";
 
 export type ChatLogProps = {
     messages: ChatMessage[]
@@ -325,7 +326,25 @@ function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
             return <RoundLine announcement={announcement}/>
         case "champion":
             return <ChampionLine announcement={announcement}/>
+        case "flag_mission":
+            return <FlagMissionLine announcement={announcement}/>
     }
+}
+
+// The words of the moment the flag's own players see.
+function FlagMissionLine({announcement}: {announcement: FlagMissionAnnouncement}) {
+    return <li className="chat-announcement" data-at={announcement.announcedAt}>
+        <span className="chat-announcement-icon" aria-hidden="true">🎯</span>
+        <CountryFlag code={announcement.country}/>
+        <span className="chat-announcement-text">
+            <strong>{countryName(announcement.country)}</strong> completed its flag mission
+            {announcement.order && <>: {partsOf(announcement.order).line}</>}
+            {" "}(+{announcement.points} season {announcement.points === 1 ? "point" : "points"})
+        </span>
+        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
+            {clock.format(announcement.announcedAt)}
+        </time>
+    </li>
 }
 
 function ChampionLine({announcement}: {announcement: ChampionAnnouncement}) {

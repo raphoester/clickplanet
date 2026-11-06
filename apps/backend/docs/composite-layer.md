@@ -150,7 +150,7 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `missions-streams` | wakes the account's open streams, which read the day again: a second read sends the same day |
 | `planet`'s `planet.v1.GrantCharges` handler | keeps each `grant_id` it applied, in the transaction of the grant (`charge_grants`) |
 | `planet-charges-players` | keeps the account's sign-in grant id (`bonuses.SignInGrantOf`) in `charge_grants`, in the transaction of the grant |
-| `chat-announcements-*` | an announcement is named after the fact it tells (the bomb's or the fortify's ledger position, the mute's id, the round's season and number, the champion's season) and kept with `AppendOnce`: a second one is neither kept nor shown |
+| `chat-announcements-*` | an announcement is named after the fact it tells (the bomb's or the fortify's ledger position, the mute's id, the round's season and number, the champion's season, the flag mission's id) and kept with `AppendOnce`: a second one is neither kept nor shown |
 | `player-titles`, `player-finale-fights` (progression's) | grants only what the account does not hold; a fight recorded again takes the same answer |
 | `progression-nameplates` | keeps a nameplate with an insert that ignores a second |
 | `progression-departures-leaving`, `progression-departures-returns` | each event names when it was decided; the departure keeps the latest, as player's does |
@@ -198,6 +198,8 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
 - `player.v1.PlayerLeaving` and `PlayerReturned`: a lost one leaves progression showing the badges of an account player hides, or hiding one player shows again, for good. `decide_departure_usecase` records one for every decision, in the transaction of the departure.
 - `player.v1.PlayerForgotten`: a lost one keeps a deleted player's data for good in every module that hears it: its stats and titles in progression, its name on its takes in planet, its tallies in scoring, and the rest. `forget_account_usecase` records it in the transaction that deletes the profile and the guest code, for every account auth deleted.
 - `planet.v1.GrantCharges`, a command: a lost one is a mission paid that planet never granted. `missions`' `payroll` records it with the payment.
+- `missions.v1.FlagMissionDone`: a flag's mission is done once, so a lost one is a line the chat never shows. The flag
+  mission's use cases record it beside the `scoring.v1.GrantPoints` of its points, in the transaction that finishes it.
 - `missions.v1.MissionsPaid`: it is told with the payment it counts, so it shares the grant's transaction. The relay sends the grants as commands and it as an event (`redis_outbox_sender`), from one outbox.
 - **Not the gamemaster's commands** (`PlayRuleSet`, `ResetMap`, `ScoringCommand`): the clock decides them, not a transaction. The
   gamemaster's runners send them with `streams.Commands().Send` and keep what they told only once Redis took it, so a
@@ -266,6 +268,7 @@ The events today:
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `progression`, for the stats |
 | `chat.v1.AccountMuted{account_id, muted_at, duration, mute_id}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |
 | `missions.v1.MissionsPaid{account_id, paid_in_all}` | `missions`, through its outbox, from `payroll` | with each payment of one or more missions: how many the account was paid in all | `progression`, for the stats; `missions`, which sends the account's open streams its day |
+| `missions.v1.FlagMissionDone{flag, mission, done_at}` | `missions`, through its outbox, from `record_flag_take_usecase` and `record_strike_usecase` | with the points of a flag's mission, once it is done: `mission` is the `FlagMission` `GetMissions` shows, done; `done_at` the time of the take or the shield broken that finished it | `chat` (`chat-announcements-flag-missions`), which announces it in the world and in the flag's room |
 | `player.v1.PlayerCreated{account_id}` | `player`, through its outbox, from `name_account_usecase` and `set_name_usecase` | with the profile it makes: once per account | `planet`, which grants the new player a refill; `progression`, which keeps a nameplate |
 | `player.v1.PlayerSignedIn{account_id}` | `player`, through its outbox, from `tell_sign_in_usecase` | every `auth.v1.SignedIn` heard: each sign-in and link, the first or not, whatever account the browser was on | `missions` (`missions-signed-in`), which pays the day's missions the account finished as a guest |
 | `player.v1.PlayerNamed{account_id}` | `player`, through its outbox, from `name_account_usecase`, `set_name_usecase` and `rename_player_usecase` | with each username kept: drawn at the first sign-in, chosen by the player, given by the operator | `alerts` (`alerts-names`), which asks player the name now and gives it to the linked Discord member as its nickname |

@@ -28,6 +28,7 @@ import {
 } from "./chat.ts";
 import {NameColor} from "./player.ts";
 import {ClosedRound} from "./standings.ts";
+import {FlagMission} from "./missions.ts";
 import {championOf} from "../domain/champion.ts";
 import {podiumOf} from "../domain/roundReveal.ts";
 import {quoteOf, withRemoved} from "../domain/chatLog.ts";
@@ -284,6 +285,18 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         const id = `champion-${closed.season}`
         if (!champion || this.announcements.some((announcement) => announcement.id === id)) return
         this.announce({kind: "champion", id, announcedAt: closed.endedAt, season: champion.season, countries: champion.countryCodes})
+    }
+
+    // As the server: in the World and in the flag's own room, once.
+    public announceFlagMission(flag: string, mission: FlagMission) {
+        const world = this.world ?? this
+        const id = `flag-mission-${flag}-${mission.id}`
+        if (world.announcements.some((announcement) => announcement.id === id)) return
+        const announcement: ChatAnnouncement = {
+            kind: "flag_mission", id, announcedAt: Date.now(), country: flag, points: mission.points, order: mission.order,
+        }
+        world.announce(announcement)
+        world.flagRoom(flag).announce(announcement)
     }
 
     private announce(announcement: ChatAnnouncement) {
