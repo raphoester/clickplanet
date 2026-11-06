@@ -1,6 +1,6 @@
 import {useMemo} from "react"
 import {MissionTarget, openTargetsOf} from "../../domain/missionTargets.ts"
-import {MissionsState} from "./useMissions.ts"
+import {MissionsState} from "./missionsStore.ts"
 
 const NONE: readonly MissionTarget[] = []
 

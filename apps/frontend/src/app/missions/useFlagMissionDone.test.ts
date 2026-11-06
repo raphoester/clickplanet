@@ -3,7 +3,7 @@ import {describe, expect, it, vi} from "vitest"
 import {renderHook} from "@testing-library/react"
 import {FlagMission} from "../../backends/missions.ts"
 import {useFlagMissionDone} from "./useFlagMissionDone.ts"
-import {MissionsState} from "./useMissions.ts"
+import {MissionsState} from "./missionsStore.ts"
 
 const flag = (done: boolean): FlagMission => ({
     id: "flag-22",

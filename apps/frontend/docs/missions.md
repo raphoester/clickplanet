@@ -52,7 +52,10 @@ itself, with nothing to press.
   owner, who finished France's, could not tell if the points were granted. **Every other player reads it in the chat**:
   the server announces each flag mission done in the World and in the flag's room (see the
   [Live chat](chat.md#announcements)).
-- **`useMissions` lives in `PlayScreen`, not in the place**, so the badge is right with the tab closed. It reads `GetMissions` at load, on a change of the account or of the pledged flag (`useAllegiance`), after
+- **The missions are a store, `useMissions` (`missionsStore.ts`), fed by `useMissionsFeed` in `PlayScreen`**, not
+  by the place, so the badge is right with the tab closed (see [Stores](stores.md)). `MissionsPlace` and
+  `MissionsDone` read the store. The feed reads `GetMissions` at load, on a change of the account or of the pledged
+  flag (`useAllegiance`), after
   each run of clicks (`useReadsAfterClicks`, 2 s after the last one, for the bars), and once the day ends.
   **Progress and payments come on the missions stream** (`MissionsBackend.follow`, `MissionService.ListenForEvents`),
   followed while the account is known and again when it changes: the stream sends the whole day as it opens and
@@ -69,8 +72,9 @@ itself, with nothing to press.
   with the shown day's ids alone.
 - **A mission paid has its own card**, `MissionsDone`: "Mission done", or "3 missions done" for a
   burst, then each order with its flag and the reward it paid. One card for all the missions of a read,
-  never a card each; it goes by itself like a box's card (`usePassing`, 2.9 s). `usePaidMissions`
-  compares each day with the one before (`newlyPaid`; the first day of the page tells nothing). The
+  never a card each; it goes by itself like a box's card (`usePassing`, 2.9 s). The store's `hear`
+  compares each day with the one before (`newlyPaid`; the first day of the page tells nothing), and keeps what was
+  paid (`paid`) until the card goes. The mission's progress line waits while the card shows. The
   charges come on planet's own stream (`charges_granted`, see [Charges](charges.md)), within about a
   second of the card: the client reads no charges for a mission. The charge's own card (`BonusAward`)
   is for a box or a quiz, not a mission.

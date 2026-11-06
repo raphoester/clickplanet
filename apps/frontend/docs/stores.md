@@ -24,11 +24,11 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
   subscribe and notify by hand, which is what a store does; a component reads them through their hooks, `useAccount`
   and `useConnection`.
 - **What a backend sends goes into its store from where its inputs are.** A hook that `PlayScreen` calls with the
-  backend and what it knows links the two (`useQuizMaster`, `useRosterFeed`, `useRaceFeed`, `useScheduleFeed`): it
-  subscribes, writes the store, and puts the store back to its start once it stops, so nothing stale shows after it
-  and StrictMode's second run follows one stream. `PlayScreen` reads back only what it hands the globe or a hook
-  itself, such as the roster's count, the race it ranks the countries by for the anthem, or the turn it makes the mood
-  and the globe's halo from. Or the place where a card shows does it, given its inputs as props (`PlayerCardPlace`,
+  backend and what it knows links the two (`useQuizMaster`, `useRosterFeed`, `useRaceFeed`, `useScheduleFeed`,
+  `useMissionsFeed`): it subscribes, writes the store, and puts the store back to its start once it stops, so nothing
+  stale shows after it and StrictMode's second run follows one stream. `PlayScreen` reads back only what it hands the
+  globe or a hook itself, such as the roster's count, the race it ranks the countries by for the anthem, the turn it
+  makes the mood and the globe's halo from, or the missions it draws on the globe. Or the place where a card shows does it, given its inputs as props (`PlayerCardPlace`,
   `HolderCardPlace`, `TerritoryCardPlace`), and shows the card from the store.
 - **What the globe tells goes into the store of its feature.** `useGlobe` hands `createGlobe` the verbs of three
   stores, and puts the stores back to their start when it unmounts:
@@ -37,7 +37,7 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
     read it; `PlayScreen` reads the count only to hand it to `useSignInNudge`.
   - `useBonus` (`bonus/bonusStore.ts`): the box won, read by `BonusAward`, and what `Inventory` reads: the notice,
     the charges, the rules, the switches and the armed bomb. `PlayScreen` reads the charges and the rules only for
-    its hooks, the clicks panel's toll and the missions paid.
+    its hooks and the clicks panel's toll. `MissionsDone` reads the rules for the rewards it names.
   - `useNews` (`news/newsStore.ts`): the news line, below.
 
   So `useGlobe` returns only what `PlayScreen` hands back to the globe or lays the screen out with.

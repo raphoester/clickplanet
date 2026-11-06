@@ -4,7 +4,8 @@ import {act, cleanup, renderHook} from "@testing-library/react"
 import {DayMissions, MissionsBackend} from "../../backends/missions.ts"
 import {acceptedClicks} from "../clicks/acceptedClicks.ts"
 import {SETTLE_MS} from "../clicks/useAcceptedClicks.ts"
-import {useMissions} from "./useMissions.ts"
+import {NO_MISSIONS, useMissions} from "./missionsStore.ts"
+import {useMissionsFeed} from "./useMissionsFeed.ts"
 
 const day: DayMissions = {endsAt: Date.UTC(2026, 9, 26, 21, 0), missions: []}
 
@@ -25,17 +26,20 @@ function followable(missions: MissionsBackend["missions"]) {
     return {backend, stop, send: (next: DayMissions) => act(() => send(next))}
 }
 
+const state = () => useMissions.getState().state
+
 afterEach(() => {
     cleanup()
+    useMissions.setState(NO_MISSIONS)
     vi.useRealTimers()
 })
 
-describe("useMissions", () => {
+describe("useMissionsFeed", () => {
     it("reads once the clicks settle, and no more", async () => {
         vi.useFakeTimers({now: Date.UTC(2026, 9, 26, 12, 0)})
         const {backend} = followable(async () => day)
         const clicks = acceptedClicks()
-        renderHook(() => useMissions(backend, "acc-1", "fr", clicks.listenForClicks))
+        renderHook(() => useMissionsFeed(backend, "acc-1", "fr", clicks.listenForClicks))
         await act(async () => {})
         expect(backend.missions).toHaveBeenCalledTimes(1)
 
@@ -49,12 +53,12 @@ describe("useMissions", () => {
 
     it("shows each day the stream sends, and follows the account again when it changes", async () => {
         const {backend, stop, send} = followable(async () => day)
-        const {result, rerender} = renderHook(({account}) => useMissions(backend, account, "fr", undefined),
+        const {rerender} = renderHook(({account}) => useMissionsFeed(backend, account, "fr", undefined),
             {initialProps: {account: "acc-1"}})
         await act(async () => {})
 
         send(paid)
-        expect(result.current).toEqual({kind: "ready", day: paid})
+        expect(state()).toEqual({kind: "ready", day: paid})
 
         rerender({account: "acc-2"})
         expect(stop).toHaveBeenCalledTimes(1)
@@ -64,7 +68,7 @@ describe("useMissions", () => {
     it("follows nothing before the account is known", () => {
         const {backend} = followable(async () => day)
 
-        renderHook(() => useMissions(backend, undefined, "fr", undefined))
+        renderHook(() => useMissionsFeed(backend, undefined, "fr", undefined))
 
         expect(backend.follow).not.toHaveBeenCalled()
     })
@@ -74,11 +78,22 @@ describe("useMissions", () => {
         const {backend, send} = followable(() => new Promise((resolve) => {
             answer = resolve
         }))
-        const {result} = renderHook(() => useMissions(backend, "acc-1", "fr", undefined))
+        renderHook(() => useMissionsFeed(backend, "acc-1", "fr", undefined))
 
         send(paid)
         await act(async () => answer(day))
 
-        expect(result.current).toEqual({kind: "ready", day: paid})
+        expect(state()).toEqual({kind: "ready", day: paid})
+    })
+
+    it("puts the store back once it stops", async () => {
+        const {backend} = followable(async () => day)
+        const {unmount} = renderHook(() => useMissionsFeed(backend, "acc-1", "fr", undefined))
+        await act(async () => {})
+        expect(state()).toEqual({kind: "ready", day})
+
+        unmount()
+
+        expect(state()).toEqual({kind: "loading"})
     })
 })
