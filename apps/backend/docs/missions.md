@@ -206,11 +206,16 @@ day and a flag), so it has its own package and store (`flagmissions`).
   so each of those flags drew again with the room at its next take or read, from 0 progress, keeping what its day had
   counted (the owner's choice: tile missions only, and tomorrow's goal sized from the whole day). A conquest done kept its
   points, and a shield mission, which the bug never touched, stayed.
-- **The goal is half of the team's day before**, all on the one target, so a busy flag gets a big goal and a small one a
-  small one (`goalOf`): for a ground, half of all the tiles its players took anywhere, at least 100 (`leastConquest`);
-  for shields, half of all the shields they broke on anyone, at least 30 (`leastShields`); rounded down to 10. The
-  least is for a flag nobody played the day before and for a season's first day. **The goal follows the team, not one
-  player**: a flag of one player gets a goal of one player's half day. Until 2026-11-05 the goal was 50% for 3 points to
+- **The goal is 30% of the team's day before**, all on the one target, so a busy flag gets a big goal and a small one a
+  small one (`goalOf`): 30% of all the tiles its players took and all the shields they broke, anywhere and on anyone,
+  for either kind, at least 250 (`leastGoal`), rounded down to 10. A tile taken and a shield broken are a click each,
+  so both kinds ask the same. The least is about ten minutes of one player's clicks, near a small flag's whole day,
+  and is for a flag that did little the day before and for a season's first day. **The goal follows the team, not one
+  player**: a flag of one player gets a goal of a third of one player's day. A flag puts some 5 to 10% of its day on
+  one drawn ground by itself (France on Russia, 7% from 3 to 6 Nov), so 30% is done when its players go for it.
+  Until 2026-11-06 it was half of the same kind only, at least 100 tiles or 30 shields: a flag that took open land
+  broke few shields, so its shield goal stayed tiny, and the day after a battle every flag got the least (France: 30 of
+  Sweden's shields for 9 points; the owner: "STUPIDLY EASY"). Until 2026-11-05 the goal was 50% for 3 points to
   100% for 10, at least 1,000 to 2,000 tiles or 300 to 600 shields: a flag under 0.5% of the map finished 2% of its
   140 days in Season 1's first five, its median goal 1,570 tiles while all its players took 180 to 360 a day (the user:
   "easier to reach for underdogs"). Until 2026-11-01 a mission gave 1 to 3 points (the owner: "1 to 3 is ridiculous").
