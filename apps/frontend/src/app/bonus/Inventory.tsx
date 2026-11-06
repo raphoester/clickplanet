@@ -3,8 +3,8 @@ import {BonusNotice, BonusRules, ChargeKind, Charges, slotOf, Switches} from '..
 import {BonusGuide, isLearning, isNew} from '../../domain/bonusGuide.ts'
 import {useBonusGuide} from './bonusGuideStore.ts'
 import {useBonus} from './bonusStore.ts'
-import BonusIcon from './BonusIcon.tsx'
-import Bubble, {BUBBLE_MS} from './Bubble.tsx'
+import BonusIcon from '../components/BonusIcon.tsx'
+import Bubble, {BUBBLE_MS} from '../components/Bubble.tsx'
 import './Inventory.css'
 
 export const NOTICE_MS = 3500

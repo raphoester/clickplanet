@@ -1,6 +1,6 @@
 import {useEffect} from "react"
-import {COUNTRY_STORAGE_KEY} from "../countryPreference.ts"
-import {ListenForClicks} from "./acceptedClicks.ts"
+import {COUNTRY_STORAGE_KEY} from "./countryPreference.ts"
+import {ListenForClicks} from "./clicks/acceptedClicks.ts"
 
 export const FRONT_GUIDE_STORAGE_KEY = "clickplanet-front-guide"
 

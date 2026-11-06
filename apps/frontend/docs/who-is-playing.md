@@ -55,7 +55,7 @@ its player: see [Support](support.md). **The one card open is a store**,
 `usePlayerCard` (`app/players/playerCardStore.ts`, see [Stores](stores.md)): `ChatLog`,
 `PlayersPanel`, the board's `PlayerStandings`, `HolderCard` and `TerritoryCard` open a
 player in it themselves, and the last two close their own card first. `PlayerCardPlace`
-shows the card. `Viewer` renders it only with a `PlayerInfoBackend` wired, and the
+shows the card. `PlayScreen` renders it only with a `PlayerInfoBackend` wired, and the
 store is `openable` only while it is there: without it the names are plain text. The card shows the
 flag and the country, then, for a player with a username, what `PlayerCards` reads: who
 it is from `player.v1.PlayerService/GetPlayer`, and from
@@ -105,10 +105,10 @@ without a sitekey never announces.
 
 **The roster is a store**, `useRoster` (`app/players/rosterStore.ts`, see
 [Stores](stores.md)): loading, unavailable, or the list. `useRosterFeed`, which
-`Viewer` calls with the `PresenceBackend`, follows the stream into it, and lists
+`PlayScreen` calls with the `PresenceBackend`, follows the stream into it, and lists
 nobody again once it stops. `PlayersPanel` reads the list itself and the chat's
 tab reads the count (`onlineCount`), so a renamed line renders the list alone.
-`Viewer` reads only the count, which it gives the globe (`crowd`, see
+`PlayScreen` reads only the count, which it gives the globe (`crowd`, see
 [Ghosts](ghosts.md)).
 
 **The roster is streamed**, over `ListenForEvents` through `openStream`, with no

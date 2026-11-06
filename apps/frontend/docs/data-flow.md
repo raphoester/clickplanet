@@ -13,7 +13,7 @@
    the whole globe, and an abandoned one disposes it. On ready,
    `publishLeaderboard` shows the full board at once rather than up to a sample
    later. **A tile is clicked only once every batch is read**: zoomed in,
-   `Viewer` shows the loading card with the share read until then. Each batch
+   `PlayScreen` shows the loading card with the share read until then. Each batch
    brings its tiles' shields too (see [Shields](shields.md)). See [The counts
    are the server's](counts.md).
 3. Live updates arrive over the `ListenForEvents` stream, batched every 100 ms,
@@ -24,7 +24,7 @@
    publishes it to React twice a second.
 5. A click paints optimistically and POSTs; the server's echo confirms it later.
    A refused click is taken back off the map. A throttled one bumps `refusals` in
-   `useRefusedClicks` (`components/refusedClicksStore.ts`, see [Stores](stores.md)),
+   `useRefusedClicks` (`clicks/refusedClicksStore.ts`, see [Stores](stores.md)),
    and `ClickBudgetMeter` shakes and flashes red once per bump — a
    dialog here was annoying, since a player hits the wall mid-burst and the meter
    already says why. The other three raise a flag in the same store, and
@@ -86,7 +86,7 @@
    **A guest is offered to click faster.** A signed-in account refills
    `ClickBudget.linkedMultiplier` times faster (2 in production), into a bank of
    the same size. For a guest the
-   server offers sign-in to, `Viewer` passes `onSignIn` and the dock shows
+   server offers sign-in to, `PlayScreen` passes `onSignIn` and the dock shows
    "Sign in: clicks 2× faster" in its line — a button beside the meter, not in
    it, since the meter is a reading. It glows when the bucket is empty or a click
    is refused, the moment a guest meets the wall. **It is in the line only where

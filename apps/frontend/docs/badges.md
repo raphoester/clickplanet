@@ -13,7 +13,7 @@ store, by the account id beside the name. Nothing else carries them. See the bac
 - `app/badges/badgesStore.ts` — the store, `useBadges`, and its hooks: `useBadge(accountId)` reads one account's
   badge (a plain value, the store's own object), and `useOwnStreak` writes the streak the page read of its own
   account. `WornTitle` and `Streak` draw one each (a `TitleBadge`, a `StreakFlame`); a reader that draws them by
-  hand calls `useBadge`. `useBadgesFeed`, which `Viewer` calls with the backend, serves the store and empties it
+  hand calls `useBadge`. `useBadgesFeed`, which `PlayScreen` calls with the backend, serves the store and empties it
   once it stops.
 - `backends/fakeBadges.ts` — `FakeBadges`, the fake's `GetBadges`: the fake presence (its roster, its card and the
   chat's chatters, which are the same players) answers first, then the fake board for the players only it has, so
@@ -46,7 +46,7 @@ it:
   `useOwnStreak`.
 - **A title earned** (`titleEarned` on progression's stream, see [Titles](titles.md)) may change the title worn
   (`wearing.WornOf` on the server: a higher rank on the worn track replaces it), which the page cannot tell, so
-  `Viewer` expires its own badge and reads it again at once.
+  `PlayScreen` expires its own badge and reads it again at once.
 - **A player card** reads the badge of its player again as it opens (`expire`), so the title on its banner agrees
   with the titles `GetProgress` lists under it.
 

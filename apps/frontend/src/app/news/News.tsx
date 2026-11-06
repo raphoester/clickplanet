@@ -4,10 +4,10 @@ import {Moved} from "../../domain/missionProgress.ts"
 import UnderAttack from "../alerts/UnderAttack.tsx"
 import MissionProgress from "../missions/MissionProgress.tsx"
 import BombNews from "./BombNews.tsx"
-import FortifyCard from "./FortifyCard.tsx"
+import FortifyCard from "../components/FortifyCard.tsx"
 import FortifyNews from "./FortifyNews.tsx"
 import {lastFortified, newestNews, News as Told, useNews} from "./newsStore.ts"
-import {useFortifyGuide} from "./useFortifyGuide.ts"
+import {useFortifyGuide} from "../components/useFortifyGuide.ts"
 
 // After the wave has run over the land.
 export const FORTIFY_CARD_DELAY_MS = 1600

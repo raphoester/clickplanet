@@ -17,7 +17,7 @@ import {DiscordOffer} from "../alerts/useDiscordAlerts.ts"
 import {InviteLink} from "../../backends/crazyGames.ts"
 import {useScreen} from "../hud/screenStore.ts"
 import {heldLine} from "../../domain/allegiance.ts"
-import {useRefusedClicks} from "./refusedClicksStore.ts"
+import {useRefusedClicks} from "../clicks/refusedClicksStore.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {

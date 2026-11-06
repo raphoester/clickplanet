@@ -2,7 +2,7 @@ import {Countries} from '../../domain/countries.ts'
 import {Fortified} from '../../domain/fortify.ts'
 import BonusIcon from './BonusIcon.tsx'
 import {useEscape} from './useDialog.ts'
-import './BonusAward.css'
+import '../bonus/BonusAward.css'
 
 export type FortifyCardProps = {
     fortified: Fortified

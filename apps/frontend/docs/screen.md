@@ -2,7 +2,7 @@
 
 **Nothing is drawn over the globe but four zones**, and a new feature goes in one
 of them rather than in a fifth panel. The rule is in [`DESIGN.md`](../DESIGN.md);
-this is where each zone lives. `Viewer` composes them, and `useCompact`
+this is where each zone lives. `PlayScreen` composes them, and `useCompact`
 (`compact.ts`, the `COMPACT` query, kept live) picks the phone or the desktop form.
 
 **The phone form is for a screen 768px wide or less, or 600px high or less.**
@@ -25,7 +25,7 @@ that does not.
   [Stores](stores.md)): the phone's sheet (`sheet`), the desktop menu's place
   (`menuTab`), and the desktop's popovers (`popovers`: the season, the battle and
   "Your clicks"). The tab bar, the status bar, the chips, the dock and the menu
-  read and change it themselves; `Viewer` reads the sheet to draw it. A change
+  read and change it themselves; `PlayScreen` reads the sheet to draw it. A change
   between the phone and the desktop form closes the sheet and the popovers.
 - **One sheet at a time on a phone**: the five
   tabs, and the season and "Your clicks", which the status bar and the dock open.

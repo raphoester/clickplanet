@@ -85,7 +85,7 @@ import {FortifyTargets} from "../../domain/fortifyTargets.ts";
 import {createFortifyWaves, FortifyUniforms, fortifyUniforms} from "./fortifyWaves.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 import {drawShieldMarks, shieldCellsOf} from "./shieldMarks.ts";
-import {AcceptedClick} from "./acceptedClicks.ts";
+import {AcceptedClick} from "../clicks/acceptedClicks.ts";
 
 type Uniforms = BlastUniforms & FortifyUniforms & {
     pointSize: THREE.IUniform

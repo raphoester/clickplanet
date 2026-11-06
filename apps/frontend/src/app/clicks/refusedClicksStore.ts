@@ -1,6 +1,6 @@
 import {create} from "zustand"
 import {Allegiance} from "../../domain/allegiance.ts"
-import {BUBBLE_MS} from "./Bubble.tsx"
+import {BUBBLE_MS} from "../components/Bubble.tsx"
 
 type RefusedClicksStore = {
     // One more for each click the bank or a frozen map turned down.

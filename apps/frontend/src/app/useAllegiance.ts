@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
-import {AllegianceSource} from "../../backends/backend.ts";
-import {Allegiance} from "../../domain/allegiance.ts";
+import {AllegianceSource} from "../backends/backend.ts";
+import {Allegiance} from "../domain/allegiance.ts";
 
 export function useAllegiance(source: AllegianceSource): Allegiance | undefined {
     const [allegiance, setAllegiance] = useState<Allegiance>()

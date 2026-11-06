@@ -12,7 +12,7 @@ gamemaster's ids, the season's `bookId` and the rounds' `roundId`.
 (`ListenForEvents`, `GetMyTally`, `GetRound`, `GetScores`), and
 `fakeStandingsBackend.ts` stands in for it in fake mode, counting the player's
 own clicks and moving the other players a few tiles every 1.5s. `Boards`
-(`boardsOf`) is the players' boards of one book, which `Viewer` makes for the
+(`boardsOf`) is the players' boards of one book, which `PlayScreen` makes for the
 current season's book (the ended season's, from its debrief, until another runs).
 With no book there are no boards. `app/standings/` draws it.
 
@@ -24,7 +24,7 @@ With no book there are no boards. `app/standings/` draws it.
   a rank (1, 2, 2, 4). `RankCoin` draws the rank, as on the countries' board.
 - **The board has three views** (`BoardViews`): Countries, the `Leaderboard`;
   Players; and the players of the country played for, named by its flag
-  and name. `Viewer` holds the view, so a closed sheet or
+  and name. `PlayScreen` holds the view, so a closed sheet or
   another menu tab keeps it. With no `StandingsBackend` wired the board has no
   views.
 - **The countries' points are on the Countries board, where everybody looks.**
@@ -36,10 +36,10 @@ With no book there are no boards. `app/standings/` draws it.
   its `scores` and `round` cases. **The race is a store**, `useRace`
   (`app/standings/raceStore.ts`, see [Stores](stores.md)): it keeps the book's points
   through new round ids and a round only while the same ones are asked, and only while
-  it is open (`raceOf`). `useRaceFeed`, which `Viewer` calls once with the backend and
+  it is open (`raceOf`). `useRaceFeed`, which `PlayScreen` calls once with the backend and
   the ids, follows the stream into it, again when either id changes, and leaves it
   empty once it stops. `Leaderboard`, `Menu` and `BoardSheet` read it themselves;
-  `Viewer` reads it only for the order it ranks by, which it hands the anthem, the
+  `PlayScreen` reads it only for the order it ranks by, which it hands the anthem, the
   status bar's rank and the shared picture. With a race the
   board adds two columns: Points, each country's points from
   the days closed, right-aligned, and Today, what it scores if the day ends now, in
@@ -85,11 +85,11 @@ With no book there are no boards. `app/standings/` draws it.
   the same countries by the tiles gained since the round opened, then by tiles. **Today's
   points do not move the Points order**: when a day was won on its average, ranked
   by them, two countries at 0 points swapped against their tiles, which read as a bug
-  (2026-10-08). Tiles is the map's order. `Viewer` holds the choice. With no round
+  (2026-10-08). Tiles is the map's order. `PlayScreen` holds the choice. With no round
   open, Gained falls back to Points; with no race, no head sorts and the board is
   the order of Tiles (`shownOrder`). **The rank and the anthem follow the order picked**: the rank
   beside "playing for" and on the phone's status bar is the country's place in
-  that order (`rankShown` in `Menu`, `rankOf` over `countryLines` in `Viewer`),
+  that order (`rankShown` in `Menu`, `rankOf` over `countryLines` in `PlayScreen`),
   the shared picture's rank too (see [Sharing the globe](sharing.md)),
   and the music is its first country's (see [The leader's
   anthem](sound.md#the-leaders-anthem)). On the map's order alone, the Season board put
@@ -138,7 +138,7 @@ With no book there are no boards. `app/standings/` draws it.
   which click takes a tile (one on a tile its flag does not hold and no shield
   stands on), and once
   the server accepts one it tells `acceptedClicks`, which tells its listeners
-  with no render of `Viewer` per click. `useOwnTakes` counts them by flag, and
+  with no render of `PlayScreen` per click. `useOwnTakes` counts them by flag, and
   `liveSeason` adds the ones made since the read was sent to the line's flag:
   the country shown on its board, the main flag on Players. A player with no
   main flag yet gets the server's rule there (the first flag, until another has

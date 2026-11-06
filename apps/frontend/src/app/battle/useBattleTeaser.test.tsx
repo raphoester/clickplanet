@@ -4,7 +4,7 @@ import {act, cleanup, render, waitFor} from "@testing-library/react"
 import {FakePromoBackend} from "../../backends/fakePromoBackend.ts"
 import {BattleToCome} from "../../backends/turn.ts"
 import {BATTLE_TEASED_STORAGE_KEY, BATTLE_TEASER_EVERY_MS} from "../../domain/battleTeaser.ts"
-import {acceptedClicks, AcceptedClicks} from "../viewer/acceptedClicks.ts"
+import {acceptedClicks, AcceptedClicks} from "../clicks/acceptedClicks.ts"
 import {BattleTeaserState, useBattleTeaser} from "./useBattleTeaser.ts"
 
 const HOUR = 60 * 60 * 1000

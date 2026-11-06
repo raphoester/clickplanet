@@ -3,8 +3,8 @@ import {afterEach, describe, expect, it} from "vitest"
 import {act, renderHook} from "@testing-library/react"
 import {StrictMode} from "react"
 import {NO_TILE_DELTAS, TileDeltas} from "../../domain/tileDeltas.ts"
-import {useNews} from "../components/newsStore.ts"
-import {acceptedClicks} from "../viewer/acceptedClicks.ts"
+import {useNews} from "../news/newsStore.ts"
+import {acceptedClicks} from "../clicks/acceptedClicks.ts"
 import {useUnderAttack} from "./useUnderAttack.ts"
 
 type Props = {flag: string, deltas: TileDeltas}

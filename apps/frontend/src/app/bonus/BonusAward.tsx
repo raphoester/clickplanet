@@ -1,10 +1,10 @@
 import {ReactNode, useEffect, useRef} from 'react'
 import {BonusReward, describeReward} from '../../domain/bonus.ts'
 import {isFirstWin} from '../../domain/bonusGuide.ts'
-import BonusIcon from './BonusIcon.tsx'
+import BonusIcon from '../components/BonusIcon.tsx'
 import {useBonus} from './bonusStore.ts'
 import {useBonusGuide} from './bonusGuideStore.ts'
-import {useEscape} from './useDialog.ts'
+import {useEscape} from '../components/useDialog.ts'
 import './BonusAward.css'
 
 export const AWARD_MS = 2900

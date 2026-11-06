@@ -15,10 +15,10 @@ import {
     LandmassReader,
     UpdatesListener,
 } from "../../backends/backend.ts";
-import News from "../components/News.tsx";
+import News from "../news/News.tsx";
 import ConnectionLost from "../components/ConnectionLost.tsx";
 import {ConnectionSource} from "../../backends/connection.ts";
-import {useConnection} from "./useConnection.ts";
+import {useConnection} from "../components/useConnection.ts";
 import Quiz from "../quiz/Quiz.tsx";
 import {useQuizMaster} from "../quiz/useQuizMaster.ts";
 import {ChatRooms} from "../../backends/chat.ts";
@@ -26,11 +26,11 @@ import {GifSearch} from "../../backends/gifs.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu, {BoardSheet, YouPlace} from "../Menu.tsx";
 import {youLabel} from "../youLabel.ts";
-import BonusAward from "../components/BonusAward.tsx";
+import BonusAward from "../bonus/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
 import ClicksPanel from "../components/ClicksPanel.tsx";
-import Inventory from "../components/Inventory.tsx";
-import {useRefusedClicks} from "../components/refusedClicksStore.ts";
+import Inventory from "../bonus/Inventory.tsx";
+import {useRefusedClicks} from "../clicks/refusedClicksStore.ts";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import BannedModal from "../components/BannedModal.tsx";
@@ -41,11 +41,11 @@ import {useSharePicture} from "../share/useSharePicture.ts";
 import {shareStats} from "../../domain/shareCard.ts";
 import {Countries, Country} from "../../domain/countries.ts";
 import {Shot} from "../../domain/clip/camera.ts";
-import {useAllegiance} from "./useAllegiance.ts";
+import {useAllegiance} from "../useAllegiance.ts";
 import {ClickBudgetSource, now as budgetNow, tokensAt} from "../../backends/clickBudget.ts";
-import {useClickBudget} from './useClickBudget.ts';
-import {useCountryStorage} from './useCountryStorage.ts';
-import {GlobeStatus, useGlobe} from './useGlobe.ts';
+import {useClickBudget} from '../clicks/useClickBudget.ts';
+import {useCountryStorage} from '../useCountryStorage.ts';
+import {GlobeStatus, useGlobe} from '../viewer/useGlobe.ts';
 import {useSound} from '../sound/useSound.ts';
 import {useDisplaySettings} from '../settings/displaySettingsStore.ts';
 import SettingsPlace from "../settings/SettingsPlace.tsx";
@@ -112,8 +112,8 @@ import BattleOver from "../battle/BattleOver.tsx";
 import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
 import {endedBookOf} from "../../domain/debrief.ts";
-import {acceptedClicks} from "./acceptedClicks.ts";
-import {useGuidedTakes} from "./frontGuide.ts";
+import {acceptedClicks} from "../clicks/acceptedClicks.ts";
+import {useGuidedTakes} from "../frontGuide.ts";
 import {ClipsBackend, ClipsNameBackend} from "../../backends/clips.ts";
 import {PromoBackend} from "../../backends/promo.ts";
 import {useFlagMissionDone} from "../missions/useFlagMissionDone.ts";
@@ -124,9 +124,9 @@ import InviteFriends from "../share/InviteFriends.tsx";
 import {DiscordAlerts} from "../alerts/discordAlerts.ts";
 import {useDiscordAlerts} from "../alerts/useDiscordAlerts.ts";
 import {useUnderAttack} from "../alerts/useUnderAttack.ts";
-import {Halo} from "./atmosphere.ts";
+import {Halo} from "../viewer/atmosphere.ts";
 import "../halloween/Halloween.css"
-import "./Viewer.css"
+import "./PlayScreen.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 
@@ -164,14 +164,14 @@ export type Backends = {
     gifs: GifSearch | undefined
 }
 
-export type ViewerProps = {
+export type PlayScreenProps = {
     sharedCountry?: Country
     linkedShot?: Shot
     showFront?: boolean
     backends: Backends
 }
 
-export default function Viewer(props: ViewerProps) {
+export default function PlayScreen(props: PlayScreenProps) {
     const {backends} = props
     const container = useRef<HTMLDivElement>(null)
     const {countryState, handleSetCountry} = useCountryStorage(props.sharedCountry)

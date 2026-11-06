@@ -11,7 +11,7 @@ even when it is caught: the inventory's bomb slot aims it and puts it away
 after a reload can be aimed. The pieces:
 `backends/backend.ts` declares `Bomber` and `BombDrop`, `domain/blast.ts` the
 timeline every screen agrees on, `domain/holdToDrop.ts` the gesture,
-`viewer/blasts.ts` the drawing, and `components/BombNews.tsx` the line at the top.
+`viewer/blasts.ts` the drawing, and `news/BombNews.tsx` the line at the top.
 
 **It drops on a press held still for 0.7s, never on a click.** A bomb is precious
 and a click is also what ends every drag of the globe — releasing a drag over the

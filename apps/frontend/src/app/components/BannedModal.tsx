@@ -1,6 +1,6 @@
 import Modal from "./Modal.tsx";
 import {describeEnd} from "../../domain/endTime.ts";
-import {useRefusedClicks} from "./refusedClicksStore.ts";
+import {useRefusedClicks} from "../clicks/refusedClicksStore.ts";
 import "./BannedModal.css"
 
 export const GAME_RULES = "/terms#play-fair"

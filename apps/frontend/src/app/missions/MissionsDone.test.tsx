@@ -3,7 +3,7 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen} from "@testing-library/react"
 import MissionsDone from "./MissionsDone.tsx"
 import {Mission} from "../../backends/missions.ts"
-import {AWARD_MS} from "../components/BonusAward.tsx"
+import {AWARD_MS} from "../bonus/BonusAward.tsx"
 
 const rules = {blastRadius: 0.05, enclosureMaxTiles: 25}
 

@@ -52,7 +52,7 @@ itself, with nothing to press.
   owner, who finished France's, could not tell if the points were granted. **Every other player reads it in the chat**:
   the server announces each flag mission done in the World and in the flag's room (see the
   [Live chat](chat.md#announcements)).
-- **`useMissions` lives in `Viewer`, not in the place**, so the badge is right with the tab closed. It reads `GetMissions` at load, on a change of the account or of the pledged flag (`useAllegiance`), after
+- **`useMissions` lives in `PlayScreen`, not in the place**, so the badge is right with the tab closed. It reads `GetMissions` at load, on a change of the account or of the pledged flag (`useAllegiance`), after
   each run of clicks (`useReadsAfterClicks`, 2 s after the last one, for the bars), and once the day ends.
   **Progress and payments come on the missions stream** (`MissionsBackend.follow`, `MissionService.ListenForEvents`),
   followed while the account is known and again when it changes: the stream sends the whole day as it opens and

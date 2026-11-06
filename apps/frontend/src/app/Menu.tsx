@@ -28,7 +28,7 @@ import {InviteLink} from "../backends/crazyGames.ts";
 import {youLabel} from "./youLabel.ts"
 import BoardViews, {BoardHeading, BoardStandings} from "./standings/BoardViews.tsx"
 import Sheet from "./hud/Sheet.tsx"
-import {ListenForClicks} from "./viewer/acceptedClicks.ts"
+import {ListenForClicks} from "./clicks/acceptedClicks.ts"
 import {useNow} from "./season/useNow.ts"
 import {HallOfFameButton, HallOfFameSeasons} from "./season/HallOfFame.tsx"
 import {MenuTab, useScreen} from "./hud/screenStore.ts"

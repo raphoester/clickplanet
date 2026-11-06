@@ -10,9 +10,9 @@ styles — plus `domain/quiz.ts` for the shapes and the two pieces of arithmetic
 countdown needs. The backend half is `QuizMaster` in `backends/backend.ts`.
 
 **The state is a [store](stores.md), `useQuiz`.** `Quiz` reads the state and
-calls `open` and `answer` itself. `Viewer` calls
+calls `open` and `answer` itself. `PlayScreen` calls
 `useQuizMaster(quizMaster, country, play)` and does not read the state. Only
-the sign-in nudge it runs reads whether a quiz shows, so `Viewer` renders again
+the sign-in nudge it runs reads whether a quiz shows, so `PlayScreen` renders again
 when a quiz comes and when it goes, not at each phase. The hook gives the store
 its link (the backend, the flag played and the sound player) and subscribes to
 the feed; a new flag or player changes the link and does not subscribe again.

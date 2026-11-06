@@ -162,7 +162,7 @@ typed (digits only), and `cancelCode` goes back to the address.
   server log.
 
 **A guest is asked to sign in at two moments** (`SignInNudgeModal`, opened by
-`useSignInNudge` in `Viewer`): the tap that finds the bank empty, and the click
+`useSignInNudge` in `PlayScreen`): the tap that finds the bank empty, and the click
 that ends its fast start. Newcomers leave at the tap that finds the bank
 empty, whatever its size (the backend's [A guest's first sign-in](../../backend/docs/sign-in-refill.md)).
 A new account refills at the signed-in pace for its first 30 minutes (the
@@ -198,7 +198,7 @@ sign-in buttons (`SignInButtons`, which `SignInPitchModal` uses too).
 ### The refill a first sign-in earns
 
 **The server grants a guest's first sign-in one refill, and the game spends it
-at once** (`useSignInRefill` in `Viewer`), so a guest who signed in at an empty
+at once** (`useSignInRefill` in `PlayScreen`), so a guest who signed in at an empty
 bank comes back to a full one. Planet grants it a second or two after the
 sign-in, when player has made the account a player, so the hook reads the charges at once, after 2s and after
 5s (`refreshCharges`), and spends the refill the
@@ -221,7 +221,7 @@ players at once, a sign-in within 30 days brings it back as it was, and after
 `restored` on any of the three completions; `ConnectAccountBackend` reads it as
 the outcome `"restored"`, whatever the outcome on the wire was (a known identity,
 or another provider with the same verified address). The store marks the state
-`restored`, and `Viewer` shows `WelcomeBackModal` until the player closes it
+`restored`, and `PlayScreen` shows `WelcomeBackModal` until the player closes it
 (`AccountStore.welcomedBack`). The fake's `deleteAccount` keeps what it forgets,
 and its next sign-in brings it back as `"restored"`.
 

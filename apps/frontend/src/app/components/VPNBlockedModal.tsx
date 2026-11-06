@@ -1,5 +1,5 @@
 import Modal from "./Modal.tsx";
-import {useRefusedClicks} from "./refusedClicksStore.ts";
+import {useRefusedClicks} from "../clicks/refusedClicksStore.ts";
 import "./VPNBlockedModal.css"
 
 export default function VPNBlockedModal() {

@@ -8,7 +8,7 @@ implements them against `/chat.v1.ChatService/` alone — `SendMessage`,
 `GetHistory`, `React`, `MarkSeen` and the `ListenForEvents` stream — and
 `fakeChatBackend.ts` is the dev stand-in. On a desktop `ChatPanel` is the
 right-hand column, folded and unfolded from its own header. On a phone it is the
-Chat tab's sheet, and `Viewer` passes whether it is open (`open`,
+Chat tab's sheet, and `PlayScreen` passes whether it is open (`open`,
 `onOpenChange`) from the screen's store; see [The screen](screen.md). **It is always
 mounted**, open or not, on both: it owns each room's history load, stream, unread
 count and sound (see [Rooms](#rooms)). **A resumed stream reads the history again**: `addMessages`
@@ -16,7 +16,7 @@ takes what it missed, and `withNewerReactions` the reactions that moved meanwhil
 peek (below) and puts the unread count in the chat's store, which the tab bar reads for its badge.
 
 **The chat's store holds what the panel only passed on** (`useChat`, `app/chat/chatStore.ts`, see
-[Stores](stores.md)): the unread count of both rooms, which went up through `Viewer` to `TabBar`, and the messages
+[Stores](stores.md)): the unread count of both rooms, which went up through `PlayScreen` to `TabBar`, and the messages
 this page reported, which went from the report's modal through the panel to `ChatLog`. The panel takes both away
 with it when it goes. **What the panel uses itself stays in it**: each room (`useChatRoom`, over `useRoomLog` and
 `useSeenMark`: one per backend, with its stream), the tab shown, the fold, the message being answered (its send drops
@@ -119,7 +119,7 @@ the server refuses a caller with no account (`unauthenticated`). So
 does — chatting before the first click costs a Turnstile check. A token the
 server refuses is dropped and the call made once more with a fresh one (a
 refused call posted nothing, so this cannot post twice); a second refusal, or a
-mint that failed, is `ChatNoSessionError`, and nothing is sent. `Viewer` reads
+mint that failed, is `ChatNoSessionError`, and nothing is sent. `PlayScreen` reads
 the username and the account id off the `AccountStore` and hands both to
 `ChatPanel`: the name for the composer's foot, the id to tell the player's own
 messages. **A message is yours when its id is in `mine`, or its
@@ -175,12 +175,12 @@ for it read and write. The server checks the flag on every call (the backend's
   none. `React` needs none: the server reads the message's room.
 - **A flag room's stream carries the identity token** (`identity()`, never a
   mint), as its history does. The World's stream carries none.
-- **`Viewer` makes the room from the flag held** (`useAllegiance`), not from the
+- **`PlayScreen` makes the room from the flag held** (`useAllegiance`), not from the
   flag picked: a visitor who never pledged has no room. It hands
   `ChatPanel` the room (`flagRoom`: the country and its backend), memoized on the
   flag, so a new flag is a new room.
 - **A guest's flag tab is locked, to sell the sign-in** (`onSignIn`, which
-  `Viewer` sets for a guest it can show `SignInPitchModal` to). The room still
+  `PlayScreen` sets for a guest it can show `SignInPitchModal` to). The room still
   loads, so its tab wears its count, even while it is shown. `LockedRoom` shows
   no line of it: grey balloon shapes under a dark veil, the count, and "Sign in
   to join". The room plays no sound, gives no peek, and stays out of the folded
@@ -208,7 +208,7 @@ for it read and write. The server checks the flag on every call (the backend's
   `stopsOn`): a reconnect would only be refused again, and a reconnect loop from
   old tabs once overloaded the server (Oct 31 2026). `useRoomLog` goes
   `unavailable`, which takes the tab away (the World is shown again), and tells
-  `Viewer` (`onLeftRoom`), which reads the flag again
+  `PlayScreen` (`onLeftRoom`), which reads the flag again
   (`AllegianceSource.refreshAllegiance`). A new flag brings a new room; the same
   flag leaves the room closed until the next load.
 - In fake mode `FakeChatBackend.flagRoom(flag)` keeps a log per flag, with two

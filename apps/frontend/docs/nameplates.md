@@ -13,7 +13,7 @@ asked player for the names at each read and copied them into their answers.
   the other players cannot name: unknown, deleted, asked deleted, or never shown.
 - `app/nameplates/nameplatesStore.ts` — the store, `useNameplates`, and its hooks: `useNameplate(accountId)` reads one
   account's nameplate, and `useOwnNameplate` writes the page's own username and color. `useNameplatesFeed`, which
-  `Viewer` calls with the backend, serves the store and empties it once it stops.
+  `PlayScreen` calls with the backend, serves the store and empties it once it stops.
 - `app/nameplates/nameplate.ts` — what a reader draws of one: `nameOf` (`[deleted]` for an account nobody can name,
   empty until read), `paintOf` (the color for `authorStyle`, grey for a guest or nobody), and `lineOf`, the
   `PlayerLine` a card opens on, none for nobody.
@@ -40,8 +40,8 @@ asked player for the names at each read and copied them into their answers.
 - **The roster's lines** (`useRosterFeed`): the whole roster when the stream opens, and each line that joins or changes.
   So everyone online, the chat's live authors most of all, is named with no read, and a rename on the roster shows on
   every message at once.
-- **The page's own username and color** (`useOwnNameplate`, from `Viewer`): the profile at load, and each `SetName` and
-  `SetColor` answer, through the `AccountStore`. A profile does not say whether the account is an admin, so an own
+- **The page's own username and color** (`useOwnNameplate`, from `PlayScreen`): the profile at load, and each `SetName`
+  and `SetColor` answer, through the `AccountStore`. A profile does not say whether the account is an admin, so an own
   account the store held nothing of is read once more for its crown. A guest's own name is its roster line, or a read.
 
 **A chat message waits for its names** (`whenRead`, in `useRoomLog`): the history, a catch-up and every live message

@@ -1,8 +1,8 @@
 import {useEffect, useRef} from "react"
 import {TileDeltas} from "../../domain/tileDeltas.ts"
-import {useNews} from "../components/newsStore.ts"
-import {ListenForClicks} from "../viewer/acceptedClicks.ts"
-import {useOwnTakes} from "../viewer/useAcceptedClicks.ts"
+import {useNews} from "../news/newsStore.ts"
+import {ListenForClicks} from "../clicks/acceptedClicks.ts"
+import {useOwnTakes} from "../clicks/useAcceptedClicks.ts"
 
 // Once a page: the first time the flag the player took tiles for loses ground on the board.
 export function useUnderAttack(

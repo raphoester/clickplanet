@@ -57,7 +57,7 @@ no recording shows the player with its play button off.
 
 - `domain/anthemLeader.ts` — `followLeader`: a new leader must hold first place
   for `HOLD_MS` (15s) before the music follows it. The first leader plays at once,
-  so `Viewer` hands `useAnthem` no board until the map is loaded: the board is
+  so `PlayScreen` hands `useAnthem` no board until the map is loaded: the board is
   sampled while the batches arrive, and a half-loaded map's leader is not the real one.
   **The leader of another order plays at once too**: the pick keeps the order it
   follows, and the hold is for two countries trading first place, not for the

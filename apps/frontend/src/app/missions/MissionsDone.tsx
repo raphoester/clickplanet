@@ -2,9 +2,9 @@ import {Mission} from "../../backends/missions.ts"
 import {BonusRules, describeReward} from "../../domain/bonus.ts"
 import {awardOf} from "../../domain/missions.ts"
 import BonusIcon from "../components/BonusIcon.tsx"
-import {usePassing} from "../components/BonusAward.tsx"
+import {usePassing} from "../bonus/BonusAward.tsx"
 import {partsOf} from "./orderParts.tsx"
-import "../components/BonusAward.css"
+import "../bonus/BonusAward.css"
 import "./Missions.css"
 
 export type MissionsDoneProps = {

@@ -1,7 +1,7 @@
 # Stores
 
-**A feature's state lives in its own store, not in `Viewer`.** `Viewer.tsx` is where the features met: 6 hooks on
-2026-09-15, 61 on 2026-11-03, the file doubling every two weeks. Each piece of state it held made all of it render
+**A feature's state lives in its own store, not in `PlayScreen`.** `PlayScreen.tsx` is where the features met: 6 hooks
+on 2026-09-15, 61 on 2026-11-03, the file doubling every two weeks. Each piece of state it held made all of it render
 again on a change, and was passed down by hand to the components that showed it.
 
 A store is a [Zustand](https://zustand.docs.pmnd.rs) store, in the feature's folder, named `<feature>Store.ts`. It
@@ -10,7 +10,7 @@ exports one hook, `use<Feature>`, made with `create`. It holds the state and the
 before). For example [`app/settings/displaySettingsStore.ts`](../src/app/settings/displaySettingsStore.ts).
 
 - **The component that shows the state reads the store itself.** `SettingsPlace` reads the display settings, the
-  board reads its guide, and the phone's tab bar the chat's unread count. `Viewer` reads a store only for what it
+  board reads its guide, and the phone's tab bar the chat's unread count. `PlayScreen` reads a store only for what it
   draws or hands a hook itself, such as the two display fields it gives the globe, and never to pass a value down.
 - **A selector returns a field or a plain value**: `useDisplaySettings((settings) => settings.mapView)`. A selector
   that builds a new object or array on each call makes React render without end; build it in the component with
@@ -22,32 +22,32 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
 - **A backend that already holds and tells a state is read as it is.** `AccountStore` and `ConnectionHealth`
   subscribe and notify by hand, which is what a store does; a component reads them through their hooks, `useAccount`
   and `useConnection`.
-- **What a backend sends goes into its store from where its inputs are.** A hook that `Viewer` calls with the
+- **What a backend sends goes into its store from where its inputs are.** A hook that `PlayScreen` calls with the
   backend and what it knows links the two (`useQuizMaster`, `useRosterFeed`, `useRaceFeed`): it subscribes, writes
   the store, and puts the store back to its start once it stops, so nothing stale shows after it and StrictMode's
-  second run follows one stream. `Viewer` reads back only what it hands the globe or a hook itself, such as the
+  second run follows one stream. `PlayScreen` reads back only what it hands the globe or a hook itself, such as the
   roster's count, or the race it ranks the countries by for the anthem. Or the place where a card shows does it, given
   its inputs as props (`PlayerCardPlace`, `HolderCardPlace`, `TerritoryCardPlace`), and shows the card from the store.
 - **What the globe tells goes into the store of its feature.** `useGlobe` hands `createGlobe` the verbs of three
   stores, and puts the stores back to their start when it unmounts:
-  - `useRefusedClicks` (`components/refusedClicksStore.ts`): the count of clicks the bank or a frozen map refused,
+  - `useRefusedClicks` (`clicks/refusedClicksStore.ts`): the count of clicks the bank or a frozen map refused,
     the VPN, ban and session flags, and the flag that locked a click out. `ClickBudgetMeter` and the three modals
-    read it; `Viewer` reads the count only to hand it to `useSignInNudge`.
-  - `useBonus` (`components/bonusStore.ts`): the box won, read by `BonusAward`, and the notice, read by `Inventory`.
-  - `useNews` (`components/newsStore.ts`): the news line, below.
+    read it; `PlayScreen` reads the count only to hand it to `useSignInNudge`.
+  - `useBonus` (`bonus/bonusStore.ts`): the box won, read by `BonusAward`, and the notice, read by `Inventory`.
+  - `useNews` (`news/newsStore.ts`): the news line, below.
 
-  So `useGlobe` returns only what `Viewer` hands back to the globe or lays the screen out with.
+  So `useGlobe` returns only what `PlayScreen` hands back to the globe or lays the screen out with.
 - **A test sets a store with `use<Feature>.setState(...)` and puts it back in `afterEach`**, since the store lives as
   long as the module.
 
-The features still held in `Viewer` move to stores the same way.
+The features still held in `PlayScreen` move to stores the same way.
 
 ## The news line
 
 **The line at the top shows one news at a time, the newest.** `useNews` keeps the last bomb, fortify and attack, in
 the order they were told (`told`, one counter for the three), and `newestNews` is the one shown; once it is done, the
 one before it shows again. The globe tells the bombs and the fortifies, and `useUnderAttack` the attack. `News`
-(`components/News.tsx`) shows the newest as `BombNews`, `FortifyNews` or `UnderAttack`, the mission's progress when
+(`news/News.tsx`) shows the newest as `BombNews`, `FortifyNews` or `UnderAttack`, the mission's progress when
 there is none (see [Missions](missions.md)), and, after the wave of this browser's first fortify, `FortifyCard`.
 
 ## A store that reads by itself
@@ -72,7 +72,7 @@ name anywhere asks for its account's nameplate and badge.
   are now, so every player online is named with no read.
 - **A reader that must not show an entry unread waits for it** (`whenRead`): the chat holds a message until its
   names are read, or a wait has passed, rather than draw a blank name.
-- **The backend is served to the store by a hook** (`useBadgesFeed`, called by `Viewer`): the reads wait for it, and
+- **The backend is served to the store by a hook** (`useBadgesFeed`, called by `PlayScreen`): the reads wait for it, and
   the store empties once it stops, as any store fed from where its inputs are.
 - **The bookkeeping is not state**: what is being read, asked, or due again lives in the store's closure, so it
   never renders anything. A test puts the store back with `serve(undefined)`, which empties both.
