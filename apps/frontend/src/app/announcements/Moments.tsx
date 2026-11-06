@@ -1,15 +1,14 @@
 import {useEffect} from "react"
 import {ClipsBackend} from "../../backends/clips.ts"
-import {ClosedRound} from "../../backends/standings.ts"
 import {announcementKeyOf} from "../../domain/announcements.ts"
 import {PromoBackend} from "../../backends/promo.ts"
-import {BattleToCome} from "../../backends/turn.ts"
-import {Battle} from "../../domain/battle.ts"
+import {nextBattleOf} from "../../domain/battle.ts"
 import {briefDescriptionOf} from "../../domain/battleBrief.ts"
 import {revealFollowed} from "../../domain/roundReveal.ts"
 import BattleDebrief from "../battle/BattleDebrief.tsx"
 import BattleReveal from "../battle/BattleReveal.tsx"
 import BattleTeaser from "../battle/BattleTeaser.tsx"
+import {useSchedule} from "../battle/scheduleStore.ts"
 import {useBattleReveal} from "../battle/useBattleReveal.ts"
 import {useBattleTeaser} from "../battle/useBattleTeaser.ts"
 import {useSeenBattle} from "../battle/useSeenBattle.ts"
@@ -25,9 +24,6 @@ import {useAnnouncements} from "./announcementsStore.ts"
 
 export type MomentsProps = {
     shown: boolean
-    battle?: Battle
-    closed?: ClosedRound
-    nextBattle?: BattleToCome
     // A first visit, which plays its clicks before a battle's teaser.
     guided: boolean
     promo: PromoBackend
@@ -45,10 +41,15 @@ export default function Moments(props: MomentsProps) {
     const announce = useAnnouncements((announcements) => announcements.announce)
     const dismiss = useAnnouncements((announcements) => announcements.dismiss)
 
-    const seenBattle = useSeenBattle(props.battle)
-    const reveal = useRoundReveal(props.closed, seenBattle)
-    const battleReveal = useBattleReveal(props.battle, props.closed)
-    const battleTeaser = useBattleTeaser(props.nextBattle, Date.now(), props.guided, props.listenForClicks, props.promo)
+    const battle = useSchedule((schedule) => schedule.battle)
+    const closed = useSchedule((schedule) => schedule.closed)
+    const battles = useSchedule((schedule) => schedule.battles)
+
+    const now = Date.now()
+    const seenBattle = useSeenBattle(battle)
+    const reveal = useRoundReveal(closed, seenBattle)
+    const battleReveal = useBattleReveal(battle, closed)
+    const battleTeaser = useBattleTeaser(nextBattleOf(battles, now), now, props.guided, props.listenForClicks, props.promo)
     const clipNotice = useClipNotice(props.clips, props.clipsAccount)
 
     useEffect(() => {

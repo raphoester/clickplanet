@@ -37,9 +37,10 @@ or a season scoring scored). A battle has a look, and so has Halloween (see [Hal
 - **`description` is the entry's, the operator's words for the players**, written
   on the backoffice's Rule schedule page (at most 300 characters, the backend's
   rule). Empty when the operator wrote none, or when no entry runs.
-- `app/battle/useSchedule.ts` holds the turn and the battles to come, as the stream
-  sends them. The end of a battle needs no read of its own: the stream sends the next
-  turn within a second.
+- `app/battle/scheduleStore.ts` (`useSchedule`) holds the turn, its battle, the battles to come and the seasons, as
+  the stream sends them, and the last debrief's numbers once read from scoring (`closed`). `useScheduleFeed`, which
+  `PlayScreen` calls with the turn and standings backends, fills it (see [Stores](stores.md)). The end of a battle
+  needs no read of its own: the stream sends the next turn within a second.
 - `domain/battle.ts` — `battleOf(turn)`, the `Battle` a battle turn is (nothing for
   a plain turn or a battle with no end), its key (its `entryId`), its clock
   (`battleLeft`, `timeLeftTo` from the season clock, stopped at zero), and
@@ -114,7 +115,8 @@ battle.
 in the season chip's place and shape (its `season-chip` classes, with its own
 colour, glow and tape in `Battle.css`): crossed swords, "Battle ends in", and the
 clock to the second. The season chip, or the champion's, is back when the battle
-ends.
+ends. `ScheduleChip` picks the chip from the schedule's store: the battle's, else the champion's, else the season's.
+On a phone the chip opens `BattleSheet` or `SeasonSheet`, which read the same store.
 
 - On a desktop a hover opens its facts under it, and a press holds them open
   (Escape closes a pressed one; a hover-only one closes when the pointer leaves).

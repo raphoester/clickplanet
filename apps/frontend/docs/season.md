@@ -24,8 +24,9 @@ rounds' `roundId` (see [Season standings](season-standings.md)).
 - `domain/champion.ts` — `championOf`, the countries ranked 1st once the Final
   Battle or the season was debriefed, `reigningChampionOf`, that champion while no newer season is current,
   and `winsLine`, "Germany wins Season 0", for the reveal, the chip and the chat.
-- `app/season/` — `useSeason`, the timeline's current season, dropped at its end on
-  this clock (a page open across it goes back to no season), `SeasonChip`, `ChampionChip`, `SeasonDetails`,
+- `runningSeason` (`app/battle/scheduleStore.ts`) — the timeline's current season, which `useScheduleFeed` drops at
+  its end on this clock (a page open across it goes back to no season).
+- `app/season/` — `SeasonChip`, `ChampionChip`, `SeasonDetails`,
   `SeasonFacts`, the rows both of them open on, `useRotation`, which turns the
   chip's faces, and `RoundReveal` with `useRoundReveal` (see [The cutoff,
   revealed](cutoff.md)): a day's reveal, and the season's results after the Final

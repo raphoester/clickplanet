@@ -75,8 +75,6 @@ import SignInNudgeModal from "../account/SignInNudgeModal.tsx";
 import {useSignInNudge} from "../account/useSignInNudge.ts";
 import {useSignInRefill} from "../account/useSignInRefill.ts";
 import {LeaderboardEntry, rankOf} from "../../domain/leaderboard.ts";
-import {useSeason} from "../season/useSeason.ts";
-import SeasonChip, {ChampionChip, SeasonDetails} from "../season/SeasonChip.tsx";
 import {HallOfFameSeasons} from "../season/HallOfFame.tsx";
 import {useCompact} from "../compact.ts";
 import Sheet from "../hud/Sheet.tsx";
@@ -98,18 +96,17 @@ import {pageContextOf} from "../support/pageContext.ts";
 import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
 import {useRaceFeed} from "../standings/useRaceFeed.ts";
 import {useRace} from "../standings/raceStore.ts";
-import {useDebriefed} from "../season/useDebriefed.ts";
 import {TurnBackend} from "../../backends/turn.ts";
-import {Battle, battleKeyOf, battleOf, finaleOf, nextBattleOf} from "../../domain/battle.ts";
+import {Battle, battleKeyOf} from "../../domain/battle.ts";
 import {useAnnouncements} from "../announcements/announcementsStore.ts";
 import Moments from "../announcements/Moments.tsx";
-import {useSchedule} from "../battle/useSchedule.ts";
+import {runningSeason, useSchedule} from "../battle/scheduleStore.ts";
+import {useScheduleFeed} from "../battle/useScheduleFeed.ts";
+import ScheduleChip, {BattleSheet, SeasonSheet} from "../battle/ScheduleChip.tsx";
 import {useMood} from "../battle/useMood.ts";
 import {moodOf} from "../../domain/mood.ts";
 import {useBattleOver} from "../battle/useBattleOver.ts";
-import BattleChip, {BattleDetails} from "../battle/BattleChip.tsx";
 import BattleOver from "../battle/BattleOver.tsx";
-import {reigningChampionOf} from "../../domain/champion.ts";
 import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
 import {endedBookOf} from "../../domain/debrief.ts";
 import {acceptedClicks} from "../clicks/acceptedClicks.ts";
@@ -221,23 +218,21 @@ export default function PlayScreen(props: PlayScreenProps) {
         if (ownAccountId) useBadges.getState().expire(ownAccountId)
     })
     const crowd = useRoster(onlineCount)
-    const schedule = useSchedule(backends.turn)
-    const season = useSeason(schedule.seasons.current)
-    const bookId = schedule.seasons.current?.bookId ?? endedBookOf(schedule.debrief)
-    const dayEndsAt = schedule.seasons.today?.endsAt
-    const battle = battleOf(schedule.turn)
-    useRaceFeed(backends.standings, bookId, schedule.seasons.today?.roundId, battle?.roundId)
+    useScheduleFeed(backends.turn, backends.standings)
+    const turn = useSchedule((schedule) => schedule.turn)
+    const battle = useSchedule((schedule) => schedule.battle)
+    const seasons = useSchedule((schedule) => schedule.seasons)
+    const debrief = useSchedule((schedule) => schedule.debrief)
+    const season = useSchedule(runningSeason)
+    const bookId = seasons.current?.bookId ?? endedBookOf(debrief)
+    useRaceFeed(backends.standings, bookId, seasons.today?.roundId, battle?.roundId)
     const race = useRace((standings) => standings.race)
-    const closed = useDebriefed(backends.standings, schedule.debrief)
-    const nextBattle = nextBattleOf(schedule.battles, Date.now())
-    const finale = finaleOf(schedule.battles, schedule.turn, Date.now())
     const [accepted] = useState(acceptedClicks)
     useGuidedTakes(props.showFront ?? false, accepted.listenForClicks)
-    const mood = moodOf(schedule.turn, clickBudget)
-    const halloween = schedule.turn?.kind === "halloween"
+    const mood = moodOf(turn, clickBudget)
+    const halloween = turn?.kind === "halloween"
     useMood(mood)
-    const battleOver = useBattleOver(battle, schedule.debrief)
-    const champion = reigningChampionOf(season, closed)
+    const battleOver = useBattleOver(battle, debrief)
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("points")
     const [pitchOpen, setPitchOpen] = useState(false)
     const guest = account.kind === 'ready' && account.offered.length > 0 && account.me.linked.length === 0
@@ -354,9 +349,9 @@ export default function PlayScreen(props: PlayScreenProps) {
         view: boardView,
         onView: setBoardView,
     }
-    const teased = season ?? schedule.seasons.next
-    const hallOfFame: HallOfFameSeasons | undefined = teased || schedule.seasons.ended.length > 0
-        ? {teased, ended: schedule.seasons.ended, standings: backends.standings, turn: backends.turn}
+    const teased = season ?? seasons.next
+    const hallOfFame: HallOfFameSeasons | undefined = teased || seasons.ended.length > 0
+        ? {teased, ended: seasons.ended, standings: backends.standings, turn: backends.turn}
         : undefined
 
     const board = {
@@ -426,32 +421,14 @@ export default function PlayScreen(props: PlayScreenProps) {
                                     missionsNews={missionsNews}
                                     invite={invite}/>}
 
-        {ready && !compact && battle && <BattleChip battle={battle}
-                                                    season={season}
-                                                    compact={false}/>}
-        {ready && !compact && !battle && champion && <ChampionChip champion={champion} compact={false}/>}
-        {ready && !compact && !battle && !champion && season && <SeasonChip season={season}
-                                                                 nextBattle={nextBattle}
-                                                                 finale={finale}
-                                                                 dayEndsAt={dayEndsAt}
-                                                                 compact={false}/>}
+        {ready && !compact && <ScheduleChip compact={false}/>}
 
         {ready && compact && <StatusBar country={countryState}
                                         rank={rankOf(lines, countryState)}
-                                        trailing={battle
-                                            ? <BattleChip battle={battle}
-                                                          season={season}
-                                                          compact/>
-                                            : champion
-                                                ? <ChampionChip champion={champion} compact/>
-                                                : season && <SeasonChip season={season}
-                                                                        nextBattle={nextBattle}
-                                                                        finale={finale}
-                                                                        dayEndsAt={dayEndsAt}
-                                                                        compact/>}/>}
+                                        trailing={<ScheduleChip compact/>}/>}
 
         {ready && <ClickBudgetMeter budget={clickBudget}
-                                    frozen={mood === "frozen" ? {nextSeason: schedule.seasons.next, country: countryState} : undefined}
+                                    frozen={mood === "frozen" ? {nextSeason: seasons.next, country: countryState} : undefined}
                                     invite={invite}
                                     discord={discord}
                                     onSignIn={openPitch}
@@ -501,12 +478,8 @@ export default function PlayScreen(props: PlayScreenProps) {
             {sheet === "settings" && <Sheet title="Settings" onClose={closeSheet}>
                 <SettingsPlace {...settings}/>
             </Sheet>}
-            {sheet === "season" && season && <Sheet title={`Season ${season.number}`} onClose={closeSheet}>
-                <SeasonDetails season={season} nextBattle={nextBattle} finale={finale} dayEndsAt={dayEndsAt}/>
-            </Sheet>}
-            {sheet === "battle" && battle && <Sheet title="Battle" onClose={closeSheet}>
-                <BattleDetails battle={battle} season={season}/>
-            </Sheet>}
+            {sheet === "season" && <SeasonSheet onClose={closeSheet}/>}
+            {sheet === "battle" && <BattleSheet onClose={closeSheet}/>}
             {sheet === "clicks" && <Sheet title="Your clicks" onClose={closeSheet}>{clicks}</Sheet>}
 
             <TabBar chat={crazyGames.chat}
@@ -559,9 +532,6 @@ export default function PlayScreen(props: PlayScreenProps) {
                          reporter={backends.support}/>
 
         <Moments shown={ready}
-                 battle={battle}
-                 closed={closed}
-                 nextBattle={nextBattle}
                  guided={props.showFront ?? false}
                  promo={backends.promo}
                  listenForClicks={accepted.listenForClicks}

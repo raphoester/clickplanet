@@ -47,7 +47,7 @@ Previous, Next, a dot per slide and the arrow keys move between them.
 - **Each row's bar** is its value against the first row's (`Barred`), and the rows come in one after the other; under
   `prefers-reduced-motion` they do not move.
 - **The seasons are the gamemaster's timeline**: `ended`, `current` and `next` (see [The season](season.md)). The
-  season that runs is `useSeason`'s, so it leaves the "?" plaque at its end on this clock, and the timeline adds it
+  season that runs is `runningSeason`'s, so it leaves the "?" plaque at its end on this clock, and the timeline adds it
   to `ended` within a second.
 - **In fake mode** `startBreak()` ends the fake season: it becomes an ended plaque, and the next one the "?". Run
   `startFinale()`, `endBattle()` and `closeFinale()` before it for the Final Battle's slides; the fake's totals are
