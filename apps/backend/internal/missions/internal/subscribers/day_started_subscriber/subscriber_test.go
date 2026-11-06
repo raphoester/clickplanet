@@ -39,10 +39,11 @@ func TestADayToldIsKeptByItsRoundsID(t *testing.T) {
 	assert.Equal(t, []days.Day{days.TestingDayAt(starts)}, useCase.days)
 }
 
-func TestADayWithNoIDOrNoLengthIsRefused(t *testing.T) {
+func TestADayWithNoIDNoNumberOrNoLengthIsRefused(t *testing.T) {
 	for _, event := range []*gamemasterv1.DayStarted{
-		{StartsAt: timestamppb.New(starts), EndsAt: timestamppb.New(ends)},
-		{RoundId: "season-0/day-22", StartsAt: timestamppb.New(starts), EndsAt: timestamppb.New(starts)},
+		{Day: 22, StartsAt: timestamppb.New(starts), EndsAt: timestamppb.New(ends)},
+		{RoundId: "season-0/day-22", StartsAt: timestamppb.New(starts), EndsAt: timestamppb.New(ends)},
+		{RoundId: "season-0/day-22", Day: 22, StartsAt: timestamppb.New(starts), EndsAt: timestamppb.New(starts)},
 	} {
 		assert.ErrorIs(t, day_started_subscriber.New(&recordingUseCase{}).Handle(t.Context(), event), days.ErrInvalidDay)
 	}

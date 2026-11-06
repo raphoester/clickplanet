@@ -54,7 +54,8 @@ internal/missions/internal/
 - **A day is the gamemaster's**, never a clock of missions' own (the owner, 2026-10-29: two cutoffs that happen to
   match are brittle). The gamemaster tells each day as it starts, `gamemaster.v1.DayStarted` (`missions-days`,
   `day_started_subscriber`, `keep_day_usecase`), and missions keeps it in `mission_days` (`day_id`, the round's id such as
-  `season-0/day-22`, `starts_at`, `ends_at`): a day told again, when a moved season end cut it, keeps its new end. **A
+  `season-0/day-22`, `season` and `number`, its place among the season's days, `starts_at`, `ends_at`): a day told
+  again, when a moved season end cut it, keeps its new end. **A
   fact counts in the day told that runs at its time** (`days.Store.DayAt`), and every row names its day by that id.
   **No day, no missions**: between two seasons, from a season's last cutoff to its end (the Final Battle), and while
   any battle runs (a battle takes its time from a day, see [A battle and the days](gamemaster.md#a-battle-and-the-days)),
@@ -216,8 +217,12 @@ day and a flag), so it has its own package and store (`flagmissions`).
 - **A flag's day counts what all its players did** (`Day`): every take for it (`takes`) and every shield it broke
   (`strikes`), for the next day's goal, and the mission's progress, one counter from 0. **`Briefing.Of(day, flag)`
   draws once and keeps it**, at the flag's first take, shield broken or read of the day, from the map then and the day
-  before (`days.Store.DayBefore`, the day told that ended as this one started, since the gamemaster chains a season's
-  days); a season's first day has none, so its goal is the least. The store's first `KeepDay` wins. **A day kept with
+  before (`days.Store.DayBefore`, the day before it in its season, `number` − 1); a season's first day has none, so its
+  goal is the least. **A battle between two days does not break the chain**: it takes its time from a day (see
+  [A battle and the days](gamemaster.md#a-battle-and-the-days)), so the day before ends before the day starts. Until
+  2026-11-06 the day before was the day that ended as this one started, so the day after a battle had none: on
+  season 1's day 6, after a battle from 20:00 to 21:00, every flag got the least goal, 100 tiles or 30 shields (the
+  owner: "STUPIDLY EASY"). Migration `20261106120000_day_numbers` numbered every day kept from its id. The store's first `KeepDay` wins. **A day kept with
   no mission is drawn again** at its next take, strike or read, and `KeepDay` gives it the first mission kept after,
   with the counts it already kept: that is how an operator's fix redraws a day, by deleting its `flag_missions` row
   (2026-11-02). Only a map with nothing to aim at draws no mission, and today's map always has a big ground the flag
