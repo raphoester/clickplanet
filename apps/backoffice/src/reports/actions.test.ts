@@ -9,7 +9,7 @@ describe("removeMessage", () => {
         const admin = new FakeAdmin()
 
         expect(await removeMessage(admin, "message-1")).toEqual({removedAt: AT})
-        expect(admin.asked).toEqual([{method: "removeMessage", request: {messageId: "message-1"}}])
+        expect(admin.asked).toEqual([{method: "removeMessage", request: {messageId: "message-1", reason: ""}}])
     })
 
     it("reads a message past the retention as gone", async () => {

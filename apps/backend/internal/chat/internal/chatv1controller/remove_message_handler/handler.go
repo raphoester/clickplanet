@@ -4,28 +4,26 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/chatoperator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/moderation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals/usecases/remove_message_usecase"
 )
 
 var ErrNoMessageID = errors.New("no message id")
 
-type UseCase interface {
-	Execute(ctx context.Context, id messages.MessageID) (time.Time, error)
-}
-
-func New(useCase UseCase) RemoveMessageHandler {
+func New(useCase remove_message_usecase.Executor) RemoveMessageHandler {
 	return RemoveMessageHandler{useCase: useCase}
 }
 
 type RemoveMessageHandler struct {
-	useCase UseCase
+	useCase remove_message_usecase.Executor
 }
 
 func (h RemoveMessageHandler) RemoveMessage(
@@ -37,9 +35,14 @@ func (h RemoveMessageHandler) RemoveMessage(
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrNoMessageID)
 	}
 
-	removedAt, err := h.useCase.Execute(ctx, messages.MessageID(id))
+	removedAt, err := h.useCase.Execute(ctx, remove_message_usecase.In{
+		Message: messages.MessageID(id), Reason: req.Msg.GetReason(), By: chatoperator.Of(ctx),
+	})
 	if errors.Is(err, removals.ErrUnknownMessage) {
 		return nil, connect.NewError(connect.CodeNotFound, removals.ErrUnknownMessage)
+	}
+	if errors.Is(err, moderation.ErrInvalidReason) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to remove the message: %w", err)

@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 import { NameColor } from "./color_pb.js";
 
 /**
@@ -21,6 +21,13 @@ export class RenamePlayerRequest extends Message<RenamePlayerRequest> {
    */
   name = "";
 
+  /**
+   * Why, in a few words, kept with the rename (ListRenames). Optional; 500 characters at most.
+   *
+   * @generated from field: string reason = 3;
+   */
+  reason = "";
+
   constructor(data?: PartialMessage<RenamePlayerRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -31,6 +38,7 @@ export class RenamePlayerRequest extends Message<RenamePlayerRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RenamePlayerRequest {
@@ -47,6 +55,189 @@ export class RenamePlayerRequest extends Message<RenamePlayerRequest> {
 
   static equals(a: RenamePlayerRequest | PlainMessage<RenamePlayerRequest> | undefined, b: RenamePlayerRequest | PlainMessage<RenamePlayerRequest> | undefined): boolean {
     return proto3.util.equals(RenamePlayerRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.ListRenamesRequest
+ */
+export class ListRenamesRequest extends Message<ListRenamesRequest> {
+  /**
+   * Only the renames of this account. Empty is every account's; not a UUID is InvalidArgument.
+   *
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * Only the renames made at this time or after. Unset is every rename kept.
+   *
+   * @generated from field: google.protobuf.Timestamp since = 2;
+   */
+  since?: Timestamp;
+
+  /**
+   * 50 unless asked, 500 at most.
+   *
+   * @generated from field: uint32 limit = 3;
+   */
+  limit = 0;
+
+  constructor(data?: PartialMessage<ListRenamesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.ListRenamesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "since", kind: "message", T: Timestamp },
+    { no: 3, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRenamesRequest {
+    return new ListRenamesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListRenamesRequest {
+    return new ListRenamesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListRenamesRequest {
+    return new ListRenamesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListRenamesRequest | PlainMessage<ListRenamesRequest> | undefined, b: ListRenamesRequest | PlainMessage<ListRenamesRequest> | undefined): boolean {
+    return proto3.util.equals(ListRenamesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.ListRenamesResponse
+ */
+export class ListRenamesResponse extends Message<ListRenamesResponse> {
+  /**
+   * Newest first. Fewer than the limit: every rename kept since then.
+   *
+   * @generated from field: repeated player.v1.Rename renames = 1;
+   */
+  renames: Rename[] = [];
+
+  constructor(data?: PartialMessage<ListRenamesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.ListRenamesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "renames", kind: "message", T: Rename, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRenamesResponse {
+    return new ListRenamesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListRenamesResponse {
+    return new ListRenamesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListRenamesResponse {
+    return new ListRenamesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListRenamesResponse | PlainMessage<ListRenamesResponse> | undefined, b: ListRenamesResponse | PlainMessage<ListRenamesResponse> | undefined): boolean {
+    return proto3.util.equals(ListRenamesResponse, a, b);
+  }
+}
+
+/**
+ * A username an operator gave an account.
+ *
+ * @generated from message player.v1.Rename
+ */
+export class Rename extends Message<Rename> {
+  /**
+   * @generated from field: string rename_id = 1;
+   */
+  renameId = "";
+
+  /**
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp renamed_at = 3;
+   */
+  renamedAt?: Timestamp;
+
+  /**
+   * The username it held before.
+   *
+   * @generated from field: string old_name = 4;
+   */
+  oldName = "";
+
+  /**
+   * @generated from field: string new_name = 5;
+   */
+  newName = "";
+
+  /**
+   * The reason given. Empty for none.
+   *
+   * @generated from field: string reason = 6;
+   */
+  reason = "";
+
+  /**
+   * The operator's account. Empty for a call on the console listener, which has no gate.
+   *
+   * @generated from field: string operator_account_id = 7;
+   */
+  operatorAccountId = "";
+
+  /**
+   * The app the operator connected that made the call, as it registered: "Claude". Empty for the operator's own page.
+   *
+   * @generated from field: string client = 8;
+   */
+  client = "";
+
+  constructor(data?: PartialMessage<Rename>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.Rename";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rename_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "renamed_at", kind: "message", T: Timestamp },
+    { no: 4, name: "old_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "new_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "operator_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "client", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rename {
+    return new Rename().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Rename {
+    return new Rename().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Rename {
+    return new Rename().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Rename | PlainMessage<Rename> | undefined, b: Rename | PlainMessage<Rename> | undefined): boolean {
+    return proto3.util.equals(Rename, a, b);
   }
 }
 

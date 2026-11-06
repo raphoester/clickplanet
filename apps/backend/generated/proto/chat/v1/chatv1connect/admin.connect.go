@@ -47,6 +47,9 @@ const (
 	// AdminServiceListMessagesProcedure is the fully-qualified name of the AdminService's ListMessages
 	// RPC.
 	AdminServiceListMessagesProcedure = "/chat.v1.AdminService/ListMessages"
+	// AdminServiceListModerationProcedure is the fully-qualified name of the AdminService's
+	// ListModeration RPC.
+	AdminServiceListModerationProcedure = "/chat.v1.AdminService/ListModeration"
 )
 
 // AdminServiceClient is a client for the chat.v1.AdminService service.
@@ -65,6 +68,10 @@ type AdminServiceClient interface {
 	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)
 	// The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention. With an account, that account's messages alone.
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
+	// The moderation history: every mute, unmute and removal an operator made, with the reason given and who made it,
+	// newest first. Kept for its own retention (90 days), past the chat's, and forgotten with the account. One account's,
+	// or every account's. An operator's renames are player.v1.AdminService/ListRenames.
+	ListModeration(context.Context, *connect.Request[v1.ListModerationRequest]) (*connect.Response[v1.ListModerationResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the chat.v1.AdminService service. By default, it
@@ -117,17 +124,25 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		listModeration: connect.NewClient[v1.ListModerationRequest, v1.ListModerationResponse](
+			httpClient,
+			baseURL+AdminServiceListModerationProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListModeration")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	mute          *connect.Client[v1.MuteRequest, v1.MuteResponse]
-	unmute        *connect.Client[v1.UnmuteRequest, v1.UnmuteResponse]
-	getMute       *connect.Client[v1.GetMuteRequest, v1.GetMuteResponse]
-	removeMessage *connect.Client[v1.RemoveMessageRequest, v1.RemoveMessageResponse]
-	getMessage    *connect.Client[v1.GetMessageRequest, v1.GetMessageResponse]
-	listMessages  *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
+	mute           *connect.Client[v1.MuteRequest, v1.MuteResponse]
+	unmute         *connect.Client[v1.UnmuteRequest, v1.UnmuteResponse]
+	getMute        *connect.Client[v1.GetMuteRequest, v1.GetMuteResponse]
+	removeMessage  *connect.Client[v1.RemoveMessageRequest, v1.RemoveMessageResponse]
+	getMessage     *connect.Client[v1.GetMessageRequest, v1.GetMessageResponse]
+	listMessages   *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
+	listModeration *connect.Client[v1.ListModerationRequest, v1.ListModerationResponse]
 }
 
 // Mute calls chat.v1.AdminService.Mute.
@@ -160,6 +175,11 @@ func (c *adminServiceClient) ListMessages(ctx context.Context, req *connect.Requ
 	return c.listMessages.CallUnary(ctx, req)
 }
 
+// ListModeration calls chat.v1.AdminService.ListModeration.
+func (c *adminServiceClient) ListModeration(ctx context.Context, req *connect.Request[v1.ListModerationRequest]) (*connect.Response[v1.ListModerationResponse], error) {
+	return c.listModeration.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the chat.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
@@ -176,6 +196,10 @@ type AdminServiceHandler interface {
 	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)
 	// The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention. With an account, that account's messages alone.
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
+	// The moderation history: every mute, unmute and removal an operator made, with the reason given and who made it,
+	// newest first. Kept for its own retention (90 days), past the chat's, and forgotten with the account. One account's,
+	// or every account's. An operator's renames are player.v1.AdminService/ListRenames.
+	ListModeration(context.Context, *connect.Request[v1.ListModerationRequest]) (*connect.Response[v1.ListModerationResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -224,6 +248,13 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceListModerationHandler := connect.NewUnaryHandler(
+		AdminServiceListModerationProcedure,
+		svc.ListModeration,
+		connect.WithSchema(adminServiceMethods.ByName("ListModeration")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chat.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceMuteProcedure:
@@ -238,6 +269,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGetMessageHandler.ServeHTTP(w, r)
 		case AdminServiceListMessagesProcedure:
 			adminServiceListMessagesHandler.ServeHTTP(w, r)
+		case AdminServiceListModerationProcedure:
+			adminServiceListModerationHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -269,4 +302,8 @@ func (UnimplementedAdminServiceHandler) GetMessage(context.Context, *connect.Req
 
 func (UnimplementedAdminServiceHandler) ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.ListMessages is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListModeration(context.Context, *connect.Request[v1.ListModerationRequest]) (*connect.Response[v1.ListModerationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.ListModeration is not implemented"))
 }

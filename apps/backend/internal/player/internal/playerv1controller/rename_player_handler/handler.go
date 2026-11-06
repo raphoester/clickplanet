@@ -9,6 +9,8 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/rename_player_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type UseCase interface {
@@ -32,9 +34,13 @@ func (h RenamePlayerHandler) RenamePlayer(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	profile, err := h.useCase.Execute(ctx, rename_player_usecase.In{Account: account, Name: req.Msg.GetName()})
+	operator := cpctx.GetOperator(ctx)
+	profile, err := h.useCase.Execute(ctx, rename_player_usecase.In{
+		Account: account, Name: req.Msg.GetName(), Reason: req.Msg.GetReason(),
+		By: renames.OperatorOf(operator.Account(), operator.Client()),
+	})
 	switch {
-	case errors.Is(err, players.ErrInvalidName):
+	case errors.Is(err, players.ErrInvalidName), errors.Is(err, renames.ErrInvalidReason):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, players.ErrNoProfile):
 		return nil, connect.NewError(connect.CodeNotFound, players.ErrNoProfile)

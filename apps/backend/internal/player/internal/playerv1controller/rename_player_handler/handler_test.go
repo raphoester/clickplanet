@@ -14,7 +14,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/rename_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rename_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames/inmemory_rename_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -29,13 +32,20 @@ var now = time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
 func handler(t *testing.T) rename_player_handler.RenamePlayerHandler {
 	t.Helper()
 
+	return handlerWith(t, inmemory_rename_store.New())
+}
+
+func handlerWith(t *testing.T, history *inmemory_rename_store.Store) rename_player_handler.RenamePlayerHandler {
+	t.Helper()
+
 	store := inmemory_player_store.New()
 	for id, name := range map[string]players.Name{ada: "Rubbish", bob: "Bob"} {
 		account, err := players.AccountIDOf(id)
 		require.NoError(t, err)
 		require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(account, name, now)))
 	}
-	return rename_player_handler.New(rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)))
+	return rename_player_handler.New(
+		rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, history, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)))
 }
 
 func rename(t *testing.T, account, name string) (*playerv1.RenamePlayerResponse, error) {
@@ -53,6 +63,30 @@ func TestTheNameIsAnsweredAsKept(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "Ada_L", res.GetName())
+}
+
+func TestTheReasonAndWhoAsksAreRecorded(t *testing.T) {
+	history := inmemory_rename_store.New()
+	operator, err := players.AccountIDOf(bob)
+	require.NoError(t, err)
+	ctx := cpctx.AddOperatorToContext(t.Context(), cpctx.OperatorOf(operator, "Claude"))
+
+	_, err = handlerWith(t, history).RenamePlayer(ctx, connect.NewRequest(&playerv1.RenamePlayerRequest{
+		AccountId: ada, Name: "Player42", Reason: "a slur",
+	}))
+	require.NoError(t, err)
+
+	require.Len(t, history.Kept(), 1)
+	assert.Equal(t, renames.Reason("a slur"), history.Kept()[0].Reason)
+	assert.Equal(t, renames.OperatorOf(operator, "Claude"), history.Kept()[0].By)
+}
+
+func TestAnInvalidReasonIsInvalid(t *testing.T) {
+	_, err := handler(t).RenamePlayer(t.Context(), connect.NewRequest(&playerv1.RenamePlayerRequest{
+		AccountId: ada, Name: "Player42", Reason: string([]byte{0xff}),
+	}))
+
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
 func TestEachRefusalHasItsCode(t *testing.T) {

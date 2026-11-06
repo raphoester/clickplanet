@@ -13,6 +13,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/rename_player_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames/inmemory_rename_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -35,7 +37,7 @@ func TestANameChosenAnHourAgoIsReplacedAndItsWaitLifted(t *testing.T) {
 	store := inmemory_player_store.New()
 	chosenAnHourAgo(t, store, ada, "Rubbish")
 
-	profile, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
+	profile, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
 		Execute(t.Context(), rename_player_usecase.In{Account: ada, Name: " Ada_L "})
 
 	require.NoError(t, err)
@@ -52,7 +54,7 @@ func TestAnInvalidNameChangesNothing(t *testing.T) {
 	store := inmemory_player_store.New()
 	chosenAnHourAgo(t, store, ada, "Ada")
 
-	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
+	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
 		Execute(t.Context(), rename_player_usecase.In{Account: ada, Name: "guest_ada"})
 
 	require.ErrorIs(t, err, players.ErrInvalidName)
@@ -64,7 +66,7 @@ func TestAnInvalidNameChangesNothing(t *testing.T) {
 func TestAnAccountWithNoUsernameIsNotGivenOne(t *testing.T) {
 	store := inmemory_player_store.New()
 
-	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
+	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
 		Execute(t.Context(), rename_player_usecase.In{Account: ada, Name: "Ada"})
 
 	require.ErrorIs(t, err, players.ErrNoProfile)
@@ -77,7 +79,7 @@ func TestANameAnotherPlayerHoldsIsTaken(t *testing.T) {
 	chosenAnHourAgo(t, store, ada, "Ada")
 	chosenAnHourAgo(t, store, bob, "Bob")
 
-	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
+	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
 		Execute(t.Context(), rename_player_usecase.In{Account: bob, Name: "ADA"})
 
 	require.ErrorIs(t, err, players.ErrNameTaken)
@@ -87,7 +89,7 @@ func TestAStoreFailureIsNotAMissingProfile(t *testing.T) {
 	store := inmemory_player_store.New()
 	store.FailWith(errors.New("postgres is down"))
 
-	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
+	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
 		Execute(t.Context(), rename_player_usecase.In{Account: ada, Name: "Ada"})
 
 	require.Error(t, err)
@@ -99,7 +101,7 @@ func TestARenameIsTold(t *testing.T) {
 	store, outbox := inmemory_player_store.New(), &cpatomic.FakeOutbox{}
 	chosenAnHourAgo(t, store, ada, "Rubbish")
 
-	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, outbox, cptime.NewFixedClock(now)).
+	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), outbox, cptime.NewFixedClock(now)).
 		Execute(t.Context(), rename_player_usecase.In{Account: ada, Name: "Ada_L"})
 
 	require.NoError(t, err)
@@ -112,9 +114,50 @@ func TestARenameRefusedIsNotTold(t *testing.T) {
 	chosenAnHourAgo(t, store, ada, "Ada")
 	chosenAnHourAgo(t, store, bob, "Bob")
 
-	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, outbox, cptime.NewFixedClock(now)).
+	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), outbox, cptime.NewFixedClock(now)).
 		Execute(t.Context(), rename_player_usecase.In{Account: bob, Name: "ADA"})
 
 	require.ErrorIs(t, err, players.ErrNameTaken)
+	assert.Empty(t, outbox.Recorded())
+}
+
+func TestARenameIsRecordedWithTheOldNameTheReasonAndWhoMadeIt(t *testing.T) {
+	store, history := inmemory_player_store.New(), inmemory_rename_store.New()
+	chosenAnHourAgo(t, store, ada, "Hitler88")
+	claude := renames.OperatorOf(players.AccountID{15: 9}, "Claude")
+
+	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, history, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
+		Execute(t.Context(), rename_player_usecase.In{Account: ada, Name: "Player42", Reason: " a Nazi reference ", By: claude})
+	require.NoError(t, err)
+
+	assert.Equal(t, []renames.Snapshot{{
+		Account: ada, At: now, Old: "Hitler88", New: "Player42", Reason: "a Nazi reference", By: claude,
+	}}, history.Kept())
+}
+
+func TestAnInvalidReasonRenamesNothing(t *testing.T) {
+	store, history := inmemory_player_store.New(), inmemory_rename_store.New()
+	chosenAnHourAgo(t, store, ada, "Hitler88")
+
+	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, history, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
+		Execute(t.Context(), rename_player_usecase.In{Account: ada, Name: "Player42", Reason: string([]byte{0xff})})
+
+	require.ErrorIs(t, err, renames.ErrInvalidReason)
+	stored, err := store.Profile(t.Context(), ada)
+	require.NoError(t, err)
+	assert.Equal(t, players.Name("Hitler88"), stored.TakeSnapshot().Name)
+	assert.Empty(t, history.Kept())
+}
+
+func TestARenameTheHistoryCannotRecordFailsAndIsNotTold(t *testing.T) {
+	store, history, outbox := inmemory_player_store.New(), inmemory_rename_store.New(), &cpatomic.FakeOutbox{}
+	chosenAnHourAgo(t, store, ada, "Hitler88")
+	history.FailWith(errors.New("postgres is down"))
+
+	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, history, outbox, cptime.NewFixedClock(now)).
+		Execute(t.Context(), rename_player_usecase.In{Account: ada, Name: "Player42"})
+
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, players.ErrNameTaken)
 	assert.Empty(t, outbox.Recorded())
 }

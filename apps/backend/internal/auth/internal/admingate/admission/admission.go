@@ -72,6 +72,10 @@ func ConnectionOf(operator Operator, client string) Caller {
 	return Caller{operator: operator, client: client}
 }
 
+func (c Caller) Operator() Operator { return c.operator }
+
+func (c Caller) Client() string { return c.client }
+
 func (c Caller) LogValue() slog.Value {
 	return slog.GroupValue(slog.String("operator", string(c.operator)), slog.String("client", c.client))
 }

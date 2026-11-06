@@ -10,9 +10,12 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/inmemory_message_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/moderation"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/moderation/inmemory_moderation_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/inmemory_mute_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -21,9 +24,10 @@ func TestRunSuite(t *testing.T) {
 }
 
 var (
-	now   = time.Date(2026, 10, 7, 20, 0, 0, 0, time.UTC)
-	bully = messages.AccountID{15: 1}
-	quiet = messages.AccountID{15: 2}
+	now    = time.Date(2026, 10, 7, 20, 0, 0, 0, time.UTC)
+	bully  = messages.AccountID{15: 1}
+	quiet  = messages.AccountID{15: 2}
+	claude = moderation.OperatorOf(messages.AccountID{15: 9}, "Claude")
 )
 
 type testSuite struct {
@@ -31,17 +35,19 @@ type testSuite struct {
 
 	mutes    *inmemory_mute_storage.Storage
 	messages *inmemory_message_storage.Storage
+	history  *inmemory_moderation_storage.Storage
 	useCase  *mute_usecase.UseCase
 }
 
 func (s *testSuite) SetupTest() {
 	s.mutes = inmemory_mute_storage.New()
 	s.messages = inmemory_message_storage.New()
+	s.history = inmemory_moderation_storage.New()
 	s.useCase = s.build(s.mutes, &mutes.SequentialIDs{})
 }
 
 func (s *testSuite) build(saver mute_usecase.Saver, ids mutes.IDProvider) *mute_usecase.UseCase {
-	return mute_usecase.New(saver, s.messages, ids, cptime.NewFixedClock(now))
+	return mute_usecase.New(cpatomic.FakeTransactioner{}, saver, s.history, s.messages, ids, cptime.NewFixedClock(now))
 }
 
 func (s *testSuite) posted(account messages.AccountID, ip string, id string) {
@@ -80,6 +86,36 @@ func (s *testSuite) TestAMuteOfTheGifsHoldsTheNetworkToo() {
 	s.Equal([]mutes.Mute{mute}, s.mutes.Kept())
 }
 
+func (s *testSuite) TestAMuteIsRecordedWithItsReasonAndWhoGaveIt() {
+	s.posted(bully, "2a01:e0a:1:2:aaaa::9", "latest")
+
+	_, err := s.useCase.Execute(context.Background(), mute_usecase.In{
+		Account: bully, Kind: mutes.Gifs, Duration: 15 * time.Minute, Reason: "  a gore GIF, 2nd offence ", By: claude,
+	})
+	s.Require().NoError(err)
+
+	s.Equal([]moderation.Snapshot{{
+		Account: bully, At: now, Kind: moderation.Muted, MuteKind: mutes.Gifs, Duration: 15 * time.Minute,
+		Reason: "a gore GIF, 2nd offence", By: claude,
+	}}, s.history.Kept(), "the account alone: never the network the mute also holds")
+}
+
+func (s *testSuite) TestAnInvalidReasonIsRefusedAndNothingIsKept() {
+	_, err := s.useCase.Execute(context.Background(), mute_usecase.In{Account: bully, Reason: string([]byte{0xff})})
+
+	s.Require().ErrorIs(err, moderation.ErrInvalidReason)
+	s.Empty(s.mutes.Kept())
+	s.Empty(s.history.Kept())
+}
+
+func (s *testSuite) TestAMuteTheHistoryCannotRecordFails() {
+	s.history.FailWith(errors.New("postgres is down"))
+
+	_, err := s.useCase.Execute(context.Background(), mute_usecase.In{Account: bully})
+
+	s.Require().Error(err, "a mute is never kept without its record: the transaction keeps neither")
+}
+
 func (s *testSuite) TestAnAccountThatNeverPostedIsMutedAlone() {
 	mute, err := s.useCase.Execute(context.Background(), mute_usecase.In{Account: quiet})
 	s.Require().NoError(err)
@@ -92,6 +128,7 @@ func (s *testSuite) TestNoAccountIsRefusedAndNothingIsKept() {
 
 	s.Require().ErrorIs(err, mutes.ErrNoAccount)
 	s.Empty(s.mutes.Kept())
+	s.Empty(s.history.Kept())
 }
 
 func (s *testSuite) TestAnInvalidDurationIsRefusedAndNothingIsKept() {

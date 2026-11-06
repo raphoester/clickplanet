@@ -33,6 +33,13 @@ service AdminService {
   rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // The moderation history: every mute, unmute and removal an operator made, with the reason given and who made it,
+  // newest first. Kept for its own retention (90 days), past the chat's, and forgotten with the account. One account's,
+  // or every account's. An operator's renames are player.v1.AdminService/ListRenames.
+  rpc ListModeration(ListModerationRequest) returns (ListModerationResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message MuteRequest {
@@ -40,6 +47,8 @@ message MuteRequest {
   // Unset is one hour; otherwise whole seconds.
   google.protobuf.Duration duration = 2;
   MuteKind kind = 3;
+  // Why, in a few words, kept in the moderation history (ListModeration). Optional; 500 characters at most.
+  string reason = 4;
 }
 
 message MuteResponse {
@@ -50,6 +59,8 @@ message MuteResponse {
 message UnmuteRequest {
   string account_id = 1;
   MuteKind kind = 2;
+  // Why, in a few words, kept in the moderation history (ListModeration). Optional; 500 characters at most.
+  string reason = 3;
 }
 
 message UnmuteResponse {
@@ -71,6 +82,8 @@ message GetMuteResponse {
 
 message RemoveMessageRequest {
   string message_id = 1;
+  // Why, in a few words, kept in the moderation history (ListModeration). Optional; 500 characters at most.
+  string reason = 2;
 }
 
 message RemoveMessageResponse {
@@ -145,4 +158,56 @@ message KeptQuote {
   }
   // Unset while the message is shown.
   google.protobuf.Timestamp removed_at = 4;
+}
+
+message ListModerationRequest {
+  // Only the actions taken on this account. Empty is every account's; not a UUID is InvalidArgument.
+  string account_id = 1;
+  // Only the actions taken at this time or after. Unset is the whole history kept.
+  google.protobuf.Timestamp since = 2;
+  // 50 unless asked, 500 at most.
+  uint32 limit = 3;
+}
+
+message ListModerationResponse {
+  // Newest first. Fewer than the limit: every action kept since then.
+  repeated ModerationAction actions = 1;
+}
+
+// One action an operator took on an account in the chat.
+message ModerationAction {
+  string action_id = 1;
+  // The account it was taken on, never the network a mute also holds. Empty for a message kept before accounts.
+  string account_id = 2;
+  google.protobuf.Timestamp acted_at = 3;
+  oneof action {
+    MuteAction mute = 4;
+    UnmuteAction unmute = 5;
+    RemovalAction removal = 6;
+  }
+  // The reason given. Empty for none.
+  string reason = 7;
+  // The operator's account. Empty for a call on the console listener, which has no gate.
+  string operator_account_id = 8;
+  // The app the operator connected that made the call, as it registered: "Claude". Empty for the operator's own page.
+  string client = 9;
+}
+
+message MuteAction {
+  MuteKind kind = 1;
+  google.protobuf.Duration duration = 2;
+}
+
+// Ended now every mute of the kind given to the account.
+message UnmuteAction {
+  MuteKind kind = 1;
+}
+
+message RemovalAction {
+  string message_id = 1;
+  // The message as it was sent, copied with the removal (never its address), so it outlives the chat's retention.
+  oneof body {
+    string text = 2;
+    Gif gif = 3;
+  }
 }

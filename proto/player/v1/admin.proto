@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package player.v1;
 
+import "google/protobuf/timestamp.proto";
 import "player/v1/color.proto";
 import "player/v1/internal.proto";
 import "player/v1/player.proto";
@@ -31,11 +32,50 @@ service AdminService {
 
   // Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
   rpc RenamePlayer(RenamePlayerRequest) returns (RenamePlayerResponse);
+
+  // Every rename an operator made, with the old and the new name, the reason given and who made it, newest first.
+  // Kept for its own retention (90 days), and forgotten with the account. One account's, or every account's. The
+  // chat's mutes and removals are chat.v1.AdminService/ListModeration.
+  rpc ListRenames(ListRenamesRequest) returns (ListRenamesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message RenamePlayerRequest {
   string account_id = 1;
   string name = 2;
+  // Why, in a few words, kept with the rename (ListRenames). Optional; 500 characters at most.
+  string reason = 3;
+}
+
+message ListRenamesRequest {
+  // Only the renames of this account. Empty is every account's; not a UUID is InvalidArgument.
+  string account_id = 1;
+  // Only the renames made at this time or after. Unset is every rename kept.
+  google.protobuf.Timestamp since = 2;
+  // 50 unless asked, 500 at most.
+  uint32 limit = 3;
+}
+
+message ListRenamesResponse {
+  // Newest first. Fewer than the limit: every rename kept since then.
+  repeated Rename renames = 1;
+}
+
+// A username an operator gave an account.
+message Rename {
+  string rename_id = 1;
+  string account_id = 2;
+  google.protobuf.Timestamp renamed_at = 3;
+  // The username it held before.
+  string old_name = 4;
+  string new_name = 5;
+  // The reason given. Empty for none.
+  string reason = 6;
+  // The operator's account. Empty for a call on the console listener, which has no gate.
+  string operator_account_id = 7;
+  // The app the operator connected that made the call, as it registered: "Claude". Empty for the operator's own page.
+  string client = 8;
 }
 
 message RenamePlayerResponse {

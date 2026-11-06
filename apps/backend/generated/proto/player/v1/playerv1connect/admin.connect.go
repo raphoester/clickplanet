@@ -45,6 +45,9 @@ const (
 	// AdminServiceRenamePlayerProcedure is the fully-qualified name of the AdminService's RenamePlayer
 	// RPC.
 	AdminServiceRenamePlayerProcedure = "/player.v1.AdminService/RenamePlayer"
+	// AdminServiceListRenamesProcedure is the fully-qualified name of the AdminService's ListRenames
+	// RPC.
+	AdminServiceListRenamesProcedure = "/player.v1.AdminService/ListRenames"
 )
 
 // AdminServiceClient is a client for the player.v1.AdminService service.
@@ -60,6 +63,10 @@ type AdminServiceClient interface {
 	SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error)
 	// Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
 	RenamePlayer(context.Context, *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error)
+	// Every rename an operator made, with the old and the new name, the reason given and who made it, newest first.
+	// Kept for its own retention (90 days), and forgotten with the account. One account's, or every account's. The
+	// chat's mutes and removals are chat.v1.AdminService/ListModeration.
+	ListRenames(context.Context, *connect.Request[v1.ListRenamesRequest]) (*connect.Response[v1.ListRenamesResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the player.v1.AdminService service. By default, it
@@ -107,6 +114,13 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("RenamePlayer")),
 			connect.WithClientOptions(opts...),
 		),
+		listRenames: connect.NewClient[v1.ListRenamesRequest, v1.ListRenamesResponse](
+			httpClient,
+			baseURL+AdminServiceListRenamesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListRenames")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -117,6 +131,7 @@ type adminServiceClient struct {
 	getRoster     *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
 	searchPlayers *connect.Client[v1.SearchPlayersRequest, v1.SearchPlayersResponse]
 	renamePlayer  *connect.Client[v1.RenamePlayerRequest, v1.RenamePlayerResponse]
+	listRenames   *connect.Client[v1.ListRenamesRequest, v1.ListRenamesResponse]
 }
 
 // GetPlayers calls player.v1.AdminService.GetPlayers.
@@ -144,6 +159,11 @@ func (c *adminServiceClient) RenamePlayer(ctx context.Context, req *connect.Requ
 	return c.renamePlayer.CallUnary(ctx, req)
 }
 
+// ListRenames calls player.v1.AdminService.ListRenames.
+func (c *adminServiceClient) ListRenames(ctx context.Context, req *connect.Request[v1.ListRenamesRequest]) (*connect.Response[v1.ListRenamesResponse], error) {
+	return c.listRenames.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the player.v1.AdminService service.
 type AdminServiceHandler interface {
 	// InternalService/GetPlayers, for the admin page naming a page of players.
@@ -157,6 +177,10 @@ type AdminServiceHandler interface {
 	SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error)
 	// Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
 	RenamePlayer(context.Context, *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error)
+	// Every rename an operator made, with the old and the new name, the reason given and who made it, newest first.
+	// Kept for its own retention (90 days), and forgotten with the account. One account's, or every account's. The
+	// chat's mutes and removals are chat.v1.AdminService/ListModeration.
+	ListRenames(context.Context, *connect.Request[v1.ListRenamesRequest]) (*connect.Response[v1.ListRenamesResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -200,6 +224,13 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("RenamePlayer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceListRenamesHandler := connect.NewUnaryHandler(
+		AdminServiceListRenamesProcedure,
+		svc.ListRenames,
+		connect.WithSchema(adminServiceMethods.ByName("ListRenames")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceGetPlayersProcedure:
@@ -212,6 +243,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceSearchPlayersHandler.ServeHTTP(w, r)
 		case AdminServiceRenamePlayerProcedure:
 			adminServiceRenamePlayerHandler.ServeHTTP(w, r)
+		case AdminServiceListRenamesProcedure:
+			adminServiceListRenamesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -239,4 +272,8 @@ func (UnimplementedAdminServiceHandler) SearchPlayers(context.Context, *connect.
 
 func (UnimplementedAdminServiceHandler) RenamePlayer(context.Context, *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.RenamePlayer is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListRenames(context.Context, *connect.Request[v1.ListRenamesRequest]) (*connect.Response[v1.ListRenamesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.ListRenames is not implemented"))
 }

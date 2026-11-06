@@ -19,10 +19,16 @@ import {
     GetMuteResponse,
     KeptMessage,
     KeptQuote,
+    ListModerationRequest,
+    ListModerationResponse,
+    ModerationAction,
+    MuteAction,
     MuteRequest,
     MuteResponse,
+    RemovalAction,
     RemoveMessageRequest,
     RemoveMessageResponse,
+    UnmuteAction,
     UnmuteRequest,
     UnmuteResponse,
 } from "../gen/grpc/chat/v1/admin_pb.ts"
@@ -58,6 +64,9 @@ import {
 import {
     AdminGetPlayerRequest,
     AdminGetPlayerResponse,
+    ListRenamesRequest,
+    ListRenamesResponse,
+    Rename,
     RenamePlayerRequest,
     RenamePlayerResponse,
 } from "../gen/grpc/player/v1/admin_pb.ts"
@@ -206,6 +215,27 @@ export class DemoAdmin extends FakeAdmin {
 
         const nameOf = (id: string) => this.accounts.find(account => account.id === id)?.name ?? ""
         const abusive = this.chat.filter(message => ABUSE.includes(wordsIn(message.body))).reverse()
+
+        // What Claude did on its own runs: the oldest insults removed, a second one muted 15 minutes.
+        const removed = abusive.slice(-2)
+        for (const message of removed) message.removedAt = at((message.sentAt?.toDate().getTime() ?? NOW) + 40 * MINUTE)
+        this.moderation = removed.flatMap((message, n) => {
+            const actedAt = message.removedAt ?? at(NOW)
+            const removal = new ModerationAction({
+                actionId: String(2 * n + 1), accountId: message.accountId, actedAt, client: "Claude",
+                operatorAccountId: OPERATOR, reason: n === 0 ? "offence 1 (chat): an insult aimed at a player" : "spam, no offence",
+                action: {case: "removal", value: new RemovalAction({
+                    messageId: message.messageId, body: {case: "text", value: wordsIn(message.body)},
+                })},
+            })
+            if (n !== 0) return [removal]
+            return [new ModerationAction({
+                actionId: String(2 * n + 2), accountId: message.accountId, actedAt, client: "Claude", operatorAccountId: OPERATOR,
+                reason: "offence 2 (chat): removed, muted 15 minutes",
+                action: {case: "mute", value: new MuteAction({kind: MuteKind.CHAT, duration: new Duration({seconds: 900n})})},
+            }), removal]
+        }).reverse()
+        this.renames = []
         const reporters = chatty.slice(10)
         const report = (n: number, part: PartialMessage<Report>) => new Report({
             id: `report-${n}`, reporterName: nameOf(part.reporterAccountId ?? ""),
@@ -342,16 +372,45 @@ export class DemoAdmin extends FakeAdmin {
         }))
     }
 
+    // What the operator does on this page, kept as the backend keeps it: newest first, by the operator.
+    private acted(accountId: string, action: ModerationAction["action"], reason: string | undefined) {
+        this.moderation = [new ModerationAction({
+            actionId: String(this.moderation.length + 1), accountId, actedAt: at(Date.now()), action,
+            reason: reason ?? "", operatorAccountId: OPERATOR,
+        }), ...this.moderation]
+    }
+
+    override listModeration(request: PartialMessage<ListModerationRequest>): Promise<ListModerationResponse> {
+        const actions = this.moderation.filter(action => !request.accountId || action.accountId === request.accountId)
+        return this.answer("listModeration", request, new ListModerationResponse({actions}))
+    }
+
+    override listRenames(request: PartialMessage<ListRenamesRequest>): Promise<ListRenamesResponse> {
+        const renames = this.renames.filter(rename => !request.accountId || rename.accountId === request.accountId)
+        return this.answer("listRenames", request, new ListRenamesResponse({renames}))
+    }
+
     override removeMessage(request: PartialMessage<RemoveMessageRequest>): Promise<RemoveMessageResponse> {
         const removedAt = at(Date.now())
         const kept = this.chat.find(message => message.messageId === request.messageId)
-        if (kept !== undefined) kept.removedAt = removedAt
+        if (kept !== undefined) {
+            if (kept.removedAt === undefined) {
+                this.acted(kept.accountId, {case: "removal", value: new RemovalAction({
+                    messageId: kept.messageId,
+                    body: kept.body.case === "gif" ? {case: "gif", value: kept.body.value} : {case: "text", value: kept.body.value ?? ""},
+                })}, request.reason)
+            }
+            kept.removedAt = removedAt
+        }
         return this.answer("removeMessage", request, new RemoveMessageResponse({removedAt}))
     }
 
     override mute(request: PartialMessage<MuteRequest>): Promise<MuteResponse> {
         const until = Date.now() + Number(request.duration?.seconds ?? 3600n) * 1000
         this.mutedUntil.set(muteKeyOf(request), until)
+        this.acted(request.accountId ?? "", {case: "mute", value: new MuteAction({
+            kind: request.kind ?? MuteKind.CHAT, duration: new Duration({seconds: request.duration?.seconds ?? 3600n}),
+        })}, request.reason)
         return this.answer("mute", request, new MuteResponse({mutedUntil: at(until)}))
     }
 
@@ -361,6 +420,8 @@ export class DemoAdmin extends FakeAdmin {
             return this.refuseLater("unmute", request, "no mute applies to this caller", Code.NotFound)
         }
         this.mutedUntil.delete(muteKeyOf(request))
+        this.acted(request.accountId ?? "", {case: "unmute", value: new UnmuteAction({kind: request.kind ?? MuteKind.CHAT})},
+            request.reason)
         return this.answer("unmute", request, new UnmuteResponse({mutedUntil: at(until)}))
     }
 
@@ -427,7 +488,12 @@ export class DemoAdmin extends FakeAdmin {
         if (account === undefined || account.guest || account.name === "") {
             return this.refuseLater("renamePlayer", request, "the account has no profile", Code.NotFound)
         }
+        const old = account.name
         account.name = (request.name ?? "").trim()
+        this.renames = [new Rename({
+            renameId: String(this.renames.length + 1), accountId: account.id, renamedAt: at(Date.now()), oldName: old,
+            newName: account.name, reason: request.reason ?? "", operatorAccountId: OPERATOR,
+        }), ...this.renames]
         this.identities = this.identities.map(identity => identity.accountId === account.id
             ? new Identity({...identity, name: account.name})
             : identity)

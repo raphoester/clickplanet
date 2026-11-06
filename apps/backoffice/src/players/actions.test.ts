@@ -12,6 +12,7 @@ import {
     grantsAnything,
     inspect,
     LADDER,
+    MAX_REASON_LENGTH,
     mute,
     mutingOf,
     mutingsOf,
@@ -46,6 +47,17 @@ describe("mute", () => {
         expect((admin.askedFor("mute") as {kind: MuteKind}[]).map(request => request.kind))
             .toEqual([MuteKind.CHAT, MuteKind.GIFS])
     })
+
+    it("sends the reason as the server will keep it: trimmed, and cut to 500 characters", async () => {
+        const admin = new FakeAdmin()
+
+        await mute(admin, "account-reported", DEFAULT_MUTE_SECONDS, MuteKind.CHAT, "  a slur  ")
+        await mute(admin, "account-reported", DEFAULT_MUTE_SECONDS, MuteKind.CHAT, "🌍".repeat(MAX_REASON_LENGTH + 1))
+
+        const [trimmed, cut] = admin.askedFor("mute") as {reason: string}[]
+        expect(trimmed.reason).toBe("a slur")
+        expect([...cut.reason]).toHaveLength(MAX_REASON_LENGTH)
+    })
 })
 
 describe("unmute", () => {
@@ -53,14 +65,14 @@ describe("unmute", () => {
         const admin = new FakeAdmin()
 
         expect(await unmute(admin, "account-reported")).toEqual({until: AT})
-        expect(admin.askedFor("unmute")).toEqual([{accountId: "account-reported", kind: MuteKind.CHAT}])
+        expect(admin.askedFor("unmute")).toEqual([{accountId: "account-reported", kind: MuteKind.CHAT, reason: ""}])
     })
 
     it("lifts the mutes of the kind asked", async () => {
         const admin = new FakeAdmin()
 
         await unmute(admin, "account-reported", MuteKind.GIFS)
-        expect(admin.askedFor("unmute")).toEqual([{accountId: "account-reported", kind: MuteKind.GIFS}])
+        expect(admin.askedFor("unmute")).toEqual([{accountId: "account-reported", kind: MuteKind.GIFS, reason: ""}])
     })
 
     it("says a player with no mute of its own", async () => {

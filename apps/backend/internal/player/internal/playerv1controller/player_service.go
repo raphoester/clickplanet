@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/introduce_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/leave_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/list_renames_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rename_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_handler"
@@ -47,6 +48,7 @@ type AdminService struct {
 	get_roster_handler.GetRosterHandler
 	search_players_handler.SearchPlayersHandler
 	rename_player_handler.RenamePlayerHandler
+	list_renames_handler.ListRenamesHandler
 }
 
 var _ playerv1connect.AdminServiceHandler = AdminService{}

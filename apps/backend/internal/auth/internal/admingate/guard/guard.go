@@ -8,8 +8,11 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/admission"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 type Admitter interface {
@@ -60,7 +63,7 @@ func (g guard) admitted(ctx context.Context, spec connect.Spec, header http.Head
 
 	switch {
 	case err == nil:
-		return context.WithValue(ctx, callerKey{}, caller), nil
+		return cpctx.AddOperatorToContext(context.WithValue(ctx, callerKey{}, caller), operatorOf(caller)), nil
 	case errors.Is(err, admission.ErrNoSession):
 		return nil, connect.NewError(connect.CodeUnauthenticated, admission.ErrNoSession)
 	case errors.Is(err, admission.ErrNoToken):
@@ -83,6 +86,16 @@ func bearerOf(authorization string) string {
 		return ""
 	}
 	return strings.TrimSpace(token)
+}
+
+// What the modules behind the gate read of who calls, to keep it with what the call did (a mute, a rename). A sign-in
+// call is admitted before anybody is known, and has no account.
+func operatorOf(caller admission.Caller) cpctx.Operator {
+	account, err := uuid.Parse(string(caller.Operator()))
+	if err != nil {
+		return cpctx.OperatorOf(cpsession.NoAccount, caller.Client())
+	}
+	return cpctx.OperatorOf(cpsession.AccountID(account), caller.Client())
 }
 
 type callerKey struct{}

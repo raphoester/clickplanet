@@ -1,6 +1,6 @@
 # Player (`internal/player/`)
 
-**Who an account is to the other players: the name it chose or its guest code, its color, whether it is an admin of the game, and who is playing now; and an account asked deleted, hidden from the others until it is purged or comes back.** It makes no account and mints nothing. Always on: the chat asks it who posts. Its only upstream is `auth`, and it tells the other modules what they need of an account in its own words (below), so none of them needs to hear auth.
+**Who an account is to the other players: the name it chose or its guest code, its color, whether it is an admin of the game, and who is playing now; an account asked deleted, hidden from the others until it is purged or comes back; and the names an operator gave it.** It makes no account and mints nothing. Always on: the chat asks it who posts. Its only upstream is `auth`, and it tells the other modules what they need of an account in its own words (below), so none of them needs to hear auth.
 
 **What an account did and earned is [Progression](progression.md)**: the stats, the streaks, the titles and the title worn, the fronts, the badges and the season finales fought were player's until 2026-11-04. They moved out because they made player hear the whole game, while the whole game asks player who a player is: see [Why a module of its own](progression.md#why-a-module-of-its-own).
 
@@ -17,12 +17,17 @@ internal/player/internal/
                                     and the same of a page at once, from GetAccounts (players.Account)
     usecases/set_name_usecase/  set_color_usecase/  introduce_player_usecase/
       set_name_usecase/renaming_set_name/   shows a kept name on the roster at once
-    usecases/forget_account_usecase/  — on auth.v1.AccountDeleted: the profile and the guest code, then player.v1.PlayerForgotten
-    usecases/rename_player_usecase/  — the operator's name for an account; player.v1.AdminService/RenamePlayer; then player.v1.PlayerNamed
+    usecases/forget_account_usecase/  — on auth.v1.AccountDeleted: the profile, the guest code and the renames, then player.v1.PlayerForgotten
+    usecases/rename_player_usecase/  — the operator's name for an account; player.v1.AdminService/RenamePlayer; recorded in renames; then player.v1.PlayerNamed
       rename_player_usecase/audit_rename_player/   logs every rename at Warn
     usecases/name_account_usecase/  — a username for an account signed in to with none; on auth.v1.SignedIn; then player.v1.PlayerNamed and PlayerCreated
       name_account_usecase/renaming_name_account/   shows the name on the roster at once
     usecases/tell_sign_in_usecase/  — on auth.v1.SignedIn: player.v1.PlayerSignedIn, every time
+  renames/                          Rename (NewRename, TakeSnapshot), Snapshot, Operator, Reason (ReasonOf, ErrInvalidReason): every
+                                    username an operator gave, with the old one; the Storage port, which only writes
+    postgres_rename_store/          the Storage over player.renames
+    inmemory_rename_store/          the same port in a slice, and Kept for a test, behind the testing tag
+    usecases/prune_renames_usecase/ deletes the renames past player.renameRetention; Runner, log_prune
   departures/                       Departure (Decided, Leaving), Decision (Leaves, Returns, TakeSnapshot): an account its player
                                     asked to delete, hidden from the others; the Store port and its contract suite
     postgres_departure_store/       the Store over player.departures, under an advisory lock per account
@@ -35,10 +40,11 @@ internal/player/internal/
   playerv1controller/               PlayerService, InternalService and AdminService (bags), the session interceptor
     get_profile_handler/  set_name_handler/  set_color_handler/  introduce_player_handler/  get_player_handler/
     get_players_handler/  get_nameplates_handler/  get_accounts_handler/  announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
-    admin_get_player_handler/  search_players_handler/  rename_player_handler/   AdminService's own; it serves
-                                    get_players_handler too
+    admin_get_player_handler/  search_players_handler/  rename_player_handler/  list_renames_handler/   AdminService's
+                                    own; it serves get_players_handler too
       admin_get_player_handler/admin_player_query/   PostgresQuery: who one account is, a guest's too
       search_players_handler/matches_query/   PostgresQuery: the accounts a part of a name finds, straight from SQL
+      list_renames_handler/renames_query/   PostgresQuery: the operator's renames, newest first, one account's or everybody's
     get_profile_handler/profile_query/  get_player_handler/player_query/  get_players_handler/players_query/
                                     PostgresQuery: the response straight from SQL
     get_roster_handler/roster_query/    MemoryQuery: the roster, from its Lines port
@@ -116,7 +122,7 @@ internal/player/internal/
   - **It was `FindAuthors` for a day** (#450), answering `Author`s through `authors_query`: the name followed the
     chat's type it reused, and "author" means nothing to an operator browsing players. Only the back office called
     it, so it was renamed in one step.
-- **The operator changes a username with `player.v1.AdminService/RenamePlayer(account_id, name)`**, for a player stuck
+- **The operator changes a username with `player.v1.AdminService/RenamePlayer(account_id, name, reason)`**, for a player stuck
   with a bad name for 7 days (`rename_player_usecase`, wrapped in `audit_rename_player`, which logs every call at
   Warn with the account and the name typed).
   - **`SetName`'s rules hold but the wait**: `NameOf`, then unique ignoring case. An invalid name is
@@ -128,6 +134,19 @@ internal/player/internal/
   - **Nothing pushes it in the game**: the chat names a sender when it shows a message, and the roster takes the name
     at the player's next announce, within 30s. It tells `PlayerNamed`, in the transaction of the save, so the Discord
     member's nickname follows (see [Discord pings](alerts.md#the-nickname-linksnamer)).
+  - **It takes a `reason`, and is kept** (`renames`, `player.renames`, migration `20261106120000_renames`): the
+    account, when, the name it held before and the new one, the reason, and who made it (`operator_id` and `client`,
+    as the admin gate admitted the call: see [The moderation history](chat.md#the-moderation-history)), in the
+    transaction of the save. The reason is `renames.ReasonOf`, the chat's rule (optional, 500 characters at most);
+    one it refuses is `InvalidArgument` and renames nothing. `audit_rename_player` logs it too.
+- **`player.v1.AdminService/ListRenames(account_id, since, limit)`** reads them (`renames_query`): newest first, one
+  account's or every account's (an id that is not a UUID is `InvalidArgument`), made at `since` or after, 50 unless
+  asked, 500 at most; `NO_SIDE_EFFECTS`, a read-only tool of the connector, and `no-store`. It is the names' half of the
+  moderation history; the chat's mutes and removals are `chat.v1.AdminService/ListModeration`, and why each context keeps
+  its own is in [Chat](chat.md#who-owns-which-history).
+  - **Kept for `player.renameRetention`** (90 days), and deleted past it by `prune_renames_usecase`, at boot and every
+    `player.pruneInterval` (1h). **Forgotten with the account**: `forget_account_usecase` deletes the account's renames
+    and takes it off the ones it made as an operator, in the transaction that deletes its profile.
 - **Migration `20260918190000_unicode_usernames`** moves to this rule. Every name kept before is ASCII of 3 to 20, so only length breaks the new rule: **a name over 15 is cut to its first 15 characters**, the player keeping most of it. A cut name that another would then hold, ignoring case — a name of 15 or fewer, or an older cut name (`updated_at`, then `account_id`) — is **deleted** instead, and its player chooses again; an untouched name is never the one to go. Then it fills `name_folded` with an ASCII-only `translate()` (exact for these names, in any locale), replaces the `CHECK`, and moves `profiles_name_key` to `name_folded`. The down migration deletes the names the old rule refuses, drops the column and puts the old `CHECK` and the `lower(name)` index back; cut names stay cut. `migrations_test.go` migrates to the version before, writes names, and migrates the rest.
 - **Migration `20260917180000_usernames`** deletes the profiles whose name breaks the new rule, then, of names that differ only in case, every one but the oldest (`updated_at`, then `account_id`), replaces the name `CHECK` with the new pattern and adds the unique index. No client called `SetName` before usernames existed, so nothing a player chose is lost. The down migration drops the index and puts the old `CHECK` back; the deleted rows stay deleted.
 - **A guest code names an account that chose no username**: 6 lowercase hex characters (`players.GuestCode`), shown as `guest_` and the code (`players.DisplayNameOf`). It is drawn by `random_code_generator` the first time the account is shown (`players.GuestCodes.Assign`), kept in `player.guest_codes`, and deleted with the account, which frees it. **It is unique**: the table's `guest_codes_code_key` refuses a code another account holds, the store answers `ErrGuestCodeTaken`, and `Assign` draws again, up to 10 times (`ErrNoFreeGuestCode`). An account keeps its first code: a second save for it changes nothing, so two first announces at once leave one code. **It does not change with the network**, unlike the address, and says nothing about the account or the address. A linked account with no username keeps the code it had as a guest until it picks a name.
@@ -178,7 +197,7 @@ internal/player/internal/
 
   **Two steps, and the write names the account.** A name is a handle: a rename frees it, and another account can take it between the moment you read it and the moment you write. So read the id, check it is the player you mean, and act on the id. An account with no username has no profile row, so it cannot be one: pick the name first.
 - **`GetPlayer(account_id)` is what anybody may know about who a player with a username is**: the name it holds now, its color, `admin`, and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). How far it went (its stats as of today, its titles, the countries it plays for and against) is progression's `GetProgress`, which the page asks beside it ([The public card](progression.md#the-public-card)); fields 2 and 6 to 9 are reserved. It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **The account id is the only thing that names a player**: a chat message, a roster line and a standing each carry it, so a card opened from one is the card of that account, whatever it is called now. A name cannot do that: a rename frees it, and the next account to take it would get the first one's card. **It never answers the account id**: the caller holds it. An id that is not an account, an empty one included, is `InvalidArgument` (`players.AccountIDOf`). **A guest is its name alone**: `guest_` and its code, and `guest`, with every other field unset, and nothing asked of auth. It shows no streak and wears no title anywhere else, and the card is what a username gives; the globe names who holds a tile with it (planet's `GetTileHolder`). An account the game never named is `NotFound` (`player_query.ErrNoPlayer`): one that never existed, a deleted one, or one never shown, which has no guest code. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
-- **`auth.v1.AccountDeleted` deletes the profile and the guest code** (`player-profiles-accounts`, `forget_account_usecase`), and tells `player.v1.PlayerForgotten` (below). The group was `player-accounts` until 2026-11-04: see [The deploy that moved the others to player's events](#the-deploy-that-moved-the-others-to-players-events).
+- **`auth.v1.AccountDeleted` deletes the profile, the guest code and the renames** (`player-profiles-accounts`, `forget_account_usecase`), and tells `player.v1.PlayerForgotten` (below). The group was `player-accounts` until 2026-11-04: see [The deploy that moved the others to player's events](#the-deploy-that-moved-the-others-to-players-events).
 - **Errors are real errors.** Every `Store` method returns one; absence is `ErrNoProfile`, which the use cases answer as an empty profile. On a request a database error is the error net's `internal`. On an event it is counted in `events_failed_total`, logged by `log_subscriber`, and the event tried again, then buried in `events:dead`. Each event's write has a 5s timeout (`subscribers.Timeout`), so a stuck database cannot hold a subscriber.
 - **`players.StoreContractSuite`** is the port's behaviour, run on `inmemory_player_store` and on postgres. The use cases are tested over the in-memory one, which can `FailWith` an error.
 - **The pool closes after the subscribers stop** (`cppg.CloseAfter`), so what they read before the shutdown is still written.

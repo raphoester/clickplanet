@@ -362,6 +362,47 @@ button:disabled {
     color: var(--muted);
 }
 
+/* An action Claude took on its own, told apart from the operator's at a glance. */
+.badge-app {
+    color: var(--accent);
+}
+
+.history {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.history-line {
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+}
+
+.history-line:first-child {
+    border-top: none;
+}
+
+.history-line p {
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
+}
+
+.history-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+}
+
+.history-said {
+    display: block;
+    margin: 4px 0 0;
+    padding-left: 10px;
+    border-left: 3px solid var(--line);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
 .card-foot {
     display: flex;
     flex-wrap: wrap;

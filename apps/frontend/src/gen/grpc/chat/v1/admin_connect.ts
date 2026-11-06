@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMessageRequest, GetMessageResponse, GetMuteRequest, GetMuteResponse, ListMessagesRequest, ListMessagesResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse, UnmuteRequest, UnmuteResponse } from "./admin_pb.js";
+import { GetMessageRequest, GetMessageResponse, GetMuteRequest, GetMuteResponse, ListMessagesRequest, ListMessagesResponse, ListModerationRequest, ListModerationResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse, UnmuteRequest, UnmuteResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -82,6 +82,20 @@ export const AdminService = {
       name: "ListMessages",
       I: ListMessagesRequest,
       O: ListMessagesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The moderation history: every mute, unmute and removal an operator made, with the reason given and who made it,
+     * newest first. Kept for its own retention (90 days), past the chat's, and forgotten with the account. One account's,
+     * or every account's. An operator's renames are player.v1.AdminService/ListRenames.
+     *
+     * @generated from rpc chat.v1.AdminService.ListModeration
+     */
+    listModeration: {
+      name: "ListModeration",
+      I: ListModerationRequest,
+      O: ListModerationResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

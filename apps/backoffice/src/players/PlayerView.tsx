@@ -14,6 +14,8 @@ import {Caller, idOf, isAccount, whoOf} from "./caller.ts"
 import {DiscordPanel} from "./DiscordPanel.tsx"
 import {FlagPanel} from "./FlagPanel.tsx"
 import {GrantPanel} from "./GrantPanel.tsx"
+import {historyOf, Moderated} from "./history.ts"
+import {HistoryPanel} from "./HistoryPanel.tsx"
 import {Inspection} from "./InspectPanel.tsx"
 import {BanAction, MuteAction, UnbanAction, UnmuteAction} from "./Moderation.tsx"
 import {NamePanel} from "./NamePanel.tsx"
@@ -56,6 +58,21 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
         [clients.chat, caller],
     )
     const [muting, readMutingAgain] = useCall(readMuting)
+    const readHistory = useCallback(
+        (signal: AbortSignal) => isAccount(caller)
+            ? historyOf(clients.chat, clients.player, caller.accountId, signal)
+            : Promise.resolve<Moderated[]>([]),
+        [clients.chat, clients.player, caller],
+    )
+    const [history, readHistoryAgain] = useCall(readHistory)
+    const muted = useCallback(() => {
+        readMutingAgain()
+        readHistoryAgain()
+    }, [readMutingAgain, readHistoryAgain])
+    const renamed = useCallback(() => {
+        readProfileAgain()
+        readHistoryAgain()
+    }, [readProfileAgain, readHistoryAgain])
     const other = otherOf(caller, row, reading.state === "done" && reading.value.on ? reading.value.value.scope : "")
 
     return (
@@ -95,9 +112,10 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
                 caller={caller}
                 who={who}
                 onBanned={readAgain}
-                onMuted={readMutingAgain}
-                onRenamed={readProfileAgain}
+                onMuted={muted}
+                onRenamed={renamed}
             />
+            {account && <HistoryPanel history={history} onReload={readHistoryAgain}/>}
             <div className="columns">
                 {account && <ProfilePanel profile={profile} onReload={readProfileAgain}/>}
                 <section className="panel" aria-label="Antibot">

@@ -30,6 +30,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_messages_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_messages_handler/messages_query"
 	messages_authors "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_messages_handler/messages_query/rpc_player_authors"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_moderation_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_moderation_handler/moderation_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mark_seen_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mute_handler"
@@ -52,6 +54,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/publishing_send_message"
 	message_ids "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/moderation/postgres_moderation_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/moderation/usecases/forget_moderation_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/postgres_mute_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase"
@@ -136,13 +140,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	seenStore := postgres_seen_store.New(db)
 	muteStore := postgres_mute_store.New(db)
 	removalStore := postgres_removal_store.New(db)
+	moderationStore := postgres_moderation_store.New(db)
 	muteBook := mutes.NewBook(muteStore, cptime.SystemClock{})
 	window := messages.NewWindow(storage.HistorySize, storage.Retention)
 	updates := inprocess_feed.New(storage.SubscriberBuffer, props.Logger)
 
 	prune := log_prune.New(
-		prune_usecase.New(storage.Retention, cptime.SystemClock{},
-			messageStore, reactionStore, announcementStore, muteStore, removalStore),
+		prune_usecase.New(cptime.SystemClock{},
+			prune_usecase.KeptFor(storage.Retention,
+				messageStore, reactionStore, announcementStore, muteStore, removalStore),
+			prune_usecase.KeptFor(storage.ModerationRetention, moderationStore)),
 		props.Logger)
 
 	announce := announce_usecase.New(announcementStore, updates)
@@ -178,6 +185,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to player.v1.PlayerForgotten: %w", err)
+	}
+
+	forgottenModeration, err := cpredis.Subscribe(ctx, streams, "chat-moderation-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_moderation_usecase.New(moderationStore)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the moderation history to player.v1.PlayerForgotten: %w", err)
 	}
 
 	mutings, err := cpredis.Subscribe(ctx, streams, "chat-announcements-mutes",
@@ -217,8 +231,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune_usecase.NewRunner(storage.PruneInterval, prune),
-		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, flagMissions, deletions, mutings, days, battles,
-			champions, departures)))
+		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, flagMissions, deletions, forgottenModeration, mutings,
+			days, battles, champions, departures)))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)
@@ -262,16 +276,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	adminService := chatv1controller.AdminService{
 		MuteHandler: mute_handler.New(audit_mute.New(publishing_mute.New(
-			mute_usecase.New(muteStore, messageStore, mute_ids.Provider{}, cptime.SystemClock{}), streams),
-			props.Logger)),
+			mute_usecase.New(db, muteStore, moderationStore, messageStore, mute_ids.Provider{}, cptime.SystemClock{}),
+			streams), props.Logger)),
 		UnmuteHandler: unmute_handler.New(audit_unmute.New(
-			unmute_usecase.New(db, muteStore, cptime.SystemClock{}), props.Logger)),
+			unmute_usecase.New(db, muteStore, moderationStore, cptime.SystemClock{}), props.Logger)),
 		GetMuteHandler: get_mute_handler.New(mute_query.NewPostgresQuery(db, cptime.SystemClock{})),
-		RemoveMessageHandler: remove_message_handler.New(audit_remove.New(
-			remove_message_usecase.New(messageStore, removalStore, updates, window, cptime.SystemClock{}), props.Logger)),
+		RemoveMessageHandler: remove_message_handler.New(audit_remove.New(remove_message_usecase.New(
+			db, messageStore, removalStore, moderationStore, updates, window, cptime.SystemClock{}), props.Logger)),
 		GetMessageHandler: get_message_handler.New(message_query.NewPostgresQuery(db, cptime.SystemClock{}, storage.Retention)),
 		ListMessagesHandler: list_messages_handler.New(messages_query.NewPostgresQuery(
 			db, messages_authors.New(player), cptime.SystemClock{}, storage.Retention)),
+		ListModerationHandler: list_moderation_handler.New(moderation_query.NewPostgresQuery(db)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return chatv1connect.NewAdminServiceHandler(adminService, options...)
@@ -300,16 +315,19 @@ type Config struct {
 }
 
 type StorageConfig struct {
-	HistorySize      int
-	Retention        time.Duration
-	PruneInterval    time.Duration
-	SubscriberBuffer int
+	HistorySize int
+	Retention   time.Duration
+	// The moderation history's: what an operator did to an account outlives the messages it was about.
+	ModerationRetention time.Duration
+	PruneInterval       time.Duration
+	SubscriberBuffer    int
 }
 
 const (
-	defaultHistorySize   = 200
-	defaultRetention     = 30 * 24 * time.Hour
-	defaultPruneInterval = time.Hour
+	defaultHistorySize         = 200
+	defaultRetention           = 30 * 24 * time.Hour
+	defaultModerationRetention = 90 * 24 * time.Hour
+	defaultPruneInterval       = time.Hour
 )
 
 func (c StorageConfig) withDefaults() StorageConfig {
@@ -318,6 +336,9 @@ func (c StorageConfig) withDefaults() StorageConfig {
 	}
 	if c.Retention <= 0 {
 		c.Retention = defaultRetention
+	}
+	if c.ModerationRetention <= 0 {
+		c.ModerationRetention = defaultModerationRetention
 	}
 	if c.PruneInterval <= 0 {
 		c.PruneInterval = defaultPruneInterval

@@ -2,7 +2,7 @@
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
-(`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetPlayer`, `GetPlayers`, `GetNameplates`, `GetRoster`), progression (`GetStats`,
+(`GetHistory`, `GetMessage`, `ListMessages`, `ListModeration`), player (`GetProfile`, `GetPlayer`, `GetPlayers`, `GetNameplates`, `GetRoster`, `ListRenames`), progression (`GetStats`,
 `GetTitles`, `GetBadges`, `GetProgress`, `AdminService/GetProgress`), planet
 (`GetTakesByCountry`, `GetLedgerTotals`, `GetMapHistory`, `GetTerritories`, `GetLedger`, `GetTileHolder`, `GetLandmass`, `GetHoldings`),
 gamemaster (`GetSeasonTotals`, `GetSeasonReplay`), missions (`AdminService/ListFlagDays`,

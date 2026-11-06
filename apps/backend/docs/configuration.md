@@ -115,13 +115,17 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.deletion.grace`, `auth.deletion.interval` — how long an account whose player asked to delete it is kept for a sign-in to bring it back (default 30 days, which the privacy policy names), and how often the purge runs (1h)
 - `chat.database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the chat module's postgres, same shape as `database`; any of them but `password` and `pool` empty refuses the boot. `chat.database.password` belongs in the environment
 - `chat.storage.historySize`, `chat.storage.retention`, `chat.storage.pruneInterval`, `chat.storage.subscriberBuffer`
+- `chat.storage.moderationRetention` — how long the moderation history keeps a mute, an unmute and a removal, with the
+  removed message's copy (default 90 days). See [The moderation history](chat.md#the-moderation-history)
 - `chat.service.maxTextLength` — the bound on a message in runes (280)
 - `chat.rateLimiter.*` — the per-IP `SendMessage` throttle, same shape as `rateLimiter`
 - `chat.reactionLimiter.*` — the per-IP `React` throttle, same shape; its defaults suit it
 - `chat.seenLimiter.*` — the per-IP `MarkSeen` throttle, same shape; its defaults suit it
 - `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `shared/cpipblock` exactly as `vpnBlocklist.allow` is
 - `player.tagSalt` — salts the hash of an address the roster caps its visits with. It is never shown, so empty, which generates one at boot, costs nothing. Production reads it from `CHAT_TAG_SALT`, the chat's old variable
-- `player.database.*` — profiles, guest codes and departures, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
+- `player.database.*` — profiles, guest codes, departures and the operator's renames, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
+- `player.renameRetention`, `player.pruneInterval` — how long an operator's rename is kept (`ListRenames`, default 90
+  days), and how often the older ones are deleted (1h)
 - `progression.database.*` — the stats, the titles, the titles worn, the finales fought, the nameplates and the departures, same shape as `database`, schema `progression`; required. `progression.database.password` belongs in the environment. Its first migration moves four tables out of schema `player`, so its user must own them, as production's one user does (see [Progression](progression.md#the-tables-and-their-move))
 - `missions.database.*` — the briefs, the sheets and the collections, same shape as `database`, schema `missions`; required. `missions.database.password` belongs in the environment
 - `scoring.database.*` — the standings and the rounds, same shape as `database`, schema `scoring`; required. `scoring.database.password` belongs in the environment

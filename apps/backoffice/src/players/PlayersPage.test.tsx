@@ -2,7 +2,7 @@
 import {textBody} from "../chat/said.ts"
 import {Timestamp} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
-import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
+import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {useState} from "react"
 import {afterEach, describe, expect, it} from "vitest"
 import {AROUND} from "../chat/theirConversations.ts"
@@ -428,7 +428,7 @@ describe("one player", () => {
         fireEvent.click(screen.getByRole("button", {name: "Yes, rename"}))
 
         expect(await screen.findByText("Renamed to Ada_L.")).toBeTruthy()
-        expect(admin.askedFor("renamePlayer")).toEqual([{accountId: ACCOUNT, name: "Ada_L"}])
+        expect(admin.askedFor("renamePlayer")).toEqual([{accountId: ACCOUNT, name: "Ada_L", reason: ""}])
         expect(await screen.findByRole("heading", {name: "Ada_L France"})).toBeTruthy()
     })
 
@@ -493,11 +493,46 @@ describe("one player", () => {
         confirm("Unmute", "Yes, unmute")
         expect(await screen.findByText(/^Unmuted\. The mute was until .*\.$/)).toBeTruthy()
         expect(await screen.findByText("Not muted")).toBeTruthy()
-        expect(admin.askedFor("unmute")).toEqual([{accountId: ACCOUNT, kind: MuteKind.CHAT}])
+        expect(admin.askedFor("unmute")).toEqual([{accountId: ACCOUNT, kind: MuteKind.CHAT, reason: ""}])
 
         admin.refuse("unmute", Code.NotFound)
         confirm("Unmute", "Yes, unmute")
         expect(await screen.findByText("This player has no mute of its own to lift.")).toBeTruthy()
+    })
+
+    it("shows the account's moderation history, why each was done and whether Claude did it", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={account}/>)
+
+        const history = within(await screen.findByRole("region", {name: "Moderation history"}))
+        expect(await history.findByText("GIFs muted for 15 minutes")).toBeTruthy()
+        expect(history.getByText("a gore GIF, 2nd offence")).toBeTruthy()
+        expect(history.getByText("Claude").className).toContain("badge-app")
+        expect(history.getByText("Renamed from Hitler88 to Player42")).toBeTruthy()
+        expect(history.getByText("Operator").title).toBe("account-operator")
+    })
+
+    it("sends the reason typed with a mute, and reads the history again", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={account}/>)
+        await screen.findByText("GIFs muted for 15 minutes")
+
+        tool("Mute")
+        fireEvent.change(screen.getByRole("textbox", {name: "Reason (optional)"}), {target: {value: " spam, 2nd offence "}})
+        confirm("Mute", "Yes, mute")
+
+        expect(await screen.findByText(/^Muted until /)).toBeTruthy()
+        expect((admin.askedFor("mute") as {reason: string}[])[0].reason).toBe("spam, 2nd offence")
+        await waitFor(() => expect(admin.askedFor("listModeration")).toHaveLength(2))
+    })
+
+    it("reads no history for an address: the chat and the names are an account's", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={address}/>)
+
+        await screen.findByRole("tab", {name: "Revert"})
+        expect(screen.queryByRole("region", {name: "Moderation history"})).toBeNull()
+        expect(admin.askedFor("listModeration")).toEqual([])
     })
 
     it("mutes the GIFs of an account alone, and says so beside the mute of the chat", async () => {

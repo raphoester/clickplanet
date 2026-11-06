@@ -20,7 +20,9 @@ one or the other below. The report open is in the address bar (`#/reports/report
   ask one question that names every step ("Remove the message, mute Ana for 1 day and close this report as Acted?").
   The steps run in order, then each report closes (`DecideReport`). **A step the server refuses stops the rest**: what
   was done is said, then the refusal, and the report stays open (`Halted`). A comment left empty records what was
-  done ("Removed the message. Muted for 1 day."). A second decision replaces the first.
+  done ("Removed the message. Muted for 1 day."). A second decision replaces the first. **The removal and the mute keep
+  a reason** in the account's moderation history: the comment, or else the report's reason ("A report: Chat abuse"),
+  cut to the server's 500 characters (see [The player page](player-page.md)).
 - **After a verdict the next open report opens** (the one below, or the first left), the list loses the ones closed,
   and a green line says what the verdict did. A report picked by hand clears it.
 - **The chat around it** (`Conversation`): a message alone cannot be judged, so the page pages through the chat

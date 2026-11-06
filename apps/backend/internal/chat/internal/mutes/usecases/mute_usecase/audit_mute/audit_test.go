@@ -33,7 +33,7 @@ func run(t *testing.T, inner stubExecutor) (string, error) {
 
 	var logs bytes.Buffer
 	_, err := audit_mute.New(inner, slog.New(slog.NewTextHandler(&logs, nil))).
-		Execute(t.Context(), mute_usecase.In{Account: bully, Duration: time.Hour})
+		Execute(t.Context(), mute_usecase.In{Account: bully, Duration: time.Hour, Reason: "a slur"})
 	return logs.String(), err
 }
 
@@ -44,7 +44,7 @@ func TestEveryMuteIsLoggedWithTheNetworkItHolds(t *testing.T) {
 	logs, err := run(t, stubExecutor{mute: mute})
 
 	require.NoError(t, err)
-	assert.Contains(t, logs, `level=WARN msg="admin chat mute" account=00000000-0000-0000-0000-000000000001 kind=chat duration=1h0m0s scope=2a01:e0a:1:2::/64 mutedUntil=2026-10-07T21:00:00.000Z`)
+	assert.Contains(t, logs, `level=WARN msg="admin chat mute" account=00000000-0000-0000-0000-000000000001 kind=chat duration=1h0m0s scope=2a01:e0a:1:2::/64 mutedUntil=2026-10-07T21:00:00.000Z reason="a slur"`)
 }
 
 func TestARefusedMuteIsLoggedToo(t *testing.T) {

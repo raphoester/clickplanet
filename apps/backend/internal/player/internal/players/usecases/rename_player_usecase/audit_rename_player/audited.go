@@ -26,7 +26,9 @@ var _ UseCase = (*Audited)(nil)
 func (a *Audited) Execute(ctx context.Context, in rename_player_usecase.In) (players.Profile, error) {
 	profile, err := a.inner.Execute(ctx, in)
 
-	attrs := []any{slog.String("account", in.Account.String()), slog.String("name", in.Name)}
+	attrs := []any{
+		slog.String("account", in.Account.String()), slog.String("name", in.Name), slog.String("reason", in.Reason),
+	}
 	if err != nil {
 		a.logger.Warn("admin player rename failed", append(attrs, slog.Any("error", err))...)
 		return profile, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.

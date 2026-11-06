@@ -28,7 +28,8 @@ src/
   chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
                     ListMessages, the parties a report names) and theirConversations.ts
   reports/          Reports: ReportsView (the inbox), ReportList, ReportDetail, VerdictPanel over verdict.ts, actions.ts
-  players/          Players: list, PlayerName, PlayerView, Standing, ProfilePanel, the tools on one player, actions.ts
+  players/          Players: list, PlayerName, PlayerView, Standing, ProfilePanel, the tools on one player, actions.ts,
+                    HistoryPanel over history.ts (an account's moderation history: the chat's and the renames)
   map/              Reassign a country, Paint random tiles, Download a replay
   clips/            Clip stats: ClipStatsPage, actions.ts (the CSV's file), table.ts (its columns)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)

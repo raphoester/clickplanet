@@ -4,7 +4,8 @@ import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {timeOf} from "../components/time.ts"
 import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {
-    ban, bannedWords, DEFAULT_MUTE_SECONDS, LADDER, mute, MUTE_KINDS, muteWordsOf, refusalOf, unban, Unbanned, unmute,
+    ban, bannedWords, DEFAULT_MUTE_SECONDS, LADDER, MAX_REASON_LENGTH, mute, MUTE_KINDS, muteWordsOf, refusalOf, unban,
+    Unbanned, unmute,
 } from "./actions.ts"
 import {Caller} from "./caller.ts"
 import {BAN_CHOICES, Choice, labelOf, MUTE_CHOICES} from "./durations.ts"
@@ -15,16 +16,18 @@ type MuteProps = {chat: ChatAdmin, accountId: string, who: string, onDone?: () =
 export function MuteAction({chat, accountId, who, onDone}: MuteProps) {
     const [kind, setKind] = useState(MuteKind.CHAT)
     const [muteFor, setMuteFor] = useState(DEFAULT_MUTE_SECONDS)
+    const [reason, setReason] = useState("")
     const words = muteWordsOf(kind)
 
     return (
         <div className="act">
             <MuteKindPicker value={kind} onChange={setKind}/>
             <DurationPicker label="Mute for" choices={MUTE_CHOICES} value={muteFor} onChange={setMuteFor}/>
+            <ReasonField value={reason} onChange={setReason}/>
             <ConfirmAction
                 label="Mute"
                 question={`Mute ${words.of(who)} in the chat for ${labelOf(MUTE_CHOICES, muteFor)}?`}
-                run={() => mute(chat, accountId, muteFor, kind)}
+                run={() => mute(chat, accountId, muteFor, kind, reason)}
                 said={muted => `${words.muted} until ${timeOf(muted.until)}.`}
                 refusal={err => refusalOf("mute", err)}
                 onDone={onDone}
@@ -36,20 +39,32 @@ export function MuteAction({chat, accountId, who, onDone}: MuteProps) {
 // Lifts the mutes of one kind: a mute of the other kind stays.
 export function UnmuteAction({chat, accountId, who, onDone}: MuteProps) {
     const [kind, setKind] = useState(MuteKind.CHAT)
+    const [reason, setReason] = useState("")
     const words = muteWordsOf(kind)
 
     return (
         <div className="act">
             <MuteKindPicker value={kind} onChange={setKind}/>
+            <ReasonField value={reason} onChange={setReason}/>
             <ConfirmAction
                 label="Unmute"
                 question={`Unmute ${words.of(who)} in the chat now?`}
-                run={() => unmute(chat, accountId, kind)}
+                run={() => unmute(chat, accountId, kind, reason)}
                 said={unmuted => `${words.unmuted}. The mute was until ${timeOf(unmuted.until)}.`}
                 refusal={err => refusalOf("unmute", err)}
                 onDone={onDone}
             />
         </div>
+    )
+}
+
+// Kept with the action in the account's moderation history.
+export function ReasonField({value, onChange}: {value: string, onChange: (reason: string) => void}) {
+    return (
+        <label className="picker">
+            <span className="muted">Reason (optional)</span>
+            <input type="text" maxLength={MAX_REASON_LENGTH} value={value} onChange={event => onChange(event.target.value)}/>
+        </label>
     )
 }
 

@@ -27,8 +27,10 @@ type MuteRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	// Unset is one hour; otherwise whole seconds.
-	Duration      *durationpb.Duration `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
-	Kind          MuteKind             `protobuf:"varint,3,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
+	Duration *durationpb.Duration `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
+	Kind     MuteKind             `protobuf:"varint,3,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
+	// Why, in a few words, kept in the moderation history (ListModeration). Optional; 500 characters at most.
+	Reason        string `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -84,6 +86,13 @@ func (x *MuteRequest) GetKind() MuteKind {
 	return MuteKind_MUTE_KIND_CHAT
 }
 
+func (x *MuteRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 type MuteResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -137,9 +146,11 @@ func (x *MuteResponse) GetMutedUntil() *timestamppb.Timestamp {
 }
 
 type UnmuteRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Kind          MuteKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Kind      MuteKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
+	// Why, in a few words, kept in the moderation history (ListModeration). Optional; 500 characters at most.
+	Reason        string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -186,6 +197,13 @@ func (x *UnmuteRequest) GetKind() MuteKind {
 		return x.Kind
 	}
 	return MuteKind_MUTE_KIND_CHAT
+}
+
+func (x *UnmuteRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
 }
 
 type UnmuteResponse struct {
@@ -340,8 +358,10 @@ func (x *GetMuteResponse) GetMutedAccountId() string {
 }
 
 type RemoveMessageRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MessageId     string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	// Why, in a few words, kept in the moderation history (ListModeration). Optional; 500 characters at most.
+	Reason        string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -379,6 +399,13 @@ func (*RemoveMessageRequest) Descriptor() ([]byte, []int) {
 func (x *RemoveMessageRequest) GetMessageId() string {
 	if x != nil {
 		return x.MessageId
+	}
+	return ""
+}
+
+func (x *RemoveMessageRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
 	}
 	return ""
 }
@@ -982,24 +1009,474 @@ func (*KeptQuote_Text) isKeptQuote_Body() {}
 
 func (*KeptQuote_Gif) isKeptQuote_Body() {}
 
+type ListModerationRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Only the actions taken on this account. Empty is every account's; not a UUID is InvalidArgument.
+	AccountId string `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// Only the actions taken at this time or after. Unset is the whole history kept.
+	Since *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=since,proto3" json:"since,omitempty"`
+	// 50 unless asked, 500 at most.
+	Limit         uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListModerationRequest) Reset() {
+	*x = ListModerationRequest{}
+	mi := &file_chat_v1_admin_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListModerationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListModerationRequest) ProtoMessage() {}
+
+func (x *ListModerationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListModerationRequest.ProtoReflect.Descriptor instead.
+func (*ListModerationRequest) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ListModerationRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *ListModerationRequest) GetSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Since
+	}
+	return nil
+}
+
+func (x *ListModerationRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListModerationResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Newest first. Fewer than the limit: every action kept since then.
+	Actions       []*ModerationAction `protobuf:"bytes,1,rep,name=actions,proto3" json:"actions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListModerationResponse) Reset() {
+	*x = ListModerationResponse{}
+	mi := &file_chat_v1_admin_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListModerationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListModerationResponse) ProtoMessage() {}
+
+func (x *ListModerationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListModerationResponse.ProtoReflect.Descriptor instead.
+func (*ListModerationResponse) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ListModerationResponse) GetActions() []*ModerationAction {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+// One action an operator took on an account in the chat.
+type ModerationAction struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	ActionId string                 `protobuf:"bytes,1,opt,name=action_id,json=actionId,proto3" json:"action_id,omitempty"`
+	// The account it was taken on, never the network a mute also holds. Empty for a message kept before accounts.
+	AccountId string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	ActedAt   *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=acted_at,json=actedAt,proto3" json:"acted_at,omitempty"`
+	// Types that are valid to be assigned to Action:
+	//
+	//	*ModerationAction_Mute
+	//	*ModerationAction_Unmute
+	//	*ModerationAction_Removal
+	Action isModerationAction_Action `protobuf_oneof:"action"`
+	// The reason given. Empty for none.
+	Reason string `protobuf:"bytes,7,opt,name=reason,proto3" json:"reason,omitempty"`
+	// The operator's account. Empty for a call on the console listener, which has no gate.
+	OperatorAccountId string `protobuf:"bytes,8,opt,name=operator_account_id,json=operatorAccountId,proto3" json:"operator_account_id,omitempty"`
+	// The app the operator connected that made the call, as it registered: "Claude". Empty for the operator's own page.
+	Client        string `protobuf:"bytes,9,opt,name=client,proto3" json:"client,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ModerationAction) Reset() {
+	*x = ModerationAction{}
+	mi := &file_chat_v1_admin_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ModerationAction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ModerationAction) ProtoMessage() {}
+
+func (x *ModerationAction) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ModerationAction.ProtoReflect.Descriptor instead.
+func (*ModerationAction) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ModerationAction) GetActionId() string {
+	if x != nil {
+		return x.ActionId
+	}
+	return ""
+}
+
+func (x *ModerationAction) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *ModerationAction) GetActedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ActedAt
+	}
+	return nil
+}
+
+func (x *ModerationAction) GetAction() isModerationAction_Action {
+	if x != nil {
+		return x.Action
+	}
+	return nil
+}
+
+func (x *ModerationAction) GetMute() *MuteAction {
+	if x != nil {
+		if x, ok := x.Action.(*ModerationAction_Mute); ok {
+			return x.Mute
+		}
+	}
+	return nil
+}
+
+func (x *ModerationAction) GetUnmute() *UnmuteAction {
+	if x != nil {
+		if x, ok := x.Action.(*ModerationAction_Unmute); ok {
+			return x.Unmute
+		}
+	}
+	return nil
+}
+
+func (x *ModerationAction) GetRemoval() *RemovalAction {
+	if x != nil {
+		if x, ok := x.Action.(*ModerationAction_Removal); ok {
+			return x.Removal
+		}
+	}
+	return nil
+}
+
+func (x *ModerationAction) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ModerationAction) GetOperatorAccountId() string {
+	if x != nil {
+		return x.OperatorAccountId
+	}
+	return ""
+}
+
+func (x *ModerationAction) GetClient() string {
+	if x != nil {
+		return x.Client
+	}
+	return ""
+}
+
+type isModerationAction_Action interface {
+	isModerationAction_Action()
+}
+
+type ModerationAction_Mute struct {
+	Mute *MuteAction `protobuf:"bytes,4,opt,name=mute,proto3,oneof"`
+}
+
+type ModerationAction_Unmute struct {
+	Unmute *UnmuteAction `protobuf:"bytes,5,opt,name=unmute,proto3,oneof"`
+}
+
+type ModerationAction_Removal struct {
+	Removal *RemovalAction `protobuf:"bytes,6,opt,name=removal,proto3,oneof"`
+}
+
+func (*ModerationAction_Mute) isModerationAction_Action() {}
+
+func (*ModerationAction_Unmute) isModerationAction_Action() {}
+
+func (*ModerationAction_Removal) isModerationAction_Action() {}
+
+type MuteAction struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          MuteKind               `protobuf:"varint,1,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
+	Duration      *durationpb.Duration   `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MuteAction) Reset() {
+	*x = MuteAction{}
+	mi := &file_chat_v1_admin_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MuteAction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MuteAction) ProtoMessage() {}
+
+func (x *MuteAction) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MuteAction.ProtoReflect.Descriptor instead.
+func (*MuteAction) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *MuteAction) GetKind() MuteKind {
+	if x != nil {
+		return x.Kind
+	}
+	return MuteKind_MUTE_KIND_CHAT
+}
+
+func (x *MuteAction) GetDuration() *durationpb.Duration {
+	if x != nil {
+		return x.Duration
+	}
+	return nil
+}
+
+// Ended now every mute of the kind given to the account.
+type UnmuteAction struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          MuteKind               `protobuf:"varint,1,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnmuteAction) Reset() {
+	*x = UnmuteAction{}
+	mi := &file_chat_v1_admin_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnmuteAction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnmuteAction) ProtoMessage() {}
+
+func (x *UnmuteAction) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnmuteAction.ProtoReflect.Descriptor instead.
+func (*UnmuteAction) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *UnmuteAction) GetKind() MuteKind {
+	if x != nil {
+		return x.Kind
+	}
+	return MuteKind_MUTE_KIND_CHAT
+}
+
+type RemovalAction struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	// The message as it was sent, copied with the removal (never its address), so it outlives the chat's retention.
+	//
+	// Types that are valid to be assigned to Body:
+	//
+	//	*RemovalAction_Text
+	//	*RemovalAction_Gif
+	Body          isRemovalAction_Body `protobuf_oneof:"body"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemovalAction) Reset() {
+	*x = RemovalAction{}
+	mi := &file_chat_v1_admin_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemovalAction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemovalAction) ProtoMessage() {}
+
+func (x *RemovalAction) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemovalAction.ProtoReflect.Descriptor instead.
+func (*RemovalAction) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *RemovalAction) GetMessageId() string {
+	if x != nil {
+		return x.MessageId
+	}
+	return ""
+}
+
+func (x *RemovalAction) GetBody() isRemovalAction_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
+func (x *RemovalAction) GetText() string {
+	if x != nil {
+		if x, ok := x.Body.(*RemovalAction_Text); ok {
+			return x.Text
+		}
+	}
+	return ""
+}
+
+func (x *RemovalAction) GetGif() *Gif {
+	if x != nil {
+		if x, ok := x.Body.(*RemovalAction_Gif); ok {
+			return x.Gif
+		}
+	}
+	return nil
+}
+
+type isRemovalAction_Body interface {
+	isRemovalAction_Body()
+}
+
+type RemovalAction_Text struct {
+	Text string `protobuf:"bytes,2,opt,name=text,proto3,oneof"`
+}
+
+type RemovalAction_Gif struct {
+	Gif *Gif `protobuf:"bytes,3,opt,name=gif,proto3,oneof"`
+}
+
+func (*RemovalAction_Text) isRemovalAction_Body() {}
+
+func (*RemovalAction_Gif) isRemovalAction_Body() {}
+
 var File_chat_v1_admin_proto protoreflect.FileDescriptor
 
 const file_chat_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x13chat/v1/admin.proto\x12\achat.v1\x1a\x12chat/v1/chat.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8a\x01\n" +
+	"\x13chat/v1/admin.proto\x12\achat.v1\x1a\x12chat/v1/chat.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa2\x01\n" +
 	"\vMuteRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x125\n" +
 	"\bduration\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bduration\x12%\n" +
-	"\x04kind\x18\x03 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\"a\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"a\n" +
 	"\fMuteResponse\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12;\n" +
 	"\vmuted_until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"mutedUntil\"U\n" +
+	"mutedUntil\"m\n" +
 	"\rUnmuteRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12%\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\"M\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"M\n" +
 	"\x0eUnmuteResponse\x12;\n" +
 	"\vmuted_until\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"mutedUntil\"V\n" +
@@ -1010,10 +1487,11 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"\x0fGetMuteResponse\x12;\n" +
 	"\vmuted_until\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"mutedUntil\x12(\n" +
-	"\x10muted_account_id\x18\x02 \x01(\tR\x0emutedAccountId\"5\n" +
+	"\x10muted_account_id\x18\x02 \x01(\tR\x0emutedAccountId\"M\n" +
 	"\x14RemoveMessageRequest\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x01 \x01(\tR\tmessageId\"R\n" +
+	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"R\n" +
 	"\x15RemoveMessageResponse\x129\n" +
 	"\n" +
 	"removed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\"2\n" +
@@ -1069,7 +1547,38 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"\x03gif\x18\x05 \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x129\n" +
 	"\n" +
 	"removed_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAtB\x06\n" +
-	"\x04body2\xaf\x03\n" +
+	"\x04body\"~\n" +
+	"\x15ListModerationRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x120\n" +
+	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\rR\x05limit\"M\n" +
+	"\x16ListModerationResponse\x123\n" +
+	"\aactions\x18\x01 \x03(\v2\x19.chat.v1.ModerationActionR\aactions\"\xff\x02\n" +
+	"\x10ModerationAction\x12\x1b\n" +
+	"\taction_id\x18\x01 \x01(\tR\bactionId\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\x125\n" +
+	"\bacted_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\aactedAt\x12)\n" +
+	"\x04mute\x18\x04 \x01(\v2\x13.chat.v1.MuteActionH\x00R\x04mute\x12/\n" +
+	"\x06unmute\x18\x05 \x01(\v2\x15.chat.v1.UnmuteActionH\x00R\x06unmute\x122\n" +
+	"\aremoval\x18\x06 \x01(\v2\x16.chat.v1.RemovalActionH\x00R\aremoval\x12\x16\n" +
+	"\x06reason\x18\a \x01(\tR\x06reason\x12.\n" +
+	"\x13operator_account_id\x18\b \x01(\tR\x11operatorAccountId\x12\x16\n" +
+	"\x06client\x18\t \x01(\tR\x06clientB\b\n" +
+	"\x06action\"j\n" +
+	"\n" +
+	"MuteAction\x12%\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\x125\n" +
+	"\bduration\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bduration\"5\n" +
+	"\fUnmuteAction\x12%\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\"n\n" +
+	"\rRemovalAction\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x14\n" +
+	"\x04text\x18\x02 \x01(\tH\x00R\x04text\x12 \n" +
+	"\x03gif\x18\x03 \x01(\v2\f.chat.v1.GifH\x00R\x03gifB\x06\n" +
+	"\x04body2\x87\x04\n" +
 	"\fAdminService\x123\n" +
 	"\x04Mute\x12\x14.chat.v1.MuteRequest\x1a\x15.chat.v1.MuteResponse\x129\n" +
 	"\x06Unmute\x12\x16.chat.v1.UnmuteRequest\x1a\x17.chat.v1.UnmuteResponse\x12A\n" +
@@ -1077,7 +1586,8 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"\rRemoveMessage\x12\x1d.chat.v1.RemoveMessageRequest\x1a\x1e.chat.v1.RemoveMessageResponse\x12J\n" +
 	"\n" +
 	"GetMessage\x12\x1a.chat.v1.GetMessageRequest\x1a\x1b.chat.v1.GetMessageResponse\"\x03\x90\x02\x01\x12P\n" +
-	"\fListMessages\x12\x1c.chat.v1.ListMessagesRequest\x1a\x1d.chat.v1.ListMessagesResponse\"\x03\x90\x02\x01B\xa4\x01\n" +
+	"\fListMessages\x12\x1c.chat.v1.ListMessagesRequest\x1a\x1d.chat.v1.ListMessagesResponse\"\x03\x90\x02\x01\x12V\n" +
+	"\x0eListModeration\x12\x1e.chat.v1.ListModerationRequest\x1a\x1f.chat.v1.ListModerationResponse\"\x03\x90\x02\x01B\xa4\x01\n" +
 	"\vcom.chat.v1B\n" +
 	"AdminProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1;chatv1\xa2\x02\x03CXX\xaa\x02\aChat.V1\xca\x02\aChat\\V1\xe2\x02\x13Chat\\V1\\GPBMetadata\xea\x02\bChat::V1b\x06proto3"
 
@@ -1093,63 +1603,81 @@ func file_chat_v1_admin_proto_rawDescGZIP() []byte {
 	return file_chat_v1_admin_proto_rawDescData
 }
 
-var file_chat_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_chat_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_chat_v1_admin_proto_goTypes = []any{
-	(*MuteRequest)(nil),           // 0: chat.v1.MuteRequest
-	(*MuteResponse)(nil),          // 1: chat.v1.MuteResponse
-	(*UnmuteRequest)(nil),         // 2: chat.v1.UnmuteRequest
-	(*UnmuteResponse)(nil),        // 3: chat.v1.UnmuteResponse
-	(*GetMuteRequest)(nil),        // 4: chat.v1.GetMuteRequest
-	(*GetMuteResponse)(nil),       // 5: chat.v1.GetMuteResponse
-	(*RemoveMessageRequest)(nil),  // 6: chat.v1.RemoveMessageRequest
-	(*RemoveMessageResponse)(nil), // 7: chat.v1.RemoveMessageResponse
-	(*GetMessageRequest)(nil),     // 8: chat.v1.GetMessageRequest
-	(*GetMessageResponse)(nil),    // 9: chat.v1.GetMessageResponse
-	(*ListMessagesRequest)(nil),   // 10: chat.v1.ListMessagesRequest
-	(*ListMessagesResponse)(nil),  // 11: chat.v1.ListMessagesResponse
-	(*KeptMessage)(nil),           // 12: chat.v1.KeptMessage
-	(*KeptQuote)(nil),             // 13: chat.v1.KeptQuote
-	(*durationpb.Duration)(nil),   // 14: google.protobuf.Duration
-	(MuteKind)(0),                 // 15: chat.v1.MuteKind
-	(*timestamppb.Timestamp)(nil), // 16: google.protobuf.Timestamp
-	(*Gif)(nil),                   // 17: chat.v1.Gif
+	(*MuteRequest)(nil),            // 0: chat.v1.MuteRequest
+	(*MuteResponse)(nil),           // 1: chat.v1.MuteResponse
+	(*UnmuteRequest)(nil),          // 2: chat.v1.UnmuteRequest
+	(*UnmuteResponse)(nil),         // 3: chat.v1.UnmuteResponse
+	(*GetMuteRequest)(nil),         // 4: chat.v1.GetMuteRequest
+	(*GetMuteResponse)(nil),        // 5: chat.v1.GetMuteResponse
+	(*RemoveMessageRequest)(nil),   // 6: chat.v1.RemoveMessageRequest
+	(*RemoveMessageResponse)(nil),  // 7: chat.v1.RemoveMessageResponse
+	(*GetMessageRequest)(nil),      // 8: chat.v1.GetMessageRequest
+	(*GetMessageResponse)(nil),     // 9: chat.v1.GetMessageResponse
+	(*ListMessagesRequest)(nil),    // 10: chat.v1.ListMessagesRequest
+	(*ListMessagesResponse)(nil),   // 11: chat.v1.ListMessagesResponse
+	(*KeptMessage)(nil),            // 12: chat.v1.KeptMessage
+	(*KeptQuote)(nil),              // 13: chat.v1.KeptQuote
+	(*ListModerationRequest)(nil),  // 14: chat.v1.ListModerationRequest
+	(*ListModerationResponse)(nil), // 15: chat.v1.ListModerationResponse
+	(*ModerationAction)(nil),       // 16: chat.v1.ModerationAction
+	(*MuteAction)(nil),             // 17: chat.v1.MuteAction
+	(*UnmuteAction)(nil),           // 18: chat.v1.UnmuteAction
+	(*RemovalAction)(nil),          // 19: chat.v1.RemovalAction
+	(*durationpb.Duration)(nil),    // 20: google.protobuf.Duration
+	(MuteKind)(0),                  // 21: chat.v1.MuteKind
+	(*timestamppb.Timestamp)(nil),  // 22: google.protobuf.Timestamp
+	(*Gif)(nil),                    // 23: chat.v1.Gif
 }
 var file_chat_v1_admin_proto_depIdxs = []int32{
-	14, // 0: chat.v1.MuteRequest.duration:type_name -> google.protobuf.Duration
-	15, // 1: chat.v1.MuteRequest.kind:type_name -> chat.v1.MuteKind
-	16, // 2: chat.v1.MuteResponse.muted_until:type_name -> google.protobuf.Timestamp
-	15, // 3: chat.v1.UnmuteRequest.kind:type_name -> chat.v1.MuteKind
-	16, // 4: chat.v1.UnmuteResponse.muted_until:type_name -> google.protobuf.Timestamp
-	15, // 5: chat.v1.GetMuteRequest.kind:type_name -> chat.v1.MuteKind
-	16, // 6: chat.v1.GetMuteResponse.muted_until:type_name -> google.protobuf.Timestamp
-	16, // 7: chat.v1.RemoveMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
-	17, // 8: chat.v1.GetMessageResponse.gif:type_name -> chat.v1.Gif
-	16, // 9: chat.v1.GetMessageResponse.sent_at:type_name -> google.protobuf.Timestamp
-	16, // 10: chat.v1.GetMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
+	20, // 0: chat.v1.MuteRequest.duration:type_name -> google.protobuf.Duration
+	21, // 1: chat.v1.MuteRequest.kind:type_name -> chat.v1.MuteKind
+	22, // 2: chat.v1.MuteResponse.muted_until:type_name -> google.protobuf.Timestamp
+	21, // 3: chat.v1.UnmuteRequest.kind:type_name -> chat.v1.MuteKind
+	22, // 4: chat.v1.UnmuteResponse.muted_until:type_name -> google.protobuf.Timestamp
+	21, // 5: chat.v1.GetMuteRequest.kind:type_name -> chat.v1.MuteKind
+	22, // 6: chat.v1.GetMuteResponse.muted_until:type_name -> google.protobuf.Timestamp
+	22, // 7: chat.v1.RemoveMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
+	23, // 8: chat.v1.GetMessageResponse.gif:type_name -> chat.v1.Gif
+	22, // 9: chat.v1.GetMessageResponse.sent_at:type_name -> google.protobuf.Timestamp
+	22, // 10: chat.v1.GetMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
 	12, // 11: chat.v1.ListMessagesResponse.messages:type_name -> chat.v1.KeptMessage
-	17, // 12: chat.v1.KeptMessage.gif:type_name -> chat.v1.Gif
-	16, // 13: chat.v1.KeptMessage.sent_at:type_name -> google.protobuf.Timestamp
-	16, // 14: chat.v1.KeptMessage.removed_at:type_name -> google.protobuf.Timestamp
+	23, // 12: chat.v1.KeptMessage.gif:type_name -> chat.v1.Gif
+	22, // 13: chat.v1.KeptMessage.sent_at:type_name -> google.protobuf.Timestamp
+	22, // 14: chat.v1.KeptMessage.removed_at:type_name -> google.protobuf.Timestamp
 	13, // 15: chat.v1.KeptMessage.reply_to:type_name -> chat.v1.KeptQuote
-	17, // 16: chat.v1.KeptQuote.gif:type_name -> chat.v1.Gif
-	16, // 17: chat.v1.KeptQuote.removed_at:type_name -> google.protobuf.Timestamp
-	0,  // 18: chat.v1.AdminService.Mute:input_type -> chat.v1.MuteRequest
-	2,  // 19: chat.v1.AdminService.Unmute:input_type -> chat.v1.UnmuteRequest
-	4,  // 20: chat.v1.AdminService.GetMute:input_type -> chat.v1.GetMuteRequest
-	6,  // 21: chat.v1.AdminService.RemoveMessage:input_type -> chat.v1.RemoveMessageRequest
-	8,  // 22: chat.v1.AdminService.GetMessage:input_type -> chat.v1.GetMessageRequest
-	10, // 23: chat.v1.AdminService.ListMessages:input_type -> chat.v1.ListMessagesRequest
-	1,  // 24: chat.v1.AdminService.Mute:output_type -> chat.v1.MuteResponse
-	3,  // 25: chat.v1.AdminService.Unmute:output_type -> chat.v1.UnmuteResponse
-	5,  // 26: chat.v1.AdminService.GetMute:output_type -> chat.v1.GetMuteResponse
-	7,  // 27: chat.v1.AdminService.RemoveMessage:output_type -> chat.v1.RemoveMessageResponse
-	9,  // 28: chat.v1.AdminService.GetMessage:output_type -> chat.v1.GetMessageResponse
-	11, // 29: chat.v1.AdminService.ListMessages:output_type -> chat.v1.ListMessagesResponse
-	24, // [24:30] is the sub-list for method output_type
-	18, // [18:24] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	23, // 16: chat.v1.KeptQuote.gif:type_name -> chat.v1.Gif
+	22, // 17: chat.v1.KeptQuote.removed_at:type_name -> google.protobuf.Timestamp
+	22, // 18: chat.v1.ListModerationRequest.since:type_name -> google.protobuf.Timestamp
+	16, // 19: chat.v1.ListModerationResponse.actions:type_name -> chat.v1.ModerationAction
+	22, // 20: chat.v1.ModerationAction.acted_at:type_name -> google.protobuf.Timestamp
+	17, // 21: chat.v1.ModerationAction.mute:type_name -> chat.v1.MuteAction
+	18, // 22: chat.v1.ModerationAction.unmute:type_name -> chat.v1.UnmuteAction
+	19, // 23: chat.v1.ModerationAction.removal:type_name -> chat.v1.RemovalAction
+	21, // 24: chat.v1.MuteAction.kind:type_name -> chat.v1.MuteKind
+	20, // 25: chat.v1.MuteAction.duration:type_name -> google.protobuf.Duration
+	21, // 26: chat.v1.UnmuteAction.kind:type_name -> chat.v1.MuteKind
+	23, // 27: chat.v1.RemovalAction.gif:type_name -> chat.v1.Gif
+	0,  // 28: chat.v1.AdminService.Mute:input_type -> chat.v1.MuteRequest
+	2,  // 29: chat.v1.AdminService.Unmute:input_type -> chat.v1.UnmuteRequest
+	4,  // 30: chat.v1.AdminService.GetMute:input_type -> chat.v1.GetMuteRequest
+	6,  // 31: chat.v1.AdminService.RemoveMessage:input_type -> chat.v1.RemoveMessageRequest
+	8,  // 32: chat.v1.AdminService.GetMessage:input_type -> chat.v1.GetMessageRequest
+	10, // 33: chat.v1.AdminService.ListMessages:input_type -> chat.v1.ListMessagesRequest
+	14, // 34: chat.v1.AdminService.ListModeration:input_type -> chat.v1.ListModerationRequest
+	1,  // 35: chat.v1.AdminService.Mute:output_type -> chat.v1.MuteResponse
+	3,  // 36: chat.v1.AdminService.Unmute:output_type -> chat.v1.UnmuteResponse
+	5,  // 37: chat.v1.AdminService.GetMute:output_type -> chat.v1.GetMuteResponse
+	7,  // 38: chat.v1.AdminService.RemoveMessage:output_type -> chat.v1.RemoveMessageResponse
+	9,  // 39: chat.v1.AdminService.GetMessage:output_type -> chat.v1.GetMessageResponse
+	11, // 40: chat.v1.AdminService.ListMessages:output_type -> chat.v1.ListMessagesResponse
+	15, // 41: chat.v1.AdminService.ListModeration:output_type -> chat.v1.ListModerationResponse
+	35, // [35:42] is the sub-list for method output_type
+	28, // [28:35] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_admin_proto_init() }
@@ -1170,13 +1698,22 @@ func file_chat_v1_admin_proto_init() {
 		(*KeptQuote_Text)(nil),
 		(*KeptQuote_Gif)(nil),
 	}
+	file_chat_v1_admin_proto_msgTypes[16].OneofWrappers = []any{
+		(*ModerationAction_Mute)(nil),
+		(*ModerationAction_Unmute)(nil),
+		(*ModerationAction_Removal)(nil),
+	}
+	file_chat_v1_admin_proto_msgTypes[19].OneofWrappers = []any{
+		(*RemovalAction_Text)(nil),
+		(*RemovalAction_Gif)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chat_v1_admin_proto_rawDesc), len(file_chat_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -29,7 +29,7 @@ and says what is in it. Read the doc before you change its area.
   the idempotent receivers, the outboxes, the commands.
 - [Inside the planet module](docs/planet-module.md) — one directory per concept, no `domain` or `adapters` layer;
   use cases.
-- [Inside the chat module](docs/chat-module.md) — the same shape, for chat's seven concepts.
+- [Inside the chat module](docs/chat-module.md) — the same shape, for chat's eight concepts.
 - [Reads are queries](docs/queries.md) — a read endpoint does not go through the write model.
 - [Adapters](docs/adapters.md) — the primary (Connect handlers) and secondary (stores) adapters.
 - [Transactions](docs/transactions.md) — a use case opens one with `InTx` and records its events in it; a store
@@ -95,7 +95,8 @@ and says what is in it. Read the doc before you change its area.
 ## The other contexts
 
 - [Chat](docs/chat.md) — messages, each flag's room beside the world chat, GIFs, announcements, mutes, removals,
-  replies, reactions, and what each account saw.
+  the moderation history (every mute, unmute and removal with its reason and who made it, kept 90 days), replies,
+  reactions, and what each account saw; why each context keeps its own history.
 - [Player](docs/player.md) — who an account is: names and guest codes, colors, the nameplates the page draws every name
   from (`GetNameplates`), who is playing now, and an account
   asked deleted, hidden from the other players until it is purged or comes back; what it tells the other modules of

@@ -5,7 +5,7 @@
 
 import { GetPlayersRequest, GetPlayersResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { AdminGetPlayerRequest, AdminGetPlayerResponse, RenamePlayerRequest, RenamePlayerResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
+import { AdminGetPlayerRequest, AdminGetPlayerResponse, ListRenamesRequest, ListRenamesResponse, RenamePlayerRequest, RenamePlayerResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
 import { GetRosterRequest, GetRosterResponse } from "./player_pb.js";
 
 /**
@@ -75,6 +75,20 @@ export const AdminService = {
       I: RenamePlayerRequest,
       O: RenamePlayerResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * Every rename an operator made, with the old and the new name, the reason given and who made it, newest first.
+     * Kept for its own retention (90 days), and forgotten with the account. One account's, or every account's. The
+     * chat's mutes and removals are chat.v1.AdminService/ListModeration.
+     *
+     * @generated from rpc player.v1.AdminService.ListRenames
+     */
+    listRenames: {
+      name: "ListRenames",
+      I: ListRenamesRequest,
+      O: ListRenamesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

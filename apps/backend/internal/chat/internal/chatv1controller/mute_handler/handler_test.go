@@ -14,8 +14,10 @@ import (
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mute_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/moderation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type stubUseCase struct {
@@ -34,7 +36,13 @@ const bullyID = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
 func mute(t *testing.T, useCase *stubUseCase, req *chatv1.MuteRequest) (*chatv1.MuteResponse, error) {
 	t.Helper()
 
-	res, err := mute_handler.New(useCase).Mute(t.Context(), connect.NewRequest(req))
+	return muteAs(t, t.Context(), useCase, req)
+}
+
+func muteAs(t *testing.T, ctx context.Context, useCase *stubUseCase, req *chatv1.MuteRequest) (*chatv1.MuteResponse, error) {
+	t.Helper()
+
+	res, err := mute_handler.New(useCase).Mute(ctx, connect.NewRequest(req))
 	if err != nil {
 		return nil, fmt.Errorf("mute refused: %w", err)
 	}
@@ -52,6 +60,18 @@ func TestTheRequestReachesTheUseCaseAndTheMuteComesBack(t *testing.T) {
 	assert.Equal(t, mute_usecase.In{Account: account, Kind: mutes.Chat, Duration: 2 * time.Hour}, useCase.in)
 	assert.Equal(t, "2a01:e0a:1:2::/64", res.GetScope())
 	assert.Equal(t, at.Add(2*time.Hour), res.GetMutedUntil().AsTime())
+}
+
+func TestTheReasonAndWhoAsksReachTheUseCase(t *testing.T) {
+	useCase := &stubUseCase{}
+	operator := messages.AccountIDOf("0190f5c4-1c2b-7a00-8000-000000000009")
+	ctx := cpctx.AddOperatorToContext(t.Context(), cpctx.OperatorOf(operator, "Claude"))
+
+	_, err := muteAs(t, ctx, useCase, &chatv1.MuteRequest{AccountId: bullyID, Reason: "a slur, 2nd offence"})
+	require.NoError(t, err)
+
+	assert.Equal(t, "a slur, 2nd offence", useCase.in.Reason)
+	assert.Equal(t, moderation.OperatorOf(operator, "Claude"), useCase.in.By)
 }
 
 func TestNoDurationIsLeftToTheDefault(t *testing.T) {
@@ -84,7 +104,8 @@ func TestAKindTheProtoDoesNotNameIsInvalidAndNothingIsMuted(t *testing.T) {
 func TestErrorsMapToTheirCodes(t *testing.T) {
 	for err, code := range map[error]connect.Code{
 		mutes.ErrNoAccount: connect.CodeInvalidArgument,
-		fmt.Errorf("cannot mute: %w", mutes.ErrInvalidDuration): connect.CodeInvalidArgument,
+		fmt.Errorf("cannot mute: %w", mutes.ErrInvalidDuration):    connect.CodeInvalidArgument,
+		fmt.Errorf("cannot mute: %w", moderation.ErrInvalidReason): connect.CodeInvalidArgument,
 		assert.AnError: connect.CodeUnknown,
 	} {
 		_, got := mute(t, &stubUseCase{err: err}, &chatv1.MuteRequest{AccountId: "not-an-account"})

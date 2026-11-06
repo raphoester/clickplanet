@@ -143,6 +143,8 @@ chat:
   storage:
     historySize: 200
     retention: 720h
+    # What an operator did to an account (ListModeration) outlives the messages it was about.
+    moderationRetention: 2160h
     pruneInterval: 1h
     subscriberBuffer: 256
   service:
@@ -247,6 +249,8 @@ player:
     address: localhost:6379
     password: ""
   tagSalt: ""
+  # The renames an operator made (ListRenames).
+  renameRetention: 2160h
 
 progression:
   database:

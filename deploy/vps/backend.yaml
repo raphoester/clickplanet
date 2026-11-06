@@ -199,6 +199,8 @@ chat:
   storage:
     historySize: 200
     retention: 720h
+    # What an operator did to an account (ListModeration) outlives the messages it was about.
+    moderationRetention: 2160h
   rateLimiter:
     perSecond: 0.33
     burst: 5
@@ -219,6 +221,8 @@ player:
     address: redis:6379
     password: env://REDIS_PASSWORD
   tagSalt: env://CHAT_TAG_SALT
+  # The renames an operator made (ListRenames).
+  renameRetention: 2160h
 
 progression:
   database:
