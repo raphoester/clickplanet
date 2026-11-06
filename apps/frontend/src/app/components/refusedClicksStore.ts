@@ -1,0 +1,42 @@
+import {create} from "zustand"
+import {Allegiance} from "../../domain/allegiance.ts"
+import {BUBBLE_MS} from "./Bubble.tsx"
+
+type RefusedClicksStore = {
+    // One more for each click the bank or a frozen map turned down.
+    refusals: number
+    vpnBlocked: boolean
+    bannedUntil?: number
+    sessionUnavailable: boolean
+    lockedOut?: {allegiance: Allegiance, id: number}
+    refuse: () => void
+    blockVPN: () => void
+    ban: (until: number) => void
+    failSession: () => void
+    lockOut: (allegiance: Allegiance) => void
+    dismissVPNBlocked: () => void
+    dismissBanned: () => void
+    dismissSessionUnavailable: () => void
+}
+
+export const useRefusedClicks = create<RefusedClicksStore>()((set) => {
+    let lockOuts = 0
+
+    return {
+        refusals: 0,
+        vpnBlocked: false,
+        sessionUnavailable: false,
+        refuse: () => set(({refusals}) => ({refusals: refusals + 1})),
+        blockVPN: () => set({vpnBlocked: true}),
+        ban: (until) => set({bannedUntil: until}),
+        failSession: () => set({sessionUnavailable: true}),
+        lockOut: (allegiance) => {
+            const lockedOut = {allegiance, id: ++lockOuts}
+            set({lockedOut})
+            setTimeout(() => set((refused) => refused.lockedOut === lockedOut ? {lockedOut: undefined} : refused), BUBBLE_MS)
+        },
+        dismissVPNBlocked: () => set({vpnBlocked: false}),
+        dismissBanned: () => set({bannedUntil: undefined}),
+        dismissSessionUnavailable: () => set({sessionUnavailable: false}),
+    }
+})

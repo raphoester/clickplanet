@@ -1,7 +1,8 @@
 import {PointerEvent, useEffect, useId, useRef, useState} from 'react'
-import {BonusNotice, BonusNoticeEvent, BonusRules, ChargeKind, Charges, slotOf, Switches} from '../../domain/bonus.ts'
+import {BonusNotice, BonusRules, ChargeKind, Charges, slotOf, Switches} from '../../domain/bonus.ts'
 import {BonusGuide, isLearning, isNew} from '../../domain/bonusGuide.ts'
 import {useBonusGuide} from './bonusGuideStore.ts'
+import {useBonus} from './bonusStore.ts'
 import BonusIcon from './BonusIcon.tsx'
 import Bubble, {BUBBLE_MS} from './Bubble.tsx'
 import './Inventory.css'
@@ -22,7 +23,6 @@ export type InventoryProps = {
     onToggleBomb?: () => void
     onUseRefill?: () => boolean
     onToggleShield?: () => void
-    notice?: BonusNoticeEvent
 }
 
 type Said = {
@@ -41,8 +41,8 @@ export default function Inventory({
     onToggleBomb,
     onUseRefill,
     onToggleShield,
-    notice,
 }: InventoryProps) {
+    const notice = useBonus((bonus) => bonus.notice)
     const {guide, markUsed} = useBonusGuide()
     const [said, setSaid] = useState<Said | undefined>()
     const [shownNotice, setShownNotice] = useState(notice?.seq)

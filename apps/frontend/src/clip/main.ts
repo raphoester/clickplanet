@@ -485,7 +485,6 @@ async function choose(): Promise<Chosen> {
             onBanned: () => {},
             onSessionUnavailable: () => {},
             onAllegianceLocked: () => {},
-            onBonusTaken: () => {},
             onBonusWon: () => {},
             onCharges: () => {},
             onRules: () => {},

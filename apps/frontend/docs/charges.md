@@ -99,7 +99,8 @@ how to use it on a press that switches it on or aims it, for its first
 charge is spent. The same line is in the slot's `aria-describedby`.
 
 **The globe says when a bonus did not do what the player meant**
-(`GlobeOptions.onNotice`, a `BonusNotice`), and the slot says it in its bubble:
+(`GlobeOptions.onNotice`, a `BonusNotice`, kept in `useBonus`, `components/bonusStore.ts`), and the slot says it in
+its bubble:
 
 - **Shield on, a tile of another flag**: the click is an ordinary one, so the
   bubble says "Tile taken. Tap it again to shield it", or that shields go on the
@@ -116,7 +117,7 @@ charge is spent. The same line is in the slot's `aria-describedby`.
 **What a player has learned is kept in the browser** (`clickplanet-bonus-guide`,
 `domain/bonusGuide.ts`, the store `useBonusGuide` in `components/bonusGuideStore.ts`): how many
 times each kind was switched on (up to `LEARNING_USES`) and which kinds it has won. The inventory
-reads it and counts each use; `Viewer` reads it for the award it shows. **The first box of each kind
+reads it and counts each use; `BonusAward` reads it for the award it shows, which it takes from `useBonus`. **The first box of each kind
 stays up** until "Got it" or Escape (`BonusAward`'s `kept`): the passing award
 lasts 2.9s and a tap anywhere closes it, which in a clicking game is before the
 line under it is read. Later boxes of that kind pass as before.

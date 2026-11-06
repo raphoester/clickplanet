@@ -1,14 +1,19 @@
 // @vitest-environment jsdom
-import {describe, expect, it} from "vitest"
+import {afterEach, describe, expect, it} from "vitest"
 import {act, renderHook} from "@testing-library/react"
 import {StrictMode} from "react"
 import {NO_TILE_DELTAS, TileDeltas} from "../../domain/tileDeltas.ts"
+import {useNews} from "../components/newsStore.ts"
 import {acceptedClicks} from "../viewer/acceptedClicks.ts"
 import {useUnderAttack} from "./useUnderAttack.ts"
 
 type Props = {flag: string, deltas: TileDeltas}
 
 const losing = (code: string, net = -2): TileDeltas => new Map([[code, {net, beat: 1, at: 0}]])
+
+const attack = () => useNews.getState().told.find((news) => news.kind === "attack")
+
+afterEach(() => useNews.setState(useNews.getInitialState(), true))
 
 function underAttack(initialProps: Props = {flag: "fr", deltas: NO_TILE_DELTAS}) {
     const clicks = acceptedClicks()
@@ -20,26 +25,26 @@ function underAttack(initialProps: Props = {flag: "fr", deltas: NO_TILE_DELTAS})
 
 describe("useUnderAttack", () => {
     it("shows when the flag the player took a tile for loses ground", () => {
-        const {result, rerender, take} = underAttack()
+        const {rerender, take} = underAttack()
 
         take("fr")
         rerender({flag: "fr", deltas: losing("fr")})
 
-        expect(result.current.moment).toBeDefined()
+        expect(attack()).toBeDefined()
     })
 
     it("waits for a take before a loss counts", () => {
-        const {result, rerender, take} = underAttack()
+        const {rerender, take} = underAttack()
 
         rerender({flag: "fr", deltas: losing("fr")})
-        expect(result.current.moment).toBeUndefined()
+        expect(attack()).toBeUndefined()
 
         take("fr")
-        expect(result.current.moment).toBeDefined()
+        expect(attack()).toBeDefined()
     })
 
     it("does not count a take for another flag, a gain, or another flag's loss", () => {
-        const {result, rerender, take} = underAttack()
+        const {rerender, take} = underAttack()
 
         take("de")
         rerender({flag: "fr", deltas: losing("fr")})
@@ -47,17 +52,17 @@ describe("useUnderAttack", () => {
         take("fr")
         rerender({flag: "fr", deltas: losing("de")})
 
-        expect(result.current.moment).toBeUndefined()
+        expect(attack()).toBeUndefined()
     })
 
     it("shows once a page, whatever is lost after", () => {
-        const {result, rerender, take} = underAttack()
+        const {rerender, take} = underAttack()
 
         take("fr")
         rerender({flag: "fr", deltas: losing("fr")})
-        act(() => result.current.dismiss())
+        act(() => useNews.getState().dismiss(attack()!))
         rerender({flag: "fr", deltas: losing("fr", -5)})
 
-        expect(result.current.moment).toBeUndefined()
+        expect(attack()).toBeUndefined()
     })
 })

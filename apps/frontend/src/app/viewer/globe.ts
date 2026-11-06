@@ -27,7 +27,6 @@ import {
     BombDrop,
     Bomber,
     GlobePoint,
-    BonusCatch,
     Counts,
     MapVersion,
     BonusListener,
@@ -215,7 +214,6 @@ export type GlobeOptions = {
     onBanned: (until: number) => void
     onSessionUnavailable: () => void
     onAllegianceLocked: (allegiance: Allegiance) => void
-    onBonusTaken: (taken: BonusCatch) => void
     onBonusWon: (reward: BonusReward) => void
     onCharges: (charges: Charges) => void
     onRules: (rules: BonusRules) => void
@@ -286,7 +284,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onBanned,
         onSessionUnavailable,
         onAllegianceLocked,
-        onBonusTaken,
         onBonusWon,
         onCharges,
         onRules,
@@ -766,7 +763,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             bonusBox.spawn(offer.seed, (offer.expiresAt - CLAIM_MARGIN_MS) / 1000)
             playSound("bonusSpawn")
         },
-        onTaken: (taken) => onBonusTaken(taken),
+        onTaken: () => {},
         onEnclosed: (enclosure) => {
             tiles.heard(enclosure.version)
             const struck = new Set(enclosure.struck.map(({tile}) => tile))

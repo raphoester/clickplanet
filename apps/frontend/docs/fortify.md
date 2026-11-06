@@ -18,10 +18,10 @@ A landmass is a row of the borders blob's table.
   `fortifyLandmass`, `fortifyReach`; the shaders' constants must match the TS ones).
   The count is right at once; only what is drawn waits. A hidden tab or less motion
   shows the shields at once.
-- **The banner** (`FortifyNews`, in Moments) is news only to the flag that fortified, or
+- **The banner** (`FortifyNews`, on the news line, see [Stores](stores.md#the-news-line)) is news only to the flag that fortified, or
   for a landmass of `NEWS_FROM_TILES` (50) or more (`isNews`); so is its sound
   (`fortify`, a switch of its own). **The first one this browser shows brings a card**
-  (`FortifyCard`, kept until "Got it", in `clickplanet-fortify-guide`).
+  (`FortifyCard`, which `News` shows once the wave has run, kept until "Got it", in `clickplanet-fortify-guide`).
 - **Close to fortifying** (`domain/fortifyTarget.ts`, `domain/fortifyTargets.ts`): a flag
   holding more than half of a landmass and `CLOSE_TILES` (25) or fewer from all of it,
   and not the flag that fortified it last. The target comes from the server's counts

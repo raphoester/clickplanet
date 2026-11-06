@@ -3,6 +3,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, waitFor} from "@testing-library/react"
 import {createRef, useRef} from "react"
 import {useGlobe} from "./useGlobe.ts"
+import {useRefusedClicks} from "../components/refusedClicksStore.ts"
 import type {Globe} from "./globe.ts"
 import {Countries} from "../../domain/countries.ts"
 import type {MapView, Rendering} from "../../domain/displaySettings.ts"
@@ -374,68 +375,40 @@ describe("useGlobe", () => {
     })
 })
 
-describe("useGlobe rate limiting", () => {
-    const refuseAClick = async () =>
-        act(async () => createGlobe.mock.calls[0][0].onRateLimited())
-
+describe("useGlobe refused clicks", () => {
     beforeEach(() => createGlobe.mockResolvedValue(fakeGlobe()))
+    afterEach(() => useRefusedClicks.setState(useRefusedClicks.getInitialState(), true))
 
-    it("counts nothing until the server refuses a click", async () => {
+    it("counts every click the bank or a frozen map refused, so each one can be shown", async () => {
         renderHook()
         await waitFor(() => expect(latest.status.state).toBe('ready'))
+        const {onRateLimited, onFrozen} = createGlobe.mock.calls[0][0]
 
-        expect(latest.refusals).toBe(0)
+        act(() => {
+            onRateLimited()
+            onFrozen()
+            onRateLimited()
+        })
+
+        expect(useRefusedClicks.getState().refusals).toBe(3)
     })
 
-    it("counts every refused click, so each one can be shown", async () => {
+    it("raises the VPN flag apart from that count", async () => {
         renderHook()
         await waitFor(() => expect(latest.status.state).toBe('ready'))
 
-        await refuseAClick()
-        await refuseAClick()
-        await refuseAClick()
-        expect(latest.refusals).toBe(3)
-    })
-})
+        act(() => createGlobe.mock.calls[0][0].onVPNBlocked())
 
-describe("useGlobe VPN blocking", () => {
-    const blockAClick = async () =>
-        act(async () => createGlobe.mock.calls[0][0].onVPNBlocked())
-
-    beforeEach(() => createGlobe.mockResolvedValue(fakeGlobe()))
-
-    it("stays quiet until the server refuses a click", async () => {
-        renderHook()
-        await waitFor(() => expect(latest.status.state).toBe('ready'))
-
-        expect(latest.vpnBlocked).toBe(false)
+        expect(useRefusedClicks.getState()).toMatchObject({vpnBlocked: true, refusals: 0})
     })
 
-    it("raises the flag when the globe reports a blocked click", async () => {
-        renderHook()
+    it("leaves nothing to show once it is gone", async () => {
+        const {unmount} = renderHook()
         await waitFor(() => expect(latest.status.state).toBe('ready'))
+        act(() => createGlobe.mock.calls[0][0].onBanned(Date.now() + 3600_000))
 
-        await blockAClick()
-        expect(latest.vpnBlocked).toBe(true)
-    })
+        unmount()
 
-    it("lowers the flag when the player dismisses it, and raises it again after", async () => {
-        renderHook()
-        await waitFor(() => expect(latest.status.state).toBe('ready'))
-
-        await blockAClick()
-        await act(async () => latest.dismissVPNBlocked())
-        expect(latest.vpnBlocked).toBe(false)
-
-        await blockAClick()
-        expect(latest.vpnBlocked).toBe(true)
-    })
-
-    it("does not count as a throttled click", async () => {
-        renderHook()
-        await waitFor(() => expect(latest.status.state).toBe('ready'))
-
-        await blockAClick()
-        expect(latest.refusals).toBe(0)
+        expect(useRefusedClicks.getState().bannedUntil).toBeUndefined()
     })
 })

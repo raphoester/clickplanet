@@ -16,16 +16,16 @@ import DiscordButton from "../alerts/DiscordButton.tsx"
 import {DiscordOffer} from "../alerts/useDiscordAlerts.ts"
 import {InviteLink} from "../../backends/crazyGames.ts"
 import {useScreen} from "../hud/screenStore.ts"
+import {heldLine} from "../../domain/allegiance.ts"
+import {useRefusedClicks} from "./refusedClicksStore.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
     budget?: ClickBudget
     children?: ReactNode
-    refusals?: number
     onSignIn?: () => void
     compact?: boolean
     popover?: ReactNode
-    said?: {text: string, id: number}
     // The map takes no play: the dock says so, and when the next season starts when one is planned.
     frozen?: {nextSeason?: {number: number, startsAt: number}, country: Country}
     invite?: InviteLink
@@ -43,15 +43,15 @@ const STEP_MS = 250
 export default function ClickBudgetMeter({
     budget,
     children,
-    refusals = 0,
     onSignIn,
     compact = false,
     popover,
-    said,
     frozen,
     invite,
     discord,
 }: ClickBudgetMeterProps) {
+    const refusals = useRefusedClicks((refused) => refused.refusals)
+    const lockedOut = useRefusedClicks((refused) => refused.lockedOut)
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
     const wait = useRef<HTMLSpanElement>(null)
@@ -225,7 +225,7 @@ export default function ClickBudgetMeter({
 
         {children}
 
-        {said && <Bubble key={said.id} anchor={root}>{said.text}</Bubble>}
+        {lockedOut && <Bubble key={lockedOut.id} anchor={root}>{heldLine(lockedOut.allegiance, Date.now())}</Bubble>}
 
         {open && !compact && popover && <Popover onClose={toggleOpen}>{popover}</Popover>}
     </div>

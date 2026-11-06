@@ -15,11 +15,7 @@ import {
     LandmassReader,
     UpdatesListener,
 } from "../../backends/backend.ts";
-import BombNews from "../components/BombNews.tsx";
-import FortifyNews from "../components/FortifyNews.tsx";
-import FortifyCard from "../components/FortifyCard.tsx";
-import {useFortifyGuide} from "../components/useFortifyGuide.ts";
-import {Fortified} from "../../domain/fortify.ts";
+import News from "../components/News.tsx";
 import ConnectionLost from "../components/ConnectionLost.tsx";
 import {ConnectionSource} from "../../backends/connection.ts";
 import {useConnection} from "./useConnection.ts";
@@ -34,8 +30,7 @@ import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
 import ClicksPanel from "../components/ClicksPanel.tsx";
 import Inventory from "../components/Inventory.tsx";
-import {useBonusGuide} from "../components/bonusGuideStore.ts";
-import {isFirstWin} from "../../domain/bonusGuide.ts";
+import {useRefusedClicks} from "../components/refusedClicksStore.ts";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import BannedModal from "../components/BannedModal.tsx";
@@ -47,7 +42,6 @@ import {shareStats} from "../../domain/shareCard.ts";
 import {Countries, Country} from "../../domain/countries.ts";
 import {Shot} from "../../domain/clip/camera.ts";
 import {useAllegiance} from "./useAllegiance.ts";
-import {heldLine} from "../../domain/allegiance.ts";
 import {ClickBudgetSource, now as budgetNow, tokensAt} from "../../backends/clickBudget.ts";
 import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
@@ -98,7 +92,6 @@ import {useSeenMissions} from "../missions/seenMissionsStore.ts";
 import {usePaidMissions} from "../missions/usePaidMissions.ts"
 import {useMissionTargets} from "../missions/useMissionTargets.ts"
 import {useMissionProgress} from "../missions/useMissionProgress.ts"
-import MissionProgress from "../missions/MissionProgress.tsx";
 import {boardsOf, StandingsBackend} from "../../backends/standings.ts";
 import {SupportBackend} from "../../backends/support.ts";
 import {pageContextOf} from "../support/pageContext.ts";
@@ -131,15 +124,11 @@ import InviteFriends from "../share/InviteFriends.tsx";
 import {DiscordAlerts} from "../alerts/discordAlerts.ts";
 import {useDiscordAlerts} from "../alerts/useDiscordAlerts.ts";
 import {useUnderAttack} from "../alerts/useUnderAttack.ts";
-import UnderAttack from "../alerts/UnderAttack.tsx";
 import {Halo} from "./atmosphere.ts";
 import "../halloween/Halloween.css"
 import "./Viewer.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
-
-// After the wave has run over the land.
-const FORTIFY_CARD_DELAY_MS = 1600
 
 export type Backends = {
     tileClicker: TileClicker
@@ -280,27 +269,12 @@ export default function Viewer(props: ViewerProps) {
         tilesCount,
         capture,
         graphics,
-        refusals,
-        vpnBlocked,
-        dismissVPNBlocked,
-        bannedUntil,
-        dismissBanned,
-        sessionUnavailable,
-        dismissSessionUnavailable,
-        lockedOut,
-        award,
-        dismissAward,
         charges,
         rules,
         bombArmed,
         toggleBomb,
         switches,
         toggleSwitch,
-        notice,
-        lastBomb,
-        dismissBomb,
-        lastFortified,
-        dismissFortified,
         pointing,
         pointingTerritory,
         territoryOf,
@@ -333,22 +307,10 @@ export default function Viewer(props: ViewerProps) {
     useGameplay(backends.crazyGames, status.state === 'ready')
     useRoom(backends.crazyGames, status.state === 'ready', countryState.code)
 
-    const firstWin = useBonusGuide((bonus) => award !== undefined && isFirstWin(bonus.guide, award.kind))
-    const markWon = useBonusGuide((bonus) => bonus.markWon)
-
     const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
 
-    const fortifyGuide = useFortifyGuide()
-    const [fortifyCard, setFortifyCard] = useState<Fortified | undefined>()
-    useEffect(() => {
-        if (!lastFortified || fortifyGuide.seen) return
-        const timer = setTimeout(() => setFortifyCard(lastFortified.fortified), FORTIFY_CARD_DELAY_MS)
-        return () => clearTimeout(timer)
-    }, [lastFortified, fortifyGuide.seen])
-    const underAttack = useUnderAttack(countryState.code, tileDeltas, accepted.listenForClicks)
-    // Moments show one at a time: the newest of them.
-    const newest = [lastBomb, lastFortified, underAttack.moment].reduce<{at: number} | undefined>(
-        (latest, moment) => moment && (!latest || moment.at > latest.at) ? moment : latest, undefined)
+    useUnderAttack(countryState.code, tileDeltas, accepted.listenForClicks)
+    const refusals = useRefusedClicks((refused) => refused.refusals)
 
     const spendRefill = () => {
         if (clickBudget && tokensAt(clickBudget, budgetNow()) >= clickBudget.capacity) return false
@@ -492,8 +454,6 @@ export default function Viewer(props: ViewerProps) {
                                     frozen={mood === "frozen" ? {nextSeason: schedule.seasons.next, country: countryState} : undefined}
                                     invite={invite}
                                     discord={discord}
-                                    refusals={refusals}
-                                    said={lockedOut && {text: heldLine(lockedOut.allegiance, Date.now()), id: lockedOut.id}}
                                     onSignIn={openPitch}
                                     compact={compact}
                                     popover={clicks}>
@@ -504,8 +464,7 @@ export default function Viewer(props: ViewerProps) {
                        bombArmed={bombArmed}
                        onToggleBomb={toggleBomb}
                        onUseRefill={spendRefill}
-                       onToggleShield={() => toggleSwitch("shield")}
-                       notice={notice}/>
+                       onToggleShield={() => toggleSwitch("shield")}/>
         </ClickBudgetMeter>}
 
         {ready && crazyGames.chat && <ChatPanel
@@ -617,42 +576,14 @@ export default function Viewer(props: ViewerProps) {
                                                 rules={rules}
                                                 onDone={() => setMissionsDone(undefined)}/>}
 
-        {award && <BonusAward reward={award}
-                              kept={firstWin}
-                              onDone={() => {
-                                  markWon(award.kind)
-                                  dismissAward()
-                              }}/>}
+        <BonusAward/>
 
         {ready && connection === "down" && <ConnectionLost/>}
 
-        {progress && !newest && !missionsDone && <MissionProgress key={progress.id} moved={progress}/>}
-
-        {lastFortified && newest === lastFortified && <FortifyNews
-            key={`fortify-${lastFortified.id}`}
-            fortified={lastFortified.fortified}
-            onDone={dismissFortified}
-        />}
-
-        {fortifyCard && <FortifyCard fortified={fortifyCard} onDone={() => {
-            fortifyGuide.markSeen()
-            setFortifyCard(undefined)
-        }}/>}
-
-        {lastBomb && newest === lastBomb && <BombNews
-            key={lastBomb.id}
-            drop={lastBomb.drop}
-            land={lastBomb.land}
-            onDone={dismissBomb}
-        />}
-
-        {underAttack.moment && newest === underAttack.moment && <UnderAttack
-            key={`attack-${underAttack.moment.at}`}
-            flag={countryState.code}
-            connect={discord.connect}
-            goThere={flyToLastLoss}
-            onDone={underAttack.dismiss}
-        />}
+        <News flag={countryState.code}
+              connect={discord.connect}
+              goThere={flyToLastLoss}
+              progress={missionsDone ? undefined : progress}/>
 
         {battleOver.over && <BattleOver key={battleKeyOf(battleOver.over)}
                                         awaiting={battleOver.awaiting}
@@ -660,12 +591,12 @@ export default function Viewer(props: ViewerProps) {
 
         <Quiz/>
 
-        {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
-        {bannedUntil !== undefined && <BannedModal until={bannedUntil} onClose={dismissBanned}/>}
+        <VPNBlockedModal/>
+        <BannedModal/>
         {account.kind === 'ready' && account.restored &&
             <WelcomeBackModal onClose={() => backends.account.welcomedBack()}/>}
 
-        {sessionUnavailable && <SessionUnavailableModal onClose={dismissSessionUnavailable}/>}
+        <SessionUnavailableModal/>
     </>
 }
 

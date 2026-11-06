@@ -24,10 +24,12 @@
    publishes it to React twice a second.
 5. A click paints optimistically and POSTs; the server's echo confirms it later.
    A refused click is taken back off the map. A throttled one bumps `refusals` in
-   `useGlobe`, and `ClickBudgetMeter` shakes and flashes red once per bump — a
+   `useRefusedClicks` (`components/refusedClicksStore.ts`, see [Stores](stores.md)),
+   and `ClickBudgetMeter` shakes and flashes red once per bump — a
    dialog here was annoying, since a player hits the wall mid-burst and the meter
-   already says why. The other three raise a flag that `Viewer` renders as
-   `BannedModal`, `VPNBlockedModal` or `SessionUnavailableModal`. The globe reports
+   already says why. The other three raise a flag in the same store, and
+   `BannedModal`, `VPNBlockedModal` or `SessionUnavailableModal` reads its own and
+   shows. The globe reports
    every refused click, so those flags hold one value and are not a queue — a burst
    is one thing to say, once.
    `reportClickFailure` in `globe.ts` is the five-way branch that picks which,
