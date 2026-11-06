@@ -2,7 +2,7 @@ import {useCallback, useEffect, useState} from "react"
 import {PromoBackend, TeaserCard} from "../../backends/promo.ts"
 import {BattleToCome} from "../../backends/turn.ts"
 import {BATTLE_TEASED_STORAGE_KEY, battleTeaserDue, Teased, teasedOf, TEASER_AFTER_CLICKS, teaserKeyOf} from "../../domain/battleTeaser.ts"
-import {ListenForClicks} from "../viewer/acceptedClicks.ts"
+import {ListenForClicks} from "../clicks/acceptedClicks.ts"
 
 function readTeased(): Teased | null {
     try {

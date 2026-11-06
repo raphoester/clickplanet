@@ -52,7 +52,7 @@ of another epoch is not taken.
 3. The map batches start with them, eight at a time: on Fast 4G that put the counts in at 1.56s and the tiles at
    2.06s, where waiting for the counts first put the tiles at 2.27s. **A tile is clicked only once they are all
    read** (`Globe.tilesRead`;
-   `onLoadProgress` says the share). Until then a click zoomed in does nothing, and `Viewer` shows the loading card
+   `onLoadProgress` says the share). Until then a click zoomed in does nothing, and `PlayScreen` shows the loading card
    when zoomed in (`onOrbitChange`); in orbit nothing waits.
 4. **A read older than the stream's opening may miss what happened in between**, which the stream never sends.
    So, once the opening is known, every range and the counts still older than it are read again

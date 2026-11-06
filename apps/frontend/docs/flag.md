@@ -33,10 +33,10 @@ and so is one from an account that pledged none.
   the flag held in its detail, which `PlanetBackend` keeps (`allegianceDetailOf`).
   `refreshAllegiance()` reads it again on demand: the chat asks when the flag's room
   refuses the player (see [Rooms](chat.md#rooms)).
-- **The picked flag is always the held one**, locked or not: `Viewer` sets the
+- **The picked flag is always the held one**, locked or not: `PlayScreen` sets the
   country back to it (local storage, a share link, a CrazyGames invite, another
   device). A CrazyGames invite then asks the player whether to play for the
-  friend's flag (see [CrazyGames](crazygames.md)). `Viewer`'s
+  friend's flag (see [CrazyGames](crazygames.md)). `PlayScreen`'s
   `pickCountry` pledges first and sets the country only once the server took it.
 - **The picker says the rule over the list** (`CHANGE_RULE`, "You can change
   country once an hour."), and while the flag is held, when the next change is,

@@ -19,7 +19,7 @@ import EmailSignIn from "./EmailSignIn.tsx"
 import ProgressTab from "./ProgressTab.tsx"
 import ClipsSwitch from "../clips/ClipsSwitch.tsx"
 import {ClipsNameBackend} from "../../backends/clips.ts"
-import {ListenForClicks} from "../viewer/acceptedClicks.ts"
+import {ListenForClicks} from "../clicks/acceptedClicks.ts"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>

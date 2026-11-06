@@ -13,20 +13,21 @@ The layering exists to keep that imperative part as small as possible:
 ```
 domain/    no GPU, no DOM, no React — plain functions and data
 backends/  the wire protocol
-app/viewer/ WebGL, and the React hook that owns its lifecycle
+app/viewer/ WebGL, and the React hooks that own its lifecycle
+app/play/   the game screen, where the features meet
 app/       components
 ```
 
 ## The backends reach the page as one object
 
-**`main.tsx` builds one `Backends` and `App` hands it to `Viewer` whole.** `Backends` is declared in
-`Viewer.tsx`, the one place that reads it. Each branch of `main.tsx`, the fake and the real one, fills it, and one
-`start` renders the page with it. A new backend is a field of `Backends` and a line in each branch: `App` does not
-change.
+**`main.tsx` builds one `Backends` and `App` hands it to `PlayScreen` whole.** `Backends` is declared in
+`app/play/PlayScreen.tsx`, the one place that reads it. Each branch of `main.tsx`, the fake and the real one, fills it,
+and one `start` renders the page with it. A new backend is a field of `Backends` and a line in each branch: `App` does
+not change.
 
-- **A field is always there**, so `Viewer` does not check for it. Only three can be `undefined`: `crazyGames` off
+- **A field is always there**, so `PlayScreen` does not check for it. Only three can be `undefined`: `crazyGames` off
   the CrazyGames page, `alerts` on it (no Discord sign-in there), and `gifs` on it or with no KLIPY key.
-- **`Viewer` still gives each feature its backend as a prop.** The components and hooks take what they use as a
+- **`PlayScreen` still gives each feature its backend as a prop.** The components and hooks take what they use as a
   required input, and do not check for it. Their tests give them a fake, never `undefined`. A backend is optional
-  below `Viewer` only where it can really be absent: the flag's chat room before a flag is held, the card's reporter
+  below `PlayScreen` only where it can really be absent: the flag's chat room before a flag is held, the card's reporter
   on the player's own card, and `createGlobe`'s clicks, bonuses, bombs and shields on the archive and clip pages.

@@ -294,7 +294,7 @@ would only say whether the health RPC gets through.
 - `DOWN_AFTER_MISSES` (2) in a row is down, and the first answer is up again. The
   browser's `offline` is down at once (`followBrowser`); `online` waits for an
   answer, which `openStream`'s wake brings at once.
-- **`Viewer` shows `ConnectionLost` in the Moments zone while it is down.** Clicks
+- **`PlayScreen` shows `ConnectionLost` in the Moments zone while it is down.** Clicks
   still go out and roll back: they are how it finds the way back. A deploy's
   restart reads as down too, which is what it is from here.
 - The fakes have no transport. In fake mode `connection` is on `window`:

@@ -27,7 +27,7 @@ the foot of Settings, and a report of another player, from that player's card.
 - **A note says what the page knows about itself, a suggestion as a bug report**
   (`app/support/pageContextOf`): the build, the viewport in CSS pixels and the
   pixel ratio, whether the connection was down, the cores and the memory the
-  browser reports, and what WebGL says of the graphics card. `Viewer` hands
+  browser reports, and what WebGL says of the graphics card. `PlayScreen` hands
   `SettingsPlace` a `pageContext()` that is read when the note is sent, not when the
   form opens. The server reads the user agent off the request.
 - **The graphics card comes from the globe's own WebGL context**

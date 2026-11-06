@@ -44,7 +44,7 @@ the globe. A click or a tap flies down to it.
   holder. **They are a store**, `useTerritoryPlayers` (`app/territory/territoryPlayersStore.ts`,
   see [Stores](stores.md)), kept with the territory they were read for, so a card says nothing
   of another one's (`playersOf`), and the same territory opened again shows them at once while
-  they are read again. `Viewer` renders the place with the backends and what `useTerritoryCard`
+  they are read again. `PlayScreen` renders the place with the backends and what `useTerritoryCard`
   shows, and reads none of it; the place keeps nothing once it goes. "Top players" lists them
   with their flag and tiles, in their name's colour with its streak (its badge, by the take's account, see
   [Badges](badges.md)); a signed-in one's name opens its card. The crown and the

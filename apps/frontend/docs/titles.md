@@ -53,12 +53,12 @@ is the player's own view.
   (`useOwnTakes`): `GetPlayer` and `GetProgress` are cached 10s (`public, max-age=10`), so the card is read only once.
 - **The unlock moment is live.** Progression's stream (`ListenForEvents`,
   `TitlesListener.listenForTitles`) carries `titleEarned` to the account of the token it was
-  opened with. `useTitlesEarned`, which `Viewer` calls, opens it only for a signed-in account,
+  opened with. `useTitlesEarned`, which `PlayScreen` calls, opens it only for a signed-in account,
   since a guest earns no title, and only while the page holds a token (`heldIdentity()`, never
   a mint). The server reads the token when the stream opens, so the hook checks it every
   second (`TOKEN_CHECK_MS`) and opens the stream again when it changes. A token refused
   (`Unauthenticated`) stops the stream for good (`stopsOn`): only a new token opens it
-  again. The hook hands each title to `Viewer`, which announces it (the announcements queue, in [Battles](battle.md#the-announcements-queue)), and reads its own badge
+  again. The hook hands each title to `PlayScreen`, which announces it (the announcements queue, in [Battles](battle.md#the-announcements-queue)), and reads its own badge
   again, since the title worn may follow the one earned ([Badges](badges.md));
   `Moments` shows `TitleUnlocked` over the game, one full-screen moment at a time. It is not a
   `Modal` but the whole screen: it goes dark, "New title!" slams in, the medal

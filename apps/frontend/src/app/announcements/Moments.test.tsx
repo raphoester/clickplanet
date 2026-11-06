@@ -8,7 +8,7 @@ import {FlagMission} from "../../backends/missions.ts"
 import {PlayerTitle} from "../../backends/progression.ts"
 import {BATTLE_TEASED_STORAGE_KEY} from "../../domain/battleTeaser.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
-import {acceptedClicks} from "../viewer/acceptedClicks.ts"
+import {acceptedClicks} from "../clicks/acceptedClicks.ts"
 import {useAnnouncements} from "./announcementsStore.ts"
 import Moments from "./Moments.tsx"
 

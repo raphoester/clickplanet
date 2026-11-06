@@ -102,7 +102,7 @@ tease anything"). The Final Battle's own teaser, once per browser in the two day
 `data-mood="battle"` on the root while a battle plays, and `tokens.css` redefines
 the panels to charcoal and the secondary button to steel under it. The warning tape
 (`--tape`) runs along the top of the dock (`ClickBudgetMeter.css`, under the mood)
-and of the battle chip. **The globe's halo turns to ember**: `Viewer` hands
+and of the battle chip. **The globe's halo turns to ember**: `PlayScreen` hands
 `useGlobe` a `halo` (`calm` or `war`), the globe's `setHalo` repaints the
 atmosphere's colour (`app/viewer/atmosphere.ts`) and asks for a frame. The sky, the
 gold and the text do not move: a coin, a header or a reward looks the same in a
@@ -202,7 +202,7 @@ queue: a title unlocked, a battle's start, a battle's teaser, a day closed (the 
 three debrief screens, the season's results, a clip that names the player (see
 [In a clip](clip-appearances.md)), the flag's mission done (see [Missions](missions.md)).
 `app/announcements/Moments.tsx` runs the hooks that say what is due (`useRoundReveal`, `useBattleReveal`,
-`useBattleTeaser`, `useClipNotice`) and announces each; `Viewer` announces the title and the flag's mission.
+`useBattleTeaser`, `useClipNotice`) and announces each; `PlayScreen` announces the title and the flag's mission.
 `Moments` shows the head of the queue once the map is loaded, tells the hook it came from when the player closes
 it, and the next starts. An
 announcement is queued once, by its key. So a round that closes while the player

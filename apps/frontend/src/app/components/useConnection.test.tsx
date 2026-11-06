@@ -2,7 +2,7 @@
 import {afterEach, describe, expect, it} from "vitest"
 import {act, cleanup, render, screen} from "@testing-library/react"
 import {ConnectionHealth, ConnectionSource, DOWN_AFTER_MISSES} from "../../backends/connection.ts"
-import ConnectionLost from "../components/ConnectionLost.tsx"
+import ConnectionLost from "./ConnectionLost.tsx"
 import {useConnection} from "./useConnection.ts"
 
 afterEach(cleanup)

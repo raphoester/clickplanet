@@ -2,8 +2,8 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render} from "@testing-library/react"
 import {MySeason, Boards} from "../../backends/standings.ts"
-import {AcceptedClicks, acceptedClicks} from "../viewer/acceptedClicks.ts"
-import {LONGEST_MS, SETTLE_MS} from "../viewer/useAcceptedClicks.ts"
+import {AcceptedClicks, acceptedClicks} from "../clicks/acceptedClicks.ts"
+import {LONGEST_MS, SETTLE_MS} from "../clicks/useAcceptedClicks.ts"
 import {Caller, useMySeason} from "./useMySeason.ts"
 
 const GUEST: Caller = {linked: false}

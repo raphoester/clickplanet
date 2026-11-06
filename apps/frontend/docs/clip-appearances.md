@@ -9,7 +9,7 @@ them, so they watch it and share it, and lets them keep their name out.
   button per platform ("Watch on TikTok", "Watch on YouTube", in a new tab) and Close, once the reveal
   played (`TITLE_REVEAL.ready`). A watch button closes it too. It waits in the announcements queue like
   a title or a battle (see [Battles](battle.md#the-announcements-queue)), keyed `clip:<post id>`.
-- **Only a player with a username is asked**: `Viewer` hands `Moments` (which runs `useClipNotice`) the account
+- **Only a player with a username is asked**: `PlayScreen` hands `Moments` (which runs `useClipNotice`) the account
   id of a linked account with a username, and nothing for a guest, who is never named. It reads
   `clips.v1.ClipsService/GetAppearances` (the posts of the last 7 days that name the caller) when that
   account is known, and again when the tab comes back (`usePageVisible`), **at most once every

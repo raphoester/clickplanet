@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useState} from 'react';
-import {Country} from '../../domain/countries';
-import {COUNTRY_STORAGE_KEY, resolveCountry} from '../countryPreference';
+import {Country} from '../domain/countries';
+import {COUNTRY_STORAGE_KEY, resolveCountry} from './countryPreference';
 import {currentTimeZone} from './visitorCountry';
 
 function readStoredCountry(): string | null {

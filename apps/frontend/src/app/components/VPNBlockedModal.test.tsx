@@ -3,7 +3,7 @@ import {afterEach, describe, expect, it} from "vitest"
 import {act, cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import VPNBlockedModal from "./VPNBlockedModal.tsx"
-import {useRefusedClicks} from "./refusedClicksStore.ts"
+import {useRefusedClicks} from "../clicks/refusedClicksStore.ts"
 
 afterEach(() => {
     cleanup()

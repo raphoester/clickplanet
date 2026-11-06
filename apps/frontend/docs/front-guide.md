@@ -4,7 +4,7 @@
 the globe that turned (on a phone, often Asia), and a first tap from that far only flew down to a territory. Half of
 the players who left in their first two minutes left after fewer than 30 clicks.
 
-- **Who is guided** (`app/viewer/frontGuide.ts`): `main.tsx` calls `enterFrontGuide` before the first render, so before
+- **Who is guided** (`app/frontGuide.ts`): `main.tsx` calls `enterFrontGuide` before the first render, so before
   `useCountryStorage` stores a country. A browser with no country stored is on its first visit: it writes
   `clickplanet-front-guide` = `0`, and every page is guided while that count is under `GUIDED_TAKES` (50).
   `useGuidedTakes` counts each accepted click that took a tile. A browser that played before the guide has a country

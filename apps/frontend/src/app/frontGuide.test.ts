@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {COUNTRY_STORAGE_KEY} from "../countryPreference.ts"
+import {COUNTRY_STORAGE_KEY} from "./countryPreference.ts"
 import {countGuidedTake, FRONT_GUIDE_STORAGE_KEY, enterFrontGuide, GUIDED_TAKES} from "./frontGuide.ts"
 
 function storeOf(entries: Record<string, string> = {}) {

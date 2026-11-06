@@ -2,7 +2,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
 import FortifyNews, {FORTIFY_NEWS_MS} from "./FortifyNews.tsx"
-import FortifyCard from "./FortifyCard.tsx"
+import FortifyCard from "../components/FortifyCard.tsx"
 import {Fortified} from "../../domain/fortify.ts"
 
 const CORSICA: Fortified = {fortification: {landmass: 257, countryId: "bg", tile: 107526, version: {epoch: 1_790_000_000, seq: 9}}, name: "Corsica", tiles: 16, news: true}

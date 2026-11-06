@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from "react"
 import {DayMissions, MissionsBackend} from "../../backends/missions.ts"
-import {ListenForClicks} from "../viewer/acceptedClicks.ts"
-import {useReadsAfterClicks} from "../viewer/useAcceptedClicks.ts"
+import {ListenForClicks} from "../clicks/acceptedClicks.ts"
+import {useReadsAfterClicks} from "../clicks/useAcceptedClicks.ts"
 
 export type MissionsState =
     | {kind: "loading"}

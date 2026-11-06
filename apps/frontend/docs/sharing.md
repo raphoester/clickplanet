@@ -71,7 +71,7 @@ translucent panel with a scrolling leaderboard in it; what is good to use is a
 poor picture. The badge is drawn from the same numbers the menu is drawn from,
 out of the same flag atlas, in hundredths of the card's shortest edge so it
 reads the same on a phone in portrait as on a wide desktop. **Its rank is the
-one the board shows**: `Viewer` hands `shareStats` the lines of the order picked,
+one the board shows**: `PlayScreen` hands `shareStats` the lines of the order picked,
 so a card taken with the board sorted by Points carries the season's rank beside the
 tiles held.
 The season ranks a country with points and no ground, which the card says as

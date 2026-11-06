@@ -1,8 +1,8 @@
 import {useEffect, useRef, useState} from "react"
 import {Boards, MySeason} from "../../backends/standings.ts"
 import {liveSeason, Takes, takesSince} from "../../domain/standings.ts"
-import {ListenForClicks} from "../viewer/acceptedClicks.ts"
-import {useOwnTakes, useReadsAfterClicks} from "../viewer/useAcceptedClicks.ts"
+import {ListenForClicks} from "../clicks/acceptedClicks.ts"
+import {useOwnTakes, useReadsAfterClicks} from "../clicks/useAcceptedClicks.ts"
 
 export type Caller = {
     accountId?: string

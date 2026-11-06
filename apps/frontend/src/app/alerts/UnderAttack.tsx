@@ -5,7 +5,7 @@ import {quizShown, useQuiz} from "../quiz/quizStore.ts"
 import {DiscordIcon, TargetIcon} from "../components/icons.tsx"
 import {pingFailureOf, pingNameOf} from "./alertsMessages.ts"
 import {usePing} from "./usePing.ts"
-import "../components/BombNews.css"
+import "../news/BombNews.css"
 import "./UnderAttack.css"
 
 export const UNDER_ATTACK_MS = 8000

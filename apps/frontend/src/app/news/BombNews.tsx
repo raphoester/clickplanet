@@ -1,7 +1,7 @@
 import {useEffect, useRef} from 'react'
 import {BombDrop} from '../../backends/backend.ts'
 import {Countries} from '../../domain/countries.ts'
-import CountryFlag from './CountryFlag.tsx'
+import CountryFlag from '../components/CountryFlag.tsx'
 import {describeBlast} from '../../domain/blast.ts'
 import {quizShown, useQuiz} from '../quiz/quizStore.ts'
 import './BombNews.css'

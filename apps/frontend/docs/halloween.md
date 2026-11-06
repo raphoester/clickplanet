@@ -30,7 +30,7 @@ stem in its dent. Its grin is carved on the front, and **the box's question mark
 512 × 256 round the pumpkin; its shader (`shaders/pumpkin/`) finds in it the cut, the shadow round the cut, the
 flesh and the candle, which flickers (`flickerAt`).
 
-- **The look is the box's** (`BoxLook`, `box` or `pumpkin`, `BonusBox.setLook`): `Viewer` hands `useGlobe`
+- **The look is the box's** (`BoxLook`, `box` or `pumpkin`, `BonusBox.setLook`): `PlayScreen` hands `useGlobe`
   `bonusLook`, and the globe's `setBonusLook` sets it. The orbit, the fade, the burst and the timings are the box's.
 - **The pumpkin turns and rocks on all three axes, and is never upside down** (`pose`, `tumbleAt`): in the
   camera's frame, a full turn about its stem, so its grin and its marks come round, and a rock forward and sideways

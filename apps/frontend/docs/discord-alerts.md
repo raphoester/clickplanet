@@ -31,10 +31,10 @@ the server's page once in, or nothing.
 
 ## What the player sees
 
-`useDiscordAlerts` (in `Viewer`) reads `GetDiscordLink` at load and again when the account changes, and after a Discord
-sign-in or link again 1 s, 2 s and 4 s after the read before, until it reads linked (`JOIN_WAITS_MS`). It answers a
-`DiscordOffer`: `connect` while the server is offered, the account is not in it and the server offers Discord's
-sign-in; `serverUrl` once it is in; neither otherwise. Any failure of the read is no offer.
+`useDiscordAlerts` (in `PlayScreen`) reads `GetDiscordLink` at load and again when the account changes, and after a
+Discord sign-in or link again 1 s, 2 s and 4 s after the read before, until it reads linked (`JOIN_WAITS_MS`). It
+answers a `DiscordOffer`: `connect` while the server is offered, the account is not in it and the server offers
+Discord's sign-in; `serverUrl` once it is in; neither otherwise. Any failure of the read is no offer.
 
 - **The chat's Discord bar** (`DiscordBar`), on every page with the chat, until the player hides it (it comes back
   the next day):

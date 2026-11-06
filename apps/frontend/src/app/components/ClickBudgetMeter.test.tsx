@@ -3,7 +3,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest'
 import {act, cleanup, fireEvent, render, screen} from '@testing-library/react'
 import ClickBudgetMeter from './ClickBudgetMeter.tsx'
 import {BUBBLE_MS} from './Bubble.tsx'
-import {useRefusedClicks} from './refusedClicksStore.ts'
+import {useRefusedClicks} from '../clicks/refusedClicksStore.ts'
 import {ClickBudget} from "../../backends/clickBudget.ts"
 import {Countries} from "../../domain/countries.ts"
 import {useScreen} from "../hud/screenStore.ts"

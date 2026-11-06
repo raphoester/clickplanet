@@ -6,7 +6,7 @@ times longer. A gamemaster army on the server would break the game's balance, so
 newcomer's page only. The newcomer must not notice it: every reading on the page agrees with it.
 
 - **Who sees them**: a guided page (`showFront`, see [The front, for a first visit](front-guide.md)) once every tile
-  is read, while the "Online" list holds fewer than 7 (`GHOSTS_BELOW` in `globe.ts`). `Viewer` reads the list's
+  is read, while the "Online" list holds fewer than 7 (`GHOSTS_BELOW` in `globe.ts`). `PlayScreen` reads the list's
   length from the roster's store (`onlineCount`) and passes it to `useGlobe` (`crowd`), which hands it to
   `Globe.setCrowd`; no list yet means no raid. Never in orbit, never on a frozen map. When the room fills, the
   raids stop and the ghost tiles stay until they end.

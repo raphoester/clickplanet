@@ -6,7 +6,7 @@ import {orderOf, reachedOf} from "../../domain/missions.ts"
 import BonusIcon from "../components/BonusIcon.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {quizShown, useQuiz} from "../quiz/quizStore.ts"
-import "../components/BombNews.css"
+import "../news/BombNews.css"
 import "./Missions.css"
 
 export default function MissionProgress({moved}: {moved: Moved}) {

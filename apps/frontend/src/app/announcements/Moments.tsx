@@ -20,7 +20,7 @@ import RoundReveal from "../season/RoundReveal.tsx"
 import {useRoundReveal} from "../season/useRoundReveal.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import TitleUnlocked from "../titles/TitleUnlocked.tsx"
-import {ListenForClicks} from "../viewer/acceptedClicks.ts"
+import {ListenForClicks} from "../clicks/acceptedClicks.ts"
 import {useAnnouncements} from "./announcementsStore.ts"
 
 export type MomentsProps = {

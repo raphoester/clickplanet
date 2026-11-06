@@ -1,8 +1,8 @@
 import {useEffect, useState} from "react"
 import {Me} from "../../backends/account.ts"
 import {Fronts, TitleDashboard} from "../../backends/progression.ts"
-import {ListenForClicks} from "../viewer/acceptedClicks.ts"
-import {useReadsAfterClicks} from "../viewer/useAcceptedClicks.ts"
+import {ListenForClicks} from "../clicks/acceptedClicks.ts"
+import {useReadsAfterClicks} from "../clicks/useAcceptedClicks.ts"
 import {AccountStore} from "./accountStore.ts"
 
 // A signed-in player's titles and fronts, read when the account loads and again once its clicks settle. The

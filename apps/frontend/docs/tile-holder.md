@@ -41,8 +41,8 @@ tap never is, and the bomb's hold-to-drop is already one.
   nothing while a bomb is armed.
 - **The card shown is a store**, `useTileHolder` (`app/players/tileHolderStore.ts`, see
   [Stores](stores.md)): the holder, whether the pointer is on its card (`hold`, `holderHeld`),
-  and `dismiss`. `HolderCardPlace`, which `Viewer` renders with the backends, the globe's
-  `pointing` and the account id, keeps it and shows `HolderCard` from it; `Viewer` reads none
+  and `dismiss`. `HolderCardPlace`, which `PlayScreen` renders with the backends, the globe's
+  `pointing` and the account id, keeps it and shows `HolderCard` from it; `PlayScreen` reads none
   of it, and the place leaves nothing shown once it goes.
 - `HolderCardPlace` asks `TileHolders.tileHolder` (`ClickService/GetTileHolder`), then
   `PlayerInfoBackend.playerInfo` (`PlayerService/GetPlayer` and

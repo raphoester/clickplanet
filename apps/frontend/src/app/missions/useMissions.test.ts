@@ -2,8 +2,8 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, renderHook} from "@testing-library/react"
 import {DayMissions, MissionsBackend} from "../../backends/missions.ts"
-import {acceptedClicks} from "../viewer/acceptedClicks.ts"
-import {SETTLE_MS} from "../viewer/useAcceptedClicks.ts"
+import {acceptedClicks} from "../clicks/acceptedClicks.ts"
+import {SETTLE_MS} from "../clicks/useAcceptedClicks.ts"
 import {useMissions} from "./useMissions.ts"
 
 const day: DayMissions = {endsAt: Date.UTC(2026, 9, 26, 21, 0), missions: []}

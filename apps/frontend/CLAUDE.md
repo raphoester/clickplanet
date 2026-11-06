@@ -21,7 +21,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 
 ## Architecture
 
-- [Architecture](docs/architecture.md) — the layers: `domain/`, `backends/`, `app/viewer/`, `app/`; the one
+- [Architecture](docs/architecture.md) — the layers: `domain/`, `backends/`, `app/viewer/`, `app/play/`, `app/`; the one
   `Backends` object `main.tsx` gives the page.
 - [`src/domain/`](docs/domain.md) — the logic worth testing: no GPU, no DOM, no React.
 - [`src/backends/`](docs/backends.md) — the contracts and the one Connect transport; the click budget; a frozen
@@ -32,7 +32,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   768px wide or 600px high and under.
 - [Data flow](docs/data-flow.md) — from `createGlobe` to the screen, step by step.
 - [Stores](docs/stores.md) — a feature's state in its own Zustand store, read by the component that shows it, not
-  held in `Viewer`; never the tiles; the stores the globe's notices go to, and the news line, one at a time.
+  held in `PlayScreen`; never the tiles; the stores the globe's notices go to, and the news line, one at a time.
 - [Sessions](docs/sessions.md) — the click token the backend gates `Click` on.
 - [Sign-in](docs/sign-in.md) — optional sign-in with Google, Discord or an emailed code; usernames; deleting an account,
   and the welcome back when a sign-in within 30 days brings it back.

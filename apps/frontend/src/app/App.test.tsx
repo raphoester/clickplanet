@@ -2,11 +2,11 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import App from "./App.tsx"
-import type {Backends} from "./viewer/Viewer.tsx"
+import type {Backends} from "./play/PlayScreen.tsx"
 import {NO_FILTER} from "../domain/wordFilter.ts"
 import {COUNTRY_STORAGE_KEY} from "./countryPreference.ts"
 
-vi.mock("./viewer/Viewer.tsx", () => ({default: () => <div data-testid="viewer"/>}))
+vi.mock("./play/PlayScreen.tsx", () => ({default: () => <div data-testid="play-screen"/>}))
 
 const backends = {
     backends: {} as Backends,
@@ -28,7 +28,7 @@ describe("App", () => {
     it("always renders the globe", () => {
         vi.spyOn(Math, "random").mockReturnValue(0.9)
         render(<App {...backends}/>)
-        expect(screen.getByTestId("viewer")).toBeDefined()
+        expect(screen.getByTestId("play-screen")).toBeDefined()
     })
 
     it("shows the donation modal on a high roll", () => {
