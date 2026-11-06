@@ -10,7 +10,8 @@ and says what is in it. Read the doc before you change its area.
 
 - [Commands](docs/commands.md) — `make test` (Docker for the postgres and Redis tests), `-race`, `make deadcode`,
   `make lint`, `make tidy`, `make check-format`, `go run ./cmd/api`, `make proto`, the vendoring targets (`quiz`,
-  `map`, `vpn-lists`, `disposable-domains`, `historic-scripts`, `zernio`), `make dBuild`, and `cmd/clips`.
+  `map`, `vpn-lists`, `disposable-domains`, `historic-scripts`, `zernio`), `make dBuild`, `cmd/clips` and
+  `cmd/missionsim`.
 - [Configuration](docs/configuration.md) — `cpconfigs` loads YAML and environment with koanf; the full schema.
 - [Testing](docs/testing.md) — testify; which suites need Docker (postgres, S3, Redis); `e2e/` holds smoke tests
   only, rules go in lower tests; the `testing` tag.
@@ -141,5 +142,7 @@ and says what is in it. Read the doc before you change its area.
 - [Claude as a connector](docs/connector.md) — every admin method is a tool Claude calls over MCP, read from the
   admin protos (a method's comment is its description); what is hidden; auth's OAuth 2.1 server and the tokens; the
   bearer path through the gate.
+- [The flag mission simulator](docs/mission-simulator.md) — `cmd/missionsim`: copies a season's ledger out of
+  production over ssh, replays it and draws each flag's mission with other goal and point numbers; what it measures.
 - [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them; its
   experiments, the model editor and the stats.

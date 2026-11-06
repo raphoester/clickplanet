@@ -51,7 +51,7 @@ func (b Briefing) Of(ctx context.Context, day days.Day, flag string) (Day, error
 	if err != nil {
 		return Day{}, fmt.Errorf("failed to read the map to draw %s's mission: %w", flag, err)
 	}
-	return b.store.KeepDay(ctx, day, flag, Draw(day, flag, world, yesterday)) //nolint:wrapcheck // the store named it.
+	return b.store.KeepDay(ctx, day, flag, Draw(day, flag, world, yesterday, Played)) //nolint:wrapcheck // the store named it.
 }
 
 // A season's first day, or a day the flag did nothing on, has a zero day before.

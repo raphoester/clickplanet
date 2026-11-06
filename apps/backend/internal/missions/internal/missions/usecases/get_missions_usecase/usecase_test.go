@@ -104,7 +104,7 @@ func TestThePlayersOfAFlagShareItsMission(t *testing.T) {
 
 	world, err := fixedPlanet{}.World(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(days.TestingDayAt(now), "fr", world, flagmissions.Day{}).Snapshot(), adas.Flag.Snapshot())
+	assert.Equal(t, flagmissions.Draw(days.TestingDayAt(now), "fr", world, flagmissions.Day{}, flagmissions.Played).Snapshot(), adas.Flag.Snapshot())
 	assert.Equal(t, adas.Flag.Snapshot(), bobs.Flag.Snapshot())
 	assert.NotEqual(t, adas.Brief.Snapshot(), bobs.Brief.Snapshot(), "each has missions of its own beside it")
 }

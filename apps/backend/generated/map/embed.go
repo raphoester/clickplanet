@@ -11,6 +11,9 @@ package mapdata
 
 import (
 	"embed"
+	"encoding/binary"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 )
@@ -47,4 +50,35 @@ func read(asset string) ([]byte, string, error) {
 	}
 
 	return blob, entries[0], nil
+}
+
+// DecodeBorders reads the borders blob: the region of each tile, tile ids from 1, and the country code of each
+// region, "" for none. Planet builds its landmasses from them; the missions simulator, each tile's country.
+func DecodeBorders(blob []byte) ([]uint16, []string, error) {
+	if len(blob) < 4 {
+		return nil, nil, errors.New("too short for a header length")
+	}
+
+	headerEnd := 4 + int(binary.LittleEndian.Uint32(blob))
+	if headerEnd > len(blob) {
+		return nil, nil, fmt.Errorf("header of %d bytes runs past the %d-byte blob", headerEnd-4, len(blob))
+	}
+
+	var header struct {
+		Tiles int      `json:"tiles"`
+		Codes []string `json:"codes"`
+	}
+	if err := json.Unmarshal(blob[4:headerEnd], &header); err != nil {
+		return nil, nil, fmt.Errorf("failed to parse the header: %w", err)
+	}
+
+	if header.Tiles < 0 || headerEnd+header.Tiles*2 > len(blob) {
+		return nil, nil, fmt.Errorf("%d tiles run past the %d-byte blob", header.Tiles, len(blob))
+	}
+
+	regions := make([]uint16, header.Tiles)
+	for i := range regions {
+		regions[i] = binary.LittleEndian.Uint16(blob[headerEnd+i*2:])
+	}
+	return regions, header.Codes, nil
 }

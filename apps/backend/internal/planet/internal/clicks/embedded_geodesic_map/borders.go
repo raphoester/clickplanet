@@ -1,9 +1,6 @@
 package embedded_geodesic_map
 
 import (
-	"encoding/binary"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 
@@ -34,33 +31,12 @@ func (l *Loader) LoadBorders() (*clicks.Borders, error) {
 }
 
 func decodeBorders(asset string, blob []byte) (*clicks.Borders, error) {
-	if len(blob) < 4 {
-		return nil, errors.New("too short for a header length")
+	regions, codes, err := mapdata.DecodeBorders(blob)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // LoadBorders names the asset.
 	}
 
-	headerEnd := 4 + int(binary.LittleEndian.Uint32(blob))
-	if headerEnd > len(blob) {
-		return nil, fmt.Errorf("header of %d bytes runs past the %d-byte blob", headerEnd-4, len(blob))
-	}
-
-	var header struct {
-		Tiles int      `json:"tiles"`
-		Codes []string `json:"codes"`
-	}
-	if err := json.Unmarshal(blob[4:headerEnd], &header); err != nil {
-		return nil, fmt.Errorf("failed to parse the header: %w", err)
-	}
-
-	if header.Tiles < 0 || headerEnd+header.Tiles*2 > len(blob) {
-		return nil, fmt.Errorf("%d tiles run past the %d-byte blob", header.Tiles, len(blob))
-	}
-
-	regions := make([]uint16, header.Tiles)
-	for i := range regions {
-		regions[i] = binary.LittleEndian.Uint16(blob[headerEnd+i*2:])
-	}
-
-	borders, err := clicks.NewBorders(asset, regions, header.Codes)
+	borders, err := clicks.NewBorders(asset, regions, codes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build the borders: %w", err)
 	}

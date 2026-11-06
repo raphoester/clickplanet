@@ -54,7 +54,7 @@ func setUp() (*record_strike_usecase.UseCase, *inmemory_flag_day_store.Store, *c
 func TestTheShieldsBrokenFinishTheMissionAndGiveTheFlagItsPointsOnce(t *testing.T) {
 	useCase, store, outbox, _ := setUp()
 	drawn := flagmissions.Draw(today, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}},
-		flagmissions.Day{})
+		flagmissions.Day{}, flagmissions.Played)
 	status, ok := drawn.Status()
 	require.True(t, ok)
 	goal := status.Mission.Order.(flagmissions.BreakShields).Goal

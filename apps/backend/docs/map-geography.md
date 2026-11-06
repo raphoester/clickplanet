@@ -24,7 +24,9 @@ The blob itself is **`generated/map`**, beside `generated/proto` and for the sam
 this app's committed copy of something the root owns, written by a `make` target and never edited
 by hand. The vendored VPN ranges sit next to their reader instead (`shared/cpipblock/cpdata`) because
 they come from a third party, not from `/`. The directory is `map` to mirror its source; the
-package is `mapdata`, since `map` is a keyword.
+package is `mapdata`, since `map` is a keyword. It also decodes the borders blob (`DecodeBorders`: each tile's
+region and each region's country), the one reader of its format: planet builds its landmasses from it, and the
+[flag mission simulator](mission-simulator.md) each tile's country.
 
 That line also splits the checks. The domain enforces what is true of any map; the adapter enforces
 what is true of *this* blob — the tile count against `gameMap.maxIndex`, and that every tile lands

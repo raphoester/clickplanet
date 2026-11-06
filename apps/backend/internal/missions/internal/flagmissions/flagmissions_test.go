@@ -42,7 +42,7 @@ func drawn(t *testing.T, count int, flag string, yesterday flagmissions.Day) []f
 
 	statuses := make([]flagmissions.Status, 0, count)
 	for n := range count {
-		statuses = append(statuses, statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), flag, world, yesterday)))
+		statuses = append(statuses, statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), flag, world, yesterday, flagmissions.Played)))
 	}
 	return statuses
 }
@@ -69,7 +69,7 @@ func TestTheSmallerTheFlagBesideTheBiggestTheMoreItsMissionIsWorth(t *testing.T)
 func TestWithNoTileHeldAnywhereAMissionIsWorthTheMost(t *testing.T) {
 	blank := missions.World{CountrySizes: world.CountrySizes, Territories: []missions.Territory{{Flag: "dz"}}}
 
-	status := statusOf(t, flagmissions.Draw(days.TestingDayAt(monday), "fr", blank, flagmissions.Day{}))
+	status := statusOf(t, flagmissions.Draw(days.TestingDayAt(monday), "fr", blank, flagmissions.Day{}, flagmissions.Played))
 
 	assert.Equal(t, uint32(10), status.Mission.Points)
 }
@@ -87,7 +87,7 @@ func groundsOf(t *testing.T, world missions.World, yesterday flagmissions.Day) *
 
 	grounds := cpcolls.NewSet[string]()
 	for n := range 60 {
-		status := statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), "fr", world, yesterday))
+		status := statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), "fr", world, yesterday, flagmissions.Played))
 		if order, ok := status.Mission.Order.(flagmissions.TakeIn); ok {
 			grounds.Add(order.Ground)
 		}
@@ -115,7 +115,7 @@ func TestWithNoGroundRoomyEnoughTheGoalIsTheMostRoomThereIs(t *testing.T) {
 	busy := dayOf(t, flagmissions.DaySnapshot{Takes: 10_005})
 
 	for n := range 30 {
-		status := statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), "fr", held, busy))
+		status := statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), "fr", held, busy, flagmissions.Played))
 		assert.Equal(t, flagmissions.TakeIn{Ground: "dz", Goal: 3_560}, status.Mission.Order,
 			"France holds 1,000 of Sudan's 3,536 tiles, none of Algeria's 3,568, rounded down to 10")
 	}
@@ -174,7 +174,7 @@ func TestAFlagThatDidLittleYesterdayHasTheLeastGoal(t *testing.T) {
 }
 
 func TestWithNothingToAimAtTheDayHasNoMission(t *testing.T) {
-	_, ok := flagmissions.Draw(days.TestingDayAt(monday), "fr", missions.World{}, flagmissions.Day{}).Status()
+	_, ok := flagmissions.Draw(days.TestingDayAt(monday), "fr", missions.World{}, flagmissions.Day{}, flagmissions.Played).Status()
 
 	assert.False(t, ok)
 }
@@ -182,12 +182,12 @@ func TestWithNothingToAimAtTheDayHasNoMission(t *testing.T) {
 func TestTheSameDayAndFlagDrawTheSameMissionAndEachHasAnIDOfItsOwn(t *testing.T) {
 	day := days.TestingDayAt(monday)
 
-	first, again := flagmissions.Draw(day, "fr", world, flagmissions.Day{}), flagmissions.Draw(day, "fr", world, flagmissions.Day{})
+	first, again := flagmissions.Draw(day, "fr", world, flagmissions.Day{}, flagmissions.Played), flagmissions.Draw(day, "fr", world, flagmissions.Day{}, flagmissions.Played)
 	assert.Equal(t, first.Snapshot(), again.Snapshot())
 	ids := cpcolls.NewSet[flagmissions.MissionID]()
 	for _, flag := range []string{"fr", "de"} {
 		for n := range 2 {
-			ids.Add(statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), flag, world, flagmissions.Day{})).Mission.ID)
+			ids.Add(statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), flag, world, flagmissions.Day{}, flagmissions.Played)).Mission.ID)
 		}
 	}
 	assert.Equal(t, 4, ids.Len())
@@ -326,4 +326,33 @@ func TestAMissionWithNoOrderIsRefused(t *testing.T) {
 	_, err := flagmissions.DayOf(flagmissions.DaySnapshot{Mission: &flagmissions.MissionSnapshot{ID: mission}})
 
 	assert.ErrorIs(t, err, flagmissions.ErrNoOrder)
+}
+
+func TestAnotherSizingDrawsItsOwnGoalsAndPoints(t *testing.T) {
+	sizing := flagmissions.Sizing{GoalPercent: 20, LeastConquest: 500, LeastShields: 200, FewestPoints: 2, MostPoints: 5}
+	busy := dayOf(t, flagmissions.DaySnapshot{Takes: 10_005, Strikes: 400})
+
+	for n := range 30 {
+		status := statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), "pw", world, busy, sizing))
+		assert.Equal(t, uint32(3), status.Mission.Points, "half the biggest flag: 5 - 3/2, 1.5 rounded to 2")
+		switch order := status.Mission.Order.(type) {
+		case flagmissions.TakeIn:
+			assert.Equal(t, uint32(2_000), order.Goal, "20% of 10,005 tiles, rounded down to 10")
+		case flagmissions.BreakShields:
+			assert.Equal(t, uint32(200), order.Goal, "20% of 400 shields is under the least")
+		default:
+			t.Fatalf("not a kind of flag mission: %T", order)
+		}
+	}
+}
+
+func TestASizingAsksAPartOfTheDayAndGivesAtLeastAPoint(t *testing.T) {
+	require.NoError(t, flagmissions.Played.Validate())
+	for _, sizing := range []flagmissions.Sizing{
+		{GoalPercent: 0, FewestPoints: 3, MostPoints: 10},
+		{GoalPercent: 50, FewestPoints: 0, MostPoints: 10},
+		{GoalPercent: 50, FewestPoints: 6, MostPoints: 5},
+	} {
+		assert.ErrorIs(t, sizing.Validate(), flagmissions.ErrInvalidSizing, "%+v", sizing)
+	}
 }

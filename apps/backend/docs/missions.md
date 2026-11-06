@@ -189,6 +189,8 @@ day and a flag), so it has its own package and store (`flagmissions`).
   the ones the map allows: `TakeIn{Ground, Goal}`, tiles taken for the flag on a big ground (`World.GroundsOf`, the
   grounds of the player missions), or `BreakShields{Flag, Goal}`, shields of a rival broken (`World.RivalsOf`, drawn by
   the ground it holds, so the leaders share the heat). A map with neither gives a day with no mission.
+- **Its numbers are a `Sizing`**, `flagmissions.Played`: the goal's part of the day before and its least, and the points'
+  range. `Draw` takes it, so [the simulator](mission-simulator.md) draws with other numbers on a season played.
 - **Its points come from the flag's size beside the biggest flag's** (`pointsOf`, the user's choice, 2026-11-05):
   10 − 7 × the flag's tiles ÷ the biggest flag's tiles, rounded, from the map at the draw. The biggest flag gets 3, a
   flag half its size 6, a flag under 1/14 of its size 10; on a blank map every flag gets 10. On 5 Nov 2026 that was

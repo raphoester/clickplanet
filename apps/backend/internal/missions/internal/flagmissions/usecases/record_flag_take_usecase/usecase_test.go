@@ -122,7 +122,7 @@ func TestADayClearedOfItsMissionIsDrawnAgainAndKeepsWhatItCounted(t *testing.T) 
 	require.NoError(t, err)
 	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(today, "fr", world, flagmissions.Day{}).Snapshot().Mission, day.Snapshot().Mission)
+	assert.Equal(t, flagmissions.Draw(today, "fr", world, flagmissions.Day{}, flagmissions.Played).Snapshot().Mission, day.Snapshot().Mission)
 	assert.Equal(t, uint64(42), day.Snapshot().Takes)
 	assert.Equal(t, uint32(2), day.Snapshot().Progress, "only the takes after the draw count on the mission")
 }
@@ -165,7 +165,7 @@ func TestTheGoalIsDrawnFromWhatTheFlagDidTheDayBefore(t *testing.T) {
 	require.NoError(t, err)
 	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(today, "fr", world, busy).Snapshot().Mission, day.Snapshot().Mission)
+	assert.Equal(t, flagmissions.Draw(today, "fr", world, busy, flagmissions.Played).Snapshot().Mission, day.Snapshot().Mission)
 }
 
 func TestASeasonsFirstDayHasTheLeastGoal(t *testing.T) {
@@ -178,7 +178,7 @@ func TestASeasonsFirstDayHasTheLeastGoal(t *testing.T) {
 	require.NoError(t, err)
 	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(today, "fr", world, flagmissions.Day{}).Snapshot().Mission, day.Snapshot().Mission)
+	assert.Equal(t, flagmissions.Draw(today, "fr", world, flagmissions.Day{}, flagmissions.Played).Snapshot().Mission, day.Snapshot().Mission)
 }
 
 func TestATakeWakesTheStreamsOfTheAccountThatTookIt(t *testing.T) {

@@ -57,4 +57,8 @@ go run ./cmd/clips choose -findings ../frontend/findings.json
 ZERNIO_API_KEY=... go run ./cmd/clips schedule -clips ../frontend/clips
 # The editor on saved findings: -prompt prints what it would be sent and asks nothing (see clips-job.md, "The editor")
 ANTHROPIC_API_KEY=... go run ./cmd/clips edit -findings ../frontend/findings.json [-prompt]
+
+# The flag mission simulator: copy a season out of production, then replay it with other numbers (see mission-simulator.md)
+go run ./cmd/missionsim fetch -ssh <user@host> -since <season start> -out <folder>
+go run ./cmd/missionsim run -data <folder> [-sizings sizings.json] [-rows rows.csv]
 ```
