@@ -35,7 +35,9 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
   - `useRefusedClicks` (`clicks/refusedClicksStore.ts`): the count of clicks the bank or a frozen map refused,
     the VPN, ban and session flags, and the flag that locked a click out. `ClickBudgetMeter` and the three modals
     read it; `PlayScreen` reads the count only to hand it to `useSignInNudge`.
-  - `useBonus` (`bonus/bonusStore.ts`): the box won, read by `BonusAward`, and the notice, read by `Inventory`.
+  - `useBonus` (`bonus/bonusStore.ts`): the box won, read by `BonusAward`, and what `Inventory` reads: the notice,
+    the charges, the rules, the switches and the armed bomb. `PlayScreen` reads the charges and the rules only for
+    its hooks, the clicks panel's toll and the missions paid.
   - `useNews` (`news/newsStore.ts`): the news line, below.
 
   So `useGlobe` returns only what `PlayScreen` hands back to the globe or lays the screen out with.

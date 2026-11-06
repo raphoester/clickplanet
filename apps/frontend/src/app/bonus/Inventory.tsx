@@ -15,11 +15,7 @@ const STATE_CLEARANCE_PX = 20
 const EMPTY_HINT = "Catch a ? box or win a quiz to get one"
 
 export type InventoryProps = {
-    charges: Charges
-    rules?: BonusRules
-    switches: Switches
     onToggle?: (name: keyof Switches) => void
-    bombArmed: boolean
     onToggleBomb?: () => void
     onUseRefill?: () => boolean
     onToggleShield?: () => void
@@ -32,17 +28,12 @@ type Said = {
     ms?: number
 }
 
-export default function Inventory({
-    charges,
-    rules,
-    switches,
-    onToggle,
-    bombArmed,
-    onToggleBomb,
-    onUseRefill,
-    onToggleShield,
-}: InventoryProps) {
+export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggleShield}: InventoryProps) {
     const notice = useBonus((bonus) => bonus.notice)
+    const charges = useBonus((bonus) => bonus.charges)
+    const rules = useBonus((bonus) => bonus.rules)
+    const switches = useBonus((bonus) => bonus.switches)
+    const bombArmed = useBonus((bonus) => bonus.bombArmed)
     const {guide, markUsed} = useBonusGuide()
     const [said, setSaid] = useState<Said | undefined>()
     const [shownNotice, setShownNotice] = useState(notice?.seq)

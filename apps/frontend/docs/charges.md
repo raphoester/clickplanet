@@ -25,8 +25,8 @@ also brings the tiles it took, see [Viewer](viewer.md)), and a drop
 takes the bomb off at once and gives it back unless the server says it holds
 none (a ban refusal gives it back too); a shield is taken off the same way. The click answer says nothing about charges, on purpose (see the backend's
 [Charges](../../backend/docs/charges.md)). A charge spent in another tab stays on screen until the next read. It
-reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` hands it to the
-inventory.
+reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` puts it in the bonus store (`useBonus`, see
+[Stores](stores.md)), which the inventory reads.
 
 **The sizes are rules**: `GetBonusRules` (a GET no cache keeps) answers the
 blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
@@ -48,7 +48,8 @@ does (see [Shields](shields.md)). A switch goes off by itself when its pool runs
 
 **One bonus at a time**, the bomb included: `switched` turns the other switches off
 when one goes on, aiming the bomb switches them all off, and switching one on puts the
-bomb away. `globe.ts` holds the one copy (`setSwitch`, `onSwitchesChange`). The
+bomb away. `globe.ts` holds the one copy (`setSwitch`, `onSwitchesChange`); the bonus store holds what it told last,
+and `useGlobe`'s `toggleSwitch` and `toggleBomb` ask the globe for the other state. The
 server refuses a click with both switches on (`INVALID_ARGUMENT`), before it
 writes or spends anything.
 

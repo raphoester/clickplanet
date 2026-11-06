@@ -27,6 +27,7 @@ import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu, {BoardSheet, YouPlace} from "../Menu.tsx";
 import {youLabel} from "../youLabel.ts";
 import BonusAward from "../bonus/BonusAward.tsx";
+import {useBonus} from "../bonus/bonusStore.ts";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
 import ClicksPanel from "../components/ClicksPanel.tsx";
 import Inventory from "../bonus/Inventory.tsx";
@@ -264,11 +265,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         tilesCount,
         capture,
         graphics,
-        charges,
-        rules,
-        bombArmed,
         toggleBomb,
-        switches,
         toggleSwitch,
         pointing,
         pointingTerritory,
@@ -303,6 +300,8 @@ export default function PlayScreen(props: PlayScreenProps) {
     useRoom(backends.crazyGames, status.state === 'ready', countryState.code)
 
     const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
+    const charges = useBonus((bonus) => bonus.charges)
+    const rules = useBonus((bonus) => bonus.rules)
 
     useUnderAttack(countryState.code, tileDeltas, accepted.listenForClicks)
     const refusals = useRefusedClicks((refused) => refused.refusals)
@@ -434,11 +433,7 @@ export default function PlayScreen(props: PlayScreenProps) {
                                     onSignIn={openPitch}
                                     compact={compact}
                                     popover={clicks}>
-            <Inventory charges={charges}
-                       rules={rules}
-                       switches={switches}
-                       onToggle={toggleSwitch}
-                       bombArmed={bombArmed}
+            <Inventory onToggle={toggleSwitch}
                        onToggleBomb={toggleBomb}
                        onUseRefill={spendRefill}
                        onToggleShield={() => toggleSwitch("shield")}/>
