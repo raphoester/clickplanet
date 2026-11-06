@@ -47,14 +47,14 @@ func (s *recordingStreams) Publish(account missions.AccountID) {
 func setUp() (*record_strike_usecase.UseCase, *inmemory_flag_day_store.Store, *cpatomic.FakeOutbox, *recordingStreams) {
 	store, outbox, calendar := inmemory_flag_day_store.New(), &cpatomic.FakeOutbox{}, inmemory_day_store.New(today)
 	streams := &recordingStreams{}
-	return record_strike_usecase.New(calendar, flagmissions.NewBriefing(store, calendar, fixedPlanet{}, noPledges{}), store,
+	return record_strike_usecase.New(calendar, flagmissions.NewBriefing(store, calendar, fixedPlanet{}, noPledges{}, flagmissions.NewFixedSizings(flagmissions.TestingSizing())), store,
 		cpatomic.FakeTransactioner{}, outbox, streams), store, outbox, streams
 }
 
 func TestTheShieldsBrokenFinishTheMissionAndGiveTheFlagItsPointsOnce(t *testing.T) {
 	useCase, store, outbox, _ := setUp()
 	drawn := flagmissions.Draw(today, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}},
-		flagmissions.Day{})
+		flagmissions.Day{}, flagmissions.TestingSizing())
 	status, ok := drawn.Status()
 	require.True(t, ok)
 	goal := status.Mission.Order.(flagmissions.BreakShields).Goal

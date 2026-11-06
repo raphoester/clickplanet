@@ -4,6 +4,7 @@ package missions.v1;
 
 import "google/protobuf/timestamp.proto";
 import "missions/v1/missions.proto";
+import "missions/v1/rules.proto";
 
 // The missions the game gave and how far the players took them, to tune their goals and points. No authentication of
 // its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -24,6 +25,16 @@ service AdminService {
   rpc GetMissionTotals(GetMissionTotalsRequest) returns (GetMissionTotalsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // The numbers missions draws with now: a flag mission's goal and points. SaveRules changes them.
+  rpc GetRules(GetRulesRequest) returns (GetRulesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Replaces the numbers missions draws with, every one of them. They play at once, for every mission drawn after:
+  // a flag draws its mission once a day, at its first take, shield broken or read, so in practice from the next day.
+  // InvalidArgument for numbers that cannot play, with every reason.
+  rpc SaveRules(SaveRulesRequest) returns (SaveRulesResponse);
 }
 
 message ListFlagDaysRequest {
@@ -114,3 +125,15 @@ enum MissionKind {
   MISSION_KIND_SHIELD_TILES = 8;
   MISSION_KIND_FORTIFY_TILES = 9;
 }
+
+message GetRulesRequest {}
+
+message GetRulesResponse {
+  Rules rules = 1;
+}
+
+message SaveRulesRequest {
+  Rules rules = 1;
+}
+
+message SaveRulesResponse {}

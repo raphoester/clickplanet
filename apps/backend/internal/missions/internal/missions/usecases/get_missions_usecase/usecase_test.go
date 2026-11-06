@@ -50,7 +50,7 @@ func setUp(allegiances missions.Allegiances) (*get_missions_usecase.UseCase, *in
 	calendar := inmemory_day_store.New(days.TestingDayAt(now))
 	return get_missions_usecase.New(calendar, cptime.NewFixedClock(now), store,
 		missions.NewBriefing(store, fixedPlanet{}, allegiances),
-		flagmissions.NewBriefing(inmemory_flag_day_store.New(), calendar, fixedPlanet{}, allegiances)), store
+		flagmissions.NewBriefing(inmemory_flag_day_store.New(), calendar, fixedPlanet{}, allegiances, flagmissions.NewFixedSizings(flagmissions.TestingSizing()))), store
 }
 
 func TestTheFirstReadDrawsTheDayForThePledgedFlag(t *testing.T) {
@@ -104,7 +104,7 @@ func TestThePlayersOfAFlagShareItsMission(t *testing.T) {
 
 	world, err := fixedPlanet{}.World(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(days.TestingDayAt(now), "fr", world, flagmissions.Day{}).Snapshot(), adas.Flag.Snapshot())
+	assert.Equal(t, flagmissions.Draw(days.TestingDayAt(now), "fr", world, flagmissions.Day{}, flagmissions.TestingSizing()).Snapshot(), adas.Flag.Snapshot())
 	assert.Equal(t, adas.Flag.Snapshot(), bobs.Flag.Snapshot())
 	assert.NotEqual(t, adas.Brief.Snapshot(), bobs.Brief.Snapshot(), "each has missions of its own beside it")
 }
@@ -121,7 +121,7 @@ func TestNoMissionsWhenNoDayRuns(t *testing.T) {
 	store, calendar := inmemory_mission_store.New(), inmemory_day_store.New()
 	useCase := get_missions_usecase.New(calendar, cptime.NewFixedClock(now), store,
 		missions.NewBriefing(store, fixedPlanet{}, pledges{ada: "fr"}),
-		flagmissions.NewBriefing(inmemory_flag_day_store.New(), calendar, fixedPlanet{}, pledges{ada: "fr"}))
+		flagmissions.NewBriefing(inmemory_flag_day_store.New(), calendar, fixedPlanet{}, pledges{ada: "fr"}, flagmissions.NewFixedSizings(flagmissions.TestingSizing())))
 
 	out, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
 
