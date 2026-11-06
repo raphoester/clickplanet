@@ -208,7 +208,7 @@ refused is a bug the player sees.
 [A frozen map](../../backend/docs/rules.md#a-frozen-map)). A set taking over sends
 `rulesChanged`, so an open tab reads the freeze, and its end, within a second.
 
-- **The mood is decided in one place**, `domain/mood.ts`'s `moodOf(battle, budget)`:
+- **The mood is decided in one place**, `domain/mood.ts`'s `moodOf(turn, frozen)`:
   frozen wins over a battle, since planet takes no play whatever the schedule's turn
   says. `useMood` writes it on the root (`data-mood="frozen"`), and the battle look
   goes with it.
@@ -242,7 +242,8 @@ country, a bonus or signing in. The more of the map a country holds, the slower
 its players refill; signing in refills faster, and a refill charge fills the bank. The
 server sets that pace on each click, from the country clicked for, so a switch
 of flag moves nothing on the meter until the next click. The reading carries the
-selected country's slowdown beside it (`ClickBudget.price`): `useClickBudget`
+selected country's slowdown beside it (`ClickBudget.price`): `useClickBudgetFeed`
+puts each reading in the click budget store (`useClickBudget`, see [Stores](stores.md)) and
 calls `priceFor(country)` whenever the selected country changes, and
 `PlanetBackend` keeps the count of every reading but only the price of one for
 that country. The meter only explains the price (`domain/clickPrice.ts`): it

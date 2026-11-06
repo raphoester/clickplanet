@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, fireEvent, render, screen} from "@testing-library/react"
 import Sheet from "./Sheet.tsx"
 import TabBar from "./TabBar.tsx"
@@ -8,9 +8,11 @@ import MenuPanel from "../components/MenuPanel.tsx"
 import {useScreen} from "./screenStore.ts"
 import {useChat} from "../chat/chatStore.ts"
 import {Countries} from "../../domain/countries.ts"
+import {useCountry} from "../countryStore.ts"
 
 afterEach(() => {
     cleanup()
+    useCountry.setState(useCountry.getInitialState(), true)
     vi.restoreAllMocks()
     useScreen.setState(useScreen.getInitialState(), true)
     useChat.setState(useChat.getInitialState(), true)
@@ -96,24 +98,24 @@ describe("Sheet", () => {
 })
 
 describe("StatusBar", () => {
-    const france = Countries.get("fr")!
+    beforeEach(() => useCountry.setState({country: Countries.get("fr")!}))
 
     it("names the country and its rank, and opens the board", () => {
-        render(<StatusBar country={france} rank={3}/>)
+        render(<StatusBar rank={3}/>)
 
         fireEvent.click(screen.getByRole("button", {name: "France, rank 3. Leaderboard"}))
         expect(useScreen.getState().sheet).toBe("board")
     })
 
     it("says when the country has no rank yet", () => {
-        render(<StatusBar country={france} rank={null}/>)
+        render(<StatusBar rank={null}/>)
         expect(screen.getByRole("button", {name: "France, no rank yet. Leaderboard"})).toBeDefined()
     })
 
     it("tells the moments at the top where it ends", () => {
         vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 390, 62))
 
-        const {unmount} = render(<StatusBar country={france} rank={1}/>)
+        const {unmount} = render(<StatusBar rank={1}/>)
         expect(document.documentElement.style.getPropertyValue(STATUS_BOTTOM)).toBe("62px")
 
         unmount()

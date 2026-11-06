@@ -134,7 +134,7 @@ describe("Menu", () => {
 
     it("counts the missions not seen yet on their tab", () => {
         render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
-                     missions={{state: {kind: "loading"}}} missionsNews={3}/>)
+                     missions={{}} missionsNews={3}/>)
 
         expect(tab("Missions, 3 new").textContent).toBe("Missions3")
     })

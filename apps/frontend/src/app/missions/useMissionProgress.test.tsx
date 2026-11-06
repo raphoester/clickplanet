@@ -4,7 +4,7 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, renderHook} from "@testing-library/react"
 import {DayMissions, Mission, MissionOrder} from "../../backends/missions.ts"
 import {PROGRESS_LINE_MS, useMissionProgress} from "./useMissionProgress.ts"
-import {MissionsState} from "./useMissions.ts"
+import {MissionsState} from "./missionsStore.ts"
 
 function mission(id: string, order: MissionOrder, done = false): Mission {
     return {id, order, reward: {kind: "bomb", amount: 1}, done, paid: done}

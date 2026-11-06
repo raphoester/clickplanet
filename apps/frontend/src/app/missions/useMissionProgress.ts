@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from "react"
 import {DayMissions} from "../../backends/missions.ts"
 import {Moved, movedOf, nearestDone, stillOpen} from "../../domain/missionProgress.ts"
-import {MissionsState} from "./useMissions.ts"
+import {MissionsState} from "./missionsStore.ts"
 
 export const PROGRESS_LINE_MS = 3000
 

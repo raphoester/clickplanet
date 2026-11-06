@@ -1,20 +1,20 @@
 import {ReactNode, useState} from "react"
-import {Country} from "../../domain/countries.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import HomeLogo from "../components/HomeLogo.tsx"
 import {useBottomEdge} from "../components/useBottomEdge.ts"
+import {useCountry} from "../countryStore.ts"
 import {useScreen} from "./screenStore.ts"
 import "./StatusBar.css"
 
 export const STATUS_BOTTOM = "--status-bottom"
 
 export type StatusBarProps = {
-    country: Country
     rank: number | null
     trailing?: ReactNode
 }
 
-export default function StatusBar({country, rank, trailing}: StatusBarProps) {
+export default function StatusBar({rank, trailing}: StatusBarProps) {
+    const country = useCountry((store) => store.country)
     const [bar, setBar] = useState<HTMLElement | null>(null)
     useBottomEdge(bar, STATUS_BOTTOM)
     const boardOpen = useScreen((screen) => screen.sheet === "board")

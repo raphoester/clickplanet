@@ -82,7 +82,7 @@ menu header flies — with the link at the other end of that line, and the
 player's badge at the bottom.
 
 **The link switches whoever opens it to its flag.** `main.tsx` reads `?f=`
-with `sharedCountry`, before the first render, and the game starts on that
+with `sharedCountry`, before the first render, and chooses it in the country store, so the game starts on that
 country over the one in storage, then stores it as if it had been picked. An
 unknown code is ignored. The parameter is then taken out of the address bar,
 as the sign-in code is: left there, a reload would undo a flag the player has

@@ -6,12 +6,12 @@ import {deletedLineOf, playerLineOf} from "../players/tileHolder.ts"
 import TerritoryCard from "./TerritoryCard.tsx"
 import {TerritoryShown} from "./useTerritoryCard.ts"
 import {Fortifier, playersOf, useTerritoryPlayers} from "./territoryPlayersStore.ts"
+import {useCountry} from "../countryStore.ts"
 
 const TOP_PLAYERS = 3
 
 export type TerritoryCardPlaceProps = {
     shown?: TerritoryShown
-    flag: string
     reader: LandmassReader
     players: PlayerInfoBackend
     missions?: DayMissions
@@ -20,7 +20,8 @@ export type TerritoryCardPlaceProps = {
 }
 
 // The planet says which accounts hold the territory shown and who fortified it; the players' cards say who they are.
-export default function TerritoryCardPlace({shown, flag, reader, players, missions, onHold, onClose}: TerritoryCardPlaceProps) {
+export default function TerritoryCardPlace({shown, reader, players, missions, onHold, onClose}: TerritoryCardPlaceProps) {
+    const flag = useCountry((store) => store.country.code)
     const landmass = shown?.territory.landmass
     const read = useTerritoryPlayers(playersOf(landmass))
     const show = useTerritoryPlayers((territory) => territory.show)

@@ -19,6 +19,7 @@ import {useRoundReveal} from "../season/useRoundReveal.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import TitleUnlocked from "../titles/TitleUnlocked.tsx"
 import {ListenForClicks} from "../clicks/acceptedClicks.ts"
+import {useCountry} from "../countryStore.ts"
 import {useAnnouncements} from "./announcementsStore.ts"
 
 export type MomentsProps = {
@@ -28,7 +29,6 @@ export type MomentsProps = {
     listenForClicks: ListenForClicks
     clips: ClipsBackend
     clipsAccount?: string
-    countryCode: string
     accountId?: string
     play: PlaySound
     onWear: (id: string) => Promise<unknown>
@@ -39,6 +39,7 @@ export default function Moments(props: MomentsProps) {
     const announce = useAnnouncements((announcements) => announcements.announce)
     const dismiss = useAnnouncements((announcements) => announcements.dismiss)
 
+    const countryCode = useCountry((store) => store.country.code)
     const battle = useSchedule((schedule) => schedule.battle)
     const closed = useSchedule((schedule) => schedule.closed)
     const battles = useSchedule((schedule) => schedule.battles)
@@ -78,7 +79,7 @@ export default function Moments(props: MomentsProps) {
             return <RoundReveal key={key}
                                 closed={current.closed}
                                 results={current.kind === "results"}
-                                countryCode={props.countryCode}
+                                countryCode={countryCode}
                                 play={props.play}
                                 onClose={() => {
                                     reveal.dismiss(current)
@@ -91,7 +92,7 @@ export default function Moments(props: MomentsProps) {
                                   screen={current.kind}
                                   closed={current.closed}
                                   description={briefDescriptionOf(seenBattle, current.closed)}
-                                  countryCode={props.countryCode}
+                                  countryCode={countryCode}
                                   accountId={props.accountId}
                                   more={revealFollowed(current, seenBattle)}
                                   play={props.play}

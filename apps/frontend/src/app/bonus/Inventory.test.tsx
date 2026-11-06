@@ -3,7 +3,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {act, cleanup, fireEvent, render, screen} from '@testing-library/react'
 import Inventory, {InventoryProps, NOT_ENCLOSED_MS, NOTICE_MS} from './Inventory.tsx'
 import {BUBBLE_MS} from '../components/Bubble.tsx'
-import {ALL_OFF, BonusNoticeEvent, NO_CHARGES} from "../../domain/bonus.ts"
+import {ALL_OFF, BonusNoticeEvent, BonusRules, Charges, NO_CHARGES, Switches} from "../../domain/bonus.ts"
 import {BonusGuide, FRESH_GUIDE, LEARNING_USES} from "../../domain/bonusGuide.ts"
 import {useBonusGuide} from "./bonusGuideStore.ts"
 import {useBonus} from "./bonusStore.ts"
@@ -15,21 +15,26 @@ afterEach(() => {
 })
 beforeEach(() => window.localStorage.clear())
 
-const rules = {
+const RULES = {
     blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [],
     signInRefill: false, enclosuresUnlimited: false,
 }
 
-function inventory({guide = FRESH_GUIDE, notice, ...props}: Partial<InventoryProps> & {guide?: BonusGuide, notice?: BonusNoticeEvent} = {}) {
+type Held = {
+    guide?: BonusGuide
+    notice?: BonusNoticeEvent
+    charges?: Charges
+    rules?: BonusRules
+    switches?: Switches
+    bombArmed?: boolean
+}
+
+function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, ...props}: Partial<InventoryProps> & Held = {}) {
     act(() => {
         useBonusGuide.setState({guide})
-        useBonus.setState({notice})
+        useBonus.setState({notice, charges, rules, switches, bombArmed})
     })
-    return <Inventory charges={NO_CHARGES}
-                      rules={rules}
-                      switches={ALL_OFF}
-                      onToggle={() => {}}
-                      bombArmed={false}
+    return <Inventory onToggle={() => {}}
                       onToggleBomb={() => {}}
                       onUseRefill={() => true}
                       onToggleShield={() => {}}
@@ -73,7 +78,7 @@ describe("Inventory", () => {
 
     it("offers enclose with none held while enclosures are unlimited, and lets it be switched off", () => {
         const toggle = vi.fn()
-        const unlimited = {...rules, enclosuresUnlimited: true}
+        const unlimited = {...RULES, enclosuresUnlimited: true}
         const {container, rerender} = render(inventory({rules: unlimited, onToggle: toggle,
             switches: {...ALL_OFF, enclose: true}}))
 

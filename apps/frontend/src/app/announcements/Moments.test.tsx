@@ -28,7 +28,6 @@ const moments = (shown: boolean) => <Moments shown={shown}
                                              clips={new FakeClipsBackend()}
                                              onWear={vi.fn()}
                                              listenForClicks={clicks.listenForClicks}
-                                             countryCode="fr"
                                              play={vi.fn()}/>
 
 function queueTwo() {
@@ -93,7 +92,7 @@ describe("Moments", () => {
         const next = {entryId: "friday", startsAt, endsAt: startsAt + 60 * 60 * 1000, description: "", times: 2, endsSeason: false, roundId: "friday"}
         useAnnouncements.getState().announce({kind: "teaser", battle: next, cards: new FakePromoBackend().cards, asked: true})
         render(<Moments shown guided={false} clips={new FakeClipsBackend()} listenForClicks={clicks.listenForClicks}
-                        countryCode="fr" play={play} onWear={vi.fn()}/>)
+                        play={play} onWear={vi.fn()}/>)
 
         expect(screen.getByRole("dialog", {name: "Battle"})).toBeDefined()
         expect(play).not.toHaveBeenCalledWith("title")

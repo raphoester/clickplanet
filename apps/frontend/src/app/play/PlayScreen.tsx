@@ -27,6 +27,7 @@ import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu, {BoardSheet, YouPlace} from "../Menu.tsx";
 import {youLabel} from "../youLabel.ts";
 import BonusAward from "../bonus/BonusAward.tsx";
+import {useBonus} from "../bonus/bonusStore.ts";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
 import ClicksPanel from "../components/ClicksPanel.tsx";
 import Inventory from "../bonus/Inventory.tsx";
@@ -43,8 +44,9 @@ import {Countries, Country} from "../../domain/countries.ts";
 import {Shot} from "../../domain/clip/camera.ts";
 import {useAllegiance} from "../useAllegiance.ts";
 import {ClickBudgetSource, now as budgetNow, tokensAt} from "../../backends/clickBudget.ts";
-import {useClickBudget} from '../clicks/useClickBudget.ts';
-import {useCountryStorage} from '../useCountryStorage.ts';
+import {useClickBudget} from '../clicks/clickBudgetStore.ts';
+import {useClickBudgetFeed} from '../clicks/useClickBudgetFeed.ts';
+import {useCountry, useKeepCountry} from '../countryStore.ts';
 import {GlobeStatus, useGlobe} from '../viewer/useGlobe.ts';
 import {useSound} from '../sound/useSound.ts';
 import {useDisplaySettings} from '../settings/displaySettingsStore.ts';
@@ -82,12 +84,12 @@ import StatusBar from "../hud/StatusBar.tsx";
 import TabBar from "../hud/TabBar.tsx";
 import {useScreen} from "../hud/screenStore.ts";
 import MissionsPlace, {MissionsPlaceProps} from "../missions/MissionsPlace.tsx";
-import {useMissions} from "../missions/useMissions.ts";
-import {Mission, MissionsBackend} from "../../backends/missions.ts";
+import {useMissions} from "../missions/missionsStore.ts";
+import {useMissionsFeed} from "../missions/useMissionsFeed.ts";
+import {MissionsBackend} from "../../backends/missions.ts";
 import {unseen} from "../../domain/missions.ts";
 import MissionsDone from "../missions/MissionsDone.tsx";
 import {useSeenMissions} from "../missions/seenMissionsStore.ts";
-import {usePaidMissions} from "../missions/usePaidMissions.ts"
 import {useMissionTargets} from "../missions/useMissionTargets.ts"
 import {useMissionProgress} from "../missions/useMissionProgress.ts"
 import {boardsOf, StandingsBackend} from "../../backends/standings.ts";
@@ -163,7 +165,6 @@ export type Backends = {
 }
 
 export type PlayScreenProps = {
-    sharedCountry?: Country
     linkedShot?: Shot
     showFront?: boolean
     backends: Backends
@@ -172,7 +173,9 @@ export type PlayScreenProps = {
 export default function PlayScreen(props: PlayScreenProps) {
     const {backends} = props
     const container = useRef<HTMLDivElement>(null)
-    const {countryState, handleSetCountry} = useCountryStorage(props.sharedCountry)
+    useKeepCountry()
+    const countryState = useCountry((store) => store.country)
+    const handleSetCountry = useCountry((store) => store.choose)
     const allegiance = useAllegiance(backends.allegiance)
     useEffect(() => {
         const held = allegiance && allegiance.countryId !== countryState.code ? Countries.get(allegiance.countryId) : undefined
@@ -190,7 +193,10 @@ export default function PlayScreen(props: PlayScreenProps) {
         if (country.code !== countryState.code) await backends.allegiance.pledgeAllegiance(country.code)
         handleSetCountry(country)
     }
-    const clickBudget = useClickBudget(backends.clickBudgetSource, countryState.code)
+    useClickBudgetFeed(backends.clickBudgetSource, countryState.code)
+    const linkedMultiplier = useClickBudget((store) => store.budget?.linkedMultiplier)
+    const frozen = useClickBudget((store) => store.budget?.frozen === true)
+    const fastStart = useClickBudget((store) => store.budget?.fastStart === true)
     const connection = useConnection(backends.connection)
     const crazyGames = useCrazyGames(backends.crazyGames)
     const sound = useSound(crazyGames.silenced)
@@ -231,7 +237,7 @@ export default function PlayScreen(props: PlayScreenProps) {
     const race = useRace((standings) => standings.race)
     const [accepted] = useState(acceptedClicks)
     useGuidedTakes(props.showFront ?? false, accepted.listenForClicks)
-    const mood = moodOf(turn, clickBudget)
+    const mood = moodOf(turn, frozen)
     const halloween = turn?.kind === "halloween"
     useMood(mood)
     const battleOver = useBattleOver(battle, debrief)
@@ -251,7 +257,8 @@ export default function PlayScreen(props: PlayScreenProps) {
         closeAll()
     }, [compact, closeAll])
 
-    const missionsState = useMissions(backends.missions, ownAccountId, allegiance?.countryId, accepted.listenForClicks)
+    useMissionsFeed(backends.missions, ownAccountId, allegiance?.countryId, accepted.listenForClicks)
+    const missionsState = useMissions((missions) => missions.state)
     const guided = props.showFront ?? false
     const missionTargets = useMissionTargets(missionsState, guided)
     const missionsShown = !guided && missionsState.kind === "ready" ? missionsState.day : undefined
@@ -266,11 +273,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         tilesCount,
         capture,
         graphics,
-        charges,
-        rules,
-        bombArmed,
         toggleBomb,
-        switches,
         toggleSwitch,
         pointing,
         pointingTerritory,
@@ -305,12 +308,15 @@ export default function PlayScreen(props: PlayScreenProps) {
     useRoom(backends.crazyGames, status.state === 'ready', countryState.code)
 
     const territoryCard = useTerritoryCard(pointingTerritory, territoryOf, showTerritory)
+    const charges = useBonus((bonus) => bonus.charges)
+    const rules = useBonus((bonus) => bonus.rules)
 
     useUnderAttack(countryState.code, tileDeltas, accepted.listenForClicks)
     const refusals = useRefusedClicks((refused) => refused.refusals)
 
     const spendRefill = () => {
-        if (clickBudget && tokensAt(clickBudget, budgetNow()) >= clickBudget.capacity) return false
+        const budget = useClickBudget.getState().budget
+        if (budget && tokensAt(budget, budgetNow()) >= budget.capacity) return false
         backends.refiller.useRefill(countryState.code).catch((e) => {
             if (e instanceof BankFullError || e instanceof BonusLostError) return
             console.error("could not use the refill", e)
@@ -321,8 +327,8 @@ export default function PlayScreen(props: PlayScreenProps) {
     const signInRefill = rules?.signInRefill === true
     // CrazyGames forbids a sign-in that pops up or is the main call to action.
     const nudge = useSignInNudge(
-        !backends.crazyGames && guest && clickBudget?.linkedMultiplier !== undefined && !clickBudget.frozen && !charges.refill && !pitchOpen,
-        refusals, clickBudget?.fastStart === true)
+        !backends.crazyGames && guest && linkedMultiplier !== undefined && !frozen && !charges.refill && !pitchOpen,
+        refusals, fastStart)
     useSignInRefill(account.kind === 'ready' && account.guestLinked === true && signInRefill, charges.refill,
         () => void backends.chargesRefresher.refreshCharges().catch((e) => console.error("could not read the charges held", e)),
         () => void spendRefill())
@@ -347,7 +353,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         backend: boards,
         caller: {accountId: ownAccountId, username, linked},
         listenForClicks: accepted.listenForClicks,
-        onSignIn: clickBudget?.linkedMultiplier ? openPitch : undefined,
+        onSignIn: linkedMultiplier ? openPitch : undefined,
         view: boardView,
         onView: setBoardView,
     }
@@ -369,13 +375,11 @@ export default function PlayScreen(props: PlayScreenProps) {
         onCountryOrder: setCountryOrder,
         hallOfFame,
     }
-    const [missionsDone, setMissionsDone] = useState<Mission[]>()
-    usePaidMissions(missionsState, setMissionsDone)
+    const missionsPaid = useMissions((missions) => missions.paid !== undefined)
     useFlagMissionDone(missionsState, (mission) => {
         if (allegiance) announce({kind: "flagMission", mission, country: allegiance.countryId})
     })
     const missions: MissionsPlaceProps = {
-        state: missionsState,
         onSignIn: guest ? openPitch ?? (() => openSheet("you")) : undefined,
         onGo: (target) => {
             closeSheet()
@@ -386,7 +390,7 @@ export default function PlayScreen(props: PlayScreenProps) {
 
     const you = {
         account: backends.account,
-        linkedMultiplier: clickBudget?.linkedMultiplier,
+        linkedMultiplier,
         playerInfo: backends.playerInfo,
         listenForClicks: accepted.listenForClicks,
         clips: backends.clips,
@@ -404,9 +408,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         pageContext: () => pageContextOf(window, graphics(), connection === "down"),
         discord,
     }
-    const clicks = <ClicksPanel budget={clickBudget}
-                                countryName={countryState.name}
-                                share={tilesCount > 0 ? held / tilesCount : undefined}
+    const clicks = <ClicksPanel share={tilesCount > 0 ? held / tilesCount : undefined}
                                 toll={toll}
                                 onSignIn={openPitch}/>
 
@@ -425,22 +427,16 @@ export default function PlayScreen(props: PlayScreenProps) {
 
         {ready && !compact && <ScheduleChip compact={false}/>}
 
-        {ready && compact && <StatusBar country={countryState}
-                                        rank={rankOf(lines, countryState)}
+        {ready && compact && <StatusBar rank={rankOf(lines, countryState)}
                                         trailing={<ScheduleChip compact/>}/>}
 
-        {ready && <ClickBudgetMeter budget={clickBudget}
-                                    frozen={mood === "frozen" ? {nextSeason: seasons.next, country: countryState} : undefined}
+        {ready && <ClickBudgetMeter frozen={mood === "frozen" ? {nextSeason: seasons.next, country: countryState} : undefined}
                                     invite={invite}
                                     discord={discord}
                                     onSignIn={openPitch}
                                     compact={compact}
                                     popover={clicks}>
-            <Inventory charges={charges}
-                       rules={rules}
-                       switches={switches}
-                       onToggle={toggleSwitch}
-                       bombArmed={bombArmed}
+            <Inventory onToggle={toggleSwitch}
                        onToggleBomb={toggleBomb}
                        onUseRefill={spendRefill}
                        onToggleShield={() => toggleSwitch("shield")}/>
@@ -449,7 +445,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         {ready && crazyGames.chat && <ChatPanel
             backend={backends.chatBackend}
             flagRoom={flagRoom}
-            onSignIn={clickBudget?.linkedMultiplier ? openPitch : undefined}
+            onSignIn={linkedMultiplier ? openPitch : undefined}
             onLeftRoom={() => void backends.allegiance.refreshAllegiance().catch((e) => console.error("could not read the flag played for", e))}
             country={countryState}
             playSound={sound.play}
@@ -475,7 +471,7 @@ export default function PlayScreen(props: PlayScreenProps) {
                 <SharePlace stats={stats} {...share}/>
             </Sheet>}
             {sheet === "invite" && invite && <Sheet title="Invite" onClose={closeSheet}>
-                <InviteFriends country={countryState} invite={invite}/>
+                <InviteFriends invite={invite}/>
             </Sheet>}
             {sheet === "settings" && <Sheet title="Settings" onClose={closeSheet}>
                 <SettingsPlace {...settings}/>
@@ -494,18 +490,18 @@ export default function PlayScreen(props: PlayScreenProps) {
                                stats={stats}
                                onClose={discard}/>}
 
-        {pitchOpen && guest && clickBudget?.linkedMultiplier && <SignInPitchModal
+        {pitchOpen && guest && linkedMultiplier && <SignInPitchModal
             state={account}
             store={backends.account}
-            multiplier={clickBudget.linkedMultiplier}
+            multiplier={linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
 
-        {nudge.open && guest && clickBudget?.linkedMultiplier && <SignInNudgeModal
+        {nudge.open && guest && linkedMultiplier && <SignInNudgeModal
             state={account}
             store={backends.account}
             nudge={nudge.open}
-            multiplier={clickBudget.linkedMultiplier}
-            fastStart={clickBudget.fastStart === true}
+            multiplier={linkedMultiplier}
+            fastStart={fastStart}
             fullBank={signInRefill}
             onClose={nudge.close}/>}
 
@@ -522,7 +518,6 @@ export default function PlayScreen(props: PlayScreenProps) {
                          missions={missionsShown}/>
 
         <TerritoryCardPlace shown={territoryCard.shown}
-                            flag={countryState.code}
                             reader={backends.landmasses}
                             players={backends.playerInfo}
                             missions={missionsShown}
@@ -538,23 +533,19 @@ export default function PlayScreen(props: PlayScreenProps) {
                  listenForClicks={accepted.listenForClicks}
                  clips={backends.clips}
                  clipsAccount={linked && username !== undefined ? ownAccountId : undefined}
-                 countryCode={countryState.code}
                  accountId={ownAccountId}
                  play={sound.play}
                  onWear={backends.account.wearTitle}/>
 
-        {missionsDone && rules && <MissionsDone missions={missionsDone}
-                                                rules={rules}
-                                                onDone={() => setMissionsDone(undefined)}/>}
+        <MissionsDone/>
 
         <BonusAward/>
 
         {ready && connection === "down" && <ConnectionLost/>}
 
-        <News flag={countryState.code}
-              connect={discord.connect}
+        <News connect={discord.connect}
               goThere={flyToLastLoss}
-              progress={missionsDone ? undefined : progress}/>
+              progress={missionsPaid ? undefined : progress}/>
 
         {battleOver.over && <BattleOver key={battleKeyOf(battleOver.over)}
                                         awaiting={battleOver.awaiting}

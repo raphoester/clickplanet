@@ -3,17 +3,27 @@ import {BonusRules, describeReward} from "../../domain/bonus.ts"
 import {awardOf} from "../../domain/missions.ts"
 import BonusIcon from "../components/BonusIcon.tsx"
 import {usePassing} from "../bonus/BonusAward.tsx"
+import {useBonus} from "../bonus/bonusStore.ts"
+import {useMissions} from "./missionsStore.ts"
 import {partsOf} from "./orderParts.tsx"
 import "../bonus/BonusAward.css"
 import "./Missions.css"
 
-export type MissionsDoneProps = {
+export default function MissionsDone() {
+    const paid = useMissions((missions) => missions.paid)
+    const dismissPaid = useMissions((missions) => missions.dismissPaid)
+    const rules = useBonus((bonus) => bonus.rules)
+
+    return paid && rules ? <Card missions={paid} rules={rules} onDone={dismissPaid}/> : null
+}
+
+type CardProps = {
     missions: readonly Mission[]
     rules: Pick<BonusRules, "blastRadius" | "enclosureMaxTiles">
     onDone: () => void
 }
 
-export default function MissionsDone({missions, rules, onDone}: MissionsDoneProps) {
+function Card({missions, rules, onDone}: CardProps) {
     usePassing(onDone, missions)
     const first = missions[0]
 

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, fireEvent, render, screen} from "@testing-library/react"
 import InviteFriends from "./InviteFriends.tsx"
 import {Countries} from "../../domain/countries.ts"
+import {useCountry} from "../countryStore.ts"
 
 vi.mock("./deliverShare.ts", async (original) => ({
     ...await original<typeof import("./deliverShare.ts")>(),
@@ -13,7 +14,10 @@ const {copyLink} = await import("./deliverShare.ts")
 
 const FRANCE = Countries.get("fr")!
 
+beforeEach(() => useCountry.setState({country: FRANCE}))
+
 afterEach(() => {
+    useCountry.setState(useCountry.getInitialState(), true)
     cleanup()
     vi.clearAllMocks()
 })
@@ -21,7 +25,7 @@ afterEach(() => {
 describe("InviteFriends", () => {
     it("copies CrazyGames' link that invites to the flag played", async () => {
         const invite = vi.fn(async (flag: string) => `https://www.crazygames.com/game/clickplanet?czy_invite=true&f=${flag}`)
-        render(<InviteFriends country={FRANCE} invite={invite}/>)
+        render(<InviteFriends invite={invite}/>)
 
         expect(screen.getByText("Recruit for France")).toBeTruthy()
         fireEvent.click(screen.getByRole("button", {name: "Invite friends"}))
@@ -33,7 +37,7 @@ describe("InviteFriends", () => {
 
     it("offers to try again when CrazyGames gives no link", async () => {
         const errors = vi.spyOn(console, "error").mockImplementation(() => undefined)
-        render(<InviteFriends country={FRANCE} invite={async () => undefined}/>)
+        render(<InviteFriends invite={async () => undefined}/>)
 
         fireEvent.click(screen.getByRole("button", {name: "Invite friends"}))
 
