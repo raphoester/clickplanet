@@ -48,7 +48,7 @@ sign-in; `serverUrl` once it is in; neither otherwise. Any failure of the read i
 - **The Discord icon in About and the Discord button of a frozen map** (`DiscordButton`): the same sign-in, named
   "Join Discord", or "Open Discord" once in, or nothing.
 - **A moment when the flag is under attack** (`UnderAttack`, `useUnderAttack`): "France is under attack" and "Go
-  there", for 8 s, in the Moments zone, and "Get pinged", the same sign-in, only while `connect` is offered: an account
+  there", for 8 s, on the news line (see [Stores](stores.md#the-news-line)), and "Get pinged", the same sign-in, only while `connect` is offered: an account
   in the server, CrazyGames or a page with nothing offered sees no Discord button. **Once a page**, the first time the
   flag the player took a tile for in this page loses ground on the board (its badge in `tileDeltas` goes below 0). A
   player who has not taken a tile sees nothing: a first visit would see it before it played.

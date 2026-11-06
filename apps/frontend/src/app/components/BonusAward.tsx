@@ -1,6 +1,9 @@
 import {ReactNode, useEffect, useRef} from 'react'
 import {BonusReward, describeReward} from '../../domain/bonus.ts'
+import {isFirstWin} from '../../domain/bonusGuide.ts'
 import BonusIcon from './BonusIcon.tsx'
+import {useBonus} from './bonusStore.ts'
+import {useBonusGuide} from './bonusGuideStore.ts'
 import {useEscape} from './useDialog.ts'
 import './BonusAward.css'
 
@@ -8,19 +11,28 @@ export const AWARD_MS = 2900
 
 export const DISMISS_GRACE_MS = 400
 
-export type BonusAwardProps = {
+type AwardProps = {
     reward: BonusReward
     onDone: () => void
-    kept?: boolean
 }
 
-export default function BonusAward({reward, onDone, kept = false}: BonusAwardProps) {
+export default function BonusAward() {
+    const reward = useBonus((bonus) => bonus.award)
+    const dismiss = useBonus((bonus) => bonus.dismissAward)
+    const kept = useBonusGuide((bonus) => reward !== undefined && isFirstWin(bonus.guide, reward.kind))
+    const markWon = useBonusGuide((bonus) => bonus.markWon)
+    if (!reward) return null
+
+    const onDone = () => {
+        dismiss()
+        markWon(reward.kind)
+    }
     return kept
         ? <KeptAward reward={reward} onDone={onDone}/>
         : <PassingAward reward={reward} onDone={onDone}/>
 }
 
-function PassingAward({reward, onDone}: BonusAwardProps) {
+function PassingAward({reward, onDone}: AwardProps) {
     usePassing(onDone, reward)
 
     return <AwardCard reward={reward}/>
@@ -49,7 +61,7 @@ export function usePassing(onDone: () => void, shown: unknown) {
     }, [shown])
 }
 
-function KeptAward({reward, onDone}: BonusAwardProps) {
+function KeptAward({reward, onDone}: AwardProps) {
     useEscape(onDone)
 
     return <AwardCard reward={reward} kept>

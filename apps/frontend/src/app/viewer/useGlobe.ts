@@ -8,14 +8,14 @@ import {Country} from '../../domain/countries.ts';
 import {MapView, Rendering} from '../../domain/displaySettings.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
-import {ALL_OFF, BonusNotice, BonusNoticeEvent, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from '../../domain/bonus.ts';
-import {BombDrop, Bomber, BonusCatch, BonusListener, Shielder} from '../../backends/backend.ts';
+import {ALL_OFF, BonusRules, Charges, NO_CHARGES, Switches} from '../../domain/bonus.ts';
+import {Bomber, BonusListener, Shielder} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 import {AcceptedClick} from './acceptedClicks.ts';
-import {Fortified} from '../../domain/fortify.ts';
 import {ClickBudgetSource} from '../../backends/clickBudget.ts';
-import {Allegiance} from '../../domain/allegiance.ts';
-import {BUBBLE_MS} from '../components/Bubble.tsx';
+import {useRefusedClicks} from '../components/refusedClicksStore.ts';
+import {useBonus} from '../components/bonusStore.ts';
+import {useNews} from '../components/newsStore.ts';
 import {Peek} from '../../domain/tilePeek.ts';
 import {Territory, TerritoryPeek} from '../../domain/territory.ts';
 import {Shot} from '../../domain/clip/camera.ts';
@@ -67,46 +67,10 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const {leaderboard, tileDeltas, recordLeaderboard, publishLeaderboard} = useLeaderboardFeed()
 
-    const [refusals, setRefusals] = useState(0)
-
-    const [notice, setNotice] = useState<BonusNoticeEvent | undefined>()
-    const notify = useCallback((what: BonusNotice) => setNotice((was) => ({notice: what, seq: (was?.seq ?? 0) + 1})), [])
-
-    const [vpnBlocked, setVPNBlocked] = useState(false)
-    const [bannedUntil, setBannedUntil] = useState<number>()
-
-    const [sessionUnavailable, setSessionUnavailable] = useState(false)
-
-    const [lockedOut, setLockedOut] = useState<{allegiance: Allegiance, id: number} | undefined>()
-    const recordLockedOut = useCallback((allegiance: Allegiance) => {
-        setLockedOut((previous) => ({allegiance, id: (previous?.id ?? 0) + 1}))
-    }, [])
-    useEffect(() => {
-        if (!lockedOut) return
-        const timer = setTimeout(() => setLockedOut(undefined), BUBBLE_MS)
-        return () => clearTimeout(timer)
-    }, [lockedOut])
-
-    const [award, setAward] = useState<BonusReward | undefined>()
     const [charges, setCharges] = useState<Charges>(NO_CHARGES)
     const [rules, setRules] = useState<BonusRules | undefined>()
     const [bombArmed, setBombArmed] = useState(false)
     const [switches, setSwitches] = useState<Switches>(ALL_OFF)
-
-    const [lastCatch, setLastCatch] = useState<BonusCatch | undefined>()
-
-    const recordCatch = useCallback((taken: BonusCatch) => setLastCatch(taken), [])
-
-    const [lastBomb, setLastBomb] = useState<{drop: BombDrop, land: string | undefined, id: number, at: number} | undefined>()
-    const recordBomb = useCallback((drop: BombDrop, land: string | undefined) => {
-        setLastBomb((previous) => ({drop, land, id: (previous?.id ?? 0) + 1, at: performance.now()}))
-    }, [])
-
-    const [lastFortified, setLastFortified] = useState<{fortified: Fortified, id: number, at: number} | undefined>()
-    const recordFortified = useCallback((fortified: Fortified) => {
-        if (!fortified.news) return
-        setLastFortified((previous) => ({fortified, id: (previous?.id ?? 0) + 1, at: performance.now()}))
-    }, [])
 
     const [pointing, setPointing] = useState<{peek: Peek, id: number} | undefined>()
     const peekCount = useRef(0)
@@ -116,8 +80,6 @@ export function useGlobe(options: UseGlobeOptions) {
     const [pointingTerritory, setPointingTerritory] = useState<{peek: TerritoryPeek, id: number} | undefined>()
     const recordTerritoryPeek = useCallback((peek: TerritoryPeek) => setPointingTerritory({peek, id: ++peekCount.current}), [])
     const endTerritoryPeek = useCallback(() => setPointingTerritory(undefined), [])
-
-    const takeBonus = useCallback((reward: BonusReward) => setAward(reward), [])
 
     const globeRef = useRef<Globe | null>(null)
 
@@ -139,6 +101,10 @@ export function useGlobe(options: UseGlobeOptions) {
         setStatus({state: 'loading'})
         setTilesLoading(0)
 
+        const refused = useRefusedClicks.getState()
+        const bonus = useBonus.getState()
+        const news = useNews.getState()
+
         createGlobe({
             tileClicker,
             ownershipsGetter,
@@ -157,25 +123,24 @@ export function useGlobe(options: UseGlobeOptions) {
             onOrbitChange: (inOrbit) => {
                 if (!cancelled) setOrbit(inOrbit)
             },
-            onRateLimited: () => setRefusals(n => n + 1),
-            onFrozen: () => setRefusals(n => n + 1),
-            onVPNBlocked: () => setVPNBlocked(true),
-            onBanned: setBannedUntil,
-            onSessionUnavailable: () => setSessionUnavailable(true),
-            onAllegianceLocked: recordLockedOut,
-            onBonusWon: takeBonus,
-            onBonusTaken: recordCatch,
+            onRateLimited: refused.refuse,
+            onFrozen: refused.refuse,
+            onVPNBlocked: refused.blockVPN,
+            onBanned: refused.ban,
+            onSessionUnavailable: refused.failSession,
+            onAllegianceLocked: refused.lockOut,
+            onBonusWon: bonus.win,
             onCharges: setCharges,
             onRules: setRules,
             onSwitchesChange: setSwitches,
             bonusListener,
             bomber,
-            onBombDropped: recordBomb,
+            onBombDropped: news.tellBomb,
             onArmedChange: setBombArmed,
             shielder,
-            onNotice: notify,
+            onNotice: bonus.notify,
             onClickAccepted,
-            onFortified: recordFortified,
+            onFortified: news.tellFortified,
             onPeek: recordPeek,
             onPeekEnd: endPeek,
             onTerritoryPeek: recordTerritoryPeek,
@@ -211,7 +176,13 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek, notify, recordLockedOut])
+    }, [container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek])
+
+    useEffect(() => () => {
+        useRefusedClicks.setState(useRefusedClicks.getInitialState(), true)
+        useBonus.setState(useBonus.getInitialState(), true)
+        useNews.setState(useNews.getInitialState(), true)
+    }, [])
 
     useEffect(() => {
         initialCountry.current = country
@@ -261,11 +232,8 @@ export function useGlobe(options: UseGlobeOptions) {
     const flyToLastLoss = useCallback(() => globeRef.current?.flyToLastLoss(), [])
     const flyToMission = useCallback((target: MissionTarget) => globeRef.current?.flyToMission(target), [])
 
-    const dismissAward = useCallback(() => setAward(undefined), [])
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
     const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !switches[name]), [switches])
-    const dismissBomb = useCallback(() => setLastBomb(undefined), [])
-    const dismissFortified = useCallback(() => setLastFortified(undefined), [])
 
     return {
         status,
@@ -276,28 +244,12 @@ export function useGlobe(options: UseGlobeOptions) {
         tilesCount,
         capture,
         graphics,
-        refusals,
-        vpnBlocked,
-        dismissVPNBlocked: () => setVPNBlocked(false),
-        bannedUntil,
-        dismissBanned: () => setBannedUntil(undefined),
-        sessionUnavailable,
-        dismissSessionUnavailable: () => setSessionUnavailable(false),
-        lockedOut,
-        award,
-        dismissAward,
         charges,
         rules,
         bombArmed,
         toggleBomb,
         switches,
         toggleSwitch,
-        notice,
-        lastCatch,
-        lastBomb,
-        dismissBomb,
-        lastFortified,
-        dismissFortified,
         pointing,
         pointingTerritory,
         territoryOf,

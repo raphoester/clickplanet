@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from 'vitest'
-import {cleanup, fireEvent, render, screen} from '@testing-library/react'
+import {act, cleanup, fireEvent, render, screen} from '@testing-library/react'
 import ClickBudgetMeter from './ClickBudgetMeter.tsx'
+import {BUBBLE_MS} from './Bubble.tsx'
+import {useRefusedClicks} from './refusedClicksStore.ts'
 import {ClickBudget} from "../../backends/clickBudget.ts"
 import {Countries} from "../../domain/countries.ts"
 import {useScreen} from "../hud/screenStore.ts"
@@ -21,6 +23,7 @@ const FRANCE = Countries.get("fr")!
 afterEach(() => {
     cleanup()
     useScreen.setState(useScreen.getInitialState(), true)
+    useRefusedClicks.setState(useRefusedClicks.getInitialState(), true)
 })
 
 function reading(overrides: Partial<ClickBudget> = {}): ClickBudget {
@@ -212,17 +215,32 @@ describe("ClickBudgetMeter and the price", () => {
     })
 
     it("shakes on each refused click, and not before", () => {
-        const {rerender} = render(<ClickBudgetMeter budget={reading({tokens: 0})}/>)
+        render(<ClickBudgetMeter budget={reading({tokens: 0})}/>)
         expect(meter().classList.contains("click-budget-refused")).toBe(false)
 
-        rerender(<ClickBudgetMeter budget={reading({tokens: 0})} refusals={1}/>)
+        act(() => useRefusedClicks.getState().refuse())
         expect(meter().classList.contains("click-budget-refused")).toBe(true)
 
         fireEvent.animationEnd(meter())
         expect(meter().classList.contains("click-budget-refused")).toBe(false)
 
-        rerender(<ClickBudgetMeter budget={reading({tokens: 0})} refusals={2}/>)
+        act(() => useRefusedClicks.getState().refuse())
         expect(meter().classList.contains("click-budget-refused")).toBe(true)
+    })
+
+    it("says for a while until when a click for another flag is locked out", () => {
+        vi.useFakeTimers()
+        try {
+            render(<ClickBudgetMeter budget={reading()}/>)
+
+            act(() => useRefusedClicks.getState().lockOut({countryId: "de", changeableAt: Date.now() + 3600_000}))
+            expect(screen.getByRole("status").textContent).toMatch(/^You play for Germany until /)
+
+            act(() => void vi.advanceTimersByTime(BUBBLE_MS))
+            expect(screen.queryByRole("status")).toBeNull()
+        } finally {
+            vi.useRealTimers()
+        }
     })
 })
 

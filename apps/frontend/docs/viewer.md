@@ -7,7 +7,9 @@
 - `useGlobe.ts` — owns one globe for the lifetime of the component. **Its effect
   must not depend on anything that changes per render**; the selected country and
   the player's hue are pushed into the running globe through separate effects
-  rather than rebuilding it.
+  rather than rebuilding it. **It returns only what `Viewer` hands back to the globe
+  or lays the screen out with**: the globe's notices go to their stores (see
+  [Stores](stores.md)).
 - `useLeaderboardFeed.ts` — the one place React hears about the board, and
   **it samples rather than follows**. See [Sampling the
   leaderboard](leaderboard-sampling.md).

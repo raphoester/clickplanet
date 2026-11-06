@@ -32,7 +32,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   768px wide or 600px high and under.
 - [Data flow](docs/data-flow.md) — from `createGlobe` to the screen, step by step.
 - [Stores](docs/stores.md) — a feature's state in its own Zustand store, read by the component that shows it, not
-  held in `Viewer`; never the tiles.
+  held in `Viewer`; never the tiles; the stores the globe's notices go to, and the news line, one at a time.
 - [Sessions](docs/sessions.md) — the click token the backend gates `Click` on.
 - [Sign-in](docs/sign-in.md) — optional sign-in with Google, Discord or an emailed code; usernames; deleting an account,
   and the welcome back when a sign-in within 30 days brings it back.

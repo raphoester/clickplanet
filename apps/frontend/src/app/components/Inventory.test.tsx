@@ -3,13 +3,15 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {act, cleanup, fireEvent, render, screen} from '@testing-library/react'
 import Inventory, {InventoryProps, NOT_ENCLOSED_MS, NOTICE_MS} from './Inventory.tsx'
 import {BUBBLE_MS} from './Bubble.tsx'
-import {ALL_OFF, NO_CHARGES} from "../../domain/bonus.ts"
+import {ALL_OFF, BonusNoticeEvent, NO_CHARGES} from "../../domain/bonus.ts"
 import {BonusGuide, FRESH_GUIDE, LEARNING_USES} from "../../domain/bonusGuide.ts"
 import {useBonusGuide} from "./bonusGuideStore.ts"
+import {useBonus} from "./bonusStore.ts"
 
 afterEach(() => {
     cleanup()
     useBonusGuide.setState({guide: FRESH_GUIDE})
+    useBonus.setState(useBonus.getInitialState(), true)
 })
 beforeEach(() => window.localStorage.clear())
 
@@ -18,8 +20,11 @@ const rules = {
     signInRefill: false, enclosuresUnlimited: false,
 }
 
-function inventory({guide = FRESH_GUIDE, ...props}: Partial<InventoryProps> & {guide?: BonusGuide} = {}) {
-    act(() => useBonusGuide.setState({guide}))
+function inventory({guide = FRESH_GUIDE, notice, ...props}: Partial<InventoryProps> & {guide?: BonusGuide, notice?: BonusNoticeEvent} = {}) {
+    act(() => {
+        useBonusGuide.setState({guide})
+        useBonus.setState({notice})
+    })
     return <Inventory charges={NO_CHARGES}
                       rules={rules}
                       switches={ALL_OFF}

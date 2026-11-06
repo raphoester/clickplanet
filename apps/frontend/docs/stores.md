@@ -28,10 +28,27 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
   second run follows one stream. `Viewer` reads back only what it hands the globe or a hook itself, such as the
   roster's count, or the race it ranks the countries by for the anthem. Or the place where a card shows does it, given
   its inputs as props (`PlayerCardPlace`, `HolderCardPlace`, `TerritoryCardPlace`), and shows the card from the store.
+- **What the globe tells goes into the store of its feature.** `useGlobe` hands `createGlobe` the verbs of three
+  stores, and puts the stores back to their start when it unmounts:
+  - `useRefusedClicks` (`components/refusedClicksStore.ts`): the count of clicks the bank or a frozen map refused,
+    the VPN, ban and session flags, and the flag that locked a click out. `ClickBudgetMeter` and the three modals
+    read it; `Viewer` reads the count only to hand it to `useSignInNudge`.
+  - `useBonus` (`components/bonusStore.ts`): the box won, read by `BonusAward`, and the notice, read by `Inventory`.
+  - `useNews` (`components/newsStore.ts`): the news line, below.
+
+  So `useGlobe` returns only what `Viewer` hands back to the globe or lays the screen out with.
 - **A test sets a store with `use<Feature>.setState(...)` and puts it back in `afterEach`**, since the store lives as
   long as the module.
 
 The features still held in `Viewer` move to stores the same way.
+
+## The news line
+
+**The line at the top shows one news at a time, the newest.** `useNews` keeps the last bomb, fortify and attack, in
+the order they were told (`told`, one counter for the three), and `newestNews` is the one shown; once it is done, the
+one before it shows again. The globe tells the bombs and the fortifies, and `useUnderAttack` the attack. `News`
+(`components/News.tsx`) shows the newest as `BombNews`, `FortifyNews` or `UnderAttack`, the mission's progress when
+there is none (see [Missions](missions.md)), and, after the wave of this browser's first fortify, `FortifyCard`.
 
 ## A store that reads by itself
 
