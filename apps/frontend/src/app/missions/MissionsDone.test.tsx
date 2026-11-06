@@ -4,8 +4,16 @@ import {act, cleanup, render, screen} from "@testing-library/react"
 import MissionsDone from "./MissionsDone.tsx"
 import {Mission} from "../../backends/missions.ts"
 import {AWARD_MS} from "../bonus/BonusAward.tsx"
+import {useBonus} from "../bonus/bonusStore.ts"
+import {NO_MISSIONS, useMissions} from "./missionsStore.ts"
 
-const rules = {blastRadius: 0.05, enclosureMaxTiles: 25}
+const rules = {blastRadius: 0.05, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [], signInRefill: false, enclosuresUnlimited: false}
+
+function paid(...missions: Mission[]) {
+    useBonus.setState({rules})
+    useMissions.setState({paid: missions})
+    return <MissionsDone/>
+}
 
 const bank: Mission = {
     id: "bank",
@@ -25,12 +33,14 @@ const ground: Mission = {
 
 afterEach(() => {
     cleanup()
+    useBonus.setState(useBonus.getInitialState(), true)
+    useMissions.setState(NO_MISSIONS)
     vi.useRealTimers()
 })
 
 describe("MissionsDone", () => {
     it("names the mission done and what it paid", () => {
-        render(<MissionsDone missions={[bank]} rules={rules} onDone={vi.fn()}/>)
+        render(paid(bank))
 
         expect(screen.getByText("Mission done")).toBeDefined()
         expect(screen.getByText(/Take 60 tiles for/).textContent).toContain("France")
@@ -38,7 +48,7 @@ describe("MissionsDone", () => {
     })
 
     it("tells every mission done at once in one card", () => {
-        render(<MissionsDone missions={[bank, ground]} rules={rules} onDone={vi.fn()}/>)
+        render(paid(bank, ground))
 
         expect(screen.getAllByRole("status")).toHaveLength(1)
         expect(screen.getByText("2 missions done")).toBeDefined()
@@ -48,11 +58,18 @@ describe("MissionsDone", () => {
 
     it("goes by itself", () => {
         vi.useFakeTimers()
-        const onDone = vi.fn()
-        render(<MissionsDone missions={[bank]} rules={rules} onDone={onDone}/>)
+        render(paid(bank))
 
         act(() => vi.advanceTimersByTime(AWARD_MS))
 
-        expect(onDone).toHaveBeenCalledOnce()
+        expect(useMissions.getState().paid).toBeUndefined()
+        expect(screen.queryByRole("status")).toBeNull()
+    })
+
+    it("waits for the rules to name what a mission paid", () => {
+        useMissions.setState({paid: [bank]})
+        render(<MissionsDone/>)
+
+        expect(screen.queryByRole("status")).toBeNull()
     })
 })

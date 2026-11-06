@@ -6,17 +6,17 @@ import BonusIcon from "../components/BonusIcon.tsx"
 import {TargetIcon} from "../components/icons.tsx"
 import {useNow} from "../season/useNow.ts"
 import {partsOf} from "./orderParts.tsx"
-import {MissionsState} from "./useMissions.ts"
+import {useMissions} from "./missionsStore.ts"
 import {useSeenMissions} from "./seenMissionsStore.ts"
 import "./Missions.css"
 
 export type MissionsPlaceProps = {
-    state: MissionsState
     onSignIn?: () => void
     onGo?: (target: MissionTarget) => void
 }
 
-export default function MissionsPlace({state, onSignIn, onGo}: MissionsPlaceProps) {
+export default function MissionsPlace({onSignIn, onGo}: MissionsPlaceProps) {
+    const state = useMissions((missions) => missions.state)
     const now = useNow()
     const markSeen = useSeenMissions((seenMissions) => seenMissions.markSeen)
 

@@ -1,24 +1,19 @@
 import {useEffect, useRef, useState} from "react"
-import {DayMissions, MissionsBackend} from "../../backends/missions.ts"
+import {MissionsBackend} from "../../backends/missions.ts"
 import {ListenForClicks} from "../clicks/acceptedClicks.ts"
 import {useReadsAfterClicks} from "../clicks/useAcceptedClicks.ts"
+import {NO_MISSIONS, useMissions} from "./missionsStore.ts"
 
-export type MissionsState =
-    | {kind: "loading"}
-    | {kind: "failed"}
-    | {kind: "ready", day: DayMissions}
-
-export function useMissions(
+export function useMissionsFeed(
     backend: MissionsBackend,
     account: string | undefined,
     pledged: string | undefined,
     listenForClicks: ListenForClicks | undefined,
-): MissionsState {
-    const [state, setState] = useState<MissionsState>({kind: "loading"})
+): void {
     const [read, setRead] = useState(0)
     const streamed = useRef(0)
     const reads = useReadsAfterClicks(listenForClicks)
-    const endsAt = state.kind === "ready" ? state.day.endsAt : undefined
+    const endsAt = useMissions((missions) => missions.state.kind === "ready" ? missions.state.day.endsAt : undefined)
 
     useEffect(() => {
         let stale = false
@@ -26,11 +21,11 @@ export function useMissions(
         const before = streamed.current
         backend.missions().then(
             (day) => {
-                if (!stale && streamed.current === before) setState({kind: "ready", day})
+                if (!stale && streamed.current === before) useMissions.getState().hear(day)
             },
             (e) => {
                 console.error("Could not read the missions", e)
-                if (!stale) setState((current) => current.kind === "ready" ? current : {kind: "failed"})
+                if (!stale) useMissions.getState().fail()
             },
         )
         return () => {
@@ -42,7 +37,7 @@ export function useMissions(
         if (!account) return
         return backend.follow((day) => {
             streamed.current++
-            setState({kind: "ready", day})
+            useMissions.getState().hear(day)
         })
     }, [backend, account])
 
@@ -52,5 +47,5 @@ export function useMissions(
         return () => clearTimeout(turn)
     }, [endsAt])
 
-    return state
+    useEffect(() => () => useMissions.setState(NO_MISSIONS), [])
 }

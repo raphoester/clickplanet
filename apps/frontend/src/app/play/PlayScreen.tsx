@@ -83,12 +83,12 @@ import StatusBar from "../hud/StatusBar.tsx";
 import TabBar from "../hud/TabBar.tsx";
 import {useScreen} from "../hud/screenStore.ts";
 import MissionsPlace, {MissionsPlaceProps} from "../missions/MissionsPlace.tsx";
-import {useMissions} from "../missions/useMissions.ts";
-import {Mission, MissionsBackend} from "../../backends/missions.ts";
+import {useMissions} from "../missions/missionsStore.ts";
+import {useMissionsFeed} from "../missions/useMissionsFeed.ts";
+import {MissionsBackend} from "../../backends/missions.ts";
 import {unseen} from "../../domain/missions.ts";
 import MissionsDone from "../missions/MissionsDone.tsx";
 import {useSeenMissions} from "../missions/seenMissionsStore.ts";
-import {usePaidMissions} from "../missions/usePaidMissions.ts"
 import {useMissionTargets} from "../missions/useMissionTargets.ts"
 import {useMissionProgress} from "../missions/useMissionProgress.ts"
 import {boardsOf, StandingsBackend} from "../../backends/standings.ts";
@@ -250,7 +250,8 @@ export default function PlayScreen(props: PlayScreenProps) {
         closeAll()
     }, [compact, closeAll])
 
-    const missionsState = useMissions(backends.missions, ownAccountId, allegiance?.countryId, accepted.listenForClicks)
+    useMissionsFeed(backends.missions, ownAccountId, allegiance?.countryId, accepted.listenForClicks)
+    const missionsState = useMissions((missions) => missions.state)
     const guided = props.showFront ?? false
     const missionTargets = useMissionTargets(missionsState, guided)
     const missionsShown = !guided && missionsState.kind === "ready" ? missionsState.day : undefined
@@ -366,13 +367,11 @@ export default function PlayScreen(props: PlayScreenProps) {
         onCountryOrder: setCountryOrder,
         hallOfFame,
     }
-    const [missionsDone, setMissionsDone] = useState<Mission[]>()
-    usePaidMissions(missionsState, setMissionsDone)
+    const missionsPaid = useMissions((missions) => missions.paid !== undefined)
     useFlagMissionDone(missionsState, (mission) => {
         if (allegiance) announce({kind: "flagMission", mission, country: allegiance.countryId})
     })
     const missions: MissionsPlaceProps = {
-        state: missionsState,
         onSignIn: guest ? openPitch ?? (() => openSheet("you")) : undefined,
         onGo: (target) => {
             closeSheet()
@@ -537,9 +536,7 @@ export default function PlayScreen(props: PlayScreenProps) {
                  play={sound.play}
                  onWear={backends.account.wearTitle}/>
 
-        {missionsDone && rules && <MissionsDone missions={missionsDone}
-                                                rules={rules}
-                                                onDone={() => setMissionsDone(undefined)}/>}
+        <MissionsDone/>
 
         <BonusAward/>
 
@@ -548,7 +545,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         <News flag={countryState.code}
               connect={discord.connect}
               goThere={flyToLastLoss}
-              progress={missionsDone ? undefined : progress}/>
+              progress={missionsPaid ? undefined : progress}/>
 
         {battleOver.over && <BattleOver key={battleKeyOf(battleOver.over)}
                                         awaiting={battleOver.awaiting}
