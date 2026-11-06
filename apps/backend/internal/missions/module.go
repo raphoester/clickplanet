@@ -36,9 +36,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_mission_totals_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_mission_totals_handler/totals_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_missions_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_rules_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_rules_handler/rules_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/list_flag_days_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/list_flag_days_handler/flag_days_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/save_rules_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/rules/postgres_rules_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/rules/usecases/save_rules_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/rules/usecases/save_rules_usecase/audit_save_rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bonus_claimed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/day_started_subscriber"
@@ -106,7 +112,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	briefing := missions.NewBriefing(store, world, allegiances)
 	pay := payroll.New(store, rpc_player_accounts.New(player), outbox)
 	flagDays := postgres_flag_day_store.New(db)
-	flags := flagmissions.NewBriefing(flagDays, calendar, world, allegiances)
+	missionRules := postgres_rules_store.New(db)
+	flags := flagmissions.NewBriefing(flagDays, calendar, world, allegiances, missionRules)
 
 	told, err := cpredis.Subscribe(ctx, streams, "missions-days",
 		log_subscriber.New(day_started_subscriber.New(keep_day_usecase.New(calendar)), props.Logger))
@@ -173,6 +180,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	adminService := missionsv1controller.AdminService{
 		ListFlagDaysHandler:     list_flag_days_handler.New(flag_days_query.NewPostgresQuery(db, clock)),
 		GetMissionTotalsHandler: get_mission_totals_handler.New(totals_query.NewPostgresQuery(db, clock)),
+		GetRulesHandler:         get_rules_handler.New(rules_query.NewPostgresQuery(db)),
+		SaveRulesHandler: save_rules_handler.New(
+			audit_save_rules.New(save_rules_usecase.New(missionRules), props.Logger),
+		),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return missionsv1connect.NewAdminServiceHandler(adminService, options...)

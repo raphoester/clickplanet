@@ -56,7 +56,6 @@ type Config struct {
 	Pool     PoolConfig
 }
 
-// String leaves out the password: the config is logged at boot.
 func (c Config) String() string {
 	return fmt.Sprintf("{Host:%s Port:%s User:%s DBName:%s SSLMode:%s Schema:%s}",
 		c.Host, c.Port, c.User, c.DBName, c.SSLMode, c.Schema)

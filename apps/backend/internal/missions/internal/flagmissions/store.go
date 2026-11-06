@@ -24,8 +24,10 @@ type Calendar interface {
 	DayBefore(ctx context.Context, day days.Day) (days.Day, error)
 }
 
-func NewBriefing(store Store, calendar Calendar, planet missions.Planet, allegiances missions.Allegiances) Briefing {
-	return Briefing{store: store, calendar: calendar, planet: planet, allegiances: allegiances}
+func NewBriefing(
+	store Store, calendar Calendar, planet missions.Planet, allegiances missions.Allegiances, sizings Sizings,
+) Briefing {
+	return Briefing{store: store, calendar: calendar, planet: planet, allegiances: allegiances, sizings: sizings}
 }
 
 type Briefing struct {
@@ -33,6 +35,7 @@ type Briefing struct {
 	calendar    Calendar
 	planet      missions.Planet
 	allegiances missions.Allegiances
+	sizings     Sizings
 }
 
 // Drawn once a day, from the map then and what the flag did the day before. A day kept with no mission, as one an
@@ -51,7 +54,11 @@ func (b Briefing) Of(ctx context.Context, day days.Day, flag string) (Day, error
 	if err != nil {
 		return Day{}, fmt.Errorf("failed to read the map to draw %s's mission: %w", flag, err)
 	}
-	return b.store.KeepDay(ctx, day, flag, Draw(day, flag, world, yesterday)) //nolint:wrapcheck // the store named it.
+	sizing, err := b.sizings.Sizing(ctx)
+	if err != nil {
+		return Day{}, fmt.Errorf("failed to read the numbers to draw %s's mission with: %w", flag, err)
+	}
+	return b.store.KeepDay(ctx, day, flag, Draw(day, flag, world, yesterday, sizing)) //nolint:wrapcheck // the store named it.
 }
 
 // A season's first day, or a day the flag did nothing on, has a zero day before.

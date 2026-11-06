@@ -39,6 +39,10 @@ const (
 	// AdminServiceGetMissionTotalsProcedure is the fully-qualified name of the AdminService's
 	// GetMissionTotals RPC.
 	AdminServiceGetMissionTotalsProcedure = "/missions.v1.AdminService/GetMissionTotals"
+	// AdminServiceGetRulesProcedure is the fully-qualified name of the AdminService's GetRules RPC.
+	AdminServiceGetRulesProcedure = "/missions.v1.AdminService/GetRules"
+	// AdminServiceSaveRulesProcedure is the fully-qualified name of the AdminService's SaveRules RPC.
+	AdminServiceSaveRulesProcedure = "/missions.v1.AdminService/SaveRules"
 )
 
 // AdminServiceClient is a client for the missions.v1.AdminService service.
@@ -54,6 +58,12 @@ type AdminServiceClient interface {
 	// read or take of the day, so it does not prove the player saw it. A guest's mission done is paid only once it
 	// signs in that day. A window of 31 days at most: InvalidArgument otherwise.
 	GetMissionTotals(context.Context, *connect.Request[v1.GetMissionTotalsRequest]) (*connect.Response[v1.GetMissionTotalsResponse], error)
+	// The numbers missions draws with now: a flag mission's goal and points. SaveRules changes them.
+	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
+	// Replaces the numbers missions draws with, every one of them. They play at once, for every mission drawn after:
+	// a flag draws its mission once a day, at its first take, shield broken or read, so in practice from the next day.
+	// InvalidArgument for numbers that cannot play, with every reason.
+	SaveRules(context.Context, *connect.Request[v1.SaveRulesRequest]) (*connect.Response[v1.SaveRulesResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the missions.v1.AdminService service. By default,
@@ -81,6 +91,19 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getRules: connect.NewClient[v1.GetRulesRequest, v1.GetRulesResponse](
+			httpClient,
+			baseURL+AdminServiceGetRulesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		saveRules: connect.NewClient[v1.SaveRulesRequest, v1.SaveRulesResponse](
+			httpClient,
+			baseURL+AdminServiceSaveRulesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("SaveRules")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -88,6 +111,8 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 type adminServiceClient struct {
 	listFlagDays     *connect.Client[v1.ListFlagDaysRequest, v1.ListFlagDaysResponse]
 	getMissionTotals *connect.Client[v1.GetMissionTotalsRequest, v1.GetMissionTotalsResponse]
+	getRules         *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
+	saveRules        *connect.Client[v1.SaveRulesRequest, v1.SaveRulesResponse]
 }
 
 // ListFlagDays calls missions.v1.AdminService.ListFlagDays.
@@ -98,6 +123,16 @@ func (c *adminServiceClient) ListFlagDays(ctx context.Context, req *connect.Requ
 // GetMissionTotals calls missions.v1.AdminService.GetMissionTotals.
 func (c *adminServiceClient) GetMissionTotals(ctx context.Context, req *connect.Request[v1.GetMissionTotalsRequest]) (*connect.Response[v1.GetMissionTotalsResponse], error) {
 	return c.getMissionTotals.CallUnary(ctx, req)
+}
+
+// GetRules calls missions.v1.AdminService.GetRules.
+func (c *adminServiceClient) GetRules(ctx context.Context, req *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error) {
+	return c.getRules.CallUnary(ctx, req)
+}
+
+// SaveRules calls missions.v1.AdminService.SaveRules.
+func (c *adminServiceClient) SaveRules(ctx context.Context, req *connect.Request[v1.SaveRulesRequest]) (*connect.Response[v1.SaveRulesResponse], error) {
+	return c.saveRules.CallUnary(ctx, req)
 }
 
 // AdminServiceHandler is an implementation of the missions.v1.AdminService service.
@@ -113,6 +148,12 @@ type AdminServiceHandler interface {
 	// read or take of the day, so it does not prove the player saw it. A guest's mission done is paid only once it
 	// signs in that day. A window of 31 days at most: InvalidArgument otherwise.
 	GetMissionTotals(context.Context, *connect.Request[v1.GetMissionTotalsRequest]) (*connect.Response[v1.GetMissionTotalsResponse], error)
+	// The numbers missions draws with now: a flag mission's goal and points. SaveRules changes them.
+	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
+	// Replaces the numbers missions draws with, every one of them. They play at once, for every mission drawn after:
+	// a flag draws its mission once a day, at its first take, shield broken or read, so in practice from the next day.
+	// InvalidArgument for numbers that cannot play, with every reason.
+	SaveRules(context.Context, *connect.Request[v1.SaveRulesRequest]) (*connect.Response[v1.SaveRulesResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -136,12 +177,29 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceGetRulesHandler := connect.NewUnaryHandler(
+		AdminServiceGetRulesProcedure,
+		svc.GetRules,
+		connect.WithSchema(adminServiceMethods.ByName("GetRules")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceSaveRulesHandler := connect.NewUnaryHandler(
+		AdminServiceSaveRulesProcedure,
+		svc.SaveRules,
+		connect.WithSchema(adminServiceMethods.ByName("SaveRules")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/missions.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceListFlagDaysProcedure:
 			adminServiceListFlagDaysHandler.ServeHTTP(w, r)
 		case AdminServiceGetMissionTotalsProcedure:
 			adminServiceGetMissionTotalsHandler.ServeHTTP(w, r)
+		case AdminServiceGetRulesProcedure:
+			adminServiceGetRulesHandler.ServeHTTP(w, r)
+		case AdminServiceSaveRulesProcedure:
+			adminServiceSaveRulesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -157,4 +215,12 @@ func (UnimplementedAdminServiceHandler) ListFlagDays(context.Context, *connect.R
 
 func (UnimplementedAdminServiceHandler) GetMissionTotals(context.Context, *connect.Request[v1.GetMissionTotalsRequest]) (*connect.Response[v1.GetMissionTotalsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("missions.v1.AdminService.GetMissionTotals is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("missions.v1.AdminService.GetRules is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) SaveRules(context.Context, *connect.Request[v1.SaveRulesRequest]) (*connect.Response[v1.SaveRulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("missions.v1.AdminService.SaveRules is not implemented"))
 }

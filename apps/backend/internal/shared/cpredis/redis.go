@@ -30,7 +30,6 @@ type Config struct {
 	MaxDeliveries  int
 }
 
-// String leaves out the password: the config is logged at boot.
 func (c Config) String() string {
 	return fmt.Sprintf("{Address:%s MaxLen:%d PublishTimeout:%s RetryAfter:%s MaxDeliveries:%d}",
 		c.Address, c.MaxLen, c.PublishTimeout, c.RetryAfter, c.MaxDeliveries)

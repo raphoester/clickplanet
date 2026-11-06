@@ -117,8 +117,8 @@ and says what is in it. Read the doc before you change its area.
   (`DayStarted`), counted from planet's facts (takes, boxes, right answers, bombs, shields, fortifies), paid once done
   with a `GrantCharges` command to planet; one flag mission a day per flag, worth season points (`GrantPoints` to
   scoring), and told done to the chat (`FlagMissionDone`), which announces it in the world and the flag's room; why
-  progress is not read from the ledger; the operator's reads of what was given and done (`ListFlagDays`,
-  `GetMissionTotals`).
+  progress is not read from the ledger; the flag mission's numbers, one document the operator edits (`GetRules`,
+  `SaveRules`); the operator's reads of what was given and done (`ListFlagDays`, `GetMissionTotals`).
 - [Promo](docs/promo.md) — a battle's teaser: each rule set's cards, kept under its name, over backgrounds the operator
   uploads to the bucket and Cloudflare serves publicly; words with `{path}` placeholders filled from the values the set
   plays and the battle's points at each read (`GetTeaser`); the set and times from the gamemaster (`GetBattle`), the
