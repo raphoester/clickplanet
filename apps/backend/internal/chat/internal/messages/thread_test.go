@@ -1,8 +1,6 @@
 package messages_test
 
 import (
-	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -14,29 +12,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type fakeNamer struct {
-	named map[messages.AccountID]messages.Author
-	asked [][]messages.AccountID
-	err   error
-}
-
-func (f *fakeNamer) Authors(_ context.Context, accounts []messages.AccountID) (map[messages.AccountID]messages.Author, error) {
-	f.asked = append(f.asked, accounts)
-	if f.err != nil {
-		return nil, f.err
-	}
-	return f.named, nil
-}
-
-var (
-	bob    = messages.AccountID{15: 2}
-	adaNow = messages.AuthorOf("Ada_L", true, 7)
-)
+var bob = messages.AccountID{15: 2}
 
 type threading struct {
 	t       *testing.T
 	storage *inmemory_message_storage.Storage
-	namer   *fakeNamer
 	thread  messages.Thread
 	draft   messages.Message
 }
@@ -45,12 +25,10 @@ func newThreading(t *testing.T, size int) threading {
 	t.Helper()
 
 	storage := inmemory_message_storage.New()
-	namer := &fakeNamer{named: map[messages.AccountID]messages.Author{ada: adaNow}}
 	return threading{
 		t:       t,
 		storage: storage,
-		namer:   namer,
-		thread:  messages.NewThread(storage, namer, cptime.NewFixedClock(draftedAt), messages.NewWindow(size, 24*time.Hour)),
+		thread:  messages.NewThread(storage, cptime.NewFixedClock(draftedAt), messages.NewWindow(size, 24*time.Hour)),
 		draft:   messages.Restored(t, messages.Snapshot{ID: "draft", SentAt: draftedAt, Account: bob, Country: "de", Text: "we do"}),
 	}
 }
@@ -75,10 +53,9 @@ func TestADraftThatAnswersNothingIsLeftAsItIs(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, thread.draft, reply)
-	assert.Empty(t, thread.namer.asked)
 }
 
-func TestAReplyQuotesWhatAShownMessageSaidUnderWhoItsAccountIsNow(t *testing.T) {
+func TestAReplyQuotesWhatAShownMessageSaidAndWhoseItIs(t *testing.T) {
 	thread := newThreading(t, 10)
 	thread.sent(messages.Snapshot{ID: "hello", SentAt: draftedAt.Add(-time.Hour), Account: ada, Country: "fr", Text: "hello planet"})
 
@@ -86,9 +63,8 @@ func TestAReplyQuotesWhatAShownMessageSaidUnderWhoItsAccountIsNow(t *testing.T) 
 
 	require.NoError(t, err)
 	want := thread.draft.TakeSnapshot()
-	want.Quote = messages.Quote{MessageID: "hello", Author: adaNow, Text: "hello planet"}
+	want.Quote = messages.Quote{MessageID: "hello", Account: ada, Text: "hello planet"}
 	assert.Equal(t, want, reply.TakeSnapshot(), "the draft, and what it answers")
-	assert.Equal(t, [][]messages.AccountID{{ada}}, thread.namer.asked)
 }
 
 func TestAMessageThatIsNotShownCannotBeRepliedTo(t *testing.T) {
@@ -102,29 +78,6 @@ func TestAMessageThatIsNotShownCannotBeRepliedTo(t *testing.T) {
 
 		require.ErrorIs(t, err, messages.ErrNotShown, id)
 	}
-	assert.Empty(t, thread.namer.asked, "nobody is asked about a message that is not answered")
-}
-
-func TestAReplyToADeletedAccountNoLongerNamesIt(t *testing.T) {
-	thread := newThreading(t, 10)
-	thread.sent(messages.Snapshot{ID: "hello", SentAt: draftedAt.Add(-time.Hour), Account: messages.AccountID{15: 9}, Text: "hello planet"})
-
-	quote := thread.quote("hello")
-
-	assert.Equal(t, messages.DeletedName, quote.Author.Name())
-	assert.Equal(t, "hello planet", quote.Text, "what it said stays")
-}
-
-func TestAReplyToAMessageFromBeforeAccountsKeepsTheNameItCarries(t *testing.T) {
-	thread := newThreading(t, 10)
-	thread.sent(messages.Snapshot{
-		ID: "legacy", SentAt: draftedAt.Add(-time.Hour), Author: messages.AuthorOf("guest_Bob", false, 0), Text: "hello",
-	})
-
-	quote := thread.quote("legacy")
-
-	assert.Equal(t, "guest_Bob", quote.Author.Name())
-	assert.Empty(t, thread.namer.asked, "it has no account to read a name from")
 }
 
 func TestAReplyToAReplyQuotesThatReplyAlone(t *testing.T) {
@@ -133,21 +86,10 @@ func TestAReplyToAReplyQuotesThatReplyAlone(t *testing.T) {
 	answer, err := thread.thread.Reply(t.Context(), thread.draft, "question")
 	require.NoError(t, err)
 	require.NoError(t, thread.storage.Append(t.Context(), messages.NewRecord(answer, "browser-1", "203.0.113.7", "test-agent")))
-	thread.namer.named[bob] = messages.AuthorOf("Bob", false, 0)
 
 	quote := thread.quote("draft")
 
-	assert.Equal(t, messages.Quote{MessageID: "draft", Author: thread.namer.named[bob], Text: "we do"}, quote)
-}
-
-func TestAReplyNobodyCouldBeAskedAboutIsRefused(t *testing.T) {
-	thread := newThreading(t, 10)
-	thread.sent(messages.Snapshot{ID: "hello", SentAt: draftedAt.Add(-time.Hour), Account: ada, Text: "hello planet"})
-	thread.namer.err = errors.New("the player module is stuck")
-
-	_, err := thread.thread.Reply(t.Context(), thread.draft, "hello")
-
-	require.ErrorIs(t, err, messages.ErrAuthorUnavailable)
+	assert.Equal(t, messages.Quote{MessageID: "draft", Account: bob, Text: "we do"}, quote)
 }
 
 func TestAMessageOfAnotherRoomCannotBeRepliedTo(t *testing.T) {

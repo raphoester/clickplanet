@@ -5,21 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 
-	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/scoringread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
-
-type Players interface {
-	Players(ctx context.Context, accounts []standings.AccountID) (map[standings.AccountID]*playerv1.Player, error)
-}
 
 type CountryChecker interface {
 	CheckCountry(country string) bool
@@ -27,18 +22,16 @@ type CountryChecker interface {
 
 var ErrUnknownCountry = errors.New("not a country")
 
-const page = 500
-
-func NewPostgresQuery(db cppg.Conn, players Players, countries CountryChecker) *PostgresQuery {
-	return &PostgresQuery{db: db, players: players, countries: countries}
+func NewPostgresQuery(db cppg.Conn, countries CountryChecker) *PostgresQuery {
+	return &PostgresQuery{db: db, countries: countries}
 }
 
 type PostgresQuery struct {
 	db        cppg.Conn
-	players   Players
 	countries CountryChecker
 }
 
+// A guest, or an account asked deleted, has its tiles and no rank: no board ranks it.
 func (q *PostgresQuery) MyTally(
 	ctx context.Context,
 	book books.BookID,
@@ -49,19 +42,11 @@ func (q *PostgresQuery) MyTally(
 		return nil, fmt.Errorf("%w: %q", ErrUnknownCountry, country)
 	}
 
-	mine, err := q.tiles(ctx, book, account, country)
+	mine, ranked, err := q.tiles(ctx, book, account, country)
 	if err != nil {
 		return nil, err
 	}
-	if mine.GetTiles() == 0 {
-		return mine, nil
-	}
-
-	named, err := q.players.Players(ctx, []standings.AccountID{account})
-	if err != nil {
-		return nil, fmt.Errorf("failed to read who the caller is: %w", err)
-	}
-	if !ranked(named, account) {
+	if mine.GetTiles() == 0 || !ranked {
 		return mine, nil
 	}
 
@@ -84,10 +69,10 @@ func (q *PostgresQuery) MyTally(
 	return mine, nil
 }
 
-const tilesOfMine = `
+var tilesOfMine = `
 	SELECT country, tiles, COALESCE((
 		SELECT tiles FROM contributions WHERE book_id = $1 AND account_id = $2 AND country = $3
-	), 0)
+	), 0), ` + scoringread.Ranked("contributions.account_id") + `
 	FROM contributions
 	WHERE book_id = $1 AND account_id = $2 AND main
 `
@@ -97,99 +82,42 @@ func (q *PostgresQuery) tiles(
 	book books.BookID,
 	account standings.AccountID,
 	country string,
-) (*scoringv1.GetMyTallyResponse, error) {
+) (*scoringv1.GetMyTallyResponse, bool, error) {
 	var (
 		mine                  = &scoringv1.GetMyTallyResponse{}
 		tiles, tilesOfCountry int64
+		ranked                bool
 	)
 	err := q.db.On(ctx).QueryRowContext(ctx, tilesOfMine, string(book), uuid.UUID(account), country).
-		Scan(&mine.CountryId, &tiles, &tilesOfCountry)
+		Scan(&mine.CountryId, &tiles, &tilesOfCountry, &ranked)
 	if errors.Is(err, sql.ErrNoRows) {
-		return mine, nil
+		return mine, false, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the caller's tally: %w", err)
+		return nil, false, fmt.Errorf("failed to read the caller's tally: %w", err)
 	}
 	mine.Tiles = uint64(tiles)                 //nolint:gosec // CHECK (tiles > 0).
 	mine.CountryTiles = uint64(tilesOfCountry) //nolint:gosec // CHECK (tiles > 0), or 0.
-	return mine, nil
+	return mine, ranked, nil
 }
 
-const aboveOnTheMap = `
-	SELECT account_id
-	FROM contributions
-	WHERE book_id = $1 AND main AND tiles > $2 AND account_id > $3
-	ORDER BY account_id
-	LIMIT $4
-`
-
-const aboveInTheCountry = `
-	SELECT account_id
-	FROM contributions
-	WHERE book_id = $1 AND tiles > $2 AND country = $3 AND account_id > $4
-	ORDER BY account_id
-	LIMIT $5
-`
+var (
+	aboveOnTheMap = `
+		SELECT count(*)
+		FROM contributions
+		WHERE book_id = $1 AND main AND tiles > $2 AND ` + scoringread.Ranked("contributions.account_id") + `
+	`
+	aboveInTheCountry = `
+		SELECT count(*)
+		FROM contributions
+		WHERE book_id = $1 AND tiles > $2 AND country = $3 AND ` + scoringread.Ranked("contributions.account_id") + `
+	`
+)
 
 func (q *PostgresQuery) rank(ctx context.Context, above string, args ...any) (uint32, error) {
-	rank := uint32(1)
-	var after standings.AccountID
-	for {
-		accounts, err := q.above(ctx, above, slices.Concat(args, []any{uuid.UUID(after), page}))
-		if err != nil {
-			return 0, err
-		}
-		ahead, err := q.ahead(ctx, accounts)
-		if err != nil {
-			return 0, err
-		}
-		rank += ahead
-		if len(accounts) < page {
-			return rank, nil
-		}
-		after = accounts[len(accounts)-1]
+	var ahead uint32
+	if err := q.db.On(ctx).QueryRowContext(ctx, above, args...).Scan(&ahead); err != nil {
+		return 0, fmt.Errorf("failed to count who is above the caller: %w", err)
 	}
-}
-
-func (q *PostgresQuery) above(ctx context.Context, query string, args []any) ([]standings.AccountID, error) {
-	rows, err := q.db.On(ctx).QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read who is above the caller: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var above []standings.AccountID
-	for rows.Next() {
-		var account uuid.UUID
-		if err := rows.Scan(&account); err != nil {
-			return nil, fmt.Errorf("failed to scan who is above the caller: %w", err)
-		}
-		above = append(above, standings.AccountID(account))
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read who is above the caller: %w", err)
-	}
-	return above, nil
-}
-
-func (q *PostgresQuery) ahead(ctx context.Context, accounts []standings.AccountID) (uint32, error) {
-	if len(accounts) == 0 {
-		return 0, nil
-	}
-	named, err := q.players.Players(ctx, accounts)
-	if err != nil {
-		return 0, fmt.Errorf("failed to read who is above the caller: %w", err)
-	}
-	var count uint32
-	for _, account := range accounts {
-		if ranked(named, account) {
-			count++
-		}
-	}
-	return count, nil
-}
-
-func ranked(named map[standings.AccountID]*playerv1.Player, account standings.AccountID) bool {
-	player, known := named[account]
-	return known && !player.GetGuest()
+	return ahead + 1, nil
 }

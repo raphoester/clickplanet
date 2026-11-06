@@ -111,18 +111,8 @@ func (s *StorageContractSuite) TestAGifIsReadBackAsItWasKept() {
 	s.Equal(Gif{}, s.kept("id-hello").Gif, "a text has no GIF")
 }
 
-func (s *StorageContractSuite) TestAMessageFromBeforeAccountsIsReadBackUnderTheNameItCarries() {
-	legacy := Snapshot{
-		ID: "id-legacy", SentAt: contractStart, Author: AuthorOf("guest_Bob", true, 0), Room: World, Country: "fr",
-		Text: "legacy",
-	}
-	s.keep(s.message(legacy), "203.0.113.7")
-
-	s.Equal(legacy, s.kept("id-legacy"))
-}
-
 func (s *StorageContractSuite) TestAReplyIsReadBackWithTheIDOfWhatItAnswersAndNothingOfWhatThatSaid() {
-	question := s.sent("question", contractStart).Named(AuthorOf("Ada", false, 0))
+	question := s.sent("question", contractStart)
 	answer, err := s.sent("answer", contractStart).Answering(question)
 	s.Require().NoError(err)
 	s.keep(answer, "203.0.113.7")

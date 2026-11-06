@@ -1,5 +1,4 @@
 import {useEffect, useRef, useState} from "react"
-import {NameColor} from "../../backends/player.ts"
 import {Boards, MySeason} from "../../backends/standings.ts"
 import {liveSeason, Takes, takesSince} from "../../domain/standings.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
@@ -8,7 +7,6 @@ import {useOwnTakes, useReadsAfterClicks} from "../viewer/useAcceptedClicks.ts"
 export type Caller = {
     accountId?: string
     username?: string
-    color?: NameColor
     linked: boolean
 }
 

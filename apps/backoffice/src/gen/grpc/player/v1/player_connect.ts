@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnnounceRequest, AnnounceResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse } from "./player_pb.js";
+import { AnnounceRequest, AnnounceResponse, GetNameplatesRequest, GetNameplatesResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse } from "./player_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -85,6 +85,18 @@ export const PlayerService = {
       name: "GetPlayer",
       I: GetPlayerRequest,
       O: GetPlayerResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The nameplates of a page of accounts, for the page to draw their names. At most 100 ids, or InvalidArgument.
+     *
+     * @generated from rpc player.v1.PlayerService.GetNameplates
+     */
+    getNameplates: {
+      name: "GetNameplates",
+      I: GetNameplatesRequest,
+      O: GetNameplatesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

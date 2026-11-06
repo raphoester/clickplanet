@@ -39,11 +39,8 @@ func (s *testSuite) SetupTest() {
 
 var start = time.Date(2024, 1, 1, 12, 0, 0, 123_456_000, time.UTC)
 
-func (s *testSuite) sent(text string, name string, at time.Time) messages.Message {
-	return messages.Restored(s.T(), messages.Snapshot{
-		ID: messages.MessageID("id-" + text), SentAt: at, Author: messages.AuthorOf(name, false, 0),
-		Country: "fr", Text: text,
-	})
+func (s *testSuite) sent(text string, at time.Time) messages.Message {
+	return messages.Restored(s.T(), messages.Snapshot{ID: messages.MessageID("id-" + text), SentAt: at, Country: "fr", Text: text})
 }
 
 func (s *testSuite) keep(message messages.Message) {
@@ -51,7 +48,7 @@ func (s *testSuite) keep(message messages.Message) {
 }
 
 func (s *testSuite) TestTheSenderIsStored() {
-	s.keep(s.sent("hello", "Bob", start))
+	s.keep(s.sent("hello", start))
 
 	var ip, userAgent, authorID string
 	s.Require().NoError(s.db.On(context.Background()).QueryRowContext(context.Background(),
@@ -62,9 +59,9 @@ func (s *testSuite) TestTheSenderIsStored() {
 
 func (s *testSuite) TestOnlyAReplyKeepsTheMessageItRepliesTo() {
 	ctx := context.Background()
-	question := s.sent("hello", "Bob", start)
+	question := s.sent("hello", start)
 	s.keep(question)
-	reply, err := s.sent("reply", "Ada", start.Add(time.Minute)).Answering(question)
+	reply, err := s.sent("reply", start.Add(time.Minute)).Answering(question)
 	s.Require().NoError(err)
 	s.keep(reply)
 
@@ -82,41 +79,6 @@ func (s *testSuite) TestOnlyAReplyKeepsTheMessageItRepliesTo() {
 	s.Equal([]string{"none", "id-hello"}, kept, "the id alone: what it said is read when the reply is shown")
 }
 
-func (s *testSuite) TestTheBackfillPrefixesOnlyTheMessagesFromBeforeUsernames() {
-	usernames := time.Date(2026, 9, 17, 14, 31, 30, 0, time.UTC)
-
-	s.keep(s.sent("guest", "Bob", usernames.Add(-time.Minute)))
-	s.keep(s.sent("player", "Bob_the_player", usernames.Add(time.Minute)))
-
-	s.runMigration("20260917200000_guest_prefix_backfill.up.sql")
-	s.Equal([]string{"guest_Bob", "Bob_the_player"}, s.names())
-
-	s.runMigration("20260917200000_guest_prefix_backfill.down.sql")
-	s.Equal([]string{"Bob", "Bob_the_player"}, s.names())
-}
-
-func (s *testSuite) runMigration(name string) {
-	query, err := migrations.FS.ReadFile(name)
-	s.Require().NoError(err)
-	_, err = s.db.On(context.Background()).ExecContext(context.Background(), string(query))
-	s.Require().NoError(err)
-}
-
-func (s *testSuite) names() []string {
-	rows, err := s.db.On(context.Background()).QueryContext(context.Background(), `SELECT name FROM messages ORDER BY seq`)
-	s.Require().NoError(err)
-	defer func() { _ = rows.Close() }()
-
-	var names []string
-	for rows.Next() {
-		var name string
-		s.Require().NoError(rows.Scan(&name))
-		names = append(names, name)
-	}
-	s.Require().NoError(rows.Err())
-	return names
-}
-
 func (s *testSuite) removed(message messages.Message) {
 	snapshot := message.TakeSnapshot()
 	s.Require().NoError(postgres_removal_store.New(s.db).Save(context.Background(),
@@ -125,9 +87,9 @@ func (s *testSuite) removed(message messages.Message) {
 
 func (s *testSuite) TestARemovedMessageIsNeitherShownNorReadAndIsStillKept() {
 	ctx := context.Background()
-	insult := s.sent("insult", "Bob", start)
+	insult := s.sent("insult", start)
 	s.keep(insult)
-	s.keep(s.sent("hello", "Ada", start.Add(time.Second)))
+	s.keep(s.sent("hello", start.Add(time.Second)))
 	s.removed(insult)
 
 	_, err := s.store.Message(ctx, "id-insult", start, 10)
@@ -153,8 +115,8 @@ func (s *testSuite) TestAKeptGifIsReadWithItsAddress() {
 }
 
 func (s *testSuite) TestARemovedMessageKeepsItsPlaceInTheWindow() {
-	older := s.sent("older", "Ada", start)
-	insult := s.sent("insult", "Bob", start.Add(time.Second))
+	older := s.sent("older", start)
+	insult := s.sent("insult", start.Add(time.Second))
 	s.keep(older)
 	s.keep(insult)
 	s.removed(insult)
@@ -165,7 +127,7 @@ func (s *testSuite) TestARemovedMessageKeepsItsPlaceInTheWindow() {
 
 func (s *testSuite) TestAMessageIsKeptOnlyInsideTheRetention() {
 	ctx := context.Background()
-	s.keep(s.sent("old", "Ada", start))
+	s.keep(s.sent("old", start))
 
 	for id, since := range map[messages.MessageID]time.Time{
 		"id-old":     start.Add(time.Second),

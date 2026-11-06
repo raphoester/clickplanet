@@ -1,0 +1,2 @@
+ALTER TABLE messages ADD COLUMN name text NOT NULL DEFAULT '', ADD COLUMN author_admin boolean NOT NULL DEFAULT false;
+ALTER TABLE messages ALTER COLUMN name DROP DEFAULT;

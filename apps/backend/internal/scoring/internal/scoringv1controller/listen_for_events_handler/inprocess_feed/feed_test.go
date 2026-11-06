@@ -47,7 +47,7 @@ func (r *reader) show(country string, names ...string) {
 
 	board := &scoringv1.Board{}
 	for _, name := range names {
-		board.Standings = append(board.Standings, &scoringv1.Standing{Name: name})
+		board.Standings = append(board.Standings, &scoringv1.Standing{AccountId: name})
 	}
 	r.boards[country] = board
 }
@@ -88,7 +88,7 @@ func (f fixture) refreshAfter(t *testing.T, elapsed time.Duration) {
 func namesOf(board *scoringv1.Board) []string {
 	names := make([]string, 0, len(board.GetStandings()))
 	for _, standing := range board.GetStandings() {
-		names = append(names, standing.GetName())
+		names = append(names, standing.GetAccountId())
 	}
 	return names
 }

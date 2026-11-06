@@ -51,6 +51,9 @@ const (
 	PlayerServiceListenForEventsProcedure = "/player.v1.PlayerService/ListenForEvents"
 	// PlayerServiceGetPlayerProcedure is the fully-qualified name of the PlayerService's GetPlayer RPC.
 	PlayerServiceGetPlayerProcedure = "/player.v1.PlayerService/GetPlayer"
+	// PlayerServiceGetNameplatesProcedure is the fully-qualified name of the PlayerService's
+	// GetNameplates RPC.
+	PlayerServiceGetNameplatesProcedure = "/player.v1.PlayerService/GetNameplates"
 )
 
 // PlayerServiceClient is a client for the player.v1.PlayerService service.
@@ -64,6 +67,8 @@ type PlayerServiceClient interface {
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlayerEvent], error)
 	// Who a player is on its public card. Its stats, titles and fronts are progression.v1's GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
+	// The nameplates of a page of accounts, for the page to draw their names. At most 100 ids, or InvalidArgument.
+	GetNameplates(context.Context, *connect.Request[v1.GetNameplatesRequest]) (*connect.Response[v1.GetNameplatesResponse], error)
 }
 
 // NewPlayerServiceClient constructs a client for the player.v1.PlayerService service. By default,
@@ -127,6 +132,13 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getNameplates: connect.NewClient[v1.GetNameplatesRequest, v1.GetNameplatesResponse](
+			httpClient,
+			baseURL+PlayerServiceGetNameplatesProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("GetNameplates")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -140,6 +152,7 @@ type playerServiceClient struct {
 	getRoster       *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.PlayerEvent]
 	getPlayer       *connect.Client[v1.GetPlayerRequest, v1.GetPlayerResponse]
+	getNameplates   *connect.Client[v1.GetNameplatesRequest, v1.GetNameplatesResponse]
 }
 
 // GetProfile calls player.v1.PlayerService.GetProfile.
@@ -182,6 +195,11 @@ func (c *playerServiceClient) GetPlayer(ctx context.Context, req *connect.Reques
 	return c.getPlayer.CallUnary(ctx, req)
 }
 
+// GetNameplates calls player.v1.PlayerService.GetNameplates.
+func (c *playerServiceClient) GetNameplates(ctx context.Context, req *connect.Request[v1.GetNameplatesRequest]) (*connect.Response[v1.GetNameplatesResponse], error) {
+	return c.getNameplates.CallUnary(ctx, req)
+}
+
 // PlayerServiceHandler is an implementation of the player.v1.PlayerService service.
 type PlayerServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
@@ -193,6 +211,8 @@ type PlayerServiceHandler interface {
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlayerEvent]) error
 	// Who a player is on its public card. Its stats, titles and fronts are progression.v1's GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
+	// The nameplates of a page of accounts, for the page to draw their names. At most 100 ids, or InvalidArgument.
+	GetNameplates(context.Context, *connect.Request[v1.GetNameplatesRequest]) (*connect.Response[v1.GetNameplatesResponse], error)
 }
 
 // NewPlayerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -252,6 +272,13 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	playerServiceGetNameplatesHandler := connect.NewUnaryHandler(
+		PlayerServiceGetNameplatesProcedure,
+		svc.GetNameplates,
+		connect.WithSchema(playerServiceMethods.ByName("GetNameplates")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.PlayerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PlayerServiceGetProfileProcedure:
@@ -270,6 +297,8 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceListenForEventsHandler.ServeHTTP(w, r)
 		case PlayerServiceGetPlayerProcedure:
 			playerServiceGetPlayerHandler.ServeHTTP(w, r)
+		case PlayerServiceGetNameplatesProcedure:
+			playerServiceGetNameplatesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -309,4 +338,8 @@ func (UnimplementedPlayerServiceHandler) ListenForEvents(context.Context, *conne
 
 func (UnimplementedPlayerServiceHandler) GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetPlayer is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) GetNameplates(context.Context, *connect.Request[v1.GetNameplatesRequest]) (*connect.Response[v1.GetNameplatesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetNameplates is not implemented"))
 }

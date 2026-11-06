@@ -2,6 +2,7 @@ package migrations_test
 
 import (
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/google/uuid"
@@ -175,4 +176,42 @@ func TestAnotherSeasonThanZeroRefusesTheConversion(t *testing.T) {
 		(1, '0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11', 'fr', 1, true)`)
 
 	require.Error(t, db.Migrate(t.Context(), migrations.FS))
+}
+
+// Player's two tables as the backfill reads them, with a username, a guest's code, and a departure each way.
+const playerAsItWas = `
+CREATE TABLE profiles (account_id uuid PRIMARY KEY);
+CREATE TABLE guest_codes (account_id uuid PRIMARY KEY);
+CREATE TABLE departures (account_id uuid PRIMARY KEY, leaving boolean NOT NULL, decided_at timestamptz NOT NULL);
+INSERT INTO profiles VALUES ('00000000-0000-0000-0000-000000000001'), ('00000000-0000-0000-0000-000000000002');
+INSERT INTO guest_codes VALUES ('00000000-0000-0000-0000-000000000003');
+INSERT INTO departures VALUES ('00000000-0000-0000-0000-000000000001', true, '2026-11-02T12:00:00Z'),
+	('00000000-0000-0000-0000-000000000002', false, '2026-11-03T12:00:00Z');
+`
+
+func TestThePlayersAndTheDeparturesStartFromPlayers(t *testing.T) {
+	server := cppg.StartTestServer(t)
+	server.OpenSchema(t, "player", fstest.MapFS{"1_player.up.sql": {Data: []byte(playerAsItWas)}})
+	scoring := server.OpenSchema(t, "scoring", migrations.FS)
+	ctx := t.Context()
+
+	var players, leaving, returned int
+	require.NoError(t, scoring.On(ctx).QueryRowContext(ctx, `SELECT
+		(SELECT count(*) FROM players),
+		(SELECT count(*) FROM departures WHERE leaving AND decided_at = '2026-11-02T12:00:00Z'),
+		(SELECT count(*) FROM departures WHERE NOT leaving)`).Scan(&players, &leaving, &returned))
+	assert.Equal(t, 2, players, "the guest is none")
+	assert.Equal(t, 1, leaving)
+	assert.Equal(t, 1, returned)
+}
+
+func TestADatabaseWithNoPlayerSchemaMakesThemEmpty(t *testing.T) {
+	scoring := cppg.StartTestServer(t).OpenSchema(t, "scoring", migrations.FS)
+	ctx := t.Context()
+
+	var players, departures int
+	require.NoError(t, scoring.On(ctx).QueryRowContext(ctx,
+		`SELECT (SELECT count(*) FROM players), (SELECT count(*) FROM departures)`).Scan(&players, &departures))
+	assert.Zero(t, players)
+	assert.Zero(t, departures)
 }

@@ -13,7 +13,8 @@ import {
     OutgoingMessage,
     OutgoingReaction,
 } from '../../backends/chat.ts';
-import {accountSentUnder, addAnnouncements, addMessages, nameSentUnder, newestAt, withRemoved} from '../../domain/chatLog.ts';
+import {accountSentUnder, addAnnouncements, addMessages, newestAt, withRemoved} from '../../domain/chatLog.ts';
+import {useNameplates} from '../nameplates/nameplatesStore.ts';
 import {
     applyReactionsAnswer,
     applyReactionsChange,
@@ -35,13 +36,12 @@ export type SeenAtLoad = {
 export type UseRoomLogOptions = {
     backend?: ChatBackend
     accountId?: string
-    username?: string
     onLeft?: () => void
 }
 
 const NOTHING_SENT: ReadonlySet<string> = new Set()
 
-export function useRoomLog({backend, accountId, username, onLeft}: UseRoomLogOptions) {
+export function useRoomLog({backend, accountId, onLeft}: UseRoomLogOptions) {
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [announcements, setAnnouncements] = useState<ChatAnnouncement[]>([])
     const [status, setStatus] = useState<ChatStatus>(backend ? 'loading' : 'unavailable')
@@ -50,13 +50,12 @@ export function useRoomLog({backend, accountId, username, onLeft}: UseRoomLogOpt
     const [mine, setMine] = useState<ReadonlySet<string>>(NOTHING_SENT)
     const [seenAtLoad, setSeenAtLoad] = useState<SeenAtLoad>()
 
-    const displayName = username ?? nameSentUnder(messages, mine)
     const ownAccount = accountId ?? accountSentUnder(messages, mine)
     const own = useCallback((message: ChatMessage) =>
         mine.has(message.id) || (ownAccount !== undefined && message.authorAccountId === ownAccount), [mine, ownAccount])
 
-    const named = useRef(displayName)
-    named.current = displayName
+    const me = useRef(ownAccount)
+    me.current = ownAccount
 
     const leaving = useRef(onLeft)
     leaving.current = onLeft
@@ -65,9 +64,9 @@ export function useRoomLog({backend, accountId, username, onLeft}: UseRoomLogOpt
         leaving.current?.()
     }, [])
 
-    const receive = useCallback((incoming: ChatMessage[]) => {
-        setMessages(current => addMessages(current, incoming))
-    }, [])
+    // A message shows once its names are read, so none shows a blank name; a read that hangs holds it 2 s at most.
+    const receive = useCallback((incoming: ChatMessage[]) => useNameplates.getState().whenRead(authorsOf(incoming))
+        .then(() => setMessages(current => addMessages(current, incoming))), [])
 
     useEffect(() => {
         if (!backend) {
@@ -84,7 +83,9 @@ export function useRoomLog({backend, accountId, username, onLeft}: UseRoomLogOpt
         const abort = new AbortController()
 
         const catchUp = () => backend.getHistory(abort.signal)
-            .then(history => {
+            .then(async history => {
+                if (abort.signal.aborted) return
+                await useNameplates.getState().whenRead(authorsOf(history.messages))
                 if (abort.signal.aborted) return
                 setMessages(current => withNewerReactions(addMessages(current, history.messages), history.messages))
                 setAnnouncements(current => addAnnouncements(current, history.announcements))
@@ -95,7 +96,7 @@ export function useRoomLog({backend, accountId, username, onLeft}: UseRoomLogOpt
             })
 
         const stopListening = backend.listenForMessages(
-            message => receive([message]),
+            message => void receive([message]),
             change => setMessages(current => applyReactionsChange(current, change)),
             announcement => setAnnouncements(current => addAnnouncements(current, [announcement])),
             () => void catchUp(),
@@ -106,9 +107,10 @@ export function useRoomLog({backend, accountId, username, onLeft}: UseRoomLogOpt
         )
 
         backend.getHistory(abort.signal)
-            .then(history => {
+            .then(async history => {
                 if (abort.signal.aborted) return
-                receive(history.messages)
+                await receive(history.messages)
+                if (abort.signal.aborted) return
                 setAnnouncements(current => addAnnouncements(current, history.announcements))
                 setSeenAtLoad(history.seenUntil !== undefined
                     ? {until: history.seenUntil, kept: true}
@@ -139,7 +141,7 @@ export function useRoomLog({backend, accountId, username, onLeft}: UseRoomLogOpt
         try {
             const sent = await backend.sendMessage(message)
             setMine(current => new Set(current).add(sent.id))
-            receive([sent])
+            void receive([sent])
             return undefined
         } catch (e) {
             console.error("The message could not be sent", e)
@@ -156,7 +158,7 @@ export function useRoomLog({backend, accountId, username, onLeft}: UseRoomLogOpt
 
         const toggle = (on: boolean) => setMessages(current =>
             withReactions(current, reaction.messageId,
-                counts => toggledReactions(counts, reaction.reaction, on, named.current)))
+                counts => toggledReactions(counts, reaction.reaction, on, me.current)))
 
         toggle(reaction.on)
         try {
@@ -173,7 +175,11 @@ export function useRoomLog({backend, accountId, username, onLeft}: UseRoomLogOpt
         }
     }, [backend, leave])
 
-    return {messages, announcements, mine, own, displayName, seenAtLoad, status, failure, mutedUntil, send, react}
+    return {messages, announcements, mine, own, ownAccount, seenAtLoad, status, failure, mutedUntil, send, react}
+}
+
+function authorsOf(messages: readonly ChatMessage[]): string[] {
+    return messages.flatMap(message => [message.authorAccountId, message.replyTo?.authorAccountId ?? ""])
 }
 
 function failureOf(e: unknown): ChatSendFailure {

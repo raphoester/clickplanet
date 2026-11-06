@@ -1,17 +1,23 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {ChatMessage} from "../../backends/chat.ts"
 import {NameColor} from "../../backends/player.ts"
+import {useNameplates} from "../nameplates/nameplatesStore.ts"
 import {PlayerReport, SupportReportedAlreadyError} from "../../backends/support.ts"
 import ReportMessageModal from "./ReportMessageModal.tsx"
 
-afterEach(cleanup)
+beforeEach(() => useNameplates.getState().learn([
+    {accountId: "account-bo", name: "guest_b0b0b0", color: NameColor.UNSPECIFIED, admin: false, guest: true},
+]))
+afterEach(() => {
+    cleanup()
+    useNameplates.getState().serve(undefined)
+})
 
 const insult: ChatMessage = {
-    id: "message-1", sentAt: Date.UTC(2026, 9, 17, 12), authorAccountId: "account-bo", authorName: "guest_b0b0b0",
-    authorAdmin: false, authorColor: NameColor.UNSPECIFIED, countryCode: "de",
+    id: "message-1", sentAt: Date.UTC(2026, 9, 17, 12), authorAccountId: "account-bo", countryCode: "de",
     text: "you are all idiots", reactions: [], reactionsVersion: 0,
 }
 

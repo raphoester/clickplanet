@@ -72,6 +72,9 @@ import {TitlesListener} from "../../backends/progression.ts";
 import {useBadges} from "../badges/badgesStore.ts";
 import {useBadgesFeed} from "../badges/useBadgesFeed.ts";
 import {BadgesBackend} from "../../backends/badges.ts";
+import {NameplatesBackend} from "../../backends/nameplates.ts";
+import {useNameplatesFeed} from "../nameplates/useNameplatesFeed.ts";
+import {useOwnNameplate} from "../nameplates/nameplatesStore.ts";
 import {onlineCount, useRoster} from "../players/rosterStore.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
 import SignInNudgeModal from "../account/SignInNudgeModal.tsx";
@@ -158,6 +161,7 @@ export type ViewerProps = {
     presence?: PresenceBackend
     playerInfo?: PlayerInfoBackend
     badges?: BadgesBackend
+    nameplates?: NameplatesBackend
     titles?: TitlesListener
     tileHolders?: TileHolders
     landmasses?: LandmassReader
@@ -214,6 +218,8 @@ export default function Viewer(props: ViewerProps) {
     useQuizMaster(props.quizMaster, countryState.code, sound.play)
     const announce = useAnnouncements((announcements) => announcements.announce)
     useBadgesFeed(props.badges)
+    useNameplatesFeed(props.nameplates)
+    useOwnNameplate(ownAccountId, username, color)
     useRosterFeed(props.presence)
     useTitlesEarned(props.titles, linked, (title) => {
         announce({kind: "title", title})
@@ -376,7 +382,7 @@ export default function Viewer(props: ViewerProps) {
     const boards = useMemo(() => props.standings && bookId ? boardsOf(props.standings, bookId) : undefined, [props.standings, bookId])
     const standings: BoardStandings | undefined = boards && {
         backend: boards,
-        caller: {accountId: ownAccountId, username, color, linked},
+        caller: {accountId: ownAccountId, username, linked},
         listenForClicks: accepted.listenForClicks,
         onSignIn: clickBudget?.linkedMultiplier ? openPitch : undefined,
         view: boardView,

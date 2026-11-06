@@ -14,7 +14,6 @@ import {
     ScoringEvent,
     Standing as StandingPb,
 } from "../gen/grpc/scoring/v1/scoring_pb.ts"
-import {NameColor} from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {Round, Score} from "./standings.ts"
 import {ConnectStandingsBackend} from "./standingsBackend.ts"
@@ -59,12 +58,12 @@ describe("ConnectStandingsBackend.listenForStandings", () => {
     it("reads each board the stream sends, in numbers, and skips the heartbeats", async () => {
         const listenForEvents = streaming(
             board(
-                new StandingPb({rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.PINK, countryId: "fr", tiles: 1_204n}),
-                new StandingPb({rank: 2, accountId: "account-kiran", name: "kiran_07", countryId: "in", tiles: 12n}),
+                new StandingPb({rank: 1, accountId: "account-ana", countryId: "fr", tiles: 1_204n}),
+                new StandingPb({rank: 2, accountId: "account-kiran", countryId: "in", tiles: 12n}),
             ),
             heartbeat,
             board(new StandingPb({
-                rank: 1, accountId: "account-mateus", name: "Mateus", color: NameColor.TEAL, countryId: "br", tiles: 1_300n,
+                rank: 1, accountId: "account-mateus", countryId: "br", tiles: 1_300n,
             })),
         )
         const seen: unknown[] = []
@@ -74,10 +73,10 @@ describe("ConnectStandingsBackend.listenForStandings", () => {
         await vi.waitFor(() => expect(seen).toHaveLength(2))
         expect(seen).toEqual([
             [
-                {rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.PINK, countryCode: "fr", tiles: 1_204},
-                {rank: 2, accountId: "account-kiran", name: "kiran_07", color: NameColor.UNSPECIFIED, countryCode: "in", tiles: 12},
+                {rank: 1, accountId: "account-ana", countryCode: "fr", tiles: 1_204},
+                {rank: 2, accountId: "account-kiran", countryCode: "in", tiles: 12},
             ],
-            [{rank: 1, accountId: "account-mateus", name: "Mateus", color: NameColor.TEAL, countryCode: "br", tiles: 1_300}],
+            [{rank: 1, accountId: "account-mateus", countryCode: "br", tiles: 1_300}],
         ])
         stop()
     })
@@ -236,7 +235,7 @@ describe("ConnectStandingsBackend.round", () => {
             endedAtUnixMs: 1_792_105_200_000n,
             standings: [new RoundStandingPb({rank: 1, countryId: "fr", share: 0.3, points: 75})],
             takes: [new RoundTakesPb({countryId: "fr", tiles: 4210n}), new RoundTakesPb({countryId: "de", tiles: 3105n})],
-            players: [new StandingPb({rank: 1, accountId: "account-ana", name: "Ana", countryId: "fr", tiles: 912n})],
+            players: [new StandingPb({rank: 1, accountId: "account-ana", countryId: "fr", tiles: 912n})],
             before: [new ScorePb({rank: 1, countryId: "de", points: 43, roundsWon: 2})],
             after: [
                 new ScorePb({rank: 1, countryId: "fr", points: 93, roundsWon: 2}),
@@ -251,7 +250,7 @@ describe("ConnectStandingsBackend.round", () => {
             endedAt: 1_792_105_200_000,
             standings: [{rank: 1, countryCode: "fr", share: 0.3, points: 75}],
             takes: [{countryCode: "fr", tiles: 4210}, {countryCode: "de", tiles: 3105}],
-            players: [{rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.UNSPECIFIED, countryCode: "fr", tiles: 912}],
+            players: [{rank: 1, accountId: "account-ana", countryCode: "fr", tiles: 912}],
             before: [{rank: 1, countryCode: "de", points: 43, roundsWon: 2}],
             after: [
                 {rank: 1, countryCode: "fr", points: 93, roundsWon: 2},

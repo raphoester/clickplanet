@@ -1,7 +1,8 @@
 # Season standings
 
 `backends/standings.ts` is the contract: `StandingsBackend`, `Standing` (a
-ranked player: rank, its account, name, color, the flag its tiles are for, tiles)
+ranked player: rank, its account, the flag its tiles are for, tiles; its name and color are the nameplates', see
+[Nameplates](nameplates.md))
 and `MySeason` (the caller's line on one board: that flag, its tiles, its rank),
 scoring's `Round` (live standings while open, results once
 scored), and the countries' `Race` (the book's `Score`s, today's round and the
@@ -137,7 +138,7 @@ With no book there are no boards. `app/standings/` draws it.
   and the rank in "Your season" follows it. **The caller's row is the one with
   its `accountId`** (`Caller.accountId`, from the `AccountStore`): `boardWith`
   replaces that row, `PlayerStandings` marks it, and the rows are keyed by it.
-  A row that only shares the caller's name is another player's. With no
+  A row of another account is another player's, whatever its name. With no
   account id read yet there is no own row. The other rows move with the
   stream: a `TileUpdate` does not say who took the tile.
 - **The caller's own line.** "Your season" sits over the table and shows only
@@ -147,9 +148,9 @@ With no book there are no boards. `app/standings/` draws it.
   one shown. A guest gets a Sign in button beside its tiles, which opens
   `SignInPitchModal`. In the table the caller's row is the same line: marked
   when it is in the top 10, and otherwise added under it with its rank there.
-  Its name and color come from the profile, its title from the badges store by
-  `caller.accountId`, as every row's by its `accountId` (see [Badges](badges.md)):
-  a title picked shows at once, a title earned once its badge is read again.
+  Its name and color come from the nameplates store, which takes the profile's and each pick at once, and its title
+  from the badges store, both by `caller.accountId`, as every row's by its `accountId` (see [Badges](badges.md)): a
+  name or a title picked shows at once, a title earned once its badge is read again.
 - **A name opens the player card**, as in the roster and the chat, with the
   flag of its row.
 - **The head's line is a background**, 7px above its bottom edge: the gap under

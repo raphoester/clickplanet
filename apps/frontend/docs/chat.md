@@ -96,18 +96,19 @@ that opens a new tab with `rel="noopener noreferrer nofollow ugc"`.
 - **Only the balloon links.** The quote of a reply, the folded header's line and
   the phone's peek are buttons, so they show the text.
 
-**The server names every sender; the client sends no name.** A player with a
-username posts under it. Every other account is a guest, shown as `guest_` and a
-6-hex code the server drew once for that account (`guest_a1b2c3`, `GUEST_PREFIX`)
-— no username starts with the prefix, so a guest cannot pass for a player, and
-no two accounts share a code. **A name is one account at one moment only**: a
-rename frees it and another account can take it, so nothing here tells a
-player by its name. `ChatMessage.authorAccountId` does (empty for a message
-kept before accounts, and for a deleted account). **Nothing about the
-sender's address is public**: the `#tag` beside every name is gone from the wire.
-The composer asks nobody for a name; its foot reads "as <username>", or for a
-guest "as a guest" until its first message comes back, then the name the server
-gave it (`nameSentUnder`). The client still keeps a UUID in
+**A message says whose it is, and the page names it; the client sends no name.** A message, a quote and a reaction
+carry account ids (`authorAccountId`, `ChatQuote.authorAccountId`, `ReactionCount.reactorAccountIds`), and the name,
+its color and the crown are the account's nameplate, read from player by account id (see
+[Nameplates](nameplates.md)). A player with a username is shown under it. Every other account is a guest, shown as
+`guest_` and a 6-hex code the server drew once for that account (`guest_a1b2c3`, `GUEST_PREFIX`) — no username starts
+with the prefix, so a guest cannot pass for a player, and no two accounts share a code. **A name is one account at one
+moment only**: a rename frees it and another account can take it, so nothing here tells a player by its name.
+**An account the other players cannot name** (deleted, or asked deleted) reads `[deleted]`, in grey, with no card to
+open and nothing to report; what it said stays. **Nothing about the sender's address is public**: the `#tag` beside
+every name is gone from the wire. **A message waits for its names**, its author's and its quote's, so no line shows a
+blank name: an author online is named by the roster at once, any other in one read. The composer asks nobody for a
+name; its foot reads "as <username>", or for a guest "as a guest" until its first message comes back, then the
+nameplate of the account it posted as (`accountSentUnder`). The client still keeps a UUID in
 `clickplanet-chat-identity` (`chatIdentity.ts`, `useChatIdentity.ts`, held by
 `ChatPanel`) because `SendMessageRequest.author_id` carries it; the server
 trusts it for nothing, and a name stored there by an older build is dropped.
@@ -218,9 +219,9 @@ for it read and write. The server checks the flag on every call (the backend's
 
 A message can answer another one. **The reply is a message in the one thread**,
 with the beginning of what it answers in a small bubble above its balloon
-(`ChatMessage.replyTo`, a `ChatQuote`: the id, the author's name and color, the
+(`ChatMessage.replyTo`, a `ChatQuote`: the id, the author's account, the
 text). The server sends the quote on the message, so a reply still shows it once
-the log has dropped the message it answers.
+the log has dropped the message it answers; its author is named by the nameplates, as a message's.
 
 - **A button beside each balloon starts one** (`.chat-reply-add`, next to the
   reaction button and shown like it). `ChatPanel` holds the message being
@@ -234,8 +235,7 @@ the log has dropped the message it answers.
   `.chat-replying` carry `--author-hue` like a message.
 - **One level**: a reply to a reply shows the reply it answers, never a chain.
 - **A reply opens a group** (`startsGroup`), so its head says who answers even in
-  the middle of its author's run. So does another account, and the same
-  account under a new name: a run is one `authorAccountId` under one name.
+  the middle of its author's run. So does another account: a run is one `authorAccountId`.
 - **A quote goes to its message** when the log holds it: a press scrolls the
   message to the middle and lights its balloon for `SPOTLIGHT_MS` (`jumpTo` in
   `ChatLog`, which finds the line by `data-message`). With the message gone from
@@ -309,12 +309,11 @@ is the list, and the backend refuses any other.
   picker closes on a pick, on Escape and on a click elsewhere.
 - **A chip says who reacted while the pointer rests on it**, or while it holds
   the focus: the reaction's name, then the players under it (`whoReacted`,
-  `ReactionWho`). The names come from the server on the count itself
-  (`ReactionCount.reactors`), oldest first, cut at 20; the server reads them
-  from the accounts under the reaction rather than any stored name, so a rename
-  shows here too. `count` is what says how many gave it, so the popup ends on
+  `ReactionWho`). The accounts come from the server on the count itself
+  (`ReactionCount.reactorAccountIds`), oldest first, cut at 20, and the popup names them from the nameplates, so a
+  rename shows here too. `count` is what says how many gave it, so the popup ends on
   "and N more" whenever it has fewer names than that — a long list the server
-  cut, or somebody it could not name at all. It is drawn in a portal on the body, not beside the chip: the log
+  cut, somebody nobody can name, or one not read yet. It is drawn in a portal on the body, not beside the chip: the log
   both scrolls and clips. Anything that
   moves the chip — a scroll, a resize — closes it rather than making it follow.
 - **`mine` is only known from a call.** `GetHistory` sends the reader's token
@@ -333,10 +332,9 @@ is the list, and the backend refuses any other.
   to this player's own reaction) drop one older than what the log holds.
 - `useRoomLog.react` shows the change at once (`toggledReactions`), then takes the
   server's answer, or undoes it when refused. A message the server no longer
-  shows reads as `ChatMessageGoneError`. It puts this player's own name in and
-  out of the popup's list too: `useRoomLog` derives `displayName` — the `username`
-  prop, or the name the server posted under (`nameSentUnder`) for a guest — and
-  reads it through a ref, so a guest learning its name builds no new callback.
+  shows reads as `ChatMessageGoneError`. It puts this player's own account in and
+  out of the popup's list too: the account id the page holds, or the account a guest posted as
+  (`accountSentUnder`), read through a ref, so a guest learning its account builds no new callback.
   Without one the reaction is counted and nobody new is named, until the
   answer lands.
 - A reaction is not a new message: `ChatLog` shows the "New messages" pill only

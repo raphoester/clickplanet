@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {ChatMessage, FlagMissionAnnouncement} from "../../backends/chat.ts"
@@ -12,16 +12,28 @@ import {WordFilterContext} from "../crazygames/wordFilter.ts"
 import {usePlayerCard} from "../players/playerCardStore.ts"
 import {useBadges} from "../badges/badgesStore.ts"
 import {useChat} from "./chatStore.ts"
+import {useNameplates} from "../nameplates/nameplatesStore.ts"
+
+// What the nameplates say of an author: a guest by its prefix, no color and no crown unless told.
+function named(name: string, plate: {color?: NameColor, admin?: boolean} = {}) {
+    useNameplates.getState().learn([{
+        accountId: `account-${name}`, name, color: plate.color ?? NameColor.UNSPECIFIED, admin: plate.admin ?? false,
+        guest: name.startsWith("guest_"),
+    }])
+}
+
+beforeEach(() => ["Ana", "Bo", "Cy", "kiran_07", "guest_Bo", "guest_a1b2c3"].forEach((name) => named(name)))
 
 afterEach(() => {
     cleanup()
     usePlayerCard.setState({openable: false, player: undefined})
     useChat.setState(useChat.getInitialState(), true)
     useBadges.getState().serve(undefined)
+    useNameplates.getState().serve(undefined)
 })
 
 const message = (id: string, authorName: string, countryCode: string): ChatMessage =>
-    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorAccountId: `account-${authorName}`, authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
+    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorAccountId: `account-${authorName}`, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
 
 describe("ChatLog's flag mission line", () => {
     const done: FlagMissionAnnouncement = {
@@ -65,7 +77,7 @@ describe("ChatLog", () => {
         expect(screen.getByText("This message has been deleted")).toBeDefined()
     })
 
-    it("opens the author of a message from its name, and tells a guest by its prefix", async () => {
+    it("opens the author of a message from its name, and tells a guest by its nameplate", async () => {
         usePlayerCard.setState({openable: true})
         render(<ChatLog loading={false}
                         messages={[message("1", "Ana", "fr"), message("2", "guest_Bo", "de")]}/>)
@@ -94,8 +106,8 @@ describe("ChatLog", () => {
 
     it("crowns an admin's message, and keeps it on the player it opens", async () => {
         usePlayerCard.setState({openable: true})
-        const admin = {...message("1", "Ana", "fr"), authorAdmin: true}
-        render(<ChatLog loading={false} messages={[admin, message("2", "kiran_07", "in")]}/>)
+        named("Ana", {admin: true})
+        render(<ChatLog loading={false} messages={[message("1", "Ana", "fr"), message("2", "kiran_07", "in")]}/>)
 
         expect(screen.getAllByRole("img", {name: "Admin"})).toHaveLength(1)
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
@@ -121,17 +133,32 @@ describe("ChatLog", () => {
         expect(screen.getByRole("img", {name: "Warlord"}).querySelector(".title-emblem")).not.toBeNull()
     })
 
-    it("shows no badge beside a message with no account: kept before accounts, or of one deleted", () => {
+    it("shows no badge beside a message with no account: kept before accounts", () => {
         useBadges.setState({badges: {"": {streak: 12, wornTitle: {id: "og", name: "OG"}}}})
-        render(<ChatLog loading={false} messages={[{...message("1", "[deleted]", "fr"), authorAccountId: ""}]}/>)
+        render(<ChatLog loading={false} messages={[{...message("1", "Ana", "fr"), authorAccountId: ""}]}/>)
 
         expect(screen.queryByRole("img", {name: /streak/})).toBeNull()
         expect(screen.queryByRole("img", {name: "OG"})).toBeNull()
+        expect(screen.getByText("[deleted]")).toBeDefined()
+    })
+
+    it("names an account nobody can name [deleted], in grey, with nothing to open or report", () => {
+        usePlayerCard.setState({openable: true})
+        useNameplates.setState({nameplates: {...useNameplates.getState().nameplates, "account-gone": null}})
+        const {container} = render(<ChatLog loading={false} onReport={vi.fn()} messages={[message("1", "gone", "fr")]}/>)
+
+        expect(screen.getByText("[deleted]")).toBeDefined()
+        expect(screen.queryByRole("button", {name: "[deleted]"})).toBeNull()
+        expect(screen.queryAllByRole("button", {name: /^Report this message/})).toHaveLength(0)
+        expect(container.querySelector<HTMLElement>(".chat-message")!.style.getPropertyValue("--author-chroma")).toBe("0")
+        expect(screen.getByText("hello")).toBeDefined()
     })
 
     it("paints a name in the color its player chose, and grey with none or as a guest", () => {
-        const chosen = {...message("1", "Ana", "fr"), authorColor: NameColor.TEAL}
-        const guest = {...message("2", "guest_Bo", "de"), authorColor: NameColor.TEAL}
+        named("Ana", {color: NameColor.TEAL})
+        named("guest_Bo", {color: NameColor.TEAL})
+        const chosen = message("1", "Ana", "fr")
+        const guest = message("2", "guest_Bo", "de")
         const none = message("3", "Cy", "it")
         const {container} = render(<ChatLog loading={false} messages={[chosen, guest, none]}/>)
 
@@ -200,8 +227,10 @@ describe("ChatLog", () => {
     })
 
     describe("a reply", () => {
-        const question = {...message("1", "Ana", "fr"), text: "who holds the north", authorColor: NameColor.TEAL}
+        const question = {...message("1", "Ana", "fr"), text: "who holds the north"}
         const answer = {...message("2", "Bo", "de"), text: "we do", replyTo: quoteOf(question)}
+
+        beforeEach(() => named("Ana", {color: NameColor.TEAL}))
 
         it("shows who it answers and what they said, in a bubble above it", () => {
             const {container} = render(<ChatLog loading={false} messages={[question, answer]}/>)
@@ -294,6 +323,7 @@ describe("ChatLog", () => {
     })
 
     it("masks the words of the filter in the text, the names and the quotes", () => {
+        named("ass")
         const said = {...message("1", "ass", "fr"), text: "fuck that ass"}
         const reply = {...message("2", "Bo", "de"), text: "no", replyTo: quoteOf(said)}
         const mute = {kind: "mute" as const, id: "m", announcedAt: Date.UTC(2026, 8, 17, 12), name: "fuck", muteKind: "chat" as const, seconds: 3600}

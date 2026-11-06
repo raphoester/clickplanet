@@ -7,7 +7,6 @@
 package chatv1
 
 import (
-	v1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -163,13 +162,13 @@ func (MuteKind) EnumDescriptor() ([]byte, []int) {
 }
 
 type ReactionCount struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Reaction      Reaction               `protobuf:"varint,1,opt,name=reaction,proto3,enum=chat.v1.Reaction" json:"reaction,omitempty"`
-	Count         uint32                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
-	Mine          bool                   `protobuf:"varint,3,opt,name=mine,proto3" json:"mine,omitempty"`
-	Reactors      []string               `protobuf:"bytes,4,rep,name=reactors,proto3" json:"reactors,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Reaction          Reaction               `protobuf:"varint,1,opt,name=reaction,proto3,enum=chat.v1.Reaction" json:"reaction,omitempty"`
+	Count             uint32                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	Mine              bool                   `protobuf:"varint,3,opt,name=mine,proto3" json:"mine,omitempty"`
+	ReactorAccountIds []string               `protobuf:"bytes,5,rep,name=reactor_account_ids,json=reactorAccountIds,proto3" json:"reactor_account_ids,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ReactionCount) Reset() {
@@ -223,9 +222,9 @@ func (x *ReactionCount) GetMine() bool {
 	return false
 }
 
-func (x *ReactionCount) GetReactors() []string {
+func (x *ReactionCount) GetReactorAccountIds() []string {
 	if x != nil {
-		return x.Reactors
+		return x.ReactorAccountIds
 	}
 	return nil
 }
@@ -234,7 +233,6 @@ type ChatMessage struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	SentAtUnixMs int64                  `protobuf:"varint,2,opt,name=sent_at_unix_ms,json=sentAtUnixMs,proto3" json:"sent_at_unix_ms,omitempty"`
-	AuthorName   string                 `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
 	CountryId    string                 `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	// Neither once an operator removed it.
 	//
@@ -243,12 +241,10 @@ type ChatMessage struct {
 	//	*ChatMessage_Text
 	//	*ChatMessage_Gif
 	Body             isChatMessage_Body `protobuf_oneof:"body"`
-	AuthorAdmin      bool               `protobuf:"varint,7,opt,name=author_admin,json=authorAdmin,proto3" json:"author_admin,omitempty"`
 	Reactions        []*ReactionCount   `protobuf:"bytes,8,rep,name=reactions,proto3" json:"reactions,omitempty"`
 	ReactionsVersion uint64             `protobuf:"varint,9,opt,name=reactions_version,json=reactionsVersion,proto3" json:"reactions_version,omitempty"`
-	AuthorColor      v1.NameColor       `protobuf:"varint,10,opt,name=author_color,json=authorColor,proto3,enum=player.v1.NameColor" json:"author_color,omitempty"`
 	ReplyTo          *Quote             `protobuf:"bytes,13,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
-	// Empty for a message kept before accounts, and for an account that was deleted.
+	// Empty for a message kept before accounts. An account the other players can no longer name was deleted.
 	AuthorAccountId string `protobuf:"bytes,14,opt,name=author_account_id,json=authorAccountId,proto3" json:"author_account_id,omitempty"`
 	// An operator removed it: it keeps its place, with no body and no reactions.
 	Removed       bool `protobuf:"varint,15,opt,name=removed,proto3" json:"removed,omitempty"`
@@ -300,13 +296,6 @@ func (x *ChatMessage) GetSentAtUnixMs() int64 {
 	return 0
 }
 
-func (x *ChatMessage) GetAuthorName() string {
-	if x != nil {
-		return x.AuthorName
-	}
-	return ""
-}
-
 func (x *ChatMessage) GetCountryId() string {
 	if x != nil {
 		return x.CountryId
@@ -339,13 +328,6 @@ func (x *ChatMessage) GetGif() *Gif {
 	return nil
 }
 
-func (x *ChatMessage) GetAuthorAdmin() bool {
-	if x != nil {
-		return x.AuthorAdmin
-	}
-	return false
-}
-
 func (x *ChatMessage) GetReactions() []*ReactionCount {
 	if x != nil {
 		return x.Reactions
@@ -358,13 +340,6 @@ func (x *ChatMessage) GetReactionsVersion() uint64 {
 		return x.ReactionsVersion
 	}
 	return 0
-}
-
-func (x *ChatMessage) GetAuthorColor() v1.NameColor {
-	if x != nil {
-		return x.AuthorColor
-	}
-	return v1.NameColor(0)
 }
 
 func (x *ChatMessage) GetReplyTo() *Quote {
@@ -466,10 +441,9 @@ func (x *Gif) GetHeight() uint32 {
 }
 
 type Quote struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	MessageId   string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	AuthorName  string                 `protobuf:"bytes,2,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
-	AuthorColor v1.NameColor           `protobuf:"varint,3,opt,name=author_color,json=authorColor,proto3,enum=player.v1.NameColor" json:"author_color,omitempty"`
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	MessageId       string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	AuthorAccountId string                 `protobuf:"bytes,7,opt,name=author_account_id,json=authorAccountId,proto3" json:"author_account_id,omitempty"`
 	// Neither when the message quoted was removed.
 	//
 	// Types that are valid to be assigned to Body:
@@ -519,18 +493,11 @@ func (x *Quote) GetMessageId() string {
 	return ""
 }
 
-func (x *Quote) GetAuthorName() string {
+func (x *Quote) GetAuthorAccountId() string {
 	if x != nil {
-		return x.AuthorName
+		return x.AuthorAccountId
 	}
 	return ""
-}
-
-func (x *Quote) GetAuthorColor() v1.NameColor {
-	if x != nil {
-		return x.AuthorColor
-	}
-	return v1.NameColor(0)
 }
 
 func (x *Quote) GetBody() isQuote_Body {
@@ -1488,45 +1455,39 @@ var File_chat_v1_chat_proto protoreflect.FileDescriptor
 
 const file_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
-	"\x12chat/v1/chat.proto\x12\achat.v1\x1a\x15player/v1/color.proto\"\x84\x01\n" +
+	"\x12chat/v1/chat.proto\x12\achat.v1\"\xa8\x01\n" +
 	"\rReactionCount\x12-\n" +
 	"\breaction\x18\x01 \x01(\x0e2\x11.chat.v1.ReactionR\breaction\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\rR\x05count\x12\x12\n" +
-	"\x04mine\x18\x03 \x01(\bR\x04mine\x12\x1a\n" +
-	"\breactors\x18\x04 \x03(\tR\breactors\"\xaf\x04\n" +
+	"\x04mine\x18\x03 \x01(\bR\x04mine\x12.\n" +
+	"\x13reactor_account_ids\x18\x05 \x03(\tR\x11reactorAccountIdsJ\x04\b\x04\x10\x05R\breactors\"\xed\x03\n" +
 	"\vChatMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
-	"\x0fsent_at_unix_ms\x18\x02 \x01(\x03R\fsentAtUnixMs\x12\x1f\n" +
-	"\vauthor_name\x18\x03 \x01(\tR\n" +
-	"authorName\x12\x1d\n" +
+	"\x0fsent_at_unix_ms\x18\x02 \x01(\x03R\fsentAtUnixMs\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x05 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x04text\x18\x06 \x01(\tH\x00R\x04text\x12 \n" +
-	"\x03gif\x18\x10 \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x12!\n" +
-	"\fauthor_admin\x18\a \x01(\bR\vauthorAdmin\x124\n" +
+	"\x03gif\x18\x10 \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x124\n" +
 	"\treactions\x18\b \x03(\v2\x16.chat.v1.ReactionCountR\treactions\x12+\n" +
-	"\x11reactions_version\x18\t \x01(\x04R\x10reactionsVersion\x127\n" +
-	"\fauthor_color\x18\n" +
-	" \x01(\x0e2\x14.player.v1.NameColorR\vauthorColor\x12)\n" +
+	"\x11reactions_version\x18\t \x01(\x04R\x10reactionsVersion\x12)\n" +
 	"\breply_to\x18\r \x01(\v2\x0e.chat.v1.QuoteR\areplyTo\x12*\n" +
 	"\x11author_account_id\x18\x0e \x01(\tR\x0fauthorAccountId\x12\x18\n" +
 	"\aremoved\x18\x0f \x01(\bR\aremovedB\x06\n" +
-	"\x04bodyJ\x04\b\x04\x10\x05J\x04\b\v\x10\fJ\x04\b\f\x10\rR\n" +
-	"author_tagR\rauthor_streakR\fauthor_title\"E\n" +
+	"\x04bodyJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\a\x10\bJ\x04\b\n" +
+	"\x10\vJ\x04\b\v\x10\fJ\x04\b\f\x10\rR\vauthor_nameR\n" +
+	"author_tagR\fauthor_adminR\fauthor_colorR\rauthor_streakR\fauthor_title\"E\n" +
 	"\x03Gif\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
 	"\x05width\x18\x02 \x01(\rR\x05width\x12\x16\n" +
-	"\x06height\x18\x03 \x01(\rR\x06height\"\xda\x01\n" +
+	"\x06height\x18\x03 \x01(\rR\x06height\"\xd3\x01\n" +
 	"\x05Quote\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1f\n" +
-	"\vauthor_name\x18\x02 \x01(\tR\n" +
-	"authorName\x127\n" +
-	"\fauthor_color\x18\x03 \x01(\x0e2\x14.player.v1.NameColorR\vauthorColor\x12\x14\n" +
+	"message_id\x18\x01 \x01(\tR\tmessageId\x12*\n" +
+	"\x11author_account_id\x18\a \x01(\tR\x0fauthorAccountId\x12\x14\n" +
 	"\x04text\x18\x04 \x01(\tH\x00R\x04text\x12 \n" +
 	"\x03gif\x18\x06 \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x12\x18\n" +
 	"\aremoved\x18\x05 \x01(\bR\aremovedB\x06\n" +
-	"\x04body\"\xef\x01\n" +
+	"\x04bodyJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vauthor_nameR\fauthor_color\"\xef\x01\n" +
 	"\x12SendMessageRequest\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\tR\bauthorId\x12\x1d\n" +
 	"\n" +
@@ -1649,44 +1610,41 @@ var file_chat_v1_chat_proto_goTypes = []any{
 	(*MessageRemoved)(nil),         // 18: chat.v1.MessageRemoved
 	(*ReactionsChanged)(nil),       // 19: chat.v1.ReactionsChanged
 	(*Heartbeat)(nil),              // 20: chat.v1.Heartbeat
-	(v1.NameColor)(0),              // 21: player.v1.NameColor
 }
 var file_chat_v1_chat_proto_depIdxs = []int32{
 	0,  // 0: chat.v1.ReactionCount.reaction:type_name -> chat.v1.Reaction
 	4,  // 1: chat.v1.ChatMessage.gif:type_name -> chat.v1.Gif
 	2,  // 2: chat.v1.ChatMessage.reactions:type_name -> chat.v1.ReactionCount
-	21, // 3: chat.v1.ChatMessage.author_color:type_name -> player.v1.NameColor
-	5,  // 4: chat.v1.ChatMessage.reply_to:type_name -> chat.v1.Quote
-	21, // 5: chat.v1.Quote.author_color:type_name -> player.v1.NameColor
-	4,  // 6: chat.v1.Quote.gif:type_name -> chat.v1.Gif
-	4,  // 7: chat.v1.SendMessageRequest.gif:type_name -> chat.v1.Gif
-	3,  // 8: chat.v1.SendMessageResponse.message:type_name -> chat.v1.ChatMessage
-	1,  // 9: chat.v1.MuteRefusal.kind:type_name -> chat.v1.MuteKind
-	3,  // 10: chat.v1.GetHistoryResponse.messages:type_name -> chat.v1.ChatMessage
-	10, // 11: chat.v1.GetHistoryResponse.announcements:type_name -> chat.v1.Announcement
-	0,  // 12: chat.v1.ReactRequest.reaction:type_name -> chat.v1.Reaction
-	2,  // 13: chat.v1.ReactResponse.reactions:type_name -> chat.v1.ReactionCount
-	3,  // 14: chat.v1.ChatEvent.message:type_name -> chat.v1.ChatMessage
-	20, // 15: chat.v1.ChatEvent.heartbeat:type_name -> chat.v1.Heartbeat
-	19, // 16: chat.v1.ChatEvent.reactions:type_name -> chat.v1.ReactionsChanged
-	10, // 17: chat.v1.ChatEvent.announcement:type_name -> chat.v1.Announcement
-	18, // 18: chat.v1.ChatEvent.message_removed:type_name -> chat.v1.MessageRemoved
-	2,  // 19: chat.v1.ReactionsChanged.reactions:type_name -> chat.v1.ReactionCount
-	6,  // 20: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
-	9,  // 21: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
-	16, // 22: chat.v1.ChatService.ListenForEvents:input_type -> chat.v1.ListenForEventsRequest
-	14, // 23: chat.v1.ChatService.React:input_type -> chat.v1.ReactRequest
-	12, // 24: chat.v1.ChatService.MarkSeen:input_type -> chat.v1.MarkSeenRequest
-	7,  // 25: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
-	11, // 26: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
-	17, // 27: chat.v1.ChatService.ListenForEvents:output_type -> chat.v1.ChatEvent
-	15, // 28: chat.v1.ChatService.React:output_type -> chat.v1.ReactResponse
-	13, // 29: chat.v1.ChatService.MarkSeen:output_type -> chat.v1.MarkSeenResponse
-	25, // [25:30] is the sub-list for method output_type
-	20, // [20:25] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	5,  // 3: chat.v1.ChatMessage.reply_to:type_name -> chat.v1.Quote
+	4,  // 4: chat.v1.Quote.gif:type_name -> chat.v1.Gif
+	4,  // 5: chat.v1.SendMessageRequest.gif:type_name -> chat.v1.Gif
+	3,  // 6: chat.v1.SendMessageResponse.message:type_name -> chat.v1.ChatMessage
+	1,  // 7: chat.v1.MuteRefusal.kind:type_name -> chat.v1.MuteKind
+	3,  // 8: chat.v1.GetHistoryResponse.messages:type_name -> chat.v1.ChatMessage
+	10, // 9: chat.v1.GetHistoryResponse.announcements:type_name -> chat.v1.Announcement
+	0,  // 10: chat.v1.ReactRequest.reaction:type_name -> chat.v1.Reaction
+	2,  // 11: chat.v1.ReactResponse.reactions:type_name -> chat.v1.ReactionCount
+	3,  // 12: chat.v1.ChatEvent.message:type_name -> chat.v1.ChatMessage
+	20, // 13: chat.v1.ChatEvent.heartbeat:type_name -> chat.v1.Heartbeat
+	19, // 14: chat.v1.ChatEvent.reactions:type_name -> chat.v1.ReactionsChanged
+	10, // 15: chat.v1.ChatEvent.announcement:type_name -> chat.v1.Announcement
+	18, // 16: chat.v1.ChatEvent.message_removed:type_name -> chat.v1.MessageRemoved
+	2,  // 17: chat.v1.ReactionsChanged.reactions:type_name -> chat.v1.ReactionCount
+	6,  // 18: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
+	9,  // 19: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
+	16, // 20: chat.v1.ChatService.ListenForEvents:input_type -> chat.v1.ListenForEventsRequest
+	14, // 21: chat.v1.ChatService.React:input_type -> chat.v1.ReactRequest
+	12, // 22: chat.v1.ChatService.MarkSeen:input_type -> chat.v1.MarkSeenRequest
+	7,  // 23: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
+	11, // 24: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
+	17, // 25: chat.v1.ChatService.ListenForEvents:output_type -> chat.v1.ChatEvent
+	15, // 26: chat.v1.ChatService.React:output_type -> chat.v1.ReactResponse
+	13, // 27: chat.v1.ChatService.MarkSeen:output_type -> chat.v1.MarkSeenResponse
+	23, // [23:28] is the sub-list for method output_type
+	18, // [18:23] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_chat_proto_init() }

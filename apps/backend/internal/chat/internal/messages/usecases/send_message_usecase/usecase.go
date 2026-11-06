@@ -96,8 +96,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 	if err != nil {
 		return messages.Message{}, fmt.Errorf("%w: %w", messages.ErrAuthorUnavailable, err)
 	}
-	named, err := message.SentBy(author)
-	if err != nil {
+	if err := message.CheckSender(author); err != nil {
 		return messages.Message{}, fmt.Errorf("failed to accept the sender: %w", err)
 	}
 
@@ -107,7 +106,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 		return messages.Message{}, fmt.Errorf("failed to store chat message: %w", err)
 	}
 
-	u.publisher.Publish(feed.MessageSent(named))
+	u.publisher.Publish(feed.MessageSent(message))
 
-	return named, nil
+	return message, nil
 }

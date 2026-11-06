@@ -27,6 +27,7 @@ import {
     ReactionsChange,
 } from "./chat.ts";
 import {NameColor} from "./player.ts";
+import {Nameplate} from "./nameplates.ts";
 import {ClosedRound} from "./standings.ts";
 import {FlagMission} from "./missions.ts";
 import {championOf} from "../domain/champion.ts";
@@ -105,9 +106,6 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 id: UUIDv4(),
                 sentAt: Date.now() - (chatters.length - index) * 60_000,
                 authorAccountId: fakeAccountId(chatter.name),
-                authorName: chatter.name,
-                authorAdmin: chatter.admin,
-                authorColor: chatter.color,
                 countryCode: chatter.country,
                 text: chatter.text,
                 reactions: [],
@@ -126,9 +124,6 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 id: UUIDv4(),
                 sentAt: Date.now(),
                 authorAccountId: fakeAccountId(chatter.name),
-                authorName: chatter.name,
-                authorAdmin: chatter.admin,
-                authorColor: chatter.color,
                 countryCode: chatter.country,
                 text: `${chatter.text} (${this.nextChatter})`,
                 reactions: [],
@@ -138,7 +133,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
 
             const target = this.messages[Math.floor(Math.random() * this.messages.length)]
             const reaction = BOT_REACTIONS[this.nextChatter % BOT_REACTIONS.length]
-            this.give(target.id, reaction, chatter.name, true)
+            this.give(target.id, reaction, fakeAccountId(chatter.name), true)
         }, (options.chatterIntervalMs ?? 8000) * (flag === undefined ? 1 : FLAG_ROOM_SLOWER)))
     }
 
@@ -194,9 +189,6 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             id: UUIDv4(),
             sentAt: Date.now(),
             authorAccountId: fakeAccountId(OWN_GUEST_NAME),
-            authorName: OWN_GUEST_NAME,
-            authorAdmin: false,
-            authorColor: NameColor.UNSPECIFIED,
             countryCode: message.countryCode,
             text,
             reactions: [],
@@ -372,7 +364,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 reaction,
                 count: reactors.size,
                 mine: viewer !== undefined && reactors.has(viewer),
-                reactors: [...reactors].map(named),
+                reactorAccountIds: [...reactors].map(accountOf),
             }))
     }
 
@@ -390,6 +382,12 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
     }
 }
 
-function named(reactor: string): string {
-    return reactor === ME ? OWN_GUEST_NAME : reactor
+function accountOf(reactor: string): string {
+    return reactor === ME ? fakeAccountId(OWN_GUEST_NAME) : reactor
+}
+
+// What GetNameplates answers for a chatter of any room: undefined for an account no chatter has.
+export function chatterNameplateOf(accountId: string): Nameplate | undefined {
+    const chatter = [...CHATTERS, ...flagChatters("")].find(({name}) => fakeAccountId(name) === accountId)
+    return chatter && {name: chatter.name, color: chatter.color, admin: chatter.admin, guest: chatter.name.startsWith("guest_")}
 }

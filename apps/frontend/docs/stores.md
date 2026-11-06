@@ -36,7 +36,8 @@ The features still held in `Viewer` move to stores the same way.
 ## A store that reads by itself
 
 **When many components each show one entry of the same backend data, by id, the store reads it, not the
-components.** The badges ([Badges](badges.md)) are the one so far: a name anywhere asks for its account's badge.
+components.** The badges ([Badges](badges.md)) and the nameplates ([Nameplates](nameplates.md)) are the two so far: a
+name anywhere asks for its account's nameplate and badge.
 
 - **A component asks, and reads a plain value**: `useBadge(accountId)` selects `badges[accountId]`, the store's
   own object, and asks the store in an effect after every render. Asking an entry that is fresh or being read costs
@@ -47,9 +48,13 @@ components.** The badges ([Badges](badges.md)) are the one so far: a name anywhe
   the next time it is asked. An entry the server left out is kept as "none", so it is not asked again either.
 - **A failed read changes nothing on screen** but puts those entries off (`BADGE_RETRY_MS`): what was shown stays,
   and what never was shows nothing.
-- **What the page learns itself is written at once** (`wear`, `setStreak`), and **a read sent before it is not
+- **What the page learns itself is written at once** (`wear`, `setStreak`, `own`), and **a read sent before it is not
   kept** for that entry: it would bring back what the page just changed. `expire` is for what the page knows
   changed without knowing how: the entry is read again.
+- **What another feed already says is written at once too** (`learn`): the roster's lines are whole nameplates as they
+  are now, so every player online is named with no read.
+- **A reader that must not show an entry unread waits for it** (`whenRead`): the chat holds a message until its
+  names are read, or a wait has passed, rather than draw a blank name.
 - **The backend is served to the store by a hook** (`useBadgesFeed`, called by `Viewer`): the reads wait for it, and
   the store empties once it stops, as any store fed from where its inputs are.
 - **The bookkeeping is not state**: what is being read, asked, or due again lives in the store's closure, so it

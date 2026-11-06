@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package scoring.v1;
 
-import "player/v1/color.proto";
-
 // The books and their rounds, read by the ids the gamemaster's timeline names. Scoring knows no season, day or battle.
 service ScoringService {
   // A book's top 10 players, of every flag or of one.
@@ -44,13 +42,12 @@ message GetBoardResponse {
 
 message Standing {
   uint32 rank = 1;
-  string name = 2;
-  player.v1.NameColor color = 3;
+  // The player's name and color are player.v1.PlayerService/GetNameplates', its badges
+  // progression.v1.ProgressionService/GetBadges', by account_id.
+  reserved 2, 3, 6;
+  reserved "name", "color", "worn_title";
   string country_id = 4;
   uint64 tiles = 5;
-  // The player's badges are player.v1.PlayerService/GetBadges', by account_id.
-  reserved 6;
-  reserved "worn_title";
   string account_id = 7;
 }
 

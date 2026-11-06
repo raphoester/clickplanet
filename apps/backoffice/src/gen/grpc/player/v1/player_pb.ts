@@ -933,3 +933,145 @@ export class Player extends Message<Player> {
   }
 }
 
+/**
+ * @generated from message player.v1.GetNameplatesRequest
+ */
+export class GetNameplatesRequest extends Message<GetNameplatesRequest> {
+  /**
+   * @generated from field: repeated string account_ids = 1;
+   */
+  accountIds: string[] = [];
+
+  constructor(data?: PartialMessage<GetNameplatesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetNameplatesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNameplatesRequest {
+    return new GetNameplatesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNameplatesRequest {
+    return new GetNameplatesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNameplatesRequest {
+    return new GetNameplatesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNameplatesRequest | PlainMessage<GetNameplatesRequest> | undefined, b: GetNameplatesRequest | PlainMessage<GetNameplatesRequest> | undefined): boolean {
+    return proto3.util.equals(GetNameplatesRequest, a, b);
+  }
+}
+
+/**
+ * Only the accounts the other players can name, once each: an unknown one, one deleted, one asked deleted, or one
+ * never shown is left out.
+ *
+ * @generated from message player.v1.GetNameplatesResponse
+ */
+export class GetNameplatesResponse extends Message<GetNameplatesResponse> {
+  /**
+   * @generated from field: repeated player.v1.Nameplate nameplates = 1;
+   */
+  nameplates: Nameplate[] = [];
+
+  constructor(data?: PartialMessage<GetNameplatesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetNameplatesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "nameplates", kind: "message", T: Nameplate, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNameplatesResponse {
+    return new GetNameplatesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNameplatesResponse {
+    return new GetNameplatesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNameplatesResponse {
+    return new GetNameplatesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNameplatesResponse | PlainMessage<GetNameplatesResponse> | undefined, b: GetNameplatesResponse | PlainMessage<GetNameplatesResponse> | undefined): boolean {
+    return proto3.util.equals(GetNameplatesResponse, a, b);
+  }
+}
+
+/**
+ * What the page draws for a player's name: the name, and how it is drawn.
+ *
+ * @generated from message player.v1.Nameplate
+ */
+export class Nameplate extends Message<Nameplate> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * @generated from field: player.v1.NameColor color = 3;
+   */
+  color = NameColor.UNSPECIFIED;
+
+  /**
+   * @generated from field: bool admin = 4;
+   */
+  admin = false;
+
+  /**
+   * A guest is its account and its name alone: every other field is unset.
+   *
+   * @generated from field: bool guest = 5;
+   */
+  guest = false;
+
+  constructor(data?: PartialMessage<Nameplate>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.Nameplate";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
+    { no: 4, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Nameplate {
+    return new Nameplate().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Nameplate {
+    return new Nameplate().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Nameplate {
+    return new Nameplate().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Nameplate | PlainMessage<Nameplate> | undefined, b: Nameplate | PlainMessage<Nameplate> | undefined): boolean {
+    return proto3.util.equals(Nameplate, a, b);
+  }
+}
+

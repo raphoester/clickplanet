@@ -46,7 +46,7 @@ func (s *testSuite) SetupTest() {
 	s.authors = &fakeAuthors{names: map[messages.AccountID]string{ada: "Ada_L", guest: "guest_0b1c2d"}}
 	s.thread = &fakeThread{shown: map[messages.MessageID]messages.Message{
 		"parent": messages.Restored(s.T(), messages.Snapshot{
-			ID: "parent", Account: ada, Author: messages.AuthorOf("Ada_L", false, 0), Text: "who holds the north",
+			ID: "parent", Account: ada, Text: "who holds the north",
 		}),
 	}}
 	s.clock = cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
@@ -104,10 +104,8 @@ func (s *testSuite) TestNominalCase() {
 	draft := messages.Snapshot{
 		ID: firstID, SentAt: s.clock.Now(), Account: guest, Room: messages.World, Country: "fr", Text: "hello planet",
 	}
-	named := draft
-	named.Author = messages.AuthorOf("guest_0b1c2d", false, 0)
-	s.Equal(named, sent, "a guest posts under the name the player module gives it")
-	s.Equal([]messages.AccountID{guest}, s.authors.asked)
+	s.Equal(draft, sent, "the page names the sender by its account")
+	s.Equal([]messages.AccountID{guest}, s.authors.asked, "introduced, so a guest has its code before anyone reads it")
 
 	s.Equal([]messages.RecordSnapshot{{
 		Message:   draft,
@@ -116,7 +114,7 @@ func (s *testSuite) TestNominalCase() {
 		UserAgent: "curl/8",
 	}}, s.kept(), "what is kept is who sent it, and not a copy of what that account is called")
 
-	s.Equal([]messages.Snapshot{named}, s.published(), "the message goes out once it is kept")
+	s.Equal([]messages.Snapshot{draft}, s.published(), "the message goes out once it is kept")
 }
 
 func (s *testSuite) TestEachMessageGetsAnIDOfItsOwn() {
@@ -140,7 +138,6 @@ func (s *testSuite) TestTheSenderIPIsRecordedButNeverReturned() {
 	s.Require().Len(s.kept(), 1)
 	s.Equal("1.2.3.4", s.kept()[0].IP)
 
-	s.NotContains(sent.Author.Name(), "1.2.3.4")
 	s.NotContains(sent.Text, "1.2.3.4")
 }
 
@@ -187,9 +184,7 @@ func (s *testSuite) TestAReplyIsKeptAndGoesOutWithWhatItQuotes() {
 	sent, err := s.send(in)
 	s.Require().NoError(err)
 
-	quote := messages.Quote{
-		MessageID: "parent", Author: messages.AuthorOf("Ada_L", false, 0), Text: "who holds the north",
-	}
+	quote := messages.Quote{MessageID: "parent", Account: ada, Text: "who holds the north"}
 	s.Equal(quote, sent.Quote)
 	s.Require().Len(s.kept(), 1)
 	s.Equal(quote, s.kept()[0].Message.Quote)
@@ -226,32 +221,6 @@ func (s *testSuite) TestStorageFailureFailsTheSend() {
 	s.Require().Error(err)
 	s.NotErrorIs(err, messages.ErrInvalidMessage)
 	s.Empty(s.publisher.updates, "a message that cannot be kept is not sent")
-}
-
-func (s *testSuite) TestAPlayerWithAUsernamePostsUnderIt() {
-	in := validIn()
-	in.Account = ada
-
-	sent, err := s.send(in)
-
-	s.Require().NoError(err)
-	s.Equal("Ada_L", sent.Author.Name())
-	s.Equal(ada, s.kept()[0].Message.Account)
-	s.Empty(s.kept()[0].Message.Author.Name(), "the name is read back from the account, not kept")
-	s.Equal([]messages.AccountID{ada}, s.authors.asked)
-}
-
-func (s *testSuite) TestAnAdminPostsAsOneAndIsStoredAsOne() {
-	s.authors.admins = map[messages.AccountID]bool{ada: true}
-	in := validIn()
-	in.Account = ada
-
-	sent, err := s.send(in)
-
-	s.Require().NoError(err)
-	s.True(sent.Author.Admin(), "everyone watching is shown the crown at once")
-	s.False(s.kept()[0].Message.Author.Admin(),
-		"a player that stops being an admin stops looking like one on what it already said")
 }
 
 func (s *testSuite) TestAnAuthorThatCannotBeReadRefusesThePost() {
@@ -307,7 +276,6 @@ func (s *testSuite) TestNoAccountIsRefusedBeforeAnythingIsAsked() {
 type fakeAuthors struct {
 	mu     sync.Mutex
 	names  map[messages.AccountID]string
-	admins map[messages.AccountID]bool
 	guests map[messages.AccountID]bool
 	err    error
 	asked  []messages.AccountID
@@ -324,7 +292,7 @@ func (f *fakeAuthors) Author(_ context.Context, account messages.AccountID) (mes
 	if f.guests[account] {
 		return messages.GuestOf(f.names[account]), nil
 	}
-	return messages.AuthorOf(f.names[account], f.admins[account], 0), nil
+	return messages.AuthorOf(f.names[account]), nil
 }
 
 type fakeThread struct {

@@ -9,7 +9,9 @@ const PLAYERS: FakePlayer[] = [
     {name: "Bastien", color: NameColor.YELLOW, tiles: {fr: 10}},
 ]
 
-const namesOf = (standings: Standing[] | undefined) => standings?.map((standing) => `${standing.rank} ${standing.name} ${standing.tiles}`)
+const nameOf = (accountId: string) => accountId.replace("account-", "")
+
+const namesOf = (standings: Standing[] | undefined) => standings?.map((standing) => `${standing.rank} ${nameOf(standing.accountId)} ${standing.tiles}`)
 
 afterEach(() => vi.useRealTimers())
 
@@ -109,7 +111,7 @@ describe("FakeStandingsBackend.listenForRace", () => {
         expect(closed).toMatchObject({roundId: "entry-final", endedAt: now, startedAt: now - 7_200_000, times: 3})
         expect(closed.standings.map((s) => s.points)).toEqual([75, 54])
         expect(closed.takes).toEqual([{countryCode: "fr", tiles: 5}, {countryCode: "gh", tiles: 2}])
-        expect(closed.players.map((p) => `${p.rank} ${p.name} ${p.countryCode} ${p.tiles}`)).toEqual(["1 Ana fr 3", "2 Kofi gh 2", "3 Bastien fr 1"])
+        expect(closed.players.map((p) => `${p.rank} ${nameOf(p.accountId)} ${p.countryCode} ${p.tiles}`)).toEqual(["1 Ana fr 3", "2 Kofi gh 2", "3 Bastien fr 1"])
         expect(await backend.round("entry-final")).toEqual(closed)
         expect(await backend.round("entry-other")).toBeUndefined()
     })

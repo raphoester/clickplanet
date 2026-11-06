@@ -2,6 +2,7 @@ import {FAKE_YOU, fakeAccountId} from "./fakeAccounts.ts"
 import {OWN_GUEST_NAME} from "./fakeChatBackend.ts"
 import {compareRosterEntries} from "../domain/roster.ts"
 import {Badge} from "./badges.ts"
+import {Nameplate} from "./nameplates.ts"
 import {NameColor, Player, PlayerReader, Presence, PresenceBackend, RosterEntry, RosterEvent} from "./player.ts"
 import {
     CountryTiles,
@@ -203,6 +204,13 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
         if (!player) return undefined
         if (player.guest) return {streak: 0}
         return {streak: player.streak, wornTitle: this.career(player).wornTitle}
+    }
+
+    // What GetNameplates answers for an account: the name, color and crown its roster line and its messages show.
+    public nameplateOf(accountId: string): Nameplate | undefined {
+        if (accountId === fakeAccountId(OWN_GUEST_NAME)) return {name: OWN_GUEST_NAME, color: NameColor.UNSPECIFIED, admin: false, guest: true}
+        const player = playerOf(accountId)
+        return player && {name: player.name, color: player.color, admin: player.admin, guest: player.guest}
     }
 
     public ownDashboard(): TitleDashboard {

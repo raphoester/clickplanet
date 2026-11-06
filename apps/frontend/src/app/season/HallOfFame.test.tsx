@@ -1,15 +1,18 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import {Season, SeasonTotals} from "../../backends/season.ts"
 import {Round, Score, Standing} from "../../backends/standings.ts"
 import {NameColor} from "../../backends/player.ts"
 import {useBadges} from "../badges/badgesStore.ts"
 import HallOfFame, {HallOfFameButton} from "./HallOfFame.tsx"
+import {useNameplates} from "../nameplates/nameplatesStore.ts"
 
 const score = (rank: number, countryCode: string, points: number): Score => ({rank, countryCode, points, roundsWon: 0})
+const PLAYERS = ["Ana", "Nova", "Kai"]
+
 const player = (rank: number, name: string, countryCode: string, tiles: number): Standing =>
-    ({rank, accountId: `account-${name}`, name, color: NameColor.UNSPECIFIED, countryCode, tiles})
+    ({rank, accountId: `account-${name}`, countryCode, tiles})
 
 const SEASON_ZERO: Season = {
     number: 0, startsAt: Date.UTC(2026, 9, 8), endsAt: Date.UTC(2026, 9, 31, 20), bookId: "season-0", finaleRoundId: "season-0/finale",
@@ -37,9 +40,13 @@ const gamemaster = {seasonTotals: async () => TOTALS}
 const plaques = () => [...document.querySelectorAll(".hall-of-fame-plaque")] as HTMLElement[]
 const steps = () => [...document.querySelectorAll(".podium-step")].map((step) => step.textContent)
 
+beforeEach(() => useNameplates.getState().learn(PLAYERS.map((name) =>
+    ({accountId: `account-${name}`, name, color: NameColor.UNSPECIFIED, admin: false, guest: false}))))
+
 afterEach(() => {
     cleanup()
     useBadges.getState().serve(undefined)
+    useNameplates.getState().serve(undefined)
 })
 
 describe("HallOfFame", () => {

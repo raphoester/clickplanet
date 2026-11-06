@@ -1,6 +1,7 @@
 import {AccountBackend, AuthError, Me, OAuthProvider, Provider, SignInOutcome} from "./account.ts"
 import {CALLBACK_PATH} from "../domain/signInCallback.ts"
 import {FAKE_YOU} from "./fakeAccounts.ts"
+import {Nameplate} from "./nameplates.ts"
 import {ColoredProfile, NameColor, PlayerBackend, PlayerError, Profile} from "./player.ts"
 import {Fronts, PlayerTitle, ProgressionBackend, TitleDashboard} from "./progression.ts"
 
@@ -81,6 +82,12 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend, Progre
 
     public async profile(): Promise<ColoredProfile> {
         return {accountId: FAKE_YOU, name: this.name, color: this.color}
+    }
+
+    // What GetNameplates answers for the page's own account once it has a username, as the server would.
+    public nameplateOf(accountId: string): Nameplate | undefined {
+        if (accountId !== FAKE_YOU || this.name === "") return undefined
+        return {name: this.name, color: this.color, admin: false, guest: false}
     }
 
     public async setName(name: string): Promise<Profile> {

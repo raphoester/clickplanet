@@ -97,7 +97,8 @@ and says what is in it. Read the doc before you change its area.
 - [Chat](docs/chat.md) — messages, each flag's room beside the world chat, GIFs, announcements, mutes, removals,
   the moderation history (every mute, unmute and removal with its reason and who made it, kept 90 days), replies,
   reactions, and what each account saw; why each context keeps its own history.
-- [Player](docs/player.md) — who an account is: names and guest codes, colors, who is playing now, and an account
+- [Player](docs/player.md) — who an account is: names and guest codes, colors, the nameplates the page draws every name
+  from (`GetNameplates`), who is playing now, and an account
   asked deleted, hidden from the other players until it is purged or comes back; what it tells the other modules of
   an account (`PlayerCreated`, `PlayerNamed`, `PlayerSignedIn`, `PlayerLeaving`, `PlayerReturned`, `PlayerForgotten`,
   `GetAccounts`), so no game module but alerts hears or asks auth; the deploy that moved them to it.
@@ -108,7 +109,8 @@ and says what is in it. Read the doc before you change its area.
   Final Battle, where its flag placed and who took the most tiles there, read from scoring when the gamemaster tells
   `SeasonEnded`; Season 0 Top 1-3, its best players, given once by hand.
 - [Scoring](docs/scoring.md) — a points accountant: books, rounds and grants by the ids it is given, opened and closed
-  by the gamemaster's commands, each round scored from the map when it closes; no season, day, battle or clock.
+  by the gamemaster's commands, each round scored from the map when it closes; no season, day, battle or clock; who a
+  board may rank, kept from player's events.
 - [The gamemaster](docs/gamemaster.md) — every moment of the game: the rule schedule that commands planet and the
   antibot, the seasons, days and battles it opens and closes in scoring's books, each season's finale (the Final
   Battle), the events in the game's words (each season, day and battle as it starts), and the steps before the Final

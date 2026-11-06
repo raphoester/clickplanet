@@ -39,7 +39,7 @@ internal/player/internal/
     usecases/announce_usecase/  listen_for_events_usecase/  move_visit_usecase/  forget_visit_usecase/
   playerv1controller/               PlayerService, InternalService and AdminService (bags), the session interceptor
     get_profile_handler/  set_name_handler/  set_color_handler/  introduce_player_handler/  get_player_handler/
-    get_players_handler/  get_accounts_handler/  announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
+    get_players_handler/  get_nameplates_handler/  get_accounts_handler/  announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
     admin_get_player_handler/  search_players_handler/  rename_player_handler/  list_renames_handler/   AdminService's
                                     own; it serves get_players_handler too
       admin_get_player_handler/admin_player_query/   PostgresQuery: who one account is, a guest's too
@@ -60,7 +60,7 @@ internal/player/internal/
   migrations/
 ```
 
-- **The caller is the account in the click token.** Every call of `PlayerService` but `GetRoster`, `GetPlayer` and `ListenForEvents` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, with the process's one verifier (`props.Sessions`), on the key `auth` hands over the internal listener, as every module does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
+- **The caller is the account in the click token.** Every call of `PlayerService` but `GetRoster`, `GetPlayer`, `GetNameplates` and `ListenForEvents` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, with the process's one verifier (`props.Sessions`), on the key `auth` hands over the internal listener, as every module does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
 - **`GetProfile`** answers the account id and its name, empty when none was chosen, when the name may change again, and its color. The caller's own stats, titles and fronts are progression's `GetStats`, `GetTitles` and `GetFronts`.
 - **`SetName` chooses a username.** `players.NameOf` is the rule. It puts the name in **NFC** and cuts the spaces (U+0020) at its ends — the same text, as it shows — and changes nothing else. Then:
   - **3 to 15 characters, counted in code points after NFC**, as postgres' `char_length` counts, so both agree. A letter with a combining mark NFC cannot compose counts two.
@@ -152,7 +152,23 @@ internal/player/internal/
 - **A guest code names an account that chose no username**: 6 lowercase hex characters (`players.GuestCode`), shown as `guest_` and the code (`players.DisplayNameOf`). It is drawn by `random_code_generator` the first time the account is shown (`players.GuestCodes.Assign`), kept in `player.guest_codes`, and deleted with the account, which frees it. **It is unique**: the table's `guest_codes_code_key` refuses a code another account holds, the store answers `ErrGuestCodeTaken`, and `Assign` draws again, up to 10 times (`ErrNoFreeGuestCode`). An account keeps its first code: a second save for it changes nothing, so two first announces at once leave one code. **It does not change with the network**, unlike the address, and says nothing about the account or the address. A linked account with no username keeps the code it had as a guest until it picks a name.
 - **Every read of a player answers one structure, `player.v1.Player`**: its `account_id`, the name the game shows for it (the username, or `guest_` and the code), `admin`, `color`, and `guest` for an account with no username, whose other fields are unset. `PlayerService/GetPlayer`'s card, `InternalService/IntroducePlayer` and `InternalService/GetPlayers` all answer it. **`created_at_unix_ms` is auth's**, so only `GetPlayer` asks auth for it (`GetAccount`, one call); the other two leave it at 0 rather than ask auth on every message and every board. **It carries no badge**: an account's streak and worn title are progression's `GetBadges` ([Progression](progression.md#the-badges)), which the page reads by the account id beside the name; until 2026-11 the player carried both, copied into every message, roster line and standing.
 - **`InternalService/IntroducePlayer(account_id)`** is for the chat, about to show who posts: the player the account is (`players.PlayerOf`), which the chat sends no GIF from when it is a guest. **`introduce_player_usecase` gives a guest its code the first time it is introduced** (`Assign`, then read again), and the roster's announce and move use the same use case, so the chat and the roster always show one name for one account. It is not a pure read, hence its verb. An empty id, or one that is not an account, is `InvalidArgument`: the chat refuses a sender with no account before asking.
-- **`InternalService/GetPlayers(account_ids)`** is the same question about a page of accounts, for a caller showing many people at once — the chat naming a whole history, scoring ranking a page of players, support naming the accounts of its reports, clips naming a cast. Each player also says `guest` for an account with no username, which the standings never rank. **It is a pure read**: unlike `IntroducePlayer` it draws nobody a guest code, so a read path never writes. That is the whole reason the two exist side by side; `IntroducePlayer` belongs where somebody is about to be *made* visible, `GetPlayers` where somebody is merely being shown. One statement (`players_query`: an `unnest` of the ids left-joined onto `profiles` and `guest_codes`) answers the page, in the order asked; the SQL names a guest `guest_` and its code, as `IntroducePlayer` does, and carries no badge either; a repeated id is answered once, and **an account it cannot name — never shown, or deleted — is left out** rather than failing the call, so the caller decides what stands in its place. An id that is not an account is still `InvalidArgument`: a caller holding one has a bug.
+- **`InternalService/GetPlayers(account_ids)`** is the same question about a page of accounts, for a module that names them on the server — the chat's operator list naming a page of messages, support naming the accounts of its reports, clips naming a cast, alerts naming a Discord member. What the page draws is `GetNameplates` (below), the same read. Each player also says `guest` for an account with no username, which the standings never rank. **It is a pure read**: unlike `IntroducePlayer` it draws nobody a guest code, so a read path never writes. That is the whole reason the two exist side by side; `IntroducePlayer` belongs where somebody is about to be *made* visible, `GetPlayers` where somebody is merely being shown. One statement (`players_query`: an `unnest` of the ids left-joined onto `profiles` and `guest_codes`) answers the page, in the order asked; the SQL names a guest `guest_` and its code, as `IntroducePlayer` does, and carries no badge either; a repeated id is answered once, and **an account it cannot name — never shown, or deleted — is left out** rather than failing the call, so the caller decides what stands in its place. An id that is not an account is still `InvalidArgument`: a caller holding one has a bug.
+- **`PlayerService/GetNameplates(account_ids)` is every name the page draws: the chat, the boards and the rounds**, read
+  by the browser by account id beside each name, as it reads the badges from progression (see the frontend's
+  [Nameplates](../../frontend/docs/nameplates.md)). Each `Nameplate` is `account_id`, `name`, `color`, `admin` and
+  `guest`. **It is `GetPlayers`' own query** (`get_nameplates_handler` over `players_query`), so a name is drawn the
+  same wherever it is read, and nothing the other players cannot name leaks: an account unknown, never shown, deleted
+  or asked deleted is left out, and the page draws it `[deleted]` where it shows one. It draws no guest code.
+  - **At most 100 ids a call** (`get_nameplates_handler.MaxAsked`), a repeated one counted each time; more is
+    `InvalidArgument` (`ErrTooMany`) and reads nothing. An id that is not an account is `InvalidArgument`.
+  - **It needs no token** (the session interceptor does not list it: names are public), is `NO_SIDE_EFFECTS`, and
+    answers `no-store`: the page is the cache, and an answer kept on the way could undo a rename it then learns of.
+  - **Why the page reads it** (2026-11-06): the chat and scoring asked `GetPlayers` at every read only to copy the names
+    into their answers. A board waited on player, and a change of `Player` touched both. They answer account ids now,
+    and their copies (`ChatMessage.author_name`, `author_admin`, `author_color`, `Quote.author_name`, `author_color`,
+    `ReactionCount.reactors`, `Standing.name`, `color`) are `reserved`. The chat still introduces a sender
+    (`IntroducePlayer`): the guest code and the no-GIF rule are game rules. Scoring keeps its own record of who may be
+    ranked, from player's events (see [Scoring](scoring.md#who-may-be-ranked)).
 - **They were `GetAuthor` and `GetAuthors` until 2026-11-04**, each answering a message of its own (`GetAuthorResponse`,
   `Author`), and `players.Author` was the domain's: "author" is the chat's word for who posts, and the chat is
   downstream of player, so it had no place in player's language. Most callers were not even the chat. `Author` and
@@ -194,9 +210,10 @@ event goes through player's outbox (relay `player-outbox`; `outbox_event` gained
 `PlayerForgotten` in migration `20261104190000_departure_events`, `PlayerSignedIn` in
 `20261104220000_signed_in_event`, `PlayerNamed` in `20261105120000_named_event`), in the transaction of what it tells, since a lost one would leave a module
 disagreeing with player for good (see [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox)).
-**Who hears them**: `PlayerCreated`, planet (the sign-in refill) and progression (a nameplate); `PlayerSignedIn`,
-missions (what a guest finished that day is paid); `PlayerNamed`, alerts (the Discord member's nickname);
-`PlayerLeaving` and `PlayerReturned`, progression and alerts (a nickname taken off and given back);
+**Who hears them**: `PlayerCreated`, planet (the sign-in refill), progression (a nameplate) and scoring (a player it
+may rank); `PlayerSignedIn`, missions (what a guest finished that day is paid); `PlayerNamed`, alerts (the Discord
+member's nickname); `PlayerLeaving` and `PlayerReturned`, progression, scoring (a player it ranks no more, then again)
+and alerts (a nickname taken off and given back);
 `PlayerForgotten`, every module that keeps something of an account: progression, planet, chat, scoring, support,
 missions, alerts and clips. `GetAccounts` is asked by progression and missions. Since 2026-11-04 no game module but
 alerts hears or asks auth, which needs it for a Discord join's token (see [Discord pings](alerts.md)):
@@ -241,10 +258,11 @@ alerts hears or asks auth, which needs it for a Discord join's token (see [Disco
 
 **Auth keeps an account its player asked to delete for 30 days, and to every other player it is deleted at once.**
 See [Auth](auth.md#signing-out-deleting-pruning). `player` is where that is decided, since every name another player
-reads comes from here: `GetPlayers` (the boards and rounds of scoring, the chat's history and reactions, the clips'
-casts), `GetPlayer` (the card on a tile, a territory, a standing or a chat line) and the roster. It tells each
-decision (`PlayerLeaving`, `PlayerReturned`), so progression hides the account's badges and progress too (see
-[Progression](progression.md#who-the-others-see-nameplates-and-departures)).
+reads comes from here: `GetNameplates` (every name the page draws: the chat, the boards and the rounds), `GetPlayers`
+(the clips' casts, the operator's lists), `GetPlayer` (the card on a tile, a territory, a standing or a chat line) and
+the roster. It tells each decision (`PlayerLeaving`, `PlayerReturned`), so progression hides the account's badges and
+progress too (see [Progression](progression.md#who-the-others-see-nameplates-and-departures)), and scoring ranks it no
+more (see [Scoring](scoring.md#who-may-be-ranked)).
 
 - **`departures`** keeps, per account, whether it is leaving and when that was decided (`player.departures`, migration
   `20261102150000_departures`). `auth.v1.AccountDeletionRequested` decides it leaves
@@ -254,9 +272,10 @@ decision (`PlayerLeaving`, `PlayerReturned`), so progression hides the account's
 - **The latest decision wins** (`Departure.Decided`): the two events come on two streams, so a restore can be heard
   before the request it undoes, and either can come twice. A decision with no time is refused (`ErrNoTime`), so a
   broken event is buried rather than read as the oldest one.
-- **`GetPlayers` and `GetPlayer` leave a leaving account out** (`NOT EXISTS` on `departures` in `players_query` and
-  `player_query`), exactly as they leave out a deleted one: the callers already show a player nobody can name as
-  deleted ("[deleted]" in the chat, "This player is gone." on a card, no row on a board). Nothing is deleted, so a
+- **`GetNameplates`, `GetPlayers` and `GetPlayer` leave a leaving account out** (`NOT EXISTS` on `departures` in
+  `players_query` and `player_query`), exactly as they leave out a deleted one: the readers already show a player
+  nobody can name as deleted ("[deleted]" in the chat, "This player is gone." on a card, no row on a board, which
+  scoring decides from the same events). Nothing is deleted, so a
   restore shows it again as it was. `IntroducePlayer` (a post's own author), `GetProfile` (the caller's own)
   and the operator's `AdminService/GetPlayer` and `SearchPlayers` still read it; `AdminService/GetPlayers` is the same
   handler as the internal one, so the operator's lists of messages and reports show it unnamed meanwhile.

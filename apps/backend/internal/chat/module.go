@@ -23,7 +23,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query"
-	history_authors "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_message_handler/message_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_mute_handler"
@@ -158,7 +157,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	drafts := messages.NewDrafts(
 		message_ids.Provider{}, cptime.SystemClock{}, messages.NewLimits(config.Service.MaxTextLength), cpcountries.New(),
 		rooms)
-	thread := messages.NewThread(messageStore, authors, cptime.SystemClock{}, window)
+	thread := messages.NewThread(messageStore, cptime.SystemClock{}, window)
 
 	bombs, err := cpredis.Subscribe(ctx, streams, "chat-announcements-bombs",
 		log_subscriber.New(bomb_landed_subscriber.New(announce), props.Logger))
@@ -253,12 +252,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		SendMessageHandler: send_message_handler.New(muting_send_message.New(publishing_send_message.New(send_message_usecase.New(
 			messageStore, updates, authors, drafts, thread), streams), muteBook)),
 		GetHistoryHandler: get_history_handler.New(history_query.NewPostgresQuery(
-			db, history_authors.New(player), cptime.SystemClock{}, storage.HistorySize, storage.Retention), rooms),
+			db, cptime.SystemClock{}, storage.HistorySize, storage.Retention), rooms),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(updates, rooms, props.Server.StreamHeartbeat)),
 		ReactHandler: react_handler.New(muting_react.New(react_usecase.New(
 			messages.NewShowing(messageStore, rooms, cptime.SystemClock{}, window),
-			reactionStore, updates, authors, cptime.SystemClock{}), muteBook)),
+			reactionStore, updates, cptime.SystemClock{}), muteBook)),
 		MarkSeenHandler: mark_seen_handler.New(mark_seen_usecase.New(seenStore, rooms, cptime.SystemClock{})),
 	}
 
