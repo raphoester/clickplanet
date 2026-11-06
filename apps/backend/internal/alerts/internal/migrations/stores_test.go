@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links/postgres_link_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/postgres_ping_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
@@ -27,7 +28,7 @@ var (
 func TestTheStoresKeepWhatTheyAreGiven(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "alerts", migrations.FS)
 
-	t.Run("a link, by account and by user, with or without a flag", func(t *testing.T) {
+	t.Run("a link, by account and by user, with or without a flag and a name", func(t *testing.T) {
 		store := postgres_link_store.New(db)
 		_, err := store.LinkOf(t.Context(), first)
 		require.ErrorIs(t, err, links.ErrNoLink)
@@ -44,6 +45,26 @@ func TestTheStoresKeepWhatTheyAreGiven(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, link.TakeSnapshot(), byAccount.TakeSnapshot())
 
+		readBefore := link
+		link.Rename("BraveFox42")
+		require.NoError(t, store.SaveName(t.Context(), link))
+		readBefore.Follow("gb")
+		require.NoError(t, store.SaveLinks(t.Context(), readBefore))
+		byAccount, err = store.LinkOf(t.Context(), first)
+		require.NoError(t, err)
+		assert.Equal(t, nations.Flag("gb"), byAccount.TakeSnapshot().Flag, "the flag's move is kept")
+		assert.Equal(t, links.Name("BraveFox42"), byAccount.TakeSnapshot().Name, "the name given meanwhile is kept")
+		link = byAccount
+
+		link.Rename("")
+		require.NoError(t, store.SaveName(t.Context(), link))
+		byAccount, err = store.LinkOf(t.Context(), first)
+		require.NoError(t, err)
+		assert.Equal(t, link.TakeSnapshot(), byAccount.TakeSnapshot())
+
+		link.Rename("Ada")
+		require.NoError(t, store.SaveName(t.Context(), link))
+
 		link.Forget()
 		moved := links.NewLink(second, "4242", "gb", now)
 		require.NoError(t, store.SaveLinks(t.Context(), moved, link))
@@ -51,7 +72,7 @@ func TestTheStoresKeepWhatTheyAreGiven(t *testing.T) {
 		require.ErrorIs(t, err, links.ErrNoLink)
 		byUser, err = store.LinkOfUser(t.Context(), "4242")
 		require.NoError(t, err)
-		assert.Equal(t, moved.TakeSnapshot(), byUser.TakeSnapshot())
+		assert.Equal(t, moved.TakeSnapshot(), byUser.TakeSnapshot(), "another account's link starts with no name")
 	})
 
 	t.Run("a role by its key, with its color, until it is forgotten", func(t *testing.T) {

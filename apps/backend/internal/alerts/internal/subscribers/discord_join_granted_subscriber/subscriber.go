@@ -21,13 +21,19 @@ type UseCase interface {
 	Execute(ctx context.Context, in join_server_usecase.In) error
 }
 
-func New(grants Grants, useCase UseCase, logger *slog.Logger) Subscriber {
-	return Subscriber{grants: grants, useCase: useCase, logger: logger}
+// name_member_usecase: the joined user's nickname.
+type Namer interface {
+	Execute(ctx context.Context, account links.AccountID) error
+}
+
+func New(grants Grants, useCase UseCase, namer Namer, logger *slog.Logger) Subscriber {
+	return Subscriber{grants: grants, useCase: useCase, namer: namer, logger: logger}
 }
 
 type Subscriber struct {
 	grants  Grants
 	useCase UseCase
+	namer   Namer
 	logger  *slog.Logger
 }
 
@@ -36,6 +42,10 @@ var _ cpredis.Handler[*authv1.DiscordJoinGranted] = Subscriber{}
 // The token is auth's, asked for by the grant's id: it is never in the event. A grant auth keeps no more, or a token
 // Discord refused, is logged and not tried again: the player is signed in, not linked, and the game offers to join
 // again. Anything else (Discord busy or down, auth unreachable) is an error, tried again while the grant lives.
+//
+// Joined, the user is given its username as its nickname. A try again joins nobody twice (the link is kept) and names
+// the user again. A nickname Discord refused (the server's owner, a member above the bot) is logged, and the user stays
+// linked under its own name.
 func (s Subscriber) Handle(ctx context.Context, event *authv1.DiscordJoinGranted) error {
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
@@ -52,6 +62,15 @@ func (s Subscriber) Handle(ctx context.Context, event *authv1.DiscordJoinGranted
 	err = s.useCase.Execute(ctx, join_server_usecase.In{Account: grant.Account, User: grant.User, Token: grant.Token})
 	if errors.Is(err, discord.ErrRefused) {
 		s.logged(ctx, "a Discord sign-in did not join the server", event, err)
+		return nil
+	}
+	if err != nil {
+		return err //nolint:wrapcheck // the use case named it.
+	}
+
+	err = s.namer.Execute(ctx, grant.Account)
+	if errors.Is(err, discord.ErrRefused) {
+		s.logged(ctx, "a Discord sign-in joined the server, and Discord refused its nickname", event, err)
 		return nil
 	}
 	return err //nolint:wrapcheck // the use case named it.

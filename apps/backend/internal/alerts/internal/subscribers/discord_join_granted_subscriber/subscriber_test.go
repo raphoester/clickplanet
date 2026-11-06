@@ -48,11 +48,28 @@ func (j *joins) Execute(_ context.Context, in join_server_usecase.In) error {
 	return j.err
 }
 
+type namings struct {
+	named []links.AccountID
+	err   error
+}
+
+func (n *namings) Execute(_ context.Context, account links.AccountID) error {
+	n.named = append(n.named, account)
+	return n.err
+}
+
 func hear(t *testing.T, grants *stubGrants, useCase *joins) (string, error) {
 	t.Helper()
 
+	logged, err := hearNamed(t, grants, useCase, &namings{})
+	return logged, err
+}
+
+func hearNamed(t *testing.T, grants *stubGrants, useCase *joins, namer *namings) (string, error) {
+	t.Helper()
+
 	var logged bytes.Buffer
-	err := discord_join_granted_subscriber.New(grants, useCase, slog.New(slog.NewTextHandler(&logged, nil))).
+	err := discord_join_granted_subscriber.New(grants, useCase, namer, slog.New(slog.NewTextHandler(&logged, nil))).
 		Handle(t.Context(), event)
 	return logged.String(), err
 }
@@ -104,4 +121,38 @@ func TestAFailureThatMayPassIsTriedAgain(t *testing.T) {
 			assert.Empty(t, logged, "log_subscriber logs what the bus tries again")
 		})
 	}
+}
+
+func TestAJoinedUserIsGivenItsNickname(t *testing.T) {
+	namer := &namings{}
+
+	_, err := hearNamed(t, &stubGrants{}, &joins{}, namer)
+
+	require.NoError(t, err)
+	assert.Equal(t, []links.AccountID{account}, namer.named)
+}
+
+func TestAUserThatDidNotJoinIsNotNamed(t *testing.T) {
+	namer := &namings{}
+
+	_, err := hearNamed(t, &stubGrants{}, &joins{err: fmt.Errorf("%w: it answered 403", discord.ErrRefused)}, namer)
+
+	require.NoError(t, err)
+	assert.Empty(t, namer.named)
+}
+
+func TestANicknameDiscordRefusedIsLoggedAndTheJoinKept(t *testing.T) {
+	logged, err := hearNamed(t, &stubGrants{}, &joins{},
+		&namings{err: fmt.Errorf("%w: it answered 403 (50013 Missing Permissions)", discord.ErrRefused)})
+
+	require.NoError(t, err)
+	assert.Contains(t, logged, "refused its nickname")
+	assert.NotContains(t, logged, "the-access-token")
+}
+
+func TestANicknameThatMayPassIsTriedAgain(t *testing.T) {
+	logged, err := hearNamed(t, &stubGrants{}, &joins{}, &namings{err: errors.New("discord answered 502")})
+
+	require.Error(t, err, "the join again finds the link, and names the user again")
+	assert.Empty(t, logged)
 }

@@ -177,6 +177,47 @@ export class PlayerReturned extends Message<PlayerReturned> {
 }
 
 /**
+ * The account's username was set: drawn at its first sign-in, chosen by its player, or given by the operator. The name
+ * is not in the event: a receiver asks player for it (InternalService/GetPlayers), so two told close together, or one
+ * told twice, leave it with the latest.
+ *
+ * @generated from message player.v1.PlayerNamed
+ */
+export class PlayerNamed extends Message<PlayerNamed> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<PlayerNamed>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.PlayerNamed";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayerNamed {
+    return new PlayerNamed().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayerNamed {
+    return new PlayerNamed().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayerNamed {
+    return new PlayerNamed().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlayerNamed | PlainMessage<PlayerNamed> | undefined, b: PlayerNamed | PlainMessage<PlayerNamed> | undefined): boolean {
+    return proto3.util.equals(PlayerNamed, a, b);
+  }
+}
+
+/**
  * Player forgot the account: its name and its guest code. What another module keeps of the account goes too.
  *
  * @generated from message player.v1.PlayerForgotten

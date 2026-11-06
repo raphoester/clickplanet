@@ -15,7 +15,8 @@ service AdminService {
 
   // Links every account signed in with Discord that has no link and whose Discord user is in the server already: it
   // joined by the invite, or signed in before the sign-in asked to join. The bot grants it its flag's role. A user not
-  // in the server is left as it is: only its own Discord sign-in can add it. A second run links nobody twice.
+  // in the server is left as it is: only its own Discord sign-in can add it. A second run links nobody twice. Every
+  // linked member, new or not, is given its username as its nickname in the server when it does not wear it yet.
   rpc LinkMembers(LinkMembersRequest) returns (LinkMembersResponse);
 }
 
@@ -51,6 +52,8 @@ message LinkMembersResponse {
   uint32 linked = 1;
   // Not in the server: the game offers them to join Discord, and their own sign-in joins them.
   uint32 outside = 2;
-  // Discord or the game could not be asked: a run again tries them again.
+  // Discord or the game could not be asked, or Discord refused a nickname: a run again tries them again.
   uint32 failed = 3;
+  // Linked, new or not, and given its username as its nickname in the server now.
+  uint32 named = 4;
 }

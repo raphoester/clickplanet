@@ -98,6 +98,7 @@ func TestEveryEventPlayerTellsHasAPlaceInItsOutbox(t *testing.T) {
 	for _, event := range []proto.Message{
 		&playerv1.PlayerCreated{AccountId: account},
 		&playerv1.PlayerSignedIn{AccountId: account},
+		&playerv1.PlayerNamed{AccountId: account},
 		&playerv1.PlayerLeaving{AccountId: account},
 		&playerv1.PlayerReturned{AccountId: account},
 		&playerv1.PlayerForgotten{AccountId: account},

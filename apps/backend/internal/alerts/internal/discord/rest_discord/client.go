@@ -92,6 +92,19 @@ func (c *Client) Revoke(ctx context.Context, user discord.UserID, role discord.R
 	return nil
 }
 
+// The user's nickname in the server; an empty one takes it off, and Discord shows the user's own name again.
+// discord.ErrRefused for a user the bot may not rename: the server's owner, or a member whose role is above the bot's.
+func (c *Client) Rename(ctx context.Context, user discord.UserID, nick string) error {
+	var named any
+	if nick != "" {
+		named = nick
+	}
+	if _, err := c.bot(ctx, http.MethodPatch, c.member(user), map[string]any{"nick": named}, nil); err != nil {
+		return fmt.Errorf("failed to give the user its nickname: %w", err)
+	}
+	return nil
+}
+
 func (c *Client) MakeRole(ctx context.Context, name string, color discord.Color) (discord.RoleID, error) {
 	var made struct {
 		ID string `json:"id"`

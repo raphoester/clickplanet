@@ -478,12 +478,13 @@ export class DemoAdmin extends FakeAdmin {
             this.unlinkedFromDiscord.add(accountId)
             return this.answer("unlinkPlayer", request, new UnlinkPlayerResponse({unlinked}))
         },
-        // An account the page unlinked stayed in the server, so a run links it again; 9 players never joined it.
+        // An account the page unlinked stayed in the server, so a run links it again; 9 players never joined it. Each
+        // one linked now is given its nickname too.
         linkMembers: (request: PartialMessage<LinkMembersRequest>) => {
             const linked = this.discordMembersWaiting + this.unlinkedFromDiscord.size
             this.discordMembersWaiting = 0
             this.unlinkedFromDiscord.clear()
-            return this.answer("linkMembers", request, new LinkMembersResponse({linked, outside: 9}))
+            return this.answer("linkMembers", request, new LinkMembersResponse({linked, named: linked, outside: 9}))
         },
     }
 

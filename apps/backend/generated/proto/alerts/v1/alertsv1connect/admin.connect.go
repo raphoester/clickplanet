@@ -53,7 +53,8 @@ type AdminServiceClient interface {
 	UnlinkPlayer(context.Context, *connect.Request[v1.UnlinkPlayerRequest]) (*connect.Response[v1.UnlinkPlayerResponse], error)
 	// Links every account signed in with Discord that has no link and whose Discord user is in the server already: it
 	// joined by the invite, or signed in before the sign-in asked to join. The bot grants it its flag's role. A user not
-	// in the server is left as it is: only its own Discord sign-in can add it. A second run links nobody twice.
+	// in the server is left as it is: only its own Discord sign-in can add it. A second run links nobody twice. Every
+	// linked member, new or not, is given its username as its nickname in the server when it does not wear it yet.
 	LinkMembers(context.Context, *connect.Request[v1.LinkMembersRequest]) (*connect.Response[v1.LinkMembersResponse], error)
 }
 
@@ -121,7 +122,8 @@ type AdminServiceHandler interface {
 	UnlinkPlayer(context.Context, *connect.Request[v1.UnlinkPlayerRequest]) (*connect.Response[v1.UnlinkPlayerResponse], error)
 	// Links every account signed in with Discord that has no link and whose Discord user is in the server already: it
 	// joined by the invite, or signed in before the sign-in asked to join. The bot grants it its flag's role. A user not
-	// in the server is left as it is: only its own Discord sign-in can add it. A second run links nobody twice.
+	// in the server is left as it is: only its own Discord sign-in can add it. A second run links nobody twice. Every
+	// linked member, new or not, is given its username as its nickname in the server when it does not wear it yet.
 	LinkMembers(context.Context, *connect.Request[v1.LinkMembersRequest]) (*connect.Response[v1.LinkMembersResponse], error)
 }
 
