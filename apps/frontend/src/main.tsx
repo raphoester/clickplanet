@@ -32,6 +32,7 @@ import {ConnectSupportBackend, newSupportServiceClient} from "./backends/support
 import {loadPointGeometryData} from "./app/viewer/points.ts"
 import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
+import type {Backends} from "./app/viewer/Viewer.tsx"
 import {ConnectAccountBackend} from "./backends/accountBackend.ts"
 import {ConnectPlayerBackend, newKeepalivePlayerServiceClient, newPlayerServiceClient} from "./backends/playerBackend.ts"
 import {ConnectProgressionBackend, newProgressionServiceClient} from "./backends/progressionBackend.ts"
@@ -123,6 +124,20 @@ function followCrazyGames(page: CrazyGamesPage | undefined, account: AccountStor
     if (!page) return
     page.user.listenForSignIn(() => void account.followCrazyGames())
     void account.followCrazyGames()
+}
+
+function start(backends: Backends) {
+    void words.then((filter) => root.render(
+        <StrictMode>
+            <SignInGate callback={callback} account={backends.account}>
+                <App sharedCountry={shared}
+                     linkedShot={shot}
+                     showFront={guided}
+                     backends={backends}
+                     words={filter}/>
+            </SignInGate>
+        </StrictMode>,
+    ))
 }
 
 if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
@@ -282,48 +297,38 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         ...fortification, ground: codes[fortification.landmass], tiles: fake.landmassTiles(fortification.landmass),
     })))
 
-    void words.then((filter) => root.render(
-        <StrictMode>
-            <SignInGate callback={callback} account={account}>
-                <App
-                    sharedCountry={shared}
-                    linkedShot={shot}
-                    showFront={guided}
-                    ownershipsGetter={fake}
-                    tileClicker={clicker}
-                    updatesListener={fake}
-                    bonusListener={fake}
-                    quizMaster={fake}
-                    bomber={fake}
-                    refiller={fake}
-                    shielder={fake}
-                    allegiance={fake}
-                    clickBudgetSource={fake}
-                    connection={connection}
-                    chatBackend={fakeChat}
-                    presence={fakePresence}
-                    playerInfo={new PlayerCards(fakePresence, fakePresence)}
-                    badges={fakeBadges}
-                    nameplates={fakeNameplates}
-                    titles={fakePresence}
-                    tileHolders={fake}
-                    landmasses={fake}
-                    turn={fakeTurn}
-                    standings={fakeStandings}
-                    support={fakeSupport}
-                    missions={fakeMissions}
-                    chargesRefresher={fake}
-                    account={account}
-                    clips={fakeClips}
-                    promo={fakePromo}
-                    crazyGames={crazyGames}
-                    alerts={alerts}
-                    gifs={gifsOf(new FakeGifs())}
-                    words={filter}
-                />
-            </SignInGate>
-        </StrictMode>,
-    ))
+    start({
+        ownershipsGetter: fake,
+        tileClicker: clicker,
+        updatesListener: fake,
+        bonusListener: fake,
+        quizMaster: fake,
+        bomber: fake,
+        refiller: fake,
+        shielder: fake,
+        allegiance: fake,
+        clickBudgetSource: fake,
+        connection,
+        chatBackend: fakeChat,
+        presence: fakePresence,
+        playerInfo: new PlayerCards(fakePresence, fakePresence),
+        badges: fakeBadges,
+        nameplates: fakeNameplates,
+        titles: fakePresence,
+        tileHolders: fake,
+        landmasses: fake,
+        turn: fakeTurn,
+        standings: fakeStandings,
+        support: fakeSupport,
+        missions: fakeMissions,
+        chargesRefresher: fake,
+        account,
+        clips: fakeClips,
+        promo: fakePromo,
+        crazyGames,
+        alerts,
+        gifs: gifsOf(new FakeGifs()),
+    })
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session, newKeepaliveChatServiceClient(config))
@@ -345,46 +350,36 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     followCrazyGames(crazyGames, account)
     const alerts = discordAlertsOf(new ConnectAlertsBackend(newAlertsServiceClient(config), session), account)
 
-    void words.then((filter) => root.render(
-        <StrictMode>
-            <SignInGate callback={callback} account={account}>
-                <App
-                    sharedCountry={shared}
-                    linkedShot={shot}
-                    showFront={guided}
-                    ownershipsGetter={backend}
-                    tileClicker={backend}
-                    updatesListener={backend}
-                    bonusListener={backend}
-                    quizMaster={backend}
-                    bomber={backend}
-                    refiller={backend}
-                    shielder={backend}
-                    allegiance={backend}
-                    clickBudgetSource={backend}
-                    connection={connection}
-                    chatBackend={chatBackend}
-                    account={account}
-                    presence={player}
-                    playerInfo={new PlayerCards(player, progression)}
-                    badges={progression}
-                    nameplates={player}
-                    titles={progression}
-                    tileHolders={backend}
-                    landmasses={backend}
-                    turn={turn}
-                    standings={standings}
-                    support={support}
-                    missions={missions}
-                    chargesRefresher={backend}
-                    clips={clips}
-                    promo={promo}
-                    crazyGames={crazyGames}
-                    alerts={alerts}
-                    gifs={gifsOf(klipyKey ? new KlipyGifs(klipyKey) : undefined)}
-                    words={filter}
-                />
-            </SignInGate>
-        </StrictMode>,
-    ))
+    start({
+        ownershipsGetter: backend,
+        tileClicker: backend,
+        updatesListener: backend,
+        bonusListener: backend,
+        quizMaster: backend,
+        bomber: backend,
+        refiller: backend,
+        shielder: backend,
+        allegiance: backend,
+        clickBudgetSource: backend,
+        connection,
+        chatBackend,
+        account,
+        presence: player,
+        playerInfo: new PlayerCards(player, progression),
+        badges: progression,
+        nameplates: player,
+        titles: progression,
+        tileHolders: backend,
+        landmasses: backend,
+        turn,
+        standings,
+        support,
+        missions,
+        chargesRefresher: backend,
+        clips,
+        promo,
+        crazyGames,
+        alerts,
+        gifs: gifsOf(klipyKey ? new KlipyGifs(klipyKey) : undefined),
+    })
 }

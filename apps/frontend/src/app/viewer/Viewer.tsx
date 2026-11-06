@@ -141,100 +141,105 @@ const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 // After the wave has run over the land.
 const FORTIFY_CARD_DELAY_MS = 1600
 
+export type Backends = {
+    tileClicker: TileClicker
+    ownershipsGetter: OwnershipsGetter
+    updatesListener: UpdatesListener
+    clickBudgetSource: ClickBudgetSource
+    connection: ConnectionSource
+    bonusListener: BonusListener
+    quizMaster: QuizMaster
+    bomber: Bomber
+    refiller: Refiller
+    shielder: Shielder
+    allegiance: AllegianceSource
+    chatBackend: ChatRooms
+    account: AccountStore
+    presence: PresenceBackend
+    playerInfo: PlayerInfoBackend
+    badges: BadgesBackend
+    nameplates: NameplatesBackend
+    titles: TitlesListener
+    tileHolders: TileHolders
+    landmasses: LandmassReader
+    turn: TurnBackend
+    standings: StandingsBackend
+    support: SupportBackend
+    missions: MissionsBackend
+    chargesRefresher: ChargesRefresher
+    clips: ClipsBackend & ClipsNameBackend
+    // A battle's teaser cards.
+    promo: PromoBackend
+    crazyGames: CrazyGamesPage | undefined
+    alerts: DiscordAlerts | undefined
+    gifs: GifSearch | undefined
+}
+
 export type ViewerProps = {
     sharedCountry?: Country
     linkedShot?: Shot
     showFront?: boolean
-    tileClicker: TileClicker
-    ownershipsGetter: OwnershipsGetter
-    updatesListener: UpdatesListener
-    clickBudgetSource?: ClickBudgetSource
-    connection?: ConnectionSource
-    bonusListener?: BonusListener
-    quizMaster?: QuizMaster
-    bomber?: Bomber
-    refiller?: Refiller
-    shielder?: Shielder
-    allegiance?: AllegianceSource
-    chatBackend?: ChatRooms
-    account?: AccountStore
-    presence?: PresenceBackend
-    playerInfo?: PlayerInfoBackend
-    badges?: BadgesBackend
-    nameplates?: NameplatesBackend
-    titles?: TitlesListener
-    tileHolders?: TileHolders
-    landmasses?: LandmassReader
-    turn?: TurnBackend
-    standings?: StandingsBackend
-    support?: SupportBackend
-    missions?: MissionsBackend
-    chargesRefresher?: ChargesRefresher
-    clips?: ClipsBackend & ClipsNameBackend
-    // A battle's teaser cards.
-    promo?: PromoBackend
-    crazyGames?: CrazyGamesPage
-    alerts?: DiscordAlerts
-    gifs?: GifSearch
+    backends: Backends
 }
 
 export default function Viewer(props: ViewerProps) {
+    const {backends} = props
     const container = useRef<HTMLDivElement>(null)
     const {countryState, handleSetCountry} = useCountryStorage(props.sharedCountry)
-    const allegiance = useAllegiance(props.allegiance)
+    const allegiance = useAllegiance(backends.allegiance)
     useEffect(() => {
         const held = allegiance && allegiance.countryId !== countryState.code ? Countries.get(allegiance.countryId) : undefined
         if (held) handleSetCountry(held)
     }, [allegiance, countryState.code, handleSetCountry])
-    const invitation = useInvites(props.crazyGames, allegiance, handleSetCountry)
-    const {chatBackend} = props
+    const invitation = useInvites(backends.crazyGames, allegiance, handleSetCountry)
+    const {chatBackend} = backends
     const heldFlag = allegiance?.countryId
     const flagRoom = useMemo(() => {
         const country = heldFlag === undefined ? undefined : Countries.get(heldFlag)
-        return country && chatBackend ? {country, backend: chatBackend.flagRoom(country.code)} : undefined
+        return country ? {country, backend: chatBackend.flagRoom(country.code)} : undefined
     }, [chatBackend, heldFlag])
-    const invite = props.crazyGames?.room.inviteLink
+    const invite = backends.crazyGames?.room.inviteLink
     const pickCountry = async (country: Country) => {
-        if (country.code !== countryState.code) await props.allegiance?.pledgeAllegiance(country.code)
+        if (country.code !== countryState.code) await backends.allegiance.pledgeAllegiance(country.code)
         handleSetCountry(country)
     }
-    const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
-    const connection = useConnection(props.connection)
-    const crazyGames = useCrazyGames(props.crazyGames)
+    const clickBudget = useClickBudget(backends.clickBudgetSource, countryState.code)
+    const connection = useConnection(backends.connection)
+    const crazyGames = useCrazyGames(backends.crazyGames)
     const sound = useSound(crazyGames.silenced)
     const mapView = useDisplaySettings((settings) => settings.mapView)
     const rendering = useDisplaySettings((settings) => settings.rendering)
-    const account = useAccount(props.account)
+    const account = useAccount(backends.account)
     const username = account.kind === 'ready' ? account.username : undefined
     const ownAccountId = account.kind === 'ready' ? account.accountId : undefined
     const color = account.kind === 'ready' ? account.color : undefined
     const linked = account.kind === 'ready' && account.me.linked.length > 0
     const discordConnectable = account.kind === 'ready' && account.offered.includes("discord")
     const joiningDiscord = account.kind === 'ready' && account.joiningDiscord === true
-    const discord = useDiscordAlerts(props.alerts, ownAccountId, discordConnectable, joiningDiscord)
+    const discord = useDiscordAlerts(backends.alerts, ownAccountId, discordConnectable, joiningDiscord)
 
-    usePresence(props.presence, {countryCode: countryState.code, username, color})
+    usePresence(backends.presence, {countryCode: countryState.code, username, color})
 
-    useQuizMaster(props.quizMaster, countryState.code, sound.play)
+    useQuizMaster(backends.quizMaster, countryState.code, sound.play)
     const announce = useAnnouncements((announcements) => announcements.announce)
-    useBadgesFeed(props.badges)
-    useNameplatesFeed(props.nameplates)
+    useBadgesFeed(backends.badges)
+    useNameplatesFeed(backends.nameplates)
     useOwnNameplate(ownAccountId, username, color)
-    useRosterFeed(props.presence)
-    useTitlesEarned(props.titles, linked, (title) => {
+    useRosterFeed(backends.presence)
+    useTitlesEarned(backends.titles, linked, (title) => {
         announce({kind: "title", title})
         // The title worn may follow the one earned: the next read of this player's badge says.
         if (ownAccountId) useBadges.getState().expire(ownAccountId)
     })
     const crowd = useRoster(onlineCount)
-    const schedule = useSchedule(props.turn)
+    const schedule = useSchedule(backends.turn)
     const season = useSeason(schedule.seasons.current)
     const bookId = schedule.seasons.current?.bookId ?? endedBookOf(schedule.debrief)
     const dayEndsAt = schedule.seasons.today?.endsAt
     const battle = battleOf(schedule.turn)
-    useRaceFeed(props.standings, bookId, schedule.seasons.today?.roundId, battle?.roundId)
+    useRaceFeed(backends.standings, bookId, schedule.seasons.today?.roundId, battle?.roundId)
     const race = useRace((standings) => standings.race)
-    const closed = useDebriefed(props.standings, schedule.debrief)
+    const closed = useDebriefed(backends.standings, schedule.debrief)
     const nextBattle = nextBattleOf(schedule.battles, Date.now())
     const finale = finaleOf(schedule.battles, schedule.turn, Date.now())
     const [accepted] = useState(acceptedClicks)
@@ -260,7 +265,7 @@ export default function Viewer(props: ViewerProps) {
         closeAll()
     }, [compact, closeAll])
 
-    const missionsState = useMissions(props.missions, ownAccountId, allegiance?.countryId, accepted.listenForClicks)
+    const missionsState = useMissions(backends.missions, ownAccountId, allegiance?.countryId, accepted.listenForClicks)
     const guided = props.showFront ?? false
     const missionTargets = useMissionTargets(missionsState, guided)
     const missionsShown = !guided && missionsState.kind === "ready" ? missionsState.day : undefined
@@ -306,13 +311,13 @@ export default function Viewer(props: ViewerProps) {
         container,
         linkedShot: props.linkedShot,
         showFront: props.showFront,
-        tileClicker: props.tileClicker,
-        ownershipsGetter: props.ownershipsGetter,
-        updatesListener: props.updatesListener,
-        clickBudget: props.clickBudgetSource,
-        bonusListener: props.bonusListener,
-        bomber: props.bomber,
-        shielder: props.shielder,
+        tileClicker: backends.tileClicker,
+        ownershipsGetter: backends.ownershipsGetter,
+        updatesListener: backends.updatesListener,
+        clickBudget: backends.clickBudgetSource,
+        bonusListener: backends.bonusListener,
+        bomber: backends.bomber,
+        shielder: backends.shielder,
         playSound: sound.play,
         onClickAccepted: accepted.record,
         country: countryState,
@@ -325,8 +330,8 @@ export default function Viewer(props: ViewerProps) {
         rendering,
     })
 
-    useGameplay(props.crazyGames, status.state === 'ready')
-    useRoom(props.crazyGames, status.state === 'ready', countryState.code)
+    useGameplay(backends.crazyGames, status.state === 'ready')
+    useRoom(backends.crazyGames, status.state === 'ready', countryState.code)
 
     const firstWin = useBonusGuide((bonus) => award !== undefined && isFirstWin(bonus.guide, award.kind))
     const markWon = useBonusGuide((bonus) => bonus.markWon)
@@ -345,24 +350,23 @@ export default function Viewer(props: ViewerProps) {
     const newest = [lastBomb, lastFortified, underAttack.moment].reduce<{at: number} | undefined>(
         (latest, moment) => moment && (!latest || moment.at > latest.at) ? moment : latest, undefined)
 
-    const refiller = props.refiller
-    const spendRefill = refiller && (() => {
+    const spendRefill = () => {
         if (clickBudget && tokensAt(clickBudget, budgetNow()) >= clickBudget.capacity) return false
-        refiller.useRefill(countryState.code).catch((e) => {
+        backends.refiller.useRefill(countryState.code).catch((e) => {
             if (e instanceof BankFullError || e instanceof BonusLostError) return
             console.error("could not use the refill", e)
         })
         return true
-    })
+    }
 
     const signInRefill = rules?.signInRefill === true
     // CrazyGames forbids a sign-in that pops up or is the main call to action.
     const nudge = useSignInNudge(
-        !props.crazyGames && guest && clickBudget?.linkedMultiplier !== undefined && !clickBudget.frozen && !charges.refill && !pitchOpen,
+        !backends.crazyGames && guest && clickBudget?.linkedMultiplier !== undefined && !clickBudget.frozen && !charges.refill && !pitchOpen,
         refusals, clickBudget?.fastStart === true)
     useSignInRefill(account.kind === 'ready' && account.guestLinked === true && signInRefill, charges.refill,
-        () => void props.chargesRefresher?.refreshCharges().catch((e) => console.error("could not read the charges held", e)),
-        () => void spendRefill?.())
+        () => void backends.chargesRefresher.refreshCharges().catch((e) => console.error("could not read the charges held", e)),
+        () => void spendRefill())
 
     const order = shownOrder(race, countryOrder)
     const lines = countryLines(leaderboard, race, order)
@@ -379,7 +383,7 @@ export default function Viewer(props: ViewerProps) {
 
     const toll = rules?.toll ?? []
     const held = leaderboard.find((entry) => entry.country.code === countryState.code)?.tiles ?? 0
-    const boards = useMemo(() => props.standings && bookId ? boardsOf(props.standings, bookId) : undefined, [props.standings, bookId])
+    const boards = useMemo(() => bookId ? boardsOf(backends.standings, bookId) : undefined, [backends.standings, bookId])
     const standings: BoardStandings | undefined = boards && {
         backend: boards,
         caller: {accountId: ownAccountId, username, linked},
@@ -389,8 +393,8 @@ export default function Viewer(props: ViewerProps) {
         onView: setBoardView,
     }
     const teased = season ?? schedule.seasons.next
-    const hallOfFame: HallOfFameSeasons | undefined = props.standings && props.turn && (teased || schedule.seasons.ended.length > 0)
-        ? {teased, ended: schedule.seasons.ended, standings: props.standings, turn: props.turn}
+    const hallOfFame: HallOfFameSeasons | undefined = teased || schedule.seasons.ended.length > 0
+        ? {teased, ended: schedule.seasons.ended, standings: backends.standings, turn: backends.turn}
         : undefined
 
     const board = {
@@ -411,7 +415,7 @@ export default function Viewer(props: ViewerProps) {
     useFlagMissionDone(missionsState, (mission) => {
         if (allegiance) announce({kind: "flagMission", mission, country: allegiance.countryId})
     })
-    const missions: MissionsPlaceProps | undefined = props.missions && {
+    const missions: MissionsPlaceProps = {
         state: missionsState,
         onSignIn: guest ? openPitch ?? (() => openSheet("you")) : undefined,
         onGo: (target) => {
@@ -422,11 +426,11 @@ export default function Viewer(props: ViewerProps) {
     const missionsNews = useSeenMissions((seenMissions) => missionsState.kind === "ready" ? unseen(missionsState.day.missions, seenMissions.seen) : 0)
 
     const you = {
-        account: props.account,
+        account: backends.account,
         linkedMultiplier: clickBudget?.linkedMultiplier,
-        playerInfo: props.playerInfo,
+        playerInfo: backends.playerInfo,
         listenForClicks: accepted.listenForClicks,
-        clips: props.clips,
+        clips: backends.clips,
     }
     const share = {
         onTakePicture: () => {
@@ -437,7 +441,7 @@ export default function Viewer(props: ViewerProps) {
     }
     const settings = {
         sound: {preview: sound.preview},
-        support: props.support,
+        support: backends.support,
         pageContext: () => pageContextOf(window, graphics(), connection === "down"),
         discord,
     }
@@ -493,37 +497,37 @@ export default function Viewer(props: ViewerProps) {
                                     onSignIn={openPitch}
                                     compact={compact}
                                     popover={clicks}>
-            {props.bonusListener && <Inventory charges={charges}
-                                               rules={rules}
-                                               switches={switches}
-                                               onToggle={toggleSwitch}
-                                               bombArmed={bombArmed}
-                                               onToggleBomb={props.bomber ? toggleBomb : undefined}
-                                               onUseRefill={spendRefill}
-                                               onToggleShield={props.shielder ? () => toggleSwitch("shield") : undefined}
-                                               notice={notice}/>}
+            <Inventory charges={charges}
+                       rules={rules}
+                       switches={switches}
+                       onToggle={toggleSwitch}
+                       bombArmed={bombArmed}
+                       onToggleBomb={toggleBomb}
+                       onUseRefill={spendRefill}
+                       onToggleShield={() => toggleSwitch("shield")}
+                       notice={notice}/>
         </ClickBudgetMeter>}
 
         {ready && crazyGames.chat && <ChatPanel
-            backend={props.chatBackend}
+            backend={backends.chatBackend}
             flagRoom={flagRoom}
             onSignIn={clickBudget?.linkedMultiplier ? openPitch : undefined}
-            onLeftRoom={() => void props.allegiance?.refreshAllegiance().catch((e) => console.error("could not read the flag played for", e))}
+            onLeftRoom={() => void backends.allegiance.refreshAllegiance().catch((e) => console.error("could not read the flag played for", e))}
             country={countryState}
             playSound={sound.play}
             accountId={ownAccountId}
             username={username}
-            reporter={props.support}
+            reporter={backends.support}
             compact={compact}
             open={compact ? sheet === "chat" : undefined}
             onOpenChange={compact ? (open) => open ? openSheet("chat") : closeSheet() : undefined}
             discord={discord}
-            gifs={props.gifs}
+            gifs={backends.gifs}
         />}
 
         {ready && compact && <>
             {sheet === "board" && <BoardSheet {...board} onClose={closeSheet}/>}
-            {sheet === "missions" && missions && <Sheet title="Missions" onClose={closeSheet}>
+            {sheet === "missions" && <Sheet title="Missions" onClose={closeSheet}>
                 <MissionsPlace {...missions}/>
             </Sheet>}
             {sheet === "you" && account.kind === 'ready' && <Sheet title={youLabel(linked)} onClose={closeSheet}>
@@ -546,25 +550,25 @@ export default function Viewer(props: ViewerProps) {
             </Sheet>}
             {sheet === "clicks" && <Sheet title="Your clicks" onClose={closeSheet}>{clicks}</Sheet>}
 
-            <TabBar chat={props.chatBackend !== undefined && crazyGames.chat}
+            <TabBar chat={crazyGames.chat}
                     invite={invite !== undefined}
                     you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}
-                    missions={missions ? missionsNews : undefined}/>
+                    missions={missionsNews}/>
         </>}
 
         {shot && <SharePreview shot={shot}
                                stats={stats}
                                onClose={discard}/>}
 
-        {pitchOpen && guest && props.account && clickBudget?.linkedMultiplier && <SignInPitchModal
+        {pitchOpen && guest && clickBudget?.linkedMultiplier && <SignInPitchModal
             state={account}
-            store={props.account}
+            store={backends.account}
             multiplier={clickBudget.linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
 
-        {nudge.open && guest && props.account && clickBudget?.linkedMultiplier && <SignInNudgeModal
+        {nudge.open && guest && clickBudget?.linkedMultiplier && <SignInNudgeModal
             state={account}
-            store={props.account}
+            store={backends.account}
             nudge={nudge.open}
             multiplier={clickBudget.linkedMultiplier}
             fastStart={clickBudget.fastStart === true}
@@ -577,37 +581,37 @@ export default function Viewer(props: ViewerProps) {
                                                          onSwitch={() => pickCountry(invitation.asked!)}
                                                          onClose={invitation.answer}/>}
 
-        <HolderCardPlace holders={props.tileHolders}
-                         players={props.playerInfo}
+        <HolderCardPlace holders={backends.tileHolders}
+                         players={backends.playerInfo}
                          pointing={pointing}
                          accountId={ownAccountId}
                          missions={missionsShown}/>
 
         <TerritoryCardPlace shown={territoryCard.shown}
                             flag={countryState.code}
-                            reader={props.landmasses}
-                            players={props.playerInfo}
+                            reader={backends.landmasses}
+                            players={backends.playerInfo}
                             missions={missionsShown}
                             onHold={territoryCard.hold}
                             onClose={territoryCard.dismiss}/>
 
-        {props.playerInfo && <PlayerCardPlace backend={props.playerInfo}
-                                              accountId={ownAccountId}
-                                              reporter={props.support}/>}
+        <PlayerCardPlace backend={backends.playerInfo}
+                         accountId={ownAccountId}
+                         reporter={backends.support}/>
 
         <Moments shown={ready}
                  battle={battle}
                  closed={closed}
                  nextBattle={nextBattle}
                  guided={props.showFront ?? false}
-                 promo={props.promo}
+                 promo={backends.promo}
                  listenForClicks={accepted.listenForClicks}
-                 clips={props.clips}
+                 clips={backends.clips}
                  clipsAccount={linked && username !== undefined ? ownAccountId : undefined}
                  countryCode={countryState.code}
                  accountId={ownAccountId}
                  play={sound.play}
-                 onWear={props.account?.wearTitle}/>
+                 onWear={backends.account.wearTitle}/>
 
         {missionsDone && rules && <MissionsDone missions={missionsDone}
                                                 rules={rules}
@@ -658,8 +662,8 @@ export default function Viewer(props: ViewerProps) {
 
         {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
         {bannedUntil !== undefined && <BannedModal until={bannedUntil} onClose={dismissBanned}/>}
-        {account.kind === 'ready' && account.restored && props.account &&
-            <WelcomeBackModal onClose={() => props.account?.welcomedBack()}/>}
+        {account.kind === 'ready' && account.restored &&
+            <WelcomeBackModal onClose={() => backends.account.welcomedBack()}/>}
 
         {sessionUnavailable && <SessionUnavailableModal onClose={dismissSessionUnavailable}/>}
     </>
