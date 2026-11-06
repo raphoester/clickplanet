@@ -8,12 +8,19 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
+var made = time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)
+
 func bucketsWith(change func(*clicks.Throttle)) clicks.Buckets {
+	return bucketsAt(cptime.NewFixedClock(made), change)
+}
+
+func bucketsAt(clock cptime.Clock, change func(*clicks.Throttle)) clicks.Buckets {
 	throttle := clicks.TestThrottle()
 	change(&throttle)
-	return clicks.NewBuckets(func() clicks.Throttle { return throttle })
+	return clicks.NewBuckets(func() clicks.Throttle { return throttle }, clock)
 }
 
 func plainBuckets() clicks.Buckets {
@@ -30,7 +37,7 @@ func TestTheScopesBucketHoldsTheScopeMultipliersAccounts(t *testing.T) {
 func TestTheBucketsFollowTheRulesInForce(t *testing.T) {
 	payer := clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true}
 	throttle := clicks.TestThrottle()
-	buckets := clicks.NewBuckets(func() clicks.Throttle { return throttle })
+	buckets := clicks.NewBuckets(func() clicks.Throttle { return throttle }, cptime.NewFixedClock(made))
 
 	throttle.ScopeMultiplier = 4
 	throttle.LinkedMultiplier = 3
@@ -94,7 +101,6 @@ func TestTheGuestsBehindAnAddressShareTheGuestScopeMultipliersAccounts(t *testin
 }
 
 func TestANewAccountsOwnBucketEarnsItsBankFromWhenItWasMade(t *testing.T) {
-	made := time.Date(2026, 10, 1, 13, 37, 0, 0, time.UTC)
 	buckets := bucketsWith(func(throttle *clicks.Throttle) { throttle.Burst, throttle.NewAccountClicks = 60, 10 })
 
 	guest := buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest", Created: made}, clicks.Price{})
@@ -152,4 +158,41 @@ func TestTheBudgetIsTheTightestBucketAndSaysWhoShares(t *testing.T) {
 
 	budget = buckets.BudgetOf(clicks.Payer{Scope: "1.2.3.4"}, []cpratelimit.State{guests}, clicks.Price{})
 	assert.Equal(t, clicks.SharedWithNobody, budget.SharedWith, "no account reads the only bucket it has")
+}
+
+func fastStart(throttle *clicks.Throttle) { throttle.FastStart = 30 * time.Minute }
+
+func TestAGuestRefillsAtTheSignedInPaceForItsFastStartAndNoLonger(t *testing.T) {
+	clock := cptime.NewFixedClock(made)
+	buckets := bucketsAt(clock, fastStart)
+	guest := clicks.Payer{Scope: "1.2.3.4", Account: "a-guest", Created: made}
+
+	clock.Advance(30*time.Minute - time.Second)
+	keys := buckets.Keys(guest, clicks.Price{Slowdown: 1.5})
+	assert.InDelta(t, 2/1.5, keys[0].Pace, 1e-9)
+	assert.InDelta(t, 2/1.5, keys[1].Pace, 1e-9, "or the network's guest bank would hold it to the guest pace")
+	assert.Zero(t, keys[2].Pace, "the scope's bucket keeps its plain rate")
+	assert.True(t, buckets.BudgetOf(guest, make([]cpratelimit.State, 3), clicks.Price{}).FastStart)
+
+	clock.Advance(time.Second)
+	keys = buckets.Keys(guest, clicks.Price{})
+	assert.InDelta(t, 1.0, keys[0].Pace, 1e-9)
+	assert.InDelta(t, 1.0, keys[1].Pace, 1e-9)
+	assert.False(t, buckets.BudgetOf(guest, make([]cpratelimit.State, 3), clicks.Price{}).FastStart)
+
+	assert.InDelta(t, 1.0, bucketsWith(fastStart).Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}, clicks.Price{})[0].Pace, 1e-9,
+		"an account that does not say when it was made has no fast start")
+	assert.InDelta(t, 1.0, bucketsWith(func(*clicks.Throttle) {}).Keys(guest, clicks.Price{})[0].Pace, 1e-9, "0 is off")
+}
+
+func TestASignedInAccountKeepsItsPaceThroughItsFastStartAndAfter(t *testing.T) {
+	clock := cptime.NewFixedClock(made)
+	buckets := bucketsAt(clock, fastStart)
+	linked := clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true, Created: made}
+
+	assert.InDelta(t, 2.0, buckets.Keys(linked, clicks.Price{})[0].Pace, 1e-9, "not twice twice")
+	assert.False(t, buckets.BudgetOf(linked, make([]cpratelimit.State, 2), clicks.Price{}).FastStart, "it has nothing to keep")
+
+	clock.Advance(time.Hour)
+	assert.InDelta(t, 2.0, buckets.Keys(linked, clicks.Price{})[0].Pace, 1e-9)
 }

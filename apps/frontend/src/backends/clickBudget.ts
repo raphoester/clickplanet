@@ -14,6 +14,8 @@ export type ClickBudget = {
     // The rules in force freeze the map: no click is taken.
     frozen?: boolean
 
+    fastStart?: boolean
+
     readAt: number
 }
 

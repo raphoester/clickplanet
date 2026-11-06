@@ -96,8 +96,11 @@
    the guests) and a streak flame (guests have none). Keep each line true: it names what
    the game does today, not what is planned. The account panel's guest text
    says the same. **Nothing is offered without the server's number**, nor with
-   sign-in off. A guest's tap on an empty bank also opens a short nudge to sign
-   in, once a page and never over a quiz (see [Sign-in](sign-in.md)).
+   sign-in off. A guest in its fast start (`ClickBudget.fastStart`, the
+   signed-in pace for a new account's first 30 minutes) has that speed already,
+   so it is offered "Sign in: keep this speed". A guest's tap on an empty bank,
+   and the click that ends its fast start, also open a short nudge to sign in,
+   once a page each and never over a quiz (see [Sign-in](sign-in.md)).
 
    **It says when somebody else spends from the bucket.** The guests behind one
    address share one bank, and every player behind it shares the scope's, so a

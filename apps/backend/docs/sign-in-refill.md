@@ -20,7 +20,8 @@ at the moment it ran dry. The client asks a guest to sign in at that moment (the
   new identity: a Google or Discord account, or an email address that is not disposable ([Auth](auth.md)).
 - **What farming wins.** The refill fills what the player spent from its own bank. A guest spends from its network's
   shared guest bank too ([Rate limiting](rate-limiting.md)), so all the refills that a network's guests can earn are
-  bounded by what that shared bank let through: 0.2 clicks a second and one bank. An account made at sign-in already
+  bounded by what that shared bank let through: one bank, refilled at 0.2 clicks a second, or at the signed-in pace
+  while a guest in its fast start clicks. An account made at sign-in already
   starts with `clicks.newAccountClicks`, so its refill is one more bank for one more identity.
 - **It is the refill, nothing new.** The grant is a refill charge, and a player holds one at most: a guest that
   already holds one gets nothing more. It is spent through `UseRefill` ([Refill](refill.md)) with the click token

@@ -133,6 +133,13 @@ export class ClickRules extends Message<ClickRules> {
    */
   newAccountClicks?: number;
 
+  /**
+   * How long a new account refills at the signed-in pace, guest or not. 0 is off.
+   *
+   * @generated from field: google.protobuf.Duration fast_start = 9;
+   */
+  fastStart?: Duration;
+
   constructor(data?: PartialMessage<ClickRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -149,6 +156,7 @@ export class ClickRules extends Message<ClickRules> {
     { no: 6, name: "guest_scope_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 7, name: "linked_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 8, name: "new_account_clicks", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 9, name: "fast_start", kind: "message", T: Duration },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickRules {

@@ -212,7 +212,7 @@ export default function ClickBudgetMeter({
                                   className="button button-mini button-action click-budget-sign-in"
                                   onClick={onSignIn}>
                     <BoltIcon/>
-                    <span>{offerText(budget.sharedWith, speedUp)}</span>
+                    <span>{offerText(budget.sharedWith, speedUp, budget.fastStart)}</span>
                 </button>}
             </div>
 

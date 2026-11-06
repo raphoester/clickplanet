@@ -201,9 +201,8 @@ func refillServer(t *testing.T, change func(*clicks.Throttle), refills *bonuses.
 
 	throttle := clicks.TestThrottle()
 	change(&throttle)
-	buckets := clicks.NewBuckets(func() clicks.Throttle { return throttle })
-
 	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
+	buckets := clicks.NewBuckets(func() clicks.Throttle { return throttle }, clock)
 	limiter := cpratelimit.New("test", cpratelimit.Config{PerSecond: throttle.PerSecond, Burst: throttle.Burst}, clock)
 
 	mux := http.NewServeMux()
@@ -453,6 +452,7 @@ func TestAFreshGuestOnAFreshAddressEveryMinuteIsNoFreshBank(t *testing.T) {
 	start := 2.0
 	server, _, clock := accountServer(t, func(throttle *clicks.Throttle) {
 		throttle.PerSecond, throttle.Burst, throttle.NewAccountClicks = 0.2, 60, start
+		throttle.FastStart = 30 * time.Minute
 	})
 
 	for minute := range 5 {
@@ -494,4 +494,90 @@ func TestSigningInKeepsTheBankAndSpeedsUpItsRefill(t *testing.T) {
 	clock.Advance(500 * time.Millisecond)
 	_, err = clickWithToken(t, server, "1.2.3.4", linkedPrefix+account)
 	require.NoError(t, err, "half a second is one click at twice the rate")
+}
+
+func fastStart(throttle *clicks.Throttle) { throttle.FastStart = 30 * time.Minute }
+
+func clicksUntilRefused(t *testing.T, server *httptest.Server, ip string, tokens ...string) int {
+	t.Helper()
+
+	taken := 0
+	for {
+		before := taken
+		for _, token := range tokens {
+			_, err := clickWithToken(t, server, ip, token)
+			if err == nil {
+				taken++
+				continue
+			}
+			require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
+		}
+		if taken == before {
+			return taken
+		}
+	}
+}
+
+func TestANewGuestClicksTwiceAsFastForItsFastStartThenAtTheGuestPace(t *testing.T) {
+	server, _, clock := accountServer(t, fastStart)
+	guest := cpsession.AccountCreatedAt(clock.Now()).String()
+
+	require.Equal(t, 10, clicksUntilRefused(t, server, "1.2.3.4", guest))
+	clock.Advance(500 * time.Millisecond)
+	res, err := clickWithToken(t, server, "1.2.3.4", guest)
+	require.NoError(t, err, "half a second is one click at the signed-in pace")
+	require.True(t, res.Msg.GetBudget().GetFastStart())
+	require.InDelta(t, 2.0, res.Msg.GetBudget().GetRefillPerSecond(), 1e-9)
+
+	clock.Advance(30 * time.Minute)
+	res, err = clickWithToken(t, server, "1.2.3.4", guest)
+	require.NoError(t, err)
+	require.False(t, res.Msg.GetBudget().GetFastStart(), "the client asks for a sign-in now")
+	require.InDelta(t, 1.0, res.Msg.GetBudget().GetRefillPerSecond(), 1e-9)
+	require.Equal(t, 9, clicksUntilRefused(t, server, "1.2.3.4", guest))
+
+	clock.Advance(500 * time.Millisecond)
+	_, err = clickWithToken(t, server, "1.2.3.4", guest)
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "the guest pace again: half a click")
+	clock.Advance(500 * time.Millisecond)
+	_, err = clickWithToken(t, server, "1.2.3.4", guest)
+	require.NoError(t, err)
+}
+
+func TestASignedInAccountKeepsTwiceThePaceAfterItsFastStart(t *testing.T) {
+	server, _, clock := accountServer(t, fastStart)
+	linked := linkedPrefix + cpsession.AccountCreatedAt(clock.Now()).String()
+
+	require.Equal(t, 10, clicksUntilRefused(t, server, "1.2.3.4", linked))
+	clock.Advance(250 * time.Millisecond)
+	_, err := clickWithToken(t, server, "1.2.3.4", linked)
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "not twice twice")
+	require.False(t, budgetDetail(t, err).GetFastStart(), "signed in, it has no speed to keep")
+
+	clock.Advance(31 * time.Minute)
+	require.Equal(t, 10, clicksUntilRefused(t, server, "1.2.3.4", linked))
+	clock.Advance(500 * time.Millisecond)
+	_, err = clickWithToken(t, server, "1.2.3.4", linked)
+	require.NoError(t, err, "half a second is still one click")
+}
+
+func TestFreshGuestsOnOneNetworkGetNoMoreThanOneFreshGuest(t *testing.T) {
+	server, _, clock := accountServer(t, fastStart)
+	tabs := make([]string, 10)
+	for i := range tabs {
+		tabs[i] = cpsession.AccountCreatedAt(clock.Now().Add(time.Duration(i) * time.Millisecond)).String()
+	}
+	alone := cpsession.AccountCreatedAt(clock.Now().Add(time.Second)).String()
+
+	require.Equal(t, 10, clicksUntilRefused(t, server, "1.2.3.4", tabs...), "ten fresh tabs hold the one guest bank")
+	require.Equal(t, 10, clicksUntilRefused(t, server, "5.6.7.8", alone))
+
+	clock.Advance(2 * time.Second)
+	require.Equal(t, 4, clicksUntilRefused(t, server, "1.2.3.4", tabs...), "and refill it at the signed-in pace, not ten times it")
+	require.Equal(t, 4, clicksUntilRefused(t, server, "5.6.7.8", alone))
+
+	clock.Advance(30 * time.Minute)
+	require.Equal(t, 10, clicksUntilRefused(t, server, "1.2.3.4", tabs...))
+	clock.Advance(2 * time.Second)
+	require.Equal(t, 2, clicksUntilRefused(t, server, "1.2.3.4", tabs...), "past their fast starts, the guest bank of before")
 }

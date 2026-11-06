@@ -2,6 +2,7 @@ package get_budget_usecase_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -9,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type fullBuckets struct{}
@@ -22,7 +24,7 @@ type flatPrice struct{}
 func (flatPrice) Price(string) clicks.Price { return clicks.Price{Slowdown: 1} }
 
 func TestTheBudgetSaysWhenTheRulesFreezeTheMap(t *testing.T) {
-	buckets := clicks.NewBuckets(clicks.TestThrottle)
+	buckets := clicks.NewBuckets(clicks.TestThrottle, cptime.NewFixedClock(time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)))
 	for _, frozen := range []clicks.Freeze{true, false} {
 		useCase := get_budget_usecase.New(fullBuckets{}, flatPrice{}, buckets, func() clicks.Freeze { return frozen })
 

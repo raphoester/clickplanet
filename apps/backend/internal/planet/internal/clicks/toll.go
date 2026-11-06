@@ -27,6 +27,7 @@ type Budget struct {
 	SharedWith       SharedWith
 	Price            Price
 	LinkedMultiplier float64
+	FastStart        bool
 	Frozen           Freeze
 }
 
