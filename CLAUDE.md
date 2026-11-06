@@ -36,3 +36,5 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
   tooling.
 - [CrazyGames](docs/crazygames.md) — the game framed from `crazygames.clickplanet.lol`: why a host of its own, what
   each app and the deploy do, and what the owner sets up.
+- [Chat moderation](docs/moderation.md) — the policy Claude moderates the chat by, every 2 hours: what stays, what
+  goes, the mute steps capped at 24 hours, usernames, reports, what goes to the operator, and what is not built yet.
