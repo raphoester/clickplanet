@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 import { FlagMission } from "./missions_pb.js";
+import { Rules } from "./rules_pb.js";
 
 /**
  * The kinds of a player's mission, as Mission's kind names them.
@@ -557,6 +558,142 @@ export class KindTotals extends Message<KindTotals> {
 
   static equals(a: KindTotals | PlainMessage<KindTotals> | undefined, b: KindTotals | PlainMessage<KindTotals> | undefined): boolean {
     return proto3.util.equals(KindTotals, a, b);
+  }
+}
+
+/**
+ * @generated from message missions.v1.GetRulesRequest
+ */
+export class GetRulesRequest extends Message<GetRulesRequest> {
+  constructor(data?: PartialMessage<GetRulesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.GetRulesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRulesRequest {
+    return new GetRulesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRulesRequest {
+    return new GetRulesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRulesRequest {
+    return new GetRulesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRulesRequest | PlainMessage<GetRulesRequest> | undefined, b: GetRulesRequest | PlainMessage<GetRulesRequest> | undefined): boolean {
+    return proto3.util.equals(GetRulesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message missions.v1.GetRulesResponse
+ */
+export class GetRulesResponse extends Message<GetRulesResponse> {
+  /**
+   * @generated from field: missions.v1.Rules rules = 1;
+   */
+  rules?: Rules;
+
+  constructor(data?: PartialMessage<GetRulesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.GetRulesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rules", kind: "message", T: Rules },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRulesResponse {
+    return new GetRulesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRulesResponse {
+    return new GetRulesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRulesResponse {
+    return new GetRulesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRulesResponse | PlainMessage<GetRulesResponse> | undefined, b: GetRulesResponse | PlainMessage<GetRulesResponse> | undefined): boolean {
+    return proto3.util.equals(GetRulesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message missions.v1.SaveRulesRequest
+ */
+export class SaveRulesRequest extends Message<SaveRulesRequest> {
+  /**
+   * @generated from field: missions.v1.Rules rules = 1;
+   */
+  rules?: Rules;
+
+  constructor(data?: PartialMessage<SaveRulesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.SaveRulesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rules", kind: "message", T: Rules },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SaveRulesRequest {
+    return new SaveRulesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SaveRulesRequest {
+    return new SaveRulesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SaveRulesRequest {
+    return new SaveRulesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SaveRulesRequest | PlainMessage<SaveRulesRequest> | undefined, b: SaveRulesRequest | PlainMessage<SaveRulesRequest> | undefined): boolean {
+    return proto3.util.equals(SaveRulesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message missions.v1.SaveRulesResponse
+ */
+export class SaveRulesResponse extends Message<SaveRulesResponse> {
+  constructor(data?: PartialMessage<SaveRulesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.SaveRulesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SaveRulesResponse {
+    return new SaveRulesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SaveRulesResponse {
+    return new SaveRulesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SaveRulesResponse {
+    return new SaveRulesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SaveRulesResponse | PlainMessage<SaveRulesResponse> | undefined, b: SaveRulesResponse | PlainMessage<SaveRulesResponse> | undefined): boolean {
+    return proto3.util.equals(SaveRulesResponse, a, b);
   }
 }
 

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMissionTotalsRequest, GetMissionTotalsResponse, ListFlagDaysRequest, ListFlagDaysResponse } from "./admin_pb.js";
+import { GetMissionTotalsRequest, GetMissionTotalsResponse, GetRulesRequest, GetRulesResponse, ListFlagDaysRequest, ListFlagDaysResponse, SaveRulesRequest, SaveRulesResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -45,6 +45,31 @@ export const AdminService = {
       O: GetMissionTotalsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The numbers missions draws with now: a flag mission's goal and points. SaveRules changes them.
+     *
+     * @generated from rpc missions.v1.AdminService.GetRules
+     */
+    getRules: {
+      name: "GetRules",
+      I: GetRulesRequest,
+      O: GetRulesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Replaces the numbers missions draws with, every one of them. They play at once, for every mission drawn after:
+     * a flag draws its mission once a day, at its first take, shield broken or read, so in practice from the next day.
+     * InvalidArgument for numbers that cannot play, with every reason.
+     *
+     * @generated from rpc missions.v1.AdminService.SaveRules
+     */
+    saveRules: {
+      name: "SaveRules",
+      I: SaveRulesRequest,
+      O: SaveRulesResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

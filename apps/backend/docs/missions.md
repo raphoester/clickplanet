@@ -41,10 +41,15 @@ internal/missions/internal/
     flagmessage/                    a flag mission as missions.v1.FlagMission (GetMissions answers it too), and a
                                     flag mission done as the missions.v1.FlagMissionDone event
     usecases/record_flag_take_usecase/  record_strike_usecase/
+  rules/                            Rules, the numbers missions draws with, one document the operator edits; the Store
+                                    port; ErrInvalidRules
+    postgres_rules_store/           the Store over missions.rules, and the flagmissions.Sizings each draw reads
+    usecases/save_rules_usecase/    audit_save_rules/
   missionsv1controller/             MissionService and AdminService (bags), the session interceptors, the caller,
                                     missionmessage
     get_missions_handler/  listen_for_events_handler/
     list_flag_days_handler/flag_days_query/  get_mission_totals_handler/totals_query/
+    get_rules_handler/rules_query/  save_rules_handler/
   subscribers/                      tile_taken_subscriber/  bonus_claimed_subscriber/  quiz_answered_subscriber/
                                     bomb_landed_subscriber/  shield_placed_subscriber/  fortified_subscriber/
                                     day_started_subscriber/  flag_tile_taken_subscriber/  shield_struck_subscriber/
@@ -191,9 +196,13 @@ day and a flag), so it has its own package and store (`flagmissions`).
   the ones the map allows: `TakeIn{Ground, Goal}`, tiles taken for the flag on a big ground (`World.GroundsOf`, the
   grounds of the player missions), or `BreakShields{Flag, Goal}`, shields of a rival broken (`World.RivalsOf`, drawn by
   the ground it holds, so the leaders share the heat). A map with neither gives a day with no mission.
+- **Its numbers are the operator's** (see [The rules](#the-rules)): the goal's part of the day before, the least goal,
+  and the points for the biggest flag and for a flag holding no tile, a `Sizing` that `Briefing.Of` reads at each draw
+  and hands to `Draw`. The formulas stay in code; below, the numbers are those of 6 Nov 2026.
 - **Its points come from the flag's size beside the biggest flag's** (`pointsOf`, the user's choice, 2026-11-05):
-  10 − 7 × the flag's tiles ÷ the biggest flag's tiles, rounded, from the map at the draw. The biggest flag gets 3, a
-  flag half its size 6, a flag under 1/14 of its size 10; on a blank map every flag gets 10. On 5 Nov 2026 that was
+  most − (most − fewest) × the flag's tiles ÷ the biggest flag's tiles, rounded, from the map at the draw. With 10 and
+  3, the biggest flag gets 3, a flag half its size 6, a flag under 1/14 of its size 10; on a blank map every flag gets
+  10. On 5 Nov 2026 that was
   Ireland 3, Russia and Brazil 5, Czechia 6, Sweden and Bulgaria 7, Poland 8, Hungary, Palau, France and the UK 9, every
   smaller flag 10. Until then the points were drawn 3 to 10 evenly: in Season 1's first five days the flags holding 5% of the map or
   more won 57 points from missions, the flags under 0.5% won 13.
@@ -259,6 +268,27 @@ day and a flag), so it has its own package and store (`flagmissions`).
 - **Kept in `flag_days`** (`day`, the day's id, `flag`, `takes`, `counted_takes_below`, `counted_takes_below_index`, `strikes`,
   `counted_strikes_below`, `counted_strikes_below_index`) and **`flag_missions`** (`mission_id`, `kind` of the enum `flag_mission_kind`, the kind's
   own fields in `payload`, `points`, `progress`, `done`): a day with no mission has no row there. They name no account, so `PlayerForgotten` leaves them.
+
+## The rules
+
+**The numbers missions draws with are one document in postgres, edited from the backoffice** (Ops → Mission rules) or
+by the connector (`missions_save_rules`), not constants in the code (the owner, 2026-11-06: "we should be able to handle
+this directly from the backoffice"). Only the flag mission's for now: `missions.v1.Rules.flag_missions`, the goal's
+percent of the day before (1 to 100), the least goal (10 or more), and the points for the biggest flag (1 or more) and
+for a flag holding no tile (that to 100). A player mission's spans and rewards are still code; they would join the same
+document.
+
+- **One document, no sets and no schedule**: unlike planet's and the antibot's rules, nothing switches it, since a
+  battle runs between two days and no mission runs then. `missions.rules` holds one row (`singleton`), the document as
+  protojson, seeded by migration `20261106180000_rules` with the numbers the code held (30, 250, 3, 10);
+  `flagmissions.TestingSizing()` is the same, and `TestTheMigrationSeedsTheNumbersTheCodeHeld` compares them.
+- **`GetRules`** reads it (`rules_query`). **`SaveRules`** replaces it whole (`save_rules_usecase`): `rules.RulesOf`
+  checks every number with `flagmissions.SizingOf`, and a refusal names each, by its name in the proto
+  (`flagMissions: … goalPercent is 0, and must be 1 to 100`), as `InvalidArgument`. `audit_save_rules` logs each save
+  and refusal at Warn with the document.
+- **A save plays at the next draw**: `Briefing.Of` reads the document from postgres when it draws a flag's day, which is
+  once a day per flag, so most flags draw with the new numbers the next day; a day already drawn keeps its mission. A
+  document postgres keeps that cannot play (edited by hand) fails the draw, and the fact is told again.
 
 ## The operator's reads
 

@@ -654,11 +654,171 @@ func (x *KindTotals) GetProgress() uint64 {
 	return 0
 }
 
+type GetRulesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRulesRequest) Reset() {
+	*x = GetRulesRequest{}
+	mi := &file_missions_v1_admin_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRulesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRulesRequest) ProtoMessage() {}
+
+func (x *GetRulesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_admin_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRulesRequest.ProtoReflect.Descriptor instead.
+func (*GetRulesRequest) Descriptor() ([]byte, []int) {
+	return file_missions_v1_admin_proto_rawDescGZIP(), []int{9}
+}
+
+type GetRulesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rules         *Rules                 `protobuf:"bytes,1,opt,name=rules,proto3" json:"rules,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRulesResponse) Reset() {
+	*x = GetRulesResponse{}
+	mi := &file_missions_v1_admin_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRulesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRulesResponse) ProtoMessage() {}
+
+func (x *GetRulesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_admin_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRulesResponse.ProtoReflect.Descriptor instead.
+func (*GetRulesResponse) Descriptor() ([]byte, []int) {
+	return file_missions_v1_admin_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetRulesResponse) GetRules() *Rules {
+	if x != nil {
+		return x.Rules
+	}
+	return nil
+}
+
+type SaveRulesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rules         *Rules                 `protobuf:"bytes,1,opt,name=rules,proto3" json:"rules,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveRulesRequest) Reset() {
+	*x = SaveRulesRequest{}
+	mi := &file_missions_v1_admin_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveRulesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveRulesRequest) ProtoMessage() {}
+
+func (x *SaveRulesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_admin_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveRulesRequest.ProtoReflect.Descriptor instead.
+func (*SaveRulesRequest) Descriptor() ([]byte, []int) {
+	return file_missions_v1_admin_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SaveRulesRequest) GetRules() *Rules {
+	if x != nil {
+		return x.Rules
+	}
+	return nil
+}
+
+type SaveRulesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveRulesResponse) Reset() {
+	*x = SaveRulesResponse{}
+	mi := &file_missions_v1_admin_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveRulesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveRulesResponse) ProtoMessage() {}
+
+func (x *SaveRulesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_admin_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveRulesResponse.ProtoReflect.Descriptor instead.
+func (*SaveRulesResponse) Descriptor() ([]byte, []int) {
+	return file_missions_v1_admin_proto_rawDescGZIP(), []int{12}
+}
+
 var File_missions_v1_admin_proto protoreflect.FileDescriptor
 
 const file_missions_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x17missions/v1/admin.proto\x12\vmissions.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1amissions/v1/missions.proto\"y\n" +
+	"\x17missions/v1/admin.proto\x12\vmissions.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1amissions/v1/missions.proto\x1a\x17missions/v1/rules.proto\"y\n" +
 	"\x13ListFlagDaysRequest\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
 	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\"A\n" +
@@ -697,7 +857,13 @@ const file_missions_v1_admin_proto_rawDesc = "" +
 	"\x04done\x18\x04 \x01(\rR\x04done\x12\x12\n" +
 	"\x04paid\x18\x05 \x01(\rR\x04paid\x12\x14\n" +
 	"\x05goals\x18\x06 \x01(\x04R\x05goals\x12\x1a\n" +
-	"\bprogress\x18\a \x01(\x04R\bprogress*\xb3\x02\n" +
+	"\bprogress\x18\a \x01(\x04R\bprogress\"\x11\n" +
+	"\x0fGetRulesRequest\"<\n" +
+	"\x10GetRulesResponse\x12(\n" +
+	"\x05rules\x18\x01 \x01(\v2\x12.missions.v1.RulesR\x05rules\"<\n" +
+	"\x10SaveRulesRequest\x12(\n" +
+	"\x05rules\x18\x01 \x01(\v2\x12.missions.v1.RulesR\x05rules\"\x13\n" +
+	"\x11SaveRulesResponse*\xb3\x02\n" +
 	"\vMissionKind\x12\x1c\n" +
 	"\x18MISSION_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15MISSION_KIND_TAKE_FOR\x10\x01\x12\x1a\n" +
@@ -708,10 +874,12 @@ const file_missions_v1_admin_proto_rawDesc = "" +
 	"\x1bMISSION_KIND_ANSWER_QUIZZES\x10\x06\x12\x18\n" +
 	"\x14MISSION_KIND_BOMB_IN\x10\a\x12\x1d\n" +
 	"\x19MISSION_KIND_SHIELD_TILES\x10\b\x12\x1e\n" +
-	"\x1aMISSION_KIND_FORTIFY_TILES\x10\t2\xce\x01\n" +
+	"\x1aMISSION_KIND_FORTIFY_TILES\x10\t2\xe8\x02\n" +
 	"\fAdminService\x12X\n" +
 	"\fListFlagDays\x12 .missions.v1.ListFlagDaysRequest\x1a!.missions.v1.ListFlagDaysResponse\"\x03\x90\x02\x01\x12d\n" +
-	"\x10GetMissionTotals\x12$.missions.v1.GetMissionTotalsRequest\x1a%.missions.v1.GetMissionTotalsResponse\"\x03\x90\x02\x01B\xc0\x01\n" +
+	"\x10GetMissionTotals\x12$.missions.v1.GetMissionTotalsRequest\x1a%.missions.v1.GetMissionTotalsResponse\"\x03\x90\x02\x01\x12L\n" +
+	"\bGetRules\x12\x1c.missions.v1.GetRulesRequest\x1a\x1d.missions.v1.GetRulesResponse\"\x03\x90\x02\x01\x12J\n" +
+	"\tSaveRules\x12\x1d.missions.v1.SaveRulesRequest\x1a\x1e.missions.v1.SaveRulesResponseB\xc0\x01\n" +
 	"\x0fcom.missions.v1B\n" +
 	"AdminProtoP\x01ZTgithub.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1;missionsv1\xa2\x02\x03MXX\xaa\x02\vMissions.V1\xca\x02\vMissions\\V1\xe2\x02\x17Missions\\V1\\GPBMetadata\xea\x02\fMissions::V1b\x06proto3"
 
@@ -728,7 +896,7 @@ func file_missions_v1_admin_proto_rawDescGZIP() []byte {
 }
 
 var file_missions_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_missions_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_missions_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_missions_v1_admin_proto_goTypes = []any{
 	(MissionKind)(0),                 // 0: missions.v1.MissionKind
 	(*ListFlagDaysRequest)(nil),      // 1: missions.v1.ListFlagDaysRequest
@@ -740,33 +908,44 @@ var file_missions_v1_admin_proto_goTypes = []any{
 	(*GetMissionTotalsResponse)(nil), // 7: missions.v1.GetMissionTotalsResponse
 	(*DayTotals)(nil),                // 8: missions.v1.DayTotals
 	(*KindTotals)(nil),               // 9: missions.v1.KindTotals
-	(*timestamppb.Timestamp)(nil),    // 10: google.protobuf.Timestamp
-	(*FlagMission)(nil),              // 11: missions.v1.FlagMission
+	(*GetRulesRequest)(nil),          // 10: missions.v1.GetRulesRequest
+	(*GetRulesResponse)(nil),         // 11: missions.v1.GetRulesResponse
+	(*SaveRulesRequest)(nil),         // 12: missions.v1.SaveRulesRequest
+	(*SaveRulesResponse)(nil),        // 13: missions.v1.SaveRulesResponse
+	(*timestamppb.Timestamp)(nil),    // 14: google.protobuf.Timestamp
+	(*FlagMission)(nil),              // 15: missions.v1.FlagMission
+	(*Rules)(nil),                    // 16: missions.v1.Rules
 }
 var file_missions_v1_admin_proto_depIdxs = []int32{
-	10, // 0: missions.v1.ListFlagDaysRequest.since:type_name -> google.protobuf.Timestamp
-	10, // 1: missions.v1.ListFlagDaysRequest.until:type_name -> google.protobuf.Timestamp
+	14, // 0: missions.v1.ListFlagDaysRequest.since:type_name -> google.protobuf.Timestamp
+	14, // 1: missions.v1.ListFlagDaysRequest.until:type_name -> google.protobuf.Timestamp
 	3,  // 2: missions.v1.ListFlagDaysResponse.days:type_name -> missions.v1.FlagDays
 	4,  // 3: missions.v1.FlagDays.day:type_name -> missions.v1.Day
 	5,  // 4: missions.v1.FlagDays.flags:type_name -> missions.v1.FlagDay
-	10, // 5: missions.v1.Day.starts_at:type_name -> google.protobuf.Timestamp
-	10, // 6: missions.v1.Day.ends_at:type_name -> google.protobuf.Timestamp
-	11, // 7: missions.v1.FlagDay.mission:type_name -> missions.v1.FlagMission
-	10, // 8: missions.v1.GetMissionTotalsRequest.since:type_name -> google.protobuf.Timestamp
-	10, // 9: missions.v1.GetMissionTotalsRequest.until:type_name -> google.protobuf.Timestamp
+	14, // 5: missions.v1.Day.starts_at:type_name -> google.protobuf.Timestamp
+	14, // 6: missions.v1.Day.ends_at:type_name -> google.protobuf.Timestamp
+	15, // 7: missions.v1.FlagDay.mission:type_name -> missions.v1.FlagMission
+	14, // 8: missions.v1.GetMissionTotalsRequest.since:type_name -> google.protobuf.Timestamp
+	14, // 9: missions.v1.GetMissionTotalsRequest.until:type_name -> google.protobuf.Timestamp
 	8,  // 10: missions.v1.GetMissionTotalsResponse.days:type_name -> missions.v1.DayTotals
 	4,  // 11: missions.v1.DayTotals.day:type_name -> missions.v1.Day
 	9,  // 12: missions.v1.DayTotals.kinds:type_name -> missions.v1.KindTotals
 	0,  // 13: missions.v1.KindTotals.kind:type_name -> missions.v1.MissionKind
-	1,  // 14: missions.v1.AdminService.ListFlagDays:input_type -> missions.v1.ListFlagDaysRequest
-	6,  // 15: missions.v1.AdminService.GetMissionTotals:input_type -> missions.v1.GetMissionTotalsRequest
-	2,  // 16: missions.v1.AdminService.ListFlagDays:output_type -> missions.v1.ListFlagDaysResponse
-	7,  // 17: missions.v1.AdminService.GetMissionTotals:output_type -> missions.v1.GetMissionTotalsResponse
-	16, // [16:18] is the sub-list for method output_type
-	14, // [14:16] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	16, // 14: missions.v1.GetRulesResponse.rules:type_name -> missions.v1.Rules
+	16, // 15: missions.v1.SaveRulesRequest.rules:type_name -> missions.v1.Rules
+	1,  // 16: missions.v1.AdminService.ListFlagDays:input_type -> missions.v1.ListFlagDaysRequest
+	6,  // 17: missions.v1.AdminService.GetMissionTotals:input_type -> missions.v1.GetMissionTotalsRequest
+	10, // 18: missions.v1.AdminService.GetRules:input_type -> missions.v1.GetRulesRequest
+	12, // 19: missions.v1.AdminService.SaveRules:input_type -> missions.v1.SaveRulesRequest
+	2,  // 20: missions.v1.AdminService.ListFlagDays:output_type -> missions.v1.ListFlagDaysResponse
+	7,  // 21: missions.v1.AdminService.GetMissionTotals:output_type -> missions.v1.GetMissionTotalsResponse
+	11, // 22: missions.v1.AdminService.GetRules:output_type -> missions.v1.GetRulesResponse
+	13, // 23: missions.v1.AdminService.SaveRules:output_type -> missions.v1.SaveRulesResponse
+	20, // [20:24] is the sub-list for method output_type
+	16, // [16:20] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_missions_v1_admin_proto_init() }
@@ -775,13 +954,14 @@ func file_missions_v1_admin_proto_init() {
 		return
 	}
 	file_missions_v1_missions_proto_init()
+	file_missions_v1_rules_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_missions_v1_admin_proto_rawDesc), len(file_missions_v1_admin_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   9,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

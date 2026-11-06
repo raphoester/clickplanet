@@ -4,7 +4,7 @@ import {Caller} from "./players/caller.ts"
 
 export type PageId =
     | "home" | "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "clips" | "videos" | "titles"
-    | "discord" | "rules" | "antibotRules" | "schedule" | "seasons" | "timeline" | "promo"
+    | "discord" | "rules" | "antibotRules" | "missionRules" | "schedule" | "seasons" | "timeline" | "promo"
 
 export type MenuGroup = {label: string, pages: {page: PageId, label: string}[]}
 
@@ -30,6 +30,7 @@ export const MENU: MenuGroup[] = [
             {page: "discord", label: "Link Discord members"},
             {page: "rules", label: "Game rules"},
             {page: "antibotRules", label: "Anti-bot rules"},
+            {page: "missionRules", label: "Mission rules"},
             {page: "schedule", label: "Rule schedule"},
             {page: "seasons", label: "Seasons"},
             {page: "promo", label: "Promo"},
