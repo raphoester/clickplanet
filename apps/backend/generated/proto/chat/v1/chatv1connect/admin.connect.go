@@ -42,6 +42,9 @@ const (
 	// AdminServiceRemoveMessageProcedure is the fully-qualified name of the AdminService's
 	// RemoveMessage RPC.
 	AdminServiceRemoveMessageProcedure = "/chat.v1.AdminService/RemoveMessage"
+	// AdminServiceRemoveMessagesProcedure is the fully-qualified name of the AdminService's
+	// RemoveMessages RPC.
+	AdminServiceRemoveMessagesProcedure = "/chat.v1.AdminService/RemoveMessages"
 	// AdminServiceGetMessageProcedure is the fully-qualified name of the AdminService's GetMessage RPC.
 	AdminServiceGetMessageProcedure = "/chat.v1.AdminService/GetMessage"
 	// AdminServiceListMessagesProcedure is the fully-qualified name of the AdminService's ListMessages
@@ -64,6 +67,11 @@ type AdminServiceClient interface {
 	GetMute(context.Context, *connect.Request[v1.GetMuteRequest]) (*connect.Response[v1.GetMuteResponse], error)
 	// Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
 	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)
+	// Removes many messages at once, each with its own reason, as RemoveMessage removes one: a run's removals in one
+	// call. All or none: one message past the retention (NotFound), the same message twice or a reason refused
+	// (InvalidArgument) removes nothing, and the refusal names it. Removing a message already removed keeps its first
+	// action in the moderation history, so a call tried again never counts twice. 200 messages at most.
+	RemoveMessages(context.Context, *connect.Request[v1.RemoveMessagesRequest]) (*connect.Response[v1.RemoveMessagesResponse], error)
 	// A message as it was sent, removed or not. NotFound past the retention.
 	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)
 	// The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention. With an account, that account's messages alone.
@@ -110,6 +118,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("RemoveMessage")),
 			connect.WithClientOptions(opts...),
 		),
+		removeMessages: connect.NewClient[v1.RemoveMessagesRequest, v1.RemoveMessagesResponse](
+			httpClient,
+			baseURL+AdminServiceRemoveMessagesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("RemoveMessages")),
+			connect.WithClientOptions(opts...),
+		),
 		getMessage: connect.NewClient[v1.GetMessageRequest, v1.GetMessageResponse](
 			httpClient,
 			baseURL+AdminServiceGetMessageProcedure,
@@ -140,6 +154,7 @@ type adminServiceClient struct {
 	unmute         *connect.Client[v1.UnmuteRequest, v1.UnmuteResponse]
 	getMute        *connect.Client[v1.GetMuteRequest, v1.GetMuteResponse]
 	removeMessage  *connect.Client[v1.RemoveMessageRequest, v1.RemoveMessageResponse]
+	removeMessages *connect.Client[v1.RemoveMessagesRequest, v1.RemoveMessagesResponse]
 	getMessage     *connect.Client[v1.GetMessageRequest, v1.GetMessageResponse]
 	listMessages   *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
 	listModeration *connect.Client[v1.ListModerationRequest, v1.ListModerationResponse]
@@ -163,6 +178,11 @@ func (c *adminServiceClient) GetMute(ctx context.Context, req *connect.Request[v
 // RemoveMessage calls chat.v1.AdminService.RemoveMessage.
 func (c *adminServiceClient) RemoveMessage(ctx context.Context, req *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error) {
 	return c.removeMessage.CallUnary(ctx, req)
+}
+
+// RemoveMessages calls chat.v1.AdminService.RemoveMessages.
+func (c *adminServiceClient) RemoveMessages(ctx context.Context, req *connect.Request[v1.RemoveMessagesRequest]) (*connect.Response[v1.RemoveMessagesResponse], error) {
+	return c.removeMessages.CallUnary(ctx, req)
 }
 
 // GetMessage calls chat.v1.AdminService.GetMessage.
@@ -192,6 +212,11 @@ type AdminServiceHandler interface {
 	GetMute(context.Context, *connect.Request[v1.GetMuteRequest]) (*connect.Response[v1.GetMuteResponse], error)
 	// Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
 	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)
+	// Removes many messages at once, each with its own reason, as RemoveMessage removes one: a run's removals in one
+	// call. All or none: one message past the retention (NotFound), the same message twice or a reason refused
+	// (InvalidArgument) removes nothing, and the refusal names it. Removing a message already removed keeps its first
+	// action in the moderation history, so a call tried again never counts twice. 200 messages at most.
+	RemoveMessages(context.Context, *connect.Request[v1.RemoveMessagesRequest]) (*connect.Response[v1.RemoveMessagesResponse], error)
 	// A message as it was sent, removed or not. NotFound past the retention.
 	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)
 	// The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention. With an account, that account's messages alone.
@@ -234,6 +259,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("RemoveMessage")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceRemoveMessagesHandler := connect.NewUnaryHandler(
+		AdminServiceRemoveMessagesProcedure,
+		svc.RemoveMessages,
+		connect.WithSchema(adminServiceMethods.ByName("RemoveMessages")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceGetMessageHandler := connect.NewUnaryHandler(
 		AdminServiceGetMessageProcedure,
 		svc.GetMessage,
@@ -265,6 +296,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGetMuteHandler.ServeHTTP(w, r)
 		case AdminServiceRemoveMessageProcedure:
 			adminServiceRemoveMessageHandler.ServeHTTP(w, r)
+		case AdminServiceRemoveMessagesProcedure:
+			adminServiceRemoveMessagesHandler.ServeHTTP(w, r)
 		case AdminServiceGetMessageProcedure:
 			adminServiceGetMessageHandler.ServeHTTP(w, r)
 		case AdminServiceListMessagesProcedure:
@@ -294,6 +327,10 @@ func (UnimplementedAdminServiceHandler) GetMute(context.Context, *connect.Reques
 
 func (UnimplementedAdminServiceHandler) RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.RemoveMessage is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) RemoveMessages(context.Context, *connect.Request[v1.RemoveMessagesRequest]) (*connect.Response[v1.RemoveMessagesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.RemoveMessages is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error) {

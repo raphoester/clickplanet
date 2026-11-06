@@ -208,6 +208,22 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
     (`older`, `newer`) under one projection that joins the removals and the quote. The newest page is `older` from
     the top. Each window walks the primary key from the cursor.
 - **`audit_remove` logs every call at Warn** (`admin chat message removal`), with the reason.
+- **`chat.v1.AdminService/RemoveMessages(removals)` removes many at once**, each a `MessageRemoval` (`message_id`,
+  `reason`): a moderation run's removals in one call, so one approval on claude.ai or in Claude Code instead of one per
+  message (`chat_remove_messages`). `remove_messages_usecase` is `remove_message_usecase` for a list, **all or none**:
+  - **Checked before anything is read**: 1 to 200 messages (`MaxRemovals`, a page of `ListMessages`; `ErrNoRemoval`,
+    `ErrTooManyRemovals`), none twice (`ErrRemovedTwice`: the history keeps a message's first removal, so the second
+    reason would be lost without a word), and every reason (`moderation.ReasonOf`). An empty id is refused by the
+    handler, as `RemoveMessage`'s is.
+  - **Then every message is read** (`KeptMessage`, within the retention), then every removal and its record are kept
+    in one transaction, and only then is each stream told (`feed.MessageRemoved`, one per message), all at one time.
+  - **One refused refuses them all, and the refusal names it**: `NotFound` for a message past the retention,
+    `InvalidArgument` for the rest. The caller sends the others again without it.
+  - **A message already removed is removed again** and keeps its first action in the history, as `RemoveMessage`
+    does, so a run tried again after a failure removes what was left and counts nothing twice.
+  - **`audit_remove_messages` logs one `admin chat message removal` line per message**, with its reason and `batch`
+    (how many the call removed), so a search for a message finds it however it was removed; a refused call is one
+    `admin chat message removals failed` line with every id.
 - **A removal takes a `reason`**, and is recorded in the history in the transaction that keeps it, on the message's
   author, with **a copy of what the message said**: its text, or its GIF's address, never its address, so it outlives
   the chat's retention. `remove_message_usecase` reads the message with `KeptMessage` (removed or not, within the
@@ -231,8 +247,8 @@ player's: see [Who owns which history](#who-owns-which-history).
   a mute's and an unmute's `mute_kind`, a mute's `seconds`; a removal's `message_id` and its copy, `text` or `gif_url`,
   `gif_width`, `gif_height`; then `reason` and who: `operator_id` and `client` (migration `20261106130000_moderation`,
   `CHECK`s that each action has its own columns and no other's).
-- **Written in the action's transaction**: `mute_usecase`, `unmute_usecase` and `remove_message_usecase` each open one
-  (`InTx`) and call `moderation.Storage.Record` beside their own store, so a mute, an unmute or a removal is never kept
+- **Written in the action's transaction**: `mute_usecase`, `unmute_usecase`, `remove_message_usecase` and
+  `remove_messages_usecase` (one for all its removals) each open one (`InTx`) and call `moderation.Storage.Record` beside their own store, so a mute, an unmute or a removal is never kept
   without its record, nor a record without it. The domain builds it (`moderation.NewMute`, `NewUnmute`, `NewRemoval`);
   the store only writes, and the query reads.
 - **The reason** is `moderation.ReasonOf`: support's text rule (`notes.TextOf`: valid UTF-8, lines kept, every other
