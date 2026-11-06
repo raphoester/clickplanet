@@ -8,44 +8,10 @@ export type AppProps = ViewerProps & {
     words: WordFilter
 }
 
-export default function App(props: AppProps) {
-    return <WordFilterContext.Provider value={props.words}>
+export default function App({words, ...viewer}: AppProps) {
+    return <WordFilterContext.Provider value={words}>
         {!ON_CRAZYGAMES && <DonationModal/>}
 
-        <Viewer
-            sharedCountry={props.sharedCountry}
-            linkedShot={props.linkedShot}
-            showFront={props.showFront}
-            tileClicker={props.tileClicker}
-            ownershipsGetter={props.ownershipsGetter}
-            updatesListener={props.updatesListener}
-            clickBudgetSource={props.clickBudgetSource}
-            connection={props.connection}
-            bonusListener={props.bonusListener}
-            quizMaster={props.quizMaster}
-            bomber={props.bomber}
-            refiller={props.refiller}
-            shielder={props.shielder}
-            allegiance={props.allegiance}
-            chatBackend={props.chatBackend}
-            account={props.account}
-            presence={props.presence}
-            playerInfo={props.playerInfo}
-            badges={props.badges}
-            nameplates={props.nameplates}
-            titles={props.titles}
-            tileHolders={props.tileHolders}
-            landmasses={props.landmasses}
-            turn={props.turn}
-            standings={props.standings}
-            support={props.support}
-            missions={props.missions}
-            chargesRefresher={props.chargesRefresher}
-            clips={props.clips}
-            promo={props.promo}
-            crazyGames={props.crazyGames}
-            alerts={props.alerts}
-            gifs={props.gifs}
-        />
+        <Viewer {...viewer}/>
     </WordFilterContext.Provider>
 }

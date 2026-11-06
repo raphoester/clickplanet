@@ -21,7 +21,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 
 ## Architecture
 
-- [Architecture](docs/architecture.md) — the layers: `domain/`, `backends/`, `app/viewer/`, `app/`.
+- [Architecture](docs/architecture.md) — the layers: `domain/`, `backends/`, `app/viewer/`, `app/`; the one
+  `Backends` object `main.tsx` gives the page.
 - [`src/domain/`](docs/domain.md) — the logic worth testing: no GPU, no DOM, no React.
 - [`src/backends/`](docs/backends.md) — the contracts and the one Connect transport; the click budget; a frozen
   map; connection health.
