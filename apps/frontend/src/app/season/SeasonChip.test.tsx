@@ -134,7 +134,7 @@ describe("SeasonChip", () => {
 
         fireEvent.click(screen.getByRole("button", {name: /Today ends in/}))
         expect(screen.getByRole("button", {name: /Today ends in/}).getAttribute("aria-expanded")).toBe("true")
-        expect(screen.getByText("When a day ends, the countries holding the most ground score points.")).toBeDefined()
+        expect(screen.getByText("When a day ends, the countries that gained the most ground that day score points.")).toBeDefined()
         expect(battleTeased()).toBeNull()
 
         fireEvent.keyDown(document, {key: "Escape"})
@@ -168,7 +168,7 @@ describe("SeasonChip", () => {
             expect(screen.getByText("A bonus box every minute.")).toBeDefined()
             expect(screen.getByText("2 hours of war")).toBeDefined()
             expect(screen.getByText("Points ×3")).toBeDefined()
-            expect(screen.getByText("The countries holding the most ground when it ends score the points of 3 days.")).toBeDefined()
+            expect(screen.getByText("The countries that gain the most ground during it score the points of 3 days.")).toBeDefined()
             expect(screen.getByText("The last word")).toBeDefined()
         })
     })

@@ -2,6 +2,7 @@ package books
 
 import (
 	"cmp"
+	"maps"
 	"slices"
 )
 
@@ -19,26 +20,30 @@ type Scored struct {
 
 var points = []uint32{25, 18, 15, 12, 10, 8, 6, 4, 2, 1}
 
-// Results ranks the countries by the tiles they hold, ties sharing a rank and its points.
-func (r Round) Results(snapshot Snapshot) []Result {
-	held := snapshot.Held
-	countries := make([]Country, 0, len(held))
-	for country, tiles := range held {
+// Results ranks the countries holding tiles at the end by their gain since the start; only a gain scores.
+func (r Round) Results(start Start, end Snapshot) []Result {
+	gains := map[Country]int64{}
+	for country, tiles := range end.Held {
 		if tiles > 0 {
-			countries = append(countries, country)
+			gains[country] = int64(tiles) - int64(start[country])
 		}
 	}
+	countries := slices.Collect(maps.Keys(gains))
 	slices.SortFunc(countries, func(a, b Country) int {
-		return cmp.Or(cmp.Compare(held[b], held[a]), cmp.Compare(a, b))
+		return cmp.Or(cmp.Compare(gains[b], gains[a]), cmp.Compare(a, b))
 	})
 
 	results := make([]Result, 0, len(countries))
 	for i, country := range countries {
 		rank := uint32(i + 1) //nolint:gosec // a few hundred countries at most.
-		if i > 0 && held[country] == held[countries[i-1]] {
+		if i > 0 && gains[country] == gains[countries[i-1]] {
 			rank = results[i-1].Rank
 		}
-		results = append(results, Result{Country: country, Rank: rank, Points: pointsAt(rank, r.Times), Share: float64(held[country]) / float64(snapshot.Tiles)})
+		won := uint32(0)
+		if gains[country] > 0 {
+			won = pointsAt(rank, r.Times)
+		}
+		results = append(results, Result{Country: country, Rank: rank, Points: won, Share: float64(end.Held[country]) / float64(end.Tiles)})
 	}
 	return results
 }

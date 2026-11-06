@@ -308,7 +308,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			limiter := cpratelimit.NewRuled("click-limiter",
 				func() cpratelimit.Policy { return throttle().Policy(inForce.Since()) }, config.RateLimiter.SweepInterval, clock)
 			props.Runners.Add(limiter)
-			buckets := clicks.NewBuckets(throttle)
+			buckets := clicks.NewBuckets(throttle, clock)
 
 			pricer := clicks.NewToll(rules.Reader(inForce, clicks.TollPart), tilesStorage)
 

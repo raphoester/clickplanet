@@ -161,25 +161,35 @@ typed (digits only), and `cancelCode` goes back to the address.
   `auth.email.delivery: log` (no Cloudflare account needed): the code is in the
   server log.
 
-**A guest out of clicks is asked to sign in** (`SignInNudgeModal`, opened by
-`useSignInNudge` in `Viewer`). Newcomers leave at the tap that finds the bank
-empty, whatever its size (the backend's [A guest's first sign-in](../../backend/docs/sign-in-refill.md)),
-so that tap is the moment. "Out of clicks", then three lines: a full bank now
+**A guest is asked to sign in at two moments** (`SignInNudgeModal`, opened by
+`useSignInNudge` in `Viewer`): the tap that finds the bank empty, and the click
+that ends its fast start. Newcomers leave at the tap that finds the bank
+empty, whatever its size (the backend's [A guest's first sign-in](../../backend/docs/sign-in-refill.md)).
+A new account refills at the signed-in pace for its first 30 minutes (the
+backend's [Rate limiting](../../backend/docs/rate-limiting.md)), and from the
+click whose budget no longer says `fastStart` it refills at the guest pace.
+"Out of clicks" or "Keep this speed", then three lines: a full bank now
 (only while the server's `BonusRules.signInRefill` says so), clicks refill
-`linkedMultiplier` times faster, and the land on every device; then the sign-in
-buttons (`SignInButtons`, which `SignInPitchModal` uses too).
+`linkedMultiplier` times faster ("Keep this speed" while the fast start runs:
+the guest has that pace already), and the land on every device; then the
+sign-in buttons (`SignInButtons`, which `SignInPitchModal` uses too).
 
 - **It opens on a dry tap**: a tap the globe refuses for an empty bank
   (`refusals` from `useGlobe`), from a guest the server offers sign-in to, with
   its multiplier, on a map that is not frozen, holding no refill (a refill is a
   full bank already, and the server gives a guest one at most).
+- **And when the fast start ends**: a budget that says `fastStart`, then one
+  that does not, for a guest it is offered to as above. A page loaded after the
+  fast start never saw one, and is not asked. A quiz up then holds it until the
+  quiz closes, since that click does not come again.
 - **It never covers a quiz.** A young account's first dry click brings its
   welcome quiz within about a second (the backend's [A newcomer's first quiz](../../backend/docs/welcome-bonus.md)).
   So the nudge waits `NUDGE_AFTER_MS` (1.5s) after the dry tap, and gives up if a
   quiz is up then or comes in the wait (it reads `quizShown` from the
   [quiz store](quizzes.md)). The next dry tap after the quiz tries
   again: the quiz closing is no dry tap, as the bank may have refilled by then.
-- **Once a page.** Closed, it stays closed until the next load. Signed in by
+- **Once a page for each moment.** Closed, it does not open again for that
+  moment until the next load. Either moment is skipped while the other is open. Signed in by
   email inside it, it closes as the player stops being a guest.
 
 **A guest's flag tab in the chat is locked** and its "Sign in to join" opens

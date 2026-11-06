@@ -11,7 +11,8 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 )
 
-// Seeded is the set the migrations keep as default: production's rules on 26 October 2026, and the sign-in refill.
+// Seeded is the set the migrations keep as default: production's rules on 26 October 2026, the sign-in refill and the
+// fast start.
 func Seeded() Snapshot {
 	d := durationpb.New
 	f, n, on := proto.Float64, proto.Uint32, proto.Bool
@@ -21,7 +22,7 @@ func Seeded() Snapshot {
 			Clicks: &planetv1.ClickRules{
 				Tempo: f(1), PerSecond: f(0.2), Burst: n(60),
 				ScopeMultiplier: f(10), V6ScopeMultiplier: f(4), GuestScopeMultiplier: f(1), LinkedMultiplier: f(2),
-				NewAccountClicks: f(10),
+				NewAccountClicks: f(10), FastStart: d(30 * time.Minute),
 			},
 			Toll: &planetv1.TollRules{Steps: []*planetv1.TollStep{
 				{Share: 0.1, Slowdown: 1.5}, {Share: 0.2, Slowdown: 2.5}, {Share: 0.3, Slowdown: 4},

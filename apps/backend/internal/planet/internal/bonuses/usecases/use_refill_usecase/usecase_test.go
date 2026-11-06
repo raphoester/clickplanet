@@ -28,7 +28,7 @@ var buckets = clicks.NewBuckets(func() clicks.Throttle {
 		ScopeMultiplier: 10, V6ScopeMultiplier: 10, GuestScopeMultiplier: 1, LinkedMultiplier: 2,
 		NewAccountClicks: 60,
 	}
-})
+}, cptime.NewFixedClock(epoch))
 
 type fixture struct {
 	refills *bonuses.MemoryStore

@@ -707,6 +707,22 @@ describe("PlanetBackend click budget", () => {
         backend.close()
     })
 
+    it("says while a guest refills at the signed-in pace of its fast start", async () => {
+        const click = vi.fn()
+            .mockResolvedValueOnce({budget: new ClickBudgetMessage({tokens: 6, capacity: 10, refillPerSecond: 2, fastStart: true})})
+            .mockResolvedValueOnce({budget: new ClickBudgetMessage({tokens: 5, capacity: 10, refillPerSecond: 1})})
+        const backend = new PlanetBackend(budgetClient(click), 1_000)
+
+        const seen: (boolean | undefined)[] = []
+        backend.watchClickBudget(b => seen.push(b.fastStart))
+        await backend.clickTile(1, "fr")
+        expect(seen.at(-1)).toBe(true)
+        await backend.clickTile(2, "fr")
+        expect(seen.at(-1)).toBe(false)
+
+        backend.close()
+    })
+
     it("re-anchors on what every click answers", async () => {
         const click = vi.fn()
             .mockResolvedValueOnce({budget: budget(6)})

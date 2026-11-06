@@ -192,7 +192,7 @@ func (x *OpenBook) GetStartsAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// A round credits its book once it closes: the countries ranked by their share of the map then, points by rank, times
+// A round credits its book once it closes: the countries ranked by the tiles they gained since it opened, points by rank, times
 // `times`. Takes from starts_at count in it. A round whose book is not open is refused.
 type OpenRound struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`

@@ -2,6 +2,7 @@ import {factor} from "../../domain/clickPrice.ts"
 import Modal from "../components/Modal.tsx"
 import {AccountState, AccountStore} from "./accountStore.ts"
 import SignInButtons from "./SignInButtons.tsx"
+import {Nudge} from "./useSignInNudge.ts"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -9,17 +10,21 @@ type Ready = Extract<AccountState, {kind: "ready"}>
 export type SignInNudgeModalProps = {
     state: Ready
     store: AccountStore
+    nudge: Nudge
     multiplier: number
+    fastStart: boolean
     fullBank: boolean
     onClose: () => void
 }
 
-export default function SignInNudgeModal({state, store, multiplier, fullBank, onClose}: SignInNudgeModalProps) {
-    return <Modal title="Out of clicks" onClose={onClose}>
+export default function SignInNudgeModal({state, store, nudge, multiplier, fastStart, fullBank, onClose}: SignInNudgeModalProps) {
+    return <Modal title={nudge === "slowed" ? "Keep this speed" : "Out of clicks"} onClose={onClose}>
         <div className="account-panel sign-in-pitch" aria-busy={state.busy !== undefined}>
             <ul className="sign-in-pitch-perks">
                 {fullBank && <li><strong>A full bank now</strong></li>}
-                <li><strong>Clicks refill {factor(multiplier)}× faster</strong></li>
+                {fastStart
+                    ? <li><strong>Keep this speed</strong></li>
+                    : <li><strong>Clicks refill {factor(multiplier)}× faster</strong></li>}
                 <li><strong>Your land</strong> on every device</li>
             </ul>
 

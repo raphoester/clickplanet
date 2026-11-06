@@ -2,6 +2,7 @@ package scoring_command_handler_test
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"testing"
 	"time"
@@ -56,7 +57,7 @@ func newStack() stack {
 	return stack{
 		handler: scoring_command_handler.New(log_subscriber.New(scoring_command_handler.NewDispatcher(scoring_command_handler.UseCases{
 			OpenBook:   log_command.New("open_book", open_book_usecase.New(shelf), logger),
-			OpenRound:  log_command.New("open_round", open_round_usecase.New(shelf, rounds), logger),
+			OpenRound:  log_command.New("open_round", open_round_usecase.New(shelf, rounds, territory), logger),
 			CloseRound: log_command.New("close_round", close_round_usecase.New(tx, territory, rounds, outbox), logger),
 			CloseBook:  log_command.New("close_book", close_book_usecase.New(tx, shelf, rounds, grants, outbox), logger),
 		}), logger)),
@@ -104,6 +105,7 @@ func TestTheLastDayThenTheFinalBattleThenTheSeasonAreScoredOnceInTheirOrder(t *t
 		}
 	}
 
+	stack.territory.held = map[books.Country]uint32{"it": 5}
 	handle(openBook("season-0", utc(8, 0)), openRound("season-0/day-24", "season-0", 1, utc(30, 21)))
 	stack.territory.held = map[books.Country]uint32{"fr": 3, "de": 1}
 	handle(closeRound("season-0/day-24", utc(31, 21)), openRound(battle, "season-0", 3, utc(31, 21)))
@@ -115,11 +117,11 @@ func TestTheLastDayThenTheFinalBattleThenTheSeasonAreScoredOnceInTheirOrder(t *t
 			{Country: "fr", Rank: 1, Points: 25, Share: 0.75}, {Country: "de", Rank: 2, Points: 18, Share: 0.25},
 		}},
 		&scoringv1.RoundScored{RoundId: battle, BookId: "season-0", EndedAt: timestamppb.New(utc(31, 23)), Results: []*scoringv1.RoundResult{
-			{Country: "de", Rank: 1, Points: 75, Share: 0.8}, {Country: "fr", Rank: 2, Points: 54, Share: 0.2},
+			{Country: "de", Rank: 1, Points: 75, Share: 0.8}, {Country: "fr", Rank: 2, Share: 0.2},
 		}},
 		&scoringv1.BookClosed{BookId: "season-0", EndedAt: timestamppb.New(utc(31, 23)), Table: []*scoringv1.Place{
 			{Country: "de", Rank: 1, Points: 93, RoundsWon: 1, TiebreakPoints: 75},
-			{Country: "fr", Rank: 2, Points: 79, RoundsWon: 1, TiebreakPoints: 54},
+			{Country: "fr", Rank: 2, Points: 25, RoundsWon: 1},
 		}},
 	}
 	assertRecorded(t, want, stack.outbox.Recorded())
@@ -146,6 +148,24 @@ func TestTheLastDayThenTheFinalBattleThenTheSeasonAreScoredOnceInTheirOrder(t *t
 	scoredAgain, err := stack.rounds.ScoredIn(t.Context(), "season-0")
 	require.NoError(t, err)
 	assert.Equal(t, scored, scoredAgain, "a second delivery of each command changes nothing")
+}
+
+func TestARoundOpenedWhileTheMapCannotBeReadOpensOnTheNextDelivery(t *testing.T) {
+	stack := newStack()
+	require.NoError(t, stack.handler.Handle(t.Context(), openBook("season-1", utc(8, 0))))
+	require.NoError(t, stack.handler.Handle(t.Context(), openRound("season-1/day-1", "season-1", 1, utc(8, 0))))
+	stack.territory.held, stack.territory.err = map[books.Country]uint32{"fr": 3}, errors.New("planet is down")
+
+	require.Error(t, stack.handler.Handle(t.Context(), openRound(battle, "season-1", 2, utc(8, 20))))
+	_, found, err := stack.rounds.Find(t.Context(), battle)
+	require.NoError(t, err)
+	assert.False(t, found)
+
+	stack.territory.err = nil
+	require.NoError(t, stack.handler.Handle(t.Context(), openRound(battle, "season-1", 2, utc(8, 20))))
+	start, err := stack.rounds.StartOf(t.Context(), battle)
+	require.NoError(t, err)
+	assert.Equal(t, books.Start{"fr": 3}, start)
 }
 
 func assertRecorded(t *testing.T, want, recorded []proto.Message) {

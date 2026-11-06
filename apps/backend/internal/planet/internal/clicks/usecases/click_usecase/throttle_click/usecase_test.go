@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type fakeLimiter struct {
@@ -45,7 +47,7 @@ func (p *fakePricer) Price(country string) clicks.Price {
 
 func onePrice() *fakePricer { return &fakePricer{price: clicks.Price{Slowdown: 1}} }
 
-var buckets = clicks.NewBuckets(clicks.TestThrottle)
+var buckets = clicks.NewBuckets(clicks.TestThrottle, cptime.NewFixedClock(time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)))
 
 type fakeClick struct {
 	err error

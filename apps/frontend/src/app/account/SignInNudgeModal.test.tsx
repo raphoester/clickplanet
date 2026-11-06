@@ -46,7 +46,7 @@ async function guest() {
 describe("SignInNudgeModal", () => {
     it("says what signing in gives a guest out of clicks", async () => {
         const {store, state} = await guest()
-        render(<SignInNudgeModal state={state} store={store} multiplier={2} fullBank onClose={vi.fn()}/>)
+        render(<SignInNudgeModal state={state} store={store} nudge="dry" multiplier={2} fastStart={false} fullBank onClose={vi.fn()}/>)
 
         expect(screen.getByRole("dialog", {name: "Out of clicks"})).toBeDefined()
         expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
@@ -56,16 +56,35 @@ describe("SignInNudgeModal", () => {
         ])
     })
 
+    it("asks to keep the speed when a guest's fast start ends", async () => {
+        const {store, state} = await guest()
+        render(<SignInNudgeModal state={state} store={store} nudge="slowed" multiplier={2} fastStart={false} fullBank onClose={vi.fn()}/>)
+
+        expect(screen.getByRole("dialog", {name: "Keep this speed"})).toBeDefined()
+        expect(screen.getByText("Clicks refill 2× faster")).toBeDefined()
+    })
+
+    it("promises no speed-up to a guest that has it already", async () => {
+        const {store, state} = await guest()
+        render(<SignInNudgeModal state={state} store={store} nudge="dry" multiplier={2} fastStart fullBank onClose={vi.fn()}/>)
+
+        expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+            "A full bank now",
+            "Keep this speed",
+            "Your land on every device",
+        ])
+    })
+
     it("promises no full bank the server does not give", async () => {
         const {store, state} = await guest()
-        render(<SignInNudgeModal state={state} store={store} multiplier={2} fullBank={false} onClose={vi.fn()}/>)
+        render(<SignInNudgeModal state={state} store={store} nudge="dry" multiplier={2} fastStart={false} fullBank={false} onClose={vi.fn()}/>)
 
         expect(screen.queryByText("A full bank now")).toBeNull()
     })
 
     it("signs in with the provider pressed", async () => {
         const {store, state, backend, navigate} = await guest()
-        render(<SignInNudgeModal state={state} store={store} multiplier={2} fullBank onClose={vi.fn()}/>)
+        render(<SignInNudgeModal state={state} store={store} nudge="dry" multiplier={2} fastStart={false} fullBank onClose={vi.fn()}/>)
 
         await userEvent.setup().click(screen.getByRole("button", {name: "Sign in with Google"}))
 

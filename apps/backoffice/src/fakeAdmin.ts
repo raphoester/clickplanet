@@ -352,7 +352,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     rules = new GetRulesResponse({sets: [new RuleSet({name: "default", rules: PlanetRules.fromJson({
         clicks: {
             tempo: 1, perSecond: 0.2, burst: 60, scopeMultiplier: 10, v6ScopeMultiplier: 4, guestScopeMultiplier: 1,
-            linkedMultiplier: 2, newAccountClicks: 10,
+            linkedMultiplier: 2, newAccountClicks: 10, fastStart: "1800s",
         },
         toll: {steps: [{share: 0.1, slowdown: 1.5}, {share: 0.2, slowdown: 2.5}, {share: 0.3, slowdown: 4}]},
         bonuses: {

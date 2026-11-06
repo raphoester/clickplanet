@@ -97,6 +97,7 @@ func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 		"clicks.linkedMultiplier":          func(r *planetv1.Rules) { r.Clicks.LinkedMultiplier = proto.Float64(0.5) },
 		"clicks.newAccountClicks is -1":    func(r *planetv1.Rules) { r.Clicks.NewAccountClicks = proto.Float64(-1) },
 		"clicks.newAccountClicks is 61":    func(r *planetv1.Rules) { r.Clicks.NewAccountClicks = proto.Float64(61) },
+		"clicks.fastStart":                 func(r *planetv1.Rules) { r.Clicks.FastStart = d(-time.Minute) },
 		"toll.steps[0].slowdown":           func(r *planetv1.Rules) { r.Toll.Steps[0].Slowdown = 1 },
 		"toll.steps[1].slowdown":           func(r *planetv1.Rules) { r.Toll.Steps[1].Slowdown = 1.2 },
 		"toll.steps[1].share":              func(r *planetv1.Rules) { r.Toll.Steps[1].Share = 0.05 },

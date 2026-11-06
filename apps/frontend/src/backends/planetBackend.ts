@@ -226,6 +226,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             linkedMultiplier: budget.linkedMultiplier > 1 ? budget.linkedMultiplier : undefined,
             sharedWith: SHARED_BY[budget.sharedWith],
             frozen: budget.frozen,
+            fastStart: budget.fastStart,
             readAt: budgetNow(),
         }
 

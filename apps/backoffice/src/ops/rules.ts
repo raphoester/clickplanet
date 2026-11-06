@@ -46,6 +46,7 @@ export const GROUPS: {title: string, fields: Field[]}[] = [
         {path: "clicks.perSecond", label: "Clicks a second", kind: "number"},
         {path: "clicks.burst", label: "Clicks in hand", kind: "whole"},
         {path: "clicks.newAccountClicks", label: "New account, clicks in hand", kind: "number"},
+        {path: "clicks.fastStart", label: "New account, signed-in pace for (s)", kind: "seconds"},
         {path: "clicks.linkedMultiplier", label: "Signed in, times as fast", kind: "number"},
         {path: "clicks.scopeMultiplier", label: "Address, in accounts", kind: "number"},
         {path: "clicks.v6ScopeMultiplier", label: "IPv6 address, in accounts", kind: "number"},
