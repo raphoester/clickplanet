@@ -176,7 +176,7 @@ export class FakeStandingsBackend implements StandingsBackend {
         this.opened.delete(roundId)
         return this.close({
             roundId, times: 1, startedAt: opened?.startedAt ?? this.now() - DAY_MS, endedAt: this.now(),
-            standings, takes: [], players: [], before, after: this.table(),
+            standings, takes: [], players: [], before, after: this.table(), start: [],
         })
     }
 
@@ -197,7 +197,7 @@ export class FakeStandingsBackend implements StandingsBackend {
         this.battle = undefined
         return this.close({
             roundId, times: battle.times, startedAt: battle.startedAt, endedAt: now,
-            standings, takes: this.takes(battle.taken), players: this.fighters(), before, after: this.table(),
+            standings, takes: this.takes(battle.taken), players: this.fighters(), before, after: this.table(), start: [],
         })
     }
 
@@ -253,7 +253,7 @@ export class FakeStandingsBackend implements StandingsBackend {
         const times = opened?.times ?? 1
         return {
             roundId, times, startedAt: opened?.startedAt ?? 0, endedAt: 0,
-            standings: this.standings(times, () => 1), takes: [], players: [], before: [], after: [],
+            standings: this.standings(times, () => 1), takes: [], players: [], before: [], after: [], start: [],
         }
     }
 

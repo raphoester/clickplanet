@@ -5,7 +5,7 @@ import {useRace} from "./raceStore.ts"
 const SCORES: Score[] = [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}]
 
 const roundOf = (roundId: string, endedAt = 0): Round =>
-    ({roundId, times: 1, startedAt: 0, endedAt, standings: [], takes: [], players: [], before: [], after: []})
+    ({roundId, times: 1, startedAt: 0, endedAt, standings: [], takes: [], players: [], before: [], after: [], start: []})
 
 const race = () => useRace.getState().race
 

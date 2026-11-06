@@ -7,7 +7,7 @@ import {countryLines, raceOf, scoringNow, shownOrder} from "./race.ts"
 const today = (rank: number, countryCode: string, points: number): RoundStanding => ({rank, countryCode, share: 0.1, points})
 const score = (rank: number, countryCode: string, points: number, roundsWon = 0): Score => ({rank, countryCode, points, roundsWon})
 const open = (roundId: string, standings: RoundStanding[], times = 1): Round =>
-    ({roundId, times, startedAt: 0, endedAt: 0, standings, takes: [], players: [], before: [], after: []})
+    ({roundId, times, startedAt: 0, endedAt: 0, standings, takes: [], players: [], before: [], after: [], start: []})
 const race = (number: number, standings: RoundStanding[], scores: Score[]): Race =>
     ({today: open(`season-0/day-${number}`, standings), scores})
 const held = (code: string, tiles: number): LeaderboardEntry => ({country: Countries.get(code)!, tiles})

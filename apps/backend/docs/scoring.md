@@ -230,7 +230,9 @@ id that is not one is `InvalidArgument`.
   round's start in `round_starts`). Once scored: its
   results (the countries that scored), its end, and the book's scores before and after it (`scores_query.Around`:
   rounds ended before it, and through it; both with the grants made before its end, so they differ by the round
-  alone). Always: the tiles each flag took during it (most first) and its top 10
+  alone). Always: what each country held when it opened (`start`, most first; empty for a round that counts from
+  nothing), so the page shows each country's gain as its tiles now less its start; the tiles each flag took during it
+  (most first) and its top 10
   players a board would rank, by the tiles each took for the flag it took the most for, in one statement.
   A GET, `public, max-age=10`.
 - **`GetScores(book_id)`** (`scores_query`): the book's countries with points, grants included, ranked by

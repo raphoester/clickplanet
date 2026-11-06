@@ -93,6 +93,14 @@ message Round {
   // The book's scores before and after the round; empty while it runs.
   repeated Score before = 9;
   repeated Score after = 10;
+  // What each country held when the round opened, most first; empty for a round that counts from nothing. A country's
+  // gain is the tiles it holds minus its start.
+  repeated RoundStart start = 11;
+}
+
+message RoundStart {
+  string country_id = 1;
+  uint64 tiles = 2;
 }
 
 message RoundStanding {

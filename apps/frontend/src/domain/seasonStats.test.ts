@@ -16,7 +16,7 @@ const FINALE: Round = {
         {rank: 11, countryCode: "jp", share: 0.01, points: 0},
     ],
     takes: [{countryCode: "fr", tiles: 400}, {countryCode: "de", tiles: 350}],
-    players: [], before: [], after: [],
+    players: [], before: [], after: [], start: [],
 }
 
 describe("slidesOf", () => {

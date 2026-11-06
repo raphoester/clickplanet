@@ -8,6 +8,7 @@ import {
     Heartbeat,
     Round as RoundPb,
     RoundStanding as RoundStandingPb,
+    RoundStart as RoundStartPb,
     RoundTakes as RoundTakesPb,
     Score as ScorePb,
     Scores as ScoresPb,
@@ -220,6 +221,7 @@ describe("ConnectStandingsBackend.listenForRace", () => {
             players: [],
             before: [],
             after: [],
+            start: [],
         }])
         stop()
     })
@@ -241,6 +243,7 @@ describe("ConnectStandingsBackend.round", () => {
                 new ScorePb({rank: 1, countryId: "fr", points: 93, roundsWon: 2}),
                 new ScorePb({rank: 2, countryId: "de", points: 43, roundsWon: 2}),
             ],
+            start: [new RoundStartPb({countryId: "de", tiles: 51_200n}), new RoundStartPb({countryId: "fr", tiles: 30_100n})],
         })}))
 
         expect(await backendWith({getRound}).round("entry-31")).toEqual({
@@ -256,6 +259,7 @@ describe("ConnectStandingsBackend.round", () => {
                 {rank: 1, countryCode: "fr", points: 93, roundsWon: 2},
                 {rank: 2, countryCode: "de", points: 43, roundsWon: 2},
             ],
+            start: [{countryCode: "de", tiles: 51_200}, {countryCode: "fr", tiles: 30_100}],
         })
         expect(getRound).toHaveBeenCalledWith({roundId: "entry-31"})
     })

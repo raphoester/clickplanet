@@ -9,6 +9,8 @@ export type CountryLine = {
     tiles: number
     points: number
     today: number
+    // The tiles gained since the round that scores now opened; none while no round runs.
+    gain: number | undefined
 }
 
 export function shownOrder(race: Race | undefined, picked: CountryOrder = "season"): CountryOrder {
@@ -20,12 +22,15 @@ export function countryLines(
     race: Race | undefined,
     order: CountryOrder,
 ): CountryLine[] {
-    const today = new Map(scoringNow(race)?.standings.map((standing) => [standing.countryCode, standing.points]))
+    const now = scoringNow(race)
+    const today = new Map(now?.standings.map((standing) => [standing.countryCode, standing.points]))
+    const start = new Map(now?.start.map((held) => [held.countryCode, held.tiles]))
     const points = new Map(race?.scores.map((score) => [score.countryCode, score.points]))
     const line = (entry: LeaderboardEntry): CountryLine => ({
         ...entry,
         points: points.get(entry.country.code) ?? 0,
         today: today.get(entry.country.code) ?? 0,
+        gain: now ? entry.tiles - (start.get(entry.country.code) ?? 0) : undefined,
     })
 
     const lines = leaderboard.map(line)

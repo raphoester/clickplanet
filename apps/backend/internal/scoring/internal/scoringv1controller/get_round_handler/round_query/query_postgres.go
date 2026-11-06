@@ -1,10 +1,12 @@
 package round_query
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -76,6 +78,11 @@ func (q *PostgresQuery) Live(ctx context.Context, id books.RoundID) (*scoringv1.
 		Times:           uint32(times), //nolint:gosec // CHECK (times BETWEEN 1 AND 10).
 		StartedAtUnixMs: startsAt.UnixMilli(),
 	}
+	start, err := q.start(ctx, id)
+	if err != nil {
+		return nil, false, err
+	}
+	shown.Start = startOf(start)
 	group, ctx := errgroup.WithContext(ctx)
 	group.Go(func() (err error) {
 		shown.Takes, err = q.takes(ctx, id)
@@ -97,7 +104,7 @@ func (q *PostgresQuery) Live(ctx context.Context, id books.RoundID) (*scoringv1.
 		})
 	} else {
 		group.Go(func() (err error) {
-			shown.Standings, err = q.live(ctx, books.Round{ID: id, Times: shown.GetTimes()})
+			shown.Standings, err = q.live(ctx, books.Round{ID: id, Times: shown.GetTimes()}, start)
 			return err
 		})
 	}
@@ -107,11 +114,7 @@ func (q *PostgresQuery) Live(ctx context.Context, id books.RoundID) (*scoringv1.
 	return shown, true, nil
 }
 
-func (q *PostgresQuery) live(ctx context.Context, round books.Round) ([]*scoringv1.RoundStanding, error) {
-	start, err := q.start(ctx, round.ID)
-	if err != nil {
-		return nil, err
-	}
+func (q *PostgresQuery) live(ctx context.Context, round books.Round, start books.Start) ([]*scoringv1.RoundStanding, error) {
 	held, err := q.territory.Snapshot(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read what each country holds now: %w", err)
@@ -150,6 +153,17 @@ func (q *PostgresQuery) start(ctx context.Context, id books.RoundID) (books.Star
 		return nil, fmt.Errorf("failed to read what each country held when the round opened: %w", err)
 	}
 	return start, nil
+}
+
+func startOf(start books.Start) []*scoringv1.RoundStart {
+	listed := make([]*scoringv1.RoundStart, 0, len(start))
+	for country, tiles := range start {
+		listed = append(listed, &scoringv1.RoundStart{CountryId: string(country), Tiles: uint64(tiles)})
+	}
+	slices.SortFunc(listed, func(a, b *scoringv1.RoundStart) int {
+		return cmp.Or(cmp.Compare(b.GetTiles(), a.GetTiles()), cmp.Compare(a.GetCountryId(), b.GetCountryId()))
+	})
+	return listed
 }
 
 func (q *PostgresQuery) results(ctx context.Context, id books.RoundID) ([]*scoringv1.RoundStanding, error) {

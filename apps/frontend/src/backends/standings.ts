@@ -31,6 +31,11 @@ export type RoundTakes = {
     tiles: number
 }
 
+export type RoundStart = {
+    countryCode: string
+    tiles: number
+}
+
 // A round of scoring, by the id the gamemaster gave it: its live standings while open, its results once scored.
 export type Round = {
     roundId: string
@@ -44,6 +49,8 @@ export type Round = {
     // The book's scores before and after the round; none while it runs.
     before: Score[]
     after: Score[]
+    // What each country held when the round opened; none for a round that counts from nothing.
+    start: RoundStart[]
 }
 
 // The book's points, and what today's round and the running battle's would score now.

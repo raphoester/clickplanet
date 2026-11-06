@@ -234,6 +234,7 @@ describe("Leaderboard with the season's race", () => {
             players: [],
             before: [],
             after: [],
+            start: [{countryCode: "de", tiles: 400}, {countryCode: "fr", tiles: 310}],
         },
         scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}],
     }
@@ -247,10 +248,10 @@ describe("Leaderboard with the season's race", () => {
         expect(within(leader()!).getByText("300 tiles")).toBeDefined()
         expect(within(leader()!).getByText("points")).toBeDefined()
         expect(within(leader()!).getByText(/^43/).textContent).toBe("43+18 today")
-        headers("#", "Country", "Tiles", "% of map", "Points", "Today")
+        headers("#", "Country", "Tiles", "Gained", "Points", "Today")
         expect(cells()).toEqual([
-            ["2", "Germany", "500", "50.00", "0", "+25 today"],
-            ["3", "Spain", "100", "10.00", "0", ""],
+            ["2", "Germany", "500", "+100", "0", "+25 today"],
+            ["3", "Spain", "100", "+100", "0", ""],
         ])
     })
 
@@ -262,16 +263,27 @@ describe("Leaderboard with the season's race", () => {
         useRace.setState({race: battle})
         render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
-        headers("#", "Country", "Tiles", "% of map", "Points", "Battle ×3")
+        headers("#", "Country", "Tiles", "Gained", "Points", "Battle ×3")
         expect(screen.queryByRole("columnheader", {name: "Today"})).toBeNull()
         expect(within(leader()!).getByText(/^43/).textContent).toBe("43+54 this battle")
-        expect(cells()[0]).toEqual(["2", "Germany", "500", "50.00", "0", "+75 this battle"])
+        expect(within(leader()!).getByRole("button", {name: "-10 this battle"})).toBeDefined()
+        expect(cells()[0]).toEqual(["2", "Germany", "500", "+100", "0", "+75 this battle"])
     })
 
-    it("keeps the first country's share of the map beside its tiles", () => {
+    it("shows what each country gained since the day began, its tiles now less those it held then", () => {
+        render(<Leaderboard tilesCount={1000} data={MAP}/>)
+
+        expect(within(leader()!).getByRole("button", {name: "-10 today"})).toBeDefined()
+        expect(leader()!.querySelector(".leaderboard-gain-down")).not.toBeNull()
+        expect(rows()[0].querySelector(".leaderboard-gain-up")!.textContent).toBe("+100")
+    })
+
+    it("keeps the share of the map while no round runs", () => {
+        useRace.setState({race: {scores: RACE.scores}})
         render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
         expect(within(leader()!).getByText("30.00% of map")).toBeDefined()
+        headers("#", "Country", "Tiles", "% of map", "Points", "Today")
     })
 
     it("says what the points mean the first time it shows them, once", () => {
@@ -322,8 +334,8 @@ describe("Leaderboard with the season's race", () => {
 
         expect(leader()!.getAttribute("aria-label")).toBe("First: Germany")
         expect(cells()).toEqual([
-            ["2", "France", "300", "30.00", "43", "+18 today"],
-            ["3", "Spain", "100", "10.00", "0", ""],
+            ["2", "France", "300", "-10", "43", "+18 today"],
+            ["3", "Spain", "100", "+100", "0", ""],
         ])
     })
 })

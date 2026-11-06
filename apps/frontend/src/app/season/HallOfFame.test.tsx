@@ -25,7 +25,7 @@ const FINALE: Round = {
     standings: [{rank: 1, countryCode: "fr", share: 0.3, points: 75}],
     takes: [{countryCode: "fr", tiles: 4200}],
     players: [player(1, "Ana", "fr", 640)],
-    before: [], after: [],
+    before: [], after: [], start: [],
 }
 const TOTALS: SeasonTotals = {takes: 1_284_310, strikes: 1, spreads: 1, encloses: 1, bombs: 9_864, shields: 22_530, fortifies: 3, players: 2_416}
 

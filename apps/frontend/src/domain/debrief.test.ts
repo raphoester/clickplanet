@@ -19,6 +19,7 @@ const ROUND: Round = {
     players: [],
     before: [{rank: 1, countryCode: "fr", points: 300, roundsWon: 9}],
     after: [{rank: 1, countryCode: "de", points: 365, roundsWon: 8}],
+    start: [],
 }
 
 describe("numbersOf", () => {

@@ -108,6 +108,14 @@
     text-shadow: none;
 }
 
+.leaderboard-gain-up {
+    color: var(--gain);
+}
+
+.leaderboard-gain-down {
+    color: var(--loss);
+}
+
 .leaderboard-order {
     display: flex;
     flex: none;
