@@ -69,7 +69,7 @@ Some questions are too easy to be worth a charge, and the derived half leaves th
   and no continent that only the question's own country is on (Antarctica), as answers or as
   wrong ones.
 
-**The hand-written half is about 500 questions** in `apps/frontend/scripts/quiz/extra.json`, for what
+**The hand-written half is about 6,400 questions** in `apps/frontend/scripts/quiz/extra.json`, for what
 no dataset here can answer — oceans and mountains, famous places and people, inventions, old names,
 flags, history. It is a hand-kept list, and the rule at the top of that file is the important part:
 **nothing that a newspaper could make wrong.** A fact that moves — who holds an office, which
@@ -80,7 +80,12 @@ has to be revisited when the news changes.
 A player reads the question and the three choices in eight seconds, so a question must not answer
 itself: no answer that repeats a word of the question ("which river gives its name to Niger and
 Nigeria"), no translation that anyone can read ("what does Costa Rica mean"), and no wrong answers
-so absurd that the right one is the only choice left.
+so absurd that the right one is the only choice left. Each wrong answer must be wrong in every
+reading: the commonest fault is one that is also true at another date or under another name (a
+former capital, a co-founder, a war's other name).
+
+**Give every hand-written question a subject.** The ones without a subject share one pool, and the
+draw weighs that pool as one country, so they are almost never asked.
 
 ## Adding to it
 
