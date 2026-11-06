@@ -8,6 +8,7 @@ import {FlagMission} from "../../backends/missions.ts"
 import {PlayerTitle} from "../../backends/progression.ts"
 import {BATTLE_TEASED_STORAGE_KEY} from "../../domain/battleTeaser.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
+import {NO_SCHEDULE, useSchedule} from "../battle/scheduleStore.ts"
 import {acceptedClicks} from "../clicks/acceptedClicks.ts"
 import {useAnnouncements} from "./announcementsStore.ts"
 import Moments from "./Moments.tsx"
@@ -44,6 +45,7 @@ beforeEach(() => {
 afterEach(() => {
     cleanup()
     useAnnouncements.setState({queue: []})
+    useSchedule.setState(NO_SCHEDULE)
     vi.useRealTimers()
 })
 
@@ -73,7 +75,8 @@ describe("Moments", () => {
         const promo = new FakePromoBackend()
         const startsAt = Date.now() + 3 * 60 * 60 * 1000
         const next = {entryId: "tonight", startsAt, endsAt: startsAt + 60 * 60 * 1000, description: "", times: 2, endsSeason: false, roundId: "tonight"}
-        render(<Moments shown guided={false} nextBattle={next} promo={promo} clips={new FakeClipsBackend()} listenForClicks={clicks.listenForClicks}
+        useSchedule.setState({battles: [next]})
+        render(<Moments shown guided={false} promo={promo} clips={new FakeClipsBackend()} listenForClicks={clicks.listenForClicks}
                         countryCode="fr" play={vi.fn()} onWear={vi.fn()}/>)
 
         expect(await screen.findByRole("dialog", {name: "Battle"})).toBeDefined()

@@ -10,7 +10,8 @@ exports one hook, `use<Feature>`, made with `create`. It holds the state and the
 before). For example [`app/settings/displaySettingsStore.ts`](../src/app/settings/displaySettingsStore.ts).
 
 - **The component that shows the state reads the store itself.** `SettingsPlace` reads the display settings, the
-  board reads its guide, and the phone's tab bar the chat's unread count. `PlayScreen` reads a store only for what it
+  board reads its guide, the phone's tab bar the chat's unread count, and `ScheduleChip`, its sheets and `Moments` the
+  schedule. `PlayScreen` reads a store only for what it
   draws or hands a hook itself, such as the two display fields it gives the globe, and never to pass a value down.
 - **A selector returns a field or a plain value**: `useDisplaySettings((settings) => settings.mapView)`. A selector
   that builds a new object or array on each call makes React render without end; build it in the component with
@@ -23,11 +24,12 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
   subscribe and notify by hand, which is what a store does; a component reads them through their hooks, `useAccount`
   and `useConnection`.
 - **What a backend sends goes into its store from where its inputs are.** A hook that `PlayScreen` calls with the
-  backend and what it knows links the two (`useQuizMaster`, `useRosterFeed`, `useRaceFeed`): it subscribes, writes
-  the store, and puts the store back to its start once it stops, so nothing stale shows after it and StrictMode's
-  second run follows one stream. `PlayScreen` reads back only what it hands the globe or a hook itself, such as the
-  roster's count, or the race it ranks the countries by for the anthem. Or the place where a card shows does it, given
-  its inputs as props (`PlayerCardPlace`, `HolderCardPlace`, `TerritoryCardPlace`), and shows the card from the store.
+  backend and what it knows links the two (`useQuizMaster`, `useRosterFeed`, `useRaceFeed`, `useScheduleFeed`): it
+  subscribes, writes the store, and puts the store back to its start once it stops, so nothing stale shows after it
+  and StrictMode's second run follows one stream. `PlayScreen` reads back only what it hands the globe or a hook
+  itself, such as the roster's count, the race it ranks the countries by for the anthem, or the turn it makes the mood
+  and the globe's halo from. Or the place where a card shows does it, given its inputs as props (`PlayerCardPlace`,
+  `HolderCardPlace`, `TerritoryCardPlace`), and shows the card from the store.
 - **What the globe tells goes into the store of its feature.** `useGlobe` hands `createGlobe` the verbs of three
   stores, and puts the stores back to their start when it unmounts:
   - `useRefusedClicks` (`clicks/refusedClicksStore.ts`): the count of clicks the bank or a frozen map refused,
