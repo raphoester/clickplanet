@@ -37,6 +37,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mute_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/react_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/remove_message_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/remove_messages_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/unmute_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/inprocess_feed"
@@ -70,6 +71,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals/postgres_removal_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals/usecases/remove_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals/usecases/remove_message_usecase/audit_remove"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals/usecases/remove_messages_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals/usecases/remove_messages_usecase/audit_remove_messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/postgres_seen_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/usecases/forget_seen_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/usecases/mark_seen_usecase"
@@ -282,6 +285,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			unmute_usecase.New(db, muteStore, moderationStore, cptime.SystemClock{}), props.Logger)),
 		GetMuteHandler: get_mute_handler.New(mute_query.NewPostgresQuery(db, cptime.SystemClock{})),
 		RemoveMessageHandler: remove_message_handler.New(audit_remove.New(remove_message_usecase.New(
+			db, messageStore, removalStore, moderationStore, updates, window, cptime.SystemClock{}), props.Logger)),
+		RemoveMessagesHandler: remove_messages_handler.New(audit_remove_messages.New(remove_messages_usecase.New(
 			db, messageStore, removalStore, moderationStore, updates, window, cptime.SystemClock{}), props.Logger)),
 		GetMessageHandler: get_message_handler.New(message_query.NewPostgresQuery(db, cptime.SystemClock{}, storage.Retention)),
 		ListMessagesHandler: list_messages_handler.New(messages_query.NewPostgresQuery(

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMessageRequest, GetMessageResponse, GetMuteRequest, GetMuteResponse, ListMessagesRequest, ListMessagesResponse, ListModerationRequest, ListModerationResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse, UnmuteRequest, UnmuteResponse } from "./admin_pb.js";
+import { GetMessageRequest, GetMessageResponse, GetMuteRequest, GetMuteResponse, ListMessagesRequest, ListMessagesResponse, ListModerationRequest, ListModerationResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse, RemoveMessagesRequest, RemoveMessagesResponse, UnmuteRequest, UnmuteResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -59,6 +59,20 @@ export const AdminService = {
       name: "RemoveMessage",
       I: RemoveMessageRequest,
       O: RemoveMessageResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Removes many messages at once, each with its own reason, as RemoveMessage removes one: a run's removals in one
+     * call. All or none: one message past the retention (NotFound), the same message twice or a reason refused
+     * (InvalidArgument) removes nothing, and the refusal names it. Removing a message already removed keeps its first
+     * action in the moderation history, so a call tried again never counts twice. 200 messages at most.
+     *
+     * @generated from rpc chat.v1.AdminService.RemoveMessages
+     */
+    removeMessages: {
+      name: "RemoveMessages",
+      I: RemoveMessagesRequest,
+      O: RemoveMessagesResponse,
       kind: MethodKind.Unary,
     },
     /**
