@@ -1,4 +1,4 @@
-/* The view picked and, on the countries' board, its order: one line, which on a phone is the sheet's head. */
+/* The view picked: one line, which on a phone is the sheet's head. */
 .board-heading {
     display: flex;
     align-items: center;

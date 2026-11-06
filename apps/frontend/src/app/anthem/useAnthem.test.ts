@@ -28,25 +28,25 @@ afterEach(() => {
 
 describe("useAnthem", () => {
     it("plays nothing before there is a board", () => {
-        const {result} = follow({board: [], order: "season"})
+        const {result} = follow({board: [], order: "points"})
         expect(result.current.code).toBeUndefined()
     })
 
     it("plays the leader of the order picked, at once", () => {
-        const {result, rerender} = follow({board: board("pl", "fr", "pt"), order: "season"})
+        const {result, rerender} = follow({board: board("pl", "fr", "pt"), order: "points"})
         expect(result.current.code).toBe("pl")
 
-        rerender({board: board("pt", "pl", "fr"), order: "territory"})
+        rerender({board: board("pt", "pl", "fr"), order: "tiles"})
         expect(result.current.code).toBe("pt")
 
-        rerender({board: board("pl", "fr", "pt"), order: "season"})
+        rerender({board: board("pl", "fr", "pt"), order: "points"})
         expect(result.current.code).toBe("pl")
     })
 
     it("still holds a new leader of the same order", () => {
-        const {result, rerender} = follow({board: board("pt", "hu"), order: "territory"})
+        const {result, rerender} = follow({board: board("pt", "hu"), order: "tiles"})
 
-        rerender({board: board("hu", "pt"), order: "territory"})
+        rerender({board: board("hu", "pt"), order: "tiles"})
         expect(result.current.code).toBe("pt")
 
         act(() => vi.advanceTimersByTime(HOLD_MS - 1000))

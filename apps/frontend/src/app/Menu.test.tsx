@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {ReactNode} from "react"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {act, cleanup, render, screen, within} from "@testing-library/react"
+import {act, cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import Menu, {BoardSheet, YouPlace} from "./Menu.tsx"
 import {Countries} from "../domain/countries.ts"
@@ -232,11 +232,11 @@ describe("Menu", () => {
                                                            leaderboard={[entry("jp", 500), entry("fr", 250)]}
                                                            countryOrder={countryOrder}/>
 
-        const {rerender} = render(menu("season"))
+        const {rerender} = render(menu("points"))
         expect(screen.getByLabelText("Rank 1").textContent).toBe("#1")
         expect(screen.getByRole("region", {name: "First: France"})).toBeDefined()
 
-        rerender(menu("territory"))
+        rerender(menu("tiles"))
         expect(screen.getByLabelText("Rank 2").textContent).toBe("#2")
         expect(screen.getByRole("region", {name: "First: Japan"})).toBeDefined()
     })
@@ -247,10 +247,10 @@ describe("Menu", () => {
                                                            leaderboard={[entry("jp", 500)]}
                                                            countryOrder={countryOrder}/>
 
-        const {rerender} = render(menu("season"))
+        const {rerender} = render(menu("points"))
         expect(screen.getByLabelText("Rank 1").textContent).toBe("#1")
 
-        rerender(menu("territory"))
+        rerender(menu("tiles"))
         expect(screen.getByLabelText("No rank yet").textContent).toBe("—")
     })
 
@@ -323,17 +323,14 @@ describe("Menu", () => {
             expect(screen.queryByRole("button", {name: /^Leaderboard/})).toBeNull()
         })
 
-        it("put the countries' order on the heading's line, and only on the countries", () => {
+        it("let the countries' table pick its order from its heads", () => {
             useRace.setState({race: RACE})
-            const {rerender} = render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000}
-                                            standings={standings} onCountryOrder={vi.fn()}/>)
+            const onCountryOrder = vi.fn()
+            render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[entry("jp", 500), entry("fr", 250)]}
+                         tilesCount={1000} standings={standings} onCountryOrder={onCountryOrder}/>)
 
-            const heading = button("Leaderboard: Countries").closest(".board-heading")!
-            expect(within(heading as HTMLElement).getByRole("group", {name: "Order"})).toBeDefined()
-
-            rerender(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000}
-                           standings={{...standings, view: "players"}} onCountryOrder={vi.fn()}/>)
-            expect(screen.queryByRole("group", {name: "Order"})).toBeNull()
+            fireEvent.click(button("Tiles"))
+            expect(onCountryOrder).toHaveBeenCalledWith("tiles")
         })
     })
 
@@ -357,11 +354,10 @@ describe("Menu", () => {
         }
         const head = () => document.querySelector(".sheet-head") as HTMLElement
 
-        it("heads itself with the view picked and the order, and keeps its name for a screen reader", () => {
+        it("heads itself with the view picked, and keeps its name for a screen reader", () => {
             sheet()
 
             expect(within(head()).getByRole("button", {name: "Leaderboard: Countries"})).toBeDefined()
-            expect(within(head()).getByRole("group", {name: "Order"})).toBeDefined()
             const title = within(head()).getByRole("heading", {name: "Leaderboard"})
             expect(title.classList.contains("sr-only")).toBe(true)
             expect(document.querySelector(".sheet-body .board-heading")).toBeNull()
@@ -382,10 +378,10 @@ describe("Menu", () => {
                                                                       standings={standings} countryOrder={countryOrder}
                                                                       onCountryOrder={vi.fn()} onClose={vi.fn()}/>
 
-            const {rerender} = render(board("season"))
+            const {rerender} = render(board("points"))
             expect(screen.getByLabelText("Rank 1").textContent).toBe("#1")
 
-            rerender(board("territory"))
+            rerender(board("tiles"))
             expect(screen.getByLabelText("Rank 2").textContent).toBe("#2")
         })
 

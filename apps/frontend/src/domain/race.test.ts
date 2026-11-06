@@ -18,19 +18,25 @@ const MAP = [held("de", 900), held("fr", 700), held("es", 300), held("bg", 50)]
 const RACE = race(5, [today(1, "de", 25), today(2, "fr", 18), today(3, "es", 15)], [score(1, "fr", 43, 1), score(2, "it", 30, 1)])
 
 describe("shownOrder", () => {
-    it("is the order picked while a race is on, and the season when none was picked", () => {
-        expect(shownOrder(RACE, "territory")).toBe("territory")
-        expect(shownOrder(RACE, undefined)).toBe("season")
+    it("is the order picked while a race is on, and the points when none was picked", () => {
+        expect(shownOrder(RACE, "tiles")).toBe("tiles")
+        expect(shownOrder(RACE, "gain")).toBe("gain")
+        expect(shownOrder(RACE, undefined)).toBe("points")
     })
 
-    it("is the territory with no race, whatever was picked", () => {
-        expect(shownOrder(undefined, "season")).toBe("territory")
+    it("is the tiles with no race, whatever was picked", () => {
+        expect(shownOrder(undefined, "points")).toBe("tiles")
+        expect(shownOrder(undefined, "gain")).toBe("tiles")
+    })
+
+    it("is the points for the gain while no round runs", () => {
+        expect(shownOrder({scores: []}, "gain")).toBe("points")
     })
 })
 
 describe("countryLines", () => {
-    it("keeps the map's order by territory, with each country's points beside its tiles", () => {
-        expect(shown(countryLines(MAP, RACE, "territory"))).toEqual([
+    it("keeps the map's order by tiles, with each country's points beside its tiles", () => {
+        expect(shown(countryLines(MAP, RACE, "tiles"))).toEqual([
             "de 900 0+25",
             "fr 700 43+18",
             "es 300 0+15",
@@ -38,8 +44,8 @@ describe("countryLines", () => {
         ])
     })
 
-    it("orders by the season: the points won on the days that ended", () => {
-        expect(shown(countryLines(MAP, RACE, "season"))).toEqual([
+    it("orders by the points won on the days that ended", () => {
+        expect(shown(countryLines(MAP, RACE, "points"))).toEqual([
             "fr 700 43+18",
             "it 0 30+0",
             "de 900 0+25",
@@ -48,22 +54,35 @@ describe("countryLines", () => {
         ])
     })
 
-    it("lists a country that holds no ground in the season for the points it has", () => {
-        expect(shown(countryLines([], race(1, [], [score(1, "it", 30)]), "season"))).toEqual(["it 0 30+0"])
-        expect(countryLines([], race(1, [], [score(1, "it", 30)]), "territory")).toEqual([])
+    it("lists a country that holds no ground by points for the points it has", () => {
+        expect(shown(countryLines([], race(1, [], [score(1, "it", 30)]), "points"))).toEqual(["it 0 30+0"])
+        expect(countryLines([], race(1, [], [score(1, "it", 30)]), "tiles")).toEqual([])
     })
 
     it("orders the countries level on points by their tiles, not by what they score today", () => {
         const day = race(1, [today(9, "es", 2), today(10, "it", 1)], [])
 
-        expect(shown(countryLines([held("es", 3_817), held("it", 4_867)], day, "season"))).toEqual([
+        expect(shown(countryLines([held("es", 3_817), held("it", 4_867)], day, "points"))).toEqual([
             "it 4867 0+1",
             "es 3817 0+2",
         ])
     })
 
+    it("orders by the tiles gained since the round opened, then by the tiles held", () => {
+        const day: Race = {...RACE, today: {...RACE.today!, start: [held("de", 950), held("fr", 600), held("bg", 50)]
+            .map((entry) => ({countryCode: entry.country.code, tiles: entry.tiles}))}}
+
+        expect(countryLines(MAP, day, "gain").map((line) => `${line.country.code} ${line.gain}`)).toEqual([
+            "es 300",
+            "fr 100",
+            "bg 0",
+            "it 0",
+            "de -50",
+        ])
+    })
+
     it("reads no race as no points", () => {
-        expect(shown(countryLines(MAP, undefined, "season"))).toEqual(["de 900 0+0", "fr 700 0+0", "es 300 0+0", "bg 50 0+0"])
+        expect(shown(countryLines(MAP, undefined, "points"))).toEqual(["de 900 0+0", "fr 700 0+0", "es 300 0+0", "bg 50 0+0"])
     })
 })
 
