@@ -18,10 +18,10 @@ import {InviteLink} from "../../backends/crazyGames.ts"
 import {useScreen} from "../hud/screenStore.ts"
 import {heldLine} from "../../domain/allegiance.ts"
 import {useRefusedClicks} from "../clicks/refusedClicksStore.ts"
+import {useClickBudget} from "../clicks/clickBudgetStore.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
-    budget?: ClickBudget
     children?: ReactNode
     onSignIn?: () => void
     compact?: boolean
@@ -41,7 +41,6 @@ const COUNTDOWN_FROM_S = 1.5
 const STEP_MS = 250
 
 export default function ClickBudgetMeter({
-    budget,
     children,
     onSignIn,
     compact = false,
@@ -50,6 +49,7 @@ export default function ClickBudgetMeter({
     invite,
     discord,
 }: ClickBudgetMeterProps) {
+    const budget = useClickBudget((store) => store.budget)
     const refusals = useRefusedClicks((refused) => refused.refusals)
     const lockedOut = useRefusedClicks((refused) => refused.lockedOut)
     const root = useRef<HTMLDivElement>(null)

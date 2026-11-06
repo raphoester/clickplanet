@@ -8,18 +8,19 @@ import FortifyCard from "../components/FortifyCard.tsx"
 import FortifyNews from "./FortifyNews.tsx"
 import {lastFortified, newestNews, News as Told, useNews} from "./newsStore.ts"
 import {useFortifyGuide} from "../components/useFortifyGuide.ts"
+import {useCountry} from "../countryStore.ts"
 
 // After the wave has run over the land.
 export const FORTIFY_CARD_DELAY_MS = 1600
 
 export type NewsProps = {
-    flag: string
     connect?: () => Promise<void>
     goThere: () => void
     progress?: Moved
 }
 
-export default function News({flag, connect, goThere, progress}: NewsProps) {
+export default function News({connect, goThere, progress}: NewsProps) {
+    const flag = useCountry((store) => store.country.code)
     const newest = useNews(newestNews)
     const fortified = useNews(lastFortified)
     const dismiss = useNews((news) => news.dismiss)
@@ -43,7 +44,7 @@ export default function News({flag, connect, goThere, progress}: NewsProps) {
     </>
 }
 
-function Line({news, flag, connect, goThere, onDone}: {news: Told, onDone: () => void} & Omit<NewsProps, "progress">) {
+function Line({news, flag, connect, goThere, onDone}: {news: Told, flag: string, onDone: () => void} & Omit<NewsProps, "progress">) {
     switch (news.kind) {
         case "bomb":
             return <BombNews key={news.id} drop={news.drop} land={news.land} onDone={onDone}/>

@@ -173,7 +173,7 @@ export default function Menu(props: MenuProps) {
                             {shown.id === "share" && <SharePlace stats={shareStats(linesShown(props, race), props.country)}
                                                                  onTakePicture={props.onTakePicture}
                                                                  taking={props.taking}/>}
-                            {shown.id === "invite" && props.invite && <InviteFriends country={props.country} invite={props.invite}/>}
+                            {shown.id === "invite" && props.invite && <InviteFriends invite={props.invite}/>}
                             {shown.id === "settings" && <SettingsPlace {...props}/>}
                         </div>
                     </>}

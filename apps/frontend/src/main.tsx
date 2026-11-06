@@ -51,6 +51,7 @@ import {SHARE_FLAG_PARAM, sharedCountry, withoutSharedFlag} from "./domain/share
 import {linkedShot, withoutLinkedShot} from "./domain/linkedShot.ts"
 import {discordJoinAsked, withoutDiscordJoin} from "./domain/discordJoin.ts"
 import {enterFrontGuide} from "./app/frontGuide.ts"
+import {useCountry} from "./app/countryStore.ts"
 import {firstLanding, landingOf, SOURCE_TAG_PARAM, withoutLanding} from "./domain/landing.ts"
 import {localLandingStore} from "./backends/landingStore.ts"
 import {localLeaverStore} from "./backends/leaverStore.ts"
@@ -72,6 +73,7 @@ if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 
 const page = new URL(window.location.href)
 const shared = sharedCountry(page)
+if (shared) useCountry.getState().choose(shared)
 const shot = linkedShot(page)
 const joinDiscord = discordJoinAsked(page)
 const guided = enterFrontGuide()
@@ -130,8 +132,7 @@ function start(backends: Backends) {
     void words.then((filter) => root.render(
         <StrictMode>
             <SignInGate callback={callback} account={backends.account}>
-                <App sharedCountry={shared}
-                     linkedShot={shot}
+                <App linkedShot={shot}
                      showFront={guided}
                      backends={backends}
                      words={filter}/>

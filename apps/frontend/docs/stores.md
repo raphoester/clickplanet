@@ -10,9 +10,16 @@ exports one hook, `use<Feature>`, made with `create`. It holds the state and the
 before). For example [`app/settings/displaySettingsStore.ts`](../src/app/settings/displaySettingsStore.ts).
 
 - **The component that shows the state reads the store itself.** `SettingsPlace` reads the display settings, the
-  board reads its guide, the phone's tab bar the chat's unread count, and `ScheduleChip`, its sheets and `Moments` the
-  schedule. `PlayScreen` reads a store only for what it
-  draws or hands a hook itself, such as the two display fields it gives the globe, and never to pass a value down.
+  board reads its guide, the phone's tab bar the chat's unread count, `ScheduleChip`, its sheets and `Moments` the
+  schedule, and the clicks meter and panel the click budget. `PlayScreen` reads a store only for what it draws or
+  hands a hook itself, such as the two display fields it gives the globe, and never to pass a value down. It reads
+  plain fields where it can (the budget's sign-in multiplier, freeze and fast start, not the reading), so a store
+  that changes often does not render the whole screen.
+- **The country played is a store too** (`useCountry`, `countryStore.ts`), read by the status bar, the news line,
+  the moments, the clicks panel, the invite sheet and the territory card. It reads the stored country when it is
+  made, but `useKeepCountry`, which `PlayScreen` calls, writes it, from the page's first render: the home page and
+  the front guide tell a first visit by its absence, so it is not written on import. `main.tsx` chooses the shared
+  flag before the first render. The board and the chat still take it as a prop.
 - **A selector returns a field or a plain value**: `useDisplaySettings((settings) => settings.mapView)`. A selector
   that builds a new object or array on each call makes React render without end; build it in the component with
   `useMemo`, or wrap the selector in Zustand's `useShallow`.
@@ -25,7 +32,7 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
   and `useConnection`.
 - **What a backend sends goes into its store from where its inputs are.** A hook that `PlayScreen` calls with the
   backend and what it knows links the two (`useQuizMaster`, `useRosterFeed`, `useRaceFeed`, `useScheduleFeed`,
-  `useMissionsFeed`): it subscribes, writes the store, and puts the store back to its start once it stops, so nothing
+  `useMissionsFeed`, `useClickBudgetFeed`): it subscribes, writes the store, and puts the store back to its start once it stops, so nothing
   stale shows after it and StrictMode's second run follows one stream. `PlayScreen` reads back only what it hands the
   globe or a hook itself, such as the roster's count, the race it ranks the countries by for the anthem, the turn it
   makes the mood and the globe's halo from, or the missions it draws on the globe. Or the place where a card shows does it, given its inputs as props (`PlayerCardPlace`,

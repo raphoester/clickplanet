@@ -9,6 +9,8 @@ import {LandmassState} from "../../backends/backend.ts"
 import {NameColor, PlayerInfo} from "../../backends/player.ts"
 import {Territory} from "../../domain/territory.ts"
 import {DELETED_ACCOUNT} from "../players/tileHolder.ts"
+import {Countries} from "../../domain/countries.ts"
+import {useCountry} from "../countryStore.ts"
 
 const infoOf = (name: string): PlayerInfo => ({
     name, guest: false, tilesTaken: 100, streakCurrent: 4, streakBest: 9, admin: false, color: NameColor.TEAL,
@@ -44,14 +46,16 @@ const shownOf = (landmass: number, id = 1): TerritoryShown => ({territory: terri
 
 const read = (landmass: number | undefined) => playersOf(landmass)(useTerritoryPlayers.getState())
 
-function place(props: Omit<TerritoryCardPlaceProps, "flag" | "onHold" | "onClose">) {
-    return <TerritoryCardPlace flag="de" onHold={() => {}} onClose={() => {}} {...props}/>
+function place(props: Omit<TerritoryCardPlaceProps, "onHold" | "onClose">) {
+    useCountry.setState({country: Countries.get("de")!})
+    return <TerritoryCardPlace onHold={() => {}} onClose={() => {}} {...props}/>
 }
 
 describe("TerritoryCardPlace", () => {
     afterEach(() => {
         cleanup()
         useTerritoryPlayers.setState({landmass: undefined, players: undefined})
+        useCountry.setState(useCountry.getInitialState(), true)
     })
 
     it("names the first holders and the last fortifier of the territory shown, in StrictMode too", async () => {

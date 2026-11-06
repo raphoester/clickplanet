@@ -28,7 +28,6 @@ const moments = (shown: boolean) => <Moments shown={shown}
                                              clips={new FakeClipsBackend()}
                                              onWear={vi.fn()}
                                              listenForClicks={clicks.listenForClicks}
-                                             countryCode="fr"
                                              play={vi.fn()}/>
 
 function queueTwo() {
@@ -77,7 +76,7 @@ describe("Moments", () => {
         const next = {entryId: "tonight", startsAt, endsAt: startsAt + 60 * 60 * 1000, description: "", times: 2, endsSeason: false, roundId: "tonight"}
         useSchedule.setState({battles: [next]})
         render(<Moments shown guided={false} promo={promo} clips={new FakeClipsBackend()} listenForClicks={clicks.listenForClicks}
-                        countryCode="fr" play={vi.fn()} onWear={vi.fn()}/>)
+                        play={vi.fn()} onWear={vi.fn()}/>)
 
         expect(await screen.findByRole("dialog", {name: "Battle"})).toBeDefined()
         act(() => vi.advanceTimersByTime(TITLE_REVEAL.ready * 1000))

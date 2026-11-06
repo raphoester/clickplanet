@@ -63,8 +63,9 @@
    The refill is animated from **one CSS custom property written per frame**,
    and each pip works out its own share of it with a `clamp()`; the count, the
    colour and the aria value are written only when the whole number changes.
-   `useClickBudget` therefore re-renders when the *server* says something, not
-   as the bucket refills — this sits beside a WebGL scene that wants the main
+   The meter therefore re-renders when the *server* says something, not
+   as the bucket refills; `PlayScreen` reads only the reading's sign-in multiplier, freeze and fast start from the
+   store, so it does not render again on each reading — this sits beside a WebGL scene that wants the main
    thread. Under `prefers-reduced-motion` the fill steps four times a second
    instead of gliding.
 

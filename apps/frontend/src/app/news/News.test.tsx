@@ -6,13 +6,16 @@ import {useNews} from "./newsStore.ts"
 import {BombDrop} from "../../backends/backend.ts"
 import {Fortified} from "../../domain/fortify.ts"
 import {Moved} from "../../domain/missionProgress.ts"
+import {Countries} from "../../domain/countries.ts"
+import {useCountry} from "../countryStore.ts"
 
 const DROP: BombDrop = {tile: 12, point: {x: 0, y: 0, z: 1}, countryId: "fr", radius: 0.03, cleared: [12, 13], struck: [], version: {epoch: 1, seq: 4}}
 const CORSICA: Fortified = {fortification: {landmass: 257, countryId: "bg", tile: 107526, version: {epoch: 1, seq: 9}}, name: "Corsica", tiles: 16, news: true}
 const PROGRESS: Moved = {id: "rival-3", order: {kind: "takeFrom", country: "ie", goal: 80, taken: 3}, flag: false}
 
 function news(progress?: Moved) {
-    render(<News flag="fr" goThere={() => {}} progress={progress}/>)
+    useCountry.setState({country: Countries.get("fr")!})
+    render(<News goThere={() => {}} progress={progress}/>)
 }
 
 describe("News", () => {
@@ -21,6 +24,7 @@ describe("News", () => {
         cleanup()
         vi.useRealTimers()
         useNews.setState(useNews.getInitialState(), true)
+        useCountry.setState(useCountry.getInitialState(), true)
         window.localStorage.clear()
     })
 
