@@ -4,6 +4,8 @@ import {act, cleanup, render, waitFor} from "@testing-library/react"
 import {createRef, useRef} from "react"
 import {useGlobe} from "./useGlobe.ts"
 import {useRefusedClicks} from "../clicks/refusedClicksStore.ts"
+import {useBonus} from "../bonus/bonusStore.ts"
+import {ALL_OFF, NO_CHARGES} from "../../domain/bonus.ts"
 import type {Globe} from "./globe.ts"
 import {Countries} from "../../domain/countries.ts"
 import type {MapView, Rendering} from "../../domain/displaySettings.ts"
@@ -410,5 +412,54 @@ describe("useGlobe refused clicks", () => {
         unmount()
 
         expect(useRefusedClicks.getState().bannedUntil).toBeUndefined()
+    })
+})
+
+describe("useGlobe bonus state", () => {
+    afterEach(() => useBonus.setState(useBonus.getInitialState(), true))
+
+    it("puts the charges, the rules, the switches and the armed bomb the globe tells in the bonus store", async () => {
+        createGlobe.mockReturnValue(Promise.resolve(fakeGlobe()))
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+        const {onCharges, onRules, onSwitchesChange, onArmedChange} = createGlobe.mock.calls[0][0]
+        const charges = {...NO_CHARGES, shields: 3}
+        const rules = {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [], signInRefill: false, enclosuresUnlimited: false}
+
+        act(() => {
+            onCharges(charges)
+            onRules(rules)
+            onSwitchesChange({...ALL_OFF, shield: true})
+            onArmedChange(true)
+        })
+
+        expect(useBonus.getState()).toMatchObject({charges, rules, switches: {...ALL_OFF, shield: true}, bombArmed: true})
+    })
+
+    it("asks the globe for the other state of the bomb and of a switch than the store holds", async () => {
+        const globe = fakeGlobe()
+        createGlobe.mockReturnValue(Promise.resolve(globe))
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+
+        latest.toggleBomb()
+        latest.toggleSwitch("spread")
+        act(() => useBonus.setState({bombArmed: true, switches: {...ALL_OFF, spread: true}}))
+        latest.toggleBomb()
+        latest.toggleSwitch("spread")
+
+        expect(vi.mocked(globe.setArmed).mock.calls).toEqual([[true], [false]])
+        expect(vi.mocked(globe.setSwitch).mock.calls).toEqual([["spread", true], ["spread", false]])
+    })
+
+    it("leaves nothing held once it is gone", async () => {
+        createGlobe.mockReturnValue(Promise.resolve(fakeGlobe()))
+        const {unmount} = renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+        act(() => createGlobe.mock.calls[0][0].onCharges({...NO_CHARGES, bomb: true}))
+
+        unmount()
+
+        expect(useBonus.getState().charges).toEqual(NO_CHARGES)
     })
 })

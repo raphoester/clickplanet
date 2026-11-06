@@ -8,7 +8,7 @@ import {Country} from '../../domain/countries.ts';
 import {MapView, Rendering} from '../../domain/displaySettings.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
-import {ALL_OFF, BonusRules, Charges, NO_CHARGES, Switches} from '../../domain/bonus.ts';
+import {Switches} from '../../domain/bonus.ts';
 import {Bomber, BonusListener, Shielder} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 import {AcceptedClick} from '../clicks/acceptedClicks.ts';
@@ -66,11 +66,6 @@ export function useGlobe(options: UseGlobeOptions) {
     const [orbit, setOrbit] = useState(true)
 
     const {leaderboard, tileDeltas, recordLeaderboard, publishLeaderboard} = useLeaderboardFeed()
-
-    const [charges, setCharges] = useState<Charges>(NO_CHARGES)
-    const [rules, setRules] = useState<BonusRules | undefined>()
-    const [bombArmed, setBombArmed] = useState(false)
-    const [switches, setSwitches] = useState<Switches>(ALL_OFF)
 
     const [pointing, setPointing] = useState<{peek: Peek, id: number} | undefined>()
     const peekCount = useRef(0)
@@ -130,13 +125,13 @@ export function useGlobe(options: UseGlobeOptions) {
             onSessionUnavailable: refused.failSession,
             onAllegianceLocked: refused.lockOut,
             onBonusWon: bonus.win,
-            onCharges: setCharges,
-            onRules: setRules,
-            onSwitchesChange: setSwitches,
+            onCharges: bonus.setCharges,
+            onRules: bonus.setRules,
+            onSwitchesChange: bonus.setSwitches,
             bonusListener,
             bomber,
             onBombDropped: news.tellBomb,
-            onArmedChange: setBombArmed,
+            onArmedChange: bonus.setBombArmed,
             shielder,
             onNotice: bonus.notify,
             onClickAccepted,
@@ -232,8 +227,8 @@ export function useGlobe(options: UseGlobeOptions) {
     const flyToLastLoss = useCallback(() => globeRef.current?.flyToLastLoss(), [])
     const flyToMission = useCallback((target: MissionTarget) => globeRef.current?.flyToMission(target), [])
 
-    const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
-    const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !switches[name]), [switches])
+    const toggleBomb = useCallback(() => globeRef.current?.setArmed(!useBonus.getState().bombArmed), [])
+    const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !useBonus.getState().switches[name]), [])
 
     return {
         status,
@@ -244,11 +239,7 @@ export function useGlobe(options: UseGlobeOptions) {
         tilesCount,
         capture,
         graphics,
-        charges,
-        rules,
-        bombArmed,
         toggleBomb,
-        switches,
         toggleSwitch,
         pointing,
         pointingTerritory,
