@@ -2,6 +2,7 @@ package migrations_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
@@ -21,6 +22,7 @@ const (
 	countedFacts     = "20261028200000"
 	gamemasterDays   = "20261029110000"
 	redrawConquests  = "20261102070000"
+	dayNumbers       = "20261106120000"
 )
 
 func TestEachRowKeptBeforeGamemasterDaysNamesItsDayByItsRound(t *testing.T) {
@@ -146,4 +148,29 @@ func TestTheOutboxKeepsEveryMessageMissionsSends(t *testing.T) {
 		return cpoutbox.New(db).Record(ctx, &planetv1.GrantCharges{}, &scoringv1.GrantPoints{}, &missionsv1.MissionsPaid{},
 			&missionsv1.FlagMissionDone{})
 	}))
+}
+
+func TestEachDayKeptBeforeDayNumbersIsNumberedFromItsRoundsID(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "missions", cppg.MigrationsBefore(t, migrations.FS, dayNumbers))
+	_, err := db.On(t.Context()).ExecContext(t.Context(), `
+		INSERT INTO mission_days (day_id, starts_at, ends_at) VALUES
+			('season-0/day-24', '2026-10-30T21:00:00Z', '2026-10-31T21:00:00Z'),
+			('season-1/day-5', '2026-11-04T21:00:00Z', '2026-11-05T20:00:00Z'),
+			('season-1/day-6', '2026-11-05T21:00:00Z', '2026-11-06T21:00:00Z')`)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), `SELECT day_id, season, number FROM mission_days ORDER BY day_id`)
+	require.NoError(t, err)
+	defer func() { _ = rows.Close() }()
+	var numbered []string
+	for rows.Next() {
+		var id string
+		var season, number int
+		require.NoError(t, rows.Scan(&id, &season, &number))
+		numbered = append(numbered, fmt.Sprintf("%s %d %d", id, season, number))
+	}
+	require.NoError(t, rows.Err())
+	assert.Equal(t, []string{"season-0/day-24 0 24", "season-1/day-5 1 5", "season-1/day-6 1 6"}, numbered)
 }
