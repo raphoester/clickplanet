@@ -128,6 +128,25 @@
     text-align: center;
 }
 
+/* Asked for, the teaser plays no entrance: it fades in whole, with its parts already in place. */
+.battle-teaser--asked .title-reveal-stage {
+    animation: title-reveal-appear 200ms ease-out both;
+}
+
+.battle-teaser--asked .title-reveal-head,
+.battle-teaser--asked .battle-brief-times,
+.battle-teaser--asked .title-reveal-rank,
+.battle-teaser--asked .battle-brief-text,
+.battle-teaser--asked .teaser-carousel,
+.battle-teaser--asked .title-reveal-actions .button {
+    animation: none;
+}
+
+/* "See the rules", under a battle's facts in the chip's details. */
+.battle-rules-button {
+    margin-top: var(--space-1);
+}
+
 /* The cards: a 3:4 portrait each, as tall as the screen leaves room for under the head and above the button. */
 .teaser-carousel {
     --card: min(420px, 74vw, calc((100dvh - 360px) * 0.75));

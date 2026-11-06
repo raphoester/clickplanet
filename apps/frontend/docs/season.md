@@ -83,15 +83,21 @@ winner's trophy in the Hall of Fame, and the titles. **Say only what is
 decided**: points when a day ends for the countries that gained the most ground that day,
 a trophy for the winning country, a title for every signed-in player and one
 more for the winning country's. A battle and what it is worth are the schedule's:
-the battle chip says them, in the operator's words, while one plays. Guests get no title, so
-the row says "signed-in".
+the next battle's details say them before it (below), and the battle chip while it plays, in the operator's words.
+Guests get no title, so the row says "signed-in".
+
+**The next battle opens the details** (`NextBattleDetails`, see [Battles](battle.md#the-rules-asked-for)), above the
+season's rows, in the dropdown and the sheet, while one is to come and it is not the season's finale: "Next battle",
+when it plays in the player's time with its points' times ("Tomorrow · 19:00 – 20:00 · Points ×3"), the operator's
+words, and "See the rules", which opens its teaser's cards. So the chip, then that button, tell a player when the next
+battle is and its rules.
 
 **The Final Battle to come opens the details** (`FinaleDetails`, `app/season/FinaleFacts.tsx`), above the
 season's rows, in the dropdown and the sheet, while the schedule lists the season's finale (`finaleOf`): "The
 Final Battle", when it plays in the player's time, the operator's words, and three rows: "2 hours of war",
 "Points ×3" (from its `times`, left out at ×1), and "The last word" (nothing scores after it, and it crowns the
-champion). Each is the schedule's fact or what is always true of a finale, so no battle is promised. Once it
-plays, the battle chip takes over.
+champion), then "See the rules" once it is the next battle. Each is the schedule's fact or what is always true of a
+finale, so no battle is promised. Once it plays, the battle chip takes over.
 
 **The home page counts down to the season's end, and to the next battle.** `src/home.ts` follows the
 gamemaster's stream once, and `app/home/season.ts` (`seasonShown`) fills the pill in the hero

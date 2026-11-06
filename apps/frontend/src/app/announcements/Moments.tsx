@@ -1,7 +1,6 @@
 import {useEffect} from "react"
 import {ClipsBackend} from "../../backends/clips.ts"
 import {announcementKeyOf} from "../../domain/announcements.ts"
-import {PromoBackend} from "../../backends/promo.ts"
 import {nextBattleOf} from "../../domain/battle.ts"
 import {briefDescriptionOf} from "../../domain/battleBrief.ts"
 import {revealFollowed} from "../../domain/roundReveal.ts"
@@ -26,7 +25,6 @@ export type MomentsProps = {
     shown: boolean
     // A first visit, which plays its clicks before a battle's teaser.
     guided: boolean
-    promo: PromoBackend
     listenForClicks: ListenForClicks
     clips: ClipsBackend
     clipsAccount?: string
@@ -49,7 +47,7 @@ export default function Moments(props: MomentsProps) {
     const seenBattle = useSeenBattle(battle)
     const reveal = useRoundReveal(closed, seenBattle)
     const battleReveal = useBattleReveal(battle, closed)
-    const battleTeaser = useBattleTeaser(nextBattleOf(battles, now), now, props.guided, props.listenForClicks, props.promo)
+    const battleTeaser = useBattleTeaser(nextBattleOf(battles, now), now, props.guided, props.listenForClicks)
     const clipNotice = useClipNotice(props.clips, props.clipsAccount)
 
     useEffect(() => {
@@ -113,6 +111,7 @@ export default function Moments(props: MomentsProps) {
             return <BattleTeaser key={key}
                                  battle={current.battle}
                                  cards={current.cards}
+                                 asked={current.asked}
                                  play={props.play}
                                  onClose={() => {
                                      battleTeaser.dismiss(current.battle)

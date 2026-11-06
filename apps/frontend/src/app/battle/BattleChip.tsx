@@ -1,6 +1,7 @@
 import {useId, useState} from "react"
 import {Season} from "../../backends/season.ts"
 import {Battle, battleEndsLine, battleLeft, battleNameOf} from "../../domain/battle.ts"
+import {playingOf} from "../../domain/battleTeaser.ts"
 import {countdownsOf, shortLeft} from "../../domain/seasonClock.ts"
 import {ChevronIcon, SwordsIcon} from "../components/icons.tsx"
 import {useBottomEdge} from "../components/useBottomEdge.ts"
@@ -8,6 +9,8 @@ import {useEscape} from "../components/useDialog.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
 import {useScreen} from "../hud/screenStore.ts"
 import {useNow} from "../season/useNow.ts"
+import {BattleRulesButton} from "./NextBattle.tsx"
+import {useSchedule} from "./scheduleStore.ts"
 import "../season/Season.css"
 import "./Battle.css"
 
@@ -94,10 +97,12 @@ function BattlePopover({battle, season, now, open, onClose}: BattlePopoverProps)
 
 export function BattleFacts({battle, season, now}: {battle: Battle, season?: Season, now: number}) {
     const countdowns = season ? countdownsOf(season, now) : []
+    const turn = useSchedule((schedule) => schedule.turn)
 
     return <div className="battle-facts">
         {battle.description && <p className="battle-facts-text">{battle.description}</p>}
         <p className="battle-facts-when">{battleEndsLine(battle, now)}</p>
+        <BattleRulesButton battle={playingOf(turn)}/>
         {countdowns.map((countdown) => <p key={countdown.label} className="battle-facts-season">
             <span className="menu-label">{countdown.label}</span>
             <span className="battle-facts-left">{countdown.left}</span>

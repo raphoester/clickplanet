@@ -102,6 +102,7 @@ import {useAnnouncements} from "../announcements/announcementsStore.ts";
 import Moments from "../announcements/Moments.tsx";
 import {runningSeason, useSchedule} from "../battle/scheduleStore.ts";
 import {useScheduleFeed} from "../battle/useScheduleFeed.ts";
+import {useTeaserCardsFeed} from "../battle/useTeaserCardsFeed.ts";
 import ScheduleChip, {BattleSheet, SeasonSheet} from "../battle/ScheduleChip.tsx";
 import {useMood} from "../battle/useMood.ts";
 import {moodOf} from "../../domain/mood.ts";
@@ -219,6 +220,7 @@ export default function PlayScreen(props: PlayScreenProps) {
     })
     const crowd = useRoster(onlineCount)
     useScheduleFeed(backends.turn, backends.standings)
+    useTeaserCardsFeed(backends.promo)
     const turn = useSchedule((schedule) => schedule.turn)
     const battle = useSchedule((schedule) => schedule.battle)
     const seasons = useSchedule((schedule) => schedule.seasons)
@@ -533,7 +535,6 @@ export default function PlayScreen(props: PlayScreenProps) {
 
         <Moments shown={ready}
                  guided={props.showFront ?? false}
-                 promo={backends.promo}
                  listenForClicks={accepted.listenForClicks}
                  clips={backends.clips}
                  clipsAccount={linked && username !== undefined ? ownAccountId : undefined}

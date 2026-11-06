@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
+import {FakePromoBackend} from "../../backends/fakePromoBackend.ts"
 import {Finale} from "../../domain/battle.ts"
+import {useAnnouncements} from "../announcements/announcementsStore.ts"
+import {useTeaserCards} from "../battle/teaserCardsStore.ts"
 import SeasonChip, {ChampionChip, SeasonDetails} from "./SeasonChip.tsx"
 import {TURN_MS} from "./useRotation.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
@@ -28,7 +31,17 @@ afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
     useScreen.setState(useScreen.getInitialState(), true)
+    useAnnouncements.setState({queue: []})
+    useTeaserCards.getState().serve(undefined)
 })
+
+// The rules a press away: the button shows once promo answered the battle's cards.
+async function rules() {
+    await act(async () => {
+        await Promise.resolve()
+    })
+    return screen.queryByRole("button", {name: "See the rules"})
+}
 
 describe("SeasonChip", () => {
     it("counts down to today's cutoff, at the time of day the last day ends", () => {
@@ -141,6 +154,50 @@ describe("SeasonChip", () => {
         expect(useScreen.getState().popovers.season).toBe(false)
     })
 
+    describe("before a battle", () => {
+        const nextBattle = () => ({
+            entryId: "rush", startsAt: Date.now() + DAY, endsAt: Date.now() + DAY + 2 * HOUR,
+            description: "Clicks refill 3× faster.", times: 3, endsSeason: false, roundId: "rush",
+        })
+        const opened = () => {
+            useScreen.setState({popovers: {season: true, battle: false, clicks: false}})
+            render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} nextBattle={nextBattle()} compact={false}/>)
+        }
+
+        it("opens on the next battle: when, what it is worth, and the operator's words", () => {
+            vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
+            opened()
+
+            expect(screen.getByText("Next battle")).toBeDefined()
+            expect(screen.getByText(/^Tomorrow · \d\d:\d\d – \d\d:\d\d · Points ×3$/)).toBeDefined()
+            expect(screen.getByText("Clicks refill 3× faster.")).toBeDefined()
+            expect(battleTeased()).toBeNull()
+        })
+
+        it("opens its rules a press away: its teaser, asked for", async () => {
+            vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
+            const promo = new FakePromoBackend()
+            useTeaserCards.getState().serve(promo)
+            opened()
+
+            fireEvent.click((await rules())!)
+
+            expect(promo.asked).toEqual(["rush"])
+            expect(useAnnouncements.getState().queue).toEqual([{kind: "teaser", battle: nextBattle(), cards: promo.cards, asked: true}])
+        })
+
+        it("has no rules to open while promo has no card for it", async () => {
+            vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
+            const promo = new FakePromoBackend()
+            promo.cards = []
+            useTeaserCards.getState().serve(promo)
+            opened()
+
+            expect(await rules()).toBeNull()
+            expect(promo.asked).toEqual(["rush"])
+        })
+    })
+
     describe("before the Final Battle", () => {
         const startsAt = endsAt - 2 * HOUR
         const finale: Finale = {roundId: "season-0/finale", startsAt, endsAt, times: 3, description: "A bonus box every minute.", live: false}
@@ -170,6 +227,20 @@ describe("SeasonChip", () => {
             expect(screen.getByText("Points ×3")).toBeDefined()
             expect(screen.getByText("The countries that gain the most ground during it score the points of 3 days.")).toBeDefined()
             expect(screen.getByText("The last word")).toBeDefined()
+            expect(screen.queryByText("Next battle")).toBeNull()
+        })
+
+        it("opens its rules once it is the next battle, by its round", async () => {
+            vi.useFakeTimers({now: startsAt - DAY})
+            const promo = new FakePromoBackend()
+            useTeaserCards.getState().serve(promo)
+            useScreen.setState({popovers: {season: true, battle: false, clicks: false}})
+            render(chip())
+
+            fireEvent.click((await rules())!)
+
+            expect(promo.asked).toEqual(["season-0/finale"])
+            expect(useAnnouncements.getState().queue[0]).toMatchObject({kind: "teaser", battle: nextBattle, asked: true})
         })
     })
 
@@ -250,6 +321,18 @@ describe("SeasonDetails", () => {
 
         rerender(<SeasonDetails season={season} dayEndsAt={dayEndsAt()} finale={{...finale, live: true}}/>)
         expect(screen.queryByText("The Final Battle")).toBeNull()
+    })
+
+    it("tells the next battle, and its rules a press away", async () => {
+        vi.useFakeTimers({now: endsAt - 27 * DAY})
+        useTeaserCards.getState().serve(new FakePromoBackend())
+        const nextBattle = {entryId: "rush", startsAt: Date.now() + 3 * HOUR, endsAt: Date.now() + 4 * HOUR, description: "", times: 1, endsSeason: false, roundId: "rush"}
+        render(<SeasonDetails season={season} dayEndsAt={dayEndsAt()} nextBattle={nextBattle}/>)
+
+        expect(screen.getByRole("timer", {name: "Next battle in"}).textContent).toBe("3h 00m 00s")
+        expect(screen.getByText("Next battle")).toBeDefined()
+        expect(screen.queryByText(/Points ×/)).toBeNull()
+        expect(await rules()).not.toBeNull()
     })
 
     it("counts the season alone once its last day ended", () => {

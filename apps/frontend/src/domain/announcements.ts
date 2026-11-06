@@ -10,7 +10,8 @@ import {Reveal, revealKeyOf} from "./roundReveal.ts"
 export type Announcement =
     | {kind: "title", title: PlayerTitle}
     | {kind: "battle", battle: Battle}
-    | {kind: "teaser", battle: BattleToCome, cards: TeaserCard[]}
+    // A battle's teaser, due by its time rules, or asked for by the player (`asked`): then it plays no entrance.
+    | {kind: "teaser", battle: BattleToCome, cards: readonly TeaserCard[], asked?: boolean}
     | {kind: "clip", appearance: Appearance}
     | {kind: "flagMission", mission: FlagMission, country: string}
     | Reveal

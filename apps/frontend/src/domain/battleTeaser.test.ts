@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
-import {BattleToCome} from "../backends/turn.ts"
-import {BATTLE_TEASER_EVERY_MS, battleTeaserDue, battleWhenLine, teasedOf, teaserKeyOf} from "./battleTeaser.ts"
+import {BattleToCome, PLAIN_TURN, Turn} from "../backends/turn.ts"
+import {BATTLE_TEASER_EVERY_MS, battleTeaserDue, battleWhenLine, playingOf, teasedOf, teaserClockLine, teaserKeyOf} from "./battleTeaser.ts"
 
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
@@ -69,5 +69,34 @@ describe("battleWhenLine", () => {
     it("counts the day where the player is", () => {
         expect(battleWhenLine(battle, Date.UTC(2026, 10, 5, 23), "America/Los_Angeles")).toBe("Today · 12:00 – 13:00")
         expect(battleWhenLine(battle, Date.UTC(2026, 10, 4, 23), "Asia/Tokyo")).toBe("Tomorrow · 05:00 – 06:00")
+    })
+})
+
+describe("playingOf", () => {
+    const turn: Turn = {
+        kind: "battle", since: battle.startsAt, endsAt: battle.endsAt, description: "Rush.", entryId: "tonight",
+        roundId: "tonight", times: 2, endsSeason: false,
+    }
+
+    it("is the battle that plays, in the shape of one to come", () => {
+        expect(playingOf(turn)).toEqual({...battle, description: "Rush."})
+    })
+
+    it("is the season's finale, keyed by its round", () => {
+        const playing = playingOf({...turn, entryId: "", roundId: "season-1/finale", endsSeason: true})
+        expect(playing && teaserKeyOf(playing)).toBe("season-1/finale")
+    })
+
+    it("is none for a plain turn, or none at all", () => {
+        expect(playingOf(PLAIN_TURN)).toBeUndefined()
+        expect(playingOf(undefined)).toBeUndefined()
+    })
+})
+
+describe("teaserClockLine", () => {
+    it("counts to the start before the battle, to its end while it plays", () => {
+        expect(teaserClockLine(battle, now)).toBe("Starts in 12h 00m 00s")
+        expect(teaserClockLine(battle, battle.startsAt)).toBe("Ends in 1h 00m 00s")
+        expect(teaserClockLine(battle, battle.startsAt + 18 * MINUTE)).toBe("Ends in 42m 00s")
     })
 })

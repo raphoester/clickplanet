@@ -1,5 +1,6 @@
-import {BattleToCome} from "../backends/turn.ts"
-import {partsOf} from "./battle.ts"
+import {BattleToCome, Turn} from "../backends/turn.ts"
+import {battleOf, partsOf} from "./battle.ts"
+import {timeLeftTo} from "./seasonClock.ts"
 
 const HOUR = 60 * 60_000
 
@@ -42,6 +43,21 @@ export function battleTeaserDue(battle: BattleToCome | undefined, teased: Teased
     if (!battle || teaserKeyOf(battle) === "" || !ready) return false
     if (battle.startsAt <= now || battle.startsAt - now > BATTLE_TEASER_WITHIN_MS) return false
     return teased?.key !== teaserKeyOf(battle) || now - teased.at >= BATTLE_TEASER_EVERY_MS
+}
+
+// The battle that plays, as its teaser shows it: a player asks for its rules while it plays too.
+export function playingOf(turn: Turn | undefined): BattleToCome | undefined {
+    const battle = battleOf(turn)
+    if (!turn || !battle) return undefined
+    const {entryId, roundId, description, times, endsSeason} = turn
+    return {entryId, roundId, description, times, endsSeason, startsAt: battle.since, endsAt: battle.endsAt}
+}
+
+// "Starts in 2h 05m 12s" before the battle, "Ends in 42m 10s" while it plays.
+export function teaserClockLine(battle: BattleToCome, now: number): string {
+    return battle.startsAt > now
+        ? `Starts in ${timeLeftTo(battle.startsAt, now)}`
+        : `Ends in ${timeLeftTo(battle.endsAt, now)}`
 }
 
 // "Today · 22:00 – 23:00", "Tomorrow · 22:00 – 23:00" or "Sat 7 Nov · 22:00 – 23:00", in the player's time.

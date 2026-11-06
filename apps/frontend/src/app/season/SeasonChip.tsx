@@ -4,6 +4,7 @@ import {BattleToCome} from "../../backends/turn.ts"
 import {Finale, finaleNear} from "../../domain/battle.ts"
 import {Champion, championNames, winsLine} from "../../domain/champion.ts"
 import {countdownsOf, SeasonCountdown, shortLeft} from "../../domain/seasonClock.ts"
+import {BattleRulesButton, NextBattleDetails} from "../battle/NextBattle.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {ChevronIcon, ClockIcon} from "../components/icons.tsx"
 import {useBottomEdge} from "../components/useBottomEdge.ts"
@@ -67,7 +68,7 @@ export default function SeasonChip({season, nextBattle, finale, dayEndsAt, compa
             <Faces countdowns={countdowns} shown={shown} compact={false}/>
             <span className="season-chip-chevron"><ChevronIcon size={16}/></span>
         </button>
-        {open && <SeasonPopover finale={finale} onClose={toggle}/>}
+        {open && <SeasonPopover nextBattle={nextBattle} finale={finale} onClose={toggle}/>}
     </section>
 }
 
@@ -112,12 +113,18 @@ function faceClassOf(countdown: SeasonCountdown, shown: boolean): string {
     return `season-chip-face${final}${shown ? "" : " season-chip-face--away"}`
 }
 
-function SeasonPopover({finale, onClose}: {finale?: Finale, onClose: () => void}) {
+function SeasonPopover({nextBattle, finale, onClose}: {nextBattle?: BattleToCome, finale?: Finale, onClose: () => void}) {
     useEscape(onClose)
     return <div className="season-chip-body">
-        {finale && !finale.live && <FinaleDetails finale={finale}/>}
+        {nextBattle && !nextBattle.endsSeason && <NextBattleDetails battle={nextBattle}/>}
+        {finale && !finale.live && <FinaleDetails finale={finale}><FinaleRules nextBattle={nextBattle}/></FinaleDetails>}
         <SeasonFacts/>
     </div>
+}
+
+// The Final Battle's rules, once it is the next battle: its teaser's cards are its rule set's, as any battle's.
+function FinaleRules({nextBattle}: {nextBattle?: BattleToCome}) {
+    return nextBattle?.endsSeason ? <BattleRulesButton battle={nextBattle}/> : null
 }
 
 export type SeasonDetailsProps = {
@@ -135,7 +142,12 @@ export function SeasonDetails({season, nextBattle, finale, dayEndsAt}: SeasonDet
         <div className="panel-box season-details-countdowns">
             {countdowns.map((countdown) => <DetailsCountdown key={countdown.label} countdown={countdown}/>)}
         </div>
-        {finale && !finale.live && <div className="panel-box season-details-facts"><FinaleDetails finale={finale}/></div>}
+        {nextBattle && !nextBattle.endsSeason && <div className="panel-box season-details-facts">
+            <NextBattleDetails battle={nextBattle}/>
+        </div>}
+        {finale && !finale.live && <div className="panel-box season-details-facts">
+            <FinaleDetails finale={finale}><FinaleRules nextBattle={nextBattle}/></FinaleDetails>
+        </div>}
         <div className="panel-box season-details-facts"><SeasonFacts/></div>
     </>
 }

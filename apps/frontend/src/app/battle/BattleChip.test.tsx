@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
+import {FakePromoBackend} from "../../backends/fakePromoBackend.ts"
 import {battleEndsLine} from "../../domain/battle.ts"
+import {useAnnouncements} from "../announcements/announcementsStore.ts"
 import BattleChip, {BattleDetails} from "./BattleChip.tsx"
 import {useScreen} from "../hud/screenStore.ts"
+import {NO_SCHEDULE, useSchedule} from "./scheduleStore.ts"
+import {useTeaserCards} from "./teaserCardsStore.ts"
 
 const SECOND = 1000
 const MINUTE = 60 * SECOND
@@ -17,6 +21,9 @@ afterEach(() => {
     cleanup()
     vi.useRealTimers()
     useScreen.setState(useScreen.getInitialState(), true)
+    useSchedule.setState(NO_SCHEDULE)
+    useAnnouncements.setState({queue: []})
+    useTeaserCards.getState().serve(undefined)
 })
 
 describe("BattleChip", () => {
@@ -87,5 +94,24 @@ describe("BattleChip", () => {
 
         expect(screen.getByRole("timer", {name: "Battle ends in"}).textContent).toBe("1h 23m 05s")
         expect(screen.getByText("Triple points.")).toBeDefined()
+    })
+
+    it("opens the rules of the battle that plays, counted down to its end", async () => {
+        vi.useFakeTimers({now})
+        const promo = new FakePromoBackend()
+        useTeaserCards.getState().serve(promo)
+        useSchedule.getState().hearTurn({kind: "battle", since: battle.since, endsAt: battle.endsAt, description: battle.description,
+            entryId: battle.entryId, roundId: battle.roundId, times: 3, endsSeason: false})
+        render(<BattleDetails battle={battle}/>)
+        await act(async () => {
+            await Promise.resolve()
+        })
+
+        fireEvent.click(screen.getByRole("button", {name: "See the rules"}))
+
+        expect(promo.asked).toEqual(["entry-final"])
+        expect(useAnnouncements.getState().queue[0]).toMatchObject({
+            kind: "teaser", asked: true, battle: {entryId: "entry-final", startsAt: battle.since, endsAt: battle.endsAt, times: 3},
+        })
     })
 })
