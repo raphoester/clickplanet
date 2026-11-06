@@ -91,14 +91,61 @@ func (s *Store) Of(ctx context.Context, of []books.BookID) ([]books.Round, error
 	return rounds, nil
 }
 
-func (s *Store) Open(ctx context.Context, round books.Round) (bool, error) {
-	opening, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO rounds (round_id, book_id, times, starts_at) VALUES ($1, $2, $3, $4) ON CONFLICT (round_id) DO NOTHING
-	`, string(round.ID), string(round.Book), int64(round.Times), round.StartsAt)
-	if err != nil {
-		return false, fmt.Errorf("failed to open the round: %w", err)
+func (s *Store) Open(ctx context.Context, round books.Round, start books.Start) (bool, error) {
+	countries := make([]string, 0, len(start))
+	tiles := make([]int64, 0, len(start))
+	for country, held := range start {
+		if held > 0 {
+			countries = append(countries, string(country))
+			tiles = append(tiles, int64(held))
+		}
 	}
-	return applied(opening, "failed to open the round")
+
+	done := false
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		opening, err := tx.ExecContext(ctx, `
+			INSERT INTO rounds (round_id, book_id, times, starts_at) VALUES ($1, $2, $3, $4) ON CONFLICT (round_id) DO NOTHING
+		`, string(round.ID), string(round.Book), int64(round.Times), round.StartsAt)
+		if err != nil {
+			return fmt.Errorf("failed to open the round: %w", err)
+		}
+		if done, err = applied(opening, "failed to open the round"); err != nil || !done {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO round_starts (round_id, country, tiles)
+			SELECT $1, start.country, start.tiles FROM unnest($2::text[], $3::bigint[]) AS start (country, tiles)
+		`, string(round.ID), pq.Array(countries), pq.Array(tiles)); err != nil {
+			return fmt.Errorf("failed to keep what each country held when the round opened: %w", err)
+		}
+		return nil
+	})
+	return done, err //nolint:wrapcheck // each step named what failed.
+}
+
+func (s *Store) StartOf(ctx context.Context, id books.RoundID) (books.Start, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT country, tiles FROM round_starts WHERE round_id = $1`, string(id))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read what each country held when the round opened: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	start := books.Start{}
+	for rows.Next() {
+		var (
+			country string
+			tiles   int64
+		)
+		if err := rows.Scan(&country, &tiles); err != nil {
+			return nil, fmt.Errorf("failed to read what a country held when the round opened: %w", err)
+		}
+		start[books.Country(country)] = uint32(tiles) //nolint:gosec // a country holds a map's tiles at most.
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read what each country held when the round opened: %w", err)
+	}
+	return start, nil
 }
 
 func applied(result sql.Result, failure string) (bool, error) {

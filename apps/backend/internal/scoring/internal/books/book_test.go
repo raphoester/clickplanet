@@ -23,7 +23,7 @@ func TestABookHoldsTheTakesFromItsStartAndBeforeItsEndOnceClosed(t *testing.T) {
 }
 
 func TestARoundHoldsTheTakesFromItsStartAndBeforeItsEndOnceScored(t *testing.T) {
-	scored := day.ScoredAt(utc(16, 21), books.Snapshot{Tiles: 1})
+	scored := day.ScoredAt(utc(16, 21), books.Start{}, books.Snapshot{Tiles: 1})
 
 	assert.False(t, day.Holds(utc(15, 21).Add(-time.Nanosecond)))
 	assert.True(t, day.Holds(utc(15, 21)))

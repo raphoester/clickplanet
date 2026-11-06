@@ -108,12 +108,16 @@ func (q *PostgresQuery) Live(ctx context.Context, id books.RoundID) (*scoringv1.
 }
 
 func (q *PostgresQuery) live(ctx context.Context, round books.Round) ([]*scoringv1.RoundStanding, error) {
+	start, err := q.start(ctx, round.ID)
+	if err != nil {
+		return nil, err
+	}
 	held, err := q.territory.Snapshot(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read what each country holds now: %w", err)
 	}
 	standings := []*scoringv1.RoundStanding{}
-	for _, result := range round.Results(held) {
+	for _, result := range round.Results(start, held) {
 		standings = append(standings, &scoringv1.RoundStanding{
 			Rank:      result.Rank,
 			CountryId: string(result.Country),
@@ -122,6 +126,30 @@ func (q *PostgresQuery) live(ctx context.Context, round books.Round) ([]*scoring
 		})
 	}
 	return standings, nil
+}
+
+func (q *PostgresQuery) start(ctx context.Context, id books.RoundID) (books.Start, error) {
+	rows, err := q.db.On(ctx).QueryContext(ctx, `SELECT country, tiles FROM round_starts WHERE round_id = $1`, string(id))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read what each country held when the round opened: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	start := books.Start{}
+	for rows.Next() {
+		var (
+			country string
+			tiles   int64
+		)
+		if err := rows.Scan(&country, &tiles); err != nil {
+			return nil, fmt.Errorf("failed to read what a country held when the round opened: %w", err)
+		}
+		start[books.Country(country)] = uint32(tiles) //nolint:gosec // a country holds a map's tiles at most.
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read what each country held when the round opened: %w", err)
+	}
+	return start, nil
 }
 
 func (q *PostgresQuery) results(ctx context.Context, id books.RoundID) ([]*scoringv1.RoundStanding, error) {

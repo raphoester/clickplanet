@@ -18,6 +18,7 @@ type mark struct {
 
 type kept struct {
 	scored       books.Scored
+	start        books.Start
 	opened       int
 	countedBelow mark
 	countries    map[books.Country]uint64
@@ -68,18 +69,35 @@ func (s *Store) Of(_ context.Context, of []books.BookID) ([]books.Round, error) 
 	return rounds, nil
 }
 
-func (s *Store) Open(_ context.Context, round books.Round) (bool, error) {
+func (s *Store) Open(_ context.Context, round books.Round, start books.Start) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if _, found := s.rounds[round.ID]; found {
 		return false, nil
 	}
-	s.rounds[round.ID] = &kept{
-		scored: books.Scored{Round: round}, opened: len(s.rounds),
+	kept := &kept{
+		scored: books.Scored{Round: round}, start: books.Start{}, opened: len(s.rounds),
 		countries: map[books.Country]uint64{}, players: map[books.AccountID]map[books.Country]uint64{},
 	}
+	for country, tiles := range start {
+		if tiles > 0 {
+			kept.start[country] = tiles
+		}
+	}
+	s.rounds[round.ID] = kept
 	return true, nil
+}
+
+func (s *Store) StartOf(_ context.Context, id books.RoundID) (books.Start, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	at, found := s.rounds[id]
+	if !found {
+		return books.Start{}, nil
+	}
+	return maps.Clone(at.start), nil
 }
 
 func (s *Store) Score(_ context.Context, scored books.Scored) (bool, error) {

@@ -46,7 +46,7 @@ func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 	_, err := postgres_book_store.New(s.db).Open(s.T().Context(), seasonZero)
 	s.Require().NoError(err)
-	_, err = s.rounds.Open(s.T().Context(), finale)
+	_, err = s.rounds.Open(s.T().Context(), finale, books.Start{})
 	s.Require().NoError(err)
 }
 

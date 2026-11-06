@@ -5,7 +5,7 @@ export default function SeasonFacts() {
     return <ul className="season-facts">
         <Fact art={<GroundArt/>}
               name="Win the day"
-              text="When a day ends, the countries holding the most ground score points."/>
+              text="When a day ends, the countries that gained the most ground that day score points."/>
         <Fact art={<TrophyArt/>} name="Win" text="The winning country gets a trophy in the Hall of Fame."/>
         <Fact art={<MedalArt/>} name="Titles" text="Every signed-in player gets a title, and one more if their country wins."/>
     </ul>

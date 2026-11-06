@@ -51,10 +51,10 @@ func (s *testSuite) SetupTest() {
 	s.Require().NoError(err)
 	rounds := postgres_round_store.New(s.db)
 	for _, scored := range []books.Scored{
-		day24.ScoredAt(utc(31, 21), books.Snapshot{Tiles: 4, Held: map[books.Country]uint32{"fr": 3, "de": 1}}),
-		battle.ScoredAt(utc(31, 23), books.Snapshot{Tiles: 5, Held: map[books.Country]uint32{"de": 3, "fr": 2}}),
+		day24.ScoredAt(utc(31, 21), books.Start{}, books.Snapshot{Tiles: 4, Held: map[books.Country]uint32{"fr": 3, "de": 1}}),
+		battle.ScoredAt(utc(31, 23), books.Start{}, books.Snapshot{Tiles: 5, Held: map[books.Country]uint32{"de": 3, "fr": 2}}),
 	} {
-		_, err := rounds.Open(s.T().Context(), scored.Round)
+		_, err := rounds.Open(s.T().Context(), scored.Round, books.Start{})
 		s.Require().NoError(err)
 		_, err = rounds.Score(s.T().Context(), scored)
 		s.Require().NoError(err)

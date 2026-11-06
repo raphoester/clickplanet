@@ -24,7 +24,7 @@ export function FinaleFacts({finale}: {finale: Finale}) {
                   text="The end of the season, with every country fighting at once."/>
             {finale.times > 1 && <Fact art={<span className="season-fact-art"><SwordsArt/></span>}
                                        name={`Points ×${finale.times}`}
-                                       text={`The countries holding the most ground when it ends score the points of ${finale.times} days.`}/>}
+                                       text={`The countries that gain the most ground during it score the points of ${finale.times} days.`}/>}
             <Fact art={<TrophyArt/>} name="The last word" text="Nothing scores after it. It crowns the season's champion."/>
         </ul>
     </>

@@ -29,10 +29,10 @@ func TestATakeCountsInEveryRoundOpenAtItsTimeOfABookOpenAtItsTime(t *testing.T) 
 	_, err := shelf.Open(t.Context(), seasonZero)
 	require.NoError(t, err)
 	for _, round := range []books.Round{day24, battle} {
-		_, err := rounds.Open(t.Context(), round)
+		_, err := rounds.Open(t.Context(), round, books.Start{})
 		require.NoError(t, err)
 	}
-	_, err = rounds.Score(t.Context(), day24.ScoredAt(utc(31, 21), books.Snapshot{Tiles: 1}))
+	_, err = rounds.Score(t.Context(), day24.ScoredAt(utc(31, 21), books.Start{}, books.Snapshot{Tiles: 1}))
 	require.NoError(t, err)
 	_, err = shelf.Close(t.Context(), seasonZero.ClosedAt(utc(31, 23), battle.ID))
 	require.NoError(t, err)

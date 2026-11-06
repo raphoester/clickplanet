@@ -21,8 +21,27 @@ func atTheEnd(held map[books.Country]uint32) books.Snapshot {
 	return books.Snapshot{Tiles: 100, Held: held}
 }
 
-func TestTheCountryThatHoldsTheMostGroundAtTheEndWinsTheRound(t *testing.T) {
-	results := day.Results(atTheEnd(map[books.Country]uint32{"de": 20, "fr": 30, "es": 10}))
+func TestTheCountryThatGainedTheMostGroundSinceTheStartWinsTheRound(t *testing.T) {
+	results := day.Results(books.Start{"fr": 30, "de": 5, "es": 10}, atTheEnd(map[books.Country]uint32{"fr": 32, "de": 20, "es": 10}))
+
+	assert.Equal(t, []books.Result{
+		{Country: "de", Rank: 1, Points: 25, Share: 0.2},
+		{Country: "fr", Rank: 2, Points: 18, Share: 0.32},
+		{Country: "es", Rank: 3, Points: 0, Share: 0.1},
+	}, results)
+}
+
+func TestNoCountryScoresWhenNoneGainedGround(t *testing.T) {
+	results := day.Results(books.Start{"fr": 50, "de": 10}, atTheEnd(map[books.Country]uint32{"fr": 40, "de": 10}))
+
+	assert.Equal(t, []books.Result{
+		{Country: "de", Rank: 1, Points: 0, Share: 0.1},
+		{Country: "fr", Rank: 2, Points: 0, Share: 0.4},
+	}, results)
+}
+
+func TestARoundOpenedFromNothingRanksTheGroundHeldAtItsEnd(t *testing.T) {
+	results := day.Results(books.Start{}, atTheEnd(map[books.Country]uint32{"de": 20, "fr": 30, "es": 10}))
 
 	assert.Equal(t, []books.Result{
 		{Country: "fr", Rank: 1, Points: 25, Share: 0.3},
@@ -32,7 +51,7 @@ func TestTheCountryThatHoldsTheMostGroundAtTheEndWinsTheRound(t *testing.T) {
 }
 
 func TestCountriesThatHoldTheSameGroundShareTheRankAndItsPoints(t *testing.T) {
-	results := day.Results(atTheEnd(map[books.Country]uint32{"it": 20, "fr": 30, "de": 20, "es": 10}))
+	results := day.Results(books.Start{}, atTheEnd(map[books.Country]uint32{"it": 20, "fr": 30, "de": 20, "es": 10}))
 
 	assert.Equal(t, []books.Result{
 		{Country: "fr", Rank: 1, Points: 25, Share: 0.3},
@@ -48,7 +67,7 @@ func TestOnlyTheTopTenScore(t *testing.T) {
 		held[books.Country(fmt.Sprintf("c%02d", i))] = uint32(100 - i) //nolint:gosec // 12 countries.
 	}
 
-	results := day.Results(books.Snapshot{Tiles: 2000, Held: held})
+	results := day.Results(books.Start{}, books.Snapshot{Tiles: 2000, Held: held})
 
 	require.Len(t, results, 12)
 	points := make([]uint32, 0, len(results))
@@ -61,7 +80,7 @@ func TestOnlyTheTopTenScore(t *testing.T) {
 func TestARoundScoresItsTimesThePoints(t *testing.T) {
 	battle := books.Round{ID: "0192f5a0-7c00-7000-8000-000000000031", Book: "season-0", StartsAt: utc(31, 21), Times: 3}
 
-	results := battle.Results(atTheEnd(map[books.Country]uint32{"fr": 30, "de": 20}))
+	results := battle.Results(books.Start{"de": 10}, atTheEnd(map[books.Country]uint32{"fr": 30, "de": 20}))
 
 	assert.Equal(t, []books.Result{
 		{Country: "fr", Rank: 1, Points: 75, Share: 0.3},
@@ -71,12 +90,12 @@ func TestARoundScoresItsTimesThePoints(t *testing.T) {
 
 func TestACountryThatHoldsNothingAtTheEndIsNotRanked(t *testing.T) {
 	assert.Equal(t, []books.Result{{Country: "fr", Rank: 1, Points: 25, Share: 0.01}},
-		day.Results(atTheEnd(map[books.Country]uint32{"fr": 1, "de": 0})))
-	assert.Empty(t, day.Results(atTheEnd(map[books.Country]uint32{})))
+		day.Results(books.Start{"de": 10}, atTheEnd(map[books.Country]uint32{"fr": 1, "de": 0})))
+	assert.Empty(t, day.Results(books.Start{"de": 10}, atTheEnd(map[books.Country]uint32{})))
 }
 
 func TestARoundScoredKeepsItsEndAndItsResults(t *testing.T) {
-	scored := day.ScoredAt(utc(16, 21), atTheEnd(map[books.Country]uint32{"fr": 30}))
+	scored := day.ScoredAt(utc(16, 21), books.Start{"fr": 20}, atTheEnd(map[books.Country]uint32{"fr": 30}))
 
 	assert.Equal(t, books.Scored{
 		Round:   books.Round{ID: day.ID, Book: day.Book, Times: 1, StartsAt: day.StartsAt, Scored: true, EndsAt: utc(16, 21)},
@@ -98,7 +117,7 @@ func TestEachRankScoresWhatARoundOfItsTimesWouldGiveIt(t *testing.T) {
 		held[books.Country(fmt.Sprintf("c%02d", i))] = uint32(100 - i) //nolint:gosec // 10 countries.
 	}
 	battle := books.Round{ID: "0192f5a0-7c00-7000-8000-000000000031", Book: "season-0", StartsAt: utc(31, 21), Times: 3}
-	for i, result := range battle.Results(books.Snapshot{Tiles: 2000, Held: held}) {
+	for i, result := range battle.Results(books.Start{}, books.Snapshot{Tiles: 2000, Held: held}) {
 		assert.Equal(t, books.RankPoints{Rank: result.Rank, Points: result.Points}, ranks[i])
 	}
 }

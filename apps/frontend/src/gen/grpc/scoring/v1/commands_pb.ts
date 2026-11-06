@@ -120,7 +120,7 @@ export class OpenBook extends Message<OpenBook> {
 }
 
 /**
- * A round credits its book once it closes: the countries ranked by their share of the map then, points by rank, times
+ * A round credits its book once it closes: the countries ranked by the tiles they gained since it opened, points by rank, times
  * `times`. Takes from starts_at count in it. A round whose book is not open is refused.
  *
  * @generated from message scoring.v1.OpenRound
