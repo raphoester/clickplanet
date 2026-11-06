@@ -18,6 +18,7 @@ type Territory interface {
 
 type Rounds interface {
 	Find(ctx context.Context, id books.RoundID) (books.Round, bool, error)
+	StartOf(ctx context.Context, id books.RoundID) (books.Start, error)
 	Score(ctx context.Context, scored books.Scored) (bool, error)
 }
 
@@ -44,12 +45,16 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	if err != nil || !found || round.Scored {
 		return false, err //nolint:wrapcheck // the store says what failed.
 	}
+	start, err := u.rounds.StartOf(ctx, command.Round)
+	if err != nil {
+		return false, err //nolint:wrapcheck // the store says what failed.
+	}
 	snapshot, err := u.territory.Snapshot(ctx)
 	if err != nil {
 		return false, fmt.Errorf("failed to read the map to score round %s: %w", command.Round, err)
 	}
 
-	scored := round.ScoredAt(command.EndsAt, snapshot)
+	scored := round.ScoredAt(command.EndsAt, start, snapshot)
 	done := false
 	err = u.transactioner.InTx(ctx, func(ctx context.Context) error {
 		if done, err = u.rounds.Score(ctx, scored); err != nil || !done {

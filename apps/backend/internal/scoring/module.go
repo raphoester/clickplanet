@@ -158,7 +158,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	commands, err := cpredis.Handle(ctx, streams, scoring_command_handler.New(log_subscriber.New[*scoringv1.ScoringCommand](
 		scoring_command_handler.NewDispatcher(scoring_command_handler.UseCases{
 			OpenBook:   log_command.New("open_book", open_book_usecase.New(bookStore), props.Logger),
-			OpenRound:  log_command.New("open_round", open_round_usecase.New(bookStore, roundStore), props.Logger),
+			OpenRound:  log_command.New("open_round", open_round_usecase.New(bookStore, roundStore, territories), props.Logger),
 			CloseRound: log_command.New("close_round", close_round_usecase.New(db, territories, roundStore, outbox), props.Logger),
 			CloseBook:  log_command.New("close_book", close_book_usecase.New(db, bookStore, roundStore, grantStore, outbox), props.Logger),
 		}), props.Logger)))

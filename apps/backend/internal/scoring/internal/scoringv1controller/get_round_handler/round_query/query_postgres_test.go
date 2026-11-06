@@ -65,13 +65,13 @@ func (s *testSuite) SetupTest() {
 	_, err := postgres_book_store.New(s.db).Open(s.T().Context(), seasonZero)
 	s.Require().NoError(err)
 	for _, round := range []books.Round{day23, day24, battle} {
-		_, err := s.rounds.Open(s.T().Context(), round)
+		_, err := s.rounds.Open(s.T().Context(), round, books.Start{})
 		s.Require().NoError(err)
 	}
 }
 
 func (s *testSuite) score(round books.Round, endsAt time.Time, held map[books.Country]uint32) {
-	_, err := s.rounds.Score(s.T().Context(), round.ScoredAt(endsAt, books.Snapshot{Tiles: 100, Held: held}))
+	_, err := s.rounds.Score(s.T().Context(), round.ScoredAt(endsAt, books.Start{}, books.Snapshot{Tiles: 100, Held: held}))
 	s.Require().NoError(err)
 }
 
@@ -100,6 +100,21 @@ func (s *testSuite) TestAnOpenRoundRanksTheMapNowTimesItsTimes() {
 		},
 		Takes: []*scoringv1.RoundTakes{}, Players: []*scoringv1.Standing{},
 	}, s.round(battle.ID)), s.round(battle.ID))
+}
+
+func (s *testSuite) TestAnOpenRoundRanksTheTilesGainedSinceItOpened() {
+	day25 := books.Round{ID: "season-0/day-25", Book: seasonZero.ID, Times: 1, StartsAt: utc(31, 23)}
+	_, err := s.rounds.Open(s.T().Context(), day25, books.Start{"fr": 30, "de": 5})
+	s.Require().NoError(err)
+	s.territory.held = map[books.Country]uint32{"fr": 25, "de": 20}
+
+	s.True(proto.Equal(&scoringv1.Round{
+		RoundId: string(day25.ID), BookId: "season-0", Times: 1, StartedAtUnixMs: utc(31, 23).UnixMilli(),
+		Standings: []*scoringv1.RoundStanding{
+			{Rank: 1, CountryId: "de", Share: 0.2, Points: 25}, {Rank: 2, CountryId: "fr", Share: 0.25},
+		},
+		Takes: []*scoringv1.RoundTakes{}, Players: []*scoringv1.Standing{},
+	}, s.round(day25.ID)), s.round(day25.ID))
 }
 
 func (s *testSuite) TestAScoredRoundShowsItsResultsAndTheBooksScoresBeforeAndAfterIt() {

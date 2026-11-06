@@ -15,7 +15,12 @@ type Books interface {
 
 type Rounds interface {
 	Find(ctx context.Context, id books.RoundID) (books.Round, bool, error)
-	Open(ctx context.Context, round books.Round) (bool, error)
+	Of(ctx context.Context, books []books.BookID) ([]books.Round, error)
+	Open(ctx context.Context, round books.Round, start books.Start) (bool, error)
+}
+
+type Territory interface {
+	Snapshot(ctx context.Context) (books.Snapshot, error)
 }
 
 var ErrBookNotOpen = errors.New("the round's book is not open")
@@ -27,13 +32,14 @@ type Command struct {
 	StartsAt time.Time
 }
 
-func New(books Books, rounds Rounds) *UseCase {
-	return &UseCase{books: books, rounds: rounds}
+func New(books Books, rounds Rounds, territory Territory) *UseCase {
+	return &UseCase{books: books, rounds: rounds, territory: territory}
 }
 
 type UseCase struct {
-	books  Books
-	rounds Rounds
+	books     Books
+	rounds    Rounds
+	territory Territory
 }
 
 // Execute answers whether it opened the round: one kept before is left as it is, and one whose book is not open is
@@ -53,9 +59,29 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	if !found || book.Closed {
 		return false, fmt.Errorf("%w: round %s: %w: %s", books.ErrRefused, command.Round, ErrBookNotOpen, command.Book)
 	}
-	opened, err := u.rounds.Open(ctx, round)
+	start, err := u.startOf(ctx, round)
+	if err != nil {
+		return false, err
+	}
+	opened, err := u.rounds.Open(ctx, round, start)
 	if err != nil {
 		return false, fmt.Errorf("failed to open round %s: %w", command.Round, err)
 	}
 	return opened, nil
+}
+
+// A book's first round counts from nothing: the map it opens on may be wiped just after.
+func (u *UseCase) startOf(ctx context.Context, round books.Round) (books.Start, error) {
+	before, err := u.rounds.Of(ctx, []books.BookID{round.Book})
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the rounds of book %s: %w", round.Book, err)
+	}
+	if len(before) == 0 {
+		return books.Start{}, nil
+	}
+	snapshot, err := u.territory.Snapshot(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the map to open round %s: %w", round.ID, err)
+	}
+	return books.Start(snapshot.Held), nil
 }

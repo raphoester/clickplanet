@@ -111,7 +111,7 @@ func (s *RoundsContractSuite) SetupTest() {
 
 func (s *RoundsContractSuite) open(rounds ...Round) {
 	for _, round := range rounds {
-		_, err := s.rounds.Open(s.T().Context(), round)
+		_, err := s.rounds.Open(s.T().Context(), round, Start{})
 		s.Require().NoError(err)
 	}
 }
@@ -140,9 +140,9 @@ func (s *RoundsContractSuite) TestARoundNeverOpenedIsNotFound() {
 }
 
 func (s *RoundsContractSuite) TestARoundOpenedIsFoundOpenAndOpeningItAgainChangesNothing() {
-	opened, err := s.rounds.Open(s.T().Context(), contractDay)
+	opened, err := s.rounds.Open(s.T().Context(), contractDay, Start{})
 	s.Require().NoError(err)
-	again, err := s.rounds.Open(s.T().Context(), Round{ID: contractDay.ID, Book: contractBook.ID, Times: 2, StartsAt: contractEnd})
+	again, err := s.rounds.Open(s.T().Context(), Round{ID: contractDay.ID, Book: contractBook.ID, Times: 2, StartsAt: contractEnd}, Start{})
 	s.Require().NoError(err)
 
 	s.True(opened)
@@ -150,6 +150,28 @@ func (s *RoundsContractSuite) TestARoundOpenedIsFoundOpenAndOpeningItAgainChange
 	round, found := s.find(contractDay.ID)
 	s.True(found)
 	s.Equal(contractDay, round)
+}
+
+func (s *RoundsContractSuite) startOf(id RoundID) Start {
+	start, err := s.rounds.StartOf(s.T().Context(), id)
+	s.Require().NoError(err)
+	return start
+}
+
+func (s *RoundsContractSuite) TestARoundKeepsWhatEachCountryHeldWhenItOpenedAndOpeningItAgainChangesNothing() {
+	_, err := s.rounds.Open(s.T().Context(), contractDay, Start{"fr": 30, "de": 12, "es": 0})
+	s.Require().NoError(err)
+	_, err = s.rounds.Open(s.T().Context(), contractDay, Start{"fr": 1})
+	s.Require().NoError(err)
+
+	s.Equal(Start{"fr": 30, "de": 12}, s.startOf(contractDay.ID), "a country that held nothing is not kept")
+}
+
+func (s *RoundsContractSuite) TestARoundOpenedFromNothingOrNeverOpenedHasAnEmptyStart() {
+	s.open(contractDay)
+
+	s.Empty(s.startOf(contractDay.ID))
+	s.Empty(s.startOf(contractBattle.ID))
 }
 
 func (s *RoundsContractSuite) TestARoundScoredKeepsItsEndAndResultsAndIsScoredOnce() {
@@ -169,9 +191,9 @@ func (s *RoundsContractSuite) TestARoundScoredKeepsItsEndAndResultsAndIsScoredOn
 
 func (s *RoundsContractSuite) TestABookListsTheRoundsItScoredInTheOrderTheyEnded() {
 	s.open(contractBattle, contractDay, contractNextDay)
-	battle := contractBattle.ScoredAt(contractEnd, Snapshot{Tiles: 10, Held: map[Country]uint32{"de": 4, "fr": 1}})
-	day := contractDay.ScoredAt(contractEnd.Add(-2*time.Hour), Snapshot{Tiles: 10, Held: map[Country]uint32{"fr": 3}})
-	none := contractNextDay.ScoredAt(contractNext.StartsAt.Add(24*time.Hour), Snapshot{Tiles: 10})
+	battle := contractBattle.ScoredAt(contractEnd, Start{}, Snapshot{Tiles: 10, Held: map[Country]uint32{"de": 4, "fr": 1}})
+	day := contractDay.ScoredAt(contractEnd.Add(-2*time.Hour), Start{}, Snapshot{Tiles: 10, Held: map[Country]uint32{"fr": 3}})
+	none := contractNextDay.ScoredAt(contractNext.StartsAt.Add(24*time.Hour), Start{}, Snapshot{Tiles: 10})
 	s.score(battle)
 	s.score(day)
 	s.score(none)
@@ -188,7 +210,7 @@ func (s *RoundsContractSuite) TestABookWithNoRoundScoredListsNone() {
 
 func (s *RoundsContractSuite) TestTheRoundsOfBooksAreListedTheFirstStartFirst() {
 	s.open(contractNextDay, contractBattle, contractDay)
-	scored := contractDay.ScoredAt(contractEnd.Add(-2*time.Hour), Snapshot{Tiles: 1})
+	scored := contractDay.ScoredAt(contractEnd.Add(-2*time.Hour), Start{}, Snapshot{Tiles: 1})
 	s.score(scored)
 
 	of, err := s.rounds.Of(s.T().Context(), []BookID{contractBook.ID})
@@ -235,7 +257,7 @@ func (s *TakesContractSuite) SetupTest() {
 	_, err := books.Open(s.T().Context(), contractBook)
 	s.Require().NoError(err)
 	for _, round := range []Round{contractDay, contractBattle} {
-		_, err := rounds.Open(s.T().Context(), round)
+		_, err := rounds.Open(s.T().Context(), round, Start{})
 		s.Require().NoError(err)
 	}
 }

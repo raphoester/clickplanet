@@ -7,7 +7,7 @@ clock, calendar, cutoff or rule set, and never names the gamemaster. **The gamem
 (see [The gamemaster](gamemaster.md)): it commands scoring over one command stream, and scoring tells what it scored as
 events. Missions grants points the same way, by a command, and scoring never learns the word mission. Planet never
 imports, calls or hears scoring: scoring asks planet what each country holds
-(`planet.v1.InternalService/GetTerritories`), when a round closes and for an open round's live standings.
+(`planet.v1.InternalService/GetTerritories`), when a round opens, when it closes and for an open round's live standings.
 
 Until 2026-10-28 scoring kept a calendar (seasons, daily cutoff), rule sets (`scoring.v1.PlayRuleSet`, a round of its
 own per entry), an operator `AdminService` and a runner that closed rounds on its own clock. All of it is gone: the
@@ -78,9 +78,13 @@ store's insert (`ON CONFLICT DO NOTHING`, which answers whether this call did it
 - **`OpenBook{book_id, starts_at}`**: a book kept is left as it is (its first start stays).
 - **`OpenRound{round_id, book_id, times, starts_at}`**: a round kept is left as it is. `times` is 1 to
   `books.MaxTimes` (10), or the command is refused. A round whose book is not open (never opened, or closed) is refused
-  (`open_round_usecase.ErrBookNotOpen`).
+  (`open_round_usecase.ErrBookNotOpen`). Else `open_round_usecase` reads the map (`GetTerritories`) and keeps what each
+  country holds then with the round, in one transaction: its **start** (`books.Start`, `round_starts`). A failure to
+  read the map opens nothing and is tried again. **A book's first round keeps no start and counts from nothing**: a
+  season after season 0 opens on a blank map, and the gamemaster tells planet to wipe it on another stream, so the
+  wipe can land after the round opened.
 - **`CloseRound{round_id, ends_at}`**: a round never opened, or scored, is not scored. Else `close_round_usecase` reads
-  the map once (`GetTerritories`), ranks it (`Round.Results`), keeps the results and records **`scoring.v1.RoundScored`**
+  the round's start and the map once (`GetTerritories`), ranks the gains (`Round.Results`), keeps the results and records **`scoring.v1.RoundScored`**
   (round, book, end, each country's rank, points and share) in the outbox, in one transaction. A failure to read the map
   scores nothing and is tried again. Nothing freezes the map: a round closed late is scored from the map as it is then.
 - **`CloseBook{book_id, ends_at, tiebreak_round_id}`**: a book never opened, or closed, is not ranked. Else
@@ -102,10 +106,14 @@ again changes nothing.
 
 ## The rules
 
-- **`Round.Results` ranks a round**: countries by the tiles held at its end, ties sharing a rank and its points, the top
-  10 scoring 25, 18, 15, 12, 10, 8, 6, 4, 2, 1, times the round's `times`. A win is worth the same at 1% as at 30%, so
-  an early lead cannot be banked. Until 2026-10-27 (season 0) a round was scored on each country's average share; those
-  rounds keep their results. `books.RankPointsOf(times)` is the same points for each rank before any round opens, and
+- **`Round.Results` ranks a round by net gain**: the countries that hold tiles at its end, by the tiles each holds then
+  minus what it held at the start, ties sharing a rank and its points. The top 10 score 25, 18, 15, 12, 10, 8, 6, 4, 2,
+  1, times the round's `times`, **and only a gain scores**: a country that kept its ground, or lost some, scores nothing
+  even in the top 10, so a round where nobody gained scores nobody. Holding ground pays nothing, so a peace pays
+  nothing; a win is worth the same at +100 tiles as at +10,000 (the owner, 2026-11-06, after Ireland won every day of
+  season 1 by holding the most). An empty start counts from nothing, so the gain is the tiles held at the end: that was
+  the rule from 2026-10-27 to 2026-11-06, and a round opened before starts were kept is still scored by it. Until
+  2026-10-27 (season 0) a round was scored on each country's average share. Scored rounds keep their results. `books.RankPointsOf(times)` is the same points for each rank before any round opens, and
   a test runs a ×3 round through both.
 - **`books.TableOf` ranks a book**: points, then rounds won, then the points of its tiebreak round (`ScoresOf`; none
   while the book is open, or when the close named none). Countries level on all three share the rank.
@@ -186,7 +194,8 @@ player anything.
 
 `players` (`account_id`), `departures` (`account_id`, `leaving`, `decided_at`), `books` (`book_id`, `starts_at`), `closed_books` (`ended_at`), `book_tiebreaks` (`round_id`: a book closed with no
 tiebreak has no row), `grants` (`grant_id`, `country`, `points`, `granted_at`, by `granted_at`), `rounds` (`round_id`,
-`book_id`, `times`, `starts_at`, `counted_takes_below`, `counted_takes_below_index`), `scored_rounds`
+`book_id`, `times`, `starts_at`, `counted_takes_below`, `counted_takes_below_index`), `round_starts` (`round_id`,
+`country`, `tiles`: a country that held nothing has no row, and a round opened from nothing none), `scored_rounds`
 (`ended_at`), `round_results` (`rank`, `points`, `share`), `round_takes`, `round_players`, and the outbox
 (`outbox_event`: `scoring.v1.RoundScored`, `scoring.v1.BookClosed`). An end is a table of its own, not a nullable
 column: an open book or round has none. The rules stay in Go; SQL keeps what they said.
@@ -217,7 +226,8 @@ id that is not one is `InvalidArgument`.
   the ranks of a guest or an account asked deleted. Behind
   `NewSessionInterceptor`, always enforcing, on the identity token (`scoring_session_checks{verdict}`).
 - **`GetRound(round_id)`** (`round_query`), on the public and the internal listener: NotFound for a round never opened.
-  While open: each country's share of the map now and the points it would score (`Round.Results`). Once scored: its
+  While open: each country's share of the map now and the points it would score (`Round.Results`, against the
+  round's start in `round_starts`). Once scored: its
   results (the countries that scored), its end, and the book's scores before and after it (`scores_query.Around`:
   rounds ended before it, and through it; both with the grants made before its end, so they differ by the round
   alone). Always: the tiles each flag took during it (most first) and its top 10

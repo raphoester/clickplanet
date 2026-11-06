@@ -28,7 +28,7 @@ func subscriber(t *testing.T) (round_take_subscriber.Subscriber, *inmemory_round
 	shelf, store := inmemory_book_store.New(), inmemory_round_store.New()
 	_, err := shelf.Open(t.Context(), books.NewBook("season-0", time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)))
 	require.NoError(t, err)
-	_, err = store.Open(t.Context(), battle)
+	_, err = store.Open(t.Context(), battle, books.Start{})
 	require.NoError(t, err)
 	return round_take_subscriber.New(count_take_usecase.New(shelf, store, store)), store
 }
