@@ -73,7 +73,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - **Every game rule is the rule set's, kept in postgres** (`planet.rule_sets`), not a key here: the refill, the bank
   and the scope multipliers, the toll, the boxes, the charges, the welcome and the quizzes. See [Rules](rules.md)
 - `rateLimiter.sweepInterval` — how often the click limiter forgets a bucket that is full (1m)
-- `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](vpn-blocklist.md)); disabled parses nothing and allocates nothing
+- `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal of a click and of a chat post or reaction (see [VPN blocklist](vpn-blocklist.md)); a block of the root `Config` beside `planet.Config`, read by `main`, which builds one list for both modules; disabled parses nothing and allocates nothing
 - `bonus.forgetAfter`, `bonus.sweepInterval` — how long a caller with no stream open is remembered (5m), and how often
   the boxes and the quizzes are swept (1s)
 - `antiBot` — the antibot module's block (`antibot.Config`, beside `planet.Config` in `cmd/api`). It holds the machine only: **every bound the antibot judges with is a rule set in postgres**, edited from the backoffice (see [The antibot's rules](antibot-rules.md)). A rule left in the file is read by nothing, and `TestEveryAntibotKeyIsOneTheConfigReads` refuses it

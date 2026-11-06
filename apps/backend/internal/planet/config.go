@@ -9,7 +9,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -20,7 +19,6 @@ type Config struct {
 	GameMap      GameMapConfig
 	TilesStorage inmemory_tile_storage.Config
 	RateLimiter  RateLimiterConfig
-	VPNBlocklist cpipblock.Config
 	Bonus        bonuses.Config
 
 	Ledger        ledger.Config

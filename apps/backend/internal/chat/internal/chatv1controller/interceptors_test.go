@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/prometheus/client_golang/prometheus"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
@@ -168,6 +169,110 @@ func TestBlocklistInterceptor(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ran)
 	})
+}
+
+type fakeBlocklist struct {
+	blocked map[string]cpipblock.List
+	asked   []string
+}
+
+func (b *fakeBlocklist) Blocked(ip string) (cpipblock.List, bool) {
+	b.asked = append(b.asked, ip)
+	list, ok := b.blocked[ip]
+	return list, ok
+}
+
+func TestVPNBlockInterceptor(t *testing.T) {
+	t.Run("refuses a post and a reaction from a listed address, and counts them by list", func(t *testing.T) {
+		registry := prometheus.NewRegistry()
+		interceptor := NewVPNBlockInterceptor(
+			&fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListWARP}}, registry)
+		ctx := cpctx.AddIPToContext(t.Context(), "1.2.3.4")
+
+		for _, procedure := range []string{
+			chatv1connect.ChatServiceSendMessageProcedure,
+			chatv1connect.ChatServiceReactProcedure,
+		} {
+			ran, err := run(ctx, interceptor, procedure)
+
+			require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err), procedure)
+			require.ErrorIs(t, err, ErrSenderBlocked, "the operator's blocklist's answer: no list is named")
+			require.False(t, ran, "a refused post or reaction must not reach the domain")
+		}
+
+		require.InDelta(t, 2.0, blockedChat(t, registry, "warp"), 1e-9)
+	})
+
+	t.Run("leaves reading the chat alone", func(t *testing.T) {
+		blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListVPN}}
+		ctx := cpctx.AddIPToContext(t.Context(), "1.2.3.4")
+
+		for _, procedure := range []string{
+			chatv1connect.ChatServiceGetHistoryProcedure,
+			chatv1connect.ChatServiceListenForEventsProcedure,
+			chatv1connect.ChatServiceMarkSeenProcedure,
+		} {
+			ran, err := run(ctx, NewVPNBlockInterceptor(blocklist, prometheus.NewRegistry()), procedure)
+
+			require.NoError(t, err, "a VPN user still reads the chat")
+			require.True(t, ran)
+		}
+
+		require.Empty(t, blocklist.asked, "a read is never even offered to the lists")
+	})
+
+	t.Run("lets an address on no list through", func(t *testing.T) {
+		blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListVPN}}
+		ctx := cpctx.AddIPToContext(t.Context(), "5.6.7.8")
+
+		ran, err := run(ctx, NewVPNBlockInterceptor(blocklist, prometheus.NewRegistry()),
+			chatv1connect.ChatServiceSendMessageProcedure)
+
+		require.NoError(t, err)
+		require.True(t, ran)
+	})
+
+	t.Run("an unresolved address is passed through", func(t *testing.T) {
+		blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"": cpipblock.ListVPN}}
+
+		ran, err := run(t.Context(), NewVPNBlockInterceptor(blocklist, prometheus.NewRegistry()),
+			chatv1connect.ChatServiceReactProcedure)
+
+		require.NoError(t, err)
+		require.True(t, ran)
+	})
+
+	t.Run("the lists turned off refuse nobody", func(t *testing.T) {
+		ctx := cpctx.AddIPToContext(t.Context(), "2a09:bac5:d594:2682::1")
+
+		ran, err := run(ctx, NewVPNBlockInterceptor(cpipblock.New(cpipblock.Config{}), prometheus.NewRegistry()),
+			chatv1connect.ChatServiceSendMessageProcedure)
+
+		require.NoError(t, err)
+		require.True(t, ran)
+	})
+}
+
+func blockedChat(t *testing.T, gatherer prometheus.Gatherer, list string) float64 {
+	t.Helper()
+
+	families, err := gatherer.Gather()
+	require.NoError(t, err)
+
+	for _, family := range families {
+		if family.GetName() != "blocked_chat" {
+			continue
+		}
+		for _, metric := range family.GetMetric() {
+			for _, label := range metric.GetLabel() {
+				if label.GetName() == "list" && label.GetValue() == list {
+					return metric.GetCounter().GetValue()
+				}
+			}
+		}
+	}
+
+	return 0
 }
 
 func TestABareAddressIsRejectedAtStartup(t *testing.T) {

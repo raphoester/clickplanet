@@ -33,6 +33,7 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 5*time.Minute, config.Planet.Bonus.ForgetAfter)
 	assert.Equal(t, time.Second, config.Planet.Bonus.SweepInterval)
 	assert.Equal(t, time.Minute, config.Planet.RateLimiter.SweepInterval)
+	assert.True(t, config.VPNBlocklist.Enabled)
 
 	assert.False(t, config.Auth.Connector.Enabled, "the example connects nothing")
 	assert.False(t, config.MCP.Enabled, "the example connects nothing")
@@ -516,6 +517,14 @@ func TestTheProductionAlertsAreWhole(t *testing.T) {
 	assert.True(t, config.Auth.Discord.JoinServer, "a Discord sign-in joins the server")
 	assert.Equal(t, "1310907949106860032", config.Alerts.Discord.GuildID, "an id, not a number YAML rounded")
 	require.NoError(t, config.Alerts.Validate())
+}
+
+// The block left the planet's for the root, under the same key: the chat refuses from it too.
+func TestTheProductionConfigStillTurnsTheVPNListsOn(t *testing.T) {
+	config := productionConfig(t)
+
+	assert.True(t, config.VPNBlocklist.Enabled)
+	assert.True(t, config.VPNBlocklist.IncludeDatacenters)
 }
 
 func TestTheAntibotKeepsItsKeysOutsideThePlanetsBlock(t *testing.T) {

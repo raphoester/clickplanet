@@ -94,17 +94,18 @@ import (
 
 const moduleName = "chat"
 
-func NewModule(config Config) cpbootstrap.Module {
+// vpn is the vendored VPN lists, the one copy the planet refuses a click from: here it refuses a post and a reaction.
+func NewModule(config Config, vpn *cpipblock.Blocklist) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
 		Enabled: true,
 		DiSequence: func(ctx context.Context, props cpbootstrap.Props) error {
-			return build(ctx, config, props)
+			return build(ctx, config, vpn, props)
 		},
 	}
 }
 
-func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
+func build(ctx context.Context, config Config, vpn *cpipblock.Blocklist, props cpbootstrap.Props) error {
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
 		return fmt.Errorf("the chat asks the player module who posts, scoring who won and planet who plays for a flag: %w",
@@ -248,6 +249,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to build the chat blocklist: %w", err)
 	}
 
+	if err := vpn.Load(); err != nil {
+		return fmt.Errorf("failed to load the vpn blocklist: %w", err)
+	}
+
 	chatService := chatv1controller.ChatService{
 		SendMessageHandler: send_message_handler.New(muting_send_message.New(publishing_send_message.New(send_message_usecase.New(
 			messageStore, updates, authors, drafts, thread), streams), muteBook)),
@@ -265,6 +270,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return chatv1connect.NewChatServiceHandler(chatService, options...)
 	},
 		chatv1controller.NewBlocklistInterceptor(blocklist),
+		chatv1controller.NewVPNBlockInterceptor(vpn, props.Metrics),
 		chatv1controller.NewRateLimitInterceptor(messageLimiter),
 		chatv1controller.NewReactionRateLimitInterceptor(reactionLimiter),
 		chatv1controller.NewSeenRateLimitInterceptor(seenLimiter),

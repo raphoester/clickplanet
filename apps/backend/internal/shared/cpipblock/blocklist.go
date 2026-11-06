@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock/cpdata"
 )
@@ -27,6 +28,8 @@ const (
 
 type Blocklist struct {
 	config Config
+	loaded sync.Once
+	err    error
 	allow  *Set
 	sets   []namedSet
 }
@@ -44,11 +47,19 @@ func New(config Config) *Blocklist {
 	return &Blocklist{config: config}
 }
 
+// Load parses the lists on its first call and answers that call's result after it: the planet and the chat share one
+// blocklist, and each loads it in its own DI sequence, in whichever order the modules are built.
 func (b *Blocklist) Load() error {
 	if b == nil {
 		return nil
 	}
 
+	b.loaded.Do(func() { b.err = b.parse() })
+
+	return b.err
+}
+
+func (b *Blocklist) parse() error {
 	allow, err := Parse(readerOf(b.config.Allow))
 	if err != nil {
 		return fmt.Errorf("failed to parse allowlist: %w", err)

@@ -32,6 +32,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -105,6 +106,9 @@ func startGame(t *testing.T) gameStack {
 	chatConfig.RateLimiter.PerSecond = 100
 	chatConfig.RateLimiter.Burst = 100
 
+	// The stack plays from loopback, on no list; the planet's and the chat's refusals are pinned in their controllers.
+	noVPNList := cpipblock.New(cpipblock.Config{})
+
 	bucket := startBucket(t)
 	supportConfig := support.Config{Database: postgres.ConfigFor("support"), Redis: redis}
 	supportConfig.Attachments.Enabled = true
@@ -132,9 +136,9 @@ func startGame(t *testing.T) gameStack {
 			Server: server,
 			Logger: logger,
 			Modules: []cpbootstrap.Module{
-				authModule, planet.NewModule(planetConfig), antibot.NewModule(antibotConfig), player.NewModule(playerConfig),
-				progression.NewModule(progressionConfig),
-				chat.NewModule(chatConfig), scoring.NewModule(scoringConfig), support.NewModule(supportConfig),
+				authModule, planet.NewModule(planetConfig, noVPNList), antibot.NewModule(antibotConfig),
+				player.NewModule(playerConfig), progression.NewModule(progressionConfig),
+				chat.NewModule(chatConfig, noVPNList), scoring.NewModule(scoringConfig), support.NewModule(supportConfig),
 				missions.NewModule(missionsConfig), gamemaster.NewModule(gamemasterConfig), promo.NewModule(promoConfig),
 				mcp.NewModule(mcp.Config{Enabled: true, URL: "http://" + server.AdminBindAddress + "/mcp"}),
 			},

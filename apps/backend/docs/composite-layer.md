@@ -1,6 +1,6 @@
 # The composite layer
 
-Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/auth/module.go`, `internal/player/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
+Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/auth/module.go`, `internal/player/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct, and the one thing handed down from `main` is the vendored VPN lists the planet and the chat share (see [What two contexts need](#what-two-contexts-need-without-either-handing-it-to-the-other)). A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
 
 - `props.RPC.Mount(build, interceptors...)` — the module hands over what *builds* the handler, plus the interceptors it wants. `cpbootstrap` builds it, so it can put its own interceptor outside every module's — see [The error net](error-net.md)
 - `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served on the loopback console listener, and on the admin listener behind `Options.AdminGate` — see [Operator tools](admin.md)
@@ -14,22 +14,24 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 - `props.Logger`, `props.Metrics`
 - `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
 
-**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `cpipblock.New` then `Load`, `guard.New` then `Load` (the antibot's evidence), `inmemory_ledger_storage.New` then `Load`.
+**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `cpipblock.New` (in `main`, for the VPN lists two modules share) then `Load` in each of them, `guard.New` then `Load` (the antibot's evidence), `inmemory_ledger_storage.New` then `Load`.
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
 **Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the console, admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. A module closes its own Redis client and pool once its runners returned. The first step is the drain interceptor — see [Ending the streams on shutdown](live-streams.md#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger and the antibot's evidence all flush from their runners, after the closers, once the server has stopped taking writes. The antibot's flushes once its subscribers handled their last facts (`Guard.Hearing`).
 
-**`cmd/api/main.go` is the composition root, and the server's only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does three things: load the config, build the admin gate (`auth.NewAdminGate`, see [Operator tools](admin.md)), and list the modules. It builds no other object, derives nothing, and reads inside no block.
+**`cmd/api/main.go` is the composition root, and the server's only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does three things: load the config, build the admin gate (`auth.NewAdminGate`, see [Operator tools](admin.md)), and list the modules, with the one VPN list two of them share. It builds no other object, derives nothing, and reads inside no block.
 
-**The aggregation is the whole of it — a flat slice, no branches, no dependencies threaded through:**
+**The aggregation is the whole of it — a flat slice, no branches, and one dependency threaded through, the VPN lists:**
 
 ```go
+vpn := cpipblock.New(config.VPNBlocklist)
+
 return []bootstrap.Module{
 	auth.NewModule(config.Auth),
-	planet.NewModule(config.Planet),
+	planet.NewModule(config.Planet, vpn),
 	antibot.NewModule(config.AntiBot),
-	chat.NewModule(config.Chat),
+	chat.NewModule(config.Chat, vpn),
 	player.NewModule(config.Player),
 	progression.NewModule(config.Progression),
 	scoring.NewModule(config.Scoring),
@@ -45,13 +47,14 @@ return []bootstrap.Module{
 
 ## What two contexts need, without either handing it to the other
 
-`main` builds no objects at all, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
+`main` builds no object but the VPN lists below, so a thing two contexts need is **a config block they both declare**, and each builds its own instance from it.
 
 - **`shared/cpsession`** is the click token. The `auth:` block is read by two contexts, but they share no key and no type: `cpsession.SignerConfig` carries the Ed25519 seed and only `auth.Config` declares it, while `planet.Config` declares `cpsession.VerifierConfig`, which is two switches and **no key at all**. `auth` builds a `*Signer`, `planet` a `*Verifier`, **which has no `Mint` on it**. Under the old shared `Config` both built a `*Signer` off one HMAC secret, so `planet` held a live minting object and nothing but discipline stopped it using it.
 
   **The process asks `auth` for the key** over the internal listener, rather than reading one: `cpbootstrap` builds one `cpsessionverifier` and hands it to every module (`props.Sessions`) — see [Calling another module](#calling-another-module) and [Sessions](sessions.md). So there is one key in the whole file, `auth.secret`, nothing derived for a human to paste, and nothing to keep in step with it.
 
   Neither module imports the other's packages, and **the planet context knows nothing about Turnstile** — the siteverify client lives at `auth/internal/attestation/turnstile`, so it *cannot* reach it.
+- **`shared/cpipblock`'s vendored VPN lists are the one exception**: the planet refuses a click from them and the chat a post or a reaction, from **one instance**, ~2 MB once parsed. A block both declared would parse and keep two copies, and the chat's, under `chat:`, could drift from the planet's allowlist. So `describeModules` builds one `*cpipblock.Blocklist` from the root `vpnBlocklist` block (a constructor that parses nothing) and hands it to `planet.NewModule` and `chat.NewModule`. Each loads it in its DI sequence, in whichever order they are built: `Load` parses on its first call and answers that call's result after, so the second module is handed a list that is never half-built. `TestThePlanetAndTheChatRefuseFromOneVPNList` pins that both get it and that neither builds one of its own. See [VPN blocklist](vpn-blocklist.md).
 - **`shared/cpcountries`** is the ISO list. It is stateless and hardcoded, so each module just calls `cpcountries.New()`, the way it calls `cptime.SystemClock{}`. It sits in `shared` and not under `planet/internal/clicks/` for exactly the reason that layer exists: neither context may depend on the other — and now could not, since that directory is unreachable from chat.
 
 **This is why `auth.secret` is now required** rather than invented at boot — see [Sessions](sessions.md).

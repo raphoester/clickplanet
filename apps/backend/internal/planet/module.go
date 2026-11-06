@@ -163,7 +163,8 @@ const (
 	factsRelayInterval  = 100 * time.Millisecond
 )
 
-func NewModule(config Config) cpbootstrap.Module {
+// vpn is the process's one copy of the vendored VPN lists, which the chat refuses from too: see cmd/api.
+func NewModule(config Config, vpn *cpipblock.Blocklist) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
 		Enabled: true,
@@ -396,18 +397,17 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to mount planet.v1.InternalService: %w", err)
 			}
 
-			blocklist := cpipblock.New(config.VPNBlocklist)
-			if err := blocklist.Load(); err != nil {
+			if err := vpn.Load(); err != nil {
 				return fmt.Errorf("failed to load the vpn blocklist: %w", err)
 			}
 
-			if sizes := blocklist.Sizes(); len(sizes) > 0 {
+			if sizes := vpn.Sizes(); len(sizes) > 0 {
 				props.Logger.Info("vpn blocklist enabled", slog.Any("ranges", sizes))
 			}
 
 			interceptors := []connect.Interceptor{
 				planetv1controller.NewCacheInterceptor(tilesStorage),
-				planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics),
+				planetv1controller.NewVPNBlockInterceptor(vpn, props.Metrics),
 				planetv1controller.NewFreezeInterceptor(freeze),
 			}
 

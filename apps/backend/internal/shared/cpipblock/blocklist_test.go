@@ -87,6 +87,16 @@ func TestWARPListBlocksCloudflareWARP(t *testing.T) {
 	}
 }
 
+// The raid of November 6, 2026 posted slurs in the chat from this /64.
+func TestWARPListBlocksTheRaidOfNovember6(t *testing.T) {
+	blocklist := cpipblock.New(cpipblock.Config{Enabled: true})
+	require.NoError(t, blocklist.Load())
+
+	list, blocked := blocklist.Blocked("2a09:bac5:d594:2682::1")
+	require.True(t, blocked)
+	require.Equal(t, cpipblock.ListWARP, list)
+}
+
 func TestWARPListSparesPrivateRelay(t *testing.T) {
 	warp, err := cpipblock.Parse(bytes.NewReader(cpdata.CloudflareWARP))
 	require.NoError(t, err)

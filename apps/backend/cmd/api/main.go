@@ -22,6 +22,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support"
 )
 
@@ -29,6 +30,9 @@ type Config struct {
 	HTTPServer cpbootstrap.ServerConfig
 
 	Planet planet.Config `koanf:",squash"`
+
+	// The vendored VPN lists: the planet refuses a click from them, the chat a post and a reaction.
+	VPNBlocklist cpipblock.Config
 
 	Auth        auth.Config
 	AntiBot     antibot.Config
@@ -79,11 +83,14 @@ func run(ctx context.Context) error {
 }
 
 func describeModules(config Config) []cpbootstrap.Module {
+	// One copy for the two modules that refuse from it, ~2 MB parsed: each loads it, and the first load parses it.
+	vpn := cpipblock.New(config.VPNBlocklist)
+
 	return []cpbootstrap.Module{
 		auth.NewModule(config.Auth),
-		planet.NewModule(config.Planet),
+		planet.NewModule(config.Planet, vpn),
 		antibot.NewModule(config.AntiBot),
-		chat.NewModule(config.Chat),
+		chat.NewModule(config.Chat, vpn),
 		player.NewModule(config.Player),
 		progression.NewModule(config.Progression),
 		scoring.NewModule(config.Scoring),

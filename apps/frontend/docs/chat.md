@@ -141,7 +141,10 @@ and the advice is one line:
 
 - `resource_exhausted` → `ChatRateLimitedError`, chat's own bucket (one message
   every 3s), unrelated to the click bucket
-- `permission_denied` → `ChatBlockedError`, the address is in `chat.blockedIPs`
+- `permission_denied` → `ChatBlockedError`, the address is in `chat.blockedIPs`, or, for a post or a reaction,
+  on the backend's vendored VPN lists, the planet's own (see the backend's
+  [VPN blocklist](../../backend/docs/vpn-blocklist.md)). The server answers both alike, so the line is the same:
+  "This connection is not allowed to post." A blocked reaction is undone, with no line
 - `permission_denied` with a `MuteRefusal` detail → `ChatMutedError`, an operator
   muted the account or its network; the composer says until when (the time, or
   the date and time past 20 hours). A muted reaction is undone and says the same.
