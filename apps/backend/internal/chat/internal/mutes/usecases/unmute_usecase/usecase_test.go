@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/moderation"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/moderation/inmemory_moderation_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/inmemory_mute_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/unmute_usecase"
@@ -25,16 +27,19 @@ var (
 	bully    = messages.AccountID{15: 1}
 	newGuest = messages.AccountID{15: 2}
 	home     = mutes.Scope("2a01:e0a:1:2::/64")
+	operator = moderation.OperatorOf(messages.AccountID{15: 9}, "")
 )
 
 type testSuite struct {
 	suite.Suite
 
-	mutes *inmemory_mute_storage.Storage
+	mutes   *inmemory_mute_storage.Storage
+	history *inmemory_moderation_storage.Storage
 }
 
 func (s *testSuite) SetupTest() {
 	s.mutes = inmemory_mute_storage.New()
+	s.history = inmemory_moderation_storage.New()
 }
 
 func (s *testSuite) kept(id byte, account messages.AccountID, scope mutes.Scope, at time.Time, duration time.Duration) mutes.Mute {
@@ -48,8 +53,40 @@ func (s *testSuite) unmute(store unmute_usecase.Store, account messages.AccountI
 }
 
 func (s *testSuite) unmuteOf(store unmute_usecase.Store, account messages.AccountID, kind mutes.Kind) (time.Time, error) {
-	return unmute_usecase.New(cpatomic.FakeTransactioner{}, store, cptime.NewFixedClock(now)).
-		Execute(context.Background(), account, kind)
+	return unmute_usecase.New(cpatomic.FakeTransactioner{}, store, s.history, cptime.NewFixedClock(now)).
+		Execute(context.Background(), unmute_usecase.In{Account: account, Kind: kind, Reason: "served", By: operator})
+}
+
+func (s *testSuite) TestAnUnmuteIsRecordedWithItsReasonAndWhoGaveIt() {
+	s.kept(1, bully, home, now.Add(-time.Minute), time.Hour)
+
+	_, err := s.unmuteOf(s.mutes, bully, mutes.Chat)
+	s.Require().NoError(err)
+
+	s.Equal([]moderation.Snapshot{{
+		Account: bully, At: now, Kind: moderation.Unmuted, MuteKind: mutes.Chat, Reason: "served", By: operator,
+	}}, s.history.Kept(), "one action, however many mutes it lifts")
+}
+
+func (s *testSuite) TestAnInvalidReasonIsRefusedAndNothingIsLifted() {
+	running := s.kept(1, bully, home, now.Add(-time.Minute), time.Hour)
+
+	_, err := unmute_usecase.New(cpatomic.FakeTransactioner{}, s.mutes, s.history, cptime.NewFixedClock(now)).
+		Execute(context.Background(), unmute_usecase.In{Account: bully, Reason: string([]byte{0xff})})
+
+	s.Require().ErrorIs(err, moderation.ErrInvalidReason)
+	s.Equal([]mutes.Mute{running}, s.mutes.Kept())
+	s.Empty(s.history.Kept())
+}
+
+func (s *testSuite) TestAnUnmuteTheHistoryCannotRecordFails() {
+	s.kept(1, bully, home, now.Add(-time.Minute), time.Hour)
+	s.history.FailWith(errors.New("postgres is down"))
+
+	_, err := s.unmute(s.mutes, bully)
+
+	s.Require().Error(err, "the transaction keeps neither")
+	s.NotErrorIs(err, mutes.ErrNotMuted)
 }
 
 func (s *testSuite) TestEveryRunningMuteOfTheAccountEndsNowWithItsNetwork() {
@@ -100,6 +137,7 @@ func (s *testSuite) TestAnAccountWithNoRunningMuteIsNotMuted() {
 
 	s.Require().ErrorIs(err, mutes.ErrNotMuted)
 	s.Contains(s.mutes.Kept(), ended)
+	s.Empty(s.history.Kept(), "an unmute that lifts nothing is no action")
 }
 
 func (s *testSuite) TestNoAccountIsRefused() {

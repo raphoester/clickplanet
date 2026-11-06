@@ -28,7 +28,8 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [Acting on a report](docs/reports.md) — the Reports inbox: the list with what was said, one report, one verdict that
   acts and closes it, then the next.
 - [The player page](docs/player-page.md) — one search box, a sortable table, and one player: where it stands, every
-  tool on it.
+  tool on it (a reason with each mute, unmute and rename), and its moderation history: what Claude and the operator did,
+  and why.
 - [The map tools](docs/map-tools.md) — reassign a country, paint random tiles, download a replay.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of the posted clips, and a CSV of them.
 - [Videos](docs/videos.md) — the season-end videos: uploaded from the Mac, downloaded with their caption on a phone.

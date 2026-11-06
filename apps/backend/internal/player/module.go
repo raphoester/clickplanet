@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -47,6 +48,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/inprocess_rename_rule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/introduce_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/leave_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/list_renames_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/list_renames_handler/renames_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rename_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_handler"
@@ -58,6 +61,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/forget_visit_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/move_visit_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames/postgres_rename_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames/usecases/prune_renames_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames/usecases/prune_renames_usecase/log_prune"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/deletion_requested_account_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/deletion_requested_subscriber"
@@ -127,7 +133,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	store := postgres_player_store.New(db)
+	renameStore := postgres_rename_store.New(db)
 	outbox := cpoutbox.New(db)
+	retention := config.withDefaults()
 
 	accounts := rpc_account_reader.New(auth)
 	departureStore := postgres_departure_store.New(db)
@@ -141,7 +149,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// Not player-accounts any more: a new group reads every AccountDeleted still in the stream, and tells each one
 	// forgotten again, for the modules that heard AccountDeleted until 2026-11-04 (see docs/player.md).
 	deletions, err := cpredis.Subscribe(ctx, streams, "player-profiles-accounts",
-		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(db, store, outbox)), props.Logger))
+		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(db, store, renameStore, outbox)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
@@ -207,7 +215,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe the roster to auth.v1.AccountDeletionRequested: %w", err)
 	}
 	// Not closers: closers run before the runners stop, and the runners use both.
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
+	prune := prune_renames_usecase.NewRunner(retention.PruneInterval, log_prune.New(
+		prune_renames_usecase.New(retention.RenameRetention, clock, renameStore), props.Logger))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune, cpredis.CloseAfter(streams, props.Logger,
 		deletions, requests, restores, forgottenDepartures, signIns, namings, told, signOuts, gone, leaving,
 		cpoutbox.NewRelay("player-outbox", db, streams, props.Logger))))
 
@@ -252,8 +262,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetRosterHandler:      getRoster,
 		SearchPlayersHandler:  search_players_handler.New(matches_query.NewPostgresQuery(db)),
 		RenamePlayerHandler: rename_player_handler.New(
-			audit_rename_player.New(rename_player_usecase.New(db, store, outbox, clock), props.Logger),
+			audit_rename_player.New(rename_player_usecase.New(db, store, renameStore, outbox, clock), props.Logger),
 		),
+		ListRenamesHandler: list_renames_handler.New(renames_query.NewPostgresQuery(db)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewAdminServiceHandler(adminService, options...)
@@ -271,6 +282,25 @@ type Config struct {
 	Redis    cpredis.Config
 
 	TagSalt string
+
+	// How long an operator's rename is kept (ListRenames), and how often the older ones are deleted.
+	RenameRetention time.Duration
+	PruneInterval   time.Duration
+}
+
+const (
+	defaultRenameRetention = 90 * 24 * time.Hour
+	defaultPruneInterval   = time.Hour
+)
+
+func (c Config) withDefaults() Config {
+	if c.RenameRetention <= 0 {
+		c.RenameRetention = defaultRenameRetention
+	}
+	if c.PruneInterval <= 0 {
+		c.PruneInterval = defaultPruneInterval
+	}
+	return c
 }
 
 func (c Config) Validate() error {

@@ -133,9 +133,23 @@ func (s *testSuite) TestARemovedMessageIsNeitherShownNorReadAndIsStillKept() {
 	_, err := s.store.Message(ctx, "id-insult", start, 10)
 	s.Require().ErrorIs(err, messages.ErrNotShown, "nobody answers or reacts to a removed message")
 
-	kept, err := s.store.Kept(ctx, "id-insult", start)
+	kept, err := s.store.KeptMessage(ctx, "id-insult", start)
+	s.Require().NoError(err, "the row stays, as evidence")
+	s.Equal(insult.TakeSnapshot().Text, kept.TakeSnapshot().Text)
+	s.Equal(insult.TakeSnapshot().Account, kept.TakeSnapshot().Account)
+}
+
+func (s *testSuite) TestAKeptGifIsReadWithItsAddress() {
+	gif := messages.Gif{URL: "https://static.klipy.com/ii/935d7ab9/14/af/SE72470w.webp", Width: 220, Height: 124}
+	sent := messages.Restored(s.T(), messages.Snapshot{
+		ID: "id-gif", SentAt: start, Account: messages.AccountID{15: 1}, Room: messages.World, Country: "fr", Gif: gif,
+	})
+	s.keep(sent)
+
+	kept, err := s.store.KeptMessage(context.Background(), "id-gif", start)
 	s.Require().NoError(err)
-	s.True(kept, "the row stays, as evidence")
+	s.Equal(gif, kept.TakeSnapshot().Gif)
+	s.Empty(kept.TakeSnapshot().Text)
 }
 
 func (s *testSuite) TestARemovedMessageKeepsItsPlaceInTheWindow() {
@@ -157,8 +171,7 @@ func (s *testSuite) TestAMessageIsKeptOnlyInsideTheRetention() {
 		"id-old":     start.Add(time.Second),
 		"id-unknown": start,
 	} {
-		kept, err := s.store.Kept(ctx, id, since)
-		s.Require().NoError(err)
-		s.False(kept, id)
+		_, err := s.store.KeptMessage(ctx, id, since)
+		s.Require().ErrorIs(err, messages.ErrNotKept, id)
 	}
 }

@@ -13,6 +13,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames/inmemory_rename_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
@@ -23,7 +25,7 @@ func TestTheProfileIsForgottenAndTheOtherModulesAreTold(t *testing.T) {
 		require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(account, name, time.Now())))
 	}
 
-	require.NoError(t, forget_account_usecase.New(cpatomic.FakeTransactioner{}, store, outbox).Execute(t.Context(), gone))
+	require.NoError(t, forget_account_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), outbox).Execute(t.Context(), gone))
 
 	_, err := store.Profile(t.Context(), gone)
 	require.ErrorIs(t, err, players.ErrNoProfile)
@@ -36,7 +38,7 @@ func TestTheProfileIsForgottenAndTheOtherModulesAreTold(t *testing.T) {
 func TestAnAccountPlayerNeverKnewIsToldForgottenToo(t *testing.T) {
 	outbox := &cpatomic.FakeOutbox{}
 
-	require.NoError(t, forget_account_usecase.New(cpatomic.FakeTransactioner{}, inmemory_player_store.New(), outbox).
+	require.NoError(t, forget_account_usecase.New(cpatomic.FakeTransactioner{}, inmemory_player_store.New(), inmemory_rename_store.New(), outbox).
 		Execute(t.Context(), players.AccountID{15: 3}))
 
 	require.Len(t, outbox.Recorded(), 1, "another module may keep its stats")
@@ -46,6 +48,25 @@ func TestAStoreFailureIsAnErrorAndTellsNothing(t *testing.T) {
 	store, outbox := inmemory_player_store.New(), &cpatomic.FakeOutbox{}
 	store.FailWith(errors.New("postgres is down"))
 
-	require.Error(t, forget_account_usecase.New(cpatomic.FakeTransactioner{}, store, outbox).Execute(t.Context(), players.AccountID{15: 1}))
+	require.Error(t, forget_account_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), outbox).Execute(t.Context(), players.AccountID{15: 1}))
 	assert.Empty(t, outbox.Recorded())
+}
+
+func TestTheAccountsRenamesAreForgottenWithItAndAnOperatorIsTakenOffItsOwn(t *testing.T) {
+	store, history := inmemory_player_store.New(), inmemory_rename_store.New()
+	gone, kept, operator := players.AccountID{15: 1}, players.AccountID{15: 2}, players.AccountID{15: 9}
+	by := renames.OperatorOf(operator, "Claude")
+	for _, account := range []players.AccountID{gone, kept} {
+		before := players.ProfileSnapshot{Account: account, Name: "Hitler88"}.Restore()
+		after := players.ProfileSnapshot{Account: account, Name: "Player42"}.Restore()
+		require.NoError(t, history.Record(t.Context(), renames.NewRename(before, after, time.Now(), "a Nazi name", by)))
+	}
+
+	forget := forget_account_usecase.New(cpatomic.FakeTransactioner{}, store, history, &cpatomic.FakeOutbox{})
+	require.NoError(t, forget.Execute(t.Context(), gone))
+	require.NoError(t, forget.Execute(t.Context(), operator))
+
+	require.Len(t, history.Kept(), 1)
+	assert.Equal(t, kept, history.Kept()[0].Account)
+	assert.Equal(t, renames.OperatorOf(players.AccountID{}, "Claude"), history.Kept()[0].By)
 }

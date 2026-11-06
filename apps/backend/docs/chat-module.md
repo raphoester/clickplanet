@@ -1,9 +1,10 @@
 # Inside the chat module: the same shape
 
-Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has seven:
+Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has eight:
 `messages`, `reactions` (which imports `messages`), `announcements` (which imports `messages`, for the room it is told
 in), `seen` (which imports `messages`), `mutes`
-(which imports `messages`), `removals` (which imports `messages`), and `feed`, the live stream, which carries the
+(which imports `messages`), `removals` (which imports `messages`), `moderation`, the history of what an operator
+did to an account (which imports `messages` and `mutes`), and `feed`, the live stream, which carries the
 first three and the removals. `subscribers/` is its edge for events, as `chatv1controller/` is
 its edge for the wire. A read is a query under its handler: see [Reads are queries](queries.md).
 
@@ -12,10 +13,10 @@ internal/chat/internal/
   messages/                             Message (Snapshot, Restore, TakeSnapshot, Named, Answering), MessageID, Quote,
                                         Drafts, Thread, Record (RecordSnapshot), Limits, AccountID, Author,
                                         Room (World, FlagRoom, RoomOf), Rooms (EntryError), Showing,
-                                        ErrNoAccount, ErrNotShown, ErrNotInRoom, Window, the Storage, Flags and
+                                        ErrNoAccount, ErrNotShown, ErrNotKept, ErrNotInRoom, Window, the Storage, Flags and
                                         IDProvider ports, the StorageContractSuite, SequentialIDs, Restored and
                                         FakeFlags
-    postgres_message_store/             Storage, over chat.messages
+    postgres_message_store/             Storage, over chat.messages; KeptMessage, a message removed or not, for a removal
     inmemory_message_storage/           Storage in a slice — behind the testing tag, tests only
     rpc_player_authors/                 who an account is, from player.v1.InternalService/IntroducePlayer and GetPlayers: one on
                                         each post, the people under a message on each reaction
@@ -28,7 +29,8 @@ internal/chat/internal/
       publishing_send_message/          publishes chat.v1.MessageSent once a message is kept
       muting_send_message/              refuses a muted caller before anything else, and a GIF to one muted from
                                         GIFs — Mutes
-    usecases/prune_usecase/             deletes past retention, from each table; Runner — Pruner
+    usecases/prune_usecase/             deletes past retention, from each table, each set of tables past its own
+                                        (KeptFor: the chat's, the moderation history's); Runner — Pruner
       log_prune/                        logs what a prune deleted
   reactions/                            Reaction, Reactor, AccountOf, Reactions, Count, Tally, Change, Named,
                                         AccountsOf, the Storage port and its suite
@@ -61,16 +63,23 @@ internal/chat/internal/
     uuid_id_provider/                   IDProvider: a UUIDv7 per mute
     proto_kind/                         Encode and Decode: a Kind as chat.v1.MuteKind, for the admin calls, the
                                         refusal and chat.v1.AccountMuted
-    usecases/mute_usecase/              keeps a mute on the account and its network — Saver, Addresses, IDProvider
+    usecases/mute_usecase/              keeps a mute on the account and its network, and records it in the history, in
+                                        one transaction — Saver, Recorder, Addresses, IDProvider
       publishing_mute/                  publishes chat.v1.AccountMuted, with its kind, once a mute is kept
       audit_mute/                       logs every mute at Warn
-    usecases/unmute_usecase/            ends now every running mute of a kind given to the account — Transactioner,
-                                        Store
+    usecases/unmute_usecase/            ends now every running mute of a kind given to the account, and records it —
+                                        Transactioner, Store, Recorder
       audit_unmute/                     logs every unmute at Warn
   removals/                             Removal (NewRemoval, TakeSnapshot), Snapshot, ErrUnknownMessage, the Storage port
     postgres_removal_store/             Storage, over chat.removals
-    usecases/remove_message_usecase/    takes a kept message out of what anybody is shown, then tells the streams —
-                                        Messages, Saver, Publisher
+    usecases/remove_message_usecase/    takes a kept message out of what anybody is shown, records it with a copy of
+                                        what it said, then tells the streams — Messages, Saver, Recorder, Publisher
+  moderation/                           Action (NewMute, NewUnmute, NewRemoval, TakeSnapshot), Snapshot, Kind (Muted,
+                                        Unmuted, Removed), Operator, Reason (ReasonOf, ErrInvalidReason), the Storage port:
+                                        writes only
+    postgres_moderation_store/          Storage, over chat.moderation
+    inmemory_moderation_storage/        Storage in a slice, and Kept for a test — behind the testing tag, tests only
+    usecases/forget_moderation_usecase/ deletes the actions taken on an account, takes it off the ones it took — Forgetter
       audit_remove/                     logs every removal at Warn
   feed/                                 Update: a message sent, a message's new reactions, an announcement, a
                                         message removed, or an account that left a flag's room (MessageSent,
@@ -81,8 +90,10 @@ internal/chat/internal/
   chatv1controller/                     ChatService and AdminService (bags), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
     mute_handler/  unmute_handler/  get_mute_handler/  remove_message_handler/  get_message_handler/
-    list_messages_handler/
+    list_messages_handler/  list_moderation_handler/
     get_mute_handler/mute_query/        PostgresQuery: the mute that holds an account now, by itself or its network
+    list_moderation_handler/moderation_query/  PostgresQuery: the moderation history, newest first, one account's or
+                                        everybody's, since a time
     get_message_handler/message_query/  PostgresQuery: one message as it was sent, removed or not
     list_messages_handler/messages_query/  PostgresQuery: a page of messages as they were sent, before or after a
                                         message's id, named — Authors
@@ -94,6 +105,7 @@ internal/chat/internal/
                                         the reaction and the stream
     chatannouncement/                   Encode, for the stream
     chatmute/                           Refusal: a mute as PermissionDenied with a MuteRefusal detail
+    chatoperator/                       Of: who calls an admin service, off the context the admin gate filled
   subscribers/                          Timeout
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb
     fortified_subscriber/               planet.v1.Fortified → announce_usecase, as a Fortify of 50 tiles or more
@@ -103,7 +115,7 @@ internal/chat/internal/
     season_ended_subscriber/            gamemaster.v1.SeasonEnded → announce_champion_usecase
     flag_mission_done_subscriber/       missions.v1.FlagMissionDone → announce_usecase, as a FlagMission, in the
                                         flag's room and the world
-    player_forgotten_subscriber/        player.v1.PlayerForgotten → forget_seen_usecase
+    player_forgotten_subscriber/        player.v1.PlayerForgotten → forget_seen_usecase, and forget_moderation_usecase
     allegiance_pledged_subscriber/      planet.v1.AllegiancePledged → leave_room_usecase, for the flag left
     log_subscriber/                     logs an event a subscriber refused (player's, copied)
   migrations/                           the chat schema

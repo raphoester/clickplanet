@@ -102,15 +102,45 @@ func (s *Store) LatestAddress(ctx context.Context, account messages.AccountID) (
 	return ip, nil
 }
 
-// Removed or not: a removal is of a message that was kept.
-func (s *Store) Kept(ctx context.Context, id messages.MessageID, since time.Time) (bool, error) {
-	var kept bool
-	if err := s.db.On(ctx).QueryRowContext(ctx, `
-		SELECT EXISTS (SELECT 1 FROM messages WHERE id = $1 AND sent_at >= $2)
-	`, string(id), since).Scan(&kept); err != nil {
-		return false, fmt.Errorf("failed to read whether a message is kept: %w", err)
+// Removed or not: a removal is of a message that was kept. ErrNotKept past the retention.
+func (s *Store) KeptMessage(ctx context.Context, id messages.MessageID, since time.Time) (messages.Message, error) {
+	var (
+		sentAt  time.Time
+		account uuid.NullUUID
+		room    string
+		country string
+		text    string
+		gif     messages.Gif
+	)
+	err := s.db.On(ctx).QueryRowContext(ctx, `
+		SELECT messages.sent_at, messages.account_id, messages.room, messages.country, messages.text,
+			COALESCE(gifs.url, ''), COALESCE(gifs.width, 0), COALESCE(gifs.height, 0)
+		FROM messages
+		LEFT JOIN gifs ON gifs.message_seq = messages.seq
+		WHERE messages.id = $1 AND messages.sent_at >= $2
+		ORDER BY messages.seq DESC
+		LIMIT 1
+	`, string(id), since).Scan(&sentAt, &account, &room, &country, &text, &gif.URL, &gif.Width, &gif.Height)
+	if errors.Is(err, sql.ErrNoRows) {
+		return messages.Message{}, fmt.Errorf("%w: %q", messages.ErrNotKept, id)
 	}
-	return kept, nil
+	if err != nil {
+		return messages.Message{}, fmt.Errorf("failed to read a kept message: %w", err)
+	}
+
+	message, err := messages.Snapshot{
+		ID:      id,
+		SentAt:  sentAt.UTC(),
+		Account: messages.AccountID(account.UUID),
+		Room:    messages.Room(room),
+		Country: country,
+		Text:    text,
+		Gif:     gif,
+	}.Restore()
+	if err != nil {
+		return messages.Message{}, fmt.Errorf("failed to restore message %q: %w", id, err)
+	}
+	return message, nil
 }
 
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {

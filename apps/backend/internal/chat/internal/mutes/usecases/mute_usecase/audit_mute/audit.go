@@ -26,6 +26,7 @@ func (a *Audited) Execute(ctx context.Context, in mute_usecase.In) (mutes.Mute, 
 		slog.String("account", in.Account.String()), slog.String("kind", in.Kind.String()),
 		slog.Duration("duration", in.Duration),
 		slog.String("scope", string(mute.Caller().Scope())), slog.Time("mutedUntil", mute.Until()),
+		slog.String("reason", in.Reason),
 	}
 
 	if err != nil {

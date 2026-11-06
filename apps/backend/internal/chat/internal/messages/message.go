@@ -104,6 +104,7 @@ func (m Message) Answering(answered Message) (Message, error) {
 var (
 	ErrInvalidMessage = errors.New("invalid chat message")
 	ErrNoMessage      = errors.New("the account sent no message")
+	ErrNotKept        = errors.New("no message kept under this id")
 	ErrNotShown       = errors.New("the message is not shown")
 )
 

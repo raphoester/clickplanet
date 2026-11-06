@@ -5,15 +5,19 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/admission"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/guard"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 const procedure = "/test.v1.AdminService/Do"
@@ -32,6 +36,33 @@ func (a *admitter) Execute(_ context.Context, visit admission.Visit) (admission.
 		return admission.ConnectionOf(admission.Operator("the account of "+visit.Token), "Claude"), nil
 	}
 	return admission.SessionOf(admission.Operator("the account of " + visit.Cookie)), nil
+}
+
+// Admits the cookie's or the token's value as the operator's account.
+type accounts struct{}
+
+func (accounts) Execute(_ context.Context, visit admission.Visit) (admission.Caller, error) {
+	if visit.Token != "" {
+		return admission.ConnectionOf(admission.Operator(visit.Token), "Claude"), nil
+	}
+	return admission.SessionOf(admission.Operator(strings.TrimPrefix(visit.Cookie, "cp_sid="))), nil
+}
+
+func serveOperator(t *testing.T, seen *cpctx.Operator) string {
+	t.Helper()
+
+	admit := accounts{}
+	handle := func(ctx context.Context, _ *connect.Request[emptypb.Empty]) (*connect.Response[emptypb.Empty], error) {
+		*seen = cpctx.GetOperator(ctx)
+		return connect.NewResponse(&emptypb.Empty{}), nil
+	}
+
+	router := http.NewServeMux()
+	router.Handle(procedure, connect.NewUnaryHandler(procedure, handle, connect.WithInterceptors(guard.New(admit))))
+	server := httptest.NewServer(router)
+	t.Cleanup(server.Close)
+
+	return server.URL
 }
 
 func serve(t *testing.T, seen *admission.Caller) (string, *admitter) {
@@ -93,6 +124,18 @@ func TestTheGuardTellsTheHandlerWhichAppCalls(t *testing.T) {
 	require.NoError(t, call(t, url, procedure, bearer("Bearer cpat_ada")))
 
 	assert.Equal(t, admission.ConnectionOf("the account of cpat_ada", "Claude"), seen)
+}
+
+func TestTheModulesBehindTheGateReadTheOperatorAndItsApp(t *testing.T) {
+	var seen cpctx.Operator
+	url := serveOperator(t, &seen)
+	account := uuid.MustParse("0190f5c4-1c2b-7a00-8000-000000000001")
+
+	require.NoError(t, call(t, url, procedure, from("page", "cp_sid="+account.String())))
+	assert.Equal(t, cpctx.OperatorOf(cpsession.AccountID(account), ""), seen, "the operator's own page")
+
+	require.NoError(t, call(t, url, procedure, bearer("Bearer "+account.String())))
+	assert.Equal(t, cpctx.OperatorOf(cpsession.AccountID(account), "Claude"), seen)
 }
 
 func TestTheTokenIsReadFromABearerAuthorizationAlone(t *testing.T) {

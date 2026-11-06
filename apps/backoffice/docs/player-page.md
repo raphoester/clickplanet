@@ -30,8 +30,16 @@ address>`), so Back goes to the list, as it was.
   from `chat.v1.AdminService/GetMute`, "by a mute on its network" when another account's mute holds it, and "GIFs
   muted until" when a mute of its GIFs holds it: `mutingsOf` asks `GetMute` once per kind), its account
   and its address with Copy,
-  the other half opening from there, and its row's numbers; then **the tools**; then its profile and the antibot's
-  reading side by side from 1100px; then what it said, folded.
+  the other half opening from there, and its row's numbers; then **the tools**; then, for an account, **its moderation
+  history**; then its profile and the antibot's reading side by side from 1100px; then what it said, folded.
+- **An account's moderation history** (`HistoryPanel`, `historyOf` in `history.ts`): every mute, unmute and removal
+  (`chat.v1.AdminService/ListModeration`) and every rename (`player.v1.AdminService/ListRenames`) of the account, read
+  at once, in one list newest first: when, what ("GIFs muted for 15 minutes", "Renamed from Hitler88 to Player42",
+  "Removed a message" with the text it said, or a link to its GIF), the reason ("No reason given." for none), and who:
+  **Claude** (the app the operator connected, in the accent color, `badge-app`), **Operator** (this page; its account
+  id on hover), or **Console** (a script on the box). The backend keeps 90 days of it, past the chat's own retention
+  (see its [Chat](../../backend/docs/chat.md#the-moderation-history)), so a removed message's text is still there once
+  the chat pruned the message. A mute, an unmute and a rename read it again. An address has none, and is not asked.
 - **The other half of a player**: the address of an account comes from its row, or else from where the antibot last
   read it; the account of an address from its row. **A guest the jury banned is banned on both**, and an unban lifts
   one key.
@@ -66,7 +74,8 @@ address>`), so Back goes to the list, as it was.
   its own: a mute on its network given to another account is lifted from that account's page). **Both ask "Mute
   what"** (`MuteKindPicker`): the whole chat, or GIFs alone (the player still writes and reacts). One kind is muted
   or lifted at a time; the words of each are `MUTE_KINDS` in `actions.ts` ("GIFs muted until …"),
-  Charges (`GrantCharges`: a refill, a bomb, enclosures, spread clicks, shields; the answer says what the account
+  **Mute, Unmute and Name take a reason** (`ReasonField`, optional, 500 characters, `reasonOf` trims and cuts it as the
+  server keeps it), kept with the action in the history. Charges (`GrantCharges`: a refill, a bomb, enclosures, spread clicks, shields; the answer says what the account
   held before and after, since the caps hold), Flag (`FlagPanel`, `ReleaseAllegiance`: the hour of wait after a
   change of flag is lifted, so the player's next pick goes at once; the answer says when a battle's lock still holds
   it), Name (`NamePanel`, `player.v1.AdminService/RenamePlayer`: a new username, during the player's 7 days of wait

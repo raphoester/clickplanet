@@ -35,7 +35,10 @@ that listener (`props.AdminHTTP`), not admin services, so they are outside the g
 - **A call goes through the gate like the page's.** `tools/call` posts the arguments as they are, as protojson, to
   the admin listener (`props.Admin.Dial()`, `connect_admin_caller`) with the app's token. The gate admits it as the
   operator and writes the `admin call` line with `client=Claude`, the audit decorators log what it did, and the
-  error net strips an internal cause. A refusal (a Connect code and its sentence) is the tool's result with
+  error net strips an internal cause. **What Claude does is kept apart from what the operator does**: the gate hands
+  the app's name to the module (`cpctx.Operator`), and a mute, an unmute, a removal and a rename keep it with their
+  reason (`chat_list_moderation`, `player_list_renames`: see [The moderation history](chat.md#the-moderation-history)).
+  A refusal (a Connect code and its sentence) is the tool's result with
   `isError`, so Claude reads it and tries again. Only a tool nobody offers is a JSON-RPC error. A call has 5 minutes:
   a reassign or a reconciliation walks the whole map or every account.
 - **MCP over Streamable HTTP, answered with plain JSON** (`mcpcontroller`): `initialize` (2025-06-18, 2025-03-26 or

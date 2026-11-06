@@ -10,6 +10,10 @@ import {
     KeptQuote,
     ListMessagesRequest,
     ListMessagesResponse,
+    ListModerationRequest,
+    ListModerationResponse,
+    ModerationAction,
+    MuteAction,
     MuteRequest,
     MuteResponse,
     RemoveMessageRequest,
@@ -137,7 +141,10 @@ import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
     AdminGetPlayerResponse,
+    ListRenamesRequest,
+    ListRenamesResponse,
     PlayerMatch,
+    Rename,
     RenamePlayerRequest,
     RenamePlayerResponse,
     SearchPlayersRequest,
@@ -194,6 +201,20 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     private readonly holds = new Map<string, Promise<void>>()
     // What GetMute answers, for the whole chat and for the GIFs: no mute, unless a test sets one.
     muting = new GetMuteResponse()
+    // The account's moderation history, newest first: a mute Claude gave, and a rename the operator made.
+    moderation = [
+        new ModerationAction({
+            actionId: "2", accountId: ACCOUNT, actedAt: Timestamp.fromDate(new Date(AT.getTime() - 3600_000)),
+            action: {case: "mute", value: new MuteAction({kind: MuteKind.GIFS, duration: new Duration({seconds: 900n})})},
+            reason: "a gore GIF, 2nd offence", operatorAccountId: "account-operator", client: "Claude",
+        }),
+    ]
+    renames = [
+        new Rename({
+            renameId: "1", accountId: ACCOUNT, renamedAt: Timestamp.fromDate(new Date(AT.getTime() - 7200_000)),
+            oldName: "Hitler88", newName: "Player42", reason: "a Nazi reference", operatorAccountId: "account-operator",
+        }),
+    ]
     gifMuting = new GetMuteResponse()
     // Whether the rules in force lock every flag, as ReleaseAllegiance answers.
     flagsLocked = false
@@ -488,6 +509,14 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     unmute(request: PartialMessage<UnmuteRequest>): Promise<UnmuteResponse> {
         return this.answer("unmute", request, new UnmuteResponse({mutedUntil: Timestamp.fromDate(AT)}))
+    }
+
+    listModeration(request: PartialMessage<ListModerationRequest>): Promise<ListModerationResponse> {
+        return this.answer("listModeration", request, new ListModerationResponse({actions: this.moderation}))
+    }
+
+    listRenames(request: PartialMessage<ListRenamesRequest>): Promise<ListRenamesResponse> {
+        return this.answer("listRenames", request, new ListRenamesResponse({renames: this.renames}))
     }
 
     getMute(request: PartialMessage<GetMuteRequest>): Promise<GetMuteResponse> {

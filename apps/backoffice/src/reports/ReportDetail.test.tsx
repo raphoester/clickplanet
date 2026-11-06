@@ -261,9 +261,10 @@ describe("ReportDetail", () => {
         fireEvent.click(verdict().getByRole("button", {name: "Yes, act and close"}))
 
         await waitFor(() => expect(seen.closed).toHaveLength(1))
-        expect(admin.askedFor("removeMessage")).toEqual([{messageId: "message-1"}])
-        const [muted] = admin.askedFor("mute") as {accountId: string, duration: {seconds: bigint}}[]
+        expect(admin.askedFor("removeMessage")).toEqual([{messageId: "message-1", reason: "A report: Chat abuse"}])
+        const [muted] = admin.askedFor("mute") as {accountId: string, duration: {seconds: bigint}, reason: string}[]
         expect(muted.accountId).toBe("account-reported")
+        expect(muted.reason, "no comment: the report's own reason").toBe("A report: Chat abuse")
         expect(muted.duration.seconds).toBe(86400n)
         expect(admin.askedFor("decideReport")).toEqual([
             {reportId: "report-1", outcome: ReportOutcome.ACTED, comment: "Removed the message. Muted for 1 day."},

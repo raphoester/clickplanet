@@ -28,6 +28,13 @@ export class MuteRequest extends Message<MuteRequest> {
    */
   kind = MuteKind.CHAT;
 
+  /**
+   * Why, in a few words, kept in the moderation history (ListModeration). Optional; 500 characters at most.
+   *
+   * @generated from field: string reason = 4;
+   */
+  reason = "";
+
   constructor(data?: PartialMessage<MuteRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -39,6 +46,7 @@ export class MuteRequest extends Message<MuteRequest> {
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "duration", kind: "message", T: Duration },
     { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(MuteKind) },
+    { no: 4, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MuteRequest {
@@ -115,6 +123,13 @@ export class UnmuteRequest extends Message<UnmuteRequest> {
    */
   kind = MuteKind.CHAT;
 
+  /**
+   * Why, in a few words, kept in the moderation history (ListModeration). Optional; 500 characters at most.
+   *
+   * @generated from field: string reason = 3;
+   */
+  reason = "";
+
   constructor(data?: PartialMessage<UnmuteRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -125,6 +140,7 @@ export class UnmuteRequest extends Message<UnmuteRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(MuteKind) },
+    { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnmuteRequest {
@@ -282,6 +298,13 @@ export class RemoveMessageRequest extends Message<RemoveMessageRequest> {
    */
   messageId = "";
 
+  /**
+   * Why, in a few words, kept in the moderation history (ListModeration). Optional; 500 characters at most.
+   *
+   * @generated from field: string reason = 2;
+   */
+  reason = "";
+
   constructor(data?: PartialMessage<RemoveMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -291,6 +314,7 @@ export class RemoveMessageRequest extends Message<RemoveMessageRequest> {
   static readonly typeName = "chat.v1.RemoveMessageRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemoveMessageRequest {
@@ -759,6 +783,343 @@ export class KeptQuote extends Message<KeptQuote> {
 
   static equals(a: KeptQuote | PlainMessage<KeptQuote> | undefined, b: KeptQuote | PlainMessage<KeptQuote> | undefined): boolean {
     return proto3.util.equals(KeptQuote, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.ListModerationRequest
+ */
+export class ListModerationRequest extends Message<ListModerationRequest> {
+  /**
+   * Only the actions taken on this account. Empty is every account's; not a UUID is InvalidArgument.
+   *
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * Only the actions taken at this time or after. Unset is the whole history kept.
+   *
+   * @generated from field: google.protobuf.Timestamp since = 2;
+   */
+  since?: Timestamp;
+
+  /**
+   * 50 unless asked, 500 at most.
+   *
+   * @generated from field: uint32 limit = 3;
+   */
+  limit = 0;
+
+  constructor(data?: PartialMessage<ListModerationRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.ListModerationRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "since", kind: "message", T: Timestamp },
+    { no: 3, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListModerationRequest {
+    return new ListModerationRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListModerationRequest {
+    return new ListModerationRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListModerationRequest {
+    return new ListModerationRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListModerationRequest | PlainMessage<ListModerationRequest> | undefined, b: ListModerationRequest | PlainMessage<ListModerationRequest> | undefined): boolean {
+    return proto3.util.equals(ListModerationRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.ListModerationResponse
+ */
+export class ListModerationResponse extends Message<ListModerationResponse> {
+  /**
+   * Newest first. Fewer than the limit: every action kept since then.
+   *
+   * @generated from field: repeated chat.v1.ModerationAction actions = 1;
+   */
+  actions: ModerationAction[] = [];
+
+  constructor(data?: PartialMessage<ListModerationResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.ListModerationResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "actions", kind: "message", T: ModerationAction, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListModerationResponse {
+    return new ListModerationResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListModerationResponse {
+    return new ListModerationResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListModerationResponse {
+    return new ListModerationResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListModerationResponse | PlainMessage<ListModerationResponse> | undefined, b: ListModerationResponse | PlainMessage<ListModerationResponse> | undefined): boolean {
+    return proto3.util.equals(ListModerationResponse, a, b);
+  }
+}
+
+/**
+ * One action an operator took on an account in the chat.
+ *
+ * @generated from message chat.v1.ModerationAction
+ */
+export class ModerationAction extends Message<ModerationAction> {
+  /**
+   * @generated from field: string action_id = 1;
+   */
+  actionId = "";
+
+  /**
+   * The account it was taken on, never the network a mute also holds. Empty for a message kept before accounts.
+   *
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp acted_at = 3;
+   */
+  actedAt?: Timestamp;
+
+  /**
+   * @generated from oneof chat.v1.ModerationAction.action
+   */
+  action: {
+    /**
+     * @generated from field: chat.v1.MuteAction mute = 4;
+     */
+    value: MuteAction;
+    case: "mute";
+  } | {
+    /**
+     * @generated from field: chat.v1.UnmuteAction unmute = 5;
+     */
+    value: UnmuteAction;
+    case: "unmute";
+  } | {
+    /**
+     * @generated from field: chat.v1.RemovalAction removal = 6;
+     */
+    value: RemovalAction;
+    case: "removal";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  /**
+   * The reason given. Empty for none.
+   *
+   * @generated from field: string reason = 7;
+   */
+  reason = "";
+
+  /**
+   * The operator's account. Empty for a call on the console listener, which has no gate.
+   *
+   * @generated from field: string operator_account_id = 8;
+   */
+  operatorAccountId = "";
+
+  /**
+   * The app the operator connected that made the call, as it registered: "Claude". Empty for the operator's own page.
+   *
+   * @generated from field: string client = 9;
+   */
+  client = "";
+
+  constructor(data?: PartialMessage<ModerationAction>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.ModerationAction";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "action_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "acted_at", kind: "message", T: Timestamp },
+    { no: 4, name: "mute", kind: "message", T: MuteAction, oneof: "action" },
+    { no: 5, name: "unmute", kind: "message", T: UnmuteAction, oneof: "action" },
+    { no: 6, name: "removal", kind: "message", T: RemovalAction, oneof: "action" },
+    { no: 7, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "operator_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "client", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ModerationAction {
+    return new ModerationAction().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ModerationAction {
+    return new ModerationAction().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ModerationAction {
+    return new ModerationAction().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ModerationAction | PlainMessage<ModerationAction> | undefined, b: ModerationAction | PlainMessage<ModerationAction> | undefined): boolean {
+    return proto3.util.equals(ModerationAction, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.MuteAction
+ */
+export class MuteAction extends Message<MuteAction> {
+  /**
+   * @generated from field: chat.v1.MuteKind kind = 1;
+   */
+  kind = MuteKind.CHAT;
+
+  /**
+   * @generated from field: google.protobuf.Duration duration = 2;
+   */
+  duration?: Duration;
+
+  constructor(data?: PartialMessage<MuteAction>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.MuteAction";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(MuteKind) },
+    { no: 2, name: "duration", kind: "message", T: Duration },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MuteAction {
+    return new MuteAction().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MuteAction {
+    return new MuteAction().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MuteAction {
+    return new MuteAction().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MuteAction | PlainMessage<MuteAction> | undefined, b: MuteAction | PlainMessage<MuteAction> | undefined): boolean {
+    return proto3.util.equals(MuteAction, a, b);
+  }
+}
+
+/**
+ * Ended now every mute of the kind given to the account.
+ *
+ * @generated from message chat.v1.UnmuteAction
+ */
+export class UnmuteAction extends Message<UnmuteAction> {
+  /**
+   * @generated from field: chat.v1.MuteKind kind = 1;
+   */
+  kind = MuteKind.CHAT;
+
+  constructor(data?: PartialMessage<UnmuteAction>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.UnmuteAction";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(MuteKind) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnmuteAction {
+    return new UnmuteAction().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnmuteAction {
+    return new UnmuteAction().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnmuteAction {
+    return new UnmuteAction().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UnmuteAction | PlainMessage<UnmuteAction> | undefined, b: UnmuteAction | PlainMessage<UnmuteAction> | undefined): boolean {
+    return proto3.util.equals(UnmuteAction, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.RemovalAction
+ */
+export class RemovalAction extends Message<RemovalAction> {
+  /**
+   * @generated from field: string message_id = 1;
+   */
+  messageId = "";
+
+  /**
+   * The message as it was sent, copied with the removal (never its address), so it outlives the chat's retention.
+   *
+   * @generated from oneof chat.v1.RemovalAction.body
+   */
+  body: {
+    /**
+     * @generated from field: string text = 2;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: chat.v1.Gif gif = 3;
+     */
+    value: Gif;
+    case: "gif";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<RemovalAction>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.RemovalAction";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
+    { no: 3, name: "gif", kind: "message", T: Gif, oneof: "body" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemovalAction {
+    return new RemovalAction().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RemovalAction {
+    return new RemovalAction().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RemovalAction {
+    return new RemovalAction().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RemovalAction | PlainMessage<RemovalAction> | undefined, b: RemovalAction | PlainMessage<RemovalAction> | undefined): boolean {
+    return proto3.util.equals(RemovalAction, a, b);
   }
 }
 

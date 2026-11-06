@@ -29,7 +29,7 @@ The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Cl
 
 **Each table has its own `Storage` port and a contract suite** (`messages.StorageContractSuite`, `reactions.StorageContractSuite`, behind the `testing` tag). The postgres stores run it against a real postgres; `inmemory_message_storage` and `inmemory_reaction_storage` run it too, and exist **only for tests** — both files carry the `testing` tag, have no persistence port and are never built into the binary. Use case tests use them instead of hand-written fakes.
 
-**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, then announcements, older than `retention`, then the mutes that ended before it and the removals made before it, once at boot and every `pruneInterval`, and `log_prune` logs it. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
+**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, then announcements, older than `retention`, then the mutes that ended before it and the removals made before it, then the moderation history older than its own `moderationRetention` (see [The moderation history](#the-moderation-history)), once at boot and every `pruneInterval`, and `log_prune` logs it. Each set of tables is `prune_usecase.KeptFor(retention, pruners...)`. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
 
 The table holds **personal data** — IPs next to user-authored text — so the retention window is a policy decision rather than a cache size.
 
@@ -104,7 +104,7 @@ won a season, and `flag_mission`, every flag that finished its mission of the da
 ## Mutes
 
 **An operator can take a player's chat away and leave it the map**: `chat.v1.AdminService/Mute(account_id,
-duration, kind)`, on the admin listener (see [Operator tools](admin.md)). A muted caller's
+duration, kind, reason)`, on the admin listener (see [Operator tools](admin.md)). A muted caller's
 `SendMessage` and `React` are refused; it still reads the chat and plays.
 
 - **A mute has a kind: what it takes away** (`mutes.Kind`, `chat.v1.MuteKind`). `Chat`, the zero value on the wire
@@ -145,16 +145,20 @@ duration, kind)`, on the admin listener (see [Operator tools](admin.md)). A mute
   call never fails on the announcement, and a mute that was not kept is never announced. The client writes "<name>
   has been muted for one hour", or "<name> may not post GIFs for one hour", under the name the account had when the event was heard. A mute Redis did not take
   is a line missed, never the mute; a failure to name the account is tried again, logged by `log_subscriber`.
-- **`audit_mute` logs every call at Warn** (`admin chat mute`), with the network it holds.
+- **`audit_mute` logs every call at Warn** (`admin chat mute`), with the network it holds and the reason.
+- **A mute takes a `reason`**, optional, and is recorded in the [moderation history](#the-moderation-history) in the
+  transaction that keeps it: never a mute without its record.
 - **Kept in `chat.mutes`** (`id`, `account_id`, `scope`, `kind`, `muted_at`, `muted_until`; `kind` is the type
   `mute_kind`, migration `20261104130000_mute_kinds`, which made every mute before it one of the whole chat). The network is personal data,
   so the prune deletes a mute that ended more than `retention` ago.
-- **`Unmute(account_id, kind)` ends now every mute of the kind given to the account**, with the network each holds. `unmute_usecase`
+- **`Unmute(account_id, kind, reason)` ends now every mute of the kind given to the account**, with the network each holds. `unmute_usecase`
   reads the account's mutes (`MutesOf`), and saves each that has not `Ended` as `Lifted` now, in one transaction: the
   row stays, with `muted_until` moved to now, so the prune still takes it. `Save` is an upsert by id. A mute given
   to another account on the same network still holds it. None running is `NotFound`. The answer is the end the
   mute that would have ended last had. No announcement and no event: a client tries each post again, so the next
-  one goes through. `audit_unmute` logs every call at Warn (`admin chat unmute`).
+  one goes through. `audit_unmute` logs every call at Warn (`admin chat unmute`). It takes a `reason` too, and an
+  unmute that lifts a mute is recorded in the history in its transaction; one that lifts none is `NotFound` and no
+  action.
 - **`GetMute(account_id, kind)` says whether a mute of the kind holds the account now** (`mute_query`): a mute given to it, or to
   another account on the network it last posted from, the one that ends last, with the account it was given to.
   Nothing set when none holds it. It reads the latest address, not the request's, so a player that moved network
@@ -164,7 +168,7 @@ duration, kind)`, on the admin listener (see [Operator tools](admin.md)). A mute
 
 ## Removals
 
-**An operator can take a message out of the chat**: `chat.v1.AdminService/RemoveMessage(message_id)`, on the admin
+**An operator can take a message out of the chat**: `chat.v1.AdminService/RemoveMessage(message_id, reason)`, on the admin
 listener, for a report it acts on. The notice-and-action answer to a message, beside the mute for its sender.
 
 - **The row stays, as evidence**: a removal is a row of its own in `chat.removals` (`message_id`, `removed_at`;
@@ -204,11 +208,70 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
   - **It is two statements**: the cursor's `seq` (`NotFound` when it is not kept), then the page, one of two windows
     (`older`, `newer`) under one projection that joins the removals and the quote. The newest page is `older` from
     the top. Each window walks the primary key from the cursor.
-- **`audit_remove` logs every call at Warn** (`admin chat message removal`).
+- **`audit_remove` logs every call at Warn** (`admin chat message removal`), with the reason.
+- **A removal takes a `reason`**, and is recorded in the history in the transaction that keeps it, on the message's
+  author, with **a copy of what the message said**: its text, or its GIF's address, never its address, so it outlives
+  the chat's retention. `remove_message_usecase` reads the message with `KeptMessage` (removed or not, within the
+  retention; `messages.ErrNotKept` past it). A message removed twice is one action, the first: a call tried again never
+  counts twice (`moderation_removal_key`).
 - `remove_message_usecase` keeps the removal; the history query's suite shows the message in its place with no
   text and its quote with none, the message store refuses a reaction to it, and `message_query` still reads the
   text for the operator. `messages_query` reads a page on each side of a message; player's `players_query` pins
   that `GetPlayers` names each account as `IntroducePlayer` named it in the chat.
+
+## The moderation history
+
+**Every mute, unmute and removal an operator made is kept, per account, with the reason given and who made it**, past
+the chat's own retention: `moderation`, `chat.moderation`, read by
+`chat.v1.AdminService/ListModeration(account_id, since, limit)`. It is what Claude's runs count their steps from (see
+[Chat moderation](../../../docs/moderation.md)), and what the operator audits Claude by. The operator's renames are
+player's: see [Who owns which history](#who-owns-which-history).
+
+- **One row per action**: `account_id` (the account it was taken on, never the network a mute also holds; NULL for a
+  message kept before accounts), `action` (the type `moderation_action`: `mute`, `unmute`, `removal`), `acted_at`;
+  a mute's and an unmute's `mute_kind`, a mute's `seconds`; a removal's `message_id` and its copy, `text` or `gif_url`,
+  `gif_width`, `gif_height`; then `reason` and who: `operator_id` and `client` (migration `20261106120000_moderation`,
+  `CHECK`s that each action has its own columns and no other's).
+- **Written in the action's transaction**: `mute_usecase`, `unmute_usecase` and `remove_message_usecase` each open one
+  (`InTx`) and call `moderation.Storage.Record` beside their own store, so a mute, an unmute or a removal is never kept
+  without its record, nor a record without it. The domain builds it (`moderation.NewMute`, `NewUnmute`, `NewRemoval`);
+  the store only writes, and the query reads.
+- **The reason** is `moderation.ReasonOf`: support's text rule (`notes.TextOf`: valid UTF-8, lines kept, every other
+  control character stripped, the ends trimmed), but empty is no reason, and 500 characters at most. A reason it refuses
+  is `InvalidArgument`, before anything is done. An older caller sends none, and its action is kept with none.
+- **Who** is what the admin gate admitted: the operator's account and, for an app the operator connected, its name
+  (`client`, `Claude`), as the `admin call` line says it. The gate puts it on the call's context
+  (`cpctx.Operator`, see [Operator tools](admin.md)) and each handler reads it there (`chatoperator.Of`). A call on the
+  console listener has no gate, and is kept by nobody: no operator, no client.
+- **The removed text is kept, on purpose** (decided with the owner on 2026-11-06): the reason alone cannot be checked
+  against what was said once the message is pruned, and Claude removes on its own. The copy has no address beside it,
+  and is personal data all the same, so the privacy page lists it.
+- **`ListModeration`** (`moderation_query`): newest first (`acted_at`, then `id`), one account's or every account's (an
+  id that is not a UUID is `InvalidArgument`, never read as everyone), taken at `since` or after (unset: all of it),
+  50 unless asked, 500 at most. Each is a `ModerationAction`: its id, the account, when, a `oneof` of `MuteAction` (kind,
+  duration), `UnmuteAction` (kind) and `RemovalAction` (message id and its copy), the reason, `operator_account_id`
+  and `client`. `NO_SIDE_EFFECTS`, so it is a read-only tool of the connector. `no-store`. A kind the wire cannot carry
+  refuses the read (`ErrUnknownAction`, `ErrUnknownKind`).
+- **Its own retention**, `chat.storage.moderationRetention` (90 days by default, as support keeps a note's sender), by
+  the chat's prune.
+- **Forgotten with the account**: `chat-moderation-forgotten` hears `player.v1.PlayerForgotten` and
+  `forget_moderation_usecase` deletes the actions taken on the account, copies included, and takes it off the actions it
+  took as an operator, which stay with nobody.
+- The use cases' tests pin each record and that a failed record fails the action; `moderation_query`'s suite seeds
+  through the store and reads every kind back; the store's suite pins the one removal per message, the prune and the
+  forget.
+
+### Who owns which history
+
+**Each context keeps the history of what it does**: the chat its mutes, unmutes and removals, player its renames
+(`player.v1.AdminService/ListRenames`, see [Player](player.md)). The back office and Claude read both.
+
+- **Why not one context hearing the other's events**: a record is written in the transaction of the action it records,
+  so there is no action without its record, and a run reads it the moment the call answers. Through an event, player
+  would need a `PlayerRenamed` carrying the reason and the operator, an outbox to send it, and chat a subscriber, for a
+  log whose only reader is the operator; the run that renamed would read its history before the record arrived.
+- **Why not a module of its own**: it would own no rule. Mutes and removals are the chat's, a name is player's, and the
+  steps Claude counts are the chat's alone (a mute and a removal); renames go in the digest.
 
 ## Replies
 

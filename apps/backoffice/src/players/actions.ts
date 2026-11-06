@@ -61,15 +61,27 @@ export function muteWordsOf(kind: MuteKind) {
     return MUTE_KINDS.find(each => each.kind === kind) ?? MUTE_KINDS[0]
 }
 
+// The server keeps a reason with each mute, unmute, removal and rename: 500 characters at most.
+export const MAX_REASON_LENGTH = 500
+
+// As the server will keep it: trimmed, and cut to its length in characters, not UTF-16 units.
+export function reasonOf(typed: string): string {
+    return [...typed.trim()].slice(0, MAX_REASON_LENGTH).join("").trim()
+}
+
 // A mute is an account's: the chat has no scope to mute.
-export async function mute(chat: ChatAdmin, accountId: string, seconds: number, kind = MuteKind.CHAT): Promise<Muted> {
-    const answer = await chat.mute({accountId, duration: new Duration({seconds: BigInt(seconds)}), kind})
+export async function mute(
+    chat: ChatAdmin, accountId: string, seconds: number, kind = MuteKind.CHAT, reason = "",
+): Promise<Muted> {
+    const answer = await chat.mute({
+        accountId, duration: new Duration({seconds: BigInt(seconds)}), kind, reason: reasonOf(reason),
+    })
     return {until: dateOf(answer.mutedUntil)}
 }
 
 // Ends every mute of the kind given to the account. A mute given to another account on its network still holds it.
-export async function unmute(chat: ChatAdmin, accountId: string, kind = MuteKind.CHAT): Promise<Unmuted> {
-    const answer = await chat.unmute({accountId, kind})
+export async function unmute(chat: ChatAdmin, accountId: string, kind = MuteKind.CHAT, reason = ""): Promise<Unmuted> {
+    const answer = await chat.unmute({accountId, kind, reason: reasonOf(reason)})
     return {until: dateOf(answer.mutedUntil)}
 }
 
@@ -136,8 +148,8 @@ export async function release(planet: PlanetAdmin, accountId: string): Promise<R
 }
 
 // Answers the name as the server kept it. The player's next own change goes at once.
-export async function rename(player: PlayerAdmin, accountId: string, name: string): Promise<string> {
-    const answer = await player.renamePlayer({accountId, name})
+export async function rename(player: PlayerAdmin, accountId: string, name: string, reason = ""): Promise<string> {
+    const answer = await player.renamePlayer({accountId, name, reason: reasonOf(reason)})
     return answer.name
 }
 
@@ -158,6 +170,11 @@ export async function linkingOf(alerts: AlertsAdmin, accountId: string, signal?:
 export async function unlink(alerts: AlertsAdmin, accountId: string): Promise<boolean> {
     const answer = await alerts.unlinkPlayer({accountId})
     return answer.unlinked
+}
+
+export function dateOf(at: {toDate(): Date} | undefined): Date {
+    if (at === undefined) throw new Error("the server answered no time")
+    return at.toDate()
 }
 
 export function grantsAnything(charges: Grant): boolean {
@@ -237,7 +254,8 @@ export function bannedWords(banned: Banned): string {
         + (banned.enforced ? "" : " Not enforced: the antibot only watches on this server.")
 }
 
-export type Action = "mute" | "unmute" | "ban" | "unban" | "revert" | "inspect" | "grant" | "release" | "rename" | "unlink" | "list"
+export type Action =
+    "mute" | "unmute" | "ban" | "unban" | "revert" | "inspect" | "grant" | "release" | "rename" | "unlink" | "list" | "history"
 
 export const ANTIBOT_OFF = "The antibot is off on this server, so it cannot ban, unban or inspect."
 export const NOT_BANNED = "This player has no ban left to lift."
@@ -257,14 +275,10 @@ const MEANINGS: Record<Action, Meanings> = {
     rename: {notFound: NO_USERNAME},
     unlink: {unimplemented: ALERTS_OFF},
     list: {},
+    history: {},
 }
 
 // What a refusal means for the action it refused, in the operator's words.
 export function refusalOf(action: Action, err: unknown): string {
     return wordsOf(err, MEANINGS[action])
-}
-
-function dateOf(at: {toDate(): Date} | undefined): Date {
-    if (at === undefined) throw new Error("the server answered no time")
-    return at.toDate()
 }

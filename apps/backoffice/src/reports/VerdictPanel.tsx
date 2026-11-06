@@ -6,6 +6,7 @@ import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {DEFAULT_MUTE_SECONDS, LADDER} from "../players/actions.ts"
 import {MuteKindPicker} from "../players/Moderation.tsx"
 import {BAN_CHOICES, Choice, MUTE_CHOICES} from "../players/durations.ts"
+import {reasonLabel} from "../support/labels.ts"
 import {MAX_COMMENT_LENGTH} from "./actions.ts"
 import {actsOf, close, Closed, haltedWords, questionOf, Verdict} from "./verdict.ts"
 
@@ -41,7 +42,7 @@ export function VerdictPanel({clients, report, who, removable, others, onClosed}
     }
     const acts = actsOf(verdict, who)
     const reportIds = [report.id, ...(closeOthers ? others.map(other => other.id) : [])]
-    const target = {accountId: account, messageId: report.messageId, who}
+    const target = {accountId: account, messageId: report.messageId, who, why: `A report: ${reasonLabel(report.reason)}`}
     const run = (outcome: ReportOutcome) => () => close(clients, target, outcome === ReportOutcome.ACTED
         ? verdict
         : {remove: false, muteFor: undefined, banFor: undefined, comment}, outcome, reportIds)

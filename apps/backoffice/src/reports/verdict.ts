@@ -13,7 +13,8 @@ export type Verdict = {
     remove: boolean, muteFor: number | undefined, muteKind?: MuteKind, banFor: number | undefined, comment: string,
 }
 
-export type Target = {accountId: string, messageId: string, who: string}
+// `why` is the reason a mute or a removal keeps when the operator wrote no comment: the report's own.
+export type Target = {accountId: string, messageId: string, who: string, why: string}
 
 // What a verdict did, step by step, and the reports it closed.
 export type Closed = {who: string, said: string[], outcome: ReportOutcome, comment: string, decidedAt: Date, reportIds: string[]}
@@ -56,14 +57,16 @@ export async function close(
         }
     }
 
+    // Kept with the removal and the mute in the account's moderation history.
+    const reason = verdict.comment.trim() !== "" ? verdict.comment.trim() : target.why
     if (verdict.remove) {
-        await step(() => removeMessage(clients.chat, target.messageId), () => "Removed the message.",
+        await step(() => removeMessage(clients.chat, target.messageId, reason), () => "Removed the message.",
             err => refusalOf("removeMessage", err))
     }
     const muteFor = verdict.muteFor
     const muteKind = verdict.muteKind ?? MuteKind.CHAT
     if (muteFor !== undefined) {
-        await step(() => mute(clients.chat, target.accountId, muteFor, muteKind),
+        await step(() => mute(clients.chat, target.accountId, muteFor, muteKind, reason),
             muted => `${muteWordsOf(muteKind).muted} until ${timeOf(muted.until)}.`,
             err => playerRefusalOf("mute", err))
     }

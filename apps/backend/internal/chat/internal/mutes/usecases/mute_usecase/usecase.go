@@ -7,12 +7,18 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/moderation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Saver interface {
 	Save(ctx context.Context, mute mutes.Mute) error
+}
+
+type Recorder interface {
+	Record(ctx context.Context, action moderation.Action) error
 }
 
 type Addresses interface {
@@ -27,19 +33,28 @@ type In struct {
 	Account  messages.AccountID
 	Kind     mutes.Kind
 	Duration time.Duration
+	Reason   string
+	By       moderation.Operator
 }
 
 const writeTimeout = 5 * time.Second
 
-func New(saver Saver, addresses Addresses, ids mutes.IDProvider, clock cptime.Clock) *UseCase {
-	return &UseCase{saver: saver, addresses: addresses, ids: ids, clock: clock}
+func New(
+	transactioner cpatomic.Transactioner, saver Saver, history Recorder, addresses Addresses, ids mutes.IDProvider,
+	clock cptime.Clock,
+) *UseCase {
+	return &UseCase{
+		transactioner: transactioner, saver: saver, history: history, addresses: addresses, ids: ids, clock: clock,
+	}
 }
 
 type UseCase struct {
-	saver     Saver
-	addresses Addresses
-	ids       mutes.IDProvider
-	clock     cptime.Clock
+	transactioner cpatomic.Transactioner
+	saver         Saver
+	history       Recorder
+	addresses     Addresses
+	ids           mutes.IDProvider
+	clock         cptime.Clock
 }
 
 var _ Executor = (*UseCase)(nil)
@@ -49,6 +64,10 @@ func (u *UseCase) Execute(ctx context.Context, in In) (mutes.Mute, error) {
 		return mutes.Mute{}, mutes.ErrNoAccount
 	}
 	duration, err := mutes.DurationOf(in.Duration)
+	if err != nil {
+		return mutes.Mute{}, fmt.Errorf("cannot mute: %w", err)
+	}
+	reason, err := moderation.ReasonOf(in.Reason)
 	if err != nil {
 		return mutes.Mute{}, fmt.Errorf("cannot mute: %w", err)
 	}
@@ -67,8 +86,17 @@ func (u *UseCase) Execute(ctx context.Context, in In) (mutes.Mute, error) {
 	}
 
 	mute := mutes.NewMute(id, mutes.NewCaller(in.Account, ip), in.Kind, u.clock.Now(), duration)
-	if err := u.saver.Save(ctx, mute); err != nil {
-		return mutes.Mute{}, fmt.Errorf("failed to keep the mute: %w", err)
+	err = u.transactioner.InTx(ctx, func(ctx context.Context) error {
+		if err := u.saver.Save(ctx, mute); err != nil {
+			return fmt.Errorf("failed to keep the mute: %w", err)
+		}
+		if err := u.history.Record(ctx, moderation.NewMute(mute, reason, in.By)); err != nil {
+			return fmt.Errorf("failed to record the mute in the moderation history: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return mutes.Mute{}, fmt.Errorf("cannot mute: %w", err)
 	}
 	return mute, nil
 }

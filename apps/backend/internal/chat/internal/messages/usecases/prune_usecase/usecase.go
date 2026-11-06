@@ -18,14 +18,23 @@ type Executor interface {
 
 const timeout = 30 * time.Second
 
-func New(retention time.Duration, clock cptime.Clock, pruners ...Pruner) *UseCase {
-	return &UseCase{retention: retention, clock: clock, pruners: pruners}
+// The tables kept for one retention: the chat's, or the moderation history's, which outlives it.
+type Tables struct {
+	retention time.Duration
+	pruners   []Pruner
+}
+
+func KeptFor(retention time.Duration, pruners ...Pruner) Tables {
+	return Tables{retention: retention, pruners: pruners}
+}
+
+func New(clock cptime.Clock, tables ...Tables) *UseCase {
+	return &UseCase{clock: clock, tables: tables}
 }
 
 type UseCase struct {
-	retention time.Duration
-	clock     cptime.Clock
-	pruners   []Pruner
+	clock  cptime.Clock
+	tables []Tables
 }
 
 var _ Executor = (*UseCase)(nil)
@@ -34,14 +43,16 @@ func (u *UseCase) Execute(ctx context.Context) (int64, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	cutoff := u.clock.Now().Add(-u.retention)
-
+	now := u.clock.Now()
 	var total int64
-	for _, pruner := range u.pruners {
-		deleted, err := pruner.DeleteBefore(ctx, cutoff)
-		total += deleted
-		if err != nil {
-			return total, fmt.Errorf("failed to prune the chat: %w", err)
+	for _, tables := range u.tables {
+		cutoff := now.Add(-tables.retention)
+		for _, pruner := range tables.pruners {
+			deleted, err := pruner.DeleteBefore(ctx, cutoff)
+			total += deleted
+			if err != nil {
+				return total, fmt.Errorf("failed to prune the chat: %w", err)
+			}
 		}
 	}
 	return total, nil

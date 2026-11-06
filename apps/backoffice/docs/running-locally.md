@@ -4,7 +4,8 @@
 `src/demo/api.ts` in place of `src/api.ts` (an alias in `vite.config.ts`): every client answers in the page, from
 `DemoAdmin` (`src/demo/demoAdmin.ts`), a `FakeAdmin` with a hundred and twenty made-up players, a day and a half of
 chat with insults in it, a dozen reports, four rule sets and three videos, the same on every load. It keeps what the
-operator does (a ban, a mute, a closed report, a saved set, an uploaded video) until the page reloads, and answers
+operator does (a ban, a mute, a closed report, a saved set, an uploaded video, and each in the account's moderation
+history, beside a few actions Claude took) until the page reloads, and answers
 each call after a quarter of a second, so the loading states show. `WhoAmI` answers a made-up operator, so there is no sign-in. A production build
 never holds it: the alias is the demo mode's alone.
 

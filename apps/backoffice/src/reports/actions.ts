@@ -1,5 +1,6 @@
 import {ChatAdmin, SupportAdmin} from "../clients.ts"
 import {ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
+import {reasonOf} from "../players/actions.ts"
 import {wordsOf} from "../refusal.ts"
 
 export const MAX_COMMENT_LENGTH = 1000
@@ -7,8 +8,9 @@ export const MAX_COMMENT_LENGTH = 1000
 export type Removed = {removedAt: Date}
 export type Decided = {outcome: ReportOutcome, comment: string, decidedAt: Date}
 
-export async function removeMessage(chat: ChatAdmin, messageId: string): Promise<Removed> {
-    const answer = await chat.removeMessage({messageId})
+// The reason is kept with the removal in the author's moderation history.
+export async function removeMessage(chat: ChatAdmin, messageId: string, reason = ""): Promise<Removed> {
+    const answer = await chat.removeMessage({messageId, reason: reasonOf(reason)})
     return {removedAt: dateOf(answer.removedAt)}
 }
 
