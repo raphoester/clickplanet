@@ -5,7 +5,7 @@ import {PresenceBackend} from "../../backends/player.ts"
 import {Announcing} from "../../domain/presence.ts"
 import {usePresence} from "./usePresence.ts"
 
-function Harness({backend, announcing}: {backend?: PresenceBackend, announcing: Announcing}) {
+function Harness({backend, announcing}: {backend: PresenceBackend, announcing: Announcing}) {
     usePresence(backend, announcing)
     return null
 }

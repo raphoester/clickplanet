@@ -60,7 +60,7 @@ class FakeMaster implements QuizMaster {
 const silent: PlaySound = () => {}
 
 function Harness({master, country = "bg", playSound = silent}: {
-    master?: QuizMaster,
+    master: QuizMaster,
     country?: string,
     playSound?: PlaySound,
 }) {
@@ -396,11 +396,5 @@ describe("Quiz", () => {
         await settle()
 
         expect(played).toHaveBeenCalledWith("quizWrong")
-    })
-
-    it("shows nothing at all for a backend that asks no questions", () => {
-        render(<Harness/>)
-
-        expect(screen.queryByRole("button")).toBeNull()
     })
 })

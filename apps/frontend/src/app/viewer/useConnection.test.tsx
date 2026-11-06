@@ -7,7 +7,7 @@ import {useConnection} from "./useConnection.ts"
 
 afterEach(cleanup)
 
-function Probe({source}: {source: ConnectionSource | undefined}) {
+function Probe({source}: {source: ConnectionSource}) {
     return useConnection(source) === "down" ? <ConnectionLost/> : null
 }
 
@@ -23,12 +23,6 @@ describe("useConnection", () => {
         expect(screen.getByRole("alert").textContent).toContain("Connection lost")
 
         act(() => health.reached())
-        expect(screen.queryByRole("alert")).toBeNull()
-    })
-
-    it("stays up with nothing to watch", () => {
-        render(<Probe source={undefined}/>)
-
         expect(screen.queryByRole("alert")).toBeNull()
     })
 })

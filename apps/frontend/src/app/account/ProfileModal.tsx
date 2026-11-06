@@ -49,7 +49,7 @@ export default function ProfileModal({account: store, linkedMultiplier, playerIn
     const words = useWordFilter()
     const [confirmingDelete, setConfirmingDelete] = useState(false)
 
-    if (!store || account.kind !== "ready") return null
+    if (account.kind !== "ready") return null
 
     // One dialog at a time: the confirmation takes the profile's place, as a report takes a player card's.
     if (confirmingDelete) {
@@ -78,7 +78,7 @@ export default function ProfileModal({account: store, linkedMultiplier, playerIn
         <Profile account={account}
                  store={store}
                  country={country}
-                 stats={playerInfo && name && account.accountId ? {backend: playerInfo, accountId: account.accountId} : undefined}
+                 stats={name && account.accountId ? {backend: playerInfo, accountId: account.accountId} : undefined}
                  listenForClicks={listenForClicks}
                  aside={<ProfileAccount state={account}
                                         store={store}

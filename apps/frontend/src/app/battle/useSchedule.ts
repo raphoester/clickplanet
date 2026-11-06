@@ -9,13 +9,13 @@ export type Schedule = {
     debrief?: Debrief
 }
 
-export function useSchedule(backend: TurnBackend | undefined): Schedule {
+export function useSchedule(backend: TurnBackend): Schedule {
     const [turn, setTurn] = useState<Turn>()
     const [battles, setBattles] = useState<BattleToCome[]>([])
     const [seasons, setSeasons] = useState<Seasons>(NO_SEASONS)
     const [debrief, setDebrief] = useState<Debrief>()
 
-    useEffect(() => backend?.follow({
+    useEffect(() => backend.follow({
         onTurn: setTurn,
         onBattles: setBattles,
         onSeasons: setSeasons,

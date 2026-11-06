@@ -3,9 +3,8 @@ import {PresenceBackend, RosterEntry, RosterEvent} from "../../backends/player.t
 import {useNameplates} from "../nameplates/nameplatesStore.ts"
 import {useRoster} from "./rosterStore.ts"
 
-export function useRosterFeed(backend: PresenceBackend | undefined): void {
+export function useRosterFeed(backend: PresenceBackend): void {
     useEffect(() => {
-        if (!backend) return
         const {follow, hear, lose} = useRoster.getState()
         follow()
         const stop = backend.listenForRoster((event) => {

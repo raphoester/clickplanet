@@ -7,7 +7,7 @@ import {usePlayerCard} from "./playerCardStore.ts"
 export type PlayerCardPlaceProps = {
     backend: PlayerInfoBackend
     accountId?: string
-    reporter?: PlayerReporter
+    reporter: PlayerReporter
 }
 
 export default function PlayerCardPlace({backend, accountId, reporter}: PlayerCardPlaceProps) {

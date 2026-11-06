@@ -33,7 +33,7 @@ function sparksOf(title: PlayerTitle): Spark[] {
 export type TitleUnlockedProps = {
     title: PlayerTitle
     play: PlaySound
-    onWear?: (id: string) => Promise<unknown>
+    onWear: (id: string) => Promise<unknown>
     onClose: () => void
 }
 
@@ -56,13 +56,13 @@ export default function TitleUnlocked({title, play, onWear, onClose}: TitleUnloc
         if (ready) onClose()
     })
 
-    const wear = onWear && (() => {
+    const wear = () => {
         setWearing(true)
         onWear(title.id).then(onClose, (e) => {
             console.error("Could not wear the title", e)
             setWearing(false)
         })
-    })
+    }
 
     const timing = {"--impact": `${TITLE_REVEAL.impact * 1000}ms`, "--metal": METALS[metalOf(title)]} as CSSProperties
 
@@ -99,9 +99,9 @@ export default function TitleUnlocked({title, play, onWear, onClose}: TitleUnloc
                 <div className="title-reveal-actions">
                     {ready && <>
                         <button type="button" className="button" onClick={onClose}>Close</button>
-                        {wear && <button type="button" className="button button-gold title-wear-button" disabled={wearing} onClick={wear}>
+                        <button type="button" className="button button-gold title-wear-button" disabled={wearing} onClick={wear}>
                             Wear it
-                        </button>}
+                        </button>
                     </>}
                 </div>
             </div>

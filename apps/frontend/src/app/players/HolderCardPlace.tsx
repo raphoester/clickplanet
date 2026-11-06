@@ -9,8 +9,8 @@ import {deletedLineOf, LEAVE_GRACE_MS, playerLineOf} from "./tileHolder.ts"
 import {holderHeld, useTileHolder} from "./tileHolderStore.ts"
 
 export type HolderCardPlaceProps = {
-    holders?: TileHolders
-    players?: PlayerInfoBackend
+    holders: TileHolders
+    players: PlayerInfoBackend
     pointing?: {peek: Peek, id: number}
     accountId?: string
     missions?: DayMissions
@@ -25,7 +25,7 @@ export default function HolderCardPlace({holders, players, pointing, accountId, 
     const dismiss = useTileHolder((card) => card.dismiss)
 
     useEffect(() => {
-        if (!pointing || !holders || !players) return
+        if (!pointing) return
 
         const {peek, id} = pointing
         const asking = new AbortController()

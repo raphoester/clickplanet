@@ -29,9 +29,9 @@ export type AccountPanelProps = {
     store: AccountStore
     onDelete: () => void
     linkedMultiplier?: number
-    playerInfo?: PlayerInfoBackend
+    playerInfo: PlayerInfoBackend
     listenForClicks?: ListenForClicks
-    clips?: ClipsNameBackend
+    clips: ClipsNameBackend
 }
 
 type Tab = "progress" | "settings"
@@ -66,7 +66,7 @@ export default function AccountPanel(props: AccountPanelProps) {
             {tab === "progress"
                 ? <ProgressTab store={props.store}
                                me={props.state.me}
-                               stats={props.playerInfo && name && props.state.accountId
+                               stats={name && props.state.accountId
                                    ? {backend: props.playerInfo, accountId: props.state.accountId}
                                    : undefined}
                                listenForClicks={props.listenForClicks}/>
@@ -75,7 +75,7 @@ export default function AccountPanel(props: AccountPanelProps) {
     </div>
 }
 
-export function AccountSettings({state, store, onDelete, linkedMultiplier, clips}: AccountPanelProps) {
+export function AccountSettings({state, store, onDelete, linkedMultiplier, clips}: Omit<AccountPanelProps, "playerInfo">) {
     const busy = state.busy !== undefined
     const linked = state.me.linked
     const toLink = state.offered.filter((p) => !linked.includes(p))
@@ -94,7 +94,7 @@ export function AccountSettings({state, store, onDelete, linkedMultiplier, clips
 
         {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
         {linked.length > 0 && state.username !== undefined && <ColorPicker name={state.username} state={state} store={store}/>}
-        {linked.length > 0 && state.username !== undefined && clips && <ClipsSwitch key={state.accountId} clips={clips}/>}
+        {linked.length > 0 && state.username !== undefined && <ClipsSwitch key={state.accountId} clips={clips}/>}
 
         {buttons.map((provider) => <ProviderButton key={provider}
                                                    provider={provider}

@@ -30,14 +30,14 @@ export type MomentsProps = {
     nextBattle?: BattleToCome
     // A first visit, which plays its clicks before a battle's teaser.
     guided: boolean
-    promo?: PromoBackend
+    promo: PromoBackend
     listenForClicks: ListenForClicks
-    clips?: ClipsBackend
+    clips: ClipsBackend
     clipsAccount?: string
     countryCode: string
     accountId?: string
     play: PlaySound
-    onWear?: (id: string) => Promise<unknown>
+    onWear: (id: string) => Promise<unknown>
 }
 
 export default function Moments(props: MomentsProps) {

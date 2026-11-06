@@ -44,7 +44,7 @@ const shownOf = (landmass: number, id = 1): TerritoryShown => ({territory: terri
 
 const read = (landmass: number | undefined) => playersOf(landmass)(useTerritoryPlayers.getState())
 
-function place(props: Partial<TerritoryCardPlaceProps>) {
+function place(props: Omit<TerritoryCardPlaceProps, "flag" | "onHold" | "onClose">) {
     return <TerritoryCardPlace flag="de" onHold={() => {}} onClose={() => {}} {...props}/>
 }
 

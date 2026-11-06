@@ -6,6 +6,7 @@ import {useSyncExternalStore} from "react"
 import {AccountBackend, AuthError, Provider} from "../../backends/account.ts"
 import {NameColor, PlayerBackend} from "../../backends/player.ts"
 import {ProgressionBackend} from "../../backends/progression.ts"
+import {FakeClipsBackend} from "../../backends/fakeClipsBackend.ts"
 import {AccountStore} from "./accountStore.ts"
 import AccountPanel from "./AccountPanel.tsx"
 
@@ -37,9 +38,12 @@ async function guest(offered: Provider[] = ["google", "email"]) {
     const store = new AccountStore(backend, player, progression, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate: vi.fn(), remember: vi.fn(), claimFlag: vi.fn()})
     await store.load()
 
+    const playerInfo = {playerInfo: async () => undefined}
+    const clips = new FakeClipsBackend()
+
     function Panel() {
         const state = useSyncExternalStore(store.subscribe, store.state)
-        return state.kind === "ready" ? <AccountPanel state={state} store={store} onDelete={vi.fn()}/> : null
+        return state.kind === "ready" ? <AccountPanel state={state} store={store} playerInfo={playerInfo} clips={clips} onDelete={vi.fn()}/> : null
     }
 
     render(<Panel/>)

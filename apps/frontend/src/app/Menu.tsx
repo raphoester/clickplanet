@@ -50,11 +50,11 @@ export type BoardPlaceProps = {
 }
 
 export type YouPlaceProps = {
-    account?: AccountStore,
+    account: AccountStore,
     linkedMultiplier?: number,
-    playerInfo?: PlayerInfoBackend,
+    playerInfo: PlayerInfoBackend,
     listenForClicks?: ListenForClicks,
-    clips?: ClipsNameBackend,
+    clips: ClipsNameBackend,
 }
 
 export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & Omit<SharePlaceProps, "stats"> & {
@@ -376,7 +376,7 @@ export function YouPlace({account: store, linkedMultiplier, playerInfo, listenFo
     const account = useAccount(store)
     const [confirmingDelete, setConfirmingDelete] = useState(false)
 
-    if (!store || account.kind !== "ready") return null
+    if (account.kind !== "ready") return null
 
     const deleteAccount = async () => {
         await store.deleteAccount()

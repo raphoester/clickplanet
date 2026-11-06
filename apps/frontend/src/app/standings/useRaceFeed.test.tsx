@@ -13,7 +13,7 @@ const roundOf = (roundId: string): Round =>
 
 type Ids = {bookId?: string, today?: string, battle?: string}
 
-function Harness({backend, bookId, today, battle}: Ids & {backend?: StandingsBackend}) {
+function Harness({backend, bookId, today, battle}: Ids & {backend: StandingsBackend}) {
     useRaceFeed(backend, bookId, today, battle)
     return null
 }

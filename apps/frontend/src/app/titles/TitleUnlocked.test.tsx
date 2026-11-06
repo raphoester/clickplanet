@@ -26,21 +26,21 @@ function reveal() {
 
 describe("TitleUnlocked", () => {
     it("names the title and its rank", () => {
-        render(<TitleUnlocked title={raider} play={vi.fn()} onClose={vi.fn()}/>)
+        render(<TitleUnlocked title={raider} play={vi.fn()} onWear={vi.fn()} onClose={vi.fn()}/>)
 
         const dialog = screen.getByRole("dialog", {name: "New title! Raider"})
         expect(within(dialog).getByText("Rank 2 of 5 · Conquest")).toBeDefined()
     })
 
     it("says no rank for a title on no track", () => {
-        render(<TitleUnlocked title={{id: "og", name: "OG"}} play={vi.fn()} onClose={vi.fn()}/>)
+        render(<TitleUnlocked title={{id: "og", name: "OG"}} play={vi.fn()} onWear={vi.fn()} onClose={vi.fn()}/>)
 
         expect(screen.queryByText(/Rank/)).toBeNull()
     })
 
     it("plays the fanfare as it opens", () => {
         const play = vi.fn()
-        render(<TitleUnlocked title={raider} play={play} onClose={vi.fn()}/>)
+        render(<TitleUnlocked title={raider} play={play} onWear={vi.fn()} onClose={vi.fn()}/>)
 
         expect(play).toHaveBeenCalledWith("title")
     })
@@ -56,7 +56,7 @@ describe("TitleUnlocked", () => {
 
     it("stays open when a click lands around it", async () => {
         const onClose = vi.fn()
-        render(<TitleUnlocked title={raider} play={vi.fn()} onClose={onClose}/>)
+        render(<TitleUnlocked title={raider} play={vi.fn()} onWear={vi.fn()} onClose={onClose}/>)
         const dialog = screen.getByRole("dialog")
 
         await user().click(dialog)
@@ -68,7 +68,7 @@ describe("TitleUnlocked", () => {
 
     it("closes on Escape only once the reveal has played", async () => {
         const onClose = vi.fn()
-        render(<TitleUnlocked title={raider} play={vi.fn()} onClose={onClose}/>)
+        render(<TitleUnlocked title={raider} play={vi.fn()} onWear={vi.fn()} onClose={onClose}/>)
 
         await user().keyboard("{Escape}")
         expect(onClose).not.toHaveBeenCalled()
@@ -100,15 +100,5 @@ describe("TitleUnlocked", () => {
 
         await vi.waitFor(() => expect(screen.getByRole("button", {name: "Wear it"})).toHaveProperty("disabled", false))
         expect(onClose).not.toHaveBeenCalled()
-    })
-
-    it("offers only to close when nothing can wear it", async () => {
-        const onClose = vi.fn()
-        render(<TitleUnlocked title={raider} play={vi.fn()} onClose={onClose}/>)
-        reveal()
-
-        expect(screen.queryByRole("button", {name: "Wear it"})).toBeNull()
-        await user().click(screen.getByRole("button", {name: "Close"}))
-        expect(onClose).toHaveBeenCalled()
     })
 })
