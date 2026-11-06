@@ -18,6 +18,7 @@ import (
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
+	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
@@ -41,6 +42,7 @@ func TestEveryAdminMethodIsATool(t *testing.T) {
 
 	assert.Equal(t, "/antibot.v1.AdminService/BanPlayer", names["antibot_ban_player"])
 	assert.Equal(t, "/chat.v1.AdminService/RemoveMessage", names["chat_remove_message"])
+	assert.Equal(t, "/missions.v1.AdminService/ListFlagDays", names["missions_list_flag_days"])
 	assert.Equal(t, "/progression.v1.AdminService/ReconcileTitles", names["progression_reconcile_titles"])
 	assert.Equal(t, "/support.v1.AdminService/DecideReport", names["support_decide_report"])
 	for _, hidden := range []string{
@@ -66,8 +68,8 @@ func TestTheEmbeddedSetIsTheOneTheServerIsBuiltFrom(t *testing.T) {
 
 	offered := 0
 	for _, pkg := range []string{
-		"alerts.v1", "antibot.v1", "chat.v1", "clips.v1", "gamemaster.v1", "planet.v1", "player.v1", "progression.v1",
-		"promo.v1", "support.v1",
+		"alerts.v1", "antibot.v1", "chat.v1", "clips.v1", "gamemaster.v1", "missions.v1", "planet.v1", "player.v1",
+		"progression.v1", "promo.v1", "support.v1",
 	} {
 		service, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(pkg + ".AdminService"))
 		require.NoError(t, err)
