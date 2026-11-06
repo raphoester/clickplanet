@@ -64,7 +64,6 @@ func run(ctx context.Context) error {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
 	}))
-	logger.Debug("config", slog.Any("config", config))
 
 	gate, err := auth.NewAdminGate(config.Auth.Admin, config.HTTPServer.InternalBindAddress, logger)
 	if err != nil {
