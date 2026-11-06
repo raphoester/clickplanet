@@ -77,7 +77,8 @@ Counted per account, the chat and the GIFs apart (each is a mute of its own, `MU
 
 ## How a run works
 
-- **Every 2 hours**, a scheduled Claude session with the ClickPlanet connector: the open reports first
+- **Every 2 hours**, a scheduled Claude session with the ClickPlanet connector, in the operator's `clickplanet` cloud
+  environment, whose network allows the GIF host (`static.klipy.com`), so a run sees each GIF: the open reports first
   (`support_list_reports` with `openOnly`), then every message since the last run (`chat_list_messages`, paged back
   until `sentAt` passes the last run), then the actions these rules call for.
 - **The tools a run calls without asking**: `chat_remove_message`, `chat_mute` (24 hours at most), `chat_unmute`,
@@ -94,6 +95,4 @@ Counted per account, the chat and the GIFs apart (each is a mute of its own, `MU
   the chat's 72 hours, and shown on the backoffice's player page. The steps count from it. Until it exists, a run
   counts what the chat still holds: the account's removed messages (`removedAt`, 72 hours) and the mute running now
   (`chat_get_mute`), so the 7 days are 3.
-- **The GIF host** (`static.klipy.com`), allowed in the Claude environment's network. Until then a run cannot see a GIF,
-  and judges one only from a report and its conversation.
 - **The scheduled task**, and the five tools allowed on claude.ai.
