@@ -16,14 +16,13 @@ const (
 	fewestPoints = 3
 	mostPoints   = 10
 	goalStep     = 10
-	goalPercent  = 50
-
-	leastConquest = 100
-	leastShields  = 30
+	goalPercent  = 30
+	leastGoal    = 250
 )
 
-func goalOf(yesterday, least uint64) uint32 {
-	goal := max(least, yesterday*goalPercent/100)
+// A tile taken and a shield broken are a click each, so both kinds ask a part of all the flag did.
+func goalOf(yesterday Day) uint32 {
+	goal := max(leastGoal, (yesterday.takes+yesterday.strikes)*goalPercent/100)
 	goal -= goal % goalStep
 	return uint32(min(goal, uint64(^uint32(0)))) //nolint:gosec // capped just above.
 }
@@ -53,10 +52,10 @@ func Draw(day days.Day, flag string, world missions.World, yesterday Day) Day {
 
 	var orders []Order
 	if grounds := world.GroundsOf(flag); len(grounds) > 0 {
-		orders = append(orders, conquest(random, grounds, goalOf(yesterday.takes, leastConquest)))
+		orders = append(orders, conquest(random, grounds, goalOf(yesterday)))
 	}
 	if rivals := world.RivalsOf(flag); len(rivals) > 0 {
-		orders = append(orders, BreakShields{Flag: byGround(random, rivals), Goal: goalOf(yesterday.strikes, leastShields)})
+		orders = append(orders, BreakShields{Flag: byGround(random, rivals), Goal: goalOf(yesterday)})
 	}
 	if len(orders) == 0 {
 		return Day{}
