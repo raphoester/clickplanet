@@ -67,10 +67,11 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Badges](docs/badges.md) — a name's streak and worn title, read by account id from one store that batches,
   keeps them 5 minutes and takes the page's own changes at once; the readers.
 - [Season standings](docs/season-standings.md) — the players' table of the season.
-- [The season](docs/season.md) — the season chip and its clocks, the Final Battle to come in its look and its
-  details, and the home page's countdowns and Final Battle panel.
+- [The season](docs/season.md) — the season chip and its clocks, the next battle and the Final Battle to come in its
+  details, the Final Battle's look, and the home page's countdowns and Final Battle panel.
 - [Battles](docs/battle.md) — the schedule's stream, the countdown to the next battle or the Final Battle, the
-  teaser of a battle to come with its rule set's cards in a carousel, and the
+  teaser of a battle to come with its rule set's cards in a carousel, its rules a press away in the chip's details
+  ("See the rules", the teaser with no entrance), and the
   battle look: the mood, the chip and its clock, the start moment, the debrief's three screens when the gamemaster
   debriefs its round, matched by the round's id, and the announcements queue that shows one full-screen moment at a
   time.

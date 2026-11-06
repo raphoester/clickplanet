@@ -15,7 +15,7 @@ function reducedMotion(): boolean {
 // The teaser's cards in a row, one shown at a time: swiped on a phone, turned with the arrows or the dots (the
 // keyboard's way in), and turning on their own until the player touches them. Under reduced motion they never turn on
 // their own. The row is moved by a transform, so the card shown is always the one the dots say.
-export default function TeaserCarousel({cards, turnMs = TEASER_TURN_MS}: {cards: TeaserCard[], turnMs?: number}) {
+export default function TeaserCarousel({cards, turnMs = TEASER_TURN_MS}: {cards: readonly TeaserCard[], turnMs?: number}) {
     const [shown, setShown] = useState(0)
     const [touched, setTouched] = useState(false)
     const [drag, setDrag] = useState<number>()

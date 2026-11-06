@@ -9,6 +9,7 @@ import {PlayerTitle} from "../../backends/progression.ts"
 import {BATTLE_TEASED_STORAGE_KEY} from "../../domain/battleTeaser.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
 import {NO_SCHEDULE, useSchedule} from "../battle/scheduleStore.ts"
+import {useTeaserCards} from "../battle/teaserCardsStore.ts"
 import {acceptedClicks} from "../clicks/acceptedClicks.ts"
 import {useAnnouncements} from "./announcementsStore.ts"
 import Moments from "./Moments.tsx"
@@ -24,7 +25,6 @@ const mission: FlagMission = {
 const clicks = acceptedClicks()
 const moments = (shown: boolean) => <Moments shown={shown}
                                              guided={false}
-                                             promo={new FakePromoBackend()}
                                              clips={new FakeClipsBackend()}
                                              onWear={vi.fn()}
                                              listenForClicks={clicks.listenForClicks}
@@ -45,6 +45,7 @@ afterEach(() => {
     cleanup()
     useAnnouncements.setState({queue: []})
     useSchedule.setState(NO_SCHEDULE)
+    useTeaserCards.getState().serve(undefined)
     vi.useRealTimers()
 })
 
@@ -71,12 +72,11 @@ describe("Moments", () => {
     })
 
     it("teases the next battle with its cards, and keeps that it did once closed", async () => {
-        const promo = new FakePromoBackend()
         const startsAt = Date.now() + 3 * 60 * 60 * 1000
         const next = {entryId: "tonight", startsAt, endsAt: startsAt + 60 * 60 * 1000, description: "", times: 2, endsSeason: false, roundId: "tonight"}
         useSchedule.setState({battles: [next]})
-        render(<Moments shown guided={false} promo={promo} clips={new FakeClipsBackend()} listenForClicks={clicks.listenForClicks}
-                        play={vi.fn()} onWear={vi.fn()}/>)
+        useTeaserCards.getState().serve(new FakePromoBackend())
+        render(moments(true))
 
         expect(await screen.findByRole("dialog", {name: "Battle"})).toBeDefined()
         act(() => vi.advanceTimersByTime(TITLE_REVEAL.ready * 1000))
@@ -84,5 +84,21 @@ describe("Moments", () => {
 
         expect(screen.queryByRole("dialog")).toBeNull()
         expect(JSON.parse(window.localStorage.getItem(BATTLE_TEASED_STORAGE_KEY) ?? "")).toMatchObject({key: "tonight"})
+    })
+
+    it("shows a teaser the player asked for at once, with no wait to close it, and keeps that it was told", async () => {
+        const play = vi.fn()
+        const startsAt = Date.now() + 3 * 24 * 60 * 60 * 1000
+        const next = {entryId: "friday", startsAt, endsAt: startsAt + 60 * 60 * 1000, description: "", times: 2, endsSeason: false, roundId: "friday"}
+        useAnnouncements.getState().announce({kind: "teaser", battle: next, cards: new FakePromoBackend().cards, asked: true})
+        render(<Moments shown guided={false} clips={new FakeClipsBackend()} listenForClicks={clicks.listenForClicks}
+                        play={play} onWear={vi.fn()}/>)
+
+        expect(screen.getByRole("dialog", {name: "Battle"})).toBeDefined()
+        expect(play).not.toHaveBeenCalledWith("title")
+        await userEvent.setup({advanceTimers: vi.advanceTimersByTime}).click(screen.getByRole("button", {name: "To the globe"}))
+
+        expect(screen.queryByRole("dialog")).toBeNull()
+        expect(JSON.parse(window.localStorage.getItem(BATTLE_TEASED_STORAGE_KEY) ?? "")).toMatchObject({key: "friday"})
     })
 })

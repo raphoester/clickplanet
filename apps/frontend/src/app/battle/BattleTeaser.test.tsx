@@ -119,4 +119,22 @@ describe("BattleTeaser", () => {
 
         expect(play).toHaveBeenCalledWith("title")
     })
+
+    it("asked for, plays no sound and lets the player go at once", async () => {
+        const play = vi.fn()
+        const onClose = vi.fn()
+        render(<BattleTeaser battle={battle} cards={cards} asked play={play} onClose={onClose}/>)
+
+        expect(play).not.toHaveBeenCalled()
+        expect(document.querySelector(".title-reveal-flash")).toBeNull()
+        await userEvent.setup({advanceTimers: vi.advanceTimersByTime}).click(screen.getByRole("button", {name: "To the globe"}))
+        expect(onClose).toHaveBeenCalledOnce()
+    })
+
+    it("counts down to the end of a battle that plays", () => {
+        render(<BattleTeaser battle={{...battle, startsAt: now - 15 * 60_000, endsAt: now + 45 * 60_000}} cards={cards} asked
+                             play={vi.fn()} onClose={vi.fn()}/>)
+
+        expect(screen.getByRole("timer").textContent).toBe("Ends in 45m 00s")
+    })
 })

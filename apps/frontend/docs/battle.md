@@ -81,12 +81,15 @@ tease anything"). The Final Battle's own teaser, once per browser in the two day
 - **Its key** (`teaserKeyOf`) is the battle's entry id, or `season-N/finale` for a season's finale, which has no
   entry: the id the timeline names it by, and the one `promo.v1.PromoService/GetTeaser` takes.
 - **Its cards are asked once due** (`PromoBackend.teaser`, `ConnectPromoBackend`: a cached GET, a minute in
-  Cloudflare). A battle whose set has none, one the schedule no longer holds and a server without promo all answer
-  none, and nothing is kept: cards written later show on the next page.
+  Cloudflare), through `useTeaserCards` (`app/battle/teaserCardsStore.ts`), which `useTeaserCardsFeed` serves from
+  `PlayScreen`: one read per battle per page, shared with the chip's "See the rules" (below). A battle whose set has
+  none, one the schedule no longer holds, a server without promo and a read that failed all answer none, and nothing
+  is kept: cards written later show on the next page.
 - **The screen** is the start moment's look, with the battle mood and the tape along the top: "Battle" ("Final
-  Battle" for the season's finale, `battleNameOf`), "Starts in" and its clock to the second, when it plays in the
-  player's time with its points' times (`battleWhenLine`: "Today · 22:00 – 23:00 · Points ×2"), the operator's words
-  on the entry, then the cards, and "To the globe" once it settled (`TITLE_REVEAL.ready`).
+  Battle" for the season's finale, `battleNameOf`), "Starts in" and its clock to the second ("Ends in" for a battle
+  that plays, `teaserClockLine`), when it plays in the player's time with its points' times (`battleWhenLine`: "Today
+  · 22:00 – 23:00 · Points ×2"), the operator's words on the entry, then the cards, and "To the globe" once it
+  settled (`TITLE_REVEAL.ready`).
 - **The cards** (`TeaserCarousel`) are 3:4 portraits, as tall as the screen leaves room for, one shown at a time,
   the words on a band of shade along the top. **On a wide screen** (1024px and wider, in landscape) the screen's words
   and its button go beside the cards, so a card takes the screen's height (600px wide at most) and its words grow with
@@ -96,6 +99,29 @@ tease anything"). The Final Battle's own teaser, once per browser in the two day
   until the player touches it. Under `prefers-reduced-motion` it never turns on its own, and slides with no
   movement.
 - It plays through the announcements queue (below).
+
+## The rules, asked for
+
+**A player sees when the next battle is and its rules in two presses: the chip, then "See the rules"** (the owner,
+2026-11-06: "the players should definitely be able to click one or two buttons max to see when the next battle is and
+which are the rules exactly"). Before, the cards showed only when the teaser came on its own, and a battle further
+than a day away, or one that already played its teaser, had no rules anywhere.
+
+- **The season chip's details open on the next battle** (`NextBattleDetails`, `app/battle/NextBattle.tsx`, see [The
+  season](season.md)): "Next battle", when it plays in the player's time with its points' times (`battleWhenLine`),
+  and the operator's words. The Final Battle keeps its own details (`FinaleDetails`).
+- **"See the rules"** (`BattleRulesButton`) is under them, and under the Final Battle's once it is the next battle. It
+  opens the battle's teaser, asked for: `{kind: "teaser", asked: true}` in the announcements queue. **No cards, no
+  button**, as no cards is no teaser; the button shows once `useTeaserCards` read them.
+- **The battle that plays has its rules too**, in the battle chip's facts (`BattleFacts`): the same button, for the
+  turn as a battle to come (`playingOf`), counted down to its end ("Ends in"). Promo answers a battle's cards whether
+  it is to come or plays.
+- **Asked for, the teaser plays no entrance** (`asked` on `BattleTeaser`, `battle-teaser--asked`): no title sound,
+  no slam, no shake and no flash; the screen fades in whole, and "To the globe" and Escape close it at once. It is the
+  same screen as the teaser that comes on its own, so a player knows it, and it costs no new modal.
+- **Closing it counts as told**: the battle's key and the time go to `clickplanet-battle-teased`, so the teaser does
+  not come on its own in the next 6 hours. A battle that started keeps no mark (`dismiss` skips it): it is never
+  teased again, and its mark would only hide the next battle's.
 
 ## The look
 
@@ -124,7 +150,8 @@ On a phone the chip opens `BattleSheet` or `SeasonSheet`, which read the same st
   units, and a press opens the "Battle" sheet (`BattleDetails`): the clock and the
   same facts.
 - **The facts are the description, when the operator wrote one, and when the battle
-  ends.** The season's countdowns follow (today's end and the season's), so a player
+  ends**, then "See the rules" when the battle has cards (see [The rules, asked for](#the-rules-asked-for)). The
+  season's countdowns follow (today's end and the season's), so a player
   loses no clock while the chip is the battle's.
   The facts explain no rule on their own: what a battle changes is the operator's
   description, read from the server.
@@ -225,4 +252,5 @@ gamemaster debriefs it, so the debrief plays; `closeFinale()` debriefs it as the
 Battle, then the season, and the season's results follow. `scheduleFinale(inMinutes, minutes)` plans one: under
 two days away, the chip wears its look. **A battle planned within a day is teased** (`scheduleBattle(90, 60)`), with
 the fake promo's three cards over made-up backgrounds (`FakePromoBackend`); `fakePromo.cards = []` teases nothing,
-and `localStorage.removeItem("clickplanet-battle-teased")` teases it again.
+and `localStorage.removeItem("clickplanet-battle-teased")` teases it again. **A battle planned further away**
+(`scheduleBattle(26 * 60, 60)`) is not teased, and the season chip's details show it with "See the rules".

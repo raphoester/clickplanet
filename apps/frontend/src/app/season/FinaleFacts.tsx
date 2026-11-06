@@ -1,10 +1,12 @@
+import {ReactNode} from "react"
 import {Finale, finaleLengthLine, finaleWhenLine} from "../../domain/battle.ts"
 import {SwordsIcon} from "../components/icons.tsx"
 import SwordsArt from "../components/SwordsArt.tsx"
 import {Fact, TrophyArt} from "./SeasonFacts.tsx"
 
-// The season's Final Battle, from the schedule: when, how long, what it is worth, and the operator's words.
-export function FinaleDetails({finale}: {finale: Finale}) {
+// The season's Final Battle, from the schedule: when, how long, what it is worth, and the operator's words. `children`
+// go under them: its rules, once it is the next battle.
+export function FinaleDetails({finale, children}: {finale: Finale, children?: ReactNode}) {
     return <div className="finale-details">
         <p className="finale-details-head">
             <SwordsIcon/>
@@ -12,6 +14,7 @@ export function FinaleDetails({finale}: {finale: Finale}) {
         </p>
         <p className="finale-details-when">{finaleWhenLine(finale)}</p>
         <FinaleFacts finale={finale}/>
+        {children}
     </div>
 }
 

@@ -5,6 +5,7 @@ import {FakePromoBackend} from "../../backends/fakePromoBackend.ts"
 import {BattleToCome} from "../../backends/turn.ts"
 import {BATTLE_TEASED_STORAGE_KEY, BATTLE_TEASER_EVERY_MS} from "../../domain/battleTeaser.ts"
 import {acceptedClicks, AcceptedClicks} from "../clicks/acceptedClicks.ts"
+import {useTeaserCards} from "./teaserCardsStore.ts"
 import {BattleTeaserState, useBattleTeaser} from "./useBattleTeaser.ts"
 
 const HOUR = 60 * 60 * 1000
@@ -19,7 +20,7 @@ let clicks: AcceptedClicks
 let promo: FakePromoBackend
 
 function Harness({next = battle, at = now, guided = false}: {next?: BattleToCome, at?: number, guided?: boolean}) {
-    latest = useBattleTeaser(next, at, guided, clicks.listenForClicks, promo)
+    latest = useBattleTeaser(next, at, guided, clicks.listenForClicks)
     return null
 }
 
@@ -29,10 +30,12 @@ beforeEach(() => {
     window.localStorage.clear()
     clicks = acceptedClicks()
     promo = new FakePromoBackend()
+    useTeaserCards.getState().serve(promo)
 })
 
 afterEach(() => {
     cleanup()
+    useTeaserCards.getState().serve(undefined)
     vi.useRealTimers()
 })
 
@@ -87,6 +90,16 @@ describe("useBattleTeaser", () => {
 
         act(() => clicks.record({country: "fr", took: true}))
         await waitFor(() => expect(latest.teaser).toBeDefined())
+    })
+
+    it("keeps no mark for a battle that started, so the next one is still teased", async () => {
+        render(<Harness/>)
+        await waitFor(() => expect(latest.teaser).toBeDefined())
+
+        act(() => latest.dismiss({...battle, entryId: "playing", startsAt: now - HOUR}))
+
+        expect(window.localStorage.getItem(BATTLE_TEASED_STORAGE_KEY)).toBeNull()
+        expect(latest.teaser).toBeDefined()
     })
 
     it("teases the Final Battle by its round", async () => {

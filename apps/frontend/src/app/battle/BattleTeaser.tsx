@@ -3,8 +3,7 @@ import {createPortal} from "react-dom"
 import {TeaserCard} from "../../backends/promo.ts"
 import {BattleToCome} from "../../backends/turn.ts"
 import {battleNameOf} from "../../domain/battle.ts"
-import {battleWhenLine} from "../../domain/battleTeaser.ts"
-import {timeLeftTo} from "../../domain/seasonClock.ts"
+import {battleWhenLine, teaserClockLine} from "../../domain/battleTeaser.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
 import {useModalDialog} from "../components/useDialog.ts"
 import {useNow} from "../season/useNow.ts"
@@ -15,23 +14,27 @@ import "./Battle.css"
 
 export type BattleTeaserProps = {
     battle: BattleToCome
-    cards: TeaserCard[]
+    cards: readonly TeaserCard[]
+    // The player opened it: no sound, no slam, and it closes at once.
+    asked?: boolean
     play: PlaySound
     onClose: () => void
 }
 
-// A battle to come, full screen: when, what it is worth, the operator's words, and its rule set's cards.
-export default function BattleTeaser({battle, cards, play, onClose}: BattleTeaserProps) {
+// A battle to come, full screen: when, what it is worth, the operator's words, and its rule set's cards. Asked for, it
+// is also the battle that plays, counted down to its end.
+export default function BattleTeaser({battle, cards, asked = false, play, onClose}: BattleTeaserProps) {
     const dialog = useRef<HTMLDivElement>(null)
     const headId = useId()
-    const [ready, setReady] = useState(false)
+    const [ready, setReady] = useState(asked)
     const now = useNow()
 
     useEffect(() => {
+        if (asked) return
         play("title")
         const timer = setTimeout(() => setReady(true), TITLE_REVEAL.ready * 1000)
         return () => clearTimeout(timer)
-    }, [play])
+    }, [asked, play])
 
     useModalDialog(dialog, () => {
         if (ready) onClose()
@@ -42,7 +45,7 @@ export default function BattleTeaser({battle, cards, play, onClose}: BattleTease
 
     return createPortal(
         <div ref={dialog}
-             className="title-reveal battle-reveal battle-teaser"
+             className={asked ? "title-reveal battle-reveal battle-teaser battle-teaser--asked" : "title-reveal battle-reveal battle-teaser"}
              data-mood="battle"
              role="dialog"
              aria-modal="true"
@@ -52,7 +55,7 @@ export default function BattleTeaser({battle, cards, play, onClose}: BattleTease
             <div className="title-reveal-stage">
                 <h2 id={headId} className="title-reveal-head">{battleNameOf(battle)}</h2>
                 <p className="battle-brief-times battle-teaser-left" role="timer">
-                    <span>Starts in {timeLeftTo(battle.startsAt, now)}</span>
+                    <span>{teaserClockLine(battle, now)}</span>
                 </p>
                 <p className="title-reveal-rank battle-teaser-when">{battleWhenLine(battle, now)}{worth}</p>
                 {battle.description !== "" && <p className="battle-brief-text battle-teaser-words">{battle.description}</p>}
@@ -61,7 +64,7 @@ export default function BattleTeaser({battle, cards, play, onClose}: BattleTease
                     {ready && <button type="button" className="button" onClick={onClose}>To the globe</button>}
                 </div>
             </div>
-            <div className="title-reveal-flash" aria-hidden="true"/>
+            {!asked && <div className="title-reveal-flash" aria-hidden="true"/>}
         </div>,
         document.body,
     )
