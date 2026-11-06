@@ -9,7 +9,7 @@ export type MissionsState =
     | {kind: "ready", day: DayMissions}
 
 export function useMissions(
-    backend: MissionsBackend | undefined,
+    backend: MissionsBackend,
     account: string | undefined,
     pledged: string | undefined,
     listenForClicks: ListenForClicks | undefined,
@@ -21,7 +21,6 @@ export function useMissions(
     const endsAt = state.kind === "ready" ? state.day.endsAt : undefined
 
     useEffect(() => {
-        if (!backend) return
         let stale = false
         // A day the stream sent during the read is newer: the read could put a paid mission back to unpaid.
         const before = streamed.current
@@ -40,7 +39,7 @@ export function useMissions(
     }, [backend, account, pledged, read, reads])
 
     useEffect(() => {
-        if (!backend || !account) return
+        if (!account) return
         return backend.follow((day) => {
             streamed.current++
             setState({kind: "ready", day})

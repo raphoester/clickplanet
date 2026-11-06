@@ -4,7 +4,7 @@ import {Announcing, PresenceSchedule, SETTLE_MS} from "../../domain/presence.ts"
 
 const CHECK_MS = SETTLE_MS
 
-export function usePresence(backend: PresenceBackend | undefined, announcing: Announcing): void {
+export function usePresence(backend: PresenceBackend, announcing: Announcing): void {
     const schedule = useRef<PresenceSchedule>()
     schedule.current ??= new PresenceSchedule(announcing)
 
@@ -14,7 +14,6 @@ export function usePresence(backend: PresenceBackend | undefined, announcing: An
     }, [countryCode, username, color])
 
     useEffect(() => {
-        if (!backend) return
         const current = schedule.current!
 
         const check = () => {
@@ -32,8 +31,6 @@ export function usePresence(backend: PresenceBackend | undefined, announcing: An
     }, [backend])
 
     useEffect(() => {
-        if (!backend) return
-
         const onPageHide = (event: PageTransitionEvent) => {
             if (!event.persisted) backend.leave()
         }

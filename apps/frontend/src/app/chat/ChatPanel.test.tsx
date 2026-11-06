@@ -27,8 +27,10 @@ import {useRoster} from "../players/rosterStore.ts"
 import {useChat} from "./chatStore.ts"
 import {AccountNameplate, Nameplate} from "../../backends/nameplates.ts"
 import {useNameplates} from "../nameplates/nameplatesStore.ts"
+import {FakeSupportBackend} from "../../backends/fakeSupportBackend.ts"
 
 const france = Countries.get("fr")!
+const SUPPORT = new FakeSupportBackend()
 
 const OWN_GUEST = "guest_c0ffee"
 
@@ -113,8 +115,8 @@ function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncemen
     }
 }
 
-const setup = (backend?: ChatBackend, username?: string, accountId?: string) => ({
-    ...render(<ChatPanel backend={backend} country={france} username={username} accountId={accountId}/>),
+const setup = (backend: ChatBackend, username?: string, accountId?: string) => ({
+    ...render(<ChatPanel backend={backend} reporter={SUPPORT} country={france} username={username} accountId={accountId}/>),
     user: userEvent.setup(),
 })
 
@@ -151,7 +153,7 @@ describe("ChatPanel sound", () => {
         return {
             playSound,
             user: userEvent.setup(),
-            ...render(<ChatPanel backend={backend}
+            ...render(<ChatPanel backend={backend} reporter={SUPPORT}
                                  country={france}
                                  playSound={playSound}
                                  username={username}
@@ -487,7 +489,7 @@ describe("ChatPanel", () => {
             vi.useFakeTimers()
             try {
                 const {backend, broadcast} = stubBackend([message("a", "old news")])
-                render(<ChatPanel backend={backend} country={france}/>)
+                render(<ChatPanel backend={backend} reporter={SUPPORT} country={france}/>)
                 await vi.waitFor(() => item("old news"))
 
                 broadcast(message("live", "gm everyone", 1_700_000_200_000))
@@ -752,11 +754,6 @@ describe("ChatPanel", () => {
             await waitFor(() => expect(panel()).toBeNull())
         })
 
-        it("shows nothing when no chat backend was wired at all", () => {
-            setup(undefined)
-
-            expect(panel()).toBeNull()
-        })
     })
 
     describe("folded", () => {
@@ -924,7 +921,7 @@ describe("ChatPanel's seen mark", () => {
         const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true)
         try {
             const {backend, broadcast} = stubBackend([message("a", "seen last time", T)], [], T)
-            render(<ChatPanel backend={backend} country={france}/>)
+            render(<ChatPanel backend={backend} reporter={SUPPORT} country={france}/>)
             await screen.findByText("seen last time")
 
             broadcast(message("b", "while you were away", T + 1_000))
@@ -940,14 +937,14 @@ describe("ChatPanel's seen mark", () => {
 
     it("tells a phone's tab what was missed since the last visit", async () => {
         const {backend} = stubBackend([message("a", "said while away", T + 1_000)], [bomb("x", T + 2_000)], T)
-        render(<ChatPanel backend={backend} country={france} compact open={false}/>)
+        render(<ChatPanel backend={backend} reporter={SUPPORT} country={france} compact open={false}/>)
 
         await waitFor(() => expect(unreadCount()).toBe(2))
     })
 
     it("takes the tab's count away with it", async () => {
         const {backend} = stubBackend([message("a", "said while away", T + 1_000)], [], T)
-        const view = render(<ChatPanel backend={backend} country={france} compact open={false}/>)
+        const view = render(<ChatPanel backend={backend} reporter={SUPPORT} country={france} compact open={false}/>)
         await waitFor(() => expect(unreadCount()).toBe(1))
 
         view.unmount()
@@ -990,7 +987,7 @@ describe("ChatPanel's Unread line", () => {
 
     const open = (backend: ChatBackend) => ({
         user: userEvent.setup({advanceTimers: vi.advanceTimersByTime}),
-        ...render(<ChatPanel backend={backend} country={france}/>),
+        ...render(<ChatPanel backend={backend} reporter={SUPPORT} country={france}/>),
     })
 
     const log = () => document.querySelector(".chat-log")!
@@ -1354,7 +1351,7 @@ describe("ChatPanel's players", () => {
         const {backend} = stubBackend([message("a", "who took Brittany")])
         const user = userEvent.setup()
         online(players)
-        render(<ChatPanel backend={backend} country={france}/>)
+        render(<ChatPanel backend={backend} reporter={SUPPORT} country={france}/>)
         await screen.findByText("who took Brittany")
 
         await user.click(screen.getByRole("tab", {name: "2 players online"}))
@@ -1370,7 +1367,7 @@ describe("ChatPanel's players", () => {
         const {backend, broadcast} = stubBackend([message("a", "who took Brittany", T)], [], T)
         const user = userEvent.setup()
         online(players)
-        render(<ChatPanel backend={backend} country={france}/>)
+        render(<ChatPanel backend={backend} reporter={SUPPORT} country={france}/>)
         await screen.findByText("who took Brittany")
         await user.click(screen.getByRole("tab", {name: "2 players online"}))
 
@@ -1385,21 +1382,21 @@ describe("ChatPanel's players", () => {
 
     it("counts one player in the singular", () => {
         online(players.slice(0, 1))
-        render(<ChatPanel backend={stubBackend().backend} country={france}/>)
+        render(<ChatPanel backend={stubBackend().backend} reporter={SUPPORT} country={france}/>)
         expect(screen.getByRole("tab", {name: "1 player online"})).toBeDefined()
     })
 
     it("says so when nobody is playing", async () => {
         const user = userEvent.setup()
         online([])
-        render(<ChatPanel backend={stubBackend().backend} country={france}/>)
+        render(<ChatPanel backend={stubBackend().backend} reporter={SUPPORT} country={france}/>)
 
         await user.click(screen.getByRole("tab", {name: "0 players online"}))
         expect(screen.getByText("Nobody is playing right now.")).toBeDefined()
     })
 
     it("offers no list without a roster", () => {
-        render(<ChatPanel backend={stubBackend().backend} country={france}/>)
+        render(<ChatPanel backend={stubBackend().backend} reporter={SUPPORT} country={france}/>)
         expect(screen.queryByRole("tab")).toBeNull()
     })
 })
@@ -1411,7 +1408,7 @@ describe("ChatPanel's Discord bar", () => {
     it("sits over the chat, and not over who is online", async () => {
         const user = userEvent.setup()
         online([])
-        render(<ChatPanel backend={stubBackend().backend} country={france} discord={IN_SERVER}/>)
+        render(<ChatPanel backend={stubBackend().backend} reporter={SUPPORT} country={france} discord={IN_SERVER}/>)
         expect(discord()).not.toBeNull()
 
         await user.click(screen.getByRole("tab", {name: "0 players online"}))
@@ -1419,19 +1416,19 @@ describe("ChatPanel's Discord bar", () => {
     })
 
     it("is in the phone's sheet too", () => {
-        render(<ChatPanel backend={stubBackend().backend} country={france} compact open discord={IN_SERVER}/>)
+        render(<ChatPanel backend={stubBackend().backend} reporter={SUPPORT} country={france} compact open discord={IN_SERVER}/>)
         expect(discord()).not.toBeNull()
     })
 
     it("is not there while the game offers no Discord", () => {
-        render(<ChatPanel backend={stubBackend().backend} country={france}/>)
+        render(<ChatPanel backend={stubBackend().backend} reporter={SUPPORT} country={france}/>)
 
         expect(screen.queryByRole("button", {name: "Hide Discord"})).toBeNull()
     })
 
     it("stays gone once its cross is pressed, through a fold of the chat", async () => {
         const user = userEvent.setup()
-        render(<ChatPanel backend={stubBackend().backend} country={france} discord={IN_SERVER}/>)
+        render(<ChatPanel backend={stubBackend().backend} reporter={SUPPORT} country={france} discord={IN_SERVER}/>)
 
         await user.click(screen.getByRole("button", {name: "Hide Discord"}))
         await user.click(screen.getByRole("button", {name: "Fold the chat"}))
@@ -1443,7 +1440,7 @@ describe("ChatPanel's Discord bar", () => {
 
 describe("ChatPanel on a phone", () => {
     const phone = (backend: ChatBackend, open: boolean, onOpenChange = vi.fn()) =>
-        render(<ChatPanel backend={backend} country={france} compact open={open} onOpenChange={onOpenChange}/>)
+        render(<ChatPanel backend={backend} reporter={SUPPORT} country={france} compact open={open} onOpenChange={onOpenChange}/>)
 
     it("is a sheet while it is open, and closes on its ×", async () => {
         const {backend} = stubBackend([message("a", "who took Brittany")])
@@ -1515,7 +1512,7 @@ describe("ChatPanel's flag room", () => {
         more: Partial<Parameters<typeof ChatPanel>[0]> = {},
     ) => ({
         user: userEvent.setup(),
-        ...render(<ChatPanel backend={world.backend}
+        ...render(<ChatPanel backend={world.backend} reporter={SUPPORT}
                              flagRoom={{country: france, backend: flag.backend}}
                              country={france}
                              {...more}/>),
@@ -1619,7 +1616,7 @@ describe("ChatPanel's flag room", () => {
         await user.click(screen.getByRole("tab", {name: "France"}))
         await screen.findByText("push from the east")
 
-        rerender(<ChatPanel backend={world.backend}
+        rerender(<ChatPanel backend={world.backend} reporter={SUPPORT}
                             flagRoom={{country: Countries.get("de")!, backend: germany.backend}}
                             country={Countries.get("de")!}/>)
 
@@ -1647,7 +1644,7 @@ describe("ChatPanel's flag room", () => {
         const {world} = rooms()
         const onSignIn = vi.fn()
         const user = userEvent.setup()
-        render(<ChatPanel backend={world.backend} country={france} onSignIn={onSignIn}/>)
+        render(<ChatPanel backend={world.backend} reporter={SUPPORT} country={france} onSignIn={onSignIn}/>)
         await screen.findByText("hello world")
 
         await user.click(screen.getByRole("tab", {name: "France"}))
@@ -1696,7 +1693,7 @@ describe("ChatPanel GIFs", () => {
     it("sends the GIF picked from what is trending, alone, and tells the search", async () => {
         const {backend} = stubBackend()
         const gifs = stubGifs()
-        render(<ChatPanel backend={backend} country={france} gifs={gifs}/>)
+        render(<ChatPanel backend={backend} reporter={SUPPORT} country={france} gifs={gifs}/>)
         const user = userEvent.setup()
 
         await user.click(await gifButton())
@@ -1711,7 +1708,7 @@ describe("ChatPanel GIFs", () => {
 
     it("searches the words once the typing pauses", async () => {
         const gifs = stubGifs()
-        render(<ChatPanel backend={stubBackend().backend} country={france} gifs={gifs}/>)
+        render(<ChatPanel backend={stubBackend().backend} reporter={SUPPORT} country={france} gifs={gifs}/>)
         const user = userEvent.setup()
 
         await user.click(await gifButton())
@@ -1724,7 +1721,7 @@ describe("ChatPanel GIFs", () => {
     it("asks a guest to sign in, and searches nothing", async () => {
         const gifs = stubGifs()
         const onSignIn = vi.fn()
-        render(<ChatPanel backend={stubBackend().backend} country={france} gifs={gifs} onSignIn={onSignIn}/>)
+        render(<ChatPanel backend={stubBackend().backend} reporter={SUPPORT} country={france} gifs={gifs} onSignIn={onSignIn}/>)
         const user = userEvent.setup()
 
         await user.click(await gifButton())
@@ -1735,7 +1732,7 @@ describe("ChatPanel GIFs", () => {
     })
 
     it("closes on Escape and keeps what was typed in the message", async () => {
-        render(<ChatPanel backend={stubBackend().backend} country={france} gifs={stubGifs()}/>)
+        render(<ChatPanel backend={stubBackend().backend} reporter={SUPPORT} country={france} gifs={stubGifs()}/>)
         const user = userEvent.setup()
 
         await user.type(await screen.findByRole("textbox", {name: "Message"}), "look")

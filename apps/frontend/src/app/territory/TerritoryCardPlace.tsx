@@ -12,8 +12,8 @@ const TOP_PLAYERS = 3
 export type TerritoryCardPlaceProps = {
     shown?: TerritoryShown
     flag: string
-    reader?: LandmassReader
-    players?: PlayerInfoBackend
+    reader: LandmassReader
+    players: PlayerInfoBackend
     missions?: DayMissions
     onHold: (held: boolean) => void
     onClose: () => void
@@ -27,7 +27,7 @@ export default function TerritoryCardPlace({shown, flag, reader, players, missio
     const forget = useTerritoryPlayers((territory) => territory.forget)
 
     useEffect(() => {
-        if (landmass === undefined || !reader || !players) return
+        if (landmass === undefined) return
 
         const asking = new AbortController()
         const ask = async () => {

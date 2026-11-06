@@ -13,7 +13,7 @@ type Ready = Extract<AccountState, {kind: "ready"}>
 export type ProfileAccountProps = {
     state: Ready
     store: AccountStore
-    clips?: ClipsNameBackend
+    clips: ClipsNameBackend
     onDelete: () => void
 }
 
@@ -67,7 +67,7 @@ export default function ProfileAccount({state, store, clips, onDelete}: ProfileA
             {linkingEmail && toLink.includes("email") && <EmailSignIn state={state} store={store} intent="link"/>}
         </div>
 
-        {state.username !== undefined && clips && <ClipsSwitch key={state.accountId} clips={clips}/>}
+        {state.username !== undefined && <ClipsSwitch key={state.accountId} clips={clips}/>}
 
         {state.failure && <p className="account-failure" role="alert">{messageOf(state.failure)}</p>}
 

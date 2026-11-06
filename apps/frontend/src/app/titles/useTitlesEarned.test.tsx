@@ -7,7 +7,7 @@ import {TOKEN_CHECK_MS, useTitlesEarned} from "./useTitlesEarned.ts"
 
 const settler: PlayerTitle = {id: "settler", name: "Settler"}
 
-type HarnessProps = {backend?: TitlesListener, signedIn: boolean, onEarned?: (title: PlayerTitle) => void}
+type HarnessProps = {backend: TitlesListener, signedIn: boolean, onEarned?: (title: PlayerTitle) => void}
 
 function Harness({backend, signedIn, onEarned = () => {}}: HarnessProps) {
     useTitlesEarned(backend, signedIn, onEarned)

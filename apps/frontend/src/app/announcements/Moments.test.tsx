@@ -2,6 +2,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import {FakeClipsBackend} from "../../backends/fakeClipsBackend.ts"
 import {FakePromoBackend} from "../../backends/fakePromoBackend.ts"
 import {FlagMission} from "../../backends/missions.ts"
 import {PlayerTitle} from "../../backends/progression.ts"
@@ -22,6 +23,9 @@ const mission: FlagMission = {
 const clicks = acceptedClicks()
 const moments = (shown: boolean) => <Moments shown={shown}
                                              guided={false}
+                                             promo={new FakePromoBackend()}
+                                             clips={new FakeClipsBackend()}
+                                             onWear={vi.fn()}
                                              listenForClicks={clicks.listenForClicks}
                                              countryCode="fr"
                                              play={vi.fn()}/>
@@ -69,8 +73,8 @@ describe("Moments", () => {
         const promo = new FakePromoBackend()
         const startsAt = Date.now() + 3 * 60 * 60 * 1000
         const next = {entryId: "tonight", startsAt, endsAt: startsAt + 60 * 60 * 1000, description: "", times: 2, endsSeason: false, roundId: "tonight"}
-        render(<Moments shown guided={false} nextBattle={next} promo={promo} listenForClicks={clicks.listenForClicks}
-                        countryCode="fr" play={vi.fn()}/>)
+        render(<Moments shown guided={false} nextBattle={next} promo={promo} clips={new FakeClipsBackend()} listenForClicks={clicks.listenForClicks}
+                        countryCode="fr" play={vi.fn()} onWear={vi.fn()}/>)
 
         expect(await screen.findByRole("dialog", {name: "Battle"})).toBeDefined()
         act(() => vi.advanceTimersByTime(TITLE_REVEAL.ready * 1000))

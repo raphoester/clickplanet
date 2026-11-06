@@ -3,9 +3,8 @@ import {BadgesBackend} from "../../backends/badges.ts"
 import {useBadges} from "./badgesStore.ts"
 
 // Reads the badges the page shows from the backend, and forgets them once it stops.
-export function useBadgesFeed(backend: BadgesBackend | undefined): void {
+export function useBadgesFeed(backend: BadgesBackend): void {
     useEffect(() => {
-        if (!backend) return
         const {serve} = useBadges.getState()
         serve(backend)
         return () => serve(undefined)

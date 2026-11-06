@@ -4,11 +4,11 @@ import {Debrief} from "../../backends/turn.ts"
 import {closedOf, numbersOf} from "../../domain/debrief.ts"
 
 // The last debrief, once its numbers are read from scoring.
-export function useDebriefed(backend: StandingsBackend | undefined, debrief: Debrief | undefined): ClosedRound | undefined {
+export function useDebriefed(backend: StandingsBackend, debrief: Debrief | undefined): ClosedRound | undefined {
     const [read, setRead] = useState<{debrief: Debrief, closed: ClosedRound}>()
 
     useEffect(() => {
-        if (!backend || !debrief) return
+        if (!debrief) return
 
         let stale = false
         const numbers = numbersOf(debrief)

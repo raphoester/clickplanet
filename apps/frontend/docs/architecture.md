@@ -26,5 +26,7 @@ change.
 
 - **A field is always there**, so `Viewer` does not check for it. Only three can be `undefined`: `crazyGames` off
   the CrazyGames page, `alerts` on it (no Discord sign-in there), and `gifs` on it or with no KLIPY key.
-- **`Viewer` still gives each feature its backend as a prop.** The components and hooks take what they use as an
-  input, and their tests give them a fake the same way.
+- **`Viewer` still gives each feature its backend as a prop.** The components and hooks take what they use as a
+  required input, and do not check for it. Their tests give them a fake, never `undefined`. A backend is optional
+  below `Viewer` only where it can really be absent: the flag's chat room before a flag is held, the card's reporter
+  on the player's own card, and `createGlobe`'s clicks, bonuses, bombs and shields on the archive and clip pages.

@@ -6,7 +6,7 @@ import SignInCallback from "./SignInCallback.tsx"
 
 export type SignInGateProps = {
     callback?: Callback
-    account?: AccountStore
+    account: AccountStore
     children: ReactNode
 }
 
@@ -20,9 +20,7 @@ export default function SignInGate(props: SignInGateProps) {
         setDone(true)
     }
 
-    if (!props.account) return props.children
-
-    const account = props.account
+    const {account} = props
     const remembered = rememberedSignIn()
     return <SignInCallback
         callback={props.callback}

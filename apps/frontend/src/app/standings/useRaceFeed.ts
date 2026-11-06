@@ -4,14 +4,14 @@ import {useRace} from "./raceStore.ts"
 
 // Follows the book's points, and today's round and the running battle's while they are open, into the store.
 export function useRaceFeed(
-    backend: StandingsBackend | undefined,
+    backend: StandingsBackend,
     bookId: string | undefined,
     todayRoundId: string | undefined,
     battleRoundId: string | undefined,
 ): void {
     useEffect(() => {
         const {follow, hearScores, hearRound, leave} = useRace.getState()
-        if (!backend || !bookId) {
+        if (!bookId) {
             leave()
             return
         }

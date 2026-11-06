@@ -34,7 +34,7 @@ export function useBattleTeaser(
     now: number,
     guided: boolean,
     listenForClicks: ListenForClicks,
-    promo: PromoBackend | undefined,
+    promo: PromoBackend,
 ): BattleTeaserState {
     const [teased, setTeased] = useState(readTeased)
     const [clicks, setClicks] = useState(0)
@@ -46,12 +46,12 @@ export function useBattleTeaser(
         return listenForClicks(() => setClicks((count) => count + 1))
     }, [listenForClicks, ready])
 
-    const due = promo !== undefined && battleTeaserDue(battle, teased, now, ready)
+    const due = battleTeaserDue(battle, teased, now, ready)
     const key = due ? teaserKeyOf(battle) : undefined
     const readKey = read?.key
 
     useEffect(() => {
-        if (key === undefined || promo === undefined || readKey === key) return
+        if (key === undefined || readKey === key) return
         let live = true
         promo.teaser(key).then(
             (cards) => {

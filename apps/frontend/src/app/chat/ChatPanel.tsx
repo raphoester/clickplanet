@@ -37,14 +37,14 @@ export type FlagRoom = {
 }
 
 export type ChatPanelProps = {
-    backend?: ChatBackend
+    backend: ChatBackend
     flagRoom?: FlagRoom
     onLeftRoom?: () => void
     country: Country
     playSound?: PlaySound
     accountId?: string
     username?: string
-    reporter?: PlayerReporter
+    reporter: PlayerReporter
     compact?: boolean
     open?: boolean
     onOpenChange?: (open: boolean) => void
@@ -182,7 +182,7 @@ export default function ChatPanel(props: ChatPanelProps) {
                      onReact={(messageId, reaction, on) =>
                          room.react({messageId, reaction, on})}
                      onReply={onReply}
-                     onReport={reporter && setReporting}
+                     onReport={setReporting}
                      own={room.own}/>
 
             <ChatComposer username={username}
@@ -195,11 +195,11 @@ export default function ChatPanel(props: ChatPanelProps) {
                           gifs={gifOffer}
                           onSendGif={onSendGif}/>
 
-            {reporting && reporter && <ReportMessageModal key={reporting.id}
-                                                          message={reporting}
-                                                          reporter={reporter}
-                                                          onSent={markReported}
-                                                          onClose={() => setReporting(undefined)}/>}
+            {reporting && <ReportMessageModal key={reporting.id}
+                                              message={reporting}
+                                              reporter={reporter}
+                                              onSent={markReported}
+                                              onClose={() => setReporting(undefined)}/>}
         </>
 
     const toast = newest(world.toast, flagRead ? flag.toast : undefined)

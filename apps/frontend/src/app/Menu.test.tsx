@@ -25,6 +25,10 @@ import {Race} from "../backends/standings.ts"
 import {BUILD} from "./support/pageContext.ts"
 import {NO_ATTACHMENTS} from "../backends/support.ts"
 import {AllegianceLockedError} from "../backends/backend.ts"
+import {FakeAccountBackend} from "../backends/fakeAccountBackend.ts"
+import {FakeClipsBackend} from "../backends/fakeClipsBackend.ts"
+import {FakeSupportBackend} from "../backends/fakeSupportBackend.ts"
+import {NoSession} from "../backends/session.ts"
 
 const france = Countries.get("fr")!
 const RACE: Race = {
@@ -35,6 +39,17 @@ const RACE: Race = {
     scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}],
 }
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
+const NO_PLAYER: PlayerInfoBackend = {playerInfo: async () => undefined}
+
+function backends() {
+    const account = new FakeAccountBackend()
+    return {
+        account: new AccountStore(account, account, account, new NoSession(), {navigate: vi.fn(), remember: vi.fn(), claimFlag: vi.fn()}),
+        playerInfo: NO_PLAYER,
+        clips: new FakeClipsBackend(),
+        support: new FakeSupportBackend(),
+    }
+}
 
 beforeEach(() => useBoardGuide.setState({guided: true}))
 
@@ -51,7 +66,7 @@ afterEach(() => {
 function setup(leaderboard: LeaderboardEntry[] = [], country = france) {
     const setCountry = vi.fn()
     const view = render(
-        <Menu country={country} setCountry={setCountry} leaderboard={leaderboard} tilesCount={1000}/>,
+        <Menu {...backends()} country={country} setCountry={setCountry} leaderboard={leaderboard} tilesCount={1000}/>,
     )
     return {...view, setCountry, user: userEvent.setup()}
 }
@@ -104,7 +119,7 @@ describe("Menu", () => {
     })
 
     it("offers the Hall of Fame as an icon in the board's header", () => {
-        render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+        render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                      hallOfFame={{ended: [], standings: {} as never, turn: {} as never}}/>)
 
         expect(button("Hall of Fame").className).toContain("icon-button")
@@ -118,7 +133,7 @@ describe("Menu", () => {
     })
 
     it("counts the missions not seen yet on their tab", () => {
-        render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+        render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                      missions={{state: {kind: "loading"}}} missionsNews={3}/>)
 
         expect(tab("Missions, 3 new").textContent).toBe("Missions3")
@@ -127,7 +142,7 @@ describe("Menu", () => {
     it("shows on the Change button how long the flag is held, and in the picker until when", async () => {
         const user = userEvent.setup()
         const changeableAt = Date.now() + 30 * 60 * 1000
-        render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+        render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                      allegiance={{countryId: "fr", changeableAt}}/>)
 
         const time = new Intl.DateTimeFormat(undefined, {hour: "2-digit", minute: "2-digit"}).format(changeableAt)
@@ -142,7 +157,7 @@ describe("Menu", () => {
 
     it("shows a padlock and no list while the rules lock the flag, whatever the wait says", async () => {
         const user = userEvent.setup()
-        render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+        render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                      allegiance={{countryId: "fr", changeableAt: Date.now() - 1, locked: true}}/>)
 
         const change = button("Change country, locked for now")
@@ -156,7 +171,7 @@ describe("Menu", () => {
 
     it("offers every country once the wait is over, under the rule", async () => {
         const user = userEvent.setup()
-        render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+        render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                      allegiance={{countryId: "fr", changeableAt: Date.now() - 1}}/>)
 
         await user.click(button("Change"))
@@ -171,7 +186,7 @@ describe("Menu", () => {
             .mockRejectedValueOnce(new AllegianceLockedError({countryId: "fr", changeableAt: Date.now() + 60_000}))
             .mockRejectedValueOnce(new Error("the network fell over"))
         vi.spyOn(console, "error").mockImplementation(() => {})
-        render(<Menu country={france} setCountry={setCountry} leaderboard={[]} tilesCount={1000}/>)
+        render(<Menu {...backends()} country={france} setCountry={setCountry} leaderboard={[]} tilesCount={1000}/>)
 
         await user.click(button("Change"))
         await user.click(screen.getByRole("option", {name: "Japan"}))
@@ -213,7 +228,7 @@ describe("Menu", () => {
 
     it("ranks the country in the order picked, as the board under it does", () => {
         useRace.setState({race: RACE})
-        const menu = (countryOrder: CountryOrder) => <Menu country={france} setCountry={vi.fn()} tilesCount={1000}
+        const menu = (countryOrder: CountryOrder) => <Menu {...backends()} country={france} setCountry={vi.fn()} tilesCount={1000}
                                                            leaderboard={[entry("jp", 500), entry("fr", 250)]}
                                                            countryOrder={countryOrder}/>
 
@@ -228,7 +243,7 @@ describe("Menu", () => {
 
     it("ranks a country with points and no ground in the season, and not by territory", () => {
         useRace.setState({race: RACE})
-        const menu = (countryOrder: CountryOrder) => <Menu country={france} setCountry={vi.fn()} tilesCount={1000}
+        const menu = (countryOrder: CountryOrder) => <Menu {...backends()} country={france} setCountry={vi.fn()} tilesCount={1000}
                                                            leaderboard={[entry("jp", 500)]}
                                                            countryOrder={countryOrder}/>
 
@@ -256,7 +271,7 @@ describe("Menu", () => {
 
     describe("the leader", () => {
         const withLeader = (data: LeaderboardEntry[], anthem?: ReactNode) => render(
-            <Menu country={france} setCountry={vi.fn()} leaderboard={data} tilesCount={1000} anthem={anthem}/>)
+            <Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={data} tilesCount={1000} anthem={anthem}/>)
 
         it("is drawn in a frame of its own, apart from the table", () => {
             withLeader([entry("jp", 500), entry("fr", 250)])
@@ -297,7 +312,7 @@ describe("Menu", () => {
         }
 
         it("are offered beside the countries once wired, and the countries stay as they were", () => {
-            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000} standings={standings}/>)
+            render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000} standings={standings}/>)
 
             expect(screen.getByRole("button", {name: "Leaderboard: Countries"})).toBeDefined()
             expect(screen.getByRole("region", {name: "First: France"})).toBeDefined()
@@ -310,13 +325,13 @@ describe("Menu", () => {
 
         it("put the countries' order on the heading's line, and only on the countries", () => {
             useRace.setState({race: RACE})
-            const {rerender} = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000}
+            const {rerender} = render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000}
                                             standings={standings} onCountryOrder={vi.fn()}/>)
 
             const heading = button("Leaderboard: Countries").closest(".board-heading")!
             expect(within(heading as HTMLElement).getByRole("group", {name: "Order"})).toBeDefined()
 
-            rerender(<Menu country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000}
+            rerender(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000}
                            standings={{...standings, view: "players"}} onCountryOrder={vi.fn()}/>)
             expect(screen.queryByRole("group", {name: "Order"})).toBeNull()
         })
@@ -540,7 +555,7 @@ describe("Menu", () => {
     describe("feedback", () => {
         const withSupport = (pageContext?: () => typeof phone) => {
             const support = supportBackend()
-            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} support={support}
+            render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} support={support}
                          pageContext={pageContext}/>)
             return {support, user: userEvent.setup()}
         }
@@ -599,21 +614,12 @@ describe("Menu", () => {
                 gpuRenderer: "",
             }, []])
         })
-
-        it("is not offered when no support backend is wired", async () => {
-            const {user} = setup()
-
-            await user.click(tab("Settings"))
-
-            expect(screen.queryByRole("button", {name: "Feedback"})).toBeNull()
-            expect(button("About")).toBeDefined()
-        })
     })
 
     describe("Share", () => {
         it("takes the picture", async () => {
             const onTakePicture = vi.fn()
-            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} onTakePicture={onTakePicture}/>)
+            render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} onTakePicture={onTakePicture}/>)
             const user = userEvent.setup()
 
             await user.click(tab("Share"))
@@ -623,7 +629,7 @@ describe("Menu", () => {
         })
 
         it("refuses a second press while a picture is being drawn, and keeps its label", async () => {
-            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} onTakePicture={vi.fn()} taking/>)
+            render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} onTakePicture={vi.fn()} taking/>)
             const user = userEvent.setup()
 
             await user.click(tab("Share"))
@@ -651,7 +657,7 @@ describe("Menu", () => {
         })
 
         it("is CrazyGames' invite there, with no link that leads off it", async () => {
-            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} onTakePicture={vi.fn()}
+            render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} onTakePicture={vi.fn()}
                          invite={vi.fn(async () => undefined)}/>)
             const user = userEvent.setup()
 
@@ -669,7 +675,7 @@ describe("Menu", () => {
             useDisplaySettings.setState(display)
             useSoundSettings.setState({settings: DEFAULT_SOUND_SETTINGS})
             const preview = vi.fn()
-            const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+            const view = render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                                       sound={{preview}}/>)
             return {...view, preview, user: userEvent.setup()}
         }
@@ -758,7 +764,7 @@ describe("Menu", () => {
             }],
         })
 
-        const withAccount = (offered: Provider[], me: Me, username = "", linkedMultiplier?: number, playerInfo?: PlayerInfoBackend, clicks?: AcceptedClicks, phone = false) => {
+        const withAccount = (offered: Provider[], me: Me, username = "", linkedMultiplier?: number, playerInfo = NO_PLAYER, clicks?: AcceptedClicks, phone = false) => {
             const backend = {
                 signInOptions: vi.fn(async () => offered),
                 me: vi.fn(async () => me),
@@ -784,8 +790,8 @@ describe("Menu", () => {
             } satisfies ProgressionBackend
             const store = new AccountStore(backend, player, progression, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn(), claimFlag: vi.fn()})
             const view = render(phone
-                ? <YouPlace account={store} playerInfo={playerInfo} listenForClicks={clicks?.listenForClicks}/>
-                : <Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
+                ? <YouPlace account={store} playerInfo={playerInfo} listenForClicks={clicks?.listenForClicks} clips={new FakeClipsBackend()}/>
+                : <Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                         account={store} linkedMultiplier={linkedMultiplier} playerInfo={playerInfo}
                         listenForClicks={clicks?.listenForClicks}/>)
             const user = userEvent.setup()

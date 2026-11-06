@@ -26,7 +26,7 @@ export type ClipNotice = {
     dismiss: (appearance: Appearance) => void
 }
 
-export function useClipNotice(backend: ClipsBackend | undefined, account: string | undefined): ClipNotice {
+export function useClipNotice(backend: ClipsBackend, account: string | undefined): ClipNotice {
     const [read, setRead] = useState<{account: string, appearances: readonly Appearance[]}>()
     const [shown, setShown] = useState(readShown)
     const lastRead = useRef<{account: string, at: number}>()
@@ -37,7 +37,7 @@ export function useClipNotice(backend: ClipsBackend | undefined, account: string
             lastRead.current = undefined
             return
         }
-        if (!backend || !visible) return
+        if (!visible) return
         const now = Date.now()
         if (lastRead.current?.account === account && !readDue(lastRead.current.at, now)) return
 

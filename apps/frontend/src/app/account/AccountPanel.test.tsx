@@ -6,6 +6,7 @@ import {useSyncExternalStore} from "react"
 import {AccountBackend, Provider} from "../../backends/account.ts"
 import {ColoredProfile, NameColor, PlayerBackend, Profile, RenameTooSoonError} from "../../backends/player.ts"
 import {ProgressionBackend} from "../../backends/progression.ts"
+import {FakeClipsBackend} from "../../backends/fakeClipsBackend.ts"
 import {AccountStore} from "./accountStore.ts"
 import AccountPanel from "./AccountPanel.tsx"
 
@@ -44,9 +45,12 @@ async function signedIn(profile: ColoredProfile, setName: (name: string) => Prom
     await store.load()
     await vi.waitFor(() => expect(store.state()).toMatchObject({username: profile.name}))
 
+    const playerInfo = {playerInfo: async () => undefined}
+    const clips = new FakeClipsBackend()
+
     function Panel() {
         const state = useSyncExternalStore(store.subscribe, store.state)
-        return state.kind === "ready" ? <AccountPanel state={state} store={store} onDelete={vi.fn()}/> : null
+        return state.kind === "ready" ? <AccountPanel state={state} store={store} playerInfo={playerInfo} clips={clips} onDelete={vi.fn()}/> : null
     }
 
     render(<Panel/>)

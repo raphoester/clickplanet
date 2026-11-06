@@ -9,7 +9,7 @@ const HOUR = 3_600_000
 
 let latest: Schedule | undefined
 
-function Harness({backend}: {backend?: TurnBackend}) {
+function Harness({backend}: {backend: TurnBackend}) {
     latest = useSchedule(backend)
     return null
 }
@@ -17,11 +17,6 @@ function Harness({backend}: {backend?: TurnBackend}) {
 afterEach(cleanup)
 
 describe("useSchedule", () => {
-    it("knows no turn and no battle with no backend", () => {
-        render(<Harness/>)
-        expect(latest).toEqual({turn: undefined, battles: [], seasons: {ended: []}, debrief: undefined})
-    })
-
     it("holds the turn, the battles, the seasons and the day the backend sends first", () => {
         render(<Harness backend={new FakeTurnBackend(SEASON_ZERO, () => Date.UTC(2026, 9, 28, 12))}/>)
         expect(latest).toEqual({

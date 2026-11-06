@@ -18,7 +18,7 @@ import "./SettingsPlace.css"
 
 export type SettingsPlaceProps = {
     sound?: SoundSettingsPanelProps,
-    support?: FeedbackBackend,
+    support: FeedbackBackend,
     pageContext?: () => PageContext,
     discord?: DiscordOffer,
 }
@@ -53,12 +53,12 @@ export default function SettingsPlace({sound, support, pageContext = pageAlone, 
         {sound && <SoundSettingsPanel {...sound}/>}
 
         <div className="menu-tiles settings-foot">
-            {support && <button type="button"
-                                className="panel-box menu-tile"
-                                onClick={() => setOpen("feedback")}>
+            <button type="button"
+                    className="panel-box menu-tile"
+                    onClick={() => setOpen("feedback")}>
                 <MailIcon size={22}/>
                 <span>Feedback</span>
-            </button>}
+            </button>
             <button type="button"
                     className="panel-box menu-tile"
                     onClick={() => setOpen("about")}>
@@ -73,8 +73,8 @@ export default function SettingsPlace({sound, support, pageContext = pageAlone, 
             <About discord={discord}/>
         </Modal>}
 
-        {open === "feedback" && support && <FeedbackModal support={support}
-                                                          pageContext={pageContext}
-                                                          onClose={close}/>}
+        {open === "feedback" && <FeedbackModal support={support}
+                                               pageContext={pageContext}
+                                               onClose={close}/>}
     </div>
 }

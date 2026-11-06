@@ -11,7 +11,7 @@ const bo: RosterEntry = {key: "k2", accountId: "account-bo", name: "guest_Bo", c
 
 const roster = () => useRoster.getState().state
 
-function Harness({backend}: {backend?: PresenceBackend}) {
+function Harness({backend}: {backend: PresenceBackend}) {
     useRosterFeed(backend)
     return null
 }
@@ -42,11 +42,6 @@ afterEach(() => {
 })
 
 describe("useRosterFeed", () => {
-    it("lists nobody with no backend", () => {
-        render(<Harness/>)
-        expect(roster()).toEqual({kind: "unavailable"})
-    })
-
     it("is loading until the whole roster arrives, then follows each change", () => {
         const {backend, stream} = streaming()
         render(<Harness backend={backend}/>)
