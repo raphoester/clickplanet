@@ -1,17 +1,18 @@
 package board_query_test
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 
-	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/departures"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/departures/postgres_departure_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler/board_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings/postgres_contribution_store"
@@ -23,36 +24,12 @@ func TestRunSuite(t *testing.T) {
 	suite.Run(t, new(testSuite))
 }
 
-type fakePlayers struct {
-	named map[standings.AccountID]*playerv1.Player
-	asked int
-	err   error
-}
-
-func (f *fakePlayers) Players(
-	_ context.Context,
-	accounts []standings.AccountID,
-) (map[standings.AccountID]*playerv1.Player, error) {
-	f.asked++
-	if f.err != nil {
-		return nil, f.err
-	}
-	found := make(map[standings.AccountID]*playerv1.Player, len(accounts))
-	for _, account := range accounts {
-		if player, known := f.named[account]; known {
-			found[account] = player
-		}
-	}
-	return found, nil
-}
-
 type testSuite struct {
 	suite.Suite
 
-	db      *cppg.Postgres
-	store   *postgres_contribution_store.Store
-	players *fakePlayers
-	taken   uint64
+	db    *cppg.Postgres
+	store *postgres_contribution_store.Store
+	taken uint64
 }
 
 func (s *testSuite) SetupSuite() {
@@ -62,7 +39,6 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
-	s.players = &fakePlayers{named: map[standings.AccountID]*playerv1.Player{}}
 }
 
 func account(n int) standings.AccountID {
@@ -76,16 +52,22 @@ func (s *testSuite) take(book books.BookID, n int, country standings.Country, ti
 	}
 }
 
+func (s *testSuite) named(n int) {
+	s.Require().NoError(postgres_player_store.New(s.db).Keep(s.T().Context(), account(n)))
+}
+
 func (s *testSuite) player(n int, country standings.Country, tiles int) {
 	s.take(seasonZero, n, country, tiles)
-	s.players.named[account(n)] = &playerv1.Player{
-		AccountId: account(n).String(), Name: fmt.Sprintf("player_%d", n), Color: playerv1.NameColor(n % 13),
-	}
+	s.named(n)
 }
 
 func (s *testSuite) guest(n int, country standings.Country, tiles int) {
 	s.take(seasonZero, n, country, tiles)
-	s.players.named[account(n)] = &playerv1.Player{AccountId: account(n).String(), Name: fmt.Sprintf("guest_%06x", n), Guest: true}
+}
+
+func (s *testSuite) decided(n int, decision departures.Decision) {
+	s.Require().NoError(postgres_departure_store.New(s.db).Change(s.T().Context(), account(n),
+		func(departure departures.Departure) departures.Departure { return departure.Decided(decision) }))
 }
 
 const (
@@ -94,7 +76,7 @@ const (
 )
 
 func (s *testSuite) query() *board_query.PostgresQuery {
-	return board_query.NewPostgresQuery(s.db, s.players, cpcountries.New())
+	return board_query.NewPostgresQuery(s.db, cpcountries.New())
 }
 
 func (s *testSuite) standings(country string) *scoringv1.GetBoardResponse {
@@ -110,9 +92,18 @@ func (s *testSuite) of(book books.BookID, country string) *scoringv1.GetBoardRes
 func lines(res *scoringv1.GetBoardResponse) []string {
 	shown := make([]string, len(res.GetStandings()))
 	for i, standing := range res.GetStandings() {
-		shown[i] = fmt.Sprintf("%d %s %s %d", standing.GetRank(), standing.GetName(), standing.GetCountryId(), standing.GetTiles())
+		shown[i] = fmt.Sprintf("%d %s %s %d", standing.GetRank(), nameOf(standing.GetAccountId()), standing.GetCountryId(), standing.GetTiles())
 	}
 	return shown
+}
+
+func nameOf(id string) string {
+	for n := range 2000 {
+		if account(n).String() == id {
+			return fmt.Sprintf("player_%d", n)
+		}
+	}
+	return id
 }
 
 func (s *testSuite) TestTheTopIsTheTenBestPlayersWithAUsername() {
@@ -127,7 +118,6 @@ func (s *testSuite) TestTheTopIsTheTenBestPlayersWithAUsername() {
 	s.Require().Len(res.GetStandings(), board_query.Shown)
 	s.Equal("1 player_1 fr 19", lines(res)[0])
 	s.Equal("10 player_10 fr 10", lines(res)[9])
-	s.Equal(playerv1.NameColor_NAME_COLOR_RED, res.GetStandings()[0].GetColor())
 	s.Equal(account(1).String(), res.GetStandings()[0].GetAccountId())
 	s.Equal(account(10).String(), res.GetStandings()[9].GetAccountId())
 }
@@ -151,7 +141,6 @@ func (s *testSuite) TestTheTopOfACountryRanksEveryPlayerByTheTilesTakenForIt() {
 
 	fr := s.standings("fr")
 	s.Equal([]string{"1 player_1 fr 8", "2 player_3 fr 4", "3 player_2 fr 2"}, lines(fr))
-	s.Equal(playerv1.NameColor_NAME_COLOR_YELLOW, fr.GetStandings()[1].GetColor())
 	s.Equal(account(3).String(), fr.GetStandings()[1].GetAccountId())
 	s.Equal([]string{"1 player_1 de 9"}, lines(s.standings("de")))
 	s.Equal([]string{"1 player_3 it 1"}, lines(s.standings("it")))
@@ -165,11 +154,17 @@ func (s *testSuite) TestTheTopOfTheWholeMapCountsOnlyTheMainFlag() {
 	s.Equal([]string{"1 player_2 fr 10", "2 player_1 de 9"}, lines(s.standings("")))
 }
 
-func (s *testSuite) TestAnAccountThePlayerModuleCannotNameIsNotRanked() {
-	s.take(seasonZero, 1, "fr", 9)
+func (s *testSuite) TestAnAccountAskedDeletedIsNotRankedUntilItReturns() {
+	s.player(1, "fr", 9)
 	s.player(2, "fr", 2)
+	s.decided(1, departures.Leaves(time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)))
 
 	s.Equal([]string{"1 player_2 fr 2"}, lines(s.standings("")))
+	s.Equal([]string{"1 player_2 fr 2"}, lines(s.standings("fr")))
+
+	s.decided(1, departures.Returns(time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)))
+
+	s.Equal([]string{"1 player_1 fr 9", "2 player_2 fr 2"}, lines(s.standings("")))
 }
 
 func (s *testSuite) TestTheTopReadsPastAPageOfGuests() {
@@ -179,18 +174,16 @@ func (s *testSuite) TestTheTopReadsPastAPageOfGuests() {
 	s.player(1, "fr", 1)
 
 	s.Equal([]string{"1 player_1 fr 1"}, lines(s.standings("")))
-	s.Equal(2, s.players.asked)
 }
 
-func (s *testSuite) TestAnEmptyBookIsAnEmptyTopAndAsksNobody() {
+func (s *testSuite) TestAnEmptyBookIsAnEmptyTop() {
 	s.Empty(s.standings("").GetStandings())
-	s.Zero(s.players.asked)
 }
 
 func (s *testSuite) TestOnlyTheBookAskedCounts() {
 	s.player(1, "fr", 3)
 	s.take(seasonOne, 2, "de", 1)
-	s.players.named[account(2)] = &playerv1.Player{AccountId: account(2).String(), Name: "player_2"}
+	s.named(2)
 
 	s.Equal([]string{"1 player_1 fr 3"}, lines(s.of(seasonZero, "")))
 	s.Equal([]string{"1 player_2 de 1"}, lines(s.of(seasonOne, "")))
@@ -203,7 +196,6 @@ func (s *testSuite) TestACountryThatIsNotOneIsRefusedAndReadsNothing() {
 	_, err := s.query().Board(s.T().Context(), board_query.View{Book: seasonZero, Country: "zz"})
 
 	s.Require().ErrorIs(err, board_query.ErrUnknownCountry)
-	s.Zero(s.players.asked)
 }
 
 func (s *testSuite) TestABoardIsTheTopOfTheStandings() {
@@ -223,14 +215,4 @@ func (s *testSuite) TestABoardOfACountryThatIsNotOneIsRefused() {
 	_, _, err := s.query().Live(s.T().Context(), board_query.View{Book: seasonZero, Country: "zz"})
 
 	s.Require().ErrorIs(err, board_query.ErrUnknownCountry)
-}
-
-func (s *testSuite) TestAFailureToNameIsAnError() {
-	s.player(1, "fr", 3)
-	refused := errors.New("the player module is down")
-	s.players.err = refused
-
-	_, err := s.query().Board(s.T().Context(), board_query.View{Book: seasonZero})
-
-	s.Require().ErrorIs(err, refused)
 }

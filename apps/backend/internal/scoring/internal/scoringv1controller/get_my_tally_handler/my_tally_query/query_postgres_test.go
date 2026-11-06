@@ -1,18 +1,17 @@
 package my_tally_query_test
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/proto"
 
-	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/departures"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/departures/postgres_departure_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler/my_tally_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings/postgres_contribution_store"
@@ -24,39 +23,12 @@ func TestRunSuite(t *testing.T) {
 	suite.Run(t, new(testSuite))
 }
 
-type fakePlayers struct {
-	mu    sync.Mutex
-	named map[standings.AccountID]*playerv1.Player
-	asked int
-	err   error
-}
-
-func (f *fakePlayers) Players(
-	_ context.Context,
-	accounts []standings.AccountID,
-) (map[standings.AccountID]*playerv1.Player, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.asked++
-	if f.err != nil {
-		return nil, f.err
-	}
-	found := make(map[standings.AccountID]*playerv1.Player, len(accounts))
-	for _, account := range accounts {
-		if player, known := f.named[account]; known {
-			found[account] = player
-		}
-	}
-	return found, nil
-}
-
 type testSuite struct {
 	suite.Suite
 
-	db      *cppg.Postgres
-	store   *postgres_contribution_store.Store
-	players *fakePlayers
-	taken   uint64
+	db    *cppg.Postgres
+	store *postgres_contribution_store.Store
+	taken uint64
 }
 
 func (s *testSuite) SetupSuite() {
@@ -66,7 +38,6 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
-	s.players = &fakePlayers{named: map[standings.AccountID]*playerv1.Player{}}
 }
 
 func account(n int) standings.AccountID {
@@ -82,16 +53,22 @@ func (s *testSuite) take(n int, country standings.Country, tiles int) {
 
 func (s *testSuite) player(n int, country standings.Country, tiles int) {
 	s.take(n, country, tiles)
-	s.players.named[account(n)] = &playerv1.Player{AccountId: account(n).String(), Name: fmt.Sprintf("player_%d", n)}
+	s.Require().NoError(postgres_player_store.New(s.db).Keep(s.T().Context(), account(n)))
 }
 
 func (s *testSuite) guest(n int, country standings.Country, tiles int) {
 	s.take(n, country, tiles)
-	s.players.named[account(n)] = &playerv1.Player{AccountId: account(n).String(), Name: fmt.Sprintf("guest_%06x", n), Guest: true}
+}
+
+func (s *testSuite) leaves(n int) {
+	s.Require().NoError(postgres_departure_store.New(s.db).Change(s.T().Context(), account(n),
+		func(departure departures.Departure) departures.Departure {
+			return departure.Decided(departures.Leaves(time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)))
+		}))
 }
 
 func (s *testSuite) query() *my_tally_query.PostgresQuery {
-	return my_tally_query.NewPostgresQuery(s.db, s.players, cpcountries.New())
+	return my_tally_query.NewPostgresQuery(s.db, cpcountries.New())
 }
 
 func (s *testSuite) mySeason(n int, country string) *scoringv1.GetMyTallyResponse {
@@ -182,17 +159,23 @@ func (s *testSuite) TestAGuestReadsItsTilesAndNoRank() {
 		s.mySeason(1, "de"))
 }
 
-func (s *testSuite) TestAnAccountThePlayerModuleCannotNameHasNoRank() {
-	s.take(1, "fr", 4)
+func (s *testSuite) TestAnAccountAskedDeletedHasNoRankAndRanksNobodyLower() {
+	s.player(1, "fr", 4)
+	s.player(2, "fr", 9)
+	s.leaves(1)
+	s.leaves(2)
+	s.player(3, "fr", 2)
 
 	s.True(proto.Equal(&scoringv1.GetMyTallyResponse{CountryId: "fr", Tiles: 4, CountryTiles: 4}, s.mySeason(1, "fr")))
+	s.True(proto.Equal(&scoringv1.GetMyTallyResponse{
+		CountryId: "fr", Tiles: 2, GlobalRank: 1, CountryTiles: 2, CountryRank: 1,
+	}, s.mySeason(3, "fr")), s.mySeason(3, "fr"))
 }
 
-func (s *testSuite) TestAnAccountThatTookNothingReadsNothingAndAsksNobody() {
+func (s *testSuite) TestAnAccountThatTookNothingReadsNothing() {
 	s.player(2, "fr", 4)
 
 	s.True(proto.Equal(&scoringv1.GetMyTallyResponse{}, s.mySeason(1, "fr")))
-	s.Zero(s.players.asked)
 }
 
 func (s *testSuite) TestAnotherBookIsAnEmptyAnswer() {
@@ -209,15 +192,4 @@ func (s *testSuite) TestACountryThatIsNotOneIsRefusedAndReadsNothing() {
 	_, err := s.query().MyTally(s.T().Context(), "season-0", account(1), "zz")
 
 	s.Require().ErrorIs(err, my_tally_query.ErrUnknownCountry)
-	s.Zero(s.players.asked)
-}
-
-func (s *testSuite) TestAFailureToNameIsAnError() {
-	s.player(1, "fr", 4)
-	refused := errors.New("the player module is down")
-	s.players.err = refused
-
-	_, err := s.query().MyTally(s.T().Context(), "season-0", account(1), "fr")
-
-	s.Require().ErrorIs(err, refused)
 }

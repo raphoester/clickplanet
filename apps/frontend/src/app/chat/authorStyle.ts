@@ -1,6 +1,5 @@
 import {CSSProperties} from "react"
-import {ChatMessage, ChatQuote, GUEST_PREFIX} from "../../backends/chat.ts"
-import {NameColor, PlayerLine} from "../../backends/player.ts"
+import {NameColor} from "../../backends/player.ts"
 import {hueOf} from "../../domain/authorColor.ts"
 
 export type Painted = {color: NameColor | undefined, guest: boolean}
@@ -12,20 +11,6 @@ export function authorStyle({color, guest}: Painted): CSSProperties {
 }
 
 // A quote sits inside its reply's line: with no chroma of its own it wears that author's grey.
-export function quoteStyle(quote: ChatQuote): CSSProperties {
-    return {
-        "--author-chroma": 1,
-        ...authorStyle({color: quote.authorColor, guest: quote.authorName.startsWith(GUEST_PREFIX)}),
-    } as CSSProperties
-}
-
-export function authorOf(message: ChatMessage): PlayerLine {
-    return {
-        accountId: message.authorAccountId,
-        name: message.authorName,
-        countryCode: message.countryCode,
-        guest: message.authorName.startsWith(GUEST_PREFIX),
-        admin: message.authorAdmin,
-        color: message.authorColor,
-    }
+export function quoteStyle(painted: Painted): CSSProperties {
+    return {"--author-chroma": 1, ...authorStyle(painted)} as CSSProperties
 }

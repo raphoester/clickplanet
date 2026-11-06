@@ -1,5 +1,4 @@
 import {describe, expect, it} from "vitest"
-import {NameColor} from "../backends/player.ts"
 import {ClosedRound, Standing} from "../backends/standings.ts"
 import {Debrief} from "../backends/turn.ts"
 import {Battle} from "./battle.ts"
@@ -9,7 +8,7 @@ const STARTED_AT = Date.UTC(2026, 9, 31, 21)
 const ENDED_AT = Date.UTC(2026, 9, 31, 23)
 
 const player = (rank: number, name: string, countryCode: string, tiles: number): Standing =>
-    ({rank, accountId: `account-${name}`, name, color: NameColor.UNSPECIFIED, countryCode, tiles})
+    ({rank, accountId: `account-${name}`, countryCode, tiles})
 
 const BATTLE_ROUND: ClosedRound = {
     moment: "battle",

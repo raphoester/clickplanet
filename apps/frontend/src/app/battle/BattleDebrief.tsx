@@ -1,17 +1,16 @@
 import {CSSProperties, useEffect, useId, useRef, useState} from "react"
+import PlayerName from "../nameplates/PlayerName.tsx"
 import {createPortal} from "react-dom"
 import {ClosedRound, Standing} from "../../backends/standings.ts"
 import {BATTLE_DEBRIEF, DebriefScreen, PointsRow, pointsRowsOf} from "../../domain/battleBrief.ts"
 import {Countries} from "../../domain/countries.ts"
 import {battleFinishedLine} from "../../domain/roundReveal.ts"
-import {authorStyle} from "../chat/authorStyle.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {SwordsIcon} from "../components/icons.tsx"
 import SwordsArt from "../components/SwordsArt.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import WornTitle from "../badges/WornTitle.tsx"
-import {useWordFilter} from "../crazygames/wordFilter.ts"
 import "../titles/TitleUnlocked.css"
 import "../season/RoundReveal.css"
 import "./Battle.css"
@@ -104,7 +103,6 @@ function Points({headId, closed, rows}: {headId: string, closed: ClosedRound, ro
 }
 
 function Players({headId, players, accountId}: {headId: string, players: Standing[], accountId?: string}) {
-    const words = useWordFilter()
 
     return <>
         <h2 id={headId} className="title-reveal-head round-reveal-head">Top players</h2>
@@ -119,9 +117,7 @@ function Players({headId, players, accountId}: {headId: string, players: Standin
                     <span className="battle-brief-flag" role="img" aria-label={nameOf(player.countryCode)}>
                         <CountryFlag code={player.countryCode}/>
                     </span>
-                    <span className="battle-brief-name battle-brief-player"
-                          style={authorStyle({color: player.color, guest: false})}
-                          title={words.masked(player.name)}>{words.masked(player.name)}</span>
+                    <PlayerName accountId={player.accountId} className="battle-brief-name battle-brief-player"/>
                     <WornTitle accountId={player.accountId} size={18}/>
                     <span className="battle-brief-tiles">{player.tiles}</span>
                 </li>

@@ -34,7 +34,6 @@ import {
     ChatRejectedError,
 } from "./chat.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
-import {NameColor} from "./player.ts"
 
 const outgoing = {authorId: "author-1", countryCode: "fr", text: "hello"}
 
@@ -60,12 +59,9 @@ const proto = () => new ChatMessagePb({
     id: "message-1",
     sentAtUnixMs: BigInt(1_700_000_000_000),
     authorAccountId: "account-ana",
-    authorName: "Ana",
-    authorAdmin: true,
-    authorColor: NameColor.TEAL,
     countryId: "fr",
     body: {case: "text", value: "hello"},
-    reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]})],
+    reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 2, mine: true, reactorAccountIds: ["account-ana", "account-bo"]})],
     reactionsVersion: BigInt(3),
 })
 
@@ -86,12 +82,9 @@ describe("decodedMessage", () => {
             id: "message-1",
             sentAt: 1_700_000_000_000,
             authorAccountId: "account-ana",
-            authorName: "Ana",
-            authorAdmin: true,
-            authorColor: NameColor.TEAL,
             countryCode: "fr",
             text: "hello",
-            reactions: [{reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]}],
+            reactions: [{reaction: Reaction.CLOWN, count: 2, mine: true, reactorAccountIds: ["account-ana", "account-bo"]}],
             reactionsVersion: 3,
             removed: false,
         })
@@ -100,7 +93,7 @@ describe("decodedMessage", () => {
     it("says when an operator removed it, and when a quote is of a removed message", () => {
         const removed = proto()
         removed.removed = true
-        removed.replyTo = new Quote({messageId: "message-0", authorName: "Bo", removed: true})
+        removed.replyTo = new Quote({messageId: "message-0", authorAccountId: "account-bo", removed: true})
 
         expect(decodedMessage(removed).removed).toBe(true)
         expect(decodedMessage(removed).replyTo?.removed).toBe(true)
@@ -110,7 +103,7 @@ describe("decodedMessage", () => {
         const gif = new GifPb({url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124})
         const message = proto()
         message.body = {case: "gif", value: gif}
-        message.replyTo = new Quote({messageId: "message-0", authorName: "Bo", body: {case: "gif", value: gif}})
+        message.replyTo = new Quote({messageId: "message-0", authorAccountId: "account-bo", body: {case: "gif", value: gif}})
 
         const decoded = decodedMessage(message)
 
@@ -132,14 +125,13 @@ describe("decodedMessage", () => {
     it("carries the message a reply quotes, and none for a plain message", () => {
         const reply = proto()
         reply.replyTo = new Quote({
-            messageId: "message-0", authorName: "Bo", authorColor: NameColor.PINK,
+            messageId: "message-0", authorAccountId: "account-bo",
             body: {case: "text", value: "who holds the north"},
         })
 
         expect(decodedMessage(reply).replyTo).toEqual({
             messageId: "message-0",
-            authorName: "Bo",
-            authorColor: NameColor.PINK,
+            authorAccountId: "account-bo",
             text: "who holds the north",
             removed: false,
         })
@@ -154,7 +146,7 @@ describe("reactionsOf", () => {
                 case: "reactions",
                 value: new ReactionsChanged({
                     messageId: "message-1",
-                    reactions: [new ReactionCount({reaction: Reaction.SKULL, count: 3, reactors: ["Bo"]})],
+                    reactions: [new ReactionCount({reaction: Reaction.SKULL, count: 3, reactorAccountIds: ["account-bo"]})],
                     version: BigInt(8),
                 }),
             },
@@ -162,7 +154,7 @@ describe("reactionsOf", () => {
 
         expect(reactionsOf(event)).toEqual({
             messageId: "message-1",
-            reactions: [{reaction: Reaction.SKULL, count: 3, mine: false, reactors: ["Bo"]}],
+            reactions: [{reaction: Reaction.SKULL, count: 3, mine: false, reactorAccountIds: ["account-bo"]}],
             version: 8,
         })
         expect(reactionsOf(new ChatEvent({event: {case: "message", value: proto()}}))).toBeUndefined()
@@ -181,7 +173,7 @@ describe("removedOf", () => {
 describe("ChatServiceBackend.react", () => {
     const reaction = {messageId: "message-1", reaction: Reaction.CLOWN, on: true}
     const answer = {
-        reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 1, mine: true, reactors: ["Ana"]})],
+        reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 1, mine: true, reactorAccountIds: ["account-ana"]})],
         version: BigInt(2),
     }
 
@@ -193,7 +185,7 @@ describe("ChatServiceBackend.react", () => {
 
         expect(counts).toEqual({
             messageId: "message-1",
-            reactions: [{reaction: Reaction.CLOWN, count: 1, mine: true, reactors: ["Ana"]}],
+            reactions: [{reaction: Reaction.CLOWN, count: 1, mine: true, reactorAccountIds: ["account-ana"]}],
             version: 2,
         })
         expect(react.mock.calls[0][0]).toEqual({messageId: "message-1", reaction: Reaction.CLOWN, on: true})
@@ -425,7 +417,7 @@ describe("ChatServiceBackend.sendMessage", () => {
         const sent = await new ChatServiceBackend(client, session(), unusedKeepalive).sendMessage(outgoing)
 
         expect(sent.id).toBe("message-1")
-        expect(sent.authorName).toBe("Ana")
+        expect(sent.authorAccountId).toBe("account-ana")
         expect(client.sendMessage).toHaveBeenCalledWith({
             authorId: "author-1",
             countryId: "fr",

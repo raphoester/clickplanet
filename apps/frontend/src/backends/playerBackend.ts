@@ -8,6 +8,7 @@ import {
     RenameRefusal,
     RosterEntry as RosterEntryPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
+import {AccountNameplate, NameplatesBackend} from "./nameplates.ts"
 import {
     ColoredProfile,
     NameColor,
@@ -53,7 +54,7 @@ const FAILURES: Partial<Record<Code, PlayerFailure>> = {
     [Code.FailedPrecondition]: "unnamed",
 }
 
-export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, PlayerReader {
+export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, PlayerReader, NameplatesBackend {
     constructor(
         private readonly client: PromiseClient<typeof PlayerService>,
         private readonly session: SessionProvider,
@@ -140,6 +141,17 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
             if (e instanceof ConnectError && e.code === Code.NotFound) return undefined
             throw e
         }
+    }
+
+    public async nameplates(accountIds: readonly string[]): Promise<AccountNameplate[]> {
+        const res = await this.client.getNameplates({accountIds: [...accountIds]})
+        return res.nameplates.map((nameplate) => ({
+            accountId: nameplate.accountId,
+            name: nameplate.name,
+            color: nameplate.color,
+            admin: nameplate.admin,
+            guest: nameplate.guest,
+        }))
     }
 
     private async authenticated<T>(call: (headers: Headers) => Promise<T>): Promise<T> {

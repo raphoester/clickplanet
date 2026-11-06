@@ -25,10 +25,6 @@ type Publisher interface {
 	Publish(update feed.Update)
 }
 
-type Authors interface {
-	Authors(ctx context.Context, accounts []messages.AccountID) (map[messages.AccountID]messages.Author, error)
-}
-
 type In struct {
 	Account   messages.AccountID
 	MessageID messages.MessageID
@@ -38,15 +34,14 @@ type In struct {
 
 const writeTimeout = 5 * time.Second
 
-func New(shown Messages, board Board, publisher Publisher, authors Authors, clock cptime.Clock) *UseCase {
-	return &UseCase{shown: shown, board: board, publisher: publisher, authors: authors, clock: clock}
+func New(shown Messages, board Board, publisher Publisher, clock cptime.Clock) *UseCase {
+	return &UseCase{shown: shown, board: board, publisher: publisher, clock: clock}
 }
 
 type UseCase struct {
 	shown     Messages
 	board     Board
 	publisher Publisher
-	authors   Authors
 	clock     cptime.Clock
 }
 
@@ -77,7 +72,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, err
 	}
 	if current.Given(in.Reaction, reactor) == in.On {
-		return u.answer(ctx, current, reactor)
+		return Out{Counts: current.Tally(reactor), Version: current.Version()}, nil
 	}
 
 	change := reactions.Off(in.MessageID, in.Reaction, reactor, u.clock.Now())
@@ -92,28 +87,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	if err != nil {
 		return Out{}, err
 	}
-	tally := next.TallyOf(in.MessageID)
-	named, err := u.authors.Authors(ctx, reactions.AccountsOf(tally.Counts()))
-	if err != nil {
-		return Out{}, fmt.Errorf("failed to read who reacted: %w", err)
-	}
-	u.publisher.Publish(feed.ReactionsChanged(shown, tally.Named(named)))
+	u.publisher.Publish(feed.ReactionsChanged(shown, next.TallyOf(in.MessageID)))
 
-	return Out{Counts: reactions.Named(next.Tally(reactor), named), Version: next.Version()}, nil
-}
-
-func (u *UseCase) answer(
-	ctx context.Context,
-	given reactions.Reactions,
-	reactor reactions.Reactor,
-) (Out, error) {
-	counts := given.Tally(reactor)
-
-	named, err := u.authors.Authors(ctx, reactions.AccountsOf(counts))
-	if err != nil {
-		return Out{}, fmt.Errorf("failed to read who reacted: %w", err)
-	}
-	return Out{Counts: reactions.Named(counts, named), Version: given.Version()}, nil
+	return Out{Counts: next.Tally(reactor), Version: next.Version()}, nil
 }
 
 func (u *UseCase) of(ctx context.Context, id messages.MessageID) (reactions.Reactions, error) {

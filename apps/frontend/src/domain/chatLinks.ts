@@ -1,4 +1,4 @@
-import {ChatMessage, GUEST_PREFIX} from "../backends/chat.ts"
+import {ChatMessage} from "../backends/chat.ts"
 
 export type TextPart =
     | {kind: "text", text: string}
@@ -8,8 +8,9 @@ const URL_PATTERN = /https?:\/\/[^\s<>"]+/gi
 
 const TRAILING_PUNCTUATION = /[.,;:!?'"]$/
 
-export function messageParts(message: ChatMessage): TextPart[] {
-    if (message.authorName.startsWith(GUEST_PREFIX)) return [{kind: "text", text: message.text}]
+// A guest's links are words: a guest account costs nothing to make.
+export function messageParts(message: ChatMessage, guest: boolean): TextPart[] {
+    if (guest) return [{kind: "text", text: message.text}]
     return textParts(message.text)
 }
 

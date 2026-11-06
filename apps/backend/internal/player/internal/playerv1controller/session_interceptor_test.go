@@ -100,10 +100,11 @@ func TestTheReadsOfTheCallerTakeTheIdentityTokenOfAResumedSession(t *testing.T) 
 	}
 }
 
-func TestAnyonesPlayerAndTheRosterNeedNoToken(t *testing.T) {
+func TestAnyonesPlayerTheRosterAndTheNameplatesNeedNoToken(t *testing.T) {
 	for _, procedure := range []string{
 		playerv1connect.PlayerServiceGetPlayerProcedure,
 		playerv1connect.PlayerServiceGetRosterProcedure,
+		playerv1connect.PlayerServiceGetNameplatesProcedure,
 	} {
 		for _, token := range []string{"", "forged"} {
 			_, ran, err := run(t, procedure, token)

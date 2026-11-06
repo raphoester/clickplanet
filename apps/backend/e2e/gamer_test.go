@@ -176,6 +176,16 @@ func (p *gamer) profile() *playerv1.Profile {
 	return res.Msg.GetProfile()
 }
 
+func (p *gamer) nameplate(account string) *playerv1.Nameplate {
+	p.t.Helper()
+
+	res, err := p.players().GetNameplates(p.t.Context(),
+		connect.NewRequest(&playerv1.GetNameplatesRequest{AccountIds: []string{account}}))
+	require.NoError(p.t, err)
+	require.Len(p.t, res.Msg.GetNameplates(), 1)
+	return res.Msg.GetNameplates()[0]
+}
+
 func (p *gamer) account() string {
 	p.t.Helper()
 

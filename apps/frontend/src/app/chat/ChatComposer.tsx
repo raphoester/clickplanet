@@ -2,6 +2,8 @@ import {FormEvent, KeyboardEvent, useEffect, useLayoutEffect, useRef, useState} 
 import {ChatMessage, countRunes, MAX_TEXT_LENGTH} from "../../backends/chat.ts";
 import {GifChoice, GifQuery} from "../../backends/gifs.ts";
 import {quoteOf} from "../../domain/chatLog.ts";
+import {paintOf} from "../nameplates/nameplate.ts";
+import {useNameplate} from "../nameplates/nameplatesStore.ts";
 import {describeEnd} from "../../domain/endTime.ts";
 import {CloseIcon} from "../components/icons.tsx";
 import {useEscape} from "../components/useDialog.ts";
@@ -130,8 +132,9 @@ export default function ChatComposer(props: ChatComposerProps) {
 function Replying({to, onCancel}: {to: ChatMessage, onCancel: () => void}) {
     useEscape(onCancel)
     const quote = quoteOf(to)
+    const painted = paintOf(useNameplate(quote.authorAccountId))
 
-    return <div className="chat-replying" style={quoteStyle(quote)}>
+    return <div className="chat-replying" style={quoteStyle(painted)}>
         <span className="chat-replying-quote"><QuoteLine quote={quote} lead="Replying to"/></span>
         <button type="button"
                 className="chat-replying-cancel"

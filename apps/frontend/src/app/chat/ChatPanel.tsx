@@ -13,7 +13,9 @@ import {PlaySound} from "../sound/soundPlayer.ts";
 import Sheet from "../hud/Sheet.tsx";
 import PlayersPanel from "../players/PlayersPanel.tsx";
 import {onlineCount, useRoster} from "../players/rosterStore.ts";
-import {authorOf, authorStyle} from "./authorStyle.ts";
+import {authorStyle} from "./authorStyle.ts";
+import {nameOf, paintOf} from "../nameplates/nameplate.ts";
+import {useNameplate} from "../nameplates/nameplatesStore.ts";
 import {RESIZE_EDGES} from "./chatSize.ts";
 import ChatComposer from "./ChatComposer.tsx";
 import ChatLog from "./ChatLog.tsx";
@@ -80,15 +82,16 @@ export default function ChatPanel(props: ChatPanelProps) {
     const {accountId, username, playSound, flagRoom, onSignIn} = props
     const locked = onSignIn !== undefined
     const world = useChatRoom({
-        backend: props.backend, accountId, username, playSound,
+        backend: props.backend, accountId, playSound,
         seeing: looking && (view === "world" || (view === "online" && online === undefined)),
     })
     const flag = useChatRoom({
-        backend: flagRoom?.backend, accountId, username, playSound: locked ? undefined : playSound, onLeft: props.onLeftRoom,
+        backend: flagRoom?.backend, accountId, playSound: locked ? undefined : playSound, onLeft: props.onLeftRoom,
         seeing: looking && view === "flag" && !locked,
     })
-    const words = useWordFilter()
     const identity = useChatIdentity()
+    // A guest learns its name from the first message it sends.
+    const guestName = useNameplate(world.ownAccount ?? flag.ownAccount ?? "")?.name
 
     const flagOpen = flagRoom !== undefined && flag.status !== 'unavailable'
     const flagRead = flagOpen && !locked
@@ -183,7 +186,7 @@ export default function ChatPanel(props: ChatPanelProps) {
                      own={room.own}/>
 
             <ChatComposer username={username}
-                          guestName={username === undefined ? world.displayName ?? flag.displayName : undefined}
+                          guestName={username === undefined ? guestName : undefined}
                           failure={room.failure}
                           mutedUntil={room.mutedUntil}
                           replyingTo={replyingTo}
@@ -211,17 +214,7 @@ export default function ChatPanel(props: ChatPanelProps) {
             </Sheet>
         }
 
-        return toast ? <button type="button"
-                               key={toast.id}
-                               className="chat-toast"
-                               style={authorStyle(authorOf(toast))}
-                               aria-label={`Open the chat: ${words.masked(toast.authorName)}, ${words.masked(wordsOf(toast))}`}
-                               onClick={() => setOpen(true)}>
-            <span className="chat-toast-author" aria-hidden="true">
-                {truncate(words.masked(toast.authorName), PEEK_AUTHOR_MAX_LENGTH)}
-            </span>
-            <span className="chat-toast-text" aria-hidden="true">{truncate(words.masked(wordsOf(toast)), PEEK_TEXT_MAX_LENGTH)}</span>
-        </button> : null
+        return toast ? <ChatToast key={toast.id} message={toast} onOpen={() => setOpen(true)}/> : null
     }
 
     const latest = newest(
@@ -268,20 +261,36 @@ export default function ChatPanel(props: ChatPanelProps) {
                     </span>
                 </span>
 
-                {waiting && latest &&
-                    <span className="chat-peek"
-                          key={latest.id}
-                          aria-hidden="true"
-                          style={authorStyle(authorOf(latest))}>
-                        <span className="chat-peek-author">
-                            {truncate(words.masked(latest.authorName), PEEK_AUTHOR_MAX_LENGTH)}
-                        </span>
-                        <span className="chat-peek-text">{words.masked(wordsOf(latest))}</span>
-                    </span>}
+                {waiting && latest && <ChatPeek key={latest.id} message={latest}/>}
             </button>}
 
         {isOpen && <div className="chat-body" id={bodyId}>{body}</div>}
     </section>
+}
+
+function ChatToast({message, onOpen}: {message: ChatMessage, onOpen: () => void}) {
+    const words = useWordFilter()
+    const nameplate = useNameplate(message.authorAccountId)
+    const name = words.masked(nameOf(nameplate))
+
+    return <button type="button"
+                   className="chat-toast"
+                   style={authorStyle(paintOf(nameplate))}
+                   aria-label={`Open the chat: ${name}, ${words.masked(wordsOf(message))}`}
+                   onClick={onOpen}>
+        <span className="chat-toast-author" aria-hidden="true">{truncate(name, PEEK_AUTHOR_MAX_LENGTH)}</span>
+        <span className="chat-toast-text" aria-hidden="true">{truncate(words.masked(wordsOf(message)), PEEK_TEXT_MAX_LENGTH)}</span>
+    </button>
+}
+
+function ChatPeek({message}: {message: ChatMessage}) {
+    const words = useWordFilter()
+    const nameplate = useNameplate(message.authorAccountId)
+
+    return <span className="chat-peek" aria-hidden="true" style={authorStyle(paintOf(nameplate))}>
+        <span className="chat-peek-author">{truncate(words.masked(nameOf(nameplate)), PEEK_AUTHOR_MAX_LENGTH)}</span>
+        <span className="chat-peek-text">{words.masked(wordsOf(message))}</span>
+    </span>
 }
 
 type RoomTabProps = {

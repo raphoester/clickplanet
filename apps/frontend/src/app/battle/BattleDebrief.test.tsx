@@ -8,9 +8,14 @@ import {ClosedRound} from "../../backends/standings.ts"
 import {BATTLE_DEBRIEF} from "../../domain/battleBrief.ts"
 import {useBadges} from "../badges/badgesStore.ts"
 import BattleDebrief from "./BattleDebrief.tsx"
+import {useNameplates} from "../nameplates/nameplatesStore.ts"
 
 beforeEach(() => {
     vi.useFakeTimers({shouldAdvanceTime: true})
+    useNameplates.getState().learn([
+        {accountId: "account-ana", name: "Ana", color: NameColor.PINK, admin: false, guest: false},
+        {accountId: "account-kofi", name: "Kofi", color: NameColor.GREEN, admin: false, guest: false},
+    ])
 })
 
 afterEach(() => {
@@ -18,6 +23,7 @@ afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
     useBadges.getState().serve(undefined)
+    useNameplates.getState().serve(undefined)
 })
 
 const WARLORD: PlayerTitle = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
@@ -41,8 +47,8 @@ const FINAL_BATTLE: ClosedRound = {
     roundId: "entry-final",
     takes: [],
     players: [
-        {rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.PINK, countryCode: "fr", tiles: 912},
-        {rank: 2, accountId: "account-kofi", name: "Kofi", color: NameColor.GREEN, countryCode: "de", tiles: 640},
+        {rank: 1, accountId: "account-ana", countryCode: "fr", tiles: 912},
+        {rank: 2, accountId: "account-kofi", countryCode: "de", tiles: 640},
     ],
 }
 

@@ -23,13 +23,6 @@ func (s stubAuthors) Author(context.Context, messages.AccountID) (messages.Autho
 	return s.author, s.err
 }
 
-func (s stubAuthors) Authors(
-	context.Context,
-	[]messages.AccountID,
-) (map[messages.AccountID]messages.Author, error) {
-	return map[messages.AccountID]messages.Author{{15: 1}: s.author}, s.err
-}
-
 func logged(inner stubAuthors) (*log_authors.Logged, *bytes.Buffer) {
 	var out bytes.Buffer
 	return log_authors.New(inner, slog.New(slog.NewTextHandler(&out, nil))), &out
@@ -47,32 +40,11 @@ func TestAFailureIsLoggedAndPassedOn(t *testing.T) {
 }
 
 func TestAnAnswerIsPassedOnAndNotLogged(t *testing.T) {
-	authors, out := logged(stubAuthors{author: messages.AuthorOf("Ada", false, 0)})
+	authors, out := logged(stubAuthors{author: messages.AuthorOf("Ada")})
 
 	author, err := authors.Author(t.Context(), messages.AccountID{15: 1})
 
 	require.NoError(t, err)
-	assert.Equal(t, messages.AuthorOf("Ada", false, 0), author)
-	assert.Empty(t, out.String())
-}
-
-func TestAFailedPageIsLoggedWithHowManyAndNotWithWho(t *testing.T) {
-	authors, out := logged(stubAuthors{err: errors.New("player is stuck")})
-
-	_, err := authors.Authors(t.Context(), []messages.AccountID{{15: 1}, {15: 2}})
-
-	require.EqualError(t, err, "player is stuck")
-	assert.Contains(t, out.String(), "level=ERROR")
-	assert.Contains(t, out.String(), "accounts=2")
-	assert.NotContains(t, out.String(), messages.AccountID{15: 1}.String(), "a log line is not a page of ids")
-}
-
-func TestAnAnsweredPageIsPassedOnAndNotLogged(t *testing.T) {
-	authors, out := logged(stubAuthors{author: messages.AuthorOf("Ada", false, 0)})
-
-	found, err := authors.Authors(t.Context(), []messages.AccountID{{15: 1}})
-
-	require.NoError(t, err)
-	assert.Equal(t, map[messages.AccountID]messages.Author{{15: 1}: messages.AuthorOf("Ada", false, 0)}, found)
+	assert.Equal(t, messages.AuthorOf("Ada"), author)
 	assert.Empty(t, out.String())
 }

@@ -28,7 +28,7 @@ func (s stubQuery) Board(_ context.Context, view board_query.View) (*scoringv1.G
 }
 
 func TestGetBoardAnswersWhatTheQueryReadsForTheBookAndCountryAsked(t *testing.T) {
-	board := &scoringv1.GetBoardResponse{Standings: []*scoringv1.Standing{{Rank: 1, Name: "Ada", CountryId: "fr", Tiles: 3}}}
+	board := &scoringv1.GetBoardResponse{Standings: []*scoringv1.Standing{{Rank: 1, AccountId: "ada", CountryId: "fr", Tiles: 3}}}
 	var asked []board_query.View
 
 	res, err := get_board_handler.New(stubQuery{board: board, asked: &asked}).

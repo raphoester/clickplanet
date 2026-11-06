@@ -1,5 +1,4 @@
 import {Reaction} from "../gen/grpc/chat/v1/chat_pb.ts";
-import {NameColor} from "../gen/grpc/player/v1/color_pb.ts";
 import {FlagMissionOrder} from "./missions.ts";
 
 export {Reaction}
@@ -19,13 +18,11 @@ export type Gif = {
     height: number
 }
 
+// Its author's name, color and crown are the nameplates', by authorAccountId: empty for a message kept before accounts.
 export type ChatMessage = {
     id: string
     sentAt: number
     authorAccountId: string
-    authorName: string
-    authorAdmin: boolean
-    authorColor: NameColor
     countryCode: string
     text: string
     reactions: ReactionCount[]
@@ -38,8 +35,7 @@ export type ChatMessage = {
 
 export type ChatQuote = {
     messageId: string
-    authorName: string
-    authorColor: NameColor
+    authorAccountId: string
     text: string
     removed?: boolean
     gif?: Gif
@@ -125,7 +121,8 @@ export type ReactionCount = {
     reaction: Reaction
     count: number
     mine: boolean
-    reactors: string[]
+    // The first who gave it, oldest first.
+    reactorAccountIds: string[]
 }
 
 export type ReactionsChange = {

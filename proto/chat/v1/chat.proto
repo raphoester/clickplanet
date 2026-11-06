@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package chat.v1;
 
-import "player/v1/color.proto";
-
 // A request for a flag's room is FailedPrecondition when the caller does not play for that flag.
 service ChatService {
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
@@ -43,30 +41,31 @@ message ReactionCount {
   Reaction reaction = 1;
   uint32 count = 2;
   bool mine = 3;
-  repeated string reactors = 4;
+  // The first 20 who gave it, oldest first. Their names are player.v1.PlayerService/GetNameplates'.
+  reserved 4;
+  reserved "reactors";
+  repeated string reactor_account_ids = 5;
 }
 
 message ChatMessage {
   string id = 1;
   int64 sent_at_unix_ms = 2;
-  string author_name = 3;
-  reserved 4;
-  reserved "author_tag";
+  // The author's name, color and crown are player.v1.PlayerService/GetNameplates', by author_account_id.
+  reserved 3, 4, 7, 10;
+  reserved "author_name", "author_tag", "author_admin", "author_color";
   string country_id = 5;
   // Neither once an operator removed it.
   oneof body {
     string text = 6;
     Gif gif = 16;
   }
-  bool author_admin = 7;
   repeated ReactionCount reactions = 8;
   uint64 reactions_version = 9;
-  player.v1.NameColor author_color = 10;
-  // The author's badges are player.v1.PlayerService/GetBadges', by author_account_id.
+  // The author's badges are progression.v1.ProgressionService/GetBadges', by author_account_id.
   reserved 11, 12;
   reserved "author_streak", "author_title";
   Quote reply_to = 13;
-  // Empty for a message kept before accounts, and for an account that was deleted.
+  // Empty for a message kept before accounts. An account the other players can no longer name was deleted.
   string author_account_id = 14;
   // An operator removed it: it keeps its place, with no body and no reactions.
   bool removed = 15;
@@ -81,8 +80,10 @@ message Gif {
 
 message Quote {
   string message_id = 1;
-  string author_name = 2;
-  player.v1.NameColor author_color = 3;
+  // As ChatMessage's: the name and color are player.v1.PlayerService/GetNameplates', by author_account_id.
+  reserved 2, 3;
+  reserved "author_name", "author_color";
+  string author_account_id = 7;
   // Neither when the message quoted was removed.
   oneof body {
     string text = 4;

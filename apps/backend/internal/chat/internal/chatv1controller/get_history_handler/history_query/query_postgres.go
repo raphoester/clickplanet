@@ -12,7 +12,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
-	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -20,14 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Authors interface {
-	Authors(ctx context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Player, error)
-}
-
-const (
-	DeletedName   = "[deleted]"
-	NamedReactors = 20
-)
+const NamedReactors = 20
 
 var kinds = cpcolls.NewSet("bomb", "mute", "round", "fortify", "champion", "flag_mission")
 
@@ -36,13 +28,12 @@ var (
 	ErrUnknownKind     = errors.New("a kept announcement of a kind nobody knows")
 )
 
-func NewPostgresQuery(db cppg.Conn, authors Authors, clock cptime.Clock, size int, retention time.Duration) *PostgresQuery {
-	return &PostgresQuery{db: db, authors: authors, clock: clock, size: size, retention: retention}
+func NewPostgresQuery(db cppg.Conn, clock cptime.Clock, size int, retention time.Duration) *PostgresQuery {
+	return &PostgresQuery{db: db, clock: clock, size: size, retention: retention}
 }
 
 type PostgresQuery struct {
 	db        cppg.Conn
-	authors   Authors
 	clock     cptime.Clock
 	size      int
 	retention time.Duration
@@ -107,7 +98,7 @@ func (q *PostgresQuery) seenUntil(ctx context.Context, viewer cpsession.AccountI
 }
 
 const inWindow = `
-	SELECT seq, id, sent_at, account_id, name, author_admin, country, text, reply_to,
+	SELECT seq, id, sent_at, account_id, country, text, reply_to,
 		EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id) AS removed
 	FROM messages
 	WHERE room = $3 AND sent_at >= $1
@@ -121,8 +112,6 @@ const shownMessages = `
 		shown.id,
 		floor(extract(epoch FROM shown.sent_at) * 1000)::bigint,
 		shown.account_id,
-		shown.name,
-		shown.author_admin,
 		shown.country,
 		CASE WHEN shown.removed THEN '' ELSE shown.text END,
 		shown.removed,
@@ -131,7 +120,6 @@ const shownMessages = `
 		COALESCE(gifs.height, 0),
 		COALESCE(quoted.id, ''),
 		quoted.account_id,
-		COALESCE(quoted.name, ''),
 		CASE WHEN quoted.removed THEN '' ELSE COALESCE(quoted.text, '') END,
 		COALESCE(quoted.removed, false),
 		CASE WHEN quoted.removed THEN '' ELSE COALESCE(quoted_gifs.url, '') END,
@@ -142,7 +130,7 @@ const shownMessages = `
 	FROM shown
 	LEFT JOIN gifs ON gifs.message_seq = shown.seq
 	LEFT JOIN LATERAL (
-		SELECT seq, id, account_id, name, text,
+		SELECT seq, id, account_id, text,
 			EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id) AS removed
 		FROM messages
 		WHERE messages.id = shown.reply_to AND messages.sent_at >= $1
@@ -180,8 +168,6 @@ type row struct {
 	id      string
 	sentAt  int64
 	account cpsession.AccountID
-	name    string
-	admin   bool
 	country string
 	text    string
 	removed bool
@@ -194,7 +180,6 @@ type row struct {
 type quoted struct {
 	id      string
 	account cpsession.AccountID
-	name    string
 	text    string
 	removed bool
 	gif     gif
@@ -224,14 +209,9 @@ func (q *PostgresQuery) shown(
 		return nil, err
 	}
 
-	named, err := q.authors.Authors(ctx, everyone(rows))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read who the chat history is from: %w", err)
-	}
-
 	shown := make([]*chatv1.ChatMessage, 0, len(rows))
 	for _, row := range rows {
-		shown = append(shown, messageOf(row, named))
+		shown = append(shown, messageOf(row))
 	}
 	return shown, nil
 }
@@ -257,9 +237,9 @@ func (q *PostgresQuery) rows(
 			counts        []byte
 		)
 		if err := result.Scan(
-			&each.id, &each.sentAt, &account, &each.name, &each.admin, &each.country, &each.text, &each.removed,
+			&each.id, &each.sentAt, &account, &each.country, &each.text, &each.removed,
 			&each.gif.url, &each.gif.width, &each.gif.height,
-			&each.quoted.id, &quotedAccount, &each.quoted.name, &each.quoted.text, &each.quoted.removed,
+			&each.quoted.id, &quotedAccount, &each.quoted.text, &each.quoted.removed,
 			&each.quoted.gif.url, &each.quoted.gif.width, &each.quoted.gif.height,
 			&each.version, &counts,
 		); err != nil {
@@ -299,93 +279,44 @@ func countsOf(encoded []byte) ([]count, error) {
 	return counts, nil
 }
 
-func everyone(rows []row) []cpsession.AccountID {
-	seen := cpcolls.NewSet[cpsession.AccountID]()
-	accounts := make([]cpsession.AccountID, 0, len(rows))
-	add := func(account cpsession.AccountID) {
-		if account == cpsession.NoAccount || seen.Contains(account) {
-			return
-		}
-		seen.Add(account)
-		accounts = append(accounts, account)
-	}
-
-	for _, row := range rows {
-		add(row.account)
-	}
-	for _, row := range rows {
-		add(row.quoted.account)
-	}
-	for _, row := range rows {
-		for _, each := range row.counts {
-			for _, account := range each.Accounts {
-				add(cpsession.AccountID(account))
-			}
-		}
-	}
-	return accounts
-}
-
-func messageOf(row row, named map[cpsession.AccountID]*playerv1.Player) *chatv1.ChatMessage {
+func messageOf(row row) *chatv1.ChatMessage {
 	message := &chatv1.ChatMessage{
 		Id:               row.id,
 		SentAtUnixMs:     row.sentAt,
+		AuthorAccountId:  accountOf(row.account),
 		CountryId:        row.country,
 		Removed:          row.removed,
-		Reactions:        reactionsOf(row.counts, named),
+		Reactions:        reactionsOf(row.counts),
 		ReactionsVersion: row.version,
-		ReplyTo:          quoteOf(row.quoted, named),
+		ReplyTo:          quoteOf(row.quoted),
 	}
 	if gif := gifOf(row.gif); gif != nil {
 		message.Body = &chatv1.ChatMessage_Gif{Gif: gif}
 	} else if !row.removed {
 		message.Body = &chatv1.ChatMessage_Text{Text: row.text}
 	}
-
-	if row.account == cpsession.NoAccount {
-		message.AuthorName = row.name
-		message.AuthorAdmin = row.admin
-		return message
-	}
-
-	author, known := named[row.account]
-	if !known {
-		message.AuthorName = DeletedName
-		return message
-	}
-
-	message.AuthorAccountId = row.account.String()
-	message.AuthorName = author.GetName()
-	message.AuthorAdmin = author.GetAdmin()
-	message.AuthorColor = author.GetColor()
 	return message
 }
 
-func quoteOf(quoted quoted, named map[cpsession.AccountID]*playerv1.Player) *chatv1.Quote {
+func quoteOf(quoted quoted) *chatv1.Quote {
 	if quoted.id == "" {
 		return nil
 	}
 
-	quote := &chatv1.Quote{MessageId: quoted.id, Removed: quoted.removed}
+	quote := &chatv1.Quote{MessageId: quoted.id, AuthorAccountId: accountOf(quoted.account), Removed: quoted.removed}
 	if gif := gifOf(quoted.gif); gif != nil {
 		quote.Body = &chatv1.Quote_Gif{Gif: gif}
 	} else if !quoted.removed {
 		quote.Body = &chatv1.Quote_Text{Text: quoted.text}
 	}
-	if quoted.account == cpsession.NoAccount {
-		quote.AuthorName = quoted.name
-		return quote
-	}
-
-	author, known := named[quoted.account]
-	if !known {
-		quote.AuthorName = DeletedName
-		return quote
-	}
-
-	quote.AuthorName = author.GetName()
-	quote.AuthorColor = author.GetColor()
 	return quote
+}
+
+func accountOf(account cpsession.AccountID) string {
+	if account == cpsession.NoAccount {
+		return ""
+	}
+	return account.String()
 }
 
 func gifOf(gif gif) *chatv1.Gif {
@@ -395,30 +326,25 @@ func gifOf(gif gif) *chatv1.Gif {
 	return &chatv1.Gif{Url: gif.url, Width: gif.width, Height: gif.height}
 }
 
-func reactionsOf(counts []count, named map[cpsession.AccountID]*playerv1.Player) []*chatv1.ReactionCount {
+func reactionsOf(counts []count) []*chatv1.ReactionCount {
 	encoded := make([]*chatv1.ReactionCount, 0, len(counts))
 	for _, each := range counts {
 		encoded = append(encoded, &chatv1.ReactionCount{
-			Reaction: chatv1.Reaction(each.Reaction),
-			Count:    each.Count,
-			Mine:     each.Mine,
-			Reactors: namesOf(each.Accounts, named),
+			Reaction:          chatv1.Reaction(each.Reaction),
+			Count:             each.Count,
+			Mine:              each.Mine,
+			ReactorAccountIds: idsOf(each.Accounts),
 		})
 	}
 	return encoded
 }
 
-func namesOf(accounts []uuid.UUID, named map[cpsession.AccountID]*playerv1.Player) []string {
-	names := make([]string, 0, min(len(accounts), NamedReactors))
-	for _, account := range accounts {
-		if len(names) == NamedReactors {
-			break
-		}
-		if author, known := named[cpsession.AccountID(account)]; known {
-			names = append(names, author.GetName())
-		}
+func idsOf(accounts []uuid.UUID) []string {
+	ids := make([]string, 0, min(len(accounts), NamedReactors))
+	for _, account := range accounts[:min(len(accounts), NamedReactors)] {
+		ids = append(ids, account.String())
 	}
-	return names
+	return ids
 }
 
 const shownAnnouncements = `

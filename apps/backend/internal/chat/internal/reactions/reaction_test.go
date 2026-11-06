@@ -28,8 +28,8 @@ func TestReactionsCountEachReactionInTheOrderItFirstAppeared(t *testing.T) {
 	given := reactions.Reactions{}.With(clown, ada).With(laugh, bo).With(clown, bo)
 
 	assert.Equal(t, []reactions.Count{
-		reactions.CountOf(clown, 2, true, gave(ada, bo), nil),
-		reactions.CountOf(laugh, 1, false, gave(bo), nil),
+		reactions.CountOf(clown, 2, true, gave(ada, bo)),
+		reactions.CountOf(laugh, 1, false, gave(bo)),
 	}, given.Tally(ada))
 }
 
@@ -37,7 +37,7 @@ func TestAReactorGivesAReactionOnce(t *testing.T) {
 	given := reactions.Reactions{}.With(clown, ada).With(clown, ada)
 
 	assert.Equal(t, []reactions.Count{
-		reactions.CountOf(clown, 1, true, gave(ada), nil),
+		reactions.CountOf(clown, 1, true, gave(ada)),
 	}, given.Tally(ada))
 }
 
@@ -45,8 +45,8 @@ func TestAReactionNobodyGivesAnyMoreLosesItsPlace(t *testing.T) {
 	given := reactions.Reactions{}.With(clown, ada).With(laugh, ada).Without(clown, ada).With(clown, bo)
 
 	assert.Equal(t, []reactions.Count{
-		reactions.CountOf(laugh, 1, false, gave(ada), nil),
-		reactions.CountOf(clown, 1, false, gave(bo), nil),
+		reactions.CountOf(laugh, 1, false, gave(ada)),
+		reactions.CountOf(clown, 1, false, gave(bo)),
 	}, given.Tally(reactions.NoReactor))
 }
 
@@ -65,7 +65,7 @@ func TestWithAndWithoutLeaveTheReceiverAsItWas(t *testing.T) {
 	_ = before.Without(clown, ada)
 
 	assert.Equal(t, []reactions.Count{
-		reactions.CountOf(clown, 1, false, gave(ada), nil),
+		reactions.CountOf(clown, 1, false, gave(ada)),
 	}, before.Tally(reactions.NoReactor))
 }
 
@@ -102,43 +102,15 @@ func TestAReactorSaysWhichAccountItIsAndAGuestTagSaysNone(t *testing.T) {
 	}
 }
 
-func TestNamedShowsWhoEachAccountIsNow(t *testing.T) {
-	one, two := cpsession.AccountID{15: 1}, cpsession.AccountID{15: 2}
-	given := reactions.Reactions{}.With(clown, reactions.ReactorOf(one)).With(clown, reactions.ReactorOf(two))
-
-	named := reactions.Named(given.Tally(reactions.NoReactor), map[messages.AccountID]messages.Author{
-		one: messages.AuthorOf("Ada", false, 0),
-		two: messages.AuthorOf("Bo", false, 0),
-	})
-
-	assert.Equal(t, []string{"Ada", "Bo"}, named[0].Names(), "oldest first")
-	assert.Equal(t, 2, named[0].Total())
-}
-
-func TestNamedCountsWhoItCannotNameWithoutNamingThem(t *testing.T) {
+func TestACountIsTheAccountsThatGaveItOldestFirst(t *testing.T) {
 	one, two := cpsession.AccountID{15: 1}, cpsession.AccountID{15: 2}
 	given := reactions.Reactions{}.
-		With(clown, reactions.ReactorOf(one)).
 		With(clown, reactions.ReactorOf(two)).
+		With(clown, reactions.ReactorOf(one)).
 		With(clown, bo)
 
-	named := reactions.Named(given.Tally(reactions.NoReactor), map[messages.AccountID]messages.Author{
-		two: messages.AuthorOf("Bo", false, 0),
-	})
+	count := given.Tally(reactions.NoReactor)[0]
 
-	assert.Equal(t, []string{"Bo"}, named[0].Names(), "a deleted account, and a guest tag from before accounts")
-	assert.Equal(t, 3, named[0].Total(), "the count still says how many gave it")
-}
-
-func TestAccountsOfIsEveryoneUnderTheCountsOnce(t *testing.T) {
-	one, two := cpsession.AccountID{15: 1}, cpsession.AccountID{15: 2}
-	given := reactions.Reactions{}.
-		With(clown, reactions.ReactorOf(one)).
-		With(laugh, reactions.ReactorOf(one)).
-		With(laugh, reactions.ReactorOf(two)).
-		With(skull, bo)
-
-	assert.Equal(t, []messages.AccountID{one, two},
-		reactions.AccountsOf(given.Tally(reactions.NoReactor)),
-		"one ask names somebody however often it reacted, and a guest tag is nobody to ask about")
+	assert.Equal(t, []messages.AccountID{two, one}, count.Accounts(), "a guest tag from before accounts is nobody")
+	assert.Equal(t, 3, count.Total(), "the count still says how many gave it")
 }

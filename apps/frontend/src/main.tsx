@@ -10,12 +10,13 @@ import {ChatServiceBackend, newChatServiceClient, newKeepaliveChatServiceClient}
 import {FakeBackend} from "./backends/fakeBackend.ts"
 import {loadBorders} from "./app/viewer/borderField.ts"
 import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
-import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
+import {chatterNameplateOf, FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakeGifs} from "./backends/fakeGifs.ts"
 import {GifSearch} from "./backends/gifs.ts"
 import {KlipyGifs} from "./backends/klipyGifs.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeBadges} from "./backends/fakeBadges.ts"
+import {FakeNameplates} from "./backends/fakeNameplates.ts"
 import {FakeMissionsBackend} from "./backends/fakeMissionsBackend.ts"
 import {newScoringServiceClient} from "./backends/scoringBackend.ts"
 import {closedOf} from "./domain/debrief.ts"
@@ -272,7 +273,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     Object.assign(window, battleCommands(fakeTurn))
     const fakeStandings = new FakeStandingsBackend()
     const fakeBadges = new FakeBadges([fakePresence, fakeStandings])
-    Object.assign(window, {fakeBadges})
+    const fakeNameplates = new FakeNameplates([fakeAccount, fakePresence, {nameplateOf: chatterNameplateOf}, fakeStandings])
+    Object.assign(window, {fakeBadges, fakeNameplates})
     const clicker = fakeMissions.counting(fakeStandings.counting(fake))
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
     fakeMissions.listenForFlagMissionsDone((flag, mission) => fakeChat.announceFlagMission(flag, mission))
@@ -302,6 +304,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     presence={fakePresence}
                     playerInfo={new PlayerCards(fakePresence, fakePresence)}
                     badges={fakeBadges}
+                    nameplates={fakeNameplates}
                     titles={fakePresence}
                     tileHolders={fake}
                     landmasses={fake}
@@ -365,6 +368,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     presence={player}
                     playerInfo={new PlayerCards(player, progression)}
                     badges={progression}
+                    nameplates={player}
                     titles={progression}
                     tileHolders={backend}
                     landmasses={backend}

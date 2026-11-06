@@ -119,8 +119,6 @@ function standingOf(standing: StandingPb): Standing {
     return {
         rank: standing.rank,
         accountId: standing.accountId,
-        name: standing.name,
-        color: standing.color,
         countryCode: standing.countryId,
         tiles: Number(standing.tiles),
     }

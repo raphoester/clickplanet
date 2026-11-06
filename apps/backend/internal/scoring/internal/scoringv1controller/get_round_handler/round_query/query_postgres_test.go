@@ -8,12 +8,14 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/protobuf/proto"
 
-	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/postgres_book_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/postgres_round_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/departures"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/departures/postgres_departure_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_handler/round_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_scores_handler/scores_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -29,20 +31,6 @@ type stubTerritory struct {
 
 func (s *stubTerritory) Snapshot(context.Context) (books.Snapshot, error) {
 	return books.Snapshot{Tiles: 100, Held: s.held}, nil
-}
-
-type stubPlayers struct {
-	players map[books.AccountID]*playerv1.Player
-}
-
-func (s stubPlayers) Players(_ context.Context, accounts []books.AccountID) (map[books.AccountID]*playerv1.Player, error) {
-	found := map[books.AccountID]*playerv1.Player{}
-	for _, account := range accounts {
-		if player, known := s.players[account]; known {
-			found[account] = player
-		}
-	}
-	return found, nil
 }
 
 func utc(day, hour int) time.Time {
@@ -62,7 +50,6 @@ type testSuite struct {
 	db        *cppg.Postgres
 	rounds    *postgres_round_store.Store
 	territory *stubTerritory
-	players   stubPlayers
 	query     *round_query.PostgresQuery
 }
 
@@ -74,8 +61,7 @@ func (s *testSuite) SetupSuite() {
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 	s.territory = &stubTerritory{held: map[books.Country]uint32{}}
-	s.players = stubPlayers{players: map[books.AccountID]*playerv1.Player{}}
-	s.query = round_query.NewPostgresQuery(s.db, s.territory, s.players, scores_query.NewPostgresQuery(s.db))
+	s.query = round_query.NewPostgresQuery(s.db, s.territory, scores_query.NewPostgresQuery(s.db))
 	_, err := postgres_book_store.New(s.db).Open(s.T().Context(), seasonZero)
 	s.Require().NoError(err)
 	for _, round := range []books.Round{day23, day24, battle} {
@@ -138,10 +124,14 @@ func (s *testSuite) TestAScoredRoundShowsItsResultsAndTheBooksScoresBeforeAndAft
 }
 
 func (s *testSuite) TestARoundNamesTheFlagsAndTheSignedInPlayersThatTookTheMost() {
-	ada, bob, guest := books.AccountID{15: 1}, books.AccountID{15: 2}, books.AccountID{15: 3}
-	s.players.players[ada] = &playerv1.Player{AccountId: ada.String(), Name: "ada"}
-	s.players.players[bob] = &playerv1.Player{AccountId: bob.String(), Name: "bob"}
-	s.players.players[guest] = &playerv1.Player{AccountId: guest.String(), Name: "guest_1", Guest: true}
+	ada, bob, guest, leaving := books.AccountID{15: 1}, books.AccountID{15: 2}, books.AccountID{15: 3}, books.AccountID{15: 4}
+	for _, player := range []books.AccountID{ada, bob, leaving} {
+		s.Require().NoError(postgres_player_store.New(s.db).Keep(s.T().Context(), player))
+	}
+	s.Require().NoError(postgres_departure_store.New(s.db).Change(s.T().Context(), leaving,
+		func(departure departures.Departure) departures.Departure {
+			return departure.Decided(departures.Leaves(utc(31, 22)))
+		}))
 	position := uint64(0)
 	take := func(account books.AccountID, country books.Country, tiles int) {
 		for range tiles {
@@ -154,6 +144,7 @@ func (s *testSuite) TestARoundNamesTheFlagsAndTheSignedInPlayersThatTookTheMost(
 	take(ada, "be", 1)
 	take(bob, "de", 2)
 	take(guest, "de", 9)
+	take(leaving, "it", 7)
 
 	round := s.round(battle.ID)
 
@@ -161,11 +152,11 @@ func (s *testSuite) TestARoundNamesTheFlagsAndTheSignedInPlayersThatTookTheMost(
 		RoundId: string(battle.ID), BookId: "season-0", Times: 3, StartedAtUnixMs: utc(31, 21).UnixMilli(),
 		Standings: []*scoringv1.RoundStanding{},
 		Takes: []*scoringv1.RoundTakes{
-			{CountryId: "de", Tiles: 11}, {CountryId: "fr", Tiles: 3}, {CountryId: "be", Tiles: 1},
+			{CountryId: "de", Tiles: 11}, {CountryId: "it", Tiles: 7}, {CountryId: "fr", Tiles: 3}, {CountryId: "be", Tiles: 1},
 		},
 		Players: []*scoringv1.Standing{
-			{Rank: 1, AccountId: ada.String(), Name: "ada", CountryId: "fr", Tiles: 3},
-			{Rank: 2, AccountId: bob.String(), Name: "bob", CountryId: "de", Tiles: 2},
+			{Rank: 1, AccountId: ada.String(), CountryId: "fr", Tiles: 3},
+			{Rank: 2, AccountId: bob.String(), CountryId: "de", Tiles: 2},
 		},
 	}, round), round)
 }

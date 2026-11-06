@@ -5,7 +5,6 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
-import { NameColor } from "../../player/v1/color_pb.js";
 
 /**
  * @generated from enum chat.v1.Reaction
@@ -163,9 +162,9 @@ export class ReactionCount extends Message<ReactionCount> {
   mine = false;
 
   /**
-   * @generated from field: repeated string reactors = 4;
+   * @generated from field: repeated string reactor_account_ids = 5;
    */
-  reactors: string[] = [];
+  reactorAccountIds: string[] = [];
 
   constructor(data?: PartialMessage<ReactionCount>) {
     super();
@@ -178,7 +177,7 @@ export class ReactionCount extends Message<ReactionCount> {
     { no: 1, name: "reaction", kind: "enum", T: proto3.getEnumType(Reaction) },
     { no: 2, name: "count", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "mine", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 4, name: "reactors", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 5, name: "reactor_account_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReactionCount {
@@ -213,11 +212,6 @@ export class ChatMessage extends Message<ChatMessage> {
   sentAtUnixMs = protoInt64.zero;
 
   /**
-   * @generated from field: string author_name = 3;
-   */
-  authorName = "";
-
-  /**
    * @generated from field: string country_id = 5;
    */
   countryId = "";
@@ -242,11 +236,6 @@ export class ChatMessage extends Message<ChatMessage> {
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
-   * @generated from field: bool author_admin = 7;
-   */
-  authorAdmin = false;
-
-  /**
    * @generated from field: repeated chat.v1.ReactionCount reactions = 8;
    */
   reactions: ReactionCount[] = [];
@@ -257,17 +246,12 @@ export class ChatMessage extends Message<ChatMessage> {
   reactionsVersion = protoInt64.zero;
 
   /**
-   * @generated from field: player.v1.NameColor author_color = 10;
-   */
-  authorColor = NameColor.UNSPECIFIED;
-
-  /**
    * @generated from field: chat.v1.Quote reply_to = 13;
    */
   replyTo?: Quote;
 
   /**
-   * Empty for a message kept before accounts, and for an account that was deleted.
+   * Empty for a message kept before accounts. An account the other players can no longer name was deleted.
    *
    * @generated from field: string author_account_id = 14;
    */
@@ -290,14 +274,11 @@ export class ChatMessage extends Message<ChatMessage> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "sent_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 3, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
     { no: 16, name: "gif", kind: "message", T: Gif, oneof: "body" },
-    { no: 7, name: "author_admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 8, name: "reactions", kind: "message", T: ReactionCount, repeated: true },
     { no: 9, name: "reactions_version", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
-    { no: 10, name: "author_color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 13, name: "reply_to", kind: "message", T: Quote },
     { no: 14, name: "author_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 15, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
@@ -381,14 +362,9 @@ export class Quote extends Message<Quote> {
   messageId = "";
 
   /**
-   * @generated from field: string author_name = 2;
+   * @generated from field: string author_account_id = 7;
    */
-  authorName = "";
-
-  /**
-   * @generated from field: player.v1.NameColor author_color = 3;
-   */
-  authorColor = NameColor.UNSPECIFIED;
+  authorAccountId = "";
 
   /**
    * Neither when the message quoted was removed.
@@ -423,8 +399,7 @@ export class Quote extends Message<Quote> {
   static readonly typeName = "chat.v1.Quote";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "author_color", kind: "enum", T: proto3.getEnumType(NameColor) },
+    { no: 7, name: "author_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
     { no: 6, name: "gif", kind: "message", T: Gif, oneof: "body" },
     { no: 5, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
