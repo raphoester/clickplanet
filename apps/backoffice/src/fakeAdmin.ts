@@ -164,8 +164,15 @@ import {
     Report,
 } from "./gen/grpc/support/v1/admin_pb.ts"
 import {
-    AlertsAdmin, AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, PlanetAdmin, PlayerAdmin, ProgressionAdmin,
-    PromoAdmin, SupportAdmin,
+    GetRulesRequest as MissionsGetRulesRequest,
+    GetRulesResponse as MissionsGetRulesResponse,
+    SaveRulesRequest,
+    SaveRulesResponse,
+} from "./gen/grpc/missions/v1/admin_pb.ts"
+import {Rules as MissionRules} from "./gen/grpc/missions/v1/rules_pb.ts"
+import {
+    AlertsAdmin, AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, MissionsAdmin, PlanetAdmin, PlayerAdmin,
+    ProgressionAdmin, PromoAdmin, SupportAdmin,
 } from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
@@ -188,6 +195,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     readonly alerts: FakeAlerts = new FakeAlerts(this)
     readonly progression: FakeProgression = new FakeProgression(this)
     readonly gamemaster: FakeGamemaster = new FakeGamemaster(this)
+    readonly missions: FakeMissions = new FakeMissions(this)
     readonly promo: FakePromo = new FakePromo(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
@@ -238,6 +246,8 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ]
     inspection = new InspectPlayerResponse({accountId: "account-reported", clicks: 42, banned: false})
     // The set the migration keeps, in part: the fake keeps what it is given and checks nothing.
+    // The numbers missions draws with, as migration 20261106180000_rules seeds them.
+    missionRules = MissionRules.fromJson({flagMissions: {goalPercent: 30, leastGoal: 250, fewestPoints: 3, mostPoints: 10}})
     antibotRules = new AntibotGetRulesResponse({
         sets: [new AntibotRuleSet({
             name: "default",
@@ -382,7 +392,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     clients(): Clients {
         return {
             alerts: this.alerts, antibot: this.antibot, chat: this, planet: this, player: this, progression: this.progression,
-            gamemaster: this.gamemaster, support: this, clips: this, promo: this.promo,
+            gamemaster: this.gamemaster, missions: this.missions, support: this, clips: this, promo: this.promo,
         }
     }
 
@@ -680,6 +690,24 @@ export class FakeAntibot implements AntibotAdmin {
                     a.name.localeCompare(b.name)),
                 playing: this.admin.antibotRules.playing,
             })
+        }
+        return answer
+    }
+}
+
+// missions.v1's rules, asked of the same fake: planet.v1 and antibot.v1 have a getRules of their own. A save replaces
+// them whole, as the server does, and checks nothing.
+export class FakeMissions implements MissionsAdmin {
+    constructor(private readonly admin: FakeAdmin) {}
+
+    getRules(request: PartialMessage<MissionsGetRulesRequest>): Promise<MissionsGetRulesResponse> {
+        return this.admin.answer("getMissionRules", request, new MissionsGetRulesResponse({rules: this.admin.missionRules}))
+    }
+
+    saveRules(request: PartialMessage<SaveRulesRequest>): Promise<SaveRulesResponse> {
+        const answer = this.admin.answer("saveMissionRules", request, new SaveRulesResponse())
+        if (!this.admin.refusals.has("saveMissionRules") && request.rules !== undefined) {
+            this.admin.missionRules = new MissionRules(request.rules)
         }
         return answer
     }

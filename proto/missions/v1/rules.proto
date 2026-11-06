@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package missions.v1;
+
+// The numbers missions draws with: one document, kept in postgres as protojson, edited by the operator.
+message Rules {
+  FlagMissionRules flag_missions = 1;
+}
+
+// A flag's mission of the day. Its goal is goal_percent of all its players did the day before, tiles taken and shields
+// broken, at least least_goal, rounded down to 10. It is worth most_points to a flag holding no tile, fewest_points to
+// the biggest flag, and in proportion between.
+message FlagMissionRules {
+  // 1 to 100.
+  uint32 goal_percent = 1;
+  // 10 or more.
+  uint32 least_goal = 2;
+  // 1 or more.
+  uint32 fewest_points = 3;
+  // fewest_points to 100.
+  uint32 most_points = 4;
+}

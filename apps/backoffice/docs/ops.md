@@ -87,6 +87,14 @@ off the proto, so a new one shows with no edit here.
   which value is missing or no number (`flawOf`). A part's line shows its switch as the set plays it, "(default)" when
   it is default's.
 
+**Mission rules** (`MissionRulesPanel`, `missionRules.ts`) is `missions.v1.AdminService/GetRules` and `SaveRules` (the
+backend's [missions rules](../../backend/docs/missions.md#the-rules)): the four numbers a flag mission is drawn with, one
+document and no sets, so no list: a field each, labelled by what it does (`FIELDS`; a test fails when
+`missions.v1.FlagMissionRules` gains a number the form does not name), what a save changes, and a save that asks first.
+A number left empty or not whole is named and keeps the save off (`flawOf`); the server checks the rest and its words are
+quoted. A save saves every number, and the form stays, with "Saved." and what was saved as what the next save changes
+from. The question says when it plays: a flag draws its mission once a day, so most flags see it the next day.
+
 **Rule schedule** (`SchedulePanel`, `schedule.ts`) is `gamemaster.v1.AdminService` (the backend's
 [gamemaster module](../../backend/docs/gamemaster.md)), with planet's and the antibot's `GetRules` beside it:
 

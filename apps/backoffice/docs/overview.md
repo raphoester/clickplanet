@@ -15,7 +15,7 @@ burger menu (see [The menu](menu.md)), by group:
   [Clip stats](clip-stats.md)), and Videos, the season-end videos to post by hand, with their captions (see
   [Videos](videos.md)).
 - **Ops**: Timeline, what the gamemaster does next, as blocks and a list; Reconcile titles, the run after a deploy; Link Discord members, the players in the Discord server whom no sign-in linked; Game rules, the rule sets the game plays by; Anti-bot rules,
-  the rule sets the antibot judges with; Rule schedule, which set both play and when, and a battle's points' times; Seasons, each season's window (see [Ops](ops.md)); and Promo, the backgrounds and each rule set's cards a battle is teased with in the game (see [Promo](promo.md)).
+  the rule sets the antibot judges with; Mission rules, the numbers a flag mission is drawn with; Rule schedule, which set both play and when, and a battle's points' times; Seasons, each season's window (see [Ops](ops.md)); and Promo, the backgrounds and each rule set's cards a battle is teased with in the game (see [Promo](promo.md)).
 
 What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report and player pages
 read it), and no admin method streams it.

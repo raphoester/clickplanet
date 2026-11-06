@@ -59,7 +59,7 @@ func setUpWatched(
 ) (*record_flag_take_usecase.UseCase, *inmemory_flag_day_store.Store, *cpatomic.FakeOutbox, *recordingStreams) {
 	store, outbox, calendar := inmemory_flag_day_store.New(), &cpatomic.FakeOutbox{}, inmemory_day_store.New(append(told, today)...)
 	streams := &recordingStreams{}
-	return record_flag_take_usecase.New(calendar, flagmissions.NewBriefing(store, calendar, planet, noPledges{}), store,
+	return record_flag_take_usecase.New(calendar, flagmissions.NewBriefing(store, calendar, planet, noPledges{}, flagmissions.NewFixedSizings(flagmissions.TestingSizing())), store,
 		cpatomic.FakeTransactioner{}, outbox, streams), store, outbox, streams
 }
 
@@ -122,7 +122,7 @@ func TestADayClearedOfItsMissionIsDrawnAgainAndKeepsWhatItCounted(t *testing.T) 
 	require.NoError(t, err)
 	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(today, "fr", world, flagmissions.Day{}).Snapshot().Mission, day.Snapshot().Mission)
+	assert.Equal(t, flagmissions.Draw(today, "fr", world, flagmissions.Day{}, flagmissions.TestingSizing()).Snapshot().Mission, day.Snapshot().Mission)
 	assert.Equal(t, uint64(42), day.Snapshot().Takes)
 	assert.Equal(t, uint32(2), day.Snapshot().Progress, "only the takes after the draw count on the mission")
 }
@@ -165,7 +165,7 @@ func TestTheGoalIsDrawnFromWhatTheFlagDidTheDayBefore(t *testing.T) {
 	require.NoError(t, err)
 	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(today, "fr", world, busy).Snapshot().Mission, day.Snapshot().Mission)
+	assert.Equal(t, flagmissions.Draw(today, "fr", world, busy, flagmissions.TestingSizing()).Snapshot().Mission, day.Snapshot().Mission)
 }
 
 func TestASeasonsFirstDayHasTheLeastGoal(t *testing.T) {
@@ -178,7 +178,7 @@ func TestASeasonsFirstDayHasTheLeastGoal(t *testing.T) {
 	require.NoError(t, err)
 	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(today, "fr", world, flagmissions.Day{}).Snapshot().Mission, day.Snapshot().Mission)
+	assert.Equal(t, flagmissions.Draw(today, "fr", world, flagmissions.Day{}, flagmissions.TestingSizing()).Snapshot().Mission, day.Snapshot().Mission)
 }
 
 func TestATakeWakesTheStreamsOfTheAccountThatTookIt(t *testing.T) {

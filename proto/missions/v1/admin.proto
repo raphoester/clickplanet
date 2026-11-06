@@ -1,0 +1,139 @@
+syntax = "proto3";
+
+package missions.v1;
+
+import "google/protobuf/timestamp.proto";
+import "missions/v1/missions.proto";
+import "missions/v1/rules.proto";
+
+// The missions the game gave and how far the players took them, to tune their goals and points. No authentication of
+// its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
+service AdminService {
+  // Each day the gamemaster told that started in the window, oldest first, with every flag's day in it: the flag's
+  // mission as its players saw it (its target, goal, progress, points and whether it was done), and what all its
+  // players did that day, tiles taken and shields broken, from which the next day's goal is drawn. A flag nobody
+  // played or read its missions in a day has no flag day. A window of 7 days at most: InvalidArgument otherwise.
+  rpc ListFlagDays(ListFlagDaysRequest) returns (ListFlagDaysResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Each day the gamemaster told that started in the window, oldest first, with the players' own missions counted:
+  // how many accounts had a brief and how many finished one or all of their missions, and by kind how many missions
+  // were drawn, started, done and paid, with their goals and progress summed. A brief is drawn at an account's first
+  // read or take of the day, so it does not prove the player saw it. A guest's mission done is paid only once it
+  // signs in that day. A window of 31 days at most: InvalidArgument otherwise.
+  rpc GetMissionTotals(GetMissionTotalsRequest) returns (GetMissionTotalsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The numbers missions draws with now: a flag mission's goal and points. SaveRules changes them.
+  rpc GetRules(GetRulesRequest) returns (GetRulesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Replaces the numbers missions draws with, every one of them. They play at once, for every mission drawn after:
+  // a flag draws its mission once a day, at its first take, shield broken or read, so in practice from the next day.
+  // InvalidArgument for numbers that cannot play, with every reason.
+  rpc SaveRules(SaveRulesRequest) returns (SaveRulesResponse);
+}
+
+message ListFlagDaysRequest {
+  // The days that started at or after it.
+  google.protobuf.Timestamp since = 1;
+  // The days that started before it. Unset is now.
+  google.protobuf.Timestamp until = 2;
+}
+
+message ListFlagDaysResponse {
+  repeated FlagDays days = 1;
+}
+
+// A day and the day of every flag played in it.
+message FlagDays {
+  Day day = 1;
+  // By flag.
+  repeated FlagDay flags = 2;
+}
+
+// A day as the gamemaster told it.
+message Day {
+  // The id of the day's round in scoring, as "season-1/day-5".
+  string id = 1;
+  google.protobuf.Timestamp starts_at = 2;
+  google.protobuf.Timestamp ends_at = 3;
+}
+
+message FlagDay {
+  string country_id = 1;
+  // Tiles taken for the flag that day, anywhere.
+  uint64 tiles_taken = 2;
+  // Shields of other flags the flag broke that day.
+  uint64 shields_broken = 3;
+  // Unset when the map had nothing to aim at.
+  FlagMission mission = 4;
+}
+
+message GetMissionTotalsRequest {
+  // The days that started at or after it.
+  google.protobuf.Timestamp since = 1;
+  // The days that started before it. Unset is now.
+  google.protobuf.Timestamp until = 2;
+}
+
+message GetMissionTotalsResponse {
+  repeated DayTotals days = 1;
+}
+
+message DayTotals {
+  Day day = 1;
+  // Accounts with a brief that day.
+  uint32 briefs = 2;
+  // Of them, the ones that finished at least one of their missions.
+  uint32 finished_any = 3;
+  // Of them, the ones that finished every one of their missions.
+  uint32 finished_all = 4;
+  // Every kind drawn that day, in the order of MissionKind.
+  repeated KindTotals kinds = 5;
+}
+
+message KindTotals {
+  MissionKind kind = 1;
+  // Missions of the kind in the day's briefs.
+  uint32 drawn = 2;
+  // Of them, the ones with some progress.
+  uint32 started = 3;
+  // Of them, the ones done.
+  uint32 done = 4;
+  // Of them, the ones paid.
+  uint32 paid = 5;
+  // Their goals, summed.
+  uint64 goals = 6;
+  // Their progress, summed: a mission's progress stops at its goal.
+  uint64 progress = 7;
+}
+
+// The kinds of a player's mission, as Mission's kind names them.
+enum MissionKind {
+  MISSION_KIND_UNSPECIFIED = 0;
+  MISSION_KIND_TAKE_FOR = 1;
+  MISSION_KIND_TAKE_FROM = 2;
+  MISSION_KIND_TAKE_IN = 3;
+  MISSION_KIND_TAKE_FROM_IN = 4;
+  MISSION_KIND_CATCH_BOXES = 5;
+  MISSION_KIND_ANSWER_QUIZZES = 6;
+  MISSION_KIND_BOMB_IN = 7;
+  MISSION_KIND_SHIELD_TILES = 8;
+  MISSION_KIND_FORTIFY_TILES = 9;
+}
+
+message GetRulesRequest {}
+
+message GetRulesResponse {
+  Rules rules = 1;
+}
+
+message SaveRulesRequest {
+  Rules rules = 1;
+}
+
+message SaveRulesResponse {}

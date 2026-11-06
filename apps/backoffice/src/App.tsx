@@ -13,6 +13,7 @@ import {ClipStatsPage} from "./clips/ClipStatsPage.tsx"
 import {OpenPlayer, Opened, PageId, titleOf} from "./navigation.ts"
 import {RulesPanel} from "./ops/RulesPanel.tsx"
 import {AntibotRulesPanel} from "./ops/AntibotRulesPanel.tsx"
+import {MissionRulesPanel} from "./ops/MissionRulesPanel.tsx"
 import {DiscordMembersPanel} from "./ops/DiscordMembersPanel.tsx"
 import {SchedulePanel} from "./ops/SchedulePanel.tsx"
 import {SeasonsPanel} from "./ops/SeasonsPanel.tsx"
@@ -126,6 +127,7 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "discord" && <DiscordMembersPanel alerts={CLIENTS.alerts}/>}
                 {page === "rules" && <RulesPanel planet={CLIENTS.planet}/>}
                 {page === "antibotRules" && <AntibotRulesPanel antibot={CLIENTS.antibot}/>}
+                {page === "missionRules" && <MissionRulesPanel missions={CLIENTS.missions}/>}
                 {page === "schedule" && (
                     <SchedulePanel
                         gamemaster={CLIENTS.gamemaster} planet={CLIENTS.planet} antibot={CLIENTS.antibot}
