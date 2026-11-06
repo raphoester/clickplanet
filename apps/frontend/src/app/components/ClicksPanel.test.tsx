@@ -2,9 +2,23 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import ClicksPanel from "./ClicksPanel.tsx"
+import {ReactElement} from "react"
 import {ClickBudget} from "../../backends/clickBudget.ts"
+import {Countries} from "../../domain/countries.ts"
+import {useClickBudget} from "../clicks/clickBudgetStore.ts"
+import {useCountry} from "../countryStore.ts"
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    useClickBudget.setState({budget: undefined})
+    useCountry.setState(useCountry.getInitialState(), true)
+})
+
+function panel(budget: ClickBudget, code: string, element: ReactElement): ReactElement {
+    useClickBudget.setState({budget})
+    useCountry.setState({country: Countries.get(code)!})
+    return element
+}
 
 const TOLL = [{share: 0.1, slowdown: 1.5}, {share: 0.2, slowdown: 2.5}, {share: 0.3, slowdown: 4}]
 
@@ -17,14 +31,14 @@ const here = () => screen.getAllByRole("row").filter((row) => row.getAttribute("
 
 describe("ClicksPanel", () => {
     it("shows the clicks in hand against the bank", () => {
-        render(<ClicksPanel budget={reading()} countryName="France" toll={TOLL}/>)
+        render(panel(reading(), "fr", <ClicksPanel toll={TOLL}/>))
 
         expect(screen.getByText("42")).toBeTruthy()
         expect(screen.getByText("of 60")).toBeTruthy()
     })
 
     it("lists every step of the toll, and marks the one the country is on", () => {
-        render(<ClicksPanel budget={reading({price: {slowdown: 4, share: 0.98}})} countryName="France" toll={TOLL}/>)
+        render(panel(reading({price: {slowdown: 4, share: 0.98}}), "fr", <ClicksPanel toll={TOLL}/>))
 
         expect(screen.getByText("France holds 98% of the map")).toBeTruthy()
         expect(steps()).toEqual([
@@ -37,34 +51,34 @@ describe("ClicksPanel", () => {
     })
 
     it("reads the share off the board when the server prices nothing", () => {
-        render(<ClicksPanel budget={reading()} countryName="Bulgaria" share={0.001} toll={TOLL}/>)
+        render(panel(reading(), "bg", <ClicksPanel share={0.001} toll={TOLL}/>))
 
         expect(screen.getByText("Bulgaria holds 0.1% of the map")).toBeTruthy()
         expect(here().map((row) => within(row).getAllByRole("cell")[0].textContent)).toEqual(["Under 10%"])
     })
 
     it("draws no table against a server that sends no steps", () => {
-        render(<ClicksPanel budget={reading()} countryName="France" share={0.5} toll={[]}/>)
+        render(panel(reading(), "fr", <ClicksPanel share={0.5} toll={[]}/>))
 
         expect(screen.queryByRole("table")).toBeNull()
     })
 
     it("says who else spends from the bank", () => {
-        render(<ClicksPanel budget={reading({sharedWith: "network"})} countryName="France" toll={TOLL}/>)
+        render(panel(reading({sharedWith: "network"}), "fr", <ClicksPanel toll={TOLL}/>))
 
         expect(screen.getByText("Shared with everyone on your network")).toBeTruthy()
     })
 
     it("offers a guest to click faster, at the server's multiplier", () => {
         const onSignIn = vi.fn()
-        render(<ClicksPanel budget={reading({linkedMultiplier: 2})} countryName="France" toll={TOLL} onSignIn={onSignIn}/>)
+        render(panel(reading({linkedMultiplier: 2}), "fr", <ClicksPanel toll={TOLL} onSignIn={onSignIn}/>))
 
         fireEvent.click(screen.getByRole("button", {name: "Sign in: clicks 2× faster"}))
         expect(onSignIn).toHaveBeenCalledTimes(1)
     })
 
     it("offers nothing to a player who is not a guest", () => {
-        render(<ClicksPanel budget={reading({linkedMultiplier: 2})} countryName="France" toll={TOLL}/>)
+        render(panel(reading({linkedMultiplier: 2}), "fr", <ClicksPanel toll={TOLL}/>))
 
         expect(screen.queryByRole("button")).toBeNull()
     })

@@ -5,7 +5,8 @@ the globe that turned (on a phone, often Asia), and a first tap from that far on
 the players who left in their first two minutes left after fewer than 30 clicks.
 
 - **Who is guided** (`app/frontGuide.ts`): `main.tsx` calls `enterFrontGuide` before the first render, so before
-  `useCountryStorage` stores a country. A browser with no country stored is on its first visit: it writes
+  `useKeepCountry` stores a country (the country store reads it on import, and writes it only from the page's first
+  render). A browser with no country stored is on its first visit: it writes
   `clickplanet-front-guide` = `0`, and every page is guided while that count is under `GUIDED_TAKES` (50).
   `useGuidedTakes` counts each accepted click that took a tile. A browser that played before the guide has a country
   and no count: it is never guided. A refused storage guides nothing.

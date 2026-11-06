@@ -1,4 +1,6 @@
-import {ClickBudget, now, tokensAt} from "../../backends/clickBudget.ts"
+import {now, tokensAt} from "../../backends/clickBudget.ts"
+import {useClickBudget} from "../clicks/clickBudgetStore.ts"
+import {useCountry} from "../countryStore.ts"
 import {describePrice, factor, percent} from "../../domain/clickPrice.ts"
 import {TollStep, tollRows} from "../../domain/toll.ts"
 import {useNow} from "../season/useNow.ts"
@@ -7,14 +9,14 @@ import {offerText, SHARED_WITH} from "./clickOffer.ts"
 import "./ClicksPanel.css"
 
 export type ClicksPanelProps = {
-    budget?: ClickBudget
-    countryName: string
     share?: number
     toll: readonly TollStep[]
     onSignIn?: () => void
 }
 
-export default function ClicksPanel({budget, countryName, share, toll, onSignIn}: ClicksPanelProps) {
+export default function ClicksPanel({share, toll, onSignIn}: ClicksPanelProps) {
+    const budget = useClickBudget((store) => store.budget)
+    const countryName = useCountry((store) => store.country.name)
     useNow()
 
     const price = budget?.price
