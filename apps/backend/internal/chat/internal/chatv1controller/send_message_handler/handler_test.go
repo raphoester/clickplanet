@@ -13,7 +13,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
-	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
@@ -36,14 +35,14 @@ func (s stubUseCase) Execute(_ context.Context, in send_message_usecase.In) (mes
 	message, err := messages.Snapshot{
 		ID:      "message-1",
 		SentAt:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		Author:  messages.AuthorOf("guest_0b1c2d", false, 0),
+		Account: guest,
 		Room:    in.Room,
 		Country: in.CountryID,
 		Text:    in.Text,
 		Gif:     in.Gif,
 		Quote: messages.Quote{
 			MessageID: in.ReplyTo,
-			Author:    messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_TEAL)),
+			Account:   ada,
 			Text:      "who holds the north",
 		},
 	}.Restore()
@@ -52,6 +51,11 @@ func (s stubUseCase) Execute(_ context.Context, in send_message_usecase.In) (mes
 	}
 	return message, nil
 }
+
+var (
+	ada   = messages.AccountID{15: 1}
+	guest = messages.AccountID{15: 2}
+)
 
 func send(useCase stubUseCase) (*connect.Response[chatv1.SendMessageResponse], error) {
 	return sendAs(context.Background(), useCase)
@@ -99,13 +103,12 @@ func TestSendMessageReturnsTheStoredMessage(t *testing.T) {
 
 	message := res.Msg.GetMessage()
 	assert.Equal(t, "message-1", message.GetId())
-	assert.Equal(t, "guest_0b1c2d", message.GetAuthorName())
+	assert.Equal(t, guest.String(), message.GetAuthorAccountId())
 	assert.Equal(t, "fr", message.GetCountryId())
 	assert.Equal(t, "hello planet", message.GetText())
 	assert.Equal(t, int64(1704067200000), message.GetSentAtUnixMs())
 	assert.True(t, proto.Equal(&chatv1.Quote{
-		MessageId: "message-0", AuthorName: "Ada_L", AuthorColor: playerv1.NameColor_NAME_COLOR_TEAL,
-		Body: &chatv1.Quote_Text{Text: "who holds the north"},
+		MessageId: "message-0", AuthorAccountId: ada.String(), Body: &chatv1.Quote_Text{Text: "who holds the north"},
 	}, message.GetReplyTo()), "%v", message.GetReplyTo())
 }
 

@@ -2,6 +2,7 @@ package scoring
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -10,7 +11,6 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 
@@ -29,19 +29,22 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/grant_points_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/log_command"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/scoring_command_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/departures/postgres_departure_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/departures/usecases/decide_departure_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/departures/usecases/forget_departure_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/players/postgres_player_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/players/usecases/forget_player_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/players/usecases/keep_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler/board_query"
-	board_players "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler/board_query/rpc_players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_book_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler/my_tally_query"
-	tally_players "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_my_tally_handler/my_tally_query/rpc_players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_rank_points_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_handler/round_query"
-	round_players "github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_handler/round_query/rpc_players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_players_handler/round_players_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_scores_handler"
@@ -54,7 +57,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings/usecases/record_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/player_created_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/player_forgotten_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/player_leaving_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/player_returned_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/round_take_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -89,9 +95,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the scoring module asks the player module who plays: %w", err)
+		return fmt.Errorf("the scoring module asks the planet module what each country holds: %w", err)
 	}
-	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
 	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
 
 	db := cppg.New(config.Database)
@@ -161,6 +166,29 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to handle scoring.v1.ScoringCommand: %w", err)
 	}
+	playerStore := postgres_player_store.New(db)
+	departureStore := postgres_departure_store.New(db)
+	decideDeparture := decide_departure_usecase.New(departureStore)
+	var subscribeErr error
+	subscribed := func(runner cpbootstrap.Runner, err error) cpbootstrap.Runner {
+		subscribeErr = errors.Join(subscribeErr, err)
+		return runner
+	}
+	players := subscribed(cpredis.Subscribe(ctx, streams, "scoring-players",
+		log_subscriber.New(player_created_subscriber.New(keep_player_usecase.New(playerStore)), props.Logger)))
+	forgottenPlayers := subscribed(cpredis.Subscribe(ctx, streams, "scoring-players-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_player_usecase.New(playerStore)), props.Logger)))
+	leaving := subscribed(cpredis.Subscribe(ctx, streams, "scoring-departures-leaving",
+		log_subscriber.New(player_leaving_subscriber.New(decideDeparture), props.Logger)))
+	returns := subscribed(cpredis.Subscribe(ctx, streams, "scoring-departures-returns",
+		log_subscriber.New(player_returned_subscriber.New(decideDeparture), props.Logger)))
+	forgottenDepartures := subscribed(cpredis.Subscribe(ctx, streams, "scoring-departures-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_departure_usecase.New(departureStore)), props.Logger)))
+	if subscribeErr != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe scoring to who may be ranked: %w", subscribeErr)
+	}
+
 	grants, err := cpredis.Handle(ctx, streams, scoring_command_handler.New(log_subscriber.New[*scoringv1.GrantPoints](
 		grant_points_handler.New(log_command.New("grant_points", grant_points_usecase.New(grantStore), props.Logger)), props.Logger)))
 	if err != nil {
@@ -168,9 +196,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to handle scoring.v1.GrantPoints: %w", err)
 	}
 
-	boardQuery := board_query.NewPostgresQuery(db, board_players.New(player), countries)
+	boardQuery := board_query.NewPostgresQuery(db, countries)
 	scoresQuery := scores_query.NewPostgresQuery(db)
-	roundQuery := round_query.NewPostgresQuery(db, territories, round_players.New(player), scoresQuery)
+	roundQuery := round_query.NewPostgresQuery(db, territories, scoresQuery)
 	boards := inprocess_feed.New[board_query.View, *scoringv1.Board]("scoring-boards",
 		log_reader.New[board_query.View, *scoringv1.Board]("board", boardQuery, props.Logger), clock, boardsEvery)
 	scores := inprocess_feed.New[books.BookID, *scoringv1.Scores]("scoring-scores",
@@ -179,12 +207,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		log_reader.New[books.RoundID, *scoringv1.Round]("round", roundQuery, props.Logger), clock, roundsEvery)
 
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, boards, scores, rounds, cpredis.CloseAfter(streams, props.Logger,
-		takes, deletions, roundTakes, roundDeletions, commands, grants, cpoutbox.NewRelay("scoring-outbox", db, streams, props.Logger))))
+		takes, deletions, roundTakes, roundDeletions, players, forgottenPlayers, leaving, returns, forgottenDepartures,
+		commands, grants, cpoutbox.NewRelay("scoring-outbox", db, streams, props.Logger))))
 
 	getRound := get_round_handler.New(roundQuery)
 	service := scoringv1controller.ScoringService{
 		GetBoardHandler:       get_board_handler.New(boardQuery),
-		GetMyTallyHandler:     get_my_tally_handler.New(my_tally_query.NewPostgresQuery(db, tally_players.New(player), countries)),
+		GetMyTallyHandler:     get_my_tally_handler.New(my_tally_query.NewPostgresQuery(db, countries)),
 		GetRoundHandler:       getRound,
 		GetScoresHandler:      get_scores_handler.New(scoresQuery),
 		GetBookHistoryHandler: get_book_history_handler.New(scoresQuery),

@@ -15,7 +15,10 @@ import {winsLine} from "../../domain/champion.ts";
 import {describeMute} from "../../domain/mute.ts";
 import {medalOf, roundOverLine} from "../../domain/roundReveal.ts";
 import {truncate} from "../truncate.ts";
-import {authorOf, authorStyle, quoteStyle} from "./authorStyle.ts";
+import {authorStyle, quoteStyle} from "./authorStyle.ts";
+import {lineOf, nameOf, paintOf} from "../nameplates/nameplate.ts";
+import {useNameplate} from "../nameplates/nameplatesStore.ts";
+import {Nameplate} from "../../backends/nameplates.ts";
 import QuoteLine, {REMOVED_TEXT} from "./QuoteLine.tsx";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
@@ -188,7 +191,7 @@ export default function ChatLog(props: ChatLogProps) {
                                            jumpTo={shown.has(entry.message.replyTo?.messageId ?? "") ? jumpTo : undefined}
                                            onReact={entry.message.removed ? undefined : props.onReact}
                                            onReply={entry.message.removed ? undefined : props.onReply}
-                                           onReport={reportable(entry.message, props.own) ? props.onReport : undefined}
+                                           onReport={props.own?.(entry.message) ? undefined : props.onReport}
                                            reported={reportedIds.has(entry.message.id)}/>}
                     </Fragment>
                 })}
@@ -217,14 +220,17 @@ type MessageLineProps = {
 }
 
 function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpTo, ...props}: MessageLineProps) {
-    const author = authorOf(message)
+    const nameplate = useNameplate(message.authorAccountId)
+    // Nobody to open a card of, or to report, once the account is gone.
+    const author = lineOf(message.authorAccountId, message.countryCode, nameplate)
     const opens = startsGroup(previous?.kind === "message" ? previous.message : undefined, message)
     const words = useWordFilter()
-    const name = words.masked(message.authorName)
+    const name = words.masked(nameOf(nameplate))
     const openPlayer = usePlayerCard((card) => card.openable ? card.open : undefined)
+    const onReport = author && !message.removed ? props.onReport : undefined
 
     return <li className={messageClass(flashing, message.id, opens, spotlit)}
-               style={authorStyle(author)}
+               style={authorStyle(paintOf(nameplate))}
                data-message={message.id}
                data-at={message.sentAt}>
         {opens && <div className="chat-message-head">
@@ -234,7 +240,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                   title={countryName(message.countryCode)}>
                 <CountryFlag code={message.countryCode}/>
             </span>
-            {openPlayer
+            {openPlayer && author
                 ? <button type="button"
                           className="chat-message-author player-name-button"
                           title={name}
@@ -244,7 +250,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                 : <span className="chat-message-author">
                     {truncate(name, AUTHOR_MAX_LENGTH)}
                 </span>}
-            {message.authorAdmin && <AdminCrown size={13}/>}
+            {author?.admin && <AdminCrown size={13}/>}
             <WornTitle accountId={message.authorAccountId}/>
             <Streak accountId={message.authorAccountId}/>
             <time className="chat-message-time"
@@ -266,7 +272,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                        loading="lazy"
                        decoding="async"/>
                 : <p className="chat-message-text">
-                    {messageParts(message).map((part, index) => part.kind === "link"
+                    {messageParts(message, guestOf(nameplate)).map((part, index) => part.kind === "link"
                         ? <a key={index} href={part.href} target="_blank" rel="noopener noreferrer nofollow ugc">{words.masked(part.text)}</a>
                         : <Fragment key={index}>{words.masked(part.text)}</Fragment>)}
                 </p>}
@@ -280,7 +286,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                                       onClick={() => props.onReply?.(message)}>
                 <ReplyIcon/>
             </button>}
-            {props.onReport && (props.reported
+            {onReport && (props.reported
                 ? <span className="chat-report-add chat-report-done" role="img" aria-label="Reported" title="Reported">
                     <ReportIcon/>
                 </span>
@@ -288,7 +294,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                           className="chat-report-add"
                           aria-label={`Report this message from ${name}`}
                           title="Report"
-                          onClick={() => props.onReport?.(message)}>
+                          onClick={() => onReport(message)}>
                     <ReportIcon/>
                 </button>)}
         </div>
@@ -302,16 +308,17 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
 }
 
 function Quote({quote, jumpTo}: {quote: ChatQuote, jumpTo?: (id: string) => void}) {
+    const style = quoteStyle(paintOf(useNameplate(quote.authorAccountId)))
     const line = <QuoteLine quote={quote} lead="In reply to"/>
 
     return jumpTo
         ? <button type="button"
                   className="chat-quote"
-                  style={quoteStyle(quote)}
+                  style={style}
                   onClick={() => jumpTo(quote.messageId)}>
             {line}
         </button>
-        : <p className="chat-quote" style={quoteStyle(quote)}>{line}</p>
+        : <p className="chat-quote" style={style}>{line}</p>
 }
 
 function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
@@ -440,8 +447,9 @@ function messageClass(
     ].filter(Boolean).join(" ")
 }
 
-function reportable(message: ChatMessage, own: ((message: ChatMessage) => boolean) | undefined): boolean {
-    return message.authorAccountId !== "" && !message.removed && !own?.(message)
+// Not read yet is a guest until it is: a guest's links are words.
+function guestOf(nameplate: Nameplate | null | undefined): boolean {
+    return nameplate === null ? false : nameplate?.guest ?? true
 }
 
 function atOf(entry: ChatLogEntry): number {

@@ -63,28 +63,28 @@ const keptSeq = `
 // $1 is the start of the retention, $2 the limit, $3 the cursor's seq and $4 the one author, when there is one.
 const (
 	older = `
-		SELECT seq, id, account_id, name, text, sent_at, country, room, reply_to
+		SELECT seq, id, account_id, text, sent_at, country, room, reply_to
 		FROM messages
 		WHERE sent_at >= $1 AND seq < $3
 		ORDER BY seq DESC
 		LIMIT $2
 	`
 	newer = `
-		SELECT seq, id, account_id, name, text, sent_at, country, room, reply_to
+		SELECT seq, id, account_id, text, sent_at, country, room, reply_to
 		FROM messages
 		WHERE sent_at >= $1 AND seq > $3
 		ORDER BY seq
 		LIMIT $2
 	`
 	olderOfOne = `
-		SELECT seq, id, account_id, name, text, sent_at, country, room, reply_to
+		SELECT seq, id, account_id, text, sent_at, country, room, reply_to
 		FROM messages
 		WHERE sent_at >= $1 AND seq < $3 AND account_id = $4
 		ORDER BY seq DESC
 		LIMIT $2
 	`
 	newerOfOne = `
-		SELECT seq, id, account_id, name, text, sent_at, country, room, reply_to
+		SELECT seq, id, account_id, text, sent_at, country, room, reply_to
 		FROM messages
 		WHERE sent_at >= $1 AND seq > $3 AND account_id = $4
 		ORDER BY seq
@@ -92,16 +92,16 @@ const (
 	`
 	projection = `)
 	SELECT
-		page.id, page.account_id, page.name, page.text, page.sent_at, page.country, page.room, removals.removed_at,
+		page.id, page.account_id, page.text, page.sent_at, page.country, page.room, removals.removed_at,
 		COALESCE(gifs.url, ''), COALESCE(gifs.width, 0), COALESCE(gifs.height, 0),
-		COALESCE(quoted.id, ''), quoted.account_id, COALESCE(quoted.name, ''), COALESCE(quoted.text, ''),
+		COALESCE(quoted.id, ''), quoted.account_id, COALESCE(quoted.text, ''),
 		quoted.removed_at,
 		COALESCE(quoted.url, ''), COALESCE(quoted.width, 0), COALESCE(quoted.height, 0)
 	FROM page
 	LEFT JOIN removals ON removals.message_id = page.id
 	LEFT JOIN gifs ON gifs.message_seq = page.seq
 	LEFT JOIN LATERAL (
-		SELECT messages.id, messages.account_id, messages.name, messages.text, removals.removed_at,
+		SELECT messages.id, messages.account_id, messages.text, removals.removed_at,
 			gifs.url, gifs.width, gifs.height
 		FROM messages
 		LEFT JOIN removals ON removals.message_id = messages.id
@@ -120,14 +120,8 @@ const (
 
 type row struct {
 	message *chatv1.KeptMessage
-	author  author
-	quoted  author
-}
-
-// Who sent a message: an account, or the name it was sent under before accounts.
-type author struct {
-	account cpsession.AccountID
-	name    string
+	author  cpsession.AccountID
+	quoted  cpsession.AccountID
 }
 
 // A zero limit is DefaultLimit, and none passes MaxLimit. NoAccount as the author is everyone's messages.
@@ -229,9 +223,9 @@ func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any)
 			quotedGif       = &chatv1.Gif{}
 		)
 		if err := found.Scan(
-			&each.message.MessageId, &account, &each.author.name, &text, &sentAt,
+			&each.message.MessageId, &account, &text, &sentAt,
 			&each.message.CountryId, &room, &removedAt, &gif.Url, &gif.Width, &gif.Height,
-			&quote.MessageId, &quotedAccount, &each.quoted.name, &quotedText, &quotedRemovedAt,
+			&quote.MessageId, &quotedAccount, &quotedText, &quotedRemovedAt,
 			&quotedGif.Url, &quotedGif.Width, &quotedGif.Height,
 		); err != nil {
 			return nil, fmt.Errorf("failed to read a message of a page: %w", err)
@@ -242,7 +236,7 @@ func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any)
 			each.message.FlagRoom = room
 		}
 		if account.Valid {
-			each.author.account = cpsession.AccountID(account.UUID)
+			each.author = cpsession.AccountID(account.UUID)
 			each.message.AccountId = account.UUID.String()
 		}
 		if removedAt.Valid {
@@ -255,7 +249,7 @@ func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any)
 		}
 		if quote.GetMessageId() != "" {
 			if quotedAccount.Valid {
-				each.quoted.account = cpsession.AccountID(quotedAccount.UUID)
+				each.quoted = cpsession.AccountID(quotedAccount.UUID)
 			}
 			if quotedRemovedAt.Valid {
 				quote.RemovedAt = timestamppb.New(quotedRemovedAt.Time)
@@ -279,7 +273,7 @@ func everyone(rows []row) []cpsession.AccountID {
 	seen := cpcolls.NewSet[cpsession.AccountID]()
 	accounts := make([]cpsession.AccountID, 0, len(rows))
 	for _, row := range rows {
-		for _, account := range []cpsession.AccountID{row.author.account, row.quoted.account} {
+		for _, account := range []cpsession.AccountID{row.author, row.quoted} {
 			if account == cpsession.NoAccount || seen.Contains(account) {
 				continue
 			}
@@ -290,11 +284,8 @@ func everyone(rows []row) []cpsession.AccountID {
 	return accounts
 }
 
-func nameOf(author author, named map[cpsession.AccountID]*playerv1.Player) string {
-	if author.account == cpsession.NoAccount {
-		return author.name
-	}
-	if known, ok := named[author.account]; ok {
+func nameOf(author cpsession.AccountID, named map[cpsession.AccountID]*playerv1.Player) string {
+	if known, ok := named[author]; ok {
 		return known.GetName()
 	}
 	return DeletedName

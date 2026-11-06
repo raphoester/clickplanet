@@ -1,5 +1,4 @@
 import {Boards, MySeason, Standing} from "../../backends/standings.ts"
-import {NameColor, PlayerLine} from "../../backends/player.ts"
 import {Countries} from "../../domain/countries.ts"
 import {boardWith} from "../../domain/standings.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
@@ -7,6 +6,8 @@ import CountryFlag from "../components/CountryFlag.tsx"
 import RankCoin from "../components/RankCoin.tsx"
 import WornTitle from "../badges/WornTitle.tsx"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
+import {lineOf, nameOf, paintOf} from "../nameplates/nameplate.ts"
+import {useNameplate} from "../nameplates/nameplatesStore.ts"
 import {usePlayerCard} from "../players/playerCardStore.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import {Caller, useMySeason} from "./useMySeason.ts"
@@ -47,14 +48,7 @@ function ownLine(caller: Caller, mine: MySeason | undefined): Standing | undefin
     if (caller.accountId === undefined || caller.username === undefined) return undefined
     if (mine?.countryCode === undefined || mine.rank === undefined) return undefined
 
-    return {
-        rank: mine.rank,
-        accountId: caller.accountId,
-        name: caller.username,
-        color: caller.color ?? NameColor.UNSPECIFIED,
-        countryCode: mine.countryCode,
-        tiles: mine.tiles,
-    }
+    return {rank: mine.rank, accountId: caller.accountId, countryCode: mine.countryCode, tiles: mine.tiles}
 }
 
 function rankedAmong(countryCode: string): string {
@@ -104,8 +98,10 @@ type StandingRowProps = {
 
 function StandingRow({standing, you}: StandingRowProps) {
     const country = Countries.get(standing.countryCode)
-    const style = authorStyle({color: standing.color, guest: false})
-    const name = useWordFilter().masked(standing.name)
+    const nameplate = useNameplate(standing.accountId)
+    const style = authorStyle(paintOf(nameplate))
+    const name = useWordFilter().masked(nameOf(nameplate))
+    const player = lineOf(standing.accountId, standing.countryCode, nameplate)
     const openPlayer = usePlayerCard((card) => card.openable ? card.open : undefined)
 
     return <tr className={you ? "leaderboard-entry leaderboard-entry-player" : "leaderboard-entry"}
@@ -116,12 +112,12 @@ function StandingRow({standing, you}: StandingRowProps) {
                 {country && <span className="standings-flag" role="img" aria-label={country.name} title={country.name}>
                     <CountryFlag code={country.code}/>
                 </span>}
-                {openPlayer
+                {openPlayer && player
                     ? <button type="button"
                               className="standings-name player-name-button"
                               style={style}
                               title={name}
-                              onClick={() => openPlayer(playerOf(standing))}>
+                              onClick={() => openPlayer(player)}>
                         {name}
                     </button>
                     : <span className="standings-name" style={style} title={name}>
@@ -132,15 +128,4 @@ function StandingRow({standing, you}: StandingRowProps) {
         </td>
         <td className="leaderboard-table-number">{standing.tiles}</td>
     </tr>
-}
-
-function playerOf(standing: Standing): PlayerLine {
-    return {
-        accountId: standing.accountId,
-        name: standing.name,
-        countryCode: standing.countryCode,
-        guest: false,
-        admin: false,
-        color: standing.color,
-    }
 }

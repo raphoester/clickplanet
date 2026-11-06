@@ -13,7 +13,6 @@ type Message struct {
 	id      MessageID
 	sentAt  time.Time
 	account AccountID
-	author  Author
 	room    Room
 	country string
 	text    string
@@ -25,7 +24,6 @@ type Snapshot struct {
 	ID      MessageID
 	SentAt  time.Time
 	Account AccountID
-	Author  Author
 	Room    Room
 	Country string
 	Text    string
@@ -35,7 +33,7 @@ type Snapshot struct {
 
 type Quote struct {
 	MessageID MessageID
-	Author    Author
+	Account   AccountID
 	Text      string
 	Gif       Gif
 }
@@ -52,7 +50,6 @@ func (s Snapshot) Restore() (Message, error) {
 		id:      s.ID,
 		sentAt:  s.SentAt,
 		account: s.Account,
-		author:  s.Author,
 		room:    s.Room,
 		country: s.Country,
 		text:    s.Text,
@@ -66,7 +63,6 @@ func (m Message) TakeSnapshot() Snapshot {
 		ID:      m.id,
 		SentAt:  m.sentAt,
 		Account: m.account,
-		Author:  m.author,
 		Room:    m.room,
 		Country: m.country,
 		Text:    m.text,
@@ -75,17 +71,12 @@ func (m Message) TakeSnapshot() Snapshot {
 	}
 }
 
-func (m Message) Named(author Author) Message {
-	m.author = author
-	return m
-}
-
 // A guest account is free, and a private tab is a new one, so a mute does not stop a guest who posts GIFs.
-func (m Message) SentBy(author Author) (Message, error) {
+func (m Message) CheckSender(author Author) error {
 	if author.guest && !m.gif.None() {
-		return Message{}, ErrGuestGif
+		return ErrGuestGif
 	}
-	return m.Named(author), nil
+	return nil
 }
 
 func (m Message) In(room Room) bool {
@@ -97,7 +88,7 @@ func (m Message) Answering(answered Message) (Message, error) {
 	if answered.room != m.room {
 		return Message{}, fmt.Errorf("%w: %q is in another room", ErrNotShown, answered.id)
 	}
-	m.quote = Quote{MessageID: answered.id, Author: answered.author, Text: answered.text, Gif: answered.gif}
+	m.quote = Quote{MessageID: answered.id, Account: answered.account, Text: answered.text, Gif: answered.gif}
 	return m, nil
 }
 

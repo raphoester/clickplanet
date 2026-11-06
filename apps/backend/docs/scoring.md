@@ -32,6 +32,14 @@ internal/scoring/internal/
                                   DeleteAccount) and its contract suite
     postgres_contribution_store/  inmemory_contribution_store/
     usecases/record_take_usecase/  forget_account_usecase/
+  players/                        an account player made a player (PlayerCreated): the Store port (Keep, IsPlayer,
+                                  Forget) and its contract suite
+    postgres_player_store/  inmemory_player_store/
+    usecases/keep_player_usecase/  forget_player_usecase/
+  departures/                     Departure (Decided, Leaving), Decision (Leaves, Returns): an account asked deleted;
+                                  the Store port and its contract suite
+    postgres_departure_store/  inmemory_departure_store/
+    usecases/decide_departure_usecase/  forget_departure_usecase/
   commands/scoring_command_handler/  Dispatcher (one case, one use case) and Handler (drops a command refused, of
                                   either stream)
   commands/grant_points_handler/  parses a GrantPoints for its use case
@@ -44,12 +52,13 @@ internal/scoring/internal/
     get_table_handler/                      InternalService/GetTable, through scores_query
     get_round_players_handler/round_players_query/   InternalService/GetRoundPlayers: every account of a round
     get_rank_points_handler/                InternalService/GetRankPoints: books.RankPointsOf, nothing kept
-    (each */rpc_players/                  Players, from player.v1.InternalService/GetPlayers)
+    scoringread/                  Ranked: the SQL of who a board may rank, which the three queries share
     listen_for_events_handler/    the stream: a book's board and scores, the rounds asked, a heartbeat
       inprocess_feed/             Feed[K, V]: each key the streams follow, read once a period, sent when it changed
       log_reader/                 logs a live read that failed
     caller/                       the account on the context, or Unauthenticated
-  subscribers/                    tile_taken_subscriber/  round_take_subscriber/  player_forgotten_subscriber/
+  subscribers/                    tile_taken_subscriber/  round_take_subscriber/  player_created_subscriber/
+                                  player_leaving_subscriber/  player_returned_subscriber/  player_forgotten_subscriber/
                                   log_subscriber/
   migrations/
 ```
@@ -144,9 +153,38 @@ rounds that hold it: the tiles each flag's players took (`round_takes`) and each
 in one statement that moves each round's mark past the take's ledger position and index (`counted_takes_below`,
 `counted_takes_below_index`).
 
+## Who may be ranked
+
+**A board ranks a player: an account with a username, not asked deleted.** A guest has its tiles and its tally, and no
+rank; an account its player asked to delete is hidden from the other players until it is purged or comes back, and a
+board shows no row of it. **Scoring keeps its own copy of the two facts**, each fed by player's events, as progression
+does (see [Progression](progression.md#who-the-others-see-nameplates-and-departures)), so no read of a board asks
+player anything.
+
+- **`players`**: an account player made a player. `player.v1.PlayerCreated` keeps one (`scoring-players`,
+  `keep_player_usecase`): an insert that ignores a second. A profile is made once and only a forget deletes it, so the
+  event says exactly "no longer a guest".
+- **`departures`**: `player.v1.PlayerLeaving` (`scoring-departures-leaving`) and `PlayerReturned`
+  (`scoring-departures-returns`) through `decide_departure_usecase`. **The latest decision wins**
+  (`Departure.Decided`): the two come on two streams, in either order, and either may come twice. A decision with no
+  time is refused (`ErrNoTime`), so a broken event is buried.
+- **`player.v1.PlayerForgotten` deletes both** (`scoring-players-forgotten`, `scoring-departures-forgotten`), with the
+  tallies and the round's takes.
+- **The queries filter in SQL**: `scoringread.Ranked` is the one condition (`EXISTS` a player, `NOT EXISTS` a leaving
+  departure), which `board_query`, `my_tally_query` and `round_query` each put in their statement.
+- **Until 2026-11-06 the reads asked `player.v1.InternalService/GetPlayers`** for every page of standings, to copy each
+  name and color and to skip guests and unnamed accounts: 200 rows and one call a page until 10 were named, and the
+  caller's rank counted by asking about every account above it, 500 at a time. A board waited on player, and a change
+  of player's `Player` touched scoring. The names are the page's now (player's `GetNameplates`), and `Standing.name`
+  and `color` are `reserved`.
+- **Migration `20261106130000_players` filled both once from `player.profiles` and `player.departures`**, when they
+  exist: the only time scoring reads player's tables. A new group reads its stream from the start, so a
+  `PlayerCreated` or a decision still in the stream is heard again, which changes nothing.
+  `TestThePlayersAndTheDeparturesStartFromPlayers` pins it.
+
 ## Kept
 
-`books` (`book_id`, `starts_at`), `closed_books` (`ended_at`), `book_tiebreaks` (`round_id`: a book closed with no
+`players` (`account_id`), `departures` (`account_id`, `leaving`, `decided_at`), `books` (`book_id`, `starts_at`), `closed_books` (`ended_at`), `book_tiebreaks` (`round_id`: a book closed with no
 tiebreak has no row), `grants` (`grant_id`, `country`, `points`, `granted_at`, by `granted_at`), `rounds` (`round_id`,
 `book_id`, `times`, `starts_at`, `counted_takes_below`, `counted_takes_below_index`), `scored_rounds`
 (`ended_at`), `round_results` (`rank`, `points`, `share`), `round_takes`, `round_players`, and the outbox
@@ -170,19 +208,20 @@ The reads are queries (see [Reads are queries](queries.md)), by the ids the game
 id that is not one is `InvalidArgument`.
 
 - **`GetBoard(book_id, country_id)`** (`board_query`): the book's top 10, of every player by its main flag's tiles, or
-  of every player who took tiles for `country_id` by those tiles: rank, account id, name, color, flag and
-  tiles: the title its player wears is a badge, which the page reads from progression's `GetBadges` by the account id. **Only a signed-in player is ranked**: Go skips what `GetPlayers` answers as a guest or not at all; a tie
-  shares the rank. Rows come 200 at a time from a keyset on `(tiles, account_id)`, one `GetPlayers` a page, until 10
-  are named. A country that is not one is `InvalidArgument`. A GET, `public, max-age=15`.
+  of every player who took tiles for `country_id` by those tiles: rank, account id, flag and tiles. Its name and color
+  are the page's, from player's `GetNameplates`, and the title its player wears a badge, from progression's
+  `GetBadges`, both by the account id. **Only a player is ranked** ([Who may be ranked](#who-may-be-ranked)), in the
+  statement itself; a tie shares the rank. A country that is not one is `InvalidArgument`. A GET, `public, max-age=15`.
 - **`GetMyTally(book_id, country_id)`** (`my_tally_query`): the caller's main flag, tiles and rank among every player,
-  and its tiles and rank on `country_id`'s board; 0 for a guest's ranks. Behind
+  and its tiles and rank on `country_id`'s board, each rank one more than the players above it, counted in SQL; 0 for
+  the ranks of a guest or an account asked deleted. Behind
   `NewSessionInterceptor`, always enforcing, on the identity token (`scoring_session_checks{verdict}`).
 - **`GetRound(round_id)`** (`round_query`), on the public and the internal listener: NotFound for a round never opened.
   While open: each country's share of the map now and the points it would score (`Round.Results`). Once scored: its
   results (the countries that scored), its end, and the book's scores before and after it (`scores_query.Around`:
   rounds ended before it, and through it; both with the grants made before its end, so they differ by the round
   alone). Always: the tiles each flag took during it (most first) and its top 10
-  signed-in players by the tiles each took for the flag it took the most for, from the best 50 and one `GetPlayers`.
+  players a board would rank, by the tiles each took for the flag it took the most for, in one statement.
   A GET, `public, max-age=10`.
 - **`GetScores(book_id)`** (`scores_query`): the book's countries with points, grants included, ranked by
   `Book.Table`. A GET, `public, max-age=10`. A book never opened has none.

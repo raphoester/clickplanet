@@ -32,12 +32,9 @@
   id and `idsSince` names those messages, for the sound and for highlighting
   them once they are on screen. `unseenAfter` counts the messages and
   announcements after a time, for the badge, and `newestAt` is the time of the
-  newest line. `nameSentUnder` is
-  the name the server gave the latest message this client sent — the only way
-  it learns a guest's name, and only ever shown. `accountSentUnder` is that
-  message's account: how a guest's client learns which account it is.
-  `startsGroup` says where a new author's run begins: another account, or the
-  same account under a new name. `quoteOf` is a message as a quote, for the
+  newest line. `accountSentUnder` is the account of the latest message this client sent: how a guest's client
+  learns which account it is, and so its name, from the nameplates. `startsGroup` says where a new author's run
+  begins: another account. `quoteOf` is a message as a quote, for the
   composer and the fake.
 - `authorColor.ts` — `NAME_COLORS`, the 12 a player with a username may pick
   from (`player.v1.NameColor`, one hue each), and `hueOf`, the hue of a pick.

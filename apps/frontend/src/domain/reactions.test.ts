@@ -1,6 +1,5 @@
 import {describe, expect, it} from "vitest";
 import {ChatMessage, Reaction, ReactionCount} from "../backends/chat.ts";
-import {NameColor} from "../backends/player.ts";
 import {
     applyReactionsAnswer,
     applyReactionsChange,
@@ -13,13 +12,12 @@ import {
 
 function message(id: string, reactions: ChatMessage["reactions"] = []): ChatMessage {
     return {
-        id, sentAt: 0, authorAccountId: "account-ana", authorName: "Ana", authorAdmin: false, authorColor: NameColor.UNSPECIFIED,
-        countryCode: "fr", text: "hi", reactions, reactionsVersion: 1,
+        id, sentAt: 0, authorAccountId: "account-ana", countryCode: "fr", text: "hi", reactions, reactionsVersion: 1,
     }
 }
 
-function count(reaction: Reaction, count: number, mine: boolean, reactors: string[] = []): ReactionCount {
-    return {reaction, count, mine, reactors}
+function count(reaction: Reaction, count: number, mine: boolean, reactorAccountIds: string[] = []): ReactionCount {
+    return {reaction, count, mine, reactorAccountIds}
 }
 
 describe("mergedReactions", () => {
@@ -79,22 +77,30 @@ describe("toggledReactions", () => {
 })
 
 describe("whoReacted", () => {
+    const names: Record<string, string> = {"account-ana": "Ana", "account-bo": "Bo"}
+    const nameOf = (accountId: string) => names[accountId]
+
     it("names everyone it has", () => {
-        expect(whoReacted(count(Reaction.HEART, 2, false, ["Ana", "Bo"])))
+        expect(whoReacted(count(Reaction.HEART, 2, false, ["account-ana", "account-bo"]), nameOf))
             .toEqual({names: ["Ana", "Bo"], more: 0})
     })
 
     it("counts the rest of a list the server cut", () => {
-        expect(whoReacted(count(Reaction.HEART, 30, false, ["Ana", "Bo"])))
+        expect(whoReacted(count(Reaction.HEART, 30, false, ["account-ana", "account-bo"]), nameOf))
             .toEqual({names: ["Ana", "Bo"], more: 28})
     })
 
-    it("names nobody on a reaction from before names were kept", () => {
-        expect(whoReacted(count(Reaction.HEART, 3, false))).toEqual({names: [], more: 3})
+    it("counts without naming somebody nobody can name, or not read yet", () => {
+        expect(whoReacted(count(Reaction.HEART, 3, false, ["account-gone", "account-bo"]), nameOf))
+            .toEqual({names: ["Bo"], more: 2})
     })
 
-    it("lets the count decide, so a name past it is not shown", () => {
-        expect(whoReacted(count(Reaction.HEART, 1, false, ["Ana", "Bo"])))
+    it("names nobody on a reaction from before accounts", () => {
+        expect(whoReacted(count(Reaction.HEART, 3, false), nameOf)).toEqual({names: [], more: 3})
+    })
+
+    it("lets the count decide, so an account past it is not shown", () => {
+        expect(whoReacted(count(Reaction.HEART, 1, false, ["account-ana", "account-bo"]), nameOf))
             .toEqual({names: ["Ana"], more: 0})
     })
 })

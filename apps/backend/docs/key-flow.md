@@ -58,9 +58,9 @@ POST /chat.v1.ChatService/SendMessage   [X-Session-Token: required, naming an ac
   → ChatService → send_message_handler (the account off the context, or none)
   → muting_send_message: a mute on the account or its network is PermissionDenied, with when it ends
   → messages/usecases/send_message_usecase: no account is ErrNoAccount (Unauthenticated), then
-      who posts (log_authors → rpc_player_authors → player.v1.InternalService/IntroducePlayer): the account's
-      username, or "guest_" and its guest code; stamps id/time
-      for a reply, the message it answers (messages.Thread: postgres_message_store.Message, then GetPlayers);
+      who posts (log_authors → rpc_player_authors → player.v1.InternalService/IntroducePlayer): a guest, which
+      gets its code the first time and posts no GIF, or not; stamps id/time
+      for a reply, the message it answers (messages.Thread: postgres_message_store.Message), by its account;
       a message that is not shown is ErrNotShown (NotFound)
   → postgres_message_store.Append() [inserts into chat.messages: the account, never a copy of its name;
       for a reply, the id of the message it answers]
@@ -79,6 +79,5 @@ POST /chat.v1.ChatService/React   [X-Session-Token: required, naming an account]
       is the message shown (postgres_message_store.Shown), what it carries (postgres_reaction_store.Reactions)
   → postgres_reaction_store.Save() [inserts or deletes in chat.reactions and bumps chat.reaction_versions, one statement]
       then reads the tally and its version back, one statement
-  → who everyone under the message is, one ask (rpc_player_authors.Authors), for the answer and the frame alike
-  → inprocess_feed.Publish() the whole tally, versioned and named
+  → inprocess_feed.Publish() the whole tally, versioned, by account: the page names who reacted
 ```

@@ -11,7 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
-	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/chatmessage"
@@ -30,32 +29,10 @@ type silentFeed struct{}
 
 func (silentFeed) Publish(feed.Update) {}
 
-type commandAuthors struct {
-	query *fakeAuthors
-}
+type everyoneAPlayer struct{}
 
-func authorOf(author *playerv1.Player) messages.Author {
-	return messages.AuthorOf(author.GetName(), author.GetAdmin(), int32(author.GetColor()))
-}
-
-func (c commandAuthors) Author(ctx context.Context, account messages.AccountID) (messages.Author, error) {
-	found, err := c.Authors(ctx, []messages.AccountID{account})
-	if err != nil {
-		return messages.Author{}, err
-	}
-	return found[account], nil
-}
-
-func (c commandAuthors) Authors(ctx context.Context, accounts []messages.AccountID) (map[messages.AccountID]messages.Author, error) {
-	found, err := c.query.Authors(ctx, accounts)
-	if err != nil {
-		return nil, err
-	}
-	named := make(map[messages.AccountID]messages.Author, len(found))
-	for account, author := range found {
-		named[account] = authorOf(author)
-	}
-	return named, nil
+func (everyoneAPlayer) Author(context.Context, messages.AccountID) (messages.Author, error) {
+	return messages.AuthorOf("Ada_L"), nil
 }
 
 func (s *testSuite) TestAMessageIsInTheHistoryExactlyWhenItCanBeReactedAndRepliedTo() {
@@ -116,15 +93,14 @@ func (s *testSuite) TestTheReactionsOfAMessageAreWhatReactAnswersForThem() {
 	s.reacted("hello", laugh, reactions.ReactorOf(bob), false, now.Add(-30*time.Minute))
 	for i := range history_query.NamedReactors + 1 {
 		account := messages.AccountID{14: 1, 15: byte(i)}
-		s.authors.named[account] = &playerv1.Player{AccountId: account.String(), Name: fmt.Sprintf("Player%02d", i)}
 		s.reacted("crowd", clown, reactions.ReactorOf(account), true, now.Add(time.Duration(i-30)*time.Minute))
 	}
 
 	const size = 3
-	query := history_query.NewPostgresQuery(s.db, s.authors, cptime.NewFixedClock(now), size, historyRetention)
+	query := history_query.NewPostgresQuery(s.db, cptime.NewFixedClock(now), size, historyRetention)
 	shown := messages.NewShowing(s.messages, messages.NewRooms(messages.FakeFlags{}), cptime.NewFixedClock(now),
 		messages.NewWindow(size, historyRetention))
-	react := react_usecase.New(shown, s.reactions, silentFeed{}, commandAuthors{query: s.authors}, cptime.NewFixedClock(now))
+	react := react_usecase.New(shown, s.reactions, silentFeed{}, cptime.NewFixedClock(now))
 	untouched := reactions.Reaction(chatv1.Reaction_REACTION_EARTH)
 
 	for _, viewer := range []messages.AccountID{ada, bob, gone} {
@@ -146,16 +122,11 @@ func (s *testSuite) TestTheReactionsOfAMessageAreWhatReactAnswersForThem() {
 }
 
 func (s *testSuite) TestAMessageReadsBackAsSendMessageAnsweredIt() {
-	s.authors.named[ada] = &playerv1.Player{
-		AccountId: ada.String(), Name: "Ada_L", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
-	}
-	s.authors.named[bob] = &playerv1.Player{AccountId: bob.String(), Name: "guest_0b1c2d"}
 	clock := cptime.NewFixedClock(now.Add(-time.Hour).Add(123_456 * time.Microsecond))
-	authors := commandAuthors{query: s.authors}
-	send := send_message_usecase.New(s.messages, silentFeed{}, authors,
+	send := send_message_usecase.New(s.messages, silentFeed{}, everyoneAPlayer{},
 		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpcountries.New(),
 			messages.NewRooms(messages.FakeFlags{})),
-		messages.NewThread(s.messages, authors, clock, window))
+		messages.NewThread(s.messages, clock, window))
 
 	answers := map[string]*chatv1.ChatMessage{}
 	for _, in := range []send_message_usecase.In{
@@ -179,24 +150,19 @@ func (s *testSuite) TestAMessageReadsBackAsSendMessageAnsweredIt() {
 
 func (s *testSuite) TestAReplyReadsBackAsSendMessageAnsweredIt() {
 	const size = 10
-	gone := messages.AccountID{15: 9}
 	long := strings.Repeat("north ", 40)
-	s.authors.named[bob] = &playerv1.Player{
-		AccountId: bob.String(), Name: "Bob_B", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
-	}
-	s.keep(messages.Snapshot{ID: "named", SentAt: now.Add(-5 * time.Hour), Account: bob, Country: "fr", Text: long})
-	s.keep(messages.Snapshot{ID: "deleted", SentAt: now.Add(-4 * time.Hour), Account: gone, Country: "fr", Text: "who holds the north"})
-	s.legacy("guest_Bob", now.Add(-3*time.Hour))
+	s.keep(messages.Snapshot{ID: "long", SentAt: now.Add(-5 * time.Hour), Account: bob, Country: "fr", Text: long})
+	s.keep(messages.Snapshot{ID: "short", SentAt: now.Add(-4 * time.Hour), Account: bob, Country: "fr", Text: "who holds the north"})
+	s.legacy(now.Add(-3 * time.Hour))
 
 	clock := cptime.NewFixedClock(now.Add(-time.Hour))
-	authors := commandAuthors{query: s.authors}
-	send := send_message_usecase.New(s.messages, silentFeed{}, authors,
+	send := send_message_usecase.New(s.messages, silentFeed{}, everyoneAPlayer{},
 		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpcountries.New(),
 			messages.NewRooms(messages.FakeFlags{})),
-		messages.NewThread(s.messages, authors, clock, messages.NewWindow(size, historyRetention)))
+		messages.NewThread(s.messages, clock, messages.NewWindow(size, historyRetention)))
 
 	answers := map[string]*chatv1.ChatMessage{}
-	for _, replyTo := range []messages.MessageID{"named", "deleted", "legacy"} {
+	for _, replyTo := range []messages.MessageID{"long", "short", "legacy"} {
 		sent, err := send.Execute(s.T().Context(), send_message_usecase.In{
 			Account: ada, AuthorID: "browser-1", Room: messages.World, CountryID: "fr", Text: "answer", ReplyTo: replyTo, UserAgent: "test",
 		})
@@ -207,7 +173,7 @@ func (s *testSuite) TestAReplyReadsBackAsSendMessageAnsweredIt() {
 		clock.Advance(time.Second)
 	}
 
-	history, err := history_query.NewPostgresQuery(s.db, s.authors, cptime.NewFixedClock(now), size, historyRetention).
+	history, err := history_query.NewPostgresQuery(s.db, cptime.NewFixedClock(now), size, historyRetention).
 		History(s.T().Context(), ada, messages.World)
 	s.Require().NoError(err)
 	replies := 0

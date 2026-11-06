@@ -2,7 +2,7 @@
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
-(`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetPlayer`, `GetPlayers`, `GetRoster`), progression (`GetStats`,
+(`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetPlayer`, `GetPlayers`, `GetNameplates`, `GetRoster`), progression (`GetStats`,
 `GetTitles`, `GetBadges`, `GetProgress`, `AdminService/GetProgress`), planet
 (`GetTakesByCountry`, `GetLedgerTotals`, `GetMapHistory`, `GetTerritories`, `GetLedger`, `GetTileHolder`, `GetLandmass`, `GetHoldings`),
 gamemaster (`GetSeasonTotals`, `GetSeasonReplay`), auth
@@ -24,14 +24,16 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   until those rows are gone. An announcement's kind and an identity's provider are enum types, so postgres already
   refuses a value no migration added; the check in Go is for a value the type holds and this build does not. A title id the catalog
   no longer has is the exception: the catalog drops it from what is shown, and the reconciliation revokes it.
-- **What SQL cannot read is a port in the wire's terms.** `history_query.Authors` answers `*player.v1.Player`, and its
-  adapter is a subpackage (`history_query/rpc_player_authors`). The query asks it once and stitches the answer on.
+- **What SQL cannot read is a port in the wire's terms.** `messages_query.Authors` answers `*player.v1.Player`, and its
+  adapter is a subpackage (`messages_query/rpc_player_authors`). The query asks it once and stitches the answer on.
+  **A name the page can compose is not a port at all**: the chat's history and scoring's boards answer account ids, and
+  the page reads the names (player's `GetNameplates`).
   An adapter the commands already use is reused rather than copied: `player_query.Accounts` is
   `players/rpc_account_reader`. **The adapter is the only bridge to the domain**: the titles catalog is game rules as
   objects, so progression's `GetTitles`, `GetBadges` and both `GetProgress` reach it through a `Titles` port that takes the ids
   SQL read and answers `*progression.v1.Title`, implemented by `progressionv1controller/inprocess_title_catalog`; the roster is state in
   memory, reached through `roster_query.Lines`, implemented by `roster_query/inmemory_roster`.
-- **Independent parts run at once** (`errgroup`): the messages and their authors, and the announcements.
+- **Independent parts run at once** (`errgroup`): the messages, the announcements and the seen mark.
 - **The handler only maps**: the caller off the context, the query, the header. It declares the query as its port.
   What several queries share and that knows only the wire is in `playerv1controller/playerread` (`KeptColor`) and
   `progressionv1controller/progressionread` (`StreakNow`, `Career`); `playermessage` and `progressionmessage` encode

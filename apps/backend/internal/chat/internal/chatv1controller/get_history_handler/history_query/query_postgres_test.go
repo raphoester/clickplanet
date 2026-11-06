@@ -1,11 +1,8 @@
 package history_query_test
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"slices"
 	"testing"
 	"time"
 
@@ -14,7 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
-	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/postgres_announcement_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query"
@@ -34,30 +30,6 @@ func TestRunSuite(t *testing.T) {
 	suite.Run(t, new(testSuite))
 }
 
-type fakeAuthors struct {
-	named map[messages.AccountID]*playerv1.Player
-	asked [][]messages.AccountID
-	err   error
-}
-
-func (f *fakeAuthors) Authors(
-	_ context.Context,
-	accounts []messages.AccountID,
-) (map[messages.AccountID]*playerv1.Player, error) {
-	f.asked = append(f.asked, accounts)
-	if f.err != nil {
-		return nil, f.err
-	}
-
-	found := make(map[messages.AccountID]*playerv1.Player, len(accounts))
-	for _, account := range accounts {
-		if author, known := f.named[account]; known {
-			found[account] = author
-		}
-	}
-	return found, nil
-}
-
 type testSuite struct {
 	suite.Suite
 
@@ -66,7 +38,6 @@ type testSuite struct {
 	reactions     *postgres_reaction_store.Store
 	announcements *postgres_announcement_store.Store
 	seen          *postgres_seen_store.Store
-	authors       *fakeAuthors
 }
 
 const (
@@ -100,14 +71,10 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
-	s.authors = &fakeAuthors{named: map[messages.AccountID]*playerv1.Player{
-		ada: {AccountId: ada.String(), Name: "Ada"},
-		bob: {AccountId: bob.String(), Name: "Bob"},
-	}}
 }
 
 func (s *testSuite) query() *history_query.PostgresQuery {
-	return history_query.NewPostgresQuery(s.db, s.authors, cptime.NewFixedClock(now), historySize, historyRetention)
+	return history_query.NewPostgresQuery(s.db, cptime.NewFixedClock(now), historySize, historyRetention)
 }
 
 func (s *testSuite) history(viewer messages.AccountID) *chatv1.GetHistoryResponse {
@@ -136,10 +103,8 @@ func (s *testSuite) repliedAt(text string, account messages.AccountID, at time.T
 	})
 }
 
-func (s *testSuite) legacy(name string, at time.Time) {
-	s.keep(messages.Snapshot{
-		ID: "legacy", SentAt: at, Author: messages.AuthorOf(name, true, 0), Country: "fr", Text: "legacy",
-	})
+func (s *testSuite) legacy(at time.Time) {
+	s.keep(messages.Snapshot{ID: "legacy", SentAt: at, Country: "fr", Text: "legacy"})
 }
 
 func (s *testSuite) sent(text string, ago time.Duration) {
@@ -225,58 +190,17 @@ func (s *testSuite) TestAMessageCarriesWhatItsRowHolds() {
 	s.Equal("hello", message.GetText())
 }
 
-func (s *testSuite) TestEachMessageIsNamedByWhoItsAccountIsNow() {
-	s.authors.named[ada] = &playerv1.Player{
-		AccountId: ada.String(), Name: "Ada Lovelace", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
-	}
-	s.sent("one", 2*time.Hour)
-	s.sent("two", time.Hour)
-
-	for _, message := range s.history(ada).GetMessages() {
-		s.Equal(ada.String(), message.GetAuthorAccountId(), message.GetText())
-		s.Equal("Ada Lovelace", message.GetAuthorName(), message.GetText())
-		s.True(message.GetAuthorAdmin(), message.GetText())
-		s.Equal(playerv1.NameColor_NAME_COLOR_TEAL, message.GetAuthorColor(), message.GetText())
-	}
-}
-
-func (s *testSuite) TestOneAccountIsAskedAboutOnceHoweverMuchItSaid() {
-	s.sent("one", 2*time.Hour)
-	s.sent("two", time.Hour)
-
-	s.history(ada)
-
-	s.Equal([][]messages.AccountID{{ada}}, s.authors.asked, "a page costs one ask, not one per message")
-}
-
-func (s *testSuite) TestADeletedAccountIsNoLongerNamed() {
-	delete(s.authors.named, ada)
+func (s *testSuite) TestEachMessageSaysWhoseItIsAndTheMessagesFromBeforeAccountsNobodys() {
+	s.legacy(now.Add(-2 * time.Hour))
 	s.sent("hello", time.Hour)
 
-	message := s.history(ada).GetMessages()[0]
+	shown := s.history(ada).GetMessages()
 
-	s.Equal(history_query.DeletedName, message.GetAuthorName(), "showing the old name would undo the deletion")
-	s.Empty(message.GetAuthorAccountId(), "nobody is there to open a card of, or to report")
-	s.False(message.GetAuthorAdmin())
-	s.Equal(playerv1.NameColor_NAME_COLOR_UNSPECIFIED, message.GetAuthorColor())
-	s.Equal("hello", message.GetText(), "what it said stays: a thread keeps its shape")
-}
-
-func (s *testSuite) TestAMessageFromBeforeAccountsKeepsTheNameItCarries() {
-	s.legacy("guest_Bob", now.Add(-time.Hour))
-
-	message := s.history(ada).GetMessages()[0]
-
-	s.Equal("guest_Bob", message.GetAuthorName(), "it has no account to read a name from")
-	s.Empty(message.GetAuthorAccountId())
-	s.True(message.GetAuthorAdmin())
-	s.Empty(slices.Concat(s.authors.asked...), "and nobody is asked about it")
+	s.Empty(shown[0].GetAuthorAccountId(), "not an id of zeros")
+	s.Equal(ada.String(), shown[1].GetAuthorAccountId(), "the page names it, by its account")
 }
 
 func (s *testSuite) TestAReplyCarriesWhatTheMessageItRepliesToSaidAndWhoSaidIt() {
-	s.authors.named[bob] = &playerv1.Player{
-		AccountId: bob.String(), Name: "Bob", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL,
-	}
 	s.sentAt("question", bob, now.Add(-2*time.Hour))
 	s.repliedAt("answer", ada, now.Add(-time.Hour), "question")
 
@@ -284,8 +208,7 @@ func (s *testSuite) TestAReplyCarriesWhatTheMessageItRepliesToSaidAndWhoSaidIt()
 
 	s.Nil(shown[0].GetReplyTo(), "a plain message quotes nothing")
 	s.True(proto.Equal(&chatv1.Quote{
-		MessageId: "question", AuthorName: "Bob", AuthorColor: playerv1.NameColor_NAME_COLOR_TEAL,
-		Body: &chatv1.Quote_Text{Text: "question"},
+		MessageId: "question", AuthorAccountId: bob.String(), Body: &chatv1.Quote_Text{Text: "question"},
 	}, shown[1].GetReplyTo()), "%v", shown[1].GetReplyTo())
 }
 
@@ -298,8 +221,7 @@ func (s *testSuite) TestAReplyStillQuotesAMessageTheWindowLeftOut() {
 
 	s.Equal([]string{"filler", "answer"}, texts(answer))
 	s.Equal("question", answer.GetMessages()[1].GetReplyTo().GetText())
-	s.Equal("Bob", answer.GetMessages()[1].GetReplyTo().GetAuthorName())
-	s.Equal([][]messages.AccountID{{ada, bob}}, s.authors.asked, "the quoted are named in the same ask, each once")
+	s.Equal(bob.String(), answer.GetMessages()[1].GetReplyTo().GetAuthorAccountId())
 }
 
 func (s *testSuite) TestAReplyToAMessageThatIsGoneQuotesNothing() {
@@ -315,38 +237,14 @@ func (s *testSuite) TestAReplyToAMessageThatIsGoneQuotesNothing() {
 	}
 }
 
-func (s *testSuite) TestTheQuoteOfADeletedAccountIsNoLongerNamed() {
-	gone := messages.AccountID{15: 9}
-	s.sentAt("question", gone, now.Add(-2*time.Hour))
-	s.repliedAt("answer", ada, now.Add(-time.Hour), "question")
-
-	quote := s.history(ada).GetMessages()[1].GetReplyTo()
-
-	s.Equal(history_query.DeletedName, quote.GetAuthorName())
-	s.Equal(playerv1.NameColor_NAME_COLOR_UNSPECIFIED, quote.GetAuthorColor())
-	s.Equal("question", quote.GetText(), "what it said stays")
-}
-
-func (s *testSuite) TestTheQuoteOfAMessageFromBeforeAccountsKeepsTheNameItCarries() {
-	s.legacy("guest_Bob", now.Add(-2*time.Hour))
+func (s *testSuite) TestTheQuoteOfAMessageFromBeforeAccountsSaysNobodys() {
+	s.legacy(now.Add(-2 * time.Hour))
 	s.repliedAt("answer", ada, now.Add(-time.Hour), "legacy")
 
 	quote := s.history(ada).GetMessages()[1].GetReplyTo()
 
-	s.Equal("guest_Bob", quote.GetAuthorName())
-	s.Equal([][]messages.AccountID{{ada}}, s.authors.asked, "nobody is asked about it")
-}
-
-func (s *testSuite) TestOneAskNamesTheSendersAndThePeopleUnderTheirReactions() {
-	s.sent("hello", time.Hour)
-	s.reacted("hello", clown, reactions.ReactorOf(bob), true, now.Add(-time.Minute))
-	s.reacted("hello", laugh, reactions.ReactorOf(ada), true, now)
-
-	message := s.history(ada).GetMessages()[0]
-
-	s.Equal("Ada", message.GetAuthorName())
-	s.Equal([]string{"Bob"}, message.GetReactions()[0].GetReactors())
-	s.Equal([][]messages.AccountID{{ada, bob}}, s.authors.asked, "the sender and the reactor in one, each once")
+	s.Equal("legacy", quote.GetText())
+	s.Empty(quote.GetAuthorAccountId())
 }
 
 func (s *testSuite) TestEachMessageCarriesItsReactionsMarkedForTheViewer() {
@@ -361,7 +259,7 @@ func (s *testSuite) TestEachMessageCarriesItsReactionsMarkedForTheViewer() {
 		s.Equal(chatv1.Reaction_REACTION_CLOWN, count.GetReaction(), viewer.String())
 		s.Equal(uint32(1), count.GetCount(), viewer.String())
 		s.Equal(mine, count.GetMine(), viewer.String())
-		s.Equal([]string{"Ada"}, count.GetReactors(), viewer.String())
+		s.Equal([]string{ada.String()}, count.GetReactorAccountIds(), viewer.String())
 		s.Equal(uint64(1), message.GetReactionsVersion(), viewer.String())
 	}
 }
@@ -376,9 +274,9 @@ func (s *testSuite) TestReactionsKeepThePlaceTheyFirstAppearedInAndSoDoThePeople
 
 	s.Require().Len(counts, 2)
 	s.Equal(chatv1.Reaction_REACTION_CLOWN, counts[0].GetReaction())
-	s.Equal([]string{"Bob", "Ada"}, counts[0].GetReactors())
+	s.Equal([]string{bob.String(), ada.String()}, counts[0].GetReactorAccountIds())
 	s.Equal(chatv1.Reaction_REACTION_LAUGH, counts[1].GetReaction())
-	s.Equal([]string{"Ada"}, counts[1].GetReactors())
+	s.Equal([]string{ada.String()}, counts[1].GetReactorAccountIds())
 }
 
 func (s *testSuite) TestAMessageNobodyReactedToHasNoReactionsAtVersionZero() {
@@ -401,7 +299,7 @@ func (s *testSuite) TestAMessageWhoseReactionsWereAllTakenOffKeepsItsVersion() {
 	s.Equal(uint64(2), message.GetReactionsVersion(), "a client holding version 1 must learn of version 2")
 }
 
-func (s *testSuite) TestSomebodyNobodyCanNameIsCountedWithoutBeingNamed() {
+func (s *testSuite) TestAGuestTagFromBeforeAccountsIsCountedAndCarriesNoAccount() {
 	gone := messages.AccountID{15: 9}
 	s.sent("hello", time.Hour)
 	s.reacted("hello", clown, reactions.ReactorOf(ada), true, now.Add(-2*time.Minute))
@@ -411,26 +309,23 @@ func (s *testSuite) TestSomebodyNobodyCanNameIsCountedWithoutBeingNamed() {
 	count := s.history(ada).GetMessages()[0].GetReactions()[0]
 
 	s.Equal(uint32(3), count.GetCount())
-	s.Equal([]string{"Ada"}, count.GetReactors(), "a list of reactions is not the place to say somebody is gone")
-	s.Equal([][]messages.AccountID{{ada, gone}}, s.authors.asked, "a guest tag is nobody, so nobody is asked about it")
+	s.Equal([]string{ada.String(), gone.String()}, count.GetReactorAccountIds(), "the page names who it still can")
 }
 
-func (s *testSuite) TestACountNamesOnlyItsFirstReactors() {
+func (s *testSuite) TestACountCarriesOnlyItsFirstReactors() {
 	s.sent("hello", time.Hour)
 	reactors := history_query.NamedReactors + 5
-	names := make([]string, 0, reactors)
+	ids := make([]string, 0, reactors)
 	for i := range reactors {
 		account := messages.AccountID{14: 1, 15: byte(i)}
-		name := fmt.Sprintf("Player%02d", i)
-		s.authors.named[account] = &playerv1.Player{AccountId: account.String(), Name: name}
-		names = append(names, name)
+		ids = append(ids, account.String())
 		s.reacted("hello", clown, reactions.ReactorOf(account), true, now.Add(time.Duration(i-reactors)*time.Second))
 	}
 
 	count := s.history(ada).GetMessages()[0].GetReactions()[0]
 
 	s.Equal(uint32(reactors), count.GetCount()) //nolint:gosec // a small test count.
-	s.Equal(names[:history_query.NamedReactors], count.GetReactors())
+	s.Equal(ids[:history_query.NamedReactors], count.GetReactorAccountIds())
 }
 
 func (s *testSuite) TestTheHistoryCarriesTheNewestAnnouncementsOldestFirst() {
@@ -491,15 +386,6 @@ func (s *testSuite) TestAnAnnouncementOfAKindNobodyKnowsIsAnError() {
 	s.ErrorIs(err, history_query.ErrUnknownKind)
 }
 
-func (s *testSuite) TestAHistoryNobodyCanBeNamedInIsARefusal() {
-	s.sent("hello", time.Hour)
-	s.authors.err = errors.New("the player module is down")
-
-	_, err := s.query().History(s.T().Context(), ada, messages.World)
-
-	s.ErrorIs(err, s.authors.err, "a chat of anonymous messages is worse than none")
-}
-
 func uuidOf(id announcements.AnnouncementID) string {
 	return uuid.UUID(id).String()
 }
@@ -547,7 +433,7 @@ func (s *testSuite) TestARemovedMessageKeepsItsPlaceAndItsAuthorAndLosesItsTextA
 
 	s.Require().Len(shown, 2)
 	s.Equal("insult", shown[0].GetId())
-	s.Equal("Bob", shown[0].GetAuthorName())
+	s.Equal(bob.String(), shown[0].GetAuthorAccountId())
 	s.True(shown[0].GetRemoved())
 	s.Nil(shown[0].GetBody(), "the text never leaves the server")
 	s.Empty(shown[0].GetReactions())
@@ -563,7 +449,7 @@ func (s *testSuite) TestAReplyToARemovedMessageQuotesItWithNoText() {
 	quote := s.history(ada).GetMessages()[1].GetReplyTo()
 
 	s.Equal("insult", quote.GetMessageId())
-	s.Equal("Bob", quote.GetAuthorName())
+	s.Equal(bob.String(), quote.GetAuthorAccountId())
 	s.True(quote.GetRemoved())
 	s.Empty(quote.GetText(), "nobody reads a removed message in a quote")
 }

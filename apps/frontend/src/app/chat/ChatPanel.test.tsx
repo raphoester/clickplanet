@@ -25,6 +25,8 @@ import {GifQuery} from "../../backends/gifs.ts"
 import {NameColor, RosterEntry} from "../../backends/player.ts"
 import {useRoster} from "../players/rosterStore.ts"
 import {useChat} from "./chatStore.ts"
+import {AccountNameplate, Nameplate} from "../../backends/nameplates.ts"
+import {useNameplates} from "../nameplates/nameplatesStore.ts"
 
 const france = Countries.get("fr")!
 
@@ -36,14 +38,23 @@ const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMess
     id,
     sentAt,
     authorAccountId: "account-ana",
-    authorName: "Ana",
-    authorAdmin: false,
-    authorColor: NameColor.UNSPECIFIED,
     countryCode: "fr",
     text,
     reactions: [],
     reactionsVersion: 0,
 })
+
+const plate = (name: string, color = NameColor.UNSPECIFIED): Nameplate =>
+    ({name, color, admin: false, guest: name.startsWith("guest_")})
+
+// What GetNameplates answers for the accounts these tests post as.
+const NAMEPLATES: Record<string, Nameplate> = {
+    "account-ana": plate("Ana"),
+    "account-bo": plate("Bo"),
+    "account-other": plate("ana_1"),
+    "account-guest": plate("guest_91aa3d"),
+    [OWN_ACCOUNT]: plate(OWN_GUEST),
+}
 
 function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncement[] = [], seenUntil?: number) {
     const listeners: ((message: ChatMessage) => void)[] = []
@@ -77,7 +88,7 @@ function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncemen
                 reaction: outgoing.reaction,
                 count: outgoing.on ? 1 : 0,
                 mine: outgoing.on,
-                reactors: outgoing.on ? [OWN_GUEST] : [],
+                reactorAccountIds: outgoing.on ? [OWN_ACCOUNT] : [],
             }].filter(count => count.count > 0),
             version: 1,
         })),
@@ -85,7 +96,6 @@ function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncemen
             id: `sent-${outgoing.text}`,
             sentAt: 1_700_000_100_000,
             authorAccountId: OWN_ACCOUNT,
-            authorName: OWN_GUEST,
             countryCode: outgoing.countryCode,
             text: outgoing.text,
             reactions: [] as ChatMessage["reactions"],
@@ -116,11 +126,19 @@ const send = async (user: ReturnType<typeof userEvent.setup>, text: string) => {
     await user.click(screen.getByRole("button", {name: "Send"}))
 }
 
-beforeEach(() => window.localStorage.clear())
+beforeEach(() => {
+    window.localStorage.clear()
+    useNameplates.getState().serve({
+        nameplates: async (ids) => ids.flatMap((accountId) => NAMEPLATES[accountId] ? [{accountId, ...NAMEPLATES[accountId]}] : []),
+    })
+    // As the roster does for who is online: their messages show with no read.
+    useNameplates.getState().learn(Object.entries(NAMEPLATES).map(([accountId, nameplate]) => ({accountId, ...nameplate})))
+})
 afterEach(() => {
     cleanup()
     useRoster.setState({state: {kind: "unavailable"}})
     useChat.setState(useChat.getInitialState(), true)
+    useNameplates.getState().serve(undefined)
 })
 
 const unreadCount = () => useChat.getState().unread
@@ -159,7 +177,7 @@ describe("ChatPanel sound", () => {
 
         await send(user, "hello")
         await screen.findByText("hello")
-        broadcast({...message("sent-hello", "hello"), authorName: OWN_GUEST})
+        broadcast({...message("sent-hello", "hello"), authorAccountId: OWN_ACCOUNT})
 
         expect(playSound).not.toHaveBeenCalled()
     })
@@ -171,7 +189,7 @@ describe("ChatPanel sound", () => {
         await send(user, "first")
         await screen.findByText("first")
 
-        broadcast({...message("sent-hello", "hello", 1_700_000_200_000), authorAccountId: OWN_ACCOUNT, authorName: OWN_GUEST})
+        broadcast({...message("sent-hello", "hello", 1_700_000_200_000), authorAccountId: OWN_ACCOUNT})
         await screen.findByText("hello")
         await send(user, "hello")
 
@@ -183,7 +201,7 @@ describe("ChatPanel sound", () => {
         const {playSound} = withSound(backend, "ana_1", OWN_ACCOUNT)
         await screen.findByText("from before")
 
-        broadcast({...message("live", "hello", 1_700_000_050_000), authorAccountId: OWN_ACCOUNT, authorName: "ana_1"})
+        broadcast({...message("live", "hello", 1_700_000_050_000), authorAccountId: OWN_ACCOUNT})
         await screen.findByText("hello")
 
         expect(playSound).not.toHaveBeenCalled()
@@ -194,7 +212,7 @@ describe("ChatPanel sound", () => {
         const {playSound} = withSound(backend, "ana_1", OWN_ACCOUNT)
         await screen.findByText("from before")
 
-        broadcast({...message("live", "hello", 1_700_000_050_000), authorAccountId: "account-other", authorName: "ana_1"})
+        broadcast({...message("live", "hello", 1_700_000_050_000), authorAccountId: "account-other"})
 
         await waitFor(() => expect(playSound).toHaveBeenCalledWith("chat"))
     })
@@ -204,7 +222,7 @@ describe("ChatPanel sound", () => {
         const {playSound} = withSound(backend, "ana_1")
         await screen.findByText("from before")
 
-        broadcast({...message("live", "hello", 1_700_000_050_000), authorAccountId: "", authorName: "ana_1"})
+        broadcast({...message("live", "hello", 1_700_000_050_000), authorAccountId: ""})
 
         await waitFor(() => expect(playSound).toHaveBeenCalledWith("chat"))
     })
@@ -216,7 +234,7 @@ describe("ChatPanel sound", () => {
         await send(user, "mine")
         await screen.findByText("mine")
 
-        broadcast({...message("live", "hello", 1_700_000_200_000), authorName: "guest_91aa3d"})
+        broadcast({...message("live", "hello", 1_700_000_200_000), authorAccountId: "account-guest"})
 
         await waitFor(() => expect(playSound).toHaveBeenCalledWith("chat"))
     })
@@ -240,6 +258,22 @@ describe("ChatPanel", () => {
         expect(await screen.findByText("gm everyone")).toBeDefined()
     })
 
+    it("holds a message whose author is not named yet until it is, so no name shows blank", async () => {
+        let answer: (nameplates: AccountNameplate[]) => void = () => {}
+        useNameplates.getState().serve({nameplates: () => new Promise((resolve) => answer = resolve)})
+        const {backend, broadcast} = stubBackend()
+        setup(backend)
+        await screen.findByText("Nobody has said anything yet. Go on.")
+
+        broadcast({...message("late", "hello there"), authorAccountId: "account-late"})
+        await act(async () => void await new Promise((resolve) => setTimeout(resolve, 50)))
+        expect(screen.queryByText("hello there")).toBeNull()
+
+        act(() => answer([{accountId: "account-late", ...plate("Late_one")}]))
+        expect(await screen.findByText("hello there")).toBeDefined()
+        expect(screen.getByText("Late_one")).toBeDefined()
+    })
+
     it("shows a message once when the socket echoes what the send returned", async () => {
         const {backend, broadcast} = stubBackend()
         const {user} = setup(backend)
@@ -248,7 +282,7 @@ describe("ChatPanel", () => {
         await send(user, "hello")
         await screen.findByText("hello")
 
-        broadcast({...message("sent-hello", "hello"), authorName: OWN_GUEST})
+        broadcast({...message("sent-hello", "hello"), authorAccountId: OWN_ACCOUNT})
 
         await waitFor(() => expect(screen.getAllByText("hello")).toHaveLength(1))
     })
@@ -368,8 +402,8 @@ describe("ChatPanel", () => {
         const insult = message("a", "you all suck")
         const {backend, remove} = stubBackend([
             insult,
-            {...message("b", "say that again", 1_700_000_100_000), authorAccountId: "account-bo", authorName: "Bo", replyTo: {
-                messageId: "a", authorName: "Ana", authorColor: NameColor.UNSPECIFIED, text: "you all suck",
+            {...message("b", "say that again", 1_700_000_100_000), authorAccountId: "account-bo", replyTo: {
+                messageId: "a", authorAccountId: "account-ana", text: "you all suck",
             }},
         ])
         setup(backend)
@@ -415,7 +449,7 @@ describe("ChatPanel", () => {
         const {backend} = stubBackend([
             message("a", "first"),
             message("b", "second", 1_700_000_060_000),
-            {...message("c", "third", 1_700_000_120_000), authorName: "Bo"},
+            {...message("c", "third", 1_700_000_120_000), authorAccountId: "account-bo"},
         ])
         const {container} = setup(backend)
         await screen.findByText("first")
@@ -480,10 +514,14 @@ describe("ChatPanel", () => {
         })
 
         it("paints every message in the colour its author chose", async () => {
+            useNameplates.getState().learn([
+                {accountId: "account-ana", ...plate("Ana", NameColor.TEAL)},
+                {accountId: "account-bo", ...plate("Bo", NameColor.PINK)},
+            ])
             const {backend} = stubBackend([
-                {...message("a", "first"), authorName: "Ana", authorColor: NameColor.TEAL},
-                {...message("b", "second", 1_700_000_100_000), authorName: "Bo", authorColor: NameColor.PINK},
-                {...message("c", "third", 1_700_000_200_000), authorName: "Ana", authorColor: NameColor.TEAL},
+                message("a", "first"),
+                {...message("b", "second", 1_700_000_100_000), authorAccountId: "account-bo"},
+                message("c", "third", 1_700_000_200_000),
             ])
             setup(backend)
             await screen.findByText("first")
@@ -741,7 +779,7 @@ describe("ChatPanel", () => {
             setup(backend)
             await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
 
-            broadcast({...message("b", "who took Brittany", 1_700_000_200_000), authorName: "Ana"})
+            broadcast(message("b", "who took Brittany", 1_700_000_200_000))
 
             const header = await screen.findByRole("button", {name: /Chat/})
             await waitFor(() => expect(header.textContent).toContain("who took Brittany"))
@@ -1022,8 +1060,8 @@ describe("ChatPanel's Unread line", () => {
 })
 
 describe("ChatPanel reactions", () => {
-    const clown = (count: number, mine: boolean, reactors: string[] = []) =>
-        ({reaction: Reaction.CLOWN, count, mine, reactors})
+    const clown = (count: number, mine: boolean, reactorAccountIds: string[] = []) =>
+        ({reaction: Reaction.CLOWN, count, mine, reactorAccountIds})
 
     it("puts a reaction on from the picker", async () => {
         const {backend} = stubBackend([message("m1", "gm")])
@@ -1215,7 +1253,7 @@ describe("ChatPanel replies", () => {
 
 describe("ChatPanel reports", () => {
     const theirs = message("m1", "you all suck")
-    const mine = {...message("m2", "no u", 1_700_000_001_000), authorAccountId: OWN_ACCOUNT, authorName: "ana_1"}
+    const mine = {...message("m2", "no u", 1_700_000_001_000), authorAccountId: OWN_ACCOUNT}
 
     it("reports a message from its flag, with the details, by its own id, and marks it reported", async () => {
         const {backend} = stubBackend([theirs, mine])

@@ -5,7 +5,6 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
-import { NameColor } from "../../player/v1/color_pb.js";
 
 /**
  * @generated from message scoring.v1.GetBoardRequest
@@ -97,16 +96,6 @@ export class Standing extends Message<Standing> {
   rank = 0;
 
   /**
-   * @generated from field: string name = 2;
-   */
-  name = "";
-
-  /**
-   * @generated from field: player.v1.NameColor color = 3;
-   */
-  color = NameColor.UNSPECIFIED;
-
-  /**
    * @generated from field: string country_id = 4;
    */
   countryId = "";
@@ -130,8 +119,6 @@ export class Standing extends Message<Standing> {
   static readonly typeName = "scoring.v1.Standing";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 4, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
     { no: 7, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },

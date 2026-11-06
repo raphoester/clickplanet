@@ -248,9 +248,6 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
         id: message.id,
         sentAt: Number(message.sentAtUnixMs),
         authorAccountId: message.authorAccountId,
-        authorName: message.authorName,
-        authorAdmin: message.authorAdmin,
-        authorColor: message.authorColor,
         countryCode: message.countryId,
         ...saidIn(message.body),
         reactions: message.reactions.map(decodedCount),
@@ -283,8 +280,7 @@ function decodedQuote(quote: QuotePb | undefined): ChatQuote | undefined {
 
     return {
         messageId: quote.messageId,
-        authorName: quote.authorName,
-        authorColor: quote.authorColor,
+        authorAccountId: quote.authorAccountId,
         ...saidIn(quote.body),
         removed: quote.removed,
     }
@@ -424,5 +420,5 @@ function isPodiumPlace(value: unknown): value is PodiumPlace {
 }
 
 function decodedCount(count: ReactionCountPb): ReactionCount {
-    return {reaction: count.reaction, count: count.count, mine: count.mine, reactors: count.reactors}
+    return {reaction: count.reaction, count: count.count, mine: count.mine, reactorAccountIds: count.reactorAccountIds}
 }

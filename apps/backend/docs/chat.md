@@ -4,16 +4,15 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 **Always on.** There is no `chat.enabled`: the module is built on every boot, and its database block is required.
 
-**Identity: a username, or a guest code, and always an account.** `SendMessage` reads the click token (`chatv1controller.NewSessionInterceptor`, over `cpconnect.NewSessionReaderInterceptor`, with the process's one verifier, `props.Sessions`, on the key `auth` hands over the internal listener). **A sender with no token, a bad one or a token with no account is refused** with `Unauthenticated` (`messages.ErrNoAccount`) before anything is asked. Every browser that passed Turnstile has an account, a guest one until it signs in, so the web client mints for a post as it does for a click. **The name is the player module's**, asked of `player.v1.InternalService/IntroducePlayer` on every post: the account's username, or `guest_` and the account's guest code (see [Player](player.md)). Nobody types a guest's name, so no guest can pass for a player or for another guest. **A post the player module could not answer for is refused** with `Unavailable` (`messages.ErrAuthorUnavailable`): no answer within a second, or an error. `log_authors`, a decorator around the adapter, logs it at Error. Messages sent before usernames existed got the prefix from migration `20260917200000_guest_prefix_backfill`, and messages sent before guest codes keep the name a guest typed then, until the retention drops them.
+**Identity: a username, or a guest code, and always an account.** `SendMessage` reads the click token (`chatv1controller.NewSessionInterceptor`, over `cpconnect.NewSessionReaderInterceptor`, with the process's one verifier, `props.Sessions`, on the key `auth` hands over the internal listener). **A sender with no token, a bad one or a token with no account is refused** with `Unauthenticated` (`messages.ErrNoAccount`) before anything is asked. Every browser that passed Turnstile has an account, a guest one until it signs in, so the web client mints for a post as it does for a click. **Every sender is introduced to the player module**, with `player.v1.InternalService/IntroducePlayer` on every post: it gives a guest its code the first time (see [Player](player.md)), and says whether the sender is a guest, which posts no GIF (`Message.CheckSender`). The name stays the player module's: nobody types a guest's name, so no guest can pass for a player or for another guest. **A post the player module could not answer for is refused** with `Unavailable` (`messages.ErrAuthorUnavailable`): no answer within a second, or an error. `log_authors`, a decorator around the adapter, logs it at Error.
 
-**A message is kept as an account, not as a copy of a name.** `chat.messages.account_id` is who sent it; the name, the crown and the color are read from the player module when the message is *shown*, never stored beside it. That is what makes a rename show on everything its player ever said, and a deleted account stop being named at all — a frozen copy could do neither, and the copy outliving the account it named was a small privacy hole of its own.
+**A message is kept as an account, not as a copy of a name.** `chat.messages.account_id` is who sent it; the name, the crown and the color are the player module's, which the page reads by that account when it shows the message (`player.v1.PlayerService/GetNameplates`, see the frontend's [Nameplates](../../frontend/docs/nameplates.md)). That is what makes a rename show on everything its player ever said, and a deleted account stop being named at all — a frozen copy could do neither, and the copy outliving the account it named was a small privacy hole of its own.
 
-**The wire says whose a message is**: `ChatMessage.author_account_id`, on the post's answer, on the stream and in the history. It is empty for a message kept before accounts and for an account that was deleted: nobody is there to open a card of, or to report. A client that has to say which player it means (`ReportPlayer`) sends this id, never the name.
+**The wire says whose a message is, and nothing else of who**: `ChatMessage.author_account_id`, on the post's answer, on the stream and in the history; `Quote.author_account_id` for what a reply answers; `ReactionCount.reactor_account_ids` for who reacted. A client that has to say which player it means (`ReportPlayer`) sends this id, never the name.
 
-- **The history names a whole window in one ask.** `history_query` collects the distinct accounts of the rows it read and asks `player.v1.InternalService/GetPlayers` once, however many messages each of them sent. An account that says fifty things costs one lookup, not fifty. **A history nobody could be named in is refused** rather than shown anonymous.
-- **`SendMessage` still asks `IntroducePlayer` for one**, because what it publishes has to go out named: everyone already watching is shown who is talking without a second read. That call is also the one that gives a guest its code, which is why the read path uses `GetPlayers` instead — it draws no code, so showing the chat never writes.
-- **An account that can no longer be named was deleted**, and reads as `history_query.DeletedName` (`[deleted]`). No username can look like it: `SetName` refuses punctuation. What the account said stays, so a thread keeps its shape.
-- **A message with no `account_id` is from before this**, and keeps the `name` and `author_admin` its row carries. Those two columns exist for that alone. **TODO** (see `postgres_message_store.row`): once `chat.storage.retention` has passed since this shipped, every remaining row has an account, and the columns and `history_query`'s fallback to them can go.
+- **Nothing the chat shows asks the player module** but the sender's introduction: the history, a reply and a reaction read accounts from the chat's own tables. Until 2026-11-06 the chat asked `GetPlayers` at every history, reply and reaction, only to copy the names, the crowns and the colors into its answers (`author_name`, `author_admin`, `author_color` and the quote's, and the reactors' names, all `reserved` now).
+- **An account the other players can no longer name was deleted or asked deleted**: the chat still answers its id, and the page draws it `[deleted]`, with no card and no report, since `GetNameplates` leaves it out. No username can look like it: `SetName` refuses punctuation. What the account said stays, so a thread keeps its shape.
+- **The copies of a name are gone from the table too**: `chat.messages.name` and `author_admin` (migration `20261106120000_drop_author_copies`). They were read only for rows from before accounts (2026-09-21), and the 30-day retention dropped the last of those; `SendMessage` had been writing them empty. A row with no `account_id` would now be no one's: `[deleted]` on the page and in the operator's list.
 
 The client also sends a UUID it persists locally, kept in the log and **trusted for nothing**. **The sender's address is never public.** It is kept in `chat.messages.ip` for moderation. The salted hash of it that used to go beside every name (`author_tag`) is gone from the wire and the table (migration `20260918210000_drop_tag`): it changed whenever a player changed network, and it told anybody which names shared one.
 
@@ -23,7 +22,7 @@ Refusal reasons are logged, never returned: a sender learns *that* they were ref
 
 The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*cpipblock.Blocklist` type, built by `cpipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (build the list in `describeModules` and hand it to both modules, the way `shared/cpcountries` already is), not a second list to write.
 
-**Every message is a row in `chat.messages`**, inserted before it is broadcast: `seq` (the order it was accepted in), `id`, `sent_at`, `account_id` (who sent it), `room` (see [Rooms](#rooms)), `country`, `ip`, `user_agent`, `text`, `reply_to` (the id of the message a reply answers) — plus `name`, `author_admin` and `author_id`, of which the first two are only ever read, for rows written before `account_id` existed, and the third is a UUID the client made up and nothing trusts. **Postgres is the chat's only copy.** There is no cache in front of it, nothing loaded at boot and nothing flushed: chat is low volume (one message per 3s per address), so every write is one statement and every read one query. `send_message_usecase` inserts (5s timeout) and only then publishes to `inprocess_feed`; `GetHistory` reads the newest `chat.storage.historySize` rows within `retention`, straight from the table: the same window `React` checks a message against (`messages.Window`), and a parity test pins the two. A stream can therefore see two messages sent at the same instant in the other order than `seq`; the client sorts by time.
+**Every message is a row in `chat.messages`**, inserted before it is broadcast: `seq` (the order it was accepted in), `id`, `sent_at`, `account_id` (who sent it), `room` (see [Rooms](#rooms)), `country`, `ip`, `user_agent`, `text`, `reply_to` (the id of the message a reply answers) — plus `author_id`, a UUID the client made up and nothing trusts. **Postgres is the chat's only copy.** There is no cache in front of it, nothing loaded at boot and nothing flushed: chat is low volume (one message per 3s per address), so every write is one statement and every read one query. `send_message_usecase` inserts (5s timeout) and only then publishes to `inprocess_feed`; `GetHistory` reads the newest `chat.storage.historySize` rows within `retention`, straight from the table: the same window `React` checks a message against (`messages.Window`), and a parity test pins the two. A stream can therefore see two messages sent at the same instant in the other order than `seq`; the client sorts by time.
 
 **The fanout is not storage.** `feed/inprocess_feed` keeps nothing: it hands each update to every open stream and closes one too slow to keep up (`chat.storage.subscriberBuffer`, a key kept from before), never skips an update on it. A client reads the history again each time its stream reopens, which covers whatever it was not listening for.
 
@@ -197,10 +196,10 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
   - **Each is a `KeptMessage`**: its text as sent and its `removed_at`, as `GetMessage` answers, its country, its
     time, and what it answers as a `KeptQuote` (its id, its author's name, its text as sent and its `removed_at`;
     unset past the retention, as the history's quote is).
-  - **Each is named as the chat names it now** (`author_name`): one `GetPlayers` for every account the page names,
-    quotes included; the name it was sent under for a message kept before accounts; `messages_query.DeletedName`
-    for an account nobody can name, whose id is still answered, since the operator tools take it. A failure to name
-    refuses the read, as the history's does.
+  - **Each is named on the server** (`author_name`), since the back office and the connector cannot compose names:
+    one `GetPlayers` for every account the page names, quotes included; `messages_query.DeletedName` for an account
+    nobody can name, or a row with no account, whose id is still answered when it has one, since the operator tools
+    take it. A failure to name refuses the read.
   - **It is two statements**: the cursor's `seq` (`NotFound` when it is not kept), then the page, one of two windows
     (`older`, `newer`) under one projection that joins the removals and the quote. The newest page is `older` from
     the top. Each window walks the primary key from the cursor.
@@ -208,38 +207,34 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
 - `remove_message_usecase` keeps the removal; the history query's suite shows the message in its place with no
   text and its quote with none, the message store refuses a reaction to it, and `message_query` still reads the
   text for the operator. `messages_query` reads a page on each side of a message; player's `players_query` pins
-  that `GetPlayers` names each account as `IntroducePlayer` named it in the chat.
+  that `GetPlayers`, and so `GetNameplates`, names each account as `IntroducePlayer` named it in the chat.
 
 ## Replies
 
 **A message may answer another one**: `SendMessageRequest.reply_to_message_id`. The reply is an ordinary message in
 the one thread. What marks it is `ChatMessage.reply_to`, a `Quote` of the message it answers (its id, its author's
-name and color, its text), which the client draws above the reply.
+account, its text), which the client draws above the reply, its author named by the page.
 
 - **A reply keeps the id of the message it answers and nothing else**: `chat.messages.reply_to` (migration
-  `20261011120000_replies`, with an index on `id` for the read). What that message said and who said it are read
-  when the reply is shown, for the reason a name is: a rename shows on every quote, and a deleted account reads
-  `[deleted]` there too.
+  `20261011120000_replies`, with an index on `id` for the read). What that message said and whose it is are read
+  when the reply is shown, and the page names the account, for the reason a message's: a rename shows on every
+  quote, and a deleted account reads `[deleted]` there too.
 - **One level.** A quote is the message answered, never what that one answered: a reply to a reply quotes the
   reply alone.
 - **Only a message in the window can be answered** (`messages.ErrNotShown` → `NotFound`), the rule `React` has.
   `Storage.Message` asks the same question as `Shown` and answers the message, restored. The contract suite pins
   the two against each other, and a parity test against the history.
-- **`messages.Thread` makes the reply**: it holds the storage, the authors, the clock and the window, and the use
-  case calls one method. `Reply(ctx, draft, id)` answers the draft as it is for no id. Otherwise it reads the
-  message answered, names its account with `GetPlayers` (a pure read: answering somebody draws no guest code), and
-  answers `draft.Answering(answered)`. An account nobody can name is `messages.DeletedName`; a message from before
-  accounts keeps the name its row carries. A message nobody could be asked about refuses the post
-  (`ErrAuthorUnavailable`).
-- **`Message.Answering(answered)` is the whole rule on the message**: it takes the id, the author and the text of
+- **`messages.Thread` makes the reply**: it holds the storage, the clock and the window, and the use case calls one
+  method. `Reply(ctx, draft, id)` answers the draft as it is for no id. Otherwise it reads the message answered and
+  answers `draft.Answering(answered)`.
+- **`Message.Answering(answered)` is the whole rule on the message**: it takes the id, the account and the text of
   the other message as its `Quote`. Nothing outside the package reads a field to build one.
 - **The answer and the stream carry the quote**, so everyone watching sees what is answered with no second read.
 - **The history reads it in the same statement** (`history_query`: a lateral join on `reply_to`, bounded by the
-  retention and not by the window, so a reply still quotes a message that newer ones pushed out). The quoted
-  accounts go in the one `GetPlayers` ask. **A message that is gone is not quoted**: once it is pruned, or past the
-  retention, its reply reads as a plain message.
+  retention and not by the window, so a reply still quotes a message that newer ones pushed out). **A message that is
+  gone is not quoted**: once it is pruned, or past the retention, its reply reads as a plain message.
 - **The server sends the whole text.** How much of it is shown is the client's (100 characters).
-- `thread_test.go` and the history query's suite pin that a quote is named by who its author is now.
+- `thread_test.go` and the history query's suite pin that a quote carries its author's account.
 
 ## Reactions
 
@@ -251,12 +246,11 @@ name and color, its text), which the client draws above the reply.
 - **Saved, then read back, then published, with no lock.** Two reactions at once can publish their tallies in either order, so **each tally carries a version**: `chat.reaction_versions` holds one counter per message, bumped in the same statement as the change (a data-modifying CTE: no row changed, no bump), and read in the same statement as the reactions, so a tally and its version are one snapshot. The client keeps the highest version it has seen per message and drops a lower one. This holds across processes, which an in-memory lock would not. `reactions.Reactions` is a value: `With`/`Without` answer a copy.
 - **The stream sends all of a message's counts, not the difference** (`ReactionsChanged`), with their version, so a client that missed a frame is right on the next, and one that gets two out of order keeps the newer. It cannot know who reads it, so `mine` is always false there; the client keeps its own between calls.
 - **`GetHistory` marks the caller's own.** It reads the optional token (the session reader covers it): the account's reactions are marked, and a caller with no token has none.
-- **A count says who gave it, not only how many** — as accounts, named when it is shown. `Count` carries the same two halves a `messages.Message` does: `Reactors` is what the store holds, and `Names` is who those accounts are to a reader, filled by `reactions.Named` on the way out. So a rename shows under every reaction its player ever gave, for the same reason it shows on every message.
-  - **`reactions.AccountOf`** is `ReactorOf` backwards: `account:<uuid>` to an account, and `false` for a `guest:<tag>` row from before guests had accounts, which is nobody and can be named nothing.
-  - **The history names everyone in one ask.** `history_query` gathers the senders *and* the people under their reactions, which its SQL reads as accounts, and calls `GetPlayers` once for the lot.
-  - **`React` asks once too**, after the write, and uses that one answer for both the caller's response and the `ReactionsChanged` frame — a reader of the stream has no way to ask for itself. A change that changes nothing pays the same ask, since it answers the same list.
-  - **Somebody nobody can name is counted without being named**: a deleted account, or one of those guest tags. `Count` still says how many gave it, and a list of reactions is not the place to announce that somebody is gone — which is why this does not use `history_query.DeletedName`.
-  - The edge sends the first 20 names per count (`chatmessage.NamedReactors` for a reaction and the stream, `history_query.NamedReactors` for the history) and lets `count` say the rest, so a message everybody piles onto does not carry a name per reader per message.
+- **A count says who gave it, not only how many** — as accounts, which the page names when it shows them (`reactor_account_ids`). So a rename shows under every reaction its player ever gave, for the same reason it shows on every message.
+  - **`Count.Accounts`** reads them off the reactors, oldest first, with `reactions.AccountOf`, `ReactorOf` backwards: `account:<uuid>` to an account, and `false` for a `guest:<tag>` row from before guests had accounts, which is nobody and is counted only.
+  - **Neither `React` nor the history asks anybody**: the history's SQL reads the reactors as accounts in the same statement, and `React` answers the tally it read back, for the caller and the `ReactionsChanged` frame alike.
+  - **Somebody nobody can name is counted, and the page leaves it unnamed**: a deleted account. `count` still says how many gave it, and a list of reactions is not the place to announce that somebody is gone.
+  - The edge sends the first 20 accounts per count (`chatmessage.NamedReactors` for a reaction and the stream, `history_query.NamedReactors` for the history) and lets `count` say the rest, so a message everybody piles onto does not carry an id per reader per message.
 - **Stored in `chat.reactions`**, their own table and their own store, one row per `(message_id, reaction, reactor)`, with `reacted_at`. **The reactor is already an account**, so there was never anything to migrate here: the table has held the right thing all along. A read replays the rows oldest first, so each reaction keeps the place it first appeared in, and so do the people under it. The prune deletes rows older than `chat.storage.retention`, like messages: the reactor is an account, so it is personal data. It deletes a version whose last change is that old too, which is only ever one whose message's reactions are all gone.
 - **Its own rate bucket**, `chat.reactionLimiter` (defaults: 1 a second, 10 in hand), and the blocklist covers `React` too.
 

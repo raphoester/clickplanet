@@ -61,6 +61,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   (flags, shares, fortify) and light it up; a click flies down to it.
 - [Support](docs/support.md) — suggestions, bug reports and reports of a player.
 - [Titles](docs/titles.md) — the ranks on each track, the medals, the unlock moment.
+- [Nameplates](docs/nameplates.md) — a player's name, color and crown, read by account id from one store that batches,
+  knows the roster and the page's own name at once, and holds a chat message until its names are read; the readers.
 - [Badges](docs/badges.md) — a name's streak and worn title, read by account id from one store that batches,
   keeps them 5 minutes and takes the page's own changes at once; the readers.
 - [Season standings](docs/season-standings.md) — the players' table of the season.

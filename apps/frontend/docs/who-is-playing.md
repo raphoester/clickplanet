@@ -25,8 +25,9 @@ code. No address, and no hash of one, is on it.
   and `usePlayerCard` with `PlayerCardPlace`, the one card open.
 
 **A name wears its color** everywhere it is drawn: the chat log, the folded quote, the roster and the card. It
-comes from the server with the name (`ChatMessage.authorColor`, `RosterEntry.color`, `PlayerInfo.color`), read
-from the account when shown, so a new pick shows on everything its player ever said once the chat is read again.
+comes with the name: the nameplate's (`Nameplate.color`, see [Nameplates](nameplates.md)), the roster's
+(`RosterEntry.color`) or the card's (`PlayerInfo.color`), each player's own now, so a new pick shows on everything its
+player ever said once its nameplate is read again, and at once while it is online.
 
 **A name wears its badges, its streak and its title**, in the chat log, the roster, the season board and the
 cards. They do not come with the name: each is read from the badges store by the line's `accountId` (see
@@ -41,7 +42,7 @@ decoder of `progression.v1.Title`.
 
 **An admin of the game wears a crown** (`AdminCrown`, gold, `role="img"` named
 "Admin") beside its name in the chat log, the roster and the card's title.
-The server says so: `ChatMessage.authorAdmin`, `RosterEntry.admin` and
+The server says so: `Nameplate.admin`, `RosterEntry.admin` and
 `PlayerInfo.admin`. The card crowns from what was clicked, and from the read
 once it lands. In fake mode, Ana is the admin.
 

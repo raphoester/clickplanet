@@ -142,16 +142,17 @@ func (s *testSuite) TestAPlayerPostsAMessageAndEveryoneReadsItUnderItsName() {
 
 	sent := bob.post("hello")
 
-	assert.Equal(t, "Bob_B", sent.GetAuthorName())
+	assert.Equal(t, bob.account(), sent.GetAuthorAccountId())
+	reader := s.game.newPlayer(t)
 	var read *chatv1.ChatMessage
-	for _, message := range s.game.newPlayer(t).history().GetMessages() {
+	for _, message := range reader.history().GetMessages() {
 		if message.GetId() == sent.GetId() {
 			read = message
 		}
 	}
 	require.NotNil(t, read, "the message is in the history")
 	assert.Equal(t, "hello", read.GetText())
-	assert.Equal(t, "Bob_B", read.GetAuthorName())
+	assert.Equal(t, "Bob_B", reader.nameplate(read.GetAuthorAccountId()).GetName(), "the page names it by its account")
 	require.Eventually(t, func() bool { return bob.track("chatter").GetProgress() == 1 }, 5*time.Second, 20*time.Millisecond,
 		"chat tells player of each message")
 }

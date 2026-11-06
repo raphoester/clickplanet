@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -128,7 +127,6 @@ type Count struct {
 	total    int
 	mine     bool
 	reactors []Reactor
-	names    []string
 }
 
 func (c Count) Reaction() Reaction { return c.reaction }
@@ -139,41 +137,11 @@ func (c Count) Mine() bool { return c.mine }
 
 func (c Count) Reactors() []Reactor { return c.reactors }
 
-func (c Count) Names() []string { return c.names }
-
-func Named(counts []Count, authors map[messages.AccountID]messages.Author) []Count {
-	named := make([]Count, 0, len(counts))
-	for _, count := range counts {
-		count.names = namesOf(count.reactors, authors)
-		named = append(named, count)
-	}
-	return named
-}
-
-func namesOf(reactors []Reactor, authors map[messages.AccountID]messages.Author) []string {
-	names := make([]string, 0, len(reactors))
-	for _, reactor := range reactors {
-		account, isAccount := AccountOf(reactor)
-		if !isAccount {
-			continue
-		}
-		if author, known := authors[account]; known {
-			names = append(names, author.Name())
-		}
-	}
-	return names
-}
-
-func AccountsOf(counts []Count) []messages.AccountID {
-	seen := cpcolls.NewSetWithCapacity[messages.AccountID](len(counts))
-	accounts := make([]messages.AccountID, 0, len(counts))
-	for _, count := range counts {
-		for _, reactor := range count.reactors {
-			account, isAccount := AccountOf(reactor)
-			if !isAccount || seen.Contains(account) {
-				continue
-			}
-			seen.Add(account)
+// The accounts that gave it, oldest first: a guest tag from before accounts is nobody.
+func (c Count) Accounts() []messages.AccountID {
+	accounts := make([]messages.AccountID, 0, len(c.reactors))
+	for _, reactor := range c.reactors {
+		if account, isAccount := AccountOf(reactor); isAccount {
 			accounts = append(accounts, account)
 		}
 	}
@@ -191,11 +159,6 @@ func (t Tally) MessageID() messages.MessageID { return t.messageID }
 func (t Tally) Counts() []Count { return t.counts }
 
 func (t Tally) Version() uint64 { return t.version }
-
-func (t Tally) Named(authors map[messages.AccountID]messages.Author) Tally {
-	t.counts = Named(t.counts, authors)
-	return t
-}
 
 type Change struct {
 	messageID messages.MessageID

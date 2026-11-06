@@ -9,7 +9,6 @@ import (
 
 type Authors interface {
 	Author(ctx context.Context, account messages.AccountID) (messages.Author, error)
-	Authors(ctx context.Context, accounts []messages.AccountID) (map[messages.AccountID]messages.Author, error)
 }
 
 func New(inner Authors, logger *slog.Logger) *Logged {
@@ -32,18 +31,4 @@ func (l *Logged) Author(ctx context.Context, account messages.AccountID) (messag
 		)
 	}
 	return author, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
-}
-
-func (l *Logged) Authors(
-	ctx context.Context,
-	accounts []messages.AccountID,
-) (map[messages.AccountID]messages.Author, error) {
-	found, err := l.inner.Authors(ctx, accounts)
-	if err != nil {
-		l.logger.Error("the chat could not ask who it is showing",
-			slog.Int("accounts", len(accounts)),
-			slog.Any("error", err),
-		)
-	}
-	return found, err //nolint:wrapcheck // as above.
 }

@@ -17,11 +17,11 @@ internal/chat/internal/
                                         FakeFlags
     postgres_message_store/             Storage, over chat.messages
     inmemory_message_storage/           Storage in a slice — behind the testing tag, tests only
-    rpc_player_authors/                 who an account is, from player.v1.InternalService/IntroducePlayer and GetPlayers: one on
-                                        each post, the people under a message on each reaction
+    rpc_player_authors/                 who posts, from player.v1.InternalService/IntroducePlayer, on each post: a
+                                        guest or not, and the name a mute line keeps
     rpc_planet_flags/                   Flags: the flag an account plays for, from
                                         planet.v1.InternalService/GetAllegianceOf, on each call to a flag's room
-    log_authors/                        logs a caller, or a page of them, it could not name
+    log_authors/                        logs a caller it could not introduce
     uuid_id_provider/                   IDProvider: a random UUID, as text
     usecases/send_message_usecase/      drafts, replies, names, appends, publishes — Appender, Publisher, Authors, Drafts,
                                         Thread
@@ -85,11 +85,10 @@ internal/chat/internal/
     get_mute_handler/mute_query/        PostgresQuery: the mute that holds an account now, by itself or its network
     get_message_handler/message_query/  PostgresQuery: one message as it was sent, removed or not
     list_messages_handler/messages_query/  PostgresQuery: a page of messages as they were sent, before or after a
-                                        message's id, named — Authors
-      rpc_player_authors/               the same adapter as the history's, for this query
-    get_history_handler/history_query/  PostgresQuery: GetHistoryResponse straight from SQL, named, and until when
-                                        the viewer saw the chat — Authors
+                                        message's id, named for the operator — Authors
       rpc_player_authors/               Authors, from player.v1.InternalService/GetPlayers, as player.v1.Player
+    get_history_handler/history_query/  PostgresQuery: GetHistoryResponse straight from SQL, by account, and until
+                                        when the viewer saw the chat
     chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), for the post,
                                         the reaction and the stream
     chatannouncement/                   Encode, for the stream

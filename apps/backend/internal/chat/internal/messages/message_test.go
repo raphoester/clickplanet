@@ -15,7 +15,6 @@ func TestAMessageIsRestoredAsItsSnapshotSays(t *testing.T) {
 		ID:      "message-2",
 		SentAt:  time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC),
 		Account: messages.AccountID{15: 1},
-		Author:  messages.AuthorOf("Ada_L", true, 7),
 		Room:    messages.FlagRoom("fr"),
 		Country: "fr",
 		Text:    "we do",
@@ -41,9 +40,8 @@ func TestAMessageWithNoRoomIsNotRestored(t *testing.T) {
 }
 
 func TestAnAnswerQuotesTheMessageItAnswersAndIsOtherwiseUnchanged(t *testing.T) {
-	bob := messages.AuthorOf("Bob", false, 3)
 	question := messages.Restored(t, messages.Snapshot{
-		ID: "message-1", Account: messages.AccountID{15: 2}, Author: bob, Country: "de", Text: "who holds the north",
+		ID: "message-1", Account: bob, Country: "de", Text: "who holds the north",
 	})
 	draft := messages.Snapshot{
 		ID: "message-2", Account: messages.AccountID{15: 1}, Room: messages.World, Country: "fr", Text: "we do",
@@ -52,7 +50,7 @@ func TestAnAnswerQuotesTheMessageItAnswersAndIsOtherwiseUnchanged(t *testing.T) 
 	answer, err := messages.Restored(t, draft).Answering(question)
 
 	require.NoError(t, err)
-	draft.Quote = messages.Quote{MessageID: "message-1", Author: bob, Text: "who holds the north"}
+	draft.Quote = messages.Quote{MessageID: "message-1", Account: bob, Text: "who holds the north"}
 	assert.Equal(t, draft, answer.TakeSnapshot())
 }
 
@@ -88,19 +86,14 @@ func TestAnAnswerToAGifQuotesTheGif(t *testing.T) {
 func TestAGuestSendsATextButNoGif(t *testing.T) {
 	guest := messages.GuestOf("guest_0b1c2d")
 
-	text, err := messages.Restored(t, messages.Snapshot{ID: "message-1", Text: "hello"}).SentBy(guest)
-	require.NoError(t, err)
-	assert.Equal(t, guest, text.TakeSnapshot().Author)
+	require.NoError(t, messages.Restored(t, messages.Snapshot{ID: "message-1", Text: "hello"}).CheckSender(guest))
 
-	_, err = messages.Restored(t, messages.Snapshot{ID: "message-2", Gif: dancing}).SentBy(guest)
+	err := messages.Restored(t, messages.Snapshot{ID: "message-2", Gif: dancing}).CheckSender(guest)
 	require.ErrorIs(t, err, messages.ErrGuestGif)
 }
 
 func TestAPlayerSendsAGif(t *testing.T) {
-	ada := messages.AuthorOf("Ada_L", false, 7)
-
-	sent, err := messages.Restored(t, messages.Snapshot{ID: "message-1", Gif: dancing}).SentBy(ada)
+	err := messages.Restored(t, messages.Snapshot{ID: "message-1", Gif: dancing}).CheckSender(messages.AuthorOf("Ada_L"))
 
 	require.NoError(t, err)
-	assert.Equal(t, ada, sent.TakeSnapshot().Author)
 }

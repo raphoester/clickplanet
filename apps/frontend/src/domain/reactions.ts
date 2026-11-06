@@ -15,7 +15,7 @@ export function toggledReactions(
 ): ReactionCount[] {
     const index = counts.findIndex(each => each.reaction === reaction)
     if (index === -1) {
-        return on ? [...counts, {reaction, count: 1, mine: true, reactors: me ? [me] : []}] : [...counts]
+        return on ? [...counts, {reaction, count: 1, mine: true, reactorAccountIds: me ? [me] : []}] : [...counts]
     }
 
     const current = counts[index]
@@ -25,7 +25,7 @@ export function toggledReactions(
     if (count <= 0) return counts.filter((_, each) => each !== index)
 
     return counts.map((each, at) => at === index
-        ? {...each, count, mine: on, reactors: withoutOrWith(each.reactors, on, me)}
+        ? {...each, count, mine: on, reactorAccountIds: withoutOrWith(each.reactorAccountIds, on, me)}
         : each)
 }
 
@@ -87,7 +87,8 @@ export type Reactors = {
     more: number
 }
 
-export function whoReacted(count: ReactionCount): Reactors {
-    const names = count.reactors.slice(0, count.count)
+// Somebody nobody can name, or not read yet, is counted without being named.
+export function whoReacted(count: ReactionCount, nameOf: (accountId: string) => string | undefined): Reactors {
+    const names = count.reactorAccountIds.slice(0, count.count).map(nameOf).filter((name): name is string => name !== undefined)
     return {names, more: count.count - names.length}
 }

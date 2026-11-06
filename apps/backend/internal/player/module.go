@@ -35,6 +35,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler/admin_player_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_accounts_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_nameplates_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler/player_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_players_handler"
@@ -212,6 +213,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		cpoutbox.NewRelay("player-outbox", db, streams, props.Logger))))
 
 	getRoster := get_roster_handler.New(roster_query.NewMemoryQuery(inmemory_roster.New(visits, clock)))
+	playersQuery := players_query.NewPostgresQuery(db)
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(profile_query.NewPostgresQuery(db, inprocess_rename_rule.New())),
 		SetNameHandler: set_name_handler.New(
@@ -226,7 +228,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat),
 		),
-		GetPlayerHandler: get_player_handler.New(player_query.NewPostgresQuery(db, accounts)),
+		GetPlayerHandler:     get_player_handler.New(player_query.NewPostgresQuery(db, accounts)),
+		GetNameplatesHandler: get_nameplates_handler.New(playersQuery),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)
@@ -234,7 +237,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount player.v1.PlayerService: %w", err)
 	}
 
-	getPlayers := get_players_handler.New(players_query.NewPostgresQuery(db))
+	getPlayers := get_players_handler.New(playersQuery)
 	internalService := playerv1controller.InternalService{
 		IntroducePlayerHandler: introduce_player_handler.New(introducer),
 		GetPlayersHandler:      getPlayers,

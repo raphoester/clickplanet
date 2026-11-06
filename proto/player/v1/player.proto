@@ -23,6 +23,11 @@ service PlayerService {
   rpc GetPlayer(GetPlayerRequest) returns (GetPlayerResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // The nameplates of a page of accounts, for the page to draw their names. At most 100 ids, or InvalidArgument.
+  rpc GetNameplates(GetNameplatesRequest) returns (GetNameplatesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message Profile {
@@ -138,4 +143,24 @@ message Player {
   // A guest is its account and its name alone: every other field is unset.
   bool guest = 10;
   string account_id = 11;
+}
+
+message GetNameplatesRequest {
+  repeated string account_ids = 1;
+}
+
+// Only the accounts the other players can name, once each: an unknown one, one deleted, one asked deleted, or one
+// never shown is left out.
+message GetNameplatesResponse {
+  repeated Nameplate nameplates = 1;
+}
+
+// What the page draws for a player's name: the name, and how it is drawn.
+message Nameplate {
+  string account_id = 1;
+  string name = 2;
+  NameColor color = 3;
+  bool admin = 4;
+  // A guest is its account and its name alone: every other field is unset.
+  bool guest = 5;
 }

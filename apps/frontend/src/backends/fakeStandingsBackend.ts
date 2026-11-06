@@ -1,4 +1,5 @@
 import {fakeAccountId} from "./fakeAccounts.ts"
+import {Nameplate} from "./nameplates.ts"
 import {STANDINGS_SHOWN} from "../domain/standings.ts"
 import {TileClicker} from "./backend.ts"
 import {Badge} from "./badges.ts"
@@ -6,8 +7,9 @@ import {NameColor} from "./player.ts"
 import {PlayerTitle} from "./progression.ts"
 import {BookStep, MySeason, RaceListener, Round, RoundStanding, RoundTakes, Score, Standing, StandingsBackend} from "./standings.ts"
 
-// The title worn is the player's badge: the board names it, and GetBadges draws the title.
-export type FakePlayer = Pick<Standing, "name" | "color"> & {tiles: Record<string, number>, wornTitle?: PlayerTitle}
+// The name and color are the player's nameplate, the title worn its badge: the board ranks its account, and
+// GetNameplates and GetBadges draw them.
+export type FakePlayer = {name: string, color: NameColor, tiles: Record<string, number>, wornTitle?: PlayerTitle}
 
 const conquest = (id: string, name: string, number: number): PlayerTitle =>
     ({id, name, rank: {trackId: "conquest", trackName: "Conquest", number, count: 5}})
@@ -147,11 +149,15 @@ export class FakeStandingsBackend implements StandingsBackend {
         return player && {streak: 0, wornTitle: player.wornTitle}
     }
 
+    // What GetNameplates answers for a player of the board: undefined for an account this fake does not know.
+    public nameplateOf(accountId: string): Nameplate | undefined {
+        const player = this.players.find(({name}) => fakeAccountId(name) === accountId)
+        return player && {name: player.name, color: player.color, admin: false, guest: false}
+    }
+
     private top(countryCode: string): Standing[] {
         const sorted = this.players
-            .map(({name, color, tiles}) => ({
-                name,
-                color,
+            .map(({name, tiles}) => ({
                 accountId: fakeAccountId(name),
                 ...lineOf(new Map(Object.entries(tiles)), countryCode),
             }))

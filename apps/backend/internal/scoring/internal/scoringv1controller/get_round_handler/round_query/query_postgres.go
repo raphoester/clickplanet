@@ -10,18 +10,14 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 
-	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/scoringread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
 type Territory interface {
 	Snapshot(ctx context.Context) (books.Snapshot, error)
-}
-
-type Players interface {
-	Players(ctx context.Context, accounts []books.AccountID) (map[books.AccountID]*playerv1.Player, error)
 }
 
 type Scores interface {
@@ -30,21 +26,16 @@ type Scores interface {
 
 var ErrNoRound = errors.New("no round has this id")
 
-const (
-	// Shown is how many players a round names.
-	Shown = 10
-	// read is how many of its best players are asked for, to name Shown who are not guests.
-	read = 50
-)
+// Shown is how many players a round names.
+const Shown = 10
 
-func NewPostgresQuery(db cppg.Conn, territory Territory, players Players, scores Scores) *PostgresQuery {
-	return &PostgresQuery{db: db, territory: territory, players: players, scores: scores}
+func NewPostgresQuery(db cppg.Conn, territory Territory, scores Scores) *PostgresQuery {
+	return &PostgresQuery{db: db, territory: territory, scores: scores}
 }
 
 type PostgresQuery struct {
 	db        cppg.Conn
 	territory Territory
-	players   Players
 	scores    Scores
 }
 
@@ -194,16 +185,20 @@ type line struct {
 	tiles   uint64
 }
 
+var bestOfTheRound = `
+	SELECT account_id, country, tiles FROM (
+		SELECT DISTINCT ON (account_id) account_id, country, tiles FROM round_players
+		WHERE round_id = $1
+		ORDER BY account_id, tiles DESC, country
+	) AS main
+	WHERE ` + scoringread.Ranked("main.account_id") + `
+	ORDER BY tiles DESC, account_id LIMIT $2
+`
+
 // bestPlayers ranks each account by the tiles it took for the flag it took the most for, so it cannot add up several, and
-// names the first Shown who are not guests, as the boards do.
+// shows the first Shown the boards would rank.
 func (q *PostgresQuery) bestPlayers(ctx context.Context, id books.RoundID) ([]*scoringv1.Standing, error) {
-	rows, err := q.db.On(ctx).QueryContext(ctx, `
-		SELECT account_id, country, tiles FROM (
-			SELECT DISTINCT ON (account_id) account_id, country, tiles FROM round_players
-			WHERE round_id = $1
-			ORDER BY account_id, tiles DESC, country
-		) AS main ORDER BY tiles DESC, account_id LIMIT $2
-	`, string(id), read)
+	rows, err := q.db.On(ctx).QueryContext(ctx, bestOfTheRound, string(id), Shown)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the players of the round: %w", err)
 	}
@@ -225,28 +220,12 @@ func (q *PostgresQuery) bestPlayers(ctx context.Context, id books.RoundID) ([]*s
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read the players of the round: %w", err)
 	}
-	return q.named(ctx, lines)
+	return standingsOf(lines), nil
 }
 
-func (q *PostgresQuery) named(ctx context.Context, lines []line) ([]*scoringv1.Standing, error) {
-	top := []*scoringv1.Standing{}
-	if len(lines) == 0 {
-		return top, nil
-	}
-	accounts := make([]books.AccountID, len(lines))
-	for i, line := range lines {
-		accounts[i] = line.account
-	}
-	players, err := q.players.Players(ctx, accounts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read who the players of the round are: %w", err)
-	}
-
+func standingsOf(lines []line) []*scoringv1.Standing {
+	top := make([]*scoringv1.Standing, 0, len(lines))
 	for _, line := range lines {
-		player, known := players[line.account]
-		if !known || player.GetGuest() {
-			continue
-		}
 		rank := uint32(len(top) + 1) //nolint:gosec // at most Shown.
 		if len(top) > 0 && top[len(top)-1].GetTiles() == line.tiles {
 			rank = top[len(top)-1].GetRank()
@@ -254,14 +233,9 @@ func (q *PostgresQuery) named(ctx context.Context, lines []line) ([]*scoringv1.S
 		top = append(top, &scoringv1.Standing{
 			Rank:      rank,
 			AccountId: line.account.String(),
-			Name:      player.GetName(),
-			Color:     player.GetColor(),
 			CountryId: line.country,
 			Tiles:     line.tiles,
 		})
-		if len(top) == Shown {
-			break
-		}
 	}
-	return top, nil
+	return top
 }

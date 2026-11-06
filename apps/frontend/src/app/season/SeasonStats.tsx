@@ -1,4 +1,5 @@
 import {CSSProperties, ReactNode, useEffect, useRef, useState} from "react"
+import PlayerName from "../nameplates/PlayerName.tsx"
 import {Season, SeasonTotals} from "../../backends/season.ts"
 import {BookStep, Round, Score, Standing, StandingsBackend} from "../../backends/standings.ts"
 import {TurnBackend} from "../../backends/turn.ts"
@@ -15,12 +16,10 @@ import {
     Slide,
     slidesOf,
 } from "../../domain/seasonStats.ts"
-import {authorStyle} from "../chat/authorStyle.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import RankCoin from "../components/RankCoin.tsx"
 import {BackIcon} from "../components/icons.tsx"
 import WornTitle from "../badges/WornTitle.tsx"
-import {useWordFilter} from "../crazygames/wordFilter.ts"
 import RaceChart from "./RaceChart.tsx"
 import Podium from "./Podium.tsx"
 import {tablePodiumOf} from "../../domain/roundReveal.ts"
@@ -178,7 +177,6 @@ function FlagRows<T extends Barred<{rank: number, countryCode: string}>>({rows, 
 }
 
 function PlayerRows({rows}: {rows: Barred<Standing>[]}) {
-    const words = useWordFilter()
     if (rows.length === 0) return <p className="season-stats-none">Nobody played</p>
 
     return <ol className="season-stats-rows">
@@ -188,9 +186,7 @@ function PlayerRows({rows}: {rows: Barred<Standing>[]}) {
                 <span role="img" aria-label={Countries.get(row.countryCode)?.name ?? row.countryCode}>
                     <CountryFlag code={row.countryCode}/>
                 </span>
-                <span className="season-stats-name season-stats-player"
-                      style={authorStyle({color: row.color, guest: false})}
-                      title={words.masked(row.name)}>{words.masked(row.name)}</span>
+                <PlayerName accountId={row.accountId} className="season-stats-name season-stats-player"/>
                 <WornTitle accountId={row.accountId} size={18}/>
             </span>
             <span className="season-stats-value">{numbers.format(row.tiles)}</span>

@@ -2,9 +2,9 @@
 
 **A player's badges are its streak and the title it wears, drawn beside its name wherever the name is: the chat
 log, the roster, the season board and your own line on it, a tile's holder, a territory's players, the player
-card, the Hall of Fame's players and the battle debrief's.** The page composes them: the name comes with whatever
-shows it (a message, a roster line, a standing), and the badges come from one store, by the account id beside the
-name. Nothing else carries them. See the backend's [Progression](../../backend/docs/progression.md#the-badges) for `GetBadges`.
+card, the Hall of Fame's players and the battle debrief's.** The page composes them: the name comes from the
+nameplates store ([Nameplates](nameplates.md)), or the roster line or the card that shows it, and the badges from one
+store, by the account id beside the name. Nothing else carries them. See the backend's [Progression](../../backend/docs/progression.md#the-badges) for `GetBadges`.
 
 - `backends/badges.ts` — `Badge` (`streak`, `wornTitle`), `AccountBadge`, `BadgesBackend` and `MAX_BADGES_ASKED`
   (100, as the server). `ConnectProgressionBackend.badges` calls `progression.v1.ProgressionService/GetBadges`, a

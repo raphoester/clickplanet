@@ -6,6 +6,7 @@ import {AddReactionIcon} from "../components/icons.tsx";
 import {truncate} from "../truncate.ts";
 import {REACTION_IMAGES} from "./reactionsAsset.ts";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
+import {useNameplates} from "../nameplates/nameplatesStore.ts";
 
 const OWNER = "data-reactions-for"
 
@@ -157,7 +158,9 @@ type ReactionWhoProps = {
 }
 
 function ReactionWho({id, at, count, label}: ReactionWhoProps) {
-    const {names, more} = whoReacted(count)
+    const nameplates = useNameplates((store) => store.nameplates)
+    useEffect(() => count.reactorAccountIds.forEach(useNameplates.getState().ask), [count.reactorAccountIds])
+    const {names, more} = whoReacted(count, (accountId) => nameplates[accountId]?.name)
     const words = useWordFilter()
 
     // On the body: the log scrolls and clips whatever is drawn inside it.

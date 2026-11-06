@@ -107,13 +107,6 @@ export function unseenAfter(
         + announcements.filter(announcement => announcement.announcedAt > seenUntil).length
 }
 
-export function nameSentUnder(log: readonly ChatMessage[], sent: ReadonlySet<string>): string | undefined {
-    for (let i = log.length - 1; i >= 0; i--) {
-        if (sent.has(log[i].id)) return log[i].authorName
-    }
-    return undefined
-}
-
 export function accountSentUnder(log: readonly ChatMessage[], sent: ReadonlySet<string>): string | undefined {
     for (let i = log.length - 1; i >= 0; i--) {
         if (sent.has(log[i].id) && log[i].authorAccountId !== "") return log[i].authorAccountId
@@ -124,8 +117,7 @@ export function accountSentUnder(log: readonly ChatMessage[], sent: ReadonlySet<
 export function quoteOf(message: ChatMessage): ChatQuote {
     return {
         messageId: message.id,
-        authorName: message.authorName,
-        authorColor: message.authorColor,
+        authorAccountId: message.authorAccountId,
         text: message.text,
         gif: message.gif,
     }
@@ -147,7 +139,7 @@ export function startsGroup(
 ): boolean {
     if (previous === undefined) return true
     if (message.replyTo !== undefined) return true
-    if (previous.authorAccountId !== message.authorAccountId || previous.authorName !== message.authorName) return true
+    if (previous.authorAccountId !== message.authorAccountId) return true
     return message.sentAt - previous.sentAt > window
 }
 

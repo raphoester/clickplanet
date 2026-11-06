@@ -7,7 +7,6 @@
 package scoringv1
 
 import (
-	v1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -121,8 +120,6 @@ func (x *GetBoardResponse) GetStandings() []*Standing {
 type Standing struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rank          uint32                 `protobuf:"varint,1,opt,name=rank,proto3" json:"rank,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Color         v1.NameColor           `protobuf:"varint,3,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
 	CountryId     string                 `protobuf:"bytes,4,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	Tiles         uint64                 `protobuf:"varint,5,opt,name=tiles,proto3" json:"tiles,omitempty"`
 	AccountId     string                 `protobuf:"bytes,7,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
@@ -165,20 +162,6 @@ func (x *Standing) GetRank() uint32 {
 		return x.Rank
 	}
 	return 0
-}
-
-func (x *Standing) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *Standing) GetColor() v1.NameColor {
-	if x != nil {
-		return x.Color
-	}
-	return v1.NameColor(0)
 }
 
 func (x *Standing) GetCountryId() string {
@@ -1373,22 +1356,20 @@ var File_scoring_v1_scoring_proto protoreflect.FileDescriptor
 const file_scoring_v1_scoring_proto_rawDesc = "" +
 	"\n" +
 	"\x18scoring/v1/scoring.proto\x12\n" +
-	"scoring.v1\x1a\x15player/v1/color.proto\"I\n" +
+	"scoring.v1\"I\n" +
 	"\x0fGetBoardRequest\x12\x17\n" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\"F\n" +
 	"\x10GetBoardResponse\x122\n" +
-	"\tstandings\x18\x01 \x03(\v2\x14.scoring.v1.StandingR\tstandings\"\xc4\x01\n" +
+	"\tstandings\x18\x01 \x03(\v2\x14.scoring.v1.StandingR\tstandings\"\x9d\x01\n" +
 	"\bStanding\x12\x12\n" +
-	"\x04rank\x18\x01 \x01(\rR\x04rank\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12*\n" +
-	"\x05color\x18\x03 \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12\x1d\n" +
+	"\x04rank\x18\x01 \x01(\rR\x04rank\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x04 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x05tiles\x18\x05 \x01(\x04R\x05tiles\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\a \x01(\tR\taccountIdJ\x04\b\x06\x10\aR\n" +
+	"account_id\x18\a \x01(\tR\taccountIdJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x06\x10\aR\x04nameR\x05colorR\n" +
 	"worn_title\"K\n" +
 	"\x11GetMyTallyRequest\x12\x17\n" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x1d\n" +
@@ -1525,44 +1506,42 @@ var file_scoring_v1_scoring_proto_goTypes = []any{
 	(*ScoringEvent)(nil),           // 19: scoring.v1.ScoringEvent
 	(*Board)(nil),                  // 20: scoring.v1.Board
 	(*Heartbeat)(nil),              // 21: scoring.v1.Heartbeat
-	(v1.NameColor)(0),              // 22: player.v1.NameColor
 }
 var file_scoring_v1_scoring_proto_depIdxs = []int32{
 	2,  // 0: scoring.v1.GetBoardResponse.standings:type_name -> scoring.v1.Standing
-	22, // 1: scoring.v1.Standing.color:type_name -> player.v1.NameColor
-	7,  // 2: scoring.v1.GetRoundResponse.round:type_name -> scoring.v1.Round
-	8,  // 3: scoring.v1.Round.standings:type_name -> scoring.v1.RoundStanding
-	9,  // 4: scoring.v1.Round.takes:type_name -> scoring.v1.RoundTakes
-	2,  // 5: scoring.v1.Round.players:type_name -> scoring.v1.Standing
-	13, // 6: scoring.v1.Round.before:type_name -> scoring.v1.Score
-	13, // 7: scoring.v1.Round.after:type_name -> scoring.v1.Score
-	12, // 8: scoring.v1.GetScoresResponse.scores:type_name -> scoring.v1.Scores
-	13, // 9: scoring.v1.Scores.scores:type_name -> scoring.v1.Score
-	16, // 10: scoring.v1.GetBookHistoryResponse.steps:type_name -> scoring.v1.BookStep
-	8,  // 11: scoring.v1.BookStep.results:type_name -> scoring.v1.RoundStanding
-	13, // 12: scoring.v1.BookStep.table:type_name -> scoring.v1.Score
-	20, // 13: scoring.v1.ScoringEvent.board:type_name -> scoring.v1.Board
-	21, // 14: scoring.v1.ScoringEvent.heartbeat:type_name -> scoring.v1.Heartbeat
-	12, // 15: scoring.v1.ScoringEvent.scores:type_name -> scoring.v1.Scores
-	7,  // 16: scoring.v1.ScoringEvent.round:type_name -> scoring.v1.Round
-	2,  // 17: scoring.v1.Board.standings:type_name -> scoring.v1.Standing
-	0,  // 18: scoring.v1.ScoringService.GetBoard:input_type -> scoring.v1.GetBoardRequest
-	3,  // 19: scoring.v1.ScoringService.GetMyTally:input_type -> scoring.v1.GetMyTallyRequest
-	5,  // 20: scoring.v1.ScoringService.GetRound:input_type -> scoring.v1.GetRoundRequest
-	10, // 21: scoring.v1.ScoringService.GetScores:input_type -> scoring.v1.GetScoresRequest
-	14, // 22: scoring.v1.ScoringService.GetBookHistory:input_type -> scoring.v1.GetBookHistoryRequest
-	18, // 23: scoring.v1.ScoringService.ListenForEvents:input_type -> scoring.v1.ListenForEventsRequest
-	1,  // 24: scoring.v1.ScoringService.GetBoard:output_type -> scoring.v1.GetBoardResponse
-	4,  // 25: scoring.v1.ScoringService.GetMyTally:output_type -> scoring.v1.GetMyTallyResponse
-	6,  // 26: scoring.v1.ScoringService.GetRound:output_type -> scoring.v1.GetRoundResponse
-	11, // 27: scoring.v1.ScoringService.GetScores:output_type -> scoring.v1.GetScoresResponse
-	15, // 28: scoring.v1.ScoringService.GetBookHistory:output_type -> scoring.v1.GetBookHistoryResponse
-	19, // 29: scoring.v1.ScoringService.ListenForEvents:output_type -> scoring.v1.ScoringEvent
-	24, // [24:30] is the sub-list for method output_type
-	18, // [18:24] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	7,  // 1: scoring.v1.GetRoundResponse.round:type_name -> scoring.v1.Round
+	8,  // 2: scoring.v1.Round.standings:type_name -> scoring.v1.RoundStanding
+	9,  // 3: scoring.v1.Round.takes:type_name -> scoring.v1.RoundTakes
+	2,  // 4: scoring.v1.Round.players:type_name -> scoring.v1.Standing
+	13, // 5: scoring.v1.Round.before:type_name -> scoring.v1.Score
+	13, // 6: scoring.v1.Round.after:type_name -> scoring.v1.Score
+	12, // 7: scoring.v1.GetScoresResponse.scores:type_name -> scoring.v1.Scores
+	13, // 8: scoring.v1.Scores.scores:type_name -> scoring.v1.Score
+	16, // 9: scoring.v1.GetBookHistoryResponse.steps:type_name -> scoring.v1.BookStep
+	8,  // 10: scoring.v1.BookStep.results:type_name -> scoring.v1.RoundStanding
+	13, // 11: scoring.v1.BookStep.table:type_name -> scoring.v1.Score
+	20, // 12: scoring.v1.ScoringEvent.board:type_name -> scoring.v1.Board
+	21, // 13: scoring.v1.ScoringEvent.heartbeat:type_name -> scoring.v1.Heartbeat
+	12, // 14: scoring.v1.ScoringEvent.scores:type_name -> scoring.v1.Scores
+	7,  // 15: scoring.v1.ScoringEvent.round:type_name -> scoring.v1.Round
+	2,  // 16: scoring.v1.Board.standings:type_name -> scoring.v1.Standing
+	0,  // 17: scoring.v1.ScoringService.GetBoard:input_type -> scoring.v1.GetBoardRequest
+	3,  // 18: scoring.v1.ScoringService.GetMyTally:input_type -> scoring.v1.GetMyTallyRequest
+	5,  // 19: scoring.v1.ScoringService.GetRound:input_type -> scoring.v1.GetRoundRequest
+	10, // 20: scoring.v1.ScoringService.GetScores:input_type -> scoring.v1.GetScoresRequest
+	14, // 21: scoring.v1.ScoringService.GetBookHistory:input_type -> scoring.v1.GetBookHistoryRequest
+	18, // 22: scoring.v1.ScoringService.ListenForEvents:input_type -> scoring.v1.ListenForEventsRequest
+	1,  // 23: scoring.v1.ScoringService.GetBoard:output_type -> scoring.v1.GetBoardResponse
+	4,  // 24: scoring.v1.ScoringService.GetMyTally:output_type -> scoring.v1.GetMyTallyResponse
+	6,  // 25: scoring.v1.ScoringService.GetRound:output_type -> scoring.v1.GetRoundResponse
+	11, // 26: scoring.v1.ScoringService.GetScores:output_type -> scoring.v1.GetScoresResponse
+	15, // 27: scoring.v1.ScoringService.GetBookHistory:output_type -> scoring.v1.GetBookHistoryResponse
+	19, // 28: scoring.v1.ScoringService.ListenForEvents:output_type -> scoring.v1.ScoringEvent
+	23, // [23:29] is the sub-list for method output_type
+	17, // [17:23] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_scoring_v1_scoring_proto_init() }

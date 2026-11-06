@@ -1,10 +1,9 @@
 import {afterEach, describe, expect, it} from "vitest"
 import {ChatMessage} from "../../backends/chat.ts"
-import {NameColor} from "../../backends/player.ts"
 import {useChat} from "./chatStore.ts"
 
 const message = (id: string): ChatMessage =>
-    ({id, sentAt: 0, authorAccountId: "account-ana", authorName: "Ana", authorAdmin: false, authorColor: NameColor.UNSPECIFIED, countryCode: "fr", text: "hi", reactions: [], reactionsVersion: 0})
+    ({id, sentAt: 0, authorAccountId: "account-ana", countryCode: "fr", text: "hi", reactions: [], reactionsVersion: 0})
 
 afterEach(() => useChat.setState(useChat.getInitialState(), true))
 

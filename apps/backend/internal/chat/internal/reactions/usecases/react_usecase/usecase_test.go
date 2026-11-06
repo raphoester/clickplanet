@@ -30,30 +30,6 @@ func (f *fakePublisher) Publish(update feed.Update) {
 	f.updates = append(f.updates, update)
 }
 
-type fakeAuthors struct {
-	named map[messages.AccountID]messages.Author
-	asked int
-	err   error
-}
-
-func (f *fakeAuthors) Authors(
-	_ context.Context,
-	accounts []messages.AccountID,
-) (map[messages.AccountID]messages.Author, error) {
-	f.asked++
-	if f.err != nil {
-		return nil, f.err
-	}
-
-	found := make(map[messages.AccountID]messages.Author, len(accounts))
-	for _, account := range accounts {
-		if author, known := f.named[account]; known {
-			found[account] = author
-		}
-	}
-	return found, nil
-}
-
 type failingBoard struct {
 	*inmemory_reaction_storage.Storage
 }
@@ -78,17 +54,12 @@ type testSuite struct {
 	messages  *inmemory_message_storage.Storage
 	board     *inmemory_reaction_storage.Storage
 	publisher *fakePublisher
-	authors   *fakeAuthors
 }
 
 func (s *testSuite) SetupTest() {
 	s.messages = inmemory_message_storage.New()
 	s.board = inmemory_reaction_storage.New()
 	s.publisher = &fakePublisher{}
-	s.authors = &fakeAuthors{named: map[messages.AccountID]messages.Author{
-		ada: messages.AuthorOf("Ada", false, 0),
-		bob: messages.AuthorOf("Bob", false, 0),
-	}}
 	s.sent("hello")
 }
 
@@ -108,7 +79,7 @@ func (s *testSuite) message(id messages.MessageID, room messages.Room) messages.
 func (s *testSuite) reactWith(board react_usecase.Board, in react_usecase.In) (react_usecase.Out, error) {
 	clock := cptime.NewFixedClock(now)
 	shown := messages.NewShowing(s.messages, messages.NewRooms(flags), clock, window)
-	return react_usecase.New(shown, board, s.publisher, s.authors, clock).Execute(context.Background(), in)
+	return react_usecase.New(shown, board, s.publisher, clock).Execute(context.Background(), in)
 }
 
 func (s *testSuite) react(account messages.AccountID, reaction reactions.Reaction, on bool) []reactions.Count {
@@ -119,7 +90,7 @@ func (s *testSuite) react(account messages.AccountID, reaction reactions.Reactio
 
 func (s *testSuite) TestAnAccountReactsAsItselfAndIsAnsweredWithItsOwn() {
 	s.Equal([]reactions.Count{
-		reactions.CountOf(clown, 1, true, []reactions.Reactor{reactions.ReactorOf(ada)}, []string{"Ada"}),
+		reactions.CountOf(clown, 1, true, []reactions.Reactor{reactions.ReactorOf(ada)}),
 	}, s.react(ada, clown, true))
 
 	given, err := s.board.Reactions(context.Background(), []messages.MessageID{"hello"})
@@ -131,7 +102,7 @@ func (s *testSuite) TestTwoAccountsAreTwoReactors() {
 	s.react(ada, clown, true)
 
 	s.Equal([]reactions.Count{
-		reactions.CountOf(clown, 2, true, []reactions.Reactor{reactions.ReactorOf(ada), reactions.ReactorOf(bob)}, []string{"Ada", "Bob"}),
+		reactions.CountOf(clown, 2, true, []reactions.Reactor{reactions.ReactorOf(ada), reactions.ReactorOf(bob)}),
 	}, s.react(bob, clown, true))
 }
 
@@ -153,14 +124,14 @@ func (s *testSuite) TestEveryChangeIsPublishedAsTheWholeTallyForNobodyVersioned(
 	hello := s.message("hello", messages.World)
 	s.Equal([]feed.Update{
 		feed.ReactionsChanged(hello, reactions.TallyFor("hello", []reactions.Count{
-			reactions.CountOf(clown, 1, false, adaGave, []string{"Ada"}),
+			reactions.CountOf(clown, 1, false, adaGave),
 		}, 1)),
 		feed.ReactionsChanged(hello, reactions.TallyFor("hello", []reactions.Count{
-			reactions.CountOf(clown, 1, false, adaGave, []string{"Ada"}),
-			reactions.CountOf(laugh, 1, false, bobGave, []string{"Bob"}),
+			reactions.CountOf(clown, 1, false, adaGave),
+			reactions.CountOf(laugh, 1, false, bobGave),
 		}, 2)),
 		feed.ReactionsChanged(hello, reactions.TallyFor("hello", []reactions.Count{
-			reactions.CountOf(laugh, 1, false, bobGave, []string{"Bob"}),
+			reactions.CountOf(laugh, 1, false, bobGave),
 		}, 3)),
 	}, s.publisher.updates)
 }
@@ -172,7 +143,7 @@ func (s *testSuite) TestTheAnswerCarriesTheVersionItWasReadAt() {
 
 	s.Require().NoError(err)
 	s.Equal(react_usecase.Out{Counts: []reactions.Count{
-		reactions.CountOf(clown, 1, true, []reactions.Reactor{reactions.ReactorOf(ada)}, []string{"Ada"}),
+		reactions.CountOf(clown, 1, true, []reactions.Reactor{reactions.ReactorOf(ada)}),
 	}, Version: 1}, out, "a change that changes nothing answers what is there")
 }
 
@@ -181,7 +152,7 @@ func (s *testSuite) TestAChangeThatChangesNothingIsNeitherSavedNorPublished() {
 	s.publisher.updates = nil
 
 	mine := []reactions.Count{
-		reactions.CountOf(clown, 1, true, []reactions.Reactor{reactions.ReactorOf(ada)}, []string{"Ada"}),
+		reactions.CountOf(clown, 1, true, []reactions.Reactor{reactions.ReactorOf(ada)}),
 	}
 	s.Equal(mine, s.react(ada, clown, true))
 	s.Equal(mine, s.react(ada, laugh, false))
@@ -205,42 +176,13 @@ func (s *testSuite) TestAReactionThatCannotBeSavedIsNotPublished() {
 	s.Empty(s.publisher.updates)
 }
 
-func (s *testSuite) TestEveryoneUnderAMessageIsNamedInOneAsk() {
+func (s *testSuite) TestACountSaysWhichAccountsGaveItOldestFirst() {
 	s.react(ada, clown, true)
-	s.authors.asked = 0
 
 	counts := s.react(bob, clown, true)
 
-	s.Equal([]string{"Ada", "Bob"}, counts[0].Names(), "oldest first")
-	s.Equal(1, s.authors.asked, "the answer and the frame that goes out share it")
-}
-
-func (s *testSuite) TestARenameShowsUnderEveryReactionItsPlayerEverGave() {
-	s.react(ada, clown, true)
-	s.react(ada, laugh, true)
-	s.authors.named[ada] = messages.AuthorOf("Ada Lovelace", false, 0)
-
-	counts := s.react(bob, clown, true)
-
-	s.Equal([]string{"Ada Lovelace", "Bob"}, counts[0].Names())
-}
-
-func (s *testSuite) TestADeletedAccountIsCountedWithoutBeingNamed() {
-	s.react(ada, clown, true)
-	delete(s.authors.named, ada)
-
-	counts := s.react(bob, clown, true)
-
+	s.Equal([]messages.AccountID{ada, bob}, counts[0].Accounts(), "the page names them")
 	s.Equal(2, counts[0].Total())
-	s.Equal([]string{"Bob"}, counts[0].Names(), "the count says how many, the names say who is still there")
-}
-
-func (s *testSuite) TestAReactionNobodyCanBeNamedUnderIsARefusal() {
-	s.authors.err = errors.New("the player module is down")
-
-	_, err := s.reactWith(s.board, react_usecase.In{Account: ada, MessageID: "hello", Reaction: clown, On: true})
-
-	s.Require().Error(err)
 }
 
 func (s *testSuite) TestOnlyTheAccountsThatPlayForAFlagReactInItsRoom() {

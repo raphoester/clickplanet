@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {useState} from "react"
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {AccountBackend, Provider} from "../../backends/account.ts"
@@ -16,12 +16,24 @@ import {useBadges} from "../badges/badgesStore.ts"
 import {AcceptedClicks, acceptedClicks} from "../viewer/acceptedClicks.ts"
 import BoardViews, {BoardView} from "./BoardViews.tsx"
 import {Caller} from "./useMySeason.ts"
+import {AccountNameplate} from "../../backends/nameplates.ts"
+import {useNameplates} from "../nameplates/nameplatesStore.ts"
 
 const france = Countries.get("fr")!
 const germany = Countries.get("de")!
 
+// What the nameplates say of each player a board shows: a test learns them all again.
+const NAMEPLATES: AccountNameplate[] = []
+
+function named(name: string, color = NameColor.UNSPECIFIED, accountId = `account-${name}`): string {
+    const nameplate = {accountId, name, color, admin: false, guest: false}
+    NAMEPLATES.push(nameplate)
+    useNameplates.getState().learn([nameplate])
+    return accountId
+}
+
 const standing = (rank: number, name: string, countryCode: string, tiles: number, color = NameColor.UNSPECIFIED): Standing =>
-    ({rank, accountId: `account-${name}`, name, color, countryCode, tiles})
+    ({rank, accountId: named(name, color), countryCode, tiles})
 
 const WARLORD: PlayerTitle = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
 const DEVOTED: PlayerTitle = {id: "devoted", name: "Devoted", rank: {trackId: "devotion", trackName: "Devotion", number: 2, count: 3}}
@@ -45,8 +57,8 @@ const FULL = [
 const FULL_FRENCH = Array.from({length: 10}, (_, i) => standing(i + 1, `fr_${i + 1}`, "fr", 500 - i * 40))
 
 const GUEST: Caller = {linked: false}
-const MATEUS: Caller = {linked: true, accountId: "account-Mateus", username: "Mateus", color: NameColor.TEAL}
-const ZED: Caller = {linked: true, accountId: "account-Zed", username: "Zed", color: NameColor.GREEN}
+const MATEUS: Caller = {linked: true, accountId: named("Mateus", NameColor.TEAL), username: "Mateus"}
+const ZED: Caller = {linked: true, accountId: named("Zed", NameColor.GREEN), username: "Zed"}
 
 type Mine = (countryCode: string) => MySeason
 
@@ -106,8 +118,11 @@ const yours = () => screen.queryByRole("region", {name: "Your season"})
 const stats = () => [...yours()!.querySelectorAll(".stat-tile")].map((tile) =>
     [tile.querySelector("dt")!.textContent, tile.querySelector("dd")!.textContent])
 
+beforeEach(() => useNameplates.getState().learn(NAMEPLATES))
+
 afterEach(() => {
     cleanup()
+    useNameplates.getState().serve(undefined)
     vi.restoreAllMocks()
     usePlayerCard.setState({openable: false, player: undefined})
     useBadges.getState().serve(undefined)
@@ -214,8 +229,9 @@ describe("BoardViews", () => {
         expect(rows()).toHaveLength(3)
     })
 
-    it("marks the row of the caller's account, whatever name the board still shows for it", async () => {
+    it("marks the row of the caller's account, under the name the page just picked", async () => {
         const mine = season({countryCode: "br", tiles: 1512, rank: 2})
+        useNameplates.getState().own("account-Mateus", "Mateus_new", NameColor.TEAL)
         await shown({backend: backendOf(mine), caller: {...MATEUS, username: "Mateus_new"}, view: "players"})
 
         const marked = rows().filter((row) => row.getAttribute("aria-current") === "true")
@@ -226,7 +242,7 @@ describe("BoardViews", () => {
 
     it("does not take another account for the caller because it holds the caller's name", async () => {
         const mine = season({countryCode: "br", tiles: 20, rank: 4})
-        await shown({backend: backendOf(mine), caller: {...MATEUS, accountId: "account-caller"}, view: "players"})
+        await shown({backend: backendOf(mine), caller: {...MATEUS, accountId: named("Mateus", NameColor.TEAL, "account-caller")}, view: "players"})
 
         const marked = rows().filter((row) => row.getAttribute("aria-current") === "true")
         expect(marked).toHaveLength(1)

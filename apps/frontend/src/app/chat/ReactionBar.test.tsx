@@ -1,14 +1,21 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {Reaction, ReactionCount} from "../../backends/chat.ts"
+import {NameColor} from "../../backends/player.ts"
+import {useNameplates} from "../nameplates/nameplatesStore.ts"
 import ReactionBar from "./ReactionBar.tsx"
 
-afterEach(cleanup)
+beforeEach(() => useNameplates.getState().learn(["Ana", "Bo"].map((name) =>
+    ({accountId: `account-${name}`, name, color: NameColor.UNSPECIFIED, admin: false, guest: false}))))
+afterEach(() => {
+    cleanup()
+    useNameplates.getState().serve(undefined)
+})
 
-const clown = (count: number, reactors: string[], mine = false): ReactionCount =>
-    ({reaction: Reaction.CLOWN, count, mine, reactors})
+const clown = (count: number, names: string[], mine = false): ReactionCount =>
+    ({reaction: Reaction.CLOWN, count, mine, reactorAccountIds: names.map((name) => `account-${name}`)})
 
 function show(reactions: ReactionCount[]) {
     render(<ReactionBar messageId="m1"
@@ -47,6 +54,13 @@ describe("ReactionBar", () => {
         const popup = await hover(show([clown(25, ["Ana", "Bo"])]))
 
         expect(popup.textContent).toContain("and 23 more")
+    })
+
+    it("counts without naming an account nobody can name", async () => {
+        useNameplates.setState({nameplates: {...useNameplates.getState().nameplates, "account-gone": null}})
+        const popup = await hover(show([clown(2, ["gone", "Bo"])]))
+
+        expect(popup.textContent).toBe("ClownBoand 1 more")
     })
 
     it("counts them alone when it can name nobody", async () => {

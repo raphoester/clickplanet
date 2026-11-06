@@ -8,7 +8,6 @@ import {
     GROUP_WINDOW_MS,
     idsSince,
     interleave,
-    nameSentUnder,
     newestAt,
     quoteOf,
     startsGroup,
@@ -18,16 +17,12 @@ import {
     wordsOf,
 } from "./chatLog.ts"
 import type {ChatAnnouncement, ChatMessage} from "../backends/chat.ts"
-import {NameColor} from "../backends/player.ts"
 import {Reaction} from "../gen/grpc/chat/v1/chat_pb.ts"
 
 const message = (id: string, sentAt: number): ChatMessage => ({
     id,
     sentAt,
     authorAccountId: "account-ana",
-    authorName: "Ana",
-    authorAdmin: false,
-    authorColor: NameColor.UNSPECIFIED,
     countryCode: "fr",
     text: `message ${id}`,
     reactions: [],
@@ -108,7 +103,7 @@ describe("a GIF", () => {
 
 describe("withRemoved", () => {
     it("keeps the message an operator removed in its place, with no text and no reactions", () => {
-        const insult = {...message("a", 1), reactions: [{reaction: Reaction.CLOWN, count: 2, mine: false, reactors: []}]}
+        const insult = {...message("a", 1), reactions: [{reaction: Reaction.CLOWN, count: 2, mine: false, reactorAccountIds: []}]}
         const log = [insult, message("b", 2)]
 
         const kept = withRemoved(log, "a")
@@ -216,24 +211,6 @@ describe("unseenAfter", () => {
     })
 })
 
-describe("nameSentUnder", () => {
-    const log = [
-        {...message("a", 0), authorName: "guest_91aa3d"},
-        {...message("b", 1_000), authorName: "guest_c0ffee"},
-        {...message("c", 2_000), authorName: "ana_1"},
-    ]
-
-    it("answers the name the server gave the latest message this client sent", () => {
-        expect(nameSentUnder(log, new Set(["b"]))).toBe("guest_c0ffee")
-        expect(nameSentUnder(log, new Set(["b", "c"]))).toBe("ana_1")
-    })
-
-    it("knows nothing before this client sent anything still in the log", () => {
-        expect(nameSentUnder(log, new Set())).toBeUndefined()
-        expect(nameSentUnder(log, new Set(["gone"]))).toBeUndefined()
-    })
-})
-
 describe("accountSentUnder", () => {
     const log = [
         {...message("a", 1), authorAccountId: "account-bo"},
@@ -260,7 +237,7 @@ describe("accountSentUnder", () => {
 
 describe("startsGroup", () => {
     const from = (author: string, sentAt: number): ChatMessage =>
-        ({...message("x", sentAt), authorAccountId: `account-${author}`, authorName: author})
+        ({...message("x", sentAt), authorAccountId: author === "" ? "" : `account-${author}`})
 
     it("opens a group on the first message there is", () => {
         expect(startsGroup(undefined, from("Ana", 0))).toBe(true)
@@ -280,26 +257,8 @@ describe("startsGroup", () => {
         expect(startsGroup(ana, bo)).toBe(true)
     })
 
-    it("opens a group when another account speaks under the same name", () => {
-        const ana = from("Ana", 0)
-        const other = {...from("Ana", 1_000), authorAccountId: "account-other"}
-
-        expect(startsGroup(ana, other)).toBe(true)
-        expect(startsGroup(ana, {...from("Ana", 1_000), authorAccountId: ""})).toBe(true)
-    })
-
-    it("opens a group when the same account speaks under a new name", () => {
-        const ana = from("Ana", 0)
-        const renamed = {...from("Ana", 1_000), authorName: "Ana_Lovelace"}
-
-        expect(startsGroup(ana, renamed)).toBe(true)
-    })
-
-    it("keeps together the messages of one name that carry no account", () => {
-        const first = {...from("[deleted]", 0), authorAccountId: ""}
-        const next = {...from("[deleted]", 1_000), authorAccountId: ""}
-
-        expect(startsGroup(first, next)).toBe(false)
+    it("opens a group when a message carries no account after one that does", () => {
+        expect(startsGroup(from("Ana", 0), from("", 1_000))).toBe(true)
     })
 
     it("opens a group again after a long enough silence", () => {
@@ -320,12 +279,11 @@ describe("startsGroup", () => {
 
 describe("quoteOf", () => {
     it("is who said a message and all of what it said", () => {
-        const said = {...message("m1", 0), authorName: "Bo", authorColor: NameColor.TEAL, text: "who holds the north"}
+        const said = {...message("m1", 0), authorAccountId: "account-bo", text: "who holds the north"}
 
         expect(quoteOf(said)).toEqual({
             messageId: "m1",
-            authorName: "Bo",
-            authorColor: NameColor.TEAL,
+            authorAccountId: "account-bo",
             text: "who holds the north",
         })
     })

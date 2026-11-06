@@ -245,10 +245,6 @@ func (s *testSuite) TestARemovedMessageIsReadAsItWasSentWithWhenItWasRemoved() {
 
 func (s *testSuite) TestEveryAuthorIsNamedAsNowAndAskedForOnce() {
 	asked := new([]cpsession.AccountID)
-	s.sent(messages.Snapshot{
-		ID: "legacy", SentAt: now.Add(-4 * time.Minute), Author: messages.AuthorOf("Old_Name", false, 0),
-		Country: "fr", Text: "old",
-	})
 	s.sent(messages.Snapshot{ID: "gone", SentAt: now.Add(-3 * time.Minute), Account: deleted, Country: "fr", Text: "bye"})
 	s.sent(messages.Snapshot{ID: "insult", SentAt: now.Add(-2 * time.Minute), Account: bob, Country: "fr", Text: "you suck"})
 	s.sent(messages.Snapshot{ID: "again", SentAt: now.Add(-time.Minute), Account: bob, Country: "fr", Text: "again"})
@@ -258,13 +254,11 @@ func (s *testSuite) TestEveryAuthorIsNamedAsNowAndAskedForOnce() {
 	s.Require().NoError(err)
 
 	kept := page.GetMessages()
-	s.Equal("Old_Name", kept[0].GetAuthorName(), "the name it was sent under")
-	s.Empty(kept[0].GetAccountId())
-	s.Equal(messages_query.DeletedName, kept[1].GetAuthorName())
-	s.Equal(deleted.String(), kept[1].GetAccountId(), "the operator tools still take its id")
+	s.Equal(messages_query.DeletedName, kept[0].GetAuthorName())
+	s.Equal(deleted.String(), kept[0].GetAccountId(), "the operator tools still take its id")
+	s.Equal("Bob", kept[1].GetAuthorName())
 	s.Equal("Bob", kept[2].GetAuthorName())
-	s.Equal("Bob", kept[3].GetAuthorName())
-	s.ElementsMatch([]cpsession.AccountID{deleted, bob}, *asked, "each account once, none for a message before accounts")
+	s.ElementsMatch([]cpsession.AccountID{deleted, bob}, *asked, "each account once")
 }
 
 func (s *testSuite) TestAReplyCarriesWhatItAnswersAsItWasSent() {

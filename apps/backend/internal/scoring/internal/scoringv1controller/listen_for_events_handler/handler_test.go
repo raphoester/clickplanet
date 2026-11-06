@@ -98,7 +98,7 @@ func listen(t *testing.T, feeds feeds, heartbeat time.Duration, req *scoringv1.L
 func board(names ...string) *scoringv1.Board {
 	shown := &scoringv1.Board{BookId: "season-0"}
 	for _, name := range names {
-		shown.Standings = append(shown.Standings, &scoringv1.Standing{Name: name})
+		shown.Standings = append(shown.Standings, &scoringv1.Standing{AccountId: name})
 	}
 	return shown
 }

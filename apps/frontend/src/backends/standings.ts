@@ -1,10 +1,7 @@
-import {NameColor} from "./player.ts"
-
+// Its player's name is the nameplates', by accountId.
 export type Standing = {
     rank: number
     accountId: string
-    name: string
-    color: NameColor
     countryCode: string
     tiles: number
 }
