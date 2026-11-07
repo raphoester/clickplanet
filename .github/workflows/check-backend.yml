@@ -7,12 +7,14 @@ on:
       - 'apps/backend/**'
       - 'proto/**'
       - 'quiz/**'
+      - 'docs/moderation.md'
       - '.github/workflows/check-backend.yml'
   pull_request:
     paths:
       - 'apps/backend/**'
       - 'proto/**'
       - 'quiz/**'
+      - 'docs/moderation.md'
       - '.github/workflows/check-backend.yml'
   workflow_dispatch:
 
@@ -40,6 +42,8 @@ jobs:
       - run: make deadcode
 
       - run: make check-quiz
+
+      - run: make check-moderation
 
   lint:
     runs-on: ubuntu-latest

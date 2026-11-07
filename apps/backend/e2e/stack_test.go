@@ -31,6 +31,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -44,6 +45,8 @@ const (
 	adminOrigin   = "https://backoffice.clickplanet.lol"
 	mediaOrigin   = "https://media.example"
 	mapTiles      = 260503
+	// The fake Messages API's: it checks none.
+	judgeKey = "sk-ant-e2e-key"
 )
 
 type gameStack struct {
@@ -104,6 +107,7 @@ func startGame(t *testing.T) gameStack {
 	chatConfig := chat.Config{Database: postgres.ConfigFor("chat"), Redis: redis}
 	chatConfig.RateLimiter.PerSecond = 100
 	chatConfig.RateLimiter.Burst = 100
+	chatConfig.Judge.Anthropic = cpanthropic.Config{APIKey: judgeKey, BaseURL: startJudge(t)}
 
 	bucket := startBucket(t)
 	supportConfig := support.Config{Database: postgres.ConfigFor("support"), Redis: redis}

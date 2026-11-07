@@ -205,6 +205,12 @@ chat:
     perSecond: 0.33
     burst: 5
   blockedIPs: []
+  # The judge of the reports support tells (docs/moderation.md). Empty, as long as no ANTHROPIC_API_KEY secret is set:
+  # then it sends nothing, and every report waits for the operator.
+  judge:
+    anthropic:
+      apiKey: env://ANTHROPIC_API_KEY
+    callsPerHour: 10
 
 player:
   database:
