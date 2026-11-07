@@ -121,3 +121,5 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Tile positions](docs/tile-positions.md) — rebuilt in a worker from a 12 KB landmask and checked by a hash;
   the coordinates blob is only the fallback.
 - [The countries' outlines](docs/country-outlines.md) — the border lines, the same width at every zoom.
+- [A finger iOS took for its swipe back](docs/stray-fingers.md) — the edge swipe that never ends its pointer, the
+  pinch OrbitControls was left in, and the `pointercancel` sent for iOS when the touch count says the finger is gone.

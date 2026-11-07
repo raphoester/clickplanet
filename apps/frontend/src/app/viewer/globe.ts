@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import {addDisplayObjects, pixelRatio, setupScene} from "./scene.ts";
+import {endStrayFingers} from "./strayFingers.ts";
 import {Halo, paintHalo} from "./atmosphere.ts";
 import {graphicsOf} from "./graphics.ts";
 import {loadPointGeometryData} from "./points.ts";
@@ -324,6 +325,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const graphics = graphicsOf(window.location.search, rendering);
     const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget, graphics);
+    endStrayFingers(renderer.domElement, lifetime.signal)
     if (linkedShot) aim(camera, {...linkedShot, zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, linkedShot.zoom))})
     let mapView: MapView = initialMapView
 
