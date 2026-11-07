@@ -123,6 +123,11 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `chat.rateLimiter.*` — the per-IP `SendMessage` throttle, same shape as `rateLimiter`
 - `chat.reactionLimiter.*` — the per-IP `React` throttle, same shape; its defaults suit it
 - `chat.seenLimiter.*` — the per-IP `MarkSeen` throttle, same shape; its defaults suit it
+- `chat.judge.anthropic.apiKey` — the judge's key to Anthropic's API, from the environment
+  (`env://ANTHROPIC_API_KEY` in production); empty sends nothing and leaves every report to the operator.
+  `chat.judge.anthropic.baseURL` is a test's fake. See [The judge](chat.md#the-judge)
+- `chat.judge.model` — the judge's model (`claude-haiku-5-5`)
+- `chat.judge.callsPerHour` — the most reports the model judges in an hour (10); the rest are left open
 - `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `shared/cpipblock` exactly as `vpnBlocklist.allow` is
 - `player.tagSalt` — salts the hash of an address the roster caps its visits with. It is never shown, so empty, which generates one at boot, costs nothing. Production reads it from `CHAT_TAG_SALT`, the chat's old variable
 - `player.database.*` — profiles, guest codes, departures and the operator's renames, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment

@@ -1,11 +1,12 @@
 # Inside the chat module: the same shape
 
-Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has nine:
+Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has ten:
 `messages`, `reactions` (which imports `messages`), `announcements` (which imports `messages`, for the room it is told
 in), `seen` (which imports `messages`), `mutes`
 (which imports `messages`), `removals` (which imports `messages`), `moderation`, the history of what an operator
 did to an account (which imports `messages` and `mutes`), `raids`, the raid mode that closes the chat to guests (which
-imports `messages` and `moderation`), and `feed`, the live stream, which carries the
+imports `messages` and `moderation`), `judgements`, the judge of the reports support tells (which imports `messages`,
+`moderation` and `mutes`), and `feed`, the live stream, which carries the
 first three and the removals. `subscribers/` is its edge for events, as `chatv1controller/` is
 its edge for the wire. A read is a query under its handler: see [Reads are queries](queries.md).
 
@@ -82,7 +83,7 @@ internal/chat/internal/
   moderation/                           Action (NewMute, NewUnmute, NewRemoval, TakeSnapshot), Snapshot, Kind (Muted,
                                         Unmuted, Removed), Operator, Reason (ReasonOf, ErrInvalidReason), the Storage port:
                                         writes only
-    postgres_moderation_store/          Storage, over chat.moderation
+    postgres_moderation_store/          Storage, over chat.moderation; ActionsOn, what the judge counts the steps from
     inmemory_moderation_storage/        Storage in a slice, and Kept for a test — behind the testing tag, tests only
     usecases/forget_moderation_usecase/ deletes the actions taken on an account, takes it off the ones it took — Forgetter
       audit_remove/                     logs every removal at Warn
@@ -93,6 +94,21 @@ internal/chat/internal/
     inmemory_raid_storage/              Storage in memory, and FailWith — behind the testing tag, tests only
     usecases/set_raid_mode_usecase/     starts raid mode from now, or ends the one that runs — Store
       audit_set_raid_mode/              logs every call at Warn
+  judgements/                           Report (ReportID, Reason), Line, Conversation, Answer (Category, Spend), Slate
+                                        (SlateOf, Next), Step, Decide, Decision (Decided), Judgement (Verdict, Followed,
+                                        Comment), Snapshot (Restore), Client and By ("Claude judge"), ErrNoJudge,
+                                        ErrUnjudgeable; the Storage port and its suite
+    postgres_judgement_store/           Storage, over chat.judgements: one per report, the first that judged a message
+    inmemory_judgement_storage/         Storage in a slice, and Kept and FailWith — behind the testing tag, tests only
+    postgres_conversations/             the message reported, its room around it and the player's own latest lines
+    claude_judge/                       Judge: asks Claude Haiku, with instructions.md and the policy, for an Answer held
+                                        to a schema; Unkeyed with no key
+    redis_outbox_sender/                what the chat's outbox relay sends: support.v1.DecideReport as a command,
+                                        chat.v1.AccountMuted as an event
+    usecases/judge_report_usecase/      reads, asks, then removes, mutes and decides in one transaction — Judgements,
+                                        Conversations, Authors, History, Judge, Calls, Transactioner, Remover, Muter,
+                                        Outbox
+      log_judgement/                    logs every judgement and its cost, at Warn what the operator should see
   feed/                                 Update: a message sent, a message's new reactions, an announcement, a
                                         message removed, or an account that left a flag's room (MessageSent,
                                         ReactionsChanged, Announced, MessageRemoved, RoomLeft); For(room)
@@ -129,6 +145,7 @@ internal/chat/internal/
                                         flag's room and the world
     player_forgotten_subscriber/        player.v1.PlayerForgotten → forget_seen_usecase, and forget_moderation_usecase
     allegiance_pledged_subscriber/      planet.v1.AllegiancePledged → leave_room_usecase, for the flag left
+    player_reported_subscriber/         support.v1.PlayerReported → judge_report_usecase
     log_subscriber/                     logs an event a subscriber refused (player's, copied)
   migrations/                           the chat schema
 ```

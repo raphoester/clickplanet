@@ -10,7 +10,7 @@ and says what is in it. Read the doc before you change its area.
 
 - [Commands](docs/commands.md) — `make test` (Docker for the postgres and Redis tests), `-race`, `make deadcode`,
   `make lint`, `make tidy`, `make check-format`, `go run ./cmd/api`, `make proto`, the vendoring targets (`quiz`,
-  `map`, `vpn-lists`, `disposable-domains`, `historic-scripts`, `zernio`), `make dBuild`, and `cmd/clips`.
+  `map`, `moderation`, `vpn-lists`, `disposable-domains`, `historic-scripts`, `zernio`), `make dBuild`, and `cmd/clips`.
 - [Configuration](docs/configuration.md) — `cpconfigs` loads YAML and environment with koanf; the full schema.
 - [Testing](docs/testing.md) — testify; which suites need Docker (postgres, S3, Redis); `e2e/` holds smoke tests
   only, rules go in lower tests; the `testing` tag.
@@ -29,7 +29,7 @@ and says what is in it. Read the doc before you change its area.
   the idempotent receivers, the outboxes, the commands.
 - [Inside the planet module](docs/planet-module.md) — one directory per concept, no `domain` or `adapters` layer;
   use cases.
-- [Inside the chat module](docs/chat-module.md) — the same shape, for chat's eight concepts.
+- [Inside the chat module](docs/chat-module.md) — the same shape, for chat's ten concepts.
 - [Reads are queries](docs/queries.md) — a read endpoint does not go through the write model.
 - [Adapters](docs/adapters.md) — the primary (Connect handlers) and secondary (stores) adapters.
 - [Transactions](docs/transactions.md) — a use case opens one with `InTx` and records its events in it; a store
@@ -94,9 +94,11 @@ and says what is in it. Read the doc before you change its area.
 
 ## The other contexts
 
-- [Chat](docs/chat.md) — messages, each flag's room beside the world chat, GIFs, announcements, mutes, removals,
-  the moderation history (every mute, unmute and removal with its reason and who made it, kept 90 days), replies,
-  reactions, and what each account saw; why each context keeps its own history.
+- [Chat](docs/chat.md) — messages, the banned phrases refused at send however they are spelled, each flag's room
+  beside the world chat, GIFs, announcements, mutes, removals, the moderation history (every mute, unmute and removal
+  with its reason and who made it, kept 90 days), raid mode (no guest posts), the Claude Haiku judge of reports (the
+  steps applied in code, one judgement per report and per message, an hourly cap), replies, reactions, and what each
+  account saw; why each context keeps its own history.
 - [Player](docs/player.md) — who an account is: names and guest codes, colors, the nameplates the page draws every name
   from (`GetNameplates`), who is playing now, and an account
   asked deleted, hidden from the other players until it is purged or comes back; what it tells the other modules of
@@ -125,7 +127,8 @@ and says what is in it. Read the doc before you change its area.
   uploads to the bucket and Cloudflare serves publicly; words with `{path}` placeholders filled from the values the set
   plays and the battle's points at each read (`GetTeaser`); the set and times from the gamemaster (`GetBattle`), the
   values from planet (`GetRuleSet`), the points from scoring (`GetRankPoints`).
-- [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos.
+- [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos; each
+  report told to the chat's judge (`PlayerReported`) and closed by its command (`DecideReport`).
 - [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role and its username
   as its nickname; the role follows the flag pledged, in a color of its own, and the nickname the username; the pings
   when its flag is attacked, with a link that opens the globe on the attack, and `@everyone` when a battle or a season

@@ -1123,3 +1123,212 @@ export class RemovalAction extends Message<RemovalAction> {
   }
 }
 
+/**
+ * @generated from message chat.v1.SetRaidModeRequest
+ */
+export class SetRaidModeRequest extends Message<SetRaidModeRequest> {
+  /**
+   * How long it runs from now, in whole seconds, 24 hours at most. 0, or unset, ends it now.
+   *
+   * @generated from field: google.protobuf.Duration duration = 1;
+   */
+  duration?: Duration;
+
+  /**
+   * Why, in a few words. Optional; 500 characters at most.
+   *
+   * @generated from field: string reason = 2;
+   */
+  reason = "";
+
+  constructor(data?: PartialMessage<SetRaidModeRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.SetRaidModeRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "duration", kind: "message", T: Duration },
+    { no: 2, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetRaidModeRequest {
+    return new SetRaidModeRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetRaidModeRequest {
+    return new SetRaidModeRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetRaidModeRequest {
+    return new SetRaidModeRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetRaidModeRequest | PlainMessage<SetRaidModeRequest> | undefined, b: SetRaidModeRequest | PlainMessage<SetRaidModeRequest> | undefined): boolean {
+    return proto3.util.equals(SetRaidModeRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.SetRaidModeResponse
+ */
+export class SetRaidModeResponse extends Message<SetRaidModeResponse> {
+  /**
+   * The raid mode that runs now. Unset once it was ended.
+   *
+   * @generated from field: chat.v1.RaidMode raid_mode = 1;
+   */
+  raidMode?: RaidMode;
+
+  constructor(data?: PartialMessage<SetRaidModeResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.SetRaidModeResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "raid_mode", kind: "message", T: RaidMode },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetRaidModeResponse {
+    return new SetRaidModeResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetRaidModeResponse {
+    return new SetRaidModeResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetRaidModeResponse {
+    return new SetRaidModeResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetRaidModeResponse | PlainMessage<SetRaidModeResponse> | undefined, b: SetRaidModeResponse | PlainMessage<SetRaidModeResponse> | undefined): boolean {
+    return proto3.util.equals(SetRaidModeResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.GetRaidModeRequest
+ */
+export class GetRaidModeRequest extends Message<GetRaidModeRequest> {
+  constructor(data?: PartialMessage<GetRaidModeRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.GetRaidModeRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRaidModeRequest {
+    return new GetRaidModeRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRaidModeRequest {
+    return new GetRaidModeRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRaidModeRequest {
+    return new GetRaidModeRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRaidModeRequest | PlainMessage<GetRaidModeRequest> | undefined, b: GetRaidModeRequest | PlainMessage<GetRaidModeRequest> | undefined): boolean {
+    return proto3.util.equals(GetRaidModeRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.GetRaidModeResponse
+ */
+export class GetRaidModeResponse extends Message<GetRaidModeResponse> {
+  /**
+   * Unset when raid mode does not run.
+   *
+   * @generated from field: chat.v1.RaidMode raid_mode = 1;
+   */
+  raidMode?: RaidMode;
+
+  constructor(data?: PartialMessage<GetRaidModeResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.GetRaidModeResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "raid_mode", kind: "message", T: RaidMode },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRaidModeResponse {
+    return new GetRaidModeResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRaidModeResponse {
+    return new GetRaidModeResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRaidModeResponse {
+    return new GetRaidModeResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRaidModeResponse | PlainMessage<GetRaidModeResponse> | undefined, b: GetRaidModeResponse | PlainMessage<GetRaidModeResponse> | undefined): boolean {
+    return proto3.util.equals(GetRaidModeResponse, a, b);
+  }
+}
+
+/**
+ * While it runs, the chat takes no guest's post.
+ *
+ * @generated from message chat.v1.RaidMode
+ */
+export class RaidMode extends Message<RaidMode> {
+  /**
+   * @generated from field: google.protobuf.Timestamp started_at = 1;
+   */
+  startedAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 2;
+   */
+  endsAt?: Timestamp;
+
+  /**
+   * Empty for none.
+   *
+   * @generated from field: string reason = 3;
+   */
+  reason = "";
+
+  constructor(data?: PartialMessage<RaidMode>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.RaidMode";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "started_at", kind: "message", T: Timestamp },
+    { no: 2, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RaidMode {
+    return new RaidMode().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RaidMode {
+    return new RaidMode().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RaidMode {
+    return new RaidMode().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RaidMode | PlainMessage<RaidMode> | undefined, b: RaidMode | PlainMessage<RaidMode> | undefined): boolean {
+    return proto3.util.equals(RaidMode, a, b);
+  }
+}
+

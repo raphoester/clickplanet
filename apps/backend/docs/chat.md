@@ -244,7 +244,7 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
 
 **Every mute, unmute and removal an operator made is kept, per account, with the reason given and who made it**, past
 the chat's own retention: `moderation`, `chat.moderation`, read by
-`chat.v1.AdminService/ListModeration(account_id, since, limit)`. It is what Claude's runs count their steps from (see
+`chat.v1.AdminService/ListModeration(account_id, since, limit)`. It is what the judge and the daily audit count the steps from (see
 [Chat moderation](../../../docs/moderation.md)), and what the operator audits Claude by. The operator's renames are
 player's: see [Who owns which history](#who-owns-which-history).
 
@@ -263,7 +263,9 @@ player's: see [Who owns which history](#who-owns-which-history).
 - **Who** is what the admin gate admitted: the operator's account and, for an app the operator connected, its name
   (`client`, `Claude`), as the `admin call` line says it. The gate puts it on the call's context
   (`cpctx.Operator`, see [Operator tools](admin.md)) and each handler reads it there (`chatoperator.Of`). A call on the
-  console listener has no gate, and is kept by nobody: no operator, no client.
+  console listener has no gate, and is kept by nobody: no operator, no client. **The judge is no operator and a client
+  of its own**, `Claude judge` (`judgements.By`), so the history tells what it did from the operator's calls and from
+  Claude's through the connector (see [The judge](#the-judge)).
 - **The removed text is kept, on purpose** (decided with the owner on 2026-11-06): the reason alone cannot be checked
   against what was said once the message is pruned, and Claude removes on its own. The copy has no address beside it,
   and is personal data all the same, so the privacy page lists it.
@@ -325,6 +327,79 @@ takes to open a private tab.
 - **Not personal data**: no account, no address. The prune leaves the row.
 - `raids`' suite runs both stores; `raid_mode_query`'s that the query and `RunsAt` agree; `raiding_send_message`'s
   that a guest is refused only while it runs and the player module is asked only then.
+
+## The judge
+
+**Claude Haiku reads every report of the chat support keeps, and the chat acts on it by the policy's steps**: the
+third layer of [Chat moderation](../../../docs/moderation.md), and the only one that costs money, so only a report ever
+reaches the model. A concept of its own, `judgements`, which imports `messages`, `moderation` and `mutes`.
+
+- **Support tells each report kept**, `support.v1.PlayerReported`, from its outbox (see [Support](support.md)), and
+  the chat hears it (`chat-judge-reports`, `player_reported_subscriber`). Support is upstream of the chat and never
+  names it; the chat closes the report in support's words, a `support.v1.DecideReport` command.
+- **`judge_report_usecase` does the cheap reads first and asks the model last**, each step a way out:
+  1. A report judged already is told again: the judgement kept, and nothing done (`Out.Again`).
+  2. A cheating report, or one of a name, is left open unread: the antibot's and the operator's.
+  3. A message judged already decides this report too: the same verdict, decided again "as report …" with its reason
+     (`Judgement.Followed`). **Many reports of one message are one judgement**: `chat.judgements` keeps the first that
+     judged it (`OfMessage`, `judged`). A report left open before anything was judged (the cap, no key, the operator's
+     account) does not stand for the next.
+  4. The conversation (`postgres_conversations`): the message reported, the 15 messages of its room before it and
+     the 10 after, and the reported player's own latest 20 in every room, removed ones marked, within the chat's
+     retention. A message past it is dismissed; one removed already closes the report as acted; one that is not the
+     reported player's is left open; a player with nothing kept is dismissed.
+  5. **The operator's own account is never acted on**: `IntroducePlayer` says it is an admin (`messages.Author.Admin`).
+  6. **The hourly cap**, `chat.judge.callsPerHour` (10): a `cpratelimit` bucket of that many, refilled over the hour,
+     in memory like every limiter here. Once it is spent a report is left open, flagged, so a report flood costs no
+     more than the cap.
+  7. The account's last 7 days of moderation history (`postgres_moderation_store.ActionsOn`).
+  8. **The model**, `claude_judge`: Claude Haiku 5.5 (`claude-haiku-5-5`, `chat.judge.model`), its instructions
+     (`claude_judge/instructions.md`) and the policy (`generated/moderation`, the copy `make moderation` takes of
+     `docs/moderation.md`, `make check-moderation` in pre-push and CI) as the system prompt, marked for caching, then
+     the report and the conversation. **Every author is a label** (`REPORTED`, `REPORTER`, `P1`…), never a name, an
+     account or an address, and every line is data the instructions say never to obey. The reported player's GIFs,
+     three at most, go as images the API fetches from KLIPY. Effort `medium`, `max_tokens` 4,000, a minute and one
+     retry. **The answer is held to a schema by structured outputs** (`output_config.format`): a category (`none`,
+     `offence`, `spam`, `child_safety`, `self_harm`, `cheating`, `unsure`), whether it is severe, the ids of the
+     player's messages that break the rules, a few words of what was said, and one line of why.
+- **The model says what was said; the code says what it costs** (`judgements.Decide`, `Slate`):
+  - `none` dismisses. `child_safety`, `self_harm`, `cheating` and `unsure` leave the report open, flagged, and touch
+    nothing: never acted on.
+  - `offence` and `spam` remove the player's messages the model named, **only those that are the reported player's,
+    shown, and not removed yet**; none left is a doubt, left open. A GIF offence takes the GIF mute, any text the
+    chat's.
+  - **The count is the history's**: the highest `offence N (chat|gifs)` a reason carries in the last 7 days, of the
+    kind (`SlateOf`), so a mute and a removal of one offence count once, and the count carries on past a week while
+    offences keep coming. The next is N+1, a severe one at least the 3rd, and the table: nothing, 15 minutes, an
+    hour, 24 hours (`Slate.Next`, `MaxMute`). **After a 24-hour mute of the kind**, or past the 4th, the message goes
+    and the report is left open for the operator.
+  - A first spam is `spam, no offence: <what>`, removed and not counted; spam after one is an offence.
+  - Every action's reason is `offence N (kind): <what>` and the decision's comment `Claude judge: <reason>; 1 message
+    removed, muted 15 minutes`.
+- **All of it or none**: one `InTx` runs `remove_message_usecase` for each message and `mute_usecase`, each with the
+  reason and `judgements.By`, records the mute's `chat.v1.AccountMuted` (so the chat announces it) and the report's
+  `support.v1.DecideReport` (`acted` or `dismissed`, its comment) in **the chat's outbox** (migration
+  `20261107140000_judgements`, `chat-outbox`, `redis_outbox_sender`: the decision to support's command stream, the mute
+  to the events), and keeps the judgement. A report left open sends nothing. The streams are told of a removal when it
+  is kept, inside the transaction: one rolled back after it is shown removed until the next load.
+- **What fails is tried again by the bus**: the model not answering, a 5xx, a 429, an answer off the schema. **What
+  would fail again is left open**: a refusal (`stop_reason: "refusal"`, Haiku has no fallback model) or a request the
+  API refuses (a 4xx but 408, 409 and 429, such as a GIF it could not fetch), flagged, and standing for the message.
+- **With no `ANTHROPIC_API_KEY` nothing is sent** (`claude_judge.Unkeyed`, chosen in `module.go`): every report is
+  left open, logged at Info, and the subscription keeps up with the stream, so a key added later judges what comes
+  after it, not a backlog.
+- **`log_judgement` logs every judgement**, with its tokens and their price ($0.10 and $0.50 a million in and out):
+  at Warn what the operator should look at (child safety, self-harm, cheating, a doubt, a severe offence, one after a
+  24-hour mute, the cap spent), at Info the rest. **What a judgement costs**: the policy and the instructions are
+  about 3,000 tokens, a conversation of 45 lines a few thousand more, and the answer with its thinking a few hundred:
+  well under a cent. The cap bounds a flood to 10 an hour.
+- **`chat.judgements`** keeps one row per report (`report_id`, `message_id`, `verdict` of the type
+  `judgement_verdict`, `judged`, `flagged`, `reason`, `judged_at`), pruned with the messages at the chat's retention.
+  It holds no account and no text: the reason is the model's few words and the steps'.
+- The domain's tests pin the table, the count and each category (`slate_test.go`, `decision_test.go`); the use case's
+  every way out, the transaction and the outbox; `claude_judge`'s the request whole on a fake Messages API (the cached
+  policy, the schema, the labels, the image) and each failure; and the smoke test
+  `TestAReportIsJudgedTheMessageRemovedAndTheReportClosed` a report from support through both outboxes and back.
 
 ## Replies
 
