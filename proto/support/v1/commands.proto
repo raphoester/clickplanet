@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package support.v1;
+
+import "support/v1/admin.proto";
+
+// What another module asks of support, in support's words, over Redis Streams.
+
+// Closes a report, as AdminService/DecideReport does, once: report_id is the command's identity, so a report already
+// decided, by the operator or by this command told again, keeps its decision. A report no longer kept is nothing to
+// close.
+message DecideReport {
+  string report_id = 1;
+  ReportOutcome outcome = 2;
+  // Optional: why, in the decider's words.
+  string comment = 3;
+}

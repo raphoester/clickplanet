@@ -115,3 +115,34 @@ func (s *testSuite) TestADecisionGoesWithItsReport() {
 
 	s.Empty(s.kept())
 }
+
+func (s *testSuite) TestADecisionSavedOnceIsKeptForAReportNotDecidedYet() {
+	s.filed()
+
+	kept, err := s.store.SaveOnce(s.T().Context(), s.decided(decisions.OutcomeActed, "Claude judge", decidedAt))
+
+	s.Require().NoError(err)
+	s.True(kept)
+	s.Equal([]decisions.Snapshot{
+		{Report: report, Outcome: decisions.OutcomeActed, Comment: "Claude judge", At: decidedAt},
+	}, s.kept())
+}
+
+func (s *testSuite) TestADecisionSavedOnceLeavesTheOneKept() {
+	s.filed()
+	s.Require().NoError(s.store.Save(s.T().Context(), s.decided(decisions.OutcomeDismissed, "the operator's", decidedAt)))
+
+	kept, err := s.store.SaveOnce(s.T().Context(), s.decided(decisions.OutcomeActed, "", decidedAt.Add(time.Hour)))
+
+	s.Require().NoError(err)
+	s.False(kept)
+	s.Equal([]decisions.Snapshot{
+		{Report: report, Outcome: decisions.OutcomeDismissed, Comment: "the operator's", At: decidedAt},
+	}, s.kept())
+}
+
+func (s *testSuite) TestAReportNoLongerKeptCannotBeDecidedOnce() {
+	_, err := s.store.SaveOnce(s.T().Context(), s.decided(decisions.OutcomeActed, "", decidedAt))
+
+	s.Require().ErrorIs(err, decisions.ErrUnknownReport)
+}

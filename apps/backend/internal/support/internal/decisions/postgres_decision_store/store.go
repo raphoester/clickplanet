@@ -24,20 +24,36 @@ var _ decisions.Storage = (*Store)(nil)
 
 const foreignKeyViolation = "23503"
 
+const insert = `INSERT INTO report_decisions (report_id, outcome, comment, decided_at) VALUES ($1, $2::report_outcome, $3, $4)`
+
 func (s *Store) Save(ctx context.Context, decision decisions.Decision) error {
-	kept := decision.TakeSnapshot()
-	_, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO report_decisions (report_id, outcome, comment, decided_at) VALUES ($1, $2::report_outcome, $3, $4)
+	_, err := s.write(ctx, insert+`
 		ON CONFLICT (report_id) DO UPDATE SET
 			outcome = EXCLUDED.outcome, comment = EXCLUDED.comment, decided_at = EXCLUDED.decided_at
-	`, uuid.UUID(kept.Report), string(kept.Outcome), kept.Comment, kept.At.UTC())
+	`, decision)
+	return err
+}
+
+func (s *Store) SaveOnce(ctx context.Context, decision decisions.Decision) (bool, error) {
+	written, err := s.write(ctx, insert+` ON CONFLICT (report_id) DO NOTHING`, decision)
+	return written > 0, err
+}
+
+func (s *Store) write(ctx context.Context, statement string, decision decisions.Decision) (int64, error) {
+	kept := decision.TakeSnapshot()
+	result, err := s.db.On(ctx).ExecContext(ctx, statement,
+		uuid.UUID(kept.Report), string(kept.Outcome), kept.Comment, kept.At.UTC())
 
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) && pqErr.Code == foreignKeyViolation {
-		return fmt.Errorf("%w: %s", decisions.ErrUnknownReport, uuid.UUID(kept.Report))
+		return 0, fmt.Errorf("%w: %s", decisions.ErrUnknownReport, uuid.UUID(kept.Report))
 	}
 	if err != nil {
-		return fmt.Errorf("failed to save a decision: %w", err)
+		return 0, fmt.Errorf("failed to save a decision: %w", err)
 	}
-	return nil
+	written, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to read whether a decision was saved: %w", err)
+	}
+	return written, nil
 }

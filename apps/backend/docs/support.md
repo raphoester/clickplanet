@@ -1,6 +1,6 @@
 # Support (`internal/support/`)
 
-**What a player sends the operator.** Today that is a feature suggestion, a bug report, or a report of another player. Always on. It publishes nothing. It asks `auth` for the click token's key, and `player` how to name the accounts of a report when the operator reads it.
+**What a player sends the operator.** Today that is a feature suggestion, a bug report, or a report of another player. Always on. It publishes one event, `support.v1.PlayerReported`, through its outbox, and handles one command, `support.v1.DecideReport`, both of a player report (below). It asks `auth` for the click token's key, and `player` how to name the accounts of a report when the operator reads it.
 
 ```
 internal/support/internal/
@@ -35,12 +35,14 @@ internal/support/internal/
     postgres_report_store/          Storage, over support.reports
     inmemory_report_storage/        Storage in a slice of snapshots, with Seed and Kept for a test — behind the testing tag, tests only
     uuid_id_provider/               IDProvider: a UUIDv7 per report
-    usecases/report_player_usecase/     reads what was filed, draws an id, builds the report, keeps it — IDProvider, Reports
+    usecases/report_player_usecase/     reads what was filed, draws an id, builds the report, keeps it and records
+                                        support.v1.PlayerReported in one transaction — IDProvider, Transactioner,
+                                        Reports, Outbox
     usecases/forget_reports_usecase/    reads the reports that name an account, forgets them, saves — Reports
     usecases/prune_reports_usecase/     reads the reports past retention, forgets them, saves — Reports
   decisions/                        Decision (NewDecision, TakeSnapshot), Snapshot (Restore), Outcome; the Storage port
     postgres_decision_store/        Storage, over support.report_decisions
-    usecases/decide_report_usecase/ builds the decision and keeps it — Saver
+    usecases/decide_report_usecase/ builds the decision and keeps it, or keeps it once (Once: a command's) — Saver
       audit_decide_report/          logs every decision at Warn
   supportv1controller/              SupportService and AdminService (bags), the interceptors
     suggest_feature_handler/  report_bug_handler/  report_player_handler/  get_attachment_rules_handler/
@@ -51,6 +53,8 @@ internal/support/internal/
     caller/                         the account on the context, or Unauthenticated
     pagecontext/                    Diagnostics: a request's PageContext and its User-Agent, for both handlers
     attachment/                     IDs and Uploaded: the files a note names, and the upload a request is answered
+  commands/
+    decide_report_handler/          support.v1.DecideReport → decide_report_usecase, once per report
   subscribers/                      Timeout
     player_forgotten_subscriber/    player.v1.PlayerForgotten → anonymize_notes_usecase, and again → forget_reports_usecase
     log_subscriber/                 logs an event a subscriber refused
@@ -73,7 +77,8 @@ internal/support/internal/
 - **Kept in `support.notes`** (`id`, `kind`, `account_id`, `text`, `diagnostics`, `submitted_at`), one insert per note (5s timeout), in the module's own block, `support.database`. **`diagnostics` is `jsonb NOT NULL`** (migration `20261012100000_note_diagnostics`, which gives `{}` to the notes kept before it): every row has one, so no column is there for one kind alone. The store writes every key, and the keys are the JSON names of `PageContext` plus `userAgent`: `notes_query` decodes the object as a `PageContext` and skips a key it does not know, so a new diagnostic is a proto field and a key, and no migration. `migrations_test.go` starts from a note kept before the column. **`kind` is a postgres enum type, `note_kind`**: the database holds the list of kinds, so a row of another kind cannot exist, typed by hand or written by a bug. A new kind is a value a migration adds to the type, as `bug` is. **No address is kept**: the account is enough to find a player again, and the limiter holds the address in memory only.
 - **The account does not outlive its reason; a note's text does.** A note goes one way: read, `Anonymized()`, save. The prune reads the notes sent before `support.retention` (90 days) ago that still have a sender, 500 at a time until none is left, then forgets the reports filed before it (`prune_reports_usecase`), at boot and every `support.pruneInterval`; an anonymized note is not read again, which is what ends the loop. `player.v1.PlayerForgotten`, which player tells for every account auth deletes, reads the notes the account sent and anonymizes them at once (`support-notes-forgotten`), and forgets every report it filed or is named in (`support-reports-forgotten`): each concept has its own subscription. Until 2026-11-04 both heard `auth.v1.AccountDeleted` (`support-notes-accounts`, `support-reports-accounts`); why the new groups miss no deletion is in [Player](player.md#the-deploy-that-moved-the-others-to-players-events). **What stays of a note is free text and its files**: a player who wrote a name or an address in it, or showed one, left it there. The privacy page says both are kept and asks for no personal details in them.
 - **The operator reads them with `support.v1.AdminService/ListNotes(since, kind, limit)`**, on the admin listener (see [Operator tools](admin.md)): newest first, 100 unless asked, 500 at most, every kind unless one is asked. Every note comes with its `context` and `user_agent`. It is a query (`notes_query`): a stored kind the wire cannot carry refuses the read (`ErrUnknownKind`: a kind a newer migration added to the type, read by an older build), and a kind asked for that the proto does not name is `InvalidArgument` (`ErrInvalidKind`). Each note carries its `account_id`, which is what `antibot.v1`'s `InspectPlayer` and `BanPlayer` and chat's `Mute` take; it is empty once the note is anonymized.
-- **Nothing is pushed.** The module publishes no event, and nothing leaves the server but the files a note carries, which go to the bucket: the operator asks.
+- **Nothing of a note is pushed.** No event tells a note, and nothing of one leaves the server but the files it
+  carries, which go to the bucket: the operator asks.
 - **A note carries up to 10 photos or videos**, a suggestion as a bug report: every note has the list, most of them empty. A `notes.Attachment` is an id, a media type and a size, plain data in the snapshot. The id (`notes.AttachmentID`) is the file's name in the bucket.
   - **The files are in an S3 bucket, never on this server.** The droplet has 1 GB of memory and 25 GB of disk, Cloudflare cuts a proxied body at 100 MB, Caddy passes Connect routes alone, and the operator reads on a loopback listener, so a file kept here could not be opened in a browser. Any S3-compatible bucket does (`support.attachments.bucket`); production's is Cloudflare R2.
   - **The files first, the note after**, so a note never reaches the operator without the files that explain it. `CreateUpload(content_type, size_bytes)` answers an id and a link: the page sends the file there with one `PUT`, straight to the bucket, and no byte of it passes through this server. Then `SuggestFeatureRequest.attachment_ids` and `ReportBugRequest.attachment_ids` name the files, in order.
@@ -108,7 +113,20 @@ internal/support/internal/
 - **The use case only orders four steps**: the read of what the reporter already filed about that account, the id, then `NewReport` and the save. A report's rules live in `Restore` alone, the complaint's included.
 - **No report of oneself** (`ErrOwnAccount`, `InvalidArgument`): `Restore` refuses it, so no report of oneself exists to be kept.
 - **One account reports one player once a UTC day** (`ErrReportedAlready`, `AlreadyExists`), **and `NewReport` is where that is decided**: the use case hands it what the reporter already filed about the player (`FiledBy`), and a report of the same day among them refuses the new one. **The database holds no part of the rule**: no day column, no unique constraint, and a storage keeps two reports of one day if it is handed them. So two reports sent at the very same moment can both be kept. That is accepted: a report does nothing by itself, and the service's limiter lets an address send three.
-- **A report does nothing by itself, and nothing counts reports.** No mute, no ban, no score. A guest account is free to make and countries are rivals here, so a threshold would be a weapon. The operator reads a report, then uses the tools it already has.
+- **A report does nothing by itself, and nothing counts reports.** No mute, no ban, no score. A guest account is free to make and countries are rivals here, so a threshold would be a weapon. The operator reads a report, then uses the tools it already has; the chat's judge reads it too (below), and acts by what was said, never by how many reported it.
+- **Every report kept is told**: `support.v1.PlayerReported` (`proto/support/v1/events.proto`: the report's id, both
+  accounts, the reason as the wire names it, the text, the message id and the time). `report_player_usecase` records it
+  in its outbox in the transaction that saves the report, so the chat is never told of a report not kept, nor misses
+  one kept (migration `20261107130000_outbox`, `support-outbox`, the relay in the module's runners). **The chat hears
+  it**: its judge reads a report of what was said, and closes it with a command (see
+  [Chat moderation](../../../docs/moderation.md)). Support is upstream of the chat, and never names it.
+- **A report is closed by a command too**: `support.v1.DecideReport{report_id, outcome, comment}`
+  (`proto/support/v1/commands.proto`, on its own command stream, group `handler`), which `decide_report_handler`
+  hands to `decide_report_usecase` with `Once`. **The report's id is the command's identity**: the store keeps it with
+  `SaveOnce` (`ON CONFLICT DO NOTHING`), so a report decided already keeps its decision, the operator's or the same
+  command's told again, and the command is done (`ErrDecidedAlready`). The operator's `DecideReport` call still
+  replaces any decision. A report no longer kept is nothing to close, and the command is done too. A command with no
+  report id or no outcome is refused and logged, then buried once the bus gives up.
 - **Kept in `support.reports`** (`id`, `reporter_account_id`, `reported_account_id`, `reason`, `text`, `message_id`, `created_at`; migration `20261012110000_reports`), with no address. **`reason` is a postgres enum type, `report_reason`**, as a note's kind is: a new reason is a value a migration adds to the type.
 - **`AdminService/ListReports(since, limit)`**, as `ListNotes`: newest first, 100 unless asked, 500 at most. `reports_query` reads the rows, then asks `GetPlayers` once for everyone they name, reporters and reported together. An account nobody can name any more has an empty name. **Reports nobody could be named in are refused**, as a chat history is. A stored reason the wire cannot carry refuses the read (`ErrUnknownReason`: a reason a newer migration added to the type, read by an older build). `reported_account_id` is what `antibot.v1`'s `InspectPlayer` and `BanPlayer` and chat's `Mute` take, and `message_id` what `GetMessage` and `RemoveMessage` take.
 - **`AdminService/DecideReport(report_id, outcome, comment)` closes a report**: `acted` or `dismissed`, and an

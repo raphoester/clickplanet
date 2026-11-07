@@ -30,6 +30,15 @@ func (r *recordedDecisions) Save(_ context.Context, decision decisions.Decision)
 	return nil
 }
 
+func (r *recordedDecisions) SaveOnce(ctx context.Context, decision decisions.Decision) (bool, error) {
+	for _, saved := range r.saved {
+		if saved.Report == decision.TakeSnapshot().Report {
+			return false, r.err
+		}
+	}
+	return r.err == nil, r.Save(ctx, decision)
+}
+
 func decide(t *testing.T, saver *recordedDecisions, in decide_report_usecase.In) (time.Time, error) {
 	t.Helper()
 
@@ -67,4 +76,49 @@ func TestADecisionThatCannotBeKeptFails(t *testing.T) {
 	})
 
 	require.ErrorIs(t, err, cause)
+}
+
+func TestADecisionOnceIsKeptForAReportNotDecidedYet(t *testing.T) {
+	saver := &recordedDecisions{}
+
+	decidedAt, err := decide(t, saver, decide_report_usecase.In{
+		Report: reports.ReportID{15: 1}, Outcome: decisions.OutcomeActed, Comment: "Claude judge: removed", Once: true,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, now, decidedAt)
+	assert.Equal(t, []decisions.Snapshot{
+		{Report: reports.ReportID{15: 1}, Outcome: decisions.OutcomeActed, Comment: "Claude judge: removed", At: now},
+	}, saver.saved)
+}
+
+func TestADecisionOnceLeavesAReportDecidedAlready(t *testing.T) {
+	saver := &recordedDecisions{}
+	_, err := decide(t, saver, decide_report_usecase.In{
+		Report: reports.ReportID{15: 1}, Outcome: decisions.OutcomeDismissed, Comment: "the operator's",
+	})
+	require.NoError(t, err)
+
+	_, err = decide(t, saver, decide_report_usecase.In{
+		Report: reports.ReportID{15: 1}, Outcome: decisions.OutcomeActed, Comment: "the judge's", Once: true,
+	})
+
+	require.ErrorIs(t, err, decisions.ErrDecidedAlready)
+	assert.Equal(t, "the operator's", saver.saved[0].Comment)
+	assert.Len(t, saver.saved, 1)
+}
+
+func TestTheOperatorsDecisionReplacesOneMadeOnce(t *testing.T) {
+	saver := &recordedDecisions{}
+	_, err := decide(t, saver, decide_report_usecase.In{
+		Report: reports.ReportID{15: 1}, Outcome: decisions.OutcomeActed, Comment: "the judge's", Once: true,
+	})
+	require.NoError(t, err)
+
+	_, err = decide(t, saver, decide_report_usecase.In{
+		Report: reports.ReportID{15: 1}, Outcome: decisions.OutcomeDismissed, Comment: "the operator's",
+	})
+
+	require.NoError(t, err)
+	assert.Len(t, saver.saved, 2, "saved again: the store keeps the last")
 }
