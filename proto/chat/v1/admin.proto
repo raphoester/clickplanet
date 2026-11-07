@@ -10,7 +10,8 @@ import "google/protobuf/timestamp.proto";
 service AdminService {
   // Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
   // the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. Of the kind
-  // asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
+  // asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other. With
+  // account_only, the account alone: its network keeps the chat.
   rpc Mute(MuteRequest) returns (MuteResponse);
 
   // Ends now every mute of the kind given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
@@ -60,6 +61,9 @@ message MuteRequest {
   MuteKind kind = 3;
   // Why, in a few words, kept in the moderation history (ListModeration). Optional; 500 characters at most.
   string reason = 4;
+  // The account alone, never its network: for an account on a network that people who did nothing share, such as a
+  // household. Any other account on that network, a fresh guest included, still posts. Unset holds the network too.
+  bool account_only = 5;
 }
 
 message MuteResponse {

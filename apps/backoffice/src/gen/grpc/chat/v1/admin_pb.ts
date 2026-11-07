@@ -35,6 +35,14 @@ export class MuteRequest extends Message<MuteRequest> {
    */
   reason = "";
 
+  /**
+   * The account alone, never its network: for an account on a network that people who did nothing share, such as a
+   * household. Any other account on that network, a fresh guest included, still posts. Unset holds the network too.
+   *
+   * @generated from field: bool account_only = 5;
+   */
+  accountOnly = false;
+
   constructor(data?: PartialMessage<MuteRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -47,6 +55,7 @@ export class MuteRequest extends Message<MuteRequest> {
     { no: 2, name: "duration", kind: "message", T: Duration },
     { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(MuteKind) },
     { no: 4, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "account_only", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MuteRequest {

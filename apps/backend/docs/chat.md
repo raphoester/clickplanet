@@ -125,7 +125,7 @@ won a season, and `flag_mission`, every flag that finished its mission of the da
 ## Mutes
 
 **An operator can take a player's chat away and leave it the map**: `chat.v1.AdminService/Mute(account_id,
-duration, kind, reason)`, on the admin listener (see [Operator tools](admin.md)). A muted caller's
+duration, kind, reason, account_only)`, on the admin listener (see [Operator tools](admin.md)). A muted caller's
 `SendMessage` and `React` are refused; it still reads the chat and plays.
 
 - **A mute has a kind: what it takes away** (`mutes.Kind`, `chat.v1.MuteKind`). `Chat`, the zero value on the wire
@@ -144,6 +144,12 @@ duration, kind, reason)`, on the admin listener (see [Operator tools](admin.md))
   IPv4, the throttle's unit (`cpipscope`). Never wider: Free Mobile's subscribers share a /32. So a new guest in a
   private tab on the same line is muted from its first post. An account that never posted has no network, and
   only it is muted. **An IPv4 address can be a carrier's NAT**: a mute on one holds the strangers behind it too.
+- **`account_only` mutes the account alone, since 2026-11-07** (`mute_usecase.In.AccountOnly`): the mute keeps no
+  network, as for an account that never posted, so it holds nobody else, and `MuteResponse.scope` is empty. It is for
+  an account on a line that people who did nothing share. On 2026-11-06 a raid account's 30-day mute held a home /64
+  with three other accounts of one player, none muted for its own posts, and the only way to free them was to lift
+  the raider's mute too. **The cost is the evasion the network rule stops**: another account on the line, a
+  fresh guest included, still posts. Unset holds the network, as before.
 - **The rule is `Mute.ApplicableTo`**: a caller is muted of a kind while a mute of that kind names its account or its
   network and has not ended. `postgres_mute_store` asks the same in SQL (a mute with no network is `NULL`, which matches nobody), and
   the contract suite runs both stores.

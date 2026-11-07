@@ -30,7 +30,10 @@ type MuteRequest struct {
 	Duration *durationpb.Duration `protobuf:"bytes,2,opt,name=duration,proto3" json:"duration,omitempty"`
 	Kind     MuteKind             `protobuf:"varint,3,opt,name=kind,proto3,enum=chat.v1.MuteKind" json:"kind,omitempty"`
 	// Why, in a few words, kept in the moderation history (ListModeration). Optional; 500 characters at most.
-	Reason        string `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	Reason string `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	// The account alone, never its network: for an account on a network that people who did nothing share, such as a
+	// household. Any other account on that network, a fresh guest included, still posts. Unset holds the network too.
+	AccountOnly   bool `protobuf:"varint,5,opt,name=account_only,json=accountOnly,proto3" json:"account_only,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -91,6 +94,13 @@ func (x *MuteRequest) GetReason() string {
 		return x.Reason
 	}
 	return ""
+}
+
+func (x *MuteRequest) GetAccountOnly() bool {
+	if x != nil {
+		return x.AccountOnly
+	}
+	return false
 }
 
 type MuteResponse struct {
@@ -1703,13 +1713,14 @@ var File_chat_v1_admin_proto protoreflect.FileDescriptor
 
 const file_chat_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x13chat/v1/admin.proto\x12\achat.v1\x1a\x12chat/v1/chat.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa2\x01\n" +
+	"\x13chat/v1/admin.proto\x12\achat.v1\x1a\x12chat/v1/chat.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc5\x01\n" +
 	"\vMuteRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x125\n" +
 	"\bduration\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bduration\x12%\n" +
 	"\x04kind\x18\x03 \x01(\x0e2\x11.chat.v1.MuteKindR\x04kind\x12\x16\n" +
-	"\x06reason\x18\x04 \x01(\tR\x06reason\"a\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\x12!\n" +
+	"\faccount_only\x18\x05 \x01(\bR\vaccountOnly\"a\n" +
 	"\fMuteResponse\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12;\n" +
 	"\vmuted_until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +

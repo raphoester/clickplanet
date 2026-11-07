@@ -6,7 +6,8 @@ the daily audit reads it first, so a change here changes what both do. It holds 
 whom, is never written here**: the repository is public.
 
 **The game wants players, so moderation is light.** A mute leaves the player the map, but it silences its whole network
-too (the address over IPv4, the /64 over IPv6: a school, a mobile carrier), and the chat announces it. So a removal
+too (the address over IPv4, the /64 over IPv6: a school, a mobile carrier), and the chat announces it. Only the operator
+mutes an account alone (`account_only`), for a network that people who did nothing share. So a removal
 comes first, a mute only stops a spree, and nothing goes past 24 hours without the operator.
 
 ## The three layers

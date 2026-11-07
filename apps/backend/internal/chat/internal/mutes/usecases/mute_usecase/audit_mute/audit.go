@@ -24,7 +24,7 @@ func (a *Audited) Execute(ctx context.Context, in mute_usecase.In) (mutes.Mute, 
 
 	attrs := []any{
 		slog.String("account", in.Account.String()), slog.String("kind", in.Kind.String()),
-		slog.Duration("duration", in.Duration),
+		slog.Duration("duration", in.Duration), slog.Bool("accountOnly", in.AccountOnly),
 		slog.String("scope", string(mute.Caller().Scope())), slog.Time("mutedUntil", mute.Until()),
 		slog.String("reason", in.Reason),
 	}
