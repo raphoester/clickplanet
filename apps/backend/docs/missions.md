@@ -128,21 +128,29 @@ internal/missions/internal/
   - **A fact counts on every mission it fits, whatever flag it is for** (`Sheet.WithFact`): after a change of flag the
     day's rivals and grounds still count, and its tiles for the old flag stop. A change of flag gets no second set,
     since an account has one day. The client never names the flag. **Progress is counted from planet's events**, one
-    subscriber each (`missions-progress` for `TileTaken`, `missions-boxes`, `missions-answers`, `missions-bombs`,
+    subscriber each (`missions-progress` for `TilesTaken`, `missions-boxes`, `missions-answers`, `missions-bombs`,
     `missions-shields`, `missions-fortifies`), all through `record_fact_usecase`, up to each goal, in one transaction
-    under `pg_advisory_xact_lock` per fact, with nothing written once nothing changed. A wrong answer, and a bomb, a
-    shield or a fortify with no account, is dropped by its subscriber. **Not from the ledger**: `ledger_events` has no
-    time index, and an account's takes since the day started would read every take it ever made. **A fact told twice counts
-    once**: Redis delivers at least once, and the sheet keeps a mark per kind (`missions.Counted`, the
+    per day and account under `pg_advisory_xact_lock`, with nothing written once nothing changed. A wrong answer, and a
+    bomb, a shield or a fortify with no account, is dropped by its subscriber. **The takes come in batches**
+    (`cpredis.SubscribeBatch`: up to 100 ledger events, each with every tile it took): `tiles_taken_subscriber` hands
+    each account's takes of a batch to one call, under its own timeout; the use case groups them by the day each ran in
+    (`days.GroupsOf`, each day read once), reads the brief once per day and account, and folds `WithFact` over them in
+    one transaction. Each other fact is a batch of one. Until 2026-11-07 each take was a `TileTaken` of its own, in a
+    transaction of its own: an Africa was 51,253 of them (see
+    [Giant pockets, measured](enclose.md#giant-pockets-measured-2026-11-07)). **Not from the ledger**: `ledger_events`
+    has no time index, and an account's takes since the day started would read every take it ever made. **A fact told
+    twice counts once**: Redis delivers at least once, and the sheet keeps a mark per kind (`missions.Counted`, the
     `mission_sheets.counted_*` columns): the ledger position after the last bomb, shield and fortify it counted, the
     time of the last box and right answer, so one at or below its mark counts nothing. A take's mark is the position
     and index past the last take counted (`missions.LedgerMark`: `counted_takes_below`, `counted_takes_below_index`):
-    the takes of a spread or an enclose share one position, and each has its own index. Each kind has its own
-    mark because each comes on its own stream, in no order with the others. Two boxes or answers of one account in the
-    same microsecond count once.
-  - **A mission done is paid at once, with no claim** (`payroll.Pay`, `Sheet.WithPayments`). The take that finishes it
+    the takes of a spread or an enclose share one position, and each has its own index, which goes on across the parts
+    of an enclose of more than 4,096 tiles. A batch that fails is handled again one event at a time, and the mark skips
+    what it counted. Each kind has its own mark because each comes on its own stream, in no order with the others. Two
+    boxes or answers of one account in the same microsecond count once.
+  - **A mission done is paid at once, with no claim** (`payroll.Pay`, `Sheet.WithPayments`). The fact that finishes it
     writes the payment (`mission_payments`) and records the `planet.v1.GrantCharges` command in missions' outbox, in
-    the transaction that counts the take: both are kept, or neither and the take is told again. `missions-outbox`
+    the transaction that counts it: both are kept, or neither and the fact is told again. A batch of takes pays once:
+    its transaction compares what is due before its takes and after them. `missions-outbox`
     sends it to planet, which grants it once per `grant_id` (`planetgrant.Of`: the account and the mission, so a
     payment told twice names one grant). **What does not fit the stack is lost**, as planet grants any charge: no
     reply comes back.
@@ -153,10 +161,11 @@ internal/missions/internal/
     `redis_outbox_sender` sends each on its own kind of stream.
   - **The player hears its progress and its payments on a stream, with no read** (`MissionService.ListenForEvents`,
     `stream MissionEvent`). The stream sends the caller's day as `GetMissions` answers it (`day`, `missionmessage.Day`)
-    as it opens, then again after each fact of the caller is counted, and a `heartbeat` every
-    `httpServer.streamHeartbeat`. **A fact wakes the stream once its transaction is committed**: `record_fact_usecase`
-    for the player's missions, `record_flag_take_usecase` and `record_strike_usecase` for the flag's, with the account
-    the take or the strike names (`subscribers.AccountOrNone`: a flag's fact with no account wakes nobody). **A stream
+    as it opens, then again after each fact or batch of takes of the caller is counted, and a `heartbeat` every
+    `httpServer.streamHeartbeat`. **A fact wakes the stream once its transaction is committed**, a batch once each
+    account it names, after all its transactions: `record_fact_usecase` for the player's missions,
+    `record_flag_take_usecase` and `record_strike_usecase` for the flag's, with the account the take or the strike
+    names (`subscribers.AccountOrNone`: a flag's fact with no account wakes nobody). **A stream
     sends at most one day a second** (`listen_for_events_usecase.DefaultGap`): every take moves a mission, and a run of
     clicks would read the day once per take; what changes during the wait is in the day read after it. That is what
     the game's progress line reads (see the frontend's [Missions](../../frontend/docs/missions.md)). A payment wakes it
@@ -245,18 +254,21 @@ day and a flag), so it has its own package and store (`flagmissions`).
   (2026-11-02). Only a map with nothing to aim at draws no mission, and today's map always has a big ground the flag
   does not hold, so this costs no read of the map per take. `OfPlayer` is the day of the flag the account plays now
   (`GetAllegianceOf`), none with no flag.
-- **Counted from two facts, each in its own group**: `TileTaken` (`missions-flag-takes`, `flag_tile_taken_subscriber`,
-  `record_flag_take_usecase`), and `ShieldStruck` (`missions-flag-strikes`, `shield_struck_subscriber`,
-  `record_strike_usecase`), every shield a click, a spread, an enclose or a bomb broke: `country` is the flag that
-  broke it, `owner` the shield's. A bomb strikes its own flag's shields too, and they are no shield broken. **A fact
-  told twice counts once**: each kind keeps a ledger mark (`missions.LedgerMark`: `counted_takes_below` and
-  `counted_takes_below_index`, `counted_strikes_below` and `counted_strikes_below_index`), since a spread's takes and a
-  bomb's strikes share one position. Until 2026-10-29 a strike was a `ClickTried` whose outcome was `STRUCK`: only
-  the tile clicked counted, never a spread's, an enclose's or a bomb's (the owner found it the day it shipped).
+- **Counted from two facts, each in its own group**: `TilesTaken` (`missions-flag-takes`, `flag_tiles_taken_subscriber`,
+  `record_flag_take_usecase`), and `ShieldsStruck` (`missions-flag-strikes`, `shields_struck_subscriber`,
+  `record_strike_usecase`), the shields a click, a spread, an enclose or a bomb broke: `country` is the flag that
+  broke them, each tile's `owner` the shield's. A bomb strikes its own flag's shields too, and they are no shield
+  broken. **Both come in batches**, as the player's takes do: each flag's facts of a batch in one call, grouped by the
+  day each ran in (`days.GroupsOf`), the flag's day read once (`Briefing.Of`), and one transaction per day and flag
+  that folds `WithTake` or `WithStrike` over them and records what they finished once. **A fact told twice counts
+  once**: each kind keeps a ledger mark (`missions.LedgerMark`: `counted_takes_below` and `counted_takes_below_index`,
+  `counted_strikes_below` and `counted_strikes_below_index`), since a spread's takes and a bomb's strikes share one
+  position, and the parts of a big one too. Until 2026-10-29 a strike was a `ClickTried` whose outcome was `STRUCK`:
+  only the tile clicked counted, never a spread's, an enclose's or a bomb's (the owner found it the day it shipped).
 - **The fact that finishes it gives the points, once** (`Day.WithTake`, `WithStrike`, `Done`): in the transaction
   that counts it, the use case records `scoring.v1.GrantPoints` in missions' outbox (`scoringgrant.Of`): the mission's id
-  as `grant_id`, the flag, the points, and the fact's time as `granted_at`, so scoring counts them in the books open
-  then. `missions-outbox` sends it with the charges.
+  as `grant_id`, the flag, the points, and the fact's time (`Done.At`, not the batch's last) as `granted_at`, so
+  scoring counts them in the books open then. `missions-outbox` sends it with the charges.
 - **And tells it, once** (`flagmessage.Done`): in the same transaction, `missions.v1.FlagMissionDone`, the flag, the
   mission as `GetMissions` shows it, done (`flagmessage.Mission`, the one encoder of a flag mission), and the fact's time
   as `done_at`. The chat hears it and announces it in the world and in the flag's room (see the chat's
