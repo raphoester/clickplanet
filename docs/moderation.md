@@ -27,7 +27,7 @@ project spends, so the two layers before it cost nothing.
    reported account's last 7 days of moderation history, asks Claude Haiku what was said, and applies the steps
    below itself: the model never chooses a removal or a mute. It acts as `Claude judge` in the moderation history,
    and closes the report with a one-line reason. One judgement per report and per message, at most
-   `chat.judge.callsPerHour` an hour (10), and off with no `ANTHROPIC_API_KEY`.
+   `chat.judge.callsPerHour` an hour (6), and off with no `ANTHROPIC_API_KEY`.
 
 ## What stays
 

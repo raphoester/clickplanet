@@ -349,10 +349,10 @@ reaches the model. A concept of its own, `judgements`, which imports `messages`,
      retention. A message past it is dismissed; one removed already closes the report as acted; one that is not the
      reported player's is left open; a player with nothing kept is dismissed.
   5. **The operator's own account is never acted on**: `IntroducePlayer` says it is an admin (`messages.Author.Admin`).
-  6. **The hourly cap**, `chat.judge.callsPerHour` (10): a `cpratelimit` bucket of that many, refilled over the hour,
-     in memory like every limiter here. Once it is spent a report is left open, flagged, so a report flood costs no
-     more than the cap.
-  7. The account's last 7 days of moderation history (`postgres_moderation_store.ActionsOn`).
+  6. The account's last 7 days of moderation history (`postgres_moderation_store.ActionsOn`).
+  7. **The hourly cap**, `chat.judge.callsPerHour` (6): a `cpratelimit` bucket of that many, refilled over the hour,
+     in memory like every limiter here, taken right before the call. Once it is spent a report is left open, flagged,
+     so a report flood costs no more than the cap. A call the bus tries again takes from it again.
   8. **The model**, `claude_judge`: Claude Haiku 5.5 (`claude-haiku-5-5`, `chat.judge.model`), its instructions
      (`claude_judge/instructions.md`) and the policy (`generated/moderation`, the copy `make moderation` takes of
      `docs/moderation.md`, `make check-moderation` in pre-push and CI) as the system prompt, marked for caching, then
@@ -391,8 +391,10 @@ reaches the model. A concept of its own, `judgements`, which imports `messages`,
 - **`log_judgement` logs every judgement**, with its tokens and their price ($0.10 and $0.50 a million in and out):
   at Warn what the operator should look at (child safety, self-harm, cheating, a doubt, a severe offence, one after a
   24-hour mute, the cap spent), at Info the rest. **What a judgement costs**: the policy and the instructions are
-  about 3,000 tokens, a conversation of 45 lines a few thousand more, and the answer with its thinking a few hundred:
-  well under a cent. The cap bounds a flood to 10 an hour.
+  about 3,200 tokens (cached for 5 minutes: Haiku 5.5 caches from 512), a conversation of 45 lines about 2,000 more,
+  and the answer with its thinking a few hundred to 1,500: about $0.0013 at most, a tenth of a cent. **The cap is the
+  bill's bound**: a flood held at 6 an hour all month is 4,320 calls, about $5.60, under the owner's $10 a month for
+  every AI call (see [The clips job](clips-job.md)); a normal day is a handful of reports, cents a month.
 - **`chat.judgements`** keeps one row per report (`report_id`, `message_id`, `verdict` of the type
   `judgement_verdict`, `judged`, `flagged`, `reason`, `judged_at`), pruned with the messages at the chat's retention.
   It holds no account and no text: the reason is the model's few words and the steps'.

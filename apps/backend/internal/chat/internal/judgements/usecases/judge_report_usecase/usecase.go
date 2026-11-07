@@ -156,13 +156,14 @@ func (u *UseCase) Execute(ctx context.Context, report judgements.Report) (Out, e
 		return u.left(ctx, report, false, false, "the operator's own account is never acted on", now)
 	}
 
-	if allowed, _ := u.ports.Calls.Take(callsKey); !allowed {
-		return u.left(ctx, report, false, true, "the hourly cap of judge calls is spent", now)
-	}
-
 	history, err := u.ports.History.ActionsOn(ctx, report.Reported, now.Add(-judgements.SlateWindow))
 	if err != nil {
 		return Out{}, fmt.Errorf("failed to read the player's moderation history: %w", err)
+	}
+
+	// Right before the call, so a read the bus tries again spends none of it.
+	if allowed, _ := u.ports.Calls.Take(callsKey); !allowed {
+		return u.left(ctx, report, false, true, "the hourly cap of judge calls is spent", now)
 	}
 
 	answer, err := u.ports.Judge.Judge(ctx, report, conversation)

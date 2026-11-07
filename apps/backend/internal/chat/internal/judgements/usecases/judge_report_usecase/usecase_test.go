@@ -405,3 +405,17 @@ func (r *recordedRemovals) Save(ctx context.Context, removal removals.Snapshot) 
 type recordedFeed struct{}
 
 func (recordedFeed) Publish(feed.Update) {}
+
+func (s *testSuite) TestAReadThatFailsSpendsNothingOfTheCap() {
+	s.cap = 1
+	s.build()
+	cause := errors.New("postgres is down")
+	s.history.FailWith(cause)
+
+	_, err := s.useCase.Execute(s.T().Context(), reportOf(first, "m-2"))
+	s.Require().ErrorIs(err, cause)
+
+	s.history.FailWith(nil)
+	out := s.judged(reportOf(first, "m-2"))
+	s.Equal(judgements.Acted, out.Judgement.Verdict(), "the bus tried it again, and the cap still had its call")
+}

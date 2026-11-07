@@ -210,7 +210,7 @@ chat:
   judge:
     anthropic:
       apiKey: env://ANTHROPIC_API_KEY
-    callsPerHour: 10
+    callsPerHour: 6
 
 player:
   database:

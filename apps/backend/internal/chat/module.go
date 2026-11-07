@@ -388,7 +388,7 @@ type JudgeConfig struct {
 	CallsPerHour int
 }
 
-const defaultJudgeCallsPerHour = 10
+const defaultJudgeCallsPerHour = 6
 
 func (c JudgeConfig) withDefaults() JudgeConfig {
 	if c.Model == "" {
