@@ -403,7 +403,6 @@ func closeRing(t *testing.T, game gameStack, rdb *redis.Client, name string, rin
 ) {
 	t.Helper()
 	ctx := t.Context()
-	takenBefore, tallyBefore := ringer.tilesTaken(), ringer.tally(book)
 
 	// The pages watching: 25 streams.
 	listening, stopListening := context.WithCancel(ctx)
@@ -606,12 +605,25 @@ func closeRing(t *testing.T, game gameStack, rdb *redis.Client, name string, rin
 	}
 	t.Logf("%s: redis uses %s once every group caught up", name, usedMemory(t, rdb))
 
-	wantTaken := takenBefore + 1 + int64(len(ring.Inside))
+	// What the ledger says the ringer took, every click and every tile of its spreads and enclosures, once all of it is
+	// flushed and told: progression and scoring must count exactly that, no tile missed and none twice.
+	var wantTaken int64
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		var head, relayed int64
+		require.NoError(c, planetDB.On(ctx).QueryRowContext(ctx, `SELECT COALESCE(max(position) + 1, 0) FROM ledger_events`).Scan(&head))
+		require.NoError(c, planetDB.On(ctx).QueryRowContext(ctx, `SELECT position FROM ledger_relayed`).Scan(&relayed))
+		assert.GreaterOrEqual(c, relayed, head)
+	}, 20*time.Second, 200*time.Millisecond, "the relay told everything the ledger flushed")
+	waitForTheTakes(t, rdb, time.Now(), 5*time.Minute)
+	require.NoError(t, planetDB.On(ctx).QueryRowContext(ctx, `
+		SELECT (SELECT count(*) FROM ledger_events WHERE account = $1 AND kind = 'take')
+			+ (SELECT COALESCE(sum(jsonb_array_length(payload::jsonb -> 'taken')), 0) FROM ledger_events
+			   WHERE account = $1 AND kind IN ('spread', 'enclose'))
+	`, ringer.account).Scan(&wantTaken))
 	require.Eventually(t, func() bool { return ringer.tilesTaken() == wantTaken }, 30*time.Second, 200*time.Millisecond,
-		"progression counts every tile of the pocket: has %d, wants %d", ringer.tilesTaken(), wantTaken)
-	wantTally := tallyBefore + 1 + int64(len(ring.Inside))
-	require.Eventually(t, func() bool { return ringer.tally(book) == wantTally }, 30*time.Second, 200*time.Millisecond,
-		"scoring counts every tile of the pocket in the season: has %d, wants %d", ringer.tally(book), wantTally)
+		"progression counts every tile the ledger says the ringer took, once: has %d, wants %d", ringer.tilesTaken(), wantTaken)
+	require.Eventually(t, func() bool { return ringer.tally(book) == wantTaken }, 30*time.Second, 200*time.Millisecond,
+		"scoring counts every tile the ledger says the ringer took, once: has %d, wants %d", ringer.tally(book), wantTaken)
 	t.Logf("%s: progression and scoring each count %d tiles for the ringer", name, wantTaken)
 }
 

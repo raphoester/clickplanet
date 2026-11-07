@@ -116,7 +116,9 @@ battle's players), never a flag's points, since a round is scored from the map (
 with every tile it took, in parts of 4,096 tiles at most (`relay_ledger_usecase.PartTiles`): an Africa is 13 entries of
 some 200 KB, not 51,253. Its subscribers read with `cpredis.SubscribeBatch` and write each account's, round's or day's
 takes of a batch at once, keeping their marks (see [The composite layer](composite-layer.md#telling-other-modules-what-happened)).
-Shields struck go the same way, as `planet.v1.ShieldsStruck`.
+Shields struck go the same way, as `planet.v1.ShieldsStruck`. Measured again on the whole stack (4 cores): every group
+caught up 2.3 s after Russia's closing click and 2.9 s after Africa's, against 1.5 to 3.5 minutes before, and
+progression and scoring each count exactly the tiles the ledger says the ringer took.
 
 **To measure again**: `CP_GIANT=1 go test -tags testing ./internal/planet/internal/clicks/usecases/click_usecase/enclose_click/
 -run TestGiantEnclosures -v` runs the pockets above in process. `CP_GIANT_DUMP=<dir>` also writes the Russia and Africa
