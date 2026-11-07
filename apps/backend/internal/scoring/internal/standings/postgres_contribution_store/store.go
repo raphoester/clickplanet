@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings"
@@ -23,36 +24,55 @@ var _ standings.Store = (*Store)(nil)
 
 const takeLock = 0x73656173
 
-func (s *Store) RecordTake(ctx context.Context, book books.BookID, take standings.Take) error {
+// RecordTakes writes only the rows whose tiles changed, each with the tally's new mark: the tally's mark is its highest
+// row's.
+func (s *Store) RecordTakes(ctx context.Context, book books.BookID, account standings.AccountID, takes []standings.Take) error {
 	return s.db.InTx(ctx, func(ctx context.Context) error {
 		tx := s.db.On(ctx)
-		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, takeLock, take.Account.String()); err != nil {
+		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, takeLock, account.String()); err != nil {
 			return fmt.Errorf("failed to lock the account's contributions: %w", err)
 		}
 
-		tally, err := tallyOf(ctx, tx, book, take.Account)
+		tally, err := tallyOf(ctx, tx, book, account)
 		if err != nil {
 			return err
 		}
-		next := tally.WithTake(take)
+		next := tally.WithTakes(takes)
 
+		var (
+			countries []string
+			tiles     []int64
+			main      []bool
+		)
+		for country, held := range next.Tiles {
+			if held != tally.Tiles[country] {
+				countries = append(countries, string(country))
+				tiles = append(tiles, int64(held)) //nolint:gosec // one a tile taken: never past int64.
+				main = append(main, country == next.Main)
+			}
+		}
+		if len(countries) == 0 {
+			return nil
+		}
+
+		// The old main row goes first: a row made main while another still is breaks contributions_main_key.
 		if tally.Main != "" && next.Main != tally.Main {
 			if _, err := tx.ExecContext(ctx, `
 				UPDATE contributions SET main = false WHERE book_id = $1 AND account_id = $2 AND country = $3
-			`, string(book), uuid.UUID(take.Account), string(tally.Main)); err != nil {
+			`, string(book), uuid.UUID(account), string(tally.Main)); err != nil {
 				return fmt.Errorf("failed to move the main flag: %w", err)
 			}
 		}
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO contributions (book_id, account_id, country, tiles, main, counted_takes_below, counted_takes_below_index)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			SELECT $1, $2, taken.country, taken.tiles, taken.main, $6, $7
+			FROM unnest($3::text[], $4::bigint[], $5::boolean[]) AS taken (country, tiles, main)
 			ON CONFLICT (book_id, account_id, country) DO UPDATE
 			SET tiles = excluded.tiles, main = excluded.main, counted_takes_below = excluded.counted_takes_below,
 				counted_takes_below_index = excluded.counted_takes_below_index
-		`, string(book), uuid.UUID(take.Account), string(take.Country),
-			int64(next.Tiles[take.Country]), next.Main == take.Country, //nolint:gosec // one a tile taken: never past int64.
+		`, string(book), uuid.UUID(account), pq.Array(countries), pq.Array(tiles), pq.Array(main),
 			int64(next.TakesBelow.Position), int64(next.TakesBelow.Index)); err != nil { //nolint:gosec // a ledger position fits in int64.
-			return fmt.Errorf("failed to save the take: %w", err)
+			return fmt.Errorf("failed to save the takes: %w", err)
 		}
 		return nil
 	})

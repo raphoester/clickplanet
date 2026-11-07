@@ -37,7 +37,8 @@ type Grants interface {
 
 // Takes counts the tiles taken during each round, for its numbers.
 type Takes interface {
-	// Count counts a take in each round, once: a take told again changes nothing.
-	Count(ctx context.Context, rounds []RoundID, take Take) error
+	// Count counts the takes each round holds, given in ledger order, each once and in one write: a take told again
+	// changes nothing.
+	Count(ctx context.Context, held map[RoundID][]Take) error
 	ForgetAccount(ctx context.Context, account AccountID) error
 }

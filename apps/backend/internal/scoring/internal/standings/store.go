@@ -7,6 +7,7 @@ import (
 )
 
 type Store interface {
-	RecordTake(ctx context.Context, book books.BookID, take Take) error
+	// RecordTakes counts an account's takes in a book, in ledger order, in one write: a take told again changes nothing.
+	RecordTakes(ctx context.Context, book books.BookID, account AccountID, takes []Take) error
 	DeleteAccount(ctx context.Context, account AccountID) error
 }

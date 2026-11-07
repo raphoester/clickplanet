@@ -1,4 +1,4 @@
-package tile_taken_subscriber
+package tiles_taken_subscriber
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, take standings.Take) error
+	Execute(ctx context.Context, takes []standings.Take) error
 }
 
 func New(useCase UseCase) Subscriber {
@@ -23,30 +23,42 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpredis.Handler[*planetv1.TileTaken] = Subscriber{}
+var _ cpredis.BatchHandler[*planetv1.TilesTaken] = Subscriber{}
 
-var errNoTime = errors.New("the take has no time")
+var errNoTime = errors.New("the takes have no time")
 
-func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error {
-	account, err := standings.AccountIDOf(event.GetAccountId())
-	if err != nil {
-		return fmt.Errorf("tile %d: %w", event.GetTileId(), err)
+// HandleBatch counts the takes of the batch in one call, in the order they were told: one write per book and account,
+// not one per tile.
+func (s Subscriber) HandleBatch(ctx context.Context, events []*planetv1.TilesTaken) error {
+	var takes []standings.Take
+	for _, event := range events {
+		account, err := standings.AccountIDOf(event.GetAccountId())
+		if err != nil {
+			return fmt.Errorf("the takes at %d: %w", event.GetPosition(), err)
+		}
+		if event.GetCountry() == "" {
+			return fmt.Errorf("the takes at %d: %w", event.GetPosition(), standings.ErrNoCountry)
+		}
+		if err := event.GetTakenAt().CheckValid(); err != nil {
+			return fmt.Errorf("the takes at %d: %w: %w", event.GetPosition(), errNoTime, err)
+		}
+		at := event.GetTakenAt().AsTime()
+		for _, tile := range event.GetTiles() {
+			takes = append(takes, standings.Take{
+				Account:  account,
+				Country:  standings.Country(event.GetCountry()),
+				At:       at,
+				Position: event.GetPosition(),
+				Index:    tile.GetIndex(),
+			})
+		}
 	}
-	if event.GetCountry() == "" {
-		return fmt.Errorf("tile %d: %w", event.GetTileId(), standings.ErrNoCountry)
-	}
-	if err := event.GetTakenAt().CheckValid(); err != nil {
-		return fmt.Errorf("tile %d: %w: %w", event.GetTileId(), errNoTime, err)
+	if len(takes) == 0 {
+		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	return s.useCase.Execute(ctx, standings.Take{ //nolint:wrapcheck // the use case named it.
-		Account:  account,
-		Country:  standings.Country(event.GetCountry()),
-		At:       event.GetTakenAt().AsTime(),
-		Position: event.GetPosition(),
-		Index:    event.GetIndex(),
-	})
+	return s.useCase.Execute(ctx, takes) //nolint:wrapcheck // the use case named it.
 }

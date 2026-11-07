@@ -25,7 +25,8 @@ func TestAMissionDoneIsToldWithItsFlagAsItsPlayersSeeItAtTheTimeItWasDone(t *tes
 	told, err := flagmessage.Done("fr", []flagmissions.Done{{
 		Mission:  flagmissions.MissionSnapshot{ID: mission, Order: flagmissions.BreakShields{Flag: "de", Goal: 300}, Points: 6},
 		Progress: 300,
-	}}, at)
+		At:       at,
+	}})
 
 	require.NoError(t, err)
 	require.Len(t, told, 1)
@@ -40,8 +41,8 @@ func TestAMissionDoneIsToldWithItsFlagAsItsPlayersSeeItAtTheTimeItWasDone(t *tes
 
 func TestAKindWithNoMessageIsAnError(t *testing.T) {
 	_, err := flagmessage.Done("fr", []flagmissions.Done{{
-		Mission: flagmissions.MissionSnapshot{ID: mission, Order: unknownOrder{}, Points: 6},
-	}}, at)
+		Mission: flagmissions.MissionSnapshot{ID: mission, Order: unknownOrder{}, Points: 6}, At: at,
+	}})
 
 	assert.ErrorIs(t, err, flagmessage.ErrUnknownKind)
 }

@@ -45,10 +45,12 @@ func account(n int) standings.AccountID {
 }
 
 func (s *testSuite) take(n int, country standings.Country, tiles int) {
+	takes := make([]standings.Take, 0, tiles)
 	for range tiles {
 		s.taken++
-		s.Require().NoError(s.store.RecordTake(s.T().Context(), "season-0", standings.Take{Account: account(n), Country: country, Position: s.taken}))
+		takes = append(takes, standings.Take{Account: account(n), Country: country, Position: s.taken})
 	}
+	s.Require().NoError(s.store.RecordTakes(s.T().Context(), "season-0", account(n), takes))
 }
 
 func (s *testSuite) player(n int, country standings.Country, tiles int) {

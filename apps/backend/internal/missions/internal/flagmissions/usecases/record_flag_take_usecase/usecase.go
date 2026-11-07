@@ -2,7 +2,6 @@ package record_flag_take_usecase
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -49,39 +48,60 @@ type UseCase struct {
 	streams       Streams
 }
 
-func (u *UseCase) Execute(ctx context.Context, take flagmissions.Take) error {
-	day, err := u.calendar.DayAt(ctx, take.At)
-	if errors.Is(err, days.ErrNoDay) {
-		return nil
-	}
+// Execute counts each take on its flag's day: one transaction per day and flag, however many takes, which records the
+// points and the word of a mission they finished. Each account that took wakes once, after.
+func (u *UseCase) Execute(ctx context.Context, takes ...flagmissions.Take) error {
+	groups, err := days.GroupsOf(ctx, u.calendar, takes, func(take flagmissions.Take) (time.Time, string) {
+		return take.At, take.Flag
+	})
 	if err != nil {
-		return fmt.Errorf("failed to read the day of the take: %w", err)
-	}
-	if _, err := u.briefing.Of(ctx, day, take.Flag); err != nil {
-		return fmt.Errorf("failed to read %s's mission: %w", take.Flag, err)
+		return fmt.Errorf("failed to read the days of the takes: %w", err)
 	}
 
-	if err := u.transactioner.InTx(ctx, func(ctx context.Context) error {
+	var woken []missions.AccountID
+	seen := map[missions.AccountID]bool{}
+	for _, group := range groups {
+		if err := u.record(ctx, group); err != nil {
+			return err
+		}
+		for _, take := range group.Facts {
+			if !seen[take.Account] {
+				seen[take.Account] = true
+				woken = append(woken, take.Account)
+			}
+		}
+	}
+	for _, account := range woken {
+		u.streams.Publish(account)
+	}
+	return nil
+}
+
+func (u *UseCase) record(ctx context.Context, group days.Group[string, flagmissions.Take]) error {
+	flag := group.Key
+	if _, err := u.briefing.Of(ctx, group.Day, flag); err != nil {
+		return fmt.Errorf("failed to read %s's mission: %w", flag, err)
+	}
+
+	return u.transactioner.InTx(ctx, func(ctx context.Context) error {
 		var done []flagmissions.Done
-		if err := u.flagDays.ChangeDay(ctx, day, take.Flag, func(current flagmissions.Day) flagmissions.Day {
-			next, finished := current.WithTake(take)
-			done = finished
-			return next
+		if err := u.flagDays.ChangeDay(ctx, group.Day, flag, func(day flagmissions.Day) flagmissions.Day {
+			for _, take := range group.Facts {
+				var finished []flagmissions.Done
+				day, finished = day.WithTake(take)
+				done = append(done, finished...)
+			}
+			return day
 		}); err != nil {
-			return fmt.Errorf("failed to count the take on %s's day: %w", take.Flag, err)
+			return fmt.Errorf("failed to count the takes on %s's day: %w", flag, err)
 		}
 		if len(done) == 0 {
 			return nil
 		}
-		told, err := flagmessage.Done(take.Flag, done, take.At)
+		told, err := flagmessage.Done(flag, done)
 		if err != nil {
-			return fmt.Errorf("failed to tell %s's mission done: %w", take.Flag, err)
+			return fmt.Errorf("failed to tell %s's mission done: %w", flag, err)
 		}
-		return u.outbox.Record(ctx, append(scoringgrant.Of(take.Flag, done, take.At), told...)...) //nolint:wrapcheck // the outbox named it.
-	}); err != nil {
-		return err //nolint:wrapcheck // the transaction's own error.
-	}
-
-	u.streams.Publish(take.Account)
-	return nil
+		return u.outbox.Record(ctx, append(scoringgrant.Of(flag, done), told...)...) //nolint:wrapcheck // the outbox named it.
+	})
 }

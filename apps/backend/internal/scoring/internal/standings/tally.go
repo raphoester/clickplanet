@@ -27,6 +27,14 @@ func (t Tally) WithTake(take Take) Tally {
 	return Tally{Main: main, Tiles: tiles, TakesBelow: takeMarkPast(take)}
 }
 
+// WithTakes is each take in turn: an account's takes of a batch, recorded in one write.
+func (t Tally) WithTakes(takes []Take) Tally {
+	for _, take := range takes {
+		t = t.WithTake(take)
+	}
+	return t
+}
+
 func (t Tally) Empty() bool {
 	return t.Main == ""
 }

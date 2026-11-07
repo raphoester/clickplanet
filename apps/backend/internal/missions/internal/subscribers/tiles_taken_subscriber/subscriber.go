@@ -1,4 +1,4 @@
-package tile_taken_subscriber
+package tiles_taken_subscriber
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in record_fact_usecase.In) error
+	Execute(ctx context.Context, facts ...record_fact_usecase.In) error
 }
 
 func New(useCase UseCase) Subscriber {
@@ -24,28 +24,49 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpredis.Handler[*planetv1.TileTaken] = Subscriber{}
+var _ cpredis.BatchHandler[*planetv1.TilesTaken] = Subscriber{}
 
-var errNoTime = errors.New("the take has no time")
+var errNoTime = errors.New("the takes have no time")
 
-func (s Subscriber) Handle(ctx context.Context, event *planetv1.TileTaken) error {
-	account, err := missions.AccountIDOf(event.GetAccountId())
-	if err != nil {
-		return fmt.Errorf("tile %d: %w", event.GetTileId(), err)
+// HandleBatch records each account's takes of the batch in one call, in the order they were told: an enclose of a
+// continent is one write, not one per tile.
+func (s Subscriber) HandleBatch(ctx context.Context, events []*planetv1.TilesTaken) error {
+	var told []missions.AccountID
+	takes := map[missions.AccountID][]record_fact_usecase.In{}
+	for _, event := range events {
+		account, err := missions.AccountIDOf(event.GetAccountId())
+		if err != nil {
+			return fmt.Errorf("the takes at %d: %w", event.GetPosition(), err)
+		}
+		if err := event.GetTakenAt().CheckValid(); err != nil {
+			return fmt.Errorf("the takes at %d: %w: %w", event.GetPosition(), errNoTime, err)
+		}
+		if len(event.GetTiles()) == 0 {
+			continue
+		}
+		if _, known := takes[account]; !known {
+			told = append(told, account)
+		}
+		at := event.GetTakenAt().AsTime()
+		for _, tile := range event.GetTiles() {
+			takes[account] = append(takes[account], record_fact_usecase.In{Account: account, At: at, Fact: missions.Take{
+				Flag: event.GetCountry(), Previous: tile.GetPrevious(), Ground: tile.GetGround(),
+				Position: event.GetPosition(), Index: tile.GetIndex(),
+			}})
+		}
 	}
-	if err := event.GetTakenAt().CheckValid(); err != nil {
-		return fmt.Errorf("tile %d: %w: %w", event.GetTileId(), errNoTime, err)
-	}
 
+	for _, account := range told {
+		if err := s.record(ctx, takes[account]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s Subscriber) record(ctx context.Context, takes []record_fact_usecase.In) error {
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	return s.useCase.Execute(ctx, record_fact_usecase.In{ //nolint:wrapcheck // the use case named it.
-		Account: account,
-		At:      event.GetTakenAt().AsTime(),
-		Fact: missions.Take{
-			Flag: event.GetCountry(), Previous: event.GetPrevious(), Ground: event.GetGround(),
-			Position: event.GetPosition(), Index: event.GetIndex(),
-		},
-	})
+	return s.useCase.Execute(ctx, takes...) //nolint:wrapcheck // the use case named it.
 }
