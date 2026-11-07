@@ -13,8 +13,8 @@ its edge for the wire. A read is a query under its handler: see [Reads are queri
 ```
 internal/chat/internal/
   messages/                             Message (Snapshot, Restore, TakeSnapshot, Named, Answering), MessageID, Quote,
-                                        Drafts, Thread, Record (RecordSnapshot), Limits (WithBanned), Banned
-                                        (DefaultBannedPhrases, Said), ErrBanned, AccountID, Author,
+                                        Drafts, Thread, Record (RecordSnapshot), Limits (WithBanned), Banned (a
+                                        cpphrases.List: NewBanned, DefaultBannedPhrases), ErrBanned, AccountID, Author,
                                         Room (World, FlagRoom, RoomOf), Rooms (EntryError), Showing,
                                         ErrNoAccount, ErrNotShown, ErrNotKept, ErrNotInRoom, Window, the Storage, Flags and
                                         IDProvider ports, the StorageContractSuite, SequentialIDs, Restored and

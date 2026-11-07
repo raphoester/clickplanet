@@ -35,10 +35,12 @@ func TestADrawnNameIsAnAdjectiveAnAnimalAndTwoDigits(t *testing.T) {
 	}
 }
 
+// Every name it can draw, every number included: a digit reads as a letter to the banned names (4 is an a), so no
+// draw may spell one, or a sign-in would find no name.
 func TestEveryWordAndNumberMakesAValidUsername(t *testing.T) {
 	for _, adjective := range random_name_generator.Adjectives {
 		for _, animal := range random_name_generator.Animals {
-			for _, number := range []int{10, 99} {
+			for number := 10; number <= 99; number++ {
 				_, err := players.NameOf(fmt.Sprintf("%s%s%d", adjective, animal, number))
 				require.NoError(t, err, "%s%s%d", adjective, animal, number)
 			}

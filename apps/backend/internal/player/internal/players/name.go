@@ -11,6 +11,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpphrases"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpscripts"
 )
 
@@ -23,8 +24,22 @@ const (
 
 var (
 	ErrInvalidName = errors.New("invalid name")
-	ErrNotLinked   = errors.New("only an account signed in with a provider may choose a username")
+	// Wrapped in ErrInvalidName, and never with the phrase: a player is not told which spelling to try next.
+	ErrBannedName = errors.New("a banned name")
+	ErrNotLinked  = errors.New("only an account signed in with a provider may choose a username")
 )
+
+// The names refused however they are spelled (docs/moderation.md, "Usernames"): a slur or a Nazi reference, anywhere
+// in the name, since a name is one word: "xXHitlerXx" and "H1tl3r88" are refused. Political names stay. Unlike the
+// chat's list, a name alone is listed: a name has no conversation to stand in. Nothing that is a plain word inside
+// other words ("nazi" is in "Nazir"), nor a number alone ("88"): what the list misses, the daily audit renames.
+var DefaultBannedNames = []string{
+	"hitler", "sieg heil", "seig heil", "white power", "gas the jews", "1488",
+	"nigger", "nigga", "faggot",
+	"卐", "ϟϟ",
+}
+
+var bannedNames = cpphrases.New(cpphrases.Anywhere, DefaultBannedNames...)
 
 type Name string
 
@@ -43,6 +58,9 @@ func NameOf(value string) (Name, error) {
 	}
 	if !oneScript(value) {
 		return "", fmt.Errorf("%w: mixes scripts", ErrInvalidName)
+	}
+	if _, said := bannedNames.Said(value); said {
+		return "", fmt.Errorf("%w: %w", ErrInvalidName, ErrBannedName)
 	}
 
 	name := Name(value)

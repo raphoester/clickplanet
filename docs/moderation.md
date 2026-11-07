@@ -75,9 +75,12 @@ Counted per account from its **moderation history**, the chat and the GIFs apart
 
 ## Usernames
 
-- **Renamed**: a slur, a Nazi reference (`Hitler88`), a sexual name. The audit gives a neutral name, `Player` and
-  digits, with the reason, and lists the rename in the digest (`player_list_renames` keeps it 90 days, with the old
-  name). The player can choose another name at once.
+- **Refused when it is chosen**: a slur or a Nazi reference the game lists (`Hitler88`, `xXHitlerXx`, `H1tl3r`),
+  however it is spelled and anywhere in the name, as the chat's banned phrases are (see the backend's
+  [Player](../apps/backend/docs/player.md)). The player is told the name is invalid, never which word.
+- **Renamed**: a slur, a Nazi reference or a sexual name the list missed, and one kept from before it. The audit gives
+  a neutral name, `Player` and digits, with the reason, lists the rename in the digest (`player_list_renames` keeps it
+  90 days, with the old name), and proposes the word for the list. The player can choose another name at once.
 - **Kept**: every other name, political ones included.
 
 ## Reports

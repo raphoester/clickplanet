@@ -66,7 +66,7 @@ func TestAssignGivesTheSuggestedNameMadeAUsername(t *testing.T) {
 }
 
 func TestAssignDrawsANameWhenTheSuggestedOneIsNoUsername(t *testing.T) {
-	for _, suggested := range []string{"", "ab", "guest.nova", "nova♥42"} {
+	for _, suggested := range []string{"", "ab", "guest.nova", "nova♥42", "xX.Hitler.Xx"} {
 		store := inmemory_player_store.New()
 
 		_, err := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42")).
