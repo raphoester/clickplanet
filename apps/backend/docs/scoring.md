@@ -17,8 +17,9 @@ gamemaster sends the moments, and scoring has no rule set any more.
 internal/scoring/internal/
   books/                          BookID, RoundID, GrantID (ParseBookID, ParseRoundID, ParseGrantID: 1 to 64 characters),
                                   Book (NewBook, Holds, ClosedAt, Table), Round (NewRound, Holds, ScoredAt, Results),
-                                  Grant (NewGrant), Scored, Result, Score, Placed (ScoresOf, TableOf), Take, ErrRefused;
-                                  the Books, Rounds, Grants and Takes ports and their contract suites
+                                  Grant (NewGrant), Scored, Result, Score, Placed (ScoresOf, TableOf), Take,
+                                  TakeMark (Uncounted), ErrRefused; the Books, Rounds, Grants and Takes ports and their
+                                  contract suites
     postgres_book_store/          Books over books, closed_books, book_tiebreaks
     postgres_grant_store/         Grants over grants
     postgres_round_store/         Rounds and Takes over rounds, scored_rounds, round_results, round_takes,
@@ -28,8 +29,8 @@ internal/scoring/internal/
     usecases/open_book_usecase/   open_round_usecase/   close_round_usecase/   close_book_usecase/
     usecases/grant_points_usecase/
     usecases/count_take_usecase/  forget_account_usecase/   a round's numbers
-  standings/                      AccountID, Country, Take, Tally (WithTake); the Store port (RecordTake by book,
-                                  DeleteAccount) and its contract suite
+  standings/                      AccountID, Country, Take, Tally (WithTake, WithTakes); the Store port (RecordTakes by
+                                  book and account, DeleteAccount) and its contract suite
     postgres_contribution_store/  inmemory_contribution_store/
     usecases/record_take_usecase/  forget_account_usecase/
   players/                        an account player made a player (PlayerCreated): the Store port (Keep, IsPlayer,
@@ -57,9 +58,9 @@ internal/scoring/internal/
       inprocess_feed/             Feed[K, V]: each key the streams follow, read once a period, sent when it changed
       log_reader/                 logs a live read that failed
     caller/                       the account on the context, or Unauthenticated
-  subscribers/                    tile_taken_subscriber/  round_take_subscriber/  player_created_subscriber/
+  subscribers/                    tiles_taken_subscriber/  round_take_subscriber/  player_created_subscriber/
                                   player_leaving_subscriber/  player_returned_subscriber/  player_forgotten_subscriber/
-                                  log_subscriber/
+                                  log_subscriber/ (New, NewBatch)
   migrations/
 ```
 
@@ -134,13 +135,18 @@ tiles**, so a player is on the board of each flag it took for.
 - **`standings.Tally` is the rule**: an account's tiles per flag in one book, and its main flag. `WithTake` adds one tile
   and makes the flag the main one when it has strictly more tiles than the main one; a tie keeps the flag that got there
   first.
-- **Takes come from `planet.v1.TileTaken`** (`seasons-standings`), one tile per event, in ledger order.
-  `record_take_usecase` reads every book and records the take in each one that holds it. The tally keeps the position
-  and index past the last take it counted (`standings.TakeMark`: `counted_takes_below`, `counted_takes_below_index`),
-  so a take told twice counts once, and each take of a spread or an enclose, which share one position, counts. A strike on a shield, a
-  click the ban refuses and a revert publish nothing, so they change no score.
-- **One transaction per take and book**, under `pg_advisory_xact_lock` on the account: read the account's rows for the
-  book, apply `WithTake`, upsert the flag's row and move `main`.
+- **Takes come from `planet.v1.TilesTaken`** (`seasons-standings`): one event per ledger event, its tiles in order
+  (one of more than 4096 tiles in several parts, at one position), read up to 100 events at a time
+  (`cpredis.SubscribeBatch`). `record_take_usecase` reads every book once a batch and records each take in each book
+  that holds it. The tally keeps the position and index past the last take it counted (`standings.TakeMark`:
+  `counted_takes_below`, `counted_takes_below_index`), so a take told twice counts once, in one batch or in two, and
+  each take of a spread or an enclose, which share one position, counts. A batch that fails is told again one event at a
+  time, and the mark makes that safe. A strike on a shield, a click the ban refuses and a revert publish nothing, so
+  they change no score.
+- **One transaction per book and account of a batch**, under `pg_advisory_xact_lock` on the account: read the
+  account's rows for the book, apply its takes in order (`WithTakes`), clear the old `main` row if the main flag moved,
+  and upsert every flag's row whose tiles changed in one statement (`unnest`), each with the new mark: the tally's mark
+  is its highest row's. An enclose of a continent is one write, not one per tile.
 - **Kept in `scoring.contributions`** (`book_id`, `account_id`, `country`, `tiles`, `main`, `counted_takes_below`,
   `counted_takes_below_index`;
   primary key `(book_id, account_id, country)`), with its own block, `scoring.database`. `main` marks one row per account
@@ -156,10 +162,19 @@ tiles**, so a player is on the board of each flag it took for.
 
 ## A round's numbers
 
-`round_take_subscriber` hears `planet.v1.TileTaken` (`seasons-rounds`) and `count_take_usecase` counts each take in the
-rounds that hold it: the tiles each flag's players took (`round_takes`) and each account's, by flag (`round_players`),
-in one statement that moves each round's mark past the take's ledger position and index (`counted_takes_below`,
-`counted_takes_below_index`).
+`round_take_subscriber` hears `planet.v1.TilesTaken` (`seasons-rounds`), up to 100 events at a time, and
+`count_take_usecase` counts each take in the rounds that hold it: the tiles each flag's players took (`round_takes`) and
+each account's, by flag (`round_players`). It reads the books and their rounds once a batch, and `Takes.Count` writes
+the batch in one transaction, whatever the number of takes:
+
+- **The rounds' marks are locked first** (`counted_takes_below`, `counted_takes_below_index`; `SELECT … FOR NO KEY
+  UPDATE`, the lock an `UPDATE` of them takes), in one order.
+- **Each round keeps only its takes past its mark**, each past the one before (`books.TakeMark.Uncounted`), so a take
+  told twice counts once, in one batch or in two, and a batch that failed and is told again one event at a time counts
+  nothing twice.
+- **Three set-based statements** over `unnest` arrays write the sums: each round's mark past its last counted take, the
+  tiles per round and flag, and per round, account and flag (`ON CONFLICT … tiles + excluded.tiles`). An upsert takes a
+  row once, so the store sums the rows first.
 
 ## Who may be ranked
 

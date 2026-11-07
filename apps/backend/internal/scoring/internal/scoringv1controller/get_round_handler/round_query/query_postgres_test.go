@@ -150,11 +150,12 @@ func (s *testSuite) TestARoundNamesTheFlagsAndTheSignedInPlayersThatTookTheMost(
 		}))
 	position := uint64(0)
 	take := func(account books.AccountID, country books.Country, tiles int) {
+		takes := make([]books.Take, 0, tiles)
 		for range tiles {
 			position++
-			s.Require().NoError(s.rounds.Count(s.T().Context(), []books.RoundID{battle.ID},
-				books.Take{Account: account, Country: country, At: battle.StartsAt, Position: position}))
+			takes = append(takes, books.Take{Account: account, Country: country, At: battle.StartsAt, Position: position})
 		}
+		s.Require().NoError(s.rounds.Count(s.T().Context(), map[books.RoundID][]books.Take{battle.ID: takes}))
 	}
 	take(ada, "fr", 3)
 	take(ada, "be", 1)

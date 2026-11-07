@@ -68,8 +68,9 @@ func (s *testSuite) SetupTest() {
 func (s *testSuite) TestOneRowIsMainPerAccountAndBook() {
 	ada, bob := standings.AccountID{15: 1}, standings.AccountID{15: 2}
 	store := postgres_contribution_store.New(s.db)
-	var batch []standings.Take
-	for position, country := range []standings.Country{"fr", "de", "de", "it", "it", "it"} {
+	countries := []standings.Country{"fr", "de", "de", "it", "it", "it"}
+	batch := make([]standings.Take, 0, len(countries))
+	for position, country := range countries {
 		take := standings.Take{Country: country, Position: uint64(position)}
 		take.Account = ada
 		s.Require().NoError(store.RecordTakes(s.T().Context(), "season-0", ada, []standings.Take{take}))

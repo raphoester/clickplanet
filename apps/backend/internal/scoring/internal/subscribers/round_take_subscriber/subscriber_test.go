@@ -51,6 +51,8 @@ func subscriber(t *testing.T) (round_take_subscriber.Subscriber, *inmemory_round
 		_, err := store.Open(t.Context(), round, books.Start{})
 		require.NoError(t, err)
 	}
+	_, err := store.Score(t.Context(), day.ScoredAt(battle.StartsAt, books.Start{}, books.Snapshot{Tiles: 1}))
+	require.NoError(t, err)
 	return round_take_subscriber.New(count_take_usecase.New(shelf, store, store)), store
 }
 
@@ -93,9 +95,7 @@ func TestAnEnclosureToldInPartsAndToldTwiceCountsEachTileOnce(t *testing.T) {
 		require.NoError(t, handler.HandleBatch(t.Context(), []*planetv1.TilesTaken{part}), "a failed batch is handled again one event at a time")
 	}
 
-	for _, round := range []books.RoundID{day.ID, battle.ID} {
-		assert.Equal(t, map[books.Country]uint64{"fr": 7}, store.CountedIn(round).Countries, "one ledger event in two parts, seven takes")
-	}
+	assert.Equal(t, map[books.Country]uint64{"fr": 7}, store.CountedIn(battle.ID).Countries, "one ledger event in two parts, seven takes")
 }
 
 func TestEachAccountRoundAndBookOfABatchCountsItsOwnTakes(t *testing.T) {
@@ -112,7 +112,7 @@ func TestEachAccountRoundAndBookOfABatchCountsItsOwnTakes(t *testing.T) {
 	assert.Equal(t, books.Counted{
 		Countries: map[books.Country]uint64{"fr": 2},
 		Players:   map[books.AccountID]map[books.Country]uint64{accountOf(t, ada): {"fr": 2}},
-	}, store.CountedIn(day.ID), "the day of season 0 counts until the battle's takes, never scored")
+	}, store.CountedIn(day.ID), "until its end")
 	assert.Equal(t, books.Counted{
 		Countries: map[books.Country]uint64{"de": 3, "fr": 1, "be": 1},
 		Players: map[books.AccountID]map[books.Country]uint64{
