@@ -47,6 +47,10 @@ func TestABannedPhraseIsFoundHoweverItIsWritten(t *testing.T) {
 		"hei1 hit1er":                "heil hitler", // a 1 for an l
 		"14 88":                      "1488",
 		"WHITE POWER":                "white power",
+		"WHITE POWER!!!":             "white power",
+		"white powerrr brothers":     "white power",
+		"whitepower88":               "white power",
+		"1488!":                      "1488",
 		"f4gg0t":                     "faggot",
 	} {
 		said, ok := banned.Said(text)
@@ -61,6 +65,8 @@ func TestAWordThatOnlyLooksLikeABannedPhrasePasses(t *testing.T) {
 		"snigger", "sniggering", "niggle", "a niggling doubt",
 		"hell yeah", "go to hell hitler", "Hitler was a monster", "the nazis lost the war",
 		"white powder", "whitepaper", "a fagot is a bassoon",
+		"the white powers of Europe", "white powerful", "white powerups", "14880 tiles", "148800",
+		"nigga", "my niggas", "nga this IS a femboy",
 		"I have 88 tiles", "1489", "à la 88e minute", "gg France 🇫🇷🔥", "Привет", "東京タワー",
 	} {
 		said, ok := banned.Said(text)

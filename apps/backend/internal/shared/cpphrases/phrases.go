@@ -12,15 +12,17 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// Where a phrase of letters may begin. A phrase with no cased letter or digit (卐, a CJK word) matches anywhere
+// Where a phrase of letters may begin and end. A phrase with no cased letter or digit (卐, a CJK word) matches anywhere
 // whatever the match: it has no word to start.
 type Match uint8
 
 const (
-	// After a space, a punctuation mark or a symbol, or a letter after a digit or a leet sign: "nigger" refuses
-	// "n i g g e r" and "!nigger", and lets "snigger" pass. A sentence's.
-	FromWordStart Match = iota
-	// Anywhere in the text: "hitler" refuses "xXHitlerXx". A name's, which is one word.
+	// A sentence's. A phrase begins where a word does: after a space, a punctuation mark or a symbol, or a letter after
+	// a digit or a leet sign. So "nigger" refuses "n i g g e r" and "!nigger", and lets "snigger" pass. A phrase of one
+	// word of letters takes any ending, as a slur does ("niggers"); any other, of many words or with a digit, is whole
+	// and ends where a word does, so "white power" lets "the white powers of Europe" pass and "1488" lets "14880".
+	InWords Match = iota
+	// Anywhere in the text, and a phrase may go on: "hitler" refuses "xXHitlerXx". A name's, which is one word.
 	Anywhere
 )
 
@@ -35,6 +37,8 @@ type phrase struct {
 	listed string
 	// From the start of a word.
 	letters []rune
+	// Of many words, or with a digit: ends where a word does, InWords.
+	whole bool
 	// Anywhere, when letters is nil.
 	anywhere string
 }
@@ -57,14 +61,19 @@ func phraseOf(listed string) (phrase, bool) {
 		return phrase{listed: listed, anywhere: anywhere}, anywhere != ""
 	}
 	var letters []rune
+	words := 0
 	for _, l := range lettersOf(listed, asListed) {
 		letters = append(letters, l.r)
+		if l.start {
+			words++
+		}
 	}
-	return phrase{listed: listed, letters: letters}, len(letters) > 0
+	whole := words > 1 || slices.ContainsFunc(letters, unicode.IsDigit)
+	return phrase{listed: listed, letters: letters, whole: whole}, len(letters) > 0
 }
 
 func (p phrase) same(other phrase) bool {
-	return slices.Equal(p.letters, other.letters) && p.anywhere == other.anywhere
+	return slices.Equal(p.letters, other.letters) && p.whole == other.whole && p.anywhere == other.anywhere
 }
 
 func cased(r rune) bool {
@@ -90,34 +99,54 @@ func (l List) Said(text string) (string, bool) {
 }
 
 // A run of states, one per letter matched, moved by each letter of the text, and begun where the match lets a phrase
-// begin.
+// begin. A whole phrase, InWords, is said once the word it ends in ends: at the text's end, or at a letter that does
+// not go on with it.
 func (p phrase) in(text []letter, match Match) bool {
 	if len(p.letters) == 0 {
 		return false
 	}
-	active, next := make([]bool, len(p.letters)+1), make([]bool, len(p.letters)+1)
+	last, whole := len(p.letters), p.whole && match == InWords
+	active, next := make([]bool, last+1), make([]bool, last+1)
 	for _, t := range text {
+		// A new word ends it, even one that begins with its last letter ("sieg heil lol"); a repeat of that letter does
+		// not ("white powerrr").
+		if active[last] && (t.start || !alike(p.letters[last-1], t) && !p.goesOn(t)) {
+			return true
+		}
 		clear(next)
 		if (t.start || match == Anywhere) && alike(p.letters[0], t) {
 			next[1] = true
 		}
-		for j := 1; j < len(p.letters); j++ {
+		for j := 1; j <= last; j++ {
 			if !active[j] {
 				continue
 			}
 			if alike(p.letters[j-1], t) {
 				next[j] = true
 			}
-			if alike(p.letters[j], t) {
+			if j < last && alike(p.letters[j], t) {
 				next[j+1] = true
 			}
 		}
-		if next[len(p.letters)] {
+		if next[last] && !whole {
 			return true
 		}
 		active, next = next, active
 	}
-	return false
+	return active[last]
+}
+
+// Whether a letter of the text makes one word with the phrase that ended before it: a letter after a letter, a digit
+// after a digit, never a new word's start. So "white powerful" and "14880" are other words, and "WHITE POWER!!!" and
+// "1488th" say the phrase.
+func (p phrase) goesOn(t letter) bool {
+	if t.start {
+		return false
+	}
+	if unicode.IsDigit(p.letters[len(p.letters)-1]) {
+		return unicode.IsDigit(t.written)
+	}
+	return unicode.IsLetter(t.written)
 }
 
 // A private-use rune for what reads as an i or an l: 1, | and !.

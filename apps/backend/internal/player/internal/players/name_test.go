@@ -130,7 +130,7 @@ func TestAnAccountIDIsAUUIDAndNeverTheNilOne(t *testing.T) {
 func TestANameRefusesASlurOrANaziReferenceHoweverItIsSpelledAndWherever(t *testing.T) {
 	for _, value := range []string{
 		"Hitler88", "xXHitlerXx", "H1tl3r", "h_i_t_l_e_r", "Shitler", "ＨＩＴＬＥＲ", "Sieg Heil", "SiegHeil_88",
-		"WhitePower", "Aryan1488", "N1gg3r", "niiigga", "the_faggot", "卐卐卐",
+		"WhitePower", "Aryan1488", "N1gg3r", "niiiggerz", "the_faggot", "卐卐卐",
 	} {
 		_, err := players.NameOf(value)
 		require.ErrorIs(t, err, players.ErrInvalidName, "%q", value)
@@ -154,7 +154,7 @@ func TestARefusedNameNeverSaysWhichPhrase(t *testing.T) {
 func TestANameThatOnlyLooksLikeABannedOneIsKept(t *testing.T) {
 	for _, value := range []string{
 		"Niger", "NigerFan", "Nigeria_42", "Nazir", "Whitley", "Player88", "Hitchcock", "Grape Ape",
-		"White_Wolf", "Che Guevara",
+		"White_Wolf", "Che Guevara", "niiigga",
 	} {
 		_, err := players.NameOf(value)
 		require.NoError(t, err, "%q", value)

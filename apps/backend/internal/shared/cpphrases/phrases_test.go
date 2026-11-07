@@ -17,7 +17,7 @@ func TestEverySpellingFoldsToThePhrase(t *testing.T) {
 		"hitler", "HITLER", "Hítler", "h1tl3r", "h|tler", "hi tler", "h.i.t.l.e.r", "hhhiiitttlller", "ｈｉｔｌｅｒ",
 		"𝓱𝓲𝓽𝓵𝓮𝓻", "ʜɪᴛʟᴇʀ", "ⓗⓘⓣⓛⓔⓡ", "🇭🇮🇹🇱🇪🇷", "һіtlеr", // Cyrillic һ, і and е
 	} {
-		for _, match := range []cpphrases.Match{cpphrases.FromWordStart, cpphrases.Anywhere} {
+		for _, match := range []cpphrases.Match{cpphrases.InWords, cpphrases.Anywhere} {
 			phrase, ok := said(match, text, "hitler")
 			assert.True(t, ok, "%q", text)
 			assert.Equal(t, "hitler", phrase, "%q", text)
@@ -37,9 +37,45 @@ func TestFromAWordsStartAWordThatEndsInThePhrasePasses(t *testing.T) {
 	for text, found := range map[string]bool{
 		"snigger": false, "a snigger": false, "s nigger": true, "!nigger": true, "1nigger": true, "niggers": true,
 	} {
-		_, ok := said(cpphrases.FromWordStart, text, "nigger")
+		_, ok := said(cpphrases.InWords, text, "nigger")
 		assert.Equal(t, found, ok, "%q", text)
 	}
+}
+
+func TestInWordsAPhraseOfManyWordsOrADigitEndsWhereAWordDoes(t *testing.T) {
+	for text, found := range map[string]bool{
+		"white power": true, "WHITE POWER!!!": true, "white power, brother": true, "white powerrr": true,
+		"whitepower": true, "white power88": true, "white power lol": true,
+		"the white powers of Europe": false, "white powerful": false, "white powerups": false,
+	} {
+		_, ok := said(cpphrases.InWords, text, "white power")
+		assert.Equal(t, found, ok, "%q", text)
+	}
+
+	for text, found := range map[string]bool{
+		"1488": true, "14 88": true, "1488!": true, "14888": true, "1488th": true, "I have 1488 tiles": true,
+		"14880 tiles": false, "148800": false,
+	} {
+		_, ok := said(cpphrases.InWords, text, "1488")
+		assert.Equal(t, found, ok, "%q", text)
+	}
+}
+
+func TestInWordsANewWordEndsAPhraseThoughItBeginsWithItsLastLetter(t *testing.T) {
+	_, ok := said(cpphrases.InWords, "gg everyone, sieg heil lol", "sieg heil")
+	assert.True(t, ok)
+}
+
+func TestInWordsAPhraseOfOneWordOfLettersTakesAnyEnding(t *testing.T) {
+	for _, text := range []string{"niggers", "niggerz", "faggots"} {
+		_, ok := said(cpphrases.InWords, text, "nigger", "faggot")
+		assert.True(t, ok, "%q: a slur takes its endings", text)
+	}
+}
+
+func TestAnywhereAPhraseOfManyWordsMayGoOn(t *testing.T) {
+	_, ok := said(cpphrases.Anywhere, "WhitePowerful", "white power")
+	assert.True(t, ok, "a name has no word to end")
 }
 
 func TestAnywhereThePhraseIsFoundInsideAWord(t *testing.T) {
@@ -47,13 +83,13 @@ func TestAnywhereThePhraseIsFoundInsideAWord(t *testing.T) {
 		_, ok := said(cpphrases.Anywhere, text, "hitler")
 		assert.True(t, ok, "%q", text)
 
-		_, ok = said(cpphrases.FromWordStart, text, "hitler")
+		_, ok = said(cpphrases.InWords, text, "hitler")
 		assert.Equal(t, text == "the_hitler_fan", ok, "%q: only a word that starts with it", text)
 	}
 }
 
 func TestASymbolIsFoundAnywhereWhateverTheMatch(t *testing.T) {
-	for _, match := range []cpphrases.Match{cpphrases.FromWordStart, cpphrases.Anywhere} {
+	for _, match := range []cpphrases.Match{cpphrases.InWords, cpphrases.Anywhere} {
 		_, ok := said(match, "ok卐ok", "卐")
 		assert.True(t, ok)
 	}
@@ -70,14 +106,14 @@ func TestNoListFindsNothing(t *testing.T) {
 }
 
 func TestThePhraseIsAnsweredAsItWasListed(t *testing.T) {
-	phrase, ok := said(cpphrases.FromWordStart, "S1EG H3IL!!", "  Sieg Heil ")
+	phrase, ok := said(cpphrases.InWords, "S1EG H3IL!!", "  Sieg Heil ")
 
 	assert.True(t, ok)
 	assert.Equal(t, "Sieg Heil", phrase)
 }
 
 func TestADigitOfATextIsALetterAndADigitOfAPhraseOnlyItself(t *testing.T) {
-	for _, match := range []cpphrases.Match{cpphrases.FromWordStart, cpphrases.Anywhere} {
+	for _, match := range []cpphrases.Match{cpphrases.InWords, cpphrases.Anywhere} {
 		_, ok := said(match, "n1gg3r", "nigger")
 		assert.True(t, ok, "a text's 1 and 3 read as an i and an e")
 

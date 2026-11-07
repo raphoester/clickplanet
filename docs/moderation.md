@@ -34,6 +34,7 @@ project spends, so the two layers before it cost nothing.
 
 - **Political talk**, unless it attacks a person or a group of people, or praises atrocities.
 - **Swearing and insults**, in any language, short of the severe content below.
+- **"Nigga"**, the open-a form, as players call each other, in a message or a name. The hard-r form is a slur.
 - **Insults aimed at a country or a people**: the rivalry is the game.
 - **Political usernames.**
 
