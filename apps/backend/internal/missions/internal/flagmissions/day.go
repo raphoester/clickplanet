@@ -1,6 +1,8 @@
 package flagmissions
 
 import (
+	"time"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
 
@@ -53,10 +55,11 @@ func (d Day) Snapshot() DaySnapshot {
 	return snapshot
 }
 
-// The mission the flag finished, what it is worth, and the progress that finished it.
+// The mission the flag finished, what it is worth, the progress that finished it, and the time of the fact that did.
 type Done struct {
 	Mission  MissionSnapshot
 	Progress uint32
+	At       time.Time
 }
 
 func (d Done) Status() Status {
@@ -75,7 +78,7 @@ func (d Day) WithTake(take Take) (Day, []Done) {
 	if next.mission != nil {
 		next.progress = next.mission.Order.advancedByTake(next.progress, take)
 	}
-	return next.finished()
+	return next.finished(take.At)
 }
 
 // Strikes come in ledger order, as takes do: one below the mark was counted already. A bomb strikes its own flag's
@@ -94,15 +97,15 @@ func (d Day) WithStrike(strike Strike) (Day, []Done) {
 	if next.mission != nil {
 		next.progress = next.mission.Order.advancedByStrike(next.progress, strike)
 	}
-	return next.finished()
+	return next.finished(strike.At)
 }
 
-func (d Day) finished() (Day, []Done) {
+func (d Day) finished(at time.Time) (Day, []Done) {
 	if d.mission == nil || d.done || !d.mission.Order.done(d.progress) {
 		return d, nil
 	}
 	d.done = true
-	return d, []Done{{Mission: *d.mission, Progress: d.progress}}
+	return d, []Done{{Mission: *d.mission, Progress: d.progress, At: at}}
 }
 
 type Status struct {

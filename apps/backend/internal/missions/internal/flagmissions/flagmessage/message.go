@@ -3,7 +3,6 @@ package flagmessage
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -34,14 +33,14 @@ func Mission(status flagmissions.Status) (*missionsv1.FlagMission, error) {
 }
 
 // A mission is done once, so each is told once: at the time of the fact that finished it.
-func Done(flag string, done []flagmissions.Done, at time.Time) ([]proto.Message, error) {
+func Done(flag string, done []flagmissions.Done) ([]proto.Message, error) {
 	told := make([]proto.Message, 0, len(done))
 	for _, each := range done {
 		mission, err := Mission(each.Status())
 		if err != nil {
 			return nil, err
 		}
-		told = append(told, &missionsv1.FlagMissionDone{Flag: flag, Mission: mission, DoneAt: timestamppb.New(at)})
+		told = append(told, &missionsv1.FlagMissionDone{Flag: flag, Mission: mission, DoneAt: timestamppb.New(each.At)})
 	}
 	return told, nil
 }

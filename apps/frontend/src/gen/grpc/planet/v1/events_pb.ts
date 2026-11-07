@@ -80,91 +80,139 @@ proto3.util.setEnumType(ClickOutcome, "planet.v1.ClickOutcome", [
 ]);
 
 /**
- * @generated from message planet.v1.TileTaken
+ * The tiles one ledger event took, in its order: a click's one, a spread's few, an enclose's every tile inside. An event
+ * that took more than a part holds comes in several parts, each at the event's position, in order.
+ *
+ * @generated from message planet.v1.TilesTaken
  */
-export class TileTaken extends Message<TileTaken> {
+export class TilesTaken extends Message<TilesTaken> {
   /**
    * @generated from field: string account_id = 1;
    */
   accountId = "";
 
   /**
-   * @generated from field: uint32 tile_id = 2;
-   */
-  tileId = 0;
-
-  /**
-   * @generated from field: string country = 3;
+   * The flag that took them.
+   *
+   * @generated from field: string country = 2;
    */
   country = "";
 
   /**
-   * @generated from field: google.protobuf.Timestamp taken_at = 4;
+   * @generated from field: google.protobuf.Timestamp taken_at = 3;
    */
   takenAt?: Timestamp;
 
   /**
-   * @generated from field: uint64 position = 5;
+   * The ledger's: a receiver keeps the position and index past the last tile it counted.
+   *
+   * @generated from field: uint64 position = 4;
    */
   position = protoInt64.zero;
 
   /**
-   * @generated from field: string previous = 6;
+   * @generated from field: repeated planet.v1.TakenTile tiles = 5;
    */
-  previous = "";
+  tiles: TakenTile[] = [];
 
-  /**
-   * @generated from field: string ground = 7;
-   */
-  ground = "";
-
-  /**
-   * A spread or an enclose is one ledger event, at one position, that holds several takes: each has its index in it.
-   *
-   * @generated from field: uint32 index = 8;
-   */
-  index = 0;
-
-  /**
-   * Where the tile is on the globe: `position` is the ledger's.
-   *
-   * @generated from field: planet.v1.GlobePoint point = 9;
-   */
-  point?: GlobePoint;
-
-  constructor(data?: PartialMessage<TileTaken>) {
+  constructor(data?: PartialMessage<TilesTaken>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.TileTaken";
+  static readonly typeName = "planet.v1.TilesTaken";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "taken_at", kind: "message", T: Timestamp },
-    { no: 5, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
-    { no: 6, name: "previous", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 8, name: "index", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 9, name: "point", kind: "message", T: GlobePoint },
+    { no: 2, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "taken_at", kind: "message", T: Timestamp },
+    { no: 4, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 5, name: "tiles", kind: "message", T: TakenTile, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileTaken {
-    return new TileTaken().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TilesTaken {
+    return new TilesTaken().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TileTaken {
-    return new TileTaken().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TilesTaken {
+    return new TilesTaken().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TileTaken {
-    return new TileTaken().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TilesTaken {
+    return new TilesTaken().fromJsonString(jsonString, options);
   }
 
-  static equals(a: TileTaken | PlainMessage<TileTaken> | undefined, b: TileTaken | PlainMessage<TileTaken> | undefined): boolean {
-    return proto3.util.equals(TileTaken, a, b);
+  static equals(a: TilesTaken | PlainMessage<TilesTaken> | undefined, b: TilesTaken | PlainMessage<TilesTaken> | undefined): boolean {
+    return proto3.util.equals(TilesTaken, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.TakenTile
+ */
+export class TakenTile extends Message<TakenTile> {
+  /**
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * Its place among the tiles its ledger event took, across the parts.
+   *
+   * @generated from field: uint32 index = 2;
+   */
+  index = 0;
+
+  /**
+   * The flag it wore before.
+   *
+   * @generated from field: string previous = 3;
+   */
+  previous = "";
+
+  /**
+   * The country whose ground it is.
+   *
+   * @generated from field: string ground = 4;
+   */
+  ground = "";
+
+  /**
+   * Where the tile is on the globe.
+   *
+   * @generated from field: planet.v1.GlobePoint point = 5;
+   */
+  point?: GlobePoint;
+
+  constructor(data?: PartialMessage<TakenTile>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.TakenTile";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "index", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "previous", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "point", kind: "message", T: GlobePoint },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TakenTile {
+    return new TakenTile().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TakenTile {
+    return new TakenTile().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TakenTile {
+    return new TakenTile().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TakenTile | PlainMessage<TakenTile> | undefined, b: TakenTile | PlainMessage<TakenTile> | undefined): boolean {
+    return proto3.util.equals(TakenTile, a, b);
   }
 }
 
@@ -390,81 +438,121 @@ export class ShieldPlaced extends Message<ShieldPlaced> {
 }
 
 /**
- * A shield a click, a spread, an enclose or a bomb broke: the tile kept its flag, owner, and lost one shield.
+ * The shields one ledger event broke, a click's, a spread's, an enclose's or a bomb's: each tile kept its flag, owner,
+ * and lost one shield. An event that broke more than a part holds comes in several parts, as TilesTaken does.
  *
- * @generated from message planet.v1.ShieldStruck
+ * @generated from message planet.v1.ShieldsStruck
  */
-export class ShieldStruck extends Message<ShieldStruck> {
+export class ShieldsStruck extends Message<ShieldsStruck> {
   /**
+   * Empty for none.
+   *
    * @generated from field: string account_id = 1;
    */
   accountId = "";
 
   /**
-   * @generated from field: uint32 tile_id = 2;
-   */
-  tileId = 0;
-
-  /**
-   * The flag that struck it.
+   * The flag that struck them.
    *
-   * @generated from field: string country = 3;
+   * @generated from field: string country = 2;
    */
   country = "";
 
   /**
-   * @generated from field: string owner = 4;
-   */
-  owner = "";
-
-  /**
-   * @generated from field: google.protobuf.Timestamp struck_at = 5;
+   * @generated from field: google.protobuf.Timestamp struck_at = 3;
    */
   struckAt?: Timestamp;
 
   /**
-   * @generated from field: uint64 position = 6;
+   * @generated from field: uint64 position = 4;
    */
   position = protoInt64.zero;
 
   /**
-   * A spread, an enclose or a bomb is one ledger event, at one position, that may strike several: each has its index.
-   *
-   * @generated from field: uint32 index = 7;
+   * @generated from field: repeated planet.v1.StruckTile tiles = 5;
    */
-  index = 0;
+  tiles: StruckTile[] = [];
 
-  constructor(data?: PartialMessage<ShieldStruck>) {
+  constructor(data?: PartialMessage<ShieldsStruck>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.ShieldStruck";
+  static readonly typeName = "planet.v1.ShieldsStruck";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "owner", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "struck_at", kind: "message", T: Timestamp },
-    { no: 6, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
-    { no: 7, name: "index", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "struck_at", kind: "message", T: Timestamp },
+    { no: 4, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 5, name: "tiles", kind: "message", T: StruckTile, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ShieldStruck {
-    return new ShieldStruck().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ShieldsStruck {
+    return new ShieldsStruck().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ShieldStruck {
-    return new ShieldStruck().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ShieldsStruck {
+    return new ShieldsStruck().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ShieldStruck {
-    return new ShieldStruck().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ShieldsStruck {
+    return new ShieldsStruck().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ShieldStruck | PlainMessage<ShieldStruck> | undefined, b: ShieldStruck | PlainMessage<ShieldStruck> | undefined): boolean {
-    return proto3.util.equals(ShieldStruck, a, b);
+  static equals(a: ShieldsStruck | PlainMessage<ShieldsStruck> | undefined, b: ShieldsStruck | PlainMessage<ShieldsStruck> | undefined): boolean {
+    return proto3.util.equals(ShieldsStruck, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.StruckTile
+ */
+export class StruckTile extends Message<StruckTile> {
+  /**
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * Its place among the shields its ledger event broke, across the parts.
+   *
+   * @generated from field: uint32 index = 2;
+   */
+  index = 0;
+
+  /**
+   * @generated from field: string owner = 3;
+   */
+  owner = "";
+
+  constructor(data?: PartialMessage<StruckTile>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.StruckTile";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "index", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "owner", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StruckTile {
+    return new StruckTile().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StruckTile {
+    return new StruckTile().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StruckTile {
+    return new StruckTile().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StruckTile | PlainMessage<StruckTile> | undefined, b: StruckTile | PlainMessage<StruckTile> | undefined): boolean {
+    return proto3.util.equals(StruckTile, a, b);
   }
 }
 

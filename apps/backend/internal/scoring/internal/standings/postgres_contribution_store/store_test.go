@@ -66,14 +66,26 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) TestOneRowIsMainPerAccountAndBook() {
-	for position, country := range []standings.Country{"fr", "de", "de", "it", "it", "it"} {
-		s.Require().NoError(postgres_contribution_store.New(s.db).RecordTake(s.T().Context(), "season-0",
-			standings.Take{Account: standings.AccountID{15: 1}, Country: country, Position: uint64(position)}))
+	ada, bob := standings.AccountID{15: 1}, standings.AccountID{15: 2}
+	store := postgres_contribution_store.New(s.db)
+	countries := []standings.Country{"fr", "de", "de", "it", "it", "it"}
+	batch := make([]standings.Take, 0, len(countries))
+	for position, country := range countries {
+		take := standings.Take{Country: country, Position: uint64(position)}
+		take.Account = ada
+		s.Require().NoError(store.RecordTakes(s.T().Context(), "season-0", ada, []standings.Take{take}))
+		take.Account = bob
+		batch = append(batch, take)
 	}
+	s.Require().NoError(store.RecordTakes(s.T().Context(), "season-0", bob, batch))
 
 	var mains, rows int
 	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(),
-		`SELECT count(*) FILTER (WHERE main), count(*) FROM contributions`).Scan(&mains, &rows))
-	s.Equal(1, mains)
+		`SELECT count(*) FILTER (WHERE main), count(*) FROM contributions WHERE account_id = $1`, uuid.UUID(ada)).Scan(&mains, &rows))
+	s.Equal(1, mains, "a take at a time")
+	s.Equal(3, rows)
+	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(),
+		`SELECT count(*) FILTER (WHERE main), count(*) FROM contributions WHERE account_id = $1`, uuid.UUID(bob)).Scan(&mains, &rows))
+	s.Equal(1, mains, "the takes in one batch")
 	s.Equal(3, rows)
 }

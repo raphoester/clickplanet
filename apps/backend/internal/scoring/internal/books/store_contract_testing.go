@@ -262,10 +262,19 @@ func (s *TakesContractSuite) SetupTest() {
 	}
 }
 
+// count tells the takes one at a time, as a failed batch is told again.
 func (s *TakesContractSuite) count(rounds []RoundID, takes ...Take) {
 	for _, take := range takes {
-		s.Require().NoError(s.takes.Count(s.T().Context(), rounds, take))
+		held := map[RoundID][]Take{}
+		for _, round := range rounds {
+			held[round] = []Take{take}
+		}
+		s.Require().NoError(s.takes.Count(s.T().Context(), held))
 	}
+}
+
+func (s *TakesContractSuite) countBatch(held map[RoundID][]Take) {
+	s.Require().NoError(s.takes.Count(s.T().Context(), held))
 }
 
 func (s *TakesContractSuite) TestARoundCountsEachTakeOnce() {
@@ -310,8 +319,81 @@ func (s *TakesContractSuite) TestARoundCountsEachTakeOfASpreadOnce() {
 
 func (s *TakesContractSuite) TestATakeInNoRoundCountsNothing() {
 	s.count(nil, Take{Account: contractPlayer, Country: "fr", At: contractBattle.StartsAt, Position: 1})
+	s.countBatch(nil)
 
 	s.Empty(s.CountedIn(contractDay.ID).Countries)
+}
+
+func (s *TakesContractSuite) TestABatchAddsUpEachFlagAndEachAccountsFlagInEachRound() {
+	at := contractBattle.StartsAt
+	takes := []Take{
+		{Account: contractPlayer, Country: "fr", At: at, Position: 1},
+		{Account: contractOther, Country: "fr", At: at, Position: 2, Index: 0},
+		{Account: contractOther, Country: "fr", At: at, Position: 2, Index: 1},
+		{Account: contractPlayer, Country: "be", At: at, Position: 3},
+		{Account: contractPlayer, Country: "fr", At: at, Position: 4},
+	}
+
+	s.countBatch(map[RoundID][]Take{contractBattle.ID: takes, contractDay.ID: takes[3:]})
+
+	s.Equal(Counted{
+		Countries: map[Country]uint64{"fr": 4, "be": 1},
+		Players: map[AccountID]map[Country]uint64{
+			contractPlayer: {"fr": 2, "be": 1},
+			contractOther:  {"fr": 2},
+		},
+	}, s.CountedIn(contractBattle.ID))
+	s.Equal(Counted{
+		Countries: map[Country]uint64{"fr": 1, "be": 1},
+		Players:   map[AccountID]map[Country]uint64{contractPlayer: {"fr": 1, "be": 1}},
+	}, s.CountedIn(contractDay.ID), "each round its own takes")
+}
+
+func (s *TakesContractSuite) TestABatchToldTwiceIsCountedOnce() {
+	at := contractBattle.StartsAt
+	enclosure := []Take{
+		{Account: contractPlayer, Country: "fr", At: at, Position: 7, Index: 0},
+		{Account: contractPlayer, Country: "fr", At: at, Position: 7, Index: 1},
+		{Account: contractPlayer, Country: "fr", At: at, Position: 7, Index: 2},
+		{Account: contractOther, Country: "de", At: at, Position: 8},
+	}
+
+	s.countBatch(map[RoundID][]Take{contractBattle.ID: enclosure, contractDay.ID: enclosure})
+	s.countBatch(map[RoundID][]Take{contractBattle.ID: enclosure, contractDay.ID: enclosure})
+	s.count([]RoundID{contractBattle.ID, contractDay.ID}, enclosure[1:]...)
+
+	for _, round := range []RoundID{contractBattle.ID, contractDay.ID} {
+		s.Equal(Counted{
+			Countries: map[Country]uint64{"fr": 3, "de": 1},
+			Players:   map[AccountID]map[Country]uint64{contractPlayer: {"fr": 3}, contractOther: {"de": 1}},
+		}, s.CountedIn(round), "a batch, then again, then a slice of it one take at a time")
+	}
+}
+
+func (s *TakesContractSuite) TestABatchCountsOnlyTheTakesPastEachRoundsMark() {
+	at := contractBattle.StartsAt
+	s.count([]RoundID{contractBattle.ID}, Take{Account: contractPlayer, Country: "fr", At: at, Position: 5, Index: 0})
+	s.count([]RoundID{contractDay.ID}, Take{Account: contractPlayer, Country: "fr", At: at, Position: 5, Index: 1})
+	takes := []Take{
+		{Account: contractPlayer, Country: "fr", At: at, Position: 4},
+		{Account: contractPlayer, Country: "fr", At: at, Position: 5, Index: 0},
+		{Account: contractPlayer, Country: "fr", At: at, Position: 5, Index: 1},
+		{Account: contractPlayer, Country: "fr", At: at, Position: 5, Index: 2},
+	}
+
+	s.countBatch(map[RoundID][]Take{contractBattle.ID: takes, contractDay.ID: takes})
+
+	s.Equal(map[Country]uint64{"fr": 3}, s.CountedIn(contractBattle.ID).Countries, "past 5.0")
+	s.Equal(map[Country]uint64{"fr": 2}, s.CountedIn(contractDay.ID).Countries, "past 5.1")
+}
+
+func (s *TakesContractSuite) TestARoundNeverOpenedCountsNothingAndTheOthersCount() {
+	take := Take{Account: contractPlayer, Country: "fr", At: contractBattle.StartsAt, Position: 1}
+
+	s.countBatch(map[RoundID][]Take{"never-opened": {take}, contractBattle.ID: {take}})
+
+	s.Empty(s.CountedIn("never-opened").Countries)
+	s.Equal(map[Country]uint64{"fr": 1}, s.CountedIn(contractBattle.ID).Countries)
 }
 
 func (s *TakesContractSuite) TestAnAccountDeletedIsForgottenAndItsFlagKeepsItsTiles() {

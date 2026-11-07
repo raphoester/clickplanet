@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -238,31 +239,142 @@ func (s *Store) ScoredIn(ctx context.Context, book books.BookID) ([]books.Scored
 	return scored, nil
 }
 
-// Count moves each round's mark past the take and counts it in one statement: a take told again is under the mark.
-func (s *Store) Count(ctx context.Context, rounds []books.RoundID, take books.Take) error {
-	if len(rounds) == 0 {
+// Count locks the rounds' marks, keeps each round's takes past its mark, and writes what they add up to in three
+// statements, whatever the number of takes: each round's new mark, the tiles per flag, and per account and flag.
+func (s *Store) Count(ctx context.Context, held map[books.RoundID][]books.Take) error {
+	if len(held) == 0 {
 		return nil
 	}
-	ids := make([]string, 0, len(rounds))
-	for _, round := range rounds {
+	ids := make([]string, 0, len(held))
+	for round := range held {
 		ids = append(ids, string(round))
 	}
-	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		WITH counted AS (
-			UPDATE rounds SET counted_takes_below = $4, counted_takes_below_index = $5 + 1
-			WHERE round_id = ANY($3) AND (counted_takes_below, counted_takes_below_index) <= ($4, $5)
-			RETURNING round_id
-		), countries AS (
-			INSERT INTO round_takes (round_id, country, tiles)
-			SELECT round_id, $2, 1 FROM counted
-			ON CONFLICT (round_id, country) DO UPDATE SET tiles = round_takes.tiles + 1
+	slices.Sort(ids)
+
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		marks, err := lockMarks(ctx, tx, ids)
+		if err != nil {
+			return err
+		}
+		sum := newSum()
+		for _, id := range ids {
+			if mark, kept := marks[books.RoundID(id)]; kept {
+				sum.add(books.RoundID(id), mark, held[books.RoundID(id)])
+			}
+		}
+		if len(sum.rounds) == 0 {
+			return nil
+		}
+		return sum.write(ctx, tx)
+	})
+}
+
+// lockMarks reads the rounds' marks and holds them until the transaction ends, with the lock an UPDATE of them takes:
+// a batch told twice at once is counted by one, then found under the marks by the other.
+func lockMarks(ctx context.Context, tx cppg.Querier, ids []string) (map[books.RoundID]books.TakeMark, error) {
+	rows, err := tx.QueryContext(ctx, `
+		SELECT round_id, counted_takes_below, counted_takes_below_index FROM rounds
+		WHERE round_id = ANY($1) ORDER BY round_id FOR NO KEY UPDATE
+	`, pq.Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("failed to lock the rounds' marks: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	marks := map[books.RoundID]books.TakeMark{}
+	for rows.Next() {
+		var (
+			id           string
+			below, index int64
 		)
+		if err := rows.Scan(&id, &below, &index); err != nil {
+			return nil, fmt.Errorf("failed to read a round's mark: %w", err)
+		}
+		marks[books.RoundID(id)] = books.TakeMark{Position: uint64(below), Index: uint32(index)} //nolint:gosec // CHECK (>= 0).
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the rounds' marks: %w", err)
+	}
+	return marks, nil
+}
+
+type flagOf struct {
+	round   books.RoundID
+	country books.Country
+}
+
+type playerOf struct {
+	round   books.RoundID
+	account books.AccountID
+	country books.Country
+}
+
+// sum is what the takes of a batch add to their rounds. An upsert may take a row once only, so each row is summed here.
+type sum struct {
+	rounds    []string
+	below     []int64
+	index     []int64
+	countries map[flagOf]int64
+	players   map[playerOf]int64
+}
+
+func newSum() *sum {
+	return &sum{countries: map[flagOf]int64{}, players: map[playerOf]int64{}}
+}
+
+func (s *sum) add(round books.RoundID, mark books.TakeMark, takes []books.Take) {
+	uncounted, past := mark.Uncounted(takes)
+	if len(uncounted) == 0 {
+		return
+	}
+	s.rounds = append(s.rounds, string(round))
+	s.below = append(s.below, int64(past.Position)) //nolint:gosec // a ledger position fits in int64.
+	s.index = append(s.index, int64(past.Index))
+	for _, take := range uncounted {
+		s.countries[flagOf{round: round, country: take.Country}]++
+		s.players[playerOf{round: round, account: take.Account, country: take.Country}]++
+	}
+}
+
+func (s *sum) write(ctx context.Context, tx cppg.Querier) error {
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE rounds SET counted_takes_below = moved.below, counted_takes_below_index = moved.below_index
+		FROM unnest($1::text[], $2::bigint[], $3::integer[]) AS moved (round_id, below, below_index)
+		WHERE rounds.round_id = moved.round_id
+	`, pq.Array(s.rounds), pq.Array(s.below), pq.Array(s.index)); err != nil {
+		return fmt.Errorf("failed to move the rounds' marks: %w", err)
+	}
+
+	var (
+		flagRounds, flags []string
+		flagTiles         []int64
+	)
+	for flag, tiles := range s.countries {
+		flagRounds, flags, flagTiles = append(flagRounds, string(flag.round)), append(flags, string(flag.country)), append(flagTiles, tiles)
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO round_takes (round_id, country, tiles)
+		SELECT * FROM unnest($1::text[], $2::text[], $3::bigint[])
+		ON CONFLICT (round_id, country) DO UPDATE SET tiles = round_takes.tiles + excluded.tiles
+	`, pq.Array(flagRounds), pq.Array(flags), pq.Array(flagTiles)); err != nil {
+		return fmt.Errorf("failed to count the tiles each flag took in the rounds: %w", err)
+	}
+
+	var (
+		playerRounds, accounts, countries []string
+		playerTiles                       []int64
+	)
+	for player, tiles := range s.players {
+		playerRounds, accounts = append(playerRounds, string(player.round)), append(accounts, player.account.String())
+		countries, playerTiles = append(countries, string(player.country)), append(playerTiles, tiles)
+	}
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO round_players (round_id, account_id, country, tiles)
-		SELECT round_id, $1, $2, 1 FROM counted
-		ON CONFLICT (round_id, account_id, country) DO UPDATE SET tiles = round_players.tiles + 1
-	`, uuid.UUID(take.Account), string(take.Country), pq.Array(ids),
-		int64(take.Position), int64(take.Index)); err != nil { //nolint:gosec // a ledger position fits in int64.
-		return fmt.Errorf("failed to count the take in its rounds: %w", err)
+		SELECT * FROM unnest($1::text[], $2::uuid[], $3::text[], $4::bigint[])
+		ON CONFLICT (round_id, account_id, country) DO UPDATE SET tiles = round_players.tiles + excluded.tiles
+	`, pq.Array(playerRounds), pq.Array(accounts), pq.Array(countries), pq.Array(playerTiles)); err != nil {
+		return fmt.Errorf("failed to count the tiles each account took in the rounds: %w", err)
 	}
 	return nil
 }

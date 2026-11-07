@@ -34,15 +34,17 @@ func (s *Store) FailWith(err error) {
 	s.failWith = err
 }
 
-func (s *Store) RecordTake(_ context.Context, book books.BookID, take standings.Take) error {
+func (s *Store) RecordTakes(_ context.Context, book books.BookID, account standings.AccountID, takes []standings.Take) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
 		return s.failWith
 	}
-	at := key{book: book, account: take.Account}
-	s.tallies[at] = s.tallies[at].WithTake(take)
+	at := key{book: book, account: account}
+	if tally := s.tallies[at].WithTakes(takes); !tally.Empty() {
+		s.tallies[at] = tally
+	}
 	return nil
 }
 

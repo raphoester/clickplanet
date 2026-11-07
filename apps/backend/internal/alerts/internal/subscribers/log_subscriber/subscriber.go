@@ -28,3 +28,26 @@ func (l *Logged[T]) Handle(ctx context.Context, event T) error {
 	}
 	return err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
 }
+
+func NewBatch[T proto.Message](inner cpredis.BatchHandler[T], logger *slog.Logger) *LoggedBatch[T] {
+	return &LoggedBatch[T]{inner: inner, logger: logger}
+}
+
+type LoggedBatch[T proto.Message] struct {
+	inner  cpredis.BatchHandler[T]
+	logger *slog.Logger
+}
+
+func (l *LoggedBatch[T]) HandleBatch(ctx context.Context, events []T) error {
+	err := l.inner.HandleBatch(ctx, events)
+	if err != nil {
+		var zero T
+		l.logger.Error(
+			"the alerts module refused a batch of events",
+			slog.String("event", string(zero.ProtoReflect().Descriptor().FullName())),
+			slog.Int("events", len(events)),
+			slog.Any("error", err),
+		)
+	}
+	return err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
+}

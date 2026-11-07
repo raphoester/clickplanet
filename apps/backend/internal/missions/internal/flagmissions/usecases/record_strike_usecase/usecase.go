@@ -2,7 +2,6 @@ package record_strike_usecase
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/scoringgrant"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 type Calendar interface {
@@ -49,39 +49,60 @@ type UseCase struct {
 	streams       Streams
 }
 
-func (u *UseCase) Execute(ctx context.Context, strike flagmissions.Strike) error {
-	day, err := u.calendar.DayAt(ctx, strike.At)
-	if errors.Is(err, days.ErrNoDay) {
-		return nil
-	}
+// Execute counts each shield broken on its flag's day: one transaction per day and flag, however many shields, which
+// records the points and the word of a mission they finished. Each account that broke one wakes once, after.
+func (u *UseCase) Execute(ctx context.Context, strikes ...flagmissions.Strike) error {
+	groups, err := days.GroupsOf(ctx, u.calendar, strikes, func(strike flagmissions.Strike) (time.Time, string) {
+		return strike.At, strike.Flag
+	})
 	if err != nil {
-		return fmt.Errorf("failed to read the day of the shield broken: %w", err)
-	}
-	if _, err := u.briefing.Of(ctx, day, strike.Flag); err != nil {
-		return fmt.Errorf("failed to read %s's mission: %w", strike.Flag, err)
+		return fmt.Errorf("failed to read the days of the shields broken: %w", err)
 	}
 
-	if err := u.transactioner.InTx(ctx, func(ctx context.Context) error {
+	var woken []missions.AccountID
+	seen := cpcolls.NewSet[missions.AccountID]()
+	for _, group := range groups {
+		if err := u.record(ctx, group); err != nil {
+			return err
+		}
+		for _, strike := range group.Facts {
+			if !seen.Contains(strike.Account) {
+				seen.Add(strike.Account)
+				woken = append(woken, strike.Account)
+			}
+		}
+	}
+	for _, account := range woken {
+		u.streams.Publish(account)
+	}
+	return nil
+}
+
+func (u *UseCase) record(ctx context.Context, group days.Group[string, flagmissions.Strike]) error {
+	flag := group.Key
+	if _, err := u.briefing.Of(ctx, group.Day, flag); err != nil {
+		return fmt.Errorf("failed to read %s's mission: %w", flag, err)
+	}
+
+	return u.transactioner.InTx(ctx, func(ctx context.Context) error {
 		var done []flagmissions.Done
-		if err := u.flagDays.ChangeDay(ctx, day, strike.Flag, func(current flagmissions.Day) flagmissions.Day {
-			next, finished := current.WithStrike(strike)
-			done = finished
-			return next
+		if err := u.flagDays.ChangeDay(ctx, group.Day, flag, func(day flagmissions.Day) flagmissions.Day {
+			for _, strike := range group.Facts {
+				var finished []flagmissions.Done
+				day, finished = day.WithStrike(strike)
+				done = append(done, finished...)
+			}
+			return day
 		}); err != nil {
-			return fmt.Errorf("failed to count the shield broken on %s's day: %w", strike.Flag, err)
+			return fmt.Errorf("failed to count the shields broken on %s's day: %w", flag, err)
 		}
 		if len(done) == 0 {
 			return nil
 		}
-		told, err := flagmessage.Done(strike.Flag, done, strike.At)
+		told, err := flagmessage.Done(flag, done)
 		if err != nil {
-			return fmt.Errorf("failed to tell %s's mission done: %w", strike.Flag, err)
+			return fmt.Errorf("failed to tell %s's mission done: %w", flag, err)
 		}
-		return u.outbox.Record(ctx, append(scoringgrant.Of(strike.Flag, done, strike.At), told...)...) //nolint:wrapcheck // the outbox named it.
-	}); err != nil {
-		return err //nolint:wrapcheck // the transaction's own error.
-	}
-
-	u.streams.Publish(strike.Account)
-	return nil
+		return u.outbox.Record(ctx, append(scoringgrant.Of(flag, done), told...)...) //nolint:wrapcheck // the outbox named it.
+	})
 }

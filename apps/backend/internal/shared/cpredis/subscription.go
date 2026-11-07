@@ -20,6 +20,13 @@ type Handler[T proto.Message] interface {
 	Handle(ctx context.Context, event T) error
 }
 
+// A BatchHandler handles what one read gave, up to readCount events in stream order, as one: in one transaction, say.
+// It must be as safe to run twice as a Handler, and safe to run again on any slice of the batch: a batch that fails is
+// handled again one event at a time.
+type BatchHandler[T proto.Message] interface {
+	HandleBatch(ctx context.Context, events []T) error
+}
+
 const (
 	consumer      = "backend"
 	deadLetters   = "events:dead"
@@ -36,18 +43,34 @@ const (
 
 // From 0, so what another module published before this group existed is read too.
 func Subscribe[T proto.Message](ctx context.Context, streams *Streams, subscriber string, handler Handler[T]) (cpbootstrap.Runner, error) {
-	return subscribe(ctx, streams, streamOf, subscriber, handler)
+	return subscribe(ctx, streams, streamOf, subscriber, delivery[T]{one: handler.Handle})
+}
+
+// SubscribeBatch is Subscribe for a handler that takes what each read gave at once, acked with one XACK.
+func SubscribeBatch[T proto.Message](
+	ctx context.Context, streams *Streams, subscriber string, handler BatchHandler[T],
+) (cpbootstrap.Runner, error) {
+	return subscribe(ctx, streams, streamOf, subscriber, delivery[T]{
+		batch: handler,
+		one:   func(ctx context.Context, event T) error { return handler.HandleBatch(ctx, []T{event}) },
+	})
 }
 
 const commandHandler = "handler"
 
 // A command has one group, so the module that handles it reads each command once, and one sent before it listened too.
 func Handle[T proto.Message](ctx context.Context, streams *Streams, handler Handler[T]) (cpbootstrap.Runner, error) {
-	return subscribe(ctx, streams, commandStreamOf, commandHandler, handler)
+	return subscribe(ctx, streams, commandStreamOf, commandHandler, delivery[T]{one: handler.Handle})
+}
+
+// How a subscription hands over what it read: one event at a time, or, with a batch handler, a read at once first.
+type delivery[T proto.Message] struct {
+	batch BatchHandler[T]
+	one   func(ctx context.Context, event T) error
 }
 
 func subscribe[T proto.Message](
-	ctx context.Context, streams *Streams, streamOf func(protoreflect.FullName) string, name string, handler Handler[T],
+	ctx context.Context, streams *Streams, streamOf func(protoreflect.FullName) string, name string, handler delivery[T],
 ) (cpbootstrap.Runner, error) {
 	var zero T
 	message := zero.ProtoReflect().Descriptor().FullName()
@@ -174,8 +197,8 @@ func (g *group) backoff(attempt int) time.Duration {
 	return g.retryAfter << min(attempt-1, mostDoublings)
 }
 
-func (g *group) ack(ctx context.Context, position string) {
-	_ = g.client.XAck(ctx, g.stream, g.name, position).Err()
+func (g *group) ack(ctx context.Context, positions ...string) {
+	_ = g.client.XAck(ctx, g.stream, g.name, positions...).Err()
 }
 
 // Left pending on a failure: the next boot takes it back.
@@ -237,7 +260,7 @@ func positionOf(position string) (uint64, uint64) {
 
 type subscription[T proto.Message] struct {
 	group   *group
-	handler Handler[T]
+	handler delivery[T]
 	trimmed time.Time
 }
 
@@ -295,29 +318,58 @@ func (s *subscription[T]) drain(ctx context.Context) {
 	}
 }
 
-// False when one was left pending: the rest must wait for it, or the stream's order is lost.
+// False when one was left pending: the rest must wait for it, or the stream's order is lost. What one read gave is
+// handled at once; if that fails, one event at a time, each tried again in place, so a poison event is buried alone.
 func (s *subscription[T]) deliver(ctx context.Context, messages []redis.XMessage, retrying bool) bool {
-	for _, message := range messages {
-		if !s.handle(ctx, message, retrying) {
+	acting := context.WithoutCancel(ctx)
+	read, events := s.decoded(acting, messages)
+	if s.handler.batch != nil && len(events) > 1 {
+		if err := s.handler.batch.HandleBatch(acting, events); err == nil {
+			s.group.ack(acting, idsOf(read)...)
+			return true
+		}
+		s.group.failed.Inc()
+	}
+
+	for i, message := range read {
+		if !s.handle(ctx, message, events[i], retrying) {
 			return false
 		}
 	}
 	return true
 }
 
-func (s *subscription[T]) handle(ctx context.Context, message redis.XMessage, retrying bool) bool {
+// What does not decode is buried at once: no try would read it.
+func (s *subscription[T]) decoded(ctx context.Context, messages []redis.XMessage) ([]redis.XMessage, []T) {
+	read := make([]redis.XMessage, 0, len(messages))
+	events := make([]T, 0, len(messages))
+	for _, message := range messages {
+		var zero T
+		event, ok := zero.ProtoReflect().New().Interface().(T)
+		payload, _ := message.Values[fieldPayload].(string)
+		if !ok || proto.Unmarshal([]byte(payload), event) != nil {
+			s.group.bury(ctx, message, 0)
+			continue
+		}
+		read = append(read, message)
+		events = append(events, event)
+	}
+	return read, events
+}
+
+func idsOf(messages []redis.XMessage) []string {
+	ids := make([]string, len(messages))
+	for i, message := range messages {
+		ids[i] = message.ID
+	}
+	return ids
+}
+
+func (s *subscription[T]) handle(ctx context.Context, message redis.XMessage, event T, retrying bool) bool {
 	acting := context.WithoutCancel(ctx)
 
-	var zero T
-	event, ok := zero.ProtoReflect().New().Interface().(T)
-	payload, _ := message.Values[fieldPayload].(string)
-	if !ok || proto.Unmarshal([]byte(payload), event) != nil {
-		s.group.bury(acting, message, 0)
-		return true
-	}
-
 	for attempt := 1; ; attempt++ {
-		err := s.handler.Handle(acting, event)
+		err := s.handler.one(acting, event)
 		if err == nil {
 			s.group.ack(acting, message.ID)
 			return true

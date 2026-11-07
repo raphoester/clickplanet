@@ -53,7 +53,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/nickname_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/season_started_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/tile_taken_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/tiles_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -118,7 +118,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	var subscriptions []cpbootstrap.Runner
 	for _, subscribe := range []func() (cpbootstrap.Runner, error){
 		func() (cpbootstrap.Runner, error) {
-			return cpredis.Subscribe(ctx, streams, "alerts-attacks", log_subscriber.New(tile_taken_subscriber.New(
+			return cpredis.SubscribeBatch(ctx, streams, "alerts-attacks", log_subscriber.NewBatch(tiles_taken_subscriber.New(
 				hear_take_usecase.New(pings.NewWatch(), clock, pingStore, herald, db)), props.Logger))
 		},
 		func() (cpbootstrap.Runner, error) {

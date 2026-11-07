@@ -20,7 +20,8 @@ func TestAMissionDoneGivesItsFlagItsPointsAtTheTimeItWasDone(t *testing.T) {
 
 	grants := scoringgrant.Of("fr", []flagmissions.Done{{
 		Mission: flagmissions.MissionSnapshot{ID: mission, Order: flagmissions.TakeIn{Ground: "br", Goal: 100}, Points: 2}, Progress: 100,
-	}}, at)
+		At: at,
+	}})
 
 	require.Len(t, grants, 1)
 	assert.True(t, proto.Equal(&scoringv1.GrantPoints{

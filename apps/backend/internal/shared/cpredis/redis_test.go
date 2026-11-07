@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -389,4 +390,88 @@ func TestWhatWasReadBeforeShutdownIsStillHandled(t *testing.T) {
 	stop()
 
 	assert.Equal(t, numbered(10), subscriber.values())
+}
+
+// Each call a batch subscriber got, as the values it held, and a database that is down for the batches it names.
+type batches struct {
+	mu    sync.Mutex
+	calls [][]string
+	down  func(values []string) bool
+}
+
+func (b *batches) HandleBatch(_ context.Context, events []*wrapperspb.StringValue) error {
+	values := make([]string, len(events))
+	for i, event := range events {
+		values[i] = event.GetValue()
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.calls = append(b.calls, values)
+	if b.down != nil && b.down(values) {
+		return errors.New("the database is down")
+	}
+	return nil
+}
+
+func (b *batches) handled() [][]string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return append([][]string(nil), b.calls...)
+}
+
+func batched(t *testing.T, streams *cpredis.Streams, name string, handler cpredis.BatchHandler[*wrapperspb.StringValue]) cpbootstrap.Runner {
+	t.Helper()
+
+	runner, err := cpredis.SubscribeBatch(t.Context(), streams, name, handler)
+	require.NoError(t, err)
+	return runner
+}
+
+func TestABatchSubscriberHandlesWhatOneReadGaveAtOnce(t *testing.T) {
+	metrics := prometheus.NewRegistry()
+	streams := connected(t, cpredis.StartTestServer(t).Config(), metrics)
+	publish(streams, numbered(10)...)
+	handler := &batches{}
+	stop := running(batched(t, streams, "batched", handler))
+
+	eventually(t, func() bool { return len(handler.handled()) == 1 })
+	eventually(t, func() bool {
+		pending, _ := gauge(t, metrics, "events_pending", "batched")
+		lag, _ := gauge(t, metrics, "events_lag", "batched")
+		return pending == 0 && lag == 0
+	})
+	stop()
+
+	assert.Equal(t, [][]string{numbered(10)}, handler.handled(), "one call, in the stream's order, acked at once")
+}
+
+func TestABatchThatFailsIsHandledOneEventAtATimeSoAPoisonEventIsBuriedAlone(t *testing.T) {
+	metrics := prometheus.NewRegistry()
+	config := cpredis.StartTestServer(t).Config()
+	config.MaxDeliveries = 3
+	config.RetryAfter = time.Millisecond
+	streams := connected(t, config, metrics)
+	publish(streams, "before", "poison", "after")
+	handler := &batches{down: func(values []string) bool { return slices.Contains(values, "poison") }}
+	stop := running(batched(t, streams, "batched", handler))
+
+	eventually(t, func() bool { return len(handler.handled()) == 6 })
+	eventually(t, func() bool {
+		pending, _ := gauge(t, metrics, "events_pending", "batched")
+		return pending == 0
+	})
+	stop()
+
+	assert.Equal(t, [][]string{
+		{"before", "poison", "after"},
+		{"before"},
+		{"poison"},
+		{"poison"},
+		{"poison"},
+		{"after"},
+	}, handler.handled(), "the batch, then one at a time in order: the poison maxDeliveries times")
+	dead, _ := gauge(t, metrics, "events_dead_total", "batched")
+	assert.InDelta(t, 1, dead, 0, "the poison alone")
 }

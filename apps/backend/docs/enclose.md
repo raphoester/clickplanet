@@ -81,3 +81,47 @@ them would be worth nothing. `GetBonusRules.enclosures_unlimited` tells the clie
 a search that finds open ground stops at the first coast or lake, 0.07 ms at the median and 2 ms at worst with no
 size limit, since no tile is more than 64 tiles from one. The biggest inland ring holds 11,347 tiles; its search
 took 2 ms and taking its tiles 5 ms. Taken as one event (above), such a pocket cuts no stream.
+
+**A ring bigger than that is a coastline**: every tile a flood can reach that has fewer than six neighbours (a coast,
+a lake's shore, a lattice corner) must be the caller's, or the shape is open. So ringing Russia means holding its
+outline, coasts and lakes included, and ringing Africa means holding the Sinai's border too.
+
+## Giant pockets, measured (2026-11-07)
+
+Before the Ring War battle (`unlimited-enclose`, `maxTiles` 1,000,000), a whole country and a whole continent were
+closed on the real map, through every layer:
+
+| Pocket | Tiles | Closing click (4 cores) | (1 core) | Frame |
+|---|---|---|---|---|
+| Russia, its outline held (2,101 tiles) | 25,895 | 58 ms over HTTP | 132 ms | 81 KB |
+| Africa, its outline held (1,644 tiles) | 51,253 | 131 ms over HTTP | — | 146 KB |
+| Afro-Eurasia, every coast held (6,498 tiles) | 136,032 | 0.5 s in process | 0.4–0.6 s | 400 KB |
+
+The pocket equals an independent flood of the ring tile for tile; one in seven tiles shielded loses one shield and keeps
+its flag; the stream carries one frame and no page's stream is cut; the ledger keeps one `enclose` row (800 KB to 2 MB
+of payload) and the flush writes every tile; `GetMap` and `GetTileHolder` (2.6 ms on the GIN index) name the ringer;
+progression's stats and scoring's tally count every tile once. Other players' clicks wait at most 66 ms (4 cores) or
+142 ms (1 core) while the tiles lock is held. Taking a whole country fortifies it, and taking Africa fortifies 53
+landmasses at once.
+
+**What a giant pocket cost was behind planet, not in it, until 2026-11-07.** The relay told one `planet.v1.TileTaken` per
+tile (one `ShieldStruck` per shield struck), and each subscriber handled one at a time, in a transaction of its own:
+progression and scoring took in about 260 takes a second on 4 cores and 85 on one, so an Africa showed in the players'
+numbers 10 minutes later. Worse, every `XADD` trims a stream to about `redis.maxLen` (100k) whether its groups read the
+entries or not (Redis 7.4 has no `ACKED` trim), so pockets that added up to more than 100k takes before the slowest
+group caught up dropped the oldest, silently: each player's count (stats, titles, missions, the players' board, a
+battle's players), never a flag's points, since a round is scored from the map (see [Scoring](scoring.md)).
+
+**So an enclose is one fact, and a batch is one write.** The relay tells one `planet.v1.TilesTaken` per ledger event,
+with every tile it took, in parts of 4,096 tiles at most (`relay_ledger_usecase.PartTiles`): an Africa is 13 entries of
+some 200 KB, not 51,253. Its subscribers read with `cpredis.SubscribeBatch` and write each account's, round's or day's
+takes of a batch at once, keeping their marks (see [The composite layer](composite-layer.md#telling-other-modules-what-happened)).
+Shields struck go the same way, as `planet.v1.ShieldsStruck`. Measured again on the whole stack (4 cores): every group
+caught up 2.3 s after Russia's closing click and 2.9 s after Africa's, against 1.5 to 3.5 minutes before, and
+progression and scoring each count exactly the tiles the ledger says the ringer took.
+
+**To measure again**: `CP_GIANT=1 go test -tags testing ./internal/planet/internal/clicks/usecases/click_usecase/enclose_click/
+-run TestGiantEnclosures -v` runs the pockets above in process. `CP_GIANT_DUMP=<dir>` also writes the Russia and Africa
+rings, which `CP_GIANT_SCENARIOS=<dir> go test -tags testing ./e2e/ -run TestGiantEnclosuresOnTheWholeStack -v` plays on
+the whole stack (Docker, about 8 minutes): tonight's rule set as a battle of the gamemaster, the rings clicked over HTTP
+by 30 players, 25 pages listening. `taskset -c 0`, with the containers pinned to the same core, is the droplet.

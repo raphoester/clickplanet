@@ -79,41 +79,8 @@ func (u *UseCase) Execute(ctx context.Context) (int, error) {
 }
 
 func (u *UseCase) factsOf(position ledger.Position, event ledger.Event) []proto.Message {
-	var facts []proto.Message
-	var index uint32
-	event.Replay(func(taking ledger.Taking) {
-		if taking.Account == "" || taking.Cleared() {
-			return
-		}
-		taken := &planetv1.TileTaken{
-			AccountId: taking.Account,
-			TileId:    taking.Tile,
-			Country:   taking.Country,
-			TakenAt:   timestamppb.New(taking.At),
-			Position:  uint64(position),
-			Previous:  taking.Previous,
-			Ground:    u.borders.CountryOf(taking.Tile),
-			Index:     index,
-		}
-		if at, ok := u.positions.Position(taking.Tile); ok {
-			taken.Point = &planetv1.GlobePoint{X: at.X, Y: at.Y, Z: at.Z}
-		}
-		facts = append(facts, taken)
-		index++
-	})
-	var struck uint32
-	event.Strikes(func(strike ledger.Strike) {
-		facts = append(facts, &planetv1.ShieldStruck{
-			AccountId: strike.Account,
-			TileId:    strike.Tile,
-			Country:   strike.Country,
-			Owner:     strike.Owner,
-			StruckAt:  timestamppb.New(strike.At),
-			Position:  uint64(position),
-			Index:     struck,
-		})
-		struck++
-	})
+	facts := u.takenOf(position, event)
+	facts = append(facts, struckOf(position, event)...)
 
 	switch told := event.(type) {
 	case ledger.Bombing:
@@ -124,6 +91,63 @@ func (u *UseCase) factsOf(position ledger.Position, event ledger.Event) []proto.
 		facts = append(facts, shieldPlacedOf(position, told))
 	}
 	return facts
+}
+
+// PartTiles is the most tiles one TilesTaken or ShieldsStruck holds: an enclose of a continent is a few entries of
+// some 200 KB each on the stream, never one of megabytes.
+const PartTiles = 4096
+
+// The takes of one event, in parts: a tile's index counts the takes told before it in the event, across the parts.
+func (u *UseCase) takenOf(position ledger.Position, event ledger.Event) []proto.Message {
+	var parts []proto.Message
+	var part *planetv1.TilesTaken
+	var index uint32
+	event.Replay(func(taking ledger.Taking) {
+		if taking.Account == "" || taking.Cleared() {
+			return
+		}
+		if part == nil || len(part.Tiles) == PartTiles {
+			part = &planetv1.TilesTaken{
+				AccountId: taking.Account,
+				Country:   taking.Country,
+				TakenAt:   timestamppb.New(taking.At),
+				Position:  uint64(position),
+			}
+			parts = append(parts, part)
+		}
+		tile := &planetv1.TakenTile{
+			TileId:   taking.Tile,
+			Index:    index,
+			Previous: taking.Previous,
+			Ground:   u.borders.CountryOf(taking.Tile),
+		}
+		if at, ok := u.positions.Position(taking.Tile); ok {
+			tile.Point = &planetv1.GlobePoint{X: at.X, Y: at.Y, Z: at.Z}
+		}
+		part.Tiles = append(part.Tiles, tile)
+		index++
+	})
+	return parts
+}
+
+func struckOf(position ledger.Position, event ledger.Event) []proto.Message {
+	var parts []proto.Message
+	var part *planetv1.ShieldsStruck
+	var index uint32
+	event.Strikes(func(strike ledger.Strike) {
+		if part == nil || len(part.Tiles) == PartTiles {
+			part = &planetv1.ShieldsStruck{
+				AccountId: strike.Account,
+				Country:   strike.Country,
+				StruckAt:  timestamppb.New(strike.At),
+				Position:  uint64(position),
+			}
+			parts = append(parts, part)
+		}
+		part.Tiles = append(part.Tiles, &planetv1.StruckTile{TileId: strike.Tile, Index: index, Owner: strike.Owner})
+		index++
+	})
+	return parts
 }
 
 func (u *UseCase) landedOf(position ledger.Position, bombing ledger.Bombing) *planetv1.BombLanded {

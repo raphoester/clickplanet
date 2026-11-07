@@ -48,7 +48,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bonus_claimed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/day_started_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/flag_tile_taken_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/flag_tiles_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/missions_paid_subscriber"
@@ -56,8 +56,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/player_signed_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/quiz_answered_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/shield_placed_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/shield_struck_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/tile_taken_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/shields_struck_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/tiles_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -127,19 +127,19 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return err
 	}
-	flagTakes, err := cpredis.Subscribe(ctx, streams, "missions-flag-takes", log_subscriber.New(flag_tile_taken_subscriber.New(
+	flagTakes, err := cpredis.SubscribeBatch(ctx, streams, "missions-flag-takes", log_subscriber.NewBatch(flag_tiles_taken_subscriber.New(
 		record_flag_take_usecase.New(calendar, flags, flagDays, db, outbox, changes),
 	), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken for the flags: %w", err)
+		return fmt.Errorf("failed to subscribe to planet.v1.TilesTaken for the flags: %w", err)
 	}
-	strikes, err := cpredis.Subscribe(ctx, streams, "missions-flag-strikes", log_subscriber.New(shield_struck_subscriber.New(
+	strikes, err := cpredis.SubscribeBatch(ctx, streams, "missions-flag-strikes", log_subscriber.NewBatch(shields_struck_subscriber.New(
 		record_strike_usecase.New(calendar, flags, flagDays, db, outbox, changes),
 	), props.Logger))
 	if err != nil {
 		closeStores()
-		return fmt.Errorf("failed to subscribe to planet.v1.ShieldStruck: %w", err)
+		return fmt.Errorf("failed to subscribe to planet.v1.ShieldsStruck: %w", err)
 	}
 	deletions, err := cpredis.Subscribe(ctx, streams, "missions-forgotten",
 		log_subscriber.New(player_forgotten_subscriber.New(forget_account_usecase.New(store)), props.Logger))
@@ -200,9 +200,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 func subscribeFacts(
 	ctx context.Context, streams *cpredis.Streams, record *record_fact_usecase.UseCase, logger *slog.Logger,
 ) ([]cpbootstrap.Runner, error) {
-	takes, err := cpredis.Subscribe(ctx, streams, "missions-progress", log_subscriber.New(tile_taken_subscriber.New(record), logger))
+	takes, err := cpredis.SubscribeBatch(ctx, streams, "missions-progress", log_subscriber.NewBatch(tiles_taken_subscriber.New(record), logger))
 	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
+		return nil, fmt.Errorf("failed to subscribe to planet.v1.TilesTaken: %w", err)
 	}
 	boxes, err := cpredis.Subscribe(ctx, streams, "missions-boxes", log_subscriber.New(bonus_claimed_subscriber.New(record), logger))
 	if err != nil {

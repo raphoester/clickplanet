@@ -13,7 +13,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in record_fact_usecase.In) error
+	Execute(ctx context.Context, facts ...record_fact_usecase.In) error
 }
 
 func New(useCase UseCase) Subscriber {

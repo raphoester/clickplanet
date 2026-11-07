@@ -1188,7 +1188,7 @@ rm -f ~/backups/tiles-*.tar.gz
 
 The backend's modules tell each other what happened over Redis Streams, in the
 `redis` service, on the `redis_data` volume (append-only file, fsync every
-second). One stream per kind of event (`events:planet.v1.TileTaken`, …), one
+second). One stream per kind of event (`events:planet.v1.TilesTaken`, …), one
 consumer group per subscriber. Nothing publishes a port: only the backend
 reaches it, over the compose network. The API refuses to start without it.
 

@@ -51,11 +51,12 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) take(account books.AccountID, country books.Country, tiles int) {
+	takes := make([]books.Take, 0, tiles)
 	for range tiles {
 		s.position++
-		s.Require().NoError(s.rounds.Count(s.T().Context(), []books.RoundID{finale.ID},
-			books.Take{Account: account, Country: country, At: finale.StartsAt, Position: s.position}))
+		takes = append(takes, books.Take{Account: account, Country: country, At: finale.StartsAt, Position: s.position})
 	}
+	s.Require().NoError(s.rounds.Count(s.T().Context(), map[books.RoundID][]books.Take{finale.ID: takes}))
 }
 
 func (s *testSuite) TestEveryAccountOfTheRoundIsAnsweredUnderTheFlagItTookTheMostFor() {

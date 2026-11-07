@@ -128,7 +128,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
 | `rules/usecases/play_rules_usecase` | plays the set postgres keeps, at boot and when it changes; `Plays` | `Sets`, `Rules` |
 | `rules/usecases/save_rule_set_usecase` | the operator makes a set or replaces its values; never the one that plays | `Sets`, `Playing` |
-| `ledger/usecases/relay_ledger_usecase` | tells the other modules what the ledger flushed past its cursor, in ledger order: `TileTaken`, `BombLanded`, `Fortified`, each with its position, a take also with its index in its event and its point on the globe; a `Runner` | `Ledger`, `Cursor`, `Borders`, `Positions`, `Sender` |
+| `ledger/usecases/relay_ledger_usecase` | tells the other modules what the ledger flushed past its cursor, in ledger order: `TilesTaken` and `ShieldsStruck`, one per event in parts of `PartTiles` (4,096) at most, `BombLanded`, `Fortified` and `ShieldPlaced`, each with its position, each tile with its index in its event and a taken one with its point on the globe; a `Runner` | `Ledger`, `Cursor`, `Borders`, `Positions`, `Sender` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. A shared port

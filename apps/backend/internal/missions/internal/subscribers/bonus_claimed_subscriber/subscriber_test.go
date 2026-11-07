@@ -19,8 +19,8 @@ type recordingUseCase struct {
 	facts []record_fact_usecase.In
 }
 
-func (u *recordingUseCase) Execute(_ context.Context, in record_fact_usecase.In) error {
-	u.facts = append(u.facts, in)
+func (u *recordingUseCase) Execute(_ context.Context, facts ...record_fact_usecase.In) error {
+	u.facts = append(u.facts, facts...)
 	return nil
 }
 

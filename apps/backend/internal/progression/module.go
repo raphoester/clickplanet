@@ -60,7 +60,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/quiz_answered_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/season_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/stats_changed_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/tile_taken_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/tiles_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles/inprocess_title_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles/postgres_title_store"
@@ -143,7 +143,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return runner
 	}
 	runners := []cpbootstrap.Runner{
-		subscribed(cpredis.Subscribe(ctx, streams, "player-stats", log_subscriber.New(tile_taken_subscriber.New(recordStats), props.Logger))),
+		subscribed(cpredis.SubscribeBatch(ctx, streams, "player-stats", log_subscriber.NewBatch(tiles_taken_subscriber.New(recordStats), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "player-stats-messages", log_subscriber.New(message_sent_subscriber.New(recordStats), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "player-stats-bombs", log_subscriber.New(bomb_landed_subscriber.New(recordStats), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "player-stats-fortifies", log_subscriber.New(fortified_subscriber.New(recordStats), props.Logger))),

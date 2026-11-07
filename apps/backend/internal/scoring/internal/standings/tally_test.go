@@ -53,6 +53,15 @@ func TestATakeAtOrBeforeTheLastOneCountedIsCountedAlready(t *testing.T) {
 	assert.Equal(t, uint64(2), tally.WithTake(standings.Take{Country: "fr", Position: 3}).Tiles["fr"])
 }
 
+func TestTakesAreEachTakeInTurn(t *testing.T) {
+	takes := []standings.Take{
+		{Country: "fr", Position: 0}, {Country: "de", Position: 1}, {Country: "de", Position: 1}, {Country: "de", Position: 2},
+	}
+
+	assert.Equal(t, tallyOf("fr", "de", "de"), standings.Tally{}.WithTakes(takes))
+	assert.Equal(t, tallyOf("fr"), tallyOf("fr").WithTakes(nil))
+}
+
 func TestEachTakeOfASpreadCountsOnceThoughTheyShareAPosition(t *testing.T) {
 	tally := tallyOf("de")
 	for range 2 {

@@ -17,7 +17,7 @@ func TestADeletedAccountLeavesTheStandings(t *testing.T) {
 	store := inmemory_contribution_store.New()
 	account, err := standings.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
 	require.NoError(t, err)
-	require.NoError(t, store.RecordTake(t.Context(), "season-0", standings.Take{Account: account, Country: "fr"}))
+	require.NoError(t, store.RecordTakes(t.Context(), "season-0", account, []standings.Take{{Account: account, Country: "fr"}}))
 
 	err = player_forgotten_subscriber.New(forget_account_usecase.New(store)).Handle(t.Context(),
 		&playerv1.PlayerForgotten{AccountId: account.String()})

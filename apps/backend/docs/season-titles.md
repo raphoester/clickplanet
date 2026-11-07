@@ -78,7 +78,7 @@ migration `20261101180100_battle_top_titles` renames them, held and worn, to `se
 `season_0_top_N` is the season's.
 
 **A take scoring counts after `SeasonEnded` is handled is no fight.** Scoring counts the round's takes from
-`planet.v1.TileTaken` on its own, so a take in the battle's last second could, in theory, be counted after progression
+`planet.v1.TilesTaken` on its own, so a take in the battle's last second could, in theory, be counted after progression
 read the round. The hops between the round's close and `SeasonEnded` take seconds; a deploy after the battle has no such race.
 
 ## The season's best players

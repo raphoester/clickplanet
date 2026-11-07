@@ -11,16 +11,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 )
 
-type mark struct {
-	position uint64
-	index    uint32
-}
-
 type kept struct {
 	scored       books.Scored
 	start        books.Start
 	opened       int
-	countedBelow mark
+	countedBelow books.TakeMark
 	countries    map[books.Country]uint64
 	players      map[books.AccountID]map[books.Country]uint64
 }
@@ -131,22 +126,24 @@ func (s *Store) ScoredIn(_ context.Context, book books.BookID) ([]books.Scored, 
 	return scored, nil
 }
 
-func (s *Store) Count(_ context.Context, rounds []books.RoundID, take books.Take) error {
+func (s *Store) Count(_ context.Context, held map[books.RoundID][]books.Take) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, id := range rounds {
+	for id, takes := range held {
 		at, found := s.rounds[id]
-		if !found || take.Position < at.countedBelow.position ||
-			take.Position == at.countedBelow.position && take.Index < at.countedBelow.index {
+		if !found {
 			continue
 		}
-		at.countedBelow = mark{position: take.Position, index: take.Index + 1}
-		at.countries[take.Country]++
-		if at.players[take.Account] == nil {
-			at.players[take.Account] = map[books.Country]uint64{}
+		var uncounted []books.Take
+		uncounted, at.countedBelow = at.countedBelow.Uncounted(takes)
+		for _, take := range uncounted {
+			at.countries[take.Country]++
+			if at.players[take.Account] == nil {
+				at.players[take.Account] = map[books.Country]uint64{}
+			}
+			at.players[take.Account][take.Country]++
 		}
-		at.players[take.Account][take.Country]++
 	}
 	return nil
 }
