@@ -59,6 +59,17 @@ export default function Leaderboard(props: LeaderboardProps) {
         return () => clearTimeout(timer)
     }, [shown])
 
+    // A bubble open, a touch anywhere puts it away, its own head included. A mouse's bubble follows the mouse.
+    const open = shown !== undefined
+    useEffect(() => {
+        if (!open) return
+        const away = (event: globalThis.PointerEvent) => {
+            if (event.pointerType !== "mouse") setShown(undefined)
+        }
+        document.addEventListener("pointerdown", away, true)
+        return () => document.removeEventListener("pointerdown", away, true)
+    }, [open])
+
     const hint = (figure: Figure, at: Shown["at"]) => ({
         figure,
         open: shown?.figure === figure && shown.at === at,
@@ -212,6 +223,8 @@ type Sort = {on: boolean, pick: () => void}
 function Hint({figure, open, onShow, onHide, onLost, sort, className, children}: HintProps & {sort?: Sort, className?: string, children: ReactNode}) {
     const anchor = useRef<HTMLButtonElement>(null)
     const pointer = useRef("")
+    // Open as the press began: the press put it away, so its click must not bring it back.
+    const wasOpen = useRef(false)
     const described = useId()
     const mouse = (event: PointerEvent) => event.pointerType === "mouse"
 
@@ -222,11 +235,15 @@ function Hint({figure, open, onShow, onHide, onLost, sort, className, children}:
                 aria-describedby={described}
                 onPointerEnter={(event) => mouse(event) && onShow(false)}
                 onPointerLeave={(event) => mouse(event) && onHide()}
-                onPointerDown={(event) => pointer.current = event.pointerType}
+                onPointerDown={(event) => {
+                    pointer.current = event.pointerType
+                    wasOpen.current = open && event.pointerType !== "mouse"
+                }}
                 onClick={() => {
                     sort?.pick()
-                    if (pointer.current !== "mouse") onShow(true)
+                    if (pointer.current !== "mouse" && !wasOpen.current) onShow(true)
                     pointer.current = ""
+                    wasOpen.current = false
                 }}>
             {sort && <span className={sort.on ? "leaderboard-sort leaderboard-sort-on" : "leaderboard-sort"} aria-hidden="true">
                 <ChevronIcon size={9}/>
