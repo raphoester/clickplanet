@@ -47,10 +47,17 @@ phrase may begin, `cpphrases.New(match, phrases...)`, then `List.Said(text)` ans
   and "Koala88" does not, though its l reads like a 1.
 - **Each letter of a phrase takes one or more of itself**, so "niiigggerr" says "nigger" and "Niger" does not: the
   phrase's double g needs two. Never a collapse of the text's repeated letters, which would make the two one.
-- **Where a phrase of letters may begin** is the caller's: `FromWordStart` (after a separator, or a letter after a
-  digit or a leet sign) for sentences, so "snigger" passes; `Anywhere` for a name, which is one word, so "xXHitlerXx"
-  is found. A phrase with no cased letter or digit (卐) matches anywhere either way, and one that folds to nothing is
-  left out, since it would match every text.
+- **Where a phrase of letters may begin and end** is the caller's match:
+  - `InWords`, for sentences. A phrase begins where a word does (after a separator, or a letter after a digit or a
+    leet sign), so "snigger" passes. A phrase of one word of letters takes any ending, as a slur does ("niggers"). Any
+    other, of many words or with a digit, is whole and ends where a word does: the next letter starts a new word, or
+    is not of the phrase's kind (a letter after a letter, a digit after a digit). So "white power" lets "the white
+    powers of Europe" pass and still finds "WHITE POWER!!!", and "1488" lets "14880" pass.
+  - `Anywhere`, for a name, which is one word: a phrase begins and ends anywhere, so "xXHitlerXx" and "WhitePowerful"
+    are found.
+
+  A phrase with no cased letter or digit (卐) matches anywhere either way, and one that folds to nothing is left out,
+  since it would match every text.
 - Its tests pin each folding and both matches; each caller's tests pin its own list.
 
 `cpsessionverifier` is the exception to that bar: it knows `auth.v1.InternalService`, so it would not read the same in another program. It is the `cpconnect.SessionVerifier` that `cpbootstrap` builds once per process and hands every module as `props.Sessions`, which takes the key from `auth` once — see [Sessions](sessions.md). It is here because the alternative was one copy in each module, and a fix to one copy missed the others. Until 2026-11-04 `planet`, `player`, `progression`, `chat`, `scoring`, `support`, `missions`, `alerts` and `clips` each built one.

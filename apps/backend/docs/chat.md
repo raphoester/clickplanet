@@ -24,15 +24,21 @@ costs nothing. It was built after a raid spammed Nazi slogans in Nov 2026.
 
 - **The list** is `messages.DefaultBannedPhrases` (the slogans, the worst slurs, the symbols) and the config's
   `chat.service.bannedPhrases` on top. It holds no name alone: political talk stays, so "Hitler was a monster" passes.
+  Nor the insults the policy keeps, "nigga" (the open-a form players call each other) and "faggot"; the hard-r form is
+  listed.
 - **The folding and the match are `shared/cpphrases`'s** (see [Shared](shared.md)), which player's names use too:
   case, accents, look-alikes, leetspeak, separators and repeated letters fold away, on the phrase and on the text, and
   each letter of a phrase takes one or more of itself, so "niiigggerr" says "nigger" and "Niger" does not. `Banned` is a
   `cpphrases.List`; `NewBanned` builds it, which is all the chat holds of the engine.
-- **A message is sentences, so a phrase of letters matches from the start of a word** (`cpphrases.FromWordStart`):
+- **A message is sentences, so a phrase of letters matches from the start of a word** (`cpphrases.InWords`):
   after a separator, or a letter after a digit or a leet sign (`1nigger`). So "snigger" passes. A phrase with no cased
   letter or digit matches anywhere (卐, a CJK word, which has no word to start). **A digit listed in a phrase is that
   digit**: "1488" refuses "14 88" and lets "à la 88e minute" pass, while a digit typed in a message reads as a letter
   ("n1gg3r").
+- **A slur takes its endings, a slogan or a number does not**: a phrase of one word of letters matches a longer word
+  ("niggers"), and one of many words or with a digit must end where a word does. So "the white powers of Europe",
+  "white powerful" and "14880 tiles" pass, and "WHITE POWER!!!" and "1488!" are refused. A word that begins with a
+  one-word slur is refused with it ("niggardly"): the price of catching its endings.
 - **The refusal is `ErrInvalidMessage`**, the one a sender gets for any bad text (`ErrBanned` wrapped, for the log):
   nobody learns which phrase tripped, so nobody tunes a spelling against the list. `log_banned`, a decorator on the
   use case, logs it at Warn with the account, the room and the phrase as listed, never the text or the address.

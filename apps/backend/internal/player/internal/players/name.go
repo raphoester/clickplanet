@@ -35,7 +35,7 @@ var (
 // other words ("nazi" is in "Nazir"), nor a number alone ("88"): what the list misses, the daily audit renames.
 var DefaultBannedNames = []string{
 	"hitler", "sieg heil", "seig heil", "white power", "gas the jews", "1488",
-	"nigger", "nigga", "faggot",
+	"nigger",
 	"卐", "ϟϟ",
 }
 
