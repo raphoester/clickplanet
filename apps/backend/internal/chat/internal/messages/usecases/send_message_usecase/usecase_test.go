@@ -365,3 +365,21 @@ func (s *testSuite) TestAMessageToTheRoomOfAnotherFlagIsRefusedBeforeAnythingIsA
 	s.Empty(s.kept())
 	s.Empty(s.publisher.updates)
 }
+
+func (s *testSuite) TestABannedPhraseIsRefusedAsAnInvalidMessageAndNeitherKeptNorPublished() {
+	s.useCase = send_message_usecase.New(s.appender, s.publisher, s.authors,
+		messages.NewDrafts(&messages.SequentialIDs{}, s.clock,
+			messages.NewLimits(0).WithBanned(messages.NewBanned(messages.DefaultBannedPhrases...)), cpcountries.New(),
+			messages.NewRooms(messages.FakeFlags{})),
+		s.thread)
+	in := validIn()
+	in.Text = "S I E G  H E I L"
+
+	_, err := s.send(in)
+
+	s.Require().ErrorIs(err, messages.ErrInvalidMessage)
+	s.Require().ErrorIs(err, messages.ErrBanned)
+	s.Empty(s.kept())
+	s.Empty(s.publisher.updates)
+	s.Empty(s.authors.asked, "refused before the player module is asked")
+}

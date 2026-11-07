@@ -11,7 +11,8 @@ its edge for the wire. A read is a query under its handler: see [Reads are queri
 ```
 internal/chat/internal/
   messages/                             Message (Snapshot, Restore, TakeSnapshot, Named, Answering), MessageID, Quote,
-                                        Drafts, Thread, Record (RecordSnapshot), Limits, AccountID, Author,
+                                        Drafts, Thread, Record (RecordSnapshot), Limits (WithBanned), Banned
+                                        (DefaultBannedPhrases, Said), ErrBanned, AccountID, Author,
                                         Room (World, FlagRoom, RoomOf), Rooms (EntryError), Showing,
                                         ErrNoAccount, ErrNotShown, ErrNotKept, ErrNotInRoom, Window, the Storage, Flags and
                                         IDProvider ports, the StorageContractSuite, SequentialIDs, Restored and
@@ -29,6 +30,7 @@ internal/chat/internal/
       publishing_send_message/          publishes chat.v1.MessageSent once a message is kept
       muting_send_message/              refuses a muted caller before anything else, and a GIF to one muted from
                                         GIFs — Mutes
+      log_banned/                       logs a post refused for a banned phrase, with the phrase as listed
     usecases/prune_usecase/             deletes past retention, from each table, each set of tables past its own
                                         (KeptFor: the chat's, the moderation history's); Runner — Pruner
       log_prune/                        logs what a prune deleted
@@ -120,7 +122,8 @@ internal/chat/internal/
   migrations/                           the chat schema
 ```
 
-- **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters), `AccountIDOf` (the context's account, or `cpsession.NoAccount`) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
+- **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters, and the
+  banned phrases, `Banned`), `AccountIDOf` (the context's account, or `cpsession.NoAccount`) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
 - **Ids are injected** (`messages.IDProvider`, `mutes.IDProvider`), like the clock. Tests use each concept's `SequentialIDs` (behind the tag), so they assert exact ids. An announcement draws none: its id is the fact's (see [Announcements](chat.md#announcements)). `messages.Drafts` holds the ids, the clock, the `Limits` and the country list, and builds a new `Message` from what was sent; `messages.Thread` holds what a reply needs (see [Replies](chat.md#replies)). So `send_message_usecase` stays at five ports. A message id is still a UUID string: `chat.messages.id` is text, with no unique constraint.
 - **`send_message_usecase.Config` stays under `chat.Config.Service`**, so the `chat.service.*` keys do not change.
 - **`chatv1controller`'s root tests are about the chain** (error net, blocklist, throttle). Each handler package tests its own mapping.

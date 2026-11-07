@@ -149,6 +149,8 @@ chat:
     subscriberBuffer: 256
   service:
     maxTextLength: 280
+    # Refused at send, on top of the phrases built in (messages.DefaultBannedPhrases); folded as they are.
+    bannedPhrases: []
   rateLimiter:
     perSecond: 0.33
     burst: 5

@@ -13,6 +13,7 @@ const defaultMaxTextLength = 280
 
 type Limits struct {
 	maxText int
+	banned  Banned
 }
 
 func NewLimits(maxText int) Limits {
@@ -20,6 +21,12 @@ func NewLimits(maxText int) Limits {
 		maxText = defaultMaxTextLength
 	}
 	return Limits{maxText: maxText}
+}
+
+// A text that says one of the phrases is refused as ErrInvalidMessage, as any other: the sender is never told which.
+func (l Limits) WithBanned(banned Banned) Limits {
+	l.banned = banned
+	return l
 }
 
 // A text or a GIF, never both.
@@ -42,6 +49,9 @@ func (l Limits) Text(value string) (string, error) {
 	text, err := clean(value, l.maxText)
 	if err != nil {
 		return "", fmt.Errorf("%w: text: %w", ErrInvalidMessage, err)
+	}
+	if said, ok := l.banned.Said(text); ok {
+		return "", fmt.Errorf("%w: %w: %q", ErrInvalidMessage, ErrBanned, said)
 	}
 	return text, nil
 }

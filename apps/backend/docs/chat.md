@@ -18,6 +18,28 @@ The client also sends a UUID it persists locally, kept in the log and **trusted 
 
 **Abuse controls live at the edge**, in two interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). **Both are `shared/cpconnect`'s**, the same ones the click chain uses — see [Shared interceptors](interceptors.md). The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline once let a sender forge a line in the old log file, and a NUL is not valid in a postgres `text`. **A text with a character of a historic script is refused** (`cpscripts.Historic`, see [Shared](shared.md)): lines of wide cuneiform signs were spammed in Nov 2026. Every alphabet written today, emojis, punctuation and symbols pass.
 
+**A text that says a banned phrase is refused**, at send, before the player module is asked anything (`Limits.WithBanned`,
+`messages.Banned`): the first of the three layers of [Chat moderation](../../../docs/moderation.md), and the only one that
+costs nothing. It was built after a raid spammed Nazi slogans in Nov 2026.
+
+- **The list** is `messages.DefaultBannedPhrases` (the slogans, the worst slurs, the symbols) and the config's
+  `chat.service.bannedPhrases` on top. It holds no name alone: political talk stays, so "Hitler was a monster" passes.
+- **Both sides are folded the same way**: decomposed (NFKD: a fullwidth, circled or mathematical letter is its letter),
+  with no accent, in lower case, a Cyrillic or Greek look-alike as the Latin letter it passes for (`lookAlikes`, with
+  the small capitals of the "fancy text" generators and the regional indicators a flag is made of), leetspeak as its
+  letter (`0 3 4 5 7 8 9 @ $ €`; `1`, `|` and `!` as an i or an l), and no separator: a space, a punctuation mark, a
+  symbol or a zero-width character between two letters is nothing.
+- **Each letter of a phrase takes one or more of itself**, so "niiigggerr" says "nigger" and "Niger" does not: the
+  phrase's double g needs two. Never a collapse of the text's repeated letters, which would make the two one.
+- **A phrase of letters matches from the start of a word**: after a separator, or a letter after a digit or a leet
+  sign (`1nigger`). So "snigger" passes. **A phrase with no cased letter or digit matches anywhere** (卐, a CJK word,
+  which has no word to start).
+- **The refusal is `ErrInvalidMessage`**, the one a sender gets for any bad text (`ErrBanned` wrapped, for the log):
+  nobody learns which phrase tripped, so nobody tunes a spelling against the list. `log_banned`, a decorator on the
+  use case, logs it at Warn with the account, the room and the phrase as listed, never the text or the address.
+- `banned_test.go` pins each folding and what passes; `send_message_usecase`'s test that nothing banned is kept,
+  published or introduced.
+
 Refusal reasons are logged, never returned: a sender learns *that* they were refused, not which check tripped. **The stored text is raw — the frontend must escape it.**
 
 The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*cpipblock.Blocklist` type, built by `cpipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (build the list in `describeModules` and hand it to both modules, the way `shared/cpcountries` already is), not a second list to write.

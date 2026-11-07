@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"time"
 
 	"connectrpc.com/connect"
@@ -50,6 +51,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/prune_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/prune_usecase/log_prune"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/log_banned"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/muting_send_message"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/publishing_send_message"
 	message_ids "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/uuid_id_provider"
@@ -154,9 +156,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	announce := announce_usecase.New(announcementStore, updates)
 	authors := log_authors.New(rpc_player_authors.New(player), props.Logger)
-	drafts := messages.NewDrafts(
-		message_ids.Provider{}, cptime.SystemClock{}, messages.NewLimits(config.Service.MaxTextLength), cpcountries.New(),
-		rooms)
+	limits := messages.NewLimits(config.Service.MaxTextLength).WithBanned(
+		messages.NewBanned(slices.Concat(messages.DefaultBannedPhrases, config.Service.BannedPhrases)...))
+	drafts := messages.NewDrafts(message_ids.Provider{}, cptime.SystemClock{}, limits, cpcountries.New(), rooms)
 	thread := messages.NewThread(messageStore, cptime.SystemClock{}, window)
 
 	bombs, err := cpredis.Subscribe(ctx, streams, "chat-announcements-bombs",
@@ -249,8 +251,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	chatService := chatv1controller.ChatService{
-		SendMessageHandler: send_message_handler.New(muting_send_message.New(publishing_send_message.New(send_message_usecase.New(
-			messageStore, updates, authors, drafts, thread), streams), muteBook)),
+		SendMessageHandler: send_message_handler.New(muting_send_message.New(log_banned.New(publishing_send_message.New(
+			send_message_usecase.New(messageStore, updates, authors, drafts, thread), streams), props.Logger), muteBook)),
 		GetHistoryHandler: get_history_handler.New(history_query.NewPostgresQuery(
 			db, cptime.SystemClock{}, storage.HistorySize, storage.Retention), rooms),
 		ListenForEventsHandler: listen_for_events_handler.New(

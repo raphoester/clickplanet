@@ -118,6 +118,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `chat.storage.moderationRetention` — how long the moderation history keeps a mute, an unmute and a removal, with the
   removed message's copy (default 90 days). See [The moderation history](chat.md#the-moderation-history)
 - `chat.service.maxTextLength` — the bound on a message in runes (280)
+- `chat.service.bannedPhrases` — phrases refused at send, on top of `messages.DefaultBannedPhrases`, folded as those are
+  (case, accents, look-alikes, leetspeak, separators, repeated letters). See [Chat](chat.md)
 - `chat.rateLimiter.*` — the per-IP `SendMessage` throttle, same shape as `rateLimiter`
 - `chat.reactionLimiter.*` — the per-IP `React` throttle, same shape; its defaults suit it
 - `chat.seenLimiter.*` — the per-IP `MarkSeen` throttle, same shape; its defaults suit it
