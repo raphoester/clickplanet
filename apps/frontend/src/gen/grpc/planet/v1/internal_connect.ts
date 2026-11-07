@@ -5,7 +5,7 @@
 
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, GetTilesRequest, GetTilesResponse } from "./internal_pb.js";
 
 /**
  * @generated from service planet.v1.InternalService
@@ -112,6 +112,20 @@ export const InternalService = {
       name: "GetRuleSet",
       I: GetRuleSetRequest,
       O: GetRuleSetResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Each tile asked, as the map holds it now: its flag, the account whose take holds it, where it is on the globe and
+     * the tiles it touches, for the vandal squad's look at what a player painted. InvalidArgument for a tile off the map,
+     * or for more than 20,000 asked at once.
+     *
+     * @generated from rpc planet.v1.InternalService.GetTiles
+     */
+    getTiles: {
+      name: "GetTiles",
+      I: GetTilesRequest,
+      O: GetTilesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

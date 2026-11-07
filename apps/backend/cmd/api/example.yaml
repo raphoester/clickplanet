@@ -381,6 +381,18 @@ alerts:
     alertsChannelId: ""
     battlesChannelId: ""
 
+# The squad that flags the swastikas players paint on the map: it hears planet's takes, looks every minute at what each
+# player painted in the last hour, and lists what it flagged (vandalsquad.v1.AdminService/ListGraffiti). It reverts and
+# bans nobody.
+vandalSquad:
+  enabled: false
+  redis:
+    address: localhost:6379
+    password: ""
+  gameUrl: https://clickplanet.lol/play
+  window: 1h
+  interval: 1m
+
 # The numbers of the clips the clips job posted: `clips stats` sends a snapshot a day over ssh, the backoffice reads them.
 # And who each clip names: `clips fetch` makes a run's cast, `clips schedule` keeps who each post names.
 clips:

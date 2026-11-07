@@ -17,6 +17,9 @@ thousands of index probes, or a scan of the whole ledger, for one card on the 1-
   it wears.
 - **A deleted account is forgotten** (`player.v1.PlayerForgotten`): `anonymize_takes_usecase` calls `ForgetHolder` after it blanks the ledger's
   rows. The tiles keep their flag and shields; the next flush writes NULL.
+- **`InternalService/GetTiles(tile_ids)`** answers, for the vandal squad, each tile's flag and holder under one read
+  of the lock (`Storage.HoldsOf`), with its point and its neighbours from the geography (`tiles_query`), 20,000 tiles
+  a call at most. See [The vandal squad](vandalsquad.md).
 - **`ClickService/GetLandmass(landmass_id)`** (`NO_SIDE_EFFECTS`, cached 5s like the map) answers who holds the
   landmass now, `{account_id, country_id, tiles}` per account and flag, most tiles first, and its last fortify,
   `{account_id, country_id, fortified_at_unix_ms}`. `landmass_query` reads the fortify from `ledger_events` on the

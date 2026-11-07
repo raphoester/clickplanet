@@ -8,3 +8,11 @@ type Holding struct {
 	Flag    string
 	Tiles   int
 }
+
+// One tile as the map holds it now: its flag, empty for nobody's, and the account whose take holds it,
+// cpsession.NoAccount when no player's take does.
+type TileHold struct {
+	Tile   uint32
+	Flag   string
+	Holder cpsession.AccountID
+}

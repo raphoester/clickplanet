@@ -60,6 +60,9 @@ const (
 	// InternalServiceGetRuleSetProcedure is the fully-qualified name of the InternalService's
 	// GetRuleSet RPC.
 	InternalServiceGetRuleSetProcedure = "/planet.v1.InternalService/GetRuleSet"
+	// InternalServiceGetTilesProcedure is the fully-qualified name of the InternalService's GetTiles
+	// RPC.
+	InternalServiceGetTilesProcedure = "/planet.v1.InternalService/GetTiles"
 )
 
 // InternalServiceClient is a client for the planet.v1.InternalService service.
@@ -81,6 +84,10 @@ type InternalServiceClient interface {
 	// The values a set plays: default's, with the set's own written over them, for the promo module's cards. NotFound for
 	// a set postgres does not keep.
 	GetRuleSet(context.Context, *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error)
+	// Each tile asked, as the map holds it now: its flag, the account whose take holds it, where it is on the globe and
+	// the tiles it touches, for the vandal squad's look at what a player painted. InvalidArgument for a tile off the map,
+	// or for more than 20,000 asked at once.
+	GetTiles(context.Context, *connect.Request[v1.GetTilesRequest]) (*connect.Response[v1.GetTilesResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the planet.v1.InternalService service. By
@@ -157,6 +164,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getTiles: connect.NewClient[v1.GetTilesRequest, v1.GetTilesResponse](
+			httpClient,
+			baseURL+InternalServiceGetTilesProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetTiles")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -171,6 +185,7 @@ type internalServiceClient struct {
 	getAllegianceOf   *connect.Client[v1.GetAllegianceOfRequest, v1.GetAllegianceOfResponse]
 	getRuleSetNames   *connect.Client[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse]
 	getRuleSet        *connect.Client[v1.GetRuleSetRequest, v1.GetRuleSetResponse]
+	getTiles          *connect.Client[v1.GetTilesRequest, v1.GetTilesResponse]
 }
 
 // GetLedger calls planet.v1.InternalService.GetLedger.
@@ -218,6 +233,11 @@ func (c *internalServiceClient) GetRuleSet(ctx context.Context, req *connect.Req
 	return c.getRuleSet.CallUnary(ctx, req)
 }
 
+// GetTiles calls planet.v1.InternalService.GetTiles.
+func (c *internalServiceClient) GetTiles(ctx context.Context, req *connect.Request[v1.GetTilesRequest]) (*connect.Response[v1.GetTilesResponse], error) {
+	return c.getTiles.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the planet.v1.InternalService service.
 type InternalServiceHandler interface {
 	// AdminService/GetLedger, for the clips module's cast: who took which tile.
@@ -237,6 +257,10 @@ type InternalServiceHandler interface {
 	// The values a set plays: default's, with the set's own written over them, for the promo module's cards. NotFound for
 	// a set postgres does not keep.
 	GetRuleSet(context.Context, *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error)
+	// Each tile asked, as the map holds it now: its flag, the account whose take holds it, where it is on the globe and
+	// the tiles it touches, for the vandal squad's look at what a player painted. InvalidArgument for a tile off the map,
+	// or for more than 20,000 asked at once.
+	GetTiles(context.Context, *connect.Request[v1.GetTilesRequest]) (*connect.Response[v1.GetTilesResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -309,6 +333,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetTilesHandler := connect.NewUnaryHandler(
+		InternalServiceGetTilesProcedure,
+		svc.GetTiles,
+		connect.WithSchema(internalServiceMethods.ByName("GetTiles")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetLedgerProcedure:
@@ -329,6 +360,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetRuleSetNamesHandler.ServeHTTP(w, r)
 		case InternalServiceGetRuleSetProcedure:
 			internalServiceGetRuleSetHandler.ServeHTTP(w, r)
+		case InternalServiceGetTilesProcedure:
+			internalServiceGetTilesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -372,4 +405,8 @@ func (UnimplementedInternalServiceHandler) GetRuleSetNames(context.Context, *con
 
 func (UnimplementedInternalServiceHandler) GetRuleSet(context.Context, *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetRuleSet is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetTiles(context.Context, *connect.Request[v1.GetTilesRequest]) (*connect.Response[v1.GetTilesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetTiles is not implemented"))
 }

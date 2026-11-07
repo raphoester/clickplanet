@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package vandalsquad.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service AdminService {
+  // The graffiti the vandal squad flagged since the server started, newest first: each drawing a player painted on the
+  // map that reads as a swastika, who painted it, with which flag, how many tiles, and a link that opens the globe on
+  // it. Nothing is reverted or banned: revert the player with planet_revert_player and ban it with
+  // antibot_ban_player. Kept in memory, so a restart forgets the list; the log keeps a line of each.
+  rpc ListGraffiti(ListGraffitiRequest) returns (ListGraffitiResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message ListGraffitiRequest {}
+
+message ListGraffitiResponse {
+  repeated Graffiti graffiti = 1;
+}
+
+message Graffiti {
+  // The player whose takes hold the drawing.
+  string account_id = 1;
+  // The flag it was painted with.
+  string country_id = 2;
+  GraffitiKind kind = 3;
+  repeated uint32 tile_ids = 4;
+  // When the squad first saw it whole.
+  google.protobuf.Timestamp flagged_at = 5;
+  // When it last saw it on the map: a drawing painted over or reverted is not seen again.
+  google.protobuf.Timestamp seen_at = 6;
+  // The page opened on the drawing.
+  string link = 7;
+}
+
+enum GraffitiKind {
+  GRAFFITI_KIND_UNSPECIFIED = 0;
+  GRAFFITI_KIND_SWASTIKA = 1;
+}

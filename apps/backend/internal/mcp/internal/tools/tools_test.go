@@ -24,6 +24,7 @@ import (
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/promo/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
+	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/vandalsquad/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/mcp/internal/tools"
 )
 
@@ -46,6 +47,7 @@ func TestEveryAdminMethodIsATool(t *testing.T) {
 	assert.Equal(t, "/missions.v1.AdminService/SaveRules", names["missions_save_rules"])
 	assert.Equal(t, "/progression.v1.AdminService/ReconcileTitles", names["progression_reconcile_titles"])
 	assert.Equal(t, "/support.v1.AdminService/DecideReport", names["support_decide_report"])
+	assert.Equal(t, "/vandalsquad.v1.AdminService/ListGraffiti", names["vandalsquad_list_graffiti"])
 	for _, hidden := range []string{
 		"planet_get_replay", "planet_get_ledger", "planet_get_territories",
 		"clips_keep_snapshot", "clips_make_cast", "clips_keep_appearance",
@@ -70,7 +72,7 @@ func TestTheEmbeddedSetIsTheOneTheServerIsBuiltFrom(t *testing.T) {
 	offered := 0
 	for _, pkg := range []string{
 		"alerts.v1", "antibot.v1", "chat.v1", "clips.v1", "gamemaster.v1", "missions.v1", "planet.v1", "player.v1",
-		"progression.v1", "promo.v1", "support.v1",
+		"progression.v1", "promo.v1", "support.v1", "vandalsquad.v1",
 	} {
 		service, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(pkg + ".AdminService"))
 		require.NoError(t, err)

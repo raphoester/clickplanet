@@ -500,7 +500,7 @@ func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 		"progression": config.Progression.Redis,
 		"scoring":     config.Scoring.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
 		"antiBot": config.AntiBot.Redis, "gamemaster": config.Gamemaster.Redis, "clips": config.Clips.Redis,
-		"alerts": config.Alerts.Redis,
+		"alerts": config.Alerts.Redis, "vandalSquad": config.VandalSquad.Redis,
 	} {
 		assert.Equal(t, config.Planet.Redis, redis, "%s.redis is the planet's block", name)
 	}
@@ -516,6 +516,25 @@ func TestTheProductionAlertsAreWhole(t *testing.T) {
 	assert.True(t, config.Auth.Discord.JoinServer, "a Discord sign-in joins the server")
 	assert.Equal(t, "1310907949106860032", config.Alerts.Discord.GuildID, "an id, not a number YAML rounded")
 	require.NoError(t, config.Alerts.Validate())
+}
+
+func TestTheVandalSquadPatrolsProduction(t *testing.T) {
+	config := productionConfig(t)
+
+	require.True(t, config.VandalSquad.Enabled)
+	require.NoError(t, config.VandalSquad.Validate())
+}
+
+func TestTheExampleConfigReachesTheVandalSquadOff(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.False(t, config.VandalSquad.Enabled)
+	assert.Equal(t, time.Hour, config.VandalSquad.Window)
+	assert.Equal(t, time.Minute, config.VandalSquad.Interval)
+	assert.Equal(t, "https://clickplanet.lol/play", config.VandalSquad.GameURL)
+	config.VandalSquad.Enabled = true
+	require.NoError(t, config.VandalSquad.Validate())
 }
 
 func TestTheAntibotKeepsItsKeysOutsideThePlanetsBlock(t *testing.T) {
