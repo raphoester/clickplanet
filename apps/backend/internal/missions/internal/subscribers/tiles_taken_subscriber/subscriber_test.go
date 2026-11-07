@@ -71,7 +71,7 @@ func TestEachAccountsTakesOfABatchAreRecordedInOneCallInTheOrderTheyCame(t *test
 
 	require.Len(t, useCase.calls, 2, "one call per account, and an event with no tile records nothing")
 	positions := func(facts []record_fact_usecase.In) []uint64 {
-		var told []uint64
+		told := make([]uint64, 0, len(facts))
 		for _, in := range facts {
 			told = append(told, in.Fact.(missions.Take).Position)
 		}

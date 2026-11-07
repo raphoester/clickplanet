@@ -43,8 +43,11 @@ func TestABatchIsGroupedByDayAndKeyInTheOrderEachGroupCame(t *testing.T) {
 	calendar := &countingCalendar{told: inmemory_day_store.New(monday, tuesday)}
 	inMonday, inTuesday := monday.Snapshot().StartsAt.Add(time.Hour), tuesday.Snapshot().StartsAt
 	facts := []fact{
-		{at: inMonday, flag: "fr"}, {at: inMonday, flag: "dz"}, {at: inMonday.Add(time.Minute), flag: "fr"},
-		{at: inTuesday, flag: "fr"}, {at: inMonday.Add(2 * time.Minute), flag: "dz"},
+		{at: inMonday, flag: "fr"},
+		{at: inMonday, flag: "dz"},
+		{at: inMonday.Add(time.Minute), flag: "fr"},
+		{at: inTuesday, flag: "fr"},
+		{at: inMonday.Add(2 * time.Minute), flag: "dz"},
 	}
 
 	groups, err := days.GroupsOf(t.Context(), calendar, facts, fact.of)

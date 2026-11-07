@@ -1,4 +1,4 @@
-package shield_struck_subscriber
+package shields_struck_subscriber
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, strike flagmissions.Strike) error
+	Execute(ctx context.Context, strikes ...flagmissions.Strike) error
 }
 
 func New(useCase UseCase) Subscriber {
@@ -23,20 +23,45 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpredis.Handler[*planetv1.ShieldStruck] = Subscriber{}
+var _ cpredis.BatchHandler[*planetv1.ShieldsStruck] = Subscriber{}
 
-var errNoTime = errors.New("the strike has no time")
+var errNoTime = errors.New("the strikes have no time")
 
-func (s Subscriber) Handle(ctx context.Context, event *planetv1.ShieldStruck) error {
-	if err := event.GetStruckAt().CheckValid(); err != nil {
-		return fmt.Errorf("tile %d: %w: %w", event.GetTileId(), errNoTime, err)
+// HandleBatch records each flag's shields broken of the batch in one call, in the order they were told: a bomb is one
+// write, not one per shield.
+func (s Subscriber) HandleBatch(ctx context.Context, events []*planetv1.ShieldsStruck) error {
+	var flags []string
+	strikes := map[string][]flagmissions.Strike{}
+	for _, event := range events {
+		if err := event.GetStruckAt().CheckValid(); err != nil {
+			return fmt.Errorf("the strikes at %d: %w: %w", event.GetPosition(), errNoTime, err)
+		}
+		if len(event.GetTiles()) == 0 {
+			continue
+		}
+		flag := event.GetCountry()
+		if _, known := strikes[flag]; !known {
+			flags = append(flags, flag)
+		}
+		account, at := subscribers.AccountOrNone(event.GetAccountId()), event.GetStruckAt().AsTime()
+		for _, tile := range event.GetTiles() {
+			strikes[flag] = append(strikes[flag], flagmissions.Strike{
+				Account: account, Flag: flag, Owner: tile.GetOwner(), Position: event.GetPosition(), Index: tile.GetIndex(), At: at,
+			})
+		}
 	}
 
+	for _, flag := range flags {
+		if err := s.record(ctx, strikes[flag]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s Subscriber) record(ctx context.Context, strikes []flagmissions.Strike) error {
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	return s.useCase.Execute(ctx, flagmissions.Strike{ //nolint:wrapcheck // the use case named it.
-		Account: subscribers.AccountOrNone(event.GetAccountId()), Flag: event.GetCountry(), Owner: event.GetOwner(), Position: event.GetPosition(), Index: event.GetIndex(),
-		At: event.GetStruckAt().AsTime(),
-	})
+	return s.useCase.Execute(ctx, strikes...) //nolint:wrapcheck // the use case named it.
 }

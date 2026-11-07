@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 type Calendar interface {
@@ -30,7 +32,7 @@ func GroupsOf[K comparable, F any](
 	var (
 		groups []Group[K, F]
 		placed = map[place]int{}
-		dated  = dates{calendar: calendar, none: map[int64]struct{}{}}
+		dated  = dates{calendar: calendar, none: cpcolls.NewSet[int64]()}
 	)
 	for _, fact := range facts {
 		at, key := of(fact)
@@ -57,7 +59,7 @@ func GroupsOf[K comparable, F any](
 type dates struct {
 	calendar Calendar
 	read     []Day
-	none     map[int64]struct{}
+	none     *cpcolls.Set[int64]
 }
 
 func (d *dates) dayAt(ctx context.Context, at time.Time) (Day, bool, error) {
@@ -66,12 +68,12 @@ func (d *dates) dayAt(ctx context.Context, at time.Time) (Day, bool, error) {
 			return day, true, nil
 		}
 	}
-	if _, ok := d.none[at.UnixNano()]; ok {
+	if d.none.Contains(at.UnixNano()) {
 		return Day{}, false, nil
 	}
 	day, err := d.calendar.DayAt(ctx, at)
 	if errors.Is(err, ErrNoDay) {
-		d.none[at.UnixNano()] = struct{}{}
+		d.none.Add(at.UnixNano())
 		return Day{}, false, nil
 	}
 	if err != nil {

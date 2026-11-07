@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/scoringgrant"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 type Calendar interface {
@@ -59,14 +60,14 @@ func (u *UseCase) Execute(ctx context.Context, takes ...flagmissions.Take) error
 	}
 
 	var woken []missions.AccountID
-	seen := map[missions.AccountID]bool{}
+	seen := cpcolls.NewSet[missions.AccountID]()
 	for _, group := range groups {
 		if err := u.record(ctx, group); err != nil {
 			return err
 		}
 		for _, take := range group.Facts {
-			if !seen[take.Account] {
-				seen[take.Account] = true
+			if !seen.Contains(take.Account) {
+				seen.Add(take.Account)
 				woken = append(woken, take.Account)
 			}
 		}

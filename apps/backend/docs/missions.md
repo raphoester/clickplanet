@@ -2,8 +2,8 @@
 
 **Every player has four or five missions a day of its own, and each pays itself once done. Every flag has one more,
 which all its players do together, and which gives the flag season points** (see [The flag's mission](#the-flags-mission)).
-It reads planet's facts (`TileTaken`, `BonusClaimed`, `QuizAnswered`, `BombLanded`, `ShieldPlaced`, `Fortified`,
-`ShieldStruck`, `GetTerritories`, `GetCountrySizes`, `GetAllegianceOf`), the gamemaster's days (`DayStarted`), player's
+It reads planet's facts (`TilesTaken`, `BonusClaimed`, `QuizAnswered`, `BombLanded`, `ShieldPlaced`, `Fortified`,
+`ShieldsStruck`, `GetTerritories`, `GetCountrySizes`, `GetAllegianceOf`), the gamemaster's days (`DayStarted`), player's
 word on an account (`PlayerSignedIn`, `PlayerForgotten`, `GetAccounts`), and commands planet to grant a reward
 (`planet.v1.GrantCharges`) and scoring to grant points (`scoring.v1.GrantPoints`), over Redis, as scoring asks planet
 what each country holds: neither ever imports, calls or hears missions. It tells what it did (`MissionsPaid`,
@@ -13,6 +13,7 @@ Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/cadd
 ```
 internal/missions/internal/
   days/                             DayID, Day (a day the gamemaster told: its round's id, its start and its end), ErrNoDay;
+                                    GroupsOf (a batch's facts by day and by account or flag, each day read once);
                                     the Store port and its contract suite, TestingDayAt (season 0's days, for tests)
     postgres_day_store/             the Store over missions.mission_days
     inmemory_day_store/             the same port in a map, behind the testing tag
@@ -50,9 +51,9 @@ internal/missions/internal/
     get_missions_handler/  listen_for_events_handler/
     list_flag_days_handler/flag_days_query/  get_mission_totals_handler/totals_query/
     get_rules_handler/rules_query/  save_rules_handler/
-  subscribers/                      tile_taken_subscriber/  bonus_claimed_subscriber/  quiz_answered_subscriber/
+  subscribers/                      tiles_taken_subscriber/  bonus_claimed_subscriber/  quiz_answered_subscriber/
                                     bomb_landed_subscriber/  shield_placed_subscriber/  fortified_subscriber/
-                                    day_started_subscriber/  flag_tile_taken_subscriber/  shield_struck_subscriber/
+                                    day_started_subscriber/  flag_tiles_taken_subscriber/  shields_struck_subscriber/
                                     player_signed_in_subscriber/  player_forgotten_subscriber/  missions_paid_subscriber/
                                     log_subscriber/
   migrations/

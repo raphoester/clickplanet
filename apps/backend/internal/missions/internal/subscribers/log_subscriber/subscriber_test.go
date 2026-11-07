@@ -39,3 +39,31 @@ func TestAHandledEventLogsNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, out.String())
 }
+
+type batchHandler struct {
+	err error
+}
+
+func (h batchHandler) HandleBatch(context.Context, []*playerv1.PlayerForgotten) error { return h.err }
+
+func TestARefusedBatchIsLoggedWithItsTypeAndSize(t *testing.T) {
+	var out bytes.Buffer
+	refused := errors.New("the database is down")
+
+	err := log_subscriber.NewBatch(batchHandler{err: refused}, slog.New(slog.NewTextHandler(&out, nil))).
+		HandleBatch(t.Context(), []*playerv1.PlayerForgotten{{}, {}})
+
+	require.ErrorIs(t, err, refused)
+	assert.Contains(t, out.String(), "player.v1.PlayerForgotten")
+	assert.Contains(t, out.String(), "events=2")
+}
+
+func TestAHandledBatchLogsNothing(t *testing.T) {
+	var out bytes.Buffer
+
+	err := log_subscriber.NewBatch(batchHandler{}, slog.New(slog.NewTextHandler(&out, nil))).
+		HandleBatch(t.Context(), []*playerv1.PlayerForgotten{{}})
+
+	require.NoError(t, err)
+	assert.Empty(t, out.String())
+}
