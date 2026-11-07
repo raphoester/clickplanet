@@ -156,8 +156,10 @@ reads player's tables (but once, at its first migration, below).
 
 ## The stats
 
-- **Stats come from `planet.v1.TileTaken`** (`player-stats`), one event per tile, so a spread of seven is seven tiles:
-  the takes of one spread share a position and each has its own index. A strike on a shield takes no tile and is never
+- **Stats come from `planet.v1.TilesTaken`** (`player-stats`), one event per ledger event, so a spread of seven is
+  seven tiles: they share a position and each has its own index. The subscriber takes a batch at once
+  (`cpredis.SubscribeBatch`) and records each account's takes of it in one write (`stats.Changes`), so an enclose of a
+  continent is one write, not 51,000. A strike on a shield takes no tile and is never
   published. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the
   same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and
   leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today: a streak whose last day is before
@@ -380,7 +382,7 @@ and planet answers from one SQL statement (`takes_query`). Both lists (`plays_fo
   row is read from the table, for its payload; `takes_query/plan_test.go` pins it. Key columns and not `INCLUDE`, so
   the index deduplicates: 9.5 MB for 1.5M rows, against 63 MB with `INCLUDE`. A player with a million takes still
   makes that heavy, which is what the cache is for on the public card. If it ever is too slow, a projection fed by
-  `TileTaken` is the way back.
+  `TilesTaken` is the way back.
 - **They are the total since the ledger has accounts, never a season's.** Decided on 2026-10-08, in season 0, when the
   two are the same. The card says which flags a player's tiles went to, so the flag beside its name on the Players
   board makes sense. **The per-season split is the same query bounded by the season's start and end**: `scoring`
@@ -409,7 +411,7 @@ happened](composite-layer.md#telling-other-modules-what-happened)):
 
 | group | hears | does |
 |---|---|---|
-| `player-stats` | `planet.v1.TileTaken` | counts the take |
+| `player-stats` | `planet.v1.TilesTaken` | counts the takes, a batch at once |
 | `player-stats-messages` | `chat.v1.MessageSent` | counts the message |
 | `player-stats-bombs`, `player-stats-fortifies`, `player-stats-bonuses`, `player-stats-quizzes` | `planet.v1.BombLanded`, `Fortified`, `BonusClaimed`, `QuizAnswered` | counts the bomb, the tiles fortified, the box, the right answer |
 | `player-stats-missions` | `missions.v1.MissionsPaid` | keeps the missions paid in all |

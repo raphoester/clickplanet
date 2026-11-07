@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -36,12 +37,29 @@ type UseCase struct {
 	transactioner cpatomic.Transactioner
 }
 
-// A ping Discord refused is not tried again: the watch already counted the attack.
-func (u *UseCase) Execute(ctx context.Context, take pings.Take) error {
-	attack, attacked := u.watch.Hear(take)
-	if !attacked {
-		return nil
+// The takes of a batch, heard in order: each victim is pinged once at most, for the first attack the batch made on it,
+// as the quiet time would have it. A ping Discord refused is not tried again: the watch already counted the attack.
+func (u *UseCase) Execute(ctx context.Context, takes ...pings.Take) error {
+	var attacks []pings.Attack
+	attacked := cpcolls.NewSet[nations.Flag]()
+	for _, take := range takes {
+		attack, heard := u.watch.Hear(take)
+		if !heard || attacked.Contains(attack.Victim) {
+			continue
+		}
+		attacked.Add(attack.Victim)
+		attacks = append(attacks, attack)
 	}
+
+	for _, attack := range attacks {
+		if err := u.callToDefend(ctx, attack); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (u *UseCase) callToDefend(ctx context.Context, attack pings.Attack) error {
 	now := u.clock.Now()
 	if attack.Stale(now) {
 		return nil

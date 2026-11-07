@@ -163,7 +163,7 @@ ping goes to `#alerts`, with the victim's role, the attacker, the tiles and the 
 
 - **The link opens the game on the attack** (`pings.View`): `lat` and `lon` in degrees, `zoom` the globe camera's (1 at
   rest, the whole globe; the game reads the three, see the frontend's [Discord pings](../../frontend/docs/discord-alerts.md)).
-  The view looks at the middle of the attacker's takes on the ground the ping names, each from `TileTaken.point`.
+  The view looks at the middle of the attacker's takes on the ground the ping names, each from `TakenTile.point`.
   The 90% of them nearest that middle fill 40% of a desktop's half height, which is most of a phone's half width; the
   10% left are stray clicks, which would zoom the view out to the whole globe. The zoom is kept between 1 and 20, where
   a tile is about 27 px on a 900 px high screen. A battle or a season has no place: its link is the plain page.

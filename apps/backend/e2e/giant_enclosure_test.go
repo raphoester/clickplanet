@@ -240,7 +240,7 @@ type groupLag struct {
 
 func takeGroups(t *testing.T, rdb *redis.Client) []groupLag {
 	t.Helper()
-	groups, err := rdb.XInfoGroups(t.Context(), "events:planet.v1.TileTaken").Result()
+	groups, err := rdb.XInfoGroups(t.Context(), "events:planet.v1.TilesTaken").Result()
 	require.NoError(t, err)
 	lags := make([]groupLag, 0, len(groups))
 	for _, g := range groups {
@@ -261,7 +261,7 @@ func usedMemory(t *testing.T, rdb *redis.Client) string {
 	return "?"
 }
 
-// waitForTheTakes polls each TileTaken group until none lags: how long each module takes to hear a giant pocket.
+// waitForTheTakes polls each TilesTaken group until none lags: how long each module takes to hear a giant pocket.
 func waitForTheTakes(t *testing.T, rdb *redis.Client, since time.Time, within time.Duration) map[string]time.Duration {
 	t.Helper()
 	caughtUp := map[string]time.Duration{}
@@ -395,7 +395,7 @@ func TestGiantEnclosuresOnTheWholeStack(t *testing.T) {
 	dead, err := rdb.XLen(ctx, "events:dead").Result()
 	require.NoError(t, err)
 	assert.Zero(t, dead, "no subscriber gave up on an event")
-	t.Logf("redis after both: %s used; TileTaken stream holds %d", usedMemory(t, rdb), rdb.XLen(ctx, "events:planet.v1.TileTaken").Val())
+	t.Logf("redis after both: %s used; TilesTaken stream holds %d", usedMemory(t, rdb), rdb.XLen(ctx, "events:planet.v1.TilesTaken").Val())
 }
 
 func closeRing(t *testing.T, game gameStack, rdb *redis.Client, name string, ring giantRing, ringer *fighter, busy []*fighter,
@@ -592,8 +592,8 @@ func closeRing(t *testing.T, game gameStack, rdb *redis.Client, name string, rin
 		_ = planetDB.On(ctx).QueryRowContext(ctx, `SELECT position FROM ledger_relayed`).Scan(&relayed)
 		return relayed > position
 	}, 20*time.Second, 100*time.Millisecond, "the relay tells the enclosure to Redis")
-	streamLen = rdb.XLen(ctx, "events:planet.v1.TileTaken").Val()
-	t.Logf("%s: relayed; TileTaken stream holds %d entries, redis uses %s", name, streamLen, usedMemory(t, rdb))
+	streamLen = rdb.XLen(ctx, "events:planet.v1.TilesTaken").Val()
+	t.Logf("%s: relayed; TilesTaken stream holds %d entries, redis uses %s", name, streamLen, usedMemory(t, rdb))
 	caughtUp := waitForTheTakes(t, rdb, closedAt, 30*time.Minute)
 	t.Logf("%s: others' clicks while the modules took the pocket in: %s", name, percentiles(window(closedAt.Add(2*time.Second), time.Now())))
 	names := make([]string, 0, len(caughtUp))

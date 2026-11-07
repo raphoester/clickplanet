@@ -103,10 +103,9 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 	assert.Equal(t, 5, n)
 	assert.Equal(t, ledger.Position(5), told.position)
 	want := []proto.Message{
-		&planetv1.TileTaken{
-			AccountId: ada, TileId: 1, Country: "fr", TakenAt: timestamppb.New(at), Position: 0, Previous: "de", Ground: "es",
-			Point: &planetv1.GlobePoint{X: 0.6, Z: 0.8},
-		},
+		&planetv1.TilesTaken{AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Position: 0, Tiles: []*planetv1.TakenTile{
+			{TileId: 1, Previous: "de", Ground: "es", Point: &planetv1.GlobePoint{X: 0.6, Z: 0.8}},
+		}},
 		&planetv1.BombLanded{
 			Country: "fr", TileId: 9, Ground: "au", LandmassId: uint32(tasmania), Cleared: 2, LandedAt: timestamppb.New(at), AccountId: ada, Position: 2,
 		},
@@ -119,7 +118,7 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 	}
 }
 
-func TestEachTakeOfASpreadIsToldWithItsIndexInTheEvent(t *testing.T) {
+func TestTheTakesOfAnEventAreToldTogetherEachWithItsIndexInTheEvent(t *testing.T) {
 	storage := flushed(t,
 		ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at},
 		ledger.Spreading{Tile: 1, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at, Impacts: []clicks.Impact{
@@ -134,25 +133,47 @@ func TestEachTakeOfASpreadIsToldWithItsIndexInTheEvent(t *testing.T) {
 	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
 	require.NoError(t, err)
 
-	type place struct {
-		tile, index uint32
-		position    uint64
+	want := []proto.Message{
+		&planetv1.TilesTaken{AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Position: 0, Tiles: []*planetv1.TakenTile{
+			{TileId: 1},
+		}},
+		&planetv1.TilesTaken{AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Position: 1, Tiles: []*planetv1.TakenTile{
+			{TileId: 2, Index: 0, Previous: "de"}, {TileId: 3, Index: 1}, {TileId: 5, Index: 2},
+		}},
 	}
-	told := make([]place, 0, len(events.sent))
+	var taken []proto.Message
 	for _, fact := range events.sent {
-		if taken, ok := fact.(*planetv1.TileTaken); ok {
-			told = append(told, place{tile: taken.GetTileId(), index: taken.GetIndex(), position: taken.GetPosition()})
+		if _, ok := fact.(*planetv1.TilesTaken); ok {
+			taken = append(taken, fact)
 		}
 	}
-	assert.Equal(t, []place{
-		{tile: 1, index: 0, position: 0},
-		{tile: 2, index: 0, position: 1},
-		{tile: 3, index: 1, position: 1},
-		{tile: 5, index: 2, position: 1},
-	}, told, "the click, then the spread's three takes in one event; a shield struck is no take")
+	require.Len(t, taken, len(want), "the click, then the spread's three takes in one fact; a shield struck is no take")
+	for i := range want {
+		assert.True(t, proto.Equal(want[i], taken[i]), "%v", taken[i])
+	}
 }
 
-func TestEachShieldStruckIsToldWithWhoseItWasAndItsIndexInTheEvent(t *testing.T) {
+func TestAnEnclosureOfMoreThanAPartIsToldInPartsWhoseIndexesFollowOn(t *testing.T) {
+	impacts := make([]clicks.Impact, 0, relay_ledger_usecase.PartTiles+2)
+	for tile := range uint32(relay_ledger_usecase.PartTiles + 2) {
+		impacts = append(impacts, clicks.Impact{Tile: tile + 1, Owner: "de", Outcome: clicks.Taken})
+	}
+	storage := flushed(t, ledger.Enclosing{Tile: 9, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at, Impacts: impacts})
+	events := &sender{}
+
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
+	require.NoError(t, err)
+
+	require.Len(t, events.sent, 2, "a full part, then the rest")
+	first, rest := events.sent[0].(*planetv1.TilesTaken), events.sent[1].(*planetv1.TilesTaken)
+	require.Len(t, first.GetTiles(), relay_ledger_usecase.PartTiles)
+	require.Len(t, rest.GetTiles(), 2)
+	assert.Equal(t, first.GetPosition(), rest.GetPosition(), "both parts are the event's")
+	assert.Equal(t, uint32(relay_ledger_usecase.PartTiles), rest.GetTiles()[0].GetIndex(), "the index runs on across the parts")
+	assert.Equal(t, uint32(relay_ledger_usecase.PartTiles+1), rest.GetTiles()[1].GetIndex())
+}
+
+func TestTheShieldsAnEventStruckAreToldTogetherWithWhoseEachWas(t *testing.T) {
 	storage := flushed(t,
 		ledger.Striking{Tile: 1, Scope: "1.2.3.4", Account: ada, Country: "fr", Owner: "pw", Shields: 3, At: at},
 		ledger.Spreading{Tile: 2, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at, Impacts: []clicks.Impact{
@@ -172,16 +193,20 @@ func TestEachShieldStruckIsToldWithWhoseItWasAndItsIndexInTheEvent(t *testing.T)
 
 	var struck []proto.Message
 	for _, fact := range events.sent {
-		if _, ok := fact.(*planetv1.ShieldStruck); ok {
+		if _, ok := fact.(*planetv1.ShieldsStruck); ok {
 			struck = append(struck, fact)
 		}
 	}
 	want := []proto.Message{
-		&planetv1.ShieldStruck{AccountId: ada, TileId: 1, Country: "fr", Owner: "pw", StruckAt: timestamppb.New(at), Position: 0},
-		&planetv1.ShieldStruck{AccountId: ada, TileId: 2, Country: "fr", Owner: "pw", StruckAt: timestamppb.New(at), Position: 1},
-		&planetv1.ShieldStruck{AccountId: ada, TileId: 4, Country: "fr", Owner: "dz", StruckAt: timestamppb.New(at), Position: 1, Index: 1},
-		&planetv1.ShieldStruck{TileId: 7, Country: "fr", Owner: "pw", StruckAt: timestamppb.New(at), Position: 2},
-		&planetv1.ShieldStruck{TileId: 8, Country: "fr", Owner: "fr", StruckAt: timestamppb.New(at), Position: 2, Index: 1},
+		&planetv1.ShieldsStruck{AccountId: ada, Country: "fr", StruckAt: timestamppb.New(at), Position: 0, Tiles: []*planetv1.StruckTile{
+			{TileId: 1, Owner: "pw"},
+		}},
+		&planetv1.ShieldsStruck{AccountId: ada, Country: "fr", StruckAt: timestamppb.New(at), Position: 1, Tiles: []*planetv1.StruckTile{
+			{TileId: 2, Owner: "pw"}, {TileId: 4, Owner: "dz", Index: 1},
+		}},
+		&planetv1.ShieldsStruck{Country: "fr", StruckAt: timestamppb.New(at), Position: 2, Tiles: []*planetv1.StruckTile{
+			{TileId: 7, Owner: "pw"}, {TileId: 8, Owner: "fr", Index: 1},
+		}},
 	}
 	require.Len(t, struck, len(want), "a click, a spread and a bomb each strike, whoever's shield it was")
 	for i := range want {

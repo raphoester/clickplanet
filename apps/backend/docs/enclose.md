@@ -104,18 +104,19 @@ progression's stats and scoring's tally count every tile once. Other players' cl
 142 ms (1 core) while the tiles lock is held. Taking a whole country fortifies it, and taking Africa fortifies 53
 landmasses at once.
 
-**What a giant pocket costs is behind planet, not in it.** The relay tells one `planet.v1.TileTaken` per tile (one
-`ShieldStruck` per shield struck), and each subscriber handles one at a time, in a transaction of its own. Missions took
-in 26k takes in 28 s on 4 cores; progression and scoring took 1.5 to 3.5 minutes for 26k to 51k, about 260 a second;
-on one core about 85 a second each, so a Russia shows in the players' numbers some 5 minutes later, and an Africa 10.
-Flag points do not wait: a round is scored from the map (see [Scoring](scoring.md)).
+**What a giant pocket cost was behind planet, not in it, until 2026-11-07.** The relay told one `planet.v1.TileTaken` per
+tile (one `ShieldStruck` per shield struck), and each subscriber handled one at a time, in a transaction of its own:
+progression and scoring took in about 260 takes a second on 4 cores and 85 on one, so an Africa showed in the players'
+numbers 10 minutes later. Worse, every `XADD` trims a stream to about `redis.maxLen` (100k) whether its groups read the
+entries or not (Redis 7.4 has no `ACKED` trim), so pockets that added up to more than 100k takes before the slowest
+group caught up dropped the oldest, silently: each player's count (stats, titles, missions, the players' board, a
+battle's players), never a flag's points, since a round is scored from the map (see [Scoring](scoring.md)).
 
-**A backlog of more than `redis.maxLen` (100k) takes is lost.** Every `XADD` trims the stream to about `maxLen`
-whether its groups read the entries or not (Redis 7.4 has no `ACKED` trim), so pockets that add up to more than 100k
-takes before the slowest group catches up drop the oldest, silently: no error, no dead letter. What is lost is each
-player's count (stats, titles, missions, the players' board, a battle's players), never a flag's points. An entry is
-106 bytes, so a `maxLen` of 300k holds 30 MB of the 64 MB Redis may use. The fix is one fact per enclosure, or
-subscribers that handle a batch per transaction.
+**So an enclose is one fact, and a batch is one write.** The relay tells one `planet.v1.TilesTaken` per ledger event,
+with every tile it took, in parts of 4,096 tiles at most (`relay_ledger_usecase.PartTiles`): an Africa is 13 entries of
+some 200 KB, not 51,253. Its subscribers read with `cpredis.SubscribeBatch` and write each account's, round's or day's
+takes of a batch at once, keeping their marks (see [The composite layer](composite-layer.md#telling-other-modules-what-happened)).
+Shields struck go the same way, as `planet.v1.ShieldsStruck`.
 
 **To measure again**: `CP_GIANT=1 go test -tags testing ./internal/planet/internal/clicks/usecases/click_usecase/enclose_click/
 -run TestGiantEnclosures -v` runs the pockets above in process. `CP_GIANT_DUMP=<dir>` also writes the Russia and Africa

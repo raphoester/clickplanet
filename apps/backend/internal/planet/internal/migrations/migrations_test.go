@@ -239,7 +239,7 @@ func TestTheLedgerIsToldFromTheFirstEventTheOldServerDidNotPublish(t *testing.T)
 	for position := range 3 {
 		_, err := db.On(t.Context()).ExecContext(t.Context(), `
 			INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at)
-			VALUES ($1, 'take', 1, '203.0.113.7', 'fr', '', now())
+			VALUES ($1, 'take', 1, '203.0.113.7', 'fr', '', now() - interval '2 hours')
 		`, position)
 		require.NoError(t, err)
 	}
@@ -249,6 +249,44 @@ func TestTheLedgerIsToldFromTheFirstEventTheOldServerDidNotPublish(t *testing.T)
 	var relayed int64
 	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT position FROM ledger_relayed`).Scan(&relayed))
 	assert.Equal(t, int64(3), relayed, "it published every take it made, at the take")
+}
+
+const relayTakesPerEvent = "20261107200000"
+
+func TestTheLedgerIsToldAgainFromTheFirstEventOfTheLastHour(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, relayTakesPerEvent))
+	for position, ago := range []time.Duration{3 * time.Hour, 2 * time.Hour, 40 * time.Minute, 10 * time.Minute} {
+		_, err := db.On(t.Context()).ExecContext(t.Context(), `
+			INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at)
+			VALUES ($1, 'take', 1, '203.0.113.7', 'fr', '', now() - $2::interval)
+		`, position, ago.String())
+		require.NoError(t, err)
+	}
+	_, err := db.On(t.Context()).ExecContext(t.Context(), `UPDATE ledger_relayed SET position = 4`)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	var relayed int64
+	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT position FROM ledger_relayed`).Scan(&relayed))
+	assert.Equal(t, int64(2), relayed, "the events of the last hour are told again on the new streams")
+}
+
+func TestARelayWithNothingInTheLastHourStaysWhereItWas(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, relayTakesPerEvent))
+	_, err := db.On(t.Context()).ExecContext(t.Context(), `
+		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at)
+		VALUES (0, 'take', 1, '203.0.113.7', 'fr', '', now() - interval '2 hours')
+	`)
+	require.NoError(t, err)
+	_, err = db.On(t.Context()).ExecContext(t.Context(), `UPDATE ledger_relayed SET position = 1`)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	var relayed int64
+	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT position FROM ledger_relayed`).Scan(&relayed))
+	assert.Equal(t, int64(1), relayed)
 }
 
 const tileHolders = "20261026180000"

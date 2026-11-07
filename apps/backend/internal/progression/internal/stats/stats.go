@@ -147,6 +147,16 @@ func TakeAt(position uint64, index uint32, at time.Time) func(Stats) Stats {
 	return func(s Stats) Stats { return s.WithTake(position, index, at) }
 }
 
+// Changes is each change in turn, as one: an account's takes of a batch of facts, recorded in one write.
+func Changes(changes ...func(Stats) Stats) func(Stats) Stats {
+	return func(s Stats) Stats {
+		for _, change := range changes {
+			s = change(s)
+		}
+		return s
+	}
+}
+
 func MessageAt(at time.Time) func(Stats) Stats {
 	return func(s Stats) Stats { return s.WithMessage(at) }
 }

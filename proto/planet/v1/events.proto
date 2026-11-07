@@ -6,18 +6,28 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "planet/v1/planet.proto";
 
-message TileTaken {
+// The tiles one ledger event took, in its order: a click's one, a spread's few, an enclose's every tile inside. An event
+// that took more than a part holds comes in several parts, each at the event's position, in order.
+message TilesTaken {
   string account_id = 1;
-  uint32 tile_id = 2;
-  string country = 3;
-  google.protobuf.Timestamp taken_at = 4;
-  uint64 position = 5;
-  string previous = 6;
-  string ground = 7;
-  // A spread or an enclose is one ledger event, at one position, that holds several takes: each has its index in it.
-  uint32 index = 8;
-  // Where the tile is on the globe: `position` is the ledger's.
-  GlobePoint point = 9;
+  // The flag that took them.
+  string country = 2;
+  google.protobuf.Timestamp taken_at = 3;
+  // The ledger's: a receiver keeps the position and index past the last tile it counted.
+  uint64 position = 4;
+  repeated TakenTile tiles = 5;
+}
+
+message TakenTile {
+  uint32 tile_id = 1;
+  // Its place among the tiles its ledger event took, across the parts.
+  uint32 index = 2;
+  // The flag it wore before.
+  string previous = 3;
+  // The country whose ground it is.
+  string ground = 4;
+  // Where the tile is on the globe.
+  GlobePoint point = 5;
 }
 
 message BombLanded {
@@ -51,17 +61,23 @@ message ShieldPlaced {
   uint64 position = 6;
 }
 
-// A shield a click, a spread, an enclose or a bomb broke: the tile kept its flag, owner, and lost one shield.
-message ShieldStruck {
+// The shields one ledger event broke, a click's, a spread's, an enclose's or a bomb's: each tile kept its flag, owner,
+// and lost one shield. An event that broke more than a part holds comes in several parts, as TilesTaken does.
+message ShieldsStruck {
+  // Empty for none.
   string account_id = 1;
-  uint32 tile_id = 2;
-  // The flag that struck it.
-  string country = 3;
-  string owner = 4;
-  google.protobuf.Timestamp struck_at = 5;
-  uint64 position = 6;
-  // A spread, an enclose or a bomb is one ledger event, at one position, that may strike several: each has its index.
-  uint32 index = 7;
+  // The flag that struck them.
+  string country = 2;
+  google.protobuf.Timestamp struck_at = 3;
+  uint64 position = 4;
+  repeated StruckTile tiles = 5;
+}
+
+message StruckTile {
+  uint32 tile_id = 1;
+  // Its place among the shields its ledger event broke, across the parts.
+  uint32 index = 2;
+  string owner = 3;
 }
 
 message BonusClaimed {

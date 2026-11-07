@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
@@ -272,7 +273,7 @@ type countingSender struct {
 	at       uint64
 	messages int
 	bytes    int
-	kinds    map[string]int
+	tiles    map[string]int
 }
 
 type positioned interface{ GetPosition() uint64 }
@@ -288,7 +289,12 @@ func (s *countingSender) Send(_ context.Context, events ...proto.Message) error 
 		}
 		s.messages++
 		s.bytes += len(payload)
-		s.kinds[string(event.ProtoReflect().Descriptor().Name())]++
+		switch told := event.(type) {
+		case *planetv1.TilesTaken:
+			s.tiles["taken"] += len(told.GetTiles())
+		case *planetv1.ShieldsStruck:
+			s.tiles["struck"] += len(told.GetTiles())
+		}
 	}
 	return nil
 }
@@ -410,7 +416,7 @@ func (g *game) close(t testing.TB, name string, r ring, attacker string, busy bo
 
 	// The ledger: one enclose event, then the relay's facts.
 	require.NoError(t, g.ledger.Flush(t.Context()))
-	sender := &countingSender{kinds: map[string]int{}}
+	sender := &countingSender{tiles: map[string]int{}}
 	var cursor memoryCursor
 	g.ledger.ReplaySaved(0, 1<<30, func(position ledger.Position, event ledger.Event) {
 		if enclosing, ok := event.(ledger.Enclosing); ok && enclosing.Tile == r.closing {
@@ -432,8 +438,9 @@ func (g *game) close(t testing.TB, name string, r ring, attacker string, busy bo
 	}
 	rep.relay = time.Since(start)
 	rep.facts, rep.factBytes = sender.messages, sender.bytes
-	assert.Equal(t, rep.filled-rep.struck, sender.kinds["TileTaken"], "one TileTaken per tile taken")
-	assert.Equal(t, rep.struck, sender.kinds["ShieldStruck"], "one ShieldStruck per shield struck")
+	assert.Equal(t, rep.filled-rep.struck, sender.tiles["taken"], "every tile taken is told, once")
+	assert.Equal(t, rep.struck, sender.tiles["struck"], "every shield struck is told, once")
+	assert.LessOrEqual(t, rep.facts, 2*(rep.filled/relay_ledger_usecase.PartTiles+1), "in parts, not one fact per tile")
 
 	return rep
 }

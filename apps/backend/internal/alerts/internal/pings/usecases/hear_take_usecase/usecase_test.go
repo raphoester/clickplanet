@@ -111,3 +111,17 @@ func TestAPostDiscordRefusedKeepsNoPing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, history)
 }
+
+func TestAnEnclosureThatAttacksAFlagManyTimesOverPingsItOnce(t *testing.T) {
+	f := setUp()
+	_, err := f.book.Ensure(t.Context(), roles.Nation("ie"))
+	require.NoError(t, err)
+	takes := make([]pings.Take, 0, 10*pings.AttackTiles)
+	for range 10 * pings.AttackTiles {
+		takes = append(takes, pings.Take{Victim: "ie", Attacker: "gb", Ground: "ie", At: now})
+	}
+
+	require.NoError(t, f.useCase.Execute(t.Context(), takes...))
+
+	assert.Len(t, f.poster.Posts, 1, "ten attacks in one batch, one call to defend")
+}
