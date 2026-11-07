@@ -116,6 +116,19 @@ func (s *testSuite) TestAMuteTheHistoryCannotRecordFails() {
 	s.Require().Error(err, "a mute is never kept without its record: the transaction keeps neither")
 }
 
+func (s *testSuite) TestAnAccountOnlyMuteLeavesTheNetworkItPostedFrom() {
+	s.posted(bully, "2a02:8086:c95:7580::9", "latest")
+
+	mute, err := s.useCase.Execute(context.Background(), mute_usecase.In{
+		Account: bully, Duration: 30 * 24 * time.Hour, AccountOnly: true,
+	})
+	s.Require().NoError(err)
+
+	s.Equal(mutes.NewMute(mutes.MuteID{15: 1}, mutes.CallerOf(bully, mutes.NoScope), mutes.Chat, now, 30*24*time.Hour), mute,
+		"the household behind the /64 keeps the chat")
+	s.Equal([]mutes.Mute{mute}, s.mutes.Kept())
+}
+
 func (s *testSuite) TestAnAccountThatNeverPostedIsMutedAlone() {
 	mute, err := s.useCase.Execute(context.Background(), mute_usecase.In{Account: quiet})
 	s.Require().NoError(err)

@@ -56,7 +56,8 @@ const (
 type AdminServiceClient interface {
 	// Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
 	// the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. Of the kind
-	// asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
+	// asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other. With
+	// account_only, the account alone: its network keeps the chat.
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
 	// Ends now every mute of the kind given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
 	Unmute(context.Context, *connect.Request[v1.UnmuteRequest]) (*connect.Response[v1.UnmuteResponse], error)
@@ -184,7 +185,8 @@ func (c *adminServiceClient) ListModeration(ctx context.Context, req *connect.Re
 type AdminServiceHandler interface {
 	// Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
 	// the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. Of the kind
-	// asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
+	// asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other. With
+	// account_only, the account alone: its network keeps the chat.
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
 	// Ends now every mute of the kind given to the account, with the network each holds. A mute given to another account on its network still holds it. NotFound when none runs.
 	Unmute(context.Context, *connect.Request[v1.UnmuteRequest]) (*connect.Response[v1.UnmuteResponse], error)
