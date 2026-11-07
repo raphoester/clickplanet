@@ -39,4 +39,7 @@ func GuestOf(name string) Author {
 // The name a mute announcement keeps.
 func (a Author) Name() string { return a.name }
 
+// A guest posts no GIF, nor anything while raid mode runs.
+func (a Author) Guest() bool { return a.guest }
+
 var ErrAuthorUnavailable = errors.New("the sender could not be identified")

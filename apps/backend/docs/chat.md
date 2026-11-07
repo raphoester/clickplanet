@@ -294,6 +294,38 @@ player's: see [Who owns which history](#who-owns-which-history).
 - **Why not a module of its own**: it would own no rule. Mutes and removals are the chat's, a name is player's, and the
   steps Claude counts are the chat's alone (a mute and a removal); renames go in the digest.
 
+## Raid mode
+
+**An operator can close the chat to guests for a while**: `chat.v1.AdminService/SetRaidMode(duration, reason)`, on the
+admin listener, and `GetRaidMode`, `NO_SIDE_EFFECTS`, so both are tools of the connector
+(`chat_set_raid_mode`, `chat_get_raid_mode`). The second of the three layers of
+[Chat moderation](../../../docs/moderation.md): for a raid of guest accounts, which a mute holds no longer than it
+takes to open a private tab.
+
+- **While it runs, a guest's post is refused**, `PermissionDenied` (`raids.ErrGuest`), before anything is kept. A
+  signed-in player posts as before, and everyone reads, reacts and marks the chat seen as before. The client shows its
+  "not allowed to post" line, the blocklist's: the refusal carries no detail.
+- **`raiding_send_message` decides it**, a decorator beside `muting_send_message`, inside it: a muted caller is told
+  its mute first. It reads the raid mode (`raids.Book.Running`) on every post, and **asks the player module who posts
+  (`IntroducePlayer`) only while raid mode runs**: the rest of the time the use case asks it once, as before.
+  `RaidMode.Admits(author)` is the rule, on `messages.Author.Guest`. A post with no account goes to the use case,
+  which refuses it as before. The player module not answering refuses the post, `Unavailable`, as it would anyway.
+- **One raid mode, running or ended**: `chat.raid_mode` holds one row at most (`single`, always true, is the primary
+  key; migration `20261107120000_raid_mode`), `started_at`, `ends_at` and `reason`. `Save` is an upsert, so a raid
+  mode set while one runs replaces it, from now. The row stays once it ended: it says when the last one ran.
+- **It ends by itself**, at `ends_at`: `RaidMode.RunsAt` and `raid_mode_query`'s SQL ask the same, started and not
+  ended, and nothing runs to end it. **24 hours at most** (`raids.MaxDuration`): `DurationOf` refuses more, a negative
+  or a fractional second (`InvalidArgument`), and the table's `CHECK` holds the same. Longer is the operator's call,
+  set again.
+- **A duration of 0, or none, ends it now**: `set_raid_mode_usecase` saves the running one `Ended` (its `ends_at` moved
+  to now, its reason kept). Ending when none runs changes nothing and is no error, so a run tried again is harmless.
+- **The reason** is `moderation.ReasonOf`'s, 500 characters at most. `audit_set_raid_mode` logs every call at Warn
+  (`admin chat raid mode`) with the duration, the reason and the operator, its `client` included. Raid mode is not in
+  the moderation history: that is per account, and raid mode is nobody's.
+- **Not personal data**: no account, no address. The prune leaves the row.
+- `raids`' suite runs both stores; `raid_mode_query`'s that the query and `RunsAt` agree; `raiding_send_message`'s
+  that a guest is refused only while it runs and the player module is asked only then.
+
 ## Replies
 
 **A message may answer another one**: `SendMessageRequest.reply_to_message_id`. The reply is an ordinary message in

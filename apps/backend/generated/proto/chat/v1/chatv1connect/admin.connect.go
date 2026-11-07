@@ -50,6 +50,12 @@ const (
 	// AdminServiceListModerationProcedure is the fully-qualified name of the AdminService's
 	// ListModeration RPC.
 	AdminServiceListModerationProcedure = "/chat.v1.AdminService/ListModeration"
+	// AdminServiceSetRaidModeProcedure is the fully-qualified name of the AdminService's SetRaidMode
+	// RPC.
+	AdminServiceSetRaidModeProcedure = "/chat.v1.AdminService/SetRaidMode"
+	// AdminServiceGetRaidModeProcedure is the fully-qualified name of the AdminService's GetRaidMode
+	// RPC.
+	AdminServiceGetRaidModeProcedure = "/chat.v1.AdminService/GetRaidMode"
 )
 
 // AdminServiceClient is a client for the chat.v1.AdminService service.
@@ -72,6 +78,13 @@ type AdminServiceClient interface {
 	// newest first. Kept for its own retention (90 days), past the chat's, and forgotten with the account. One account's,
 	// or every account's. An operator's renames are player.v1.AdminService/ListRenames.
 	ListModeration(context.Context, *connect.Request[v1.ListModerationRequest]) (*connect.Response[v1.ListModerationResponse], error)
+	// Starts raid mode, for a raid of guest accounts: while it runs, a guest's post is refused (PermissionDenied), and a
+	// signed-in player posts as before. Everyone still reads and reacts. It ends by itself after the duration, 24 hours
+	// at most. Set again while it runs, it starts again from now, with the new duration and reason. A duration of 0, or
+	// none, ends it now; ending it when none runs changes nothing.
+	SetRaidMode(context.Context, *connect.Request[v1.SetRaidModeRequest]) (*connect.Response[v1.SetRaidModeResponse], error)
+	// Whether raid mode runs now: since when, until when, and why. Nothing set when it does not.
+	GetRaidMode(context.Context, *connect.Request[v1.GetRaidModeRequest]) (*connect.Response[v1.GetRaidModeResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the chat.v1.AdminService service. By default, it
@@ -131,6 +144,19 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		setRaidMode: connect.NewClient[v1.SetRaidModeRequest, v1.SetRaidModeResponse](
+			httpClient,
+			baseURL+AdminServiceSetRaidModeProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("SetRaidMode")),
+			connect.WithClientOptions(opts...),
+		),
+		getRaidMode: connect.NewClient[v1.GetRaidModeRequest, v1.GetRaidModeResponse](
+			httpClient,
+			baseURL+AdminServiceGetRaidModeProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetRaidMode")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -143,6 +169,8 @@ type adminServiceClient struct {
 	getMessage     *connect.Client[v1.GetMessageRequest, v1.GetMessageResponse]
 	listMessages   *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
 	listModeration *connect.Client[v1.ListModerationRequest, v1.ListModerationResponse]
+	setRaidMode    *connect.Client[v1.SetRaidModeRequest, v1.SetRaidModeResponse]
+	getRaidMode    *connect.Client[v1.GetRaidModeRequest, v1.GetRaidModeResponse]
 }
 
 // Mute calls chat.v1.AdminService.Mute.
@@ -180,6 +208,16 @@ func (c *adminServiceClient) ListModeration(ctx context.Context, req *connect.Re
 	return c.listModeration.CallUnary(ctx, req)
 }
 
+// SetRaidMode calls chat.v1.AdminService.SetRaidMode.
+func (c *adminServiceClient) SetRaidMode(ctx context.Context, req *connect.Request[v1.SetRaidModeRequest]) (*connect.Response[v1.SetRaidModeResponse], error) {
+	return c.setRaidMode.CallUnary(ctx, req)
+}
+
+// GetRaidMode calls chat.v1.AdminService.GetRaidMode.
+func (c *adminServiceClient) GetRaidMode(ctx context.Context, req *connect.Request[v1.GetRaidModeRequest]) (*connect.Response[v1.GetRaidModeResponse], error) {
+	return c.getRaidMode.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the chat.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
@@ -200,6 +238,13 @@ type AdminServiceHandler interface {
 	// newest first. Kept for its own retention (90 days), past the chat's, and forgotten with the account. One account's,
 	// or every account's. An operator's renames are player.v1.AdminService/ListRenames.
 	ListModeration(context.Context, *connect.Request[v1.ListModerationRequest]) (*connect.Response[v1.ListModerationResponse], error)
+	// Starts raid mode, for a raid of guest accounts: while it runs, a guest's post is refused (PermissionDenied), and a
+	// signed-in player posts as before. Everyone still reads and reacts. It ends by itself after the duration, 24 hours
+	// at most. Set again while it runs, it starts again from now, with the new duration and reason. A duration of 0, or
+	// none, ends it now; ending it when none runs changes nothing.
+	SetRaidMode(context.Context, *connect.Request[v1.SetRaidModeRequest]) (*connect.Response[v1.SetRaidModeResponse], error)
+	// Whether raid mode runs now: since when, until when, and why. Nothing set when it does not.
+	GetRaidMode(context.Context, *connect.Request[v1.GetRaidModeRequest]) (*connect.Response[v1.GetRaidModeResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -255,6 +300,19 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceSetRaidModeHandler := connect.NewUnaryHandler(
+		AdminServiceSetRaidModeProcedure,
+		svc.SetRaidMode,
+		connect.WithSchema(adminServiceMethods.ByName("SetRaidMode")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceGetRaidModeHandler := connect.NewUnaryHandler(
+		AdminServiceGetRaidModeProcedure,
+		svc.GetRaidMode,
+		connect.WithSchema(adminServiceMethods.ByName("GetRaidMode")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chat.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceMuteProcedure:
@@ -271,6 +329,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceListMessagesHandler.ServeHTTP(w, r)
 		case AdminServiceListModerationProcedure:
 			adminServiceListModerationHandler.ServeHTTP(w, r)
+		case AdminServiceSetRaidModeProcedure:
+			adminServiceSetRaidModeHandler.ServeHTTP(w, r)
+		case AdminServiceGetRaidModeProcedure:
+			adminServiceGetRaidModeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -306,4 +368,12 @@ func (UnimplementedAdminServiceHandler) ListMessages(context.Context, *connect.R
 
 func (UnimplementedAdminServiceHandler) ListModeration(context.Context, *connect.Request[v1.ListModerationRequest]) (*connect.Response[v1.ListModerationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.ListModeration is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) SetRaidMode(context.Context, *connect.Request[v1.SetRaidModeRequest]) (*connect.Response[v1.SetRaidModeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.SetRaidMode is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetRaidMode(context.Context, *connect.Request[v1.GetRaidModeRequest]) (*connect.Response[v1.GetRaidModeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.GetRaidMode is not implemented"))
 }

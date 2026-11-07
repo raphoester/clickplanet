@@ -40,6 +40,17 @@ service AdminService {
   rpc ListModeration(ListModerationRequest) returns (ListModerationResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // Starts raid mode, for a raid of guest accounts: while it runs, a guest's post is refused (PermissionDenied), and a
+  // signed-in player posts as before. Everyone still reads and reacts. It ends by itself after the duration, 24 hours
+  // at most. Set again while it runs, it starts again from now, with the new duration and reason. A duration of 0, or
+  // none, ends it now; ending it when none runs changes nothing.
+  rpc SetRaidMode(SetRaidModeRequest) returns (SetRaidModeResponse);
+
+  // Whether raid mode runs now: since when, until when, and why. Nothing set when it does not.
+  rpc GetRaidMode(GetRaidModeRequest) returns (GetRaidModeResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message MuteRequest {
@@ -210,4 +221,31 @@ message RemovalAction {
     string text = 2;
     Gif gif = 3;
   }
+}
+
+message SetRaidModeRequest {
+  // How long it runs from now, in whole seconds, 24 hours at most. 0, or unset, ends it now.
+  google.protobuf.Duration duration = 1;
+  // Why, in a few words. Optional; 500 characters at most.
+  string reason = 2;
+}
+
+message SetRaidModeResponse {
+  // The raid mode that runs now. Unset once it was ended.
+  RaidMode raid_mode = 1;
+}
+
+message GetRaidModeRequest {}
+
+message GetRaidModeResponse {
+  // Unset when raid mode does not run.
+  RaidMode raid_mode = 1;
+}
+
+// While it runs, the chat takes no guest's post.
+message RaidMode {
+  google.protobuf.Timestamp started_at = 1;
+  google.protobuf.Timestamp ends_at = 2;
+  // Empty for none.
+  string reason = 3;
 }

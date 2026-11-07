@@ -1,10 +1,11 @@
 # Inside the chat module: the same shape
 
-Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has eight:
+Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has nine:
 `messages`, `reactions` (which imports `messages`), `announcements` (which imports `messages`, for the room it is told
 in), `seen` (which imports `messages`), `mutes`
 (which imports `messages`), `removals` (which imports `messages`), `moderation`, the history of what an operator
-did to an account (which imports `messages` and `mutes`), and `feed`, the live stream, which carries the
+did to an account (which imports `messages` and `mutes`), `raids`, the raid mode that closes the chat to guests (which
+imports `messages` and `moderation`), and `feed`, the live stream, which carries the
 first three and the removals. `subscribers/` is its edge for events, as `chatv1controller/` is
 its edge for the wire. A read is a query under its handler: see [Reads are queries](queries.md).
 
@@ -31,6 +32,8 @@ internal/chat/internal/
       muting_send_message/              refuses a muted caller before anything else, and a GIF to one muted from
                                         GIFs — Mutes
       log_banned/                       logs a post refused for a banned phrase, with the phrase as listed
+      raiding_send_message/             refuses a guest's post while raid mode runs, and asks who posts only then —
+                                        RaidMode, Authors
     usecases/prune_usecase/             deletes past retention, from each table, each set of tables past its own
                                         (KeptFor: the chat's, the moderation history's); Runner — Pruner
       log_prune/                        logs what a prune deleted
@@ -83,6 +86,13 @@ internal/chat/internal/
     inmemory_moderation_storage/        Storage in a slice, and Kept for a test — behind the testing tag, tests only
     usecases/forget_moderation_usecase/ deletes the actions taken on an account, takes it off the ones it took — Forgetter
       audit_remove/                     logs every removal at Warn
+  raids/                                RaidMode (Start, Ended, RunsAt, Admits, TakeSnapshot), Snapshot (Restore),
+                                        DurationOf, MaxDuration, Book (Running), ErrGuest, ErrNoRaidMode, the Storage
+                                        port and its suite
+    postgres_raid_store/                Storage, over chat.raid_mode: one row at most
+    inmemory_raid_storage/              Storage in memory, and FailWith — behind the testing tag, tests only
+    usecases/set_raid_mode_usecase/     starts raid mode from now, or ends the one that runs — Store
+      audit_set_raid_mode/              logs every call at Warn
   feed/                                 Update: a message sent, a message's new reactions, an announcement, a
                                         message removed, or an account that left a flag's room (MessageSent,
                                         ReactionsChanged, Announced, MessageRemoved, RoomLeft); For(room)
@@ -92,11 +102,12 @@ internal/chat/internal/
   chatv1controller/                     ChatService and AdminService (bags), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
     mute_handler/  unmute_handler/  get_mute_handler/  remove_message_handler/  get_message_handler/
-    list_messages_handler/  list_moderation_handler/
+    list_messages_handler/  list_moderation_handler/  set_raid_mode_handler/  get_raid_mode_handler/
     get_mute_handler/mute_query/        PostgresQuery: the mute that holds an account now, by itself or its network
     list_moderation_handler/moderation_query/  PostgresQuery: the moderation history, newest first, one account's or
                                         everybody's, since a time
     get_message_handler/message_query/  PostgresQuery: one message as it was sent, removed or not
+    get_raid_mode_handler/raid_mode_query/  PostgresQuery: the raid mode that runs now, if one does
     list_messages_handler/messages_query/  PostgresQuery: a page of messages as they were sent, before or after a
                                         message's id, named for the operator — Authors
       rpc_player_authors/               Authors, from player.v1.InternalService/GetPlayers, as player.v1.Player

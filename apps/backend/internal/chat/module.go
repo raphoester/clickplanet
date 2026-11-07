@@ -28,6 +28,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_message_handler/message_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_mute_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_mute_handler/mute_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_raid_mode_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_raid_mode_handler/raid_mode_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_messages_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_messages_handler/messages_query"
 	messages_authors "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_messages_handler/messages_query/rpc_player_authors"
@@ -39,6 +41,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/react_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/remove_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/set_raid_mode_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/unmute_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/inprocess_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/usecases/leave_room_usecase"
@@ -54,6 +57,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/log_banned"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/muting_send_message"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/publishing_send_message"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/raiding_send_message"
 	message_ids "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/moderation/postgres_moderation_store"
@@ -66,6 +70,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/unmute_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/unmute_usecase/audit_unmute"
 	mute_ids "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/uuid_id_provider"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/raids"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/raids/postgres_raid_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/raids/usecases/set_raid_mode_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/raids/usecases/set_raid_mode_usecase/audit_set_raid_mode"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase/muting_react"
@@ -144,6 +152,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	removalStore := postgres_removal_store.New(db)
 	moderationStore := postgres_moderation_store.New(db)
 	muteBook := mutes.NewBook(muteStore, cptime.SystemClock{})
+	raidStore := postgres_raid_store.New(db)
+	raidBook := raids.NewBook(raidStore, cptime.SystemClock{})
 	window := messages.NewWindow(storage.HistorySize, storage.Retention)
 	updates := inprocess_feed.New(storage.SubscriberBuffer, props.Logger)
 
@@ -251,8 +261,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	chatService := chatv1controller.ChatService{
-		SendMessageHandler: send_message_handler.New(muting_send_message.New(log_banned.New(publishing_send_message.New(
-			send_message_usecase.New(messageStore, updates, authors, drafts, thread), streams), props.Logger), muteBook)),
+		SendMessageHandler: send_message_handler.New(muting_send_message.New(raiding_send_message.New(
+			log_banned.New(publishing_send_message.New(send_message_usecase.New(
+				messageStore, updates, authors, drafts, thread), streams), props.Logger),
+			raidBook, authors), muteBook)),
 		GetHistoryHandler: get_history_handler.New(history_query.NewPostgresQuery(
 			db, cptime.SystemClock{}, storage.HistorySize, storage.Retention), rooms),
 		ListenForEventsHandler: listen_for_events_handler.New(
@@ -289,6 +301,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		ListMessagesHandler: list_messages_handler.New(messages_query.NewPostgresQuery(
 			db, messages_authors.New(player), cptime.SystemClock{}, storage.Retention)),
 		ListModerationHandler: list_moderation_handler.New(moderation_query.NewPostgresQuery(db)),
+		SetRaidModeHandler: set_raid_mode_handler.New(audit_set_raid_mode.New(
+			set_raid_mode_usecase.New(raidStore, cptime.SystemClock{}), props.Logger)),
+		GetRaidModeHandler: get_raid_mode_handler.New(raid_mode_query.NewPostgresQuery(db, cptime.SystemClock{})),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return chatv1connect.NewAdminServiceHandler(adminService, options...)

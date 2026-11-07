@@ -6,6 +6,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/chatmute"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/raids"
 )
 
 // Bare sentinel: the sender must not learn which check tripped.
@@ -24,6 +25,10 @@ func toConnect(err error) error {
 
 	if errors.Is(err, messages.ErrGuestGif) {
 		return connect.NewError(connect.CodePermissionDenied, messages.ErrGuestGif)
+	}
+
+	if errors.Is(err, raids.ErrGuest) {
+		return connect.NewError(connect.CodePermissionDenied, raids.ErrGuest)
 	}
 
 	if errors.Is(err, messages.ErrNoAccount) {

@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/raids"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
@@ -175,6 +176,21 @@ func TestAGuestsGifIsDenied(t *testing.T) {
 	_, err := send(stubUseCase{in: &send_message_usecase.In{}, err: messages.ErrGuestGif})
 
 	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+}
+
+func TestAGuestsPostDuringARaidIsDenied(t *testing.T) {
+	_, err := send(stubUseCase{in: &send_message_usecase.In{}, err: raids.ErrGuest})
+
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+}
+
+func TestABannedPhraseIsAnInvalidMessageAndSaysNoMore(t *testing.T) {
+	_, err := send(stubUseCase{in: &send_message_usecase.In{}, err: fmt.Errorf("%w: %w: %q",
+		messages.ErrInvalidMessage, messages.ErrBanned, "sieg heil")})
+
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	assert.NotContains(t, err.Error(), "sieg heil", "the sender never learns which phrase")
+	assert.NotContains(t, err.Error(), "banned")
 }
 
 func TestAnUnexpectedFailureIsLeftForTheErrorNet(t *testing.T) {
