@@ -7,11 +7,12 @@ import (
 )
 
 // The phrases a raid spams, refused at once: the slogans and slurs no conversation makes acceptable, and the symbols.
-// Political talk stays (see docs/moderation.md), so a name alone is never listed: "Hitler was a monster" passes. So does
-// "nigga", the open-a form players call each other; the hard-r form is listed. chat.service.bannedPhrases adds to them.
+// Political talk stays (see docs/moderation.md), so a name alone is never listed: "Hitler was a monster" passes. So do
+// the insults the policy keeps, "nigga" (the open-a form players call each other) and "faggot"; the hard-r form is
+// listed. chat.service.bannedPhrases adds to them.
 var DefaultBannedPhrases = []string{
 	"sieg heil", "seig heil", "heil hitler", "hitler did nothing wrong", "gas the jews", "white power", "1488",
-	"nigger", "faggot",
+	"nigger",
 	"卐", "࿕", "࿗", "ϟϟ",
 }
 

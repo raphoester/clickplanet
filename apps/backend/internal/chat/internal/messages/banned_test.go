@@ -51,7 +51,6 @@ func TestABannedPhraseIsFoundHoweverItIsWritten(t *testing.T) {
 		"white powerrr brothers":     "white power",
 		"whitepower88":               "white power",
 		"1488!":                      "1488",
-		"f4gg0t":                     "faggot",
 	} {
 		said, ok := banned.Said(text)
 		require.True(t, ok, "%q", text)
@@ -66,7 +65,7 @@ func TestAWordThatOnlyLooksLikeABannedPhrasePasses(t *testing.T) {
 		"hell yeah", "go to hell hitler", "Hitler was a monster", "the nazis lost the war",
 		"white powder", "whitepaper", "a fagot is a bassoon",
 		"the white powers of Europe", "white powerful", "white powerups", "14880 tiles", "148800",
-		"nigga", "my niggas", "nga this IS a femboy",
+		"nigga", "my niggas", "nga this IS a femboy", "faggot", "shut up f4gg0t", "you retard",
 		"I have 88 tiles", "1489", "à la 88e minute", "gg France 🇫🇷🔥", "Привет", "東京タワー",
 	} {
 		said, ok := banned.Said(text)

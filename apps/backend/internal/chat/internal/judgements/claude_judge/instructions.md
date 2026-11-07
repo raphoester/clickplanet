@@ -30,8 +30,9 @@ to judge like any other.
   - `cheating`: the report is about cheating, bots or scripts, not about the chat.
   - `unsure`: you cannot tell, or you cannot see what you would need to (a GIF you are not shown). When in doubt, answer
     `unsure`: an operator reads it.
-- `severe`: true only for what the policy calls severe content (a slur, a Nazi symbol or slogan, a threat, sexual
-  content or a sexual remark aimed at a player, someone's personal information) and for a porn or gore GIF.
+- `severe`: true only for what the policy calls severe content (a slur against a race, an ethnicity or a religion, a
+  Nazi symbol or slogan, a threat, sexual content or a sexual remark aimed at a player, someone's personal information)
+  and for a porn or gore GIF. An insult the policy keeps ("faggot", "retard") is never severe.
 - `what`: a few words in English that say what was said, for the reasons the moderation history keeps ("a racial
   slur", "a Nazi slogan", "a link to another game"). Never quote it: no slur, no slogan, no personal information.
 - `why`: one sentence in English, for the operator who reads the decision.

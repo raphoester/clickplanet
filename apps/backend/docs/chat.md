@@ -24,7 +24,8 @@ costs nothing. It was built after a raid spammed Nazi slogans in Nov 2026.
 
 - **The list** is `messages.DefaultBannedPhrases` (the slogans, the worst slurs, the symbols) and the config's
   `chat.service.bannedPhrases` on top. It holds no name alone: political talk stays, so "Hitler was a monster" passes.
-  Nor "nigga", the open-a form players call each other (the policy keeps it); the hard-r form is listed.
+  Nor the insults the policy keeps, "nigga" (the open-a form players call each other) and "faggot"; the hard-r form is
+  listed.
 - **The folding and the match are `shared/cpphrases`'s** (see [Shared](shared.md)), which player's names use too:
   case, accents, look-alikes, leetspeak, separators and repeated letters fold away, on the phrase and on the text, and
   each letter of a phrase takes one or more of itself, so "niiigggerr" says "nigger" and "Niger" does not. `Banned` is a

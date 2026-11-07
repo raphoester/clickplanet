@@ -13,8 +13,8 @@ type Category string
 const (
 	// Nothing the rules take out: the report is dismissed.
 	CategoryNone Category = "none"
-	// What goes: a slur, a Nazi symbol or slogan, a threat, sexual content, personal information, hateful politics, a
-	// shock GIF.
+	// What goes: a racial, ethnic or religious slur, a Nazi symbol or slogan, a threat, sexual content, personal
+	// information, hateful politics, a shock GIF.
 	CategoryOffence Category = "offence"
 	CategorySpam    Category = "spam"
 	// Never acted on: the operator's.
@@ -31,7 +31,8 @@ var Categories = []Category{
 // The model's judgement of a report. What it leads to is Decide's, by the policy's steps.
 type Answer struct {
 	Category Category
-	// A slur, a Nazi symbol or slogan, a threat, sexual content aimed at a player, personal information, porn or gore.
+	// A racial, ethnic or religious slur, a Nazi symbol or slogan, a threat, sexual content aimed at a player, personal
+	// information, porn or gore.
 	Severe bool
 	// The reported player's messages that break the rules: only those may be removed.
 	Offending []messages.MessageID

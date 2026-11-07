@@ -33,16 +33,18 @@ project spends, so the two layers before it cost nothing.
 ## What stays
 
 - **Political talk**, unless it attacks a person or a group of people, or praises atrocities.
-- **Swearing and insults**, in any language, short of the severe content below.
-- **"Nigga"**, the open-a form, as players call each other, in a message or a name. The hard-r form is a slur.
+- **Swearing and insults**, in any language, short of the severe content below. "Faggot", "fag", "retard" or "gay"
+  thrown as a plain insult stay, and so does "nigga", the open-a form players call each other, in a message or a name.
 - **Insults aimed at a country or a people**: the rivalry is the game.
 - **Political usernames.**
 
 ## What goes
 
-- **Severe content**: a slur, a Nazi symbol or slogan, a threat, sexual content or a sexual remark aimed at a player,
-  someone's personal information.
-- **Hateful politics**: an attack on a person or a group of people, praise of atrocities.
+- **Severe content**: a slur against a race, an ethnicity or a religion (the hard-r n-word, "kike" but not Kike, the
+  Spanish nickname, "chink", "spic"…), a Nazi symbol or slogan, a threat, sexual content or a sexual remark aimed at a
+  player, someone's personal information.
+- **Hateful politics**: an attack on a person or a group of people, praise of atrocities. An insult that stays as
+  banter goes when it attacks someone for being gay, trans or disabled.
 - **Spam**: the same message again and again, and links or ads for other games or servers. Removed each time, and an
   offence only when it goes on after a removal.
 - **A shock GIF**: gore, porn, Nazi or shock imagery.
@@ -79,7 +81,7 @@ Counted per account from its **moderation history**, the chat and the GIFs apart
 - **Refused when it is chosen**: a slur or a Nazi reference the game lists (`Hitler88`, `xXHitlerXx`, `H1tl3r`),
   however it is spelled and anywhere in the name, as the chat's banned phrases are (see the backend's
   [Player](../apps/backend/docs/player.md)). The player is told the name is invalid, never which word.
-- **Renamed**: a slur, a Nazi reference or a sexual name the list missed, and one kept from before it. The audit gives
+- **Renamed**: a slur (as above), a Nazi reference or a sexual name the list missed, and one kept from before it. The audit gives
   a neutral name, `Player` and digits, with the reason, lists the rename in the digest (`player_list_renames` keeps it
   90 days, with the old name), and proposes the word for the list. The player can choose another name at once.
 - **Kept**: every other name, political ones included.
