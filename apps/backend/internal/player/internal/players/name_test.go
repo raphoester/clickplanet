@@ -126,3 +126,37 @@ func TestAnAccountIDIsAUUIDAndNeverTheNilOne(t *testing.T) {
 		require.ErrorIs(t, err, players.ErrInvalidAccount, "%q", value)
 	}
 }
+
+func TestANameRefusesASlurOrANaziReferenceHoweverItIsSpelledAndWherever(t *testing.T) {
+	for _, value := range []string{
+		"Hitler88", "xXHitlerXx", "H1tl3r", "h_i_t_l_e_r", "Shitler", "ＨＩＴＬＥＲ", "Sieg Heil", "SiegHeil_88",
+		"WhitePower", "Aryan1488", "N1gg3r", "niiigga", "the_faggot", "卐卐卐",
+	} {
+		_, err := players.NameOf(value)
+		require.ErrorIs(t, err, players.ErrInvalidName, "%q", value)
+		require.ErrorIs(t, err, players.ErrBannedName, "%q", value)
+	}
+}
+
+func TestAWordThatHidesASlurIsRefusedAsAName(t *testing.T) {
+	_, err := players.NameOf("Snigger")
+
+	require.ErrorIs(t, err, players.ErrBannedName, "the slur's usual disguise in a name; the chat, where a word starts, lets it pass")
+}
+
+func TestARefusedNameNeverSaysWhichPhrase(t *testing.T) {
+	_, err := players.NameOf("xXHitlerXx")
+
+	require.Error(t, err)
+	assert.NotContains(t, strings.ToLower(err.Error()), "hitler", "nobody is told which spelling to try next")
+}
+
+func TestANameThatOnlyLooksLikeABannedOneIsKept(t *testing.T) {
+	for _, value := range []string{
+		"Niger", "NigerFan", "Nigeria_42", "Nazir", "Whitley", "Player88", "Hitchcock", "Grape Ape",
+		"White_Wolf", "Che Guevara",
+	} {
+		_, err := players.NameOf(value)
+		require.NoError(t, err, "%q", value)
+	}
+}

@@ -65,6 +65,15 @@ internal/player/internal/
 - **`SetName` chooses a username.** `players.NameOf` is the rule. It puts the name in **NFC** and cuts the spaces (U+0020) at its ends — the same text, as it shows — and changes nothing else. Then:
   - **3 to 15 characters, counted in code points after NFC**, as postgres' `char_length` counts, so both agree. A letter with a combining mark NFC cannot compose counts two.
   - **Each is a letter of any script (`\p{L}`), a combining mark (`Mn`, `Mc`) right after a letter or a mark, at most 3 in a row, a decimal digit (`Nd`), `_` or a space.** Never two spaces in a row. So emojis, punctuation, symbols, controls, enclosing marks, and every other space (NBSP, ideographic) are refused. **Invisible characters are refused by name**, since some are letters or marks: Hangul fillers (U+3164, U+115F…, `Other_Default_Ignorable_Code_Point`) and variation selectors; zero-width, bidi and soft hyphen are format characters, refused as not letters. **A letter of a historic script is refused** (`cpscripts.Historic`, see [Shared](shared.md)): cuneiform, hieroglyphs, runes and the like, which players used in names and chat spam (Nov 2026).
+  - **A slur or a Nazi reference is refused however it is spelled, anywhere in the name** (`players.DefaultBannedNames`,
+    matched by `shared/cpphrases` with `Anywhere`, since a name is one word): `Hitler88`, `xXHitlerXx`, `H1tl3r`,
+    `N1gg3r`, and `Snigger`, the slur's usual disguise in a name. The chat lets "Hitler" alone pass in a sentence; a
+    name has no conversation, so it is listed here. Nothing that is a plain word inside other words (`nazi` is in
+    `Nazir`) nor a number alone (`88`): what the list misses, the daily audit renames (see
+    [Chat moderation](../../../docs/moderation.md)). The refusal is `ErrInvalidName` wrapping `ErrBannedName`, which
+    never says the phrase. **Only a name being given is checked** (`NameOf`): a name kept before stays, and is the
+    audit's. A name suggested at a first sign-in that is refused gets a drawn one, and `random_name_generator`'s test
+    reads all 144,000 names it can draw, every number included, since a digit reads as a letter.
   - **One script** (`oneScript`): the letters' scripts, Common and Inherited left out, are one, or a mix UTS #39 calls *highly restrictive* — Latin with Han, Hiragana and Katakana; with Han and Bopomofo; or with Han and Hangul. So `Adа` (Cyrillic `а`) and `guеst_x` are refused.
   - **Not starting with `guest_` once folded** (`Name.Folded`), which the chat puts before every guest's name. Folded, so `ＧＵＥＳＴ_x` and `gueſt_x` are refused too.
 

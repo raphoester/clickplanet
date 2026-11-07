@@ -24,21 +24,20 @@ costs nothing. It was built after a raid spammed Nazi slogans in Nov 2026.
 
 - **The list** is `messages.DefaultBannedPhrases` (the slogans, the worst slurs, the symbols) and the config's
   `chat.service.bannedPhrases` on top. It holds no name alone: political talk stays, so "Hitler was a monster" passes.
-- **Both sides are folded the same way**: decomposed (NFKD: a fullwidth, circled or mathematical letter is its letter),
-  with no accent, in lower case, a Cyrillic or Greek look-alike as the Latin letter it passes for (`lookAlikes`, with
-  the small capitals of the "fancy text" generators and the regional indicators a flag is made of), leetspeak as its
-  letter (`0 3 4 5 7 8 9 @ $ €`; `1`, `|` and `!` as an i or an l), and no separator: a space, a punctuation mark, a
-  symbol or a zero-width character between two letters is nothing.
-- **Each letter of a phrase takes one or more of itself**, so "niiigggerr" says "nigger" and "Niger" does not: the
-  phrase's double g needs two. Never a collapse of the text's repeated letters, which would make the two one.
-- **A phrase of letters matches from the start of a word**: after a separator, or a letter after a digit or a leet
-  sign (`1nigger`). So "snigger" passes. **A phrase with no cased letter or digit matches anywhere** (卐, a CJK word,
-  which has no word to start).
+- **The folding and the match are `shared/cpphrases`'s** (see [Shared](shared.md)), which player's names use too:
+  case, accents, look-alikes, leetspeak, separators and repeated letters fold away, on the phrase and on the text, and
+  each letter of a phrase takes one or more of itself, so "niiigggerr" says "nigger" and "Niger" does not. `Banned` is a
+  `cpphrases.List`; `NewBanned` builds it, which is all the chat holds of the engine.
+- **A message is sentences, so a phrase of letters matches from the start of a word** (`cpphrases.FromWordStart`):
+  after a separator, or a letter after a digit or a leet sign (`1nigger`). So "snigger" passes. A phrase with no cased
+  letter or digit matches anywhere (卐, a CJK word, which has no word to start). **A digit listed in a phrase is that
+  digit**: "1488" refuses "14 88" and lets "à la 88e minute" pass, while a digit typed in a message reads as a letter
+  ("n1gg3r").
 - **The refusal is `ErrInvalidMessage`**, the one a sender gets for any bad text (`ErrBanned` wrapped, for the log):
   nobody learns which phrase tripped, so nobody tunes a spelling against the list. `log_banned`, a decorator on the
   use case, logs it at Warn with the account, the room and the phrase as listed, never the text or the address.
-- `banned_test.go` pins each folding and what passes; `send_message_usecase`'s test that nothing banned is kept,
-  published or introduced.
+- `banned_test.go` pins what the chat's list finds and lets pass, `cpphrases`' tests each folding;
+  `send_message_usecase`'s test that nothing banned is kept, published or introduced.
 
 Refusal reasons are logged, never returned: a sender learns *that* they were refused, not which check tripped. **The stored text is raw — the frontend must escape it.**
 

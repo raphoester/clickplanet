@@ -61,7 +61,7 @@ func TestAWordThatOnlyLooksLikeABannedPhrasePasses(t *testing.T) {
 		"snigger", "sniggering", "niggle", "a niggling doubt",
 		"hell yeah", "go to hell hitler", "Hitler was a monster", "the nazis lost the war",
 		"white powder", "whitepaper", "a fagot is a bassoon",
-		"I have 88 tiles", "1489", "gg France 🇫🇷🔥", "Привет", "東京タワー",
+		"I have 88 tiles", "1489", "à la 88e minute", "gg France 🇫🇷🔥", "Привет", "東京タワー",
 	} {
 		said, ok := banned.Said(text)
 		assert.False(t, ok, "%q said %q", text, said)
