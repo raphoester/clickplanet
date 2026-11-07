@@ -140,6 +140,24 @@ describe("Leaderboard", () => {
         expect(screen.queryByRole("status")).toBeNull()
     })
 
+    it("puts the bubble away at the next tap, on its own head or anywhere else", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
+        const head = screen.getByRole("button", {name: "% of map"})
+        const tap = (target: Element) => {
+            fireEvent.pointerDown(target, {pointerType: "touch"})
+            fireEvent.click(target)
+        }
+
+        tap(head)
+        expect(screen.getByRole("status")).toBeDefined()
+        tap(head)
+        expect(screen.queryByRole("status")).toBeNull()
+
+        tap(head)
+        fireEvent.pointerDown(document.body, {pointerType: "touch"})
+        expect(screen.queryByRole("status")).toBeNull()
+    })
+
     it("keeps saying it while the mouse stays, even after a click", () => {
         vi.useFakeTimers()
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)

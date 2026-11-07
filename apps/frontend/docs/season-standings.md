@@ -63,7 +63,9 @@ With no book there are no boards. `app/standings/` draws it.
   `boardFigures.ts`), as a bonus does: the column heads and the leader frame's
   figures are buttons that show a `Bubble`: with a mouse, for as long as it is
   over them, a click included; after a tap or a key, for `TAP_HINT_MS` (7s), long
-  enough to read. **The first time the board shows points, it says what they are
+  enough to read, or until the next touch anywhere, its own head included, which puts it
+  away (a `pointerdown` on the document; a mouse's is ignored, since its bubble follows the
+  mouse). Before 2026-11-07 a phone had no way to close it but to wait. **The first time the board shows points, it says what they are
   on its own** (`GUIDE_MS`, 10s), once per browser: the store `useBoardGuide`
   (`boardGuideStore.ts`), which the board reads, in the `clickplanet-board-guide` key. The bubble renders beside its button, not inside:
   inside, it mounts before the button's ref is set and has nothing to sit on.
@@ -85,7 +87,9 @@ With no book there are no boards. `app/standings/` draws it.
   the same countries by the tiles gained since the round opened, then by tiles. **Today's
   points do not move the Points order**: when a day was won on its average, ranked
   by them, two countries at 0 points swapped against their tiles, which read as a bug
-  (2026-10-08). Tiles is the map's order. `PlayScreen` holds the choice. With no round
+  (2026-10-08). Tiles is the map's order. The choice is kept per browser: the store
+  `useCountryOrder` (`countryOrderStore.ts`), in the `clickplanet-country-order` key, which
+  `PlayScreen` reads; before 2026-11-07 a reload put it back to Points. With no round
   open, Gained falls back to Points; with no race, no head sorts and the board is
   the order of Tiles (`shownOrder`). **The rank and the anthem follow the order picked**: the rank
   beside "playing for" and on the phone's status bar is the country's place in

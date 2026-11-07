@@ -110,7 +110,8 @@ import {useMood} from "../battle/useMood.ts";
 import {moodOf} from "../../domain/mood.ts";
 import {useBattleOver} from "../battle/useBattleOver.ts";
 import BattleOver from "../battle/BattleOver.tsx";
-import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
+import {countryLines, shownOrder} from "../../domain/race.ts";
+import {useCountryOrder} from "../countryOrderStore.ts";
 import {endedBookOf} from "../../domain/debrief.ts";
 import {acceptedClicks} from "../clicks/acceptedClicks.ts";
 import {useGuidedTakes} from "../frontGuide.ts";
@@ -241,7 +242,8 @@ export default function PlayScreen(props: PlayScreenProps) {
     const halloween = turn?.kind === "halloween"
     useMood(mood)
     const battleOver = useBattleOver(battle, debrief)
-    const [countryOrder, setCountryOrder] = useState<CountryOrder>("points")
+    const countryOrder = useCountryOrder((stored) => stored.order)
+    const setCountryOrder = useCountryOrder((stored) => stored.setOrder)
     const [pitchOpen, setPitchOpen] = useState(false)
     const guest = account.kind === 'ready' && account.offered.length > 0 && account.me.linked.length === 0
 
