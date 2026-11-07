@@ -26,6 +26,7 @@ var ErrNoAccount = errors.New("only an account may post or react")
 type Author struct {
 	name  string
 	guest bool
+	admin bool
 }
 
 func AuthorOf(name string) Author {
@@ -36,7 +37,17 @@ func GuestOf(name string) Author {
 	return Author{name: name, guest: true}
 }
 
+// An admin of the game: the operator's own account, which the chat's judge never acts on.
+func AdminOf(name string) Author {
+	return Author{name: name, admin: true}
+}
+
 // The name a mute announcement keeps.
 func (a Author) Name() string { return a.name }
+
+// A guest posts no GIF, nor anything while raid mode runs.
+func (a Author) Guest() bool { return a.guest }
+
+func (a Author) Admin() bool { return a.admin }
 
 var ErrAuthorUnavailable = errors.New("the sender could not be identified")

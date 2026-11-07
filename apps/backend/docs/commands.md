@@ -32,6 +32,10 @@ make proto
 # Refresh the embedded quiz bank from the shared /quiz, then commit it
 make quiz
 
+# Copy the chat moderation policy (../../docs/moderation.md) the judge sends to Claude, then commit it; pre-push and CI
+# run make check-moderation, which fails while the copy differs
+make moderation
+
 # Refresh the embedded tile coordinates blob from the shared /map, then commit it
 make map
 

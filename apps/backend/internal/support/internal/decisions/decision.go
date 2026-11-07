@@ -15,6 +15,7 @@ var (
 	ErrInvalidDecision = errors.New("the decision is invalid")
 	ErrUnknownOutcome  = errors.New("not an outcome of a report")
 	ErrUnknownReport   = errors.New("no report kept under this id")
+	ErrDecidedAlready  = errors.New("the report is decided already")
 )
 
 type Outcome string
@@ -88,8 +89,10 @@ func commentOf(text string) (string, error) {
 	return checked, nil
 }
 
-// A report decided again keeps the last decision.
+// A report decided again keeps the last decision, unless it is saved once.
 type Storage interface {
 	// ErrUnknownReport for a report no longer kept.
 	Save(ctx context.Context, decision Decision) error
+	// Kept only for a report not decided yet, and says whether it was: ErrUnknownReport, as Save.
+	SaveOnce(ctx context.Context, decision Decision) (bool, error)
 }

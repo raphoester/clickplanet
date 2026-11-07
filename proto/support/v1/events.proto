@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package support.v1;
+
+import "google/protobuf/timestamp.proto";
+import "support/v1/support.proto";
+
+// What support tells the other modules, over Redis Streams.
+
+// A player reported another one. Told from support's outbox, in the transaction that keeps the report: the chat
+// judges a report of what was said.
+message PlayerReported {
+  string report_id = 1;
+  string reporter_account_id = 2;
+  string reported_account_id = 3;
+  ReportReason reason = 4;
+  // Optional: what the reporter wrote.
+  string text = 5;
+  // Optional: the chat message the report is about, as the chat names it. Not checked against the chat.
+  string message_id = 6;
+  google.protobuf.Timestamp reported_at = 7;
+}

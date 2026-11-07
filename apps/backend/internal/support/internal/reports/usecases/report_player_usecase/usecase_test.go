@@ -7,7 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
@@ -38,13 +44,15 @@ type testSuite struct {
 
 	clock   *cptime.FixedClock
 	reports *inmemory_report_storage.Storage
+	outbox  *cpatomic.FakeOutbox
 	useCase *report_player_usecase.UseCase
 }
 
 func (s *testSuite) SetupTest() {
 	s.clock = cptime.NewFixedClock(now)
 	s.reports = inmemory_report_storage.New()
-	s.useCase = report_player_usecase.New(&reports.SequentialIDs{}, s.clock, s.reports)
+	s.outbox = &cpatomic.FakeOutbox{}
+	s.useCase = report_player_usecase.New(&reports.SequentialIDs{}, s.clock, cpatomic.FakeTransactioner{}, s.reports, s.outbox)
 }
 
 func (s *testSuite) report(in report_player_usecase.In) error {
@@ -121,7 +129,7 @@ func (s *testSuite) TestWhatOthersFiledAndWhatIsFiledAboutOthersRefusesNothing()
 }
 
 func (s *testSuite) TestAReportWithNoIDIsNotKept() {
-	useCase := report_player_usecase.New(failingIDs{}, s.clock, s.reports)
+	useCase := report_player_usecase.New(failingIDs{}, s.clock, cpatomic.FakeTransactioner{}, s.reports, s.outbox)
 
 	err := useCase.Execute(s.T().Context(), report_player_usecase.In{Reporter: ada, Reported: bob, Complaint: cheating})
 
@@ -151,9 +159,51 @@ func (r readOnly) Save(context.Context, ...reports.Report) error {
 
 func (s *testSuite) TestAReportThatCannotBeKeptFails() {
 	cause := errors.New("postgres is down")
-	useCase := report_player_usecase.New(&reports.SequentialIDs{}, s.clock, readOnly{Storage: s.reports, refused: cause})
+	useCase := report_player_usecase.New(&reports.SequentialIDs{}, s.clock, cpatomic.FakeTransactioner{},
+		readOnly{Storage: s.reports, refused: cause}, s.outbox)
 
 	err := useCase.Execute(s.T().Context(), report_player_usecase.In{Reporter: ada, Reported: bob, Complaint: cheating})
 
 	s.Require().ErrorIs(err, cause)
+	s.Empty(s.outbox.Recorded(), "the chat is never told of a report not kept")
+}
+
+func (s *testSuite) TestAReportKeptIsToldWithEverythingItSays() {
+	err := s.report(report_player_usecase.In{
+		Reporter: ada, Reported: bob,
+		Complaint: reports.Complaint{Reason: reports.ReasonChatAbuse, Text: "slurs", Message: "message-1"},
+	})
+	s.Require().NoError(err)
+
+	s.Require().Len(s.outbox.Recorded(), 1)
+	s.True(proto.Equal(&supportv1.PlayerReported{
+		ReportId:          uuid.UUID(reports.ReportID{15: 1}).String(),
+		ReporterAccountId: ada.String(),
+		ReportedAccountId: bob.String(),
+		Reason:            supportv1.ReportReason_REPORT_REASON_CHAT_ABUSE,
+		Text:              "slurs",
+		MessageId:         "message-1",
+		ReportedAt:        timestamppb.New(now),
+	}, s.outbox.Recorded()[0]), "%v", s.outbox.Recorded()[0])
+}
+
+func (s *testSuite) TestEveryReasonIsToldAsTheWireNamesIt() {
+	for reason, wire := range map[reports.Reason]supportv1.ReportReason{
+		reports.ReasonCheating:  supportv1.ReportReason_REPORT_REASON_CHEATING,
+		reports.ReasonChatAbuse: supportv1.ReportReason_REPORT_REASON_CHAT_ABUSE,
+		reports.ReasonBadName:   supportv1.ReportReason_REPORT_REASON_BAD_NAME,
+		reports.ReasonOther:     supportv1.ReportReason_REPORT_REASON_OTHER,
+	} {
+		s.SetupTest()
+		s.Require().NoError(s.report(report_player_usecase.In{Reporter: ada, Reported: bob, Complaint: reports.Complaint{Reason: reason}}))
+		told, ok := s.outbox.Recorded()[0].(*supportv1.PlayerReported)
+		s.Require().True(ok)
+		s.Equal(wire, told.GetReason(), reason)
+	}
+}
+
+func (s *testSuite) TestARefusedReportIsNotTold() {
+	s.Require().Error(s.report(report_player_usecase.In{Reporter: ada, Reported: ada, Complaint: cheating}))
+
+	s.Empty(s.outbox.Recorded())
 }

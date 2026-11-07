@@ -22,6 +22,7 @@ type stubPlayer struct {
 
 	names  map[string]string
 	guests map[string]bool
+	admins map[string]bool
 	err    error
 	asked  *string
 }
@@ -38,6 +39,7 @@ func (s stubPlayer) IntroducePlayer(
 		AccountId: req.Msg.GetAccountId(),
 		Name:      s.names[req.Msg.GetAccountId()],
 		Guest:     s.guests[req.Msg.GetAccountId()],
+		Admin:     s.admins[req.Msg.GetAccountId()],
 	}}), nil
 }
 
@@ -82,4 +84,16 @@ func TestAGuestIsAnsweredAsOne(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, messages.GuestOf("guest_0b1c2d"), author)
+}
+
+func TestAnAdminIsAnsweredAsOne(t *testing.T) {
+	player := stubPlayer{
+		names: map[string]string{ada.String(): "raphael"}, admins: map[string]bool{ada.String(): true}, asked: new(string),
+	}
+
+	author, err := authors(t, player).Author(t.Context(), ada)
+
+	require.NoError(t, err)
+	assert.True(t, author.Admin(), "the judge never acts on the operator's account")
+	assert.False(t, author.Guest())
 }

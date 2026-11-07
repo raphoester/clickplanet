@@ -149,6 +149,15 @@ chat:
     subscriberBuffer: 256
   service:
     maxTextLength: 280
+    # Refused at send, on top of the phrases built in (messages.DefaultBannedPhrases); folded as they are.
+    bannedPhrases: []
+  # The judge of the reports support tells. With no key it sends nothing, and every report waits for the operator.
+  judge:
+    anthropic:
+      apiKey: ""
+    model: claude-haiku-5-5
+    # The most reports the model judges in an hour; the rest are left open.
+    callsPerHour: 6
   rateLimiter:
     perSecond: 0.33
     burst: 5

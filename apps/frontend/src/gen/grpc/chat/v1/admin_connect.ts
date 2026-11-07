@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMessageRequest, GetMessageResponse, GetMuteRequest, GetMuteResponse, ListMessagesRequest, ListMessagesResponse, ListModerationRequest, ListModerationResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse, UnmuteRequest, UnmuteResponse } from "./admin_pb.js";
+import { GetMessageRequest, GetMessageResponse, GetMuteRequest, GetMuteResponse, GetRaidModeRequest, GetRaidModeResponse, ListMessagesRequest, ListMessagesResponse, ListModerationRequest, ListModerationResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse, SetRaidModeRequest, SetRaidModeResponse, UnmuteRequest, UnmuteResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -97,6 +97,32 @@ export const AdminService = {
       name: "ListModeration",
       I: ListModerationRequest,
       O: ListModerationResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Starts raid mode, for a raid of guest accounts: while it runs, a guest's post is refused (PermissionDenied), and a
+     * signed-in player posts as before. Everyone still reads and reacts. It ends by itself after the duration, 24 hours
+     * at most. Set again while it runs, it starts again from now, with the new duration and reason. A duration of 0, or
+     * none, ends it now; ending it when none runs changes nothing.
+     *
+     * @generated from rpc chat.v1.AdminService.SetRaidMode
+     */
+    setRaidMode: {
+      name: "SetRaidMode",
+      I: SetRaidModeRequest,
+      O: SetRaidModeResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Whether raid mode runs now: since when, until when, and why. Nothing set when it does not.
+     *
+     * @generated from rpc chat.v1.AdminService.GetRaidMode
+     */
+    getRaidMode: {
+      name: "GetRaidMode",
+      I: GetRaidModeRequest,
+      O: GetRaidModeResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

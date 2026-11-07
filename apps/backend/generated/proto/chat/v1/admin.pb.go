@@ -1467,6 +1467,248 @@ func (*RemovalAction_Text) isRemovalAction_Body() {}
 
 func (*RemovalAction_Gif) isRemovalAction_Body() {}
 
+type SetRaidModeRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// How long it runs from now, in whole seconds, 24 hours at most. 0, or unset, ends it now.
+	Duration *durationpb.Duration `protobuf:"bytes,1,opt,name=duration,proto3" json:"duration,omitempty"`
+	// Why, in a few words. Optional; 500 characters at most.
+	Reason        string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetRaidModeRequest) Reset() {
+	*x = SetRaidModeRequest{}
+	mi := &file_chat_v1_admin_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetRaidModeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetRaidModeRequest) ProtoMessage() {}
+
+func (x *SetRaidModeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetRaidModeRequest.ProtoReflect.Descriptor instead.
+func (*SetRaidModeRequest) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *SetRaidModeRequest) GetDuration() *durationpb.Duration {
+	if x != nil {
+		return x.Duration
+	}
+	return nil
+}
+
+func (x *SetRaidModeRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type SetRaidModeResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The raid mode that runs now. Unset once it was ended.
+	RaidMode      *RaidMode `protobuf:"bytes,1,opt,name=raid_mode,json=raidMode,proto3" json:"raid_mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetRaidModeResponse) Reset() {
+	*x = SetRaidModeResponse{}
+	mi := &file_chat_v1_admin_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetRaidModeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetRaidModeResponse) ProtoMessage() {}
+
+func (x *SetRaidModeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetRaidModeResponse.ProtoReflect.Descriptor instead.
+func (*SetRaidModeResponse) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *SetRaidModeResponse) GetRaidMode() *RaidMode {
+	if x != nil {
+		return x.RaidMode
+	}
+	return nil
+}
+
+type GetRaidModeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRaidModeRequest) Reset() {
+	*x = GetRaidModeRequest{}
+	mi := &file_chat_v1_admin_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRaidModeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRaidModeRequest) ProtoMessage() {}
+
+func (x *GetRaidModeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRaidModeRequest.ProtoReflect.Descriptor instead.
+func (*GetRaidModeRequest) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{22}
+}
+
+type GetRaidModeResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unset when raid mode does not run.
+	RaidMode      *RaidMode `protobuf:"bytes,1,opt,name=raid_mode,json=raidMode,proto3" json:"raid_mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRaidModeResponse) Reset() {
+	*x = GetRaidModeResponse{}
+	mi := &file_chat_v1_admin_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRaidModeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRaidModeResponse) ProtoMessage() {}
+
+func (x *GetRaidModeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRaidModeResponse.ProtoReflect.Descriptor instead.
+func (*GetRaidModeResponse) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetRaidModeResponse) GetRaidMode() *RaidMode {
+	if x != nil {
+		return x.RaidMode
+	}
+	return nil
+}
+
+// While it runs, the chat takes no guest's post.
+type RaidMode struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	StartedAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	EndsAt    *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	// Empty for none.
+	Reason        string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RaidMode) Reset() {
+	*x = RaidMode{}
+	mi := &file_chat_v1_admin_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RaidMode) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RaidMode) ProtoMessage() {}
+
+func (x *RaidMode) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_admin_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RaidMode.ProtoReflect.Descriptor instead.
+func (*RaidMode) Descriptor() ([]byte, []int) {
+	return file_chat_v1_admin_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *RaidMode) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *RaidMode) GetEndsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndsAt
+	}
+	return nil
+}
+
+func (x *RaidMode) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 var File_chat_v1_admin_proto protoreflect.FileDescriptor
 
 const file_chat_v1_admin_proto_rawDesc = "" +
@@ -1589,7 +1831,20 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x14\n" +
 	"\x04text\x18\x02 \x01(\tH\x00R\x04text\x12 \n" +
 	"\x03gif\x18\x03 \x01(\v2\f.chat.v1.GifH\x00R\x03gifB\x06\n" +
-	"\x04body2\x87\x04\n" +
+	"\x04body\"c\n" +
+	"\x12SetRaidModeRequest\x125\n" +
+	"\bduration\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\bduration\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"E\n" +
+	"\x13SetRaidModeResponse\x12.\n" +
+	"\traid_mode\x18\x01 \x01(\v2\x11.chat.v1.RaidModeR\braidMode\"\x14\n" +
+	"\x12GetRaidModeRequest\"E\n" +
+	"\x13GetRaidModeResponse\x12.\n" +
+	"\traid_mode\x18\x01 \x01(\v2\x11.chat.v1.RaidModeR\braidMode\"\x92\x01\n" +
+	"\bRaidMode\x129\n" +
+	"\n" +
+	"started_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x123\n" +
+	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason2\xa0\x05\n" +
 	"\fAdminService\x123\n" +
 	"\x04Mute\x12\x14.chat.v1.MuteRequest\x1a\x15.chat.v1.MuteResponse\x129\n" +
 	"\x06Unmute\x12\x16.chat.v1.UnmuteRequest\x1a\x17.chat.v1.UnmuteResponse\x12A\n" +
@@ -1598,7 +1853,9 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"GetMessage\x12\x1a.chat.v1.GetMessageRequest\x1a\x1b.chat.v1.GetMessageResponse\"\x03\x90\x02\x01\x12P\n" +
 	"\fListMessages\x12\x1c.chat.v1.ListMessagesRequest\x1a\x1d.chat.v1.ListMessagesResponse\"\x03\x90\x02\x01\x12V\n" +
-	"\x0eListModeration\x12\x1e.chat.v1.ListModerationRequest\x1a\x1f.chat.v1.ListModerationResponse\"\x03\x90\x02\x01B\xa4\x01\n" +
+	"\x0eListModeration\x12\x1e.chat.v1.ListModerationRequest\x1a\x1f.chat.v1.ListModerationResponse\"\x03\x90\x02\x01\x12H\n" +
+	"\vSetRaidMode\x12\x1b.chat.v1.SetRaidModeRequest\x1a\x1c.chat.v1.SetRaidModeResponse\x12M\n" +
+	"\vGetRaidMode\x12\x1b.chat.v1.GetRaidModeRequest\x1a\x1c.chat.v1.GetRaidModeResponse\"\x03\x90\x02\x01B\xa4\x01\n" +
 	"\vcom.chat.v1B\n" +
 	"AdminProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1;chatv1\xa2\x02\x03CXX\xaa\x02\aChat.V1\xca\x02\aChat\\V1\xe2\x02\x13Chat\\V1\\GPBMetadata\xea\x02\bChat::V1b\x06proto3"
 
@@ -1614,7 +1871,7 @@ func file_chat_v1_admin_proto_rawDescGZIP() []byte {
 	return file_chat_v1_admin_proto_rawDescData
 }
 
-var file_chat_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_chat_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_chat_v1_admin_proto_goTypes = []any{
 	(*MuteRequest)(nil),            // 0: chat.v1.MuteRequest
 	(*MuteResponse)(nil),           // 1: chat.v1.MuteResponse
@@ -1636,59 +1893,73 @@ var file_chat_v1_admin_proto_goTypes = []any{
 	(*MuteAction)(nil),             // 17: chat.v1.MuteAction
 	(*UnmuteAction)(nil),           // 18: chat.v1.UnmuteAction
 	(*RemovalAction)(nil),          // 19: chat.v1.RemovalAction
-	(*durationpb.Duration)(nil),    // 20: google.protobuf.Duration
-	(MuteKind)(0),                  // 21: chat.v1.MuteKind
-	(*timestamppb.Timestamp)(nil),  // 22: google.protobuf.Timestamp
-	(*Gif)(nil),                    // 23: chat.v1.Gif
+	(*SetRaidModeRequest)(nil),     // 20: chat.v1.SetRaidModeRequest
+	(*SetRaidModeResponse)(nil),    // 21: chat.v1.SetRaidModeResponse
+	(*GetRaidModeRequest)(nil),     // 22: chat.v1.GetRaidModeRequest
+	(*GetRaidModeResponse)(nil),    // 23: chat.v1.GetRaidModeResponse
+	(*RaidMode)(nil),               // 24: chat.v1.RaidMode
+	(*durationpb.Duration)(nil),    // 25: google.protobuf.Duration
+	(MuteKind)(0),                  // 26: chat.v1.MuteKind
+	(*timestamppb.Timestamp)(nil),  // 27: google.protobuf.Timestamp
+	(*Gif)(nil),                    // 28: chat.v1.Gif
 }
 var file_chat_v1_admin_proto_depIdxs = []int32{
-	20, // 0: chat.v1.MuteRequest.duration:type_name -> google.protobuf.Duration
-	21, // 1: chat.v1.MuteRequest.kind:type_name -> chat.v1.MuteKind
-	22, // 2: chat.v1.MuteResponse.muted_until:type_name -> google.protobuf.Timestamp
-	21, // 3: chat.v1.UnmuteRequest.kind:type_name -> chat.v1.MuteKind
-	22, // 4: chat.v1.UnmuteResponse.muted_until:type_name -> google.protobuf.Timestamp
-	21, // 5: chat.v1.GetMuteRequest.kind:type_name -> chat.v1.MuteKind
-	22, // 6: chat.v1.GetMuteResponse.muted_until:type_name -> google.protobuf.Timestamp
-	22, // 7: chat.v1.RemoveMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
-	23, // 8: chat.v1.GetMessageResponse.gif:type_name -> chat.v1.Gif
-	22, // 9: chat.v1.GetMessageResponse.sent_at:type_name -> google.protobuf.Timestamp
-	22, // 10: chat.v1.GetMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
+	25, // 0: chat.v1.MuteRequest.duration:type_name -> google.protobuf.Duration
+	26, // 1: chat.v1.MuteRequest.kind:type_name -> chat.v1.MuteKind
+	27, // 2: chat.v1.MuteResponse.muted_until:type_name -> google.protobuf.Timestamp
+	26, // 3: chat.v1.UnmuteRequest.kind:type_name -> chat.v1.MuteKind
+	27, // 4: chat.v1.UnmuteResponse.muted_until:type_name -> google.protobuf.Timestamp
+	26, // 5: chat.v1.GetMuteRequest.kind:type_name -> chat.v1.MuteKind
+	27, // 6: chat.v1.GetMuteResponse.muted_until:type_name -> google.protobuf.Timestamp
+	27, // 7: chat.v1.RemoveMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
+	28, // 8: chat.v1.GetMessageResponse.gif:type_name -> chat.v1.Gif
+	27, // 9: chat.v1.GetMessageResponse.sent_at:type_name -> google.protobuf.Timestamp
+	27, // 10: chat.v1.GetMessageResponse.removed_at:type_name -> google.protobuf.Timestamp
 	12, // 11: chat.v1.ListMessagesResponse.messages:type_name -> chat.v1.KeptMessage
-	23, // 12: chat.v1.KeptMessage.gif:type_name -> chat.v1.Gif
-	22, // 13: chat.v1.KeptMessage.sent_at:type_name -> google.protobuf.Timestamp
-	22, // 14: chat.v1.KeptMessage.removed_at:type_name -> google.protobuf.Timestamp
+	28, // 12: chat.v1.KeptMessage.gif:type_name -> chat.v1.Gif
+	27, // 13: chat.v1.KeptMessage.sent_at:type_name -> google.protobuf.Timestamp
+	27, // 14: chat.v1.KeptMessage.removed_at:type_name -> google.protobuf.Timestamp
 	13, // 15: chat.v1.KeptMessage.reply_to:type_name -> chat.v1.KeptQuote
-	23, // 16: chat.v1.KeptQuote.gif:type_name -> chat.v1.Gif
-	22, // 17: chat.v1.KeptQuote.removed_at:type_name -> google.protobuf.Timestamp
-	22, // 18: chat.v1.ListModerationRequest.since:type_name -> google.protobuf.Timestamp
+	28, // 16: chat.v1.KeptQuote.gif:type_name -> chat.v1.Gif
+	27, // 17: chat.v1.KeptQuote.removed_at:type_name -> google.protobuf.Timestamp
+	27, // 18: chat.v1.ListModerationRequest.since:type_name -> google.protobuf.Timestamp
 	16, // 19: chat.v1.ListModerationResponse.actions:type_name -> chat.v1.ModerationAction
-	22, // 20: chat.v1.ModerationAction.acted_at:type_name -> google.protobuf.Timestamp
+	27, // 20: chat.v1.ModerationAction.acted_at:type_name -> google.protobuf.Timestamp
 	17, // 21: chat.v1.ModerationAction.mute:type_name -> chat.v1.MuteAction
 	18, // 22: chat.v1.ModerationAction.unmute:type_name -> chat.v1.UnmuteAction
 	19, // 23: chat.v1.ModerationAction.removal:type_name -> chat.v1.RemovalAction
-	21, // 24: chat.v1.MuteAction.kind:type_name -> chat.v1.MuteKind
-	20, // 25: chat.v1.MuteAction.duration:type_name -> google.protobuf.Duration
-	21, // 26: chat.v1.UnmuteAction.kind:type_name -> chat.v1.MuteKind
-	23, // 27: chat.v1.RemovalAction.gif:type_name -> chat.v1.Gif
-	0,  // 28: chat.v1.AdminService.Mute:input_type -> chat.v1.MuteRequest
-	2,  // 29: chat.v1.AdminService.Unmute:input_type -> chat.v1.UnmuteRequest
-	4,  // 30: chat.v1.AdminService.GetMute:input_type -> chat.v1.GetMuteRequest
-	6,  // 31: chat.v1.AdminService.RemoveMessage:input_type -> chat.v1.RemoveMessageRequest
-	8,  // 32: chat.v1.AdminService.GetMessage:input_type -> chat.v1.GetMessageRequest
-	10, // 33: chat.v1.AdminService.ListMessages:input_type -> chat.v1.ListMessagesRequest
-	14, // 34: chat.v1.AdminService.ListModeration:input_type -> chat.v1.ListModerationRequest
-	1,  // 35: chat.v1.AdminService.Mute:output_type -> chat.v1.MuteResponse
-	3,  // 36: chat.v1.AdminService.Unmute:output_type -> chat.v1.UnmuteResponse
-	5,  // 37: chat.v1.AdminService.GetMute:output_type -> chat.v1.GetMuteResponse
-	7,  // 38: chat.v1.AdminService.RemoveMessage:output_type -> chat.v1.RemoveMessageResponse
-	9,  // 39: chat.v1.AdminService.GetMessage:output_type -> chat.v1.GetMessageResponse
-	11, // 40: chat.v1.AdminService.ListMessages:output_type -> chat.v1.ListMessagesResponse
-	15, // 41: chat.v1.AdminService.ListModeration:output_type -> chat.v1.ListModerationResponse
-	35, // [35:42] is the sub-list for method output_type
-	28, // [28:35] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	26, // 24: chat.v1.MuteAction.kind:type_name -> chat.v1.MuteKind
+	25, // 25: chat.v1.MuteAction.duration:type_name -> google.protobuf.Duration
+	26, // 26: chat.v1.UnmuteAction.kind:type_name -> chat.v1.MuteKind
+	28, // 27: chat.v1.RemovalAction.gif:type_name -> chat.v1.Gif
+	25, // 28: chat.v1.SetRaidModeRequest.duration:type_name -> google.protobuf.Duration
+	24, // 29: chat.v1.SetRaidModeResponse.raid_mode:type_name -> chat.v1.RaidMode
+	24, // 30: chat.v1.GetRaidModeResponse.raid_mode:type_name -> chat.v1.RaidMode
+	27, // 31: chat.v1.RaidMode.started_at:type_name -> google.protobuf.Timestamp
+	27, // 32: chat.v1.RaidMode.ends_at:type_name -> google.protobuf.Timestamp
+	0,  // 33: chat.v1.AdminService.Mute:input_type -> chat.v1.MuteRequest
+	2,  // 34: chat.v1.AdminService.Unmute:input_type -> chat.v1.UnmuteRequest
+	4,  // 35: chat.v1.AdminService.GetMute:input_type -> chat.v1.GetMuteRequest
+	6,  // 36: chat.v1.AdminService.RemoveMessage:input_type -> chat.v1.RemoveMessageRequest
+	8,  // 37: chat.v1.AdminService.GetMessage:input_type -> chat.v1.GetMessageRequest
+	10, // 38: chat.v1.AdminService.ListMessages:input_type -> chat.v1.ListMessagesRequest
+	14, // 39: chat.v1.AdminService.ListModeration:input_type -> chat.v1.ListModerationRequest
+	20, // 40: chat.v1.AdminService.SetRaidMode:input_type -> chat.v1.SetRaidModeRequest
+	22, // 41: chat.v1.AdminService.GetRaidMode:input_type -> chat.v1.GetRaidModeRequest
+	1,  // 42: chat.v1.AdminService.Mute:output_type -> chat.v1.MuteResponse
+	3,  // 43: chat.v1.AdminService.Unmute:output_type -> chat.v1.UnmuteResponse
+	5,  // 44: chat.v1.AdminService.GetMute:output_type -> chat.v1.GetMuteResponse
+	7,  // 45: chat.v1.AdminService.RemoveMessage:output_type -> chat.v1.RemoveMessageResponse
+	9,  // 46: chat.v1.AdminService.GetMessage:output_type -> chat.v1.GetMessageResponse
+	11, // 47: chat.v1.AdminService.ListMessages:output_type -> chat.v1.ListMessagesResponse
+	15, // 48: chat.v1.AdminService.ListModeration:output_type -> chat.v1.ListModerationResponse
+	21, // 49: chat.v1.AdminService.SetRaidMode:output_type -> chat.v1.SetRaidModeResponse
+	23, // 50: chat.v1.AdminService.GetRaidMode:output_type -> chat.v1.GetRaidModeResponse
+	42, // [42:51] is the sub-list for method output_type
+	33, // [33:42] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_admin_proto_init() }
@@ -1724,7 +1995,7 @@ func file_chat_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chat_v1_admin_proto_rawDesc), len(file_chat_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

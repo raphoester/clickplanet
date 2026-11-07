@@ -18,6 +18,7 @@ STEPS=(
   'cd apps/backend && make lint-ci'
   'cd apps/backend && make check-format'
   'cd apps/backend && make check-quiz'
+  'cd apps/backend && make check-moderation'
 )
 
 run_step() {

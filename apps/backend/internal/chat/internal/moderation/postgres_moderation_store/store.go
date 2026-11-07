@@ -10,6 +10,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/moderation"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -110,4 +111,55 @@ func account(id messages.AccountID) uuid.NullUUID {
 		return uuid.NullUUID{}
 	}
 	return uuid.NullUUID{UUID: uuid.UUID(id), Valid: true}
+}
+
+// What the steps are counted from: the actions taken on the account since then, newest first, without the copies of
+// what removed messages said.
+func (s *Store) ActionsOn(ctx context.Context, account messages.AccountID, since time.Time) ([]moderation.Snapshot, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
+		SELECT action::text, acted_at, COALESCE(mute_kind::text, ''), COALESCE(seconds, 0), COALESCE(message_id, ''),
+			reason, operator_id, client
+		FROM moderation
+		WHERE account_id = $1 AND acted_at >= $2
+		ORDER BY acted_at DESC, id DESC
+	`, uuid.UUID(account), since.UTC())
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the account's moderation history: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var actions []moderation.Snapshot
+	for rows.Next() {
+		var (
+			kind, muteKind, message, reason, client string
+			seconds                                 int64
+			operator                                uuid.NullUUID
+			action                                  = moderation.Snapshot{Account: account}
+		)
+		if err := rows.Scan(&kind, &action.At, &muteKind, &seconds, &message, &reason, &operator, &client); err != nil {
+			return nil, fmt.Errorf("failed to read a moderation action: %w", err)
+		}
+		action.Kind = kindOf(kind)
+		action.MuteKind = mutes.Chat
+		if muteKind == mutes.Gifs.String() {
+			action.MuteKind = mutes.Gifs
+		}
+		action.At, action.Duration = action.At.UTC(), time.Duration(seconds)*time.Second
+		action.Message, action.Reason = messages.MessageID(message), moderation.Reason(reason)
+		action.By = moderation.OperatorOf(messages.AccountID(operator.UUID), client)
+		actions = append(actions, action)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the account's moderation history: %w", err)
+	}
+	return actions, nil
+}
+
+func kindOf(kept string) moderation.Kind {
+	for _, kind := range []moderation.Kind{moderation.Muted, moderation.Unmuted, moderation.Removed} {
+		if kind.String() == kept {
+			return kind
+		}
+	}
+	return 0
 }

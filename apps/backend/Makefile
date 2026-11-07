@@ -1,4 +1,4 @@
-.PHONY: proto map quiz test lint lint-ci tidy check-format check-quiz setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains historic-scripts zernio zernio-spec metrics
+.PHONY: proto map quiz moderation test lint lint-ci tidy check-format check-quiz check-moderation setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains historic-scripts zernio zernio-spec metrics
 
 TEST_TAG := testing
 
@@ -34,6 +34,21 @@ quiz:
 check-quiz:
 	@cmp -s $(QUIZ_DIR)/bank.json $(QUIZ_ASSET_DIR)/bank.json || { \
 		echo "$(QUIZ_ASSET_DIR)/bank.json is not $(QUIZ_DIR)/bank.json. Run 'make quiz'." >&2; \
+		exit 1; \
+	}
+
+MODERATION_DOC := ../../docs/moderation.md
+MODERATION_ASSET_DIR := generated/moderation
+
+# The chat's judge sends the policy to Claude with every report: the copy it embeds is the doc's.
+moderation:
+	@test -f $(MODERATION_DOC) || { echo "moderation: no $(MODERATION_DOC)" >&2; exit 1; }
+	@cp $(MODERATION_DOC) $(MODERATION_ASSET_DIR)/moderation.md
+	@ls $(MODERATION_ASSET_DIR)/moderation.md
+
+check-moderation:
+	@cmp -s $(MODERATION_DOC) $(MODERATION_ASSET_DIR)/moderation.md || { \
+		echo "$(MODERATION_ASSET_DIR)/moderation.md is not $(MODERATION_DOC). Run 'make moderation'." >&2; \
 		exit 1; \
 	}
 

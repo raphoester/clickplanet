@@ -14,11 +14,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1/supportv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/commands/decide_report_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/postgres_decision_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/usecases/decide_report_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/usecases/decide_report_usecase/audit_decide_report"
@@ -42,7 +44,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/decide_report_handler"
+	admin_decide_report_handler "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/decide_report_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/get_attachment_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler/notes_query"
@@ -133,10 +135,19 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe the reports to player.v1.PlayerForgotten: %w", err)
 	}
 
+	decideReport := decide_report_usecase.New(postgres_decision_store.New(db), clock)
+	decisionCommands, err := cpredis.Handle(ctx, streams,
+		log_subscriber.New(decide_report_handler.New(decideReport, props.Logger), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to handle support.v1.DecideReport: %w", err)
+	}
+
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
 		prune_usecase.NewRunner(config.PruneInterval, notePrune, reportPrune, unsentDiscard),
-		cpredis.CloseAfter(streams, props.Logger, noteDeletions, reportDeletions)))
+		cpredis.CloseAfter(streams, props.Logger, noteDeletions, reportDeletions, decisionCommands,
+			cpoutbox.NewRelay("support-outbox", db, streams, props.Logger))))
 
 	limiter := cpratelimit.New("support-limiter", config.RateLimiter, clock)
 	props.Runners.Add(limiter)
@@ -151,7 +162,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		ReportBugHandler: report_bug_handler.New(
 			report_bug_usecase.New(note_ids.Provider{}, clock, rules, noteStore, bucket)),
 		ReportPlayerHandler: report_player_handler.New(report_player_usecase.New(
-			report_ids.Provider{}, clock, reportStore)),
+			report_ids.Provider{}, clock, db, reportStore, cpoutbox.New(db))),
 		GetAttachmentRulesHandler: get_attachment_rules_handler.New(rules, shelf),
 		CreateUploadHandler:       create_upload_handler.New(create_upload_usecase.New(note_ids.Provider{}, rules, shelf, bucket)),
 	}
@@ -167,10 +178,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	adminService := supportv1controller.AdminService{
-		ListNotesHandler:   list_notes_handler.New(notes_query.NewPostgresQuery(db, bucket)),
-		ListReportsHandler: list_reports_handler.New(reports_query.NewPostgresQuery(db, report_players.New(player))),
-		DecideReportHandler: decide_report_handler.New(audit_decide_report.New(
-			decide_report_usecase.New(postgres_decision_store.New(db), clock), props.Logger)),
+		ListNotesHandler:    list_notes_handler.New(notes_query.NewPostgresQuery(db, bucket)),
+		ListReportsHandler:  list_reports_handler.New(reports_query.NewPostgresQuery(db, report_players.New(player))),
+		DecideReportHandler: admin_decide_report_handler.New(audit_decide_report.New(decideReport, props.Logger)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return supportv1connect.NewAdminServiceHandler(adminService, options...)

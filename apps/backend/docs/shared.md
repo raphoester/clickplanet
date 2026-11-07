@@ -44,7 +44,8 @@ The siteverify client it is fed by is **not** here. `turnstile` sat here on the 
 `cpanthropic` builds the client of Anthropic's API (`NewClient`, from a key and, for a test, a base URL; no key is
 `ErrNoKey`) and says what a failed call went wrong with, the request left out (`Redacted`): the SDK's error dumps
 the request it failed on, key and all. **It knows no model, no prompt and no timeout**: those are each caller's, set
-per request, so one client serves calls of any length. The clips job's editor is its one caller today.
+per request, so one client serves calls of any length. The clips job's editor and the chat's judge (see
+[The judge](chat.md#the-judge)) are its callers today.
 `cps3` is an S3-compatible bucket, in production Cloudflare R2: links signed in their query (AWS Signature Version 4,
 no SDK; `signature_test.go` signs the S3 reference's own example), to upload one object of an exact type and size, to
 view it, or to download it under a name (`response-content-disposition`), and a `HEAD` and a `DELETE` of its own. **It

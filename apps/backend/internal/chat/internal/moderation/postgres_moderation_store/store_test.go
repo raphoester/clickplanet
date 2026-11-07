@@ -119,3 +119,24 @@ func (s *testSuite) TestAForgottenAccountLosesItsHistoryAndIsTakenOffWhatItDidAs
 		account: uuid.NullUUID{UUID: uuid.UUID(bob), Valid: true}, action: "removal", client: "Claude",
 	}}, s.kept(), "the action on Bob stays, by nobody now")
 }
+
+func (s *testSuite) TestTheActionsOnAnAccountAreReadBackSinceATimeNewestFirst() {
+	judge := moderation.OperatorOf(messages.NoAccount, "Claude judge")
+	mute := mutes.NewMute(mutes.MuteID{15: 1}, mutes.CallerOf(bob, mutes.NoScope), mutes.Gifs, at, 15*time.Minute)
+	s.Require().NoError(s.store.Record(s.T().Context(), s.removal("old", bob, at.Add(-8*24*time.Hour))))
+	s.Require().NoError(s.store.Record(s.T().Context(), moderation.NewRemoval(
+		messages.Restored(s.T(), messages.Snapshot{ID: "gif", SentAt: at, Account: bob, Text: ""}), at, "offence 2 (gifs): gore", judge)))
+	s.Require().NoError(s.store.Record(s.T().Context(), moderation.NewMute(mute, "offence 2 (gifs): gore", judge)))
+	s.Require().NoError(s.store.Record(s.T().Context(), s.removal("ada's", ada, at)))
+
+	actions, err := s.store.ActionsOn(s.T().Context(), bob, at.Add(-7*24*time.Hour))
+
+	s.Require().NoError(err)
+	s.Equal([]moderation.Snapshot{
+		{
+			Account: bob, At: at, Kind: moderation.Muted, MuteKind: mutes.Gifs, Duration: 15 * time.Minute,
+			Reason: "offence 2 (gifs): gore", By: judge,
+		},
+		{Account: bob, At: at, Kind: moderation.Removed, Message: "gif", Reason: "offence 2 (gifs): gore", By: judge},
+	}, actions, "never another account's, nor one past the window, nor a copy of what was said")
+}

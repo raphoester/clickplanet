@@ -39,8 +39,12 @@ func (a *Authors) Author(ctx context.Context, account messages.AccountID) (messa
 	}
 
 	player := res.Msg.GetPlayer()
-	if player.GetGuest() {
+	switch {
+	case player.GetGuest():
 		return messages.GuestOf(player.GetName()), nil
+	case player.GetAdmin():
+		return messages.AdminOf(player.GetName()), nil
+	default:
+		return messages.AuthorOf(player.GetName()), nil
 	}
-	return messages.AuthorOf(player.GetName()), nil
 }

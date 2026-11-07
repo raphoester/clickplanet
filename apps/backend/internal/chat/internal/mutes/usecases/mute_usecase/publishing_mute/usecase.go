@@ -34,12 +34,17 @@ func (d *Decorator) Execute(ctx context.Context, in mute_usecase.In) (mutes.Mute
 		return mute, err //nolint:wrapcheck // a decorator adds an event, not a sentence.
 	}
 
-	d.events.Publish(&chatv1.AccountMuted{
+	d.events.Publish(EventOf(mute))
+	return mute, nil
+}
+
+// The event a mute is announced by: the judge records the same one in the chat's outbox.
+func EventOf(mute mutes.Mute) *chatv1.AccountMuted {
+	return &chatv1.AccountMuted{
 		MuteId:    mute.ID().String(),
 		AccountId: mute.Caller().Account().String(),
 		MutedAt:   timestamppb.New(mute.At()),
 		Duration:  durationpb.New(mute.Duration()),
 		Kind:      proto_kind.Encode(mute.Kind()),
-	})
-	return mute, nil
+	}
 }

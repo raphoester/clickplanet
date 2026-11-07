@@ -78,3 +78,19 @@ func (s *Storage) Forget(_ context.Context, account messages.AccountID) error {
 	}
 	return nil
 }
+
+func (s *Storage) ActionsOn(_ context.Context, account messages.AccountID, since time.Time) ([]moderation.Snapshot, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.err != nil {
+		return nil, s.err
+	}
+	var actions []moderation.Snapshot
+	for _, kept := range slices.Backward(s.kept) {
+		if kept.Account == account && !kept.At.Before(since) {
+			kept.Text, kept.Gif = "", messages.Gif{}
+			actions = append(actions, kept)
+		}
+	}
+	return actions, nil
+}
