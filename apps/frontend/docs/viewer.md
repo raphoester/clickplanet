@@ -38,6 +38,8 @@
   the canvas shrinks to it, and releasing the zoom fires nothing that would
   widen it again — the globe is left short of the right edge with a black band
   beside it for the rest of the session.
+- `strayFingers.ts` — `endStrayFingers`, the `pointercancel` sent for a finger iOS took for its swipe back and never
+  ended, which left OrbitControls in a pinch. See [A finger iOS took for its swipe back](stray-fingers.md).
 - `atlas.ts` / `atlasAsset.ts` — country code → sprite region, and the generated
   atlas URL and size.
 - `borderField.ts` / `bordersAsset.ts` — the zoomed-out view: tile → landmass,
