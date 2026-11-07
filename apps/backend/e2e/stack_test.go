@@ -56,6 +56,7 @@ type gameStack struct {
 	fakes      auth.FakeProviders
 	postgres   *cppg.TestServer
 	missions   *cppg.Postgres
+	redis      cpredis.Config
 }
 
 func startGame(t *testing.T) gameStack {
@@ -158,6 +159,7 @@ func startGame(t *testing.T) gameStack {
 		adminURL:   "http://" + server.AdminBindAddress,
 		fakes:      fakes,
 		postgres:   postgres,
+		redis:      redis,
 	}
 	stack.missions = stack.schema(t, "missions")
 	stack.today(t)

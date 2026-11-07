@@ -81,3 +81,44 @@ them would be worth nothing. `GetBonusRules.enclosures_unlimited` tells the clie
 a search that finds open ground stops at the first coast or lake, 0.07 ms at the median and 2 ms at worst with no
 size limit, since no tile is more than 64 tiles from one. The biggest inland ring holds 11,347 tiles; its search
 took 2 ms and taking its tiles 5 ms. Taken as one event (above), such a pocket cuts no stream.
+
+**A ring bigger than that is a coastline**: every tile a flood can reach that has fewer than six neighbours (a coast,
+a lake's shore, a lattice corner) must be the caller's, or the shape is open. So ringing Russia means holding its
+outline, coasts and lakes included, and ringing Africa means holding the Sinai's border too.
+
+## Giant pockets, measured (2026-11-07)
+
+Before the Ring War battle (`unlimited-enclose`, `maxTiles` 1,000,000), a whole country and a whole continent were
+closed on the real map, through every layer:
+
+| Pocket | Tiles | Closing click (4 cores) | (1 core) | Frame |
+|---|---|---|---|---|
+| Russia, its outline held (2,101 tiles) | 25,895 | 58 ms over HTTP | 132 ms | 81 KB |
+| Africa, its outline held (1,644 tiles) | 51,253 | 131 ms over HTTP | — | 146 KB |
+| Afro-Eurasia, every coast held (6,498 tiles) | 136,032 | 0.5 s in process | 0.4–0.6 s | 400 KB |
+
+The pocket equals an independent flood of the ring tile for tile; one in seven tiles shielded loses one shield and keeps
+its flag; the stream carries one frame and no page's stream is cut; the ledger keeps one `enclose` row (800 KB to 2 MB
+of payload) and the flush writes every tile; `GetMap` and `GetTileHolder` (2.6 ms on the GIN index) name the ringer;
+progression's stats and scoring's tally count every tile once. Other players' clicks wait at most 66 ms (4 cores) or
+142 ms (1 core) while the tiles lock is held. Taking a whole country fortifies it, and taking Africa fortifies 53
+landmasses at once.
+
+**What a giant pocket costs is behind planet, not in it.** The relay tells one `planet.v1.TileTaken` per tile (one
+`ShieldStruck` per shield struck), and each subscriber handles one at a time, in a transaction of its own. Missions took
+in 26k takes in 28 s on 4 cores; progression and scoring took 1.5 to 3.5 minutes for 26k to 51k, about 260 a second;
+on one core about 85 a second each, so a Russia shows in the players' numbers some 5 minutes later, and an Africa 10.
+Flag points do not wait: a round is scored from the map (see [Scoring](scoring.md)).
+
+**A backlog of more than `redis.maxLen` (100k) takes is lost.** Every `XADD` trims the stream to about `maxLen`
+whether its groups read the entries or not (Redis 7.4 has no `ACKED` trim), so pockets that add up to more than 100k
+takes before the slowest group catches up drop the oldest, silently: no error, no dead letter. What is lost is each
+player's count (stats, titles, missions, the players' board, a battle's players), never a flag's points. An entry is
+106 bytes, so a `maxLen` of 300k holds 30 MB of the 64 MB Redis may use. The fix is one fact per enclosure, or
+subscribers that handle a batch per transaction.
+
+**To measure again**: `CP_GIANT=1 go test -tags testing ./internal/planet/internal/clicks/usecases/click_usecase/enclose_click/
+-run TestGiantEnclosures -v` runs the pockets above in process. `CP_GIANT_DUMP=<dir>` also writes the Russia and Africa
+rings, which `CP_GIANT_SCENARIOS=<dir> go test -tags testing ./e2e/ -run TestGiantEnclosuresOnTheWholeStack -v` plays on
+the whole stack (Docker, about 8 minutes): tonight's rule set as a battle of the gamemaster, the rings clicked over HTTP
+by 30 players, 25 pages listening. `taskset -c 0`, with the containers pinned to the same core, is the droplet.

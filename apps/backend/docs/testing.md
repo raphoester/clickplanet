@@ -22,6 +22,10 @@ Tests use `testify`. **A postgres store's own tests need Docker**, and so do `s3
   streams, and the game client reads the battle's kind and its end on the public listener, as a GET and as the first
   event of the stream (`schedule_test.go`).
 
+**One test there is not a smoke test and does not run by default**: `TestGiantEnclosuresOnTheWholeStack`
+(`giant_enclosure_test.go`) is a measure, skipped unless `CP_GIANT_SCENARIOS` names the rings it plays; see
+[Giant pockets, measured](enclose.md#giant-pockets-measured-2026-11-07).
+
 **A new smoke test is for a new module or a new path between modules**, never for a rule. It is a happy path, on the shared stack, and it reads only what it wrote. A test that needs another config, another clock or a second stack belongs lower down.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` and `docker pull redis:7.4-alpine` once from a terminal avoid it.
