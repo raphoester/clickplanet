@@ -17,7 +17,8 @@ export const AdminService = {
     /**
      * Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
      * the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. Of the kind
-     * asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other.
+     * asked: the whole chat, or its GIFs alone. Each kind is a mute of its own, and neither ends the other. With
+     * account_only, the account alone: its network keeps the chat.
      *
      * @generated from rpc chat.v1.AdminService.Mute
      */

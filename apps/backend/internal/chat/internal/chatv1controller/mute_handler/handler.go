@@ -34,7 +34,7 @@ func (h MuteHandler) Mute(
 	}
 	in := mute_usecase.In{
 		Account: messages.AccountIDOf(req.Msg.GetAccountId()), Kind: kind, Reason: req.Msg.GetReason(),
-		By: chatoperator.Of(ctx),
+		By: chatoperator.Of(ctx), AccountOnly: req.Msg.GetAccountOnly(),
 	}
 	if duration := req.Msg.GetDuration(); duration != nil {
 		in.Duration = duration.AsDuration()

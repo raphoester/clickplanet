@@ -92,6 +92,15 @@ func TestTheKindAskedReachesTheUseCase(t *testing.T) {
 	assert.Equal(t, mutes.Gifs, useCase.in.Kind)
 }
 
+func TestAccountOnlyReachesTheUseCase(t *testing.T) {
+	useCase := &stubUseCase{}
+
+	_, err := mute(t, useCase, &chatv1.MuteRequest{AccountId: bullyID, AccountOnly: true})
+	require.NoError(t, err)
+
+	assert.True(t, useCase.in.AccountOnly)
+}
+
 func TestAKindTheProtoDoesNotNameIsInvalidAndNothingIsMuted(t *testing.T) {
 	useCase := &stubUseCase{}
 

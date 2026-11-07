@@ -30,11 +30,12 @@ type Executor interface {
 }
 
 type In struct {
-	Account  messages.AccountID
-	Kind     mutes.Kind
-	Duration time.Duration
-	Reason   string
-	By       moderation.Operator
+	Account     messages.AccountID
+	Kind        mutes.Kind
+	Duration    time.Duration
+	Reason      string
+	By          moderation.Operator
+	AccountOnly bool
 }
 
 const writeTimeout = 5 * time.Second
@@ -75,9 +76,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (mutes.Mute, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 
-	ip, err := u.addresses.LatestAddress(ctx, in.Account)
-	if err != nil && !errors.Is(err, messages.ErrNoMessage) {
-		return mutes.Mute{}, fmt.Errorf("failed to read where the account posts from: %w", err)
+	caller, err := u.callerOf(ctx, in)
+	if err != nil {
+		return mutes.Mute{}, err
 	}
 
 	id, err := u.ids.NewID()
@@ -85,7 +86,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (mutes.Mute, error) {
 		return mutes.Mute{}, fmt.Errorf("failed to draw a mute id: %w", err)
 	}
 
-	mute := mutes.NewMute(id, mutes.NewCaller(in.Account, ip), in.Kind, u.clock.Now(), duration)
+	mute := mutes.NewMute(id, caller, in.Kind, u.clock.Now(), duration)
 	err = u.transactioner.InTx(ctx, func(ctx context.Context) error {
 		if err := u.saver.Save(ctx, mute); err != nil {
 			return fmt.Errorf("failed to keep the mute: %w", err)
@@ -99,4 +100,15 @@ func (u *UseCase) Execute(ctx context.Context, in In) (mutes.Mute, error) {
 		return mutes.Mute{}, fmt.Errorf("cannot mute: %w", err)
 	}
 	return mute, nil
+}
+
+func (u *UseCase) callerOf(ctx context.Context, in In) (mutes.Caller, error) {
+	if in.AccountOnly {
+		return mutes.CallerOf(in.Account, mutes.NoScope), nil
+	}
+	ip, err := u.addresses.LatestAddress(ctx, in.Account)
+	if err != nil && !errors.Is(err, messages.ErrNoMessage) {
+		return mutes.Caller{}, fmt.Errorf("failed to read where the account posts from: %w", err)
+	}
+	return mutes.NewCaller(in.Account, ip), nil
 }
