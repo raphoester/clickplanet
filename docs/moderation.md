@@ -89,13 +89,10 @@ Counted per account from its **moderation history**, the chat and the GIFs apart
   environment, whose network allows the GIF host (`static.klipy.com`), so a run sees each GIF: the open reports first
   (`support_list_reports` with `openOnly`), then every message since the last run (`chat_list_messages`, paged back
   until `sentAt` passes the last run), then, for each account it acts on, its last 7 days of history
-  (`chat_list_moderation`), then the actions these rules call for, each with its reason. **Every removal of the run
-  goes in one `chat_remove_messages` call**, each message with its own reason: one call, and one approval wherever
-  the tool still asks, instead of one per message. `chat_remove_message` is for one message alone. The call is all or
-  none: a refusal names the message it is about, and the run sends the others again without it.
-- **The tools a run calls without asking**: `chat_remove_messages`, `chat_remove_message`, `chat_mute` (24 hours at most), `chat_unmute`,
+  (`chat_list_moderation`), then the actions these rules call for, each with its reason.
+- **The tools a run calls without asking**: `chat_remove_message`, `chat_mute` (24 hours at most), `chat_unmute`,
   `support_decide_report`, `player_rename_player`. Every other write is a proposal in the digest. The operator allows
-  those six on claude.ai and leaves the rest on "Needs approval". The reads (`chat_list_moderation`,
+  those five on claude.ai and leaves the rest on "Needs approval". The reads (`chat_list_moderation`,
   `player_list_renames` and the others) are read-only tools, called without asking.
 - **A push to the operator's phone** for child safety, self-harm, and anything that waits on the operator. **A daily
   digest** of the rest: the actions and their reasons (every action since the last digest: `chat_list_moderation` and
@@ -105,4 +102,4 @@ Counted per account from its **moderation history**, the chat and the GIFs apart
 
 ## Not built yet
 
-- **The scheduled task**, and the six tools allowed on claude.ai.
+- **The scheduled task**, and the five tools allowed on claude.ai.

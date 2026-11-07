@@ -12,7 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mute_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/react_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/remove_message_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/remove_messages_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/unmute_handler"
 )
@@ -32,7 +31,6 @@ type AdminService struct {
 	unmute_handler.UnmuteHandler
 	get_mute_handler.GetMuteHandler
 	remove_message_handler.RemoveMessageHandler
-	remove_messages_handler.RemoveMessagesHandler
 	get_message_handler.GetMessageHandler
 	list_messages_handler.ListMessagesHandler
 	list_moderation_handler.ListModerationHandler

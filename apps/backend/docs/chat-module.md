@@ -74,15 +74,13 @@ internal/chat/internal/
     postgres_removal_store/             Storage, over chat.removals
     usecases/remove_message_usecase/    takes a kept message out of what anybody is shown, records it with a copy of
                                         what it said, then tells the streams — Messages, Saver, Recorder, Publisher
-      audit_remove/                     logs every removal at Warn
-    usecases/remove_messages_usecase/   the same for up to 200 messages at once, all or none, in one transaction
-      audit_remove_messages/            logs every message it removed at Warn, as audit_remove does
   moderation/                           Action (NewMute, NewUnmute, NewRemoval, TakeSnapshot), Snapshot, Kind (Muted,
                                         Unmuted, Removed), Operator, Reason (ReasonOf, ErrInvalidReason), the Storage port:
                                         writes only
     postgres_moderation_store/          Storage, over chat.moderation
     inmemory_moderation_storage/        Storage in a slice, and Kept for a test — behind the testing tag, tests only
     usecases/forget_moderation_usecase/ deletes the actions taken on an account, takes it off the ones it took — Forgetter
+      audit_remove/                     logs every removal at Warn
   feed/                                 Update: a message sent, a message's new reactions, an announcement, a
                                         message removed, or an account that left a flag's room (MessageSent,
                                         ReactionsChanged, Announced, MessageRemoved, RoomLeft); For(room)
@@ -91,8 +89,8 @@ internal/chat/internal/
     usecases/leave_room_usecase/        ends an account's streams of the room it left — Publisher
   chatv1controller/                     ChatService and AdminService (bags), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
-    mute_handler/  unmute_handler/  get_mute_handler/  remove_message_handler/  remove_messages_handler/
-    get_message_handler/  list_messages_handler/  list_moderation_handler/
+    mute_handler/  unmute_handler/  get_mute_handler/  remove_message_handler/  get_message_handler/
+    list_messages_handler/  list_moderation_handler/
     get_mute_handler/mute_query/        PostgresQuery: the mute that holds an account now, by itself or its network
     list_moderation_handler/moderation_query/  PostgresQuery: the moderation history, newest first, one account's or
                                         everybody's, since a time
