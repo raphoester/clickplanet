@@ -24,7 +24,11 @@ that listener (`props.AdminHTTP`), not admin services, so they are outside the g
   - reads too big for a tool's answer: `planet` `GetReplay` (megabytes for a day), `GetLedger` (72 h of every act,
     page by page: a 24 h poll of it once pushed the box into swap) and `GetTerritories` (every tile of every country);
   - the clips job's writes, which only the job calls over ssh: `clips` `KeepSnapshot`, `MakeCast` and
-    `KeepAppearance`.
+    `KeepAppearance`;
+  - the posting of a job's video, which only a job calls over ssh: `publishing` `CreateMediaUpload` (a link to send
+    a file to, which a tool has no file to send) and `SchedulePost` (a public post on TikTok and YouTube, at a slot
+    `PlanPost` gave). `publishing` `GetRoom`, `PlanPost` and `ListPosts` stay: what each platform has left today, when
+    a post would go out, and what was posted.
 - `tools_test.go` fails on an admin method with no comment, and on an embedded set that does not match the
   generated code.
 - **The server does not decide what Claude may do without asking.** `readOnlyHint` is a hint: the operator sets the

@@ -163,3 +163,5 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `promo.backgrounds.uploadTTL` — how long an upload link is good for (10m). More than 7 days refuses the boot
 - `promo.backgrounds.publicBaseURL` — the public domain's origin the backgrounds are read from, `https://media.clickplanet.lol` in production: an `https` scheme and a host, no path. Anything else with backgrounds on refuses the boot
 - `promo.backgrounds.bucket.*` — the same five keys as `support.attachments.bucket`; production names the same bucket and key. Any of them empty with backgrounds on refuses the boot
+- `publishing.zernio.apiKey` — the posting service's key, `env://ZERNIO_API_KEY` in `deploy/vps/backend.yaml`, the repository's Actions secret the clips workflows hold too; empty leaves the module off, every call of `publishing.v1.AdminService` refused, and the server runs. See [Publishing](publishing.md)
+- `publishing.zernio.baseURL` — a test's fake; empty is Zernio's own API. One that is no `http` or `https` address refuses the boot

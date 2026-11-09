@@ -145,3 +145,8 @@ promo:
     dbName: postgres
     sslMode: disable
     schema: promo
+
+# No key: the posts are refused, and nothing goes to TikTok or YouTube from a local stack.
+publishing:
+  zernio:
+    apiKey: ""

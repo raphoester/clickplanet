@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo"
+	"github.com/raphoester/clickplanet.lol-backend/internal/publishing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
@@ -46,6 +47,8 @@ type Config struct {
 	Alerts alerts.Config
 	// A battle's teaser: each rule set's cards, over the backgrounds the operator uploads.
 	Promo promo.Config
+	// The game's posts on its own TikTok and YouTube: the calendar they keep, and the posting service.
+	Publishing publishing.Config
 }
 
 func main() {
@@ -93,6 +96,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 		clips.NewModule(config.Clips),
 		alerts.NewModule(config.Alerts),
 		promo.NewModule(config.Promo),
+		publishing.NewModule(config.Publishing),
 		mcp.NewModule(config.MCP),
 	}
 }
@@ -122,6 +126,7 @@ func (c Config) Validate() error {
 		c.Clips.Validate(),
 		c.Alerts.Validate(),
 		c.Promo.Validate(),
+		c.Publishing.Validate(),
 		c.MCP.Validate(),
 	)
 }
