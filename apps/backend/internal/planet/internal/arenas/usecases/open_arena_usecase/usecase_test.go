@@ -37,7 +37,7 @@ func newHarness(t *testing.T) harness {
 		slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context()))
 	kept := arenas.NewMemoryStore()
-	inPlay := arenas.NewInPlay(func() arenas.Siege { return arenas.Siege{Freeze: 8 * time.Second} }, clock)
+	inPlay := arenas.NewInPlay(func() arenas.Rules { return arenas.Rules{Freeze: 8 * time.Second} }, clock)
 	return harness{
 		tiles: tiles, stored: stored, kept: kept, inPlay: inPlay, clock: clock,
 		useCase: open_arena_usecase.New(tiles, kept, inPlay, clock),
@@ -53,7 +53,7 @@ func TestAnArenaOpensOnTheMapBlankAndKeepsTheMapBefore(t *testing.T) {
 	h := newHarness(t)
 	require.NoError(t, h.tiles.Set(t.Context(), 4, "it"))
 
-	opened, err := h.useCase.Execute(t.Context(), open_arena_usecase.Command{Arena: "siege", EndsAt: ends})
+	opened, err := h.useCase.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends})
 
 	require.NoError(t, err)
 	assert.True(t, opened)
@@ -64,7 +64,7 @@ func TestAnArenaOpensOnTheMapBlankAndKeepsTheMapBefore(t *testing.T) {
 	assert.True(t, bool(h.inPlay.Freeze()), "the map takes no play right after it went blank")
 	h.clock.Advance(8 * time.Second)
 	assert.False(t, bool(h.inPlay.Freeze()))
-	before, err := h.kept.Close(t.Context(), arenas.Closing{ID: "siege", ClosedAt: ends})
+	before, err := h.kept.Close(t.Context(), arenas.Closing{ID: "battle", ClosedAt: ends})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []clicks.TileCopy{{ID: 1, Owner: "fr"}, {ID: 2, Owner: "fr"}, {ID: 3, Owner: "de"}, {ID: 4, Owner: "it"}},
 		before.Tiles, "the tile not flushed yet too")
@@ -72,7 +72,7 @@ func TestAnArenaOpensOnTheMapBlankAndKeepsTheMapBefore(t *testing.T) {
 
 func TestAnArenaToldTwiceOpensOnce(t *testing.T) {
 	h := newHarness(t)
-	command := open_arena_usecase.Command{Arena: "siege", EndsAt: ends}
+	command := open_arena_usecase.Command{Arena: "battle", EndsAt: ends}
 	_, err := h.useCase.Execute(t.Context(), command)
 	require.NoError(t, err)
 	require.NoError(t, h.tiles.Set(t.Context(), 7, "pt"))
@@ -87,16 +87,16 @@ func TestAnArenaToldTwiceOpensOnce(t *testing.T) {
 func TestAnArenaClosedEndedOrBesideAnotherOpensNothing(t *testing.T) {
 	for name, setUp := range map[string]func(h harness) open_arena_usecase.Command{
 		"closed": func(h harness) open_arena_usecase.Command {
-			_, err := h.kept.Close(t.Context(), arenas.Closing{ID: "siege", ClosedAt: starts})
+			_, err := h.kept.Close(t.Context(), arenas.Closing{ID: "battle", ClosedAt: starts})
 			require.NoError(t, err)
-			return open_arena_usecase.Command{Arena: "siege", EndsAt: ends}
+			return open_arena_usecase.Command{Arena: "battle", EndsAt: ends}
 		},
 		"ended": func(harness) open_arena_usecase.Command {
-			return open_arena_usecase.Command{Arena: "siege", EndsAt: starts}
+			return open_arena_usecase.Command{Arena: "battle", EndsAt: starts}
 		},
 		"another open": func(h harness) open_arena_usecase.Command {
 			require.NoError(t, h.kept.Open(t.Context(), arenas.Opening{ID: "other", EndsAt: ends, OpenedAt: starts}, clicks.MapCopy{}))
-			return open_arena_usecase.Command{Arena: "siege", EndsAt: ends}
+			return open_arena_usecase.Command{Arena: "battle", EndsAt: ends}
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

@@ -11,6 +11,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/play_arenas_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/outbox_moment_events"
@@ -22,8 +24,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/play_schedule_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/sieges/inmemory_siege_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/sieges/usecases/play_sieges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -76,18 +76,18 @@ func (s *scoring) Send(ctx context.Context, command moments.Command) error {
 	return nil
 }
 
-// rulesOf answers whether a set plays a siege: none of season 0's does.
+// rulesOf answers whether a set makes an arena battle: none of season 0's does.
 type rulesOf map[schedule.SetName]bool
 
-func (r rulesOf) Siege(_ context.Context, set schedule.SetName) (bool, error) {
+func (r rulesOf) Arena(_ context.Context, set schedule.SetName) (bool, error) {
 	return r[set], nil
 }
 
-type arenas struct {
+type arenaCommands struct {
 	commands []moments.ArenaCommand
 }
 
-func (a *arenas) Send(_ context.Context, command moments.ArenaCommand) error {
+func (a *arenaCommands) Send(_ context.Context, command moments.ArenaCommand) error {
 	a.commands = append(a.commands, command)
 	return nil
 }
@@ -96,7 +96,7 @@ func TestSeasonZerosLastDayAndItsFinalePlaySecondBySecond(t *testing.T) {
 	clock := cptime.NewFixedClock(finaleStarts.Add(-24*time.Hour - time.Second))
 	seasons, entries, kept := inmemory_season_store.New(), inmemory_entry_store.New(), inmemory_moment_store.New()
 	require.NoError(t, seasons.Save(t.Context(), seasonZero.Restore()))
-	judged := inmemory_siege_store.New()
+	judged := inmemory_arena_store.New()
 	planner := moments.NewPlanner(seasons, entries, kept, judged, season.Cutoff(21*time.Hour))
 	outbox := &cpatomic.FakeOutbox{}
 	told := outbox_moment_events.New(outbox)
@@ -109,13 +109,13 @@ func TestSeasonZerosLastDayAndItsFinalePlaySecondBySecond(t *testing.T) {
 		books:  hear_book_usecase.New(planner, kept, told, cpatomic.FakeTransactioner{}),
 	}
 	points := play_scoring_usecase.New(planner, kept, scored, clock)
-	planet := &arenas{}
-	sieges := play_sieges_usecase.New(planner, judged, rulesOf{}, planet, clock)
+	planet := &arenaCommands{}
+	arenaPlay := play_arenas_usecase.New(planner, judged, rulesOf{}, planet, clock)
 
 	tick := func() {
 		_, _, err := rules.Execute(t.Context())
 		require.NoError(t, err)
-		_, err = sieges.Execute(t.Context())
+		_, err = arenaPlay.Execute(t.Context())
 		require.NoError(t, err)
 		_, err = points.Execute(t.Context())
 		require.NoError(t, err)
@@ -158,7 +158,7 @@ func TestSeasonZerosLastDayAndItsFinalePlaySecondBySecond(t *testing.T) {
 		},
 	}, commandedAt, "the finale is a round × 3 from 21:00, closed at 23:00 before the book it breaks a tie of")
 
-	assert.Empty(t, planet.commands, "the Final Battle is no siege: the map stays")
+	assert.Empty(t, planet.commands, "the Final Battle is no arena battle: the map stays")
 
 	finale := &gamemasterv1.BattleEnded{
 		Season: 0, Number: 1, Times: 3, EndsSeason: true, RoundId: "season-0/finale", EndedAt: timestamppb.New(seasonEnds),

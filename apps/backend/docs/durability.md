@@ -44,9 +44,9 @@
 - **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, deletions, relay)` runs them together and closes the pool after the last flushes, after the subscriber handled what it read, and after the ledger relay's last pass.
 - **The ledger is the outbox of the map's facts.** `ledger/usecases/relay_ledger_usecase` runs every second: it reads what the ledger flushed past `ledger_relayed` (one row, the next position to tell) from memory (`ReplaySaved`), sends a `TilesTaken` per event that took tiles with an account (in parts of 4,096 tiles at most) and a `ShieldsStruck` per event that broke shields, a `BombLanded` per bomb and a `Fortified` per fortify, each with its position, in ledger order (each tile also with its index in its event), and then moves the row. A batch is 1,000 events; a failed send keeps the row, so the next tick sends them again. Memory holds everything from the head on, so a row behind the retention only skips what is gone. See [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox).
 
-**A siege's arena keeps the map from before it in postgres** (`arenas`, `arena_tiles`, `arena_landmasses`), copied from
+**An arena keeps the map from before it in postgres** (`arenas`, `arena_tiles`, `arena_landmasses`), copied from
 memory under the flush lock, so the tiles not flushed yet are in it; putting it back replaces the map's tables and
-memory in one go, and no flush writes the arena's map back after it. See [Sieges and arenas](arenas.md).
+memory in one go, and no flush writes the arena's map back after it. See [Arena battles](arenas.md).
 
 **The charges have no memory copy**: every call reads and writes `planet.charges`, on the same pool. See [Charges](charges.md).
 

@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/outbox_moment_events"
@@ -20,7 +21,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/sieges/inmemory_siege_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
@@ -42,7 +42,7 @@ func newHearing(t *testing.T, store *inmemory_moment_store.Store, outbox *cpatom
 	require.NoError(t, entries.Save(t.Context(), schedule.EntrySnapshot{
 		ID: early, Set: "rush", Kind: schedule.Battle, StartsAt: finale.Add(-time.Hour), EndsAt: finale, Times: 2, MadeAt: finale.Add(-day),
 	}.Restore()))
-	return hear_book_usecase.New(moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), inmemory_siege_store.New(), season.Cutoff(21*time.Hour)), store,
+	return hear_book_usecase.New(moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), inmemory_arena_store.New(), season.Cutoff(21*time.Hour)), store,
 		outbox_moment_events.New(outbox), cpatomic.FakeTransactioner{})
 }
 

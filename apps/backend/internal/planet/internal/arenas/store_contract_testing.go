@@ -55,35 +55,35 @@ func (s *StoreContractSuite) sameOpening(want, got Opening) {
 }
 
 func (s *StoreContractSuite) TestAnArenaNeverKeptNeverOpened() {
-	s.Equal(Arena{ID: "siege"}, s.find("siege"))
+	s.Equal(Arena{ID: "battle"}, s.find("battle"))
 	playing, err := s.store.Playing(s.T().Context())
 	s.Require().NoError(err)
 	s.False(playing.Opened)
 }
 
 func (s *StoreContractSuite) TestAnArenaOpenIsPlayingWithItsOpening() {
-	s.Require().NoError(s.store.Open(s.T().Context(), s.opening("siege"), contractBefore))
+	s.Require().NoError(s.store.Open(s.T().Context(), s.opening("battle"), contractBefore))
 
-	found := s.find("siege")
+	found := s.find("battle")
 	s.True(found.Opened)
 	s.False(found.Closed)
-	s.sameOpening(s.opening("siege"), found.Opening)
+	s.sameOpening(s.opening("battle"), found.Opening)
 	playing, err := s.store.Playing(s.T().Context())
 	s.Require().NoError(err)
 	s.True(playing.Opened)
-	s.sameOpening(s.opening("siege"), playing.Opening)
+	s.sameOpening(s.opening("battle"), playing.Opening)
 }
 
 func (s *StoreContractSuite) TestAClosedArenaAnswersTheMapFromBeforeItOnce() {
 	ctx := s.T().Context()
-	s.Require().NoError(s.store.Open(ctx, s.opening("siege"), contractBefore))
+	s.Require().NoError(s.store.Open(ctx, s.opening("battle"), contractBefore))
 
-	before, err := s.store.Close(ctx, Closing{ID: "siege", ClosedAt: contractEndsAt.Add(3 * time.Second)})
+	before, err := s.store.Close(ctx, Closing{ID: "battle", ClosedAt: contractEndsAt.Add(3 * time.Second)})
 
 	s.Require().NoError(err)
 	s.ElementsMatch(contractBefore.Tiles, before.Tiles)
 	s.Equal(contractBefore.Landmasses, before.Landmasses)
-	found := s.find("siege")
+	found := s.find("battle")
 	s.True(found.Opened)
 	s.True(found.Closed)
 	playing, err := s.store.Playing(ctx)
@@ -92,21 +92,21 @@ func (s *StoreContractSuite) TestAClosedArenaAnswersTheMapFromBeforeItOnce() {
 }
 
 func (s *StoreContractSuite) TestAnArenaNeverOpenedClosesWithNoMap() {
-	before, err := s.store.Close(s.T().Context(), Closing{ID: "siege", ClosedAt: contractEndsAt})
+	before, err := s.store.Close(s.T().Context(), Closing{ID: "battle", ClosedAt: contractEndsAt})
 
 	s.Require().NoError(err)
 	s.Empty(before.Tiles)
 	s.Empty(before.Landmasses)
-	s.Equal(Arena{ID: "siege", Closed: true}, s.find("siege"))
+	s.Equal(Arena{ID: "battle", Closed: true}, s.find("battle"))
 }
 
 func (s *StoreContractSuite) TestADeletedAccountHoldsNoTileOfAnArena() {
 	ctx := s.T().Context()
-	s.Require().NoError(s.store.Open(ctx, s.opening("siege"), contractBefore))
+	s.Require().NoError(s.store.Open(ctx, s.opening("battle"), contractBefore))
 
 	s.Require().NoError(s.store.ForgetHolder(ctx, contractAna))
 
-	before, err := s.store.Close(ctx, Closing{ID: "siege", ClosedAt: contractEndsAt})
+	before, err := s.store.Close(ctx, Closing{ID: "battle", ClosedAt: contractEndsAt})
 	s.Require().NoError(err)
 	s.Contains(before.Tiles, clicks.TileCopy{ID: 1, Owner: "fr", Shields: 3})
 }

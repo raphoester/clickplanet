@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase"
@@ -18,7 +19,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/sieges/inmemory_siege_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -58,7 +58,7 @@ type harness struct {
 	seasons  *inmemory_season_store.Store
 	entries  *inmemory_entry_store.Store
 	opened   *inmemory_moment_store.Store
-	judged   *inmemory_siege_store.Store
+	judged   *inmemory_arena_store.Store
 	commands *commanded
 	useCase  *play_scoring_usecase.UseCase
 }
@@ -69,7 +69,7 @@ func newHarness(t *testing.T, at time.Time) *harness {
 
 	h := &harness{
 		t: t, clock: cptime.NewFixedClock(at), seasons: inmemory_season_store.New(), entries: inmemory_entry_store.New(),
-		opened: inmemory_moment_store.New(), judged: inmemory_siege_store.New(),
+		opened: inmemory_moment_store.New(), judged: inmemory_arena_store.New(),
 	}
 	require.NoError(t, h.seasons.Save(t.Context(), zero.Restore()))
 	h.judge(battle, moments.Plain)

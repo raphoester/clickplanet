@@ -38,7 +38,7 @@ type Command struct {
 	Times    schedule.Times
 	At       time.Time
 	Tiebreak RoundID
-	// FromNothing is an OpenRound of a siege: its round counts from nothing, on the blank map.
+	// FromNothing is an OpenRound of an arena battle: its round counts from nothing, on the blank map.
 	FromNothing bool
 }
 

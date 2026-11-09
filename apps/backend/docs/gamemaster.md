@@ -50,7 +50,7 @@ internal/gamemaster/
       postgres_season_store/        the Store over gamemaster.seasons and season_finales
       redis_map_commands/           planet.v1.ResetMap, on planet's command stream
       usecases/play_resets_usecase/ a season after season 0 starts on a blank map, told once per process and once no
-                                    siege before it waits for its map; Runner
+                                    arena battle before it waits for its map; Runner
         log_play_resets/            logs each reset told, and a failure
       usecases/add_season_usecase/     audit_add_season/
       usecases/edit_season_usecase/    audit_edit_season/
@@ -76,16 +76,16 @@ internal/gamemaster/
         log_tell_starts/            logs each season, day and battle told, and a failure
       usecases/hear_round_usecase/  keeps a scored round, and records its day's or battle's end once; log_hear_round/
       usecases/hear_book_usecase/   keeps a closed book, and records its season's end once; log_hear_book/
-    sieges/                         the battles played on a blank map: Store (battle_modes, closed_arenas) and its contract
-                                    suite; the rules are the plan's (Mode, Judgement, Sieges, ArenaCommand in moments)
-      inmemory_siege_store/  postgres_siege_store/
-      rpc_planet_sieges/            whether a set plays a siege, from planet.v1.InternalService/GetRuleSet
+    arenas/                         the battles fought on a blank map: Store (battle_modes, closed_arenas) and its contract
+                                    suite; the rules are the plan's (Mode, Judgement, Arenas, ArenaCommand in moments)
+      inmemory_arena_store/  postgres_arena_store/
+      rpc_planet_arenas/            whether a set makes an arena battle, from planet.v1.InternalService/GetRuleSet
       redis_arena_commands/         planet.v1.ArenaCommand, on planet's one arena stream
-      arena_closed_subscriber/      hears planet.v1.ArenaClosed (gamemaster-arenas)
-      usecases/play_sieges_usecase/ judges the battle that runs, once; sends each arena command due; Runner
-        log_play_sieges/
+      arena_closed_subscriber/      hears planet.v1.ArenaClosed (gamemaster-arenas-closed)
+      usecases/play_arenas_usecase/ judges the battle that runs, once; sends each arena command due; Runner
+        log_play_arenas/
       usecases/hear_arena_usecase/  keeps an arena closed once; log_hear_arena/
-    siegenight/                     a test alone: a siege second by second, scoring and planet late, boots in the middle
+    arenanight/                     a test alone: an arena battle second by second, scoring and planet late, boots in the middle
     finalnight/                     a test alone: season 0's last day and its Final Battle, second by second
     gamemasterv1controller/              AdminService and GamemasterService (bags), NewCacheInterceptor
       get_schedule_handler/schedule_query/   PostgresQuery: every entry, every finale, and what plays now
@@ -341,9 +341,9 @@ once Redis took it.
   stops the tick, so it and every one after it go the next second, in order.
 - **Level-triggered, no outbox**, like the schedule: the clock decides, and a boot sends again what is due.
   `log_play_scoring` logs each command at Warn (`scoring is commanded`).
-- **With the sieges kept** (`Plan.With`), **a battle's round opens once the battle is judged**, about one tick, and a
-  siege's with `from_nothing`; **no round or book opens while a siege that ended before it has its arena open**
-  (`Plan.Waits`). See [Sieges and arenas](arenas.md).
+- **With the arena battles kept** (`Plan.With`), **a battle's round opens once the battle is judged**, about one tick, and an
+  arena battle's round with `from_nothing`; **no round or book opens while an arena battle that ended before it has its arena open**
+  (`Plan.Waits`). See [Arena battles](arenas.md).
 - `redis_scoring_commands` sends each as one `scoring.v1.ScoringCommand` on its one stream
   (`commands:scoring.v1.ScoringCommand`), so a round's close always reaches scoring before its book's.
 - **A moved season end** moves its book's close, its days (a day may start now, from the old last cutoff), its battles'
@@ -369,8 +369,8 @@ table and, **only when it is new** (or a day whose end moved), records its event
   ends_season, round_id, starts_at, ends_at}`, **once**; as in `BattleEnded`, `ends_season` is the finale's alone, and
   its `entry_id` is empty. A battle that starts in a break is no round, and is not told.
 
-**A day that starts after a siege is told once the map from before the siege is back** (`Plan.DayAt` waits as
-the opens do; see [Sieges and arenas](arenas.md)), so missions draws on the map put back.
+**A day that starts after an arena battle is told once the map from before the arena battle is back** (`Plan.DayAt` waits as
+the opens do; see [Arena battles](arenas.md)), so missions draws on the map put back.
 
 **Level-triggered**: a boot tells what runs if it was never told, late (so the first boot with `told_seasons` tells the
 season that runs then); **never what ended**: a season, a day or a battle that started and ended while the server was

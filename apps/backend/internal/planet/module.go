@@ -252,7 +252,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			lock := rules.Reader(inForce, allegiances.LockPart)
 
 			arenaStore := postgres_arena_store.New(db)
-			inPlay := arenas.NewInPlay(rules.Reader(inForce, arenas.SiegePart), clock)
+			inPlay := arenas.NewInPlay(rules.Reader(inForce, arenas.Part), clock)
 			if err := inPlay.Load(ctx, arenaStore); err != nil {
 				closeStores()
 				return err //nolint:wrapcheck // Load names it.

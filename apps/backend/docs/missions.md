@@ -68,7 +68,7 @@ internal/missions/internal/
   **No day, no missions**: between two seasons, from a season's last cutoff to its end (the Final Battle), and while
   any battle runs (a battle takes its time from a day, see [A battle and the days](gamemaster.md#a-battle-and-the-days)),
   a fact counts nothing, `GetMissions` answers no mission and no end, and a sign-in pays nothing (the owner, 2026-10-29).
-  **After a siege, the day is told only once the map from before it is back** (see [Sieges and arenas](arenas.md)),
+  **After an arena battle, the day is told only once the map from before it is back** (see [Arena battles](arenas.md)),
   so the draw reads the map put back.
   **A fact can come before its day**: the day and the facts come on separate streams, so a take of the first second or
   so of a day may find no day yet and count nothing (the owner chose it over asking the gamemaster each fact,

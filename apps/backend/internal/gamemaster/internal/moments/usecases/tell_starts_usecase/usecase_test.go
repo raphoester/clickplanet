@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/outbox_moment_events"
@@ -21,7 +22,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/sieges/inmemory_siege_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -65,7 +65,7 @@ func newHarness(t *testing.T, at time.Time) *harness {
 }
 
 func (h *harness) boot() {
-	planner := moments.NewPlanner(h.seasons, h.entries, h.store, inmemory_siege_store.New(), season.Cutoff(21*time.Hour))
+	planner := moments.NewPlanner(h.seasons, h.entries, h.store, inmemory_arena_store.New(), season.Cutoff(21*time.Hour))
 	h.useCase = tell_starts_usecase.New(planner, h.store, outbox_moment_events.New(h.outbox), cpatomic.FakeTransactioner{}, h.clock)
 }
 

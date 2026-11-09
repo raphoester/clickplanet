@@ -79,11 +79,11 @@ func TestATileAnArenaKeepsLosesItsHolderToo(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	kept := arenas.NewMemoryStore()
 	before := clicks.MapCopy{Tiles: []clicks.TileCopy{{ID: 1, Owner: "fr", Holder: gone(t)}}}
-	require.NoError(t, kept.Open(t.Context(), arenas.Opening{ID: "siege", EndsAt: at, OpenedAt: at}, before))
+	require.NoError(t, kept.Open(t.Context(), arenas.Opening{ID: "battle", EndsAt: at, OpenedAt: at}, before))
 
 	require.NoError(t, anonymize_takes_usecase.New(loaded(t, persistence), persistence, kept, tiles(t)).Execute(t.Context(), gone(t)))
 
-	back, err := kept.Close(t.Context(), arenas.Closing{ID: "siege", ClosedAt: at})
+	back, err := kept.Close(t.Context(), arenas.Closing{ID: "battle", ClosedAt: at})
 	require.NoError(t, err)
 	assert.Equal(t, []clicks.TileCopy{{ID: 1, Owner: "fr"}}, back.Tiles)
 }

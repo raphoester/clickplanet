@@ -29,7 +29,7 @@ func New(planner Planner, commands Commands, clock cptime.Clock) *UseCase {
 
 // UseCase tells planet once per process that the running season starts on a blank map. Planet keeps each reset, so
 // a boot that tells it again wipes nothing; a command Redis did not take is sent again at the next Execute. A season
-// that starts after a siege waits for the map from before the siege to be back, or the siege's end would undo the
+// that starts after an arena battle waits for the map from before the arena battle to be back, or the arena battle's end would undo the
 // reset.
 type UseCase struct {
 	planner  Planner

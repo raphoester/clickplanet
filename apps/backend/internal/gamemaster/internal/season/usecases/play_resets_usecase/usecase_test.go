@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
@@ -16,7 +17,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/play_resets_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/sieges/inmemory_siege_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -45,9 +45,9 @@ func harness(t *testing.T, at time.Time) (*play_resets_usecase.UseCase, *planet,
 }
 
 func harnessWith(t *testing.T, at time.Time, zero season.Snapshot, pause time.Duration,
-) (*play_resets_usecase.UseCase, *planet, *cptime.FixedClock, *inmemory_siege_store.Store) {
+) (*play_resets_usecase.UseCase, *planet, *cptime.FixedClock, *inmemory_arena_store.Store) {
 	t.Helper()
-	seasons, judged := inmemory_season_store.New(), inmemory_siege_store.New()
+	seasons, judged := inmemory_season_store.New(), inmemory_arena_store.New()
 	require.NoError(t, seasons.Save(t.Context(), zero.Restore()))
 	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{Number: 1, Break: pause, Length: 28 * 24 * time.Hour}.Restore()))
 	told, clock := &planet{}, cptime.NewFixedClock(at)
@@ -55,20 +55,20 @@ func harnessWith(t *testing.T, at time.Time, zero season.Snapshot, pause time.Du
 	return play_resets_usecase.New(planner, told, clock), told, clock, judged
 }
 
-// A siege as season 0's finale, with season 1 starting as it ends: the reset waits for the map from before the siege,
-// or the siege's end would put the old season's map back on the new one.
-func TestASeasonThatStartsAfterASiegeResetsOnceItsArenaClosed(t *testing.T) {
+// An arena battle as season 0's finale, with season 1 starting as it ends: the reset waits for the map from before the arena battle,
+// or the arena battle's end would put the old season's map back on the new one.
+func TestASeasonThatStartsAfterAnArenaBattleResetsOnceItsArenaClosed(t *testing.T) {
 	zero := season.Snapshot{
 		Number: 0, Length: seasonZeroEnds.Sub(season.Origin),
-		Finale: season.Finale{Length: 2 * time.Hour, Set: schedule.SetName("capital-siege"), Times: 3},
+		Finale: season.Finale{Length: 2 * time.Hour, Set: schedule.SetName("arena-battle"), Times: 3},
 	}
 	useCase, told, clock, judged := harnessWith(t, seasonZeroEnds, zero, 0)
-	_, err := judged.KeepJudged(t.Context(), moments.Judgement{Round: moments.FinaleRoundOf(0), Mode: moments.Siege})
+	_, err := judged.KeepJudged(t.Context(), moments.Judgement{Round: moments.FinaleRoundOf(0), Mode: moments.Arena})
 	require.NoError(t, err)
 
 	_, sent, err := useCase.Execute(t.Context())
 	require.NoError(t, err)
-	assert.False(t, sent, "the siege's arena is open")
+	assert.False(t, sent, "the arena is open")
 
 	_, err = judged.KeepClosed(t.Context(), moments.FinaleRoundOf(0))
 	require.NoError(t, err)

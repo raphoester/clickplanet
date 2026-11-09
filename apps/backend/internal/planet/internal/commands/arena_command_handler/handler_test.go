@@ -52,11 +52,11 @@ func TestEachCommandGoesToItsUseCase(t *testing.T) {
 	open, closing := &opens{}, &closes{}
 	handler := arena_command_handler.New(open, closing)
 
-	require.NoError(t, handler.Handle(t.Context(), openArena("siege", timestamppb.New(ends))))
-	require.NoError(t, handler.Handle(t.Context(), closeArena("siege")))
+	require.NoError(t, handler.Handle(t.Context(), openArena("battle", timestamppb.New(ends))))
+	require.NoError(t, handler.Handle(t.Context(), closeArena("battle")))
 
-	assert.Equal(t, []open_arena_usecase.Command{{Arena: "siege", EndsAt: ends}}, open.told)
-	assert.Equal(t, []arenas.ID{"siege"}, closing.told)
+	assert.Equal(t, []open_arena_usecase.Command{{Arena: "battle", EndsAt: ends}}, open.told)
+	assert.Equal(t, []arenas.ID{"battle"}, closing.told)
 }
 
 func TestACommandThatCanNeverApplyIsDropped(t *testing.T) {
@@ -65,10 +65,10 @@ func TestACommandThatCanNeverApplyIsDropped(t *testing.T) {
 
 	for name, command := range map[string]*planetv1.ArenaCommand{
 		"no arena":    openArena("", timestamppb.New(ends)),
-		"no end":      openArena("siege", nil),
+		"no end":      openArena("battle", nil),
 		"no close id": closeArena(""),
 		"empty":       {},
-		"refused":     openArena("siege", timestamppb.New(ends)),
+		"refused":     openArena("battle", timestamppb.New(ends)),
 	} {
 		require.NoError(t, handler.Handle(t.Context(), command), name)
 	}
@@ -80,6 +80,6 @@ func TestAFailureIsDeliveredAgain(t *testing.T) {
 	down := errors.New("postgres is down")
 	handler := arena_command_handler.New(&opens{err: down}, &closes{err: down})
 
-	require.ErrorIs(t, handler.Handle(t.Context(), openArena("siege", timestamppb.New(ends))), down)
-	require.ErrorIs(t, handler.Handle(t.Context(), closeArena("siege")), down)
+	require.ErrorIs(t, handler.Handle(t.Context(), openArena("battle", timestamppb.New(ends))), down)
+	require.ErrorIs(t, handler.Handle(t.Context(), closeArena("battle")), down)
 }

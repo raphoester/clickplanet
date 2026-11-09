@@ -281,7 +281,7 @@ export class ResetMap extends Message<ResetMap> {
 }
 
 /**
- * One stream for both, handled in order. An arena is the blank map of a battle played as a siege: planet keeps the map
+ * One stream for both, handled in order. An arena is the blank map an arena battle is fought on: planet keeps the map
  * from before it and brings it back exactly when it closes. Each command is idempotent by arena_id.
  *
  * @generated from message planet.v1.ArenaCommand
@@ -336,7 +336,7 @@ export class ArenaCommand extends Message<ArenaCommand> {
 /**
  * Saves the whole map (owners, shields, holders, fortify locks), then makes it blank: a new epoch, so every client reads
  * it again. An arena opens once, never after it closed, and never at or after ends_at. Every play is refused for the
- * rule set's siege.freeze after it opens and before ends_at.
+ * rule set's arena.freeze after it opens and before ends_at.
  *
  * @generated from message planet.v1.OpenArena
  */

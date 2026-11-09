@@ -28,13 +28,13 @@ func TestAnIDIsOneTo64Characters(t *testing.T) {
 func TestAnArenaOpensOnce(t *testing.T) {
 	now := starts.Add(3 * time.Second)
 
-	opening, opened, err := arenas.Arena{ID: "siege"}.Open(ends, now, arenas.Arena{})
+	opening, opened, err := arenas.Arena{ID: "battle"}.Open(ends, now, arenas.Arena{})
 
 	require.NoError(t, err)
 	assert.True(t, opened)
-	assert.Equal(t, arenas.Opening{ID: "siege", EndsAt: ends, OpenedAt: now}, opening)
+	assert.Equal(t, arenas.Opening{ID: "battle", EndsAt: ends, OpenedAt: now}, opening)
 
-	_, opened, err = arenas.Arena{ID: "siege", Opening: opening, Opened: true}.Open(ends, now.Add(time.Second), arenas.Arena{})
+	_, opened, err = arenas.Arena{ID: "battle", Opening: opening, Opened: true}.Open(ends, now.Add(time.Second), arenas.Arena{})
 	require.NoError(t, err)
 	assert.False(t, opened, "an arena open already changes nothing")
 }
@@ -42,9 +42,9 @@ func TestAnArenaOpensOnce(t *testing.T) {
 func TestAnArenaClosedEndedOrBesideAnotherIsRefused(t *testing.T) {
 	now := starts.Add(3 * time.Second)
 
-	_, _, closed := arenas.Arena{ID: "siege", Closed: true}.Open(ends, now, arenas.Arena{})
-	_, _, ended := arenas.Arena{ID: "siege"}.Open(ends, ends, arenas.Arena{})
-	_, _, beside := arenas.Arena{ID: "siege"}.Open(ends, now, arenas.Arena{ID: "other", Opened: true})
+	_, _, closed := arenas.Arena{ID: "battle", Closed: true}.Open(ends, now, arenas.Arena{})
+	_, _, ended := arenas.Arena{ID: "battle"}.Open(ends, ends, arenas.Arena{})
+	_, _, beside := arenas.Arena{ID: "battle"}.Open(ends, now, arenas.Arena{ID: "other", Opened: true})
 
 	require.ErrorIs(t, closed, arenas.ErrRefused)
 	require.ErrorIs(t, ended, arenas.ErrRefused)
@@ -54,16 +54,16 @@ func TestAnArenaClosedEndedOrBesideAnotherIsRefused(t *testing.T) {
 func TestAnArenaClosesOnceOpenedOrNot(t *testing.T) {
 	now := ends.Add(3 * time.Second)
 
-	closing, closed := arenas.Arena{ID: "siege"}.Close(now)
+	closing, closed := arenas.Arena{ID: "battle"}.Close(now)
 	assert.True(t, closed, "an arena never opened closes too")
-	assert.Equal(t, arenas.Closing{ID: "siege", ClosedAt: now}, closing)
+	assert.Equal(t, arenas.Closing{ID: "battle", ClosedAt: now}, closing)
 
-	_, closed = arenas.Arena{ID: "siege", Closed: true}.Close(now)
+	_, closed = arenas.Arena{ID: "battle", Closed: true}.Close(now)
 	assert.False(t, closed)
 }
 
 func TestAnArenaFreezesAfterTheMapWentBlankAndBeforeTheBattleEnds(t *testing.T) {
-	opening := arenas.Opening{ID: "siege", EndsAt: ends, OpenedAt: starts.Add(3 * time.Second)}
+	opening := arenas.Opening{ID: "battle", EndsAt: ends, OpenedAt: starts.Add(3 * time.Second)}
 	freeze := 8 * time.Second
 
 	assert.True(t, opening.Freezes(opening.OpenedAt, freeze))

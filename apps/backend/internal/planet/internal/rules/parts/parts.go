@@ -12,6 +12,6 @@ import (
 func All() rules.Parts {
 	return rules.Parts{
 		clicks.ThrottlePart, clicks.TollPart, clicks.FreezePart, allegiances.LockPart, bonuses.Part,
-		arenas.SiegePart,
+		arenas.Part,
 	}
 }

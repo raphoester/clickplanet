@@ -158,16 +158,16 @@ describe("the game rules page", () => {
         expect(sent(admin)?.rules?.frozen).toBe(false)
     })
 
-    it("plays a set as a siege, a switch default never shows", async () => {
+    it("plays a set as an arena battle, a switch default never shows", async () => {
         const admin = withCalm()
         render(<RulesPanel planet={admin}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
-        pick("Siege: a battle starts on a blank map", "yes")
+        pick("Arena: the battle is fought on a blank map", "yes")
         save()
 
         await waitFor(() => expect(sent(admin)).toBeDefined())
-        expect(sent(admin)?.rules?.siege?.on).toBe(true)
+        expect(sent(admin)?.rules?.arena?.on).toBe(true)
     })
 
     it("makes a new set from a copy of default, which holds only what is typed", async () => {

@@ -64,7 +64,7 @@ func newHarness(t *testing.T) harness {
 		slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context()))
 	kept, outbox := arenas.NewMemoryStore(), &cpatomic.FakeOutbox{}
-	inPlay := arenas.NewInPlay(func() arenas.Siege { return arenas.Siege{Freeze: 8 * time.Second} }, clock)
+	inPlay := arenas.NewInPlay(func() arenas.Rules { return arenas.Rules{Freeze: 8 * time.Second} }, clock)
 	return harness{
 		tiles: tiles, stored: stored, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock,
 		opening: open_arena_usecase.New(tiles, kept, inPlay, clock),
@@ -78,19 +78,19 @@ func (h harness) owner(tile uint32) string {
 }
 
 func closedAt(at time.Time) proto.Message {
-	return &planetv1.ArenaClosed{ArenaId: "siege", ClosedAt: timestamppb.New(at)}
+	return &planetv1.ArenaClosed{ArenaId: "battle", ClosedAt: timestamppb.New(at)}
 }
 
 func TestAnArenaClosedBringsTheMapFromBeforeItBackAndTellsItOnce(t *testing.T) {
 	h := newHarness(t)
-	_, err := h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "siege", EndsAt: ends})
+	_, err := h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends})
 	require.NoError(t, err)
 	require.NoError(t, h.tiles.Set(t.Context(), 1, "it"))
 	require.NoError(t, h.tiles.Set(t.Context(), 9, "it"))
 	h.clock.Advance(ends.Add(3 * time.Second).Sub(starts))
 	require.True(t, bool(h.inPlay.Freeze()), "the arena takes no play until the map is back")
 
-	closed, err := h.useCase.Execute(t.Context(), "siege")
+	closed, err := h.useCase.Execute(t.Context(), "battle")
 
 	require.NoError(t, err)
 	assert.Equal(t, close_arena_usecase.Restored, closed)
@@ -104,7 +104,7 @@ func TestAnArenaClosedBringsTheMapFromBeforeItBackAndTellsItOnce(t *testing.T) {
 	assert.True(t, proto.Equal(closedAt(h.clock.Now()), h.outbox.Recorded()[0]))
 
 	require.NoError(t, h.tiles.Set(t.Context(), 9, "pt"))
-	closed, err = h.useCase.Execute(t.Context(), "siege")
+	closed, err = h.useCase.Execute(t.Context(), "battle")
 	require.NoError(t, err)
 	assert.Equal(t, close_arena_usecase.Already, closed)
 	assert.Equal(t, "pt", h.owner(9), "a close told again changes nothing")
@@ -115,7 +115,7 @@ func TestAnArenaNeverOpenedClosesAndIsToldWithTheMapLeftAsItIs(t *testing.T) {
 	h := newHarness(t)
 	require.NoError(t, h.tiles.Set(t.Context(), 9, "it"))
 
-	closed, err := h.useCase.Execute(t.Context(), "siege")
+	closed, err := h.useCase.Execute(t.Context(), "battle")
 
 	require.NoError(t, err)
 	assert.Equal(t, close_arena_usecase.Unopened, closed)
@@ -123,19 +123,19 @@ func TestAnArenaNeverOpenedClosesAndIsToldWithTheMapLeftAsItIs(t *testing.T) {
 	assert.Equal(t, "fr", h.owner(1))
 	require.Len(t, h.outbox.Recorded(), 1)
 	assert.True(t, proto.Equal(closedAt(starts), h.outbox.Recorded()[0]))
-	_, err = h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "siege", EndsAt: ends})
+	_, err = h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends})
 	require.ErrorIs(t, err, arenas.ErrRefused, "an arena closed never opens")
 }
 
 func TestAnArenaThatCannotCloseLeavesTheMapAndTellsNothing(t *testing.T) {
 	h := newHarness(t)
-	_, err := h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "siege", EndsAt: ends})
+	_, err := h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends})
 	require.NoError(t, err)
 	require.NoError(t, h.tiles.Set(t.Context(), 9, "it"))
 	down := errors.New("postgres is down")
 	h.kept.Failing = down
 
-	_, err = h.useCase.Execute(t.Context(), "siege")
+	_, err = h.useCase.Execute(t.Context(), "battle")
 
 	require.ErrorIs(t, err, down)
 	assert.Equal(t, "it", h.owner(9))

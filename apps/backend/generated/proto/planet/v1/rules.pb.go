@@ -35,7 +35,7 @@ type Rules struct {
 	// No account changes its flag: PledgeAllegiance refuses another flag to an account that holds one. A first flag is
 	// still taken.
 	AllegianceLocked *bool       `protobuf:"varint,5,opt,name=allegiance_locked,json=allegianceLocked,proto3,oneof" json:"allegiance_locked,omitempty"`
-	Siege            *SiegeRules `protobuf:"bytes,6,opt,name=siege,proto3" json:"siege,omitempty"`
+	Arena            *ArenaRules `protobuf:"bytes,6,opt,name=arena,proto3" json:"arena,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -105,15 +105,16 @@ func (x *Rules) GetAllegianceLocked() bool {
 	return false
 }
 
-func (x *Rules) GetSiege() *SiegeRules {
+func (x *Rules) GetArena() *ArenaRules {
 	if x != nil {
-		return x.Siege
+		return x.Arena
 	}
 	return nil
 }
 
-// A battle played with on is a siege: the map goes blank when it starts and comes back when it ends. Never on in default.
-type SiegeRules struct {
+// A battle played with on is an arena battle: it is fought on a blank map, and the map from before comes back when it
+// ends. Never on in default.
+type ArenaRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	On    *bool                  `protobuf:"varint,1,opt,name=on,proto3,oneof" json:"on,omitempty"`
 	// Every play is refused this long after the map goes blank and before the battle ends. 0 to 30 s.
@@ -122,20 +123,20 @@ type SiegeRules struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SiegeRules) Reset() {
-	*x = SiegeRules{}
+func (x *ArenaRules) Reset() {
+	*x = ArenaRules{}
 	mi := &file_planet_v1_rules_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SiegeRules) String() string {
+func (x *ArenaRules) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SiegeRules) ProtoMessage() {}
+func (*ArenaRules) ProtoMessage() {}
 
-func (x *SiegeRules) ProtoReflect() protoreflect.Message {
+func (x *ArenaRules) ProtoReflect() protoreflect.Message {
 	mi := &file_planet_v1_rules_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -147,19 +148,19 @@ func (x *SiegeRules) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SiegeRules.ProtoReflect.Descriptor instead.
-func (*SiegeRules) Descriptor() ([]byte, []int) {
+// Deprecated: Use ArenaRules.ProtoReflect.Descriptor instead.
+func (*ArenaRules) Descriptor() ([]byte, []int) {
 	return file_planet_v1_rules_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SiegeRules) GetOn() bool {
+func (x *ArenaRules) GetOn() bool {
 	if x != nil && x.On != nil {
 		return *x.On
 	}
 	return false
 }
 
-func (x *SiegeRules) GetFreeze() *durationpb.Duration {
+func (x *ArenaRules) GetFreeze() *durationpb.Duration {
 	if x != nil {
 		return x.Freeze
 	}
@@ -1002,11 +1003,11 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\abonuses\x18\x03 \x01(\v2\x15.planet.v1.BonusRulesR\abonuses\x12\x1b\n" +
 	"\x06frozen\x18\x04 \x01(\bH\x00R\x06frozen\x88\x01\x01\x120\n" +
 	"\x11allegiance_locked\x18\x05 \x01(\bH\x01R\x10allegianceLocked\x88\x01\x01\x12+\n" +
-	"\x05siege\x18\x06 \x01(\v2\x15.planet.v1.SiegeRulesR\x05siegeB\t\n" +
+	"\x05arena\x18\x06 \x01(\v2\x15.planet.v1.ArenaRulesR\x05arenaB\t\n" +
 	"\a_frozenB\x14\n" +
 	"\x12_allegiance_locked\"[\n" +
 	"\n" +
-	"SiegeRules\x12\x13\n" +
+	"ArenaRules\x12\x13\n" +
 	"\x02on\x18\x01 \x01(\bH\x00R\x02on\x88\x01\x01\x121\n" +
 	"\x06freeze\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06freezeB\x05\n" +
 	"\x03_on\"\xbd\x04\n" +
@@ -1132,7 +1133,7 @@ func file_planet_v1_rules_proto_rawDescGZIP() []byte {
 var file_planet_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_planet_v1_rules_proto_goTypes = []any{
 	(*Rules)(nil),               // 0: planet.v1.Rules
-	(*SiegeRules)(nil),          // 1: planet.v1.SiegeRules
+	(*ArenaRules)(nil),          // 1: planet.v1.ArenaRules
 	(*ClickRules)(nil),          // 2: planet.v1.ClickRules
 	(*TollRules)(nil),           // 3: planet.v1.TollRules
 	(*BonusRules)(nil),          // 4: planet.v1.BonusRules
@@ -1151,8 +1152,8 @@ var file_planet_v1_rules_proto_depIdxs = []int32{
 	2,  // 0: planet.v1.Rules.clicks:type_name -> planet.v1.ClickRules
 	3,  // 1: planet.v1.Rules.toll:type_name -> planet.v1.TollRules
 	4,  // 2: planet.v1.Rules.bonuses:type_name -> planet.v1.BonusRules
-	1,  // 3: planet.v1.Rules.siege:type_name -> planet.v1.SiegeRules
-	13, // 4: planet.v1.SiegeRules.freeze:type_name -> google.protobuf.Duration
+	1,  // 3: planet.v1.Rules.arena:type_name -> planet.v1.ArenaRules
+	13, // 4: planet.v1.ArenaRules.freeze:type_name -> google.protobuf.Duration
 	13, // 5: planet.v1.ClickRules.fast_start:type_name -> google.protobuf.Duration
 	14, // 6: planet.v1.TollRules.steps:type_name -> planet.v1.TollStep
 	5,  // 7: planet.v1.BonusRules.boxes:type_name -> planet.v1.BoxPace

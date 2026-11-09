@@ -1,4 +1,4 @@
--- An arena is the blank map of a battle played as a siege. A row once the map went blank, with the map from before it
+-- An arena is the blank map an arena battle is fought on. A row once the map went blank, with the map from before it
 -- in arena_tiles and arena_landmasses until it closes.
 CREATE TABLE arenas (
     id        text        PRIMARY KEY CHECK (id <> '' AND length(id) <= 64),

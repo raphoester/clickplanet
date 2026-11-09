@@ -14,11 +14,11 @@ import (
 
 func TestTheArenaOpenAtBootFreezesAsTheRulesInForceSay(t *testing.T) {
 	kept := arenas.NewMemoryStore()
-	opening := arenas.Opening{ID: "siege", EndsAt: ends, OpenedAt: starts}
+	opening := arenas.Opening{ID: "battle", EndsAt: ends, OpenedAt: starts}
 	require.NoError(t, kept.Open(t.Context(), opening, clicks.MapCopy{}))
 	clock := cptime.NewFixedClock(starts.Add(5 * time.Second))
 	freeze := 8 * time.Second
-	inPlay := arenas.NewInPlay(func() arenas.Siege { return arenas.Siege{Freeze: freeze} }, clock)
+	inPlay := arenas.NewInPlay(func() arenas.Rules { return arenas.Rules{Freeze: freeze} }, clock)
 
 	require.NoError(t, inPlay.Load(t.Context(), kept))
 
@@ -29,12 +29,12 @@ func TestTheArenaOpenAtBootFreezesAsTheRulesInForceSay(t *testing.T) {
 
 func TestOnlyTheArenaOpenClosesIt(t *testing.T) {
 	clock := cptime.NewFixedClock(starts)
-	inPlay := arenas.NewInPlay(func() arenas.Siege { return arenas.Siege{Freeze: 8 * time.Second} }, clock)
-	inPlay.Open(arenas.Opening{ID: "siege", EndsAt: ends, OpenedAt: starts})
+	inPlay := arenas.NewInPlay(func() arenas.Rules { return arenas.Rules{Freeze: 8 * time.Second} }, clock)
+	inPlay.Open(arenas.Opening{ID: "battle", EndsAt: ends, OpenedAt: starts})
 
 	inPlay.Close("never-opened")
 	assert.True(t, bool(inPlay.Freeze()))
 
-	inPlay.Close("siege")
+	inPlay.Close("battle")
 	assert.False(t, bool(inPlay.Freeze()))
 }

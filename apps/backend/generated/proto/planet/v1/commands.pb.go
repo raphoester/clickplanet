@@ -391,7 +391,7 @@ func (x *ResetMap) GetDecidedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// One stream for both, handled in order. An arena is the blank map of a battle played as a siege: planet keeps the map
+// One stream for both, handled in order. An arena is the blank map an arena battle is fought on: planet keeps the map
 // from before it and brings it back exactly when it closes. Each command is idempotent by arena_id.
 type ArenaCommand struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -477,7 +477,7 @@ func (*ArenaCommand_CloseArena) isArenaCommand_Command() {}
 
 // Saves the whole map (owners, shields, holders, fortify locks), then makes it blank: a new epoch, so every client reads
 // it again. An arena opens once, never after it closed, and never at or after ends_at. Every play is refused for the
-// rule set's siege.freeze after it opens and before ends_at.
+// rule set's arena.freeze after it opens and before ends_at.
 type OpenArena struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ArenaId       string                 `protobuf:"bytes,1,opt,name=arena_id,json=arenaId,proto3" json:"arena_id,omitempty"`

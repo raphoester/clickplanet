@@ -8,8 +8,8 @@ restart.
 
 - **The gamemaster decides when** (`season.Window.StartsOnBlankMap`: every season but season 0).
   `play_resets_usecase` runs every second (`gamemaster-resets`) over the plan: once the running season is one that
-  starts on a blank map, and no siege that ended before it waits for its map (`Plan.Waits`: the siege's end would put
-  the old season's map back, see [Sieges and arenas](arenas.md)), it sends `planet.v1.ResetMap{reset_id: "season-N", decided_at: its start}` on planet's command stream
+  starts on a blank map, and no arena battle that ended before it waits for its map (`Plan.Waits`: the arena battle's end would put
+  the old season's map back, see [Arena battles](arenas.md)), it sends `planet.v1.ResetMap{reset_id: "season-N", decided_at: its start}` on planet's command stream
   (`season/redis_map_commands`), **once per process**, and again at the next second if Redis refused it.
   `log_play_resets` logs it at Warn (`planet is told to reset the map`). A boot during the season sends it again:
   planet keeps the id and wipes nothing.
@@ -22,7 +22,7 @@ restart.
 (`postgres_tile_store.Wipe`) runs `keep`, which keeps the reset in `planet.map_resets` (`postgres_reset_store.Keep`,
 `ON CONFLICT DO NOTHING`), then deletes every row of `tiles` and `landmasses`. **A reset kept already wipes nothing**,
 and a failure rolls back both. Only then does it empty memory: a new board (every tile blank, no holder, no shield),
-no landmass lock, a new recount. A siege's arena blanks the map the same way (`Storage.Blank`, which hands its keep a copy of the map
+no landmass lock, a new recount. An arena blanks the map the same way (`Storage.Blank`, which hands its keep a copy of the map
 memory holds first).
 
 - **No flush meets it**: `Flush` holds the same flush lock from what it takes to what it saves, so a save of the map
