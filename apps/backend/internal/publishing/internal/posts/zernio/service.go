@@ -234,7 +234,7 @@ func postingsOf(post cpzernio.Post) []calendar.Posting {
 		}
 		i := slices.IndexFunc(postings, func(posting calendar.Posting) bool { return posting.At.Equal(at) })
 		if i < 0 {
-			postings = append(postings, calendar.Posting{At: at})
+			postings = append(postings, calendar.Posting{ID: valueOf(post.UnderscoreId), At: at})
 			i = len(postings) - 1
 		}
 		postings[i].Platforms = append(postings[i].Platforms, platform...)

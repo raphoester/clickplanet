@@ -15,6 +15,8 @@ import (
 var (
 	now     = time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
 	backoff = posts.Backoff{time.Minute, 5 * time.Minute, 15 * time.Minute}
+	first   = posts.Slot{At: time.Date(2026, 10, 12, 12, 5, 0, 0, time.UTC), Platforms: both}
+	later   = posts.Slot{At: time.Date(2026, 10, 12, 12, 21, 0, 0, time.UTC), Platforms: []posts.Platform{posts.YouTube}}
 )
 
 func busy(retryAfter time.Duration) error {
@@ -22,50 +24,79 @@ func busy(retryAfter time.Duration) error {
 }
 
 type sending struct {
+	planner *posts.ScriptedPlanner
 	service *posts.ScriptedService
 	pause   *posts.RecordedPause
 	post    posts.Post
 	sender  *posts.Sender
 }
 
+// A calendar that gives the first slot, then the later one, and a service that answers the refusals in turn.
 func send(t *testing.T, refusals ...error) sending {
 	t.Helper()
 
-	clock := cptime.NewFixedClock(now)
+	planner := &posts.ScriptedPlanner{Slots: []posts.Slot{first, later}}
 	service := posts.NewScriptedService(refusals...)
-	pause := posts.NewRecordedPause(clock)
+	pause := posts.NewRecordedPause(cptime.NewFixedClock(now))
 	return sending{
-		service: service, pause: pause,
-		post:   plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))[0],
-		sender: posts.NewSender(service, backoff, pause, clock),
+		planner: planner, service: service, pause: pause,
+		post:   asap.Post(clip(t, 1, "BEST"), 1, 1, posts.LoadedDice(0)),
+		sender: posts.NewSender(planner, service, backoff, pause),
 	}
 }
 
-func TestAPostTheServiceTakesIsSentOnce(t *testing.T) {
+func TestAPostTheServiceTakesIsSentOnceAtTheSlotTheCalendarGave(t *testing.T) {
 	s := send(t)
 
-	_, scheduled, err := s.sender.Send(t.Context(), s.post)
+	sent, scheduled, held, err := s.sender.Send(t.Context(), s.post, time.Time{})
 
 	require.NoError(t, err)
+	assert.False(t, held)
 	assert.Equal(t, posts.Scheduled{ID: "post-BEST"}, scheduled)
-	assert.Equal(t, []posts.PostSnapshot{s.post.TakeSnapshot()}, s.service.Scheduled)
+	assert.Equal(t, first.At, sent.TakeSnapshot().At)
+	assert.Equal(t, []posts.PostSnapshot{sent.TakeSnapshot()}, s.service.Scheduled)
+	assert.Equal(t, [][]posts.Platform{both}, s.planner.Asked, "the platforms of its place")
 	assert.Empty(t, s.pause.Waited)
 }
 
-func TestABusyServiceIsTriedAgainAfterALongerWaitEachTime(t *testing.T) {
+func TestTheCalendarIsAskedFromTheRunsBound(t *testing.T) {
+	s := send(t)
+	bound := now.Add(4 * time.Hour)
+
+	_, _, _, err := s.sender.Send(t.Context(), s.post, bound)
+
+	require.NoError(t, err)
+	assert.Equal(t, []time.Time{bound}, s.planner.Bounds)
+}
+
+func TestAPostNoPlatformTakesIsHeldAndNothingIsSent(t *testing.T) {
+	s := send(t)
+	s.planner.Held = true
+
+	_, _, held, err := s.sender.Send(t.Context(), s.post, time.Time{})
+
+	require.NoError(t, err)
+	assert.True(t, held)
+	assert.Empty(t, s.service.Scheduled)
+}
+
+func TestABusyServiceIsTriedAgainAfterALongerWaitEachTimeAtASlotPlannedAgain(t *testing.T) {
 	s := send(t, busy(0), busy(0), busy(0))
 
-	_, scheduled, err := s.sender.Send(t.Context(), s.post)
+	sent, scheduled, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
 
 	require.NoError(t, err)
 	assert.Equal(t, posts.PostID("post-BEST"), scheduled.ID)
 	assert.Equal(t, []time.Duration{time.Minute, 5 * time.Minute, 15 * time.Minute}, s.pause.Waited)
+	assert.Len(t, s.planner.Asked, 4, "a wait never sends it at a time already past or crowded")
+	assert.Equal(t, later.At, sent.TakeSnapshot().At)
+	assert.Equal(t, later.Platforms, sent.TakeSnapshot().Platforms)
 }
 
 func TestAServiceThatSaysHowLongToWaitIsWaitedForThatLong(t *testing.T) {
 	s := send(t, busy(3*time.Minute), busy(time.Minute))
 
-	_, _, err := s.sender.Send(t.Context(), s.post)
+	_, _, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
 
 	require.NoError(t, err)
 	assert.Equal(t, []time.Duration{3 * time.Minute, 5 * time.Minute}, s.pause.Waited)
@@ -74,10 +105,11 @@ func TestAServiceThatSaysHowLongToWaitIsWaitedForThatLong(t *testing.T) {
 func TestAServiceStillBusyAfterTheLastWaitFailsThePost(t *testing.T) {
 	s := send(t, busy(0), busy(0), busy(0), busy(0))
 
-	_, _, err := s.sender.Send(t.Context(), s.post)
+	_, _, held, err := s.sender.Send(t.Context(), s.post, time.Time{})
 
 	var refusal *posts.BusyError
 	require.ErrorAs(t, err, &refusal)
+	assert.False(t, held)
 	assert.Empty(t, s.service.Scheduled)
 	assert.Len(t, s.pause.Waited, 3)
 }
@@ -85,18 +117,34 @@ func TestAServiceStillBusyAfterTheLastWaitFailsThePost(t *testing.T) {
 func TestAServiceBusyForLongerThanTheLongestWaitFailsThePostAtOnce(t *testing.T) {
 	s := send(t, busy(6*time.Hour))
 
-	_, _, err := s.sender.Send(t.Context(), s.post)
+	_, _, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
 
 	var refusal *posts.BusyError
 	require.ErrorAs(t, err, &refusal)
 	assert.Empty(t, s.pause.Waited)
 }
 
+func TestASlotTakenIsPlannedAgainAtOnceAndTakenTooOftenFailsThePost(t *testing.T) {
+	s := send(t, posts.ErrTaken)
+
+	sent, scheduled, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
+
+	require.NoError(t, err)
+	assert.Equal(t, posts.PostID("post-BEST"), scheduled.ID)
+	assert.Equal(t, later.At, sent.TakeSnapshot().At)
+	assert.Empty(t, s.pause.Waited)
+
+	s = send(t, posts.ErrTaken, posts.ErrTaken, posts.ErrTaken, posts.ErrTaken)
+	_, _, _, err = s.sender.Send(t.Context(), s.post, time.Time{})
+	require.ErrorIs(t, err, posts.ErrTaken)
+	assert.Len(t, s.planner.Asked, 4)
+}
+
 func TestAPostOnSomeOfItsPlatformsIsNotTriedAgain(t *testing.T) {
 	s := send(t)
 	s.service.Refusing = map[posts.Platform]error{posts.YouTube: errors.New("no youtube account")}
 
-	_, scheduled, err := s.sender.Send(t.Context(), s.post)
+	_, scheduled, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
 
 	require.NoError(t, err)
 	assert.Equal(t, s.service.Refusing, scheduled.Refused)
@@ -108,44 +156,33 @@ func TestAnyOtherRefusalIsNotTriedAgain(t *testing.T) {
 	refused := errors.New("the caption is too long")
 	s := send(t, refused)
 
-	_, _, err := s.sender.Send(t.Context(), s.post)
+	_, _, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
 
 	require.ErrorIs(t, err, refused)
 	assert.Empty(t, s.pause.Waited)
 	assert.Empty(t, s.service.Scheduled)
 }
 
-func TestAPostWhoseTimeIsTooCloseGoesOutTheLeadFromNowInstead(t *testing.T) {
-	clock := cptime.NewFixedClock(now.Add(4*time.Hour - time.Minute))
-	service := posts.NewScriptedService()
-	post := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))[0]
-
-	sent, _, err := posts.NewSender(service, backoff, posts.NewRecordedPause(clock), clock).Send(t.Context(), post)
-
-	require.NoError(t, err)
-	assert.Equal(t, now.Add(4*time.Hour+4*time.Minute), sent.TakeSnapshot().At)
-	require.Len(t, service.Scheduled, 1)
-	assert.Equal(t, now.Add(4*time.Hour+4*time.Minute), service.Scheduled[0].At)
-}
-
-func TestAWaitThatEatsTheLeadMovesThePostLaterAndNeverSooner(t *testing.T) {
-	clock := cptime.NewFixedClock(now.Add(4*time.Hour - 10*time.Minute))
-	service := posts.NewScriptedService(busy(0), busy(0))
-	post := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))[0]
-
-	sent, _, err := posts.NewSender(service, backoff, posts.NewRecordedPause(clock), clock).Send(t.Context(), post)
-
-	require.NoError(t, err)
-	// 1, then 5 minutes waited: 4 minutes before its time, under the lead, so 5 minutes from then.
-	assert.Equal(t, now.Add(4*time.Hour+time.Minute), sent.TakeSnapshot().At)
-	assert.Equal(t, sent.TakeSnapshot(), service.Scheduled[0])
-}
-
-func TestAPostFarEnoughAheadKeepsItsTime(t *testing.T) {
+func TestACalendarThatCannotBeReadFailsThePostOnThePlatformsItAsked(t *testing.T) {
 	s := send(t)
+	s.planner.Failed = errors.New("ssh failed: Permission denied (publickey)")
 
-	sent, _, err := s.sender.Send(t.Context(), s.post)
+	sent, _, held, err := s.sender.Send(t.Context(), s.post, time.Time{})
 
-	require.NoError(t, err)
-	assert.Equal(t, s.post.TakeSnapshot(), sent.TakeSnapshot())
+	require.ErrorContains(t, err, "Permission denied")
+	assert.False(t, held)
+	assert.Equal(t, both, sent.TakeSnapshot().Platforms)
+	assert.Empty(t, s.service.Scheduled)
+}
+
+func TestABusyCalendarIsWaitedForAsTheServiceIs(t *testing.T) {
+	s := send(t)
+	s.planner.Failed = busy(0)
+
+	_, _, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
+
+	var refusal *posts.BusyError
+	require.ErrorAs(t, err, &refusal)
+	assert.Len(t, s.pause.Waited, 3)
+	assert.Len(t, s.planner.Asked, 4)
 }

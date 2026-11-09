@@ -5,13 +5,14 @@ import (
 	"time"
 )
 
+// What a run asks of the platforms. When each post goes out, and whether a platform has room for it, is the publishing
+// module's calendar, which every job that posts keeps.
 type Plan struct {
 	// From the end of the run to the post; none by default.
-	Review time.Duration
-	// The least time between two posts on one platform, the job's or not.
-	Spacing   time.Duration
+	Review    time.Duration
 	Platforms []Platform
-	Budget    Budget
+	// The platforms that take a run's best clip alone.
+	BestOnly []Platform
 }
 
 // The best first: the order a run's posts go out in.
@@ -19,53 +20,42 @@ func Ranked(clips []Clip) []Clip {
 	return slices.SortedFunc(slices.Values(clips), func(a, b Clip) int { return int(a.pick - b.pick) })
 }
 
-// The post of the clip, the place-th of its run's ofRun, on every platform of the plan that takes it in its hours, a
-// Spacing from every other post there, before it or after it, and never sooner than the review: false when none does.
-// A post still to come, made by hand or by another run, is a reservation: the post goes before it when the gap and the
-// days around it leave room. It rolls its words too, a teaser and a call picked at random, so their variants can be
-// compared.
-func (p Plan) Next(clip Clip, place, ofRun int, feed Feed, now time.Time, dice Dice) (Post, bool) {
-	platforms := p.Budget.platformsOf(p.Platforms, place)
-	at := p.at(platforms, feed, now)
-	// A platform left out no longer holds the post back, so the time is found again for the others.
-	for open := p.open(platforms, feed, at); len(open) < len(platforms); open = p.open(platforms, feed, at) {
-		platforms = open
-		at = p.at(platforms, feed, now)
-	}
-	if len(platforms) == 0 {
-		return Post{}, false
-	}
-
-	return Post{
-		clip: clip, at: at, platforms: platforms, wording: wordingOf(clip, dice), position: place, ofRun: ofRun,
-	}, true
-}
-
-// The first whole minute from the review on that is a Spacing from every post on the platforms, before it or after it.
-func (p Plan) at(platforms []Platform, feed Feed, now time.Time) time.Time {
-	at := wholeMinuteFrom(now.Add(max(p.Review, leastLead)))
-	// Each clash moves the time past a post for good, so this ends within as many turns as the feed has posts.
-	for clash, crowded := feed.clash(platforms, at, p.Spacing); crowded; clash, crowded = feed.clash(platforms, at, p.Spacing) {
-		at = wholeMinuteFrom(clash.Add(p.Spacing))
-	}
-	return at
-}
-
-// The platforms that take a post at at: in their hours, with room left in every trailing day that holds it.
-func (p Plan) open(platforms []Platform, feed Feed, at time.Time) []Platform {
-	var open []Platform
-	for _, platform := range platforms {
-		if p.Budget.open(platform, feed, at) {
-			open = append(open, platform)
+// The platforms the place-th clip of a run goes to, from 1: a platform that takes the best alone takes the first.
+func (p Plan) PlatformsOf(place int) []Platform {
+	var of []Platform
+	for _, platform := range p.Platforms {
+		if place == 1 || !slices.Contains(p.BestOnly, platform) {
+			of = append(of, platform)
 		}
 	}
-	return open
+	return of
 }
 
-func wholeMinuteFrom(at time.Time) time.Time {
-	whole := at.Truncate(time.Minute)
-	if whole.Before(at) {
-		whole = whole.Add(time.Minute)
+// The soonest a post planned at now may go out: the review from now, or no bound of the run's own.
+func (p Plan) NotBefore(now time.Time) time.Time {
+	if p.Review <= 0 {
+		return time.Time{}
 	}
-	return whole
+	return now.Add(p.Review)
+}
+
+// How many clips a run makes: perRun at most, and no more than the platform with the most room left takes, since a
+// clip goes to every platform that still has room; one that takes the best alone takes one. Not the hours: a clip's
+// time is known once it is rendered.
+func (p Plan) Clips(perRun int, room map[Platform]int) int {
+	most := 0
+	for _, platform := range p.Platforms {
+		left := room[platform]
+		if slices.Contains(p.BestOnly, platform) {
+			left = min(left, 1)
+		}
+		most = max(most, left)
+	}
+	return min(perRun, most)
+}
+
+// The post of the clip, the place-th of its run's ofRun, with its words rolled, a teaser and a call picked at random so
+// their variants can be compared. Its slot is the calendar's: At.
+func (p Plan) Post(clip Clip, place, ofRun int, dice Dice) Post {
+	return Post{clip: clip, platforms: p.PlatformsOf(place), wording: wordingOf(clip, dice), position: place, ofRun: ofRun}
 }

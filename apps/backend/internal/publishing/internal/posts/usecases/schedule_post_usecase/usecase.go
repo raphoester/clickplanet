@@ -12,8 +12,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Service interface {
+// What the service holds, and the posts made here that it may not list yet.
+type Feeds interface {
 	Posted(ctx context.Context, since time.Time) (calendar.Feed, error)
+	Remember(made calendar.Posting)
+}
+
+type Service interface {
 	Schedule(ctx context.Context, post posts.Post) (posts.Scheduled, error)
 }
 
@@ -32,14 +37,15 @@ type Outcome struct {
 	Failed string
 }
 
-func New(service Service, calendar calendar.Calendar, clock cptime.Clock) *UseCase {
-	return &UseCase{service: service, calendar: calendar, clock: clock}
+func New(feeds Feeds, service Service, calendar calendar.Calendar, clock cptime.Clock) *UseCase {
+	return &UseCase{feeds: feeds, service: service, calendar: calendar, clock: clock}
 }
 
 // One post at a time: the slot is checked against what the service holds, and the post made, under one lock, so two
 // jobs never both take the last room of a day. The server is one process, so a mutex is the lock.
 type UseCase struct {
 	mu       sync.Mutex
+	feeds    Feeds
 	service  Service
 	calendar calendar.Calendar
 	clock    cptime.Clock
@@ -52,7 +58,7 @@ func (u *UseCase) Execute(ctx context.Context, post posts.Post) Outcome {
 	defer u.mu.Unlock()
 
 	now := u.clock.Now()
-	feed, err := u.service.Posted(ctx, calendar.PostedSince(now))
+	feed, err := u.feeds.Posted(ctx, calendar.PostedSince(now))
 	if err != nil {
 		return outcomeOf(fmt.Errorf("failed to read what each platform holds: %w", err))
 	}
@@ -64,7 +70,18 @@ func (u *UseCase) Execute(ctx context.Context, post posts.Post) Outcome {
 	if err != nil {
 		return outcomeOf(err)
 	}
+	u.feeds.Remember(calendar.Posting{ID: string(scheduled.ID), At: post.Slot().At, Platforms: tookOf(post.Slot(), scheduled)})
 	return Outcome{Scheduled: &scheduled}
+}
+
+func tookOf(slot calendar.Slot, scheduled posts.Scheduled) []calendar.Platform {
+	var took []calendar.Platform
+	for _, platform := range slot.Platforms {
+		if scheduled.Refused[platform] == nil {
+			took = append(took, platform)
+		}
+	}
+	return took
 }
 
 func outcomeOf(err error) Outcome {

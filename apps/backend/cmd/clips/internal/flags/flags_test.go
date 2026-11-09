@@ -54,20 +54,25 @@ func TestFetchTakesItsHostFromTheEnvironmentAndAFlagWinsOverIt(t *testing.T) {
 	assert.Equal(t, "me@other.example", fromFlag.Job.Replay.SSH)
 }
 
-func TestChooseFlagsSayWhichFindingsHowManyClipsAndTheKeyToReadWhatWasTold(t *testing.T) {
+func TestChooseFlagsSayWhichFindingsHowManyClipsAndTheBackendThatSaysWhatWasTold(t *testing.T) {
 	t.Setenv(flags.KeyVariable, "the-key")
 	t.Setenv(flags.EditorKeyVariable, "")
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
 
 	parsed, err := flags.Parse([]string{"choose", "-findings", "findings.json", "-count", "3"})
 
 	require.NoError(t, err)
 	job := clips.Config{PerRun: 3}
-	job.Zernio.APIKey = "the-key"
-	assert.Equal(t, flags.Config{Command: flags.Choose, FindingsFile: "findings.json", Job: job}, parsed)
+	job.Replay.SSH = "deploy@vps.example"
+	assert.Equal(t, flags.Config{Command: flags.Choose, FindingsFile: "findings.json", Job: job}, parsed, "no zernio key: the backend posts")
+
+	parsed, err = flags.Parse([]string{"choose", "-findings", "findings.json", "-ssh", "other@vps.example"})
+	require.NoError(t, err)
+	assert.Equal(t, "other@vps.example", parsed.Job.Replay.SSH)
 }
 
 func TestChooseTakesTheEditorsKeyAndWhereItSaysWhoChose(t *testing.T) {
-	t.Setenv(flags.KeyVariable, "the-key")
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
 	t.Setenv(flags.EditorKeyVariable, "sk-ant-key")
 
 	parsed, err := flags.Parse([]string{"choose", "-findings", "findings.json", "-summary", "summary.md"})
@@ -78,13 +83,14 @@ func TestChooseTakesTheEditorsKeyAndWhereItSaysWhoChose(t *testing.T) {
 }
 
 func TestEditFlagsSayWhichFindingsHowManyClipsAndWhetherOnlyThePrompt(t *testing.T) {
-	t.Setenv(flags.KeyVariable, "")
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
 	t.Setenv(flags.EditorKeyVariable, "sk-ant-key")
 
 	parsed, err := flags.Parse([]string{"edit", "-findings", "findings.json", "-count", "3", "-prompt"})
 
 	require.NoError(t, err)
 	job := clips.Config{PerRun: 3}
+	job.Replay.SSH = "deploy@vps.example"
 	job.Anthropic.APIKey = "sk-ant-key"
 	assert.Equal(t, flags.Config{Command: flags.Edit, FindingsFile: "findings.json", PromptOnly: true, Job: job}, parsed)
 
@@ -94,18 +100,18 @@ func TestEditFlagsSayWhichFindingsHowManyClipsAndWhetherOnlyThePrompt(t *testing
 
 func TestScheduleFlagsSayWhichClipsWhenAndWhereTheSummaryGoes(t *testing.T) {
 	t.Setenv(flags.KeyVariable, "the-key")
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
 
-	parsed, err := flags.Parse([]string{"schedule", "-clips", "clips", "-review", "3h", "-spacing", "30m", "-summary", "summary.md"})
+	parsed, err := flags.Parse([]string{"schedule", "-clips", "clips", "-review", "3h", "-summary", "summary.md"})
 
 	require.NoError(t, err)
 	var job clips.Config
 	job.Review = 3 * time.Hour
-	job.Spacing = 30 * time.Minute
-	job.Zernio.APIKey = "the-key"
+	job.Replay.SSH = "deploy@vps.example"
 	assert.Equal(t, flags.Config{Command: flags.Schedule, ClipsFolder: "clips", SummaryFile: "summary.md", Job: job}, parsed)
 }
 
-func TestScheduleTellsTheBackendWhoThePostsNameOverTheSSHOfTheFetch(t *testing.T) {
+func TestSchedulePostsThroughTheBackendOverTheSSHOfTheFetch(t *testing.T) {
 	t.Setenv(flags.HostVariable, "deploy@vps.example")
 
 	parsed, err := flags.Parse([]string{"schedule", "-clips", "clips"})
@@ -118,6 +124,8 @@ func TestScheduleTellsTheBackendWhoThePostsNameOverTheSSHOfTheFetch(t *testing.T
 }
 
 func TestChooseCountsTheRoomOfThePlatformsItIsGiven(t *testing.T) {
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
+
 	parsed, err := flags.Parse([]string{"choose", "-findings", "findings.json", "-platforms", "tiktok"})
 
 	require.NoError(t, err)
@@ -125,6 +133,8 @@ func TestChooseCountsTheRoomOfThePlatformsItIsGiven(t *testing.T) {
 }
 
 func TestScheduleFlagsSayWhichPlatformsEachClipGoesTo(t *testing.T) {
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
+
 	for given, platforms := range map[string][]clips.Platform{
 		"youtube":         {"youtube"},
 		"tiktok,youtube":  {"tiktok", "youtube"},
@@ -151,13 +161,16 @@ func TestFlagsWithAPartMissingOrWrongSayHowToCallTheCommand(t *testing.T) {
 		"fetch, no host":             {"fetch", "-out", "replay.json"},
 		"fetch, a wrong time":        {"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-until", "yesterday"},
 		"fetch, wrong hours":         {"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-hours", "many"},
-		"choose, no shortlist":       {"choose"},
+		"choose, no shortlist":       {"choose", "-ssh", "deploy@vps.example"},
+		"choose, no host":            {"choose", "-findings", "findings.json"},
 		"choose, a wrong count":      {"choose", "-findings", "findings.json", "-count", "two"},
 		"choose, no such platform":   {"choose", "-findings", "findings.json", "-platforms", "instagram"},
-		"schedule, no folder":        {"schedule"},
-		"schedule, a wrong gap":      {"schedule", "-clips", "clips", "-spacing", "soon"},
-		"schedule, no such platform": {"schedule", "-clips", "clips", "-platforms", "tiktok,instagram"},
-		"schedule, a platform twice": {"schedule", "-clips", "clips", "-platforms", "tiktok,tiktok"},
+		"schedule, no folder":        {"schedule", "-ssh", "deploy@vps.example"},
+		"schedule, no host":          {"schedule", "-clips", "clips"},
+		"schedule, a wrong review":   {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-review", "soon"},
+		"schedule, no spacing now":   {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-spacing", "1h"},
+		"schedule, no such platform": {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-platforms", "tiktok,instagram"},
+		"schedule, a platform twice": {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-platforms", "tiktok,tiktok"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			parsed, err := flags.Parse(args)
@@ -169,6 +182,8 @@ func TestFlagsWithAPartMissingOrWrongSayHowToCallTheCommand(t *testing.T) {
 }
 
 func TestAMissingPartIsToldApartFromAFlagThatDoesNotParse(t *testing.T) {
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
+
 	_, missing := flags.Parse([]string{"choose"})
 	_, unparsed := flags.Parse([]string{"choose", "-findings", "findings.json", "-count", "two"})
 

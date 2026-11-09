@@ -2,15 +2,13 @@ package posts
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 	"time"
 )
 
 type PostID string
-
-// How far ahead a post is scheduled at the soonest: a service publishes a time already past at once, inside the request,
-// and the job counts a post only when the service keeps it as scheduled.
-const leastLead = 5 * time.Minute
 
 type Post struct {
 	clip      Clip
@@ -22,11 +20,16 @@ type Post struct {
 	ofRun    int
 }
 
-// The post as it is sent at now: at its time, or leastLead from now when a wait ate the lead.
-func (p Post) Rescheduled(now time.Time) Post {
-	if p.at.Sub(now) < leastLead {
-		p.at = wholeMinuteFrom(now.Add(leastLead))
-	}
+// A time and the platforms a post goes out on then, as the publishing module's calendar gives it.
+type Slot struct {
+	At        time.Time
+	Platforms []Platform
+}
+
+// The post at the slot: its time, and the platforms that take it then.
+func (p Post) At(slot Slot) Post {
+	p.at = slot.At
+	p.platforms = slices.Clone(slot.Platforms)
 	return p
 }
 
@@ -66,8 +69,12 @@ type Scheduled struct {
 	Refused map[Platform]error
 }
 
+// The slot the post was planned at is no longer open: another post took its room or its spacing. Plan again.
+var ErrTaken = errors.New("the slot was taken")
+
 type Service interface {
-	// For the post's time, never sooner, on each of its platforms that takes it. A post scheduled twice is one post there.
+	// At the post's slot, on each of its platforms that takes it, once: a *BusyError to try later, ErrTaken to plan again.
+	// A post scheduled twice is one post there.
 	Schedule(ctx context.Context, post Post) (Scheduled, error)
 }
 

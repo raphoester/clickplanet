@@ -20,8 +20,8 @@
   names](clip-appearances.md).
 - **`internal/publishing/`** — the game's posts on its own TikTok and YouTube, through the one posting service,
   Zernio: the calendar every job that posts keeps (how many each platform takes in a trailing day, its hours, an hour
-  between two posts), the slot of a post, and the post made at it under one lock. It asks no module, and no module asks
-  it: jobs do, over ssh. See [Publishing](publishing.md).
+  between two posts), the slot of a post, and the post made at it under one lock. It asks no module; the clips job asks
+  it over ssh, so `clips` speaks its language. See [Publishing](publishing.md).
 - **`internal/mcp/` is not a context: it is the operator's connector**, every admin method as a tool Claude calls.
   It owns no data and no proto package, and reaches the modules only as the admin page does: through the admin
   listener, behind the gate. See [Claude as a connector](connector.md).
@@ -39,7 +39,7 @@ user's OAuth token, a secret auth keeps sealed and never puts on Redis (see [Dis
 planet, chat, scoring, support, missions, alerts and clips heard `AccountDeleted`, and missions `SignedIn` and
 `GetAccount`: see [Player](player.md#the-deploy-that-moved-the-others-to-players-events).
 
-**The modules depend on each other with no cycle.** A module depends on another when its code speaks the other's proto package: it calls it, hears its events or sends it commands. `cmd/api/modules_test.go` reads every module's imports and pins it: `TestTheModulesDependOnEachOtherWithNoCycle`, `TestNothingButTheBrowserAndTheOperatorTalksToProgression`, `TestOnlyPlayerAndAlertsSpeakAuthsLanguage` and `TestProgressionKnowsPlayerAndNotAuth` (the session token's key is the platform's: `cpbootstrap` fetches it, and no module dials auth for it). Today, 35 pairs: `auth` depends on none; `player` on `auth`; `planet` on `player`; `antibot` on `planet`; `scoring` on `planet` and `player`; `support` on `player`; `gamemaster` on `antibot`, `planet` and `scoring`; `missions` on `gamemaster`, `planet`, `player` and `scoring`; `chat` on `gamemaster`, `missions` (whose `FlagMissionDone` it announces; missions hears nothing of chat), `planet`, `player`, `scoring` and `support` (whose reports it judges, and closes with support's own command; support hears nothing of chat); `alerts` on `auth`, `gamemaster`, `planet` and `player`; `clips` on `gamemaster`, `planet`, `player` and `scoring` (gamemaster and scoring for the job, whose console calls sit in the same package); `progression` on `chat`, `gamemaster`, `missions`, `planet`, `player` and `scoring`; `promo` on `gamemaster` and `planet`, and nothing on `promo`; `publishing` on none, and nothing on `publishing`. Player and progression were one module until 2026-11-04, and that module made three cycles: see [Why a module of its own](progression.md#why-a-module-of-its-own).
+**The modules depend on each other with no cycle.** A module depends on another when its code speaks the other's proto package: it calls it, hears its events or sends it commands. `cmd/api/modules_test.go` reads every module's imports and pins it: `TestTheModulesDependOnEachOtherWithNoCycle`, `TestNothingButTheBrowserAndTheOperatorTalksToProgression`, `TestOnlyPlayerAndAlertsSpeakAuthsLanguage` and `TestProgressionKnowsPlayerAndNotAuth` (the session token's key is the platform's: `cpbootstrap` fetches it, and no module dials auth for it). Today, 36 pairs: `auth` depends on none; `player` on `auth`; `planet` on `player`; `antibot` on `planet`; `scoring` on `planet` and `player`; `support` on `player`; `gamemaster` on `antibot`, `planet` and `scoring`; `missions` on `gamemaster`, `planet`, `player` and `scoring`; `chat` on `gamemaster`, `missions` (whose `FlagMissionDone` it announces; missions hears nothing of chat), `planet`, `player`, `scoring` and `support` (whose reports it judges, and closes with support's own command; support hears nothing of chat); `alerts` on `auth`, `gamemaster`, `planet` and `player`; `clips` on `gamemaster`, `planet`, `player`, `publishing` and `scoring` (gamemaster, publishing and scoring for the job, whose console calls sit in the same package); `progression` on `chat`, `gamemaster`, `missions`, `planet`, `player` and `scoring`; `promo` on `gamemaster` and `planet`, and nothing on `promo`; `publishing` on none. Player and progression were one module until 2026-11-04, and that module made three cycles: see [Why a module of its own](progression.md#why-a-module-of-its-own).
 
 **A downstream module asks its upstream in the upstream's words.** `antibot` sends planet `RefuseCaller` and `AdmitCaller`, commands planet defines in its own proto package (`proto/planet/v1/commands.proto`) and consumes into its own table. Planet never hears the antibot's vocabulary: it tells what happened and is told whom to refuse. A command is an intent in the upstream's published language, not a fact, so it does not break the rule that facts flow from where they happen — see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened).
 
@@ -51,8 +51,9 @@ their own would have to import both.
 
 **`internal/clips/` is mostly a job, with a binary of its own** (`cmd/clips`), and a small module of the server
 beside it. The job shares no process and no config with the server, and imports only `shared`: what it asks of the
-server (a replay, the race, the season) and what it gives it (the snapshots of `stats`, which the clips module keeps)
-goes over ssh to the console listener, as an operator's call. **One package, two roots**: `clips.Config` and
+server (a replay, the race, the season, and each post, which the [publishing module](publishing.md) plans and makes)
+and what it gives it (the snapshots of `stats`, which the clips module keeps) goes over ssh to the console listener, as
+an operator's call. **One package, two roots**: `clips.Config` and
 `Fetch`, `Choose`, `Schedule`, `Stats` are the job's, `clips.ModuleConfig` and `NewModule` the server's, and only
 `NewModule` is wired into `cmd/api`. The clips are one concept, so their numbers live with them rather than in a
 module of their own. See [The clips job](clips-job.md).

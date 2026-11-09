@@ -1,4 +1,4 @@
-package zernio_test
+package zernio_source_test
 
 import (
 	"fmt"
@@ -13,14 +13,29 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/zernio"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/zernio_source"
 )
+
+type answer struct {
+	status  int
+	body    string
+	headers map[string]string
+}
+
+func (a answer) write(w http.ResponseWriter) {
+	for name, value := range a.headers {
+		w.Header().Set(name, value)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(a.status)
+	_, _ = fmt.Fprint(w, a.body)
+}
 
 // What one call answers, by method and path.
 type statsFake map[string]answer
 
-func (f statsFake) serve(t *testing.T) (*zernio.Service, *[]*url.URL) {
+func (f statsFake) serve(t *testing.T) (*zernio_source.Service, *[]*url.URL) {
 	t.Helper()
 
 	var asked []*url.URL
@@ -37,7 +52,7 @@ func (f statsFake) serve(t *testing.T) (*zernio.Service, *[]*url.URL) {
 	}))
 	t.Cleanup(server.Close)
 
-	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
+	service, err := zernio_source.New(zernio_source.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
 	require.NoError(t, err)
 	return service, &asked
 }
@@ -98,7 +113,7 @@ func TestThePostsOfTheJobAreTheKeyedOnesOfEveryPageWithTheirTargetsAndTheirMetad
 		_, _ = w.Write([]byte(pages[len(asked)-1]))
 	}))
 	t.Cleanup(server.Close)
-	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
+	service, err := zernio_source.New(zernio_source.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
 	require.NoError(t, err)
 
 	read, err := service.Posts(t.Context(), time.Date(2026, 10, 13, 9, 0, 0, 0, time.UTC))

@@ -44,10 +44,10 @@ type history struct {
 	told  []posts.Telling
 	err   error
 	since []time.Time
-	// What each platform holds, and since when it was asked.
-	feed       posts.Feed
-	feedErr    error
-	postedFrom []time.Time
+	// How many posts each platform takes now, every one of the plan's budget when nil, and the platforms asked.
+	left    map[posts.Platform]int
+	roomErr error
+	asked   [][]posts.Platform
 }
 
 func (h *history) Told(_ context.Context, since time.Time) ([]posts.Telling, error) {
@@ -55,14 +55,15 @@ func (h *history) Told(_ context.Context, since time.Time) ([]posts.Telling, err
 	return h.told, h.err
 }
 
-func (h *history) Posted(_ context.Context, since time.Time) (posts.Feed, error) {
-	h.postedFrom = append(h.postedFrom, since)
-	return h.feed, h.feedErr
+func (h *history) Room(_ context.Context, platforms []posts.Platform) (map[posts.Platform]int, error) {
+	h.asked = append(h.asked, platforms)
+	if h.left == nil {
+		return map[posts.Platform]int{posts.TikTok: 3, posts.YouTube: 12}, h.roomErr
+	}
+	return h.left, h.roomErr
 }
 
-var room = choose_clips_usecase.Room{
-	PerRun: 2, Budget: posts.Budget{posts.TikTok: {PerDay: 10}, posts.YouTube: {PerDay: 8}}, Platforms: []posts.Platform{posts.TikTok, posts.YouTube},
-}
+var room = choose_clips_usecase.Room{PerRun: 2, Plan: posts.Plan{Platforms: []posts.Platform{posts.TikTok, posts.YouTube}}}
 
 var errUnkeyed = errors.New("no ANTHROPIC_API_KEY")
 
@@ -154,17 +155,8 @@ func TestAHistoryThatCannotBeReadFailsTheRunRatherThanTellAStoryTwice(t *testing
 	require.ErrorIs(t, err, unreachable)
 }
 
-// count posts on every platform, an hour apart, the newest an hour ago.
-func hourly(count int) posts.Feed {
-	feed := make(posts.Feed, 0, count)
-	for i := range count {
-		feed = append(feed, posts.Posting{At: now.Add(-time.Duration(i+1) * time.Hour), Platforms: room.Platforms})
-	}
-	return feed
-}
-
 func TestARunTakesNoMoreStoriesThanThePlatformsHaveRoomFor(t *testing.T) {
-	past := &history{feed: hourly(9)}
+	past := &history{left: map[posts.Platform]int{posts.TikTok: 1, posts.YouTube: 0}}
 	model := answering(battle)
 
 	choice, err := editedBy(written{findings: found}, past, model).Execute(t.Context())
@@ -173,21 +165,23 @@ func TestARunTakesNoMoreStoriesThanThePlatformsHaveRoomFor(t *testing.T) {
 	assert.Equal(t, []posts.Pick{1}, choice.Picks(), "the day won alone")
 	assert.Empty(t, model.offers, "nothing left to decide")
 	assert.Equal(t, 1, choice.Room)
-	assert.Equal(t, []time.Time{now.Add(-24 * time.Hour)}, past.postedFrom)
+	assert.Equal(t, [][]posts.Platform{room.Plan.Platforms}, past.asked)
 }
 
 func TestARunWhoseEveryPlatformPostedItsDayTakesNone(t *testing.T) {
-	choice, err := editedBy(written{findings: found}, &history{feed: hourly(10)}, answering(battle)).Execute(t.Context())
+	full := &history{left: map[posts.Platform]int{posts.TikTok: 0, posts.YouTube: 0}}
+
+	choice, err := editedBy(written{findings: found}, full, answering(battle)).Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.Empty(t, choice.Chosen)
 	assert.Equal(t, 0, choice.Room)
 }
 
-func TestAFeedThatCannotBeReadFailsTheRunRatherThanPostOverTheCap(t *testing.T) {
-	unreachable := errors.New("zernio could not be reached")
+func TestARoomThatCannotBeReadFailsTheRunRatherThanPostOverTheCap(t *testing.T) {
+	unreachable := errors.New("ssh failed to ask GetRoom")
 
-	_, err := editedBy(written{findings: found}, &history{feedErr: unreachable}, &editor{}).Execute(t.Context())
+	_, err := editedBy(written{findings: found}, &history{roomErr: unreachable}, &editor{}).Execute(t.Context())
 
 	require.ErrorIs(t, err, unreachable)
 }

@@ -2,7 +2,8 @@
 
 **The game's posts on its own TikTok and YouTube: when each goes out, within what each platform takes in a day,
 through the one posting service, Zernio.** A module of the server since 2026-11-09, so that one place owns the
-calendar every job that posts keeps: the clips job first, the battle teasers after (the owner, 2026-11-09: "let's put
+calendar every job that posts keeps: the clips job, since the same day (its `posts/ssh_publishing`, see [The clips
+job](clips-job.md)), and the battle teasers after (the owner, 2026-11-09: "let's put
 publishing in the server, definitely"). Two jobs that share TikTok's 3 posts a day need one arbiter, and TikTok
 punished a pace of 10 a day once (see [The clips job](clips-job.md), "Why so few on TikTok"). **It keeps no table**:
 Zernio's post list is the record of what went out and what is to come, posts made by hand included.
@@ -17,6 +18,7 @@ internal/publishing/
                                     (FileError), MediaUpload, Scheduled, BusyError
       zernio/                       the one package of the server that knows the service: the upload link, the post,
                                     the feed, the list, over the generated client of shared/cpzernio
+      remembered_feed/              the feed, with the posts made here until Zernio lists them
       usecases/create_upload_usecase/  checks the file, asks the service where to upload it
       usecases/schedule_post_usecase/  under one lock: the slot checked against what the service holds, then the post
         log_schedule_post/          each post with its title, time and platforms; never its words or metadata
@@ -50,7 +52,10 @@ and the days around it leave room, and never takes its room (the clips job's pla
 each of its platforms in its hours, with room, a `Spacing` from every other post. **`Calendar.Left(platform, feed,
 now)`** is how many more posts the platform takes now, not counting its hours.
 
-**What counts is Zernio's post list** (`zernio.Service.Posted`): every post since a day ago and every one still to
+**What counts is Zernio's post list** (`zernio.Service.Posted`), **and the posts this server just made**
+(`remembered_feed`): a list read right after a post may not hold it yet, and a post missing from the feed would let the
+next one crowd it, so each post `SchedulePost` makes counts until the list shows it, or for a day. Every post since a
+day ago and every one still to
 come, made by hand or by a job, at each platform's own time (a TikTok target held over the cap carries the time it will
 go out). A draft, a post cancelled or failed, and a target that failed or was cancelled count for nothing.
 
@@ -113,8 +118,6 @@ the clips workflows hold too, rendered into the backend's environment by every d
 
 ## Not here yet
 
-- **The clips job still posts on its own**, through its own Zernio client and its own copy of the calendar
-  (`internal/clips/internal/posts`): it moves to these calls next, and its copy goes.
 - **The daily snapshot of the posts' numbers still reads Zernio from the job** (`clips stats`), and the clips module
   keeps it: it moves here once the snapshots' tables do.
 - **The battle teasers**, which promo will ask a slot for a day ahead: a slot held before its video exists will need a
