@@ -18,9 +18,10 @@ type History interface {
 	Told(ctx context.Context, since time.Time) ([]posts.Telling, error)
 }
 
-type Feeds interface {
-	// Every post, by hand or not, that goes out at since or later on each platform, and maybe some before.
-	Posted(ctx context.Context, since time.Time) (posts.Feed, error)
+// The publishing module's calendar.
+type Rooms interface {
+	// How many more posts each platform takes now, by hand or not.
+	Room(ctx context.Context, platforms []posts.Platform) (map[posts.Platform]int, error)
 }
 
 // The spend names its model whenever a request was sent; an error is any answer the run cannot read.
@@ -29,9 +30,8 @@ type Editor interface {
 }
 
 type Room struct {
-	PerRun    int
-	Budget    posts.Budget
-	Platforms []posts.Platform
+	PerRun int
+	Plan   posts.Plan
 }
 
 type Executor interface {
@@ -39,11 +39,11 @@ type Executor interface {
 }
 
 func New(
-	findings Findings, history History, feeds Feeds, clock cptime.Clock, room Room, experiments posts.Experiments,
+	findings Findings, history History, rooms Rooms, clock cptime.Clock, room Room, experiments posts.Experiments,
 	dice posts.Dice, editor Editor,
 ) *UseCase {
 	return &UseCase{
-		findings: findings, history: history, feeds: feeds, clock: clock, room: room, experiments: experiments, dice: dice,
+		findings: findings, history: history, rooms: rooms, clock: clock, room: room, experiments: experiments, dice: dice,
 		editor: editor,
 	}
 }
@@ -51,7 +51,7 @@ func New(
 type UseCase struct {
 	findings    Findings
 	history     History
-	feeds       Feeds
+	rooms       Rooms
 	clock       cptime.Clock
 	room        Room
 	experiments posts.Experiments
@@ -72,11 +72,11 @@ func (u *UseCase) Execute(ctx context.Context) (posts.Choice, error) {
 	if err != nil {
 		return posts.Choice{}, fmt.Errorf("failed to read the stories already told: %w", err)
 	}
-	feed, err := u.feeds.Posted(ctx, posts.PostedSince(now))
+	room, err := u.rooms.Room(ctx, u.room.Plan.Platforms)
 	if err != nil {
-		return posts.Choice{}, fmt.Errorf("failed to read what each platform holds: %w", err)
+		return posts.Choice{}, fmt.Errorf("failed to read what each platform has room for: %w", err)
 	}
-	count := u.room.Budget.Clips(u.room.PerRun, u.room.Platforms, feed, now)
+	count := u.room.Plan.Clips(u.room.PerRun, room)
 
 	choice := Edit(ctx, u.editor, findings, count, told, now)
 	choice.Assigned = u.experiments.AssignEach(choice.Chosen, u.dice)

@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/publishing/v1/publishingv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/publishing/internal/calendar"
+	"github.com/raphoester/clickplanet.lol-backend/internal/publishing/internal/posts/remembered_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/publishing/internal/posts/usecases/create_upload_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/publishing/internal/posts/usecases/schedule_post_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/publishing/internal/posts/usecases/schedule_post_usecase/log_schedule_post"
@@ -72,14 +73,16 @@ func serviceOf(config Config, props cpbootstrap.Props) (publishingv1connect.Admi
 		return nil, fmt.Errorf("failed to build the posting service: %w", err)
 	}
 	clock := cptime.SystemClock{}
+	// One for every read and every post: a post made here counts before Zernio lists it.
+	feeds := remembered_feed.New(zernioService)
 
 	props.Logger.Info("publishing built")
 	return publishingv1controller.AdminService{
 		CreateMediaUploadHandler: create_media_upload_handler.New(create_upload_usecase.New(zernioService)),
-		GetRoomHandler:           get_room_handler.New(room_query.New(zernioService, calendar.Default, clock)),
-		PlanPostHandler:          plan_post_handler.New(plan_query.New(zernioService, calendar.Default, clock)),
+		GetRoomHandler:           get_room_handler.New(room_query.New(feeds, calendar.Default, clock)),
+		PlanPostHandler:          plan_post_handler.New(plan_query.New(feeds, calendar.Default, clock)),
 		SchedulePostHandler: schedule_post_handler.New(log_schedule_post.New(
-			schedule_post_usecase.New(zernioService, calendar.Default, clock), props.Logger,
+			schedule_post_usecase.New(feeds, zernioService, calendar.Default, clock), props.Logger,
 		)),
 		ListPostsHandler: list_posts_handler.New(zernioService),
 	}, nil

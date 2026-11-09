@@ -361,12 +361,12 @@ func TestWhatEachPlatformHoldsIsEveryPostOnItByHandOrNotAtThatPlatformsTime(t *t
 
 	require.NoError(t, err)
 	assert.Equal(t, calendar.Feed{
-		{At: time.Date(2026, 10, 24, 15, 0, 0, 0, time.UTC), Platforms: both},
-		{At: time.Date(2026, 10, 24, 9, 0, 0, 0, time.UTC), Platforms: []calendar.Platform{calendar.TikTok}},
-		{At: time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC), Platforms: []calendar.Platform{calendar.YouTube}},
-		{At: time.Date(2026, 10, 24, 19, 30, 0, 0, time.UTC), Platforms: []calendar.Platform{calendar.TikTok}},
-		{At: time.Date(2026, 10, 24, 10, 0, 0, 0, time.UTC), Platforms: []calendar.Platform{calendar.YouTube}},
-		{At: time.Date(2026, 10, 24, 11, 0, 0, 0, time.UTC), Platforms: []calendar.Platform{calendar.YouTube}},
+		{ID: "p-1", At: time.Date(2026, 10, 24, 15, 0, 0, 0, time.UTC), Platforms: both},
+		{ID: "p-2", At: time.Date(2026, 10, 24, 9, 0, 0, 0, time.UTC), Platforms: []calendar.Platform{calendar.TikTok}},
+		{ID: "p-3", At: time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC), Platforms: []calendar.Platform{calendar.YouTube}},
+		{ID: "p-3", At: time.Date(2026, 10, 24, 19, 30, 0, 0, time.UTC), Platforms: []calendar.Platform{calendar.TikTok}},
+		{ID: "p-4", At: time.Date(2026, 10, 24, 10, 0, 0, 0, time.UTC), Platforms: []calendar.Platform{calendar.YouTube}},
+		{ID: "p-8", At: time.Date(2026, 10, 24, 11, 0, 0, 0, time.UTC), Platforms: []calendar.Platform{calendar.YouTube}},
 	}, feed)
 	assert.Equal(t, url.Values{"fromDate": {"2026-10-23"}, "limit": {"500"}}, fake.queries["GET /v1/posts"])
 	assert.Equal(t, "Bearer the-key", fake.headers["GET /v1/posts"].Get("Authorization"))

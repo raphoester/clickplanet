@@ -153,5 +153,5 @@ and says what is in it. Read the doc before you change its area.
 - [Claude as a connector](docs/connector.md) — every admin method is a tool Claude calls over MCP, read from the
   admin protos (a method's comment is its description); what is hidden; auth's OAuth 2.1 server and the tokens; the
   bearer path through the gate.
-- [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them; its
-  experiments, the model editor and the stats.
+- [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them through the
+  publishing module, over ssh; its experiments, the model editor and the stats.

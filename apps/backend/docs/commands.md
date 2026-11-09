@@ -57,8 +57,9 @@ make dBuild
 
 # The clips job, as the clips workflow runs it (see clips-job.md)
 go run ./cmd/clips fetch -ssh <user@host> -out ../frontend/replay.json
-go run ./cmd/clips choose -findings ../frontend/findings.json
-ZERNIO_API_KEY=... go run ./cmd/clips schedule -clips ../frontend/clips
+go run ./cmd/clips choose -ssh <user@host> -findings ../frontend/findings.json
+go run ./cmd/clips schedule -ssh <user@host> -clips ../frontend/clips
+ZERNIO_API_KEY=... go run ./cmd/clips stats -ssh <user@host>
 # The editor on saved findings: -prompt prints what it would be sent and asks nothing (see clips-job.md, "The editor")
 ANTHROPIC_API_KEY=... go run ./cmd/clips edit -findings ../frontend/findings.json [-prompt]
 ```

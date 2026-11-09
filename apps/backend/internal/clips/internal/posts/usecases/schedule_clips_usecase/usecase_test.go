@@ -17,26 +17,17 @@ import (
 
 var (
 	now     = time.Date(2026, 10, 12, 12, 40, 0, 0, time.UTC)
-	budget  = posts.Budget{posts.TikTok: {PerDay: 10}, posts.YouTube: {PerDay: 8}}
 	both    = []posts.Platform{posts.TikTok, posts.YouTube}
-	plan    = posts.Plan{Review: 4 * time.Hour, Spacing: 2 * time.Hour, Platforms: both, Budget: budget}
-	first   = now.Add(4 * time.Hour)
-	second  = now.Add(6 * time.Hour)
+	youtube = []posts.Platform{posts.YouTube}
+	plan    = posts.Plan{Review: 4 * time.Hour, Platforms: both}
+	// As the job runs: no review, TikTok for a run's best clip alone.
+	asap    = posts.Plan{Platforms: both, BestOnly: []posts.Platform{posts.TikTok}}
+	first   = posts.Slot{At: now.Add(4 * time.Hour), Platforms: both}
+	second  = posts.Slot{At: now.Add(6 * time.Hour), Platforms: both}
 	running = posts.Experiments{
 		{Name: "length", Arms: []posts.Arm{{Name: "as-chosen", Weight: 1}, {Name: "short", Weight: 1}}, Control: "as-chosen"},
 	}
 )
-
-type feeds struct {
-	feed  posts.Feed
-	err   error
-	since []time.Time
-}
-
-func (f *feeds) Posted(_ context.Context, since time.Time) (posts.Feed, error) {
-	f.since = append(f.since, since)
-	return f.feed, f.err
-}
 
 type folder struct {
 	clips []posts.Clip
@@ -69,21 +60,22 @@ func clipIn(t *testing.T, pick posts.Pick, title string, variants posts.Variants
 }
 
 type run struct {
-	service *posts.ScriptedService
-	feeds   *feeds
-	usecase *schedule_clips_usecase.UseCase
+	calendar *posts.ScriptedPlanner
+	service  *posts.ScriptedService
+	usecase  *schedule_clips_usecase.UseCase
 }
 
+// The calendar gives the first slot, then the second.
 func scheduling(clips folder, refusals ...error) run {
-	return schedulingWith(plan, &feeds{}, clips, refusals...)
+	return schedulingWith(plan, &posts.ScriptedPlanner{Slots: []posts.Slot{first, second}}, clips, refusals...)
 }
 
-func schedulingWith(p posts.Plan, posted *feeds, clips folder, refusals ...error) run {
+func schedulingWith(p posts.Plan, calendar *posts.ScriptedPlanner, clips folder, refusals ...error) run {
 	clock := cptime.NewFixedClock(now)
 	service := posts.NewScriptedService(refusals...)
-	sender := posts.NewSender(service, posts.Backoff{time.Minute}, posts.NewRecordedPause(clock), clock)
-	return run{service: service, feeds: posted, usecase: schedule_clips_usecase.New(
-		clips, posted, p, clock, posts.LoadedDice(1), sender, running,
+	sender := posts.NewSender(calendar, service, posts.Backoff{15 * time.Minute}, posts.NewRecordedPause(clock))
+	return run{calendar: calendar, service: service, usecase: schedule_clips_usecase.New(
+		clips, p, clock, posts.LoadedDice(1), sender, running,
 	)}
 }
 
@@ -91,24 +83,42 @@ func on(failures ...string) []posts.PlatformOutcome {
 	return []posts.PlatformOutcome{{Platform: posts.TikTok, Failure: failures[0]}, {Platform: posts.YouTube, Failure: failures[1]}}
 }
 
-func TestEachRenderedClipIsScheduledBestFirstAndTheReportSaysSo(t *testing.T) {
+func TestEachRenderedClipIsScheduledBestFirstAtTheSlotTheCalendarGivesAndTheReportSaysSo(t *testing.T) {
 	r := scheduling(folder{clips: []posts.Clip{clip(t, 2, "SECOND"), clip(t, 1, "BEST")}})
 
 	report, err := r.usecase.Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.Equal(t, posts.Report{
-		{Title: "BEST", At: first, Post: "post-BEST", Platforms: on("", "")},
-		{Title: "SECOND", At: second, Post: "post-SECOND", Platforms: on("", "")},
+		{Title: "BEST", At: first.At, Post: "post-BEST", Platforms: on("", "")},
+		{Title: "SECOND", At: second.At, Post: "post-SECOND", Platforms: on("", "")},
 	}, report)
 	assert.True(t, report.Complete())
 	require.Len(t, r.service.Scheduled, 2)
 	assert.Equal(t, []string{"BEST", "SECOND"}, []string{r.service.Scheduled[0].Title, r.service.Scheduled[1].Title})
-	assert.Equal(t, []time.Time{first, second}, []time.Time{r.service.Scheduled[0].At, r.service.Scheduled[1].At})
+	assert.Equal(t, []time.Time{first.At, second.At}, []time.Time{r.service.Scheduled[0].At, r.service.Scheduled[1].At})
 	assert.True(t, strings.HasPrefix(r.service.Scheduled[0].TikTok.Caption, "BEST 2 | CLICKPLANET\n"))
 	assert.Equal(t, "BEST 2 | CLICKPLANET", r.service.Scheduled[0].YouTube.Title)
-	assert.Equal(t, []posts.Platform{posts.TikTok, posts.YouTube}, r.service.Scheduled[0].Platforms)
+	assert.Equal(t, both, r.service.Scheduled[0].Platforms)
 	assert.Equal(t, "browser", r.service.Scheduled[0].CallToAction)
+	assert.Equal(t, [2]int{1, 2}, [2]int{r.service.Scheduled[0].RunPosition, r.service.Scheduled[0].RunSize})
+}
+
+func TestEachClipAsksTheCalendarForThePlatformsOfItsPlaceFromTheReview(t *testing.T) {
+	reviewed := asap
+	reviewed.Review = 4 * time.Hour
+	r := schedulingWith(reviewed, &posts.ScriptedPlanner{Now: now}, folder{clips: []posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}})
+
+	_, err := r.usecase.Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, [][]posts.Platform{both, youtube}, r.calendar.Asked, "TikTok takes the best alone")
+	assert.Equal(t, []time.Time{now.Add(4 * time.Hour), now.Add(4 * time.Hour)}, r.calendar.Bounds)
+
+	r = schedulingWith(asap, &posts.ScriptedPlanner{Now: now}, folder{clips: []posts.Clip{clip(t, 1, "BEST")}})
+	_, err = r.usecase.Execute(t.Context())
+	require.NoError(t, err)
+	assert.True(t, r.calendar.Bounds[0].IsZero(), "no review: no bound of the run's own")
 }
 
 func TestAClipTheServiceRefusesIsInTheReportAndTheOthersStillGoOut(t *testing.T) {
@@ -117,10 +127,9 @@ func TestAClipTheServiceRefusesIsInTheReportAndTheOthersStillGoOut(t *testing.T)
 	report, err := r.usecase.Execute(t.Context())
 
 	require.NoError(t, err)
-	// A clip refused takes no place: the next one goes out in it.
 	assert.Equal(t, posts.Report{
-		{Title: "BEST", At: first, Platforms: on("the caption is too long", "the caption is too long")},
-		{Title: "SECOND", At: first, Post: "post-SECOND", Platforms: on("", "")},
+		{Title: "BEST", At: first.At, Platforms: on("the caption is too long", "the caption is too long")},
+		{Title: "SECOND", At: second.At, Post: "post-SECOND", Platforms: on("", "")},
 	}, report)
 	assert.False(t, report.Complete())
 }
@@ -133,8 +142,8 @@ func TestAPlatformThatRefusesDoesNotStopTheOthers(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, posts.Report{
-		{Title: "BEST", At: first, Post: "post-BEST", Platforms: on("", "no youtube account")},
-		{Title: "SECOND", At: second, Post: "post-SECOND", Platforms: on("", "no youtube account")},
+		{Title: "BEST", At: first.At, Post: "post-BEST", Platforms: on("", "no youtube account")},
+		{Title: "SECOND", At: second.At, Post: "post-SECOND", Platforms: on("", "no youtube account")},
 	}, report)
 	assert.False(t, report.Complete())
 }
@@ -157,70 +166,38 @@ func TestClipsThatCannotBeReadFailTheRun(t *testing.T) {
 	assert.Empty(t, r.service.Scheduled)
 }
 
-var asap = posts.Plan{Spacing: time.Hour, Platforms: both, Budget: budget}
-
-func TestWithNoReviewARunsClipsGoOutAtOnceAndASpacingApartAfterWhatThePlatformsHold(t *testing.T) {
-	posted := &feeds{feed: posts.Feed{{At: now.Add(-30 * time.Minute), Platforms: both}}}
-	r := schedulingWith(asap, posted, folder{clips: []posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}})
+func TestAClipNoPlatformTakesIsHeldAndTheRunIsStillComplete(t *testing.T) {
+	r := schedulingWith(asap, &posts.ScriptedPlanner{Held: true}, folder{clips: []posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}})
 
 	report, err := r.usecase.Execute(t.Context())
 
 	require.NoError(t, err)
-	assert.Equal(t, []time.Time{now.Add(30 * time.Minute), now.Add(90 * time.Minute)}, []time.Time{report[0].At, report[1].At})
-	assert.Equal(t, []time.Time{now.Add(-24 * time.Hour)}, posted.since)
-	assert.True(t, report.Complete())
-}
-
-func TestAClipNoPlatformHasRoomForIsHeldAndTheRunIsStillComplete(t *testing.T) {
-	full := make(posts.Feed, 0, 9)
-	for i := range 9 {
-		full = append(full, posts.Posting{At: now.Add(-time.Duration(i+2) * time.Hour), Platforms: []posts.Platform{posts.TikTok}})
-	}
-	r := schedulingWith(asap, &feeds{feed: full}, folder{clips: []posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}})
-
-	report, err := r.usecase.Execute(t.Context())
-
-	require.NoError(t, err)
-	require.Len(t, r.service.Scheduled, 2)
-	assert.Equal(t, both, r.service.Scheduled[0].Platforms)
-	// TikTok's tenth went out with BEST: SECOND goes to YouTube alone.
-	assert.Equal(t, []posts.Platform{posts.YouTube}, r.service.Scheduled[1].Platforms)
-	assert.False(t, report[1].Held)
-
-	tight := asap
-	tight.Budget = posts.Budget{posts.TikTok: {PerDay: 10}}
-	r = schedulingWith(tight, &feeds{feed: full}, folder{clips: []posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}})
-
-	report, err = r.usecase.Execute(t.Context())
-
-	require.NoError(t, err)
-	assert.Len(t, r.service.Scheduled, 1)
-	assert.Equal(t, posts.Outcome{Title: "SECOND", Held: true}, report[1])
-	assert.True(t, report.Complete())
-}
-
-func TestAPostAWaitMovedLaterMovesTheNextOneToo(t *testing.T) {
-	clock := cptime.NewFixedClock(now)
-	service := posts.NewScriptedService(&posts.BusyError{RetryAfter: 10 * time.Minute, Reason: "rate limit"})
-	sender := posts.NewSender(service, posts.Backoff{15 * time.Minute}, posts.NewRecordedPause(clock), clock)
-	usecase := schedule_clips_usecase.New(folder{clips: []posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}}, &feeds{}, asap,
-		clock, posts.LoadedDice(1), sender, running)
-
-	report, err := usecase.Execute(t.Context())
-
-	require.NoError(t, err)
-	// Planned at 12:45, sent after a 15-minute wait: 13:00, and SECOND an hour after it.
-	assert.Equal(t, []time.Time{now.Add(20 * time.Minute), now.Add(80 * time.Minute)}, []time.Time{report[0].At, report[1].At})
-}
-
-func TestAFeedThatCannotBeReadFailsTheRunBeforeAnythingIsSent(t *testing.T) {
-	unreachable := errors.New("zernio could not be reached")
-	r := schedulingWith(asap, &feeds{err: unreachable}, folder{clips: []posts.Clip{clip(t, 1, "BEST")}})
-
-	_, err := r.usecase.Execute(t.Context())
-
-	require.ErrorIs(t, err, unreachable)
 	assert.Empty(t, r.service.Scheduled)
+	assert.Equal(t, posts.Report{{Title: "BEST", Held: true}, {Title: "SECOND", Held: true}}, report)
+	assert.True(t, report.Complete())
+}
+
+func TestACalendarThatCannotBeReadFailsEachClipOnThePlatformsItAsked(t *testing.T) {
+	unreachable := errors.New("ssh failed to ask PlanPost: Permission denied (publickey)")
+	r := schedulingWith(asap, &posts.ScriptedPlanner{Failed: unreachable}, folder{clips: []posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}})
+
+	report, err := r.usecase.Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Empty(t, r.service.Scheduled)
+	assert.Equal(t, on(unreachable.Error(), unreachable.Error()), report[0].Platforms)
+	assert.Equal(t, []posts.PlatformOutcome{{Platform: posts.YouTube, Failure: unreachable.Error()}}, report[1].Platforms)
+	assert.False(t, report.Complete())
+}
+
+func TestAPostAWaitDelayedGoesAtTheSlotPlannedAfterTheWait(t *testing.T) {
+	r := scheduling(folder{clips: []posts.Clip{clip(t, 1, "BEST")}}, &posts.BusyError{RetryAfter: 10 * time.Minute, Reason: "rate limit"})
+
+	report, err := r.usecase.Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, second.At, report[0].At)
+	assert.Len(t, r.calendar.Asked, 2)
 }
 
 func TestTheArmsOfEachClipReachItsPostAndTheReport(t *testing.T) {

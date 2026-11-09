@@ -1,19 +1,61 @@
-package zernio
+// The numbers of the clips' posts, read from the posting service, Zernio, once a day: the one package of the job that
+// still knows the service, until the snapshots move to the server's publishing module.
+package zernio_source
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/metadata"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/usecases/take_snapshot_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpzernio"
 )
+
+const Production = "https://zernio.com/api"
+
+const (
+	inFlight = "idempotency_conflict"
+	// About fifteen posts a day: a page this long holds weeks of them.
+	pageOfPosts = 500
+)
+
+type Config struct {
+	APIKey  string
+	BaseURL string
+}
+
+func New(config Config, httpClient *http.Client) (*Service, error) {
+	if config.APIKey == "" {
+		return nil, errors.New("the zernio api key is empty")
+	}
+	if config.BaseURL == "" {
+		config.BaseURL = Production
+	}
+
+	api, err := cpzernio.NewClientWithResponses(config.BaseURL, cpzernio.WithHTTPClient(httpClient),
+		cpzernio.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
+			req.Header.Set("Authorization", "Bearer "+config.APIKey)
+			return nil
+		}))
+	if err != nil {
+		return nil, fmt.Errorf("failed to build the zernio client: %w", err)
+	}
+	return &Service{api: api}, nil
+}
+
+type Service struct {
+	api *cpzernio.ClientWithResponses
+}
 
 var _ take_snapshot_usecase.Source = (*Service)(nil)
 
@@ -69,7 +111,7 @@ func (s *Service) Posts(ctx context.Context, since time.Time) ([]stats.Post, err
 		}
 
 		for _, post := range *answer.JSON200.Posts {
-			if _, keyed := keyOf(post); !keyed || post.UnderscoreId == nil {
+			if !keyed(post) || post.UnderscoreId == nil {
 				continue
 			}
 			read, err := statsPostOf(post)
@@ -190,4 +232,47 @@ func (s *Service) Retention(ctx context.Context, account, video string, asOf tim
 		body, _ = json.Marshal(string(answer.Body))
 	}
 	return stats.Retention{HTTPStatus: status, Body: body}, nil
+}
+
+// A post of the job carries its story's key: one made by hand has none.
+func keyed(post cpzernio.Post) bool {
+	if post.Metadata == nil {
+		return false
+	}
+	_, keyed := metadata.KeyOf(*post.Metadata)
+	return keyed
+}
+
+func valueOf[T any](pointer *T) T {
+	if pointer == nil {
+		var zero T
+		return zero
+	}
+	return *pointer
+}
+
+// Busy for what zernio may take later: a rate limit, a server error, a try made while the one before it is in flight.
+func refusal(res *http.Response, body []byte, what string) error {
+	var said struct {
+		Error string `json:"error"`
+		Code  string `json:"code"`
+	}
+	_ = json.Unmarshal(body, &said)
+
+	reason := fmt.Sprintf("zernio answered %d to %s: %s", res.StatusCode, what, said.Error)
+	if said.Code != inFlight && res.StatusCode != http.StatusTooManyRequests && res.StatusCode/100 != 5 {
+		return errors.New(reason)
+	}
+
+	seconds, _ := strconv.Atoi(res.Header.Get("Retry-After"))
+	return &posts.BusyError{RetryAfter: time.Duration(seconds) * time.Second, Reason: reason}
+}
+
+// Without its URL: an address can carry a credential, and the logs of a public repo are public.
+func unreachable(err error) error {
+	var failed *url.Error
+	if errors.As(err, &failed) {
+		err = failed.Err
+	}
+	return &posts.BusyError{Reason: fmt.Sprintf("zernio could not be reached: %s", err)}
 }

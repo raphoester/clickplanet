@@ -17,13 +17,9 @@ type Clips interface {
 }
 
 type Sender interface {
-	// It answers the post as it was sent, which may be later than planned.
-	Send(ctx context.Context, post posts.Post) (posts.Post, posts.Scheduled, error)
-}
-
-type Feeds interface {
-	// Every post, by hand or not, that goes out at since or later on each platform, and maybe some before.
-	Posted(ctx context.Context, since time.Time) (posts.Feed, error)
+	// At the slot the calendar gives it from notBefore on: held when no platform takes it. It answers the post as it was
+	// sent, at its slot.
+	Send(ctx context.Context, post posts.Post, notBefore time.Time) (posts.Post, posts.Scheduled, bool, error)
 }
 
 type Executor interface {
@@ -33,14 +29,13 @@ type Executor interface {
 
 // experiments: the ones that run, which every clip's arms are checked against before any is posted.
 func New(
-	clips Clips, feeds Feeds, plan posts.Plan, clock cptime.Clock, dice posts.Dice, sender Sender, experiments posts.Experiments,
+	clips Clips, plan posts.Plan, clock cptime.Clock, dice posts.Dice, sender Sender, experiments posts.Experiments,
 ) *UseCase {
-	return &UseCase{clips: clips, feeds: feeds, plan: plan, clock: clock, dice: dice, sender: sender, experiments: experiments}
+	return &UseCase{clips: clips, plan: plan, clock: clock, dice: dice, sender: sender, experiments: experiments}
 }
 
 type UseCase struct {
 	clips       Clips
-	feeds       Feeds
 	plan        posts.Plan
 	clock       cptime.Clock
 	dice        posts.Dice
@@ -66,23 +61,18 @@ func (u *UseCase) Execute(ctx context.Context) (posts.Report, error) {
 		}
 	}
 
-	feed, err := u.feeds.Posted(ctx, posts.PostedSince(u.clock.Now()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read what each platform holds: %w", err)
-	}
-
-	// Each post is planned once the one before it is sent: a wait that moved it moves the next one too.
+	// Each post is planned once the one before it is sent, so the calendar holds it: a wait that moved it moves the next
+	// one too.
 	report := posts.Report{}
 	ranked := posts.Ranked(rendered)
 	for i, clip := range ranked {
-		post, room := u.plan.Next(clip, i+1, len(ranked), feed, u.clock.Now(), u.dice)
-		if !room {
+		post := u.plan.Post(clip, i+1, len(ranked), u.dice)
+		sent, scheduled, held, err := u.sender.Send(ctx, post, u.plan.NotBefore(u.clock.Now()))
+		if held {
 			report = report.WithHeld(clip)
 			continue
 		}
-		sent, scheduled, err := u.sender.Send(ctx, post)
 		report = report.With(sent, scheduled, err)
-		feed = feed.With(sent, scheduled)
 	}
 	return report, nil
 }

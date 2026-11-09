@@ -27,7 +27,10 @@ type service struct {
 	feed      calendar.Feed
 	feedError error
 	refusal   error
-	sent      []posts.PostSnapshot
+	refusing  map[calendar.Platform]error
+
+	sent       []posts.PostSnapshot
+	remembered []calendar.Posting
 }
 
 func (s *service) Posted(_ context.Context, since time.Time) (calendar.Feed, error) {
@@ -47,10 +50,17 @@ func (s *service) Schedule(_ context.Context, post posts.Post) (posts.Scheduled,
 	if s.refusal != nil {
 		return posts.Scheduled{}, s.refusal
 	}
-	snapshot := post.TakeSnapshot()
-	s.sent = append(s.sent, snapshot)
-	s.feed = s.feed.With(snapshot.At, snapshot.Platforms)
-	return posts.Scheduled{ID: "post-1"}, nil
+	s.sent = append(s.sent, post.TakeSnapshot())
+	return posts.Scheduled{ID: "post-1", Refused: s.refusing}, nil
+}
+
+// The use case remembers what it made, as remembered_feed does: the list itself never shows it here.
+func (s *service) Remember(made calendar.Posting) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.remembered = append(s.remembered, made)
+	s.feed = append(s.feed, made)
 }
 
 func postAt(t *testing.T, slot calendar.Slot) posts.Post {
@@ -65,7 +75,7 @@ func postAt(t *testing.T, slot calendar.Slot) posts.Post {
 }
 
 func useCase(service *service) *schedule_post_usecase.UseCase {
-	return schedule_post_usecase.New(service, calendar.Default, cptime.NewFixedClock(now))
+	return schedule_post_usecase.New(service, service, calendar.Default, cptime.NewFixedClock(now))
 }
 
 func TestAPostAtAnOpenSlotIsScheduled(t *testing.T) {
@@ -76,6 +86,15 @@ func TestAPostAtAnOpenSlotIsScheduled(t *testing.T) {
 	assert.Equal(t, schedule_post_usecase.Outcome{Scheduled: &posts.Scheduled{ID: "post-1"}}, outcome)
 	require.Len(t, service.sent, 1)
 	assert.Equal(t, slot.At, service.sent[0].At)
+	assert.Equal(t, []calendar.Posting{{ID: "post-1", At: slot.At, Platforms: slot.Platforms}}, service.remembered)
+}
+
+func TestAPostIsRememberedOnThePlatformsThatTookItAlone(t *testing.T) {
+	service := &service{refusing: map[calendar.Platform]error{calendar.TikTok: errors.New("no connected tiktok account")}}
+
+	useCase(service).Execute(t.Context(), postAt(t, slot))
+
+	assert.Equal(t, []calendar.Posting{{ID: "post-1", At: slot.At, Platforms: []calendar.Platform{calendar.YouTube}}}, service.remembered)
 }
 
 func TestAPostAtASlotAnotherPostCrowdsIsTakenAndNothingIsSent(t *testing.T) {

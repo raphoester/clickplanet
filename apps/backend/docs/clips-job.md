@@ -3,15 +3,15 @@
 **Every 2 hours from 06:17 to 22:17 UTC a workflow makes the best clips of the last 12 hours and posts them on TikTok and YouTube Shorts**
 (`.github/workflows/clips.yml`; the frontend's [Clips](../../frontend/docs/clips.md) has the four jobs and how a clip is made). The
 frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
-which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
+which clips, the words of each post, the calls to the server that posts them, the retries and the run's summary. The two
 meet in files: the replay, the turn and the round this job saves for the generator, `clips.v1.Findings`, which the
 generator writes as JSON, `clips.v1.Pick`, the story this job hands it back to render, and `clips.v1.Clip`, what it
 rendered (`proto/clips/v1/clips.proto`).
 
 ```
 clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-cast <cast.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-summary <file>]
-clips schedule -clips <folder> [-review 0] [-spacing 1h] [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
+clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
+clips schedule -clips <folder> [-review 0] [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
 clips edit -findings <findings.json> [-count 2] [-prompt]
 clips stats [-ssh <user@host>] [-since 2026-10-13]
 ```
@@ -40,18 +40,20 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
   (`[{"pick":1,"story":{"front":3,"kind":"battle",…,"headline":"FRANCE VS TURKEY"},"variants":{}}]`,
   or `[]` on a quiet run or a full day): the workflow makes one render job of each. The log goes to the standard
   error, with each story of the editor's skipped and why, and each one chosen with its key and its arms. It needs
-  `ZERNIO_API_KEY`, to read what was told and what each platform holds, and `ANTHROPIC_API_KEY`, the editor's.
+  the backend over ssh (`-ssh` or `CLICKPLANET_SSH`), whose [publishing module](publishing.md) says what was told and how much
+  room each platform has left, and `ANTHROPIC_API_KEY`, the editor's.
   `-platforms` is `schedule`'s, so it counts the room of the platforms the clips will go to. `-summary` adds how the
   editor's call went, and what it cost, to that file (the workflow's step summary). Its standard output stays the
   picks alone.
 - **`edit` tries the editor by hand on saved findings**, outside any run: `-count` clips (2), what was
-  told read from Zernio when `ZERNIO_API_KEY` is set and nothing told otherwise. It prints the instructions and the
+  told read from the backend's publishing module when `CLICKPLANET_SSH` is set and nothing told otherwise. It prints the instructions and the
   run's JSON as the model would get them, their size (counted by the API's free `count_tokens` with a key, else
   guessed at 4 characters a token), then what the model chose, each story as `--story` takes it, each one skipped
   with why, and what it cost. **`-prompt` stops after the prompt and asks the model nothing.**
-- **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the posting
-  service, **as one post on every platform that takes it** (`-platforms`, default all: `tiktok,youtube`): room left
-  in its day, its hours, and on TikTok the run's best clip alone (below, "`Budget`"), and adds a table to the summary: a row for each clip on each platform, its arms, its time, and
+- **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the backend's
+  [publishing module](publishing.md), over ssh, which posts it **as one post on every platform that takes it**
+  (`-platforms`, default all: `tiktok,youtube`): room left in its day, its hours, and on TikTok the run's best clip
+  alone (below, "What each platform takes"), and adds a table to the summary: a row for each clip on each platform, its arms, its time, and
   whether it is scheduled there, or one row for a clip held because every platform has posted its day or is out of
   its hours. **A clip in an
   experiment that does not run, or in an arm it has not, fails the run before anything is posted**
@@ -73,7 +75,7 @@ clips stats [-ssh <user@host>] [-since 2026-10-13]
 - **`cmd/clips` is three stages, and `run` only names them**: parse, work, display (see [A command's `run` is a
   table of contents](command-run.md)). `main.go` holds no stage.
   - **`flags.Parse`** (`cmd/clips/internal/flags`) answers one typed `flags.Config`: the command, its files, and
-    the job's `clips.Config` with `CLICKPLANET_SSH`, `ZERNIO_API_KEY` and `ANTHROPIC_API_KEY` read into it, and `-platforms` checked by
+    the job's `clips.Config` with `CLICKPLANET_SSH`, `ANTHROPIC_API_KEY` and, for `stats` alone, `ZERNIO_API_KEY` read into it, and `-platforms` checked by
     the domain (`clips.PlatformsOf`: each known, each once). No flag pointer leaves it.
     Flags and not `cpconfigs`: the job has a few settings and two secrets, and a workflow passes them on the
     command line.
@@ -243,7 +245,7 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   reads it back today**: a cache entry lives 5 minutes (an hour at most) and runs are 2 hours apart, so each call
   writes it again, about $0.00004 more a call. It pays once a call follows another within minutes (`clips edit`
   tried twice, or more calls a run).
-- **The key is a secret of the `choose` job alone** (`ANTHROPIC_API_KEY`), which runs no npm, as `ZERNIO_API_KEY`.
+- **The key is a secret of the `choose` job alone** (`ANTHROPIC_API_KEY`), which runs no npm, as the VPS's key.
   An error never carries the request (`cpanthropic.Redacted`): the SDK's error dumps its headers, and the logs of a
   public repo are public. **The story is the model's text**: the render job passes it through the environment,
   never into the script.
@@ -292,10 +294,12 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   scheduled run 20 to 40 minutes late, as the runs of Oct 22–24 did), its render (10 to 35 minutes) and 5 minutes of
   lead: **2 to 3 hours**, and an hour more for the second clip of a run. Replayed over Oct 14–17, a 12-hour window held 5
   to 11 stories of different keys, so 2 every 2 hours is not short of stories; a quiet run posts nothing.
-  - **`Budget` is what each platform takes** (`dailyBudget` in `job.go`, a `posts.Allowance` each). **YouTube: 12
-    posts in a trailing 24 hours, from 07:00 to 23:00 UTC (`Hours`), every clip of a run.** **TikTok: 3, the best
-    clip of a run alone (`BestOnly`), from 14:00 to 20:00 UTC**: after school across Europe, 16:00 to 22:00 in Paris
-    in winter, 15:00 to 21:00 in London, 17:00 to 23:00 in Istanbul.
+  - **What each platform takes is the publishing module's calendar** (`calendar.Default`, see
+    [Publishing](publishing.md)), which every job that posts keeps; the job decides only that TikTok takes a run's
+    best clip alone (`bestOnly` in `job.go`, `posts.Plan.BestOnly`). **YouTube: 12 posts in a trailing 24 hours, from
+    07:00 to 23:00 UTC, every clip of a run.** **TikTok: 3, the best clip of a run alone, from 14:00 to 20:00 UTC**:
+    after school across Europe, 16:00 to 22:00 in Paris in winter, 15:00 to 21:00 in London, 17:00 to 23:00 in
+    Istanbul.
   - **Why no YouTube post at night** (2026-10-30): until then YouTube took a post at any hour, and many went out
     between 23:00 and 07:00 UTC, while Europe sleeps. The owner holds that a Short posted then does worse; it is not
     measured. 07:00 to 23:00 UTC is 08:00 to 00:00 in Paris in winter.
@@ -314,45 +318,45 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
     and 19:00. The trailing day makes it 2 on some days, as a post of yesterday at 15:05 still counts at 14:58. A post
     made by hand takes one of the 3. TikTok itself holds a video over 15 a trailing day, and Zernio moves it to when
     the oldest leaves the window rather than refuse it.
-  - **A platform out of its hours is left out of the post, never waited for** (`Plan.Next`): the clip goes out on
-    the others at once. A platform left out no longer holds the post back, so its time is found again without it: a
-    TikTok post by hand at 19:30 does not push a YouTube post to 20:30. The hours are UTC, so they move an hour
-    against Europe's clocks in summer. `Schedule` takes the clock they are read on; `main.go` passes the system's.
-  - **What counts is Zernio's post list** (`Service.Posted`, a `Feed` of `Posting`s): every post on the platform in
-    the trailing day, **made by hand or not**, and every one still to go out, at the platform's own time (a TikTok
-    target held over the cap carries the time it will go out). A draft, a post cancelled or failed, and a target that
-    failed or was unpublished count for nothing. One list of posts serves this and what was told. **A feed that
+  - **A platform out of its hours is left out of the post, never waited for** (the module's `PlanPost`): the clip
+    goes out on the others at once. A platform left out no longer holds the post back, so its time is found again
+    without it: a TikTok post by hand at 19:30 does not push a YouTube post to 20:30. The hours are UTC, so they move
+    an hour against Europe's clocks in summer. `Schedule` takes the clock the review is counted from; `main.go` passes
+    the system's.
+  - **What counts is Zernio's post list, as the publishing module reads it**: every post on the platform in the
+    trailing day, **made by hand or not**, and every one still to go out, at the platform's own time. **A room that
     cannot be read fails the run**, rather than post over the cap. **A new post counts in every trailing day that
-    holds it** (`Feed.fullestDay`): its own, and the one that ends with each post still to come within a day after
-    it. A platform takes it only if none of them is full, so a post today never takes the room of one scheduled for
-    tomorrow, and a post more than a day ahead takes nothing from now.
+    holds it**: its own, and the one that ends with each post still to come within a day after it, so a post today
+    never takes the room of one scheduled for tomorrow. How, in [Publishing](publishing.md), "The calendar".
   - **Known effect, not handled**: YouTube's budget is spent as the news comes, so a busy morning can fill the day, and once
     it is full a slot frees when yesterday's post leaves the window, so the posting hours follow yesterday's. The run
     of 2026-10-26 16:31 had the war of the day in its findings and no room. The run that gets the slot still tells
     the freshest story it has.
-  - **`choose` makes as many clips as the platform with the most room takes** (`Budget.Clips`), so a clip goes to
+  - **`choose` makes as many clips as the platform with the most room takes** (`Plan.Clips`, of the module's
+    `GetRoom`), so a clip goes to
     every platform that still has room, and a clip nobody has room for is never rendered. A platform that takes the
     best alone takes one. It counts no hours: a clip's time is known once it is rendered, so a run on TikTok alone out
     of its hours renders a clip and holds it. **No run is started at night** (the workflow's cron, 06:17 to 22:17
     UTC), as no platform posts then. The run of 06:17 can still be rendered before 07:00, and the second clip of
-    22:17 goes out after 23:00: both are held. `schedule` reads the feed
-    again and leaves a full platform out of the post; a clip with no platform left is held (`Report.WithHeld`): in the
+    22:17 goes out after 23:00: both are held. `schedule` asks the module
+    for each clip's slot, which leaves a full platform out of the post; a clip with no platform left is held (`Report.WithHeld`): in the
     report, not a failure, and its story untold for a later run. Between the two only a post made by hand can fill a day.
   - **A full day says so**: `choose` logs `every platform has posted its day already` rather than that no story was
     told (`Choice.Room`).
 - **What was told is Zernio's post list, not a table of ours**: each post keeps its key and its story's countries in
-  its Zernio `metadata` (`storyFlag`, `storyContinent`, `storyCountries`, and `storyAngle` and `storyRound` when it
-  has them, never published; a post with none is of what a flag did), and `choose` lists
-  the posts of the last week back (`ToldSince`), on every platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
-  (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
+  its `metadata` (`posts/metadata`: `storyFlag`, `storyContinent`, `storyCountries`, and `storyAngle` and
+  `storyRound` when it has them, never published; a post with none is of what a flag did), which the publishing module
+  keeps on Zernio as the job gives it, and `choose` asks the module for the posts of the last week (`ListPosts`,
+  `ToldSince`, `ssh_publishing.Told`), on every platform: one Zernio post is one clip, whatever accounts it goes to, and
+  the key is on the post (the module reads from the day of `since`, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
 - **Each post also keeps what it was, to be set beside its numbers**, under one key of its Zernio `metadata`,
-  `record` (`recordOf` in `posts/zernio`): `clips stats` keeps it beside the post's TikTok and YouTube analytics
+  `record` (`posts/metadata`): `clips stats` keeps it beside the post's TikTok and YouTube analytics
   every day (below, "`stats/` is what became of the posts"), to learn what makes a clip do well. **It records and
   decides nothing**: the dice are rolled in the same order as before (the arms of the experiments above are
   `choose`'s coins, not these), so
-  the captions, the times and the order are what they were, and the tests pin the request body whole.
+  the captions, the times and the order are what they were, and the tests pin the metadata whole (`metadata_test.go`).
   - **It is one document, a `clips.v1.PostRecord` as protojson writes it**, not keys of Zernio's top level: its
     shape is the proto's and it grows there, with nothing to move in Zernio. `schema` names the message it is,
     `clips.v1.PostRecord`; a change that is not additive is a new message under a new name, so a reader always knows
@@ -360,8 +364,8 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
     format has, its format's own section, its experiments' arms; the frontend's [Clips](../../frontend/docs/clips.md)), kept as written
     (`posts.ClipRecord`, which the job never reads); absent for a clip written before the generator kept one. `post`
     is what this job made of the clip: `teaser`, the name of the teaser rolled (`editor` for the model's,
-    `takes-the-day` for the generator's own; `unnamed` for a clip whose teasers have none), `callToAction`, `scheduledAt` (the time planned: the dashboard can move the post, this
-    does not move), and `runPosition` and `runSize`, its place in its run from 1 and how many it has. **How fresh a
+    `takes-the-day` for the generator's own; `unnamed` for a clip whose teasers have none), `callToAction`, `scheduledAt` (the slot the publishing module planned: the dashboard can move
+    the post, this does not move), and `runPosition` and `runSize`, its place in its run from 1 and how many it has. **How fresh a
     story was** is `scheduledAt` minus the clip's `globe.storyEndedAt`, when the stretch it plays ends, which the
     generator writes.
   - **Every code in it is a word that says what it means; a number is a quantity.** The flat columns of a table are
@@ -370,14 +374,17 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
     them from a week of posts already out. A record that is not a `ClipRecord` fails the post before its video is
     uploaded. Zernio's `metadata` takes any JSON object and states no size, but for three keys of its own
     (`usageCounted`, `usageRefunded`, `hidden`). Posts made before the record have none, and none is filled in after.
-- **`Plan.Next(clip, place, ofRun, feed, now, dice)`** is when and where: **on every platform with room left in its
-  day, as soon as it can**: `Review` from now (none by default: `-review 0` and no flag are both none) and never under
-  the 5-minute lead, on a whole minute, and **a `Spacing` (an hour) from every post on each of its platforms, before
-  it or after it**, whoever made it (`Feed.clash`): the first gap that wide. False when no platform has room. It also rolls the post's words (`Dice`, `SystemDice`), so no post
-  exists without them. `schedule` plans each clip once the one before it is sent, best first (`Ranked`), with the
-  sent post added to the feed (`Feed.With`): a wait that moved a post later moves the next one too, and a clip
-  refused takes no place, so the next one goes in it. **A platform is a `Platform`** (`tiktok`, `youtube`), and
-  `PlatformsOf` is the only way from a name to one: each known, each once.
+- **`Plan` is what a run asks**: the platforms of each clip (`PlatformsOf`: all of them, but TikTok, which takes the
+  best alone, for the first only), its review (`NotBefore`: `Review` from now, none by default: `-review 0` and no
+  flag are both none), and how many clips a run makes (`Clips`). It rolls each post's words too (`Plan.Post`: `Dice`,
+  `SystemDice`), so no post exists without them. **When it goes out is the publishing module's** (2026-11-09):
+  `schedule` plans each clip once the one before it is sent, best first (`Ranked`), and the module's `PlanPost` gives
+  its slot (`Post.At`): **on every platform with room left in its day, as soon as it can**, the 5-minute lead and the
+  review on, on a whole minute, and **an hour from every post on each of its platforms, before it or after it**,
+  whoever made it (see [Publishing](publishing.md)). The post just sent is in the module's calendar, so a wait that
+  moved a post later moves the next one too, and a clip refused takes no place, so the next one goes in it. **A
+  platform is a `Platform`** (`tiktok`, `youtube`), and `PlatformsOf` is the only way from a name to one: each known,
+  each once.
   - **Why an hour between two posts on a platform.** Without one, a run 2 hours after the last would post on top of
     the second clip of that run, which goes out an hour after its first, and two clips minutes apart split the first
     hour of reach that both TikTok and YouTube judge a Short on, among the same followers. An hour lets each have
@@ -389,7 +396,8 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
     clip rendered today at 14:52 until tomorrow at 19:00, on both platforms, and every clip after it too. Every post
     still to come also counted against today's cap, however far ahead it was. A battle's teaser, scheduled a day
     ahead, would have done both. Now a post goes before one scheduled ahead when the gap keeps the spacing on both
-    sides and the trailing days around it leave room (`plan_test.go`, `TestAPostScheduledAheadHoldsBackNoPostBeforeIt`).
+    sides and the trailing days around it leave room (the publishing module's `calendar_test.go`,
+    `TestAPostScheduledAheadHoldsBackNoSlotBeforeIt`).
   - **Timing**: the run of 12:17 UTC, started by GitHub at 12:34 and rendered at 12:53, posts its first clip at
     12:58 and its second at 13:58; the run of 14:17, rendered at 14:52, posts at 14:58, an hour after 13:58, then at 15:58.
 - **The words of each platform are written here**, from what the generator gives (its teasers, the countries with
@@ -404,7 +412,7 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   emoji: `⚔️ Top fighters: BraveFox42 🇫🇷, Ankara55 🇹🇷`, so a player searching their name finds the clip; YouTube's
   description opens with it. A clip that names nobody has no such line.
   A teaser and a call to act are picked at random, the call from `callsToAction`, and **the call's id is kept in
-  the post's Zernio metadata** (`callToAction`), so the calls can be compared on the posts' numbers. A caption
+  the post's metadata** (`callToAction`), so the calls can be compared on the posts' numbers. A caption
   link cannot be clicked on TikTok, so a call is compared by how its posts do, not by visits. The music's credit,
   when its licence asks for one, comes before the tags. Then the game's tags, the continent's, each country's, and
   one TikTok community tag for the flag the clip is about (`#usatiktok🇺🇸`; an ISO private-use code such as `xk`
@@ -425,83 +433,69 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   has none, since nobody can click it there.
 - **No review, and nothing sent for a time already past** (2026-10-24). The review was 4 hours to cancel a clip in
   the dashboard before its time, and nobody did, so it is off; `-review` puts it back. **A post goes out 5 minutes
-  ahead** (`leastLead`), not now: Zernio publishes a `publishNow` post, and one whose `scheduledFor` is already past,
-  inside the request, answering each platform's result (a 207 when one fails), and the YouTube upload with it. 5
-  minutes ahead keeps the request short and the post `scheduled`, which is what the adapter counts as taken, and is
-  checked before every try: `Post.Rescheduled(now)` moves a post whose lead a wait ate to 5 minutes from then,
-  later and never sooner. `Sender.Send` answers the post as it was sent, which the report and the feed read.
-- **`Sender` tries again only when the service is busy**: an adapter answers a `*BusyError` for "not now" (a rate
-  limit, a server error, no answer) and any other error for "no" (a refused caption, a wrong key). `Backoff` waits
-  1, 5 then 15 minutes, or as long as the service said when that is longer; a service that asks for longer than
-  the longest wait fails the post at once. `Pause` is the wait, so a test takes no time (`RecordedPause` moves the
-  fixed clock instead).
-- **`Service` is the posting service, one method**: `Schedule(ctx, post) (Scheduled, error)`. Its contract is on
-  it: for the post's time and never sooner, on each of its platforms that takes it, and a post scheduled twice is
-  one post there. `Scheduled` is the post's id and each platform it is not on, with why (`Refused`); the error is a
-  post made on no platform.
+  ahead** at the soonest, not now: the publishing module's lead (see [Publishing](publishing.md)). **Each try plans
+  the slot again** (`Sender.Send`), so a wait never sends a post at a time already past or crowded: later, never
+  sooner. `Sender.Send` answers the post as it was sent, at its slot, which the report reads, or that it was held.
+- **`Sender` tries again only when the module is busy or the slot was taken**: an adapter answers a `*BusyError` for
+  "not now" (Zernio's rate limit, a server error, no answer, or an ssh that fails while the backend restarts) and
+  any other error for "no" (a refused caption, a wrong key). `Backoff` waits 1, 5 then 15 minutes, or as long as the
+  service said when that is longer; a service that asks for longer than the longest wait fails the post at once. **A
+  slot taken** (`ErrTaken`: another post took its room or its spacing since it was planned) is planned again at once,
+  3 times in a row at most. `Pause` is the wait, so a test takes no time (`RecordedPause` moves the fixed clock
+  instead).
+- **`Planner` is the module's calendar and `Service` its post, one try**: `Slot(ctx, platforms, notBefore)` and
+  `Schedule(ctx, post) (Scheduled, error)`, at the post's slot, on each of its platforms that takes it, and a post
+  scheduled twice is one post there. `Scheduled` is the post's id and each platform it is not on, with why
+  (`Refused`); the error is a post made on no platform.
 - `Clip` and `Post` have no getter: an adapter reads `TakeSnapshot()`, and a `ClipSnapshot` the generator left a
   part out of does not `Restore()`. `Report` is what became of each clip on each platform, for the display and the
   log; `Complete()` is whether every one is a post on all its platforms.
 
-**The server's publishing module now holds the same calendar and a Zernio client of its own** (see
-[Publishing](publishing.md), 2026-11-09): the job moves its posting to those calls next, and `posts/zernio/` and the
-budget below go with it. Until then the job posts as this section says.
+**`posts/ssh_publishing/` is the one package of the job that posts** (2026-11-09): the server's
+[publishing module](publishing.md), asked over ssh on the console listener as `fetch` asks for a replay, its body on
+ssh's standard input. Until then the job held the Zernio key and its own copy of the calendar; the server holds both
+now, so the clips and the battle teasers to come keep one calendar, and the posting service's details (its targets,
+its settings, the one connected account of each platform, what is busy) are the module's.
 
-**`posts/zernio/` is the one package of the job that knows the service** (Zernio, chosen 2026-10-12 over upload-post: its
-free tier has TikTok and the whole API, posts are unlimited, and the first two accounts are free). **No Instagram
-for now** (2026-10-17): a third account is 6 USD a month. A change of service is that package, its line in `job.go`, the variable
-`main.go` reads the key from, and the client below.
+- **Its calls**: `GetRoom` for `choose`'s count, `ListPosts` for what was told, and for each clip
+  `CreateMediaUpload` once, then `PlanPost` and `SchedulePost` on each try.
+- **The video goes straight to Zernio's storage**: `CreateMediaUpload` answers a link the server signs with the key,
+  and the job `PUT`s the file there, with no key; no byte of it passes through the server. **Once a run per video**,
+  however many times its post is tried (`Service.upload`).
+- **`Idempotency-Key` is the SHA-256 of the video**, so a run made again, or a try after a timeout, is the same post
+  on Zernio and not a second one. Zernio matches on the key alone, so a try at another slot is still the same post.
+- **What became of a post is the module's answer**, not an error: `scheduled` with each platform that refused it,
+  `busy` with Zernio's wait (`*BusyError`), `taken` (`posts.ErrTaken`) or `failed` with why. **busybox's `wget` in the
+  backend's container prints nothing of a call it refuses**: a Connect error reaches the job as `server returned
+  error: HTTP/1.1 400 Bad Request`, which is why the module answers a post's outcomes in the body.
+- **An ssh that fails to plan or to post is busy**: the backend may be restarting for a deploy, so the sender waits.
+  One that fails to read the room or the history fails the run, rather than post over the cap or tell a story twice.
+- **An error never carries the upload's URL**: the address is a credential for an hour, and Go's `url.Error` prints
+  it, so the adapter keeps the cause and drops the address; a test pins it.
+- **A post a platform refuses at its time is seen by the next run**, about 2 hours after its own ended: the history
+  `choose` reads holds each post's state and each platform's error, and `log_history` logs every post of the last
+  week, a refused one as a warning with why (`a post of the last week was refused … failure="tiktok: …"`).
+- Its tests run a fake `ssh`, a shell script that keeps its arguments and its standard input and answers each call in
+  turn, and the storage on `httptest`.
 
-- **The HTTP client is generated, not written, and lives in `shared/cpzernio`** with all that makes it:
-  `client.gen.go`, by oapi-codegen (pinned in the `Makefile`) from Zernio's own OpenAPI document, vendored
-  beside it as `openapi.json`. `make zernio-spec` fetches the document Zernio builds its SDKs from, `make zernio`
-  generates. `oapi-codegen.yaml` names the seven operations the job calls (`include-operation-ids`): four to post,
-  and `getAnalytics`, `getYouTubeVideoRetention` and `listTikTokCommercialMusic` for the snapshot. So the client
-  holds those and the types they reach, not the 631 paths of the document; `overlay.yaml` drops its webhooks. **An
-  operation not named there is not in the client**: a new call is a line there and `make zernio`. The adapter keeps what
-  no document says: which account, the upload, the idempotency key, and which answer is "busy".
+**Zernio was chosen 2026-10-12 over upload-post**: its free tier has TikTok and the whole API, posts are unlimited,
+and the first two accounts are free. **No Instagram for now** (2026-10-17): a third account is 6 USD a month.
+
+- **The HTTP client is generated, not written, and lives in `shared/cpzernio`** with all that makes it, for the
+  server's publishing module and the snapshot's `stats/zernio_source`: `client.gen.go`, by oapi-codegen (pinned in the
+  `Makefile`) from Zernio's own OpenAPI document, vendored beside it as `openapi.json`. `make zernio-spec` fetches the
+  document Zernio builds its SDKs from, `make zernio` generates. `oapi-codegen.yaml` names the operations called
+  (`include-operation-ids`): four to post, and `getAnalytics`, `getYouTubeVideoRetention` and
+  `listTikTokCommercialMusic` for the snapshot. So the client holds those and the types they reach, not the 631 paths
+  of the document; `overlay.yaml` drops its webhooks. **An operation not named there is not in the client**: a new
+  call is a line there and `make zernio`.
 - **Not Zernio's official Go SDK** (`github.com/zernio-dev/zernio-go`, looked at on 2026-10-13, v0.1.969). It is
   alive: a bot regenerates it from the same document several times a day, and its one maintainer fixed a
   critical bug in a day. But **it refuses any answer with a field it does not know** (`DisallowUnknownFields` in
   the generated models), and Zernio ships its API several times a day. Run against a fake: `ListAccounts` fails
   on one added field, and `CreatePost` fails on the 201 of the document's own example, **after the post was
   made**, the bug its issue 4 reported in August. A pinned version breaks when the API grows; ours ignores what
-  it does not know, and two tests pin that (`…FieldsAddedLater…`). It is also 36 MB of Go in one package.
-- **Four calls a clip**: `GET /v1/accounts`, `POST /v1/media/presign`, a `PUT` of the video to the address that
-  answers (the storage, not the API: raw HTTP, and no key), then `POST /v1/posts` with `scheduledFor`, 5 minutes
-  ahead at the soonest. **Never `publishNow`**: it publishes inside the request (see "No review" above). And one
-  `GET /v1/posts` a run, for what each platform holds; `choose` makes it twice, for what was told too.
-- **One clip is one Zernio post, with a target for each platform**, so one cancel in the dashboard stops it
-  everywhere. Each target carries its own words (`customContent`) and its own settings (`platformSpecificData`), so
-  a change for one platform touches no other. Zernio publishes each target on its own: one
-  platform that fails at its time leaves the post `partial`, and the next run's history says which (`tiktok: …`).
-  - TikTok: public, comments, duets and stitches on (`tiktokSettings`).
-  - YouTube: public, category Gaming (`20`), and **not made for kids**, sent every time since YouTube may block the
-    views of a video with no answer. It is the user's legal choice (2026-10-17): "made for kids" turns comments
-    off for good. The tags go at the root of the post, where Zernio sends them to YouTube alone. Zernio uploads a
-    scheduled video to YouTube up to 15 minutes before its time, private until then: with 5 minutes of lead a clip
-    is on YouTube as soon as it is scheduled, and **cancelling it there means deleting it on YouTube**.
-- **It posts to the one connected account of each platform**, and refuses to guess between two: no account id is
-  configured. A platform with none or two is refused (`Refused`), and the post still goes to the others; with no
-  platform left there is no upload and no post. An account per country will need an id.
-- **What is scheduled on a platform is what Zernio kept**: a platform the kept post has no target for is refused.
-  A run made again after a platform was connected gets the first post back, without it, and says so.
-- **`Idempotency-Key` is the SHA-256 of the video**, so a run made again, or a try after a timeout, is the same
-  post there and not a second one. Zernio matches on the key alone, so the video uploaded again under a new
-  address is still the same post.
-- **A post counts only when Zernio keeps it as `scheduled`.** Any other status is a failure, `published` included:
-  that would be a clip that went out with no review.
-- **Busy** is a 429, a 5xx, a 409 `idempotency_conflict` (the try before is still in flight) and a request that
-  got no answer, with `Retry-After` when sent. Every other answer is final, the 409 for content already posted
-  too.
-- **The logs of a public repo are public.** The key goes in the `Authorization` header of the calls to Zernio
-  and never to the storage, and **an error never carries a URL**: the address a video is uploaded to is a
-  credential for an hour, and Go's `url.Error` prints it. `unreachable` keeps the cause and drops the address;
-  a test pins it.
-- **A post a platform refuses at its time is seen by the next run**, about 2 hours after its own ended: the history `choose`
-  reads holds each post's state and each platform's error, and `log_history` logs every post of the last week,
-  a refused one as a warning with why (`a post of the last week was refused … failure="tiktok: …"`).
-- The tests run it against `httptest`, with the requests and the answers of Zernio's OpenAPI document.
+  it does not know, and tests pin that (`…FieldsAddedLater…`). It is also 36 MB of Go in one package.
 
 **`internal/clips/internal/stats/` is what became of the posts**, a concept of its own beside `replays` and `posts`,
 for the experiments: what a clip was is in its post's `record`, and how it did is here, side by side. A view count read
@@ -571,8 +565,8 @@ for good:
   and the VPS's (`VPS_*`, as `fetch`) and runs no npm, as the clips workflow's jobs do. A snapshot that lost a post
   is still kept, then the run is red.
 - `take_snapshot_usecase` reads, then keeps the rows with the report, `log_take_snapshot` logs each TikTok lane and
-  each post lost, and the adapter of Zernio is `posts/zernio`'s `Service` again (`stats.go`): the one package that
-  knows the service. Its tests run it against `httptest` with the answers of Zernio's document, the use case's
+  each post lost, and `stats/zernio_source` reads Zernio: the one package of the job that still knows the service,
+  until the snapshots move to the server's publishing module. Its tests run it against `httptest` with the answers of Zernio's document, the use case's
   against a scripted source, and `ssh_stats_store`'s against a fake `ssh` that keeps its standard input.
 
 `posts/generator_output/` reads the generator's files (`protojson`, unknown fields dropped, so the generator can

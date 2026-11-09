@@ -13,15 +13,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/cmd/clips/internal/flags"
 )
 
-func TestChooseWithNoKeyFailsBeforeItAsksTheServiceAnything(t *testing.T) {
-	t.Setenv(flags.KeyVariable, "")
+func TestChooseWithNoHostIsRefusedBeforeItAsksTheBackendAnything(t *testing.T) {
+	t.Setenv(flags.HostVariable, "")
 	var out bytes.Buffer
 	findings := filepath.Join(t.TempDir(), "findings.json")
 	require.NoError(t, os.WriteFile(findings, []byte(`{"fronts":[{"tilesChanged":900}]}`), 0o600))
 
 	err := run(t.Context(), []string{"choose", "-findings", findings}, &out)
 
-	require.ErrorContains(t, err, "the zernio api key is empty")
+	require.ErrorIs(t, err, flags.ErrArguments)
 	assert.Empty(t, out.String())
 }
 
@@ -77,18 +77,18 @@ func TestAFetchOfNoTimeIsRefusedBeforeAnythingIsAskedOfTheBackend(t *testing.T) 
 	assert.NotContains(t, err.Error(), "usage:")
 }
 
-func TestScheduleWithNoKeyFailsBeforeItSendsAnything(t *testing.T) {
-	t.Setenv(flags.KeyVariable, "")
+func TestScheduleWithNoHostIsRefusedBeforeItSendsAnything(t *testing.T) {
+	t.Setenv(flags.HostVariable, "")
 	var out bytes.Buffer
 
 	err := run(t.Context(), []string{"schedule", "-clips", t.TempDir()}, &out)
 
-	require.ErrorContains(t, err, "the zernio api key is empty")
+	require.ErrorIs(t, err, flags.ErrArguments)
 	assert.Empty(t, out.String())
 }
 
-func TestScheduleWithNoClipInTheFolderFails(t *testing.T) {
-	t.Setenv(flags.KeyVariable, "the-key")
+func TestScheduleWithNoClipInTheFolderFailsBeforeItAsksTheBackendAnything(t *testing.T) {
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
 	var out bytes.Buffer
 
 	err := run(t.Context(), []string{"schedule", "-clips", t.TempDir()}, &out)

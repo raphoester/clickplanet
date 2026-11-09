@@ -92,7 +92,7 @@ jobs:
           path: apps/frontend/findings.json
           retention-days: 1
 
-  # Its own job: the Zernio and Anthropic keys are in no job that installs the frontend's dependencies.
+  # Its own job: the Anthropic key and the VPS's are in no job that installs the frontend's dependencies.
   choose:
     needs: findings
     runs-on: ubuntu-latest
@@ -111,18 +111,25 @@ jobs:
         with:
           name: findings
 
-      # Up to 2, within what each platform has left of its trailing day: the model's stories of the findings, each
-      # checked against them, with the arm of each experiment its clip is in:
+      # Up to 2, within what each platform has left of its trailing day, as the backend's publishing module counts it,
+      # and what was told, both asked of it over ssh: the model's stories of the findings, each checked against them,
+      # with the arm of each experiment its clip is in:
       # [{"pick":1,"story":{"front":3,"kind":"battle",...,"headline":"FRANCE VS TURKEY"},"variants":{}}].
       # What the model's call cost goes to the summary; a model that fails leaves the run its day won alone, and the summary says why.
       - name: choose the clips of the run
         id: choose
         working-directory: apps/backend
         env:
-          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PLATFORMS: ${{ vars.CLIPS_PLATFORMS }}
+          CLICKPLANET_SSH: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
+          eval "$(ssh-agent -s)" > /dev/null
+          ssh-add -q - <<< "$VPS_SSH_KEY"
+          install -m 700 -d ~/.ssh
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
           picks=$(go run ./cmd/clips choose -findings "$GITHUB_WORKSPACE/findings.json" -platforms "$PLATFORMS" \
             -summary "$GITHUB_STEP_SUMMARY")
           echo "picks=$picks" >> "$GITHUB_OUTPUT"
@@ -212,11 +219,12 @@ jobs:
           merge-multiple: true
 
       # The repository variable CLIPS_PLATFORMS turns a platform off with no commit: "tiktok" alone. Unset is every platform.
-      # Then the backend keeps who each post names, over ssh, so the game tells them: no npm in this job either.
+      # The backend's publishing module plans and posts each clip, over ssh; the video goes straight to the posting
+      # service's storage, through a link the backend signs. Then the backend keeps who each post names, so the game
+      # tells them: no npm in this job either.
       - name: schedule the clips on TikTok and YouTube
         working-directory: apps/backend
         env:
-          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
           PLATFORMS: ${{ vars.CLIPS_PLATFORMS }}
           CLICKPLANET_SSH: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
           VPS_HOST: ${{ secrets.VPS_HOST }}

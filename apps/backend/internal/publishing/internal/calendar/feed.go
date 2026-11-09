@@ -11,6 +11,8 @@ const day = 24 * time.Hour
 // A post on the service, whoever made it, on the platforms it goes out on: what counts against a platform's daily
 // budget, and what a new post keeps its distance from.
 type Posting struct {
+	// The post's id on the service; one post may go out at a time of its own on each platform.
+	ID        string
 	At        time.Time
 	Platforms []Platform
 }
