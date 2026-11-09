@@ -68,3 +68,9 @@ type Snapshot struct {
 
 // Start is the tiles each country held when a round opened; an empty one counts from nothing.
 type Start map[Country]uint32
+
+// CountsFromNothing is a round told to, or the first of its book: the map it opens on goes blank just after (a battle
+// played on a blank map, a season's reset).
+func CountsFromNothing(told bool, before []Round) bool {
+	return told || len(before) == 0
+}

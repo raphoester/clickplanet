@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
@@ -42,7 +43,7 @@ func TestATakeNotYetFlushedIsKeptWithNoAccount(t *testing.T) {
 	takings.Append(ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: gone(t).String(), Country: "fr", At: at})
 	takings.Append(ledger.Taking{Tile: 2, Scope: "1.2.3.4", Account: kept, Country: "de", Previous: "fr", At: at})
 
-	require.NoError(t, anonymize_takes_usecase.New(takings, persistence, tiles(t)).Execute(t.Context(), gone(t)))
+	require.NoError(t, anonymize_takes_usecase.New(takings, persistence, arenas.NewMemoryStore(), tiles(t)).Execute(t.Context(), gone(t)))
 
 	assert.Equal(t, []inmemory_ledger_storage.Stored{
 		{Position: 0, Entry: ledger.Entry{Kind: "take", Tile: 1, Scope: "1.2.3.4", Country: "fr", At: at}},
@@ -56,7 +57,7 @@ func TestAFailedFlushIsAnError(t *testing.T) {
 	takings.Append(ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: gone(t).String(), Country: "fr", At: at})
 	persistence.FailWith(errors.New("postgres is down"))
 
-	assert.ErrorContains(t, anonymize_takes_usecase.New(takings, persistence, tiles(t)).Execute(t.Context(), gone(t)), "postgres is down")
+	assert.ErrorContains(t, anonymize_takes_usecase.New(takings, persistence, arenas.NewMemoryStore(), tiles(t)).Execute(t.Context(), gone(t)), "postgres is down")
 }
 
 func TestATileTheAccountHeldKeepsItsFlagAndLosesItsHolder(t *testing.T) {
@@ -65,13 +66,26 @@ func TestATileTheAccountHeldKeepsItsFlagAndLosesItsHolder(t *testing.T) {
 	require.NoError(t, held.Set(cpctx.AddAccountToContext(t.Context(), gone(t).String()), 1, "fr"))
 	require.NoError(t, held.Set(cpctx.AddAccountToContext(t.Context(), kept), 2, "fr"))
 
-	require.NoError(t, anonymize_takes_usecase.New(loaded(t, persistence), persistence, held).Execute(t.Context(), gone(t)))
+	require.NoError(t, anonymize_takes_usecase.New(loaded(t, persistence), persistence, arenas.NewMemoryStore(), held).Execute(t.Context(), gone(t)))
 
 	owner, _ := held.Owner(1)
 	assert.Equal(t, "fr", owner)
 	keptAccount, err := ledger.AccountIDOf(kept)
 	require.NoError(t, err)
 	assert.Equal(t, []clicks.Holding{{Account: keptAccount, Flag: "fr", Tiles: 1}}, held.HoldingsOf(1))
+}
+
+func TestATileAnArenaKeepsLosesItsHolderToo(t *testing.T) {
+	persistence := inmemory_ledger_storage.NewMemoryPersistence()
+	kept := arenas.NewMemoryStore()
+	before := clicks.MapCopy{Tiles: []clicks.TileCopy{{ID: 1, Owner: "fr", Holder: gone(t)}}}
+	require.NoError(t, kept.Open(t.Context(), arenas.Opening{ID: "siege", EndsAt: at, OpenedAt: at}, before))
+
+	require.NoError(t, anonymize_takes_usecase.New(loaded(t, persistence), persistence, kept, tiles(t)).Execute(t.Context(), gone(t)))
+
+	back, err := kept.Close(t.Context(), arenas.Closing{ID: "siege", ClosedAt: at})
+	require.NoError(t, err)
+	assert.Equal(t, []clicks.TileCopy{{ID: 1, Owner: "fr"}}, back.Tiles)
 }
 
 func tiles(t *testing.T) *inmemory_tile_storage.Storage {

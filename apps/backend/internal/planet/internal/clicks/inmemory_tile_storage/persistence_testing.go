@@ -98,16 +98,20 @@ func (m *MemoryPersistence) Save(_ context.Context, tiles []Tile, landmasses []L
 	if m.failing != nil {
 		return m.failing
 	}
+	if len(tiles) > 0 {
+		m.saves = append(m.saves, slices.Clone(tiles))
+	}
+	m.putLocked(tiles, landmasses)
+	return nil
+}
+
+func (m *MemoryPersistence) putLocked(tiles []Tile, landmasses []Landmass) {
 	for _, landmass := range landmasses {
 		if m.landmasses[landmass.Asset] == nil {
 			m.landmasses[landmass.Asset] = map[clicks.LandmassID]string{}
 		}
 		m.landmasses[landmass.Asset][landmass.ID] = landmass.FortifiedBy
 	}
-	if len(tiles) == 0 {
-		return nil
-	}
-	m.saves = append(m.saves, slices.Clone(tiles))
 	for _, tile := range tiles {
 		if tile.Owner == "" {
 			delete(m.rows, tile.ID)
@@ -127,7 +131,6 @@ func (m *MemoryPersistence) Save(_ context.Context, tiles []Tile, landmasses []L
 			m.shields[tile.ID] = tile.Shields
 		}
 	}
-	return nil
 }
 
 func (m *MemoryPersistence) Wipe(ctx context.Context, keep func(ctx context.Context) (bool, error)) (bool, error) {
@@ -143,6 +146,25 @@ func (m *MemoryPersistence) Wipe(ctx context.Context, keep func(ctx context.Cont
 	}
 	m.rows, m.shields, m.holders = map[uint32]string{}, map[uint32]int{}, map[uint32]cpsession.AccountID{}
 	m.landmasses = map[string]map[clicks.LandmassID]string{}
+	return true, nil
+}
+
+func (m *MemoryPersistence) Replace(
+	ctx context.Context, take func(ctx context.Context) ([]Tile, []Landmass, bool, error),
+) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return false, m.failing
+	}
+	tiles, landmasses, ok, err := take(ctx)
+	if err != nil || !ok {
+		return false, err
+	}
+	m.rows, m.shields, m.holders = map[uint32]string{}, map[uint32]int{}, map[uint32]cpsession.AccountID{}
+	m.landmasses = map[string]map[clicks.LandmassID]string{}
+	m.putLocked(tiles, landmasses)
 	return true, nil
 }
 

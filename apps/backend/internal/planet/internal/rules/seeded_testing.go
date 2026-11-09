@@ -47,6 +47,7 @@ func Seeded() Snapshot {
 			},
 			Frozen:           on(false),
 			AllegianceLocked: on(false),
+			Siege:            &planetv1.SiegeRules{On: on(false), Freeze: d(8 * time.Second)},
 		},
 	}
 }

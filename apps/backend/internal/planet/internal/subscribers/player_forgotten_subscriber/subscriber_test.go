@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
@@ -43,7 +44,7 @@ func TestADeletedAccountIsTakenOffEveryTakeItMade(t *testing.T) {
 	require.NoError(t, takings.Flush(ctx))
 	takings.Append(ledger.Taking{Tile: 3, Scope: "1.2.3.4", Account: gone, Country: "de", Previous: "fr", At: at.Add(2 * time.Hour)})
 
-	err := player_forgotten_subscriber.New(anonymize_takes_usecase.New(takings, store, tiles())).
+	err := player_forgotten_subscriber.New(anonymize_takes_usecase.New(takings, store, arenas.NewMemoryStore(), tiles())).
 		Handle(ctx, &playerv1.PlayerForgotten{AccountId: gone})
 	require.NoError(t, err)
 
@@ -60,7 +61,7 @@ func TestAnEventWithNoAccountIsRefused(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, persistence, slog.New(slog.DiscardHandler))
 
-	err := player_forgotten_subscriber.New(anonymize_takes_usecase.New(takings, persistence, tiles())).
+	err := player_forgotten_subscriber.New(anonymize_takes_usecase.New(takings, persistence, arenas.NewMemoryStore(), tiles())).
 		Handle(t.Context(), &playerv1.PlayerForgotten{})
 
 	assert.ErrorIs(t, err, ledger.ErrInvalidAccount)

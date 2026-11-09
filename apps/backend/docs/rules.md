@@ -26,6 +26,7 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   and a `Part` (`rules.PartOf[R]{Key, Read}`). The `rules` package names none of them.
 - **`parts.All()` is the one list of parts** (`rules/parts`). A concept that reads the rules adds its field to
   `planet.v1.Rules`, its part, and one line there; nothing in `rules`, the store or the handlers changes.
+- **A part may refuse a value in `default` alone** (`PartOf.InDefault`): `siege.on`, which every set would play.
 - **`Restore` reads and validates every part of what the set plays**, and keeps each part's rules, so a read never
   converts again. It refuses a set any part refuses, with every reason, each named by its path as `planet.v1.Rules`
   writes it: `clicks.burst is 0, under one click (1); bonuses.quiz.answerWindow is 0s, and must be above 0`. A value
@@ -74,6 +75,10 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 - `frozen` — the map takes no play (off). See [A frozen map](#a-frozen-map)
 - `allegianceLocked` — no account changes its flag; a first flag is still taken (off; on in a battle's set). See
   [Allegiance](allegiance.md)
+- `siege.on` — a battle that plays the set is a siege, played on a blank map; the gamemaster reads it, planet plays no
+  rule of it (off; **refused in `default`**, or every battle would be one: `PartOf.InDefault`). `siege.freeze` — how
+  long an arena takes no play after the map goes blank and before the battle ends, 0 to 30 s (8 s). See
+  [Sieges and arenas](arenas.md)
 
 ## A frozen map
 

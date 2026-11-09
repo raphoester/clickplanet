@@ -167,12 +167,8 @@ func (s *Store) Wipe(ctx context.Context, keep func(ctx context.Context) (bool, 
 		if err != nil || !kept {
 			return err
 		}
-		tx := s.db.On(ctx)
-		if _, err := tx.ExecContext(ctx, `DELETE FROM tiles`); err != nil {
-			return fmt.Errorf("failed to delete the tiles: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM landmasses`); err != nil {
-			return fmt.Errorf("failed to delete the landmasses' locks: %w", err)
+		if err := s.deleteAll(ctx); err != nil {
+			return err
 		}
 		wiped = true
 		return nil
@@ -181,4 +177,40 @@ func (s *Store) Wipe(ctx context.Context, keep func(ctx context.Context) (bool, 
 		return false, err //nolint:wrapcheck // each step names itself.
 	}
 	return wiped, nil
+}
+
+func (s *Store) Replace(
+	ctx context.Context,
+	take func(ctx context.Context) ([]inmemory_tile_storage.Tile, []inmemory_tile_storage.Landmass, bool, error),
+) (bool, error) {
+	replaced := false
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
+		tiles, landmasses, ok, err := take(ctx)
+		if err != nil || !ok {
+			return err
+		}
+		if err := s.deleteAll(ctx); err != nil {
+			return err
+		}
+		if err := s.Save(ctx, tiles, landmasses); err != nil {
+			return err
+		}
+		replaced = true
+		return nil
+	})
+	if err != nil {
+		return false, err //nolint:wrapcheck // each step names itself.
+	}
+	return replaced, nil
+}
+
+func (s *Store) deleteAll(ctx context.Context) error {
+	tx := s.db.On(ctx)
+	if _, err := tx.ExecContext(ctx, `DELETE FROM tiles`); err != nil {
+		return fmt.Errorf("failed to delete the tiles: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM landmasses`); err != nil {
+		return fmt.Errorf("failed to delete the landmasses' locks: %w", err)
+	}
+	return nil
 }

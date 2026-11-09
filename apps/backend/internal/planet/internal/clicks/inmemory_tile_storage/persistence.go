@@ -18,6 +18,9 @@ type Persistence interface {
 	Save(ctx context.Context, tiles []Tile, landmasses []Landmass) error
 	// Wipe deletes every tile and every landmass's lock, in one transaction with keep, once keep says to.
 	Wipe(ctx context.Context, keep func(ctx context.Context) (bool, error)) (bool, error)
+	// Replace deletes every tile and every landmass's lock and writes the ones take answers, in one transaction with
+	// take, once take says to.
+	Replace(ctx context.Context, take func(ctx context.Context) ([]Tile, []Landmass, bool, error)) (bool, error)
 }
 
 type Tile struct {
@@ -41,11 +44,21 @@ func (s *Storage) Load(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	return s.fillLocked(ctx, s.persistence.Load, s.persistence.LoadLandmasses)
+}
+
+// fillLocked puts the tiles and the locks each source visits on the board, as on a blank one, and settles every
+// landmass.
+func (s *Storage) fillLocked(
+	ctx context.Context,
+	tiles func(ctx context.Context, visit func(tile Tile)) error,
+	landmasses func(ctx context.Context, asset string, visit func(landmass clicks.LandmassID, fortifiedBy string)) error,
+) error {
 	var (
 		owned, outside int
 		internErr      error
 	)
-	err := s.persistence.Load(ctx, func(tile Tile) {
+	err := tiles(ctx, func(tile Tile) {
 		if tile.ID > s.board.last() {
 			outside++
 			return
@@ -71,7 +84,7 @@ func (s *Storage) Load(ctx context.Context) error {
 	}
 
 	fortified, strays := 0, 0
-	err = s.persistence.LoadLandmasses(ctx, s.landmasses.asset(), func(landmass clicks.LandmassID, fortifiedBy string) {
+	err = landmasses(ctx, s.landmasses.asset(), func(landmass clicks.LandmassID, fortifiedBy string) {
 		if !s.landmasses.known(landmass) {
 			strays++
 			return

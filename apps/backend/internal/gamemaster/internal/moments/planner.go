@@ -18,19 +18,28 @@ type Entries interface {
 	Unended(ctx context.Context, at time.Time) ([]schedule.Entry, error)
 }
 
-type Opened interface {
+// Kept is what the gamemaster keeps of the rounds it opened and scoring scored.
+type Kept interface {
 	Opened(ctx context.Context) ([]RoundID, error)
+	Scored(ctx context.Context) ([]RoundID, error)
 }
 
-func NewPlanner(seasons Seasons, entries Entries, opened Opened, cutoff season.Cutoff) Planner {
-	return Planner{seasons: seasons, entries: entries, opened: opened, cutoff: cutoff}
+// Judged is what the gamemaster keeps of the sieges: each battle judged, and each arena planet closed.
+type Judged interface {
+	Judged(ctx context.Context) ([]Judgement, error)
+	Closed(ctx context.Context) ([]RoundID, error)
 }
 
-// Planner reads the seasons and the entries that may be a battle of one, and plans their books.
+func NewPlanner(seasons Seasons, entries Entries, kept Kept, judged Judged, cutoff season.Cutoff) Planner {
+	return Planner{seasons: seasons, entries: entries, kept: kept, judged: judged, cutoff: cutoff}
+}
+
+// Planner reads the seasons, the entries that may be a battle of one and the sieges, and plans their books.
 type Planner struct {
 	seasons Seasons
 	entries Entries
-	opened  Opened
+	kept    Kept
+	judged  Judged
 	cutoff  season.Cutoff
 }
 
@@ -47,13 +56,33 @@ func (p Planner) With(ctx context.Context, changed ...schedule.Entry) (Plan, err
 	if err != nil {
 		return Plan{}, fmt.Errorf("could not read the schedule: %w", err)
 	}
-	opened, err := p.opened.Opened(ctx)
+	opened, err := p.kept.Opened(ctx)
 	if err != nil {
 		return Plan{}, fmt.Errorf("could not read the rounds opened: %w", err)
+	}
+	sieges, err := p.sieges(ctx)
+	if err != nil {
+		return Plan{}, err
 	}
 	for _, entry := range changed {
 		id := entry.TakeSnapshot().ID
 		entries = slices.DeleteFunc(entries, func(kept schedule.Entry) bool { return kept.TakeSnapshot().ID == id })
 	}
-	return NewPlan(calendar, p.cutoff, opened, append(entries, changed...)...), nil
+	return NewPlan(calendar, p.cutoff, opened, append(entries, changed...)...).With(sieges), nil
+}
+
+func (p Planner) sieges(ctx context.Context) (Sieges, error) {
+	scored, err := p.kept.Scored(ctx)
+	if err != nil {
+		return Sieges{}, fmt.Errorf("could not read the rounds scored: %w", err)
+	}
+	judged, err := p.judged.Judged(ctx)
+	if err != nil {
+		return Sieges{}, fmt.Errorf("could not read the battles judged: %w", err)
+	}
+	closed, err := p.judged.Closed(ctx)
+	if err != nil {
+		return Sieges{}, fmt.Errorf("could not read the arenas closed: %w", err)
+	}
+	return NewSieges(judged, scored, closed), nil
 }

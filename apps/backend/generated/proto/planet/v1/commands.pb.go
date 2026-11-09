@@ -391,6 +391,191 @@ func (x *ResetMap) GetDecidedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// One stream for both, handled in order. An arena is the blank map of a battle played as a siege: planet keeps the map
+// from before it and brings it back exactly when it closes. Each command is idempotent by arena_id.
+type ArenaCommand struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Command:
+	//
+	//	*ArenaCommand_OpenArena
+	//	*ArenaCommand_CloseArena
+	Command       isArenaCommand_Command `protobuf_oneof:"command"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArenaCommand) Reset() {
+	*x = ArenaCommand{}
+	mi := &file_planet_v1_commands_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArenaCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArenaCommand) ProtoMessage() {}
+
+func (x *ArenaCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_commands_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArenaCommand.ProtoReflect.Descriptor instead.
+func (*ArenaCommand) Descriptor() ([]byte, []int) {
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ArenaCommand) GetCommand() isArenaCommand_Command {
+	if x != nil {
+		return x.Command
+	}
+	return nil
+}
+
+func (x *ArenaCommand) GetOpenArena() *OpenArena {
+	if x != nil {
+		if x, ok := x.Command.(*ArenaCommand_OpenArena); ok {
+			return x.OpenArena
+		}
+	}
+	return nil
+}
+
+func (x *ArenaCommand) GetCloseArena() *CloseArena {
+	if x != nil {
+		if x, ok := x.Command.(*ArenaCommand_CloseArena); ok {
+			return x.CloseArena
+		}
+	}
+	return nil
+}
+
+type isArenaCommand_Command interface {
+	isArenaCommand_Command()
+}
+
+type ArenaCommand_OpenArena struct {
+	OpenArena *OpenArena `protobuf:"bytes,1,opt,name=open_arena,json=openArena,proto3,oneof"`
+}
+
+type ArenaCommand_CloseArena struct {
+	CloseArena *CloseArena `protobuf:"bytes,2,opt,name=close_arena,json=closeArena,proto3,oneof"`
+}
+
+func (*ArenaCommand_OpenArena) isArenaCommand_Command() {}
+
+func (*ArenaCommand_CloseArena) isArenaCommand_Command() {}
+
+// Saves the whole map (owners, shields, holders, fortify locks), then makes it blank: a new epoch, so every client reads
+// it again. An arena opens once, never after it closed, and never at or after ends_at. Every play is refused for the
+// rule set's siege.freeze after it opens and before ends_at.
+type OpenArena struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ArenaId       string                 `protobuf:"bytes,1,opt,name=arena_id,json=arenaId,proto3" json:"arena_id,omitempty"`
+	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenArena) Reset() {
+	*x = OpenArena{}
+	mi := &file_planet_v1_commands_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenArena) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenArena) ProtoMessage() {}
+
+func (x *OpenArena) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_commands_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenArena.ProtoReflect.Descriptor instead.
+func (*OpenArena) Descriptor() ([]byte, []int) {
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *OpenArena) GetArenaId() string {
+	if x != nil {
+		return x.ArenaId
+	}
+	return ""
+}
+
+func (x *OpenArena) GetEndsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndsAt
+	}
+	return nil
+}
+
+// Brings back the map saved when the arena opened, tile for tile, with a new epoch. An arena never opened closes with
+// nothing to bring back. Either way planet tells ArenaClosed, once.
+type CloseArena struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ArenaId       string                 `protobuf:"bytes,1,opt,name=arena_id,json=arenaId,proto3" json:"arena_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseArena) Reset() {
+	*x = CloseArena{}
+	mi := &file_planet_v1_commands_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseArena) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseArena) ProtoMessage() {}
+
+func (x *CloseArena) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_commands_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseArena.ProtoReflect.Descriptor instead.
+func (*CloseArena) Descriptor() ([]byte, []int) {
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CloseArena) GetArenaId() string {
+	if x != nil {
+		return x.ArenaId
+	}
+	return ""
+}
+
 var File_planet_v1_commands_proto protoreflect.FileDescriptor
 
 const file_planet_v1_commands_proto_rawDesc = "" +
@@ -424,7 +609,19 @@ const file_planet_v1_commands_proto_rawDesc = "" +
 	"\bResetMap\x12\x19\n" +
 	"\breset_id\x18\x01 \x01(\tR\aresetId\x129\n" +
 	"\n" +
-	"decided_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAtB\xb5\x01\n" +
+	"decided_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\"\x8a\x01\n" +
+	"\fArenaCommand\x125\n" +
+	"\n" +
+	"open_arena\x18\x01 \x01(\v2\x14.planet.v1.OpenArenaH\x00R\topenArena\x128\n" +
+	"\vclose_arena\x18\x02 \x01(\v2\x15.planet.v1.CloseArenaH\x00R\n" +
+	"closeArenaB\t\n" +
+	"\acommand\"[\n" +
+	"\tOpenArena\x12\x19\n" +
+	"\barena_id\x18\x01 \x01(\tR\aarenaId\x123\n" +
+	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"'\n" +
+	"\n" +
+	"CloseArena\x12\x19\n" +
+	"\barena_id\x18\x01 \x01(\tR\aarenaIdB\xb5\x01\n" +
 	"\rcom.planet.v1B\rCommandsProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -440,28 +637,34 @@ func file_planet_v1_commands_proto_rawDescGZIP() []byte {
 	return file_planet_v1_commands_proto_rawDescData
 }
 
-var file_planet_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_planet_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_planet_v1_commands_proto_goTypes = []any{
 	(*GrantCharges)(nil),          // 0: planet.v1.GrantCharges
 	(*RefuseCaller)(nil),          // 1: planet.v1.RefuseCaller
 	(*AdmitCaller)(nil),           // 2: planet.v1.AdmitCaller
 	(*PlayRuleSet)(nil),           // 3: planet.v1.PlayRuleSet
 	(*ResetMap)(nil),              // 4: planet.v1.ResetMap
-	(BonusKind)(0),                // 5: planet.v1.BonusKind
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(*ArenaCommand)(nil),          // 5: planet.v1.ArenaCommand
+	(*OpenArena)(nil),             // 6: planet.v1.OpenArena
+	(*CloseArena)(nil),            // 7: planet.v1.CloseArena
+	(BonusKind)(0),                // 8: planet.v1.BonusKind
+	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
 }
 var file_planet_v1_commands_proto_depIdxs = []int32{
-	5, // 0: planet.v1.GrantCharges.kind:type_name -> planet.v1.BonusKind
-	6, // 1: planet.v1.RefuseCaller.until:type_name -> google.protobuf.Timestamp
-	6, // 2: planet.v1.RefuseCaller.decided_at:type_name -> google.protobuf.Timestamp
-	6, // 3: planet.v1.AdmitCaller.decided_at:type_name -> google.protobuf.Timestamp
-	6, // 4: planet.v1.PlayRuleSet.decided_at:type_name -> google.protobuf.Timestamp
-	6, // 5: planet.v1.ResetMap.decided_at:type_name -> google.protobuf.Timestamp
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	8, // 0: planet.v1.GrantCharges.kind:type_name -> planet.v1.BonusKind
+	9, // 1: planet.v1.RefuseCaller.until:type_name -> google.protobuf.Timestamp
+	9, // 2: planet.v1.RefuseCaller.decided_at:type_name -> google.protobuf.Timestamp
+	9, // 3: planet.v1.AdmitCaller.decided_at:type_name -> google.protobuf.Timestamp
+	9, // 4: planet.v1.PlayRuleSet.decided_at:type_name -> google.protobuf.Timestamp
+	9, // 5: planet.v1.ResetMap.decided_at:type_name -> google.protobuf.Timestamp
+	6, // 6: planet.v1.ArenaCommand.open_arena:type_name -> planet.v1.OpenArena
+	7, // 7: planet.v1.ArenaCommand.close_arena:type_name -> planet.v1.CloseArena
+	9, // 8: planet.v1.OpenArena.ends_at:type_name -> google.protobuf.Timestamp
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_commands_proto_init() }
@@ -478,13 +681,17 @@ func file_planet_v1_commands_proto_init() {
 		(*AdmitCaller_Scope)(nil),
 		(*AdmitCaller_AccountId)(nil),
 	}
+	file_planet_v1_commands_proto_msgTypes[5].OneofWrappers = []any{
+		(*ArenaCommand_OpenArena)(nil),
+		(*ArenaCommand_CloseArena)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_commands_proto_rawDesc), len(file_planet_v1_commands_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

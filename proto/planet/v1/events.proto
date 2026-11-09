@@ -168,3 +168,9 @@ message AllegiancePledged {
   string previous = 3;
   google.protobuf.Timestamp pledged_at = 4;
 }
+
+// The arena closed: the map from before it is back, or it never opened and nothing changed.
+message ArenaClosed {
+  string arena_id = 1;
+  google.protobuf.Timestamp closed_at = 2;
+}

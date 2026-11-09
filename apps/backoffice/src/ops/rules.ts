@@ -83,6 +83,9 @@ export const GROUPS: {title: string, fields: Field[]}[] = [
         {path: "bonuses.welcome.within", label: "New for (s)", kind: "seconds"},
         {path: "bonuses.welcome.boxAfter", label: "First box after (s)", kind: "seconds"},
     ]},
+    {title: "Siege", fields: [
+        {path: "siege.freeze", label: "No play after the blank map and before the end (s)", kind: "seconds"},
+    ]},
     {title: "Quizzes", fields: [
         {path: "bonuses.quiz.minInterval", label: "Shortest quiz wait (s)", kind: "seconds"},
         {path: "bonuses.quiz.maxInterval", label: "Longest quiz wait (s)", kind: "seconds"},
@@ -102,7 +105,7 @@ export type TollStep = {share: string, slowdown: string}
 // A set as the form edits it: every value as typed. Outside default, "" and undefined are default's value.
 export type Draft = {
     name: string, values: Record<string, string>, quiz?: boolean, signInRefill?: boolean, frozen?: boolean,
-    allegianceLocked?: boolean, enclosuresUnlimited?: boolean, toll?: TollStep[]
+    allegianceLocked?: boolean, siege?: boolean, enclosuresUnlimited?: boolean, toll?: TollStep[]
 }
 
 export function draftOf(set: RuleSet): Draft {
@@ -117,6 +120,7 @@ export function draftOf(set: RuleSet): Draft {
         enclosuresUnlimited: rules.bonuses?.enclose?.unlimited,
         frozen: rules.frozen,
         allegianceLocked: rules.allegianceLocked,
+        siege: rules.siege?.on,
         toll: rules.toll?.steps.map(step => ({
             share: String(Number((step.share * 100).toPrecision(12))), slowdown: String(step.slowdown),
         })),
@@ -163,6 +167,7 @@ export function complete(draft: Draft): boolean {
 export const SWITCHES = [
     {key: "frozen", label: "Frozen"},
     {key: "allegianceLocked", label: "Flags locked"},
+    {key: "siege", label: "Siege"},
     {key: "quiz", label: "Quizzes on"},
     {key: "signInRefill", label: "Refill at first sign-in"},
     {key: "enclosuresUnlimited", label: "Enclosures unlimited"},
@@ -218,7 +223,8 @@ export function yesOf(on: boolean | undefined): string {
 export function ruleSetOf(draft: Draft): RuleSet {
     const json: JsonObject = {}
     const switches = {
-        "frozen": draft.frozen, "allegianceLocked": draft.allegianceLocked, "bonuses.quiz.enabled": draft.quiz,
+        "frozen": draft.frozen, "allegianceLocked": draft.allegianceLocked, "siege.on": draft.siege,
+        "bonuses.quiz.enabled": draft.quiz,
         "bonuses.signInRefill": draft.signInRefill, "bonuses.enclose.unlimited": draft.enclosuresUnlimited,
     }
     for (const [path, on] of Object.entries(switches)) {

@@ -20,6 +20,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/sieges/inmemory_siege_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
@@ -51,7 +52,7 @@ func newHarness(t *testing.T) *harness {
 	}.Restore()))
 
 	h := &harness{t: t, store: inmemory_moment_store.New(), outbox: &cpatomic.FakeOutbox{}}
-	h.useCase = hear_round_usecase.New(moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), season.Cutoff(21*time.Hour)), h.store,
+	h.useCase = hear_round_usecase.New(moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), inmemory_siege_store.New(), season.Cutoff(21*time.Hour)), h.store,
 		outbox_moment_events.New(h.outbox), cpatomic.FakeTransactioner{})
 	return h
 }

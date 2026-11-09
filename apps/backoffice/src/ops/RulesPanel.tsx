@@ -127,6 +127,9 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                 <SwitchField label="Flags locked: no player changes country" on={draft.allegianceLocked}
                              defaults={defaults?.allegianceLocked} inherits={defaults !== undefined}
                              onChange={allegianceLocked => change({allegianceLocked})}/>
+                {draft.name.trim() !== DEFAULT_SET &&
+                    <SwitchField label="Siege: a battle starts on a blank map" on={draft.siege} defaults={defaults?.siege}
+                                 inherits={defaults !== undefined} onChange={siege => change({siege})}/>}
             </div>
             <div className="rule-groups">
                 {GROUPS.map(group => (

@@ -1055,3 +1055,48 @@ export class AllegiancePledged extends Message<AllegiancePledged> {
   }
 }
 
+/**
+ * The arena closed: the map from before it is back, or it never opened and nothing changed.
+ *
+ * @generated from message planet.v1.ArenaClosed
+ */
+export class ArenaClosed extends Message<ArenaClosed> {
+  /**
+   * @generated from field: string arena_id = 1;
+   */
+  arenaId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp closed_at = 2;
+   */
+  closedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ArenaClosed>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ArenaClosed";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "arena_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "closed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ArenaClosed {
+    return new ArenaClosed().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ArenaClosed {
+    return new ArenaClosed().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ArenaClosed {
+    return new ArenaClosed().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ArenaClosed | PlainMessage<ArenaClosed> | undefined, b: ArenaClosed | PlainMessage<ArenaClosed> | undefined): boolean {
+    return proto3.util.equals(ArenaClosed, a, b);
+  }
+}
+

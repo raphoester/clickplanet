@@ -25,14 +25,24 @@ func (s *Storage) Wipe(ctx context.Context, keep func(ctx context.Context) (bool
 		return false, nil
 	}
 
+	s.emptyLocked()
+	s.restartLocked()
+
+	return true, nil
+}
+
+// A blank board, no landmass held or locked, nothing to recount.
+func (s *Storage) emptyLocked() {
 	borders := s.landmasses.borders
 	s.board = newBoard(s.board.last())
 	s.landmasses = newLandmasses(borders)
 	s.recount = newRecount(borders.Landmasses())
+}
+
+// A new epoch, and every stream cut: every client reads the map again, as after a restart.
+func (s *Storage) restartLocked() {
 	s.version = clicks.MapVersion{
 		Epoch: max(uint32(s.clock.Now().Unix()), s.version.Epoch+1), //nolint:gosec // seconds fit a uint32 until 2106.
 	}
 	s.feed.cutAll()
-
-	return true, nil
 }

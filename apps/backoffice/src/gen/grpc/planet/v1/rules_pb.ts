@@ -45,6 +45,11 @@ export class Rules extends Message<Rules> {
    */
   allegianceLocked?: boolean;
 
+  /**
+   * @generated from field: planet.v1.SiegeRules siege = 6;
+   */
+  siege?: SiegeRules;
+
   constructor(data?: PartialMessage<Rules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -58,6 +63,7 @@ export class Rules extends Message<Rules> {
     { no: 3, name: "bonuses", kind: "message", T: BonusRules },
     { no: 4, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 5, name: "allegiance_locked", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 6, name: "siege", kind: "message", T: SiegeRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rules {
@@ -74,6 +80,53 @@ export class Rules extends Message<Rules> {
 
   static equals(a: Rules | PlainMessage<Rules> | undefined, b: Rules | PlainMessage<Rules> | undefined): boolean {
     return proto3.util.equals(Rules, a, b);
+  }
+}
+
+/**
+ * A battle played with on is a siege: the map goes blank when it starts and comes back when it ends. Never on in default.
+ *
+ * @generated from message planet.v1.SiegeRules
+ */
+export class SiegeRules extends Message<SiegeRules> {
+  /**
+   * @generated from field: optional bool on = 1;
+   */
+  on?: boolean;
+
+  /**
+   * Every play is refused this long after the map goes blank and before the battle ends. 0 to 30 s.
+   *
+   * @generated from field: google.protobuf.Duration freeze = 2;
+   */
+  freeze?: Duration;
+
+  constructor(data?: PartialMessage<SiegeRules>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.SiegeRules";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "on", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 2, name: "freeze", kind: "message", T: Duration },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SiegeRules {
+    return new SiegeRules().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SiegeRules {
+    return new SiegeRules().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SiegeRules {
+    return new SiegeRules().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SiegeRules | PlainMessage<SiegeRules> | undefined, b: SiegeRules | PlainMessage<SiegeRules> | undefined): boolean {
+    return proto3.util.equals(SiegeRules, a, b);
   }
 }
 

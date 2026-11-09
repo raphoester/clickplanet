@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/add_entry_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/sieges/inmemory_siege_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -37,7 +38,7 @@ func adding(store *inmemory_entry_store.Store, keepers []schedule.Keeper) *add_e
 }
 
 func planned(seasons *inmemory_season_store.Store, entries *inmemory_entry_store.Store) moments.Planner {
-	return moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), season.Cutoff(21*time.Hour))
+	return moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), inmemory_siege_store.New(), season.Cutoff(21*time.Hour))
 }
 
 var rush = schedule.Draft{

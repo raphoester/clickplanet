@@ -81,9 +81,10 @@ store's insert (`ON CONFLICT DO NOTHING`, which answers whether this call did it
   `books.MaxTimes` (10), or the command is refused. A round whose book is not open (never opened, or closed) is refused
   (`open_round_usecase.ErrBookNotOpen`). Else `open_round_usecase` reads the map (`GetTerritories`) and keeps what each
   country holds then with the round, in one transaction: its **start** (`books.Start`, `round_starts`). A failure to
-  read the map opens nothing and is tried again. **A book's first round keeps no start and counts from nothing**: a
-  season after season 0 opens on a blank map, and the gamemaster tells planet to wipe it on another stream, so the
-  wipe can land after the round opened.
+  read the map opens nothing and is tried again. **A round told `from_nothing`, or a book's first round, keeps no start,
+  reads no map and counts from nothing** (`books.CountsFromNothing`): a season after season 0 opens on a blank map,
+  and the gamemaster tells planet to wipe it on another stream, so the wipe can land after the round opened; a siege's
+  round plays on a map planet blanks after day K is scored (see [Sieges and arenas](arenas.md)).
 - **`CloseRound{round_id, ends_at}`**: a round never opened, or scored, is not scored. Else `close_round_usecase` reads
   the round's start and the map once (`GetTerritories`), ranks the gains (`Round.Results`), keeps the results and records **`scoring.v1.RoundScored`**
   (round, book, end, each country's rank, points and share) in the outbox, in one transaction. A failure to read the map

@@ -24,6 +24,9 @@ internal/planet/internal/
   rules/                          the rule sets, and the one the game plays
     postgres_rule_set_store/
     usecases/
+  arenas/                         the blank map of a battle played as a siege, and the map from before it
+    postgres_arena_store/
+    usecases/
   refusals/                       the callers planet refuses, and until when: the latest decision on each
     postgres_refusal_store/
     log_refusals/
@@ -126,6 +129,8 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
+| `arenas/usecases/open_arena_usecase` | keeps a copy of the map and blanks it, once per arena (see [Sieges and arenas](arenas.md)) | `Tiles`, `Arenas`, `InPlay` |
+| `arenas/usecases/close_arena_usecase` | puts the map from before back and tells `ArenaClosed`, once per arena | `Tiles`, `Arenas`, `Outbox`, `InPlay` |
 | `rules/usecases/play_rules_usecase` | plays the set postgres keeps, at boot and when it changes; `Plays` | `Sets`, `Rules` |
 | `rules/usecases/save_rule_set_usecase` | the operator makes a set or replaces its values; never the one that plays | `Sets`, `Playing` |
 | `ledger/usecases/relay_ledger_usecase` | tells the other modules what the ledger flushed past its cursor, in ledger order: `TilesTaken` and `ShieldsStruck`, one per event in parts of `PartTiles` (4,096) at most, `BombLanded`, `Fortified` and `ShieldPlaced`, each with its position, each tile with its index in its event and a taken one with its point on the globe; a `Runner` | `Ledger`, `Cursor`, `Borders`, `Positions`, `Sender` |

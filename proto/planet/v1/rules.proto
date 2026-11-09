@@ -17,6 +17,14 @@ message Rules {
   // No account changes its flag: PledgeAllegiance refuses another flag to an account that holds one. A first flag is
   // still taken.
   optional bool allegiance_locked = 5;
+  SiegeRules siege = 6;
+}
+
+// A battle played with on is a siege: the map goes blank when it starts and comes back when it ends. Never on in default.
+message SiegeRules {
+  optional bool on = 1;
+  // Every play is refused this long after the map goes blank and before the battle ends. 0 to 30 s.
+  google.protobuf.Duration freeze = 2;
 }
 
 message ClickRules {

@@ -148,6 +148,13 @@ export class OpenRound extends Message<OpenRound> {
    */
   startsAt?: Timestamp;
 
+  /**
+   * The round counts from nothing: its gain is the tiles each country holds when it closes, and opening it reads no map.
+   *
+   * @generated from field: bool from_nothing = 5;
+   */
+  fromNothing = false;
+
   constructor(data?: PartialMessage<OpenRound>) {
     super();
     proto3.util.initPartial(data, this);
@@ -160,6 +167,7 @@ export class OpenRound extends Message<OpenRound> {
     { no: 2, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 5, name: "from_nothing", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenRound {

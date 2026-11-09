@@ -49,3 +49,26 @@ message ResetMap {
   string reset_id = 1;
   google.protobuf.Timestamp decided_at = 2;
 }
+
+// One stream for both, handled in order. An arena is the blank map of a battle played as a siege: planet keeps the map
+// from before it and brings it back exactly when it closes. Each command is idempotent by arena_id.
+message ArenaCommand {
+  oneof command {
+    OpenArena open_arena = 1;
+    CloseArena close_arena = 2;
+  }
+}
+
+// Saves the whole map (owners, shields, holders, fortify locks), then makes it blank: a new epoch, so every client reads
+// it again. An arena opens once, never after it closed, and never at or after ends_at. Every play is refused for the
+// rule set's siege.freeze after it opens and before ends_at.
+message OpenArena {
+  string arena_id = 1;
+  google.protobuf.Timestamp ends_at = 2;
+}
+
+// Brings back the map saved when the arena opened, tile for tile, with a new epoch. An arena never opened closes with
+// nothing to bring back. Either way planet tells ArenaClosed, once.
+message CloseArena {
+  string arena_id = 1;
+}
