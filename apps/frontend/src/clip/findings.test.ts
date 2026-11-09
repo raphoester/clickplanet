@@ -83,12 +83,12 @@ describe("the findings", () => {
 const WORDS = `"headline":"FRANCE TAKES INDIA","call":"FIGHT FOR ALGERIA","look":"dive"`
 
 describe("the story --story names", () => {
-    it("is a front with the story the editor wrote of it, in one country, two, or a continent", () => {
+    it("is a front with the story the editor wrote of it, in one country, several, or a continent", () => {
         const invasion: Story = {kind: "invasion", attacker: "fr", rival: undefined, victims: ["dz"], place: {country: "in"}}
         expect(toldOf(`{"front":3,"kind":"invasion","attacker":"fr","takenFrom":["dz"],"countries":["in"],${WORDS}}`).told)
             .toEqual({front: 3, story: invasion, look: "dive"})
-        expect(toldOf(`{"front":1,"kind":"battle","attacker":"fr","rival":"tr","countries":["tr","sy"],${WORDS}}`).told).toEqual({
-            front: 1, story: {kind: "battle", attacker: "fr", rival: "tr", victims: [], place: {countries: ["tr", "sy"]}}, look: "dive",
+        expect(toldOf(`{"front":1,"kind":"battle","attacker":"fr","rival":"tr","countries":["tr","sy","iq"],${WORDS}}`).told).toEqual({
+            front: 1, story: {kind: "battle", attacker: "fr", rival: "tr", victims: [], place: {countries: ["tr", "sy", "iq"]}}, look: "dive",
         })
         expect(toldOf(`{"front":2,"kind":"comeback","attacker":"de","takenFrom":["ps"],"continent":"Europe","team":"Europe",${WORDS}}`).told).toEqual({
             front: 2, story: {kind: "comeback", attacker: "de", rival: undefined, victims: ["ps"], place: {region: "Europe"}, team: "Europe"},
@@ -132,8 +132,7 @@ describe("the story --story names", () => {
         expect(() => toldOf(`{"front":1,"tour":1}`)).toThrow("one front, one tour, one place or one seasonal story")
         expect(() => toldOf(`{"front":1,"kind":"holding","attacker":"fr","countries":["in"],${WORDS}}`)).toThrow(`not "holding"`)
         expect(() => toldOf(`{"front":1,"kind":"invasion","countries":["in"],${WORDS}}`)).toThrow("has an attacker")
-        expect(() => toldOf(`{"front":1,"kind":"invasion","attacker":"fr",${WORDS}}`)).toThrow("one or two countries, or on a continent")
-        expect(() => toldOf(`{"front":1,"kind":"invasion","attacker":"fr","countries":["in","pk","af"],${WORDS}}`)).toThrow("one or two countries")
+        expect(() => toldOf(`{"front":1,"kind":"invasion","attacker":"fr",${WORDS}}`)).toThrow("in countries, or on a continent")
         expect(() => toldOf(`{"place":4,"headline":"FRANCE HOLDS INDIA"}`)).toThrow("has its headline and its call")
         expect(() => toldOf(`{"tour":1,"call":"FIGHT BACK"}`)).toThrow("has its headline and its call")
         expect(() => toldOf(`{"place":4,"headline":"FRANCE HOLDS INDIA","call":"FIGHT BACK"}`)).toThrow(`not ""`)

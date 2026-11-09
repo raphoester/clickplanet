@@ -172,7 +172,7 @@ export function toldOf(json: string): {told: Told, written: Written | undefined,
 
 function placeOfPick(countries: string[], continent: string): Place {
     if (countries.length === 1) return {country: countries[0]}
-    if (countries.length === 2) return {countries: [countries[0], countries[1]]}
-    if (countries.length === 0 && continent !== "") return {region: continent}
-    throw new Error("a story is told in one or two countries, or on a continent")
+    if (countries.length > 1) return {countries}
+    if (continent !== "") return {region: continent}
+    throw new Error("a story is told in countries, or on a continent")
 }

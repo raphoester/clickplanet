@@ -1,7 +1,7 @@
 import {Countries} from "../countries.ts"
 import {flagOfContinent} from "../regions.ts"
 
-export type Place = {country: string} | {countries: [string, string]} | {region: string}
+export type Place = {country: string} | {countries: string[]} | {region: string}
 
 // A round of the season once it closed, a day or a battle's round of its own (own, numbered apart): the countries
 // that scored the most in it, and the season's table after it.

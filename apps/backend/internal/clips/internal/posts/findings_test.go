@@ -65,7 +65,7 @@ func findings(t *testing.T) posts.Findings {
 func TestAStoryOfAFrontHoldsWhenItsFlagsAndItsPlaceAreTheFrontsAndItsKeyIsItsFirstSideThere(t *testing.T) {
 	found := findings(t)
 
-	battle, err := found.Check(posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy"}, Look: posts.Dive})
+	battle, err := found.Check(posts.Story{Front: 1, Kind: posts.Battle, Attacker: "fr", Rival: "tr", TakenFrom: []string{"tr"}, Countries: []string{"tr", "sy", "in"}, Look: posts.Dive})
 	require.NoError(t, err)
 	kickout, err := found.Check(posts.Story{Front: 1, Kind: posts.Kickout, Attacker: "tr", TakenFrom: []string{"fr"}, Countries: []string{"tr"}, Look: posts.Dive})
 	require.NoError(t, err)
@@ -103,9 +103,8 @@ func TestAStoryThatSaysWhatTheFrontsFactsDoNotIsRefusedWithWhy(t *testing.T) {
 			s.Kind = posts.Rout
 			s.TakenFrom = nil
 		}),
-		"one or two countries, or on a continent": with(fr, func(s *posts.Story) { s.Countries = nil }),
-		"told in one or two countries, not 3":     with(fr, func(s *posts.Story) { s.Countries = []string{"tr", "sy", "in"} }),
-		`"de" is no country of it`:                with(fr, func(s *posts.Story) { s.Countries = []string{"de"} }),
+		"told in countries, or on a continent": with(fr, func(s *posts.Story) { s.Countries = nil }),
+		`"de" is no country of it`:             with(fr, func(s *posts.Story) { s.Countries = []string{"tr", "sy", "de"} }),
 		`"Europe" is no continent of it`: with(fr, func(s *posts.Story) {
 			s.Countries = nil
 			s.Continent = "Europe"

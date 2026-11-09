@@ -312,16 +312,15 @@ async function choose(): Promise<Chosen> {
         const flips = flippedInWindow.filter(({tile}) => inHolding(place.place, groundAt(tile), regionOf))
         return {...place, flippedByContinent: flippedByContinentOf(flips, place.holder, continentAt)}
     }
-    // The clip of a day, or of a country called up after it, plays the run-up to its cutoff: its flag's fighting, else
-    // everyone's. Nothing changed hands before the cutoff is no clip.
+    // The clip of a day, or of a country called up after it, plays its flag's takes before the cutoff where it took the
+    // most (anyone's when it took none): never its losses, never a flight across an ocean. No change is no clip.
     const roundReviewOf = (story: Story): Review | undefined => {
         const cutoff = story.day?.endedAt ?? until
         const backend = replay.cut(Math.max(replay.since, cutoff - ROUND_PLAY_MS), cutoff)
         const played = backend.changes().filter(({from, to}) => from !== to)
-        const own = played.filter(({from, to}) => from === story.attacker || to === story.attacker)
-        const changes = own.length > 0 ? own : played
-        if (changes.length === 0) return undefined
-        const front = {heart: meanOf(changes.map(({tile}) => pointAt(tile))) ?? {x: 0, y: 0, z: 1}, changes}
+        const taken = played.filter(({to}) => to === story.attacker)
+        const front = frontOf(taken.length > 0 ? taken : played, pointAt)
+        if (front === undefined) return undefined
         return {front, story, score: 0, scope: undefined, world: false, backend, solidity: 1, look: SEASONAL_LOOK}
     }
     const told = focus === undefined ? roundStoryOf(day, since, until) : undefined
