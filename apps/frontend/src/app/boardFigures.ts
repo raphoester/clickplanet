@@ -4,7 +4,7 @@ export const GUIDE_MS = 10_000
 export type Figure = "tiles" | "share" | "gained" | "gainedBattle" | "points" | "today" | "battle"
 
 export const FIGURES: Record<Figure, string> = {
-    tiles: "Tiles this country holds now",
+    tiles: "Tiles this country holds now, and its share of the map",
     share: "Its share of the whole map now",
     gained: "Tiles this country took since the day began, minus the tiles it lost. When the day ends, the 10 that gained the most score",
     gainedBattle: "Tiles this country took since the battle began, minus the tiles it lost. When it ends, the 10 that gained the most score",

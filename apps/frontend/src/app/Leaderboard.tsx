@@ -3,6 +3,7 @@ import {PointerEvent, ReactNode, useEffect, useId, useRef, useState} from "react
 import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry} from "../domain/leaderboard.ts";
 import {CountryLine, countryLines, CountryOrder, scoringNow, shownOrder} from "../domain/race.ts";
+import {sharePercent} from "../domain/territory.ts";
 import {Figure, FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts";
 import {DELTA_HOLD_MS, NO_TILE_DELTAS, signed, TileDelta, TileDeltas} from "../domain/tileDeltas.ts";
 import {truncate} from "./truncate.ts";
@@ -101,15 +102,14 @@ export default function Leaderboard(props: LeaderboardProps) {
                 <tr>
                     <th className="leaderboard-table-head leaderboard-table-rank" scope="col">#</th>
                     <th className="leaderboard-table-head" scope="col">Country</th>
-                    <th className="leaderboard-table-head leaderboard-table-number" scope="col" aria-sort={sorted("tiles")}>
+                    <th className="leaderboard-table-head leaderboard-table-number leaderboard-table-tiles" scope="col"
+                        aria-sort={sorted("tiles")}>
                         <Hint {...hint("tiles", "head")} sort={sort("tiles")}>Tiles</Hint>
                     </th>
-                    <th className="leaderboard-table-head leaderboard-table-number leaderboard-table-share" scope="col"
-                        aria-sort={gaining ? sorted("gain") : undefined}>
-                        {gaining
-                            ? <Hint {...hint(gainFigure, "head")} sort={sort("gain")}>Gained</Hint>
-                            : <Hint {...hint("share", "head")}>% of map</Hint>}
-                    </th>
+                    {gaining && <th className="leaderboard-table-head leaderboard-table-number leaderboard-table-gain" scope="col"
+                                    aria-sort={sorted("gain")}>
+                        <Hint {...hint(gainFigure, "head")} sort={sort("gain")}>Gained</Hint>
+                    </th>}
                     {race && <>
                         <th className="leaderboard-table-head leaderboard-table-number leaderboard-table-points" scope="col"
                             aria-sort={sorted("points")}>
@@ -139,14 +139,12 @@ export default function Leaderboard(props: LeaderboardProps) {
                             {truncate(line.country.name, NAME_MAX_LENGTH)}
                         </td>
                         <td className={tilesClass(delta?.net)}>
-                            {count.format(line.tiles)}
+                            {count.format(line.tiles)} <MapShare tiles={line.tiles} tilesCount={props.tilesCount}/>
                             <DeltaBadge delta={delta}/>
                         </td>
-                        <td className="leaderboard-table-number leaderboard-table-share">
-                            {line.gain === undefined
-                                ? share(line.tiles, props.tilesCount)
-                                : <span className={gainClass(line.gain)}>{gained.format(line.gain)}</span>}
-                        </td>
+                        {line.gain !== undefined && <td className="leaderboard-table-number leaderboard-table-gain">
+                            <span className={gainClass(line.gain)}>{gained.format(line.gain)}</span>
+                        </td>}
                         {race && <>
                             <td className="leaderboard-table-number leaderboard-table-points">{count.format(line.points)}</td>
                             <td className="leaderboard-table-today"><Today points={line.today} battle={battle !== undefined}/></td>
@@ -183,15 +181,14 @@ function LeaderFrame({line, scored, battle, gainFigure, tilesCount, delta, isPla
             <span className="leader-frame-who">
                 <span className="leader-frame-name">{truncate(line.country.name, NAME_MAX_LENGTH)}</span>
                 <span className="leader-frame-line">
-                    {scored && <span className="leader-frame-map">
-                        {line.gain === undefined
-                            ? <Hint {...hint("share")}>{share(line.tiles, tilesCount)}% of map</Hint>
-                            : <Hint {...hint(gainFigure)}>
-                                <span className={gainClass(line.gain)}>{gained.format(line.gain)}</span> {battle ? "this battle" : "today"}
-                            </Hint>}
+                    {line.gain !== undefined && <span className="leader-frame-map">
+                        <Hint {...hint(gainFigure)}>
+                            <span className={gainClass(line.gain)}>{gained.format(line.gain)}</span> {battle ? "this battle" : "today"}
+                        </Hint>
                     </span>}
                     <span className={tilesClass(delta?.net, "leader-frame-tiles")}>
                         {count.format(line.tiles)} tiles
+                        {scored && <> <MapShare tiles={line.tiles} tilesCount={tilesCount}/></>}
                         <DeltaBadge delta={delta}/>
                     </span>
                 </span>
@@ -266,6 +263,10 @@ function DeltaBadge({delta}: {delta?: TileDelta}) {
                  className="leaderboard-delta"
                  style={{animationDuration: `${DELTA_HOLD_MS}ms`}}
                  aria-hidden="true">{signed(delta.net)}</span>
+}
+
+function MapShare({tiles, tilesCount}: {tiles: number, tilesCount: number}) {
+    return <span className="leaderboard-map-share">{sharePercent(tiles, tilesCount)}%</span>
 }
 
 function share(tiles: number, tilesCount: number): string {
