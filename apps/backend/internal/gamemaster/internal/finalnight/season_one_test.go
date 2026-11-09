@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase"
@@ -54,9 +55,10 @@ func TestTheMapIsFrozenOverTheBreakAndResetAsSeasonOneStarts(t *testing.T) {
 
 	modules, planet, scoring := &planetAndAntibot{}, &resetsTold{}, &scoringTold{}
 	boot := func() (*play_schedule_usecase.UseCase, *play_resets_usecase.UseCase, *play_scoring_usecase.UseCase) {
+		planner := moments.NewPlanner(seasons, entries, kept, inmemory_arena_store.New(), season.Cutoff(21*time.Hour))
 		return play_schedule_usecase.New(entries, seasons, modules, clock),
-			play_resets_usecase.New(seasons, planet, clock),
-			play_scoring_usecase.New(moments.NewPlanner(seasons, entries, kept, season.Cutoff(21*time.Hour)), kept, scoring, clock)
+			play_resets_usecase.New(planner, planet, clock),
+			play_scoring_usecase.New(planner, kept, scoring, clock)
 	}
 	rules, resets, points := boot()
 	tick := func() {

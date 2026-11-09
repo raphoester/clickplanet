@@ -38,6 +38,8 @@ type Command struct {
 	Times    schedule.Times
 	At       time.Time
 	Tiebreak RoundID
+	// FromNothing is an OpenRound of an arena battle: its round counts from nothing, on the blank map.
+	FromNothing bool
 }
 
 // Key is a command's identity: each is sent once per process.

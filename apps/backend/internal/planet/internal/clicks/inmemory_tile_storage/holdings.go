@@ -2,6 +2,7 @@ package inmemory_tile_storage
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -35,13 +36,23 @@ func (s *Storage) HoldingsOf(landmass clicks.LandmassID) []clicks.Holding {
 }
 
 // The tiles keep their flag and their shields: only who holds them is forgotten.
-func (s *Storage) ForgetHolder(_ context.Context, account cpsession.AccountID) (int, error) {
+// ForgetHolder takes the account off every tile in memory, then off every tile postgres keeps: the maps that do not play
+// too, so a map played again names it no more.
+func (s *Storage) ForgetHolder(ctx context.Context, account cpsession.AccountID) (int, error) {
+	released := s.forgetHolderInMemory(account)
+	if err := s.persistence.ForgetHolder(ctx, account); err != nil {
+		return released, fmt.Errorf("failed to forget a holder in every map: %w", err)
+	}
+	return released, nil
+}
+
+func (s *Storage) forgetHolderInMemory(account cpsession.AccountID) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	id, ok := s.board.holders.idOf(account)
 	if !ok {
-		return 0, nil
+		return 0
 	}
 
 	released := 0
@@ -53,5 +64,5 @@ func (s *Storage) ForgetHolder(_ context.Context, account cpsession.AccountID) (
 	}
 	s.board.holders.forget(account)
 
-	return released, nil
+	return released
 }

@@ -7,8 +7,9 @@ restart.
 ## Who decides, who wipes
 
 - **The gamemaster decides when** (`season.Window.StartsOnBlankMap`: every season but season 0).
-  `play_resets_usecase` runs every second (`gamemaster-resets`): once the running season is one that starts on a blank
-  map, it sends `planet.v1.ResetMap{reset_id: "season-N", decided_at: its start}` on planet's command stream
+  `play_resets_usecase` runs every second (`gamemaster-resets`) over the plan: once the running season is one that
+  starts on a blank map, and no arena battle that ended before it waits for its map (`Plan.Waits`: the arena battle's end would put
+  the old season's map back, see [Arena battles](arenas.md)), it sends `planet.v1.ResetMap{reset_id: "season-N", decided_at: its start}` on planet's command stream
   (`season/redis_map_commands`), **once per process**, and again at the next second if Redis refused it.
   `log_play_resets` logs it at Warn (`planet is told to reset the map`). A boot during the season sends it again:
   planet keeps the id and wipes nothing.
@@ -19,9 +20,11 @@ restart.
 
 `Storage.Wipe(ctx, keep)` holds the flush lock, then the tiles lock, and in one postgres transaction
 (`postgres_tile_store.Wipe`) runs `keep`, which keeps the reset in `planet.map_resets` (`postgres_reset_store.Keep`,
-`ON CONFLICT DO NOTHING`), then deletes every row of `tiles` and `landmasses`. **A reset kept already wipes nothing**,
+`ON CONFLICT DO NOTHING`), then deletes every row of `tiles` and `landmasses` of the map that plays. **A reset kept already wipes nothing**,
 and a failure rolls back both. Only then does it empty memory: a new board (every tile blank, no holder, no shield),
-no landmass lock, a new recount.
+no landmass lock, a new recount. The wipe deletes the rows of the map that plays (`map`, the world's); an arena empties
+memory the same way (`Storage.Blank`), but keeps the world's rows and plays its own empty map (see
+[Arena battles](arenas.md)).
 
 - **No flush meets it**: `Flush` holds the same flush lock from what it takes to what it saves, so a save of the map
   before the wipe can never land after it.

@@ -32,6 +32,8 @@ type Battle struct {
 	EndsAt      time.Time
 	// EndsSeason is true for the season's finale alone.
 	EndsSeason bool
+	// Set is the rule set it plays: the entry's, or the finale's.
+	Set schedule.SetName
 }
 
 func (b Battle) Round() RoundID {
@@ -85,6 +87,7 @@ type round struct {
 	times    schedule.Times
 	startsAt time.Time
 	endsAt   time.Time
+	battle   bool
 }
 
 func (b Book) rounds() []round {
@@ -93,7 +96,9 @@ func (b Book) rounds() []round {
 		rounds = append(rounds, round{id: DayRoundOf(day), times: 1, startsAt: day.StartsAt, endsAt: day.EndsAt})
 	}
 	for _, battle := range b.Battles {
-		rounds = append(rounds, round{id: battle.Round(), times: battle.Times, startsAt: battle.StartsAt, endsAt: battle.EndsAt})
+		rounds = append(rounds, round{
+			id: battle.Round(), times: battle.Times, startsAt: battle.StartsAt, endsAt: battle.EndsAt, battle: true,
+		})
 	}
 	return rounds
 }
@@ -102,6 +107,7 @@ func (b Book) rounds() []round {
 type Plan struct {
 	books  []Book
 	cutoff season.Cutoff
+	arenas Arenas
 }
 
 // A day that opened keeps running to the season's end when the end moves before its cutoff: opened names the rounds
@@ -134,13 +140,13 @@ func NewPlan(calendar season.Calendar, cutoff season.Cutoff, opened []RoundID, e
 			}
 			book.Battles = append(book.Battles, Battle{
 				Entry: entry.ID, Season: window.Number, Times: entry.Times, Description: entry.Description,
-				StartsAt: entry.StartsAt.UTC(), EndsAt: ends,
+				StartsAt: entry.StartsAt.UTC(), EndsAt: ends, Set: entry.Set,
 			})
 		}
 		if window.Finale.Planned() {
 			book.Battles = append(book.Battles, Battle{
 				Season: window.Number, Times: window.Finale.Times, Description: window.Finale.Description,
-				StartsAt: window.FinaleStartsAt(), EndsAt: window.EndsAt, EndsSeason: true,
+				StartsAt: window.FinaleStartsAt(), EndsAt: window.EndsAt, EndsSeason: true, Set: window.Finale.Set,
 			})
 		}
 		slices.SortStableFunc(book.Battles, func(a, b Battle) int { return a.StartsAt.Compare(b.StartsAt) })
@@ -194,21 +200,25 @@ func (p Plan) Clashes(now time.Time) error {
 }
 
 // DueAt is every command whose time has come: a book or a round opened while it runs, and closed once it ended, for
-// every season that started. By time, and at one instant OpenBook, CloseRound, OpenRound, then CloseBook.
+// every season that started. By time, and at one instant OpenBook, CloseRound, OpenRound, then CloseBook. With the
+// arena battles known, a battle's round opens once it is judged, an arena battle's counting from nothing, and nothing opens while an
+// arena battle that ended before it waits for its map.
 func (p Plan) DueAt(now time.Time) []Command {
 	var due []Command
 	for _, book := range p.books {
 		if !book.Window.Started(now) {
 			continue
 		}
-		if !book.Window.Ended(now) {
+		if !book.Window.Ended(now) && !p.Waits(book.Window.StartsAt) {
 			due = append(due, Command{Action: OpenBook, Book: book.ID(), At: book.Window.StartsAt})
 		}
 		for _, r := range book.rounds() {
 			switch {
 			case now.Before(r.startsAt):
 			case now.Before(r.endsAt):
-				due = append(due, Command{Action: OpenRound, Book: book.ID(), Round: r.id, Times: r.times, At: r.startsAt})
+				if open, ok := p.opening(book, r); ok {
+					due = append(due, open)
+				}
 			default:
 				due = append(due, Command{Action: CloseRound, Book: book.ID(), Round: r.id, At: r.endsAt})
 			}
@@ -223,6 +233,19 @@ func (p Plan) DueAt(now time.Time) []Command {
 	return due
 }
 
+func (p Plan) opening(book Book, r round) (Command, bool) {
+	open := Command{Action: OpenRound, Book: book.ID(), Round: r.id, Times: r.times, At: r.startsAt}
+	if p.arenas.modes == nil {
+		return open, true
+	}
+	mode := p.arenas.modes[r.id]
+	if (r.battle && mode == 0) || p.Waits(r.startsAt) {
+		return Command{}, false
+	}
+	open.FromNothing = mode == Arena
+	return open, true
+}
+
 // BookAt is the book of the season that runs at a time.
 func (p Plan) BookAt(at time.Time) (Book, bool) {
 	for _, book := range p.books {
@@ -233,14 +256,15 @@ func (p Plan) BookAt(at time.Time) (Book, bool) {
 	return Book{}, false
 }
 
-// DayAt is the day that runs at a time: none between two seasons, nor from a season's last cutoff to its end.
+// DayAt is the day that runs at a time: none between two seasons, nor from a season's last cutoff to its end, nor
+// while an arena battle before it waits for its map.
 func (p Plan) DayAt(at time.Time) (season.Day, bool) {
 	book, ok := p.BookAt(at)
 	if !ok {
 		return season.Day{}, false
 	}
 	for _, day := range book.Days {
-		if day.Runs(at) {
+		if day.Runs(at) && !p.Waits(day.StartsAt) {
 			return day, true
 		}
 	}

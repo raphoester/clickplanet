@@ -38,6 +38,8 @@ type Store interface {
 	// KeepToldBattle is true when the battle was not told yet.
 	KeepToldBattle(ctx context.Context, round RoundID) (bool, error)
 	Opened(ctx context.Context) ([]RoundID, error)
+	// Scored is every round kept scored.
+	Scored(ctx context.Context) ([]RoundID, error)
 }
 
 // Events tells the other modules a moment.

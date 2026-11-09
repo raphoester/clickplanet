@@ -17,6 +17,15 @@ message Rules {
   // No account changes its flag: PledgeAllegiance refuses another flag to an account that holds one. A first flag is
   // still taken.
   optional bool allegiance_locked = 5;
+  ArenaRules arena = 6;
+}
+
+// A battle played with on is an arena battle: it is fought on a blank map, and the map from before comes back when it
+// ends. Never on in default.
+message ArenaRules {
+  optional bool on = 1;
+  // Every play is refused this long after the map goes blank and before the battle ends. 0 to 30 s.
+  google.protobuf.Duration freeze = 2;
 }
 
 message ClickRules {

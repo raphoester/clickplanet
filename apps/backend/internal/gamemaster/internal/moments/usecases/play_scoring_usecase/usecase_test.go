@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase"
@@ -57,6 +58,7 @@ type harness struct {
 	seasons  *inmemory_season_store.Store
 	entries  *inmemory_entry_store.Store
 	opened   *inmemory_moment_store.Store
+	judged   *inmemory_arena_store.Store
 	commands *commanded
 	useCase  *play_scoring_usecase.UseCase
 }
@@ -67,11 +69,19 @@ func newHarness(t *testing.T, at time.Time) *harness {
 
 	h := &harness{
 		t: t, clock: cptime.NewFixedClock(at), seasons: inmemory_season_store.New(), entries: inmemory_entry_store.New(),
-		opened: inmemory_moment_store.New(),
+		opened: inmemory_moment_store.New(), judged: inmemory_arena_store.New(),
 	}
 	require.NoError(t, h.seasons.Save(t.Context(), zero.Restore()))
+	h.judge(battle, moments.Plain)
+	h.judge(moments.BattleRoundOf(rush), moments.Plain)
 	h.boot()
 	return h
+}
+
+func (h *harness) judge(round moments.RoundID, mode moments.Mode) {
+	h.t.Helper()
+	_, err := h.judged.KeepJudged(h.t.Context(), moments.Judgement{Round: round, Mode: mode})
+	require.NoError(h.t, err)
 }
 
 // Season 0 has no finale, and a battle entry, rush × 3, runs from 21:00 to 23:00.
@@ -88,7 +98,7 @@ func (h *harness) noFinale() {
 
 func (h *harness) boot() {
 	h.commands = &commanded{}
-	h.useCase = play_scoring_usecase.New(moments.NewPlanner(h.seasons, h.entries, h.opened, cutoff), h.opened, h.commands, h.clock)
+	h.useCase = play_scoring_usecase.New(moments.NewPlanner(h.seasons, h.entries, h.opened, h.judged, cutoff), h.opened, h.commands, h.clock)
 }
 
 func (h *harness) at(at time.Time) {

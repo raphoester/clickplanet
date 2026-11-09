@@ -48,6 +48,12 @@ func TestEachCommandIsOneScoringCommandInScoringsWords(t *testing.T) {
 			}}},
 		},
 		{
+			moments.Command{Action: moments.OpenRound, Book: "season-0", Round: entry, Times: 2, At: finale, FromNothing: true},
+			&scoringv1.ScoringCommand{Command: &scoringv1.ScoringCommand_OpenRound{OpenRound: &scoringv1.OpenRound{
+				RoundId: entry, BookId: "season-0", Times: 2, StartsAt: timestamppb.New(finale), FromNothing: true,
+			}}},
+		},
+		{
 			moments.Command{Action: moments.CloseRound, Book: "season-0", Round: "season-0/day-24", At: finale},
 			&scoringv1.ScoringCommand{Command: &scoringv1.ScoringCommand_CloseRound{CloseRound: &scoringv1.CloseRound{
 				RoundId: "season-0/day-24", EndsAt: timestamppb.New(finale),

@@ -65,7 +65,7 @@ func (s Snapshot) Restore(parts Parts, defaults Snapshot) (Set, error) {
 	read := make(map[string]any, len(parts))
 	var reasons []string
 	for _, part := range parts {
-		rules, err := part.read(played)
+		rules, err := part.read(played, s.Name == Default)
 		reasons = append(reasons, reasonsOf(part.key(), err)...)
 		read[part.key()] = rules
 	}

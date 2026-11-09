@@ -34,7 +34,8 @@ type Rules struct {
 	Frozen *bool `protobuf:"varint,4,opt,name=frozen,proto3,oneof" json:"frozen,omitempty"`
 	// No account changes its flag: PledgeAllegiance refuses another flag to an account that holds one. A first flag is
 	// still taken.
-	AllegianceLocked *bool `protobuf:"varint,5,opt,name=allegiance_locked,json=allegianceLocked,proto3,oneof" json:"allegiance_locked,omitempty"`
+	AllegianceLocked *bool       `protobuf:"varint,5,opt,name=allegiance_locked,json=allegianceLocked,proto3,oneof" json:"allegiance_locked,omitempty"`
+	Arena            *ArenaRules `protobuf:"bytes,6,opt,name=arena,proto3" json:"arena,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -104,6 +105,68 @@ func (x *Rules) GetAllegianceLocked() bool {
 	return false
 }
 
+func (x *Rules) GetArena() *ArenaRules {
+	if x != nil {
+		return x.Arena
+	}
+	return nil
+}
+
+// A battle played with on is an arena battle: it is fought on a blank map, and the map from before comes back when it
+// ends. Never on in default.
+type ArenaRules struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	On    *bool                  `protobuf:"varint,1,opt,name=on,proto3,oneof" json:"on,omitempty"`
+	// Every play is refused this long after the map goes blank and before the battle ends. 0 to 30 s.
+	Freeze        *durationpb.Duration `protobuf:"bytes,2,opt,name=freeze,proto3" json:"freeze,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArenaRules) Reset() {
+	*x = ArenaRules{}
+	mi := &file_planet_v1_rules_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArenaRules) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArenaRules) ProtoMessage() {}
+
+func (x *ArenaRules) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_rules_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArenaRules.ProtoReflect.Descriptor instead.
+func (*ArenaRules) Descriptor() ([]byte, []int) {
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ArenaRules) GetOn() bool {
+	if x != nil && x.On != nil {
+		return *x.On
+	}
+	return false
+}
+
+func (x *ArenaRules) GetFreeze() *durationpb.Duration {
+	if x != nil {
+		return x.Freeze
+	}
+	return nil
+}
+
 type ClickRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// How many times faster than per_second every bucket refills.
@@ -128,7 +191,7 @@ type ClickRules struct {
 
 func (x *ClickRules) Reset() {
 	*x = ClickRules{}
-	mi := &file_planet_v1_rules_proto_msgTypes[1]
+	mi := &file_planet_v1_rules_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -140,7 +203,7 @@ func (x *ClickRules) String() string {
 func (*ClickRules) ProtoMessage() {}
 
 func (x *ClickRules) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_rules_proto_msgTypes[1]
+	mi := &file_planet_v1_rules_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -153,7 +216,7 @@ func (x *ClickRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClickRules.ProtoReflect.Descriptor instead.
 func (*ClickRules) Descriptor() ([]byte, []int) {
-	return file_planet_v1_rules_proto_rawDescGZIP(), []int{1}
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ClickRules) GetTempo() float64 {
@@ -230,7 +293,7 @@ type TollRules struct {
 
 func (x *TollRules) Reset() {
 	*x = TollRules{}
-	mi := &file_planet_v1_rules_proto_msgTypes[2]
+	mi := &file_planet_v1_rules_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -242,7 +305,7 @@ func (x *TollRules) String() string {
 func (*TollRules) ProtoMessage() {}
 
 func (x *TollRules) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_rules_proto_msgTypes[2]
+	mi := &file_planet_v1_rules_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -255,7 +318,7 @@ func (x *TollRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TollRules.ProtoReflect.Descriptor instead.
 func (*TollRules) Descriptor() ([]byte, []int) {
-	return file_planet_v1_rules_proto_rawDescGZIP(), []int{2}
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *TollRules) GetSteps() []*TollStep {
@@ -288,7 +351,7 @@ type BonusRules struct {
 
 func (x *BonusRules) Reset() {
 	*x = BonusRules{}
-	mi := &file_planet_v1_rules_proto_msgTypes[3]
+	mi := &file_planet_v1_rules_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -300,7 +363,7 @@ func (x *BonusRules) String() string {
 func (*BonusRules) ProtoMessage() {}
 
 func (x *BonusRules) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_rules_proto_msgTypes[3]
+	mi := &file_planet_v1_rules_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -313,7 +376,7 @@ func (x *BonusRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BonusRules.ProtoReflect.Descriptor instead.
 func (*BonusRules) Descriptor() ([]byte, []int) {
-	return file_planet_v1_rules_proto_rawDescGZIP(), []int{3}
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *BonusRules) GetBoxes() *BoxPace {
@@ -411,7 +474,7 @@ type BoxPace struct {
 
 func (x *BoxPace) Reset() {
 	*x = BoxPace{}
-	mi := &file_planet_v1_rules_proto_msgTypes[4]
+	mi := &file_planet_v1_rules_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -423,7 +486,7 @@ func (x *BoxPace) String() string {
 func (*BoxPace) ProtoMessage() {}
 
 func (x *BoxPace) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_rules_proto_msgTypes[4]
+	mi := &file_planet_v1_rules_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -436,7 +499,7 @@ func (x *BoxPace) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BoxPace.ProtoReflect.Descriptor instead.
 func (*BoxPace) Descriptor() ([]byte, []int) {
-	return file_planet_v1_rules_proto_rawDescGZIP(), []int{4}
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *BoxPace) GetMinInterval() *durationpb.Duration {
@@ -474,7 +537,7 @@ type KindWeights struct {
 
 func (x *KindWeights) Reset() {
 	*x = KindWeights{}
-	mi := &file_planet_v1_rules_proto_msgTypes[5]
+	mi := &file_planet_v1_rules_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -486,7 +549,7 @@ func (x *KindWeights) String() string {
 func (*KindWeights) ProtoMessage() {}
 
 func (x *KindWeights) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_rules_proto_msgTypes[5]
+	mi := &file_planet_v1_rules_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -499,7 +562,7 @@ func (x *KindWeights) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KindWeights.ProtoReflect.Descriptor instead.
 func (*KindWeights) Descriptor() ([]byte, []int) {
-	return file_planet_v1_rules_proto_rawDescGZIP(), []int{5}
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *KindWeights) GetRefill() float64 {
@@ -548,7 +611,7 @@ type SpreadRules struct {
 
 func (x *SpreadRules) Reset() {
 	*x = SpreadRules{}
-	mi := &file_planet_v1_rules_proto_msgTypes[6]
+	mi := &file_planet_v1_rules_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -560,7 +623,7 @@ func (x *SpreadRules) String() string {
 func (*SpreadRules) ProtoMessage() {}
 
 func (x *SpreadRules) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_rules_proto_msgTypes[6]
+	mi := &file_planet_v1_rules_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -573,7 +636,7 @@ func (x *SpreadRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpreadRules.ProtoReflect.Descriptor instead.
 func (*SpreadRules) Descriptor() ([]byte, []int) {
-	return file_planet_v1_rules_proto_rawDescGZIP(), []int{6}
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SpreadRules) GetClicks() uint32 {
@@ -600,7 +663,7 @@ type BombRules struct {
 
 func (x *BombRules) Reset() {
 	*x = BombRules{}
-	mi := &file_planet_v1_rules_proto_msgTypes[7]
+	mi := &file_planet_v1_rules_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -612,7 +675,7 @@ func (x *BombRules) String() string {
 func (*BombRules) ProtoMessage() {}
 
 func (x *BombRules) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_rules_proto_msgTypes[7]
+	mi := &file_planet_v1_rules_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -625,7 +688,7 @@ func (x *BombRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BombRules.ProtoReflect.Descriptor instead.
 func (*BombRules) Descriptor() ([]byte, []int) {
-	return file_planet_v1_rules_proto_rawDescGZIP(), []int{7}
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *BombRules) GetRings() float64 {
@@ -649,7 +712,7 @@ type EncloseRules struct {
 
 func (x *EncloseRules) Reset() {
 	*x = EncloseRules{}
-	mi := &file_planet_v1_rules_proto_msgTypes[8]
+	mi := &file_planet_v1_rules_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -661,7 +724,7 @@ func (x *EncloseRules) String() string {
 func (*EncloseRules) ProtoMessage() {}
 
 func (x *EncloseRules) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_rules_proto_msgTypes[8]
+	mi := &file_planet_v1_rules_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -674,7 +737,7 @@ func (x *EncloseRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EncloseRules.ProtoReflect.Descriptor instead.
 func (*EncloseRules) Descriptor() ([]byte, []int) {
-	return file_planet_v1_rules_proto_rawDescGZIP(), []int{8}
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *EncloseRules) GetMaxTiles() uint32 {
@@ -719,7 +782,7 @@ type ShieldRules struct {
 
 func (x *ShieldRules) Reset() {
 	*x = ShieldRules{}
-	mi := &file_planet_v1_rules_proto_msgTypes[9]
+	mi := &file_planet_v1_rules_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -731,7 +794,7 @@ func (x *ShieldRules) String() string {
 func (*ShieldRules) ProtoMessage() {}
 
 func (x *ShieldRules) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_rules_proto_msgTypes[9]
+	mi := &file_planet_v1_rules_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -744,7 +807,7 @@ func (x *ShieldRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShieldRules.ProtoReflect.Descriptor instead.
 func (*ShieldRules) Descriptor() ([]byte, []int) {
-	return file_planet_v1_rules_proto_rawDescGZIP(), []int{9}
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ShieldRules) GetHeld() uint32 {
@@ -786,7 +849,7 @@ type WelcomeRules struct {
 
 func (x *WelcomeRules) Reset() {
 	*x = WelcomeRules{}
-	mi := &file_planet_v1_rules_proto_msgTypes[10]
+	mi := &file_planet_v1_rules_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -798,7 +861,7 @@ func (x *WelcomeRules) String() string {
 func (*WelcomeRules) ProtoMessage() {}
 
 func (x *WelcomeRules) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_rules_proto_msgTypes[10]
+	mi := &file_planet_v1_rules_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -811,7 +874,7 @@ func (x *WelcomeRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WelcomeRules.ProtoReflect.Descriptor instead.
 func (*WelcomeRules) Descriptor() ([]byte, []int) {
-	return file_planet_v1_rules_proto_rawDescGZIP(), []int{10}
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *WelcomeRules) GetWithin() *durationpb.Duration {
@@ -845,7 +908,7 @@ type QuizRules struct {
 
 func (x *QuizRules) Reset() {
 	*x = QuizRules{}
-	mi := &file_planet_v1_rules_proto_msgTypes[11]
+	mi := &file_planet_v1_rules_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -857,7 +920,7 @@ func (x *QuizRules) String() string {
 func (*QuizRules) ProtoMessage() {}
 
 func (x *QuizRules) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_rules_proto_msgTypes[11]
+	mi := &file_planet_v1_rules_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -870,7 +933,7 @@ func (x *QuizRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuizRules.ProtoReflect.Descriptor instead.
 func (*QuizRules) Descriptor() ([]byte, []int) {
-	return file_planet_v1_rules_proto_rawDescGZIP(), []int{11}
+	return file_planet_v1_rules_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *QuizRules) GetEnabled() bool {
@@ -933,15 +996,21 @@ var File_planet_v1_rules_proto protoreflect.FileDescriptor
 
 const file_planet_v1_rules_proto_rawDesc = "" +
 	"\n" +
-	"\x15planet/v1/rules.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x16planet/v1/planet.proto\"\x81\x02\n" +
+	"\x15planet/v1/rules.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x16planet/v1/planet.proto\"\xae\x02\n" +
 	"\x05Rules\x12-\n" +
 	"\x06clicks\x18\x01 \x01(\v2\x15.planet.v1.ClickRulesR\x06clicks\x12(\n" +
 	"\x04toll\x18\x02 \x01(\v2\x14.planet.v1.TollRulesR\x04toll\x12/\n" +
 	"\abonuses\x18\x03 \x01(\v2\x15.planet.v1.BonusRulesR\abonuses\x12\x1b\n" +
 	"\x06frozen\x18\x04 \x01(\bH\x00R\x06frozen\x88\x01\x01\x120\n" +
-	"\x11allegiance_locked\x18\x05 \x01(\bH\x01R\x10allegianceLocked\x88\x01\x01B\t\n" +
+	"\x11allegiance_locked\x18\x05 \x01(\bH\x01R\x10allegianceLocked\x88\x01\x01\x12+\n" +
+	"\x05arena\x18\x06 \x01(\v2\x15.planet.v1.ArenaRulesR\x05arenaB\t\n" +
 	"\a_frozenB\x14\n" +
-	"\x12_allegiance_locked\"\xbd\x04\n" +
+	"\x12_allegiance_locked\"[\n" +
+	"\n" +
+	"ArenaRules\x12\x13\n" +
+	"\x02on\x18\x01 \x01(\bH\x00R\x02on\x88\x01\x01\x121\n" +
+	"\x06freeze\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06freezeB\x05\n" +
+	"\x03_on\"\xbd\x04\n" +
 	"\n" +
 	"ClickRules\x12\x19\n" +
 	"\x05tempo\x18\x01 \x01(\x01H\x00R\x05tempo\x88\x01\x01\x12\"\n" +
@@ -1061,54 +1130,57 @@ func file_planet_v1_rules_proto_rawDescGZIP() []byte {
 	return file_planet_v1_rules_proto_rawDescData
 }
 
-var file_planet_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_planet_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_planet_v1_rules_proto_goTypes = []any{
 	(*Rules)(nil),               // 0: planet.v1.Rules
-	(*ClickRules)(nil),          // 1: planet.v1.ClickRules
-	(*TollRules)(nil),           // 2: planet.v1.TollRules
-	(*BonusRules)(nil),          // 3: planet.v1.BonusRules
-	(*BoxPace)(nil),             // 4: planet.v1.BoxPace
-	(*KindWeights)(nil),         // 5: planet.v1.KindWeights
-	(*SpreadRules)(nil),         // 6: planet.v1.SpreadRules
-	(*BombRules)(nil),           // 7: planet.v1.BombRules
-	(*EncloseRules)(nil),        // 8: planet.v1.EncloseRules
-	(*ShieldRules)(nil),         // 9: planet.v1.ShieldRules
-	(*WelcomeRules)(nil),        // 10: planet.v1.WelcomeRules
-	(*QuizRules)(nil),           // 11: planet.v1.QuizRules
-	(*durationpb.Duration)(nil), // 12: google.protobuf.Duration
-	(*TollStep)(nil),            // 13: planet.v1.TollStep
+	(*ArenaRules)(nil),          // 1: planet.v1.ArenaRules
+	(*ClickRules)(nil),          // 2: planet.v1.ClickRules
+	(*TollRules)(nil),           // 3: planet.v1.TollRules
+	(*BonusRules)(nil),          // 4: planet.v1.BonusRules
+	(*BoxPace)(nil),             // 5: planet.v1.BoxPace
+	(*KindWeights)(nil),         // 6: planet.v1.KindWeights
+	(*SpreadRules)(nil),         // 7: planet.v1.SpreadRules
+	(*BombRules)(nil),           // 8: planet.v1.BombRules
+	(*EncloseRules)(nil),        // 9: planet.v1.EncloseRules
+	(*ShieldRules)(nil),         // 10: planet.v1.ShieldRules
+	(*WelcomeRules)(nil),        // 11: planet.v1.WelcomeRules
+	(*QuizRules)(nil),           // 12: planet.v1.QuizRules
+	(*durationpb.Duration)(nil), // 13: google.protobuf.Duration
+	(*TollStep)(nil),            // 14: planet.v1.TollStep
 }
 var file_planet_v1_rules_proto_depIdxs = []int32{
-	1,  // 0: planet.v1.Rules.clicks:type_name -> planet.v1.ClickRules
-	2,  // 1: planet.v1.Rules.toll:type_name -> planet.v1.TollRules
-	3,  // 2: planet.v1.Rules.bonuses:type_name -> planet.v1.BonusRules
-	12, // 3: planet.v1.ClickRules.fast_start:type_name -> google.protobuf.Duration
-	13, // 4: planet.v1.TollRules.steps:type_name -> planet.v1.TollStep
-	4,  // 5: planet.v1.BonusRules.boxes:type_name -> planet.v1.BoxPace
-	5,  // 6: planet.v1.BonusRules.kinds:type_name -> planet.v1.KindWeights
-	12, // 7: planet.v1.BonusRules.offer_ttl:type_name -> google.protobuf.Duration
-	12, // 8: planet.v1.BonusRules.miss_retry:type_name -> google.protobuf.Duration
-	12, // 9: planet.v1.BonusRules.active_within:type_name -> google.protobuf.Duration
-	6,  // 10: planet.v1.BonusRules.spread:type_name -> planet.v1.SpreadRules
-	7,  // 11: planet.v1.BonusRules.bomb:type_name -> planet.v1.BombRules
-	8,  // 12: planet.v1.BonusRules.enclose:type_name -> planet.v1.EncloseRules
-	9,  // 13: planet.v1.BonusRules.shield:type_name -> planet.v1.ShieldRules
-	10, // 14: planet.v1.BonusRules.welcome:type_name -> planet.v1.WelcomeRules
-	11, // 15: planet.v1.BonusRules.quiz:type_name -> planet.v1.QuizRules
-	12, // 16: planet.v1.BoxPace.min_interval:type_name -> google.protobuf.Duration
-	12, // 17: planet.v1.BoxPace.max_interval:type_name -> google.protobuf.Duration
-	12, // 18: planet.v1.WelcomeRules.within:type_name -> google.protobuf.Duration
-	12, // 19: planet.v1.WelcomeRules.box_after:type_name -> google.protobuf.Duration
-	12, // 20: planet.v1.QuizRules.min_interval:type_name -> google.protobuf.Duration
-	12, // 21: planet.v1.QuizRules.max_interval:type_name -> google.protobuf.Duration
-	12, // 22: planet.v1.QuizRules.miss_retry:type_name -> google.protobuf.Duration
-	12, // 23: planet.v1.QuizRules.offer_ttl:type_name -> google.protobuf.Duration
-	12, // 24: planet.v1.QuizRules.answer_window:type_name -> google.protobuf.Duration
-	25, // [25:25] is the sub-list for method output_type
-	25, // [25:25] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	2,  // 0: planet.v1.Rules.clicks:type_name -> planet.v1.ClickRules
+	3,  // 1: planet.v1.Rules.toll:type_name -> planet.v1.TollRules
+	4,  // 2: planet.v1.Rules.bonuses:type_name -> planet.v1.BonusRules
+	1,  // 3: planet.v1.Rules.arena:type_name -> planet.v1.ArenaRules
+	13, // 4: planet.v1.ArenaRules.freeze:type_name -> google.protobuf.Duration
+	13, // 5: planet.v1.ClickRules.fast_start:type_name -> google.protobuf.Duration
+	14, // 6: planet.v1.TollRules.steps:type_name -> planet.v1.TollStep
+	5,  // 7: planet.v1.BonusRules.boxes:type_name -> planet.v1.BoxPace
+	6,  // 8: planet.v1.BonusRules.kinds:type_name -> planet.v1.KindWeights
+	13, // 9: planet.v1.BonusRules.offer_ttl:type_name -> google.protobuf.Duration
+	13, // 10: planet.v1.BonusRules.miss_retry:type_name -> google.protobuf.Duration
+	13, // 11: planet.v1.BonusRules.active_within:type_name -> google.protobuf.Duration
+	7,  // 12: planet.v1.BonusRules.spread:type_name -> planet.v1.SpreadRules
+	8,  // 13: planet.v1.BonusRules.bomb:type_name -> planet.v1.BombRules
+	9,  // 14: planet.v1.BonusRules.enclose:type_name -> planet.v1.EncloseRules
+	10, // 15: planet.v1.BonusRules.shield:type_name -> planet.v1.ShieldRules
+	11, // 16: planet.v1.BonusRules.welcome:type_name -> planet.v1.WelcomeRules
+	12, // 17: planet.v1.BonusRules.quiz:type_name -> planet.v1.QuizRules
+	13, // 18: planet.v1.BoxPace.min_interval:type_name -> google.protobuf.Duration
+	13, // 19: planet.v1.BoxPace.max_interval:type_name -> google.protobuf.Duration
+	13, // 20: planet.v1.WelcomeRules.within:type_name -> google.protobuf.Duration
+	13, // 21: planet.v1.WelcomeRules.box_after:type_name -> google.protobuf.Duration
+	13, // 22: planet.v1.QuizRules.min_interval:type_name -> google.protobuf.Duration
+	13, // 23: planet.v1.QuizRules.max_interval:type_name -> google.protobuf.Duration
+	13, // 24: planet.v1.QuizRules.miss_retry:type_name -> google.protobuf.Duration
+	13, // 25: planet.v1.QuizRules.offer_ttl:type_name -> google.protobuf.Duration
+	13, // 26: planet.v1.QuizRules.answer_window:type_name -> google.protobuf.Duration
+	27, // [27:27] is the sub-list for method output_type
+	27, // [27:27] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_rules_proto_init() }
@@ -1119,21 +1191,22 @@ func file_planet_v1_rules_proto_init() {
 	file_planet_v1_planet_proto_init()
 	file_planet_v1_rules_proto_msgTypes[0].OneofWrappers = []any{}
 	file_planet_v1_rules_proto_msgTypes[1].OneofWrappers = []any{}
-	file_planet_v1_rules_proto_msgTypes[3].OneofWrappers = []any{}
+	file_planet_v1_rules_proto_msgTypes[2].OneofWrappers = []any{}
 	file_planet_v1_rules_proto_msgTypes[4].OneofWrappers = []any{}
 	file_planet_v1_rules_proto_msgTypes[5].OneofWrappers = []any{}
 	file_planet_v1_rules_proto_msgTypes[6].OneofWrappers = []any{}
 	file_planet_v1_rules_proto_msgTypes[7].OneofWrappers = []any{}
 	file_planet_v1_rules_proto_msgTypes[8].OneofWrappers = []any{}
 	file_planet_v1_rules_proto_msgTypes[9].OneofWrappers = []any{}
-	file_planet_v1_rules_proto_msgTypes[11].OneofWrappers = []any{}
+	file_planet_v1_rules_proto_msgTypes[10].OneofWrappers = []any{}
+	file_planet_v1_rules_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_rules_proto_rawDesc), len(file_planet_v1_rules_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

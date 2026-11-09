@@ -199,8 +199,10 @@ type OpenRound struct {
 	RoundId string                 `protobuf:"bytes,1,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
 	BookId  string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
 	// 1 to 10.
-	Times         uint32                 `protobuf:"varint,3,opt,name=times,proto3" json:"times,omitempty"`
-	StartsAt      *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
+	Times    uint32                 `protobuf:"varint,3,opt,name=times,proto3" json:"times,omitempty"`
+	StartsAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
+	// The round counts from nothing: its gain is the tiles each country holds when it closes, and opening it reads no map.
+	FromNothing   bool `protobuf:"varint,5,opt,name=from_nothing,json=fromNothing,proto3" json:"from_nothing,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -261,6 +263,13 @@ func (x *OpenRound) GetStartsAt() *timestamppb.Timestamp {
 		return x.StartsAt
 	}
 	return nil
+}
+
+func (x *OpenRound) GetFromNothing() bool {
+	if x != nil {
+		return x.FromNothing
+	}
+	return false
 }
 
 // Scores the round from the map now. Takes before ends_at still count in its numbers when they arrive after it. A round
@@ -466,12 +475,13 @@ const file_scoring_v1_commands_proto_rawDesc = "" +
 	"\acommand\"\\\n" +
 	"\bOpenBook\x12\x17\n" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\x127\n" +
-	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\"\x8e\x01\n" +
+	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\"\xb1\x01\n" +
 	"\tOpenRound\x12\x19\n" +
 	"\bround_id\x18\x01 \x01(\tR\aroundId\x12\x17\n" +
 	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x14\n" +
 	"\x05times\x18\x03 \x01(\rR\x05times\x127\n" +
-	"\tstarts_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\"\\\n" +
+	"\tstarts_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x12!\n" +
+	"\ffrom_nothing\x18\x05 \x01(\bR\vfromNothing\"\\\n" +
 	"\n" +
 	"CloseRound\x12\x19\n" +
 	"\bround_id\x18\x01 \x01(\tR\aroundId\x123\n" +
