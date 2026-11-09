@@ -322,7 +322,10 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
     the trailing day, **made by hand or not**, and every one still to go out, at the platform's own time (a TikTok
     target held over the cap carries the time it will go out). A draft, a post cancelled or failed, and a target that
     failed or was unpublished count for nothing. One list of posts serves this and what was told. **A feed that
-    cannot be read fails the run**, rather than post over the cap.
+    cannot be read fails the run**, rather than post over the cap. **A new post counts in every trailing day that
+    holds it** (`Feed.fullestDay`): its own, and the one that ends with each post still to come within a day after
+    it. A platform takes it only if none of them is full, so a post today never takes the room of one scheduled for
+    tomorrow, and a post more than a day ahead takes nothing from now.
   - **Known effect, not handled**: YouTube's budget is spent as the news comes, so a busy morning can fill the day, and once
     it is full a slot frees when yesterday's post leaves the window, so the posting hours follow yesterday's. The run
     of 2026-10-26 16:31 had the war of the day in its findings and no room. The run that gets the slot still tells
@@ -369,8 +372,8 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
     (`usageCounted`, `usageRefunded`, `hidden`). Posts made before the record have none, and none is filled in after.
 - **`Plan.Next(clip, place, ofRun, feed, now, dice)`** is when and where: **on every platform with room left in its
   day, as soon as it can**: `Review` from now (none by default: `-review 0` and no flag are both none) and never under
-  the 5-minute lead, on a whole minute, and **a `Spacing` (an hour) after the last post on each of its platforms**,
-  whoever made it. False when no platform has room. It also rolls the post's words (`Dice`, `SystemDice`), so no post
+  the 5-minute lead, on a whole minute, and **a `Spacing` (an hour) from every post on each of its platforms, before
+  it or after it**, whoever made it (`Feed.clash`): the first gap that wide. False when no platform has room. It also rolls the post's words (`Dice`, `SystemDice`), so no post
   exists without them. `schedule` plans each clip once the one before it is sent, best first (`Ranked`), with the
   sent post added to the feed (`Feed.With`): a wait that moved a post later moves the next one too, and a clip
   refused takes no place, so the next one goes in it. **A platform is a `Platform`** (`tiktok`, `youtube`), and
@@ -381,6 +384,12 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
     its first hour alone. It still fits the cadence: a run's 2 clips go out an hour apart, both before the next run
     renders, so nothing queues from run to run. 2 hours would push the second clip of every run past the next run's
     first, and 12 posts at most a day was already more than the budget.
+  - **A post scheduled ahead is a reservation** (2026-11-09). Until then a post went a `Spacing` after the latest
+    post of the feed, and the feed holds the posts still to come: one scheduled by hand for tomorrow at 18:00 held a
+    clip rendered today at 14:52 until tomorrow at 19:00, on both platforms, and every clip after it too. Every post
+    still to come also counted against today's cap, however far ahead it was. A battle's teaser, scheduled a day
+    ahead, would have done both. Now a post goes before one scheduled ahead when the gap keeps the spacing on both
+    sides and the trailing days around it leave room (`plan_test.go`, `TestAPostScheduledAheadHoldsBackNoPostBeforeIt`).
   - **Timing**: the run of 12:17 UTC, started by GitHub at 12:34 and rendered at 12:53, posts its first clip at
     12:58 and its second at 13:58; the run of 14:17, rendered at 14:52, posts at 14:58, an hour after 13:58, then at 15:58.
 - **The words of each platform are written here**, from what the generator gives (its teasers, the countries with

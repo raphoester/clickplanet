@@ -41,13 +41,29 @@ func TestARunOnTikTokAloneCountsTikTokAlone(t *testing.T) {
 	assert.Equal(t, 2, budget.Clips(2, []posts.Platform{posts.YouTube}, full, now))
 }
 
-func TestABudgetIsCountedOverATrailingDayAndCountsThePostsStillToCome(t *testing.T) {
+func TestABudgetIsCountedOverATrailingDay(t *testing.T) {
 	now := time.Date(2026, 10, 24, 14, 0, 0, 0, time.UTC)
-	// One a day old to the minute, four in the day, five still to go out.
-	feed := append(postings(5, now.Add(-24*time.Hour), posts.TikTok), postings(5, now.Add(time.Minute), posts.TikTok)...)
+	// Ten in the day, the first a day old to the minute.
+	full := postings(10, now.Add(-24*time.Hour), posts.TikTok)
+
+	assert.Equal(t, 0, budget.Clips(2, tiktok, full, now))
+	assert.Equal(t, 1, budget.Clips(2, tiktok, full, now.Add(time.Minute)))
+}
+
+func TestAPostStillToComeCountsInTheTrailingDayThatEndsWithIt(t *testing.T) {
+	now := time.Date(2026, 10, 24, 14, 0, 0, 0, time.UTC)
+	// Five in the day and five still to go out: the day that ends with the last of them holds all ten, and now.
+	feed := append(postings(5, now.Add(-19*time.Hour), posts.TikTok), postings(5, now.Add(time.Hour), posts.TikTok)...)
 
 	assert.Equal(t, 0, budget.Clips(2, tiktok, feed, now))
-	assert.Equal(t, 1, budget.Clips(2, tiktok, feed, now.Add(time.Minute)))
+}
+
+func TestAPostMoreThanADayAheadLeavesTheRoomOfNowAlone(t *testing.T) {
+	now := time.Date(2026, 10, 24, 14, 0, 0, 0, time.UTC)
+	// A full day, all of it scheduled ahead: no trailing day that holds now holds any of it.
+	ahead := postings(10, now.Add(24*time.Hour+time.Minute), posts.TikTok)
+
+	assert.Equal(t, 2, budget.Clips(2, tiktok, ahead, now))
 }
 
 func TestAPlatformTheBudgetDoesNotNameTakesNothing(t *testing.T) {

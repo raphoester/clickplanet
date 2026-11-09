@@ -20,8 +20,8 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
    a round to tell or a country to call up.
 2. **findings** and **choose**: `npm run clip -- --findings findings.json`, then, in a job of its own (it holds
    the Zernio and Anthropic keys, and runs no npm), the backend's `clips choose` reads it and prints the stories to
-   render, up to 2, and no more than the platforms have left of their day (14 posts in a trailing 24 hours on TikTok, 8
-   on YouTube), each with its number in the run and the arm of every experiment it put the clip in,
+   render, up to 2, and no more than the platforms have left of their day (3 posts in a trailing 24 hours on TikTok, the
+   best of a run, and 12 on YouTube), each with its number in the run and the arm of every experiment it put the clip in,
    `[{"pick":1,"story":{"front":3,…},"variants":{}}]`. **A day won goes first**, told once; **the
    model makes the rest** (the backend's [The clips job](../../backend/docs/clips-job.md), "The editor"): which fronts
    are stories, of what kind, between whom, where, and their headlines. The job checks each against the findings, and
@@ -37,7 +37,7 @@ happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four
    recorders do not help there: each one draws every frame. Chrome gets a minute to start: 20s failed the run of
    2026-10-26 18:40.
 4. **schedule**: the backend's `clips schedule` sends each clip to the posting service as one post on TikTok and
-   YouTube Shorts, **for 5 minutes ahead, an hour after the last post on each**, then tells the backend over SSH who
+   YouTube Shorts, **for 5 minutes ahead, an hour from any other post on each**, then tells the backend over SSH who
    each post names, so the game tells them. There is no review: nobody cancels
    clips in the dashboard, so the 4 hours one cost were 4 hours of the story getting old. A clip can still be
    cancelled in the service's dashboard before its time, which stops it on both.

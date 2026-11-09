@@ -15,34 +15,51 @@ type Posting struct {
 	Platforms []Platform
 }
 
-// Every post of the last day and every one still to come, by hand or by the job.
+// Every post of the last day and every one still to come, by hand or by the job. A post still to come is a
+// reservation: a new post goes around it, before it when there is room, and never crowds it.
 type Feed []Posting
 
-// Inclusive: the posts at this time or after are what the budget counts.
+// Inclusive: the posts at this time or after are what the budget of a post from now on counts.
 func PostedSince(now time.Time) time.Time {
 	return now.Add(-day)
 }
 
-// A post scheduled for later counts already: it will be in the window when the new one goes out.
-func (f Feed) spent(platform Platform, now time.Time) int {
+// The most posts on the platform in any trailing day that holds at: its own, and the one of each post on the platform
+// in the day after it, which a post at at would count in too.
+func (f Feed) fullestDay(platform Platform, at time.Time) int {
+	fullest := f.dayBefore(platform, at)
+	for _, posting := range f {
+		if posting.At.After(at) && !posting.At.After(at.Add(day)) && slices.Contains(posting.Platforms, platform) {
+			fullest = max(fullest, f.dayBefore(platform, posting.At))
+		}
+	}
+	return fullest
+}
+
+// The posts on the platform in the trailing day that ends at end, both ends included.
+func (f Feed) dayBefore(platform Platform, end time.Time) int {
 	count := 0
 	for _, posting := range f {
-		if !posting.At.Before(PostedSince(now)) && slices.Contains(posting.Platforms, platform) {
+		if !posting.At.Before(end.Add(-day)) && !posting.At.After(end) && slices.Contains(posting.Platforms, platform) {
 			count++
 		}
 	}
 	return count
 }
 
-// Zero when the platform holds no post.
-func (f Feed) last(platform Platform) time.Time {
-	var last time.Time
+// The latest post on any of the platforms less than spacing from at, before it or after it: false when none is.
+func (f Feed) clash(platforms []Platform, at time.Time, spacing time.Duration) (time.Time, bool) {
+	var latest time.Time
 	for _, posting := range f {
-		if slices.Contains(posting.Platforms, platform) && posting.At.After(last) {
-			last = posting.At
+		if posting.At.Sub(at).Abs() < spacing && posting.At.After(latest) && sharesOne(posting.Platforms, platforms) {
+			latest = posting.At
 		}
 	}
-	return last
+	return latest, !latest.IsZero()
+}
+
+func sharesOne(a, b []Platform) bool {
+	return slices.ContainsFunc(a, func(platform Platform) bool { return slices.Contains(b, platform) })
 }
 
 // With the post the service took, on each platform that took it.
@@ -82,15 +99,28 @@ func (h Hours) hold(at time.Time) bool {
 	return hour >= h.From && hour < h.To
 }
 
-func (b Budget) left(platform Platform, feed Feed, now time.Time) int {
-	return max(0, b[platform].PerDay-feed.spent(platform, now))
+// How many more posts at at the platform takes: none once any trailing day that holds at is full.
+func (b Budget) left(platform Platform, feed Feed, at time.Time) int {
+	return max(0, b[platform].PerDay-feed.fullestDay(platform, at))
 }
 
-func (b Budget) takes(platform Platform, place int, feed Feed, now time.Time) bool {
-	return b.left(platform, feed, now) > 0 && (!b[platform].BestOnly || place == 1)
+// The platforms the place-th post of a run may go to: one that takes the best only takes the first.
+func (b Budget) platformsOf(platforms []Platform, place int) []Platform {
+	var of []Platform
+	for _, platform := range platforms {
+		if !b[platform].BestOnly || place == 1 {
+			of = append(of, platform)
+		}
+	}
+	return of
 }
 
-// How many clips a run makes: perRun at most, and no more than the platform with the most room left takes, since a
+// Whether a post at at goes out on the platform: in its hours, with room left in every trailing day that holds it.
+func (b Budget) open(platform Platform, feed Feed, at time.Time) bool {
+	return b[platform].Hours.hold(at) && b.left(platform, feed, at) > 0
+}
+
+// How many clips a run makes: perRun at most, and no more than the platform with the most room left now takes, since a
 // clip goes to every platform that still has room. Not the hours: a clip's time is known once it is rendered.
 func (b Budget) Clips(perRun int, platforms []Platform, feed Feed, now time.Time) int {
 	room := 0
