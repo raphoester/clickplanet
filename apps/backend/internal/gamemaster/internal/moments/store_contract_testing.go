@@ -56,6 +56,20 @@ func (s *StoreContractSuite) TestTheRoundsOpenedAreReadAsKeptOnce() {
 	s.ElementsMatch([]RoundID{"season-0/day-24", "season-0/day-25"}, opened)
 }
 
+func (s *StoreContractSuite) TestTheRoundsScoredAreReadAsKept() {
+	ctx := s.T().Context()
+	at := time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
+	for _, round := range []RoundID{"season-0/day-24", "season-0/day-24", "season-0/finale"} {
+		_, err := s.store.KeepRound(ctx, ScoredRound{Round: round, Book: "season-0", EndedAt: at})
+		s.Require().NoError(err)
+	}
+
+	scored, err := s.store.Scored(ctx)
+
+	s.Require().NoError(err)
+	s.ElementsMatch([]RoundID{"season-0/day-24", "season-0/finale"}, scored)
+}
+
 func (s *StoreContractSuite) TestASeasonIsToldOnce() {
 	first, err := s.store.KeepToldSeason(s.T().Context(), "season-1")
 	s.Require().NoError(err)

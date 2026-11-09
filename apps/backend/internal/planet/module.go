@@ -16,6 +16,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/allegiance_facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/audit_release"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/postgres_allegiance_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/postgres_arena_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/close_arena_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/close_arena_usecase/log_close_arena"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase/log_open_arena"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/box_facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_charge_store"
@@ -60,6 +66,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/admit_caller_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/apply_grant_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/arena_command_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/refuse_caller_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/reset_map_handler"
@@ -150,6 +157,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -204,8 +212,14 @@ func NewModule(config Config) cpbootstrap.Module {
 				_ = db.Close()
 			}
 
+			arenaStore := postgres_arena_store.New(db)
+			playing, err := arenaStore.Playing(ctx)
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to read the arena open: %w", err)
+			}
 			tilesStorage := inmemory_tile_storage.New(borders, config.TilesStorage, postgres_tile_store.New(db), clock, props.Logger)
-			if err := tilesStorage.Load(ctx); err != nil {
+			if err := tilesStorage.Load(ctx, playing.Played()); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to load the tile map: %w", err)
 			}
@@ -242,6 +256,17 @@ func NewModule(config Config) cpbootstrap.Module {
 			game := rules.Reader(inForce, bonuses.Part)
 			freeze := rules.Reader(inForce, clicks.FreezePart)
 			lock := rules.Reader(inForce, allegiances.LockPart)
+
+			inPlay := arenas.NewInPlay(rules.Reader(inForce, arenas.Part), clock)
+			inPlay.Resume(playing)
+			arenaCommands, err := cpredis.Handle(ctx, streams, arena_command_handler.New(
+				log_open_arena.New(open_arena_usecase.New(tilesStorage, arenaStore, inPlay, clock), props.Logger),
+				log_close_arena.New(close_arena_usecase.New(tilesStorage, arenaStore, cpoutbox.New(db), inPlay, clock),
+					props.Logger)))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to handle planet.v1.ArenaCommand: %w", err)
+			}
 
 			charges := bonuses.NewCharges(postgres_charge_store.New(db), game)
 
@@ -302,6 +327,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// Not closers: closers run before the runners' last flush, and the relays' last send.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
 				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, newPlayers, refused, admitted, chosen, resetting,
+					arenaCommands, cpoutbox.NewRelay("planet-outbox", db, streams, props.Logger),
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
@@ -408,7 +434,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			interceptors := []connect.Interceptor{
 				planetv1controller.NewCacheInterceptor(tilesStorage),
 				planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics),
-				planetv1controller.NewFreezeInterceptor(freeze),
+				planetv1controller.NewFreezeInterceptor(func() clicks.Freeze { return freeze() || inPlay.Freeze() }),
 			}
 
 			if config.Auth.Enabled {

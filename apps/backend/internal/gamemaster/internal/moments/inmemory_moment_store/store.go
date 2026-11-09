@@ -125,6 +125,20 @@ func (s *Store) Opened(context.Context) ([]moments.RoundID, error) {
 	return opened, nil
 }
 
+func (s *Store) Scored(context.Context) ([]moments.RoundID, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+	scored := make([]moments.RoundID, 0, len(s.rounds))
+	for round := range s.rounds {
+		scored = append(scored, round)
+	}
+	return scored, nil
+}
+
 func (s *Store) FailWith(err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -280,3 +280,143 @@ export class ResetMap extends Message<ResetMap> {
   }
 }
 
+/**
+ * One stream for both, handled in order. An arena is the blank map an arena battle is fought on, kept apart from the
+ * world's map, which plays again when it closes. Each command is idempotent by arena_id.
+ *
+ * @generated from message planet.v1.ArenaCommand
+ */
+export class ArenaCommand extends Message<ArenaCommand> {
+  /**
+   * @generated from oneof planet.v1.ArenaCommand.command
+   */
+  command: {
+    /**
+     * @generated from field: planet.v1.OpenArena open_arena = 1;
+     */
+    value: OpenArena;
+    case: "openArena";
+  } | {
+    /**
+     * @generated from field: planet.v1.CloseArena close_arena = 2;
+     */
+    value: CloseArena;
+    case: "closeArena";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<ArenaCommand>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ArenaCommand";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "open_arena", kind: "message", T: OpenArena, oneof: "command" },
+    { no: 2, name: "close_arena", kind: "message", T: CloseArena, oneof: "command" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ArenaCommand {
+    return new ArenaCommand().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ArenaCommand {
+    return new ArenaCommand().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ArenaCommand {
+    return new ArenaCommand().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ArenaCommand | PlainMessage<ArenaCommand> | undefined, b: ArenaCommand | PlainMessage<ArenaCommand> | undefined): boolean {
+    return proto3.util.equals(ArenaCommand, a, b);
+  }
+}
+
+/**
+ * Plays the arena's map, blank, while the world's map stays as it is: a new epoch, so every client reads the map again.
+ * An arena opens once, never after it closed, and never at or after ends_at. Every play is refused for the rule set's
+ * arena.freeze after it opens and before ends_at.
+ *
+ * @generated from message planet.v1.OpenArena
+ */
+export class OpenArena extends Message<OpenArena> {
+  /**
+   * @generated from field: string arena_id = 1;
+   */
+  arenaId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 2;
+   */
+  endsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<OpenArena>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.OpenArena";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "arena_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "ends_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenArena {
+    return new OpenArena().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenArena {
+    return new OpenArena().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenArena {
+    return new OpenArena().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OpenArena | PlainMessage<OpenArena> | undefined, b: OpenArena | PlainMessage<OpenArena> | undefined): boolean {
+    return proto3.util.equals(OpenArena, a, b);
+  }
+}
+
+/**
+ * Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map left
+ * as it is. Either way planet tells ArenaClosed, once.
+ *
+ * @generated from message planet.v1.CloseArena
+ */
+export class CloseArena extends Message<CloseArena> {
+  /**
+   * @generated from field: string arena_id = 1;
+   */
+  arenaId = "";
+
+  constructor(data?: PartialMessage<CloseArena>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.CloseArena";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "arena_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CloseArena {
+    return new CloseArena().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CloseArena {
+    return new CloseArena().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CloseArena {
+    return new CloseArena().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CloseArena | PlainMessage<CloseArena> | undefined, b: CloseArena | PlainMessage<CloseArena> | undefined): boolean {
+    return proto3.util.equals(CloseArena, a, b);
+  }
+}
+

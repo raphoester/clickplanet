@@ -56,6 +56,7 @@ func commandOf(command moments.Command) (*scoringv1.ScoringCommand, error) {
 	case moments.OpenRound:
 		return &scoringv1.ScoringCommand{Command: &scoringv1.ScoringCommand_OpenRound{OpenRound: &scoringv1.OpenRound{
 			RoundId: string(command.Round), BookId: string(command.Book), Times: uint32(command.Times), StartsAt: at,
+			FromNothing: command.FromNothing,
 		}}}, nil
 	case moments.CloseRound:
 		return &scoringv1.ScoringCommand{Command: &scoringv1.ScoringCommand_CloseRound{CloseRound: &scoringv1.CloseRound{

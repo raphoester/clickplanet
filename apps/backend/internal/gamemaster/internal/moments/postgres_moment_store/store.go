@@ -79,24 +79,32 @@ func (s *Store) KeepToldBattle(ctx context.Context, round moments.RoundID) (bool
 }
 
 func (s *Store) Opened(ctx context.Context) ([]moments.RoundID, error) {
-	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT round_id FROM opened_rounds`)
+	return s.rounds(ctx, `SELECT round_id FROM opened_rounds`, "opened")
+}
+
+func (s *Store) Scored(ctx context.Context) ([]moments.RoundID, error) {
+	return s.rounds(ctx, `SELECT round_id FROM scored_rounds`, "scored")
+}
+
+func (s *Store) rounds(ctx context.Context, query, what string) ([]moments.RoundID, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the rounds opened: %w", err)
+		return nil, fmt.Errorf("failed to read the rounds %s: %w", what, err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	var opened []moments.RoundID
+	var rounds []moments.RoundID
 	for rows.Next() {
 		var round string
 		if err := rows.Scan(&round); err != nil {
-			return nil, fmt.Errorf("failed to read a round opened: %w", err)
+			return nil, fmt.Errorf("failed to read a round %s: %w", what, err)
 		}
-		opened = append(opened, moments.RoundID(round))
+		rounds = append(rounds, moments.RoundID(round))
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the rounds opened: %w", err)
+		return nil, fmt.Errorf("failed to read the rounds %s: %w", what, err)
 	}
-	return opened, nil
+	return rounds, nil
 }
 
 func inserted(res interface{ RowsAffected() (int64, error) }) (bool, error) {

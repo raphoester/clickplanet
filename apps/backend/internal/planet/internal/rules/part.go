@@ -1,6 +1,8 @@
 package rules
 
 import (
+	"errors"
+
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 )
 
@@ -12,18 +14,24 @@ type Rules interface {
 type PartOf[R Rules] struct {
 	Key  string
 	Read func(*planetv1.Rules) R
+	// InDefault, when set, refuses what default itself may not play: every other set would play it too.
+	InDefault func(R) error
 }
 
 func (p PartOf[R]) key() string { return p.Key }
 
-func (p PartOf[R]) read(message *planetv1.Rules) (any, error) {
+func (p PartOf[R]) read(message *planetv1.Rules, isDefault bool) (any, error) {
 	rules := p.Read(message)
-	return rules, rules.Validate()
+	err := rules.Validate()
+	if isDefault && p.InDefault != nil {
+		err = errors.Join(err, p.InDefault(rules))
+	}
+	return rules, err
 }
 
 type Part interface {
 	key() string
-	read(message *planetv1.Rules) (any, error)
+	read(message *planetv1.Rules, isDefault bool) (any, error)
 }
 
 type Parts []Part

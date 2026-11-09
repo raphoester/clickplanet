@@ -49,3 +49,26 @@ message ResetMap {
   string reset_id = 1;
   google.protobuf.Timestamp decided_at = 2;
 }
+
+// One stream for both, handled in order. An arena is the blank map an arena battle is fought on, kept apart from the
+// world's map, which plays again when it closes. Each command is idempotent by arena_id.
+message ArenaCommand {
+  oneof command {
+    OpenArena open_arena = 1;
+    CloseArena close_arena = 2;
+  }
+}
+
+// Plays the arena's map, blank, while the world's map stays as it is: a new epoch, so every client reads the map again.
+// An arena opens once, never after it closed, and never at or after ends_at. Every play is refused for the rule set's
+// arena.freeze after it opens and before ends_at.
+message OpenArena {
+  string arena_id = 1;
+  google.protobuf.Timestamp ends_at = 2;
+}
+
+// Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map left
+// as it is. Either way planet tells ArenaClosed, once.
+message CloseArena {
+  string arena_id = 1;
+}

@@ -126,6 +126,7 @@ func (h Dispatcher) openRound(ctx context.Context, command *scoringv1.OpenRound)
 	}
 	_, err = h.useCases.OpenRound.Execute(ctx, open_round_usecase.Command{
 		Round: round, Book: book, Times: command.GetTimes(), StartsAt: command.GetStartsAt().AsTime(),
+		FromNothing: command.GetFromNothing(),
 	})
 	return err //nolint:wrapcheck // the use case named it.
 }

@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/outbox_moment_events"
@@ -51,7 +52,7 @@ func newHarness(t *testing.T) *harness {
 	}.Restore()))
 
 	h := &harness{t: t, store: inmemory_moment_store.New(), outbox: &cpatomic.FakeOutbox{}}
-	h.useCase = hear_round_usecase.New(moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), season.Cutoff(21*time.Hour)), h.store,
+	h.useCase = hear_round_usecase.New(moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), inmemory_arena_store.New(), season.Cutoff(21*time.Hour)), h.store,
 		outbox_moment_events.New(h.outbox), cpatomic.FakeTransactioner{})
 	return h
 }

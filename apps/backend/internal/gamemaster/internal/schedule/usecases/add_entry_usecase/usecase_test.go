@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
@@ -37,7 +38,7 @@ func adding(store *inmemory_entry_store.Store, keepers []schedule.Keeper) *add_e
 }
 
 func planned(seasons *inmemory_season_store.Store, entries *inmemory_entry_store.Store) moments.Planner {
-	return moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), season.Cutoff(21*time.Hour))
+	return moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), inmemory_arena_store.New(), season.Cutoff(21*time.Hour))
 }
 
 var rush = schedule.Draft{

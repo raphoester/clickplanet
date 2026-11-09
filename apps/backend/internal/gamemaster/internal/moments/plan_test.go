@@ -66,6 +66,7 @@ func TestTheFinaleIsTheSeasonsBattleNamedByItsSeason(t *testing.T) {
 	require.True(t, ok)
 	want := moments.Battle{
 		Season: 0, Number: 2, Times: 3, Description: "Triple points.", StartsAt: finaleAt, EndsAt: seasonEnds, EndsSeason: true,
+		Set: rush.Set,
 	}
 	assert.Equal(t, want, finale)
 	assert.Equal(t, moments.RoundID("season-0/finale"), finale.Round())

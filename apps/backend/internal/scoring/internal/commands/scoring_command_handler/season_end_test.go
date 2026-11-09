@@ -168,6 +168,32 @@ func TestARoundOpenedWhileTheMapCannotBeReadOpensOnTheNextDelivery(t *testing.T)
 	assert.Equal(t, books.Start{"fr": 3}, start)
 }
 
+// A battle played on a blank map: day 1 is scored on the map, the battle opens without reading it and is scored on
+// the tiles each country holds when it closes.
+func TestARoundToldToCountFromNothingIsScoredOnTheTilesHeldAtItsEnd(t *testing.T) {
+	stack := newStack()
+	require.NoError(t, stack.handler.Handle(t.Context(), openBook("season-1", utc(8, 0))))
+	require.NoError(t, stack.handler.Handle(t.Context(), openRound("season-1/day-1", "season-1", 1, utc(8, 0))))
+	stack.territory.held = map[books.Country]uint32{"fr": 30, "de": 5}
+	require.NoError(t, stack.handler.Handle(t.Context(), closeRound("season-1/day-1", utc(8, 21))))
+	stack.territory.err = errors.New("planet is down")
+
+	fromNothing := openRound(battle, "season-1", 2, utc(8, 21))
+	fromNothing.GetOpenRound().FromNothing = true
+	require.NoError(t, stack.handler.Handle(t.Context(), fromNothing), "a round from nothing reads no map")
+	start, err := stack.rounds.StartOf(t.Context(), battle)
+	require.NoError(t, err)
+	assert.Empty(t, start)
+
+	stack.territory.held, stack.territory.err = map[books.Country]uint32{"fr": 2, "de": 4}, nil
+	require.NoError(t, stack.handler.Handle(t.Context(), closeRound(battle, utc(8, 23))))
+	scored := stack.outbox.Recorded()[1].(*scoringv1.RoundScored)
+	require.Len(t, scored.GetResults(), 2)
+	assert.Equal(t, "de", scored.GetResults()[0].GetCountry())
+	assert.Equal(t, uint32(2*25), scored.GetResults()[0].GetPoints())
+	assert.Equal(t, uint32(2*18), scored.GetResults()[1].GetPoints())
+}
+
 func assertRecorded(t *testing.T, want, recorded []proto.Message) {
 	t.Helper()
 	require.Len(t, recorded, len(want))

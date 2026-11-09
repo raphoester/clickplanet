@@ -30,6 +30,8 @@ type Command struct {
 	Book     books.BookID
 	Times    uint32
 	StartsAt time.Time
+	// FromNothing is a round told to count from nothing.
+	FromNothing bool
 }
 
 func New(books Books, rounds Rounds, territory Territory) *UseCase {
@@ -59,7 +61,7 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	if !found || book.Closed {
 		return false, fmt.Errorf("%w: round %s: %w: %s", books.ErrRefused, command.Round, ErrBookNotOpen, command.Book)
 	}
-	start, err := u.startOf(ctx, round)
+	start, err := u.startOf(ctx, round, command.FromNothing)
 	if err != nil {
 		return false, err
 	}
@@ -70,13 +72,12 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	return opened, nil
 }
 
-// A book's first round counts from nothing: the map it opens on may be wiped just after.
-func (u *UseCase) startOf(ctx context.Context, round books.Round) (books.Start, error) {
+func (u *UseCase) startOf(ctx context.Context, round books.Round, fromNothing bool) (books.Start, error) {
 	before, err := u.rounds.Of(ctx, []books.BookID{round.Book})
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the rounds of book %s: %w", round.Book, err)
 	}
-	if len(before) == 0 {
+	if books.CountsFromNothing(fromNothing, before) {
 		return books.Start{}, nil
 	}
 	snapshot, err := u.territory.Snapshot(ctx)

@@ -14,22 +14,22 @@ import (
 
 func (s *testSuite) TestAWipeDeletesTheMapInTheResetsTransaction() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, owned("fr", 1, 2, 3), []inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "fr"}}))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1, 2, 3), []inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "fr"}}))
 	kept := postgres_reset_store.New(s.db)
 	seasonOne, err := resets.New("season-1", time.Date(2026, 11, 1, 15, 0, 0, 0, time.UTC))
 	s.Require().NoError(err)
 	keep := func(ctx context.Context) (bool, error) { return kept.Keep(ctx, seasonOne) }
 
-	wiped, err := s.store.Wipe(ctx, keep)
+	wiped, err := s.store.Wipe(ctx, clicks.World, keep)
 	s.Require().NoError(err)
 	s.True(wiped)
 	s.Empty(s.load())
 	locks := map[clicks.LandmassID]string{}
-	s.Require().NoError(s.store.LoadLandmasses(ctx, "borders.bin", func(id clicks.LandmassID, by string) { locks[id] = by }))
+	s.Require().NoError(s.store.LoadLandmasses(ctx, clicks.World, "borders.bin", func(id clicks.LandmassID, by string) { locks[id] = by }))
 	s.Empty(locks)
 
-	s.Require().NoError(s.store.Save(ctx, owned("de", 7), nil))
-	wiped, err = s.store.Wipe(ctx, keep)
+	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("de", 7), nil))
+	wiped, err = s.store.Wipe(ctx, clicks.World, keep)
 	s.Require().NoError(err)
 	s.False(wiped, "a reset kept already wipes nothing")
 	s.Equal(map[uint32]string{7: "de"}, s.load())
@@ -37,13 +37,13 @@ func (s *testSuite) TestAWipeDeletesTheMapInTheResetsTransaction() {
 
 func (s *testSuite) TestAWipeThatFailsKeepsTheMapAndNoReset() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, owned("fr", 1), nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1), nil))
 	kept := postgres_reset_store.New(s.db)
 	seasonOne, err := resets.New("season-1", time.Date(2026, 11, 1, 15, 0, 0, 0, time.UTC))
 	s.Require().NoError(err)
 	broken := errors.New("broken")
 
-	_, err = s.store.Wipe(ctx, func(ctx context.Context) (bool, error) {
+	_, err = s.store.Wipe(ctx, clicks.World, func(ctx context.Context) (bool, error) {
 		if _, err := kept.Keep(ctx, seasonOne); err != nil {
 			return false, fmt.Errorf("keep: %w", err)
 		}
