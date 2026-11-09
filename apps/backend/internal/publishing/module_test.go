@@ -102,6 +102,13 @@ func listen(t *testing.T) net.Listener {
 // The module alone in a server, and a client of its service on the console listener once it serves.
 func run(t *testing.T, config publishing.Config) publishingv1connect.AdminServiceClient {
 	t.Helper()
+	admin, _ := runBoth(t, config)
+	return admin
+}
+
+// A client of each service: the operator's on the console listener, another module's on the internal one.
+func runBoth(t *testing.T, config publishing.Config) (publishingv1connect.AdminServiceClient, publishingv1connect.InternalServiceClient) {
+	t.Helper()
 
 	public, console, internal := listen(t), listen(t), listen(t)
 	ctx, cancel := context.WithCancel(t.Context())
@@ -127,7 +134,7 @@ func run(t *testing.T, config publishing.Config) publishingv1connect.AdminServic
 		_, err := client.ListPosts(t.Context(), connect.NewRequest(&publishingv1.ListPostsRequest{Since: timestamppb.Now()}))
 		assert.True(c, err == nil || connect.CodeOf(err) == connect.CodeFailedPrecondition, "%v", err)
 	}, time.Minute, 100*time.Millisecond, "the module serves once the server runs")
-	return client
+	return client, publishingv1connect.NewInternalServiceClient(http.DefaultClient, "http://"+internal.Addr().String())
 }
 
 // Tomorrow at an hour of the day: in the hours of both platforms at 15:00, of YouTube alone at 12:00.
@@ -249,12 +256,41 @@ func TestAWrongRequestIsInvalidArgument(t *testing.T) {
 }
 
 func TestWithNoKeyEveryCallIsFailedPreconditionAndTheServerStillRuns(t *testing.T) {
-	client := run(t, publishing.Config{})
+	client, internal := runBoth(t, publishing.Config{})
 
 	_, err := client.GetRoom(t.Context(), connect.NewRequest(&publishingv1.GetRoomRequest{Platforms: []publishingv1.Platform{tiktok}}))
 
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 	assert.ErrorContains(t, err, "no key of the posting service")
+	_, err = internal.PlanPost(t.Context(), connect.NewRequest(&publishingv1.PlanPostRequest{Platforms: []publishingv1.Platform{tiktok}}))
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err), "another module is told the same")
+}
+
+func TestAnotherModulePlansSchedulesAndListsOnTheInternalListener(t *testing.T) {
+	fake := &zernioFake{}
+	_, internal := runBoth(t, publishing.Config{Zernio: publishing.ZernioConfig{APIKey: "the-key", BaseURL: fake.serve(t)}})
+
+	plan, err := internal.PlanPost(t.Context(), connect.NewRequest(&publishingv1.PlanPostRequest{
+		Platforms: []publishingv1.Platform{tiktok, youtube}, NotBefore: timestamppb.New(tomorrowAt(10)), By: timestamppb.New(tomorrowAt(20)),
+	}))
+	require.NoError(t, err)
+	assert.Equal(t, tomorrowAt(14), plan.Msg.GetSlot().GetAt().AsTime())
+
+	metadata, err := structpb.NewStruct(map[string]any{"teaserBattle": "entry-7"})
+	require.NoError(t, err)
+	scheduled, err := internal.SchedulePost(t.Context(), connect.NewRequest(&publishingv1.SchedulePostRequest{
+		Slot: plan.Msg.GetSlot(), MediaUrl: "https://media.example/teaser.mp4", IdempotencyKey: "f00d", Title: "BATTLE",
+		Tiktok:          &publishingv1.TikTokWords{Caption: "Battle on Saturday", Title: "BATTLE ON SATURDAY"},
+		Youtube:         &publishingv1.YouTubeWords{Title: "BATTLE | CLICKPLANET"},
+		TiktokPhotoUrls: []string{"https://media.example/card-1.jpg"}, Metadata: metadata,
+	}))
+	require.NoError(t, err)
+	assert.Equal(t, "post-1", scheduled.Msg.GetScheduled().GetPostId())
+
+	listed, err := internal.ListPosts(t.Context(), connect.NewRequest(&publishingv1.ListPostsRequest{Since: timestamppb.Now()}))
+	require.NoError(t, err)
+	require.Len(t, listed.Msg.GetPosts(), 1)
+	assert.Equal(t, "entry-7", listed.Msg.GetPosts()[0].GetMetadata().GetFields()["teaserBattle"].GetStringValue())
 }
 
 func TestABaseURLThatIsNoHTTPAddressIsRefused(t *testing.T) {

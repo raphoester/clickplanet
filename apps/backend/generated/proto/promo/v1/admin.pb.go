@@ -1122,6 +1122,512 @@ func (x *Teaser) GetCards() []*TeaserCard {
 	return nil
 }
 
+type ListDueTeasersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDueTeasersRequest) Reset() {
+	*x = ListDueTeasersRequest{}
+	mi := &file_promo_v1_admin_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDueTeasersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDueTeasersRequest) ProtoMessage() {}
+
+func (x *ListDueTeasersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_promo_v1_admin_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDueTeasersRequest.ProtoReflect.Descriptor instead.
+func (*ListDueTeasersRequest) Descriptor() ([]byte, []int) {
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{21}
+}
+
+type ListDueTeasersResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// By start.
+	Teasers       []*Teaser `protobuf:"bytes,1,rep,name=teasers,proto3" json:"teasers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDueTeasersResponse) Reset() {
+	*x = ListDueTeasersResponse{}
+	mi := &file_promo_v1_admin_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDueTeasersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDueTeasersResponse) ProtoMessage() {}
+
+func (x *ListDueTeasersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_promo_v1_admin_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDueTeasersResponse.ProtoReflect.Descriptor instead.
+func (*ListDueTeasersResponse) Descriptor() ([]byte, []int) {
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ListDueTeasersResponse) GetTeasers() []*Teaser {
+	if x != nil {
+		return x.Teasers
+	}
+	return nil
+}
+
+type PostTeaserRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A battle ListDueTeasers listed.
+	BattleId string `protobuf:"bytes,1,opt,name=battle_id,json=battleId,proto3" json:"battle_id,omitempty"`
+	// Its cards as JPEGs, in their order, one a card: the addresses publishing's CreateMediaUpload answered.
+	PhotoUrls []string `protobuf:"bytes,2,rep,name=photo_urls,json=photoUrls,proto3" json:"photo_urls,omitempty"`
+	// Their slideshow, an MP4: the address publishing's CreateMediaUpload answered.
+	VideoUrl      string `protobuf:"bytes,3,opt,name=video_url,json=videoUrl,proto3" json:"video_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PostTeaserRequest) Reset() {
+	*x = PostTeaserRequest{}
+	mi := &file_promo_v1_admin_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PostTeaserRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PostTeaserRequest) ProtoMessage() {}
+
+func (x *PostTeaserRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_promo_v1_admin_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PostTeaserRequest.ProtoReflect.Descriptor instead.
+func (*PostTeaserRequest) Descriptor() ([]byte, []int) {
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *PostTeaserRequest) GetBattleId() string {
+	if x != nil {
+		return x.BattleId
+	}
+	return ""
+}
+
+func (x *PostTeaserRequest) GetPhotoUrls() []string {
+	if x != nil {
+		return x.PhotoUrls
+	}
+	return nil
+}
+
+func (x *PostTeaserRequest) GetVideoUrl() string {
+	if x != nil {
+		return x.VideoUrl
+	}
+	return ""
+}
+
+type PostTeaserResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Outcome:
+	//
+	//	*PostTeaserResponse_Posted
+	//	*PostTeaserResponse_Held
+	//	*PostTeaserResponse_Skipped
+	//	*PostTeaserResponse_Busy
+	//	*PostTeaserResponse_Failed
+	Outcome       isPostTeaserResponse_Outcome `protobuf_oneof:"outcome"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PostTeaserResponse) Reset() {
+	*x = PostTeaserResponse{}
+	mi := &file_promo_v1_admin_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PostTeaserResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PostTeaserResponse) ProtoMessage() {}
+
+func (x *PostTeaserResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_promo_v1_admin_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PostTeaserResponse.ProtoReflect.Descriptor instead.
+func (*PostTeaserResponse) Descriptor() ([]byte, []int) {
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *PostTeaserResponse) GetOutcome() isPostTeaserResponse_Outcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return nil
+}
+
+func (x *PostTeaserResponse) GetPosted() *TeaserPosted {
+	if x != nil {
+		if x, ok := x.Outcome.(*PostTeaserResponse_Posted); ok {
+			return x.Posted
+		}
+	}
+	return nil
+}
+
+func (x *PostTeaserResponse) GetHeld() *TeaserNotPosted {
+	if x != nil {
+		if x, ok := x.Outcome.(*PostTeaserResponse_Held); ok {
+			return x.Held
+		}
+	}
+	return nil
+}
+
+func (x *PostTeaserResponse) GetSkipped() *TeaserNotPosted {
+	if x != nil {
+		if x, ok := x.Outcome.(*PostTeaserResponse_Skipped); ok {
+			return x.Skipped
+		}
+	}
+	return nil
+}
+
+func (x *PostTeaserResponse) GetBusy() *TeaserBusy {
+	if x != nil {
+		if x, ok := x.Outcome.(*PostTeaserResponse_Busy); ok {
+			return x.Busy
+		}
+	}
+	return nil
+}
+
+func (x *PostTeaserResponse) GetFailed() *TeaserNotPosted {
+	if x != nil {
+		if x, ok := x.Outcome.(*PostTeaserResponse_Failed); ok {
+			return x.Failed
+		}
+	}
+	return nil
+}
+
+type isPostTeaserResponse_Outcome interface {
+	isPostTeaserResponse_Outcome()
+}
+
+type PostTeaserResponse_Posted struct {
+	Posted *TeaserPosted `protobuf:"bytes,1,opt,name=posted,proto3,oneof"`
+}
+
+type PostTeaserResponse_Held struct {
+	// No platform takes it before its battle: their days are full, or their hours past.
+	Held *TeaserNotPosted `protobuf:"bytes,2,opt,name=held,proto3,oneof"`
+}
+
+type PostTeaserResponse_Skipped struct {
+	// No longer due: teased already, or no longer on the schedule within 36 hours.
+	Skipped *TeaserNotPosted `protobuf:"bytes,3,opt,name=skipped,proto3,oneof"`
+}
+
+type PostTeaserResponse_Busy struct {
+	// The posting service asked to be tried later: call again after retry_after.
+	Busy *TeaserBusy `protobuf:"bytes,4,opt,name=busy,proto3,oneof"`
+}
+
+type PostTeaserResponse_Failed struct {
+	// Refused for good.
+	Failed *TeaserNotPosted `protobuf:"bytes,5,opt,name=failed,proto3,oneof"`
+}
+
+func (*PostTeaserResponse_Posted) isPostTeaserResponse_Outcome() {}
+
+func (*PostTeaserResponse_Held) isPostTeaserResponse_Outcome() {}
+
+func (*PostTeaserResponse_Skipped) isPostTeaserResponse_Outcome() {}
+
+func (*PostTeaserResponse_Busy) isPostTeaserResponse_Outcome() {}
+
+func (*PostTeaserResponse_Failed) isPostTeaserResponse_Outcome() {}
+
+type TeaserPosted struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	PostId string                 `protobuf:"bytes,1,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
+	// The post's title, in the posting service's dashboard.
+	Title string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	At    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=at,proto3" json:"at,omitempty"`
+	// "tiktok", "youtube".
+	Platforms []string `protobuf:"bytes,4,rep,name=platforms,proto3" json:"platforms,omitempty"`
+	// Each platform that refused it, and why: the post goes out on the others.
+	Refusals      []*TeaserRefusal `protobuf:"bytes,5,rep,name=refusals,proto3" json:"refusals,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TeaserPosted) Reset() {
+	*x = TeaserPosted{}
+	mi := &file_promo_v1_admin_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TeaserPosted) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TeaserPosted) ProtoMessage() {}
+
+func (x *TeaserPosted) ProtoReflect() protoreflect.Message {
+	mi := &file_promo_v1_admin_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TeaserPosted.ProtoReflect.Descriptor instead.
+func (*TeaserPosted) Descriptor() ([]byte, []int) {
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *TeaserPosted) GetPostId() string {
+	if x != nil {
+		return x.PostId
+	}
+	return ""
+}
+
+func (x *TeaserPosted) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *TeaserPosted) GetAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.At
+	}
+	return nil
+}
+
+func (x *TeaserPosted) GetPlatforms() []string {
+	if x != nil {
+		return x.Platforms
+	}
+	return nil
+}
+
+func (x *TeaserPosted) GetRefusals() []*TeaserRefusal {
+	if x != nil {
+		return x.Refusals
+	}
+	return nil
+}
+
+type TeaserRefusal struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Platform      string                 `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TeaserRefusal) Reset() {
+	*x = TeaserRefusal{}
+	mi := &file_promo_v1_admin_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TeaserRefusal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TeaserRefusal) ProtoMessage() {}
+
+func (x *TeaserRefusal) ProtoReflect() protoreflect.Message {
+	mi := &file_promo_v1_admin_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TeaserRefusal.ProtoReflect.Descriptor instead.
+func (*TeaserRefusal) Descriptor() ([]byte, []int) {
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *TeaserRefusal) GetPlatform() string {
+	if x != nil {
+		return x.Platform
+	}
+	return ""
+}
+
+func (x *TeaserRefusal) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type TeaserNotPosted struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reason        string                 `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TeaserNotPosted) Reset() {
+	*x = TeaserNotPosted{}
+	mi := &file_promo_v1_admin_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TeaserNotPosted) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TeaserNotPosted) ProtoMessage() {}
+
+func (x *TeaserNotPosted) ProtoReflect() protoreflect.Message {
+	mi := &file_promo_v1_admin_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TeaserNotPosted.ProtoReflect.Descriptor instead.
+func (*TeaserNotPosted) Descriptor() ([]byte, []int) {
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *TeaserNotPosted) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type TeaserBusy struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Reason string                 `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
+	// Absent when the service did not say.
+	RetryAfter    *durationpb.Duration `protobuf:"bytes,2,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TeaserBusy) Reset() {
+	*x = TeaserBusy{}
+	mi := &file_promo_v1_admin_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TeaserBusy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TeaserBusy) ProtoMessage() {}
+
+func (x *TeaserBusy) ProtoReflect() protoreflect.Message {
+	mi := &file_promo_v1_admin_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TeaserBusy.ProtoReflect.Descriptor instead.
+func (*TeaserBusy) Descriptor() ([]byte, []int) {
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *TeaserBusy) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *TeaserBusy) GetRetryAfter() *durationpb.Duration {
+	if x != nil {
+		return x.RetryAfter
+	}
+	return nil
+}
+
 var File_promo_v1_admin_proto protoreflect.FileDescriptor
 
 const file_promo_v1_admin_proto_rawDesc = "" +
@@ -1192,7 +1698,38 @@ const file_promo_v1_admin_proto_rawDesc = "" +
 	"\x05times\x18\x05 \x01(\rR\x05times\x12\x1f\n" +
 	"\vends_season\x18\x06 \x01(\bR\n" +
 	"endsSeason\x12*\n" +
-	"\x05cards\x18\a \x03(\v2\x14.promo.v1.TeaserCardR\x05cards2\xe7\x04\n" +
+	"\x05cards\x18\a \x03(\v2\x14.promo.v1.TeaserCardR\x05cards\"\x17\n" +
+	"\x15ListDueTeasersRequest\"D\n" +
+	"\x16ListDueTeasersResponse\x12*\n" +
+	"\ateasers\x18\x01 \x03(\v2\x10.promo.v1.TeaserR\ateasers\"l\n" +
+	"\x11PostTeaserRequest\x12\x1b\n" +
+	"\tbattle_id\x18\x01 \x01(\tR\bbattleId\x12\x1d\n" +
+	"\n" +
+	"photo_urls\x18\x02 \x03(\tR\tphotoUrls\x12\x1b\n" +
+	"\tvideo_url\x18\x03 \x01(\tR\bvideoUrl\"\x9a\x02\n" +
+	"\x12PostTeaserResponse\x120\n" +
+	"\x06posted\x18\x01 \x01(\v2\x16.promo.v1.TeaserPostedH\x00R\x06posted\x12/\n" +
+	"\x04held\x18\x02 \x01(\v2\x19.promo.v1.TeaserNotPostedH\x00R\x04held\x125\n" +
+	"\askipped\x18\x03 \x01(\v2\x19.promo.v1.TeaserNotPostedH\x00R\askipped\x12*\n" +
+	"\x04busy\x18\x04 \x01(\v2\x14.promo.v1.TeaserBusyH\x00R\x04busy\x123\n" +
+	"\x06failed\x18\x05 \x01(\v2\x19.promo.v1.TeaserNotPostedH\x00R\x06failedB\t\n" +
+	"\aoutcome\"\xbc\x01\n" +
+	"\fTeaserPosted\x12\x17\n" +
+	"\apost_id\x18\x01 \x01(\tR\x06postId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12*\n" +
+	"\x02at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12\x1c\n" +
+	"\tplatforms\x18\x04 \x03(\tR\tplatforms\x123\n" +
+	"\brefusals\x18\x05 \x03(\v2\x17.promo.v1.TeaserRefusalR\brefusals\"C\n" +
+	"\rTeaserRefusal\x12\x1a\n" +
+	"\bplatform\x18\x01 \x01(\tR\bplatform\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\")\n" +
+	"\x0fTeaserNotPosted\x12\x16\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason\"`\n" +
+	"\n" +
+	"TeaserBusy\x12\x16\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason\x12:\n" +
+	"\vretry_after\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\n" +
+	"retryAfter2\x8a\x06\n" +
 	"\fAdminService\x12k\n" +
 	"\x16CreateBackgroundUpload\x12'.promo.v1.CreateBackgroundUploadRequest\x1a(.promo.v1.CreateBackgroundUploadResponse\x12S\n" +
 	"\x0eKeepBackground\x12\x1f.promo.v1.KeepBackgroundRequest\x1a .promo.v1.KeepBackgroundResponse\x12[\n" +
@@ -1200,7 +1737,10 @@ const file_promo_v1_admin_proto_rawDesc = "" +
 	"\x10RemoveBackground\x12!.promo.v1.RemoveBackgroundRequest\x1a\".promo.v1.RemoveBackgroundResponse\x12F\n" +
 	"\bGetCards\x12\x19.promo.v1.GetCardsRequest\x1a\x1a.promo.v1.GetCardsResponse\"\x03\x90\x02\x01\x12D\n" +
 	"\tSaveCards\x12\x1a.promo.v1.SaveCardsRequest\x1a\x1b.promo.v1.SaveCardsResponse\x12O\n" +
-	"\vListTeasers\x12\x1c.promo.v1.ListTeasersRequest\x1a\x1d.promo.v1.ListTeasersResponse\"\x03\x90\x02\x01B\xab\x01\n" +
+	"\vListTeasers\x12\x1c.promo.v1.ListTeasersRequest\x1a\x1d.promo.v1.ListTeasersResponse\"\x03\x90\x02\x01\x12X\n" +
+	"\x0eListDueTeasers\x12\x1f.promo.v1.ListDueTeasersRequest\x1a .promo.v1.ListDueTeasersResponse\"\x03\x90\x02\x01\x12G\n" +
+	"\n" +
+	"PostTeaser\x12\x1b.promo.v1.PostTeaserRequest\x1a\x1c.promo.v1.PostTeaserResponseB\xab\x01\n" +
 	"\fcom.promo.v1B\n" +
 	"AdminProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/promo/v1;promov1\xa2\x02\x03PXX\xaa\x02\bPromo.V1\xca\x02\bPromo\\V1\xe2\x02\x14Promo\\V1\\GPBMetadata\xea\x02\tPromo::V1b\x06proto3"
 
@@ -1216,7 +1756,7 @@ func file_promo_v1_admin_proto_rawDescGZIP() []byte {
 	return file_promo_v1_admin_proto_rawDescData
 }
 
-var file_promo_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_promo_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_promo_v1_admin_proto_goTypes = []any{
 	(*CreateBackgroundUploadRequest)(nil),  // 0: promo.v1.CreateBackgroundUploadRequest
 	(*CreateBackgroundUploadResponse)(nil), // 1: promo.v1.CreateBackgroundUploadResponse
@@ -1239,45 +1779,66 @@ var file_promo_v1_admin_proto_goTypes = []any{
 	(*ListTeasersRequest)(nil),             // 18: promo.v1.ListTeasersRequest
 	(*ListTeasersResponse)(nil),            // 19: promo.v1.ListTeasersResponse
 	(*Teaser)(nil),                         // 20: promo.v1.Teaser
-	(*timestamppb.Timestamp)(nil),          // 21: google.protobuf.Timestamp
-	(*TeaserCard)(nil),                     // 22: promo.v1.TeaserCard
-	(*durationpb.Duration)(nil),            // 23: google.protobuf.Duration
+	(*ListDueTeasersRequest)(nil),          // 21: promo.v1.ListDueTeasersRequest
+	(*ListDueTeasersResponse)(nil),         // 22: promo.v1.ListDueTeasersResponse
+	(*PostTeaserRequest)(nil),              // 23: promo.v1.PostTeaserRequest
+	(*PostTeaserResponse)(nil),             // 24: promo.v1.PostTeaserResponse
+	(*TeaserPosted)(nil),                   // 25: promo.v1.TeaserPosted
+	(*TeaserRefusal)(nil),                  // 26: promo.v1.TeaserRefusal
+	(*TeaserNotPosted)(nil),                // 27: promo.v1.TeaserNotPosted
+	(*TeaserBusy)(nil),                     // 28: promo.v1.TeaserBusy
+	(*timestamppb.Timestamp)(nil),          // 29: google.protobuf.Timestamp
+	(*TeaserCard)(nil),                     // 30: promo.v1.TeaserCard
+	(*durationpb.Duration)(nil),            // 31: google.protobuf.Duration
 }
 var file_promo_v1_admin_proto_depIdxs = []int32{
 	6,  // 0: promo.v1.ListBackgroundsResponse.backgrounds:type_name -> promo.v1.Background
-	21, // 1: promo.v1.Background.kept_at:type_name -> google.protobuf.Timestamp
+	29, // 1: promo.v1.Background.kept_at:type_name -> google.protobuf.Timestamp
 	12, // 2: promo.v1.GetCardsResponse.sets:type_name -> promo.v1.SetCards
 	15, // 3: promo.v1.GetCardsResponse.placeholders:type_name -> promo.v1.Placeholder
 	11, // 4: promo.v1.GetCardsResponse.example_battle:type_name -> promo.v1.ExampleBattle
 	15, // 5: promo.v1.ExampleBattle.placeholders:type_name -> promo.v1.Placeholder
 	13, // 6: promo.v1.SetCards.cards:type_name -> promo.v1.Card
 	14, // 7: promo.v1.Card.draft:type_name -> promo.v1.CardDraft
-	22, // 8: promo.v1.Card.filled:type_name -> promo.v1.TeaserCard
+	30, // 8: promo.v1.Card.filled:type_name -> promo.v1.TeaserCard
 	14, // 9: promo.v1.SaveCardsRequest.cards:type_name -> promo.v1.CardDraft
-	23, // 10: promo.v1.ListTeasersRequest.within:type_name -> google.protobuf.Duration
+	31, // 10: promo.v1.ListTeasersRequest.within:type_name -> google.protobuf.Duration
 	20, // 11: promo.v1.ListTeasersResponse.teasers:type_name -> promo.v1.Teaser
-	21, // 12: promo.v1.Teaser.starts_at:type_name -> google.protobuf.Timestamp
-	21, // 13: promo.v1.Teaser.ends_at:type_name -> google.protobuf.Timestamp
-	22, // 14: promo.v1.Teaser.cards:type_name -> promo.v1.TeaserCard
-	0,  // 15: promo.v1.AdminService.CreateBackgroundUpload:input_type -> promo.v1.CreateBackgroundUploadRequest
-	2,  // 16: promo.v1.AdminService.KeepBackground:input_type -> promo.v1.KeepBackgroundRequest
-	4,  // 17: promo.v1.AdminService.ListBackgrounds:input_type -> promo.v1.ListBackgroundsRequest
-	7,  // 18: promo.v1.AdminService.RemoveBackground:input_type -> promo.v1.RemoveBackgroundRequest
-	9,  // 19: promo.v1.AdminService.GetCards:input_type -> promo.v1.GetCardsRequest
-	16, // 20: promo.v1.AdminService.SaveCards:input_type -> promo.v1.SaveCardsRequest
-	18, // 21: promo.v1.AdminService.ListTeasers:input_type -> promo.v1.ListTeasersRequest
-	1,  // 22: promo.v1.AdminService.CreateBackgroundUpload:output_type -> promo.v1.CreateBackgroundUploadResponse
-	3,  // 23: promo.v1.AdminService.KeepBackground:output_type -> promo.v1.KeepBackgroundResponse
-	5,  // 24: promo.v1.AdminService.ListBackgrounds:output_type -> promo.v1.ListBackgroundsResponse
-	8,  // 25: promo.v1.AdminService.RemoveBackground:output_type -> promo.v1.RemoveBackgroundResponse
-	10, // 26: promo.v1.AdminService.GetCards:output_type -> promo.v1.GetCardsResponse
-	17, // 27: promo.v1.AdminService.SaveCards:output_type -> promo.v1.SaveCardsResponse
-	19, // 28: promo.v1.AdminService.ListTeasers:output_type -> promo.v1.ListTeasersResponse
-	22, // [22:29] is the sub-list for method output_type
-	15, // [15:22] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	29, // 12: promo.v1.Teaser.starts_at:type_name -> google.protobuf.Timestamp
+	29, // 13: promo.v1.Teaser.ends_at:type_name -> google.protobuf.Timestamp
+	30, // 14: promo.v1.Teaser.cards:type_name -> promo.v1.TeaserCard
+	20, // 15: promo.v1.ListDueTeasersResponse.teasers:type_name -> promo.v1.Teaser
+	25, // 16: promo.v1.PostTeaserResponse.posted:type_name -> promo.v1.TeaserPosted
+	27, // 17: promo.v1.PostTeaserResponse.held:type_name -> promo.v1.TeaserNotPosted
+	27, // 18: promo.v1.PostTeaserResponse.skipped:type_name -> promo.v1.TeaserNotPosted
+	28, // 19: promo.v1.PostTeaserResponse.busy:type_name -> promo.v1.TeaserBusy
+	27, // 20: promo.v1.PostTeaserResponse.failed:type_name -> promo.v1.TeaserNotPosted
+	29, // 21: promo.v1.TeaserPosted.at:type_name -> google.protobuf.Timestamp
+	26, // 22: promo.v1.TeaserPosted.refusals:type_name -> promo.v1.TeaserRefusal
+	31, // 23: promo.v1.TeaserBusy.retry_after:type_name -> google.protobuf.Duration
+	0,  // 24: promo.v1.AdminService.CreateBackgroundUpload:input_type -> promo.v1.CreateBackgroundUploadRequest
+	2,  // 25: promo.v1.AdminService.KeepBackground:input_type -> promo.v1.KeepBackgroundRequest
+	4,  // 26: promo.v1.AdminService.ListBackgrounds:input_type -> promo.v1.ListBackgroundsRequest
+	7,  // 27: promo.v1.AdminService.RemoveBackground:input_type -> promo.v1.RemoveBackgroundRequest
+	9,  // 28: promo.v1.AdminService.GetCards:input_type -> promo.v1.GetCardsRequest
+	16, // 29: promo.v1.AdminService.SaveCards:input_type -> promo.v1.SaveCardsRequest
+	18, // 30: promo.v1.AdminService.ListTeasers:input_type -> promo.v1.ListTeasersRequest
+	21, // 31: promo.v1.AdminService.ListDueTeasers:input_type -> promo.v1.ListDueTeasersRequest
+	23, // 32: promo.v1.AdminService.PostTeaser:input_type -> promo.v1.PostTeaserRequest
+	1,  // 33: promo.v1.AdminService.CreateBackgroundUpload:output_type -> promo.v1.CreateBackgroundUploadResponse
+	3,  // 34: promo.v1.AdminService.KeepBackground:output_type -> promo.v1.KeepBackgroundResponse
+	5,  // 35: promo.v1.AdminService.ListBackgrounds:output_type -> promo.v1.ListBackgroundsResponse
+	8,  // 36: promo.v1.AdminService.RemoveBackground:output_type -> promo.v1.RemoveBackgroundResponse
+	10, // 37: promo.v1.AdminService.GetCards:output_type -> promo.v1.GetCardsResponse
+	17, // 38: promo.v1.AdminService.SaveCards:output_type -> promo.v1.SaveCardsResponse
+	19, // 39: promo.v1.AdminService.ListTeasers:output_type -> promo.v1.ListTeasersResponse
+	22, // 40: promo.v1.AdminService.ListDueTeasers:output_type -> promo.v1.ListDueTeasersResponse
+	24, // 41: promo.v1.AdminService.PostTeaser:output_type -> promo.v1.PostTeaserResponse
+	33, // [33:42] is the sub-list for method output_type
+	24, // [24:33] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_promo_v1_admin_proto_init() }
@@ -1286,13 +1847,20 @@ func file_promo_v1_admin_proto_init() {
 		return
 	}
 	file_promo_v1_promo_proto_init()
+	file_promo_v1_admin_proto_msgTypes[24].OneofWrappers = []any{
+		(*PostTeaserResponse_Posted)(nil),
+		(*PostTeaserResponse_Held)(nil),
+		(*PostTeaserResponse_Skipped)(nil),
+		(*PostTeaserResponse_Busy)(nil),
+		(*PostTeaserResponse_Failed)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_promo_v1_admin_proto_rawDesc), len(file_promo_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   21,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

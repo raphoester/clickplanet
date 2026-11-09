@@ -1,5 +1,6 @@
 // The game's posts on its own TikTok and YouTube: when each goes out, within what each platform takes in a day, through
-// the one posting service, Zernio. The jobs that post ask it over ssh, on the console listener.
+// the one posting service, Zernio. The clips job asks it over ssh, on the console listener; the promo module, on the
+// internal listener.
 package publishing
 
 import (
@@ -47,6 +48,12 @@ func NewModule(config Config) cpbootstrap.Module {
 	}
 }
 
+// What the operator calls and what another module calls: the same handlers.
+type services interface {
+	publishingv1connect.AdminServiceHandler
+	publishingv1connect.InternalServiceHandler
+}
+
 func build(config Config, props cpbootstrap.Props) error {
 	service, err := serviceOf(config, props)
 	if err != nil {
@@ -57,11 +64,16 @@ func build(config Config, props cpbootstrap.Props) error {
 	}); err != nil {
 		return fmt.Errorf("failed to mount publishing.v1.AdminService: %w", err)
 	}
+	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return publishingv1connect.NewInternalServiceHandler(service, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount publishing.v1.InternalService: %w", err)
+	}
 	return nil
 }
 
 // Off with no key: every call says so, and the server still starts.
-func serviceOf(config Config, props cpbootstrap.Props) (publishingv1connect.AdminServiceHandler, error) {
+func serviceOf(config Config, props cpbootstrap.Props) (services, error) {
 	if config.Zernio.APIKey == "" {
 		props.Logger.Warn("publishing is off: no ZERNIO_API_KEY")
 		return publishingv1controller.Off{}, nil

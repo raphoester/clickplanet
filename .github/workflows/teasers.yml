@@ -1,9 +1,9 @@
 name: teasers
 
 on:
-  # Every 6 hours on a minute nobody else picks: GitHub starts a scheduled run late when many start on the hour. Each run
-  # lists the battles starting within 36 hours, so it sees each battle first 30 to 36 hours before it starts, and posts
-  # its teaser from about a day before it, at the first slot the backend's calendar gives.
+  # Every 6 hours on a minute nobody else picks: GitHub starts a scheduled run late when many start on the hour. The
+  # backend's promo module decides which battles are due (those starting within 36 hours, not teased yet), and when,
+  # where and in what words each teaser goes out; the run only renders the cards, which needs a browser.
   schedule:
     - cron: '43 1-23/6 * * *'
   workflow_dispatch:
@@ -31,8 +31,8 @@ jobs:
           go-version-file: apps/backend/go.mod
           cache-dependency-path: apps/backend/go.sum
 
-      # No npm here: the VPS key is in no job that installs the frontend's dependencies. Each battle due is a folder
-      # with its teaser.json, promo's own words of it: public data, as the players read it on the home page.
+      # No npm here: the VPS key is in no job that installs the frontend's dependencies. Each battle promo says is due is
+      # a folder with its teaser.json, as promo wrote it: public data, as the players read it on the home page.
       - name: list the battles due their teaser
         id: due
         working-directory: apps/backend
@@ -110,7 +110,7 @@ jobs:
 
   post:
     needs: [ due, render ]
-    # A teaser that failed to render is skipped, and the next run tries it again; the ones that rendered still go out.
+    # A teaser that failed to render is not posted, and the next run tries it again; the ones that rendered still go out.
     if: ${{ !cancelled() && needs.due.result == 'success' && needs.due.outputs.teasers != '[]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -127,9 +127,9 @@ jobs:
           pattern: rendered-*
           path: rendered
 
-      # The battles are listed again: one teased or dropped since the run began is skipped. The backend's publishing
-      # module plans and posts each, over ssh, by an hour before its battle; the files go straight to the posting
-      # service's storage, through links the backend signs.
+      # Each render goes straight to the posting service's storage, through links the backend signs, then promo is asked
+      # to post it, over ssh: it checks the battle is still due, plans the slot by an hour before the battle, and posts
+      # it through the publishing module. A busy service is waited for, 1, 5 then 15 minutes.
       - name: post the teasers on TikTok and YouTube
         working-directory: apps/backend
         env:

@@ -1,45 +1,61 @@
 package teasers_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/teasers"
 )
 
-func TestAPostsKeyIsItsBattleAtItsStart(t *testing.T) {
-	post := teasers.Post{Teaser: ringWar()}
-	again := teasers.Post{Teaser: ringWar(), Slot: teasers.Slot{At: start.Add(-time.Hour)}}
-	moved := teasers.Post{Teaser: ringWar()}
-	moved.Teaser.StartsAt = start.Add(time.Hour)
+// One photo a card of ringWar's, and a video.
+func media() teasers.Media {
+	return teasers.Media{
+		Photos: []teasers.MediaURL{"https://media.example/card-1.jpg", "https://media.example/card-2.jpg"},
+		Video:  "https://media.example/teaser.mp4",
+	}
+}
 
-	assert.Len(t, post.Key(), 64)
-	assert.Equal(t, post.Key(), again.Key(), "a slot planned again is the same post")
-	assert.NotEqual(t, post.Key(), moved.Key())
+func post(t *testing.T, teaser teasers.Teaser) teasers.Post {
+	t.Helper()
+	made, err := teasers.NewPost(teaser, media())
+	require.NoError(t, err)
+	return made
+}
+
+func TestAPostIsOnePhotoACardAndAVideo(t *testing.T) {
+	_, err := teasers.NewPost(ringWar(), teasers.Media{Photos: media().Photos[:1]})
+
+	require.ErrorIs(t, err, teasers.ErrInvalidPost)
+	assert.ErrorContains(t, err, "no video")
+	assert.ErrorContains(t, err, "1 photos for 2 cards")
+}
+
+func TestAPostsKeyIsItsBattleAtItsStart(t *testing.T) {
+	one := post(t, ringWar())
+	again := one.At(teasers.Slot{At: start.Add(-time.Hour)})
+	moved := ringWar()
+	moved.StartsAt = start.Add(time.Hour)
+
+	assert.Len(t, one.Key(), 64)
+	assert.Equal(t, one.Key(), again.Key(), "a slot planned again is the same post")
+	assert.NotEqual(t, one.Key(), post(t, moved).Key())
 }
 
 func TestAPostKeepsTheBattleItTeases(t *testing.T) {
-	assert.Equal(t, map[string]any{"teaserBattle": "entry-7", "teaserStartsAt": "2026-11-14T20:00:00Z"},
-		teasers.Post{Teaser: ringWar()}.Metadata())
+	assert.Equal(t, map[string]any{"teaserBattle": "entry-7", "teaserStartsAt": "2026-11-14T20:00:00Z"}, post(t, ringWar()).Metadata())
 }
 
-func TestAReportFailsOnAFailureOrAPostEveryPlatformRefused(t *testing.T) {
+func TestAPostedTeaserSaysWhereWhenAndWhoRefusedIt(t *testing.T) {
 	at := start.Add(-30 * time.Hour)
-	scheduled := teasers.Post{Teaser: ringWar(), Slot: teasers.Slot{At: at, Platforms: both}}
+	refused := map[teasers.Platform]string{teasers.YouTube: "no account"}
 
-	report := teasers.Report{}.
-		With(scheduled, teasers.Receipt{ID: "post-1", Refused: map[teasers.Platform]string{teasers.TikTok: "no account"}}, false, nil).
-		With(teasers.Post{Teaser: ringWar()}, teasers.Receipt{}, true, nil).
-		WithSkipped("entry-9", "BATTLE", "not rendered")
-	assert.False(t, report.Failed())
-	assert.Equal(t, []teasers.Result{teasers.Scheduled, teasers.Held, teasers.Skipped},
-		[]teasers.Result{report[0].Result, report[1].Result, report[2].Result})
-	assert.Equal(t, "BATTLE ON SATURDAY 14 NOVEMBER AT 20:00 UTC: scheduled at 2026-11-13T14:00:00Z on [tiktok youtube]", report[0].String())
+	outcome := teasers.PostedOf(post(t, ringWar()).At(teasers.Slot{At: at, Platforms: both}), teasers.Receipt{ID: "post-1", Refused: refused})
 
-	assert.True(t, report.With(scheduled, teasers.Receipt{}, false, errors.New("refused")).Failed())
-	everywhere := map[teasers.Platform]string{teasers.TikTok: "no account", teasers.YouTube: "no account"}
-	assert.True(t, teasers.Report{}.With(scheduled, teasers.Receipt{Refused: everywhere}, false, nil).Failed())
+	assert.Equal(t, teasers.Outcome{
+		Result: teasers.Posted, Title: "BATTLE ON SATURDAY 14 NOVEMBER AT 20:00 UTC", At: at, Platforms: both,
+		Post: "post-1", Refused: refused,
+	}, outcome)
 }

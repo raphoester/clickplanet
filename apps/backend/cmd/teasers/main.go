@@ -24,13 +24,12 @@ const usage = `usage:
   teasers due -out <folder> [-ssh <user@host>]
   teasers post -teasers <folder> [-ssh <user@host>] [-summary <file>]
 
-Both ask the production backend over ssh, as its operator does: CLICKPLANET_SSH stands in for -ssh. due lists the
-battles starting within 36 hours that no post teases yet, writes each one's teaser.json in a folder of its own under
--out, for the frontend's npm run teaser to render beside it, and prints the folders' names as a JSON array. post reads
-every folder under -teasers the renderer filled, lists the battles again, and posts each one still due through the
-backend's publishing module, at the first slot its calendar gives on TikTok and YouTube both by an hour before the
-battle, else on TikTok alone, else on YouTube alone; it adds what became of each to -summary, default the standard
-output, and fails when one failed.`
+Both ask the production backend over ssh, as its operator does: CLICKPLANET_SSH stands in for -ssh. The backend's
+promo module decides: which battles are due, when each teaser goes out, on which platforms, in which words. due writes
+the teaser.json of each battle promo says is due in a folder of its own under -out, for the frontend's npm run teaser to
+render beside it, and prints the folders' names as a JSON array. post uploads every folder under -teasers the renderer
+filled to the posting service's storage, then asks promo to post it, and waits when the service is busy; it adds what
+promo answered of each to -summary, default the standard output, and fails when one failed.`
 
 const hostVariable = "CLICKPLANET_SSH"
 
@@ -136,16 +135,17 @@ func summaryOf(report promo.TeasersReport) string {
 		return summary.String()
 	}
 	for _, outcome := range report {
-		fmt.Fprintf(&summary, "- **%s**: ", outcome.Title)
-		if outcome.Result != promo.TeaserScheduled {
+		title := outcome.Title
+		if title == "" {
+			title = string(outcome.Battle)
+		}
+		fmt.Fprintf(&summary, "- **%s**: ", title)
+		if outcome.Result != promo.TeaserPosted {
 			fmt.Fprintf(&summary, "%s, %s\n", outcome.Result, outcome.Why)
 			continue
 		}
-		platforms := make([]string, 0, len(outcome.Platforms))
-		for _, platform := range outcome.Platforms {
-			platforms = append(platforms, string(platform))
-		}
-		fmt.Fprintf(&summary, "scheduled at %s on %s (post %s)", outcome.At.UTC().Format("Mon 2 Jan 15:04 UTC"),
+		platforms := outcome.Platforms
+		fmt.Fprintf(&summary, "posted at %s on %s (post %s)", outcome.At.UTC().Format("Mon 2 Jan 15:04 UTC"),
 			strings.Join(platforms, " and "), outcome.Post)
 		refused := make([]string, 0, len(outcome.Refused))
 		for _, platform := range outcome.Platforms {

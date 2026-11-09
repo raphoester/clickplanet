@@ -31,12 +31,25 @@ service AdminService {
   // Replaces a set's cards, in order: none to remove them, at most 5. InvalidArgument for a card the rules refuse;
   // FailedPrecondition for a set planet does not keep, or a background not in the library.
   rpc SaveCards(SaveCardsRequest) returns (SaveCardsResponse);
-  // The battles that start within the next `within`, by start, each with its cards as players read them now: what the
-  // teasers job posts on TikTok and YouTube before each. A battle whose set has no card is left out, as the game teases
-  // nothing of it. InvalidArgument for a window of nothing, or of more than a week.
+  // The battles that start within the next `within`, by start, each with its cards as players read them now. A battle
+  // whose set has no card is left out, as the game teases nothing of it. InvalidArgument for a window of nothing, or of
+  // more than a week.
   rpc ListTeasers(ListTeasersRequest) returns (ListTeasersResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // The battles whose teaser is due: those that start within 36 hours and that no post teases yet, by start, for the
+  // teasers job to render. A post teases its battle whatever became of it: one cancelled in the posting service's
+  // dashboard was cancelled on purpose. FailedPrecondition while publishing is off.
+  rpc ListDueTeasers(ListDueTeasersRequest) returns (ListDueTeasersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Posts a battle's teaser once the job rendered its cards and uploaded them with publishing's CreateMediaUpload: a
+  // photo carousel of the cards on TikTok and their slideshow on YouTube, in promo's words, at the first slot the posting
+  // calendar gives from 30 hours before the battle to an hour before it, on both if it can, else on TikTok alone, else
+  // on YouTube alone. The answer is what became of it: posted; held, no platform takes it in time; skipped, the battle is
+  // no longer due; busy, the posting service asked to be tried later, so call again then; or failed, refused for good.
+  // InvalidArgument for no battle, no video, or not one photo a card; FailedPrecondition while publishing is off.
+  rpc PostTeaser(PostTeaserRequest) returns (PostTeaserResponse);
 }
 
 message CreateBackgroundUploadRequest {
@@ -158,4 +171,60 @@ message Teaser {
   bool ends_season = 6;
   // In the operator's order, at least one.
   repeated TeaserCard cards = 7;
+}
+
+message ListDueTeasersRequest {}
+
+message ListDueTeasersResponse {
+  // By start.
+  repeated Teaser teasers = 1;
+}
+
+message PostTeaserRequest {
+  // A battle ListDueTeasers listed.
+  string battle_id = 1;
+  // Its cards as JPEGs, in their order, one a card: the addresses publishing's CreateMediaUpload answered.
+  repeated string photo_urls = 2;
+  // Their slideshow, an MP4: the address publishing's CreateMediaUpload answered.
+  string video_url = 3;
+}
+
+message PostTeaserResponse {
+  oneof outcome {
+    TeaserPosted posted = 1;
+    // No platform takes it before its battle: their days are full, or their hours past.
+    TeaserNotPosted held = 2;
+    // No longer due: teased already, or no longer on the schedule within 36 hours.
+    TeaserNotPosted skipped = 3;
+    // The posting service asked to be tried later: call again after retry_after.
+    TeaserBusy busy = 4;
+    // Refused for good.
+    TeaserNotPosted failed = 5;
+  }
+}
+
+message TeaserPosted {
+  string post_id = 1;
+  // The post's title, in the posting service's dashboard.
+  string title = 2;
+  google.protobuf.Timestamp at = 3;
+  // "tiktok", "youtube".
+  repeated string platforms = 4;
+  // Each platform that refused it, and why: the post goes out on the others.
+  repeated TeaserRefusal refusals = 5;
+}
+
+message TeaserRefusal {
+  string platform = 1;
+  string reason = 2;
+}
+
+message TeaserNotPosted {
+  string reason = 1;
+}
+
+message TeaserBusy {
+  string reason = 1;
+  // Absent when the service did not say.
+  google.protobuf.Duration retry_after = 2;
 }

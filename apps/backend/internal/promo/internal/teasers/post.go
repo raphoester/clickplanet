@@ -26,44 +26,65 @@ type Slot struct {
 	Platforms []Platform
 }
 
-// A file the renderer wrote, by its path.
-type File string
+// The address the posting service's storage names an uploaded file by.
+type MediaURL string
 
-// What the renderer made of a teaser: its cards as JPEG photos, in their order, and a slideshow of them.
+// The job's render of a teaser, uploaded: its cards as JPEG photos, in their order, and a slideshow of them.
 type Media struct {
-	Photos []File
-	Video  File
+	Photos []MediaURL
+	Video  MediaURL
 }
 
-// A folder of a run: the battle it renders, and what it holds.
-type Rendered struct {
-	Battle BattleID
-	Media  Media
-}
+var ErrInvalidPost = errors.New("the teaser's media are not its battle's")
 
 // A teaser to post, at its slot once the calendar gives one.
 type Post struct {
-	Teaser Teaser
-	Media  Media
-	Slot   Slot
+	teaser Teaser
+	media  Media
+	slot   Slot
 }
 
-// The same battle at the same start is the same post on the service, however many times a run tries it, or a run is
-// made again.
+// One photo a card, and a video.
+func NewPost(teaser Teaser, media Media) (Post, error) {
+	var reasons []error
+	if media.Video == "" {
+		reasons = append(reasons, errors.New("no video"))
+	}
+	if len(media.Photos) != len(teaser.Cards) {
+		reasons = append(reasons, fmt.Errorf("%d photos for %d cards", len(media.Photos), len(teaser.Cards)))
+	}
+	if len(reasons) > 0 {
+		return Post{}, fmt.Errorf("%w: %w", ErrInvalidPost, errors.Join(reasons...))
+	}
+	return Post{teaser: teaser, media: media}, nil
+}
+
+// The post at another slot.
+func (p Post) At(slot Slot) Post {
+	p.slot = slot
+	return p
+}
+
+// The same battle at the same start is the same post on the service, however many times it is tried.
 func (p Post) Key() string {
-	sum := sha256.Sum256([]byte("teaser\n" + string(p.Teaser.Battle) + "\n" + p.Teaser.StartsAt.UTC().Format(time.RFC3339)))
+	sum := sha256.Sum256([]byte("teaser\n" + string(p.teaser.Battle) + "\n" + p.teaser.StartsAt.UTC().Format(time.RFC3339)))
 	return hex.EncodeToString(sum[:])
 }
 
-// Kept with the post, never published: which battle it teases, so no run posts it twice.
+// Kept with the post, never published: which battle it teases, so it is never teased twice.
 func (p Post) Metadata() map[string]any {
 	return map[string]any{
-		MetadataBattle: string(p.Teaser.Battle), "teaserStartsAt": p.Teaser.StartsAt.UTC().Format(time.RFC3339),
+		MetadataBattle: string(p.teaser.Battle), "teaserStartsAt": p.teaser.StartsAt.UTC().Format(time.RFC3339),
 	}
 }
 
 // The metadata that marks a post as a battle's teaser.
 const MetadataBattle = "teaserBattle"
+
+func (p Post) Teaser() Teaser { return p.teaser }
+func (p Post) Media() Media   { return p.media }
+func (p Post) Slot() Slot     { return p.slot }
+func (p Post) Words() Words   { return p.teaser.Words() }
 
 // What the publishing module answered of a post it made: its id, and why each platform it was refused on refused it.
 type Receipt struct {
@@ -71,7 +92,7 @@ type Receipt struct {
 	Refused map[Platform]string
 }
 
-// The service or the backend asked to be tried later.
+// The posting service, or publishing, asked to be tried later.
 type BusyError struct {
 	// Zero when it did not say.
 	RetryAfter time.Duration
@@ -85,64 +106,54 @@ func (e *BusyError) Error() string {
 // The slot was taken since it was planned, or its lead passed: plan again.
 var ErrTaken = errors.New("the slot is no longer open")
 
+// The posting service refused the post for good.
+type RefusedError struct {
+	Reason string
+}
+
+func (e *RefusedError) Error() string {
+	return e.Reason
+}
+
 type Result string
 
 const (
-	Scheduled Result = "scheduled"
+	Posted Result = "posted"
 	// No platform takes it before its battle: their days are full, or their hours past.
 	Held Result = "held"
-	// Not rendered, or no longer due.
+	// No longer due: teased already, or no longer on the schedule.
 	Skipped Result = "skipped"
-	Failed  Result = "failed"
+	// The service asked to be tried later: the caller calls again after RetryAfter.
+	Busy   Result = "busy"
+	Failed Result = "failed"
 )
 
-// What became of a battle's teaser in a run.
+// What became of a teaser.
 type Outcome struct {
-	Battle BattleID
-	Title  string
 	Result Result
-	// Why it was held, skipped or failed.
+	// Why it was held, skipped, busy or failed.
 	Why string
-	// Scheduled: when, on which platforms, the post, and the platforms that refused it.
+	// Busy: zero when the service did not say.
+	RetryAfter time.Duration
+	// Posted: its title, when, on which platforms, the post, and the platforms that refused it.
+	Title     string
 	At        time.Time
 	Platforms []Platform
 	Post      string
 	Refused   map[Platform]string
 }
 
-type Report []Outcome
-
-func (r Report) With(post Post, receipt Receipt, held bool, err error) Report {
-	outcome := Outcome{Battle: post.Teaser.Battle, Title: post.Teaser.Words().Title}
-	switch {
-	case held:
-		outcome.Result, outcome.Why = Held, "no platform takes it before its battle: their days are full, or their hours past"
-	case err != nil:
-		outcome.Result, outcome.Why = Failed, err.Error()
-	default:
-		outcome.Result, outcome.At, outcome.Post = Scheduled, post.Slot.At, receipt.ID
-		outcome.Platforms, outcome.Refused = post.Slot.Platforms, maps.Clone(receipt.Refused)
+func PostedOf(post Post, receipt Receipt) Outcome {
+	return Outcome{
+		Result: Posted, Title: post.Words().Title, At: post.slot.At, Platforms: post.slot.Platforms, Post: receipt.ID,
+		Refused: maps.Clone(receipt.Refused),
 	}
-	return append(r, outcome)
 }
 
-func (r Report) WithSkipped(battle BattleID, title, why string) Report {
-	return append(r, Outcome{Battle: battle, Title: title, Result: Skipped, Why: why})
+func NotPosted(result Result, why string) Outcome {
+	return Outcome{Result: result, Why: why}
 }
 
-// A teaser failed, or was refused on every platform of its slot.
-func (r Report) Failed() bool {
-	for _, outcome := range r {
-		if outcome.Result == Failed || (outcome.Result == Scheduled && len(outcome.Refused) == len(outcome.Platforms)) {
-			return true
-		}
-	}
-	return false
-}
-
-func (o Outcome) String() string {
-	if o.Result == Scheduled {
-		return fmt.Sprintf("%s: scheduled at %s on %v", o.Title, o.At.UTC().Format(time.RFC3339), o.Platforms)
-	}
-	return fmt.Sprintf("%s: %s, %s", o.Title, o.Result, o.Why)
+func BusyOf(err *BusyError) Outcome {
+	return Outcome{Result: Busy, Why: err.Reason, RetryAfter: err.RetryAfter}
 }

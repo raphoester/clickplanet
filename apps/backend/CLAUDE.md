@@ -128,12 +128,13 @@ and says what is in it. Read the doc before you change its area.
   uploads to the bucket and Cloudflare serves publicly; words with `{path}` placeholders filled from the values the set
   plays and the battle's points at each read (`GetTeaser`); the set and times from the gamemaster (`GetBattle`), the
   values from planet (`GetRuleSet`), the points from scoring (`GetRankPoints`); the battles to come with their cards
-  (`ListTeasers`, from the gamemaster's `GetTimeline`), for the teasers job, which lives in the same package.
+  (`ListTeasers`, from the gamemaster's `GetTimeline`); each battle's teaser posted on TikTok and YouTube through
+  publishing (`ListDueTeasers`, `PostTeaser`).
 - [Publishing](docs/publishing.md) — the game's posts on its own TikTok and YouTube through Zernio: the calendar every
   job keeps (an hour apart, 3 a trailing day on TikTok from 14:00 to 20:00 UTC, 12 on YouTube from 07:00 to 23:00), a
   post scheduled ahead held as a reservation, the upload link that keeps every video off the server, `PlanPost` (with
   `by`, a slot that waits for every platform) and `SchedulePost` under one lock and its outcomes (scheduled, busy, taken, failed); a TikTok carousel of photos in place
-  of the video; no table, Zernio's list is the record.
+  of the video; the same calls on an `InternalService` for promo; no table, Zernio's list is the record.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos; each
   report told to the chat's judge (`PlayerReported`) and closed by its command (`DecideReport`).
 - [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role and its username
@@ -155,8 +156,8 @@ and says what is in it. Read the doc before you change its area.
 - [Claude as a connector](docs/connector.md) — every admin method is a tool Claude calls over MCP, read from the
   admin protos (a method's comment is its description); what is hidden; auth's OAuth 2.1 server and the tokens; the
   bearer path through the gate.
-- [The teasers job](docs/teasers-job.md) — `cmd/teasers`, in promo's package: every 6 hours, each battle starting
-  within 36 hours rendered by the frontend and posted through the publishing module by an hour before it, a carousel
-  of its cards on TikTok and a slideshow on YouTube; no battle teased twice.
+- [Battle teasers on TikTok and YouTube](docs/teasers-job.md) — promo decides and posts, `cmd/teasers` only renders:
+  every 6 hours, each battle starting within 36 hours posted by an hour before it through publishing's
+  `InternalService`, a carousel of its cards on TikTok and a slideshow on YouTube; no battle teased twice.
 - [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them through the
   publishing module, over ssh; its experiments, the model editor and the stats.

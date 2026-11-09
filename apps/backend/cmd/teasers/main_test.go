@@ -75,13 +75,13 @@ func TestTheSummarySaysWhatBecameOfEachTeaser(t *testing.T) {
 
 	summary := summaryOf(promo.TeasersReport{
 		{
-			Title: "BATTLE ON SATURDAY 14 NOVEMBER AT 20:00 UTC", Result: promo.TeaserScheduled, At: at, Post: "post-1",
-			Platforms: []promo.TeaserPlatform{"tiktok", "youtube"}, Refused: map[promo.TeaserPlatform]string{"youtube": "no account"},
+			Battle: "entry-7", Title: "BATTLE ON SATURDAY 14 NOVEMBER AT 20:00 UTC", Result: promo.TeaserPosted, At: at,
+			Post: "post-1", Platforms: []string{"tiktok", "youtube"}, Refused: map[string]string{"youtube": "no account"},
 		},
-		{Title: "FINAL BATTLE ON SATURDAY 28 NOVEMBER AT 17:00 UTC", Result: promo.TeaserHeld, Why: "no platform takes it"},
+		{Battle: "season-1/finale", Result: promo.TeaserHeld, Why: "no platform takes it"},
 	})
 
 	assert.Equal(t, "## Battle teasers\n\n"+
-		"- **BATTLE ON SATURDAY 14 NOVEMBER AT 20:00 UTC**: scheduled at Fri 13 Nov 14:00 UTC on tiktok and youtube (post post-1); youtube refused it: no account\n"+
-		"- **FINAL BATTLE ON SATURDAY 28 NOVEMBER AT 17:00 UTC**: held, no platform takes it\n", summary)
+		"- **BATTLE ON SATURDAY 14 NOVEMBER AT 20:00 UTC**: posted at Fri 13 Nov 14:00 UTC on tiktok and youtube (post post-1); youtube refused it: no account\n"+
+		"- **season-1/finale**: held, no platform takes it\n", summary)
 }

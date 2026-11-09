@@ -941,3 +941,399 @@ export class Teaser extends Message<Teaser> {
   }
 }
 
+/**
+ * @generated from message promo.v1.ListDueTeasersRequest
+ */
+export class ListDueTeasersRequest extends Message<ListDueTeasersRequest> {
+  constructor(data?: PartialMessage<ListDueTeasersRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "promo.v1.ListDueTeasersRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListDueTeasersRequest {
+    return new ListDueTeasersRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListDueTeasersRequest {
+    return new ListDueTeasersRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListDueTeasersRequest {
+    return new ListDueTeasersRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListDueTeasersRequest | PlainMessage<ListDueTeasersRequest> | undefined, b: ListDueTeasersRequest | PlainMessage<ListDueTeasersRequest> | undefined): boolean {
+    return proto3.util.equals(ListDueTeasersRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message promo.v1.ListDueTeasersResponse
+ */
+export class ListDueTeasersResponse extends Message<ListDueTeasersResponse> {
+  /**
+   * By start.
+   *
+   * @generated from field: repeated promo.v1.Teaser teasers = 1;
+   */
+  teasers: Teaser[] = [];
+
+  constructor(data?: PartialMessage<ListDueTeasersResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "promo.v1.ListDueTeasersResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "teasers", kind: "message", T: Teaser, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListDueTeasersResponse {
+    return new ListDueTeasersResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListDueTeasersResponse {
+    return new ListDueTeasersResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListDueTeasersResponse {
+    return new ListDueTeasersResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListDueTeasersResponse | PlainMessage<ListDueTeasersResponse> | undefined, b: ListDueTeasersResponse | PlainMessage<ListDueTeasersResponse> | undefined): boolean {
+    return proto3.util.equals(ListDueTeasersResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message promo.v1.PostTeaserRequest
+ */
+export class PostTeaserRequest extends Message<PostTeaserRequest> {
+  /**
+   * A battle ListDueTeasers listed.
+   *
+   * @generated from field: string battle_id = 1;
+   */
+  battleId = "";
+
+  /**
+   * Its cards as JPEGs, in their order, one a card: the addresses publishing's CreateMediaUpload answered.
+   *
+   * @generated from field: repeated string photo_urls = 2;
+   */
+  photoUrls: string[] = [];
+
+  /**
+   * Their slideshow, an MP4: the address publishing's CreateMediaUpload answered.
+   *
+   * @generated from field: string video_url = 3;
+   */
+  videoUrl = "";
+
+  constructor(data?: PartialMessage<PostTeaserRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "promo.v1.PostTeaserRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "battle_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "photo_urls", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "video_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PostTeaserRequest {
+    return new PostTeaserRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PostTeaserRequest {
+    return new PostTeaserRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PostTeaserRequest {
+    return new PostTeaserRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PostTeaserRequest | PlainMessage<PostTeaserRequest> | undefined, b: PostTeaserRequest | PlainMessage<PostTeaserRequest> | undefined): boolean {
+    return proto3.util.equals(PostTeaserRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message promo.v1.PostTeaserResponse
+ */
+export class PostTeaserResponse extends Message<PostTeaserResponse> {
+  /**
+   * @generated from oneof promo.v1.PostTeaserResponse.outcome
+   */
+  outcome: {
+    /**
+     * @generated from field: promo.v1.TeaserPosted posted = 1;
+     */
+    value: TeaserPosted;
+    case: "posted";
+  } | {
+    /**
+     * No platform takes it before its battle: their days are full, or their hours past.
+     *
+     * @generated from field: promo.v1.TeaserNotPosted held = 2;
+     */
+    value: TeaserNotPosted;
+    case: "held";
+  } | {
+    /**
+     * No longer due: teased already, or no longer on the schedule within 36 hours.
+     *
+     * @generated from field: promo.v1.TeaserNotPosted skipped = 3;
+     */
+    value: TeaserNotPosted;
+    case: "skipped";
+  } | {
+    /**
+     * The posting service asked to be tried later: call again after retry_after.
+     *
+     * @generated from field: promo.v1.TeaserBusy busy = 4;
+     */
+    value: TeaserBusy;
+    case: "busy";
+  } | {
+    /**
+     * Refused for good.
+     *
+     * @generated from field: promo.v1.TeaserNotPosted failed = 5;
+     */
+    value: TeaserNotPosted;
+    case: "failed";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<PostTeaserResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "promo.v1.PostTeaserResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "posted", kind: "message", T: TeaserPosted, oneof: "outcome" },
+    { no: 2, name: "held", kind: "message", T: TeaserNotPosted, oneof: "outcome" },
+    { no: 3, name: "skipped", kind: "message", T: TeaserNotPosted, oneof: "outcome" },
+    { no: 4, name: "busy", kind: "message", T: TeaserBusy, oneof: "outcome" },
+    { no: 5, name: "failed", kind: "message", T: TeaserNotPosted, oneof: "outcome" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PostTeaserResponse {
+    return new PostTeaserResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PostTeaserResponse {
+    return new PostTeaserResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PostTeaserResponse {
+    return new PostTeaserResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PostTeaserResponse | PlainMessage<PostTeaserResponse> | undefined, b: PostTeaserResponse | PlainMessage<PostTeaserResponse> | undefined): boolean {
+    return proto3.util.equals(PostTeaserResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message promo.v1.TeaserPosted
+ */
+export class TeaserPosted extends Message<TeaserPosted> {
+  /**
+   * @generated from field: string post_id = 1;
+   */
+  postId = "";
+
+  /**
+   * The post's title, in the posting service's dashboard.
+   *
+   * @generated from field: string title = 2;
+   */
+  title = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp at = 3;
+   */
+  at?: Timestamp;
+
+  /**
+   * "tiktok", "youtube".
+   *
+   * @generated from field: repeated string platforms = 4;
+   */
+  platforms: string[] = [];
+
+  /**
+   * Each platform that refused it, and why: the post goes out on the others.
+   *
+   * @generated from field: repeated promo.v1.TeaserRefusal refusals = 5;
+   */
+  refusals: TeaserRefusal[] = [];
+
+  constructor(data?: PartialMessage<TeaserPosted>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "promo.v1.TeaserPosted";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "post_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "at", kind: "message", T: Timestamp },
+    { no: 4, name: "platforms", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 5, name: "refusals", kind: "message", T: TeaserRefusal, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TeaserPosted {
+    return new TeaserPosted().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TeaserPosted {
+    return new TeaserPosted().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TeaserPosted {
+    return new TeaserPosted().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TeaserPosted | PlainMessage<TeaserPosted> | undefined, b: TeaserPosted | PlainMessage<TeaserPosted> | undefined): boolean {
+    return proto3.util.equals(TeaserPosted, a, b);
+  }
+}
+
+/**
+ * @generated from message promo.v1.TeaserRefusal
+ */
+export class TeaserRefusal extends Message<TeaserRefusal> {
+  /**
+   * @generated from field: string platform = 1;
+   */
+  platform = "";
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason = "";
+
+  constructor(data?: PartialMessage<TeaserRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "promo.v1.TeaserRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "platform", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TeaserRefusal {
+    return new TeaserRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TeaserRefusal {
+    return new TeaserRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TeaserRefusal {
+    return new TeaserRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TeaserRefusal | PlainMessage<TeaserRefusal> | undefined, b: TeaserRefusal | PlainMessage<TeaserRefusal> | undefined): boolean {
+    return proto3.util.equals(TeaserRefusal, a, b);
+  }
+}
+
+/**
+ * @generated from message promo.v1.TeaserNotPosted
+ */
+export class TeaserNotPosted extends Message<TeaserNotPosted> {
+  /**
+   * @generated from field: string reason = 1;
+   */
+  reason = "";
+
+  constructor(data?: PartialMessage<TeaserNotPosted>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "promo.v1.TeaserNotPosted";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TeaserNotPosted {
+    return new TeaserNotPosted().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TeaserNotPosted {
+    return new TeaserNotPosted().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TeaserNotPosted {
+    return new TeaserNotPosted().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TeaserNotPosted | PlainMessage<TeaserNotPosted> | undefined, b: TeaserNotPosted | PlainMessage<TeaserNotPosted> | undefined): boolean {
+    return proto3.util.equals(TeaserNotPosted, a, b);
+  }
+}
+
+/**
+ * @generated from message promo.v1.TeaserBusy
+ */
+export class TeaserBusy extends Message<TeaserBusy> {
+  /**
+   * @generated from field: string reason = 1;
+   */
+  reason = "";
+
+  /**
+   * Absent when the service did not say.
+   *
+   * @generated from field: google.protobuf.Duration retry_after = 2;
+   */
+  retryAfter?: Duration;
+
+  constructor(data?: PartialMessage<TeaserBusy>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "promo.v1.TeaserBusy";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "retry_after", kind: "message", T: Duration },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TeaserBusy {
+    return new TeaserBusy().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TeaserBusy {
+    return new TeaserBusy().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TeaserBusy {
+    return new TeaserBusy().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TeaserBusy | PlainMessage<TeaserBusy> | undefined, b: TeaserBusy | PlainMessage<TeaserBusy> | undefined): boolean {
+    return proto3.util.equals(TeaserBusy, a, b);
+  }
+}
+
