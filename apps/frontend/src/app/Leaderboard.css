@@ -48,12 +48,17 @@
     padding-left: var(--space-3);
 }
 
-.leaderboard-table-share {
-    width: 64px;
+/* A count up to 99,999 and its share on one line; a longer count puts the share under it. */
+.leaderboard-table-tiles {
+    width: 90px;
+}
+
+.leaderboard-table-gain {
+    width: 58px;
 }
 
 .leaderboard-table-points {
-    width: 56px;
+    width: 54px;
 }
 
 .leaderboard-table-today {
@@ -143,8 +148,24 @@
     font-size: var(--display-s);
 }
 
-.leaderboard-entry .leaderboard-table-share {
+.leaderboard-entry .leaderboard-table-gain {
     color: var(--text-muted);
+}
+
+/* A box of one width, so the counts above and below line up. */
+.leaderboard-map-share {
+    display: inline-block;
+    min-width: 2.1em;
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    text-align: right;
+    text-shadow: none;
+}
+
+.leader-frame-tiles .leaderboard-map-share {
+    min-width: 0;
 }
 
 .leaderboard-table-rank {
@@ -189,13 +210,14 @@
     border-radius: 0 var(--radius-m) var(--radius-m) 0;
 }
 
-.leaderboard-entry-player .leaderboard-table-share {
+.leaderboard-entry-player :is(.leaderboard-table-gain, .leaderboard-map-share) {
     color: var(--text);
 }
 
 .leaderboard-entry .leaderboard-table-tiles {
     position: relative;
     overflow: visible;
+    white-space: normal;
     transition: color 300ms ease;
 }
 
@@ -369,6 +391,10 @@
 
     .leaderboard-entry .leaderboard-table-number {
         font-size: var(--text-m);
+    }
+
+    .leaderboard-table-tiles {
+        width: 86px;
     }
 }
 

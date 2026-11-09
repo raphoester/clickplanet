@@ -43,7 +43,18 @@ With no book there are no boards. `app/standings/` draws it.
   status bar's rank and the shared picture. With a race the
   board adds two columns: Points, each country's points from
   the days closed, right-aligned, and Today, what it scores if the day ends now, in
-  green ("+18") and left-aligned. **While a round runs, "% of map" becomes Gained**:
+  green ("+18") and left-aligned. **The share of the map is beside the tiles**
+  (`MapShare`), small and grey, in whole percents and "<1%" (`sharePercent`, as the
+  [territory card](territory-card.md) writes it), in a box of one width so the counts line
+  up. The Tiles column (90px, 86px on a phone) holds a count up to 99,999 and its share
+  on one line; a longer count, a country with 38% of the map, puts its share under it
+  rather than run into the next column (`white-space: normal` on the cell; the count's
+  group separator does not break); the leader frame has it beside its tiles too once a race is on, and with none
+  has it as its big figure. It was a column of its own, "% of map", to two decimals,
+  which became Gained while a round ran, so for most of a season no share showed; the
+  owner asked for it back on 2026-11-09. Two decimals beside the count would have cut
+  the country's name to a few letters on a phone: the whole percent costs 12px of it,
+  from 94 to 82px. **While a round runs, a Gained column follows the tiles**:
   the tiles the country holds now less what it held when the round opened (`Round.start`,
   `countryLines`' `gain`), signed, green up and red down (`--gain`, `--loss`), with its
   own hint (`gained`, `gainedBattle`). A round ranks that gain (see the backend's
@@ -57,7 +68,7 @@ With no book there are no boards. `app/standings/` draws it.
   hint (`battle`), and its points, already ×times, read "this battle" to a screen
   reader. The leader
   frame shows the points where it showed the share, and its gain ("+120 today", "-10
-  this battle") beside its tiles, first, or its share while no round runs, so the tiles' delta badge floats into the room after them. On a narrow
+  this battle") before its tiles and their share, so the tiles' delta badge floats into the room after them. On a narrow
   phone the two wrap onto two lines rather than run into the points.
 - **Each number says what it means** (`Hint` in `Leaderboard`, the texts in
   `boardFigures.ts`), as a bonus does: the column heads and the leader frame's
@@ -69,9 +80,9 @@ With no book there are no boards. `app/standings/` draws it.
   on its own** (`GUIDE_MS`, 10s), once per browser: the store `useBoardGuide`
   (`boardGuideStore.ts`), which the board reads, in the `clickplanet-board-guide` key. The bubble renders beside its button, not inside:
   inside, it mounts before the button's ref is set and has nothing to sit on.
-- **The desktop menu is `clamp(380px, 34vw, 460px)` wide**, every tab alike, for the
-  six columns. It stops at 380px below about 1120px so it stays clear of the season
-  chip at the top centre. On a phone the sheet is the screen's width; a long
+- **The desktop menu is `clamp(340px, 28vw, 420px)` wide** (`.menu`), every tab alike;
+  below about 1500px the board's six columns leave the country's name a few letters,
+  or only its flag at 1280px and under. On a phone the sheet is the screen's width; a long
   country name ends in "…" before a column moves.
 - **The column heads sort the countries**: Tiles, Gained and Points (`Leaderboard`'s
   `onOrder`, `aria-sort` on the head sorted by). Each has a small arrow before its word
@@ -79,8 +90,7 @@ With no book there are no boards. `app/standings/` draws it.
   so the word stays over its column's right-aligned numbers. Points first. A tap on a
   head sorts by it and, as on any head, says what it means. Country and Today do not
   sort: the board ranks by a number, not a name, and Today follows Gained, since a
-  round scores the gain. "% of map" does not either: it is the order of Tiles. It
-  replaced a switch of two pills, Season and Territory, on the heading's line, on
+  round scores the gain. It replaced a switch of two pills, Season and Territory, on the heading's line, on
   2026-11-06: once a round scored the gain, a third order was one pill too many.
   Points ranks by the points of the days closed, then by tiles (`domain/race.ts`,
   `countryLines`), and lists a country with points that holds no ground; Gained ranks
