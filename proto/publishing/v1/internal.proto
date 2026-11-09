@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package publishing.v1;
+
+import "publishing/v1/admin.proto";
+
+// What another module asks publishing: the promo module posts each battle's teaser itself. The same calls, in the same
+// words, as the operator's AdminService, on the loopback internal listener. FailedPrecondition for every call while the
+// server holds no key of the posting service.
+service InternalService {
+  // The slot a post on these platforms would take: AdminService.PlanPost.
+  rpc PlanPost(PlanPostRequest) returns (PlanPostResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // A post at a slot PlanPost answered, and what became of it: AdminService.SchedulePost.
+  rpc SchedulePost(SchedulePostRequest) returns (SchedulePostResponse);
+  // Every post on the service scheduled since the day of since, with its metadata: AdminService.ListPosts.
+  rpc ListPosts(ListPostsRequest) returns (ListPostsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}

@@ -33,6 +33,7 @@ var (
 		"clips.v1.AdminService.KeepAppearance",
 		"publishing.v1.AdminService.CreateMediaUpload",
 		"publishing.v1.AdminService.SchedulePost",
+		"promo.v1.AdminService.PostTeaser",
 	}
 )
 

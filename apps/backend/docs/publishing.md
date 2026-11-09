@@ -2,9 +2,10 @@
 
 **The game's posts on its own TikTok and YouTube: when each goes out, within what each platform takes in a day,
 through the one posting service, Zernio.** A module of the server since 2026-11-09, so that one place owns the
-calendar every job that posts keeps: the clips job, since the same day (its `posts/ssh_publishing`, see [The clips
-job](clips-job.md)), and the battle teasers after (the owner, 2026-11-09: "let's put
-publishing in the server, definitely"). Two jobs that share TikTok's 3 posts a day need one arbiter, and TikTok
+calendar everything that posts keeps: the clips job, since the same day, over ssh (its `posts/ssh_publishing`, see [The
+clips job](clips-job.md)), and the promo module, which posts each battle's teaser, on the internal listener (its
+`teasers/rpc_publishing`, see [Battle teasers on TikTok and YouTube](teasers-job.md)) (the owner, 2026-11-09: "let's
+put publishing in the server, definitely"). Two posters that share TikTok's 3 posts a day need one arbiter, and TikTok
 punished a pace of 10 a day once (see [The clips job](clips-job.md), "Why so few on TikTok"). **It keeps no table**:
 Zernio's post list is the record of what went out and what is to come, posts made by hand included.
 
@@ -22,7 +23,7 @@ internal/publishing/
       usecases/create_upload_usecase/  checks the file, asks the service where to upload it
       usecases/schedule_post_usecase/  under one lock: the slot checked against what the service holds, then the post
         log_schedule_post/          each post with its title, time and platforms; never its words or metadata
-    publishingv1controller/         AdminService (a bag) and Off (no key)
+    publishingv1controller/         AdminService and InternalService (bags of the same handlers), Off (no key)
       publishingwire/               the wire's platforms and slot
       create_media_upload_handler/  get_room_handler/room_query/  plan_post_handler/plan_query/
       schedule_post_handler/        list_posts_handler/ (the zernio adapter answers it in the wire's words)
@@ -70,7 +71,10 @@ for a run's best clip alone; the calendar knows no run.
 ## The calls
 
 `publishing.v1.AdminService`, on the console listener, which a job calls over ssh as the clips job asks for a replay
-(see [Operator tools](admin.md)), and on the admin listener behind the gate.
+(see [Operator tools](admin.md)), and on the admin listener behind the gate. **`publishing.v1.InternalService`** is
+`PlanPost`, `SchedulePost` and `ListPosts` again, the same handlers in the same words, on the loopback internal
+listener, for another module: promo, which posts each battle's teaser itself (`internal.proto`). With no key, both are
+`FailedPrecondition`.
 
 - **`CreateMediaUpload(file_name, content_type, size_bytes)`** answers where to upload a file, and the address a post
   names it by: Zernio's own storage, through `POST /v1/media/presign` with the key. **No byte of a file passes
@@ -133,8 +137,6 @@ the clips workflows hold too, rendered into the backend's environment by every d
 
 - **The daily snapshot of the posts' numbers still reads Zernio from the job** (`clips stats`), and the clips module
   keeps it: it moves here once the snapshots' tables do.
-- **The battle teasers' job**, which asks a slot by the battle's start once its cards are rendered: no slot is held
-  before its media exists, so no table of reservations is needed.
 
 ## Tests
 
@@ -150,4 +152,5 @@ why and is not busy, no address in an error, the feed at each platform's time, a
 making one post. The module's test boots it alone against a fake Zernio and calls it on the console listener: an
 upload link, the room, a slot, a slot that waits for TikTok's hours with `by` and leaves it out without, a post at a
 slot, the same slot taken after, the list with the post's metadata, every refusal of a wrong request, and
-`FailedPrecondition` with no key.
+`FailedPrecondition` with no key; and on the internal listener, a slot with `by`, a carousel posted and listed back, and
+`FailedPrecondition` with no key there too.

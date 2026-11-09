@@ -7,8 +7,12 @@ cards are data, kept per rule set under the set's name, the way planet and the a
 
 ```
 internal/promo/
-  module.go                         Config (database, backgrounds), NewModule
+  module.go                         Config (database, backgrounds), NewModule: the server's
+  job.go                            JobConfig, ListDue, PostTeasers: the teasers job's (cmd/teasers), see teasers-job.md
   internal/
+    teasers/                        a battle's teaser as a post: when it goes out, its words, the post through
+                                    publishing's InternalService (see teasers-job.md)
+    teaser_job/                     the teasers job's alone, which the server never builds (see teasers-job.md)
     migrations/                     backgrounds, cards
     placeholders/                   RulePaths, BattlePaths, Battle, Check, Fill: `{path}` in a card's words, filled with
                                     a value of planet.v1.Rules or of the battle
@@ -35,6 +39,9 @@ internal/promo/
       get_cards_handler/cards_query/   PostgresQuery: every set planet keeps, its cards as written and as read
       get_teaser_handler/teaser_query/ PostgresQuery: a battle's cards, filled
         rpc_gamemaster_battles/     the set and the times a battle plays, from gamemaster.v1.InternalService
+      list_teasers_handler/teasers_query/   the battles to come with their cards, from gamemaster.v1's GetTimeline
+      list_due_teasers_handler/due_teasers_query/   those within 36 hours no post teases, from publishing's ListPosts
+      post_teaser_handler/          PostTeaser: the teaser's outcome on the wire
 ```
 
 ## A card
@@ -124,14 +131,20 @@ rules refuse, `FailedPrecondition` for a set planet does not keep or a backgroun
 ## The teasers on TikTok and YouTube
 
 **`promo.v1.AdminService/ListTeasers(within)` is each battle that starts within the window, by start, with its cards as
-players read them now** (2026-11-09), for the teasers job, which renders them and posts them through the
-[publishing module](publishing.md) a day or so before the battle: a carousel of the cards on TikTok, a slideshow of them
-on YouTube. Each `Teaser` is the id `GetTeaser` takes (the entry's, or the finale's round), the battle's start and end,
+players read them now** (2026-11-09). Each `Teaser` is the id `GetTeaser` takes (the entry's, or the finale's round), the battle's start and end,
 the schedule's words for it, its points' times, whether it is a season's Final Battle, and its cards, filled by the
 teaser's own query (`teaser_query`). **A battle whose set has no card is left out**, as the game teases nothing of it,
 and so is one the schedule dropped since its timeline was read. The battles come from the gamemaster's `GetTimeline`
 (`teasers_query/rpc_gamemaster_timeline`): the ones the players see coming. `InvalidArgument` for a window of nothing,
 or of more than a week. A read-only tool for Claude too (see [Claude as a connector](connector.md)).
+
+**Promo posts each battle's teaser itself**, about a day before the battle, through the [publishing
+module](publishing.md): a carousel of the cards on TikTok, a slideshow of them on YouTube. **`ListDueTeasers`** is the
+battles within 36 hours that no post teases yet; **`PostTeaser(battle_id, photo_urls, video_url)`** checks the battle is
+still due, writes the words, plans the slot and posts it, and answers posted, held, skipped, busy or failed. The
+teasers job only renders the cards, which needs a browser, and uploads them. **The job is in this package too**, a
+second root beside the module (`job.go`, `internal/teaser_job/`), as the clips job is in clips': its own binary,
+`cmd/teasers`. See [Battle teasers on TikTok and YouTube](teasers-job.md).
 
 ## Kept
 
@@ -142,7 +155,10 @@ closer, once the listeners shut down.
 
 ## Who it asks
 
-**Promo depends on planet, the gamemaster and scoring, and nothing depends on promo.** It asks planet the sets it
+**Promo depends on planet, the gamemaster, scoring and publishing, and nothing depends on promo.** It asks publishing
+the posts that tease a battle (`ListPosts`, on each `ListDueTeasers` and `PostTeaser`), a teaser's slot (`PlanPost`
+with `by`) and the post (`SchedulePost`), on its `InternalService` (see [Battle teasers on TikTok and
+YouTube](teasers-job.md)). It asks planet the sets it
 keeps (`GetRuleSetNames`, on each `SaveCards` and `GetCards`) and the values one plays (`GetRuleSet`, on each teaser
 read and once per set with cards on each `GetCards`), the gamemaster what a battle plays (`GetBattle`, on each teaser
 read) and the battles to come (`GetTimeline`, on each `ListTeasers`), and scoring what each rank of a round of its times scores (`GetRankPoints`, on each teaser read with cards, and
@@ -165,3 +181,5 @@ test `TestAnOperatorWritesASetsCardsAndAPageReadsTheBattlesTeaserFilled` gives p
 to the fake bucket, saves `rush`'s cards on the console listener, reads season 0's finale's teaser on the public
 listener, filled with rush's values and the finale's points (`1st place wins 75 points`, ×3), and is refused the
 background's removal.
+
+The teasers' tests, the server's and the job's, are in [Battle teasers on TikTok and YouTube](teasers-job.md#tests).

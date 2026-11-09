@@ -58,10 +58,14 @@ import {
     KeepBackgroundResponse,
     ListBackgroundsRequest,
     ListBackgroundsResponse,
+    ListDueTeasersRequest,
+    ListDueTeasersResponse,
     ListTeasersRequest,
     ListTeasersResponse,
     ExampleBattle,
     Placeholder,
+    PostTeaserRequest,
+    PostTeaserResponse,
     RemoveBackgroundRequest,
     RemoveBackgroundResponse,
     SaveCardsRequest,
@@ -960,9 +964,17 @@ export class FakePromo implements PromoAdmin {
         return answer
     }
 
-    // The teasers job's read: no page shows it.
+    // The teasers job's calls: no page shows them.
     listTeasers(request: PartialMessage<ListTeasersRequest>): Promise<ListTeasersResponse> {
         return this.admin.answer("listTeasers", request, new ListTeasersResponse())
+    }
+
+    listDueTeasers(request: PartialMessage<ListDueTeasersRequest>): Promise<ListDueTeasersResponse> {
+        return this.admin.answer("listDueTeasers", request, new ListDueTeasersResponse())
+    }
+
+    postTeaser(request: PartialMessage<PostTeaserRequest>): Promise<PostTeaserResponse> {
+        return this.admin.answer("postTeaser", request, new PostTeaserResponse())
     }
 }
 

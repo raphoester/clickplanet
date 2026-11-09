@@ -52,6 +52,11 @@ const (
 	// AdminServiceListTeasersProcedure is the fully-qualified name of the AdminService's ListTeasers
 	// RPC.
 	AdminServiceListTeasersProcedure = "/promo.v1.AdminService/ListTeasers"
+	// AdminServiceListDueTeasersProcedure is the fully-qualified name of the AdminService's
+	// ListDueTeasers RPC.
+	AdminServiceListDueTeasersProcedure = "/promo.v1.AdminService/ListDueTeasers"
+	// AdminServicePostTeaserProcedure is the fully-qualified name of the AdminService's PostTeaser RPC.
+	AdminServicePostTeaserProcedure = "/promo.v1.AdminService/PostTeaser"
 )
 
 // AdminServiceClient is a client for the promo.v1.AdminService service.
@@ -74,10 +79,21 @@ type AdminServiceClient interface {
 	// Replaces a set's cards, in order: none to remove them, at most 5. InvalidArgument for a card the rules refuse;
 	// FailedPrecondition for a set planet does not keep, or a background not in the library.
 	SaveCards(context.Context, *connect.Request[v1.SaveCardsRequest]) (*connect.Response[v1.SaveCardsResponse], error)
-	// The battles that start within the next `within`, by start, each with its cards as players read them now: what the
-	// teasers job posts on TikTok and YouTube before each. A battle whose set has no card is left out, as the game teases
-	// nothing of it. InvalidArgument for a window of nothing, or of more than a week.
+	// The battles that start within the next `within`, by start, each with its cards as players read them now. A battle
+	// whose set has no card is left out, as the game teases nothing of it. InvalidArgument for a window of nothing, or of
+	// more than a week.
 	ListTeasers(context.Context, *connect.Request[v1.ListTeasersRequest]) (*connect.Response[v1.ListTeasersResponse], error)
+	// The battles whose teaser is due: those that start within 36 hours and that no post teases yet, by start, for the
+	// teasers job to render. A post teases its battle whatever became of it: one cancelled in the posting service's
+	// dashboard was cancelled on purpose. FailedPrecondition while publishing is off.
+	ListDueTeasers(context.Context, *connect.Request[v1.ListDueTeasersRequest]) (*connect.Response[v1.ListDueTeasersResponse], error)
+	// Posts a battle's teaser once the job rendered its cards and uploaded them with publishing's CreateMediaUpload: a
+	// photo carousel of the cards on TikTok and their slideshow on YouTube, in promo's words, at the first slot the posting
+	// calendar gives from 30 hours before the battle to an hour before it, on both if it can, else on TikTok alone, else
+	// on YouTube alone. The answer is what became of it: posted; held, no platform takes it in time; skipped, the battle is
+	// no longer due; busy, the posting service asked to be tried later, so call again then; or failed, refused for good.
+	// InvalidArgument for no battle, no video, or not one photo a card; FailedPrecondition while publishing is off.
+	PostTeaser(context.Context, *connect.Request[v1.PostTeaserRequest]) (*connect.Response[v1.PostTeaserResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the promo.v1.AdminService service. By default, it
@@ -136,6 +152,19 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		listDueTeasers: connect.NewClient[v1.ListDueTeasersRequest, v1.ListDueTeasersResponse](
+			httpClient,
+			baseURL+AdminServiceListDueTeasersProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListDueTeasers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		postTeaser: connect.NewClient[v1.PostTeaserRequest, v1.PostTeaserResponse](
+			httpClient,
+			baseURL+AdminServicePostTeaserProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("PostTeaser")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -148,6 +177,8 @@ type adminServiceClient struct {
 	getCards               *connect.Client[v1.GetCardsRequest, v1.GetCardsResponse]
 	saveCards              *connect.Client[v1.SaveCardsRequest, v1.SaveCardsResponse]
 	listTeasers            *connect.Client[v1.ListTeasersRequest, v1.ListTeasersResponse]
+	listDueTeasers         *connect.Client[v1.ListDueTeasersRequest, v1.ListDueTeasersResponse]
+	postTeaser             *connect.Client[v1.PostTeaserRequest, v1.PostTeaserResponse]
 }
 
 // CreateBackgroundUpload calls promo.v1.AdminService.CreateBackgroundUpload.
@@ -185,6 +216,16 @@ func (c *adminServiceClient) ListTeasers(ctx context.Context, req *connect.Reque
 	return c.listTeasers.CallUnary(ctx, req)
 }
 
+// ListDueTeasers calls promo.v1.AdminService.ListDueTeasers.
+func (c *adminServiceClient) ListDueTeasers(ctx context.Context, req *connect.Request[v1.ListDueTeasersRequest]) (*connect.Response[v1.ListDueTeasersResponse], error) {
+	return c.listDueTeasers.CallUnary(ctx, req)
+}
+
+// PostTeaser calls promo.v1.AdminService.PostTeaser.
+func (c *adminServiceClient) PostTeaser(ctx context.Context, req *connect.Request[v1.PostTeaserRequest]) (*connect.Response[v1.PostTeaserResponse], error) {
+	return c.postTeaser.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the promo.v1.AdminService service.
 type AdminServiceHandler interface {
 	// A link the page sends one background to, straight to the bucket. It is in the library once KeepBackground names it.
@@ -205,10 +246,21 @@ type AdminServiceHandler interface {
 	// Replaces a set's cards, in order: none to remove them, at most 5. InvalidArgument for a card the rules refuse;
 	// FailedPrecondition for a set planet does not keep, or a background not in the library.
 	SaveCards(context.Context, *connect.Request[v1.SaveCardsRequest]) (*connect.Response[v1.SaveCardsResponse], error)
-	// The battles that start within the next `within`, by start, each with its cards as players read them now: what the
-	// teasers job posts on TikTok and YouTube before each. A battle whose set has no card is left out, as the game teases
-	// nothing of it. InvalidArgument for a window of nothing, or of more than a week.
+	// The battles that start within the next `within`, by start, each with its cards as players read them now. A battle
+	// whose set has no card is left out, as the game teases nothing of it. InvalidArgument for a window of nothing, or of
+	// more than a week.
 	ListTeasers(context.Context, *connect.Request[v1.ListTeasersRequest]) (*connect.Response[v1.ListTeasersResponse], error)
+	// The battles whose teaser is due: those that start within 36 hours and that no post teases yet, by start, for the
+	// teasers job to render. A post teases its battle whatever became of it: one cancelled in the posting service's
+	// dashboard was cancelled on purpose. FailedPrecondition while publishing is off.
+	ListDueTeasers(context.Context, *connect.Request[v1.ListDueTeasersRequest]) (*connect.Response[v1.ListDueTeasersResponse], error)
+	// Posts a battle's teaser once the job rendered its cards and uploaded them with publishing's CreateMediaUpload: a
+	// photo carousel of the cards on TikTok and their slideshow on YouTube, in promo's words, at the first slot the posting
+	// calendar gives from 30 hours before the battle to an hour before it, on both if it can, else on TikTok alone, else
+	// on YouTube alone. The answer is what became of it: posted; held, no platform takes it in time; skipped, the battle is
+	// no longer due; busy, the posting service asked to be tried later, so call again then; or failed, refused for good.
+	// InvalidArgument for no battle, no video, or not one photo a card; FailedPrecondition while publishing is off.
+	PostTeaser(context.Context, *connect.Request[v1.PostTeaserRequest]) (*connect.Response[v1.PostTeaserResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -263,6 +315,19 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceListDueTeasersHandler := connect.NewUnaryHandler(
+		AdminServiceListDueTeasersProcedure,
+		svc.ListDueTeasers,
+		connect.WithSchema(adminServiceMethods.ByName("ListDueTeasers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServicePostTeaserHandler := connect.NewUnaryHandler(
+		AdminServicePostTeaserProcedure,
+		svc.PostTeaser,
+		connect.WithSchema(adminServiceMethods.ByName("PostTeaser")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/promo.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceCreateBackgroundUploadProcedure:
@@ -279,6 +344,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceSaveCardsHandler.ServeHTTP(w, r)
 		case AdminServiceListTeasersProcedure:
 			adminServiceListTeasersHandler.ServeHTTP(w, r)
+		case AdminServiceListDueTeasersProcedure:
+			adminServiceListDueTeasersHandler.ServeHTTP(w, r)
+		case AdminServicePostTeaserProcedure:
+			adminServicePostTeaserHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -314,4 +383,12 @@ func (UnimplementedAdminServiceHandler) SaveCards(context.Context, *connect.Requ
 
 func (UnimplementedAdminServiceHandler) ListTeasers(context.Context, *connect.Request[v1.ListTeasersRequest]) (*connect.Response[v1.ListTeasersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("promo.v1.AdminService.ListTeasers is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListDueTeasers(context.Context, *connect.Request[v1.ListDueTeasersRequest]) (*connect.Response[v1.ListDueTeasersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("promo.v1.AdminService.ListDueTeasers is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) PostTeaser(context.Context, *connect.Request[v1.PostTeaserRequest]) (*connect.Response[v1.PostTeaserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("promo.v1.AdminService.PostTeaser is not implemented"))
 }

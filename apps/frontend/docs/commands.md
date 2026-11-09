@@ -23,6 +23,7 @@ npm run clip -- --replay replay.json --race race.json --story '{"seasonal":1}' -
 npm run clip -- --replay replay.json --race race.json --season season.json --findings findings.json  # And the countries called up after it
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
+npm run teaser -- --teaser teaser.json --out teaser/  # A battle's cards as the stills of a TikTok carousel and a slideshow (see teasers.md)
 npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines
 npm run landmassNames # Name every landmass but each country's main one, from Natural Earth (see fortify.md)
 npm run crazygames:words # Fetch CrazyGames' word list into public/crazygames/words.txt (see crazygames.md)

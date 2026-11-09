@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateBackgroundUploadRequest, CreateBackgroundUploadResponse, GetCardsRequest, GetCardsResponse, KeepBackgroundRequest, KeepBackgroundResponse, ListBackgroundsRequest, ListBackgroundsResponse, ListTeasersRequest, ListTeasersResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, SaveCardsRequest, SaveCardsResponse } from "./admin_pb.js";
+import { CreateBackgroundUploadRequest, CreateBackgroundUploadResponse, GetCardsRequest, GetCardsResponse, KeepBackgroundRequest, KeepBackgroundResponse, ListBackgroundsRequest, ListBackgroundsResponse, ListDueTeasersRequest, ListDueTeasersResponse, ListTeasersRequest, ListTeasersResponse, PostTeaserRequest, PostTeaserResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, SaveCardsRequest, SaveCardsResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -90,9 +90,9 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * The battles that start within the next `within`, by start, each with its cards as players read them now: what the
-     * teasers job posts on TikTok and YouTube before each. A battle whose set has no card is left out, as the game teases
-     * nothing of it. InvalidArgument for a window of nothing, or of more than a week.
+     * The battles that start within the next `within`, by start, each with its cards as players read them now. A battle
+     * whose set has no card is left out, as the game teases nothing of it. InvalidArgument for a window of nothing, or of
+     * more than a week.
      *
      * @generated from rpc promo.v1.AdminService.ListTeasers
      */
@@ -102,6 +102,36 @@ export const AdminService = {
       O: ListTeasersResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The battles whose teaser is due: those that start within 36 hours and that no post teases yet, by start, for the
+     * teasers job to render. A post teases its battle whatever became of it: one cancelled in the posting service's
+     * dashboard was cancelled on purpose. FailedPrecondition while publishing is off.
+     *
+     * @generated from rpc promo.v1.AdminService.ListDueTeasers
+     */
+    listDueTeasers: {
+      name: "ListDueTeasers",
+      I: ListDueTeasersRequest,
+      O: ListDueTeasersResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Posts a battle's teaser once the job rendered its cards and uploaded them with publishing's CreateMediaUpload: a
+     * photo carousel of the cards on TikTok and their slideshow on YouTube, in promo's words, at the first slot the posting
+     * calendar gives from 30 hours before the battle to an hour before it, on both if it can, else on TikTok alone, else
+     * on YouTube alone. The answer is what became of it: posted; held, no platform takes it in time; skipped, the battle is
+     * no longer due; busy, the posting service asked to be tried later, so call again then; or failed, refused for good.
+     * InvalidArgument for no battle, no video, or not one photo a card; FailedPrecondition while publishing is off.
+     *
+     * @generated from rpc promo.v1.AdminService.PostTeaser
+     */
+    postTeaser: {
+      name: "PostTeaser",
+      I: PostTeaserRequest,
+      O: PostTeaserResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

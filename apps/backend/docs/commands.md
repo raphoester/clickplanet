@@ -62,4 +62,9 @@ go run ./cmd/clips schedule -ssh <user@host> -clips ../frontend/clips
 ZERNIO_API_KEY=... go run ./cmd/clips stats -ssh <user@host>
 # The editor on saved findings: -prompt prints what it would be sent and asks nothing (see clips-job.md, "The editor")
 ANTHROPIC_API_KEY=... go run ./cmd/clips edit -findings ../frontend/findings.json [-prompt]
+
+# The teasers job, as the teasers workflow runs it (see teasers-job.md): the battles due, each rendered, then posted
+go run ./cmd/teasers due -ssh <user@host> -out ../frontend/teasers
+(cd ../frontend && npm run teaser -- --teaser teasers/<folder>/teaser.json --out rendered/<folder>)
+go run ./cmd/teasers post -ssh <user@host> -teasers ../frontend/rendered
 ```

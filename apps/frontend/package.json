@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "mobile": "node scripts/mobile.mjs",
     "clip": "node scripts/clip/render.mjs",
+    "teaser": "node scripts/teaser/render.mjs",
     "clip:record": "vite-node scripts/clip/record.ts --",
     "clip:anthems": "node scripts/clip/anthems.mjs && npm run clip:highlights",
     "clip:highlights": "vite-node scripts/clip/highlights.ts",

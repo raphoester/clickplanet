@@ -27,8 +27,9 @@ that listener (`props.AdminHTTP`), not admin services, so they are outside the g
     `KeepAppearance`;
   - the posting of a job's video, which only a job calls over ssh: `publishing` `CreateMediaUpload` (a link to send
     a file to, which a tool has no file to send) and `SchedulePost` (a public post on TikTok and YouTube, at a slot
-    `PlanPost` gave). `publishing` `GetRoom`, `PlanPost` and `ListPosts` stay: what each platform has left today, when
-    a post would go out, and what was posted.
+    `PlanPost` gave), and `promo` `PostTeaser` (a battle's teaser posted, which only the teasers job calls, with the
+    files it uploaded). `publishing` `GetRoom`, `PlanPost` and `ListPosts` stay: what each platform has left today,
+    when a post would go out, and what was posted; and `promo` `ListDueTeasers`, the battles whose teaser is due.
 - `tools_test.go` fails on an admin method with no comment, and on an embedded set that does not match the
   generated code.
 - **The server does not decide what Claude may do without asking.** `readOnlyHint` is a hint: the operator sets the

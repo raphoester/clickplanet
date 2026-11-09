@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1/gamemasterv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/promo/v1/promov1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/publishing/v1/publishingv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/backgrounds"
@@ -38,11 +39,19 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/keep_background_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/list_backgrounds_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/list_backgrounds_handler/backgrounds_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/list_due_teasers_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/list_due_teasers_handler/due_teasers_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/list_teasers_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/list_teasers_handler/teasers_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/list_teasers_handler/teasers_query/rpc_gamemaster_timeline"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/post_teaser_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/remove_background_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/save_cards_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/teasers"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/teasers/listed_battles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/teasers/rpc_publishing"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/teasers/usecases/post_teaser_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/teasers/usecases/post_teaser_usecase/log_post_teaser"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
@@ -76,13 +85,14 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the promo module asks planet what each set plays, the gamemaster what a battle plays and "+
-			"scoring what its ranks score: %w", err)
+		return fmt.Errorf("the promo module asks planet what each set plays, the gamemaster what a battle plays, "+
+			"scoring what its ranks score and publishing for the teasers' posts: %w", err)
 	}
 	planet := rpc_planet_rules.New(planetv1connect.NewInternalServiceClient(internal, baseURL))
 	gamemaster := gamemasterv1connect.NewInternalServiceClient(internal, baseURL)
 	battles := rpc_gamemaster_battles.New(gamemaster)
 	points := rpc_scoring_points.New(scoringv1connect.NewInternalServiceClient(internal, baseURL))
+	publishing := rpc_publishing.New(publishingv1connect.NewInternalServiceClient(internal, baseURL))
 
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
@@ -96,7 +106,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Closers.Add("promo postgres", db.Close)
 
 	library := postgres_background_store.New(db)
-	teasers := teaser_query.NewPostgresQuery(db, battles, points, planet, bucket, props.Logger)
+	teaser := teaser_query.NewPostgresQuery(db, battles, points, planet, bucket, props.Logger)
+	listed := teasers_query.New(rpc_gamemaster_timeline.New(gamemaster), teaser, clock)
 	admin := promov1controller.AdminService{
 		CreateBackgroundUploadHandler: create_background_upload_handler.New(
 			create_upload_usecase.New(uuid_id_provider.Provider{}, rules, bucket)),
@@ -105,8 +116,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		RemoveBackgroundHandler: remove_background_handler.New(remove_background_usecase.New(bucket, library)),
 		GetCardsHandler:         get_cards_handler.New(cards_query.NewPostgresQuery(db, planet, points, bucket)),
 		SaveCardsHandler:        save_cards_handler.New(save_cards_usecase.New(planet, postgres_card_store.New(db), db)),
-		ListTeasersHandler: list_teasers_handler.New(teasers_query.New(
-			rpc_gamemaster_timeline.New(gamemaster), teasers, clock)),
+		ListTeasersHandler:      list_teasers_handler.New(listed),
+		ListDueTeasersHandler:   list_due_teasers_handler.New(due_teasers_query.New(listed, publishing, clock)),
+		PostTeaserHandler: post_teaser_handler.New(log_post_teaser.New(post_teaser_usecase.New(
+			listed_battles.New(listed), publishing, teasers.NewPoster(publishing), clock,
+		), props.Logger)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return promov1connect.NewAdminServiceHandler(admin, options...)
@@ -115,7 +129,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	public := promov1controller.PromoService{
-		GetTeaserHandler: get_teaser_handler.New(teasers),
+		GetTeaserHandler: get_teaser_handler.New(teaser),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return promov1connect.NewPromoServiceHandler(public, options...)
