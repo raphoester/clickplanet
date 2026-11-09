@@ -31,6 +31,8 @@ var (
 		"clips.v1.AdminService.KeepSnapshot",
 		"clips.v1.AdminService.MakeCast",
 		"clips.v1.AdminService.KeepAppearance",
+		"publishing.v1.AdminService.CreateMediaUpload",
+		"publishing.v1.AdminService.SchedulePost",
 	}
 )
 

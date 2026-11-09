@@ -398,6 +398,13 @@ promo:
       accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
       secretAccessKey: env://MEDIA_BUCKET_SECRET
 
+# The game's posts on its own TikTok and YouTube, through Zernio: how many each platform takes in a day, when each post
+# goes out, and the posts already there (apps/backend/docs/publishing.md). The repository's ZERNIO_API_KEY, the one the
+# clips workflows hold; empty while it is not set, and then every call is refused.
+publishing:
+  zernio:
+    apiKey: env://ZERNIO_API_KEY
+
 # The connector's MCP endpoint, on the admin listener: every admin method is a tool. The url comes from API_DOMAIN,
 # through docker-compose.yaml.
 mcp:

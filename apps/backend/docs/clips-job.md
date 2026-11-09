@@ -443,7 +443,11 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   part out of does not `Restore()`. `Report` is what became of each clip on each platform, for the display and the
   log; `Complete()` is whether every one is a post on all its platforms.
 
-**`posts/zernio/` is the one package that knows the service** (Zernio, chosen 2026-10-12 over upload-post: its
+**The server's publishing module now holds the same calendar and a Zernio client of its own** (see
+[Publishing](publishing.md), 2026-11-09): the job moves its posting to those calls next, and `posts/zernio/` and the
+budget below go with it. Until then the job posts as this section says.
+
+**`posts/zernio/` is the one package of the job that knows the service** (Zernio, chosen 2026-10-12 over upload-post: its
 free tier has TikTok and the whole API, posts are unlimited, and the first two accounts are free). **No Instagram
 for now** (2026-10-17): a third account is 6 USD a month. A change of service is that package, its line in `job.go`, the variable
 `main.go` reads the key from, and the client below.

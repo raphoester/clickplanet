@@ -462,6 +462,25 @@ func TestEveryAntibotKeyIsOneTheConfigReads(t *testing.T) {
 	}
 }
 
+func TestTheExampleAndTheLocalStackPostNothing(t *testing.T) {
+	for _, path := range []string{"example.yaml", "../../../../deploy/backend.yaml"} {
+		var config Config
+		require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(path)))
+
+		assert.Empty(t, config.Publishing.Zernio.APIKey, path)
+		require.NoError(t, config.Publishing.Validate(), path)
+	}
+}
+
+// productionConfig sets every env:// anchor of the file, ZERNIO_API_KEY among them.
+func TestTheProductionConfigPostsWithTheRepositorysZernioKey(t *testing.T) {
+	config := productionConfig(t)
+
+	assert.Equal(t, "a-secret", config.Publishing.Zernio.APIKey)
+	assert.Empty(t, config.Publishing.Zernio.BaseURL, "Zernio's own API")
+	require.NoError(t, config.Publishing.Validate())
+}
+
 func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T) {
 	config := productionConfig(t)
 

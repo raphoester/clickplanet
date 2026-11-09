@@ -1,0 +1,174 @@
+syntax = "proto3";
+
+package publishing.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// The game's posts on its own accounts, TikTok and YouTube, through one posting service, Zernio: how many each platform
+// takes in a day, when a post goes out, and the posts already there, made by hand or by a job. FailedPrecondition for
+// every call while the server holds no key of the posting service.
+service AdminService {
+  // A link to upload one video to the posting service's storage, good for an hour, and the address a post names it by.
+  // The storage is not the service's API: the link carries no key, and is a credential until it expires.
+  // InvalidArgument for a file that is no MP4, of no size or with no name.
+  rpc CreateMediaUpload(CreateMediaUploadRequest) returns (CreateMediaUploadResponse);
+  // How many more posts each platform takes now: its cap, less the fullest trailing day that holds now, the posts made
+  // by hand and the ones still to come counted. Not its hours: a post's time is PlanPost's.
+  rpc GetRoom(GetRoomRequest) returns (GetRoomResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // The slot a post on these platforms would take, from not_before on: the first whole minute 5 minutes from now or
+  // later that is an hour from every post on its platforms, before or after it, on each of them that takes a post then,
+  // in its hours and with room in every trailing day that holds it. No slot when none of them does. Nothing is held: a
+  // post at that slot is SchedulePost's.
+  rpc PlanPost(PlanPostRequest) returns (PlanPostResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Posts a video at a slot PlanPost answered: one post on the service, with a target on each of the slot's platforms.
+  // The answer is what became of it: scheduled, with each platform that refused it and why; busy, the service asked to
+  // be tried later, so plan again then; taken, the slot is no longer open, so plan again; or failed, the service refused
+  // it for good. The same idempotency key is the same post: sent again, it answers the post the first try made.
+  // InvalidArgument for a request with no slot, no video, no key, or no words for one of the slot's platforms.
+  rpc SchedulePost(SchedulePostRequest) returns (SchedulePostResponse);
+  // Every post on the service scheduled since the day of since, by hand or by a job, the latest first: its time, its
+  // state, why a platform failed it, and the metadata it was posted with.
+  rpc ListPosts(ListPostsRequest) returns (ListPostsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+enum Platform {
+  PLATFORM_UNSPECIFIED = 0;
+  PLATFORM_TIKTOK = 1;
+  PLATFORM_YOUTUBE = 2;
+}
+
+message CreateMediaUploadRequest {
+  // The file's name, as the service keeps it.
+  string file_name = 1;
+  // video/mp4.
+  string content_type = 2;
+  uint64 size_bytes = 3;
+}
+
+message CreateMediaUploadResponse {
+  // A PUT of the file with its content type, within the hour. A credential until then: never logged.
+  string upload_url = 1;
+  // What SchedulePost's media_url takes.
+  string media_url = 2;
+}
+
+message GetRoomRequest {
+  repeated Platform platforms = 1;
+}
+
+message GetRoomResponse {
+  // One for each platform asked, in the order asked.
+  repeated PlatformRoom rooms = 1;
+}
+
+message PlatformRoom {
+  Platform platform = 1;
+  // How many more posts it takes now.
+  uint32 left = 2;
+}
+
+message PlanPostRequest {
+  repeated Platform platforms = 1;
+  // Absent is now. A job's review: the time to cancel a post in the dashboard before it goes out.
+  google.protobuf.Timestamp not_before = 2;
+}
+
+message PlanPostResponse {
+  // Absent when no platform takes the post.
+  Slot slot = 1;
+}
+
+message Slot {
+  // A whole minute.
+  google.protobuf.Timestamp at = 1;
+  // The platforms asked that take a post then, in the order asked.
+  repeated Platform platforms = 2;
+}
+
+message SchedulePostRequest {
+  Slot slot = 1;
+  // CreateMediaUpload's media_url, once the file is there.
+  string media_url = 2;
+  // The same key is the same post on the service, whatever the slot: the SHA-256 of the video, in hex, so a run made
+  // again does not post it twice.
+  string idempotency_key = 3;
+  // The post's name in the service's dashboard. Never published.
+  string title = 4;
+  // The words of each platform of the slot.
+  TikTokWords tiktok = 5;
+  YouTubeWords youtube = 6;
+  // Kept with the post, never published: what a job reads back from ListPosts, and sets the post's numbers beside.
+  google.protobuf.Struct metadata = 7;
+}
+
+message TikTokWords {
+  string caption = 1;
+}
+
+message YouTubeWords {
+  string title = 1;
+  string description = 2;
+  repeated string tags = 3;
+}
+
+message SchedulePostResponse {
+  oneof outcome {
+    Scheduled scheduled = 1;
+    Busy busy = 2;
+    Taken taken = 3;
+    Failed failed = 4;
+  }
+}
+
+message Scheduled {
+  // Empty when every platform refused it.
+  string post_id = 1;
+  repeated Refusal refusals = 2;
+}
+
+message Refusal {
+  Platform platform = 1;
+  string reason = 2;
+}
+
+message Busy {
+  // Absent when the service named no time.
+  google.protobuf.Duration retry_after = 1;
+  string reason = 2;
+}
+
+message Taken {
+  string reason = 1;
+}
+
+message Failed {
+  string reason = 1;
+}
+
+message ListPostsRequest {
+  google.protobuf.Timestamp since = 1;
+}
+
+message ListPostsResponse {
+  repeated Post posts = 1;
+}
+
+message Post {
+  string post_id = 1;
+  string title = 2;
+  // Absent for a post with no time yet, such as a draft.
+  google.protobuf.Timestamp scheduled_for = 3;
+  // The service's: draft, scheduled, publishing, published, partial, failed or cancelled.
+  string status = 4;
+  // Each platform that failed it, with why, as "tiktok: …"; empty when none did.
+  string failure = 5;
+  google.protobuf.Struct metadata = 6;
+}

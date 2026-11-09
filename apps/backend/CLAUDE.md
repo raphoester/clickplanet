@@ -21,8 +21,8 @@ and says what is in it. Read the doc before you change its area.
 
 ## How the code is shaped
 
-- [Thirteen bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, progression,
-  scoring, support, missions, antibot, gamemaster, alerts, clips and promo. A module publishes its root package and hides the rest; the
+- [Fourteen bounded contexts, one process](docs/bounded-contexts.md) — planet, chat, auth, player, progression,
+  scoring, support, missions, antibot, gamemaster, alerts, clips, promo and publishing. A module publishes its root package and hides the rest; the
   modules depend on each other with no cycle, and only player and alerts speak auth's language.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
   calls another one, how it tells the others what happened and asks one to change something: Redis Streams,
@@ -128,6 +128,10 @@ and says what is in it. Read the doc before you change its area.
   uploads to the bucket and Cloudflare serves publicly; words with `{path}` placeholders filled from the values the set
   plays and the battle's points at each read (`GetTeaser`); the set and times from the gamemaster (`GetBattle`), the
   values from planet (`GetRuleSet`), the points from scoring (`GetRankPoints`).
+- [Publishing](docs/publishing.md) — the game's posts on its own TikTok and YouTube through Zernio: the calendar every
+  job keeps (an hour apart, 3 a trailing day on TikTok from 14:00 to 20:00 UTC, 12 on YouTube from 07:00 to 23:00), a
+  post scheduled ahead held as a reservation, the upload link that keeps every video off the server, `PlanPost` and
+  `SchedulePost` under one lock and its outcomes (scheduled, busy, taken, failed); no table, Zernio's list is the record.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos; each
   report told to the chat's judge (`PlayerReported`) and closed by its command (`DecideReport`).
 - [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role and its username
