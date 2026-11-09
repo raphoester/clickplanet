@@ -171,7 +171,7 @@ message Pick {
   string rival = 7;
   // The flags it took from, the main one first.
   repeated string taken_from = 8;
-  // Where it is told: one or two countries, else a continent.
+  // Where it is told: countries of the front, else a continent.
   repeated string countries = 9;
   string continent = 10;
   // The continent whose flags strike back together, for a comeback of them.

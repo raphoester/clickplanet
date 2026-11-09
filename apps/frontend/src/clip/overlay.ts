@@ -53,6 +53,7 @@ const TIME = new Intl.DateTimeFormat("en-GB", {
 })
 
 const ENGLISH = new Intl.DisplayNames(["en"], {type: "region", style: "short"})
+const LIST = new Intl.ListFormat("en-GB", {type: "conjunction"})
 
 // The game's names are cut to fit its board ("Christmas", "N.Zealand", "Czech Rep."): a clip says the English name they
 // were cut from, from the CLDR data the browser carries. A name the game chose over it stays: "Turkey", "Ivory Coast",
@@ -98,7 +99,7 @@ function ordinalOf(rank: number): string {
 }
 
 export function placeName(place: Place): string {
-    return "region" in place ? place.region : countriesOf(place).map(nameOf).join(" and ")
+    return "region" in place ? place.region : LIST.format(countriesOf(place).map(nameOf))
 }
 
 function tagOf(name: string): string {
@@ -233,7 +234,8 @@ export function createOverlay(
 
     const bottom = element("footer", "clip-bottom", root)
     const counters = element("div", "clip-counters", bottom)
-    const shown = sides.map((side) => {
+    // A call-up is about the season's points, which its end shows: the tiles of a few hours say nothing of them.
+    const shown = (story.kind === "callup" ? [] : sides).map((side) => {
         const counter = element("div", "clip-counter", counters)
         flag(side, "clip-counter-flag", counter)
         return {side, tiles: element("span", "clip-counter-tiles", counter), delta: element("span", "clip-counter-delta", counter)}

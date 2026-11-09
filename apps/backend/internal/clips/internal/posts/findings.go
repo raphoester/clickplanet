@@ -197,7 +197,7 @@ type Story struct {
 	Kind                         Kind
 	Attacker, Rival              string
 	TakenFrom                    []string
-	// One or two countries, else a continent.
+	// Countries of the front, else a continent.
 	Countries []string
 	Continent string
 	// The continent whose flags strike back together.
@@ -363,10 +363,7 @@ func (f Findings) checkFront(story Story, front Front) (StoryKey, error) {
 	switch {
 	case len(story.Countries) > 0 && story.Continent == "", len(story.Countries) == 0 && story.Continent != "":
 	default:
-		return refused("a story is told in one or two countries, or on a continent")
-	}
-	if len(story.Countries) > 2 {
-		return refused("a story is told in one or two countries, not %d", len(story.Countries))
+		return refused("a story is told in countries, or on a continent")
 	}
 	for _, code := range story.Countries {
 		at := slices.IndexFunc(front.Countries, func(country FrontCountry) bool { return country.Code == code })

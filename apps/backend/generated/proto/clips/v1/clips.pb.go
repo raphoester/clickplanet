@@ -1150,7 +1150,7 @@ type Pick struct {
 	Rival    string `protobuf:"bytes,7,opt,name=rival,proto3" json:"rival,omitempty"`
 	// The flags it took from, the main one first.
 	TakenFrom []string `protobuf:"bytes,8,rep,name=taken_from,json=takenFrom,proto3" json:"taken_from,omitempty"`
-	// Where it is told: one or two countries, else a continent.
+	// Where it is told: countries of the front, else a continent.
 	Countries []string `protobuf:"bytes,9,rep,name=countries,proto3" json:"countries,omitempty"`
 	Continent string   `protobuf:"bytes,10,opt,name=continent,proto3" json:"continent,omitempty"`
 	// The continent whose flags strike back together, for a comeback of them.

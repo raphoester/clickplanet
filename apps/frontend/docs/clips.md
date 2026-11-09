@@ -90,7 +90,7 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 - **`--story <json>`** is the story to render, a `Pick` (`toldOf`): one front, tour, place or seasonal story of the
   findings by its number, from 1, and for a front what the editor made of it: its `kind` (`attack`, `invasion`,
   `comeback`, `kickout`, `rout`, `battle`), its `attacker`, its `rival` in a battle, whom it took from (`takenFrom`,
-  the flag thrown out first), where it is told (`countries`, one or two, or `continent`), the continent whose flags
+  the flag thrown out first), where it is told (`countries` of the front, or `continent`), the continent whose flags
   strike back together (`team`). A tour, a place and a seasonal story are the facts' own: the flag taking the world,
   the holder holding its share, the day won. **Every story but a seasonal one comes with the editor's words**: its
   `headline`, its `teasers`, its `line` (empty for none), its `call` and the flags it asks to fight for
@@ -285,9 +285,12 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 - **`round.ts` tells a day of the season** from the turn and its round (`--season`, `--race`): **"FRANCE WINS DAY 5"**, or **"FRANCE WINS THE
   FINAL BATTLE"**, with where it leaves the winner in the season ("Leads the season with 86 points"). Only the run
   whose window holds the cutoff finds it, and the job tells it once, by its key. It plays the 3 hours before
-  the cutoff, the winner's fighting (anyone's when it fought none), opens on all the winner holds, counts its tiles
-  (the podium's points say who won: a day is won by the ground gained before its cutoff), and ends on the podium, the places that scored with their points, then "WHO WINS DAY 6?". The ending
-  lasts 4s instead of 2.5, to read it.
+  the cutoff, the winner's takes where it took the most (`frontOf`; anyone's when it took none), counts its tiles
+  (the podium's points say who won: a day is won by the ground gained before its cutoff), and ends pulled back over all
+  the winner holds, then on the podium, the places that scored with their points, then "WHO WINS DAY 6?". The ending
+  lasts 4s instead of 2.5, to read it. **Never its losses, never two places at once**: until 2026-11-09 it played every
+  change to or from the flag, all over the world, and "IRELAND LEADS THE SEASON BY 53 POINTS" opened on Sweden taking
+  Irish land, then flew back and forth over the Atlantic between Europe and the USA, 5 seconds of open sea.
 - **`callup.ts` calls up each country that can still win the season** (`--race` and `--season`), after the day the
   gamemaster debriefed last, told by the same run as the day: a country contends when winning every day left and the Final
   Battle, the leader second each time, brings it level. By pure points, 25 countries could still win on day 15, the
@@ -298,7 +301,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   PUNKTÓW STRATY", not "behind Algeria" in Polish), names come from CLDR in that language, numbers and plurals from
   `Intl`. The Final Battle's time is the one most of the country's zones read, with the zone named when they
   disagree ("18:00 BRT"). It plays as a day does, and ends on the leader's row and the country's, "YOUR COUNTRY
-  NEEDS YOU" in its language, and the Final Battle's time. **Luckiest Guy draws Latin-1 only**: a clip with any
+  NEEDS YOU" in its language, and the Final Battle's time. **It has no counter**: it tells the season's points, which
+  its end shows, and a country's tiles in the few hours before say nothing of them. Ireland, leading by 53, lost 3,600
+  tiles in the hours before day 8's cutoff, and the counter fell in red under "IRELAND LEADS THE SEASON". **Luckiest Guy draws Latin-1 only**: a clip with any
   other letter ("Ł", "Ț", "İ") is set in Rubik Black, never in two fonts.
 - **`score.ts` ranks the fronts**: the tiles taken from another flag, over the square root of the hours, times the
   countries they were taken in (up to 4). A short war over several countries beats a long filling of one. It orders

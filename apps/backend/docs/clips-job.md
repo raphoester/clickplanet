@@ -164,7 +164,7 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   next. The run's clips go out in that order (`Ranked`, by pick), and each post's `runPosition` records it.
 - **A check is whether a story is true, never whether it is good**: a story of a front names a kind a front tells, an
   attacker that took tiles on it and in the place it names, flags it took from that lost tiles there, a rival only in
-  a battle and one each side took from; a place of one or two countries of the front, or a continent of theirs; a
+  a battle and one each side took from; a place of countries of the front, as many as it names, or a continent of theirs; a
   comeback by a flag at home there, a kickout by a flag that held the country when the front opened, a rout of a flag
   that held it then, a team only for a continent's flags on their own continent. A tour is by a flag that switched a
   landmass's painted flag somewhere (`FlippedByContinent`), since its camera shows nothing else from far: "BRAZIL IS
@@ -203,11 +203,15 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   `slots`, `toldFirst`, the `window`, `names`, `continents`, `anthems`, each front numbered from 1 with its stretch in hours, its
   countries and its flags, each tour and each place numbered the same, `recentPosts` with their keys and countries, and
   `shownLately`. **The instructions are `claude_editor/instructions.md`, embedded**: prose on what the facts mean,
-  what makes a story worth telling and a headline good, from the lessons of this section and of the frontend's, the
-  evening of 2026-10-26 among them, and the feed of 2026-10-28, five headlines in a day made of fractions ("BRAZIL
-  LOSES MOST OF ARGENTINA"), and the clip of 2026-10-29 that named the attacker's home continent, "PALAU STORMS
-  EUROPE FROM OCEANIA" over Scandinavia. **Tuning that file is how the model's taste is shaped**; a change ships with
-  the next commit, and the record's `generator` names the commit, so the analysis can tell the versions apart.
+  what makes a story worth telling and a headline good, from the lessons of this section and of the frontend's.
+  **Tuning that file is how the model's taste is shaped**; a change ships with the next commit, and the record's
+  `generator` names the commit, so the analysis can tell the versions apart. **Cut before you add**: Haiku follows a
+  short file better than a long one, so a lesson is one line with its example, and an old story goes once its rule is
+  said. On 2026-11-09 the file went from 20,200 characters to 12,200: its dated stories went, and so did "the odd pair
+  is the hook" and every "X VS Y FOR Z", which had made every battle "BULGARIA VS GERMANY FOR SAUDI ARABIA" and
+  "BRAZIL VS HUNGARY FOR ITS OWN LAND", headlines a stranger to the game cannot read. It says instead that the viewer
+  has never heard of the game, and that a headline says who does what to which place, the place on screen: "IRELAND
+  TAKES NORTH AMERICA FROM BRAZIL" played Ireland taking Honduras and Guatemala, of a continent it already held.
 - **What it answers** (`answerSchema`): `why`, then `stories`, best first, each with its `front`, `tour` or `place`
   (the others 0), and for a front its `kind`, `attacker`, `rival`, `takenFrom`, `countries` or `continent`, `team`,
   for every story its `headline`, `teasers`, `line`, `call`, `callFlags`, `anthem` and `fighters`, and for a front or

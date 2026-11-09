@@ -124,6 +124,24 @@ describe("a day of the season", () => {
     })
 })
 
+describe("the counter", () => {
+    const countersOf = (told: Story) => {
+        const root = document.createElement("div")
+        createOverlay(root, told, wordsOf(told, written), new Map(), [])
+        return root.querySelectorAll(".clip-counter").length
+    }
+
+    it("counts each side's tiles, but on a call-up, whose end shows the season's points", () => {
+        const table = [{country: "fr", rank: 1, points: 86}, {country: "pw", rank: 2, points: 70}]
+        const callUp: Story = {
+            ...story("callup", {region: THE_WORLD}), attacker: "fr", victims: ["pw"], day: {...day, table}, finaleAt: Date.UTC(2026, 10, 28, 17),
+        }
+
+        expect(countersOf(story("battle", {country: "fr"}, "nl"))).toBe(2)
+        expect(countersOf(callUp)).toBe(0)
+    })
+})
+
 describe("the hashtags of a story", () => {
     it("name every flag of the story and the countries of its place, once each", () => {
         expect(hashtagsOf({...story("invasion", {countries: ["eg", "tr"]}), attacker: "il", victims: ["eg", "fr"]})).toEqual({

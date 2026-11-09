@@ -972,7 +972,7 @@ export class Pick extends Message<Pick> {
   takenFrom: string[] = [];
 
   /**
-   * Where it is told: one or two countries, else a continent.
+   * Where it is told: countries of the front, else a continent.
    *
    * @generated from field: repeated string countries = 9;
    */
