@@ -267,10 +267,15 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   2026-10-14, though a flag's tag can be a political feed. A continent's own flag is not a country and has none.
 - **The anthem under the clip is the editor's** (the pick's `anthem`), since YouTube Shorts cannot add a sound to an
   upload; a day won and a call-up play their flag's. A clip with none plays none. They are the game's own anthems (see [The
-  leader's anthem](sound.md#the-leaders-anthem)), US Navy Band recordings in the public domain, and two the game does not
-  play, vendored by `npm run clip:anthems` into `scripts/clip/anthems/`: the Anthem of Europe (Navy Band too) and
-  Palestine's Fida'i, which the Navy Band never recorded, in an instrumental under CC BY 3.0. A recording under a
-  licence carries its credit, and the caption of every clip it plays under ends with it. It fades out over the
+  leader's anthem](sound.md#the-leaders-anthem)), US Navy Band recordings in the public domain, and more the game does
+  not play, vendored by `npm run clip:anthems` into `scripts/clip/anthems/` from Wikimedia Commons: the Anthem of
+  Europe (Navy Band too), and the anthems of countries the Navy Band never recorded (Palestine, Andorra, Bhutan,
+  Grenada, Nauru, Niger, Samoa, San Marino, Taiwan, Tonga, Zambia). A recording under a
+  licence carries its credit, and the caption of every clip it plays under ends with it. Nauru's is CC BY-SA, which
+  makes a video synced to it share alike, so its credit says the video is CC BY-SA too. Only a public-domain, CC0 or
+  CC BY recording is added without the user's yes. Never the Royal Australian Navy Band's, which Commons tags public
+  domain: the band's catalogue is for non-profit use only. Commons has no clean recording of the Solomon Islands', and
+  only CC BY-SA ones of Burundi's, Tuvalu's and Zimbabwe's. It fades out over the
   last 1.2s. `--silent` leaves it out, and its credit with it, for TikTok and Instagram, where a sound is added
   when posting.
 - **An anthem starts on a highlight**, never on its first second: the UK's opens on 11s of drum roll, Algeria's on 7s

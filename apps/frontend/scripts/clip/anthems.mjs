@@ -3,9 +3,10 @@ import fs from "node:fs"
 import path from "node:path"
 import {CACHE, encode} from "../anthemEncoding.mjs"
 
-// Anthems the clips play and the game does not: Palestine's, which the US Navy Band never recorded, and Europe's,
-// for a continent striking back. A recording that is not in the public domain carries the credit its licence asks
-// for, which every caption it plays under repeats.
+// Anthems the clips play and the game does not: the countries the US Navy Band never recorded, and Europe's, for a
+// continent striking back. A recording that is not in the public domain carries the credit its licence asks for,
+// which every caption it plays under repeats. Never the Royal Australian Navy Band's: its catalogue is for non-profit
+// use only, whatever Commons tags them.
 const OUT = "scripts/clip/anthems"
 const ASSET = "src/clip/clipAnthemsAsset.ts"
 const COMMONS = "https://upload.wikimedia.org/wikipedia/commons/"
@@ -19,6 +20,54 @@ const RECORDINGS = {
         file: "e/eb/National_Anthem_of_Palestine_-_Fida'i_-_Instrumental_فِدَائِي_فِدَائِي_فِدَائِي.ogg",
         title: "Fida'i",
         credit: "Fida'i (instrumental) by Sounds Monarch, CC BY 3.0, youtube.com/watch?v=2TszL-Fh6D8",
+    },
+    ad: {
+        file: "5/5b/El_Gran_Carlemany.ogg",
+        title: "El Gran Carlemany",
+    },
+    bt: {
+        file: "d/d4/National_Anthem_of_Bhutan_“Druk_tsendhen”.ogg",
+        title: "Druk Tsendhen",
+        credit: "Druk Tsendhen by Keith Terrett, CC BY 4.0, nationalanthems.info",
+    },
+    gd: {
+        file: "7/76/HailGrenada.ogg",
+        title: "Hail Grenada",
+    },
+    ne: {
+        file: "1/10/THE_HONOR_OF_THE_FATHERLAND.ogg",
+        title: "L'Honneur de la Patrie",
+    },
+    // CC BY-SA: a video with music synced to it is an adaptation, which the licence makes the video share alike.
+    nr: {
+        file: "a/a9/Nauru_Bwiema_instrumental.ogg",
+        title: "Nauru Bwiema",
+        credit: "Nauru Bwiema (instrumental) by Laurence Henry Hicks, nationalanthems.info. "
+            + "This video is shared under CC BY-SA 3.0, as its music: creativecommons.org/licenses/by-sa/3.0",
+    },
+    sm: {
+        file: "d/d9/Inno_Nazionale_della_Repubblica.ogg",
+        title: "Inno Nazionale della Repubblica",
+        credit: "Inno Nazionale della Repubblica (instrumental) by nationalanthems.info, CC BY 3.0",
+    },
+    to: {
+        file: "d/d3/Fasifakafonua.ogg",
+        title: "Ko e fasi ʻo e tuʻi ʻo e ʻOtu Tonga",
+    },
+    tw: {
+        file: "b/be/National_anthem_of_the_Republic_of_China_(Taiwan)_中華民國國歌(演奏版).ogg",
+        title: "Three Principles of the People",
+        credit: "National Anthem of the Republic of China by its Ministry of Foreign Affairs, "
+            + "Government Website Open Information Announcement",
+    },
+    ws: {
+        file: "b/ba/SamoaAnthem.ogg",
+        title: "The Banner of Freedom",
+    },
+    zm: {
+        file: "f/f6/Zambian_national_anthem.oga",
+        title: "Stand and Sing of Zambia, Proud and Free",
+        credit: "Stand and Sing of Zambia (instrumental) by nationalanthems.info, CC BY 3.0",
     },
 }
 
