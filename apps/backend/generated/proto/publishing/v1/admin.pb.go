@@ -497,9 +497,12 @@ type SchedulePostRequest struct {
 	Tiktok  *TikTokWords  `protobuf:"bytes,5,opt,name=tiktok,proto3" json:"tiktok,omitempty"`
 	Youtube *YouTubeWords `protobuf:"bytes,6,opt,name=youtube,proto3" json:"youtube,omitempty"`
 	// Kept with the post, never published: what a job reads back from ListPosts, and sets the post's numbers beside.
-	Metadata      *structpb.Struct `protobuf:"bytes,7,opt,name=metadata,proto3" json:"metadata,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Metadata *structpb.Struct `protobuf:"bytes,7,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	// Photos posted on TikTok in place of the video, a carousel swiped in this order: CreateMediaUpload's media_urls of
+	// JPEG files, 35 at most. None is the video.
+	TiktokPhotoUrls []string `protobuf:"bytes,8,rep,name=tiktok_photo_urls,json=tiktokPhotoUrls,proto3" json:"tiktok_photo_urls,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *SchedulePostRequest) Reset() {
@@ -581,9 +584,19 @@ func (x *SchedulePostRequest) GetMetadata() *structpb.Struct {
 	return nil
 }
 
+func (x *SchedulePostRequest) GetTiktokPhotoUrls() []string {
+	if x != nil {
+		return x.TiktokPhotoUrls
+	}
+	return nil
+}
+
 type TikTokWords struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Caption       string                 `protobuf:"bytes,1,opt,name=caption,proto3" json:"caption,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Caption string                 `protobuf:"bytes,1,opt,name=caption,proto3" json:"caption,omitempty"`
+	// A photo post's title, over its photos, 90 characters at most: TikTok strips its hashtags and links, and the
+	// caption goes below. Unused on a video.
+	Title         string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -621,6 +634,13 @@ func (*TikTokWords) Descriptor() ([]byte, []int) {
 func (x *TikTokWords) GetCaption() string {
 	if x != nil {
 		return x.Caption
+	}
+	return ""
+}
+
+func (x *TikTokWords) GetTitle() string {
+	if x != nil {
+		return x.Title
 	}
 	return ""
 }
@@ -1249,7 +1269,7 @@ const file_publishing_v1_admin_proto_rawDesc = "" +
 	"\x04slot\x18\x01 \x01(\v2\x13.publishing.v1.SlotR\x04slot\"i\n" +
 	"\x04Slot\x12*\n" +
 	"\x02at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x125\n" +
-	"\tplatforms\x18\x02 \x03(\x0e2\x17.publishing.v1.PlatformR\tplatforms\"\xba\x02\n" +
+	"\tplatforms\x18\x02 \x03(\x0e2\x17.publishing.v1.PlatformR\tplatforms\"\xe6\x02\n" +
 	"\x13SchedulePostRequest\x12'\n" +
 	"\x04slot\x18\x01 \x01(\v2\x13.publishing.v1.SlotR\x04slot\x12\x1b\n" +
 	"\tmedia_url\x18\x02 \x01(\tR\bmediaUrl\x12'\n" +
@@ -1257,9 +1277,11 @@ const file_publishing_v1_admin_proto_rawDesc = "" +
 	"\x05title\x18\x04 \x01(\tR\x05title\x122\n" +
 	"\x06tiktok\x18\x05 \x01(\v2\x1a.publishing.v1.TikTokWordsR\x06tiktok\x125\n" +
 	"\ayoutube\x18\x06 \x01(\v2\x1b.publishing.v1.YouTubeWordsR\ayoutube\x123\n" +
-	"\bmetadata\x18\a \x01(\v2\x17.google.protobuf.StructR\bmetadata\"'\n" +
+	"\bmetadata\x18\a \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12*\n" +
+	"\x11tiktok_photo_urls\x18\b \x03(\tR\x0ftiktokPhotoUrls\"=\n" +
 	"\vTikTokWords\x12\x18\n" +
-	"\acaption\x18\x01 \x01(\tR\acaption\"Z\n" +
+	"\acaption\x18\x01 \x01(\tR\acaption\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\"Z\n" +
 	"\fYouTubeWords\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +

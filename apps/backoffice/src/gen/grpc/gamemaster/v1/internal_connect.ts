@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetBattleRequest, GetBattleResponse } from "./internal_pb.js";
+import { GetBattleRequest, GetBattleResponse, GetTimelineRequest, GetTimelineResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -25,6 +25,19 @@ export const InternalService = {
       name: "GetBattle",
       I: GetBattleRequest,
       O: GetBattleResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The battles that have not started, by start, the seasons' finales among them, as the timeline names them: for the
+     * promo module's teasers, which a job posts before each.
+     *
+     * @generated from rpc gamemaster.v1.InternalService.GetTimeline
+     */
+    getTimeline: {
+      name: "GetTimeline",
+      I: GetTimelineRequest,
+      O: GetTimelineResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

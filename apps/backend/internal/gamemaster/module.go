@@ -29,6 +29,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_season_totals_handler/season_totals_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_seasons_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_seasons_handler/seasons_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_timeline_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_turn_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/get_turn_handler/turn_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller/listen_for_events_handler"
@@ -185,7 +186,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	internalService := gamemasterv1controller.InternalService{
-		GetBattleHandler: get_battle_handler.New(battle_query.NewPostgresQuery(db)),
+		GetBattleHandler:   get_battle_handler.New(battle_query.NewPostgresQuery(db)),
+		GetTimelineHandler: get_timeline_handler.New(turns),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return gamemasterv1connect.NewInternalServiceHandler(internalService, options...)

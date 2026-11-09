@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { Battle } from "./gamemaster_pb.js";
 
 /**
  * @generated from message gamemaster.v1.GetBattleRequest
@@ -85,6 +86,76 @@ export class GetBattleResponse extends Message<GetBattleResponse> {
 
   static equals(a: GetBattleResponse | PlainMessage<GetBattleResponse> | undefined, b: GetBattleResponse | PlainMessage<GetBattleResponse> | undefined): boolean {
     return proto3.util.equals(GetBattleResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message gamemaster.v1.GetTimelineRequest
+ */
+export class GetTimelineRequest extends Message<GetTimelineRequest> {
+  constructor(data?: PartialMessage<GetTimelineRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.GetTimelineRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTimelineRequest {
+    return new GetTimelineRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTimelineRequest {
+    return new GetTimelineRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTimelineRequest {
+    return new GetTimelineRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTimelineRequest | PlainMessage<GetTimelineRequest> | undefined, b: GetTimelineRequest | PlainMessage<GetTimelineRequest> | undefined): boolean {
+    return proto3.util.equals(GetTimelineRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message gamemaster.v1.GetTimelineResponse
+ */
+export class GetTimelineResponse extends Message<GetTimelineResponse> {
+  /**
+   * As Timeline.battles holds them.
+   *
+   * @generated from field: repeated gamemaster.v1.Battle battles = 1;
+   */
+  battles: Battle[] = [];
+
+  constructor(data?: PartialMessage<GetTimelineResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "gamemaster.v1.GetTimelineResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "battles", kind: "message", T: Battle, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTimelineResponse {
+    return new GetTimelineResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTimelineResponse {
+    return new GetTimelineResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTimelineResponse {
+    return new GetTimelineResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTimelineResponse | PlainMessage<GetTimelineResponse> | undefined, b: GetTimelineResponse | PlainMessage<GetTimelineResponse> | undefined): boolean {
+    return proto3.util.equals(GetTimelineResponse, a, b);
   }
 }
 

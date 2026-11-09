@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package promo.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "promo/v1/promo.proto";
 
@@ -30,6 +31,12 @@ service AdminService {
   // Replaces a set's cards, in order: none to remove them, at most 5. InvalidArgument for a card the rules refuse;
   // FailedPrecondition for a set planet does not keep, or a background not in the library.
   rpc SaveCards(SaveCardsRequest) returns (SaveCardsResponse);
+  // The battles that start within the next `within`, by start, each with its cards as players read them now: what the
+  // teasers job posts on TikTok and YouTube before each. A battle whose set has no card is left out, as the game teases
+  // nothing of it. InvalidArgument for a window of nothing, or of more than a week.
+  rpc ListTeasers(ListTeasersRequest) returns (ListTeasersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message CreateBackgroundUploadRequest {
@@ -127,3 +134,28 @@ message SaveCardsRequest {
 }
 
 message SaveCardsResponse {}
+
+message ListTeasersRequest {
+  // How far ahead a battle starts, at most a week.
+  google.protobuf.Duration within = 1;
+}
+
+message ListTeasersResponse {
+  // By start.
+  repeated Teaser teasers = 1;
+}
+
+message Teaser {
+  // What GetTeaser takes: the battle's entry's id, or a season's finale's round.
+  string battle_id = 1;
+  google.protobuf.Timestamp starts_at = 2;
+  google.protobuf.Timestamp ends_at = 3;
+  // The schedule's words for the players: what its rules are. Empty when the operator wrote none.
+  string description = 4;
+  // How many times a day's points the battle scores.
+  uint32 times = 5;
+  // The battle is a season's Final Battle.
+  bool ends_season = 6;
+  // In the operator's order, at least one.
+  repeated TeaserCard cards = 7;
+}

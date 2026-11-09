@@ -67,11 +67,11 @@ for a run's best clip alone; the calendar knows no run.
 `publishing.v1.AdminService`, on the console listener, which a job calls over ssh as the clips job asks for a replay
 (see [Operator tools](admin.md)), and on the admin listener behind the gate.
 
-- **`CreateMediaUpload(file_name, content_type, size_bytes)`** answers where to upload a video, and the address a post
-  names it by: Zernio's own storage, through `POST /v1/media/presign` with the key. **No byte of a video passes
+- **`CreateMediaUpload(file_name, content_type, size_bytes)`** answers where to upload a file, and the address a post
+  names it by: Zernio's own storage, through `POST /v1/media/presign` with the key. **No byte of a file passes
   through the server**: the job uploads it with one `PUT` to that link, which carries no key and is a credential for an
-  hour, so it is never logged. An MP4 alone, of 1 byte to 1 GiB, with a name that is no path: `InvalidArgument` for
-  anything else.
+  hour, so it is never logged. An MP4 of 1 byte to 1 GiB, or a JPEG of 1 byte to 20 MiB, a photo of a TikTok
+  carousel, with a name that is no path: `InvalidArgument` for anything else.
 - **`GetRoom(platforms)`** is `Calendar.Left` of each, now, from one read of the list.
 - **`PlanPost(platforms, not_before)`** is the slot `Calendar.Slot` gives, or none. **Nothing is held**: the slot is a
   read, and the post at it is `SchedulePost`'s.
@@ -97,6 +97,14 @@ for a run's best clip alone; the calendar knows no run.
   slot. **The metadata goes as the job gave it, never published**: what the job reads back from `ListPosts`, and sets
   the post's numbers beside. The words are the job's too: the server writes none, and checks only that each platform
   of the slot has its own (`posts.NewPost`, `InvalidArgument`).
+
+  **On TikTok, photos can stand in for the video** (`tiktok_photo_urls`, 2026-11-09, for the battle teasers): the
+  TikTok target is then a carousel of them, in their order, 35 at most, in its own media (`customMedia`), while every
+  other platform gets the video. Zernio makes a photo post's text its title, 90 characters at most, its hashtags and
+  links stripped, so the title is `TikTokWords.title` and the caption goes below the photos (`description`); public,
+  with comments, opening on the first photo, and **with music TikTok adds** (`autoAddMusic`), as a carousel has no
+  sound of its own; no duet or stitch, which a carousel does not have. Photos with no title are `InvalidArgument` when
+  TikTok is in the slot. JPEG, since TikTok's photo posts take JPEG and WebP and not PNG.
 - **`ListPosts(since)`** is every post Zernio holds from the day of `since` on, the latest first (500 at most: about
   fifteen a day), by hand or not: its id, title, time, state, why each platform failed it, and its metadata as kept.
 

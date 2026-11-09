@@ -127,11 +127,13 @@ and says what is in it. Read the doc before you change its area.
 - [Promo](docs/promo.md) — a battle's teaser: each rule set's cards, kept under its name, over backgrounds the operator
   uploads to the bucket and Cloudflare serves publicly; words with `{path}` placeholders filled from the values the set
   plays and the battle's points at each read (`GetTeaser`); the set and times from the gamemaster (`GetBattle`), the
-  values from planet (`GetRuleSet`), the points from scoring (`GetRankPoints`).
+  values from planet (`GetRuleSet`), the points from scoring (`GetRankPoints`); the battles to come with their cards
+  (`ListTeasers`, from the gamemaster's `GetTimeline`), for the job that posts their teasers.
 - [Publishing](docs/publishing.md) — the game's posts on its own TikTok and YouTube through Zernio: the calendar every
   job keeps (an hour apart, 3 a trailing day on TikTok from 14:00 to 20:00 UTC, 12 on YouTube from 07:00 to 23:00), a
   post scheduled ahead held as a reservation, the upload link that keeps every video off the server, `PlanPost` and
-  `SchedulePost` under one lock and its outcomes (scheduled, busy, taken, failed); no table, Zernio's list is the record.
+  `SchedulePost` under one lock and its outcomes (scheduled, busy, taken, failed); a TikTok carousel of photos in place
+  of the video; no table, Zernio's list is the record.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos; each
   report told to the chat's judge (`PlayerReported`) and closed by its command (`DecideReport`).
 - [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role and its username

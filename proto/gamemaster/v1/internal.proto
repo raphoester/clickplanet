@@ -2,12 +2,19 @@ syntax = "proto3";
 
 package gamemaster.v1;
 
+import "gamemaster/v1/gamemaster.proto";
+
 // What another module asks the gamemaster.
 service InternalService {
   // What a battle plays, by the id the timeline names it by: its entry's id, or `season-N/finale` for a season's
   // finale. For the promo module's teaser. NotFound for an entry the schedule does not keep or that is no battle, and
   // for a season with no finale.
   rpc GetBattle(GetBattleRequest) returns (GetBattleResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // The battles that have not started, by start, the seasons' finales among them, as the timeline names them: for the
+  // promo module's teasers, which a job posts before each.
+  rpc GetTimeline(GetTimelineRequest) returns (GetTimelineResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 }
@@ -20,4 +27,11 @@ message GetBattleResponse {
   string rule_set = 1;
   // The battle's points' times, 1 to 10: its round scores each rank that many times a day's points.
   uint32 times = 2;
+}
+
+message GetTimelineRequest {}
+
+message GetTimelineResponse {
+  // As Timeline.battles holds them.
+  repeated Battle battles = 1;
 }

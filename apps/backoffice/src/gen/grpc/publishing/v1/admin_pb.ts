@@ -434,6 +434,14 @@ export class SchedulePostRequest extends Message<SchedulePostRequest> {
    */
   metadata?: Struct;
 
+  /**
+   * Photos posted on TikTok in place of the video, a carousel swiped in this order: CreateMediaUpload's media_urls of
+   * JPEG files, 35 at most. None is the video.
+   *
+   * @generated from field: repeated string tiktok_photo_urls = 8;
+   */
+  tiktokPhotoUrls: string[] = [];
+
   constructor(data?: PartialMessage<SchedulePostRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -449,6 +457,7 @@ export class SchedulePostRequest extends Message<SchedulePostRequest> {
     { no: 5, name: "tiktok", kind: "message", T: TikTokWords },
     { no: 6, name: "youtube", kind: "message", T: YouTubeWords },
     { no: 7, name: "metadata", kind: "message", T: Struct },
+    { no: 8, name: "tiktok_photo_urls", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SchedulePostRequest {
@@ -477,6 +486,14 @@ export class TikTokWords extends Message<TikTokWords> {
    */
   caption = "";
 
+  /**
+   * A photo post's title, over its photos, 90 characters at most: TikTok strips its hashtags and links, and the
+   * caption goes below. Unused on a video.
+   *
+   * @generated from field: string title = 2;
+   */
+  title = "";
+
   constructor(data?: PartialMessage<TikTokWords>) {
     super();
     proto3.util.initPartial(data, this);
@@ -486,6 +503,7 @@ export class TikTokWords extends Message<TikTokWords> {
   static readonly typeName = "publishing.v1.TikTokWords";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "caption", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TikTokWords {

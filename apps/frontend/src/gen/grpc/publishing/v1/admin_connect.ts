@@ -17,9 +17,10 @@ export const AdminService = {
   typeName: "publishing.v1.AdminService",
   methods: {
     /**
-     * A link to upload one video to the posting service's storage, good for an hour, and the address a post names it by.
-     * The storage is not the service's API: the link carries no key, and is a credential until it expires.
-     * InvalidArgument for a file that is no MP4, of no size or with no name.
+     * A link to upload one file to the posting service's storage, good for an hour, and the address a post names it by:
+     * a video, or a photo of a TikTok carousel. The storage is not the service's API: the link carries no key, and is a
+     * credential until it expires. InvalidArgument for a file that is no MP4 of 1 GiB at most or JPEG of 20 MiB at most,
+     * of no size, or with no name.
      *
      * @generated from rpc publishing.v1.AdminService.CreateMediaUpload
      */
@@ -62,7 +63,9 @@ export const AdminService = {
      * The answer is what became of it: scheduled, with each platform that refused it and why; busy, the service asked to
      * be tried later, so plan again then; taken, the slot is no longer open, so plan again; or failed, the service refused
      * it for good. The same idempotency key is the same post: sent again, it answers the post the first try made.
-     * InvalidArgument for a request with no slot, no video, no key, or no words for one of the slot's platforms.
+     * With TikTok photos, the post's TikTok target is a photo carousel, with music TikTok adds, and the video goes to the
+     * other platforms. InvalidArgument for a request with no slot, no video, no key, no words for one of the slot's
+     * platforms, more than 35 photos, or photos with no title.
      *
      * @generated from rpc publishing.v1.AdminService.SchedulePost
      */

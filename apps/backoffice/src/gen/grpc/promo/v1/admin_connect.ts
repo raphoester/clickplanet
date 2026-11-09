@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateBackgroundUploadRequest, CreateBackgroundUploadResponse, GetCardsRequest, GetCardsResponse, KeepBackgroundRequest, KeepBackgroundResponse, ListBackgroundsRequest, ListBackgroundsResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, SaveCardsRequest, SaveCardsResponse } from "./admin_pb.js";
+import { CreateBackgroundUploadRequest, CreateBackgroundUploadResponse, GetCardsRequest, GetCardsResponse, KeepBackgroundRequest, KeepBackgroundResponse, ListBackgroundsRequest, ListBackgroundsResponse, ListTeasersRequest, ListTeasersResponse, RemoveBackgroundRequest, RemoveBackgroundResponse, SaveCardsRequest, SaveCardsResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -88,6 +88,20 @@ export const AdminService = {
       I: SaveCardsRequest,
       O: SaveCardsResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * The battles that start within the next `within`, by start, each with its cards as players read them now: what the
+     * teasers job posts on TikTok and YouTube before each. A battle whose set has no card is left out, as the game teases
+     * nothing of it. InvalidArgument for a window of nothing, or of more than a week.
+     *
+     * @generated from rpc promo.v1.AdminService.ListTeasers
+     */
+    listTeasers: {
+      name: "ListTeasers",
+      I: ListTeasersRequest,
+      O: ListTeasersResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

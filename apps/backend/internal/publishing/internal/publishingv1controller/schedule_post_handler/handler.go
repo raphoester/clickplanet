@@ -58,7 +58,10 @@ func postOf(msg *publishingv1.SchedulePostRequest) (posts.Post, error) {
 		draft.Metadata = msg.GetMetadata().AsMap()
 	}
 	if msg.GetTiktok() != nil {
-		draft.TikTok = &posts.TikTokWords{Caption: msg.GetTiktok().GetCaption()}
+		draft.TikTok = &posts.TikTokWords{Caption: msg.GetTiktok().GetCaption(), Title: msg.GetTiktok().GetTitle()}
+	}
+	for _, photo := range msg.GetTiktokPhotoUrls() {
+		draft.TikTokPhotos = append(draft.TikTokPhotos, posts.MediaURL(photo))
 	}
 	if msg.GetYoutube() != nil {
 		draft.YouTube = &posts.YouTubeWords{

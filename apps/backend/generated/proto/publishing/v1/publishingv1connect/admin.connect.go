@@ -49,9 +49,10 @@ const (
 
 // AdminServiceClient is a client for the publishing.v1.AdminService service.
 type AdminServiceClient interface {
-	// A link to upload one video to the posting service's storage, good for an hour, and the address a post names it by.
-	// The storage is not the service's API: the link carries no key, and is a credential until it expires.
-	// InvalidArgument for a file that is no MP4, of no size or with no name.
+	// A link to upload one file to the posting service's storage, good for an hour, and the address a post names it by:
+	// a video, or a photo of a TikTok carousel. The storage is not the service's API: the link carries no key, and is a
+	// credential until it expires. InvalidArgument for a file that is no MP4 of 1 GiB at most or JPEG of 20 MiB at most,
+	// of no size, or with no name.
 	CreateMediaUpload(context.Context, *connect.Request[v1.CreateMediaUploadRequest]) (*connect.Response[v1.CreateMediaUploadResponse], error)
 	// How many more posts each platform takes now: its cap, less the fullest trailing day that holds now, the posts made
 	// by hand and the ones still to come counted. Not its hours: a post's time is PlanPost's.
@@ -65,7 +66,9 @@ type AdminServiceClient interface {
 	// The answer is what became of it: scheduled, with each platform that refused it and why; busy, the service asked to
 	// be tried later, so plan again then; taken, the slot is no longer open, so plan again; or failed, the service refused
 	// it for good. The same idempotency key is the same post: sent again, it answers the post the first try made.
-	// InvalidArgument for a request with no slot, no video, no key, or no words for one of the slot's platforms.
+	// With TikTok photos, the post's TikTok target is a photo carousel, with music TikTok adds, and the video goes to the
+	// other platforms. InvalidArgument for a request with no slot, no video, no key, no words for one of the slot's
+	// platforms, more than 35 photos, or photos with no title.
 	SchedulePost(context.Context, *connect.Request[v1.SchedulePostRequest]) (*connect.Response[v1.SchedulePostResponse], error)
 	// Every post on the service scheduled since the day of since, by hand or by a job, the latest first: its time, its
 	// state, why a platform failed it, and the metadata it was posted with.
@@ -155,9 +158,10 @@ func (c *adminServiceClient) ListPosts(ctx context.Context, req *connect.Request
 
 // AdminServiceHandler is an implementation of the publishing.v1.AdminService service.
 type AdminServiceHandler interface {
-	// A link to upload one video to the posting service's storage, good for an hour, and the address a post names it by.
-	// The storage is not the service's API: the link carries no key, and is a credential until it expires.
-	// InvalidArgument for a file that is no MP4, of no size or with no name.
+	// A link to upload one file to the posting service's storage, good for an hour, and the address a post names it by:
+	// a video, or a photo of a TikTok carousel. The storage is not the service's API: the link carries no key, and is a
+	// credential until it expires. InvalidArgument for a file that is no MP4 of 1 GiB at most or JPEG of 20 MiB at most,
+	// of no size, or with no name.
 	CreateMediaUpload(context.Context, *connect.Request[v1.CreateMediaUploadRequest]) (*connect.Response[v1.CreateMediaUploadResponse], error)
 	// How many more posts each platform takes now: its cap, less the fullest trailing day that holds now, the posts made
 	// by hand and the ones still to come counted. Not its hours: a post's time is PlanPost's.
@@ -171,7 +175,9 @@ type AdminServiceHandler interface {
 	// The answer is what became of it: scheduled, with each platform that refused it and why; busy, the service asked to
 	// be tried later, so plan again then; taken, the slot is no longer open, so plan again; or failed, the service refused
 	// it for good. The same idempotency key is the same post: sent again, it answers the post the first try made.
-	// InvalidArgument for a request with no slot, no video, no key, or no words for one of the slot's platforms.
+	// With TikTok photos, the post's TikTok target is a photo carousel, with music TikTok adds, and the video goes to the
+	// other platforms. InvalidArgument for a request with no slot, no video, no key, no words for one of the slot's
+	// platforms, more than 35 photos, or photos with no title.
 	SchedulePost(context.Context, *connect.Request[v1.SchedulePostRequest]) (*connect.Response[v1.SchedulePostResponse], error)
 	// Every post on the service scheduled since the day of since, by hand or by a job, the latest first: its time, its
 	// state, why a platform failed it, and the metadata it was posted with.
