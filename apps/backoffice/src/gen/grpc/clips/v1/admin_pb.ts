@@ -8,6 +8,32 @@ import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 import { Cast } from "./clips_pb.js";
 
 /**
+ * @generated from enum clips.v1.VerdictBy
+ */
+export enum VerdictBy {
+  /**
+   * @generated from enum value: VERDICT_BY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: VERDICT_BY_JUDGE = 1;
+   */
+  JUDGE = 1,
+
+  /**
+   * @generated from enum value: VERDICT_BY_OPERATOR = 2;
+   */
+  OPERATOR = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(VerdictBy)
+proto3.util.setEnumType(VerdictBy, "clips.v1.VerdictBy", [
+  { no: 0, name: "VERDICT_BY_UNSPECIFIED" },
+  { no: 1, name: "VERDICT_BY_JUDGE" },
+  { no: 2, name: "VERDICT_BY_OPERATOR" },
+]);
+
+/**
  * What a snapshot read and kept: counts and states, never a metric.
  *
  * @generated from message clips.v1.StatsSnapshot
@@ -1163,6 +1189,243 @@ export class RemoveVideoResponse extends Message<RemoveVideoResponse> {
 
   static equals(a: RemoveVideoResponse | PlainMessage<RemoveVideoResponse> | undefined, b: RemoveVideoResponse | PlainMessage<RemoveVideoResponse> | undefined): boolean {
     return proto3.util.equals(RemoveVideoResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.NameVerdict
+ */
+export class NameVerdict extends Message<NameVerdict> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * The name judged: the player's name then.
+   *
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * Whether the game's posts may show it.
+   *
+   * @generated from field: bool shown = 3;
+   */
+  shown = false;
+
+  /**
+   * Why it is hidden; empty for a name shown.
+   *
+   * @generated from field: string reason = 4;
+   */
+  reason = "";
+
+  /**
+   * @generated from field: clips.v1.VerdictBy decided_by = 5;
+   */
+  decidedBy = VerdictBy.UNSPECIFIED;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 6;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<NameVerdict>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.NameVerdict";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "shown", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "decided_by", kind: "enum", T: proto3.getEnumType(VerdictBy) },
+    { no: 6, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NameVerdict {
+    return new NameVerdict().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NameVerdict {
+    return new NameVerdict().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NameVerdict {
+    return new NameVerdict().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NameVerdict | PlainMessage<NameVerdict> | undefined, b: NameVerdict | PlainMessage<NameVerdict> | undefined): boolean {
+    return proto3.util.equals(NameVerdict, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.ListNameVerdictsRequest
+ */
+export class ListNameVerdictsRequest extends Message<ListNameVerdictsRequest> {
+  /**
+   * Only the names hidden.
+   *
+   * @generated from field: bool hidden_only = 1;
+   */
+  hiddenOnly = false;
+
+  constructor(data?: PartialMessage<ListNameVerdictsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.ListNameVerdictsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "hidden_only", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNameVerdictsRequest {
+    return new ListNameVerdictsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListNameVerdictsRequest {
+    return new ListNameVerdictsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListNameVerdictsRequest {
+    return new ListNameVerdictsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListNameVerdictsRequest | PlainMessage<ListNameVerdictsRequest> | undefined, b: ListNameVerdictsRequest | PlainMessage<ListNameVerdictsRequest> | undefined): boolean {
+    return proto3.util.equals(ListNameVerdictsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.ListNameVerdictsResponse
+ */
+export class ListNameVerdictsResponse extends Message<ListNameVerdictsResponse> {
+  /**
+   * @generated from field: repeated clips.v1.NameVerdict verdicts = 1;
+   */
+  verdicts: NameVerdict[] = [];
+
+  constructor(data?: PartialMessage<ListNameVerdictsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.ListNameVerdictsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "verdicts", kind: "message", T: NameVerdict, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNameVerdictsResponse {
+    return new ListNameVerdictsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListNameVerdictsResponse {
+    return new ListNameVerdictsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListNameVerdictsResponse {
+    return new ListNameVerdictsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListNameVerdictsResponse | PlainMessage<ListNameVerdictsResponse> | undefined, b: ListNameVerdictsResponse | PlainMessage<ListNameVerdictsResponse> | undefined): boolean {
+    return proto3.util.equals(ListNameVerdictsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.SetNameVerdictRequest
+ */
+export class SetNameVerdictRequest extends Message<SetNameVerdictRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: bool shown = 2;
+   */
+  shown = false;
+
+  /**
+   * Why it is hidden, in a few plain words; dropped for a name shown.
+   *
+   * @generated from field: string reason = 3;
+   */
+  reason = "";
+
+  constructor(data?: PartialMessage<SetNameVerdictRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.SetNameVerdictRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "shown", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetNameVerdictRequest {
+    return new SetNameVerdictRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetNameVerdictRequest {
+    return new SetNameVerdictRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetNameVerdictRequest {
+    return new SetNameVerdictRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetNameVerdictRequest | PlainMessage<SetNameVerdictRequest> | undefined, b: SetNameVerdictRequest | PlainMessage<SetNameVerdictRequest> | undefined): boolean {
+    return proto3.util.equals(SetNameVerdictRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.SetNameVerdictResponse
+ */
+export class SetNameVerdictResponse extends Message<SetNameVerdictResponse> {
+  /**
+   * @generated from field: clips.v1.NameVerdict verdict = 1;
+   */
+  verdict?: NameVerdict;
+
+  constructor(data?: PartialMessage<SetNameVerdictResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.SetNameVerdictResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "verdict", kind: "message", T: NameVerdict },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetNameVerdictResponse {
+    return new SetNameVerdictResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetNameVerdictResponse {
+    return new SetNameVerdictResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetNameVerdictResponse {
+    return new SetNameVerdictResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetNameVerdictResponse | PlainMessage<SetNameVerdictResponse> | undefined, b: SetNameVerdictResponse | PlainMessage<SetNameVerdictResponse> | undefined): boolean {
+    return proto3.util.equals(SetNameVerdictResponse, a, b);
   }
 }
 

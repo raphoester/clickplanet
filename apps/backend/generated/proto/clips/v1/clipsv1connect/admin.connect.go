@@ -56,6 +56,12 @@ const (
 	// AdminServiceRemoveVideoProcedure is the fully-qualified name of the AdminService's RemoveVideo
 	// RPC.
 	AdminServiceRemoveVideoProcedure = "/clips.v1.AdminService/RemoveVideo"
+	// AdminServiceListNameVerdictsProcedure is the fully-qualified name of the AdminService's
+	// ListNameVerdicts RPC.
+	AdminServiceListNameVerdictsProcedure = "/clips.v1.AdminService/ListNameVerdicts"
+	// AdminServiceSetNameVerdictProcedure is the fully-qualified name of the AdminService's
+	// SetNameVerdict RPC.
+	AdminServiceSetNameVerdictProcedure = "/clips.v1.AdminService/SetNameVerdict"
 )
 
 // AdminServiceClient is a client for the clips.v1.AdminService service.
@@ -83,6 +89,13 @@ type AdminServiceClient interface {
 	ListVideos(context.Context, *connect.Request[v1.ListVideosRequest]) (*connect.Response[v1.ListVideosResponse], error)
 	// Deletes a video from the list and from the bucket.
 	RemoveVideo(context.Context, *connect.Request[v1.RemoveVideoRequest]) (*connect.Response[v1.RemoveVideoResponse], error)
+	// Which players' names the game's posts on TikTok and YouTube may show, as the judge (Claude Haiku) or the operator
+	// decided, the newest first. A cast leaves out a name hidden. A name is judged the first time a cast holds it, and
+	// again once its player renames. The game itself shows every name.
+	ListNameVerdicts(context.Context, *connect.Request[v1.ListNameVerdictsRequest]) (*connect.Response[v1.ListNameVerdictsResponse], error)
+	// The operator's verdict of the name a player was judged under: shown or hidden in the game's posts, until the
+	// player renames. NotFound for a player whose name was never judged.
+	SetNameVerdict(context.Context, *connect.Request[v1.SetNameVerdictRequest]) (*connect.Response[v1.SetNameVerdictResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the clips.v1.AdminService service. By default, it
@@ -153,6 +166,19 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("RemoveVideo")),
 			connect.WithClientOptions(opts...),
 		),
+		listNameVerdicts: connect.NewClient[v1.ListNameVerdictsRequest, v1.ListNameVerdictsResponse](
+			httpClient,
+			baseURL+AdminServiceListNameVerdictsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListNameVerdicts")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		setNameVerdict: connect.NewClient[v1.SetNameVerdictRequest, v1.SetNameVerdictResponse](
+			httpClient,
+			baseURL+AdminServiceSetNameVerdictProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("SetNameVerdict")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -167,6 +193,8 @@ type adminServiceClient struct {
 	keepVideo         *connect.Client[v1.KeepVideoRequest, v1.KeepVideoResponse]
 	listVideos        *connect.Client[v1.ListVideosRequest, v1.ListVideosResponse]
 	removeVideo       *connect.Client[v1.RemoveVideoRequest, v1.RemoveVideoResponse]
+	listNameVerdicts  *connect.Client[v1.ListNameVerdictsRequest, v1.ListNameVerdictsResponse]
+	setNameVerdict    *connect.Client[v1.SetNameVerdictRequest, v1.SetNameVerdictResponse]
 }
 
 // KeepSnapshot calls clips.v1.AdminService.KeepSnapshot.
@@ -214,6 +242,16 @@ func (c *adminServiceClient) RemoveVideo(ctx context.Context, req *connect.Reque
 	return c.removeVideo.CallUnary(ctx, req)
 }
 
+// ListNameVerdicts calls clips.v1.AdminService.ListNameVerdicts.
+func (c *adminServiceClient) ListNameVerdicts(ctx context.Context, req *connect.Request[v1.ListNameVerdictsRequest]) (*connect.Response[v1.ListNameVerdictsResponse], error) {
+	return c.listNameVerdicts.CallUnary(ctx, req)
+}
+
+// SetNameVerdict calls clips.v1.AdminService.SetNameVerdict.
+func (c *adminServiceClient) SetNameVerdict(ctx context.Context, req *connect.Request[v1.SetNameVerdictRequest]) (*connect.Response[v1.SetNameVerdictResponse], error) {
+	return c.setNameVerdict.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the clips.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Keeps a snapshot's summary and some of its rows: a snapshot is sent in parts, each with the summary. A row kept
@@ -239,6 +277,13 @@ type AdminServiceHandler interface {
 	ListVideos(context.Context, *connect.Request[v1.ListVideosRequest]) (*connect.Response[v1.ListVideosResponse], error)
 	// Deletes a video from the list and from the bucket.
 	RemoveVideo(context.Context, *connect.Request[v1.RemoveVideoRequest]) (*connect.Response[v1.RemoveVideoResponse], error)
+	// Which players' names the game's posts on TikTok and YouTube may show, as the judge (Claude Haiku) or the operator
+	// decided, the newest first. A cast leaves out a name hidden. A name is judged the first time a cast holds it, and
+	// again once its player renames. The game itself shows every name.
+	ListNameVerdicts(context.Context, *connect.Request[v1.ListNameVerdictsRequest]) (*connect.Response[v1.ListNameVerdictsResponse], error)
+	// The operator's verdict of the name a player was judged under: shown or hidden in the game's posts, until the
+	// player renames. NotFound for a player whose name was never judged.
+	SetNameVerdict(context.Context, *connect.Request[v1.SetNameVerdictRequest]) (*connect.Response[v1.SetNameVerdictResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -305,6 +350,19 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("RemoveVideo")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceListNameVerdictsHandler := connect.NewUnaryHandler(
+		AdminServiceListNameVerdictsProcedure,
+		svc.ListNameVerdicts,
+		connect.WithSchema(adminServiceMethods.ByName("ListNameVerdicts")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceSetNameVerdictHandler := connect.NewUnaryHandler(
+		AdminServiceSetNameVerdictProcedure,
+		svc.SetNameVerdict,
+		connect.WithSchema(adminServiceMethods.ByName("SetNameVerdict")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/clips.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceKeepSnapshotProcedure:
@@ -325,6 +383,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceListVideosHandler.ServeHTTP(w, r)
 		case AdminServiceRemoveVideoProcedure:
 			adminServiceRemoveVideoHandler.ServeHTTP(w, r)
+		case AdminServiceListNameVerdictsProcedure:
+			adminServiceListNameVerdictsHandler.ServeHTTP(w, r)
+		case AdminServiceSetNameVerdictProcedure:
+			adminServiceSetNameVerdictHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -368,4 +430,12 @@ func (UnimplementedAdminServiceHandler) ListVideos(context.Context, *connect.Req
 
 func (UnimplementedAdminServiceHandler) RemoveVideo(context.Context, *connect.Request[v1.RemoveVideoRequest]) (*connect.Response[v1.RemoveVideoResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.AdminService.RemoveVideo is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListNameVerdicts(context.Context, *connect.Request[v1.ListNameVerdictsRequest]) (*connect.Response[v1.ListNameVerdictsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.AdminService.ListNameVerdicts is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) SetNameVerdict(context.Context, *connect.Request[v1.SetNameVerdictRequest]) (*connect.Response[v1.SetNameVerdictResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.AdminService.SetNameVerdict is not implemented"))
 }

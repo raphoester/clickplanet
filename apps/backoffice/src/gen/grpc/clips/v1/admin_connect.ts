@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateVideoUploadRequest, CreateVideoUploadResponse, KeepAppearanceRequest, KeepAppearanceResponse, KeepSnapshotRequest, KeepSnapshotResponse, KeepVideoRequest, KeepVideoResponse, ListRowsRequest, ListRowsResponse, ListSnapshotsRequest, ListSnapshotsResponse, ListVideosRequest, ListVideosResponse, MakeCastRequest, MakeCastResponse, RemoveVideoRequest, RemoveVideoResponse } from "./admin_pb.js";
+import { CreateVideoUploadRequest, CreateVideoUploadResponse, KeepAppearanceRequest, KeepAppearanceResponse, KeepSnapshotRequest, KeepSnapshotResponse, KeepVideoRequest, KeepVideoResponse, ListNameVerdictsRequest, ListNameVerdictsResponse, ListRowsRequest, ListRowsResponse, ListSnapshotsRequest, ListSnapshotsResponse, ListVideosRequest, ListVideosResponse, MakeCastRequest, MakeCastResponse, RemoveVideoRequest, RemoveVideoResponse, SetNameVerdictRequest, SetNameVerdictResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -125,6 +125,32 @@ export const AdminService = {
       name: "RemoveVideo",
       I: RemoveVideoRequest,
       O: RemoveVideoResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Which players' names the game's posts on TikTok and YouTube may show, as the judge (Claude Haiku) or the operator
+     * decided, the newest first. A cast leaves out a name hidden. A name is judged the first time a cast holds it, and
+     * again once its player renames. The game itself shows every name.
+     *
+     * @generated from rpc clips.v1.AdminService.ListNameVerdicts
+     */
+    listNameVerdicts: {
+      name: "ListNameVerdicts",
+      I: ListNameVerdictsRequest,
+      O: ListNameVerdictsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The operator's verdict of the name a player was judged under: shown or hidden in the game's posts, until the
+     * player renames. NotFound for a player whose name was never judged.
+     *
+     * @generated from rpc clips.v1.AdminService.SetNameVerdict
+     */
+    setNameVerdict: {
+      name: "SetNameVerdict",
+      I: SetNameVerdictRequest,
+      O: SetNameVerdictResponse,
       kind: MethodKind.Unary,
     },
   }

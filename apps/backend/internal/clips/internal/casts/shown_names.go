@@ -14,14 +14,20 @@ type OptOuts interface {
 	Among(ctx context.Context, accounts []AccountID) ([]AccountID, error)
 }
 
-func NewShownNames(usernames Usernames, optOuts OptOuts) ShownNames {
-	return ShownNames{usernames: usernames, optOuts: optOuts}
+type Screening interface {
+	// The names the platforms let the game's posts show.
+	Execute(ctx context.Context, names map[AccountID]string) (map[AccountID]string, error)
 }
 
-// A player's username, unless they keep it out of the clips.
+func NewShownNames(usernames Usernames, optOuts OptOuts, screening Screening) ShownNames {
+	return ShownNames{usernames: usernames, optOuts: optOuts, screening: screening}
+}
+
+// A player's username, unless they keep it out of the clips or the platforms forbid it.
 type ShownNames struct {
 	usernames Usernames
 	optOuts   OptOuts
+	screening Screening
 }
 
 func (n ShownNames) Shown(ctx context.Context, accounts []AccountID) (map[AccountID]string, error) {
@@ -36,5 +42,9 @@ func (n ShownNames) Shown(ctx context.Context, accounts []AccountID) (map[Accoun
 	for _, account := range out {
 		delete(names, account)
 	}
-	return names, nil
+	shown, err := n.screening.Execute(ctx, names)
+	if err != nil {
+		return nil, fmt.Errorf("failed to screen the names: %w", err)
+	}
+	return shown, nil
 }

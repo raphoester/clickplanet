@@ -22,6 +22,55 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type VerdictBy int32
+
+const (
+	VerdictBy_VERDICT_BY_UNSPECIFIED VerdictBy = 0
+	VerdictBy_VERDICT_BY_JUDGE       VerdictBy = 1
+	VerdictBy_VERDICT_BY_OPERATOR    VerdictBy = 2
+)
+
+// Enum value maps for VerdictBy.
+var (
+	VerdictBy_name = map[int32]string{
+		0: "VERDICT_BY_UNSPECIFIED",
+		1: "VERDICT_BY_JUDGE",
+		2: "VERDICT_BY_OPERATOR",
+	}
+	VerdictBy_value = map[string]int32{
+		"VERDICT_BY_UNSPECIFIED": 0,
+		"VERDICT_BY_JUDGE":       1,
+		"VERDICT_BY_OPERATOR":    2,
+	}
+)
+
+func (x VerdictBy) Enum() *VerdictBy {
+	p := new(VerdictBy)
+	*p = x
+	return p
+}
+
+func (x VerdictBy) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (VerdictBy) Descriptor() protoreflect.EnumDescriptor {
+	return file_clips_v1_admin_proto_enumTypes[0].Descriptor()
+}
+
+func (VerdictBy) Type() protoreflect.EnumType {
+	return &file_clips_v1_admin_proto_enumTypes[0]
+}
+
+func (x VerdictBy) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use VerdictBy.Descriptor instead.
+func (VerdictBy) EnumDescriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{0}
+}
+
 // What a snapshot read and kept: counts and states, never a metric.
 type StatsSnapshot struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
@@ -1389,6 +1438,287 @@ func (*RemoveVideoResponse) Descriptor() ([]byte, []int) {
 	return file_clips_v1_admin_proto_rawDescGZIP(), []int{22}
 }
 
+type NameVerdict struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// The name judged: the player's name then.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Whether the game's posts may show it.
+	Shown bool `protobuf:"varint,3,opt,name=shown,proto3" json:"shown,omitempty"`
+	// Why it is hidden; empty for a name shown.
+	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	DecidedBy     VerdictBy              `protobuf:"varint,5,opt,name=decided_by,json=decidedBy,proto3,enum=clips.v1.VerdictBy" json:"decided_by,omitempty"`
+	DecidedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NameVerdict) Reset() {
+	*x = NameVerdict{}
+	mi := &file_clips_v1_admin_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NameVerdict) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NameVerdict) ProtoMessage() {}
+
+func (x *NameVerdict) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NameVerdict.ProtoReflect.Descriptor instead.
+func (*NameVerdict) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *NameVerdict) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *NameVerdict) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *NameVerdict) GetShown() bool {
+	if x != nil {
+		return x.Shown
+	}
+	return false
+}
+
+func (x *NameVerdict) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *NameVerdict) GetDecidedBy() VerdictBy {
+	if x != nil {
+		return x.DecidedBy
+	}
+	return VerdictBy_VERDICT_BY_UNSPECIFIED
+}
+
+func (x *NameVerdict) GetDecidedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DecidedAt
+	}
+	return nil
+}
+
+type ListNameVerdictsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Only the names hidden.
+	HiddenOnly    bool `protobuf:"varint,1,opt,name=hidden_only,json=hiddenOnly,proto3" json:"hidden_only,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNameVerdictsRequest) Reset() {
+	*x = ListNameVerdictsRequest{}
+	mi := &file_clips_v1_admin_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNameVerdictsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNameVerdictsRequest) ProtoMessage() {}
+
+func (x *ListNameVerdictsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNameVerdictsRequest.ProtoReflect.Descriptor instead.
+func (*ListNameVerdictsRequest) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ListNameVerdictsRequest) GetHiddenOnly() bool {
+	if x != nil {
+		return x.HiddenOnly
+	}
+	return false
+}
+
+type ListNameVerdictsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Verdicts      []*NameVerdict         `protobuf:"bytes,1,rep,name=verdicts,proto3" json:"verdicts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNameVerdictsResponse) Reset() {
+	*x = ListNameVerdictsResponse{}
+	mi := &file_clips_v1_admin_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNameVerdictsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNameVerdictsResponse) ProtoMessage() {}
+
+func (x *ListNameVerdictsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNameVerdictsResponse.ProtoReflect.Descriptor instead.
+func (*ListNameVerdictsResponse) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListNameVerdictsResponse) GetVerdicts() []*NameVerdict {
+	if x != nil {
+		return x.Verdicts
+	}
+	return nil
+}
+
+type SetNameVerdictRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Shown     bool                   `protobuf:"varint,2,opt,name=shown,proto3" json:"shown,omitempty"`
+	// Why it is hidden, in a few plain words; dropped for a name shown.
+	Reason        string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetNameVerdictRequest) Reset() {
+	*x = SetNameVerdictRequest{}
+	mi := &file_clips_v1_admin_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetNameVerdictRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetNameVerdictRequest) ProtoMessage() {}
+
+func (x *SetNameVerdictRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetNameVerdictRequest.ProtoReflect.Descriptor instead.
+func (*SetNameVerdictRequest) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *SetNameVerdictRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *SetNameVerdictRequest) GetShown() bool {
+	if x != nil {
+		return x.Shown
+	}
+	return false
+}
+
+func (x *SetNameVerdictRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type SetNameVerdictResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Verdict       *NameVerdict           `protobuf:"bytes,1,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetNameVerdictResponse) Reset() {
+	*x = SetNameVerdictResponse{}
+	mi := &file_clips_v1_admin_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetNameVerdictResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetNameVerdictResponse) ProtoMessage() {}
+
+func (x *SetNameVerdictResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_admin_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetNameVerdictResponse.ProtoReflect.Descriptor instead.
+func (*SetNameVerdictResponse) Descriptor() ([]byte, []int) {
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *SetNameVerdictResponse) GetVerdict() *NameVerdict {
+	if x != nil {
+		return x.Verdict
+	}
+	return nil
+}
+
 var File_clips_v1_admin_proto protoreflect.FileDescriptor
 
 const file_clips_v1_admin_proto_rawDesc = "" +
@@ -1484,7 +1814,33 @@ const file_clips_v1_admin_proto_rawDesc = "" +
 	"\fdownload_url\x18\b \x01(\tR\vdownloadUrl\"/\n" +
 	"\x12RemoveVideoRequest\x12\x19\n" +
 	"\bvideo_id\x18\x01 \x01(\tR\avideoId\"\x15\n" +
-	"\x13RemoveVideoResponse2\xd2\x05\n" +
+	"\x13RemoveVideoResponse\"\xdd\x01\n" +
+	"\vNameVerdict\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05shown\x18\x03 \x01(\bR\x05shown\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\x122\n" +
+	"\n" +
+	"decided_by\x18\x05 \x01(\x0e2\x13.clips.v1.VerdictByR\tdecidedBy\x129\n" +
+	"\n" +
+	"decided_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\":\n" +
+	"\x17ListNameVerdictsRequest\x12\x1f\n" +
+	"\vhidden_only\x18\x01 \x01(\bR\n" +
+	"hiddenOnly\"M\n" +
+	"\x18ListNameVerdictsResponse\x121\n" +
+	"\bverdicts\x18\x01 \x03(\v2\x15.clips.v1.NameVerdictR\bverdicts\"d\n" +
+	"\x15SetNameVerdictRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x14\n" +
+	"\x05shown\x18\x02 \x01(\bR\x05shown\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"I\n" +
+	"\x16SetNameVerdictResponse\x12/\n" +
+	"\averdict\x18\x01 \x01(\v2\x15.clips.v1.NameVerdictR\averdict*V\n" +
+	"\tVerdictBy\x12\x1a\n" +
+	"\x16VERDICT_BY_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10VERDICT_BY_JUDGE\x10\x01\x12\x17\n" +
+	"\x13VERDICT_BY_OPERATOR\x10\x022\x87\a\n" +
 	"\fAdminService\x12M\n" +
 	"\fKeepSnapshot\x12\x1d.clips.v1.KeepSnapshotRequest\x1a\x1e.clips.v1.KeepSnapshotResponse\x12U\n" +
 	"\rListSnapshots\x12\x1e.clips.v1.ListSnapshotsRequest\x1a\x1f.clips.v1.ListSnapshotsResponse\"\x03\x90\x02\x01\x12F\n" +
@@ -1495,7 +1851,9 @@ const file_clips_v1_admin_proto_rawDesc = "" +
 	"\tKeepVideo\x12\x1a.clips.v1.KeepVideoRequest\x1a\x1b.clips.v1.KeepVideoResponse\x12L\n" +
 	"\n" +
 	"ListVideos\x12\x1b.clips.v1.ListVideosRequest\x1a\x1c.clips.v1.ListVideosResponse\"\x03\x90\x02\x01\x12J\n" +
-	"\vRemoveVideo\x12\x1c.clips.v1.RemoveVideoRequest\x1a\x1d.clips.v1.RemoveVideoResponseB\xab\x01\n" +
+	"\vRemoveVideo\x12\x1c.clips.v1.RemoveVideoRequest\x1a\x1d.clips.v1.RemoveVideoResponse\x12^\n" +
+	"\x10ListNameVerdicts\x12!.clips.v1.ListNameVerdictsRequest\x1a\".clips.v1.ListNameVerdictsResponse\"\x03\x90\x02\x01\x12S\n" +
+	"\x0eSetNameVerdict\x12\x1f.clips.v1.SetNameVerdictRequest\x1a .clips.v1.SetNameVerdictResponseB\xab\x01\n" +
 	"\fcom.clips.v1B\n" +
 	"AdminProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1;clipsv1\xa2\x02\x03CXX\xaa\x02\bClips.V1\xca\x02\bClips\\V1\xe2\x02\x14Clips\\V1\\GPBMetadata\xea\x02\tClips::V1b\x06proto3"
 
@@ -1511,77 +1869,92 @@ func file_clips_v1_admin_proto_rawDescGZIP() []byte {
 	return file_clips_v1_admin_proto_rawDescData
 }
 
-var file_clips_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_clips_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_clips_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_clips_v1_admin_proto_goTypes = []any{
-	(*StatsSnapshot)(nil),             // 0: clips.v1.StatsSnapshot
-	(*TikTokAccount)(nil),             // 1: clips.v1.TikTokAccount
-	(*UnreadPost)(nil),                // 2: clips.v1.UnreadPost
-	(*StatsRow)(nil),                  // 3: clips.v1.StatsRow
-	(*KeepSnapshotRequest)(nil),       // 4: clips.v1.KeepSnapshotRequest
-	(*KeepSnapshotResponse)(nil),      // 5: clips.v1.KeepSnapshotResponse
-	(*ListSnapshotsRequest)(nil),      // 6: clips.v1.ListSnapshotsRequest
-	(*ListSnapshotsResponse)(nil),     // 7: clips.v1.ListSnapshotsResponse
-	(*ListRowsRequest)(nil),           // 8: clips.v1.ListRowsRequest
-	(*ListRowsResponse)(nil),          // 9: clips.v1.ListRowsResponse
-	(*MakeCastRequest)(nil),           // 10: clips.v1.MakeCastRequest
-	(*MakeCastResponse)(nil),          // 11: clips.v1.MakeCastResponse
-	(*KeepAppearanceRequest)(nil),     // 12: clips.v1.KeepAppearanceRequest
-	(*KeepAppearanceResponse)(nil),    // 13: clips.v1.KeepAppearanceResponse
-	(*CreateVideoUploadRequest)(nil),  // 14: clips.v1.CreateVideoUploadRequest
-	(*CreateVideoUploadResponse)(nil), // 15: clips.v1.CreateVideoUploadResponse
-	(*KeepVideoRequest)(nil),          // 16: clips.v1.KeepVideoRequest
-	(*KeepVideoResponse)(nil),         // 17: clips.v1.KeepVideoResponse
-	(*ListVideosRequest)(nil),         // 18: clips.v1.ListVideosRequest
-	(*ListVideosResponse)(nil),        // 19: clips.v1.ListVideosResponse
-	(*Video)(nil),                     // 20: clips.v1.Video
-	(*RemoveVideoRequest)(nil),        // 21: clips.v1.RemoveVideoRequest
-	(*RemoveVideoResponse)(nil),       // 22: clips.v1.RemoveVideoResponse
-	(*timestamppb.Timestamp)(nil),     // 23: google.protobuf.Timestamp
-	(*Cast)(nil),                      // 24: clips.v1.Cast
+	(VerdictBy)(0),                    // 0: clips.v1.VerdictBy
+	(*StatsSnapshot)(nil),             // 1: clips.v1.StatsSnapshot
+	(*TikTokAccount)(nil),             // 2: clips.v1.TikTokAccount
+	(*UnreadPost)(nil),                // 3: clips.v1.UnreadPost
+	(*StatsRow)(nil),                  // 4: clips.v1.StatsRow
+	(*KeepSnapshotRequest)(nil),       // 5: clips.v1.KeepSnapshotRequest
+	(*KeepSnapshotResponse)(nil),      // 6: clips.v1.KeepSnapshotResponse
+	(*ListSnapshotsRequest)(nil),      // 7: clips.v1.ListSnapshotsRequest
+	(*ListSnapshotsResponse)(nil),     // 8: clips.v1.ListSnapshotsResponse
+	(*ListRowsRequest)(nil),           // 9: clips.v1.ListRowsRequest
+	(*ListRowsResponse)(nil),          // 10: clips.v1.ListRowsResponse
+	(*MakeCastRequest)(nil),           // 11: clips.v1.MakeCastRequest
+	(*MakeCastResponse)(nil),          // 12: clips.v1.MakeCastResponse
+	(*KeepAppearanceRequest)(nil),     // 13: clips.v1.KeepAppearanceRequest
+	(*KeepAppearanceResponse)(nil),    // 14: clips.v1.KeepAppearanceResponse
+	(*CreateVideoUploadRequest)(nil),  // 15: clips.v1.CreateVideoUploadRequest
+	(*CreateVideoUploadResponse)(nil), // 16: clips.v1.CreateVideoUploadResponse
+	(*KeepVideoRequest)(nil),          // 17: clips.v1.KeepVideoRequest
+	(*KeepVideoResponse)(nil),         // 18: clips.v1.KeepVideoResponse
+	(*ListVideosRequest)(nil),         // 19: clips.v1.ListVideosRequest
+	(*ListVideosResponse)(nil),        // 20: clips.v1.ListVideosResponse
+	(*Video)(nil),                     // 21: clips.v1.Video
+	(*RemoveVideoRequest)(nil),        // 22: clips.v1.RemoveVideoRequest
+	(*RemoveVideoResponse)(nil),       // 23: clips.v1.RemoveVideoResponse
+	(*NameVerdict)(nil),               // 24: clips.v1.NameVerdict
+	(*ListNameVerdictsRequest)(nil),   // 25: clips.v1.ListNameVerdictsRequest
+	(*ListNameVerdictsResponse)(nil),  // 26: clips.v1.ListNameVerdictsResponse
+	(*SetNameVerdictRequest)(nil),     // 27: clips.v1.SetNameVerdictRequest
+	(*SetNameVerdictResponse)(nil),    // 28: clips.v1.SetNameVerdictResponse
+	(*timestamppb.Timestamp)(nil),     // 29: google.protobuf.Timestamp
+	(*Cast)(nil),                      // 30: clips.v1.Cast
 }
 var file_clips_v1_admin_proto_depIdxs = []int32{
-	23, // 0: clips.v1.StatsSnapshot.taken_at:type_name -> google.protobuf.Timestamp
-	23, // 1: clips.v1.StatsSnapshot.since:type_name -> google.protobuf.Timestamp
-	1,  // 2: clips.v1.StatsSnapshot.tiktok_accounts:type_name -> clips.v1.TikTokAccount
-	2,  // 3: clips.v1.StatsSnapshot.unread:type_name -> clips.v1.UnreadPost
-	23, // 4: clips.v1.StatsRow.taken_at:type_name -> google.protobuf.Timestamp
-	0,  // 5: clips.v1.KeepSnapshotRequest.snapshot:type_name -> clips.v1.StatsSnapshot
-	3,  // 6: clips.v1.KeepSnapshotRequest.rows:type_name -> clips.v1.StatsRow
-	23, // 7: clips.v1.ListSnapshotsRequest.since:type_name -> google.protobuf.Timestamp
-	23, // 8: clips.v1.ListSnapshotsRequest.until:type_name -> google.protobuf.Timestamp
-	0,  // 9: clips.v1.ListSnapshotsResponse.snapshots:type_name -> clips.v1.StatsSnapshot
-	23, // 10: clips.v1.ListRowsRequest.since:type_name -> google.protobuf.Timestamp
-	23, // 11: clips.v1.ListRowsRequest.until:type_name -> google.protobuf.Timestamp
-	3,  // 12: clips.v1.ListRowsResponse.rows:type_name -> clips.v1.StatsRow
-	23, // 13: clips.v1.MakeCastRequest.since:type_name -> google.protobuf.Timestamp
-	23, // 14: clips.v1.MakeCastRequest.until:type_name -> google.protobuf.Timestamp
-	24, // 15: clips.v1.MakeCastResponse.cast:type_name -> clips.v1.Cast
-	23, // 16: clips.v1.KeepAppearanceRequest.scheduled_at:type_name -> google.protobuf.Timestamp
-	20, // 17: clips.v1.ListVideosResponse.videos:type_name -> clips.v1.Video
-	23, // 18: clips.v1.Video.kept_at:type_name -> google.protobuf.Timestamp
-	4,  // 19: clips.v1.AdminService.KeepSnapshot:input_type -> clips.v1.KeepSnapshotRequest
-	6,  // 20: clips.v1.AdminService.ListSnapshots:input_type -> clips.v1.ListSnapshotsRequest
-	8,  // 21: clips.v1.AdminService.ListRows:input_type -> clips.v1.ListRowsRequest
-	10, // 22: clips.v1.AdminService.MakeCast:input_type -> clips.v1.MakeCastRequest
-	12, // 23: clips.v1.AdminService.KeepAppearance:input_type -> clips.v1.KeepAppearanceRequest
-	14, // 24: clips.v1.AdminService.CreateVideoUpload:input_type -> clips.v1.CreateVideoUploadRequest
-	16, // 25: clips.v1.AdminService.KeepVideo:input_type -> clips.v1.KeepVideoRequest
-	18, // 26: clips.v1.AdminService.ListVideos:input_type -> clips.v1.ListVideosRequest
-	21, // 27: clips.v1.AdminService.RemoveVideo:input_type -> clips.v1.RemoveVideoRequest
-	5,  // 28: clips.v1.AdminService.KeepSnapshot:output_type -> clips.v1.KeepSnapshotResponse
-	7,  // 29: clips.v1.AdminService.ListSnapshots:output_type -> clips.v1.ListSnapshotsResponse
-	9,  // 30: clips.v1.AdminService.ListRows:output_type -> clips.v1.ListRowsResponse
-	11, // 31: clips.v1.AdminService.MakeCast:output_type -> clips.v1.MakeCastResponse
-	13, // 32: clips.v1.AdminService.KeepAppearance:output_type -> clips.v1.KeepAppearanceResponse
-	15, // 33: clips.v1.AdminService.CreateVideoUpload:output_type -> clips.v1.CreateVideoUploadResponse
-	17, // 34: clips.v1.AdminService.KeepVideo:output_type -> clips.v1.KeepVideoResponse
-	19, // 35: clips.v1.AdminService.ListVideos:output_type -> clips.v1.ListVideosResponse
-	22, // 36: clips.v1.AdminService.RemoveVideo:output_type -> clips.v1.RemoveVideoResponse
-	28, // [28:37] is the sub-list for method output_type
-	19, // [19:28] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	29, // 0: clips.v1.StatsSnapshot.taken_at:type_name -> google.protobuf.Timestamp
+	29, // 1: clips.v1.StatsSnapshot.since:type_name -> google.protobuf.Timestamp
+	2,  // 2: clips.v1.StatsSnapshot.tiktok_accounts:type_name -> clips.v1.TikTokAccount
+	3,  // 3: clips.v1.StatsSnapshot.unread:type_name -> clips.v1.UnreadPost
+	29, // 4: clips.v1.StatsRow.taken_at:type_name -> google.protobuf.Timestamp
+	1,  // 5: clips.v1.KeepSnapshotRequest.snapshot:type_name -> clips.v1.StatsSnapshot
+	4,  // 6: clips.v1.KeepSnapshotRequest.rows:type_name -> clips.v1.StatsRow
+	29, // 7: clips.v1.ListSnapshotsRequest.since:type_name -> google.protobuf.Timestamp
+	29, // 8: clips.v1.ListSnapshotsRequest.until:type_name -> google.protobuf.Timestamp
+	1,  // 9: clips.v1.ListSnapshotsResponse.snapshots:type_name -> clips.v1.StatsSnapshot
+	29, // 10: clips.v1.ListRowsRequest.since:type_name -> google.protobuf.Timestamp
+	29, // 11: clips.v1.ListRowsRequest.until:type_name -> google.protobuf.Timestamp
+	4,  // 12: clips.v1.ListRowsResponse.rows:type_name -> clips.v1.StatsRow
+	29, // 13: clips.v1.MakeCastRequest.since:type_name -> google.protobuf.Timestamp
+	29, // 14: clips.v1.MakeCastRequest.until:type_name -> google.protobuf.Timestamp
+	30, // 15: clips.v1.MakeCastResponse.cast:type_name -> clips.v1.Cast
+	29, // 16: clips.v1.KeepAppearanceRequest.scheduled_at:type_name -> google.protobuf.Timestamp
+	21, // 17: clips.v1.ListVideosResponse.videos:type_name -> clips.v1.Video
+	29, // 18: clips.v1.Video.kept_at:type_name -> google.protobuf.Timestamp
+	0,  // 19: clips.v1.NameVerdict.decided_by:type_name -> clips.v1.VerdictBy
+	29, // 20: clips.v1.NameVerdict.decided_at:type_name -> google.protobuf.Timestamp
+	24, // 21: clips.v1.ListNameVerdictsResponse.verdicts:type_name -> clips.v1.NameVerdict
+	24, // 22: clips.v1.SetNameVerdictResponse.verdict:type_name -> clips.v1.NameVerdict
+	5,  // 23: clips.v1.AdminService.KeepSnapshot:input_type -> clips.v1.KeepSnapshotRequest
+	7,  // 24: clips.v1.AdminService.ListSnapshots:input_type -> clips.v1.ListSnapshotsRequest
+	9,  // 25: clips.v1.AdminService.ListRows:input_type -> clips.v1.ListRowsRequest
+	11, // 26: clips.v1.AdminService.MakeCast:input_type -> clips.v1.MakeCastRequest
+	13, // 27: clips.v1.AdminService.KeepAppearance:input_type -> clips.v1.KeepAppearanceRequest
+	15, // 28: clips.v1.AdminService.CreateVideoUpload:input_type -> clips.v1.CreateVideoUploadRequest
+	17, // 29: clips.v1.AdminService.KeepVideo:input_type -> clips.v1.KeepVideoRequest
+	19, // 30: clips.v1.AdminService.ListVideos:input_type -> clips.v1.ListVideosRequest
+	22, // 31: clips.v1.AdminService.RemoveVideo:input_type -> clips.v1.RemoveVideoRequest
+	25, // 32: clips.v1.AdminService.ListNameVerdicts:input_type -> clips.v1.ListNameVerdictsRequest
+	27, // 33: clips.v1.AdminService.SetNameVerdict:input_type -> clips.v1.SetNameVerdictRequest
+	6,  // 34: clips.v1.AdminService.KeepSnapshot:output_type -> clips.v1.KeepSnapshotResponse
+	8,  // 35: clips.v1.AdminService.ListSnapshots:output_type -> clips.v1.ListSnapshotsResponse
+	10, // 36: clips.v1.AdminService.ListRows:output_type -> clips.v1.ListRowsResponse
+	12, // 37: clips.v1.AdminService.MakeCast:output_type -> clips.v1.MakeCastResponse
+	14, // 38: clips.v1.AdminService.KeepAppearance:output_type -> clips.v1.KeepAppearanceResponse
+	16, // 39: clips.v1.AdminService.CreateVideoUpload:output_type -> clips.v1.CreateVideoUploadResponse
+	18, // 40: clips.v1.AdminService.KeepVideo:output_type -> clips.v1.KeepVideoResponse
+	20, // 41: clips.v1.AdminService.ListVideos:output_type -> clips.v1.ListVideosResponse
+	23, // 42: clips.v1.AdminService.RemoveVideo:output_type -> clips.v1.RemoveVideoResponse
+	26, // 43: clips.v1.AdminService.ListNameVerdicts:output_type -> clips.v1.ListNameVerdictsResponse
+	28, // 44: clips.v1.AdminService.SetNameVerdict:output_type -> clips.v1.SetNameVerdictResponse
+	34, // [34:45] is the sub-list for method output_type
+	23, // [23:34] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_clips_v1_admin_proto_init() }
@@ -1595,13 +1968,14 @@ func file_clips_v1_admin_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clips_v1_admin_proto_rawDesc), len(file_clips_v1_admin_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   23,
+			NumEnums:      1,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_clips_v1_admin_proto_goTypes,
 		DependencyIndexes: file_clips_v1_admin_proto_depIdxs,
+		EnumInfos:         file_clips_v1_admin_proto_enumTypes,
 		MessageInfos:      file_clips_v1_admin_proto_msgTypes,
 	}.Build()
 	File_clips_v1_admin_proto = out.File
