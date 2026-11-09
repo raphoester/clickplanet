@@ -192,3 +192,77 @@ func TestAClipOutOfTheHoursOfItsOnlyPlatformIsNoPost(t *testing.T) {
 
 	assert.False(t, room)
 }
+
+// A post scheduled ahead, by hand or a battle's teaser, is a reservation: it holds back no post before it.
+func TestAPostScheduledAheadHoldsBackNoPostBeforeIt(t *testing.T) {
+	now := time.Date(2026, 11, 12, 14, 52, 0, 0, time.UTC)
+
+	for _, ahead := range []time.Time{
+		time.Date(2026, 11, 12, 18, 0, 0, 0, time.UTC),
+		time.Date(2026, 11, 13, 18, 0, 0, 0, time.UTC),
+	} {
+		feed := posts.Feed{{At: ahead, Platforms: both}}
+
+		snapshot, room := next(t, paced, feed, now)
+
+		assert.True(t, room)
+		assert.Equal(t, time.Date(2026, 11, 12, 14, 57, 0, 0, time.UTC), snapshot.At, "with a post at %s", ahead)
+		assert.Equal(t, both, snapshot.Platforms, "with a post at %s", ahead)
+	}
+}
+
+func TestAPostGoesInTheFirstGapThatKeepsTheSpacingOnBothSides(t *testing.T) {
+	now := time.Date(2026, 10, 24, 10, 0, 0, 0, time.UTC)
+	// The second clip of the run before at 10:30, and a post by hand at 12:30: 11:30 is an hour from both.
+	feed := posts.Feed{
+		{At: now.Add(30 * time.Minute), Platforms: both},
+		{At: now.Add(150 * time.Minute), Platforms: []posts.Platform{posts.YouTube}},
+	}
+
+	snapshot, _ := next(t, asap, feed, now)
+
+	assert.Equal(t, now.Add(90*time.Minute), snapshot.At)
+}
+
+func TestAPostSkipsAGapTooShortForTheSpacingOnBothSides(t *testing.T) {
+	now := time.Date(2026, 10, 24, 10, 0, 0, 0, time.UTC)
+	// 11:30 is an hour after the post at 10:30 and half an hour before the one at 12:00: the post goes an hour after that.
+	feed := posts.Feed{
+		{At: now.Add(30 * time.Minute), Platforms: both},
+		{At: now.Add(2 * time.Hour), Platforms: []posts.Platform{posts.YouTube}},
+	}
+
+	snapshot, _ := next(t, asap, feed, now)
+
+	assert.Equal(t, now.Add(3*time.Hour), snapshot.At)
+}
+
+func TestAPostThatWouldOverfillTheDayOfAPostScheduledAheadLeavesItsPlatformOut(t *testing.T) {
+	now := time.Date(2026, 11, 12, 18, 52, 0, 0, time.UTC)
+	// Two today, and one tomorrow at 14:30: the trailing day that ends with it holds all three.
+	feed := posts.Feed{
+		{At: time.Date(2026, 11, 12, 15, 0, 0, 0, time.UTC), Platforms: both},
+		{At: time.Date(2026, 11, 12, 17, 0, 0, 0, time.UTC), Platforms: both},
+		{At: time.Date(2026, 11, 13, 14, 30, 0, 0, time.UTC), Platforms: tiktok},
+	}
+
+	snapshot, room := next(t, paced, feed, now)
+
+	assert.True(t, room)
+	assert.Equal(t, []posts.Platform{posts.YouTube}, snapshot.Platforms)
+	assert.Equal(t, now.Add(5*time.Minute), snapshot.At)
+}
+
+func TestAPostScheduledAheadCountsOnlyInTheTrailingDaysThatHoldIt(t *testing.T) {
+	now := time.Date(2026, 11, 12, 18, 52, 0, 0, time.UTC)
+	// Two today, and one tomorrow at 15:30: the day that ends with it starts after today's first.
+	feed := posts.Feed{
+		{At: time.Date(2026, 11, 12, 15, 0, 0, 0, time.UTC), Platforms: both},
+		{At: time.Date(2026, 11, 12, 17, 0, 0, 0, time.UTC), Platforms: both},
+		{At: time.Date(2026, 11, 13, 15, 30, 0, 0, time.UTC), Platforms: tiktok},
+	}
+
+	snapshot, _ := next(t, paced, feed, now)
+
+	assert.Equal(t, both, snapshot.Platforms)
+}
