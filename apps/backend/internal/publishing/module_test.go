@@ -157,6 +157,17 @@ func TestAJobPlansAPostSchedulesItAtItsSlotAndReadsItBackOnTheConsoleListener(t 
 	assert.Equal(t, tomorrowAt(15), plan.Msg.GetSlot().GetAt().AsTime())
 	assert.Equal(t, []publishingv1.Platform{tiktok, youtube}, plan.Msg.GetSlot().GetPlatforms())
 
+	// At 10:00 TikTok is out of its hours: left out, or waited for with by.
+	early := &publishingv1.PlanPostRequest{Platforms: []publishingv1.Platform{tiktok, youtube}, NotBefore: timestamppb.New(tomorrowAt(10))}
+	plan, err = client.PlanPost(t.Context(), connect.NewRequest(early))
+	require.NoError(t, err)
+	assert.Equal(t, []publishingv1.Platform{youtube}, plan.Msg.GetSlot().GetPlatforms())
+	early.By = timestamppb.New(tomorrowAt(20))
+	plan, err = client.PlanPost(t.Context(), connect.NewRequest(early))
+	require.NoError(t, err)
+	assert.Equal(t, tomorrowAt(14), plan.Msg.GetSlot().GetAt().AsTime())
+	assert.Equal(t, []publishingv1.Platform{tiktok, youtube}, plan.Msg.GetSlot().GetPlatforms())
+
 	metadata, err := structpb.NewStruct(map[string]any{"storyFlag": "fr"})
 	require.NoError(t, err)
 	at := &publishingv1.Slot{At: timestamppb.New(tomorrowAt(12)), Platforms: []publishingv1.Platform{youtube}}

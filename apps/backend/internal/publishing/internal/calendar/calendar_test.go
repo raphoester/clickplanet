@@ -256,3 +256,67 @@ func TestAPlatformIsKnownAndNamedOnce(t *testing.T) {
 	_, err = calendar.PlatformsOf("tiktok", "tiktok")
 	require.ErrorContains(t, err, "twice")
 }
+
+func TestASlotByWaitsForTheHoursOfEveryPlatform(t *testing.T) {
+	now := time.Date(2026, 11, 9, 9, 0, 0, 0, time.UTC)
+
+	slot, found := paced.SlotBy(both, nil, time.Time{}, now.Add(36*time.Hour), now)
+	require.True(t, found)
+	assert.Equal(t, calendar.Slot{At: time.Date(2026, 11, 9, 14, 0, 0, 0, time.UTC), Platforms: both}, slot)
+
+	// Without by, TikTok is left out of the first time instead.
+	assert.Equal(t, calendar.Slot{At: now.Add(5 * time.Minute), Platforms: youtube}, slotOf(t, paced, both, nil, now))
+}
+
+func TestASlotByWaitsForTheRoomOfAFullDay(t *testing.T) {
+	now := time.Date(2026, 11, 9, 13, 0, 0, 0, time.UTC)
+	full := postings(3, time.Date(2026, 11, 9, 14, 0, 0, 0, time.UTC), calendar.TikTok)
+
+	slot, found := paced.SlotBy(both, full, time.Time{}, now.Add(36*time.Hour), now)
+	require.True(t, found)
+	// The post of 14:00 counts in the day that ends at 14:00 the next day, to the minute.
+	assert.Equal(t, calendar.Slot{At: time.Date(2026, 11, 10, 14, 1, 0, 0, time.UTC), Platforms: both}, slot)
+}
+
+func TestASlotByStartsFromNotBeforeAndKeepsItsSpacing(t *testing.T) {
+	now := time.Date(2026, 11, 9, 9, 0, 0, 0, time.UTC)
+	notBefore := time.Date(2026, 11, 9, 15, 10, 30, 0, time.UTC)
+	feed := calendar.Feed{{At: time.Date(2026, 11, 9, 15, 45, 0, 0, time.UTC), Platforms: youtube}}
+
+	slot, found := paced.SlotBy(both, feed, notBefore, now.Add(36*time.Hour), now)
+	require.True(t, found)
+	assert.Equal(t, calendar.Slot{At: time.Date(2026, 11, 9, 16, 45, 0, 0, time.UTC), Platforms: both}, slot)
+}
+
+func TestNoSlotByWhenNoMinuteUntilByTakesEveryPlatform(t *testing.T) {
+	now := time.Date(2026, 11, 9, 9, 0, 0, 0, time.UTC)
+
+	_, found := paced.SlotBy(both, nil, time.Time{}, time.Date(2026, 11, 9, 13, 59, 0, 0, time.UTC), now)
+	assert.False(t, found)
+
+	at := time.Date(2026, 11, 9, 14, 0, 0, 0, time.UTC)
+	slot, found := paced.SlotBy(both, nil, time.Time{}, at, now)
+	require.True(t, found)
+	assert.Equal(t, at, slot.At)
+
+	_, found = paced.SlotBy(nil, nil, time.Time{}, now.Add(36*time.Hour), now)
+	assert.False(t, found)
+}
+
+func TestASlotByLooksAWeekAheadAtTheMost(t *testing.T) {
+	now := time.Date(2026, 11, 9, 9, 0, 0, 0, time.UTC)
+	once := calendar.Calendar{Spacing: time.Hour, Budget: calendar.Budget{calendar.TikTok: {PerDay: 1}}}
+	// A post every 23 hours for 10 days: every day holds one until a day after the last, past the week.
+	busy := make(calendar.Feed, 0, 11)
+	for i := range 11 {
+		busy = append(busy, calendar.Posting{At: now.Add(time.Duration(i) * 23 * time.Hour), Platforms: tiktok})
+	}
+
+	_, found := once.SlotBy(tiktok, busy, time.Time{}, now.Add(365*24*time.Hour), now)
+	assert.False(t, found)
+
+	// Six days of them, and the day after the last is within the week.
+	slot, found := once.SlotBy(tiktok, busy[:7], time.Time{}, now.Add(365*24*time.Hour), now)
+	require.True(t, found)
+	assert.Equal(t, now.Add(6*23*time.Hour+24*time.Hour+time.Minute), slot.At)
+}

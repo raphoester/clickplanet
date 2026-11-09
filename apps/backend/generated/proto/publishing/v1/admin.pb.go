@@ -335,7 +335,11 @@ type PlanPostRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	Platforms []Platform             `protobuf:"varint,1,rep,packed,name=platforms,proto3,enum=publishing.v1.Platform" json:"platforms,omitempty"`
 	// Absent is now. A job's review: the time to cancel a post in the dashboard before it goes out.
-	NotBefore     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=not_before,json=notBefore,proto3" json:"not_before,omitempty"`
+	NotBefore *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=not_before,json=notBefore,proto3" json:"not_before,omitempty"`
+	// Absent: the first time from not_before, on the platforms that take a post then. Set: the first time from not_before
+	// to by, a week from now at the latest, at which every one of the platforms takes it, so a post waits for the hours
+	// and the room of each; none is no slot. A battle's teaser, which wants TikTok and YouTube before the battle starts.
+	By            *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=by,proto3" json:"by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -380,6 +384,13 @@ func (x *PlanPostRequest) GetPlatforms() []Platform {
 func (x *PlanPostRequest) GetNotBefore() *timestamppb.Timestamp {
 	if x != nil {
 		return x.NotBefore
+	}
+	return nil
+}
+
+func (x *PlanPostRequest) GetBy() *timestamppb.Timestamp {
+	if x != nil {
+		return x.By
 	}
 	return nil
 }
@@ -1260,11 +1271,12 @@ const file_publishing_v1_admin_proto_rawDesc = "" +
 	"\x05rooms\x18\x01 \x03(\v2\x1b.publishing.v1.PlatformRoomR\x05rooms\"W\n" +
 	"\fPlatformRoom\x123\n" +
 	"\bplatform\x18\x01 \x01(\x0e2\x17.publishing.v1.PlatformR\bplatform\x12\x12\n" +
-	"\x04left\x18\x02 \x01(\rR\x04left\"\x83\x01\n" +
+	"\x04left\x18\x02 \x01(\rR\x04left\"\xaf\x01\n" +
 	"\x0fPlanPostRequest\x125\n" +
 	"\tplatforms\x18\x01 \x03(\x0e2\x17.publishing.v1.PlatformR\tplatforms\x129\n" +
 	"\n" +
-	"not_before\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tnotBefore\";\n" +
+	"not_before\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tnotBefore\x12*\n" +
+	"\x02by\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02by\";\n" +
 	"\x10PlanPostResponse\x12'\n" +
 	"\x04slot\x18\x01 \x01(\v2\x13.publishing.v1.SlotR\x04slot\"i\n" +
 	"\x04Slot\x12*\n" +
@@ -1376,39 +1388,40 @@ var file_publishing_v1_admin_proto_depIdxs = []int32{
 	0,  // 2: publishing.v1.PlatformRoom.platform:type_name -> publishing.v1.Platform
 	0,  // 3: publishing.v1.PlanPostRequest.platforms:type_name -> publishing.v1.Platform
 	21, // 4: publishing.v1.PlanPostRequest.not_before:type_name -> google.protobuf.Timestamp
-	8,  // 5: publishing.v1.PlanPostResponse.slot:type_name -> publishing.v1.Slot
-	21, // 6: publishing.v1.Slot.at:type_name -> google.protobuf.Timestamp
-	0,  // 7: publishing.v1.Slot.platforms:type_name -> publishing.v1.Platform
-	8,  // 8: publishing.v1.SchedulePostRequest.slot:type_name -> publishing.v1.Slot
-	10, // 9: publishing.v1.SchedulePostRequest.tiktok:type_name -> publishing.v1.TikTokWords
-	11, // 10: publishing.v1.SchedulePostRequest.youtube:type_name -> publishing.v1.YouTubeWords
-	22, // 11: publishing.v1.SchedulePostRequest.metadata:type_name -> google.protobuf.Struct
-	13, // 12: publishing.v1.SchedulePostResponse.scheduled:type_name -> publishing.v1.Scheduled
-	15, // 13: publishing.v1.SchedulePostResponse.busy:type_name -> publishing.v1.Busy
-	16, // 14: publishing.v1.SchedulePostResponse.taken:type_name -> publishing.v1.Taken
-	17, // 15: publishing.v1.SchedulePostResponse.failed:type_name -> publishing.v1.Failed
-	14, // 16: publishing.v1.Scheduled.refusals:type_name -> publishing.v1.Refusal
-	0,  // 17: publishing.v1.Refusal.platform:type_name -> publishing.v1.Platform
-	23, // 18: publishing.v1.Busy.retry_after:type_name -> google.protobuf.Duration
-	21, // 19: publishing.v1.ListPostsRequest.since:type_name -> google.protobuf.Timestamp
-	20, // 20: publishing.v1.ListPostsResponse.posts:type_name -> publishing.v1.Post
-	21, // 21: publishing.v1.Post.scheduled_for:type_name -> google.protobuf.Timestamp
-	22, // 22: publishing.v1.Post.metadata:type_name -> google.protobuf.Struct
-	1,  // 23: publishing.v1.AdminService.CreateMediaUpload:input_type -> publishing.v1.CreateMediaUploadRequest
-	3,  // 24: publishing.v1.AdminService.GetRoom:input_type -> publishing.v1.GetRoomRequest
-	6,  // 25: publishing.v1.AdminService.PlanPost:input_type -> publishing.v1.PlanPostRequest
-	9,  // 26: publishing.v1.AdminService.SchedulePost:input_type -> publishing.v1.SchedulePostRequest
-	18, // 27: publishing.v1.AdminService.ListPosts:input_type -> publishing.v1.ListPostsRequest
-	2,  // 28: publishing.v1.AdminService.CreateMediaUpload:output_type -> publishing.v1.CreateMediaUploadResponse
-	4,  // 29: publishing.v1.AdminService.GetRoom:output_type -> publishing.v1.GetRoomResponse
-	7,  // 30: publishing.v1.AdminService.PlanPost:output_type -> publishing.v1.PlanPostResponse
-	12, // 31: publishing.v1.AdminService.SchedulePost:output_type -> publishing.v1.SchedulePostResponse
-	19, // 32: publishing.v1.AdminService.ListPosts:output_type -> publishing.v1.ListPostsResponse
-	28, // [28:33] is the sub-list for method output_type
-	23, // [23:28] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	21, // 5: publishing.v1.PlanPostRequest.by:type_name -> google.protobuf.Timestamp
+	8,  // 6: publishing.v1.PlanPostResponse.slot:type_name -> publishing.v1.Slot
+	21, // 7: publishing.v1.Slot.at:type_name -> google.protobuf.Timestamp
+	0,  // 8: publishing.v1.Slot.platforms:type_name -> publishing.v1.Platform
+	8,  // 9: publishing.v1.SchedulePostRequest.slot:type_name -> publishing.v1.Slot
+	10, // 10: publishing.v1.SchedulePostRequest.tiktok:type_name -> publishing.v1.TikTokWords
+	11, // 11: publishing.v1.SchedulePostRequest.youtube:type_name -> publishing.v1.YouTubeWords
+	22, // 12: publishing.v1.SchedulePostRequest.metadata:type_name -> google.protobuf.Struct
+	13, // 13: publishing.v1.SchedulePostResponse.scheduled:type_name -> publishing.v1.Scheduled
+	15, // 14: publishing.v1.SchedulePostResponse.busy:type_name -> publishing.v1.Busy
+	16, // 15: publishing.v1.SchedulePostResponse.taken:type_name -> publishing.v1.Taken
+	17, // 16: publishing.v1.SchedulePostResponse.failed:type_name -> publishing.v1.Failed
+	14, // 17: publishing.v1.Scheduled.refusals:type_name -> publishing.v1.Refusal
+	0,  // 18: publishing.v1.Refusal.platform:type_name -> publishing.v1.Platform
+	23, // 19: publishing.v1.Busy.retry_after:type_name -> google.protobuf.Duration
+	21, // 20: publishing.v1.ListPostsRequest.since:type_name -> google.protobuf.Timestamp
+	20, // 21: publishing.v1.ListPostsResponse.posts:type_name -> publishing.v1.Post
+	21, // 22: publishing.v1.Post.scheduled_for:type_name -> google.protobuf.Timestamp
+	22, // 23: publishing.v1.Post.metadata:type_name -> google.protobuf.Struct
+	1,  // 24: publishing.v1.AdminService.CreateMediaUpload:input_type -> publishing.v1.CreateMediaUploadRequest
+	3,  // 25: publishing.v1.AdminService.GetRoom:input_type -> publishing.v1.GetRoomRequest
+	6,  // 26: publishing.v1.AdminService.PlanPost:input_type -> publishing.v1.PlanPostRequest
+	9,  // 27: publishing.v1.AdminService.SchedulePost:input_type -> publishing.v1.SchedulePostRequest
+	18, // 28: publishing.v1.AdminService.ListPosts:input_type -> publishing.v1.ListPostsRequest
+	2,  // 29: publishing.v1.AdminService.CreateMediaUpload:output_type -> publishing.v1.CreateMediaUploadResponse
+	4,  // 30: publishing.v1.AdminService.GetRoom:output_type -> publishing.v1.GetRoomResponse
+	7,  // 31: publishing.v1.AdminService.PlanPost:output_type -> publishing.v1.PlanPostResponse
+	12, // 32: publishing.v1.AdminService.SchedulePost:output_type -> publishing.v1.SchedulePostResponse
+	19, // 33: publishing.v1.AdminService.ListPosts:output_type -> publishing.v1.ListPostsResponse
+	29, // [29:34] is the sub-list for method output_type
+	24, // [24:29] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_publishing_v1_admin_proto_init() }

@@ -14,7 +14,7 @@ import (
 )
 
 type Query interface {
-	Plan(ctx context.Context, platforms []calendar.Platform, notBefore time.Time) (*publishingv1.PlanPostResponse, error)
+	Plan(ctx context.Context, platforms []calendar.Platform, notBefore, by time.Time) (*publishingv1.PlanPostResponse, error)
 }
 
 func New(query Query) PlanPostHandler {
@@ -33,12 +33,15 @@ func (h PlanPostHandler) PlanPost(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	var notBefore time.Time
+	var notBefore, by time.Time
 	if req.Msg.GetNotBefore() != nil {
 		notBefore = req.Msg.GetNotBefore().AsTime()
 	}
+	if req.Msg.GetBy() != nil {
+		by = req.Msg.GetBy().AsTime()
+	}
 
-	answer, err := h.query.Plan(ctx, platforms, notBefore)
+	answer, err := h.query.Plan(ctx, platforms, notBefore, by)
 	var busy *posts.BusyError
 	switch {
 	case errors.As(err, &busy):

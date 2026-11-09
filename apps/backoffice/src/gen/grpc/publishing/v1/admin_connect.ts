@@ -46,8 +46,8 @@ export const AdminService = {
     /**
      * The slot a post on these platforms would take, from not_before on: the first whole minute 5 minutes from now or
      * later that is an hour from every post on its platforms, before or after it, on each of them that takes a post then,
-     * in its hours and with room in every trailing day that holds it. No slot when none of them does. Nothing is held: a
-     * post at that slot is SchedulePost's.
+     * in its hours and with room in every trailing day that holds it. No slot when none of them does. With by, every
+     * platform takes it, by then. Nothing is held: a post at that slot is SchedulePost's.
      *
      * @generated from rpc publishing.v1.AdminService.PlanPost
      */

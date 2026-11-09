@@ -59,8 +59,8 @@ type AdminServiceClient interface {
 	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
 	// The slot a post on these platforms would take, from not_before on: the first whole minute 5 minutes from now or
 	// later that is an hour from every post on its platforms, before or after it, on each of them that takes a post then,
-	// in its hours and with room in every trailing day that holds it. No slot when none of them does. Nothing is held: a
-	// post at that slot is SchedulePost's.
+	// in its hours and with room in every trailing day that holds it. No slot when none of them does. With by, every
+	// platform takes it, by then. Nothing is held: a post at that slot is SchedulePost's.
 	PlanPost(context.Context, *connect.Request[v1.PlanPostRequest]) (*connect.Response[v1.PlanPostResponse], error)
 	// Posts a video at a slot PlanPost answered: one post on the service, with a target on each of the slot's platforms.
 	// The answer is what became of it: scheduled, with each platform that refused it and why; busy, the service asked to
@@ -168,8 +168,8 @@ type AdminServiceHandler interface {
 	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
 	// The slot a post on these platforms would take, from not_before on: the first whole minute 5 minutes from now or
 	// later that is an hour from every post on its platforms, before or after it, on each of them that takes a post then,
-	// in its hours and with room in every trailing day that holds it. No slot when none of them does. Nothing is held: a
-	// post at that slot is SchedulePost's.
+	// in its hours and with room in every trailing day that holds it. No slot when none of them does. With by, every
+	// platform takes it, by then. Nothing is held: a post at that slot is SchedulePost's.
 	PlanPost(context.Context, *connect.Request[v1.PlanPostRequest]) (*connect.Response[v1.PlanPostResponse], error)
 	// Posts a video at a slot PlanPost answered: one post on the service, with a target on each of the slot's platforms.
 	// The answer is what became of it: scheduled, with each platform that refused it and why; busy, the service asked to

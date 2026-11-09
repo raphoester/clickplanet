@@ -269,6 +269,15 @@ export class PlanPostRequest extends Message<PlanPostRequest> {
    */
   notBefore?: Timestamp;
 
+  /**
+   * Absent: the first time from not_before, on the platforms that take a post then. Set: the first time from not_before
+   * to by, a week from now at the latest, at which every one of the platforms takes it, so a post waits for the hours
+   * and the room of each; none is no slot. A battle's teaser, which wants TikTok and YouTube before the battle starts.
+   *
+   * @generated from field: google.protobuf.Timestamp by = 3;
+   */
+  by?: Timestamp;
+
   constructor(data?: PartialMessage<PlanPostRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -279,6 +288,7 @@ export class PlanPostRequest extends Message<PlanPostRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "platforms", kind: "enum", T: proto3.getEnumType(Platform), repeated: true },
     { no: 2, name: "not_before", kind: "message", T: Timestamp },
+    { no: 3, name: "by", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanPostRequest {

@@ -77,6 +77,31 @@ func (c Calendar) Slot(platforms []Platform, feed Feed, notBefore, now time.Time
 	return Slot{At: at, Platforms: slices.Clone(platforms)}, true
 }
 
+// How far ahead SlotBy looks at the most: a week, minute by minute.
+const farthest = 7 * 24 * time.Hour
+
+// The slot of a post on every one of the platforms, from notBefore to by and never sooner than the lead from now, nor
+// later than a week from now: the first whole minute that is a Spacing from every post on them, before it or after it,
+// on each of them in its hours with room left in every trailing day that holds it. False when no minute until then
+// takes it on all of them: none is left out, so a post waits for the hours of the platform that opens last.
+func (c Calendar) SlotBy(platforms []Platform, feed Feed, notBefore, by, now time.Time) (Slot, bool) {
+	if len(platforms) == 0 {
+		return Slot{}, false
+	}
+	until := earlier(by, now.Add(farthest))
+	for from := wholeMinuteFrom(later(now.Add(leastLead), notBefore)); !from.After(until); from = from.Add(time.Minute) {
+		at := c.at(platforms, feed, from)
+		if at.After(until) {
+			break
+		}
+		if len(c.open(platforms, feed, at)) == len(platforms) {
+			return Slot{At: at, Platforms: slices.Clone(platforms)}, true
+		}
+		from = at
+	}
+	return Slot{}, false
+}
+
 // Whether a post can still go out at the slot: on a whole minute, the lead from now or later, and on each of its
 // platforms in its hours, with room left and a Spacing from every other post.
 func (c Calendar) Open(slot Slot, feed Feed, now time.Time) bool {
@@ -123,4 +148,11 @@ func wholeMinuteFrom(at time.Time) time.Time {
 		whole = whole.Add(time.Minute)
 	}
 	return whole
+}
+
+func earlier(a, b time.Time) time.Time {
+	if b.Before(a) {
+		return b
+	}
+	return a
 }
