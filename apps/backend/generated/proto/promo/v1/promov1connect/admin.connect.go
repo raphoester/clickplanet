@@ -49,6 +49,9 @@ const (
 	AdminServiceGetCardsProcedure = "/promo.v1.AdminService/GetCards"
 	// AdminServiceSaveCardsProcedure is the fully-qualified name of the AdminService's SaveCards RPC.
 	AdminServiceSaveCardsProcedure = "/promo.v1.AdminService/SaveCards"
+	// AdminServiceListTeasersProcedure is the fully-qualified name of the AdminService's ListTeasers
+	// RPC.
+	AdminServiceListTeasersProcedure = "/promo.v1.AdminService/ListTeasers"
 )
 
 // AdminServiceClient is a client for the promo.v1.AdminService service.
@@ -71,6 +74,10 @@ type AdminServiceClient interface {
 	// Replaces a set's cards, in order: none to remove them, at most 5. InvalidArgument for a card the rules refuse;
 	// FailedPrecondition for a set planet does not keep, or a background not in the library.
 	SaveCards(context.Context, *connect.Request[v1.SaveCardsRequest]) (*connect.Response[v1.SaveCardsResponse], error)
+	// The battles that start within the next `within`, by start, each with its cards as players read them now: what the
+	// teasers job posts on TikTok and YouTube before each. A battle whose set has no card is left out, as the game teases
+	// nothing of it. InvalidArgument for a window of nothing, or of more than a week.
+	ListTeasers(context.Context, *connect.Request[v1.ListTeasersRequest]) (*connect.Response[v1.ListTeasersResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the promo.v1.AdminService service. By default, it
@@ -122,6 +129,13 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("SaveCards")),
 			connect.WithClientOptions(opts...),
 		),
+		listTeasers: connect.NewClient[v1.ListTeasersRequest, v1.ListTeasersResponse](
+			httpClient,
+			baseURL+AdminServiceListTeasersProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListTeasers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -133,6 +147,7 @@ type adminServiceClient struct {
 	removeBackground       *connect.Client[v1.RemoveBackgroundRequest, v1.RemoveBackgroundResponse]
 	getCards               *connect.Client[v1.GetCardsRequest, v1.GetCardsResponse]
 	saveCards              *connect.Client[v1.SaveCardsRequest, v1.SaveCardsResponse]
+	listTeasers            *connect.Client[v1.ListTeasersRequest, v1.ListTeasersResponse]
 }
 
 // CreateBackgroundUpload calls promo.v1.AdminService.CreateBackgroundUpload.
@@ -165,6 +180,11 @@ func (c *adminServiceClient) SaveCards(ctx context.Context, req *connect.Request
 	return c.saveCards.CallUnary(ctx, req)
 }
 
+// ListTeasers calls promo.v1.AdminService.ListTeasers.
+func (c *adminServiceClient) ListTeasers(ctx context.Context, req *connect.Request[v1.ListTeasersRequest]) (*connect.Response[v1.ListTeasersResponse], error) {
+	return c.listTeasers.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the promo.v1.AdminService service.
 type AdminServiceHandler interface {
 	// A link the page sends one background to, straight to the bucket. It is in the library once KeepBackground names it.
@@ -185,6 +205,10 @@ type AdminServiceHandler interface {
 	// Replaces a set's cards, in order: none to remove them, at most 5. InvalidArgument for a card the rules refuse;
 	// FailedPrecondition for a set planet does not keep, or a background not in the library.
 	SaveCards(context.Context, *connect.Request[v1.SaveCardsRequest]) (*connect.Response[v1.SaveCardsResponse], error)
+	// The battles that start within the next `within`, by start, each with its cards as players read them now: what the
+	// teasers job posts on TikTok and YouTube before each. A battle whose set has no card is left out, as the game teases
+	// nothing of it. InvalidArgument for a window of nothing, or of more than a week.
+	ListTeasers(context.Context, *connect.Request[v1.ListTeasersRequest]) (*connect.Response[v1.ListTeasersResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -232,6 +256,13 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("SaveCards")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceListTeasersHandler := connect.NewUnaryHandler(
+		AdminServiceListTeasersProcedure,
+		svc.ListTeasers,
+		connect.WithSchema(adminServiceMethods.ByName("ListTeasers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/promo.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceCreateBackgroundUploadProcedure:
@@ -246,6 +277,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGetCardsHandler.ServeHTTP(w, r)
 		case AdminServiceSaveCardsProcedure:
 			adminServiceSaveCardsHandler.ServeHTTP(w, r)
+		case AdminServiceListTeasersProcedure:
+			adminServiceListTeasersHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -277,4 +310,8 @@ func (UnimplementedAdminServiceHandler) GetCards(context.Context, *connect.Reque
 
 func (UnimplementedAdminServiceHandler) SaveCards(context.Context, *connect.Request[v1.SaveCardsRequest]) (*connect.Response[v1.SaveCardsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("promo.v1.AdminService.SaveCards is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListTeasers(context.Context, *connect.Request[v1.ListTeasersRequest]) (*connect.Response[v1.ListTeasersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("promo.v1.AdminService.ListTeasers is not implemented"))
 }

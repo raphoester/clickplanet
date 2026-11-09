@@ -6,14 +6,16 @@ import (
 	"strings"
 )
 
-// The one kind of file a job posts.
-const VideoMP4 = "video/mp4"
-
+// The kinds of file a job posts: a video, or a photo of a TikTok carousel.
 const (
-	maxFileName = 255
-	// A 22s clip is about 80 MB.
-	maxMediaBytes = 1 << 30
+	VideoMP4  = "video/mp4"
+	PhotoJPEG = "image/jpeg"
 )
+
+const maxFileName = 255
+
+// The most bytes of each kind: a 22s clip is about 80 MB, and TikTok takes a photo of 20 MB at most.
+var maxBytes = map[string]int64{VideoMP4: 1 << 30, PhotoJPEG: 20 << 20}
 
 var ErrInvalidMedia = errors.New("invalid media")
 
@@ -30,11 +32,12 @@ func (m Media) FileError() error {
 	if m.FileName == "" || len(m.FileName) > maxFileName || strings.ContainsAny(m.FileName, `/\`) {
 		reasons = append(reasons, fmt.Errorf("the file's name is empty, longer than %d or a path", maxFileName))
 	}
-	if m.ContentType != VideoMP4 {
-		reasons = append(reasons, fmt.Errorf("the file is %q, and only %s is posted", m.ContentType, VideoMP4))
+	most, known := maxBytes[m.ContentType]
+	if !known {
+		reasons = append(reasons, fmt.Errorf("the file is %q, and only %s and %s are posted", m.ContentType, VideoMP4, PhotoJPEG))
 	}
-	if m.Size <= 0 || m.Size > maxMediaBytes {
-		reasons = append(reasons, fmt.Errorf("the file is %d bytes, and must be 1 to %d", m.Size, maxMediaBytes))
+	if known && (m.Size <= 0 || m.Size > most) {
+		reasons = append(reasons, fmt.Errorf("the file is %d bytes, and a %s must be 1 to %d", m.Size, m.ContentType, most))
 	}
 	if len(reasons) > 0 {
 		return fmt.Errorf("%w: %w", ErrInvalidMedia, errors.Join(reasons...))

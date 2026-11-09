@@ -121,6 +121,18 @@ Final Battle's (`example_battle`: its times, and each battle placeholder with it
 **`SaveCards(rule_set, cards)`**, which replaces a set's cards (none removes them): `InvalidArgument` for cards the
 rules refuse, `FailedPrecondition` for a set planet does not keep or a background not in the library.
 
+## The teasers on TikTok and YouTube
+
+**`promo.v1.AdminService/ListTeasers(within)` is each battle that starts within the window, by start, with its cards as
+players read them now** (2026-11-09), for the teasers job, which renders them and posts them through the
+[publishing module](publishing.md) a day or so before the battle: a carousel of the cards on TikTok, a slideshow of them
+on YouTube. Each `Teaser` is the id `GetTeaser` takes (the entry's, or the finale's round), the battle's start and end,
+the schedule's words for it, its points' times, whether it is a season's Final Battle, and its cards, filled by the
+teaser's own query (`teaser_query`). **A battle whose set has no card is left out**, as the game teases nothing of it,
+and so is one the schedule dropped since its timeline was read. The battles come from the gamemaster's `GetTimeline`
+(`teasers_query/rpc_gamemaster_timeline`): the ones the players see coming. `InvalidArgument` for a window of nothing,
+or of more than a week. A read-only tool for Claude too (see [Claude as a connector](connector.md)).
+
 ## Kept
 
 `promo` schema, migration `20261105120000_promo`: `backgrounds(background_id, name, media_type, size_bytes,
@@ -133,7 +145,7 @@ closer, once the listeners shut down.
 **Promo depends on planet, the gamemaster and scoring, and nothing depends on promo.** It asks planet the sets it
 keeps (`GetRuleSetNames`, on each `SaveCards` and `GetCards`) and the values one plays (`GetRuleSet`, on each teaser
 read and once per set with cards on each `GetCards`), the gamemaster what a battle plays (`GetBattle`, on each teaser
-read), and scoring what each rank of a round of its times scores (`GetRankPoints`, on each teaser read with cards, and
+read) and the battles to come (`GetTimeline`, on each `ListTeasers`), and scoring what each rank of a round of its times scores (`GetRankPoints`, on each teaser read with cards, and
 once for the example battle on each `GetCards`). The gamemaster stays unaware of promo: the client asks promo for a battle's cards when it shows the
 teaser, rather than the gamemaster's timeline carrying them every second.
 

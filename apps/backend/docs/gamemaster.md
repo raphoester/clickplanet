@@ -388,6 +388,12 @@ entry's set and times when the entry is of kind battle, the finale's when the se
 else: a plain entry, an entry not kept, a day, a season with no finale. The set's name stays among the modules: the
 client asks promo by the battle's id, and promo never answers the name. `battle_query`'s test pins each case on postgres.
 
+**`gamemaster.v1.InternalService/GetTimeline`, on the internal listener, is the battles to come** (2026-11-09): the
+timeline's `battles`, as `GetTurn` and the stream carry them to the players (by start, the seasons' finales among them,
+in the players' words: no set's name), for the promo module's `ListTeasers`, which the teasers job reads to post a
+battle's teaser a day or so before it. `get_timeline_handler` reads them through the turn's own query (`turn_query`), so
+a module sees exactly the battles the players see coming.
+
 ## The game client
 
 **`gamemaster.v1.GamemasterService`, on the public router, is what the client reads to give a battle its look, to

@@ -1,6 +1,8 @@
 package posts_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -67,14 +69,54 @@ func TestAPostIsRefusedForEveryReasonAtOnce(t *testing.T) {
 	assert.ErrorContains(t, err, "names no platform")
 }
 
-func TestOnlyAnMP4WithANameAndASizeIsUploaded(t *testing.T) {
+func TestATikTokCarouselIsUpTo35PhotosUnderATitle(t *testing.T) {
+	carousel := draft()
+	carousel.TikTokPhotos = []posts.MediaURL{"https://media.zernio.com/temp/card-1.jpg", "https://media.zernio.com/temp/card-2.jpg"}
+	carousel.TikTok.Title = "RING WAR · SATURDAY 20:00 UTC"
+
+	post, err := posts.NewPost(carousel)
+
+	require.NoError(t, err)
+	assert.Equal(t, carousel.TikTokPhotos, post.TakeSnapshot().TikTokPhotos)
+	assert.Equal(t, "RING WAR · SATURDAY 20:00 UTC", post.TakeSnapshot().TikTok.Title)
+}
+
+func TestACarouselTikTokCannotPostIsRefusedForEveryReasonAtOnce(t *testing.T) {
+	carousel := draft()
+	for i := range 36 {
+		carousel.TikTokPhotos = append(carousel.TikTokPhotos, posts.MediaURL(fmt.Sprintf("https://media.zernio.com/temp/card-%d.jpg", i)))
+	}
+	carousel.TikTokPhotos[3] = "http://media.zernio.com/temp/card-3.jpg"
+	carousel.TikTok.Title = strings.Repeat("A", 91)
+
+	_, err := posts.NewPost(carousel)
+
+	require.ErrorIs(t, err, posts.ErrInvalidPost)
+	for _, reason := range []string{"36 photos", "a photo is no https address", "longer than 90"} {
+		assert.ErrorContains(t, err, reason)
+	}
+
+	untitled := draft()
+	untitled.TikTokPhotos = []posts.MediaURL{"https://media.zernio.com/temp/card-1.jpg"}
+	_, err = posts.NewPost(untitled)
+	require.ErrorContains(t, err, "the photos have no title")
+
+	untitled.Slot.Platforms = []calendar.Platform{calendar.YouTube}
+	_, err = posts.NewPost(untitled)
+	require.NoError(t, err, "photos TikTok is not in the slot of are never posted, and need no title")
+}
+
+func TestOnlyAnMP4OrAJPEGWithANameAndASizeIsUploaded(t *testing.T) {
 	require.NoError(t, posts.Media{FileName: "clip-1.mp4", ContentType: posts.VideoMP4, Size: 80 << 20}.FileError())
+	require.NoError(t, posts.Media{FileName: "card-1.jpg", ContentType: posts.PhotoJPEG, Size: 400 << 10}.FileError())
+	require.ErrorIs(t, posts.Media{FileName: "card-1.jpg", ContentType: posts.PhotoJPEG, Size: 21 << 20}.FileError(), posts.ErrInvalidMedia)
 
 	err := posts.Media{FileName: "../clip.mp4", ContentType: "image/png", Size: 0}.FileError()
 
 	require.ErrorIs(t, err, posts.ErrInvalidMedia)
-	for _, reason := range []string{"a path", `"image/png"`, "0 bytes"} {
+	for _, reason := range []string{"a path", `"image/png"`} {
 		assert.ErrorContains(t, err, reason)
 	}
+	assert.ErrorContains(t, posts.Media{FileName: "clip.mp4", ContentType: posts.VideoMP4, Size: 0}.FileError(), "0 bytes")
 	assert.Error(t, posts.Media{FileName: "clip.mp4", ContentType: posts.VideoMP4, Size: 2 << 30}.FileError())
 }

@@ -118,18 +118,103 @@ func (x *GetBattleResponse) GetTimes() uint32 {
 	return 0
 }
 
+type GetTimelineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTimelineRequest) Reset() {
+	*x = GetTimelineRequest{}
+	mi := &file_gamemaster_v1_internal_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTimelineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTimelineRequest) ProtoMessage() {}
+
+func (x *GetTimelineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_internal_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTimelineRequest.ProtoReflect.Descriptor instead.
+func (*GetTimelineRequest) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_internal_proto_rawDescGZIP(), []int{2}
+}
+
+type GetTimelineResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// As Timeline.battles holds them.
+	Battles       []*Battle `protobuf:"bytes,1,rep,name=battles,proto3" json:"battles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTimelineResponse) Reset() {
+	*x = GetTimelineResponse{}
+	mi := &file_gamemaster_v1_internal_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTimelineResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTimelineResponse) ProtoMessage() {}
+
+func (x *GetTimelineResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_gamemaster_v1_internal_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTimelineResponse.ProtoReflect.Descriptor instead.
+func (*GetTimelineResponse) Descriptor() ([]byte, []int) {
+	return file_gamemaster_v1_internal_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetTimelineResponse) GetBattles() []*Battle {
+	if x != nil {
+		return x.Battles
+	}
+	return nil
+}
+
 var File_gamemaster_v1_internal_proto protoreflect.FileDescriptor
 
 const file_gamemaster_v1_internal_proto_rawDesc = "" +
 	"\n" +
-	"\x1cgamemaster/v1/internal.proto\x12\rgamemaster.v1\"/\n" +
+	"\x1cgamemaster/v1/internal.proto\x12\rgamemaster.v1\x1a\x1egamemaster/v1/gamemaster.proto\"/\n" +
 	"\x10GetBattleRequest\x12\x1b\n" +
 	"\tbattle_id\x18\x01 \x01(\tR\bbattleId\"D\n" +
 	"\x11GetBattleResponse\x12\x19\n" +
 	"\brule_set\x18\x01 \x01(\tR\aruleSet\x12\x14\n" +
-	"\x05times\x18\x02 \x01(\rR\x05times2f\n" +
+	"\x05times\x18\x02 \x01(\rR\x05times\"\x14\n" +
+	"\x12GetTimelineRequest\"F\n" +
+	"\x13GetTimelineResponse\x12/\n" +
+	"\abattles\x18\x01 \x03(\v2\x15.gamemaster.v1.BattleR\abattles2\xc1\x01\n" +
 	"\x0fInternalService\x12S\n" +
-	"\tGetBattle\x12\x1f.gamemaster.v1.GetBattleRequest\x1a .gamemaster.v1.GetBattleResponse\"\x03\x90\x02\x01B\xd1\x01\n" +
+	"\tGetBattle\x12\x1f.gamemaster.v1.GetBattleRequest\x1a .gamemaster.v1.GetBattleResponse\"\x03\x90\x02\x01\x12Y\n" +
+	"\vGetTimeline\x12!.gamemaster.v1.GetTimelineRequest\x1a\".gamemaster.v1.GetTimelineResponse\"\x03\x90\x02\x01B\xd1\x01\n" +
 	"\x11com.gamemaster.v1B\rInternalProtoP\x01ZXgithub.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1;gamemasterv1\xa2\x02\x03GXX\xaa\x02\rGamemaster.V1\xca\x02\rGamemaster\\V1\xe2\x02\x19Gamemaster\\V1\\GPBMetadata\xea\x02\x0eGamemaster::V1b\x06proto3"
 
 var (
@@ -144,19 +229,25 @@ func file_gamemaster_v1_internal_proto_rawDescGZIP() []byte {
 	return file_gamemaster_v1_internal_proto_rawDescData
 }
 
-var file_gamemaster_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_gamemaster_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_gamemaster_v1_internal_proto_goTypes = []any{
-	(*GetBattleRequest)(nil),  // 0: gamemaster.v1.GetBattleRequest
-	(*GetBattleResponse)(nil), // 1: gamemaster.v1.GetBattleResponse
+	(*GetBattleRequest)(nil),    // 0: gamemaster.v1.GetBattleRequest
+	(*GetBattleResponse)(nil),   // 1: gamemaster.v1.GetBattleResponse
+	(*GetTimelineRequest)(nil),  // 2: gamemaster.v1.GetTimelineRequest
+	(*GetTimelineResponse)(nil), // 3: gamemaster.v1.GetTimelineResponse
+	(*Battle)(nil),              // 4: gamemaster.v1.Battle
 }
 var file_gamemaster_v1_internal_proto_depIdxs = []int32{
-	0, // 0: gamemaster.v1.InternalService.GetBattle:input_type -> gamemaster.v1.GetBattleRequest
-	1, // 1: gamemaster.v1.InternalService.GetBattle:output_type -> gamemaster.v1.GetBattleResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	4, // 0: gamemaster.v1.GetTimelineResponse.battles:type_name -> gamemaster.v1.Battle
+	0, // 1: gamemaster.v1.InternalService.GetBattle:input_type -> gamemaster.v1.GetBattleRequest
+	2, // 2: gamemaster.v1.InternalService.GetTimeline:input_type -> gamemaster.v1.GetTimelineRequest
+	1, // 3: gamemaster.v1.InternalService.GetBattle:output_type -> gamemaster.v1.GetBattleResponse
+	3, // 4: gamemaster.v1.InternalService.GetTimeline:output_type -> gamemaster.v1.GetTimelineResponse
+	3, // [3:5] is the sub-list for method output_type
+	1, // [1:3] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_gamemaster_v1_internal_proto_init() }
@@ -164,13 +255,14 @@ func file_gamemaster_v1_internal_proto_init() {
 	if File_gamemaster_v1_internal_proto != nil {
 		return
 	}
+	file_gamemaster_v1_gamemaster_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_gamemaster_v1_internal_proto_rawDesc), len(file_gamemaster_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

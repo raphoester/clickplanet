@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"slices"
 	"time"
+	"unicode/utf8"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/publishing/internal/calendar"
 )
@@ -19,13 +20,20 @@ type MediaURL string
 // The same key is the same post on the service, however many times it is sent.
 type IdempotencyKey string
 
-// The longest key the service takes: a SHA-256 in hex is 64.
-const maxKeyLength = 255
+const (
+	// The longest key the service takes: a SHA-256 in hex is 64.
+	maxKeyLength = 255
+	// TikTok's carousel, and its title over the photos.
+	maxPhotos     = 35
+	maxPhotoTitle = 90
+)
 
 var ErrInvalidPost = errors.New("invalid post")
 
 type TikTokWords struct {
 	Caption string
+	// A photo post's, over its photos: TikTok strips its hashtags and links. Unused on a video.
+	Title string
 }
 
 type YouTubeWords struct {
@@ -45,17 +53,20 @@ type Draft struct {
 	YouTube *YouTubeWords
 	// Kept with the post, never published.
 	Metadata map[string]any
+	// Photos posted on TikTok in place of the video, a carousel in this order; none is the video.
+	TikTokPhotos []MediaURL
 }
 
-// A video to post at a slot, with the words of each of its platforms.
+// A video to post at a slot, with the words of each of its platforms, and on TikTok photos in its place or not.
 type Post struct {
-	slot     calendar.Slot
-	media    MediaURL
-	key      IdempotencyKey
-	title    string
-	tiktok   TikTokWords
-	youtube  YouTubeWords
-	metadata map[string]any
+	slot         calendar.Slot
+	media        MediaURL
+	key          IdempotencyKey
+	title        string
+	tiktok       TikTokWords
+	youtube      YouTubeWords
+	metadata     map[string]any
+	tiktokPhotos []MediaURL
 }
 
 // Every reason at once, as ErrInvalidPost.
@@ -67,8 +78,11 @@ func NewPost(draft Draft) (Post, error) {
 	if draft.Slot.At.IsZero() {
 		reasons = append(reasons, errors.New("the slot has no time"))
 	}
-	if media, err := url.Parse(string(draft.Media)); err != nil || media.Scheme != "https" || media.Host == "" {
+	if !secure(draft.Media) {
 		reasons = append(reasons, errors.New("the video is no https address"))
+	}
+	if err := draft.photosError(); err != nil {
+		reasons = append(reasons, err)
 	}
 	if draft.Key == "" || len(draft.Key) > maxKeyLength {
 		reasons = append(reasons, fmt.Errorf("the idempotency key is empty or longer than %d", maxKeyLength))
@@ -84,7 +98,7 @@ func NewPost(draft Draft) (Post, error) {
 
 	post := Post{
 		slot: calendar.Slot{At: draft.Slot.At, Platforms: slices.Clone(draft.Slot.Platforms)}, media: draft.Media,
-		key: draft.Key, title: draft.Title, metadata: draft.Metadata,
+		key: draft.Key, title: draft.Title, metadata: draft.Metadata, tiktokPhotos: slices.Clone(draft.TikTokPhotos),
 	}
 	if draft.TikTok != nil {
 		post.tiktok = *draft.TikTok
@@ -94,6 +108,32 @@ func NewPost(draft Draft) (Post, error) {
 		post.youtube.Tags = slices.Clone(draft.YouTube.Tags)
 	}
 	return post, nil
+}
+
+func secure(media MediaURL) bool {
+	address, err := url.Parse(string(media))
+	return err == nil && address.Scheme == "https" && address.Host != ""
+}
+
+// 35 photos at most, each an https address, and a title of 90 characters at most over them on TikTok.
+func (d Draft) photosError() error {
+	if len(d.TikTokPhotos) == 0 {
+		return nil
+	}
+	var reasons []error
+	if len(d.TikTokPhotos) > maxPhotos {
+		reasons = append(reasons, fmt.Errorf("the post has %d photos, and TikTok takes %d at most", len(d.TikTokPhotos), maxPhotos))
+	}
+	if slices.ContainsFunc(d.TikTokPhotos, func(photo MediaURL) bool { return !secure(photo) }) {
+		reasons = append(reasons, errors.New("a photo is no https address"))
+	}
+	if d.TikTok != nil && utf8.RuneCountInString(d.TikTok.Title) > maxPhotoTitle {
+		reasons = append(reasons, fmt.Errorf("the photos' title is longer than %d characters", maxPhotoTitle))
+	}
+	if slices.Contains(d.Slot.Platforms, calendar.TikTok) && (d.TikTok == nil || d.TikTok.Title == "") {
+		reasons = append(reasons, errors.New("the photos have no title"))
+	}
+	return errors.Join(reasons...)
 }
 
 func (d Draft) wordsError(platform calendar.Platform) error {
@@ -119,7 +159,7 @@ func (p Post) Slot() calendar.Slot {
 func (p Post) TakeSnapshot() PostSnapshot {
 	return PostSnapshot{
 		At: p.slot.At, Platforms: slices.Clone(p.slot.Platforms), Media: p.media, Key: p.key, Title: p.title,
-		TikTok: p.tiktok, YouTube: p.youtube, Metadata: p.metadata,
+		TikTok: p.tiktok, YouTube: p.youtube, Metadata: p.metadata, TikTokPhotos: slices.Clone(p.tiktokPhotos),
 	}
 }
 
@@ -132,6 +172,8 @@ type PostSnapshot struct {
 	TikTok    TikTokWords
 	YouTube   YouTubeWords
 	Metadata  map[string]any
+	// None is the video on TikTok too.
+	TikTokPhotos []MediaURL
 }
 
 // What the service made of a post.

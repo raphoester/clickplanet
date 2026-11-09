@@ -157,6 +157,17 @@ func TestAJobPlansAPostSchedulesItAtItsSlotAndReadsItBackOnTheConsoleListener(t 
 	assert.Equal(t, tomorrowAt(15), plan.Msg.GetSlot().GetAt().AsTime())
 	assert.Equal(t, []publishingv1.Platform{tiktok, youtube}, plan.Msg.GetSlot().GetPlatforms())
 
+	// At 10:00 TikTok is out of its hours: left out, or waited for with by.
+	early := &publishingv1.PlanPostRequest{Platforms: []publishingv1.Platform{tiktok, youtube}, NotBefore: timestamppb.New(tomorrowAt(10))}
+	plan, err = client.PlanPost(t.Context(), connect.NewRequest(early))
+	require.NoError(t, err)
+	assert.Equal(t, []publishingv1.Platform{youtube}, plan.Msg.GetSlot().GetPlatforms())
+	early.By = timestamppb.New(tomorrowAt(20))
+	plan, err = client.PlanPost(t.Context(), connect.NewRequest(early))
+	require.NoError(t, err)
+	assert.Equal(t, tomorrowAt(14), plan.Msg.GetSlot().GetAt().AsTime())
+	assert.Equal(t, []publishingv1.Platform{tiktok, youtube}, plan.Msg.GetSlot().GetPlatforms())
+
 	metadata, err := structpb.NewStruct(map[string]any{"storyFlag": "fr"})
 	require.NoError(t, err)
 	at := &publishingv1.Slot{At: timestamppb.New(tomorrowAt(12)), Platforms: []publishingv1.Platform{youtube}}
@@ -178,6 +189,36 @@ func TestAJobPlansAPostSchedulesItAtItsSlotAndReadsItBackOnTheConsoleListener(t 
 	require.Len(t, listed.Msg.GetPosts(), 1)
 	assert.Equal(t, "fr", listed.Msg.GetPosts()[0].GetMetadata().GetFields()["storyFlag"].GetStringValue())
 	assert.Equal(t, tomorrowAt(12), listed.Msg.GetPosts()[0].GetScheduledFor().AsTime())
+}
+
+func TestATikTokCarouselGoesToZernioAsPhotosWithTheVideoForYouTube(t *testing.T) {
+	fake := &zernioFake{}
+	client := run(t, publishing.Config{Zernio: publishing.ZernioConfig{APIKey: "the-key", BaseURL: fake.serve(t)}})
+
+	_, err := client.SchedulePost(t.Context(), connect.NewRequest(&publishingv1.SchedulePostRequest{
+		Slot:     &publishingv1.Slot{At: timestamppb.New(tomorrowAt(15)), Platforms: []publishingv1.Platform{tiktok, youtube}},
+		MediaUrl: "https://media.example/teaser.mp4", IdempotencyKey: "f00d", Title: "RING WAR",
+		Tiktok:          &publishingv1.TikTokWords{Caption: "Close a ring around any land.", Title: "RING WAR · SATURDAY 20:00 UTC"},
+		Youtube:         &publishingv1.YouTubeWords{Title: "RING WAR | CLICKPLANET"},
+		TiktokPhotoUrls: []string{"https://media.example/card-1.jpg", "https://media.example/card-2.jpg"},
+	}))
+
+	require.NoError(t, err)
+	require.Len(t, fake.sent, 1)
+	targets, ok := fake.sent[0]["platforms"].([]any)
+	require.True(t, ok)
+	carousel, ok := targets[0].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "RING WAR · SATURDAY 20:00 UTC", carousel["customContent"])
+	assert.Len(t, carousel["customMedia"], 2)
+
+	_, err = client.SchedulePost(t.Context(), connect.NewRequest(&publishingv1.SchedulePostRequest{
+		Slot:     &publishingv1.Slot{At: timestamppb.New(tomorrowAt(17)), Platforms: []publishingv1.Platform{tiktok}},
+		MediaUrl: "https://media.example/teaser.mp4", IdempotencyKey: "f00d", Tiktok: &publishingv1.TikTokWords{Caption: "Close a ring."},
+		TiktokPhotoUrls: []string{"https://media.example/card-1.jpg"},
+	}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "the photos have no title")
 }
 
 func TestAWrongRequestIsInvalidArgument(t *testing.T) {

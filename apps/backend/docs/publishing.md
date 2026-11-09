@@ -13,7 +13,7 @@ internal/publishing/
   module.go                         Config (zernio), NewModule: off with no key
   internal/
     calendar/                       Platform (PlatformsOf), Posting, Feed (With), PostedSince, Calendar (Left, Slot,
-                                    Open), Budget, Allowance, Hours, Slot; Default, the game's
+                                    SlotBy, Open), Budget, Allowance, Hours, Slot; Default, the game's
     posts/                          Post (NewPost from a Draft, Slot, TakeSnapshot), TikTokWords, YouTubeWords, Media
                                     (FileError), MediaUpload, Scheduled, BusyError
       zernio/                       the one package of the server that knows the service: the upload link, the post,
@@ -48,6 +48,11 @@ the others; none left is no slot. **A post scheduled ahead is a reservation**: a
 and the days around it leave room, and never takes its room (the clips job's planner took one for a wall until
 2026-11-09: [The clips job](clips-job.md), "A post scheduled ahead is a reservation").
 
+**`Calendar.SlotBy(platforms, feed, notBefore, by, now)` leaves no platform out** (2026-11-09, for the battle
+teasers): the first whole minute from `notBefore` to `by` at which every platform asked takes the post, by the same
+rules, so a post asked at 10:00 UTC on TikTok and YouTube waits for TikTok's 14:00, or for the room of its full day.
+None until `by` is no slot. It looks a week ahead at the most, a minute at a time past each clash.
+
 **`Calendar.Open(slot, feed, now)` is whether a slot still holds**: a whole minute, the lead from now or later, and
 each of its platforms in its hours, with room, a `Spacing` from every other post. **`Calendar.Left(platform, feed,
 now)`** is how many more posts the platform takes now, not counting its hours.
@@ -67,14 +72,14 @@ for a run's best clip alone; the calendar knows no run.
 `publishing.v1.AdminService`, on the console listener, which a job calls over ssh as the clips job asks for a replay
 (see [Operator tools](admin.md)), and on the admin listener behind the gate.
 
-- **`CreateMediaUpload(file_name, content_type, size_bytes)`** answers where to upload a video, and the address a post
-  names it by: Zernio's own storage, through `POST /v1/media/presign` with the key. **No byte of a video passes
+- **`CreateMediaUpload(file_name, content_type, size_bytes)`** answers where to upload a file, and the address a post
+  names it by: Zernio's own storage, through `POST /v1/media/presign` with the key. **No byte of a file passes
   through the server**: the job uploads it with one `PUT` to that link, which carries no key and is a credential for an
-  hour, so it is never logged. An MP4 alone, of 1 byte to 1 GiB, with a name that is no path: `InvalidArgument` for
-  anything else.
+  hour, so it is never logged. An MP4 of 1 byte to 1 GiB, or a JPEG of 1 byte to 20 MiB, a photo of a TikTok
+  carousel, with a name that is no path: `InvalidArgument` for anything else.
 - **`GetRoom(platforms)`** is `Calendar.Left` of each, now, from one read of the list.
-- **`PlanPost(platforms, not_before)`** is the slot `Calendar.Slot` gives, or none. **Nothing is held**: the slot is a
-  read, and the post at it is `SchedulePost`'s.
+- **`PlanPost(platforms, not_before, by)`** is the slot `Calendar.Slot` gives, or with `by` the one `Calendar.SlotBy`
+  gives, or none. **Nothing is held**: the slot is a read, and the post at it is `SchedulePost`'s.
 - **`SchedulePost(slot, media_url, idempotency_key, title, tiktok, youtube, metadata)`** posts the video at that
   slot, under one lock (`schedule_post_usecase`: the server is one process, so a mutex is enough): the list read
   again, the slot checked with `Calendar.Open`, then the post made, so two jobs never both take the last room of a
@@ -97,6 +102,14 @@ for a run's best clip alone; the calendar knows no run.
   slot. **The metadata goes as the job gave it, never published**: what the job reads back from `ListPosts`, and sets
   the post's numbers beside. The words are the job's too: the server writes none, and checks only that each platform
   of the slot has its own (`posts.NewPost`, `InvalidArgument`).
+
+  **On TikTok, photos can stand in for the video** (`tiktok_photo_urls`, 2026-11-09, for the battle teasers): the
+  TikTok target is then a carousel of them, in their order, 35 at most, in its own media (`customMedia`), while every
+  other platform gets the video. Zernio makes a photo post's text its title, 90 characters at most, its hashtags and
+  links stripped, so the title is `TikTokWords.title` and the caption goes below the photos (`description`); public,
+  with comments, opening on the first photo, and **with music TikTok adds** (`autoAddMusic`), as a carousel has no
+  sound of its own; no duet or stitch, which a carousel does not have. Photos with no title are `InvalidArgument` when
+  TikTok is in the slot. JPEG, since TikTok's photo posts take JPEG and WebP and not PNG.
 - **`ListPosts(since)`** is every post Zernio holds from the day of `since` on, the latest first (500 at most: about
   fifteen a day), by hand or not: its id, title, time, state, why each platform failed it, and its metadata as kept.
 
@@ -120,19 +133,21 @@ the clips workflows hold too, rendered into the backend's environment by every d
 
 - **The daily snapshot of the posts' numbers still reads Zernio from the job** (`clips stats`), and the clips module
   keeps it: it moves here once the snapshots' tables do.
-- **The battle teasers**, which promo will ask a slot for a day ahead: a slot held before its video exists will need a
-  table of reservations.
+- **The battle teasers' job**, which asks a slot by the battle's start once its cards are rendered: no slot is held
+  before its media exists, so no table of reservations is needed.
 
 ## Tests
 
 `calendar`'s pin the trailing day, a post still to come counted in the day that ends with it, a post more than a day
 ahead counted nowhere today, the lead, `not_before`, the spacing on both sides and the first gap wide enough, the
 hours, a platform left out no longer holding the slot back, a post scheduled ahead holding nothing before it, and when
-a slot stops being open. `posts`' pin a post's every refusal at once and the words of its own platforms alone, and
-the file rules. `zernio`'s run against `httptest` with the answers of Zernio's document: the upload link, the request
-body whole, a platform with no account or two, busy with its wait, a refusal that says why and is not busy, no address
-in an error, the feed at each platform's time, and the list with its metadata. `schedule_post_usecase`'s pin the
-outcomes, nothing sent for a slot no longer open, and two posts for one slot at once making one post. The module's
-test boots it alone against a fake Zernio and calls it on the console listener: an upload link, the room, a slot, a
-post at a slot, the same slot taken after, the list with the post's metadata, every refusal of a wrong request, and
+a slot stops being open; and `SlotBy` waiting for every platform's hours and for a full day's room, from `not_before`
+with its spacing, none by `by`, and a week at the most. `posts`' pin a post's every refusal at once and the words of
+its own platforms alone, and the file rules. `zernio`'s run against `httptest` with the answers of Zernio's document:
+the upload link, the request body whole, a platform with no account or two, busy with its wait, a refusal that says
+why and is not busy, no address in an error, the feed at each platform's time, and the list with its metadata.
+`schedule_post_usecase`'s pin the outcomes, nothing sent for a slot no longer open, and two posts for one slot at once
+making one post. The module's test boots it alone against a fake Zernio and calls it on the console listener: an
+upload link, the room, a slot, a slot that waits for TikTok's hours with `by` and leaves it out without, a post at a
+slot, the same slot taken after, the list with the post's metadata, every refusal of a wrong request, and
 `FailedPrecondition` with no key.

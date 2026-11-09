@@ -190,6 +190,40 @@ func TestAPostIsOnePostWithATargetOnEachPlatformAndTheMetadataAsTheJobGaveIt(t *
 	}, fake.sent)
 }
 
+func TestATikTokCarouselIsItsPhotosUnderItsTitleWithItsCaptionBelowAndTheVideoGoesToYouTube(t *testing.T) {
+	fake := newFake()
+	snapshot := post(t).TakeSnapshot()
+	carousel, err := posts.NewPost(posts.Draft{
+		Slot: calendar.Slot{At: at, Platforms: both}, Media: snapshot.Media, Key: snapshot.Key, Title: "RING WAR",
+		TikTok:       &posts.TikTokWords{Caption: "Close a ring around any land.\n#clickplanet", Title: "RING WAR · SATURDAY 20:00 UTC"},
+		YouTube:      &snapshot.YouTube,
+		TikTokPhotos: []posts.MediaURL{"https://media.example/card-1.jpg", "https://media.example/card-2.jpg"},
+	})
+	require.NoError(t, err)
+
+	_, err = fake.service(t).Schedule(t.Context(), carousel)
+
+	require.NoError(t, err)
+	assert.Equal(t, []any{map[string]any{"type": "video", "url": "https://media.example/clip-1.mp4"}}, fake.sent["mediaItems"])
+	targets, ok := fake.sent["platforms"].([]any)
+	require.True(t, ok)
+	assert.Equal(t, map[string]any{
+		"platform": "tiktok", "accountId": "acc-1", "customContent": "RING WAR · SATURDAY 20:00 UTC",
+		"customMedia": []any{
+			map[string]any{"type": "image", "url": "https://media.example/card-1.jpg"},
+			map[string]any{"type": "image", "url": "https://media.example/card-2.jpg"},
+		},
+		"platformSpecificData": map[string]any{
+			"privacyLevel": "PUBLIC_TO_EVERYONE", "allowComment": true, "mediaType": "photo", "photoCoverIndex": float64(0),
+			"description": "Close a ring around any land.\n#clickplanet", "autoAddMusic": true,
+			"contentPreviewConfirmed": true, "expressConsentGiven": true,
+		},
+	}, targets[0])
+	youtube, ok := targets[1].(map[string]any)
+	require.True(t, ok)
+	assert.NotContains(t, youtube, "customMedia", "the video, as every platform with no media of its own")
+}
+
 func TestAPostForTikTokAloneHasNoYouTubeTargetAndNoTags(t *testing.T) {
 	fake := newFake()
 	fake.posts = answer{status: http.StatusCreated, body: `{"post":{"_id":"post-1","status":"scheduled","platforms":[{"platform":"tiktok"}]}}`}

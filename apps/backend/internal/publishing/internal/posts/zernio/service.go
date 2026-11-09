@@ -152,6 +152,13 @@ func targetOf(snapshot posts.PostSnapshot, platform calendar.Platform, account s
 	var err error
 	switch platform {
 	case calendar.TikTok:
+		if len(snapshot.TikTokPhotos) > 0 {
+			// A carousel: the title over the photos, the caption below them, and music TikTok adds.
+			target.CustomContent = &snapshot.TikTok.Title
+			target.CustomMedia = photosOf(snapshot.TikTokPhotos)
+			err = settings.FromTikTokPlatformData(tiktokPhotoSettings(snapshot.TikTok.Caption))
+			break
+		}
 		target.CustomContent = &snapshot.TikTok.Caption
 		err = settings.FromTikTokPlatformData(tiktokSettings())
 	case calendar.YouTube:
@@ -177,6 +184,23 @@ func tiktokSettings() cpzernio.TikTokPlatformData {
 		PrivacyLevel: new(everyone), AllowComment: new(true), AllowDuet: new(true), AllowStitch: new(true),
 		ContentPreviewConfirmed: new(true), ExpressConsentGiven: new(true),
 	}
+}
+
+// Public, with comments and music TikTok adds; a carousel has no duet or stitch, and opens on its first photo.
+func tiktokPhotoSettings(caption string) cpzernio.TikTokPlatformData {
+	return cpzernio.TikTokPlatformData{
+		PrivacyLevel: new(everyone), AllowComment: new(true), MediaType: new(cpzernio.TikTokPlatformDataMediaTypePhoto),
+		PhotoCoverIndex: new(0), Description: &caption, AutoAddMusic: new(true),
+		ContentPreviewConfirmed: new(true), ExpressConsentGiven: new(true),
+	}
+}
+
+func photosOf(photos []posts.MediaURL) *[]cpzernio.MediaItem {
+	items := make([]cpzernio.MediaItem, 0, len(photos))
+	for _, photo := range photos {
+		items = append(items, cpzernio.MediaItem{Type: new(cpzernio.MediaItemTypeImage), Url: new(string(photo))})
+	}
+	return &items
 }
 
 // Zernio sends them to YouTube alone.

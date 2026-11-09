@@ -26,7 +26,8 @@ type Query struct {
 	clock    cptime.Clock
 }
 
-func (q Query) Plan(ctx context.Context, platforms []calendar.Platform, notBefore time.Time) (*publishingv1.PlanPostResponse, error) {
+// by: zero is the platforms that take the post at the first time, else every one of them by then.
+func (q Query) Plan(ctx context.Context, platforms []calendar.Platform, notBefore, by time.Time) (*publishingv1.PlanPostResponse, error) {
 	now := q.clock.Now()
 	feed, err := q.feeds.Posted(ctx, calendar.PostedSince(now))
 	if err != nil {
@@ -34,6 +35,9 @@ func (q Query) Plan(ctx context.Context, platforms []calendar.Platform, notBefor
 	}
 
 	slot, found := q.calendar.Slot(platforms, feed, notBefore, now)
+	if !by.IsZero() {
+		slot, found = q.calendar.SlotBy(platforms, feed, notBefore, by, now)
+	}
 	if !found {
 		return &publishingv1.PlanPostResponse{}, nil
 	}

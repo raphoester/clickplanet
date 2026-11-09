@@ -58,6 +58,8 @@ import {
     KeepBackgroundResponse,
     ListBackgroundsRequest,
     ListBackgroundsResponse,
+    ListTeasersRequest,
+    ListTeasersResponse,
     ExampleBattle,
     Placeholder,
     RemoveBackgroundRequest,
@@ -956,6 +958,11 @@ export class FakePromo implements PromoAdmin {
             this.decks.set(request.ruleSet ?? "", (request.cards ?? []).map(card => new CardDraft(card)))
         }
         return answer
+    }
+
+    // The teasers job's read: no page shows it.
+    listTeasers(request: PartialMessage<ListTeasersRequest>): Promise<ListTeasersResponse> {
+        return this.admin.answer("listTeasers", request, new ListTeasersResponse())
     }
 }
 

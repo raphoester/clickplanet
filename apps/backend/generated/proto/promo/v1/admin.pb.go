@@ -9,6 +9,7 @@ package promov1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -934,11 +935,198 @@ func (*SaveCardsResponse) Descriptor() ([]byte, []int) {
 	return file_promo_v1_admin_proto_rawDescGZIP(), []int{17}
 }
 
+type ListTeasersRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// How far ahead a battle starts, at most a week.
+	Within        *durationpb.Duration `protobuf:"bytes,1,opt,name=within,proto3" json:"within,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListTeasersRequest) Reset() {
+	*x = ListTeasersRequest{}
+	mi := &file_promo_v1_admin_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListTeasersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListTeasersRequest) ProtoMessage() {}
+
+func (x *ListTeasersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_promo_v1_admin_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListTeasersRequest.ProtoReflect.Descriptor instead.
+func (*ListTeasersRequest) Descriptor() ([]byte, []int) {
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ListTeasersRequest) GetWithin() *durationpb.Duration {
+	if x != nil {
+		return x.Within
+	}
+	return nil
+}
+
+type ListTeasersResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// By start.
+	Teasers       []*Teaser `protobuf:"bytes,1,rep,name=teasers,proto3" json:"teasers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListTeasersResponse) Reset() {
+	*x = ListTeasersResponse{}
+	mi := &file_promo_v1_admin_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListTeasersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListTeasersResponse) ProtoMessage() {}
+
+func (x *ListTeasersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_promo_v1_admin_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListTeasersResponse.ProtoReflect.Descriptor instead.
+func (*ListTeasersResponse) Descriptor() ([]byte, []int) {
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ListTeasersResponse) GetTeasers() []*Teaser {
+	if x != nil {
+		return x.Teasers
+	}
+	return nil
+}
+
+type Teaser struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// What GetTeaser takes: the battle's entry's id, or a season's finale's round.
+	BattleId string                 `protobuf:"bytes,1,opt,name=battle_id,json=battleId,proto3" json:"battle_id,omitempty"`
+	StartsAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
+	EndsAt   *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	// The schedule's words for the players: what its rules are. Empty when the operator wrote none.
+	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	// How many times a day's points the battle scores.
+	Times uint32 `protobuf:"varint,5,opt,name=times,proto3" json:"times,omitempty"`
+	// The battle is a season's Final Battle.
+	EndsSeason bool `protobuf:"varint,6,opt,name=ends_season,json=endsSeason,proto3" json:"ends_season,omitempty"`
+	// In the operator's order, at least one.
+	Cards         []*TeaserCard `protobuf:"bytes,7,rep,name=cards,proto3" json:"cards,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Teaser) Reset() {
+	*x = Teaser{}
+	mi := &file_promo_v1_admin_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Teaser) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Teaser) ProtoMessage() {}
+
+func (x *Teaser) ProtoReflect() protoreflect.Message {
+	mi := &file_promo_v1_admin_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Teaser.ProtoReflect.Descriptor instead.
+func (*Teaser) Descriptor() ([]byte, []int) {
+	return file_promo_v1_admin_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *Teaser) GetBattleId() string {
+	if x != nil {
+		return x.BattleId
+	}
+	return ""
+}
+
+func (x *Teaser) GetStartsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartsAt
+	}
+	return nil
+}
+
+func (x *Teaser) GetEndsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndsAt
+	}
+	return nil
+}
+
+func (x *Teaser) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *Teaser) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
+}
+
+func (x *Teaser) GetEndsSeason() bool {
+	if x != nil {
+		return x.EndsSeason
+	}
+	return false
+}
+
+func (x *Teaser) GetCards() []*TeaserCard {
+	if x != nil {
+		return x.Cards
+	}
+	return nil
+}
+
 var File_promo_v1_admin_proto protoreflect.FileDescriptor
 
 const file_promo_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x14promo/v1/admin.proto\x12\bpromo.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x14promo/v1/promo.proto\"a\n" +
+	"\x14promo/v1/admin.proto\x12\bpromo.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x14promo/v1/promo.proto\"a\n" +
 	"\x1dCreateBackgroundUploadRequest\x12!\n" +
 	"\fcontent_type\x18\x01 \x01(\tR\vcontentType\x12\x1d\n" +
 	"\n" +
@@ -991,14 +1179,28 @@ const file_promo_v1_admin_proto_rawDesc = "" +
 	"\x10SaveCardsRequest\x12\x19\n" +
 	"\brule_set\x18\x01 \x01(\tR\aruleSet\x12)\n" +
 	"\x05cards\x18\x02 \x03(\v2\x13.promo.v1.CardDraftR\x05cards\"\x13\n" +
-	"\x11SaveCardsResponse2\x96\x04\n" +
+	"\x11SaveCardsResponse\"G\n" +
+	"\x12ListTeasersRequest\x121\n" +
+	"\x06within\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x06within\"A\n" +
+	"\x13ListTeasersResponse\x12*\n" +
+	"\ateasers\x18\x01 \x03(\v2\x10.promo.v1.TeaserR\ateasers\"\x98\x02\n" +
+	"\x06Teaser\x12\x1b\n" +
+	"\tbattle_id\x18\x01 \x01(\tR\bbattleId\x127\n" +
+	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x123\n" +
+	"\aends_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x14\n" +
+	"\x05times\x18\x05 \x01(\rR\x05times\x12\x1f\n" +
+	"\vends_season\x18\x06 \x01(\bR\n" +
+	"endsSeason\x12*\n" +
+	"\x05cards\x18\a \x03(\v2\x14.promo.v1.TeaserCardR\x05cards2\xe7\x04\n" +
 	"\fAdminService\x12k\n" +
 	"\x16CreateBackgroundUpload\x12'.promo.v1.CreateBackgroundUploadRequest\x1a(.promo.v1.CreateBackgroundUploadResponse\x12S\n" +
 	"\x0eKeepBackground\x12\x1f.promo.v1.KeepBackgroundRequest\x1a .promo.v1.KeepBackgroundResponse\x12[\n" +
 	"\x0fListBackgrounds\x12 .promo.v1.ListBackgroundsRequest\x1a!.promo.v1.ListBackgroundsResponse\"\x03\x90\x02\x01\x12Y\n" +
 	"\x10RemoveBackground\x12!.promo.v1.RemoveBackgroundRequest\x1a\".promo.v1.RemoveBackgroundResponse\x12F\n" +
 	"\bGetCards\x12\x19.promo.v1.GetCardsRequest\x1a\x1a.promo.v1.GetCardsResponse\"\x03\x90\x02\x01\x12D\n" +
-	"\tSaveCards\x12\x1a.promo.v1.SaveCardsRequest\x1a\x1b.promo.v1.SaveCardsResponseB\xab\x01\n" +
+	"\tSaveCards\x12\x1a.promo.v1.SaveCardsRequest\x1a\x1b.promo.v1.SaveCardsResponse\x12O\n" +
+	"\vListTeasers\x12\x1c.promo.v1.ListTeasersRequest\x1a\x1d.promo.v1.ListTeasersResponse\"\x03\x90\x02\x01B\xab\x01\n" +
 	"\fcom.promo.v1B\n" +
 	"AdminProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/promo/v1;promov1\xa2\x02\x03PXX\xaa\x02\bPromo.V1\xca\x02\bPromo\\V1\xe2\x02\x14Promo\\V1\\GPBMetadata\xea\x02\tPromo::V1b\x06proto3"
 
@@ -1014,7 +1216,7 @@ func file_promo_v1_admin_proto_rawDescGZIP() []byte {
 	return file_promo_v1_admin_proto_rawDescData
 }
 
-var file_promo_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_promo_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_promo_v1_admin_proto_goTypes = []any{
 	(*CreateBackgroundUploadRequest)(nil),  // 0: promo.v1.CreateBackgroundUploadRequest
 	(*CreateBackgroundUploadResponse)(nil), // 1: promo.v1.CreateBackgroundUploadResponse
@@ -1034,37 +1236,48 @@ var file_promo_v1_admin_proto_goTypes = []any{
 	(*Placeholder)(nil),                    // 15: promo.v1.Placeholder
 	(*SaveCardsRequest)(nil),               // 16: promo.v1.SaveCardsRequest
 	(*SaveCardsResponse)(nil),              // 17: promo.v1.SaveCardsResponse
-	(*timestamppb.Timestamp)(nil),          // 18: google.protobuf.Timestamp
-	(*TeaserCard)(nil),                     // 19: promo.v1.TeaserCard
+	(*ListTeasersRequest)(nil),             // 18: promo.v1.ListTeasersRequest
+	(*ListTeasersResponse)(nil),            // 19: promo.v1.ListTeasersResponse
+	(*Teaser)(nil),                         // 20: promo.v1.Teaser
+	(*timestamppb.Timestamp)(nil),          // 21: google.protobuf.Timestamp
+	(*TeaserCard)(nil),                     // 22: promo.v1.TeaserCard
+	(*durationpb.Duration)(nil),            // 23: google.protobuf.Duration
 }
 var file_promo_v1_admin_proto_depIdxs = []int32{
 	6,  // 0: promo.v1.ListBackgroundsResponse.backgrounds:type_name -> promo.v1.Background
-	18, // 1: promo.v1.Background.kept_at:type_name -> google.protobuf.Timestamp
+	21, // 1: promo.v1.Background.kept_at:type_name -> google.protobuf.Timestamp
 	12, // 2: promo.v1.GetCardsResponse.sets:type_name -> promo.v1.SetCards
 	15, // 3: promo.v1.GetCardsResponse.placeholders:type_name -> promo.v1.Placeholder
 	11, // 4: promo.v1.GetCardsResponse.example_battle:type_name -> promo.v1.ExampleBattle
 	15, // 5: promo.v1.ExampleBattle.placeholders:type_name -> promo.v1.Placeholder
 	13, // 6: promo.v1.SetCards.cards:type_name -> promo.v1.Card
 	14, // 7: promo.v1.Card.draft:type_name -> promo.v1.CardDraft
-	19, // 8: promo.v1.Card.filled:type_name -> promo.v1.TeaserCard
+	22, // 8: promo.v1.Card.filled:type_name -> promo.v1.TeaserCard
 	14, // 9: promo.v1.SaveCardsRequest.cards:type_name -> promo.v1.CardDraft
-	0,  // 10: promo.v1.AdminService.CreateBackgroundUpload:input_type -> promo.v1.CreateBackgroundUploadRequest
-	2,  // 11: promo.v1.AdminService.KeepBackground:input_type -> promo.v1.KeepBackgroundRequest
-	4,  // 12: promo.v1.AdminService.ListBackgrounds:input_type -> promo.v1.ListBackgroundsRequest
-	7,  // 13: promo.v1.AdminService.RemoveBackground:input_type -> promo.v1.RemoveBackgroundRequest
-	9,  // 14: promo.v1.AdminService.GetCards:input_type -> promo.v1.GetCardsRequest
-	16, // 15: promo.v1.AdminService.SaveCards:input_type -> promo.v1.SaveCardsRequest
-	1,  // 16: promo.v1.AdminService.CreateBackgroundUpload:output_type -> promo.v1.CreateBackgroundUploadResponse
-	3,  // 17: promo.v1.AdminService.KeepBackground:output_type -> promo.v1.KeepBackgroundResponse
-	5,  // 18: promo.v1.AdminService.ListBackgrounds:output_type -> promo.v1.ListBackgroundsResponse
-	8,  // 19: promo.v1.AdminService.RemoveBackground:output_type -> promo.v1.RemoveBackgroundResponse
-	10, // 20: promo.v1.AdminService.GetCards:output_type -> promo.v1.GetCardsResponse
-	17, // 21: promo.v1.AdminService.SaveCards:output_type -> promo.v1.SaveCardsResponse
-	16, // [16:22] is the sub-list for method output_type
-	10, // [10:16] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	23, // 10: promo.v1.ListTeasersRequest.within:type_name -> google.protobuf.Duration
+	20, // 11: promo.v1.ListTeasersResponse.teasers:type_name -> promo.v1.Teaser
+	21, // 12: promo.v1.Teaser.starts_at:type_name -> google.protobuf.Timestamp
+	21, // 13: promo.v1.Teaser.ends_at:type_name -> google.protobuf.Timestamp
+	22, // 14: promo.v1.Teaser.cards:type_name -> promo.v1.TeaserCard
+	0,  // 15: promo.v1.AdminService.CreateBackgroundUpload:input_type -> promo.v1.CreateBackgroundUploadRequest
+	2,  // 16: promo.v1.AdminService.KeepBackground:input_type -> promo.v1.KeepBackgroundRequest
+	4,  // 17: promo.v1.AdminService.ListBackgrounds:input_type -> promo.v1.ListBackgroundsRequest
+	7,  // 18: promo.v1.AdminService.RemoveBackground:input_type -> promo.v1.RemoveBackgroundRequest
+	9,  // 19: promo.v1.AdminService.GetCards:input_type -> promo.v1.GetCardsRequest
+	16, // 20: promo.v1.AdminService.SaveCards:input_type -> promo.v1.SaveCardsRequest
+	18, // 21: promo.v1.AdminService.ListTeasers:input_type -> promo.v1.ListTeasersRequest
+	1,  // 22: promo.v1.AdminService.CreateBackgroundUpload:output_type -> promo.v1.CreateBackgroundUploadResponse
+	3,  // 23: promo.v1.AdminService.KeepBackground:output_type -> promo.v1.KeepBackgroundResponse
+	5,  // 24: promo.v1.AdminService.ListBackgrounds:output_type -> promo.v1.ListBackgroundsResponse
+	8,  // 25: promo.v1.AdminService.RemoveBackground:output_type -> promo.v1.RemoveBackgroundResponse
+	10, // 26: promo.v1.AdminService.GetCards:output_type -> promo.v1.GetCardsResponse
+	17, // 27: promo.v1.AdminService.SaveCards:output_type -> promo.v1.SaveCardsResponse
+	19, // 28: promo.v1.AdminService.ListTeasers:output_type -> promo.v1.ListTeasersResponse
+	22, // [22:29] is the sub-list for method output_type
+	15, // [15:22] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_promo_v1_admin_proto_init() }
@@ -1079,7 +1292,7 @@ func file_promo_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_promo_v1_admin_proto_rawDesc), len(file_promo_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

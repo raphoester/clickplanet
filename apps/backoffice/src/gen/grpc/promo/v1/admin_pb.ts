@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { Duration, Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 import { TeaserCard } from "./promo_pb.js";
 
 /**
@@ -777,6 +777,167 @@ export class SaveCardsResponse extends Message<SaveCardsResponse> {
 
   static equals(a: SaveCardsResponse | PlainMessage<SaveCardsResponse> | undefined, b: SaveCardsResponse | PlainMessage<SaveCardsResponse> | undefined): boolean {
     return proto3.util.equals(SaveCardsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message promo.v1.ListTeasersRequest
+ */
+export class ListTeasersRequest extends Message<ListTeasersRequest> {
+  /**
+   * How far ahead a battle starts, at most a week.
+   *
+   * @generated from field: google.protobuf.Duration within = 1;
+   */
+  within?: Duration;
+
+  constructor(data?: PartialMessage<ListTeasersRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "promo.v1.ListTeasersRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "within", kind: "message", T: Duration },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListTeasersRequest {
+    return new ListTeasersRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListTeasersRequest {
+    return new ListTeasersRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListTeasersRequest {
+    return new ListTeasersRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListTeasersRequest | PlainMessage<ListTeasersRequest> | undefined, b: ListTeasersRequest | PlainMessage<ListTeasersRequest> | undefined): boolean {
+    return proto3.util.equals(ListTeasersRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message promo.v1.ListTeasersResponse
+ */
+export class ListTeasersResponse extends Message<ListTeasersResponse> {
+  /**
+   * By start.
+   *
+   * @generated from field: repeated promo.v1.Teaser teasers = 1;
+   */
+  teasers: Teaser[] = [];
+
+  constructor(data?: PartialMessage<ListTeasersResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "promo.v1.ListTeasersResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "teasers", kind: "message", T: Teaser, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListTeasersResponse {
+    return new ListTeasersResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListTeasersResponse {
+    return new ListTeasersResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListTeasersResponse {
+    return new ListTeasersResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListTeasersResponse | PlainMessage<ListTeasersResponse> | undefined, b: ListTeasersResponse | PlainMessage<ListTeasersResponse> | undefined): boolean {
+    return proto3.util.equals(ListTeasersResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message promo.v1.Teaser
+ */
+export class Teaser extends Message<Teaser> {
+  /**
+   * What GetTeaser takes: the battle's entry's id, or a season's finale's round.
+   *
+   * @generated from field: string battle_id = 1;
+   */
+  battleId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 2;
+   */
+  startsAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 3;
+   */
+  endsAt?: Timestamp;
+
+  /**
+   * The schedule's words for the players: what its rules are. Empty when the operator wrote none.
+   *
+   * @generated from field: string description = 4;
+   */
+  description = "";
+
+  /**
+   * How many times a day's points the battle scores.
+   *
+   * @generated from field: uint32 times = 5;
+   */
+  times = 0;
+
+  /**
+   * The battle is a season's Final Battle.
+   *
+   * @generated from field: bool ends_season = 6;
+   */
+  endsSeason = false;
+
+  /**
+   * In the operator's order, at least one.
+   *
+   * @generated from field: repeated promo.v1.TeaserCard cards = 7;
+   */
+  cards: TeaserCard[] = [];
+
+  constructor(data?: PartialMessage<Teaser>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "promo.v1.Teaser";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "battle_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 3, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 4, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "ends_season", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 7, name: "cards", kind: "message", T: TeaserCard, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Teaser {
+    return new Teaser().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Teaser {
+    return new Teaser().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Teaser {
+    return new Teaser().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Teaser | PlainMessage<Teaser> | undefined, b: Teaser | PlainMessage<Teaser> | undefined): boolean {
+    return proto3.util.equals(Teaser, a, b);
   }
 }
 

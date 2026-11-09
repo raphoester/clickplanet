@@ -36,6 +36,9 @@ const (
 	// InternalServiceGetBattleProcedure is the fully-qualified name of the InternalService's GetBattle
 	// RPC.
 	InternalServiceGetBattleProcedure = "/gamemaster.v1.InternalService/GetBattle"
+	// InternalServiceGetTimelineProcedure is the fully-qualified name of the InternalService's
+	// GetTimeline RPC.
+	InternalServiceGetTimelineProcedure = "/gamemaster.v1.InternalService/GetTimeline"
 )
 
 // InternalServiceClient is a client for the gamemaster.v1.InternalService service.
@@ -44,6 +47,9 @@ type InternalServiceClient interface {
 	// finale. For the promo module's teaser. NotFound for an entry the schedule does not keep or that is no battle, and
 	// for a season with no finale.
 	GetBattle(context.Context, *connect.Request[v1.GetBattleRequest]) (*connect.Response[v1.GetBattleResponse], error)
+	// The battles that have not started, by start, the seasons' finales among them, as the timeline names them: for the
+	// promo module's teasers, which a job posts before each.
+	GetTimeline(context.Context, *connect.Request[v1.GetTimelineRequest]) (*connect.Response[v1.GetTimelineResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the gamemaster.v1.InternalService service. By
@@ -64,17 +70,30 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getTimeline: connect.NewClient[v1.GetTimelineRequest, v1.GetTimelineResponse](
+			httpClient,
+			baseURL+InternalServiceGetTimelineProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetTimeline")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
-	getBattle *connect.Client[v1.GetBattleRequest, v1.GetBattleResponse]
+	getBattle   *connect.Client[v1.GetBattleRequest, v1.GetBattleResponse]
+	getTimeline *connect.Client[v1.GetTimelineRequest, v1.GetTimelineResponse]
 }
 
 // GetBattle calls gamemaster.v1.InternalService.GetBattle.
 func (c *internalServiceClient) GetBattle(ctx context.Context, req *connect.Request[v1.GetBattleRequest]) (*connect.Response[v1.GetBattleResponse], error) {
 	return c.getBattle.CallUnary(ctx, req)
+}
+
+// GetTimeline calls gamemaster.v1.InternalService.GetTimeline.
+func (c *internalServiceClient) GetTimeline(ctx context.Context, req *connect.Request[v1.GetTimelineRequest]) (*connect.Response[v1.GetTimelineResponse], error) {
+	return c.getTimeline.CallUnary(ctx, req)
 }
 
 // InternalServiceHandler is an implementation of the gamemaster.v1.InternalService service.
@@ -83,6 +102,9 @@ type InternalServiceHandler interface {
 	// finale. For the promo module's teaser. NotFound for an entry the schedule does not keep or that is no battle, and
 	// for a season with no finale.
 	GetBattle(context.Context, *connect.Request[v1.GetBattleRequest]) (*connect.Response[v1.GetBattleResponse], error)
+	// The battles that have not started, by start, the seasons' finales among them, as the timeline names them: for the
+	// promo module's teasers, which a job posts before each.
+	GetTimeline(context.Context, *connect.Request[v1.GetTimelineRequest]) (*connect.Response[v1.GetTimelineResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -99,10 +121,19 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetTimelineHandler := connect.NewUnaryHandler(
+		InternalServiceGetTimelineProcedure,
+		svc.GetTimeline,
+		connect.WithSchema(internalServiceMethods.ByName("GetTimeline")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/gamemaster.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetBattleProcedure:
 			internalServiceGetBattleHandler.ServeHTTP(w, r)
+		case InternalServiceGetTimelineProcedure:
+			internalServiceGetTimelineHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -114,4 +145,8 @@ type UnimplementedInternalServiceHandler struct{}
 
 func (UnimplementedInternalServiceHandler) GetBattle(context.Context, *connect.Request[v1.GetBattleRequest]) (*connect.Response[v1.GetBattleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("gamemaster.v1.InternalService.GetBattle is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetTimeline(context.Context, *connect.Request[v1.GetTimelineRequest]) (*connect.Response[v1.GetTimelineResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("gamemaster.v1.InternalService.GetTimeline is not implemented"))
 }
