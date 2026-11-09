@@ -37,7 +37,7 @@ func setup(t *testing.T, shields int) fixture {
 
 	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), inmemory_tile_storage.Config{},
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{7: "fr", 8: "de"}), cptime.SystemClock{}, slog.New(slog.DiscardHandler))
-	require.NoError(t, tiles.Load(t.Context()))
+	require.NoError(t, tiles.Load(t.Context(), clicks.World))
 
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
 	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), func() allegiances.Lock { return false }, clock, &allegiances.RecordedPledges{})

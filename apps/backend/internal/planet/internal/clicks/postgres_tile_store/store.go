@@ -25,8 +25,8 @@ type Store struct {
 
 var _ inmemory_tile_storage.Persistence = (*Store)(nil)
 
-func (s *Store) Load(ctx context.Context, visit func(tile inmemory_tile_storage.Tile)) error {
-	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT id, country, shields, holder FROM tiles`)
+func (s *Store) Load(ctx context.Context, played clicks.MapID, visit func(tile inmemory_tile_storage.Tile)) error {
+	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT id, country, shields, holder FROM tiles WHERE map = $1`, string(played))
 	if err != nil {
 		return fmt.Errorf("failed to read tiles: %w", err)
 	}
@@ -54,9 +54,10 @@ func (s *Store) Load(ctx context.Context, visit func(tile inmemory_tile_storage.
 }
 
 func (s *Store) LoadLandmasses(
-	ctx context.Context, asset string, visit func(landmass clicks.LandmassID, fortifiedBy string),
+	ctx context.Context, played clicks.MapID, asset string, visit func(landmass clicks.LandmassID, fortifiedBy string),
 ) error {
-	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT id, fortified_by FROM landmasses WHERE asset = $1`, asset)
+	rows, err := s.db.On(ctx).QueryContext(ctx,
+		`SELECT id, fortified_by FROM landmasses WHERE map = $1 AND asset = $2`, string(played), asset)
 	if err != nil {
 		return fmt.Errorf("failed to read landmasses: %w", err)
 	}
@@ -80,7 +81,9 @@ func (s *Store) LoadLandmasses(
 	return nil
 }
 
-func (s *Store) Save(ctx context.Context, tiles []inmemory_tile_storage.Tile, landmasses []inmemory_tile_storage.Landmass) error {
+func (s *Store) Save(
+	ctx context.Context, played clicks.MapID, tiles []inmemory_tile_storage.Tile, landmasses []inmemory_tile_storage.Landmass,
+) error {
 	var (
 		taken, freed     []int64
 		takenBy, holders []string
@@ -102,11 +105,11 @@ func (s *Store) Save(ctx context.Context, tiles []inmemory_tile_storage.Tile, la
 		for start := 0; start < len(taken); start += chunkSize {
 			end := min(start+chunkSize, len(taken))
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO tiles (id, country, shields, holder)
-				SELECT id, country, shields, NULLIF(holder, '')::uuid
-				FROM unnest($1::integer[], $2::text[], $3::smallint[], $4::text[]) AS t(id, country, shields, holder)
-				ON CONFLICT (id) DO UPDATE SET country = EXCLUDED.country, shields = EXCLUDED.shields, holder = EXCLUDED.holder
-			`, pq.Array(taken[start:end]), pq.Array(takenBy[start:end]), pq.Array(shields[start:end]),
+				INSERT INTO tiles (map, id, country, shields, holder)
+				SELECT $1, id, country, shields, NULLIF(holder, '')::uuid
+				FROM unnest($2::integer[], $3::text[], $4::smallint[], $5::text[]) AS t(id, country, shields, holder)
+				ON CONFLICT (map, id) DO UPDATE SET country = EXCLUDED.country, shields = EXCLUDED.shields, holder = EXCLUDED.holder
+			`, string(played), pq.Array(taken[start:end]), pq.Array(takenBy[start:end]), pq.Array(shields[start:end]),
 				pq.Array(holders[start:end])); err != nil {
 				return fmt.Errorf("failed to upsert tiles: %w", err)
 			}
@@ -115,14 +118,14 @@ func (s *Store) Save(ctx context.Context, tiles []inmemory_tile_storage.Tile, la
 		for start := 0; start < len(freed); start += chunkSize {
 			end := min(start+chunkSize, len(freed))
 			if _, err := tx.ExecContext(ctx,
-				`DELETE FROM tiles WHERE id = ANY($1::integer[])`,
-				pq.Array(freed[start:end]),
+				`DELETE FROM tiles WHERE map = $1 AND id = ANY($2::integer[])`,
+				string(played), pq.Array(freed[start:end]),
 			); err != nil {
 				return fmt.Errorf("failed to delete tiles: %w", err)
 			}
 		}
 
-		return saveLandmasses(ctx, tx, landmasses)
+		return saveLandmasses(ctx, tx, played, landmasses)
 	})
 }
 
@@ -134,7 +137,7 @@ func holderOf(account cpsession.AccountID) string {
 	return account.String()
 }
 
-func saveLandmasses(ctx context.Context, tx cppg.Querier, landmasses []inmemory_tile_storage.Landmass) error {
+func saveLandmasses(ctx context.Context, tx cppg.Querier, played clicks.MapID, landmasses []inmemory_tile_storage.Landmass) error {
 	if len(landmasses) == 0 {
 		return nil
 	}
@@ -150,25 +153,29 @@ func saveLandmasses(ctx context.Context, tx cppg.Querier, landmasses []inmemory_
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO landmasses (asset, id, fortified_by)
-		SELECT * FROM unnest($1::text[], $2::smallint[], $3::text[])
-		ON CONFLICT (asset, id) DO UPDATE SET fortified_by = EXCLUDED.fortified_by
-	`, pq.Array(assets), pq.Array(ids), pq.Array(fortifiedBy)); err != nil {
+		INSERT INTO landmasses (map, asset, id, fortified_by)
+		SELECT $1, * FROM unnest($2::text[], $3::smallint[], $4::text[])
+		ON CONFLICT (map, asset, id) DO UPDATE SET fortified_by = EXCLUDED.fortified_by
+	`, string(played), pq.Array(assets), pq.Array(ids), pq.Array(fortifiedBy)); err != nil {
 		return fmt.Errorf("failed to upsert landmasses: %w", err)
 	}
 
 	return nil
 }
 
-func (s *Store) Wipe(ctx context.Context, keep func(ctx context.Context) (bool, error)) (bool, error) {
+func (s *Store) Wipe(ctx context.Context, played clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error) {
 	wiped := false
 	err := s.db.InTx(ctx, func(ctx context.Context) error {
 		kept, err := keep(ctx)
 		if err != nil || !kept {
 			return err
 		}
-		if err := s.deleteAll(ctx); err != nil {
-			return err
+		tx := s.db.On(ctx)
+		if _, err := tx.ExecContext(ctx, `DELETE FROM tiles WHERE map = $1`, string(played)); err != nil {
+			return fmt.Errorf("failed to delete the tiles: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM landmasses WHERE map = $1`, string(played)); err != nil {
+			return fmt.Errorf("failed to delete the landmasses' locks: %w", err)
 		}
 		wiped = true
 		return nil
@@ -179,38 +186,10 @@ func (s *Store) Wipe(ctx context.Context, keep func(ctx context.Context) (bool, 
 	return wiped, nil
 }
 
-func (s *Store) Replace(
-	ctx context.Context,
-	take func(ctx context.Context) ([]inmemory_tile_storage.Tile, []inmemory_tile_storage.Landmass, bool, error),
-) (bool, error) {
-	replaced := false
-	err := s.db.InTx(ctx, func(ctx context.Context) error {
-		tiles, landmasses, ok, err := take(ctx)
-		if err != nil || !ok {
-			return err
-		}
-		if err := s.deleteAll(ctx); err != nil {
-			return err
-		}
-		if err := s.Save(ctx, tiles, landmasses); err != nil {
-			return err
-		}
-		replaced = true
-		return nil
-	})
-	if err != nil {
-		return false, err //nolint:wrapcheck // each step names itself.
-	}
-	return replaced, nil
-}
-
-func (s *Store) deleteAll(ctx context.Context) error {
-	tx := s.db.On(ctx)
-	if _, err := tx.ExecContext(ctx, `DELETE FROM tiles`); err != nil {
-		return fmt.Errorf("failed to delete the tiles: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM landmasses`); err != nil {
-		return fmt.Errorf("failed to delete the landmasses' locks: %w", err)
+func (s *Store) ForgetHolder(ctx context.Context, account cpsession.AccountID) error {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `UPDATE tiles SET holder = NULL WHERE holder = $1`,
+		uuid.UUID(account)); err != nil {
+		return fmt.Errorf("failed to forget a holder: %w", err)
 	}
 	return nil
 }

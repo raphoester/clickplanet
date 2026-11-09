@@ -13,12 +13,12 @@ import (
 )
 
 type Tiles interface {
-	PutBack(ctx context.Context, take func(ctx context.Context) (clicks.MapCopy, bool, error)) (bool, error)
+	PutBack(ctx context.Context, arena clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error)
 }
 
 type Arenas interface {
 	Find(ctx context.Context, id arenas.ID) (arenas.Arena, error)
-	Close(ctx context.Context, closing arenas.Closing) (clicks.MapCopy, error)
+	Close(ctx context.Context, closing arenas.Closing) error
 }
 
 type InPlay interface {
@@ -31,7 +31,7 @@ type Closed uint8
 const (
 	// Already closed: nothing changed.
 	Already Closed = iota + 1
-	// Restored: the map from before the arena is back.
+	// Restored: the arena's map is deleted, and the world's plays again.
 	Restored
 	// Unopened: the arena never opened, and closed with nothing to bring back.
 	Unopened
@@ -55,33 +55,32 @@ type UseCase struct {
 
 var _ Executor = (*UseCase)(nil)
 
-// Execute brings the map from before the arena back, keeps it closed and records ArenaClosed, in one transaction under
-// the map's locks. An arena never opened is closed and told the same way, with the map left as it is.
+// Execute deletes the arena's map, keeps the arena closed and records ArenaClosed, in one transaction under the map's
+// locks; the world's map plays again. An arena never opened is closed and told the same way, with the map left as it is.
 func (u *UseCase) Execute(ctx context.Context, id arenas.ID) (Closed, error) {
 	closed := Already
-	_, err := u.tiles.PutBack(ctx, func(ctx context.Context) (clicks.MapCopy, bool, error) {
+	_, err := u.tiles.PutBack(ctx, id.Map(), func(ctx context.Context) (bool, error) {
 		arena, err := u.kept.Find(ctx, id)
 		if err != nil {
-			return clicks.MapCopy{}, false, err //nolint:wrapcheck // the store names it.
+			return false, err //nolint:wrapcheck // the store names it.
 		}
 		closing, closes := arena.Close(u.clock.Now())
 		if !closes {
-			return clicks.MapCopy{}, false, nil
+			return false, nil
 		}
-		before, err := u.kept.Close(ctx, closing)
-		if err != nil {
-			return clicks.MapCopy{}, false, err //nolint:wrapcheck // the store names it.
+		if err := u.kept.Close(ctx, closing); err != nil {
+			return false, err //nolint:wrapcheck // the store names it.
 		}
 		if err := u.outbox.Record(ctx, &planetv1.ArenaClosed{
 			ArenaId: string(id), ClosedAt: timestamppb.New(closing.ClosedAt),
 		}); err != nil {
-			return clicks.MapCopy{}, false, err //nolint:wrapcheck // the outbox names it.
+			return false, err //nolint:wrapcheck // the outbox names it.
 		}
 		closed = Unopened
 		if arena.Opened {
 			closed = Restored
 		}
-		return before, arena.Opened, nil
+		return arena.Opened, nil
 	})
 	if err != nil {
 		return 0, err //nolint:wrapcheck // the storage names it.

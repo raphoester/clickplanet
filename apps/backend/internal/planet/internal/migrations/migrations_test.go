@@ -330,7 +330,10 @@ func TestEachTileIsHeldByTheAccountOfTheLastChangeThatGaveItItsFlag(t *testing.T
 		"the last take; none once another flag was written; a spread's tile; none after a clear; none for no account")
 }
 
-const seatsAndLakes = "20261103120000"
+const (
+	seatsAndLakes      = "20261103120000"
+	afterSeatsAndLakes = "20261105120000"
+)
 
 // Old wire id to new across the remap that seats every country and opens the lakes: the first tile, one past the
 // first seat, one past the first lakes, the last.
@@ -441,7 +444,7 @@ func TestTheSeatsAndLakesRemapGoesBack(t *testing.T) {
 		require.NoError(t, err)
 	}
 	seedLocks(t, db)
-	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+	require.NoError(t, db.Migrate(t.Context(), before(t, afterSeatsAndLakes)))
 	_, err := db.On(t.Context()).ExecContext(t.Context(),
 		`UPDATE landmasses SET fortified_by = 'it' WHERE asset = $1 AND id = 694`, bordersWithSeats)
 	require.NoError(t, err)

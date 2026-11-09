@@ -21,13 +21,13 @@ second with no order between them, so **every step waits on a fact kept in postg
 | T1 | play_scoring | `CloseRound` day K, then `OpenRound` of the battle with `from_nothing` | the judgement, for the open |
 | ~T1+2 s | scoring | scores day K on the real map → `RoundScored` → `scored_rounds` | — |
 | ~T1+3 s | play_arenas | `OpenArena{arena_id, ends_at}` | day K in `scored_rounds`, and no arena before it still open |
-| | planet | copies the map from memory, keeps it, blanks the map: new epoch, every stream cut | — |
+| | planet | saves what changed to the world's map, then plays the arena's empty map: new epoch, every stream cut | — |
 | T2 | play_scoring | `CloseRound` of the battle | the clock |
 | ~T2+2 s | scoring | scores the battle on the arena, from nothing → `RoundScored` | — |
 | ~T2+3 s | play_arenas | `CloseArena{arena_id}` | the battle in `scored_rounds` |
-| | planet | puts the map back, records `ArenaClosed`: new epoch, every stream cut | — |
+| | planet | deletes the arena's map, records `ArenaClosed`, plays the world's again: new epoch, every stream cut | — |
 | ~T2+5 s | gamemaster | keeps it in `closed_arenas` (`gamemaster-arenas-closed`) | — |
-| | play_scoring, tell_starts | `OpenRound` day K+1 on the map back, `DayStarted` K+1 | the arena in `closed_arenas` |
+| | play_scoring, tell_starts | `OpenRound` day K+1 on the world's map, `DayStarted` K+1 | the arena in `closed_arenas` |
 
 **The one rule behind the waits is the plan's** (`moments.Plan`, which the Planner builds `With` the arena battles
 kept): **nothing opens on the map while an arena battle that ended before it has its arena open** (`Plan.Waits`). It
@@ -43,22 +43,27 @@ Redis refused stops the tick, and it and every one after it go the next second.
 
 **An arena battle is judged once, as it starts, and kept** (`battle_modes`, enum `battle_mode`): a set edited during the
 battle changes no judgement. **A battle that opens its book is plain** (`Plan.Judge`): the season's reset blanked the
-map already, and an arena opened then would save the old season's map. NotFound from planet is plain.
+map already, and an arena opened then would keep the old season's map aside. NotFound from planet is plain.
 
 ## Planet: the arena (`internal/planet/internal/arenas/`)
 
-- **`OpenArena`** (`open_arena_usecase`): under the flush lock and the tiles lock, `Storage.Blank` copies the whole map
-  from memory (owners, shields, holders, fortify locks, the tiles not flushed yet too) and, in one transaction, keeps
-  the arena and its copy (`arenas`, `arena_tiles`, `arena_landmasses`) and deletes the map (`Wipe`'s `DELETE`). Then
-  memory is emptied as `Wipe` empties it: a new epoch and every stream cut, so every page reads the blank map again.
-  **An arena opens once, never after it closed, never at or after its end, and never while another is open**
+**One table keeps every map** (`tiles` and `landmasses`, keyed by `map`): `world`, the game's own (`clicks.World`), and
+each open arena's, named by the arena's id (`arenas.ID.Map`). The tile map plays one at a time: memory holds it, the
+flush writes it, and the boot loads the open arena's map, or the world's (`Arena.Played`). Nothing is copied: the
+world's rows stay as they are while an arena plays, and a column added to a tile, or a remap of the ids, reaches every
+map.
+
+- **`OpenArena`** (`open_arena_usecase`): under the flush lock and the tiles lock, `Storage.Blank` saves what changed to
+  the world's map (the tiles not flushed yet), keeps the arena (`arenas`), and then plays the arena's map, which has no
+  row yet. Memory is emptied as `Wipe` empties it: a new epoch and every stream cut, so every page reads the blank map
+  again. **An arena opens once, never after it closed, never at or after its end, and never while another is open**
   (`Arena.Open`): a refusal is dropped by the handler and logged at Error.
-- **`CloseArena`** (`close_arena_usecase`): under the same locks, `Storage.PutBack` runs in one transaction: the arena
-  kept closed (`closed_arenas`), its copy read and deleted, `planet.v1.ArenaClosed` recorded in planet's outbox, then
-  the map's tables replaced by the copy (`postgres_tile_store.Replace`). Only after the commit does memory read the copy
-  as the boot reads its rows (`Load`'s steps: every tile, every lock, each landmass settled), a new epoch and every
-  stream cut. **An arena that never opened closes too**, with the map left as it is, and is told the same way, so day
-  K+1 never waits for ever. One closed already changes nothing.
+- **`CloseArena`** (`close_arena_usecase`): under the same locks, `Storage.PutBack` runs `Wipe` on the arena's map in
+  one transaction with the arena kept closed (`closed_arenas`) and `planet.v1.ArenaClosed` recorded in planet's outbox.
+  Only after the commit does the world's map play again, read as the boot reads it (`Load`'s steps: every tile, every
+  lock, each landmass settled), with a new epoch and every stream cut. **An arena that never opened closes too**, with
+  the map left as it is, and is told the same way, so day K+1 never waits for ever. One closed already changes nothing.
+  The world's map is never an arena's (`ParseID` refuses `world`, and `Blank` and `PutBack` refuse it).
 - **One ordered stream**: `commands:planet.v1.ArenaCommand`, a oneof of the two, like scoring's.
 - **Neither writes a ledger event.** The ledger keeps the battle's takes as any other.
 - **The freeze**: while an arena is open, every play (Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz,
@@ -67,8 +72,8 @@ map already, and an arena opened then would save the old season's map. NotFound 
   Only the freeze interceptor refuses: `GetBudget` does not say it, since a page that reads `frozen` locks its clicks
   until it reads the budget again; a click refused shakes as a throttled one. The start's freeze also outlasts GetMap's
   5 s cache.
-- **A deleted account** (`anonymize_takes_usecase`) is taken off the arenas' copies before the map, so a map put back
-  names it no more.
+- **A deleted account** (`anonymize_takes_usecase`) is taken off every map, in memory and then in postgres
+  (`Storage.ForgetHolder`), so the world's map played again names it no more.
 - **Planet's outbox** (`planet.outbox`, `outbox_event` `planet.v1.ArenaClosed`, relay `planet-outbox`) is new with
   arenas: the map's facts still go through the ledger.
 
@@ -82,8 +87,8 @@ map already, and an arena opened then would save the old season's map. NotFound 
 
 ## Known gaps
 
-- **At T1, about 2 to 4 s** between the cutoff and the blank: clicks land on the real map after day K was read. They are
-  copied and put back, and count as no gain.
+- **At T1, about 2 to 4 s** between the cutoff and the blank: clicks land on the real map after day K was read. They
+  stay on the world's map, and count as no gain.
 - **At T2, about 2 to 3 s** between the restore and day K+1's open: clicks become part of K+1's start.
 - **Until slice 5**: `GetTileHolder` (it reads the ledger), the replays, the map history and the clips are wrong across
   an arena battle; an operator's paint during an arena is lost with it.
@@ -96,10 +101,12 @@ map already, and an arena opened then would save the old season's map. NotFound 
 
 `arenas`' tests pin the id, an arena opened once and refused closed, ended or beside another, closed once whether it
 opened or not, and the freeze's two windows; the arena part (default never plays in an arena, a freeze past 30 s
-refused); `StoreContractSuite` on memory and postgres. `inmemory_tile_storage`'s `arena_test.go` pins the copy with the
-tiles not flushed yet, the map put back tile for tile with shields, holders and locks, no flush writing the battle's map
-back, the new epoch and the cut streams. The use cases' tests run the real storage. In the gamemaster, `moments`'
-`arenas_test.go` pins the judgement, the waits and the arena commands of two arena battles back to back;
-`play_scoring_usecase`'s `arena_test.go` the open that waits for its judgement, `from_nothing`, and day K+1 held through
-a boot; `arenanight` plays an arena battle second by second with scoring and planet answering late, and with boots in
-the middle.
+refused); `StoreContractSuite` on memory and postgres. `inmemory_tile_storage`'s `arena_test.go` pins the world's map
+saved with the tiles not flushed yet, the arena's map saved apart, the world played again tile for tile with shields,
+holders and locks, the arena's rows deleted, a holder forgotten on the world while an arena plays, the new epoch and the
+cut streams; `postgres_tile_store`'s `maps_test.go` each map's rows apart, a wipe of one map, a holder forgotten on
+every map; the migration's test every row kept before it as the world's, and its way back. The use cases' tests run the
+real storage. In the gamemaster, `moments`' `arenas_test.go` pins the judgement, the waits and the arena commands of two
+arena battles back to back; `play_scoring_usecase`'s `arena_test.go` the open that waits for its judgement,
+`from_nothing`, and day K+1 held through a boot; `arenanight` plays an arena battle second by second with scoring and
+planet answering late, and with boots in the middle.

@@ -391,8 +391,8 @@ func (x *ResetMap) GetDecidedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// One stream for both, handled in order. An arena is the blank map an arena battle is fought on: planet keeps the map
-// from before it and brings it back exactly when it closes. Each command is idempotent by arena_id.
+// One stream for both, handled in order. An arena is the blank map an arena battle is fought on, kept apart from the
+// world's map, which plays again when it closes. Each command is idempotent by arena_id.
 type ArenaCommand struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Command:
@@ -475,9 +475,9 @@ func (*ArenaCommand_OpenArena) isArenaCommand_Command() {}
 
 func (*ArenaCommand_CloseArena) isArenaCommand_Command() {}
 
-// Saves the whole map (owners, shields, holders, fortify locks), then makes it blank: a new epoch, so every client reads
-// it again. An arena opens once, never after it closed, and never at or after ends_at. Every play is refused for the
-// rule set's arena.freeze after it opens and before ends_at.
+// Plays the arena's map, blank, while the world's map stays as it is: a new epoch, so every client reads the map again.
+// An arena opens once, never after it closed, and never at or after ends_at. Every play is refused for the rule set's
+// arena.freeze after it opens and before ends_at.
 type OpenArena struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ArenaId       string                 `protobuf:"bytes,1,opt,name=arena_id,json=arenaId,proto3" json:"arena_id,omitempty"`
@@ -530,8 +530,8 @@ func (x *OpenArena) GetEndsAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// Brings back the map saved when the arena opened, tile for tile, with a new epoch. An arena never opened closes with
-// nothing to bring back. Either way planet tells ArenaClosed, once.
+// Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map left
+// as it is. Either way planet tells ArenaClosed, once.
 type CloseArena struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ArenaId       string                 `protobuf:"bytes,1,opt,name=arena_id,json=arenaId,proto3" json:"arena_id,omitempty"`

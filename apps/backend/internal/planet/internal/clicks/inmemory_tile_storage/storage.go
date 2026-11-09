@@ -30,6 +30,7 @@ func New(
 		config:      config,
 		logger:      logger,
 		persistence: persistence,
+		playing:     clicks.World,
 		board:       newBoard(borders.Tiles()),
 		landmasses:  newLandmasses(borders),
 		recount:     newRecount(borders.Landmasses()),
@@ -47,8 +48,9 @@ type Storage struct {
 	// Held through a flush, from what it takes to what it saves, so a wipe never meets a save of the map before it.
 	flushing sync.Mutex
 
-	// Guards the board, the landmasses and the version, which change together, and the feed's order.
+	// Guards the map in play, the board, the landmasses and the version, which change together, and the feed's order.
 	mu         sync.RWMutex
+	playing    clicks.MapID
 	board      *board
 	landmasses *landmasses
 	recount    recount

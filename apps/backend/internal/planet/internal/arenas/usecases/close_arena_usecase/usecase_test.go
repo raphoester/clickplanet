@@ -32,16 +32,14 @@ type inTx struct {
 	*inmemory_tile_storage.MemoryPersistence
 }
 
-func (p inTx) Replace(
-	ctx context.Context, take func(context.Context) ([]inmemory_tile_storage.Tile, []inmemory_tile_storage.Landmass, bool, error),
-) (bool, error) {
-	var replaced bool
+func (p inTx) Wipe(ctx context.Context, played clicks.MapID, keep func(context.Context) (bool, error)) (bool, error) {
+	var wiped bool
 	err := cpatomic.FakeTransactioner{}.InTx(ctx, func(ctx context.Context) error {
 		var err error
-		replaced, err = p.MemoryPersistence.Replace(ctx, take)
+		wiped, err = p.MemoryPersistence.Wipe(ctx, played, keep)
 		return err //nolint:wrapcheck // the persistence names it.
 	})
-	return replaced, err
+	return wiped, err
 }
 
 type harness struct {
@@ -62,7 +60,7 @@ func newHarness(t *testing.T) harness {
 	stored.Shield(1, 4)
 	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), inmemory_tile_storage.Config{}, inTx{stored}, clock,
 		slog.New(slog.DiscardHandler))
-	require.NoError(t, tiles.Load(t.Context()))
+	require.NoError(t, tiles.Load(t.Context(), clicks.World))
 	kept, outbox := arenas.NewMemoryStore(), &cpatomic.FakeOutbox{}
 	inPlay := arenas.NewInPlay(func() arenas.Rules { return arenas.Rules{Freeze: 8 * time.Second} }, clock)
 	return harness{

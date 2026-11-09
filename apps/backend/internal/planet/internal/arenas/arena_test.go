@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 var (
@@ -23,6 +24,17 @@ func TestAnIDIsOneTo64Characters(t *testing.T) {
 	id, err := arenas.ParseID("season-1/finale")
 	require.NoError(t, err)
 	assert.Equal(t, arenas.ID("season-1/finale"), id)
+}
+
+func TestTheWorldIsNoArena(t *testing.T) {
+	_, err := arenas.ParseID("world")
+	require.ErrorIs(t, err, arenas.ErrInvalidArena)
+}
+
+func TestTheMapThatPlaysIsTheArenasWhileItIsOpen(t *testing.T) {
+	assert.Equal(t, clicks.World, arenas.Arena{}.Played())
+	assert.Equal(t, clicks.MapID("battle"), arenas.Arena{ID: "battle", Opened: true}.Played())
+	assert.Equal(t, clicks.World, arenas.Arena{ID: "battle", Opened: true, Closed: true}.Played())
 }
 
 func TestAnArenaOpensOnce(t *testing.T) {

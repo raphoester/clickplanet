@@ -18,7 +18,7 @@ func (s *testSuite) TestLoadRestoresTheMapAndTheShares() {
 	persistence := inmemory_tile_storage.NewMemoryPersistence(rows)
 
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(storage.Load(context.Background()))
+	s.Require().NoError(storage.Load(context.Background(), clicks.World))
 
 	state, err := stateBatch(storage, 0, maxIndex)
 	s.Require().NoError(err)
@@ -31,7 +31,7 @@ func (s *testSuite) TestLoadSkipsTilesPastTheEndOfTheMap() {
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{10: "fr", maxIndex + 1: "us"})
 
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(storage.Load(context.Background()))
+	s.Require().NoError(storage.Load(context.Background(), clicks.World))
 
 	state, err := stateBatch(storage, 0, maxIndex)
 	s.Require().NoError(err)
@@ -44,7 +44,7 @@ func (s *testSuite) TestAFailedLoadRefusesTheBoot() {
 
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
 
-	s.Require().ErrorContains(storage.Load(context.Background()), "connection refused")
+	s.Require().ErrorContains(storage.Load(context.Background(), clicks.World), "connection refused")
 }
 
 func (s *testSuite) TestFlushWritesEachChangedTileOnceAsItIsNow() {
@@ -81,7 +81,7 @@ func (s *testSuite) TestShieldsAreKeptWithTheirTileAndGoneWithItsFlag() {
 	s.Equal(map[uint32]int{1: 2}, persistence.StoredShields(), "a tile that changed hands lost its shields")
 
 	restarted := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(restarted.Load(ctx))
+	s.Require().NoError(restarted.Load(ctx, clicks.World))
 	s.Equal(2, restarted.Shields(1))
 	s.Zero(restarted.Shields(2))
 }
@@ -182,7 +182,7 @@ func (s *testSuite) TestReassignedTilesSurviveAFlush() {
 	s.Require().NoError(storage.Flush(ctx))
 
 	restored := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(restored.Load(ctx))
+	s.Require().NoError(restored.Load(ctx, clicks.World))
 	owner, _ := restored.Owner(12)
 	s.Equal("fr", owner)
 	s.Equal(1, restored.Held("fr"))
@@ -201,7 +201,7 @@ func (s *testSuite) TestAFortifiedLandmassStaysLockedAcrossARestart() {
 	s.Require().NoError(storage.Flush(ctx))
 
 	restarted := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(restarted.Load(ctx))
+	s.Require().NoError(restarted.Load(ctx, clicks.World))
 	s.Require().NoError(restarted.Set(ctx, 90_001, "de"))
 	s.Require().NoError(restarted.Set(ctx, 90_001, "fr"))
 	_, err = restarted.Fortify(ctx, 90_001, "fr", 10)
@@ -215,7 +215,7 @@ func (s *testSuite) TestAWholeLandmassNobodyFortifiedIsLockedToItsHolderAtLoad()
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{90_001: "fr", 90_002: "fr", 90_003: "fr"})
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(storage.Load(ctx))
+	s.Require().NoError(storage.Load(ctx, clicks.World))
 	s.Require().NoError(storage.Flush(ctx))
 
 	_, err := storage.Fortify(ctx, 90_001, "fr", 10)
@@ -230,7 +230,7 @@ func (s *testSuite) TestALockKeptForAnotherMapIsIgnored() {
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{90_001: "de", 90_002: "fr", 90_003: "fr"})
 	persistence.Fortified("borders-older.bin", 1, "fr")
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(storage.Load(ctx))
+	s.Require().NoError(storage.Load(ctx, clicks.World))
 	s.Require().NoError(storage.Set(ctx, 90_001, "fr"))
 
 	_, err := storage.Fortify(ctx, 90_001, "fr", 10)
@@ -250,7 +250,7 @@ func (s *testSuite) TestAHolderIsFlushedWithItsTileAndReadBackAtBoot() {
 	s.Equal(map[uint32]cpsession.AccountID{island[0]: ana}, persistence.StoredHolders())
 
 	booted := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(booted.Load(context.Background()))
+	s.Require().NoError(booted.Load(context.Background(), clicks.World))
 	s.Equal([]clicks.Holding{{Account: ana, Flag: "fr", Tiles: 1}}, booted.HoldingsOf(1))
 }
 

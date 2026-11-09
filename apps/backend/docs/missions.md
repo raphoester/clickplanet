@@ -69,7 +69,7 @@ internal/missions/internal/
   any battle runs (a battle takes its time from a day, see [A battle and the days](gamemaster.md#a-battle-and-the-days)),
   a fact counts nothing, `GetMissions` answers no mission and no end, and a sign-in pays nothing (the owner, 2026-10-29).
   **After an arena battle, the day is told only once the map from before it is back** (see [Arena battles](arenas.md)),
-  so the draw reads the map put back.
+  so the draw reads the world's map played again.
   **A fact can come before its day**: the day and the facts come on separate streams, so a take of the first second or
   so of a day may find no day yet and count nothing (the owner chose it over asking the gamemaster each fact,
   2026-10-29). Migration `20261029110000_gamemaster_days` named every row kept before by its date as season 0's day.

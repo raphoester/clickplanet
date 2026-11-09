@@ -5,11 +5,7 @@ package arenas
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 type StoreContractSuite struct {
@@ -27,15 +23,6 @@ func (s *StoreContractSuite) SetupTest() {
 var (
 	contractOpenedAt = time.Date(2026, 11, 10, 21, 0, 3, 123456000, time.UTC)
 	contractEndsAt   = time.Date(2026, 11, 10, 23, 0, 0, 0, time.UTC)
-	contractAna      = cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"))
-	contractBefore   = clicks.MapCopy{
-		Tiles: []clicks.TileCopy{
-			{ID: 1, Owner: "fr", Shields: 3, Holder: contractAna},
-			{ID: 2, Owner: "fr"},
-			{ID: 250_000, Owner: "de", Shields: 255},
-		},
-		Landmasses: []clicks.LandmassCopy{{ID: 4, Asset: "borders-v2.bin", FortifiedBy: "fr"}},
-	}
 )
 
 func (s *StoreContractSuite) opening(id ID) Opening {
@@ -62,7 +49,7 @@ func (s *StoreContractSuite) TestAnArenaNeverKeptNeverOpened() {
 }
 
 func (s *StoreContractSuite) TestAnArenaOpenIsPlayingWithItsOpening() {
-	s.Require().NoError(s.store.Open(s.T().Context(), s.opening("battle"), contractBefore))
+	s.Require().NoError(s.store.Open(s.T().Context(), s.opening("battle")))
 
 	found := s.find("battle")
 	s.True(found.Opened)
@@ -74,15 +61,12 @@ func (s *StoreContractSuite) TestAnArenaOpenIsPlayingWithItsOpening() {
 	s.sameOpening(s.opening("battle"), playing.Opening)
 }
 
-func (s *StoreContractSuite) TestAClosedArenaAnswersTheMapFromBeforeItOnce() {
+func (s *StoreContractSuite) TestAClosedArenaPlaysNoMore() {
 	ctx := s.T().Context()
-	s.Require().NoError(s.store.Open(ctx, s.opening("battle"), contractBefore))
+	s.Require().NoError(s.store.Open(ctx, s.opening("battle")))
 
-	before, err := s.store.Close(ctx, Closing{ID: "battle", ClosedAt: contractEndsAt.Add(3 * time.Second)})
+	s.Require().NoError(s.store.Close(ctx, Closing{ID: "battle", ClosedAt: contractEndsAt.Add(3 * time.Second)}))
 
-	s.Require().NoError(err)
-	s.ElementsMatch(contractBefore.Tiles, before.Tiles)
-	s.Equal(contractBefore.Landmasses, before.Landmasses)
 	found := s.find("battle")
 	s.True(found.Opened)
 	s.True(found.Closed)
@@ -91,22 +75,8 @@ func (s *StoreContractSuite) TestAClosedArenaAnswersTheMapFromBeforeItOnce() {
 	s.False(playing.Opened, "no arena is open once it closed")
 }
 
-func (s *StoreContractSuite) TestAnArenaNeverOpenedClosesWithNoMap() {
-	before, err := s.store.Close(s.T().Context(), Closing{ID: "battle", ClosedAt: contractEndsAt})
+func (s *StoreContractSuite) TestAnArenaNeverOpenedCloses() {
+	s.Require().NoError(s.store.Close(s.T().Context(), Closing{ID: "battle", ClosedAt: contractEndsAt}))
 
-	s.Require().NoError(err)
-	s.Empty(before.Tiles)
-	s.Empty(before.Landmasses)
 	s.Equal(Arena{ID: "battle", Closed: true}, s.find("battle"))
-}
-
-func (s *StoreContractSuite) TestADeletedAccountHoldsNoTileOfAnArena() {
-	ctx := s.T().Context()
-	s.Require().NoError(s.store.Open(ctx, s.opening("battle"), contractBefore))
-
-	s.Require().NoError(s.store.ForgetHolder(ctx, contractAna))
-
-	before, err := s.store.Close(ctx, Closing{ID: "battle", ClosedAt: contractEndsAt})
-	s.Require().NoError(err)
-	s.Contains(before.Tiles, clicks.TileCopy{ID: 1, Owner: "fr", Shields: 3})
 }

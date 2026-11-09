@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 	"unicode/utf8"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 var (
@@ -19,10 +21,15 @@ type ID string
 const maxID = 64
 
 func ParseID(id string) (ID, error) {
-	if id == "" || utf8.RuneCountInString(id) > maxID {
-		return "", fmt.Errorf("%w: its id %q is empty or longer than %d", ErrInvalidArena, id, maxID)
+	if id == "" || utf8.RuneCountInString(id) > maxID || clicks.MapID(id) == clicks.World {
+		return "", fmt.Errorf("%w: its id %q is empty, longer than %d, or the world's", ErrInvalidArena, id, maxID)
 	}
 	return ID(id), nil
+}
+
+// Map is the arena's map, named by its id.
+func (id ID) Map() clicks.MapID {
+	return clicks.MapID(id)
 }
 
 // Opening is an arena open: the map blank since OpenedAt, for a battle that ends at EndsAt.
@@ -38,7 +45,7 @@ func (o Opening) Freezes(now time.Time, freeze time.Duration) bool {
 	return now.Before(o.OpenedAt.Add(freeze)) || !now.Before(o.EndsAt.Add(-freeze))
 }
 
-// Closing is an arena closed at a time: the map from before it is back, or it never opened.
+// Closing is an arena closed at a time: its map is deleted and the world's plays again, or it never opened.
 type Closing struct {
 	ID       ID
 	ClosedAt time.Time
@@ -50,6 +57,14 @@ type Arena struct {
 	Opening Opening
 	Opened  bool
 	Closed  bool
+}
+
+// Played is the map that plays while the arena is as it is: its own while it is open, else the world's.
+func (a Arena) Played() clicks.MapID {
+	if a.Opened && !a.Closed {
+		return a.ID.Map()
+	}
+	return clicks.World
 }
 
 // Open is the arena opened now, or false when it is open already. It opens once, never after it closed, never at or

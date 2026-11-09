@@ -2,123 +2,69 @@ package inmemory_tile_storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// Blank hands keep a copy of the whole map memory holds (the tiles not flushed yet too), then empties the map as Wipe
-// does, in keep's transaction, once keep says to.
-func (s *Storage) Blank(ctx context.Context, keep func(ctx context.Context, copied clicks.MapCopy) (bool, error)) (bool, error) {
+var errWorldIsNoArena = errors.New("the world's map is no arena's")
+
+// Blank plays the blank map of an arena once keep says to: what changed is saved to the map in play first, which
+// stays as it is, and the arena's map has no tile yet. The map starts a new epoch and every stream is cut.
+func (s *Storage) Blank(ctx context.Context, arena clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error) {
+	if arena == clicks.World {
+		return false, errWorldIsNoArena
+	}
+
 	s.flushing.Lock()
 	defer s.flushing.Unlock()
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	copied := s.copyLocked()
-	blanked, err := s.persistence.Wipe(ctx, func(ctx context.Context) (bool, error) { return keep(ctx, copied) })
-	if err != nil {
-		return false, fmt.Errorf("failed to blank the stored map: %w", err)
+	if err := s.flushLocked(ctx); err != nil {
+		return false, fmt.Errorf("failed to save the map before blanking it: %w", err)
 	}
-	if !blanked {
-		return false, nil
+	blanked, err := keep(ctx)
+	if err != nil || !blanked {
+		return false, err
 	}
 
+	s.playing = arena
 	s.emptyLocked()
 	s.restartLocked()
 
 	return true, nil
 }
 
-// PutBack makes the map the copy take answers, in take's transaction, once take says to: stored, then read into
-// memory as the boot reads it. The map starts a new epoch and every stream is cut. What memory held before is
-// dropped, flushed or not.
-func (s *Storage) PutBack(ctx context.Context, take func(ctx context.Context) (clicks.MapCopy, bool, error)) (bool, error) {
+// PutBack deletes an arena's map once keep says to, in keep's transaction. When the arena's map plays, the world's
+// plays again, read as the boot reads it: a new epoch and every stream cut. What memory held of the arena is dropped.
+func (s *Storage) PutBack(ctx context.Context, arena clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error) {
+	if arena == clicks.World {
+		return false, errWorldIsNoArena
+	}
+
 	s.flushing.Lock()
 	defer s.flushing.Unlock()
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var (
-		tiles      []Tile
-		landmasses []Landmass
-	)
-	put, err := s.persistence.Replace(ctx, func(ctx context.Context) ([]Tile, []Landmass, bool, error) {
-		taken, ok, err := take(ctx)
-		tiles, landmasses = tilesOf(taken), landmassesOf(taken)
-		return tiles, landmasses, ok, err
-	})
+	dropped, err := s.persistence.Wipe(ctx, arena, keep)
 	if err != nil {
-		return false, fmt.Errorf("failed to put the stored map back: %w", err)
+		return false, fmt.Errorf("failed to delete the arena's map: %w", err)
 	}
-	if !put {
-		return false, nil
+	if !dropped || s.playing != arena {
+		return dropped, nil
 	}
 
+	s.playing = clicks.World
 	s.emptyLocked()
 	defer s.restartLocked()
-	if err := s.fillLocked(ctx, visitTiles(tiles), visitLandmasses(landmasses)); err != nil {
-		return true, fmt.Errorf("put the map back in postgres, but not in memory: %w", err)
+	if err := s.fillLocked(ctx); err != nil {
+		return true, fmt.Errorf("deleted the arena's map, but could not read the world's: %w", err)
 	}
 
 	return true, nil
-}
-
-func (s *Storage) copyLocked() clicks.MapCopy {
-	var copied clicks.MapCopy
-	for tile, state := range s.board.tiles {
-		if state.owner == unownedCode {
-			continue
-		}
-		copied.Tiles = append(copied.Tiles, clicks.TileCopy{
-			ID: uint32(tile), Owner: s.board.nameOf(state.owner), Shields: state.shields, //nolint:gosec // a tile id.
-			Holder: s.board.holders.accountOf(state.holder),
-		})
-	}
-	s.landmasses.each(func(landmass clicks.LandmassID) {
-		if flag := s.landmasses.lockedTo(landmass); flag != unownedCode {
-			copied.Landmasses = append(copied.Landmasses, clicks.LandmassCopy{
-				ID: landmass, Asset: s.landmasses.asset(), FortifiedBy: s.board.nameOf(flag),
-			})
-		}
-	})
-	return copied
-}
-
-func tilesOf(copied clicks.MapCopy) []Tile {
-	tiles := make([]Tile, 0, len(copied.Tiles))
-	for _, tile := range copied.Tiles {
-		tiles = append(tiles, Tile{ID: tile.ID, Owner: tile.Owner, Shields: int(tile.Shields), Holder: tile.Holder})
-	}
-	return tiles
-}
-
-func landmassesOf(copied clicks.MapCopy) []Landmass {
-	landmasses := make([]Landmass, 0, len(copied.Landmasses))
-	for _, landmass := range copied.Landmasses {
-		landmasses = append(landmasses, Landmass{ID: landmass.ID, Asset: landmass.Asset, FortifiedBy: landmass.FortifiedBy})
-	}
-	return landmasses
-}
-
-func visitTiles(tiles []Tile) func(context.Context, func(Tile)) error {
-	return func(_ context.Context, visit func(Tile)) error {
-		for _, tile := range tiles {
-			visit(tile)
-		}
-		return nil
-	}
-}
-
-func visitLandmasses(landmasses []Landmass) func(context.Context, string, func(clicks.LandmassID, string)) error {
-	return func(_ context.Context, asset string, visit func(clicks.LandmassID, string)) error {
-		for _, landmass := range landmasses {
-			if landmass.Asset == asset {
-				visit(landmass.ID, landmass.FortifiedBy)
-			}
-		}
-		return nil
-	}
 }

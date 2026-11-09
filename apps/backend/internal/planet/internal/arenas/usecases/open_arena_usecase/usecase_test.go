@@ -35,7 +35,7 @@ func newHarness(t *testing.T) harness {
 	stored := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{1: "fr", 2: "fr", 3: "de"})
 	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), inmemory_tile_storage.Config{}, stored, clock,
 		slog.New(slog.DiscardHandler))
-	require.NoError(t, tiles.Load(t.Context()))
+	require.NoError(t, tiles.Load(t.Context(), clicks.World))
 	kept := arenas.NewMemoryStore()
 	inPlay := arenas.NewInPlay(func() arenas.Rules { return arenas.Rules{Freeze: 8 * time.Second} }, clock)
 	return harness{
@@ -49,7 +49,7 @@ func (h harness) owner(tile uint32) string {
 	return owner
 }
 
-func TestAnArenaOpensOnTheMapBlankAndKeepsTheMapBefore(t *testing.T) {
+func TestAnArenaOpensOnABlankMapAndLeavesTheWorldsAsItIs(t *testing.T) {
 	h := newHarness(t)
 	require.NoError(t, h.tiles.Set(t.Context(), 4, "it"))
 
@@ -60,14 +60,14 @@ func TestAnArenaOpensOnTheMapBlankAndKeepsTheMapBefore(t *testing.T) {
 	for tile := range uint32(5) {
 		assert.Empty(t, h.owner(tile), "tile %d", tile)
 	}
-	assert.Empty(t, h.stored.Stored())
+	assert.Equal(t, map[uint32]string{1: "fr", 2: "fr", 3: "de", 4: "it"}, h.stored.Stored(), "the tile not flushed yet too")
+	assert.Empty(t, h.stored.StoredOn("battle"))
 	assert.True(t, bool(h.inPlay.Freeze()), "the map takes no play right after it went blank")
 	h.clock.Advance(8 * time.Second)
 	assert.False(t, bool(h.inPlay.Freeze()))
-	before, err := h.kept.Close(t.Context(), arenas.Closing{ID: "battle", ClosedAt: ends})
+	playing, err := h.kept.Playing(t.Context())
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []clicks.TileCopy{{ID: 1, Owner: "fr"}, {ID: 2, Owner: "fr"}, {ID: 3, Owner: "de"}, {ID: 4, Owner: "it"}},
-		before.Tiles, "the tile not flushed yet too")
+	assert.Equal(t, clicks.MapID("battle"), playing.Played())
 }
 
 func TestAnArenaToldTwiceOpensOnce(t *testing.T) {
@@ -87,15 +87,14 @@ func TestAnArenaToldTwiceOpensOnce(t *testing.T) {
 func TestAnArenaClosedEndedOrBesideAnotherOpensNothing(t *testing.T) {
 	for name, setUp := range map[string]func(h harness) open_arena_usecase.Command{
 		"closed": func(h harness) open_arena_usecase.Command {
-			_, err := h.kept.Close(t.Context(), arenas.Closing{ID: "battle", ClosedAt: starts})
-			require.NoError(t, err)
+			require.NoError(t, h.kept.Close(t.Context(), arenas.Closing{ID: "battle", ClosedAt: starts}))
 			return open_arena_usecase.Command{Arena: "battle", EndsAt: ends}
 		},
 		"ended": func(harness) open_arena_usecase.Command {
 			return open_arena_usecase.Command{Arena: "battle", EndsAt: starts}
 		},
 		"another open": func(h harness) open_arena_usecase.Command {
-			require.NoError(t, h.kept.Open(t.Context(), arenas.Opening{ID: "other", EndsAt: ends, OpenedAt: starts}, clicks.MapCopy{}))
+			require.NoError(t, h.kept.Open(t.Context(), arenas.Opening{ID: "other", EndsAt: ends, OpenedAt: starts}))
 			return open_arena_usecase.Command{Arena: "battle", EndsAt: ends}
 		},
 	} {

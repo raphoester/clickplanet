@@ -2,7 +2,7 @@
 
 **The map lives in memory; postgres is where it is kept.** A click never waits on the database.
 
-- **Boot loads it.** `inmemory_tile_storage.Load` reads every row of `planet.tiles` — one per owned tile, `(id, country, shields, holder)`; an unowned tile has no row. 180k rows load in about 60ms. **A failed load refuses the boot**: an empty map that then flushes would be every player's territory gone. A row past `gameMap.maxIndex` is skipped and logged.
+- **Boot loads it.** `inmemory_tile_storage.Load` reads every row of `planet.tiles` of the map that plays — one per owned tile, `(map, id, country, shields, holder)`; an unowned tile has no row. 180k rows load in about 60ms. **A failed load refuses the boot**: an empty map that then flushes would be every player's territory gone. A row past `gameMap.maxIndex` is skipped and logged.
 - **A flush writes what changed.** Every write under the tiles lock sets the tile's bit in a `dirty` bitmap (one bit per tile, ~32 KB). Every `tilesStorage.flushInterval` (1s), `Flush` takes the bits, reads each tile's owner **as it is now**, and hands them to `postgres_tile_store.Save`: one transaction, an upsert for owned tiles and a delete for freed ones, in chunks of 10k. A tile clicked five times between flushes is written once. A failed save puts the bits back; the next tick retries. Each flush has a 10s timeout, so a stuck connection cannot stall the loop.
 - **Shutdown flushes once more**, from `Run`. That is also why the tile map's pool is closed by its runner rather than registered on `props.Closers`: closers run before the runners stop, so the last flush would find the pool already closed.
 - **What a hard kill loses** (`SIGKILL`, OOM, power loss) is bounded by `flushInterval`. The state is still per-process, so **this is single-instance only**: two API replicas would each hold their own divergent map.
@@ -44,9 +44,10 @@
 - **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, deletions, relay)` runs them together and closes the pool after the last flushes, after the subscriber handled what it read, and after the ledger relay's last pass.
 - **The ledger is the outbox of the map's facts.** `ledger/usecases/relay_ledger_usecase` runs every second: it reads what the ledger flushed past `ledger_relayed` (one row, the next position to tell) from memory (`ReplaySaved`), sends a `TilesTaken` per event that took tiles with an account (in parts of 4,096 tiles at most) and a `ShieldsStruck` per event that broke shields, a `BombLanded` per bomb and a `Fortified` per fortify, each with its position, in ledger order (each tile also with its index in its event), and then moves the row. A batch is 1,000 events; a failed send keeps the row, so the next tick sends them again. Memory holds everything from the head on, so a row behind the retention only skips what is gone. See [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox).
 
-**An arena keeps the map from before it in postgres** (`arenas`, `arena_tiles`, `arena_landmasses`), copied from
-memory under the flush lock, so the tiles not flushed yet are in it; putting it back replaces the map's tables and
-memory in one go, and no flush writes the arena's map back after it. See [Arena battles](arenas.md).
+**`tiles` and `landmasses` keep every map, keyed by `map`**: `world`, the game's own, and each open arena's. The tile
+map plays one at a time: the boot loads it, the flush writes it, and the others' rows stay as they are. Opening an arena
+saves what changed first, under the flush lock, then plays the arena's empty map; closing it deletes the arena's rows and
+loads the world's again, so no flush of the arena's map lands after it. See [Arena battles](arenas.md).
 
 **The charges have no memory copy**: every call reads and writes `planet.charges`, on the same pool. See [Charges](charges.md).
 

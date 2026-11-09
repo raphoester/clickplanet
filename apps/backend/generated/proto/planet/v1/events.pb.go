@@ -1273,7 +1273,7 @@ func (x *AllegiancePledged) GetPledgedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// The arena closed: the map from before it is back, or it never opened and nothing changed.
+// The arena closed: its map is deleted and the world's plays again, or it never opened and nothing changed.
 type ArenaClosed struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ArenaId       string                 `protobuf:"bytes,1,opt,name=arena_id,json=arenaId,proto3" json:"arena_id,omitempty"`

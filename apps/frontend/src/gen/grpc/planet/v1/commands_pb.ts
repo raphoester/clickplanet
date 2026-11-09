@@ -281,8 +281,8 @@ export class ResetMap extends Message<ResetMap> {
 }
 
 /**
- * One stream for both, handled in order. An arena is the blank map an arena battle is fought on: planet keeps the map
- * from before it and brings it back exactly when it closes. Each command is idempotent by arena_id.
+ * One stream for both, handled in order. An arena is the blank map an arena battle is fought on, kept apart from the
+ * world's map, which plays again when it closes. Each command is idempotent by arena_id.
  *
  * @generated from message planet.v1.ArenaCommand
  */
@@ -334,9 +334,9 @@ export class ArenaCommand extends Message<ArenaCommand> {
 }
 
 /**
- * Saves the whole map (owners, shields, holders, fortify locks), then makes it blank: a new epoch, so every client reads
- * it again. An arena opens once, never after it closed, and never at or after ends_at. Every play is refused for the
- * rule set's arena.freeze after it opens and before ends_at.
+ * Plays the arena's map, blank, while the world's map stays as it is: a new epoch, so every client reads the map again.
+ * An arena opens once, never after it closed, and never at or after ends_at. Every play is refused for the rule set's
+ * arena.freeze after it opens and before ends_at.
  *
  * @generated from message planet.v1.OpenArena
  */
@@ -381,8 +381,8 @@ export class OpenArena extends Message<OpenArena> {
 }
 
 /**
- * Brings back the map saved when the arena opened, tile for tile, with a new epoch. An arena never opened closes with
- * nothing to bring back. Either way planet tells ArenaClosed, once.
+ * Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map left
+ * as it is. Either way planet tells ArenaClosed, once.
  *
  * @generated from message planet.v1.CloseArena
  */

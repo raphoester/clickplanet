@@ -26,7 +26,7 @@ func (l *Logged) Execute(ctx context.Context, arena arenas.ID) (close_arena_usec
 	case err != nil:
 		l.logger.Error("failed to close an arena", append(attrs, slog.Any("error", err))...)
 	case closed == close_arena_usecase.Restored:
-		l.logger.Warn("an arena closed: the map from before it is back", attrs...)
+		l.logger.Warn("an arena closed: the world's map plays again", attrs...)
 	case closed == close_arena_usecase.Unopened:
 		l.logger.Warn("an arena that never opened closed", attrs...)
 	case closed == close_arena_usecase.Already:

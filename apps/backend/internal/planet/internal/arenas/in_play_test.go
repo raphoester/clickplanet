@@ -5,26 +5,31 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func TestTheArenaOpenAtBootFreezesAsTheRulesInForceSay(t *testing.T) {
-	kept := arenas.NewMemoryStore()
 	opening := arenas.Opening{ID: "battle", EndsAt: ends, OpenedAt: starts}
-	require.NoError(t, kept.Open(t.Context(), opening, clicks.MapCopy{}))
 	clock := cptime.NewFixedClock(starts.Add(5 * time.Second))
 	freeze := 8 * time.Second
 	inPlay := arenas.NewInPlay(func() arenas.Rules { return arenas.Rules{Freeze: freeze} }, clock)
 
-	require.NoError(t, inPlay.Load(t.Context(), kept))
+	inPlay.Resume(arenas.Arena{ID: "battle", Opening: opening, Opened: true})
 
 	assert.True(t, bool(inPlay.Freeze()))
 	freeze = 3 * time.Second
 	assert.False(t, bool(inPlay.Freeze()), "a set taken over changes the freeze at once")
+}
+
+func TestAnArenaClosedAtBootIsNotResumed(t *testing.T) {
+	clock := cptime.NewFixedClock(starts)
+	inPlay := arenas.NewInPlay(func() arenas.Rules { return arenas.Rules{Freeze: 8 * time.Second} }, clock)
+
+	inPlay.Resume(arenas.Arena{ID: "battle", Opening: arenas.Opening{ID: "battle", EndsAt: ends, OpenedAt: starts}, Opened: true, Closed: true})
+
+	assert.False(t, bool(inPlay.Freeze()))
 }
 
 func TestOnlyTheArenaOpenClosesIt(t *testing.T) {

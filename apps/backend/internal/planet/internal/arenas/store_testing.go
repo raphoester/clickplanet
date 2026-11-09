@@ -4,25 +4,20 @@ package arenas
 
 import (
 	"context"
-	"slices"
 	"sync"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-// MemoryStore keeps the arenas in maps.
+// MemoryStore keeps the arenas in a map.
 type MemoryStore struct {
 	mu      sync.Mutex
 	arenas  map[ID]Arena
-	before  map[ID]clicks.MapCopy
 	Failing error
 }
 
 var _ Store = (*MemoryStore)(nil)
 
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{arenas: map[ID]Arena{}, before: map[ID]clicks.MapCopy{}}
+	return &MemoryStore{arenas: map[ID]Arena{}}
 }
 
 func (m *MemoryStore) Find(_ context.Context, id ID) (Arena, error) {
@@ -53,7 +48,7 @@ func (m *MemoryStore) Playing(context.Context) (Arena, error) {
 	return Arena{}, nil
 }
 
-func (m *MemoryStore) Open(_ context.Context, opening Opening, before clicks.MapCopy) error {
+func (m *MemoryStore) Open(_ context.Context, opening Opening) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -61,38 +56,18 @@ func (m *MemoryStore) Open(_ context.Context, opening Opening, before clicks.Map
 		return m.Failing
 	}
 	m.arenas[opening.ID] = Arena{ID: opening.ID, Opening: opening, Opened: true}
-	m.before[opening.ID] = clicks.MapCopy{Tiles: slices.Clone(before.Tiles), Landmasses: slices.Clone(before.Landmasses)}
 	return nil
 }
 
-func (m *MemoryStore) Close(_ context.Context, closing Closing) (clicks.MapCopy, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.Failing != nil {
-		return clicks.MapCopy{}, m.Failing
-	}
-	arena := m.arenas[closing.ID]
-	arena.ID, arena.Closed = closing.ID, true
-	m.arenas[closing.ID] = arena
-	before := m.before[closing.ID]
-	delete(m.before, closing.ID)
-	return before, nil
-}
-
-func (m *MemoryStore) ForgetHolder(_ context.Context, account cpsession.AccountID) error {
+func (m *MemoryStore) Close(_ context.Context, closing Closing) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.Failing != nil {
 		return m.Failing
 	}
-	for _, before := range m.before {
-		for i := range before.Tiles {
-			if before.Tiles[i].Holder == account {
-				before.Tiles[i].Holder = cpsession.NoAccount
-			}
-		}
-	}
+	arena := m.arenas[closing.ID]
+	arena.ID, arena.Closed = closing.ID, true
+	m.arenas[closing.ID] = arena
 	return nil
 }

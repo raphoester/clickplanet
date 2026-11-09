@@ -12,15 +12,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
+// Persistence keeps each map's tiles and fortify locks: the world's, and each arena's.
 type Persistence interface {
-	Load(ctx context.Context, visit func(tile Tile)) error
-	LoadLandmasses(ctx context.Context, asset string, visit func(landmass clicks.LandmassID, fortifiedBy string)) error
-	Save(ctx context.Context, tiles []Tile, landmasses []Landmass) error
-	// Wipe deletes every tile and every landmass's lock, in one transaction with keep, once keep says to.
-	Wipe(ctx context.Context, keep func(ctx context.Context) (bool, error)) (bool, error)
-	// Replace deletes every tile and every landmass's lock and writes the ones take answers, in one transaction with
-	// take, once take says to.
-	Replace(ctx context.Context, take func(ctx context.Context) ([]Tile, []Landmass, bool, error)) (bool, error)
+	Load(ctx context.Context, played clicks.MapID, visit func(tile Tile)) error
+	LoadLandmasses(ctx context.Context, played clicks.MapID, asset string,
+		visit func(landmass clicks.LandmassID, fortifiedBy string)) error
+	Save(ctx context.Context, played clicks.MapID, tiles []Tile, landmasses []Landmass) error
+	// Wipe deletes every tile and every landmass's lock of a map, in one transaction with keep, once keep says to.
+	Wipe(ctx context.Context, played clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error)
+	// ForgetHolder takes an account off every tile of every map.
+	ForgetHolder(ctx context.Context, account cpsession.AccountID) error
 }
 
 type Tile struct {
@@ -40,25 +41,23 @@ type Landmass struct {
 
 const flushTimeout = 10 * time.Second
 
-func (s *Storage) Load(ctx context.Context) error {
+// Load reads the map that plays: the world's, or the open arena's.
+func (s *Storage) Load(ctx context.Context, playing clicks.MapID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.fillLocked(ctx, s.persistence.Load, s.persistence.LoadLandmasses)
+	s.playing = playing
+	return s.fillLocked(ctx)
 }
 
-// fillLocked puts the tiles and the locks each source visits on the board, as on a blank one, and settles every
+// fillLocked puts the tiles and the locks the map in play keeps on the board, as on a blank one, and settles every
 // landmass.
-func (s *Storage) fillLocked(
-	ctx context.Context,
-	tiles func(ctx context.Context, visit func(tile Tile)) error,
-	landmasses func(ctx context.Context, asset string, visit func(landmass clicks.LandmassID, fortifiedBy string)) error,
-) error {
+func (s *Storage) fillLocked(ctx context.Context) error {
 	var (
 		owned, outside int
 		internErr      error
 	)
-	err := tiles(ctx, func(tile Tile) {
+	err := s.persistence.Load(ctx, s.playing, func(tile Tile) {
 		if tile.ID > s.board.last() {
 			outside++
 			return
@@ -84,7 +83,7 @@ func (s *Storage) fillLocked(
 	}
 
 	fortified, strays := 0, 0
-	err = landmasses(ctx, s.landmasses.asset(), func(landmass clicks.LandmassID, fortifiedBy string) {
+	err = s.persistence.LoadLandmasses(ctx, s.playing, s.landmasses.asset(), func(landmass clicks.LandmassID, fortifiedBy string) {
 		if !s.landmasses.known(landmass) {
 			strays++
 			return
@@ -113,7 +112,7 @@ func (s *Storage) fillLocked(
 		s.logger.Warn("stored landmasses past the end of the borders were ignored", slog.Int("landmasses", strays))
 	}
 
-	s.logger.Info("loaded the tile map", slog.Int("ownedTiles", owned), slog.Int("countryCodes", s.board.countries()),
+	s.logger.Info("loaded the tile map", slog.String("map", string(s.playing)), slog.Int("ownedTiles", owned), slog.Int("countryCodes", s.board.countries()),
 		slog.Int("fortifiedLandmasses", fortified))
 
 	return nil
@@ -153,30 +152,44 @@ func (s *Storage) Flush(ctx context.Context) error {
 	s.flushing.Lock()
 	defer s.flushing.Unlock()
 
-	tiles, landmasses := s.takeDirty()
-	if len(tiles) == 0 && len(landmasses) == 0 {
-		return nil
-	}
+	s.mu.Lock()
+	playing, tiles, landmasses := s.playing, s.board.drainDirty(), s.landmasses.drainDirty(s.board.nameOf)
+	s.mu.Unlock()
 
-	if err := s.persistence.Save(ctx, tiles, landmasses); err != nil {
+	if err := s.save(ctx, playing, tiles, landmasses); err != nil {
 		s.mu.Lock()
-		for _, tile := range tiles {
-			s.board.markDirty(tile.ID)
-		}
-		for _, landmass := range landmasses {
-			s.landmasses.markDirty(landmass.ID)
-		}
+		s.markDirtyLocked(tiles, landmasses)
 		s.mu.Unlock()
-
-		return fmt.Errorf("failed to save %d tiles and %d landmasses: %w", len(tiles), len(landmasses), err)
+		return err
 	}
-
 	return nil
 }
 
-func (s *Storage) takeDirty() ([]Tile, []Landmass) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// flushLocked saves what changed while the caller holds the flush lock and the tiles lock.
+func (s *Storage) flushLocked(ctx context.Context) error {
+	tiles, landmasses := s.board.drainDirty(), s.landmasses.drainDirty(s.board.nameOf)
+	if err := s.save(ctx, s.playing, tiles, landmasses); err != nil {
+		s.markDirtyLocked(tiles, landmasses)
+		return err
+	}
+	return nil
+}
 
-	return s.board.drainDirty(), s.landmasses.drainDirty(s.board.nameOf)
+func (s *Storage) save(ctx context.Context, playing clicks.MapID, tiles []Tile, landmasses []Landmass) error {
+	if len(tiles) == 0 && len(landmasses) == 0 {
+		return nil
+	}
+	if err := s.persistence.Save(ctx, playing, tiles, landmasses); err != nil {
+		return fmt.Errorf("failed to save %d tiles and %d landmasses: %w", len(tiles), len(landmasses), err)
+	}
+	return nil
+}
+
+func (s *Storage) markDirtyLocked(tiles []Tile, landmasses []Landmass) {
+	for _, tile := range tiles {
+		s.board.markDirty(tile.ID)
+	}
+	for _, landmass := range landmasses {
+		s.landmasses.markDirty(landmass.ID)
+	}
 }

@@ -370,7 +370,7 @@ table and, **only when it is new** (or a day whose end moved), records its event
   its `entry_id` is empty. A battle that starts in a break is no round, and is not told.
 
 **A day that starts after an arena battle is told once the map from before the arena battle is back** (`Plan.DayAt` waits as
-the opens do; see [Arena battles](arenas.md)), so missions draws on the map put back.
+the opens do; see [Arena battles](arenas.md)), so missions draws on the world's map played again.
 
 **Level-triggered**: a boot tells what runs if it was never told, late (so the first boot with `told_seasons` tells the
 season that runs then); **never what ended**: a season, a day or a battle that started and ended while the server was

@@ -1,8 +1,6 @@
 package arenas
 
 import (
-	"context"
-	"fmt"
 	"sync/atomic"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -20,16 +18,11 @@ func NewInPlay(rules func() Rules, clock cptime.Clock) *InPlay {
 	return &InPlay{rules: rules, clock: clock}
 }
 
-// Load reads the arena open at boot, if any.
-func (p *InPlay) Load(ctx context.Context, kept Store) error {
-	playing, err := kept.Playing(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to read the arena open: %w", err)
-	}
-	if playing.Opened {
+// Resume takes on the arena open at boot, if any.
+func (p *InPlay) Resume(playing Arena) {
+	if playing.Opened && !playing.Closed {
 		p.Open(playing.Opening)
 	}
-	return nil
 }
 
 func (p *InPlay) Open(opening Opening) {

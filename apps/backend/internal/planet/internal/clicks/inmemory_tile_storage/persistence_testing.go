@@ -13,37 +13,53 @@ import (
 )
 
 type MemoryPersistence struct {
-	mu         sync.Mutex
+	mu      sync.Mutex
+	maps    map[clicks.MapID]*memoryMap
+	saves   [][]Tile
+	failing error
+}
+
+type memoryMap struct {
 	rows       map[uint32]string
 	shields    map[uint32]int
 	holders    map[uint32]cpsession.AccountID
 	landmasses map[string]map[clicks.LandmassID]string
-	saves      [][]Tile
-	failing    error
 }
 
-func NewMemoryPersistence(rows map[uint32]string) *MemoryPersistence {
-	held := make(map[uint32]string, len(rows))
-	maps.Copy(held, rows)
-
-	return &MemoryPersistence{
-		rows: held, shields: map[uint32]int{}, holders: map[uint32]cpsession.AccountID{},
+func newMemoryMap() *memoryMap {
+	return &memoryMap{
+		rows: map[uint32]string{}, shields: map[uint32]int{}, holders: map[uint32]cpsession.AccountID{},
 		landmasses: map[string]map[clicks.LandmassID]string{},
 	}
+}
+
+// NewMemoryPersistence keeps rows as the world's map.
+func NewMemoryPersistence(rows map[uint32]string) *MemoryPersistence {
+	world := newMemoryMap()
+	maps.Copy(world.rows, rows)
+	return &MemoryPersistence{maps: map[clicks.MapID]*memoryMap{clicks.World: world}}
+}
+
+func (m *MemoryPersistence) mapLocked(played clicks.MapID) *memoryMap {
+	if m.maps[played] == nil {
+		m.maps[played] = newMemoryMap()
+	}
+	return m.maps[played]
 }
 
 func (m *MemoryPersistence) Fortified(asset string, landmass clicks.LandmassID, flag string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.landmasses[asset] == nil {
-		m.landmasses[asset] = map[clicks.LandmassID]string{}
+	world := m.mapLocked(clicks.World)
+	if world.landmasses[asset] == nil {
+		world.landmasses[asset] = map[clicks.LandmassID]string{}
 	}
-	m.landmasses[asset][landmass] = flag
+	world.landmasses[asset][landmass] = flag
 }
 
 func (m *MemoryPersistence) LoadLandmasses(
-	_ context.Context, asset string, visit func(landmass clicks.LandmassID, fortifiedBy string),
+	_ context.Context, played clicks.MapID, asset string, visit func(landmass clicks.LandmassID, fortifiedBy string),
 ) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -51,47 +67,53 @@ func (m *MemoryPersistence) LoadLandmasses(
 	if m.failing != nil {
 		return m.failing
 	}
-	for landmass, flag := range m.landmasses[asset] {
+	for landmass, flag := range m.mapLocked(played).landmasses[asset] {
 		visit(landmass, flag)
 	}
 	return nil
 }
 
+// StoredLandmasses is the world's.
 func (m *MemoryPersistence) StoredLandmasses(asset string) map[clicks.LandmassID]string {
+	return m.StoredLandmassesOn(clicks.World, asset)
+}
+
+func (m *MemoryPersistence) StoredLandmassesOn(played clicks.MapID, asset string) map[clicks.LandmassID]string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return maps.Clone(m.landmasses[asset])
+	return maps.Clone(m.mapLocked(played).landmasses[asset])
 }
 
 func (m *MemoryPersistence) Shield(tile uint32, shields int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.shields[tile] = shields
+	m.mapLocked(clicks.World).shields[tile] = shields
 }
 
 func (m *MemoryPersistence) Hold(tile uint32, account cpsession.AccountID) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.holders[tile] = account
+	m.mapLocked(clicks.World).holders[tile] = account
 }
 
-func (m *MemoryPersistence) Load(_ context.Context, visit func(tile Tile)) error {
+func (m *MemoryPersistence) Load(_ context.Context, played clicks.MapID, visit func(tile Tile)) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.failing != nil {
 		return m.failing
 	}
-	for tile, owner := range m.rows {
-		visit(Tile{ID: tile, Owner: owner, Shields: m.shields[tile], Holder: m.holders[tile]})
+	kept := m.mapLocked(played)
+	for tile, owner := range kept.rows {
+		visit(Tile{ID: tile, Owner: owner, Shields: kept.shields[tile], Holder: kept.holders[tile]})
 	}
 	return nil
 }
 
-func (m *MemoryPersistence) Save(_ context.Context, tiles []Tile, landmasses []Landmass) error {
+func (m *MemoryPersistence) Save(_ context.Context, played clicks.MapID, tiles []Tile, landmasses []Landmass) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -101,39 +123,36 @@ func (m *MemoryPersistence) Save(_ context.Context, tiles []Tile, landmasses []L
 	if len(tiles) > 0 {
 		m.saves = append(m.saves, slices.Clone(tiles))
 	}
-	m.putLocked(tiles, landmasses)
-	return nil
-}
-
-func (m *MemoryPersistence) putLocked(tiles []Tile, landmasses []Landmass) {
+	kept := m.mapLocked(played)
 	for _, landmass := range landmasses {
-		if m.landmasses[landmass.Asset] == nil {
-			m.landmasses[landmass.Asset] = map[clicks.LandmassID]string{}
+		if kept.landmasses[landmass.Asset] == nil {
+			kept.landmasses[landmass.Asset] = map[clicks.LandmassID]string{}
 		}
-		m.landmasses[landmass.Asset][landmass.ID] = landmass.FortifiedBy
+		kept.landmasses[landmass.Asset][landmass.ID] = landmass.FortifiedBy
 	}
 	for _, tile := range tiles {
 		if tile.Owner == "" {
-			delete(m.rows, tile.ID)
-			delete(m.shields, tile.ID)
-			delete(m.holders, tile.ID)
+			delete(kept.rows, tile.ID)
+			delete(kept.shields, tile.ID)
+			delete(kept.holders, tile.ID)
 			continue
 		}
-		m.rows[tile.ID] = tile.Owner
+		kept.rows[tile.ID] = tile.Owner
 		if tile.Holder == cpsession.NoAccount {
-			delete(m.holders, tile.ID)
+			delete(kept.holders, tile.ID)
 		} else {
-			m.holders[tile.ID] = tile.Holder
+			kept.holders[tile.ID] = tile.Holder
 		}
 		if tile.Shields == 0 {
-			delete(m.shields, tile.ID)
+			delete(kept.shields, tile.ID)
 		} else {
-			m.shields[tile.ID] = tile.Shields
+			kept.shields[tile.ID] = tile.Shields
 		}
 	}
+	return nil
 }
 
-func (m *MemoryPersistence) Wipe(ctx context.Context, keep func(ctx context.Context) (bool, error)) (bool, error) {
+func (m *MemoryPersistence) Wipe(ctx context.Context, played clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -144,49 +163,55 @@ func (m *MemoryPersistence) Wipe(ctx context.Context, keep func(ctx context.Cont
 	if err != nil || !kept {
 		return false, err
 	}
-	m.rows, m.shields, m.holders = map[uint32]string{}, map[uint32]int{}, map[uint32]cpsession.AccountID{}
-	m.landmasses = map[string]map[clicks.LandmassID]string{}
+	m.maps[played] = newMemoryMap()
 	return true, nil
 }
 
-func (m *MemoryPersistence) Replace(
-	ctx context.Context, take func(ctx context.Context) ([]Tile, []Landmass, bool, error),
-) (bool, error) {
+func (m *MemoryPersistence) ForgetHolder(_ context.Context, account cpsession.AccountID) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.failing != nil {
-		return false, m.failing
+		return m.failing
 	}
-	tiles, landmasses, ok, err := take(ctx)
-	if err != nil || !ok {
-		return false, err
+	for _, kept := range m.maps {
+		for tile, holder := range kept.holders {
+			if holder == account {
+				delete(kept.holders, tile)
+			}
+		}
 	}
-	m.rows, m.shields, m.holders = map[uint32]string{}, map[uint32]int{}, map[uint32]cpsession.AccountID{}
-	m.landmasses = map[string]map[clicks.LandmassID]string{}
-	m.putLocked(tiles, landmasses)
-	return true, nil
+	return nil
 }
 
+// Stored is the world's.
 func (m *MemoryPersistence) Stored() map[uint32]string {
+	return m.StoredOn(clicks.World)
+}
+
+func (m *MemoryPersistence) StoredOn(played clicks.MapID) map[uint32]string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return maps.Clone(m.rows)
+	return maps.Clone(m.mapLocked(played).rows)
 }
 
 func (m *MemoryPersistence) StoredShields() map[uint32]int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return maps.Clone(m.shields)
+	return maps.Clone(m.mapLocked(clicks.World).shields)
 }
 
 func (m *MemoryPersistence) StoredHolders() map[uint32]cpsession.AccountID {
+	return m.StoredHoldersOn(clicks.World)
+}
+
+func (m *MemoryPersistence) StoredHoldersOn(played clicks.MapID) map[uint32]cpsession.AccountID {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return maps.Clone(m.holders)
+	return maps.Clone(m.mapLocked(played).holders)
 }
 
 func (m *MemoryPersistence) Saves() [][]Tile {

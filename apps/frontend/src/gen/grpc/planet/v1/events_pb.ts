@@ -1056,7 +1056,7 @@ export class AllegiancePledged extends Message<AllegiancePledged> {
 }
 
 /**
- * The arena closed: the map from before it is back, or it never opened and nothing changed.
+ * The arena closed: its map is deleted and the world's plays again, or it never opened and nothing changed.
  *
  * @generated from message planet.v1.ArenaClosed
  */

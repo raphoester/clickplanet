@@ -212,8 +212,14 @@ func NewModule(config Config) cpbootstrap.Module {
 				_ = db.Close()
 			}
 
+			arenaStore := postgres_arena_store.New(db)
+			playing, err := arenaStore.Playing(ctx)
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to read the arena open: %w", err)
+			}
 			tilesStorage := inmemory_tile_storage.New(borders, config.TilesStorage, postgres_tile_store.New(db), clock, props.Logger)
-			if err := tilesStorage.Load(ctx); err != nil {
+			if err := tilesStorage.Load(ctx, playing.Played()); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to load the tile map: %w", err)
 			}
@@ -251,12 +257,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			freeze := rules.Reader(inForce, clicks.FreezePart)
 			lock := rules.Reader(inForce, allegiances.LockPart)
 
-			arenaStore := postgres_arena_store.New(db)
 			inPlay := arenas.NewInPlay(rules.Reader(inForce, arenas.Part), clock)
-			if err := inPlay.Load(ctx, arenaStore); err != nil {
-				closeStores()
-				return err //nolint:wrapcheck // Load names it.
-			}
+			inPlay.Resume(playing)
 			arenaCommands, err := cpredis.Handle(ctx, streams, arena_command_handler.New(
 				log_open_arena.New(open_arena_usecase.New(tilesStorage, arenaStore, inPlay, clock), props.Logger),
 				log_close_arena.New(close_arena_usecase.New(tilesStorage, arenaStore, cpoutbox.New(db), inPlay, clock),
@@ -298,7 +300,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			deletions, err := cpredis.Subscribe(ctx, streams, "planet-ledger-forgotten",
 				log_subscriber.New(player_forgotten_subscriber.New(
-					anonymize_takes_usecase.New(takings, ledgerStore, arenaStore, tilesStorage)), props.Logger))
+					anonymize_takes_usecase.New(takings, ledgerStore, tilesStorage)), props.Logger))
 			if err != nil {
 				closeStores()
 				return fmt.Errorf("failed to subscribe the ledger to player.v1.PlayerForgotten: %w", err)
