@@ -7,8 +7,10 @@ cards are data, kept per rule set under the set's name, the way planet and the a
 
 ```
 internal/promo/
-  module.go                         Config (database, backgrounds), NewModule
+  module.go                         Config (database, backgrounds), NewModule: the server's
+  job.go                            JobConfig, ListDue, PostTeasers: the teasers job's (cmd/teasers), see teasers-job.md
   internal/
+    teasers/                        the teasers job's alone, which the server never builds (see teasers-job.md)
     migrations/                     backgrounds, cards
     placeholders/                   RulePaths, BattlePaths, Battle, Check, Fill: `{path}` in a card's words, filled with
                                     a value of planet.v1.Rules or of the battle
@@ -133,6 +135,10 @@ and so is one the schedule dropped since its timeline was read. The battles come
 (`teasers_query/rpc_gamemaster_timeline`): the ones the players see coming. `InvalidArgument` for a window of nothing,
 or of more than a week. A read-only tool for Claude too (see [Claude as a connector](connector.md)).
 
+**The job is in this package too**, a second root beside the module (`job.go`, `internal/teasers/`), as the clips job
+is in clips': its own binary, `cmd/teasers`, that asks this method and the publishing module over ssh. See [The
+teasers job](teasers-job.md).
+
 ## Kept
 
 `promo` schema, migration `20261105120000_promo`: `backgrounds(background_id, name, media_type, size_bytes,
@@ -142,7 +148,9 @@ closer, once the listeners shut down.
 
 ## Who it asks
 
-**Promo depends on planet, the gamemaster and scoring, and nothing depends on promo.** It asks planet the sets it
+**Promo depends on planet, the gamemaster, scoring and publishing, and nothing depends on promo**: publishing is the
+teasers job's alone, which asks its `PlanPost`, `SchedulePost` and `ListPosts` over ssh (see [The teasers
+job](teasers-job.md)); the module of the server asks it nothing. It asks planet the sets it
 keeps (`GetRuleSetNames`, on each `SaveCards` and `GetCards`) and the values one plays (`GetRuleSet`, on each teaser
 read and once per set with cards on each `GetCards`), the gamemaster what a battle plays (`GetBattle`, on each teaser
 read) and the battles to come (`GetTimeline`, on each `ListTeasers`), and scoring what each rank of a round of its times scores (`GetRankPoints`, on each teaser read with cards, and
@@ -165,3 +173,5 @@ test `TestAnOperatorWritesASetsCardsAndAPageReadsTheBattlesTeaserFilled` gives p
 to the fake bucket, saves `rush`'s cards on the console listener, reads season 0's finale's teaser on the public
 listener, filled with rush's values and the finale's points (`1st place wins 75 points`, ×3), and is refused the
 background's removal.
+
+The teasers job's tests are in [The teasers job](teasers-job.md#tests).

@@ -10,7 +10,7 @@ and says what is in it. Read the doc before you change its area.
 
 - [Commands](docs/commands.md) — `make test` (Docker for the postgres and Redis tests), `-race`, `make deadcode`,
   `make lint`, `make tidy`, `make check-format`, `go run ./cmd/api`, `make proto`, the vendoring targets (`quiz`,
-  `map`, `moderation`, `vpn-lists`, `disposable-domains`, `historic-scripts`, `zernio`), `make dBuild`, and `cmd/clips`.
+  `map`, `moderation`, `vpn-lists`, `disposable-domains`, `historic-scripts`, `zernio`), `make dBuild`, `cmd/clips` and `cmd/teasers`.
 - [Configuration](docs/configuration.md) — `cpconfigs` loads YAML and environment with koanf; the full schema.
 - [Testing](docs/testing.md) — testify; which suites need Docker (postgres, S3, Redis); `e2e/` holds smoke tests
   only, rules go in lower tests; the `testing` tag.
@@ -128,7 +128,7 @@ and says what is in it. Read the doc before you change its area.
   uploads to the bucket and Cloudflare serves publicly; words with `{path}` placeholders filled from the values the set
   plays and the battle's points at each read (`GetTeaser`); the set and times from the gamemaster (`GetBattle`), the
   values from planet (`GetRuleSet`), the points from scoring (`GetRankPoints`); the battles to come with their cards
-  (`ListTeasers`, from the gamemaster's `GetTimeline`), for the job that posts their teasers.
+  (`ListTeasers`, from the gamemaster's `GetTimeline`), for the teasers job, which lives in the same package.
 - [Publishing](docs/publishing.md) — the game's posts on its own TikTok and YouTube through Zernio: the calendar every
   job keeps (an hour apart, 3 a trailing day on TikTok from 14:00 to 20:00 UTC, 12 on YouTube from 07:00 to 23:00), a
   post scheduled ahead held as a reservation, the upload link that keeps every video off the server, `PlanPost` (with
@@ -155,5 +155,8 @@ and says what is in it. Read the doc before you change its area.
 - [Claude as a connector](docs/connector.md) — every admin method is a tool Claude calls over MCP, read from the
   admin protos (a method's comment is its description); what is hidden; auth's OAuth 2.1 server and the tokens; the
   bearer path through the gate.
+- [The teasers job](docs/teasers-job.md) — `cmd/teasers`, in promo's package: every 6 hours, each battle starting
+  within 36 hours rendered by the frontend and posted through the publishing module by an hour before it, a carousel
+  of its cards on TikTok and a slideshow on YouTube; no battle teased twice.
 - [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them through the
   publishing module, over ssh; its experiments, the model editor and the stats.

@@ -3,8 +3,8 @@
 **The game's posts on its own TikTok and YouTube: when each goes out, within what each platform takes in a day,
 through the one posting service, Zernio.** A module of the server since 2026-11-09, so that one place owns the
 calendar every job that posts keeps: the clips job, since the same day (its `posts/ssh_publishing`, see [The clips
-job](clips-job.md)), and the battle teasers after (the owner, 2026-11-09: "let's put
-publishing in the server, definitely"). Two jobs that share TikTok's 3 posts a day need one arbiter, and TikTok
+job](clips-job.md)), and the teasers job (its `teasers/ssh_backend`, see [The teasers job](teasers-job.md)) (the
+owner, 2026-11-09: "let's put publishing in the server, definitely"). Two jobs that share TikTok's 3 posts a day need one arbiter, and TikTok
 punished a pace of 10 a day once (see [The clips job](clips-job.md), "Why so few on TikTok"). **It keeps no table**:
 Zernio's post list is the record of what went out and what is to come, posts made by hand included.
 
@@ -133,8 +133,6 @@ the clips workflows hold too, rendered into the backend's environment by every d
 
 - **The daily snapshot of the posts' numbers still reads Zernio from the job** (`clips stats`), and the clips module
   keeps it: it moves here once the snapshots' tables do.
-- **The battle teasers' job**, which asks a slot by the battle's start once its cards are rendered: no slot is held
-  before its media exists, so no table of reservations is needed.
 
 ## Tests
 

@@ -1,0 +1,114 @@
+/* A battle's teaser as a still of 540×960 CSS pixels, taken at twice that: the frame around one of its cards, as TikTok
+   shows a photo and YouTube a Short. The card is the game's own (.teaser-card in Battle.css), bigger. */
+
+html, body {
+    margin: 0;
+    background: var(--ground);
+}
+
+#teaser {
+    --card: 440px;
+    position: relative;
+    display: grid;
+    grid-template-rows: auto auto auto auto;
+    align-content: space-between;
+    justify-items: center;
+    width: 540px;
+    height: 960px;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 40%, var(--ground-glow), var(--ground) 70%);
+}
+
+.teaser-frame-tape {
+    width: 100%;
+    height: 18px;
+    background: var(--tape);
+    border-bottom: var(--outline) solid var(--ink);
+}
+
+.teaser-frame-head {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-1);
+    padding: var(--space-5) var(--space-4) var(--space-4);
+    text-align: center;
+}
+
+.teaser-frame-name {
+    font-family: var(--font-display);
+    font-size: var(--display-hero);
+    line-height: 0.95;
+    white-space: nowrap;
+    color: var(--war);
+    text-shadow: var(--text-outline-l);
+}
+
+/* "Final Battle" on one line, as wide as "Battle" is at the full size. */
+.teaser-frame-name--finale {
+    font-size: calc(var(--display-hero) * 0.64);
+}
+
+.teaser-frame-day {
+    font-family: var(--font-display);
+    font-size: var(--display-xl);
+    color: var(--text);
+    text-shadow: var(--text-outline);
+}
+
+.teaser-frame-time {
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--display-m);
+    color: var(--text-soft);
+}
+
+#teaser .teaser-card {
+    flex: none;
+    width: var(--card);
+    border: var(--outline) solid var(--ink);
+    border-radius: var(--radius-l);
+    box-shadow: var(--drop-l);
+}
+
+#teaser .teaser-card figcaption {
+    padding: var(--space-5) var(--space-5) var(--space-6);
+}
+
+#teaser .teaser-card-headline {
+    font-size: calc(var(--card) * 0.075);
+}
+
+#teaser .teaser-card-line {
+    font-size: calc(var(--card) * 0.04);
+}
+
+.teaser-frame-foot {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-4) var(--space-6);
+}
+
+.teaser-frame-dots {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.teaser-frame-dot {
+    width: 14px;
+    height: 14px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: var(--panel-sunk);
+}
+
+.teaser-frame-dot[data-shown="true"] {
+    background: var(--war);
+}
+
+.teaser-frame-link {
+    font-family: var(--font-display);
+    font-size: var(--display-xxl);
+    color: var(--gold);
+    text-shadow: var(--text-outline);
+}

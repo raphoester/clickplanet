@@ -1,0 +1,144 @@
+name: teasers
+
+on:
+  # Every 6 hours on a minute nobody else picks: GitHub starts a scheduled run late when many start on the hour. Each run
+  # lists the battles starting within 36 hours, so it sees each battle first 30 to 36 hours before it starts, and posts
+  # its teaser from about a day before it, at the first slot the backend's calendar gives.
+  schedule:
+    - cron: '43 1-23/6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: teasers
+
+env:
+  CHROME_PATH: /usr/bin/google-chrome
+
+jobs:
+  due:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      teasers: ${{ steps.due.outputs.teasers }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      # No npm here: the VPS key is in no job that installs the frontend's dependencies. Each battle due is a folder
+      # with its teaser.json, promo's own words of it: public data, as the players read it on the home page.
+      - name: list the battles due their teaser
+        id: due
+        working-directory: apps/backend
+        env:
+          CLICKPLANET_SSH: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          eval "$(ssh-agent -s)" > /dev/null
+          ssh-add -q - <<< "$VPS_SSH_KEY"
+          install -m 700 -d ~/.ssh
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
+          teasers=$(go run ./cmd/teasers due -out "$GITHUB_WORKSPACE/teasers")
+          echo "teasers=$teasers" >> "$GITHUB_OUTPUT"
+
+      - if: steps.due.outputs.teasers != '[]'
+        uses: actions/upload-artifact@v4
+        with:
+          name: teasers
+          path: teasers
+          retention-days: 1
+
+      - if: steps.due.outputs.teasers == '[]'
+        run: |
+          echo "No teaser this run: no battle starts within 36 hours, or each one's teaser is posted already." \
+            >> "$GITHUB_STEP_SUMMARY"
+
+  render:
+    needs: due
+    if: needs.due.outputs.teasers != '[]'
+    name: render ${{ matrix.teaser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        teaser: ${{ fromJSON(needs.due.outputs.teasers) }}
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: teasers
+          path: apps/frontend/teasers
+
+      # Each card in the battle's frame as a JPEG of 1080x1920, the photos of the TikTok carousel, and a slideshow of
+      # them for YouTube. The folder's name is the job's, of letters, digits, dots, dashes and underscores alone.
+      - name: render the teaser
+        env:
+          TEASER: ${{ matrix.teaser }}
+        run: npm run teaser -- --teaser "teasers/$TEASER/teaser.json" --out "rendered/$TEASER"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rendered-${{ matrix.teaser }}
+          path: apps/frontend/rendered/${{ matrix.teaser }}
+          if-no-files-found: error
+          retention-days: 3
+
+  post:
+    needs: [ due, render ]
+    # A teaser that failed to render is skipped, and the next run tries it again; the ones that rendered still go out.
+    if: ${{ !cancelled() && needs.due.result == 'success' && needs.due.outputs.teasers != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rendered-*
+          path: rendered
+
+      # The battles are listed again: one teased or dropped since the run began is skipped. The backend's publishing
+      # module plans and posts each, over ssh, by an hour before its battle; the files go straight to the posting
+      # service's storage, through links the backend signs.
+      - name: post the teasers on TikTok and YouTube
+        working-directory: apps/backend
+        env:
+          CLICKPLANET_SSH: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          eval "$(ssh-agent -s)" > /dev/null
+          ssh-add -q - <<< "$VPS_SSH_KEY"
+          install -m 700 -d ~/.ssh
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
+          go run ./cmd/teasers post -teasers "$GITHUB_WORKSPACE/rendered" -summary "$GITHUB_STEP_SUMMARY"
