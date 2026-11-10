@@ -311,7 +311,7 @@ export default function PlayScreen(props: PlayScreenProps) {
     const rules = useBonus((bonus) => bonus.rules)
 
     useUnderAttack(countryState.code, tileDeltas, accepted.listenForClicks)
-    const refusals = useRefusedClicks((refused) => refused.refusals)
+    const dryTaps = useRefusedClicks((refused) => refused.dryTaps)
 
     const spendRefill = () => {
         const budget = useClickBudget.getState().budget
@@ -327,7 +327,7 @@ export default function PlayScreen(props: PlayScreenProps) {
     // CrazyGames forbids a sign-in that pops up or is the main call to action.
     const nudge = useSignInNudge(
         !backends.crazyGames && guest && linkedMultiplier !== undefined && !frozen && !charges.refill && !pitchOpen,
-        refusals, fastStart)
+        dryTaps, fastStart)
     useSignInRefill(account.kind === 'ready' && account.guestLinked === true && signInRefill, charges.refill,
         () => void backends.chargesRefresher.refreshCharges().catch((e) => console.error("could not read the charges held", e)),
         () => void spendRefill())

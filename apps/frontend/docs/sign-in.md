@@ -175,7 +175,7 @@ the guest has that pace already), and the land on every device; then the
 sign-in buttons (`SignInButtons`, which `SignInPitchModal` uses too).
 
 - **It opens on a dry tap**: a tap the globe refuses for an empty bank
-  (`refusals` from `useRefusedClicks`), from a guest the server offers sign-in to, with
+  (`dryTaps` from `useRefusedClicks`; a tap out of an arena's reach shakes the meter but is not one), from a guest the server offers sign-in to, with
   its multiplier, on a map that is not frozen, holding no refill (a refill is a
   full bank already, and the server gives a guest one at most).
 - **And when the fast start ends**: a budget that says `fastStart`, then one

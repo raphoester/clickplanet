@@ -1023,6 +1023,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }, listenerOptions);
 
     eventTarget.addEventListener('pointerdown', (event: PointerEvent) => {
+        // A touch press that ends in a drag or a long press sends no click to swallow.
+        if (event.isPrimary) swallowClick = false
         press.begin(event)
         endPeek()
         endTerritoryPeek()

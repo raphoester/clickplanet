@@ -64,9 +64,14 @@ export function useRoomLog({backend, accountId, onLeft}: UseRoomLogOptions) {
         leaving.current?.()
     }, [])
 
+    const room = useRef<AbortSignal>()
+
     // A message shows once its names are read, so none shows a blank name; a read that hangs holds it 2 s at most.
-    const receive = useCallback((incoming: ChatMessage[]) => useNameplates.getState().whenRead(authorsOf(incoming))
-        .then(() => setMessages(current => addMessages(current, incoming))), [])
+    const receive = useCallback((incoming: ChatMessage[], signal: AbortSignal | undefined) =>
+        useNameplates.getState().whenRead(authorsOf(incoming)).then(() => {
+            if (signal?.aborted) return
+            setMessages(current => addMessages(current, incoming))
+        }), [])
 
     useEffect(() => {
         if (!backend) {
@@ -81,6 +86,7 @@ export function useRoomLog({backend, accountId, onLeft}: UseRoomLogOptions) {
         setSeenAtLoad(undefined)
 
         const abort = new AbortController()
+        room.current = abort.signal
 
         const catchUp = () => backend.getHistory(abort.signal)
             .then(async history => {
@@ -96,7 +102,7 @@ export function useRoomLog({backend, accountId, onLeft}: UseRoomLogOptions) {
             })
 
         const stopListening = backend.listenForMessages(
-            message => void receive([message]),
+            message => void receive([message], abort.signal),
             change => setMessages(current => applyReactionsChange(current, change)),
             announcement => setAnnouncements(current => addAnnouncements(current, [announcement])),
             () => void catchUp(),
@@ -109,7 +115,7 @@ export function useRoomLog({backend, accountId, onLeft}: UseRoomLogOptions) {
         backend.getHistory(abort.signal)
             .then(async history => {
                 if (abort.signal.aborted) return
-                await receive(history.messages)
+                await receive(history.messages, abort.signal)
                 if (abort.signal.aborted) return
                 setAnnouncements(current => addAnnouncements(current, history.announcements))
                 setSeenAtLoad(history.seenUntil !== undefined
@@ -137,11 +143,13 @@ export function useRoomLog({backend, accountId, onLeft}: UseRoomLogOptions) {
         if (!backend) return 'failed'
 
         setFailure(undefined)
+        const signal = room.current
 
         try {
             const sent = await backend.sendMessage(message)
+            if (signal?.aborted) return undefined
             setMine(current => new Set(current).add(sent.id))
-            void receive([sent])
+            void receive([sent], signal)
             return undefined
         } catch (e) {
             console.error("The message could not be sent", e)
