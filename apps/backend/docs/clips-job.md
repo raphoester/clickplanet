@@ -177,6 +177,10 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   "BRAZIL VS HUNGARY FOR ITS OWN LAND", headlines a stranger to the game cannot read. It says instead that the viewer
   has never heard of the game, and that a headline says who does what to which place, the place on screen: "IRELAND
   TAKES NORTH AMERICA FROM BRAZIL" played Ireland taking Honduras and Guatemala, of a continent it already held.
+  On 2026-11-10 "FRANCE TAKES ALGERIA FROM BULGARIA" told France ending with 41% of Algeria, under Bulgaria's painted
+  flag: "true whole" was too vague for the model, which also had TAKES in its list of simple verbs with no condition.
+  The file now splits the verbs: one of who has the place needs its flag to hold most of it when the clip ends, and
+  with less the headline says what the flag did (INVADES, STORMS).
 - **What it answers** (`answerSchema`): `why`, then `stories`, best first, each with its `front`, `tour` or `place`
   (the others 0), and for a front its `kind`, `attacker`, `rival`, `takenFrom`, `countries` or `continent`, `team`,
   for every story its `headline`, `teasers`, `line`, `call`, `callFlags`, `anthem` and `fighters`, and for a front or

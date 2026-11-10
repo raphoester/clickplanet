@@ -97,21 +97,25 @@ must understand the headline alone.
 - **The place is the one on screen**, the smallest one people know that holds the fight: a country, two, a region
   people say ("CENTRAL AMERICA", "SCANDINAVIA", "THE BALKANS"), a continent only when the fighting crosses it. Never
   where a flag comes from.
-- **True whole.** A flag takes only land it did not hold: a flag that held the place when the front opened keeps it,
-  defends it or kicks someone out of it. "TAKES OVER" and "RULES" need the painted flags to show it. No fraction
-  ("MOST OF", "HALF OF"): pick the verb that is true whole, or tell another story. Words the size of the story:
-  "DOWNFALL" and "COLLAPSE" are for a flag's whole fate, never one place lost.
+- **True when the clip ends.** The clip ends out on the map, each landmass under the painted flag of whoever holds
+  most of it. A verb of who has the place (TAKES, CONQUERS, STEALS, CRUSHES, KICKS OUT, WIPES OUT, TAKES OVER, RULES,
+  DEFENDS, and the loser's LOSES) needs the flag it says has the place to hold most of it at the end (`holdersEnd`, or
+  the place's `share`). With less, say what it did: INVADES, STORMS, ATTACKS. On 2026-11-10 France ended with 1,449 of
+  Algeria's 3,568 tiles to Bulgaria's 2,118: "FRANCE TAKES ALGERIA FROM BULGARIA" ended on Bulgaria's flag over
+  Algeria, a lie; "FRANCE INVADES ALGERIA" was true.
+- **A flag takes only land it did not hold**: a flag that held the place when the front opened keeps it, defends it or
+  kicks someone out of it. No fraction ("MOST OF", "HALF OF"): pick the verb that is true whole, or tell another story.
+  Words the size of the story: "DOWNFALL" and "COLLAPSE" are for a flag's whole fate, never one place lost.
 - **The real map, not the game's.** "BRAZIL LOSES ARGENTINA" reads as nonsense, since Argentina was never Brazil's:
   say who took it from Brazil.
-- **Simple verbs a non-native teen knows**: TAKES, INVADES, STORMS, CRUSHES, KICKS OUT, WIPES OUT, STEALS, CONQUERS,
-  DEFENDS. Names as `names` says them: "THE UK", "THE NETHERLANDS". No numbers: the counter shows them.
+- **Simple verbs a non-native teen knows**, the ones above. Names as `names` says them: "THE UK", "THE NETHERLANDS". No numbers: the counter shows them.
 - **Never a headline of `recentPosts`**, nor its shape with other names.
 - Letters, digits, spaces and `! ? ' % : , . & -` only.
 
 ## The teasers
 
 One is the post's title: on YouTube it is read alone, in a list. Two or three, each the story in other plain words,
-as clear as the headline, never the headline itself: "BULGARIA KICKS BRAZIL OUT OF ARGENTINA" could be "BRAZIL LOSES
+as clear and as true as the headline, never the headline itself: "BULGARIA KICKS BRAZIL OUT OF ARGENTINA" could be "BRAZIL LOSES
 ARGENTINA TO BULGARIA" and "ARGENTINA IS BULGARIA'S NOW". Upper case, 86 letters at most.
 
 ## The line, the call and the anthem
