@@ -65,7 +65,9 @@ its flag" and "No shield on a capital" (`capitals.knockOut`, `capitals.fixedShie
 [The capitals' rules](../../backend/docs/capitals.md)): Clicks (the
 tempo with them), Boxes, What a box is (the kinds'
 weights), Charges (with "Enclosures unlimited: enclose spends no charge", the set's `bonuses.enclose.unlimited`: see
-the backend's [Unlimited enclosures](../../backend/docs/enclose.md#unlimited-enclosures-bonusesencloseunlimited)), Arena (`arena.freeze`, how long an arena takes no play after its
+the backend's [Unlimited enclosures](../../backend/docs/enclose.md#unlimited-enclosures-bonusesencloseunlimited), and
+"Bombs off: no box offers one, and none is dropped", `bonuses.bomb.off`: see the backend's
+[Bomb](../../backend/docs/bomb.md)), Arena (`arena.freeze`, how long an arena takes no play after its
 fresh map plays and before the battle ends, and `seed.capitals.shields`, the shields each capital starts with in the
 capitals seed, the one pattern so far: a second one brings a picker), New
 accounts (with "Refill at first sign-in", the set's `bonuses.signInRefill`: see the backend's

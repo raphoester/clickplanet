@@ -8,6 +8,7 @@ import {
     BonusCatch,
     BonusHandlers,
     BonusListener,
+    BombRefusedError,
     BonusLostError,
     BonusOffer,
     ChargesRefresher,
@@ -44,6 +45,7 @@ import {Allegiance} from "../domain/allegiance.ts";
 import {
     Allegiance as AllegianceMessage,
     BanRefusal,
+    BombRefusal,
     BonusKind,
     FrozenRefusal,
     ChargesHeld,
@@ -490,6 +492,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 reach: res.reach,
                 knockOut: res.knockOut,
                 capitalShieldsFixed: res.capitalShieldsFixed,
+                bombsOff: res.bombsOff,
             }
             this.rules = rules
             this.bonusCallbacks.forEach(handlers => handlers.onRules(rules))
@@ -993,7 +996,7 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
 
 const NO_RULES: BonusRules = {
     blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, shields: 0, tileShields: 0, toll: [], signInRefill: false,
-    enclosuresUnlimited: false, reach: false, knockOut: false, capitalShieldsFixed: false,
+    enclosuresUnlimited: false, reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false,
 }
 
 function rewardOf(
@@ -1037,6 +1040,7 @@ export function asBonusError(e: unknown): unknown {
 
     if (e instanceof ConnectError) {
         if (e.code === Code.NotFound || e.code === Code.Unimplemented) return new BonusLostError({cause: e})
+        if (e.code === Code.FailedPrecondition && e.findDetails(BombRefusal).length > 0) return new BombRefusedError({cause: e})
         if (e.code === Code.Unauthenticated) return new SessionUnavailableError({cause: e})
         if (e.code === Code.PermissionDenied) return bannedOf(e) ?? e
     }

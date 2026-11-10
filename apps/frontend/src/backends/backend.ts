@@ -250,6 +250,14 @@ export class BankFullError extends Error {
     }
 }
 
+// The rules in force hold bombs off: the bomb stays held.
+export class BombRefusedError extends Error {
+    constructor(options?: ErrorOptions) {
+        super("bombs are off", options)
+        this.name = "BombRefusedError"
+    }
+}
+
 // One error on purpose: telling the reasons apart would help a script guessing tokens.
 export class BonusLostError extends Error {
     constructor(options?: ErrorOptions) {

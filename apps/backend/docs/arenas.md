@@ -8,8 +8,9 @@ slice 5**: the replays, the map history and the clips read the ledger across the
 the fresh map from a seed ([Seeds](#seeds)). It plays no game rule. Each rule a battle plays on the fresh map is a knob
 of its own in its rule set, which plays on any map, the world's too: [the reach](reach.md), [the capitals' rules](capitals.md)
 (the knock-out and fixed capital shields). **Capital Siege is one rule set**: `arena.on`, the capitals seed, the reach,
-the knock-out and fixed capital shields. Until 2026-11-10 the arena carried those rules, and a rule could not be used
-in another mode or on the world's map.
+the knock-out and fixed capital shields, no bombs (`bonuses.bomb.off`), and urf's speed with bigger spread boxes (see
+[Capital Siege's set](#capital-sieges-set)). Until 2026-11-10 the arena carried those rules, and a rule could not be
+used in another mode or on the world's map.
 
 Planet calls the fresh map an **arena**; the gamemaster calls the battle an **arena battle**. Planet never learns the
 word battle: it opens and closes arenas by the ids it is told.
@@ -145,6 +146,14 @@ Each is a knob of its own, read from the rules in force, on whatever map plays:
   `rules_changed`: see the frontend's [The reach](../../frontend/docs/reach.md) and
   [The capitals](../../frontend/docs/capitals.md). Every map read still says whether the map is an arena's
   (`GetMapResponse.arena`, stamped by `StateBatchDense` from `playing`); the page no longer reads it, the replay does.
+
+## Capital Siege's set
+
+`capital-siege` in production (saved by hand, not scheduled): urf's values (tempo 3, its toll, boxes and quizzes every
+30 to 60 s, its enclose, shield and welcome values, flags locked), plus `arena {on, freeze 8s}`, `seed.capitals.shields`
+100, `reach`, `capitals {knockOut, fixedShields}`, `bonuses.bomb.off`, and a faster spread: a pool of 50
+(`bonuses.spread.clicks`), up to 25 a box (`maxPerBox`), weighed 2 against 1 for refill, enclose and shields. Every
+value is edited on the backoffice. Its antibot set of the same name is still to make before it is scheduled.
 
 ## Gamemaster: the arena battles (`internal/gamemaster/internal/arenas/`)
 

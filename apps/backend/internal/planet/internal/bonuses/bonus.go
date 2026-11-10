@@ -463,7 +463,7 @@ func (r *Registry) offerable(ctx context.Context, entry *caller, rules Rules, no
 	}
 
 	for _, kind := range Kinds {
-		if rules.Kinds[kind] > 0 && !held.Contains(kind) {
+		if rules.Offered(kind) && !held.Contains(kind) {
 			kinds.Add(kind)
 		}
 	}

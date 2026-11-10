@@ -121,6 +121,8 @@ message SpreadRules {
 message BombRules {
   // The blast's radius, in tile spacings.
   optional double rings = 1;
+  // No bomb: no box or quiz offers one, and a bomb held is not dropped (DropBomb answers a BombRefusal).
+  optional bool off = 2;
 }
 
 message EncloseRules {

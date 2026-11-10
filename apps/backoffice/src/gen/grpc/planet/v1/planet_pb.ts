@@ -538,6 +538,40 @@ export class ReachRefusal extends Message<ReachRefusal> {
 }
 
 /**
+ * The detail of the FailedPrecondition that DropBomb answers while the rules in force hold bonuses.bomb.off: the bomb
+ * stays held.
+ *
+ * @generated from message planet.v1.BombRefusal
+ */
+export class BombRefusal extends Message<BombRefusal> {
+  constructor(data?: PartialMessage<BombRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.BombRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BombRefusal {
+    return new BombRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BombRefusal {
+    return new BombRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BombRefusal {
+    return new BombRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BombRefusal | PlainMessage<BombRefusal> | undefined, b: BombRefusal | PlainMessage<BombRefusal> | undefined): boolean {
+    return proto3.util.equals(BombRefusal, a, b);
+  }
+}
+
+/**
  * The detail of a PermissionDenied that Click, DropBomb and PlaceShield answer a banned caller.
  *
  * @generated from message planet.v1.BanRefusal
@@ -2183,6 +2217,13 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
    */
   capitalShieldsFixed = false;
 
+  /**
+   * No bomb is offered or dropped: the page hides the bomb.
+   *
+   * @generated from field: bool bombs_off = 14;
+   */
+  bombsOff = false;
+
   constructor(data?: PartialMessage<GetBonusRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2203,6 +2244,7 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
     { no: 11, name: "reach", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 12, name: "knock_out", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 13, name: "capital_shields_fixed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 14, name: "bombs_off", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBonusRulesResponse {

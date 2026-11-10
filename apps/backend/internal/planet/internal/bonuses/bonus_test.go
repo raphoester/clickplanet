@@ -421,6 +421,27 @@ func TestAKindHeldIsLeftOutOfTheDrawAndTheOthersStillCome(t *testing.T) {
 	}
 }
 
+func TestWhileBombsAreOffNoBoxIsABomb(t *testing.T) {
+	registry, clock := newRuledRegistry(func(rules *Rules) {
+		rules.Kinds = map[Kind]float64{KindBomb: 100, KindRefill: 1}
+		rules.Bomb.Off = true
+	})
+	events := playing(t, registry, "scope-a")
+
+	for range 20 {
+		clock.Advance(window + time.Second)
+		clicked(registry, "scope-a")
+		registry.sweep(t.Context())
+
+		offer := offered(t, events)
+		require.NotNil(t, offer)
+		require.Equal(t, KindRefill, offer.Kind)
+
+		clock.Advance(16 * time.Second)
+		registry.sweep(t.Context())
+	}
+}
+
 func TestAKindHeldByAnAccountThatClicksFromTheScopeIsNotOffered(t *testing.T) {
 	registry, clock := newRegistryOffering(map[Kind]float64{KindEncloseClicks: 1})
 	account := HolderOf(clicks.Payer{Scope: "scope-a", Account: "acc-1"})

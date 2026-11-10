@@ -1,6 +1,13 @@
 package bonuses
 
-import "github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+import (
+	"errors"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+)
+
+// ErrBombsOff is a drop while the rules in force hold no bomb: the bomb stays held.
+var ErrBombsOff = errors.New("bombs are off: the bomb stays held")
 
 func NewBombing(rules func() Rules, spacing float64) Bombing {
 	return Bombing{rules: rules, spacing: spacing}
@@ -9,6 +16,14 @@ func NewBombing(rules func() Rules, spacing float64) Bombing {
 type Bombing struct {
 	rules   func() Rules
 	spacing float64
+}
+
+// Refuses is ErrBombsOff while the rules in force hold bombs off.
+func (b Bombing) Refuses() error {
+	if b.rules().Bomb.Off {
+		return ErrBombsOff
+	}
+	return nil
 }
 
 func (b Bombing) Radius() float64 {

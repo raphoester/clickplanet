@@ -146,6 +146,10 @@ message FrozenRefusal {}
 // and is on the coast of no water where the flag holds a coast.
 message ReachRefusal {}
 
+// The detail of the FailedPrecondition that DropBomb answers while the rules in force hold bonuses.bomb.off: the bomb
+// stays held.
+message BombRefusal {}
+
 // The detail of a PermissionDenied that Click, DropBomb and PlaceShield answer a banned caller.
 message BanRefusal {
   int64 banned_until_unix_ms = 1;
@@ -418,6 +422,9 @@ message GetBonusRulesResponse {
 
   // No shield goes on a capital.
   bool capital_shields_fixed = 13;
+
+  // No bomb is offered or dropped: the page hides the bomb.
+  bool bombs_off = 14;
 }
 
 message TollStep {

@@ -28,6 +28,14 @@ rest, under one lock: a shielded tile keeps its flag, is not in `cleared_tile_id
 and is listed in `struck` with the shields it kept (`Blast.Struck`, `Blast.Left`), so a
 client sets its shields at impact. See [Shields](shields.md).
 
+**No bomb while the rules in force hold `bonuses.bomb.off`** (Capital Siege slice 4; a knob of its own, on any map,
+2026-11-10). `Bombing.Refuses` answers `ErrBombsOff`, and `drop_bomb_usecase` asks it first, before the country, the
+aim and the spend: the bomb stays held, and the drop is `FailedPrecondition` with a `planet.v1.BombRefusal` detail. A
+drop has no throttle, so no token is spent either. No box or quiz offers a bomb while it is off (`Rules.Offered`), and a
+bomb granted another way (a mission's pay, an operator's grant) is kept until a set plays bombs again. The page learns
+it from `GetBonusRules.bombs_off` and hides the bomb. A set that holds it off may weigh bombs anything: none is drawn,
+and a set whose only kind weighed above 0 is the bomb cannot play.
+
 `drop_bomb_usecase` checks the country and the target **before** taking the bomb, so a
 malformed request does not cost one. The drop does not move the schedule: the next
 box was already due a window after the claim.
@@ -57,5 +65,5 @@ before has no owner on its strikes), its strikes told as one `planet.v1.ShieldsS
 **The ban applies**: `refusal_drop_bomb` refuses a refused caller's drop before the
 bomb is spent, with the same `BanRefusal` as a click (see [A ban is told](antibot.md#a-ban-is-told)),
 so the bomb stays in hand. It sits inside the count so the counter can label it.
-`prom_drop_bomb` counts `bonus_bombs_dropped_total{outcome=land|sea|caller_refused|refused}`
+`prom_drop_bomb` counts `bonus_bombs_dropped_total{outcome=land|sea|caller_refused|refused}` (bombs off is `refused`)
 and `bonus_bomb_tiles_cleared_total`.

@@ -31,7 +31,7 @@ func RulesOf(m *planetv1.BonusRules) Rules {
 		MissRetry:    duration(m.GetMissRetry()),
 		ActiveWithin: duration(m.GetActiveWithin()),
 		Spread:       SpreadRules{Clicks: int(m.GetSpread().GetClicks()), MaxPerBox: int(m.GetSpread().GetMaxPerBox())},
-		Bomb:         BombRules{Rings: m.GetBomb().GetRings()},
+		Bomb:         BombRules{Rings: m.GetBomb().GetRings(), Off: m.GetBomb().GetOff()},
 		Enclose: EncloseRules{
 			MaxTiles:  int(m.GetEnclose().GetMaxTiles()),
 			Held:      int(m.GetEnclose().GetHeld()),
