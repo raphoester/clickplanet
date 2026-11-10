@@ -54,7 +54,13 @@ With no book there are no boards. `app/standings/` draws it.
   which became Gained while a round ran, so for most of a season no share showed; the
   owner asked for it back on 2026-11-09. Two decimals beside the count would have cut
   the country's name to a few letters on a phone: the whole percent costs 12px of it,
-  from 94 to 82px. **While a round runs, a Gained column follows the tiles**:
+  from 94 to 82px. **A count that just moved wears an arrow** (`TileCount`), up in green or down in red
+  like the count itself, in the gap before the count where a head's sort chevron sits, so nothing on the line
+  moves. It pops again on each new move and fades `DELTA_HOLD_MS` after the last one (see
+  [Sampling the leaderboard](leaderboard-sampling.md)). Until 2026-11-10 it was a "+3" after the count: with
+  the share there it sat between the share and Gained, read as a change of either, and a row has no room for
+  a third number. How much moved shows in Gained, which moves by the same tiles. **While a round runs, a
+  Gained column follows the tiles**:
   the tiles the country holds now less what it held when the round opened (`Round.start`,
   `countryLines`' `gain`), signed, green up and red down (`--gain`, `--loss`), with its
   own hint (`gained`, `gainedBattle`). A battle ranks that gain alone; a day ranks it and

@@ -12,8 +12,8 @@ past.
 over a couple of hundred numbers, no DOM — and a `SAMPLE_MS` interval publishes
 what has accumulated. That split is what makes the badges both cheap and honest:
 
-- A country that won three tiles in half a second says **"+3" once**, rather
-  than "+1" three times too fast to read.
+- A country that won three tiles in half a second pops its arrow **once**,
+  rather than three times too fast to see.
 - The initial load is told apart from live play **exactly**, which sampling the
   stream alone could not do. `createGlobe` passes `live: false` for a read of the
   counts (at load, or after a gap), and `live: true` for each change on the

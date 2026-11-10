@@ -52,7 +52,3 @@ export function expireBadges(badges: TileDeltas, now: number): TileDeltas {
     })
     return kept.size === badges.size ? badges : kept
 }
-
-export function signed(net: number): string {
-    return net > 0 ? `+${net}` : `${net}`
-}

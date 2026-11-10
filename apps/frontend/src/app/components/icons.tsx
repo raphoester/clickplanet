@@ -20,6 +20,13 @@ export function ChevronIcon({size = 18}: IconProps) {
     </svg>
 }
 
+export function TrendIcon({size = 8, down}: IconProps & {down: boolean}) {
+    return <svg width={size} height={size} viewBox="0 0 10 10" fill="currentColor" stroke="currentColor"
+                strokeWidth={1.6} strokeLinejoin="round" aria-hidden={true}>
+        <path d={down ? "M1.5 2.5h7L5 8.5z" : "M1.5 7.5h7L5 1.5z"}/>
+    </svg>
+}
+
 export function BackIcon({size = 22}: IconProps) {
     return <svg {...base(size)}>
         <path d="M14.5 5.5 8 12l6.5 6.5"/>
