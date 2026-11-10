@@ -222,7 +222,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		deletions, requests, restores, forgottenDepartures, signIns, namings, told, signOuts, gone, leaving,
 		cpoutbox.NewRelay("player-outbox", db, streams, props.Logger))))
 
-	getRoster := get_roster_handler.New(roster_query.NewMemoryQuery(inmemory_roster.New(visits, clock)))
 	playersQuery := players_query.NewPostgresQuery(db)
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(profile_query.NewPostgresQuery(db, inprocess_rename_rule.New())),
@@ -233,8 +232,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		AnnounceHandler: announce_handler.New(
 			announce_usecase.New(introducer, visits, cpcountries.New(), clock, tagSalt),
 		),
-		LeaveHandler:     leave_handler.New(forgetVisit),
-		GetRosterHandler: getRoster,
+		LeaveHandler: leave_handler.New(forgetVisit),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat),
 		),
@@ -262,7 +260,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	adminService := playerv1controller.AdminService{
 		GetPlayersHandler:     getPlayers,
 		AdminGetPlayerHandler: admin_get_player_handler.New(admin_player_query.NewPostgresQuery(db, accounts)),
-		GetRosterHandler:      getRoster,
+		GetRosterHandler:      get_roster_handler.New(roster_query.NewMemoryQuery(inmemory_roster.New(visits, clock))),
 		SearchPlayersHandler:  search_players_handler.New(matches_query.NewPostgresQuery(db)),
 		RenamePlayerHandler: rename_player_handler.New(
 			audit_rename_player.New(rename_player_usecase.New(db, store, renameStore, outbox, clock), props.Logger),

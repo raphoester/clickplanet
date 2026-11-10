@@ -4,34 +4,19 @@ package scoring.v1;
 
 import "google/protobuf/timestamp.proto";
 
-// A round was scored: its results credit its book.
+// A round was scored.
 message RoundScored {
   string round_id = 1;
   string book_id = 2;
   google.protobuf.Timestamp ended_at = 3;
-  repeated RoundResult results = 4;
+  reserved 4;
+  reserved "results";
 }
 
-message RoundResult {
-  string country = 1;
-  uint32 rank = 2;
-  // Times the round's times.
-  uint32 points = 3;
-  double share = 4;
-}
-
-// A book was closed and ranked.
+// A book was closed.
 message BookClosed {
   string book_id = 1;
   google.protobuf.Timestamp ended_at = 2;
-  repeated Place table = 3;
-}
-
-message Place {
-  string country = 1;
-  uint32 rank = 2;
-  uint32 points = 3;
-  uint32 rounds_won = 4;
-  // The points of the book's tiebreak round.
-  uint32 tiebreak_points = 5;
+  reserved 3;
+  reserved "table";
 }

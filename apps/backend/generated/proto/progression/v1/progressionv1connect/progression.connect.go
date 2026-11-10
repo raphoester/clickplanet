@@ -33,9 +33,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ProgressionServiceGetStatsProcedure is the fully-qualified name of the ProgressionService's
-	// GetStats RPC.
-	ProgressionServiceGetStatsProcedure = "/progression.v1.ProgressionService/GetStats"
 	// ProgressionServiceGetTitlesProcedure is the fully-qualified name of the ProgressionService's
 	// GetTitles RPC.
 	ProgressionServiceGetTitlesProcedure = "/progression.v1.ProgressionService/GetTitles"
@@ -58,7 +55,6 @@ const (
 
 // ProgressionServiceClient is a client for the progression.v1.ProgressionService service.
 type ProgressionServiceClient interface {
-	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
 	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
 	GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error)
@@ -82,12 +78,6 @@ func NewProgressionServiceClient(httpClient connect.HTTPClient, baseURL string, 
 	baseURL = strings.TrimRight(baseURL, "/")
 	progressionServiceMethods := v1.File_progression_v1_progression_proto.Services().ByName("ProgressionService").Methods()
 	return &progressionServiceClient{
-		getStats: connect.NewClient[v1.GetStatsRequest, v1.GetStatsResponse](
-			httpClient,
-			baseURL+ProgressionServiceGetStatsProcedure,
-			connect.WithSchema(progressionServiceMethods.ByName("GetStats")),
-			connect.WithClientOptions(opts...),
-		),
 		getTitles: connect.NewClient[v1.GetTitlesRequest, v1.GetTitlesResponse](
 			httpClient,
 			baseURL+ProgressionServiceGetTitlesProcedure,
@@ -131,18 +121,12 @@ func NewProgressionServiceClient(httpClient connect.HTTPClient, baseURL string, 
 
 // progressionServiceClient implements ProgressionServiceClient.
 type progressionServiceClient struct {
-	getStats        *connect.Client[v1.GetStatsRequest, v1.GetStatsResponse]
 	getTitles       *connect.Client[v1.GetTitlesRequest, v1.GetTitlesResponse]
 	wearTitle       *connect.Client[v1.WearTitleRequest, v1.WearTitleResponse]
 	getFronts       *connect.Client[v1.GetFrontsRequest, v1.GetFrontsResponse]
 	getBadges       *connect.Client[v1.GetBadgesRequest, v1.GetBadgesResponse]
 	getProgress     *connect.Client[v1.GetProgressRequest, v1.GetProgressResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.ProgressionEvent]
-}
-
-// GetStats calls progression.v1.ProgressionService.GetStats.
-func (c *progressionServiceClient) GetStats(ctx context.Context, req *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error) {
-	return c.getStats.CallUnary(ctx, req)
 }
 
 // GetTitles calls progression.v1.ProgressionService.GetTitles.
@@ -177,7 +161,6 @@ func (c *progressionServiceClient) ListenForEvents(ctx context.Context, req *con
 
 // ProgressionServiceHandler is an implementation of the progression.v1.ProgressionService service.
 type ProgressionServiceHandler interface {
-	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
 	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
 	GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error)
@@ -197,12 +180,6 @@ type ProgressionServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewProgressionServiceHandler(svc ProgressionServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	progressionServiceMethods := v1.File_progression_v1_progression_proto.Services().ByName("ProgressionService").Methods()
-	progressionServiceGetStatsHandler := connect.NewUnaryHandler(
-		ProgressionServiceGetStatsProcedure,
-		svc.GetStats,
-		connect.WithSchema(progressionServiceMethods.ByName("GetStats")),
-		connect.WithHandlerOptions(opts...),
-	)
 	progressionServiceGetTitlesHandler := connect.NewUnaryHandler(
 		ProgressionServiceGetTitlesProcedure,
 		svc.GetTitles,
@@ -243,8 +220,6 @@ func NewProgressionServiceHandler(svc ProgressionServiceHandler, opts ...connect
 	)
 	return "/progression.v1.ProgressionService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case ProgressionServiceGetStatsProcedure:
-			progressionServiceGetStatsHandler.ServeHTTP(w, r)
 		case ProgressionServiceGetTitlesProcedure:
 			progressionServiceGetTitlesHandler.ServeHTTP(w, r)
 		case ProgressionServiceWearTitleProcedure:
@@ -265,10 +240,6 @@ func NewProgressionServiceHandler(svc ProgressionServiceHandler, opts ...connect
 
 // UnimplementedProgressionServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedProgressionServiceHandler struct{}
-
-func (UnimplementedProgressionServiceHandler) GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("progression.v1.ProgressionService.GetStats is not implemented"))
-}
 
 func (UnimplementedProgressionServiceHandler) GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("progression.v1.ProgressionService.GetTitles is not implemented"))

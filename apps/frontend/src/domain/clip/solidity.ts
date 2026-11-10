@@ -8,9 +8,6 @@ const NEAR = 1.4
 
 const SAMPLE = 200
 
-// Below this, what was taken is lines drawn on someone else's land, not land taken.
-export const SCRIBBLE_BELOW = 0.75
-
 // For each tile taken, the share of its neighbours its taker holds at the end: about 1 for land taken, low for
 // letters drawn on someone else's land. held is every tile the taker holds at the end; taken is part of it.
 export function solidityOf(taken: readonly Point[], held: readonly Point[]): number {

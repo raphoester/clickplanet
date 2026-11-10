@@ -22,7 +22,7 @@ type accountVerifier struct {
 }
 
 func (v accountVerifier) Verify(context.Context, string, string, time.Time) (*cpsession.Claims, error) {
-	return &cpsession.Claims{ID: "a-mint", Account: v.account, Attested: true}, nil
+	return &cpsession.Claims{Account: v.account, Attested: true}, nil
 }
 
 type fakeRequest struct {
@@ -48,7 +48,7 @@ func TestAnEnforcedSessionPutsTheAccountAndWhenItWasMadeOnTheContext(t *testing.
 	inner.Header().Set(cpconnect.SessionHeader, "a-token")
 
 	interceptor := cpconnect.NewSessionInterceptor(accountVerifier{account: account}, cptime.SystemClock{},
-		errors.New("no session"), true, func(cpconnect.SessionVerdict) {}, cpconnect.Attested(procedure))
+		errors.New("no session"), func(cpconnect.SessionVerdict) {}, cpconnect.Attested(procedure))
 	_, err := interceptor.WrapUnary(next)(t.Context(), fakeRequest{AnyRequest: inner})
 
 	require.NoError(t, err)

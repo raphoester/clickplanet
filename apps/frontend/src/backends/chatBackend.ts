@@ -77,7 +77,6 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
     public async sendMessage(message: OutgoingMessage): Promise<ChatMessage> {
         try {
             const res = await this.authenticated((headers) => this.client.sendMessage({
-                authorId: message.authorId,
                 countryId: message.countryCode,
                 body: message.gif ? {case: "gif", value: message.gif} : {case: "text", value: message.text},
                 replyToMessageId: message.replyTo,

@@ -49,7 +49,7 @@ func (s *testSuite) said(id string, account messages.AccountID, room messages.Ro
 	s.Require().NoError(postgres_message_store.New(s.db).Append(s.T().Context(), messages.NewRecord(
 		messages.Restored(s.T(), messages.Snapshot{
 			ID: messages.MessageID(id), SentAt: at, Account: account, Room: room, Country: "fr", Text: text, Gif: shown,
-		}), "browser", "203.0.113.7", "agent")))
+		}), "203.0.113.7", "agent")))
 }
 
 func ids(lines []judgements.Line) []messages.MessageID {

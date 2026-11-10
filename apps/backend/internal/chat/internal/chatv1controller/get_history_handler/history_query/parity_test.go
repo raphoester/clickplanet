@@ -130,12 +130,12 @@ func (s *testSuite) TestAMessageReadsBackAsSendMessageAnsweredIt() {
 
 	answers := map[string]*chatv1.ChatMessage{}
 	for _, in := range []send_message_usecase.In{
-		{Account: ada, AuthorID: "browser-1", Room: messages.World, CountryID: "fr", Text: "  hello\tplanet  ", UserAgent: "test"},
-		{Account: bob, AuthorID: "browser-2", Room: messages.World, CountryID: "de", Text: "hi", UserAgent: "test"},
+		{Account: ada, Room: messages.World, CountryID: "fr", Text: "  hello\tplanet  ", UserAgent: "test"},
+		{Account: bob, Room: messages.World, CountryID: "de", Text: "hi", UserAgent: "test"},
 	} {
 		sent, err := send.Execute(s.T().Context(), in)
 		s.Require().NoError(err)
-		answer := chatmessage.Encode(sent, nil, 0)
+		answer := chatmessage.Encode(sent)
 		answers[answer.GetId()] = answer
 		clock.Advance(time.Second)
 	}
@@ -164,10 +164,10 @@ func (s *testSuite) TestAReplyReadsBackAsSendMessageAnsweredIt() {
 	answers := map[string]*chatv1.ChatMessage{}
 	for _, replyTo := range []messages.MessageID{"long", "short", "legacy"} {
 		sent, err := send.Execute(s.T().Context(), send_message_usecase.In{
-			Account: ada, AuthorID: "browser-1", Room: messages.World, CountryID: "fr", Text: "answer", ReplyTo: replyTo, UserAgent: "test",
+			Account: ada, Room: messages.World, CountryID: "fr", Text: "answer", ReplyTo: replyTo, UserAgent: "test",
 		})
 		s.Require().NoError(err)
-		answer := chatmessage.Encode(sent, nil, 0)
+		answer := chatmessage.Encode(sent)
 		s.Require().Equal(string(replyTo), answer.GetReplyTo().GetMessageId())
 		answers[answer.GetId()] = answer
 		clock.Advance(time.Second)

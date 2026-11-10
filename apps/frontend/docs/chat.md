@@ -110,8 +110,8 @@ blank name: an author online is named by the roster at once, any other in one re
 name; its foot reads "as <username>", or for a guest "as a guest" until its first message comes back, then the
 nameplate of the account it posted as (`accountSentUnder`). The client still keeps a UUID in
 `clickplanet-chat-identity` (`chatIdentity.ts`, `useChatIdentity.ts`, held by
-`ChatPanel`) because `SendMessageRequest.author_id` carries it; the server
-trusts it for nothing, and a name stored there by an older build is dropped.
+`ChatPanel`): it is the customer id the GIF search sends KLIPY. A name stored
+there by an older build is dropped.
 
 **`SendMessage` and `React` always carry the click token**, guests included:
 the server refuses a caller with no account (`unauthenticated`). So

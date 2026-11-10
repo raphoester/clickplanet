@@ -1262,11 +1262,6 @@ export class ClipRecord extends Message<ClipRecord> {
    */
   globe?: GlobeReplay;
 
-  /**
-   * @generated from field: map<string, string> variants = 5;
-   */
-  variants: { [key: string]: string } = {};
-
   constructor(data?: PartialMessage<ClipRecord>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1279,7 +1274,6 @@ export class ClipRecord extends Message<ClipRecord> {
     { no: 2, name: "generator", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "common", kind: "message", T: ClipCommon },
     { no: 4, name: "globe", kind: "message", T: GlobeReplay },
-    { no: 5, name: "variants", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClipRecord {

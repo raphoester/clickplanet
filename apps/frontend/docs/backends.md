@@ -168,10 +168,8 @@ the detail), and the bomb or the shield stays in hand, since the server spent
 nothing.
 
 `FakeBackend` reproduces the throttle, the ban and the frozen map in dev: it
-enforces the same bucket as production's `rateLimiter` (one click every 5s, 60 in hand), and takes `vpnBlocked` and
-`sessionUnavailable` options that refuse every click (there is no address and no
-widget there to judge). Its own simulated traffic bypasses all of them, standing
-in for other players rather than for this one.
+enforces the same bucket as production's `rateLimiter` (one click every 5s, 60 in hand). Its own simulated traffic
+bypasses all of them, standing in for other players rather than for this one.
 
 ## The click budget
 

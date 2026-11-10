@@ -2,9 +2,9 @@ import * as THREE from "three"
 import {SLOT_COUNT, Slots} from "./slotRanking.ts"
 import type {Region} from "./atlas.ts"
 
-export const SLOT_CELL = {width: 768, height: 512} as const
+const SLOT_CELL = {width: 768, height: 512} as const
 
-export const SLOT_COLUMNS = 2
+const SLOT_COLUMNS = 2
 
 // A flag sits this far inside its cell, its last column and row repeated out to the cell's edge for the coarse mip levels.
 const MARGIN = 32

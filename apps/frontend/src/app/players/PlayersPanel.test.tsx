@@ -10,7 +10,7 @@ import {useBadges} from "../badges/badgesStore.ts"
 
 afterEach(() => {
     cleanup()
-    usePlayerCard.setState({openable: false, player: undefined})
+    usePlayerCard.setState({player: undefined})
     useRoster.setState({state: {kind: "unavailable"}})
     useBadges.getState().serve(undefined)
 })
@@ -86,19 +86,12 @@ describe("PlayersPanel", () => {
     })
 
     it("opens a player, guest or not, from its name", async () => {
-        usePlayerCard.setState({openable: true})
         const bo = entry("guest_Bo", true, "de")
         show([entry("ana", false), bo])
 
         await userEvent.click(screen.getByRole("button", {name: "guest_Bo"}))
 
         expect(usePlayerCard.getState().player).toEqual(bo)
-    })
-
-    it("offers no button with nothing to open", () => {
-        show([entry("ana", false)])
-
-        expect(screen.queryByRole("button")).toBeNull()
     })
 
     it("shows the badges kept for each line's account beside its name, and nothing beside one that has none", () => {

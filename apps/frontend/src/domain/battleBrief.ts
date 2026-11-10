@@ -3,7 +3,7 @@ import {Debrief} from "../backends/turn.ts"
 import {Battle} from "./battle.ts"
 import {debriefRoundOf} from "./debrief.ts"
 
-export const POINTS_SHOWN = 10
+const POINTS_SHOWN = 10
 
 // Seconds before a screen shows its button.
 export const BATTLE_DEBRIEF = {over: 2.4, points: 2.2, players: 2.2} as const

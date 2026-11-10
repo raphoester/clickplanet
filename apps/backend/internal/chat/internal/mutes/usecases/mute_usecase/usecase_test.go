@@ -54,7 +54,7 @@ func (s *testSuite) posted(account messages.AccountID, ip string, id string) {
 	message := messages.Restored(s.T(), messages.Snapshot{
 		ID: messages.MessageID(id), SentAt: now.Add(-time.Minute), Account: account, Country: "fr", Text: "We target the players",
 	})
-	s.Require().NoError(s.messages.Append(context.Background(), messages.NewRecord(message, "browser", ip, "agent")))
+	s.Require().NoError(s.messages.Append(context.Background(), messages.NewRecord(message, ip, "agent")))
 }
 
 func (s *testSuite) TestAMuteHoldsTheAccountAndTheSlash64ItLastPostedFrom() {

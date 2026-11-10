@@ -28,15 +28,6 @@ func (s *Store) Keep(ctx context.Context, account players.AccountID) error {
 	return nil
 }
 
-func (s *Store) IsPlayer(ctx context.Context, account players.AccountID) (bool, error) {
-	var is bool
-	if err := s.db.On(ctx).QueryRowContext(ctx,
-		`SELECT EXISTS (SELECT 1 FROM players WHERE account_id = $1)`, uuid.UUID(account)).Scan(&is); err != nil {
-		return false, fmt.Errorf("failed to read the player: %w", err)
-	}
-	return is, nil
-}
-
 func (s *Store) Forget(ctx context.Context, account players.AccountID) error {
 	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM players WHERE account_id = $1`, uuid.UUID(account)); err != nil {
 		return fmt.Errorf("failed to forget the player: %w", err)

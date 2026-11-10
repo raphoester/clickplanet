@@ -25,7 +25,6 @@ func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Cloc
 		verifier,
 		clock,
 		ErrNoSession,
-		true,
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
 		cpconnect.Identified(alertsv1connect.AlertsServiceGetDiscordLinkProcedure),
 	)

@@ -124,7 +124,7 @@ afterEach(() => {
     cleanup()
     useNameplates.getState().serve(undefined)
     vi.restoreAllMocks()
-    usePlayerCard.setState({openable: false, player: undefined})
+    usePlayerCard.setState({player: undefined})
     useBadges.getState().serve(undefined)
 })
 
@@ -348,7 +348,6 @@ describe("BoardViews", () => {
     })
 
     it("opens a player's card from its name", async () => {
-        usePlayerCard.setState({openable: true})
         const {user} = await shown({backend: backendOf(), caller: GUEST, view: "players"})
 
         await user.click(within(rows()[0]).getByRole("button", {name: "Ana"}))
@@ -356,11 +355,6 @@ describe("BoardViews", () => {
         expect(usePlayerCard.getState().player).toEqual({
             accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.PINK,
         })
-    })
-
-    it("draws the names as plain text with no card to open", async () => {
-        await shown({backend: backendOf(), caller: GUEST, view: "players"})
-        expect(within(rows()[0]).queryByRole("button")).toBeNull()
     })
 
     it("leaves the caller's line out of a country it took nothing for", async () => {

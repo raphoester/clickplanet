@@ -37,7 +37,7 @@ type PlayersGroupProps = {
 function PlayersGroup({title, entries}: PlayersGroupProps) {
     const titleId = useId()
     const words = useWordFilter()
-    const openPlayer = usePlayerCard((card) => card.openable ? card.open : undefined)
+    const openPlayer = usePlayerCard((card) => card.open)
     return <section className="players-group" aria-labelledby={titleId}>
         <h3 className="menu-section-title players-group-title" id={titleId}>
             {title}
@@ -53,16 +53,12 @@ function PlayersGroup({title, entries}: PlayersGroupProps) {
                       title={countryName(entry.countryCode)}>
                     <CountryFlag code={entry.countryCode}/>
                 </span>
-                {openPlayer
-                    ? <button type="button"
-                              className="players-entry-name player-name-button"
-                              title={words.masked(entry.name)}
-                              onClick={() => openPlayer(entry)}>
-                        {truncate(words.masked(entry.name), NAME_MAX_LENGTH)}
-                    </button>
-                    : <span className="players-entry-name" title={words.masked(entry.name)}>
-                        {truncate(words.masked(entry.name), NAME_MAX_LENGTH)}
-                    </span>}
+                <button type="button"
+                        className="players-entry-name player-name-button"
+                        title={words.masked(entry.name)}
+                        onClick={() => openPlayer(entry)}>
+                    {truncate(words.masked(entry.name), NAME_MAX_LENGTH)}
+                </button>
                 {entry.admin && <AdminCrown/>}
                 <WornTitle accountId={entry.accountId} size={18}/>
                 <Streak accountId={entry.accountId}/>

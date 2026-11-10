@@ -13,8 +13,6 @@ type Operator struct {
 	client  string
 }
 
-var NoOperator = Operator{}
-
 func OperatorOf(account cpsession.AccountID, client string) Operator {
 	return Operator{account: account, client: client}
 }

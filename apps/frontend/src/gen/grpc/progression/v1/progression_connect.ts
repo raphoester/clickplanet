@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetBadgesRequest, GetBadgesResponse, GetFrontsRequest, GetFrontsResponse, GetProgressRequest, GetProgressResponse, GetStatsRequest, GetStatsResponse, GetTitlesRequest, GetTitlesResponse, ListenForEventsRequest, ProgressionEvent, WearTitleRequest, WearTitleResponse } from "./progression_pb.js";
+import { GetBadgesRequest, GetBadgesResponse, GetFrontsRequest, GetFrontsResponse, GetProgressRequest, GetProgressResponse, GetTitlesRequest, GetTitlesResponse, ListenForEventsRequest, ProgressionEvent, WearTitleRequest, WearTitleResponse } from "./progression_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -12,15 +12,6 @@ import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 export const ProgressionService = {
   typeName: "progression.v1.ProgressionService",
   methods: {
-    /**
-     * @generated from rpc progression.v1.ProgressionService.GetStats
-     */
-    getStats: {
-      name: "GetStats",
-      I: GetStatsRequest,
-      O: GetStatsResponse,
-      kind: MethodKind.Unary,
-    },
     /**
      * @generated from rpc progression.v1.ProgressionService.GetTitles
      */

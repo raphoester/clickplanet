@@ -48,7 +48,7 @@ func send(t *testing.T, refusals ...error) sending {
 func TestAPostTheServiceTakesIsSentOnceAtTheSlotTheCalendarGave(t *testing.T) {
 	s := send(t)
 
-	sent, scheduled, held, err := s.sender.Send(t.Context(), s.post, time.Time{})
+	sent, scheduled, held, err := s.sender.Send(t.Context(), s.post)
 
 	require.NoError(t, err)
 	assert.False(t, held)
@@ -59,21 +59,11 @@ func TestAPostTheServiceTakesIsSentOnceAtTheSlotTheCalendarGave(t *testing.T) {
 	assert.Empty(t, s.pause.Waited)
 }
 
-func TestTheCalendarIsAskedFromTheRunsBound(t *testing.T) {
-	s := send(t)
-	bound := now.Add(4 * time.Hour)
-
-	_, _, _, err := s.sender.Send(t.Context(), s.post, bound)
-
-	require.NoError(t, err)
-	assert.Equal(t, []time.Time{bound}, s.planner.Bounds)
-}
-
 func TestAPostNoPlatformTakesIsHeldAndNothingIsSent(t *testing.T) {
 	s := send(t)
 	s.planner.Held = true
 
-	_, _, held, err := s.sender.Send(t.Context(), s.post, time.Time{})
+	_, _, held, err := s.sender.Send(t.Context(), s.post)
 
 	require.NoError(t, err)
 	assert.True(t, held)
@@ -83,7 +73,7 @@ func TestAPostNoPlatformTakesIsHeldAndNothingIsSent(t *testing.T) {
 func TestABusyServiceIsTriedAgainAfterALongerWaitEachTimeAtASlotPlannedAgain(t *testing.T) {
 	s := send(t, busy(0), busy(0), busy(0))
 
-	sent, scheduled, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
+	sent, scheduled, _, err := s.sender.Send(t.Context(), s.post)
 
 	require.NoError(t, err)
 	assert.Equal(t, posts.PostID("post-BEST"), scheduled.ID)
@@ -96,7 +86,7 @@ func TestABusyServiceIsTriedAgainAfterALongerWaitEachTimeAtASlotPlannedAgain(t *
 func TestAServiceThatSaysHowLongToWaitIsWaitedForThatLong(t *testing.T) {
 	s := send(t, busy(3*time.Minute), busy(time.Minute))
 
-	_, _, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
+	_, _, _, err := s.sender.Send(t.Context(), s.post)
 
 	require.NoError(t, err)
 	assert.Equal(t, []time.Duration{3 * time.Minute, 5 * time.Minute}, s.pause.Waited)
@@ -105,7 +95,7 @@ func TestAServiceThatSaysHowLongToWaitIsWaitedForThatLong(t *testing.T) {
 func TestAServiceStillBusyAfterTheLastWaitFailsThePost(t *testing.T) {
 	s := send(t, busy(0), busy(0), busy(0), busy(0))
 
-	_, _, held, err := s.sender.Send(t.Context(), s.post, time.Time{})
+	_, _, held, err := s.sender.Send(t.Context(), s.post)
 
 	var refusal *posts.BusyError
 	require.ErrorAs(t, err, &refusal)
@@ -117,7 +107,7 @@ func TestAServiceStillBusyAfterTheLastWaitFailsThePost(t *testing.T) {
 func TestAServiceBusyForLongerThanTheLongestWaitFailsThePostAtOnce(t *testing.T) {
 	s := send(t, busy(6*time.Hour))
 
-	_, _, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
+	_, _, _, err := s.sender.Send(t.Context(), s.post)
 
 	var refusal *posts.BusyError
 	require.ErrorAs(t, err, &refusal)
@@ -127,7 +117,7 @@ func TestAServiceBusyForLongerThanTheLongestWaitFailsThePostAtOnce(t *testing.T)
 func TestASlotTakenIsPlannedAgainAtOnceAndTakenTooOftenFailsThePost(t *testing.T) {
 	s := send(t, posts.ErrTaken)
 
-	sent, scheduled, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
+	sent, scheduled, _, err := s.sender.Send(t.Context(), s.post)
 
 	require.NoError(t, err)
 	assert.Equal(t, posts.PostID("post-BEST"), scheduled.ID)
@@ -135,7 +125,7 @@ func TestASlotTakenIsPlannedAgainAtOnceAndTakenTooOftenFailsThePost(t *testing.T
 	assert.Empty(t, s.pause.Waited)
 
 	s = send(t, posts.ErrTaken, posts.ErrTaken, posts.ErrTaken, posts.ErrTaken)
-	_, _, _, err = s.sender.Send(t.Context(), s.post, time.Time{})
+	_, _, _, err = s.sender.Send(t.Context(), s.post)
 	require.ErrorIs(t, err, posts.ErrTaken)
 	assert.Len(t, s.planner.Asked, 4)
 }
@@ -144,7 +134,7 @@ func TestAPostOnSomeOfItsPlatformsIsNotTriedAgain(t *testing.T) {
 	s := send(t)
 	s.service.Refusing = map[posts.Platform]error{posts.YouTube: errors.New("no youtube account")}
 
-	_, scheduled, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
+	_, scheduled, _, err := s.sender.Send(t.Context(), s.post)
 
 	require.NoError(t, err)
 	assert.Equal(t, s.service.Refusing, scheduled.Refused)
@@ -156,7 +146,7 @@ func TestAnyOtherRefusalIsNotTriedAgain(t *testing.T) {
 	refused := errors.New("the caption is too long")
 	s := send(t, refused)
 
-	_, _, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
+	_, _, _, err := s.sender.Send(t.Context(), s.post)
 
 	require.ErrorIs(t, err, refused)
 	assert.Empty(t, s.pause.Waited)
@@ -167,7 +157,7 @@ func TestACalendarThatCannotBeReadFailsThePostOnThePlatformsItAsked(t *testing.T
 	s := send(t)
 	s.planner.Failed = errors.New("ssh failed: Permission denied (publickey)")
 
-	sent, _, held, err := s.sender.Send(t.Context(), s.post, time.Time{})
+	sent, _, held, err := s.sender.Send(t.Context(), s.post)
 
 	require.ErrorContains(t, err, "Permission denied")
 	assert.False(t, held)
@@ -179,7 +169,7 @@ func TestABusyCalendarIsWaitedForAsTheServiceIs(t *testing.T) {
 	s := send(t)
 	s.planner.Failed = busy(0)
 
-	_, _, _, err := s.sender.Send(t.Context(), s.post, time.Time{})
+	_, _, _, err := s.sender.Send(t.Context(), s.post)
 
 	var refusal *posts.BusyError
 	require.ErrorAs(t, err, &refusal)

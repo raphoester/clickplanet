@@ -5,8 +5,6 @@ package progression.v1;
 import "progression/v1/title.proto";
 
 service ProgressionService {
-  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
-
   rpc GetTitles(GetTitlesRequest) returns (GetTitlesResponse);
 
   rpc WearTitle(WearTitleRequest) returns (WearTitleResponse);
@@ -33,12 +31,6 @@ message Stats {
   uint32 streak_current = 2;
   uint32 streak_best = 3;
   string streak_last_day = 4;
-}
-
-message GetStatsRequest {}
-
-message GetStatsResponse {
-  Stats stats = 1;
 }
 
 message CountryTiles {

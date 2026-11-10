@@ -43,15 +43,3 @@ export function foughtOver(
     }))
     return ranked(grounds).filter(([, count]) => count >= FOUGHT_OVER_LEAST).slice(0, MOST_COUNTRIES).map(([country]) => country)
 }
-
-// The flags that lost the most tiles to another flag, the most first.
-export function losersOf(changes: readonly TileChange[]): string[] {
-    return ranked(tally(changes.flatMap(({from, to}) => from === undefined || to === undefined || from === to ? [] : [from])))
-        .map(([flag]) => flag)
-}
-
-// The flags that took the most from one flag, the most first.
-export function takersFrom(changes: readonly TileChange[], loser: string): string[] {
-    return ranked(tally(changes.flatMap(({from, to}) => from === loser && to !== undefined && to !== loser ? [to] : [])))
-        .map(([flag]) => flag)
-}

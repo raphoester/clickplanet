@@ -44,17 +44,17 @@ func (s *testSuite) sent(text string, at time.Time) messages.Message {
 }
 
 func (s *testSuite) keep(message messages.Message) {
-	s.Require().NoError(s.store.Append(context.Background(), messages.NewRecord(message, "some-uuid", "203.0.113.7", "test-agent")))
+	s.Require().NoError(s.store.Append(context.Background(), messages.NewRecord(message, "203.0.113.7", "test-agent")))
 }
 
 func (s *testSuite) TestTheSenderIsStored() {
 	s.keep(s.sent("hello", start))
 
-	var ip, userAgent, authorID string
+	var ip, userAgent string
 	s.Require().NoError(s.db.On(context.Background()).QueryRowContext(context.Background(),
-		`SELECT ip, user_agent, author_id FROM messages`).Scan(&ip, &userAgent, &authorID))
+		`SELECT ip, user_agent FROM messages`).Scan(&ip, &userAgent))
 
-	s.Equal([]string{"203.0.113.7", "test-agent", "some-uuid"}, []string{ip, userAgent, authorID})
+	s.Equal([]string{"203.0.113.7", "test-agent"}, []string{ip, userAgent})
 }
 
 func (s *testSuite) TestOnlyAReplyKeepsTheMessageItRepliesTo() {

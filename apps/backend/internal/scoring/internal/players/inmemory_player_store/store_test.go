@@ -11,6 +11,6 @@ import (
 
 func TestInMemoryStoreHoldsTheContract(t *testing.T) {
 	s := new(players.StoreContractSuite)
-	s.NewStore = func() players.Store { return inmemory_player_store.New() }
+	s.NewStore = func() players.ReadableStore { return inmemory_player_store.New() }
 	suite.Run(t, s)
 }

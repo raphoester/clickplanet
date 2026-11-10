@@ -8,19 +8,16 @@ import (
 	"connectrpc.com/connect"
 )
 
-type Mapper func(error) *connect.Error
-
-func NewErrorInterceptor(logger *slog.Logger, mapper Mapper) connect.Interceptor {
+func NewErrorInterceptor(logger *slog.Logger) connect.Interceptor {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
 	}
 
-	return &errorInterceptor{logger: logger, mapper: mapper}
+	return &errorInterceptor{logger: logger}
 }
 
 type errorInterceptor struct {
 	logger *slog.Logger
-	mapper Mapper
 }
 
 func (i *errorInterceptor) translate(procedure string, err error) error {
@@ -30,12 +27,6 @@ func (i *errorInterceptor) translate(procedure string, err error) error {
 
 	if errors.As(err, new(*connect.Error)) {
 		return err
-	}
-
-	if i.mapper != nil {
-		if mapped := i.mapper(err); mapped != nil {
-			return mapped
-		}
 	}
 
 	i.logger.Error("rpc failed",

@@ -8,17 +8,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 )
 
-func Encode(message messages.Message, counts []reactions.Count, version uint64) *chatv1.ChatMessage {
+func Encode(message messages.Message) *chatv1.ChatMessage {
 	sent := message.TakeSnapshot()
 
 	encoded := &chatv1.ChatMessage{
-		Id:               string(sent.ID),
-		SentAtUnixMs:     sent.SentAt.UnixMilli(),
-		AuthorAccountId:  accountOf(sent.Account),
-		CountryId:        sent.Country,
-		Reactions:        EncodeCounts(counts),
-		ReactionsVersion: version,
-		ReplyTo:          encodedQuote(sent.Quote),
+		Id:              string(sent.ID),
+		SentAtUnixMs:    sent.SentAt.UnixMilli(),
+		AuthorAccountId: accountOf(sent.Account),
+		CountryId:       sent.Country,
+		ReplyTo:         encodedQuote(sent.Quote),
 	}
 	if gif := EncodeGif(sent.Gif); gif != nil {
 		encoded.Body = &chatv1.ChatMessage_Gif{Gif: gif}

@@ -31,7 +31,7 @@ export default function HolderCard({holder, missions, now = Date.now(), onHold, 
     const {line, playsFor, mine, takenAt, point, touch} = holder
     const country = Countries.get(line.countryCode)?.name ?? line.countryCode
     const name = useWordFilter().masked(line.name)
-    const openPlayer = usePlayerCard((card) => card.openable ? card.open : undefined)
+    const openPlayer = usePlayerCard((card) => card.open)
 
     return <PointerCard point={point}
                         touch={touch}
@@ -44,7 +44,7 @@ export default function HolderCard({holder, missions, now = Date.now(), onHold, 
             <WornTitle accountId={line.accountId} size={48}/>
             <div className="holder-card-who">
                 <span className="holder-card-name">
-                    {openPlayer && !line.guest && line.accountId
+                    {!line.guest && line.accountId
                         ? <button type="button"
                                   className="holder-card-name-text player-name-button"
                                   title={name}

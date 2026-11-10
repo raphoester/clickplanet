@@ -13,8 +13,8 @@ var (
 	both   = []posts.Platform{posts.TikTok, posts.YouTube}
 	tiktok = []posts.Platform{posts.TikTok}
 
-	plan = posts.Plan{Review: 4 * time.Hour, Platforms: both}
-	// As the job runs: no review, TikTok for a run's best clip alone.
+	plan = posts.Plan{Platforms: both}
+	// As the job runs: TikTok for a run's best clip alone.
 	asap = posts.Plan{Platforms: both, BestOnly: tiktok}
 )
 
@@ -32,13 +32,6 @@ func TestAPlatformThatTakesTheBestOnlyIsAskedForARunsFirstClipAlone(t *testing.T
 	assert.Equal(t, both, asap.PlatformsOf(1))
 	assert.Equal(t, []posts.Platform{posts.YouTube}, asap.PlatformsOf(2))
 	assert.Equal(t, both, plan.PlatformsOf(2), "with none that takes the best alone, every clip asks for every platform")
-}
-
-func TestTheReviewIsTheSoonestAPostGoesOutAndNoneIsNoBoundOfTheRunsOwn(t *testing.T) {
-	now := time.Date(2026, 10, 12, 12, 40, 0, 0, time.UTC)
-
-	assert.Equal(t, now.Add(4*time.Hour), plan.NotBefore(now))
-	assert.True(t, asap.NotBefore(now).IsZero())
 }
 
 func TestARunMakesAsManyClipsAsThePlatformWithTheMostRoomTakesAndNoMoreThanPerRun(t *testing.T) {

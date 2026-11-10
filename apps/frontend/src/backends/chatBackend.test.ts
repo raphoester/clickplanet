@@ -35,7 +35,7 @@ import {
 } from "./chat.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 
-const outgoing = {authorId: "author-1", countryCode: "fr", text: "hello"}
+const outgoing = {countryCode: "fr", text: "hello"}
 
 const session = (): SessionProvider => ({token: vi.fn(async () => "token-1"), held: vi.fn(() => "token-1"), identity: vi.fn(async () => "token-1"), heldIdentity: vi.fn(() => "token-1"), invalidate: vi.fn()})
 
@@ -419,7 +419,6 @@ describe("ChatServiceBackend.sendMessage", () => {
         expect(sent.id).toBe("message-1")
         expect(sent.authorAccountId).toBe("account-ana")
         expect(client.sendMessage).toHaveBeenCalledWith({
-            authorId: "author-1",
             countryId: "fr",
             body: {case: "text", value: "hello"},
             flagRoom: "",
@@ -443,7 +442,6 @@ describe("ChatServiceBackend.sendMessage", () => {
             .sendMessage({...outgoing, replyTo: "message-0"})
 
         expect(sendMessage).toHaveBeenCalledWith({
-            authorId: "author-1",
             countryId: "fr",
             body: {case: "text", value: "hello"},
             replyToMessageId: "message-0",

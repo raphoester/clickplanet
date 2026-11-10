@@ -119,7 +119,6 @@ type Choice struct {
 	Skipped []Skipped
 	// 0 when every platform's day is full.
 	Room      int
-	Assigned  []Assignment
 	Editorial Editorial
 }
 

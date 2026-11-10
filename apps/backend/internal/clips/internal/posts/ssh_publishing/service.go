@@ -106,13 +106,9 @@ func (s *Service) Told(ctx context.Context, since time.Time) ([]posts.Telling, e
 	return told, nil
 }
 
-// The slot the calendar gives a post on the platforms: none is no bound of the run's own. An ssh that fails is busy:
-// the backend may be restarting.
-func (s *Service) Slot(ctx context.Context, platforms []posts.Platform, notBefore time.Time) (posts.Slot, bool, error) {
+// The slot the calendar gives a post on the platforms. An ssh that fails is busy: the backend may be restarting.
+func (s *Service) Slot(ctx context.Context, platforms []posts.Platform) (posts.Slot, bool, error) {
 	request := &publishingv1.PlanPostRequest{Platforms: wireOf(platforms)}
-	if !notBefore.IsZero() {
-		request.NotBefore = timestamppb.New(notBefore)
-	}
 	var answer publishingv1.PlanPostResponse
 	if err := s.ask(ctx, "PlanPost", request, &answer); err != nil {
 		return posts.Slot{}, false, &posts.BusyError{Reason: err.Error()}

@@ -13,7 +13,7 @@ import (
 
 const procedure = "/test.v1.TestService/Do"
 
-func intercept(mapper cpconnect.Mapper, handlerErr error) error {
+func intercept(handlerErr error) error {
 	next := connect.UnaryFunc(func(context.Context, connect.AnyRequest) (connect.AnyResponse, error) {
 		if handlerErr != nil {
 			return nil, handlerErr
@@ -22,7 +22,7 @@ func intercept(mapper cpconnect.Mapper, handlerErr error) error {
 		return connect.NewResponse(&emptypb.Empty{}), nil
 	})
 
-	_, err := cpconnect.NewErrorInterceptor(nil, mapper).WrapUnary(next)(
+	_, err := cpconnect.NewErrorInterceptor(nil).WrapUnary(next)(
 		context.Background(), connect.NewRequest(&emptypb.Empty{}))
 
 	return err
@@ -30,37 +30,23 @@ func intercept(mapper cpconnect.Mapper, handlerErr error) error {
 
 func TestErrorInterceptor(t *testing.T) {
 	t.Run("lets a success through", func(t *testing.T) {
-		require.NoError(t, intercept(nil, nil))
+		require.NoError(t, intercept(nil))
 	})
 
 	t.Run("keeps a code the handler picked itself", func(t *testing.T) {
 		chosen := connect.NewError(connect.CodeNotFound, errors.New("no such tile"))
 
-		err := intercept(nil, chosen)
+		err := intercept(chosen)
 
 		require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 		require.Contains(t, err.Error(), "no such tile")
 	})
 
 	t.Run("an unrecognised error is internal and does not leak the cause", func(t *testing.T) {
-		err := intercept(nil, errors.New("disk on fire"))
+		err := intercept(errors.New("disk on fire"))
 
 		require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
 		require.NotContains(t, err.Error(), "disk on fire")
-	})
-
-	t.Run("a mapper that recognises the error picks the code", func(t *testing.T) {
-		sentinel := errors.New("not a real message")
-		mapper := func(err error) *connect.Error {
-			if errors.Is(err, sentinel) {
-				return connect.NewError(connect.CodeInvalidArgument, err)
-			}
-
-			return nil
-		}
-
-		require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(intercept(mapper, sentinel)))
-		require.Equal(t, connect.CodeInternal, connect.CodeOf(intercept(mapper, errors.New("other"))))
 	})
 }
 
@@ -77,7 +63,7 @@ func TestErrorInterceptorCoversStreams(t *testing.T) {
 		return errors.New("disk on fire")
 	})
 
-	err := cpconnect.NewErrorInterceptor(nil, nil).WrapStreamingHandler(next)(t.Context(), fakeStreamConn{})
+	err := cpconnect.NewErrorInterceptor(nil).WrapStreamingHandler(next)(t.Context(), fakeStreamConn{})
 
 	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
 	require.NotContains(t, err.Error(), "disk on fire")

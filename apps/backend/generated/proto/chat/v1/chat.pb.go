@@ -550,7 +550,6 @@ func (*Quote_Gif) isQuote_Body() {}
 
 type SendMessageRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
-	AuthorId  string                 `protobuf:"bytes,2,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
 	CountryId string                 `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	// Types that are valid to be assigned to Body:
 	//
@@ -593,13 +592,6 @@ func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SendMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendMessageRequest) Descriptor() ([]byte, []int) {
 	return file_chat_v1_chat_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *SendMessageRequest) GetAuthorId() string {
-	if x != nil {
-		return x.AuthorId
-	}
-	return ""
 }
 
 func (x *SendMessageRequest) GetCountryId() string {
@@ -1487,16 +1479,15 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\x04text\x18\x04 \x01(\tH\x00R\x04text\x12 \n" +
 	"\x03gif\x18\x06 \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x12\x18\n" +
 	"\aremoved\x18\x05 \x01(\bR\aremovedB\x06\n" +
-	"\x04bodyJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vauthor_nameR\fauthor_color\"\xef\x01\n" +
-	"\x12SendMessageRequest\x12\x1b\n" +
-	"\tauthor_id\x18\x02 \x01(\tR\bauthorId\x12\x1d\n" +
+	"\x04bodyJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vauthor_nameR\fauthor_color\"\xe3\x01\n" +
+	"\x12SendMessageRequest\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x03 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x04text\x18\x04 \x01(\tH\x00R\x04text\x12 \n" +
 	"\x03gif\x18\a \x01(\v2\f.chat.v1.GifH\x00R\x03gif\x12-\n" +
 	"\x13reply_to_message_id\x18\x05 \x01(\tR\x10replyToMessageId\x12\x1b\n" +
 	"\tflag_room\x18\x06 \x01(\tR\bflagRoomB\x06\n" +
-	"\x04bodyJ\x04\b\x01\x10\x02R\vauthor_name\"E\n" +
+	"\x04bodyJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\vauthor_nameR\tauthor_id\"E\n" +
 	"\x13SendMessageResponse\x12.\n" +
 	"\amessage\x18\x01 \x01(\v2\x14.chat.v1.ChatMessageR\amessage\"c\n" +
 	"\vMuteRefusal\x12-\n" +

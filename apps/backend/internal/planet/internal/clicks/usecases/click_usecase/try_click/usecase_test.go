@@ -78,7 +78,7 @@ func TestATryNamesWhoClickedWhatAndWhen(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, inner.out, out, "the answer is the inner one, untouched")
 	assert.True(t, proto.Equal(&planetv1.ClickTried{
-		Scope: "2001:db8::/64", AccountId: "a-player", Linked: true, AccountCreatedAt: timestamppb.New(created),
+		Scope: "2001:db8::/64", AccountId: "a-player", Linked: true,
 		TileId: 42, Country: "fr", TriedAt: timestamppb.New(at), Outcome: planetv1.ClickOutcome_CLICK_OUTCOME_TAKEN,
 		Owner: "de", Position: &planetv1.GlobePoint{X: 1}, Tempo: 3,
 	}, tried), "got %v", tried)
@@ -127,5 +127,4 @@ func TestATryOffTheMapHasNoPosition(t *testing.T) {
 
 	assert.Nil(t, tried.GetPosition())
 	assert.Empty(t, tried.GetOwner())
-	assert.Nil(t, tried.GetAccountCreatedAt(), "a click with no account")
 }

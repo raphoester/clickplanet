@@ -59,7 +59,7 @@ func newStack() stack {
 			OpenBook:   log_command.New("open_book", open_book_usecase.New(shelf), logger),
 			OpenRound:  log_command.New("open_round", open_round_usecase.New(shelf, rounds, territory), logger),
 			CloseRound: log_command.New("close_round", close_round_usecase.New(tx, territory, rounds, outbox), logger),
-			CloseBook:  log_command.New("close_book", close_book_usecase.New(tx, shelf, rounds, grants, outbox), logger),
+			CloseBook:  log_command.New("close_book", close_book_usecase.New(tx, shelf, outbox), logger),
 		}), logger)),
 		books: shelf, rounds: rounds, grants: grants, outbox: outbox, territory: territory,
 	}
@@ -113,16 +113,9 @@ func TestTheLastDayThenTheFinalBattleThenTheSeasonAreScoredOnceInTheirOrder(t *t
 	handle(closeRound(battle, utc(31, 23)), closeBook("season-0", battle, utc(31, 23)))
 
 	want := []proto.Message{
-		&scoringv1.RoundScored{RoundId: "season-0/day-24", BookId: "season-0", EndedAt: timestamppb.New(utc(31, 21)), Results: []*scoringv1.RoundResult{
-			{Country: "fr", Rank: 1, Points: 25, Share: 0.75}, {Country: "de", Rank: 2, Points: 18, Share: 0.25},
-		}},
-		&scoringv1.RoundScored{RoundId: battle, BookId: "season-0", EndedAt: timestamppb.New(utc(31, 23)), Results: []*scoringv1.RoundResult{
-			{Country: "de", Rank: 1, Points: 75, Share: 0.8}, {Country: "fr", Rank: 2, Share: 0.2},
-		}},
-		&scoringv1.BookClosed{BookId: "season-0", EndedAt: timestamppb.New(utc(31, 23)), Table: []*scoringv1.Place{
-			{Country: "de", Rank: 1, Points: 93, RoundsWon: 1, TiebreakPoints: 75},
-			{Country: "fr", Rank: 2, Points: 25, RoundsWon: 1},
-		}},
+		&scoringv1.RoundScored{RoundId: "season-0/day-24", BookId: "season-0", EndedAt: timestamppb.New(utc(31, 21))},
+		&scoringv1.RoundScored{RoundId: battle, BookId: "season-0", EndedAt: timestamppb.New(utc(31, 23))},
+		&scoringv1.BookClosed{BookId: "season-0", EndedAt: timestamppb.New(utc(31, 23))},
 	}
 	assertRecorded(t, want, stack.outbox.Recorded())
 
@@ -130,6 +123,13 @@ func TestTheLastDayThenTheFinalBattleThenTheSeasonAreScoredOnceInTheirOrder(t *t
 	require.NoError(t, err)
 	scored, err := stack.rounds.ScoredIn(t.Context(), "season-0")
 	require.NoError(t, err)
+	require.Len(t, scored, 2)
+	assert.Equal(t, []books.Result{{Country: "fr", Rank: 1, Points: 25, Share: 0.75}, {Country: "de", Rank: 2, Points: 18, Share: 0.25}}, scored[0].Results)
+	assert.Equal(t, []books.Result{{Country: "de", Rank: 1, Points: 75, Share: 0.8}, {Country: "fr", Rank: 2, Share: 0.2}}, scored[1].Results)
+	assert.Equal(t, []books.Placed{
+		{Score: books.Score{Country: "de", Points: 93, RoundsWon: 1, TiebreakPoints: 75}, Rank: 1},
+		{Score: books.Score{Country: "fr", Points: 25, RoundsWon: 1}, Rank: 2},
+	}, book.Table(scored, nil))
 
 	stack.territory.held = map[books.Country]uint32{"it": 9}
 	handle(
@@ -187,11 +187,13 @@ func TestARoundToldToCountFromNothingIsScoredOnTheTilesHeldAtItsEnd(t *testing.T
 
 	stack.territory.held, stack.territory.err = map[books.Country]uint32{"fr": 2, "de": 4}, nil
 	require.NoError(t, stack.handler.Handle(t.Context(), closeRound(battle, utc(8, 23))))
-	scored := stack.outbox.Recorded()[1].(*scoringv1.RoundScored)
-	require.Len(t, scored.GetResults(), 2)
-	assert.Equal(t, "de", scored.GetResults()[0].GetCountry())
-	assert.Equal(t, uint32(2*25), scored.GetResults()[0].GetPoints())
-	assert.Equal(t, uint32(2*18), scored.GetResults()[1].GetPoints())
+	scored, err := stack.rounds.ScoredIn(t.Context(), "season-1")
+	require.NoError(t, err)
+	require.Len(t, scored, 2)
+	require.Len(t, scored[1].Results, 2)
+	assert.Equal(t, books.Country("de"), scored[1].Results[0].Country)
+	assert.Equal(t, uint32(2*25), scored[1].Results[0].Points)
+	assert.Equal(t, uint32(2*18), scored[1].Results[1].Points)
 }
 
 func assertRecorded(t *testing.T, want, recorded []proto.Message) {

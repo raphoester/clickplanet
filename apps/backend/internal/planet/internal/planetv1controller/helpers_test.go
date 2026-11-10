@@ -181,7 +181,7 @@ func budgetDetail(t *testing.T, err error) *planetv1.ClickBudget {
 }
 
 func errorNet() connect.Interceptor {
-	return cpconnect.NewErrorInterceptor(nil, nil)
+	return cpconnect.NewErrorInterceptor(nil)
 }
 
 type steadyRules struct{}

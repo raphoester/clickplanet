@@ -1,6 +1,6 @@
 export const SLOT_COUNT = 8
 
-export const EVICTION_MARGIN = 1.2
+const EVICTION_MARGIN = 1.2
 
 export type Slots = readonly (string | undefined)[]
 

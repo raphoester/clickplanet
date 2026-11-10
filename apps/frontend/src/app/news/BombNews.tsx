@@ -6,7 +6,7 @@ import {describeBlast} from '../../domain/blast.ts'
 import {quizShown, useQuiz} from '../quiz/quizStore.ts'
 import './BombNews.css'
 
-export const BOMB_NEWS_MS = 4000
+const BOMB_NEWS_MS = 4000
 
 export type BombNewsProps = {
     drop: BombDrop

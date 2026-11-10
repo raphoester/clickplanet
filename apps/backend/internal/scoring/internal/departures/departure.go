@@ -47,10 +47,6 @@ func (d Departure) Decided(decision Decision) Departure {
 	return Departure{leaving: decision.leaving, decidedAt: decision.at}
 }
 
-func (d Departure) Leaving() bool {
-	return d.leaving
-}
-
 func (d Departure) TakeSnapshot() Snapshot {
 	return Snapshot{Leaving: d.leaving, DecidedAt: d.decidedAt}
 }
@@ -65,8 +61,6 @@ func (s Snapshot) Restore() Departure {
 }
 
 type Store interface {
-	// The zero Departure for an account nobody asked to delete.
-	Departure(ctx context.Context, account AccountID) (Departure, error)
 	Change(ctx context.Context, account AccountID, change func(Departure) Departure) error
 	Forget(ctx context.Context, account AccountID) error
 }

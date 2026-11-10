@@ -19,8 +19,7 @@ that listener (`props.AdminHTTP`), not admin services, so they are outside the g
   description), and `readOnlyHint` when the method is `NO_SIDE_EFFECTS`, `destructiveHint` otherwise. **A new admin
   method is a new tool after `make proto`, with no code here.** Its comment is the text Claude reads, which is why
   admin rpcs keep a comment (see [`docs/proto.md`](../../../docs/proto.md)).
-- **Left out:** `auth.v1` (an app never signs in to the page or lets an app in), every method marked
-  `deprecated = true` (its replacement is a tool already), and the hidden list, `tools.Hidden` in `internal/mcp/internal/tools/tools.go`:
+- **Left out:** `auth.v1` (an app never signs in to the page or lets an app in), and the hidden list, `tools.Hidden` in `internal/mcp/internal/tools/tools.go`:
   - reads too big for a tool's answer: `planet` `GetReplay` (megabytes for a day), `GetLedger` (72 h of every act,
     page by page: a 24 h poll of it once pushed the box into swap) and `GetTerritories` (every tile of every country);
   - the clips job's writes, which only the job calls over ssh: `clips` `KeepSnapshot`, `MakeCast` and

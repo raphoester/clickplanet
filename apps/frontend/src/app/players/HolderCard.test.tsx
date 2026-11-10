@@ -41,7 +41,7 @@ describe("HolderCard", () => {
 
     afterEach(() => {
         cleanup()
-        usePlayerCard.setState({openable: false, player: undefined})
+        usePlayerCard.setState({player: undefined})
         useBadges.getState().serve(undefined)
     })
 
@@ -71,7 +71,6 @@ describe("HolderCard", () => {
     })
 
     it("closes, then opens the player's card, from its name", () => {
-        usePlayerCard.setState({openable: true})
         const onClose = vi.fn()
         show(FOX, {onClose})
 
@@ -81,14 +80,7 @@ describe("HolderCard", () => {
         expect(usePlayerCard.getState().player).toEqual(FOX)
     })
 
-    it("shows the name as plain text when no player card can open", () => {
-        show(FOX)
-
-        expect(screen.queryByRole("button", {name: "BraveFox42"})).toBeNull()
-    })
-
     it("shows a guest by its guest name alone, with no profile to open", () => {
-        usePlayerCard.setState({openable: true})
         show(GUEST)
 
         expect(screen.getByRole("region", {name: "guest_91aa3d"}).textContent).toContain("Took it for Germany 3 min ago")
@@ -97,7 +89,6 @@ describe("HolderCard", () => {
     })
 
     it("shows a deleted account by that alone, with no profile to open", () => {
-        usePlayerCard.setState({openable: true})
         const deleted: PlayerLine = {...GUEST, accountId: "", name: DELETED_ACCOUNT, countryCode: "tr", guest: false}
         render(<HolderCard holder={{...shown(deleted), playsFor: []}} now={NOW} onHold={() => {}} onClose={() => {}}/>)
 

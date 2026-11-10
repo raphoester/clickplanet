@@ -182,7 +182,6 @@ auth:
   connector:
     enabled: false
     issuer: ""
-  enforce: false
   secret: ""
   ttl: 1h
   rateLimiter:

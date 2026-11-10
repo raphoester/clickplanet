@@ -70,7 +70,7 @@ func server(t *testing.T, useCase *stubUseCase, limiter authv1controller.MintLim
 
 	mux := http.NewServeMux()
 	mux.Handle(authv1connect.NewAuthServiceHandler(service, connect.WithInterceptors(
-		cpconnect.NewErrorInterceptor(logger, nil),
+		cpconnect.NewErrorInterceptor(logger),
 		authv1controller.NewRateLimitInterceptor(limiter),
 	)))
 

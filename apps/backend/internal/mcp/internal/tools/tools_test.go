@@ -10,8 +10,6 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 
-	"google.golang.org/protobuf/types/descriptorpb"
-
 	"github.com/raphoester/clickplanet.lol-backend/generated/descriptors"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/alerts/v1"
 	_ "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
@@ -53,7 +51,6 @@ func TestEveryAdminMethodIsATool(t *testing.T) {
 	} {
 		assert.NotContains(t, names, hidden)
 	}
-	assert.NotContains(t, names, "planet_ban_player", "deprecated: antibot_ban_player replaces it")
 	for name := range names {
 		assert.NotRegexp(t, "^auth_", name, "an app never signs in or lets an app in")
 	}
@@ -75,13 +72,7 @@ func TestTheEmbeddedSetIsTheOneTheServerIsBuiltFrom(t *testing.T) {
 	} {
 		service, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(pkg + ".AdminService"))
 		require.NoError(t, err)
-		methods := service.(protoreflect.ServiceDescriptor).Methods()
-		for i := range methods.Len() {
-			options, _ := methods.Get(i).Options().(*descriptorpb.MethodOptions)
-			if !options.GetDeprecated() {
-				offered++
-			}
-		}
+		offered += service.(protoreflect.ServiceDescriptor).Methods().Len()
 	}
 	assert.Equal(t, offered-len(tools.Hidden), served, "a method in the generated code and not in the set: run make proto")
 }

@@ -55,8 +55,7 @@ its player: see [Support](support.md). **The one card open is a store**,
 `usePlayerCard` (`app/players/playerCardStore.ts`, see [Stores](stores.md)): `ChatLog`,
 `PlayersPanel`, the board's `PlayerStandings`, `HolderCard` and `TerritoryCard` open a
 player in it themselves, and the last two close their own card first. `PlayerCardPlace`
-shows the card. `PlayScreen` renders it only with a `PlayerInfoBackend` wired, and the
-store is `openable` only while it is there: without it the names are plain text. The card shows the
+shows the card. The card shows the
 flag and the country, then, for a player with a username, what `PlayerCards` reads: who
 it is from `player.v1.PlayerService/GetPlayer`, and from
 `progression.v1.ProgressionService/GetProgress` the titles it shows, under the title it wears, which is its badge
@@ -122,7 +121,7 @@ the server's sort would (`compareRosterEntries`); a rare disagreement about
 case in a non-ASCII name lasts until the next reconnect's whole roster. While
 the stream is down the last list stays. A 404 (read as `unimplemented`) calls
 `onUnavailable` once and stops the stream for good, which hides the button, as
-does a build with no presence backend wired. `GetRoster` is no longer called.
+does a build with no presence backend wired.
 
 **A closing page says it left.** `usePresence` calls `leave` on `pagehide`,
 unless the page is only kept in the back-forward cache (`persisted`). `Leave`

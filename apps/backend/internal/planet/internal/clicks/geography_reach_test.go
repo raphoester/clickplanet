@@ -2,14 +2,12 @@ package clicks_test
 
 import (
 	"math"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 const (
@@ -84,61 +82,6 @@ func abs(value int) int {
 	return value
 }
 
-func TestADiscGrowsOutwardsOneRingAtATime(t *testing.T) {
-	geography := honeycomb(t)
-
-	assert.Equal(t, []uint32{centreTile}, geography.Disc(centreTile, 0))
-	assert.Len(t, geography.Disc(centreTile, 1), 7, "the centre and its six neighbours")
-	assert.Len(t, geography.Disc(centreTile, 2), 19, "1 + 3k(k+1) at k=2")
-}
-
-func TestADiscStopsWhereTheLandDoes(t *testing.T) {
-	geography := honeycomb(t)
-
-	assert.Len(t, geography.Disc(centreTile, 9), patchTiles,
-		"a radius past the edge of the land stops at the land")
-	assert.Equal(t, []uint32{loneIsland}, geography.Disc(loneIsland, 1),
-		"a lone island has nobody to spread to")
-	assert.Empty(t, geography.Neighbours(loneIsland))
-}
-
-func TestADiscNeverRepeatsATileHoweverManyWaysItIsReached(t *testing.T) {
-	geography := honeycomb(t)
-
-	disc := geography.Disc(centreTile, 2)
-
-	seen := cpcolls.NewSet[uint32]()
-	for _, tile := range disc {
-		require.False(t, seen.Contains(tile), "tile %d appears twice", tile)
-		seen.Add(tile)
-	}
-	assert.True(t, sortedAscending(disc))
-}
-
-func TestDiscRefusesATileThatIsNotOne(t *testing.T) {
-	geography := honeycomb(t)
-
-	assert.Empty(t, geography.Disc(0, 1))
-	assert.Empty(t, geography.Disc(loneIsland+1, 1))
-}
-
-func TestDiscsAreSafeToTakeConcurrently(t *testing.T) {
-	geography := honeycomb(t)
-	want := geography.Disc(centreTile, 2)
-
-	var wg sync.WaitGroup
-	for range 64 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for range 50 {
-				assert.Equal(t, want, geography.Disc(centreTile, 2))
-			}
-		}()
-	}
-	wg.Wait()
-}
-
 func TestPositionRefusesATileThatIsNotOne(t *testing.T) {
 	geography := honeycomb(t)
 
@@ -203,13 +146,4 @@ func TestNearestRefusesAPointWithNoDirection(t *testing.T) {
 	tile, _ := equatorRow(t).Nearest(clicks.Vec3{})
 
 	assert.Zero(t, tile)
-}
-
-func sortedAscending(tiles []uint32) bool {
-	for i := 1; i < len(tiles); i++ {
-		if tiles[i-1] >= tiles[i] {
-			return false
-		}
-	}
-	return true
 }

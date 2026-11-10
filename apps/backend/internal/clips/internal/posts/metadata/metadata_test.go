@@ -19,8 +19,7 @@ var unnamedPost = map[string]any{
 	"runPosition": float64(1), "runSize": float64(1),
 }
 
-// variants: the arms of the clip, which the generator also wrote into its record.
-func snapshotOf(t *testing.T, key posts.StoryKey, record posts.ClipRecord, teaser string, variants posts.Variants) posts.PostSnapshot {
+func snapshotOf(t *testing.T, key posts.StoryKey, record posts.ClipRecord, teaser string) posts.PostSnapshot {
 	t.Helper()
 
 	var names []string
@@ -30,7 +29,7 @@ func snapshotOf(t *testing.T, key posts.StoryKey, record posts.ClipRecord, tease
 	clip, err := posts.ClipSnapshot{
 		Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Teasers: []string{"FRANCE TAKES OVER EUROPE"},
 		Countries: []posts.TaggedCountry{{Code: "fr", Tag: "france"}}, ContinentTag: "europe", Key: key,
-		Video: "clip-1.mp4", Record: record, TeaserNames: names, Variants: variants,
+		Video: "clip-1.mp4", Record: record, TeaserNames: names,
 	}.Restore()
 	require.NoError(t, err)
 
@@ -39,7 +38,7 @@ func snapshotOf(t *testing.T, key posts.StoryKey, record posts.ClipRecord, tease
 }
 
 func TestWhatAStoryTellsOfItsFlagAndItsDayAreKeptWithThePost(t *testing.T) {
-	kept, err := metadata.Of(snapshotOf(t, posts.StoryKey{Flag: "fr", Continent: "the world", Angle: posts.DayWon, Round: "1.5"}, nil, "", nil))
+	kept, err := metadata.Of(snapshotOf(t, posts.StoryKey{Flag: "fr", Continent: "the world", Angle: posts.DayWon, Round: "1.5"}, nil, ""))
 
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{
@@ -51,10 +50,9 @@ func TestWhatAStoryTellsOfItsFlagAndItsDayAreKeptWithThePost(t *testing.T) {
 
 func TestWhatThePostWasIsOneDocumentUnderOneKeyWithTheClipAsTheGeneratorWroteItAndTheTimePlanned(t *testing.T) {
 	record := posts.ClipRecord(`{"format":"globe-replay","generator":"8dc31d2","common":{"durationSeconds":17.4,"music":"none",` +
-		`"language":"en"},"globe":{"camera":"tour","look":"none","tilesChanged":5200,"tourStops":3,"storyEndedAt":"2026-10-12T14:12:30Z"},` +
-		`"variants":{"end-card":"podium"}}`)
+		`"language":"en"},"globe":{"camera":"tour","look":"none","tilesChanged":5200,"tourStops":3,"storyEndedAt":"2026-10-12T14:12:30Z"}}`)
 
-	kept, err := metadata.Of(snapshotOf(t, posts.StoryKey{Flag: "pt", Continent: "the world"}, record, "takes-over-the-world", nil))
+	kept, err := metadata.Of(snapshotOf(t, posts.StoryKey{Flag: "pt", Continent: "the world"}, record, "takes-over-the-world"))
 
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{
@@ -65,7 +63,6 @@ func TestWhatThePostWasIsOneDocumentUnderOneKeyWithTheClipAsTheGeneratorWroteItA
 			"globe": map[string]any{
 				"camera": "tour", "look": "none", "tilesChanged": float64(5200), "tourStops": float64(3), "storyEndedAt": "2026-10-12T14:12:30Z",
 			},
-			"variants": map[string]any{"end-card": "podium"},
 		},
 		"post": map[string]any{
 			"teaser": "takes-over-the-world", "callToAction": "join-the-battle", "scheduledAt": "2026-10-12T16:40:00Z",
@@ -77,25 +74,9 @@ func TestWhatThePostWasIsOneDocumentUnderOneKeyWithTheClipAsTheGeneratorWroteItA
 }
 
 func TestARecordThatIsNotAClipRecordIsAnError(t *testing.T) {
-	_, err := metadata.Of(snapshotOf(t, posts.StoryKey{Flag: "fr", Continent: "Europe"}, posts.ClipRecord(`{"format":3}`), "invades", nil))
+	_, err := metadata.Of(snapshotOf(t, posts.StoryKey{Flag: "fr", Continent: "Europe"}, posts.ClipRecord(`{"format":3}`), "invades"))
 
 	require.ErrorContains(t, err, "not a clips.v1.ClipRecord")
-}
-
-// The length acts when the clip is rendered, not when it is posted: a clip in the control, or in the short arm, keeps
-// what it kept before the experiments, its record aside, which carries its arms as the generator wrote them.
-func TestAClipInAnArmOfTheLengthExperimentKeepsWhatAClipInNoneKeeps(t *testing.T) {
-	record := posts.ClipRecord(`{"format":"globe-replay","variants":{"length":"as-chosen"}}`)
-	kept := func(variants posts.Variants) map[string]any {
-		of, err := metadata.Of(snapshotOf(t, posts.StoryKey{Flag: "fr", Continent: "Europe"}, record, "takes-over", variants))
-		require.NoError(t, err)
-		return of
-	}
-
-	before := kept(nil)
-
-	assert.Equal(t, before, kept(posts.Variants{"length": "as-chosen"}))
-	assert.Equal(t, before, kept(posts.Variants{"length": "short"}))
 }
 
 func TestAKeyIsReadBackWithItsAngleAndAPostWithNoneHasNone(t *testing.T) {

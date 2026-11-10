@@ -37,7 +37,7 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 	for _, skipped := range choice.Skipped {
 		l.logger.Warn("skipped a story of the editor's", append(attributesOf(skipped.Story), slog.String("why", skipped.Why))...)
 	}
-	for i, chosen := range choice.Chosen {
+	for _, chosen := range choice.Chosen {
 		attributes := append(attributesOf(chosen.Story), slog.Int("pick", int(chosen.Pick)),
 			slog.String("flag", chosen.Key.Flag), slog.String("continent", chosen.Key.Continent))
 		if chosen.Key.Angle != posts.Deeds {
@@ -45,9 +45,6 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 		}
 		if chosen.Key.Round != "" {
 			attributes = append(attributes, slog.String("round", chosen.Key.Round))
-		}
-		if i < len(choice.Assigned) && len(choice.Assigned[i].Variants) > 0 {
-			attributes = append(attributes, slog.String("arms", choice.Assigned[i].Variants.String()))
 		}
 		l.logger.Info("chose a story", attributes...)
 	}

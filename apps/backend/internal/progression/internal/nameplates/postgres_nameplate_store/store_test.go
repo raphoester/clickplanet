@@ -24,7 +24,7 @@ type testSuite struct {
 func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "progression", migrations.FS)
 	store := postgres_nameplate_store.New(s.db)
-	s.NewStore = func() nameplates.Store { return store }
+	s.NewStore = func() nameplates.ReadableStore { return store }
 }
 
 func (s *testSuite) SetupTest() {

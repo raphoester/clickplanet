@@ -123,7 +123,6 @@ func NewSessionInterceptor(
 	verifier SessionVerifier,
 	clock cptime.Clock,
 	refusal error,
-	enforce bool,
 	onVerdict func(SessionVerdict),
 	procedures ...Procedure,
 ) connect.Interceptor {
@@ -147,27 +146,18 @@ func NewSessionInterceptor(
 			token := req.Header().Get(SessionHeader)
 			if token == "" {
 				record(SessionMissing)
-				if enforce {
-					return nil, connect.NewError(connect.CodeUnauthenticated, refusal)
-				}
-				return next(ctx, req)
+				return nil, connect.NewError(connect.CodeUnauthenticated, refusal)
 			}
 
 			claims, err := verifier.Verify(ctx, token, cpctx.GetSourceIP(ctx), clock.Now())
 			if err != nil {
 				record(SessionInvalid)
-				if enforce {
-					return nil, connect.NewError(connect.CodeUnauthenticated, refusal)
-				}
-				return next(ctx, req)
+				return nil, connect.NewError(connect.CodeUnauthenticated, refusal)
 			}
 
 			if !procedure.takes(claims) {
 				record(SessionUnattested)
-				if enforce {
-					return nil, connect.NewError(connect.CodeUnauthenticated, refusal)
-				}
-				return next(ctx, req)
+				return nil, connect.NewError(connect.CodeUnauthenticated, refusal)
 			}
 
 			record(SessionValid)
@@ -222,7 +212,6 @@ func (r sessionReader) context(ctx context.Context, name string, token string) c
 }
 
 func withClaims(ctx context.Context, claims *cpsession.Claims) context.Context {
-	ctx = cpctx.AddSessionIDToContext(ctx, string(claims.ID))
 	if claims.Account == cpsession.NoAccount {
 		return ctx
 	}

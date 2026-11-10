@@ -69,10 +69,10 @@ describe("FakeChatBackend.sendMessage", () => {
     it("sends a GIF alone, as the server does, and refuses one with a text", async () => {
         const chat = new FakeChatBackend()
 
-        const sent = await chat.sendMessage({authorId: "author-1", countryCode: "fr", text: "", gif})
+        const sent = await chat.sendMessage({countryCode: "fr", text: "", gif})
 
         expect(sent.gif).toEqual(gif)
-        await expect(chat.sendMessage({authorId: "author-1", countryCode: "fr", text: "look", gif}))
+        await expect(chat.sendMessage({countryCode: "fr", text: "look", gif}))
             .rejects.toBeInstanceOf(ChatRejectedError)
     })
 })

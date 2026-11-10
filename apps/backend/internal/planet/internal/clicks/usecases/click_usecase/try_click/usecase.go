@@ -57,9 +57,6 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		Owner:     out.Owner,
 		Tempo:     u.throttle().Tempo,
 	}
-	if !payer.Created.IsZero() {
-		tried.AccountCreatedAt = timestamppb.New(payer.Created)
-	}
 	if err != nil {
 		tried.Owner, _ = u.owners.Owner(in.TileID)
 	}

@@ -20,8 +20,8 @@ type Store struct {
 
 func (s *Store) KeepRound(ctx context.Context, scored moments.ScoredRound) (bool, error) {
 	res, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO scored_rounds (round_id, book_id, ended_at) VALUES ($1, $2, $3) ON CONFLICT (round_id) DO NOTHING
-	`, string(scored.Round), string(scored.Book), scored.EndedAt.UTC())
+		INSERT INTO scored_rounds (round_id, ended_at) VALUES ($1, $2) ON CONFLICT (round_id) DO NOTHING
+	`, string(scored.Round), scored.EndedAt.UTC())
 	if err != nil {
 		return false, fmt.Errorf("failed to keep the round %s: %w", scored.Round, err)
 	}

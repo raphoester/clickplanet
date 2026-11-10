@@ -87,7 +87,6 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.metronome.stamina.slice`, `antiBot.rotator.slot` — the length the evidence is counted in, saved with it: a section saved under another length is dropped on load
 - `antiBot.cohort.v4Bits`, `v6Bits`, `antiBot.churner.relay.v4Bits`, `v6Bits` — the wider prefix a scope or an account is indexed by when first seen (a /24 and a /44, a /24 and a /32). A prefix wider than an address refuses the boot (the cohort's)
 - `auth.enabled` — off registers nothing, so `auth.v1` 404s and clicks are judged on address alone
-- `auth.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in
 - `auth.secret` — the Ed25519 seed the tokens are signed with, 32 bytes as 64 hex characters (`openssl rand -hex 32`); **required once `auth.enabled` is true**, and an empty or malformed one refuses the boot rather than being invented. It is the only key in the file: `planet` asks `auth` for the verifying half over the internal listener
 - `auth.ttl` — how long a minted token is accepted (default 1h)
 - `auth.rateLimiter.*` — the per-IP throttle on both `CreateSession` paths together, same shape as `rateLimiter`

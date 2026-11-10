@@ -16,7 +16,7 @@ const usage = `usage:
   clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-cast <cast.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
   clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
   clips edit -findings <findings.json> [-count 2] [-prompt]
-  clips schedule -clips <folder> [-review 0] [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
+  clips schedule -clips <folder> [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
   clips stats [-ssh <user@host>] [-since 2026-10-13]
 
 Every command asks the production backend over ssh, as its operator does: CLICKPLANET_SSH stands in for -ssh.
@@ -24,13 +24,12 @@ fetch asks it for a replay, and the ledger keeps 72 hours in memory, so a replay
 -season it asks for the gamemaster's turn too (the timeline, and the last moment scoring scored), and with -race, which
 needs -season, for that moment's round as scoring scored it; with -cast, the players who took tiles in the replay,
 numbered and named, never an account; it leaves each out with a warning when the backend does not answer it. choose
-prints the stories to render, as a JSON array, each with its number in the run and in an arm of every experiment that
-runs: a day of the season won first, not told yet, then the stories Claude (ANTHROPIC_API_KEY) makes of the generator's
-findings and headlines, each checked against them and against the headlines of the last week. It takes no more than
-the platform with the most room left takes, as the backend's publishing module counts it, and TikTok a run's best clip
-alone. schedule sends every clip of the folder to the publishing module, which posts it as one post on every platform
-that takes it, at the first slot of its calendar, never sooner than -review; it refuses a clip in an arm no experiment
-has, then tells the backend who each post names, so the game tells them. stats keeps a snapshot of the numbers of every
+prints the stories to render, as a JSON array, each with its number in the run: a day of the season won first, not
+told yet, then the stories Claude (ANTHROPIC_API_KEY) makes of the generator's findings and headlines, each checked
+against them and against the headlines of the last week. It takes no more than the platform with the most room left
+takes, as the backend's publishing module counts it, and TikTok a run's best clip alone. schedule sends every clip of
+the folder to the publishing module, which posts it as one post on every platform that takes it, at the first slot of
+its calendar, then tells the backend who each post names, so the game tells them. stats keeps a snapshot of the numbers of every
 post of the job scheduled since the date, default the last 4 weeks, in the backend's postgres: a row for each platform
 of each post, read from Zernio (ZERNIO_API_KEY). A model that cannot answer leaves the run its day won alone; -summary
 adds how the call went, and what it cost, to that file. edit tries the editor on saved findings, as many clips as
@@ -168,7 +167,6 @@ func parseSchedule(args []string) (Config, error) {
 	flags := flag.NewFlagSet(string(Schedule), flag.ContinueOnError)
 	flags.StringVar(&parsed.ClipsFolder, "clips", "", "the folder the clips were rendered in")
 	flags.StringVar(&parsed.SummaryFile, "summary", "", "the file the summary of the run is added to, default the standard output")
-	flags.DurationVar(&parsed.Job.Review, "review", 0, "how long after the run a clip goes out at the soonest, default none")
 	platforms := flags.String("platforms", "", "where each clip goes, default every platform")
 	flags.StringVar(&parsed.Job.Replay.SSH, "ssh", os.Getenv(HostVariable), "user@host of the machine the backend runs on")
 	if err := flags.Parse(args); err != nil {
