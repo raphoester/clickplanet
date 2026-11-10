@@ -133,9 +133,12 @@ type TileOwner struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Tile  uint32                 `protobuf:"varint,1,opt,name=tile,proto3" json:"tile,omitempty"`
 	// Empty for a tile left with no owner: a bomb cleared it.
-	CountryId     string `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	CountryId string `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	// When the tile went to this owner, its last change of the step: whole seconds after the frame before. 0 in the first
+	// frame. A replay plays each change at its time, so an enclosure's tiles land together, as they did.
+	SecondsIntoStep uint32 `protobuf:"varint,3,opt,name=seconds_into_step,json=secondsIntoStep,proto3" json:"seconds_into_step,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *TileOwner) Reset() {
@@ -180,6 +183,13 @@ func (x *TileOwner) GetCountryId() string {
 		return x.CountryId
 	}
 	return ""
+}
+
+func (x *TileOwner) GetSecondsIntoStep() uint32 {
+	if x != nil {
+		return x.SecondsIntoStep
+	}
+	return 0
 }
 
 type TileHits struct {
@@ -245,11 +255,12 @@ const file_planet_v1_history_proto_rawDesc = "" +
 	"\x04hits\x18\x02 \x03(\v2\x13.planet.v1.TileHitsR\x04hits\"d\n" +
 	"\bMapFrame\x12*\n" +
 	"\x02at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12,\n" +
-	"\x06owners\x18\x02 \x03(\v2\x14.planet.v1.TileOwnerR\x06owners\">\n" +
+	"\x06owners\x18\x02 \x03(\v2\x14.planet.v1.TileOwnerR\x06owners\"j\n" +
 	"\tTileOwner\x12\x12\n" +
 	"\x04tile\x18\x01 \x01(\rR\x04tile\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x02 \x01(\tR\tcountryId\"2\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\x12*\n" +
+	"\x11seconds_into_step\x18\x03 \x01(\rR\x0fsecondsIntoStep\"2\n" +
 	"\bTileHits\x12\x12\n" +
 	"\x04tile\x18\x01 \x01(\rR\x04tile\x12\x12\n" +
 	"\x04hits\x18\x02 \x01(\rR\x04hitsB\xb4\x01\n" +

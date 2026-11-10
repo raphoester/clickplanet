@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {paceOf, playedAt, timelineFor, timelineOf} from "./pace.ts"
+import {blendedPaceOf, paceOf, playedAt, timelineFor, timelineOf} from "./pace.ts"
 
 describe("the pace of a replay", () => {
     const quietThenBusy = [...Array.from({length: 90}, (_, i) => 900 + i), 10, 20, 30]
@@ -52,5 +52,40 @@ describe("the length of a clip", () => {
         expect(playedAt(timeline, 0)).toBe(0)
         expect(playedAt(timeline, 8.75)).toBeCloseTo(0.5)
         expect(playedAt(timeline, 19)).toBe(1)
+    })
+})
+
+describe("a saga's pace", () => {
+    const HOUR = 3_600_000
+    const MINUTE = 60_000
+    // A day with nothing until one busy hour at its end.
+    const pace = blendedPaceOf([23 * HOUR, 23 * HOUR + 1, 23 * HOUR + 2], 0, 24 * HOUR, 0.4, 1)
+
+    it("spends part of the play on the calendar, so a quiet day still goes by on the clock", () => {
+        expect(pace.shareOf(0)).toBe(0)
+        expect(pace.shareOf(12 * HOUR)).toBeCloseTo(0.2)
+        expect(pace.shareOf(24 * HOUR)).toBe(1)
+    })
+
+    it("spends the rest on what happens", () => {
+        expect(pace.shareOf(23 * HOUR + 2) - pace.shareOf(23 * HOUR - 1)).toBeGreaterThan(0.6)
+    })
+
+    it("finds the time a share of the play is at", () => {
+        expect(pace.timeAt(0.2)).toBeCloseTo(12 * HOUR, -1)
+        expect(pace.timeAt(pace.shareOf(23 * HOUR + 1))).toBe(23 * HOUR + 1)
+    })
+
+    it("runs into a thousand tiles enclosed at once, never standing still on them", () => {
+        const enclosed = 12 * HOUR
+        const run = blendedPaceOf(Array.from({length: 1000}, () => enclosed), 0, 24 * HOUR, 0.4, 5 * MINUTE)
+        const before = run.shareOf(enclosed - 5 * MINUTE)
+
+        expect(run.shareOf(enclosed) - before).toBeCloseTo(0.6)
+        const times = [0.25, 0.5, 0.75].map((part) => run.timeAt(before + part * (run.shareOf(enclosed) - before)))
+        expect(times[0]).toBeGreaterThan(enclosed - 5 * MINUTE)
+        expect(times[1]).toBeGreaterThan(times[0])
+        expect(times[2]).toBeGreaterThan(times[1])
+        expect(times[2]).toBeLessThan(enclosed)
     })
 })

@@ -117,6 +117,8 @@ type answer struct {
 		Front     int      `json:"front"`
 		Tour      int      `json:"tour"`
 		Place     int      `json:"place"`
+		Saga      int      `json:"saga"`
+		Reign     int      `json:"reign"`
 		Kind      string   `json:"kind"`
 		Attacker  string   `json:"attacker"`
 		Rival     string   `json:"rival"`
@@ -147,13 +149,15 @@ var answerSchema = map[string]any{
 				"type":                 "object",
 				"additionalProperties": false,
 				"required": []string{
-					"front", "tour", "place", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers",
+					"front", "tour", "place", "saga", "reign", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers",
 					"line", "call", "callFlags", "anthem", "look", "fighters",
 				},
 				"properties": map[string]any{
 					"front":     map[string]any{"type": "integer"},
 					"tour":      map[string]any{"type": "integer"},
 					"place":     map[string]any{"type": "integer"},
+					"saga":      map[string]any{"type": "integer"},
+					"reign":     map[string]any{"type": "integer"},
 					"kind":      map[string]any{"type": "string", "enum": []string{"attack", "invasion", "comeback", "kickout", "rout", "battle", ""}},
 					"attacker":  map[string]any{"type": "string"},
 					"rival":     map[string]any{"type": "string"},
@@ -193,7 +197,7 @@ func editionOf(content []anthropic.ContentBlockUnion) (posts.Edition, error) {
 				fighters = append(fighters, posts.FighterNumber(number))
 			}
 			edition.Stories = append(edition.Stories, posts.Story{
-				Front: story.Front, Tour: story.Tour, Place: story.Place, Kind: posts.Kind(story.Kind),
+				Front: story.Front, Tour: story.Tour, Place: story.Place, Saga: story.Saga, Reign: story.Reign, Kind: posts.Kind(story.Kind),
 				Attacker: story.Attacker, Rival: story.Rival, TakenFrom: story.TakenFrom, Countries: story.Countries,
 				Continent: story.Continent, Team: story.Team, Headline: story.Headline, Teasers: story.Teasers,
 				Line: story.Line, Call: story.Call, CallFlags: story.CallFlags, Anthem: story.Anthem, Look: posts.Look(story.Look),

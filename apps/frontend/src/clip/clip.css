@@ -118,6 +118,18 @@ html, body {
     color: var(--gain);
 }
 
+/* A saga's day, as big as its counters: the days going by are its story. */
+.clip-day {
+    margin: 0;
+    padding: 4px 14px;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: var(--panel);
+    font-family: var(--font-display);
+    font-size: var(--display-l);
+    color: var(--gold);
+}
+
 .clip-mark {
     display: flex;
     align-items: center;

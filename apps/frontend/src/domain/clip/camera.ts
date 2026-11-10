@@ -213,3 +213,13 @@ export function clamp(value: number): number {
 export function smooth(t: number): number {
     return t * t * (3 - 2 * t)
 }
+
+// A saga opens this much wider than its framing, and closes in over the clip: it never sits still.
+const SAGA_OPENING = 0.8
+
+// A saga stays out over its place, where a landmass's painted flag switching is what a viewer sees: framed on the place,
+// never past where the painted flags blend into the tiles (most).
+export function sagaCameraOf(framing: Shot, most: number): (share: number) => Shot {
+    const zoom = Math.min(framing.zoom, most)
+    return (share) => ({direction: framing.direction, zoom: between(zoom * SAGA_OPENING, zoom, smooth(clamp(share)))})
+}

@@ -72,3 +72,48 @@ export function paceOf(changes: readonly number[], since: number, until: number)
         timeAt: (share) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(share * sorted.length) - 1))],
     }
 }
+
+// A saga spends part of its play on the calendar, so a week held reads as a week going by, and the rest on what
+// happens, by the tiles that changed. Each change is reached over lead before it rather than at once, so the clock runs
+// into an enclosure of a thousand tiles and lands it, and never stands still on it. calendar: the share of the play
+// spent evenly on time.
+export function blendedPaceOf(changes: readonly number[], since: number, until: number, calendar: number, lead: number): Pace {
+    const sorted = changes.filter((at) => at >= since && at <= until).map((at) => at - since).sort((a, b) => a - b)
+    const span = Math.max(1, until - since)
+    const sums = new Float64Array(sorted.length + 1)
+    sorted.forEach((at, i) => sums[i + 1] = sums[i] + at)
+    const countUpTo = (at: number) => {
+        let low = 0
+        let high = sorted.length
+        while (low < high) {
+            const middle = (low + high) >> 1
+            if (sorted[middle] <= at) low = middle + 1
+            else high = middle
+        }
+        return low
+    }
+    // The changes made by at, and the share of each one coming within lead.
+    const reached = (at: number) => {
+        const made = countUpTo(at)
+        const coming = countUpTo(at + lead) - made
+        return made + (coming === 0 ? 0 : (coming * (at + lead) - (sums[made + coming] - sums[made])) / lead)
+    }
+    const shareOf = (at: number) => {
+        const elapsed = Math.min(until, Math.max(since, at)) - since
+        const busy = sorted.length === 0 ? elapsed / span : reached(elapsed) / sorted.length
+        return calendar * elapsed / span + (1 - calendar) * busy
+    }
+    return {
+        shareOf,
+        timeAt: (share) => {
+            let low = since
+            let high = until
+            while (high - low > 1) {
+                const middle = Math.floor((low + high) / 2)
+                if (shareOf(middle) < share) low = middle
+                else high = middle
+            }
+            return high
+        },
+    }
+}

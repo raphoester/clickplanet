@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {cameraOf, framingOf, overviewOf, screensOf} from "./camera.ts"
+import {cameraOf, framingOf, overviewOf, sagaCameraOf, screensOf} from "./camera.ts"
 import {Point} from "./geometry.ts"
 
 const at = (angle: number): Point => ({x: Math.sin(angle), y: 0, z: Math.cos(angle)})
@@ -89,5 +89,21 @@ describe("how far the action moves", () => {
 
     it("is counted in screens up close", () => {
         expect(screensOf(beats((i) => at(-0.5 + i / 100)), 6)).toBeCloseTo(0.95 * 3, 0)
+    })
+})
+
+describe("a saga's camera", () => {
+    const framing = {direction: at(0.3), zoom: 2}
+
+    it("stays on its place, opening a little wider and closing in on it", () => {
+        const camera = sagaCameraOf(framing, 5)
+
+        expect(camera(0)).toEqual({direction: framing.direction, zoom: 1.6})
+        expect(camera(1).zoom).toBeCloseTo(2)
+        expect(camera(0.5).direction).toEqual(framing.direction)
+    })
+
+    it("never closes in past where the painted flags blend into the tiles", () => {
+        expect(sagaCameraOf(framing, 1.5)(1).zoom).toBeCloseTo(1.5)
     })
 })

@@ -66,6 +66,14 @@ export class Findings extends Message<Findings> {
    */
   anthems: string[] = [];
 
+  /**
+   * Each place over the whole season, from the map every hour: who held over half of it, from when to when. Empty
+   * when the run fetched no history.
+   *
+   * @generated from field: repeated clips.v1.Saga sagas = 10;
+   */
+  sagas: Saga[] = [];
+
   constructor(data?: PartialMessage<Findings>) {
     super();
     proto3.util.initPartial(data, this);
@@ -83,6 +91,7 @@ export class Findings extends Message<Findings> {
     { no: 7, name: "names", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
     { no: 8, name: "continents", kind: "message", T: Continent, repeated: true },
     { no: 9, name: "anthems", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 10, name: "sagas", kind: "message", T: Saga, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Findings {
@@ -99,6 +108,202 @@ export class Findings extends Message<Findings> {
 
   static equals(a: Findings | PlainMessage<Findings> | undefined, b: Findings | PlainMessage<Findings> | undefined): boolean {
     return proto3.util.equals(Findings, a, b);
+  }
+}
+
+/**
+ * A place over the season: the world, a continent or a country of 1,000 tiles or more, and each flag that held over half
+ * of it, oldest first. A dip under half shorter than 3 hours does not end a reign.
+ *
+ * @generated from message clips.v1.Saga
+ */
+export class Saga extends Message<Saga> {
+  /**
+   * "world", "continent" or "country".
+   *
+   * @generated from field: string kind = 1;
+   */
+  kind = "";
+
+  /**
+   * The country's code; empty for the world and a continent.
+   *
+   * @generated from field: string code = 2;
+   */
+  code = "";
+
+  /**
+   * The continent, or a country's; empty for the world.
+   *
+   * @generated from field: string continent = 3;
+   */
+  continent = "";
+
+  /**
+   * @generated from field: uint32 tiles = 4;
+   */
+  tiles = 0;
+
+  /**
+   * @generated from field: repeated clips.v1.Reign reigns = 5;
+   */
+  reigns: Reign[] = [];
+
+  /**
+   * The flag holding the most of it at the end, and its share.
+   *
+   * @generated from field: string holder = 6;
+   */
+  holder = "";
+
+  /**
+   * @generated from field: double share = 7;
+   */
+  share = 0;
+
+  /**
+   * When the history it is measured on starts and ends.
+   *
+   * @generated from field: google.protobuf.Timestamp since = 8;
+   */
+  since?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp until = 9;
+   */
+  until?: Timestamp;
+
+  constructor(data?: PartialMessage<Saga>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.Saga";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "continent", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "reigns", kind: "message", T: Reign, repeated: true },
+    { no: 6, name: "holder", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 8, name: "since", kind: "message", T: Timestamp },
+    { no: 9, name: "until", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Saga {
+    return new Saga().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Saga {
+    return new Saga().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Saga {
+    return new Saga().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Saga | PlainMessage<Saga> | undefined, b: Saga | PlainMessage<Saga> | undefined): boolean {
+    return proto3.util.equals(Saga, a, b);
+  }
+}
+
+/**
+ * A flag holding over half of a place, from since to until.
+ *
+ * @generated from message clips.v1.Reign
+ */
+export class Reign extends Message<Reign> {
+  /**
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * When its conquest began: the last hour it held under a tenth of the place before it held over half. Unset when it
+   * held a tenth or more from the history's start.
+   *
+   * @generated from field: google.protobuf.Timestamp pushed_at = 2;
+   */
+  pushedAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp since = 3;
+   */
+  since?: Timestamp;
+
+  /**
+   * When it fell under half; unset while it still holds.
+   *
+   * @generated from field: google.protobuf.Timestamp until = 4;
+   */
+  until?: Timestamp;
+
+  /**
+   * The most of the place it held, and its share at its until or at the end.
+   *
+   * @generated from field: double peak = 5;
+   */
+  peak = 0;
+
+  /**
+   * @generated from field: double share = 6;
+   */
+  share = 0;
+
+  /**
+   * The flag holding the most of the place, after it, when its conquest began; empty for none.
+   *
+   * @generated from field: string took_from = 7;
+   */
+  tookFrom = "";
+
+  /**
+   * @generated from field: double took_from_share = 8;
+   */
+  tookFromShare = 0;
+
+  /**
+   * The flag holding the most of the place, after it, when it fell; empty while it holds.
+   *
+   * @generated from field: string lost_to = 9;
+   */
+  lostTo = "";
+
+  constructor(data?: PartialMessage<Reign>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.Reign";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "pushed_at", kind: "message", T: Timestamp },
+    { no: 3, name: "since", kind: "message", T: Timestamp },
+    { no: 4, name: "until", kind: "message", T: Timestamp },
+    { no: 5, name: "peak", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 6, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 7, name: "took_from", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "took_from_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 9, name: "lost_to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Reign {
+    return new Reign().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Reign {
+    return new Reign().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Reign {
+    return new Reign().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Reign | PlainMessage<Reign> | undefined, b: Reign | PlainMessage<Reign> | undefined): boolean {
+    return proto3.util.equals(Reign, a, b);
   }
 }
 
@@ -920,9 +1125,9 @@ export class StoryFacts extends Message<StoryFacts> {
 }
 
 /**
- * A story to tell, as the generator's --story takes it: one front, one tour, one place or one seasonal story of the
- * findings, by its number from 1, for a front what the editor made of it, and the editor's words. A seasonal story has
- * words of its own, and none of the editor's.
+ * A story to tell, as the generator's --story takes it: one front, one tour, one place, one saga or one seasonal story
+ * of the findings, by its number from 1, for a front what the editor made of it, and the editor's words. A seasonal
+ * story has words of its own, and none of the editor's.
  *
  * @generated from message clips.v1.Pick
  */
@@ -1042,6 +1247,19 @@ export class Pick extends Message<Pick> {
    */
   fighters: number[] = [];
 
+  /**
+   * A saga of the findings, by its number from 1, and the reign it plays from, from 1: the clip plays the place from
+   * that reign's conquest to the end of the history, its counters the attacker's share and the rival's.
+   *
+   * @generated from field: uint32 saga = 20;
+   */
+  saga = 0;
+
+  /**
+   * @generated from field: uint32 reign = 21;
+   */
+  reign = 0;
+
   constructor(data?: PartialMessage<Pick>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1069,6 +1287,8 @@ export class Pick extends Message<Pick> {
     { no: 17, name: "anthem", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 18, name: "look", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 19, name: "fighters", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 20, name: "saga", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 21, name: "reign", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Pick {

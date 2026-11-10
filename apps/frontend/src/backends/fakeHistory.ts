@@ -31,5 +31,5 @@ export function fakeHistoryOf(final: ReadonlyMap<number, string>, since: number,
 
 function frameOf(at: number, changes: {tile: number, owner: string}[]): MapFrame {
     const last = new Map(changes.map(({tile, owner}) => [tile, owner]))
-    return {at, tiles: Uint32Array.from(last.keys()), owners: [...last.values()]}
+    return {at, tiles: Uint32Array.from(last.keys()), owners: [...last.values()], changedAt: new Float64Array(last.size).fill(at)}
 }

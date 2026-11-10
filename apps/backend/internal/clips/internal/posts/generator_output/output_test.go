@@ -43,6 +43,14 @@ const (
     {"kind": "continent", "continent": "South Asia", "tiles": 9600, "holder": "fr", "held": 6170, "share": 0.643, "rivals": {"dz": 1200}, "changed": 6000,
      "flippedByContinent": {"South Asia": 5200}, "fighters": [{"number": 2, "name": "Ада", "took": 30}]}
   ],
+  "sagas": [
+    {"kind": "country", "code": "ru", "continent": "Europe", "tiles": 28527, "holder": "pw", "share": 0.91,
+     "since": "2026-11-01T15:00:00Z", "until": "2026-11-10T14:00:00Z",
+     "reigns": [
+       {"flag": "ru", "since": "2026-11-03T04:00:00Z", "until": "2026-11-05T22:00:00Z", "peak": 0.99, "share": 0.49, "tookFrom": "ie", "tookFromShare": 0.42, "lostTo": "lv"},
+       {"flag": "pw", "pushedAt": "2026-11-07T20:00:00Z", "since": "2026-11-07T21:00:00Z", "peak": 0.97, "share": 0.91, "tookFrom": "lv", "tookFromShare": 0.44}
+     ]}
+  ],
   "seasonal": [
     {"title": "PALAU WINS DAY 18", "key": {"flag": "pw", "continent": "the world", "angle": "round", "round": "0.18"}, "countries": ["pw", "dz"], "teasers": ["PALAU TAKES DAY 18"], "facts": {"kind": "round", "storyTilesChanged": 1200}}
   ],
@@ -86,7 +94,7 @@ func write(t *testing.T, folder, name, content string) string {
 	return path
 }
 
-func TestTheFindingsAreEveryFrontTourPlaceAndSeasonalStoryTheGeneratorWrote(t *testing.T) {
+func TestTheFindingsAreEveryFrontTourPlaceSagaAndSeasonalStoryTheGeneratorWrote(t *testing.T) {
 	file := write(t, t.TempDir(), "findings.json", writtenFindings)
 
 	findings, err := generator_output.FindingsFile(file).Findings(t.Context())
@@ -117,6 +125,14 @@ func TestTheFindingsAreEveryFrontTourPlaceAndSeasonalStoryTheGeneratorWrote(t *t
 		Rivals: map[string]int{"dz": 1200}, Changed: 6000, FlippedByContinent: map[string]int{"South Asia": 5200},
 		Fighters: []posts.Fighter{{Number: 2, Name: "Ада", Took: 30}},
 	}}, findings.Places)
+	hour := func(day, hour int) time.Time { return time.Date(2026, 11, day, hour, 0, 0, 0, time.UTC) }
+	assert.Equal(t, []posts.Saga{{
+		Kind: posts.CountryPlace, Code: "ru", Continent: "Europe", Tiles: 28527, Holder: "pw", Share: 0.91, Since: hour(1, 15), Until: hour(10, 14),
+		Reigns: []posts.Reign{
+			{Flag: "ru", Since: hour(3, 4), Until: hour(5, 22), Peak: 0.99, Share: 0.49, TookFrom: "ie", TookFromShare: 0.42, LostTo: "lv"},
+			{Flag: "pw", PushedAt: hour(7, 20), Since: hour(7, 21), Peak: 0.97, Share: 0.91, TookFrom: "lv", TookFromShare: 0.44},
+		},
+	}}, findings.Sagas)
 	require.Len(t, findings.Seasonal, 1)
 	assert.Equal(t, "PALAU WINS DAY 18", findings.Seasonal[0].Title)
 	assert.Equal(t, posts.StoryKey{Flag: "pw", Continent: "the world", Angle: posts.DayWon, Round: "0.18"}, findings.Seasonal[0].Key)
@@ -156,9 +172,15 @@ func TestAStoryIsWrittenAsTheGeneratorsStoryFlagTakesIt(t *testing.T) {
 	require.NoError(t, err)
 	seasonal, err := generator_output.StoryJSON(posts.Story{Seasonal: 1})
 	require.NoError(t, err)
+	saga, err := generator_output.StoryJSON(posts.Story{
+		Saga: 2, Reign: 1, Attacker: "pw", Rival: "lv", Headline: "TINY PALAU CONQUERS RUSSIA", Teasers: []string{"RUSSIA FALLS TO PALAU"},
+		Call: "TAKE RUSSIA BACK", CallFlags: []string{"ru"}, Anthem: "pw",
+	})
+	require.NoError(t, err)
 
 	assert.JSONEq(t, `{"front":3,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr","sy"],"headline":"FRANCE VS TURKEY","teasers":["THE WAR FOR TURKEY"],"line":"The battle for Turkey","call":"PICK A SIDE","callFlags":["fr","tr"],"anthem":"fr","look":"flags","fighters":[2,1]}`, string(front))
 	assert.JSONEq(t, `{"seasonal":1}`, string(seasonal))
+	assert.JSONEq(t, `{"saga":2,"reign":1,"attacker":"pw","rival":"lv","headline":"TINY PALAU CONQUERS RUSSIA","teasers":["RUSSIA FALLS TO PALAU"],"call":"TAKE RUSSIA BACK","callFlags":["ru"],"anthem":"pw"}`, string(saga))
 }
 
 func TestAFolderGivesEachClipWithItsVideo(t *testing.T) {

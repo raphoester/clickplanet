@@ -37,13 +37,28 @@ var (
 				}},
 				Bombs: 3, Score: 3886.5,
 			}},
-			Tours:      []posts.Tour{{Flag: "fr", Since: at.Add(-12 * time.Hour), Until: at, Took: 27992, ByContinent: map[string]int{"Europe": 12000}, NextTook: 9000, FlippedByContinent: map[string]int{"South Asia": 6246}}},
-			Places:     []posts.Place{{Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.643, Changed: 6000, FlippedByContinent: map[string]int{"South Asia": 5200}}},
+			Tours:  []posts.Tour{{Flag: "fr", Since: at.Add(-12 * time.Hour), Until: at, Took: 27992, ByContinent: map[string]int{"Europe": 12000}, NextTook: 9000, FlippedByContinent: map[string]int{"South Asia": 6246}}},
+			Places: []posts.Place{{Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.643, Changed: 6000, FlippedByContinent: map[string]int{"South Asia": 5200}}},
+			Sagas: []posts.Saga{{
+				Kind: posts.CountryPlace, Code: "cn", Continent: "East Asia", Tiles: 18622, Holder: "de", Share: 0.98,
+				Since: at.Add(-25 * 24 * time.Hour), Until: at,
+				Reigns: []posts.Reign{
+					{
+						Flag: "cz", PushedAt: at.Add(-24*24*time.Hour - 7*time.Hour), Since: at.Add(-24 * 24 * time.Hour), Until: at.Add(-19 * 24 * time.Hour),
+						Peak: 0.98, Share: 0.4, TookFrom: "kp", TookFromShare: 0.33, LostTo: "de",
+					},
+					{Flag: "de", PushedAt: at.Add(-19*24*time.Hour - time.Hour), Since: at.Add(-19 * 24 * time.Hour), Peak: 0.98, Share: 0.98, TookFrom: "cz", TookFromShare: 0.91},
+				},
+			}},
 			Names:      map[string]string{"fr": "France", "tr": "Turkey"},
 			Continents: map[string]string{"Europe": "eu", "Middle East": ""},
 			Anthems:    []string{"eu", "fr", "tr"},
 		},
 		Recent: []posts.Telling{{Title: "BRITTANY IS INVADING AUSTRALIA", Key: posts.StoryKey{Flag: "xb", Continent: "Oceania"}, Countries: []string{"au", "xb"}, At: at.Add(-time.Hour)}},
+		Sagas: []posts.Telling{{
+			Title: "CZECHIA CONQUERS CHINA", Key: posts.StoryKey{Flag: "cz", Continent: "East Asia", Angle: posts.Reigning}, Countries: []string{"cn", "cz"},
+			At: at.Add(-23 * 24 * time.Hour),
+		}},
 	}
 )
 
@@ -100,7 +115,8 @@ func TestTheModelsAnswerIsTheEditionAndItsCost(t *testing.T) {
 	api := &fake{status: http.StatusOK, answer: message("end_turn",
 		`{"why":"The war is the day's story.","stories":[`+
 			`{"front":1,"tour":0,"place":0,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr"],"continent":"","team":"","headline":"FRANCE VS TURKEY","teasers":["THE WAR FOR TURKEY"],"line":"The battle for Turkey","call":"PICK A SIDE","callFlags":["fr","tr"],"anthem":"fr","look":"flags","fighters":[2,1]},`+
-			`{"front":0,"tour":1,"place":0,"kind":"","attacker":"","rival":"","takenFrom":[],"countries":[],"continent":"","team":"","headline":"FRANCE IS EVERYWHERE","teasers":["NOBODY CAN STOP FRANCE"],"line":"","call":"FIGHT BACK","callFlags":[],"anthem":"","look":"","fighters":[]}]}`)}
+			`{"front":0,"tour":1,"place":0,"kind":"","attacker":"","rival":"","takenFrom":[],"countries":[],"continent":"","team":"","headline":"FRANCE IS EVERYWHERE","teasers":["NOBODY CAN STOP FRANCE"],"line":"","call":"FIGHT BACK","callFlags":[],"anthem":"","look":"","fighters":[]},`+
+			`{"front":0,"tour":0,"place":0,"saga":1,"reign":1,"kind":"","attacker":"de","rival":"cz","takenFrom":[],"countries":[],"continent":"","team":"","headline":"GERMANY TAKES CHINA IN ONE HOUR","teasers":["CHINA FALLS TO GERMANY"],"line":"","call":"TAKE CHINA BACK","callFlags":["cz"],"anthem":"","look":"","fighters":[]}]}`)}
 
 	edition, spend, err := editorOf(t, api.serve(t)).Edit(t.Context(), offer)
 
@@ -114,6 +130,10 @@ func TestTheModelsAnswerIsTheEditionAndItsCost(t *testing.T) {
 		{
 			Tour: 1, TakenFrom: []string{}, Countries: []string{}, Headline: "FRANCE IS EVERYWHERE", Teasers: []string{"NOBODY CAN STOP FRANCE"},
 			Call: "FIGHT BACK", CallFlags: []string{},
+		},
+		{
+			Saga: 1, Reign: 1, Attacker: "de", Rival: "cz", TakenFrom: []string{}, Countries: []string{}, Headline: "GERMANY TAKES CHINA IN ONE HOUR",
+			Teasers: []string{"CHINA FALLS TO GERMANY"}, Call: "TAKE CHINA BACK", CallFlags: []string{"cz"},
 		},
 	}}, edition)
 	assert.Equal(t, int64(1500), spend.InputTokens)
@@ -140,7 +160,7 @@ func TestTheRequestCachesTheInstructionsAndAsksForTheAnswersShape(t *testing.T) 
 	assert.Equal(t, "json_schema", format["type"])
 	assert.Equal(t, []any{"why", "stories"}, format["schema"].(map[string]any)["required"])
 	story := format["schema"].(map[string]any)["properties"].(map[string]any)["stories"].(map[string]any)["items"].(map[string]any)
-	assert.Equal(t, []any{"front", "tour", "place", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers", "line", "call", "callFlags", "anthem", "look", "fighters"}, story["required"])
+	assert.Equal(t, []any{"front", "tour", "place", "saga", "reign", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers", "line", "call", "callFlags", "anthem", "look", "fighters"}, story["required"])
 
 	prompt, err := claude_editor.PromptOf(offer)
 	require.NoError(t, err)
@@ -244,11 +264,13 @@ func TestThePromptHoldsTheFindingsNumberedTheStoriesToldFirstAndTheRecentPosts(t
 			Share              float64        `json:"share"`
 			FlippedByContinent map[string]int `json:"flippedByContinent"`
 		} `json:"places"`
+		Sagas       []json.RawMessage `json:"sagas"`
 		RecentPosts []struct {
 			Headline  string   `json:"headline"`
 			Countries []string `json:"countries"`
 		} `json:"recentPosts"`
-		ShownLately map[string]int `json:"shownLately"`
+		SagasTold   []json.RawMessage `json:"sagasTold"`
+		ShownLately map[string]int    `json:"shownLately"`
 	}
 	_, document, found := strings.Cut(prompt, "\n\n")
 	require.True(t, found)
@@ -281,6 +303,15 @@ func TestThePromptHoldsTheFindingsNumberedTheStoriesToldFirstAndTheRecentPosts(t
 	assert.Equal(t, "BRITTANY IS INVADING AUSTRALIA", written.RecentPosts[0].Headline)
 	assert.Equal(t, []string{"au", "xb"}, written.RecentPosts[0].Countries)
 	assert.Equal(t, map[string]int{"pw": 1}, written.ShownLately)
+	require.Len(t, written.Sagas, 1)
+	assert.JSONEq(t, `{"saga":1,"kind":"country","code":"cn","continent":"East Asia","tiles":18622,"holder":"de","share":0.98,`+
+		`"since":"2026-10-01T20:31:00Z","until":"2026-10-26T20:31:00Z","reigns":[`+
+		`{"reign":1,"flag":"cz","pushedAt":"2026-10-02T13:31:00Z","since":"2026-10-02T20:31:00Z","until":"2026-10-07T20:31:00Z","days":5,"conquestHours":7,"peak":0.98,"share":0.4,"tookFrom":"kp","tookFromShare":0.33,"lostTo":"de"},`+
+		`{"reign":2,"flag":"de","pushedAt":"2026-10-07T19:31:00Z","since":"2026-10-07T20:31:00Z","days":19,"conquestHours":1,"peak":0.98,"share":0.98,"tookFrom":"cz","tookFromShare":0.91}]}`,
+		string(written.Sagas[0]))
+	require.Len(t, written.SagasTold, 1)
+	assert.JSONEq(t, `{"at":"2026-10-03T20:31:00Z","headline":"CZECHIA CONQUERS CHINA","key":{"flag":"cz","continent":"East Asia","angle":"saga"},"countries":["cn","cz"]}`,
+		string(written.SagasTold[0]))
 }
 
 func TestAPromptOver100KTokensIsBilledFiveTimesOver(t *testing.T) {

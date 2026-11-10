@@ -162,6 +162,26 @@ describe("the hashtags of a story", () => {
             .toEqual({countries: [{code: "ps", tag: "palestine"}], continent: undefined})
     })
 })
+describe("the day a saga is at", () => {
+    it("reads as big as its counters, and only on a saga", () => {
+        const saga = {...story("battle", {country: "cn"}, "cz"), kind: "saga" as const}
+        const root = document.createElement("div")
+        const overlay = createOverlay(root, saga, wordsOf(saga, written), new Map(), [], 18_622)
+
+        overlay.show({replayAt: Date.parse("2026-11-07T20:50:00Z"), played: 0.6, held: new Map(), ending: -1})
+
+        expect(root.querySelector(".clip-day")?.textContent).toBe("SAT 7 NOV")
+    })
+
+    it("is left out of every other clip", () => {
+        const battle = story("battle", {country: "fr"}, "nl")
+        const root = document.createElement("div")
+        createOverlay(root, battle, wordsOf(battle, written), new Map(), [])
+
+        expect(root.querySelector(".clip-day")).toBeNull()
+    })
+})
+
 describe("the end card of the players a clip names", () => {
     const battle = story("battle", {country: "fr"}, "nl")
     const named: NamedSide[] = [

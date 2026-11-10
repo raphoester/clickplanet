@@ -1,6 +1,7 @@
 // The map every step of a window: the first frame holds every tile held at its start, each next one the tiles whose
-// owner changed since the frame before ("" for a tile a bomb left empty).
-export type MapFrame = {at: number, tiles: Uint32Array, owners: string[]}
+// owner changed since the frame before ("" for a tile a bomb left empty), and when each went to that owner (changedAt,
+// its last change of the step; the frame's own time in the first frame).
+export type MapFrame = {at: number, tiles: Uint32Array, owners: string[], changedAt: Float64Array}
 
 export type MapHistory = {
     frames: MapFrame[]

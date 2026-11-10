@@ -39,6 +39,13 @@ const (
 	roundProcedure = "scoring.v1.ScoringService/GetRound"
 )
 
+// The map's history is a module's read, served on the listener the modules call each other on.
+const (
+	internalTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
+		" --header 'Content-Type: application/json' --post-data '%s' http://127.0.0.1:8082/%s"
+	historyProcedure = "planet.v1.InternalService/GetMapHistory"
+)
+
 var decoder = protojson.UnmarshalOptions{DiscardUnknown: true}
 
 // host: user@host of the machine the backend runs on. client: the ssh program.
@@ -140,6 +147,9 @@ func (s *Source) Turn(ctx context.Context) (replays.Turn, error) {
 	}
 	told.Document = answered
 	told.FinaleAt = finaleOf(turn.GetTimeline())
+	if started := turn.GetTimeline().GetCurrent().GetStartsAt(); started.IsValid() {
+		told.SeasonSince = started.AsTime()
+	}
 	return told, nil
 }
 
@@ -216,6 +226,35 @@ func (s *Source) Round(ctx context.Context, id replays.RoundID) (replays.Round, 
 		return replays.Round{}, fmt.Errorf("%w: %q, not %q", errOtherRound, got, id)
 	}
 	return replays.Round{Document: answered, ID: id}, nil
+}
+
+var _ replays.HistorySource = (*Source)(nil)
+
+var errNoHistory = errors.New("the backend answered no map history")
+
+func (s *Source) History(ctx context.Context, window replays.Window) (replays.History, error) {
+	body, err := json.Marshal(map[string]string{
+		"since": window.Since.UTC().Format(time.RFC3339Nano),
+		"until": window.Until.UTC().Format(time.RFC3339Nano),
+		"step":  fmt.Sprintf("%ds", int64(replays.HistoryStep/time.Second)),
+	})
+	if err != nil {
+		return replays.History{}, fmt.Errorf("failed to encode the request: %w", err)
+	}
+
+	answered, err := s.ask(ctx, fmt.Sprintf(internalTool, body, historyProcedure))
+	if err != nil {
+		return replays.History{}, err
+	}
+
+	var history planetv1.GetMapHistoryResponse
+	if err := decoder.Unmarshal(answered, &history); err != nil {
+		return replays.History{}, fmt.Errorf("the backend answered what is not a planet.v1.GetMapHistoryResponse: %w", err)
+	}
+	if history.GetHistory() == nil {
+		return replays.History{}, errNoHistory
+	}
+	return replays.History{Document: answered, Frames: len(history.GetHistory().GetFrames()), Window: window}, nil
 }
 
 func (s *Source) ask(ctx context.Context, command string) ([]byte, error) {

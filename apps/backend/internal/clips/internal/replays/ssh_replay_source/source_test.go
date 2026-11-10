@@ -295,3 +295,63 @@ func TestACastWithNoIDIsAnError(t *testing.T) {
 
 	assert.ErrorContains(t, err, "no id")
 }
+
+func TestTheTurnSaysWhenTheSeasonThatRunsStarted(t *testing.T) {
+	running := `{"timeline":{"current":{"number":1,"startsAt":"2026-11-01T15:00:00Z","bookId":"season-1"}}}`
+	source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, running, "", 0).client)
+	require.NoError(t, err)
+
+	turn, err := source.Turn(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2026, 11, 1, 15, 0, 0, 0, time.UTC), turn.SeasonSince)
+}
+
+const mapped = `{"history":{"frames":[{"at":"2026-11-01T15:00:00Z"},` +
+	`{"at":"2026-11-01T16:00:00Z","owners":[{"tile":7,"countryId":"pw"}]}],"hits":[{"tile":7,"hits":1}]},` +
+	`"aFieldOfALaterBackend":true}`
+
+var season = replays.Window{
+	Since: time.Date(2026, 11, 1, 15, 0, 0, 0, time.UTC),
+	Until: time.Date(2026, 11, 10, 14, 20, 0, 500_000_000, time.UTC),
+}
+
+func TestTheSeasonsMapIsAskedOfTheInternalListenerHourByHour(t *testing.T) {
+	fake := ssh(t, mapped, "", 0)
+	source, err := ssh_replay_source.New("deploy@vps.example", fake.client)
+	require.NoError(t, err)
+
+	history, err := source.History(t.Context(), season)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"--",
+		"deploy@vps.example",
+		"cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO- --header 'Content-Type: application/json'" +
+			` --post-data '{"since":"2026-11-01T15:00:00Z","step":"3600s","until":"2026-11-10T14:20:00.5Z"}'` +
+			" http://127.0.0.1:8082/planet.v1.InternalService/GetMapHistory",
+	}, fake.asked(t))
+	assert.Equal(t, replays.History{Document: []byte(mapped), Frames: 2, Window: season}, history)
+}
+
+func TestAnAnswerThatIsNotAMapHistoryIsAnError(t *testing.T) {
+	for _, answer := range []string{`<html>502 Bad Gateway</html>`, `{}`} {
+		t.Run(answer, func(t *testing.T) {
+			source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, answer, "", 0).client)
+			require.NoError(t, err)
+
+			_, err = source.History(t.Context(), season)
+
+			require.Error(t, err)
+		})
+	}
+}
+
+func TestAMapHistoryTheBackendDoesNotServeIsAnErrorThatSaysWhy(t *testing.T) {
+	source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, "", "wget: server returned error: HTTP/1.1 500 Internal Server Error\n", 1).client)
+	require.NoError(t, err)
+
+	_, err = source.History(t.Context(), season)
+
+	require.ErrorContains(t, err, "ssh failed: exit status 1: wget: server returned error: HTTP/1.1 500 Internal Server Error")
+}

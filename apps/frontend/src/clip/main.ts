@@ -4,10 +4,13 @@ import * as THREE from "three"
 import type {JsonValue} from "@bufbuild/protobuf"
 import {Cast as CastWritten, Clip} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {GetReplayResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {GetMapHistoryResponse} from "../gen/grpc/planet/v1/internal_pb.ts"
 import {GetRoundResponse} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {GetTurnResponse} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {ReplayBackend} from "../backends/replayBackend.ts"
 import {takenOf} from "../backends/planetBackend.ts"
+import {historyOf} from "../backends/turnBackend.ts"
+import {MapReel} from "../domain/mapHistory.ts"
 import {createGlobe} from "../app/viewer/globe.ts"
 import {loadPointGeometryData} from "../app/viewer/points.ts"
 import {countryOfTile, loadBorders} from "../app/viewer/borderField.ts"
@@ -29,8 +32,9 @@ import {castWithin, namedSidesOf, NO_CAST} from "../domain/clip/cast.ts"
 import {fightersOf, inPlace, sidesOf, Story, storyKeyOf, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flippedTo, flipsOf, Look, LOOKS} from "../domain/clip/look.ts"
-import {cameraOf, framingOf, overviewOf, PullBack, screensOf} from "../domain/clip/camera.ts"
-import {paceOf, playedAt, PODIUM_ENDING_SECONDS, timelineFor, timelineOf} from "../domain/clip/pace.ts"
+import {cameraOf, framingOf, overviewOf, PullBack, sagaCameraOf, screensOf} from "../domain/clip/camera.ts"
+import {blendedPaceOf, paceOf, playedAt, PODIUM_ENDING_SECONDS, timelineFor, timelineOf} from "../domain/clip/pace.ts"
+import {framedTilesOf, sagasOf} from "../domain/clip/saga.ts"
 import {stopsOf, tourOf, tourSecondsOf, Visit} from "../domain/clip/tour.ts"
 import {flagsZoomOf, tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {mulberry32} from "../app/viewer/stars.ts"
@@ -95,6 +99,15 @@ const WORLD_TAKERS = 3
 
 // The busiest fronts, whatever window found them: enough for a day of war, few enough to read.
 const MOST_FRONTS = 30
+
+// A saga plays this long before its call: a place's days, its conquests and its falls.
+const SAGA_PLAY_SECONDS = 11
+
+// The share of a saga's play spent evenly on the calendar, so the days a flag held still go by on the clock.
+const SAGA_CALENDAR = 0.4
+
+// How long before each change a saga's clock starts to run into it: enclosures a minute apart flow, none freezes it.
+const SAGA_LEAD_MS = 5 * 60_000
 
 const clock = installVirtualClock()
 // Several recorders take one clip's frames in turn: each has to draw the same debris and the same shake.
@@ -196,6 +209,10 @@ async function choose(): Promise<Chosen> {
     // Who took which tiles, when the run made a cast: without one, a clip names nobody.
     const roster = await fetch("/__clip/cast.json")
     const cast = roster.ok ? castOf(CastWritten.fromJson(await roster.json(), {ignoreUnknownFields: true})) : NO_CAST
+    // The map every hour since the season started, when the run fetched it: each place's saga is told from it.
+    const mapped = await fetch("/__clip/history.json")
+    const kept = mapped.ok ? GetMapHistoryResponse.fromJson(await mapped.json(), {ignoreUnknownFields: true}).history : undefined
+    const history = kept === undefined ? undefined : historyOf(kept)
 
     const focus = countryParam("focus")
     const {positions} = await loadPointGeometryData()
@@ -305,6 +322,26 @@ async function choose(): Promise<Chosen> {
     // A landmass is one country's: the window's flips, read once, are each place's.
     const flippedInWindow = places.length === 0 ? []
         : flipsOf(borders.assignment, ownersAfter(replay.opening, everything.filter(({at}) => at < since)), window, window.map(({tile}) => tile))
+    // Each place over the season: who held over half of it, from when to when.
+    const sagas = focus !== undefined || history === undefined ? [] : sagasOf(history, borders.assignment.length, groundAt, regionOf)
+    // The clip of a saga plays its place from the conquest of the reign it starts at to the end of the history.
+    const sagaReviewOf = (told: {saga: number, reign: number, attacker: string, rival: string | undefined}): Review => {
+        const found = sagas[told.saga - 1]
+        if (!found || history === undefined) throw new Error(`no saga number ${told.saga}: the findings hold ${sagas.length}`)
+        const reign = found.reigns[told.reign - 1]
+        if (!reign) throw new Error(`no reign number ${told.reign} in saga ${told.saga}: it holds ${found.reigns.length}`)
+        const victims = told.rival !== undefined ? [told.rival] : reign.tookFrom !== undefined ? [reign.tookFrom] : []
+        const story: Story = {kind: "saga", attacker: told.attacker, rival: told.rival, victims, place: found.place, share: found.share}
+        const backend = ReplayBackend.ofHistory(history, new MapReel(history, borders.assignment.length), reign.pushedAt ?? found.since,
+            {assignment: borders.assignment, count: borders.codes.length})
+        const sides = fightersOf(story, regionOf)
+        const played = backend.changes()
+        const changes = played.filter(({tile, from, to}) => (sides(from) || sides(to)) && inHolding(story.place, groundAt(tile), regionOf))
+        if (changes.length === 0) throw new Error(`neither side of the saga of ${placeName(story.place)} held any of it from reign ${told.reign}`)
+        const front = {heart: meanOf(changes.map(({tile}) => pointAt(tile))) ?? {x: 0, y: 0, z: 1}, changes}
+        const solidity = solidityAfter(story.attacker, changes, ownersAfter(backend.opening, played), pointAt)
+        return {front, story, score: 0, scope: undefined, world: false, backend, solidity, look: "flags"}
+    }
     const placeFound = (place: PlaceFacts): PlaceFound => {
         const flips = flippedInWindow.filter(({tile}) => inHolding(place.place, groundAt(tile), regionOf))
         return {...place, flippedByContinent: flippedByContinentOf(flips, place.holder, continentAt)}
@@ -330,7 +367,7 @@ async function choose(): Promise<Chosen> {
         const {front, story, backend, solidity, scope, world, score} = review
         const changes = backend.changes().filter(({tile}) => inScope(scope)(tile))
         // The counter counts where the headline says: in the story's place, not in all that is near its front.
-        const inArea = story.kind === "holding" ? (tile: number) => inHolding(story.place, groundAt(tile), regionOf)
+        const inArea = story.kind === "holding" || story.kind === "saga" ? (tile: number) => inHolding(story.place, groundAt(tile), regionOf)
             : (tile: number) => inPlace(story.place, groundAt(tile), regionOf)
         const placeTiles = Array.from({length: borders.assignment.length}, (_, i) => i + 1).filter(inArea).length
         // A continent striking back together is held as one side.
@@ -373,6 +410,7 @@ async function choose(): Promise<Chosen> {
             if (!found) throw new Error(`no place number ${told.place}: the findings hold ${places.length}`)
             return holdingReviewOf(holdingStoryOf(found), told.look)
         }
+        if ("saga" in told) return sagaReviewOf(told)
         if ("seasonal" in told) {
             const found = seasonal[told.seasonal - 1]
             if (!found) throw new Error(`no seasonal story number ${told.seasonal}: the findings hold ${seasonal.length}`)
@@ -402,9 +440,10 @@ async function choose(): Promise<Chosen> {
         const takes = castWithin(cast, backend.since, backend.until).takes.filter(({tile}) => storyTiles.has(tile))
         const named = namedSidesOf(cast, chosen, takes, sidesOf(story), sideOf)
 
-        // A holding's counter is the share of the place its flag holds. A day's counter counts tiles, as any clip's,
-        // and the podium says the points.
-        const ground = story.kind === "holding" ? placeTiles : undefined
+        // A holding's and a saga's counters are the share of the place each flag holds. A day's counter counts tiles, as
+        // any clip's, and the podium says the points.
+        const saga = story.kind === "saga"
+        const ground = story.kind === "holding" || saga ? placeTiles : undefined
         // What the map is opens on all its flag holds there.
         const seasonal = story.kind === "round" || story.kind === "callup"
         const shared = story.kind === "holding" || seasonal
@@ -412,22 +451,28 @@ async function choose(): Promise<Chosen> {
             .flatMap(([tile, owner]) => owner === story.attacker && inArea(tile) ? [pointAt(tile)] : []) : []
 
         const points = front.changes.map(({tile}) => pointAt(tile))
-        const wide = framingOf(territory.length > 0 ? territory : points, aspect)
+        // A saga is framed on its place, a country on its main landmasses.
+        const placed = saga ? Array.from({length: borders.assignment.length}, (_, i) => i + 1).filter(inArea) : []
+        const framed = "country" in story.place ? framedTilesOf(placed, (tile) => borders.assignment[tile - 1]) : placed
+        const wide = framingOf(saga ? framed.map(pointAt) : territory.length > 0 ? territory : points, aspect)
         const flips = flipsOf(borders.assignment, backend.opening, changes, touched)
         const look = lookParam() ?? picked.look
         const overview = overviewOf(wide)
 
         const close = Math.max(overview.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH)
         const screens = screensOf(front.changes.map(({tile}, i) => ({share: i / front.changes.length, point: pointAt(tile)})), close)
-        const pace = paceOf(front.changes.map(({at}) => at), backend.since, backend.until)
+        const pace = saga ? blendedPaceOf(front.changes.map(({at}) => at), backend.since, backend.until, SAGA_CALENDAR, SAGA_LEAD_MS)
+            : paceOf(front.changes.map(({at}) => at), backend.since, backend.until)
         // A tour stays far out, where only a landmass's painted flag switching is seen: its stops are framed on the
         // landmasses that switched to the flag, and nowhere else.
         const switched = new Set(flippedTo(flips, story.attacker).map(({landmass}) => landmass))
         const stops = world ? stopsOf(visitsOf(front, story.attacker, pace.shareOf, (tile) => switched.has(borders.assignment[tile - 1])), aspect) : []
         if (world && stops.length === 0) throw new Error(`no painted flag switches to ${nameOf(story.attacker)}: a tour shows nothing`)
         const timeline = world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds"))
+            : saga ? timelineFor(SAGA_PLAY_SECONDS, numberParam("seconds"))
             : timelineOf(screens, numberParam("seconds"), seasonal ? PODIUM_ENDING_SECONDS : undefined)
         const camera = world ? tourOf(stops, aspect, timeline.seconds - timeline.ending, flagsZoomOf(root.clientHeight))
+            : saga ? sagaCameraOf(wide, flagsZoomOf(root.clientHeight))
             : cameraOf(overview, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
                 close,
                 seconds: timeline.seconds - timeline.ending,
@@ -509,7 +554,8 @@ async function choose(): Promise<Chosen> {
         const clipFighters = named.flatMap(({flag, fighters}) => fighters.map(({number, name, took}) => ({number, name, flag, took})))
         const clipRecord = clipRecordOf({
             ...measured, story, generator: params.get("commit") ?? "", seconds: timeline.seconds, music,
-            look: world ? undefined : look, landmassesFlipped: flips.length, screens, tourStops: stops.length,
+            camera: world ? "tour" : saga ? "saga" : "front", look: world || saga ? undefined : look,
+            landmassesFlipped: flips.length, screens, tourStops: stops.length,
             fighters: clipFighters.length,
         })
 
@@ -522,6 +568,8 @@ async function choose(): Promise<Chosen> {
             until: new Date(backend.until).toISOString(),
             look: world ? `tour of ${stops.map(({region}) => region).join(", ")}, ${drops.length} ${drops.length === 1 ? "bomb" : "bombs"}, `
                 + `solidity ${solidity.toFixed(2)}`
+                : saga ? `saga of ${placeName(story.place)} over ${((backend.until - backend.since) / 86_400_000).toFixed(1)} days, `
+                + `framed at zoom ${wide.zoom.toFixed(1)}, ${flipsLine(flips)}`
                 : `${look} (front framed at zoom ${wide.zoom.toFixed(1)}), ${drops.length} ${drops.length === 1 ? "bomb" : "bombs"}, `
                 + `action crosses ${screens.toFixed(1)} screens, solidity ${solidity.toFixed(2)}, ${flipsLine(flips)}`,
             place: placeName(story.place),
@@ -542,7 +590,7 @@ async function choose(): Promise<Chosen> {
 
     return {
         findings: findingsOf({
-            since, until, fronts: fronts.map(frontFound), tours: toursFound, places: places.map(placeFound), seasonal: seasonalFound,
+            since, until, fronts: fronts.map(frontFound), tours: toursFound, places: places.map(placeFound), sagas, seasonal: seasonalFound,
             anthems: Object.keys(RECORDED).sort(),
         }).toJson(),
         record,

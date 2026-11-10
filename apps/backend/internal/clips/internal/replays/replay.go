@@ -60,6 +60,8 @@ type Turn struct {
 	EndedAt time.Time
 	// When the finale battle to come starts; zero when none is scheduled.
 	FinaleAt time.Time
+	// When the season that runs started; zero between two seasons.
+	SeasonSince time.Time
 }
 
 type RoundID string
@@ -122,4 +124,35 @@ type CastSource interface {
 
 type CastStore interface {
 	SaveCast(ctx context.Context, cast Cast) error
+}
+
+// The map every HistoryStep since the season started: the generator measures each place's reigns on it.
+type History struct {
+	// A planet.v1.GetMapHistoryResponse in JSON, as the backend answered it.
+	Document []byte
+	Frames   int
+	Window   Window
+}
+
+const HistoryStep = time.Hour
+
+var ErrNoSeason = errors.New("no season runs")
+
+func (t Turn) SeasonUntil(until time.Time) (Window, error) {
+	if t.SeasonSince.IsZero() {
+		return Window{}, ErrNoSeason
+	}
+	if !t.SeasonSince.Before(until) {
+		return Window{}, fmt.Errorf("%w: the season starts at %s, not before %s", ErrInvalidRequest,
+			t.SeasonSince.Format(time.RFC3339), until.Format(time.RFC3339))
+	}
+	return Window{Since: t.SeasonSince, Until: until}, nil
+}
+
+type HistorySource interface {
+	History(ctx context.Context, window Window) (History, error)
+}
+
+type HistoryStore interface {
+	SaveHistory(ctx context.Context, history History) error
 }

@@ -30,6 +30,16 @@ const found: Found = {
         share: 0.6427, rivals: {dz: 1200}, changed: 6000, flippedByContinent: {"South Asia": 5200},
         fighters: [{number: 2, name: "StormWolf", took: 40}],
     }],
+    sagas: [{
+        kind: "country", place: {country: "ru"}, code: "ru", continent: "Europe", tiles: 28527, holder: "pw", share: 0.9071,
+        since: Date.UTC(2026, 10, 1, 15), until: Date.UTC(2026, 10, 10, 14),
+        reigns: [
+            {flag: "ru", pushedAt: Date.UTC(2026, 10, 2, 22), since: Date.UTC(2026, 10, 3, 1), until: Date.UTC(2026, 10, 5, 18), peak: 0.991,
+                share: 0.4, tookFrom: "ie", tookFromShare: 0.4213, lostTo: "lv"},
+            {flag: "pw", pushedAt: Date.UTC(2026, 10, 7, 20), since: Date.UTC(2026, 10, 7, 21), until: undefined, peak: 0.9712,
+                share: 0.9071, tookFrom: "lv", tookFromShare: 0.4404, lostTo: undefined},
+        ],
+    }],
     seasonal: [{story: {kind: "round", attacker: "pw", rival: undefined, victims: ["dz"], place: {region: "the world"},
         day: {season: 0, number: 18, finale: false, own: false, endedAt: Date.UTC(2026, 9, 25, 21), podium: [{country: "pw", rank: 1, points: 30}], table: []}}, measured}],
     anthems: ["dz", "eu", "fr"],
@@ -60,8 +70,21 @@ describe("the findings", () => {
         expect((json.fronts as {flags: object[]}[])[0].flags[1]).not.toHaveProperty("fighters")
     })
 
+    it("tell each place's saga: who held over half of it, from when its conquest began to when it fell", () => {
+        expect(json.sagas).toEqual([{
+            kind: "country", code: "ru", continent: "Europe", tiles: 28527, holder: "pw", share: 0.907,
+            since: "2026-11-01T15:00:00Z", until: "2026-11-10T14:00:00Z",
+            reigns: [
+                {flag: "ru", pushedAt: "2026-11-02T22:00:00Z", since: "2026-11-03T01:00:00Z", until: "2026-11-05T18:00:00Z", peak: 0.991,
+                    share: 0.4, tookFrom: "ie", tookFromShare: 0.421, lostTo: "lv"},
+                {flag: "pw", pushedAt: "2026-11-07T20:00:00Z", since: "2026-11-07T21:00:00Z", peak: 0.971, share: 0.907, tookFrom: "lv",
+                    tookFromShare: 0.44},
+            ],
+        }])
+    })
+
     it("say how every code in them is said, and name every continent with its own flag", () => {
-        expect(json.names).toEqual({dz: "Algeria", fr: "France", pw: "Palau", tr: "Turkey"})
+        expect(json.names).toEqual({dz: "Algeria", fr: "France", ie: "Ireland", lv: "Latvia", pw: "Palau", ru: "Russia", tr: "Turkey"})
         expect(json.continents).toEqual(expect.arrayContaining([{name: "Europe", flag: "eu"}, {name: "Middle East"}, {name: "Africa"}]))
     })
 
@@ -123,14 +146,24 @@ describe("the story --story names", () => {
         expect(toldOf(`{"seasonal":1,"fighters":[1]}`).fighters).toEqual([])
     })
 
+    it("is a saga told from one of its reigns, about one of its flags, against another or none, with no look", () => {
+        expect(toldOf(`{"saga":2,"reign":1,"attacker":"de","rival":"cz","headline":"GERMANY TAKES CHINA","call":"FIGHT BACK"}`).told)
+            .toEqual({saga: 2, reign: 1, attacker: "de", rival: "cz"})
+        expect(toldOf(`{"saga":1,"reign":2,"attacker":"pw","headline":"PALAU CONQUERS RUSSIA","call":"FIGHT BACK","fighters":[3]}`))
+            .toMatchObject({told: {saga: 1, reign: 2, attacker: "pw", rival: undefined}, fighters: []})
+        expect(() => toldOf(`{"saga":1,"attacker":"pw",${WORDS}}`)).toThrow("from one of its reigns, about one of its flags")
+        expect(() => toldOf(`{"saga":1,"reign":1,${WORDS}}`)).toThrow("from one of its reigns, about one of its flags")
+    })
+
     it("is a seasonal story by its number alone, in words of its own", () => {
         expect(toldOf(`{"seasonal":1}`)).toEqual({told: {seasonal: 1}, written: undefined, fighters: []})
     })
 
     it("is refused when it names nothing or two things, a kind no front tells, no attacker, no place, no words or no look", () => {
-        expect(() => toldOf(`{}`)).toThrow("one front, one tour, one place or one seasonal story")
-        expect(() => toldOf(`{"front":1,"tour":1}`)).toThrow("one front, one tour, one place or one seasonal story")
+        expect(() => toldOf(`{}`)).toThrow("one front, one tour, one place, one saga or one seasonal story")
+        expect(() => toldOf(`{"front":1,"tour":1}`)).toThrow("one front, one tour, one place, one saga or one seasonal story")
         expect(() => toldOf(`{"front":1,"kind":"holding","attacker":"fr","countries":["in"],${WORDS}}`)).toThrow(`not "holding"`)
+        expect(() => toldOf(`{"front":1,"kind":"saga","attacker":"fr","countries":["in"],${WORDS}}`)).toThrow(`not "saga"`)
         expect(() => toldOf(`{"front":1,"kind":"invasion","countries":["in"],${WORDS}}`)).toThrow("has an attacker")
         expect(() => toldOf(`{"front":1,"kind":"invasion","attacker":"fr",${WORDS}}`)).toThrow("in countries, or on a continent")
         expect(() => toldOf(`{"place":4,"headline":"FRANCE HOLDS INDIA"}`)).toThrow("has its headline and its call")

@@ -51,3 +51,14 @@ func (s CastStore) SaveCast(_ context.Context, cast replays.Cast) error {
 	}
 	return nil
 }
+
+type HistoryStore string
+
+var _ replays.HistoryStore = HistoryStore("")
+
+func (s HistoryStore) SaveHistory(_ context.Context, history replays.History) error {
+	if err := os.WriteFile(string(s), history.Document, 0o600); err != nil {
+		return fmt.Errorf("failed to write the season's map: %w", err)
+	}
+	return nil
+}

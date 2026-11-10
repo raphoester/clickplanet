@@ -106,11 +106,13 @@ export class ConnectTurnBackend implements TurnBackend {
 }
 
 export function historyOf(history: MapHistoryMessage): MapHistory {
+    const ats = history.frames.map((frame) => frame.at?.toDate().getTime() ?? 0)
     return {
-        frames: history.frames.map((frame) => ({
-            at: frame.at?.toDate().getTime() ?? 0,
+        frames: history.frames.map((frame, i) => ({
+            at: ats[i],
             tiles: Uint32Array.from(frame.owners, (owner) => owner.tile),
             owners: frame.owners.map((owner) => owner.countryId),
+            changedAt: Float64Array.from(frame.owners, (owner) => i === 0 ? ats[i] : ats[i - 1] + owner.secondsIntoStep * 1000),
         })),
         hits: new Map(history.hits.map((hits) => [hits.tile, hits.hits])),
     }
