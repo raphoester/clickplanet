@@ -77,10 +77,19 @@ func (s *Store) KeepToldSeason(ctx context.Context, book moments.BookID) (bool, 
 	return inserted(res)
 }
 
+// Not one upsert: ON CONFLICT DO UPDATE locks the row even when its WHERE is false, a write each second.
 func (s *Store) KeepToldDay(ctx context.Context, day moments.ToldDay) (bool, error) {
+	moved, err := s.db.On(ctx).ExecContext(ctx, `
+		UPDATE told_days SET ends_at = $2 WHERE round_id = $1 AND ends_at <> $2
+	`, string(day.Round), day.EndsAt.UTC())
+	if err != nil {
+		return false, fmt.Errorf("failed to move the end of the day %s told: %w", day.Round, err)
+	}
+	if kept, err := inserted(moved); err != nil || kept {
+		return kept, err
+	}
 	res, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO told_days (round_id, ends_at) VALUES ($1, $2)
-		ON CONFLICT (round_id) DO UPDATE SET ends_at = excluded.ends_at WHERE told_days.ends_at <> excluded.ends_at
+		INSERT INTO told_days (round_id, ends_at) VALUES ($1, $2) ON CONFLICT (round_id) DO NOTHING
 	`, string(day.Round), day.EndsAt.UTC())
 	if err != nil {
 		return false, fmt.Errorf("failed to keep the day %s told: %w", day.Round, err)

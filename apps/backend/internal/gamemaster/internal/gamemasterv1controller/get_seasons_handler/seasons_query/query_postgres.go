@@ -36,13 +36,38 @@ func (q *PostgresQuery) Seasons(ctx context.Context) (*gamemasterv1.GetSeasonsRe
 	if err != nil {
 		return nil, err
 	}
-	plan := moments.NewPlan(seasons, q.cutoff, nil, entries...)
+	opened, err := q.opened(ctx)
+	if err != nil {
+		return nil, err
+	}
+	plan := moments.NewPlan(seasons, q.cutoff, opened, entries...)
 	answer := &gamemasterv1.GetSeasonsResponse{DailyCutoff: durationpb.New(time.Duration(q.cutoff))}
 	planned := seasons.TakeSnapshot()
 	for i, window := range seasons.Windows() {
 		answer.Seasons = append(answer.Seasons, seasonmessage.ScheduledOf(planned[i], window, plan.DaysOf(window.Number)))
 	}
 	return answer, nil
+}
+
+func (q *PostgresQuery) opened(ctx context.Context) ([]moments.RoundID, error) {
+	rows, err := q.db.On(ctx).QueryContext(ctx, `SELECT round_id FROM opened_rounds`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the rounds opened: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var opened []moments.RoundID
+	for rows.Next() {
+		var round string
+		if err := rows.Scan(&round); err != nil {
+			return nil, fmt.Errorf("failed to read a round opened: %w", err)
+		}
+		opened = append(opened, moments.RoundID(round))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the rounds opened: %w", err)
+	}
+	return opened, nil
 }
 
 func (q *PostgresQuery) entries(ctx context.Context) ([]schedule.Entry, error) {

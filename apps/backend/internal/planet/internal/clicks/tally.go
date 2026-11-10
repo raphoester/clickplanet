@@ -1,6 +1,6 @@
 package clicks
 
-// Every write of the map counts one in Seq; Epoch is the second the process started, when Seq starts from zero.
+// Every write counts one in Seq, from zero since Epoch: the second the map last started (boot, reset, arena).
 type MapVersion struct {
 	Epoch uint32
 	Seq   uint64

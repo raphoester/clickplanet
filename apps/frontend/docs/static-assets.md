@@ -60,7 +60,7 @@ the 1200×627 scrapers ask for; the script also rewrites its URL in `index.html`
 `play.html` and `archive.html`. It is content-addressed because **scrapers cache a preview by
 its URL**: under a fixed name, a link shared after a new screenshot still showed
 the old one. If you regenerate it at a different size, update
-`og:image:width` / `og:image:height` in both pages to match.
+`og:image:width` / `og:image:height` in the three pages to match.
 
 The source is the home page's hero, taken from the live site with a fresh
 profile (a returning player is sent to the game) at a 1840×962 window — about
@@ -79,7 +79,8 @@ chat. To retake it:
 Chrome may not exit after it writes the file; stop it once the file is there.
 
 `public/` holds the files that must be served as themselves rather than as the
-app: `_headers`, `robots.txt` and `sitemap.xml`. Vite copies them to the root of
+app: `_headers`, `robots.txt`, `sitemap.xml` and `crazygames/words.txt` (fetched by the build and ignored by git,
+see [CrazyGames](crazygames.md)). Vite copies them to the root of
 `dist/`, and the Workers asset handler serves a real file before
 `not_found_handling` applies — **without them, every unmatched path including
 `/robots.txt` answers 200 with `index.html`**, so a crawler asking for the rules
@@ -120,7 +121,8 @@ Content-Security-Policy; one that is added must allow
 [Pages and routes](routes.md). It is a full landing page (header,
 hero, how it works, the board and the map, phone, Discord, and a footer that
 carries the creator) in the game's look, with one stylesheet inline and no
-script but the redirect. **It sells the game, not its mechanics**: country
+script but the redirect and `src/home.ts`, which fills the season, battle and Final Battle panels and keeps the
+first landing. **It sells the game, not its mechanics**: country
 against country on one live planet. What only makes sense once playing (signing
 in to click faster, bonus boxes, the camera) stays in the game. The hero's
 counts are written by hand, since plain HTML cannot read them: 262,000 tiles is

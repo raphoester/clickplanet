@@ -40,7 +40,7 @@ func run(logger *slog.Logger) error {
 
 **`cmd/clips` follows it** (see [The clips job](clips-job.md)): `flags.Parse` in `cmd/clips/internal/flags`, the work in `internal/clips/job.go`, `display.Picks` and `display.Report` in `cmd/clips/internal/display`. `main.go` is `main`, `run`, the dispatch and one short function per command. What it settled:
 
-- **With subcommands, `run` parses, then picks the command**, and each command is its own short list of stages: work, then display. `stats` has no display: what it keeps is read in the backoffice, so it is work, then the exit status. The dispatch has a `case` per command and fails on any other (`errUnknownCommand`), though the parser already refused it.
+- **With subcommands, `run` parses, then picks the command**, and each command is its own short list of stages: work, then display. The dispatch has a `case` per command and fails on any other (`errUnknownCommand`), though the parser already refused it.
 - **The parser and the display are the tool's own, under `cmd/clips/internal/`**: Go keeps them out of reach of everything but this command, and they import the module, never the reverse.
 - **A display that writes can fail**, so it answers an `error` beside its `bool`: `display.Report(summaryFile, out, report) (bool, error)`. The `bool` is still what the report says (every clip is scheduled), and the `error` only that the summary could not be written.
 

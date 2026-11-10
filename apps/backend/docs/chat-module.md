@@ -151,7 +151,7 @@ internal/chat/internal/
 ```
 
 - **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters, and the
-  banned phrases, `Banned`), `AccountIDOf` (the context's account, or `cpsession.NoAccount`) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
+  banned phrases, `Banned`), `AccountIDOf` (the context's account, or `cpsession.NoAccount`) and `NewRecord` (truncates the user agent). They are tested there, not through the use case.
 - **Ids are injected** (`messages.IDProvider`, `mutes.IDProvider`), like the clock. Tests use each concept's `SequentialIDs` (behind the tag), so they assert exact ids. An announcement draws none: its id is the fact's (see [Announcements](chat.md#announcements)). `messages.Drafts` holds the ids, the clock, the `Limits` and the country list, and builds a new `Message` from what was sent; `messages.Thread` holds what a reply needs (see [Replies](chat.md#replies)). So `send_message_usecase` stays at five ports. A message id is still a UUID string: `chat.messages.id` is text, with no unique constraint.
 - **`send_message_usecase.Config` stays under `chat.Config.Service`**, so the `chat.service.*` keys do not change.
 - **`chatv1controller`'s root tests are about the chain** (error net, blocklist, throttle). Each handler package tests its own mapping.

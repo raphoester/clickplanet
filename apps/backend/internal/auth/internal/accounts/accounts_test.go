@@ -37,6 +37,22 @@ func TestTheTokenIsFoundAmongOtherCookies(t *testing.T) {
 	assert.Equal(t, accounts.TokenOf("abc123"), token)
 }
 
+func TestAMalformedCookieBesideItDoesNotHideTheToken(t *testing.T) {
+	for name, header := range map[string]string{
+		"no equals sign":     "broken; cp_sid=abc123",
+		"quotes in a value":  `prefs={"a":"b"}; cp_sid=abc123`,
+		"a byte past ascii":  "x=café; cp_sid=abc123",
+		"brackets in a name": "a[b]=1; cp_sid=abc123",
+	} {
+		t.Run(name, func(t *testing.T) {
+			token, err := accounts.TokenFromCookies(header)
+
+			require.NoError(t, err)
+			assert.Equal(t, accounts.TokenOf("abc123"), token)
+		})
+	}
+}
+
 func TestNoTokenInAHeaderWithoutTheCookie(t *testing.T) {
 	for name, header := range map[string]string{
 		"empty":        "",

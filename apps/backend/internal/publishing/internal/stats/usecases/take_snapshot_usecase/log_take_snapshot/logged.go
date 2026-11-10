@@ -27,6 +27,7 @@ var _ take_snapshot_usecase.Executor = (*Logged)(nil)
 func (l *Logged) Execute(ctx context.Context) (stats.Report, error) {
 	report, err := l.inner.Execute(ctx)
 	if err != nil {
+		l.logger.Error("the snapshot of the posts could not be taken, tried again in an hour", slog.String("error", err.Error()))
 		return report, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
 	}
 

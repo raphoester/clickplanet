@@ -1,4 +1,4 @@
-import {ReactNode, useCallback, useState} from "react"
+import {ReactNode, useCallback, useMemo, useState} from "react"
 import {authAdmin} from "./api.ts"
 import {CLIENTS} from "./clients.ts"
 import {FailureNotice} from "./components/FailureNotice.tsx"
@@ -90,8 +90,9 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
 
     // A page picked in the menu opens at its top: Players at its list, Reports with none open.
     const go = (to: PageId) => setRoute({page: to, item: ""})
+    const fromRoute = useMemo(() => openedOf(route.item), [route.item])
     const player = page !== "players" || route.item === "" ? undefined
-        : known !== undefined && idOf(known.caller) === route.item ? known : openedOf(route.item)
+        : known !== undefined && idOf(known.caller) === route.item ? known : fromRoute
 
     return (
         <OpenPlayer.Provider value={openPlayer}>

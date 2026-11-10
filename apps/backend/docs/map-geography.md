@@ -9,7 +9,7 @@ and this is the tile game's own map. It is then split across the two layers, on 
 survives a change of input format*:
 
 - **`clicks.Geography`** (`internal/clicks/geography.go`) — the model. `NewGeography(positions, edges)`
-  builds it, and `Neighbours`, `Disc` and `Position` read it. It knows nothing about icosahedra,
+  builds it, and `Neighbours`, `Position`, `Within`, `Nearest` and `Spacing` read it. It knows nothing about icosahedra,
   blobs or file formats; it takes an edge list in any order, with repeats, and enforces what has
   to be true of a map: tiles in range, nothing touching itself, no tile above `MaxDegree`, and
   **no asymmetric edge** — a tile that spreads onto a neighbour which would not spread back is a
@@ -91,18 +91,12 @@ being 142,792 (Afro-Eurasia), 67,352 (the Americas), 22,871 (Antarctica) and 12,
 
 ## The API, and what is not in it yet
 
-All three are on `clicks.Geography`, so a rule that reads them needs no port and no adapter import.
+The reads of the tiles are on `clicks.Geography`, so a rule that reads them needs no port and no adapter import.
 
 `Neighbours(id)` hands back a window into the map's own CSR table — read it, never write it, which
-is what keeps it allocation-free on a click path. **It returns nothing for the 186 single-tile
+is what keeps it allocation-free on a click path. **It returns nothing for the 250 single-tile
 islands**, so a consumer has to have an answer for an empty neighbour set; whether the game paints
 nothing or refunds the bonus there is a rule, not a fact about the map.
-
-`Disc(id, radius)` is a breadth-first walk over that, returning `1 + 3r(r+1)` tiles inland and less
-wherever the land runs out. **Discs are computed, never stored**: a radius-3 table would be ~38 MB
-to save ~50µs, behind a 1 click/sec/IP throttle. The search scratch is a generation-stamped array
-from a pool, one per concurrent caller, so nothing is cleared per call and two clicks cannot stamp
-the same array.
 
 `clicks.Borders` is the other half of the geography: which country's ground a tile sits on, from
 `generated/map/borders-<hash>.bin`, the table the frontend's `npm run map:generate` writes to `/map`.
@@ -120,7 +114,7 @@ arena — see [Arena battles](arenas.md#capitals-and-reach).
 `Neighbours` is what the spread bonus reads — see [What a spread does to a click](spread.md).
 `Within`, `Position`, `Nearest` and `Spacing` are what the bomb reads — see [What a bomb does](bomb.md).
 `Within`, `Nearest` and `Spacing` are straight scans (a few ms over 260,503 tiles): `Spacing` runs once at
-boot, `Within` and `Nearest` once per bomb. `Disc` is back behind the `testing` tag — see [Testing](testing.md).
+boot, `Within` and `Nearest` once per bomb.
 
 ## What the blob no longer gets wrong
 

@@ -427,8 +427,6 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
   messageId = "";
 
   /**
-   * Empty for a message kept before accounts, or of a deleted account.
-   *
    * @generated from field: string account_id = 2;
    */
   accountId = "";
@@ -623,14 +621,12 @@ export class KeptMessage extends Message<KeptMessage> {
   messageId = "";
 
   /**
-   * Empty for a message kept before accounts.
-   *
    * @generated from field: string account_id = 2;
    */
   accountId = "";
 
   /**
-   * Its author's name now: the name it was sent under for a message kept before accounts, [deleted] for an account nobody can name any more.
+   * Its author's name now: [deleted] for an account nobody can name any more.
    *
    * @generated from field: string author_name = 3;
    */
@@ -901,7 +897,7 @@ export class ModerationAction extends Message<ModerationAction> {
   actionId = "";
 
   /**
-   * The account it was taken on, never the network a mute also holds. Empty for a message kept before accounts.
+   * The account it was taken on, never the network a mute also holds.
    *
    * @generated from field: string account_id = 2;
    */

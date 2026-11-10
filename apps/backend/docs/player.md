@@ -60,7 +60,7 @@ internal/player/internal/
   migrations/
 ```
 
-- **The caller is the account in the click token.** Every call of `PlayerService` but `GetPlayer`, `GetNameplates` and `ListenForEvents` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, with the process's one verifier (`props.Sessions`), on the key `auth` hands over the internal listener, as every module does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
+- **The caller is the account in the click token.** Every call of `PlayerService` but `GetPlayer`, `GetNameplates` and `ListenForEvents` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, with the process's one verifier (`props.Sessions`), on the key `auth` hands over the internal listener, as every module does. No token, a bad one, or a token with no account is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
 - **`GetProfile`** answers the account id and its name, empty when none was chosen, when the name may change again, and its color. The caller's own titles and fronts are progression's `GetTitles` and `GetFronts`.
 - **`SetName` chooses a username.** `players.NameOf` is the rule. It puts the name in **NFC** and cuts the spaces (U+0020) at its ends — the same text, as it shows — and changes nothing else. Then:
   - **3 to 15 characters, counted in code points after NFC**, as postgres' `char_length` counts, so both agree. A letter with a combining mark NFC cannot compose counts two.

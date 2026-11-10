@@ -1031,7 +1031,8 @@ func (x *GetMapResponse) GetKnockedOut() []string {
 
 type MapVersion struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The second the server started: seq starts again from zero on every start.
+	// The second the map started over: the server's start, a map reset, or an arena's open or close. seq starts again
+	// from zero each time.
 	Epoch         uint32 `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
 	Seq           uint64 `protobuf:"varint,2,opt,name=seq,proto3" json:"seq,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -4067,7 +4068,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x121\n" +
 	"\x15changeable_at_unix_ms\x18\x02 \x01(\x03R\x12changeableAtUnixMs\x12\x16\n" +
-	"\x06locked\x18\x03 \x01(\bR\x06locked\"\x8b\x03\n" +
+	"\x06locked\x18\x03 \x01(\bR\x06locked\"\x9c\x03\n" +
 	"\vClickBudget\x12\x16\n" +
 	"\x06tokens\x18\x01 \x01(\x01R\x06tokens\x12\x1a\n" +
 	"\bcapacity\x18\x02 \x01(\rR\bcapacity\x12*\n" +
@@ -4083,7 +4084,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"sharedWith\x12\x16\n" +
 	"\x06frozen\x18\f \x01(\bR\x06frozen\x12\x1d\n" +
 	"\n" +
-	"fast_start\x18\r \x01(\bR\tfastStartJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"x\n" +
+	"fast_start\x18\r \x01(\bR\tfastStartJ\x04\b\x04\x10\x05J\x04\b\a\x10\bR\x04costR\tnext_cost\"x\n" +
 	"\fClickRequest\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
@@ -4219,7 +4220,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12\x17\n" +
 	"\atile_id\x18\x03 \x01(\rR\x06tileId\x12/\n" +
-	"\aversion\x18\x04 \x01(\v2\x15.planet.v1.MapVersionR\aversion\"\xa1\x01\n" +
+	"\aversion\x18\x04 \x01(\v2\x15.planet.v1.MapVersionR\aversion\"\xaa\x01\n" +
 	"\vChargesHeld\x12\x16\n" +
 	"\x06refill\x18\x04 \x01(\bR\x06refill\x12\x12\n" +
 	"\x04bomb\x18\x01 \x01(\bR\x04bomb\x12\x1e\n" +
@@ -4227,7 +4228,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"enclosures\x18\x02 \x01(\rR\n" +
 	"enclosures\x12,\n" +
 	"\x12spread_clicks_left\x18\x03 \x01(\rR\x10spreadClicksLeft\x12\x18\n" +
-	"\ashields\x18\x05 \x01(\rR\ashields\"\x13\n" +
+	"\ashields\x18\x05 \x01(\rR\ashieldsR\aenclose\"\x13\n" +
 	"\x11GetChargesRequest\"F\n" +
 	"\x12GetChargesResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x16\n" +
@@ -4248,12 +4249,12 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	" \x01(\bR\x13enclosuresUnlimitedJ\x04\b\x05\x10\x06R\thome_soil\"<\n" +
 	"\bTollStep\x12\x14\n" +
 	"\x05share\x18\x01 \x01(\x01R\x05share\x12\x1a\n" +
-	"\bslowdown\x18\x02 \x01(\x01R\bslowdown\"\x8f\x01\n" +
+	"\bslowdown\x18\x02 \x01(\x01R\bslowdown\"\xa7\x01\n" +
 	"\fBonusOffered\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x12\n" +
 	"\x04seed\x18\x02 \x01(\rR\x04seed\x12(\n" +
 	"\x04kind\x18\x03 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12+\n" +
-	"\x12expires_at_unix_ms\x18\x05 \x01(\x03R\x0fexpiresAtUnixMs\"\x8c\x01\n" +
+	"\x12expires_at_unix_ms\x18\x05 \x01(\x03R\x0fexpiresAtUnixMsJ\x04\b\x04\x10\x05R\x10duration_seconds\"\x8c\x01\n" +
 	"\n" +
 	"BonusTaken\x12\x1d\n" +
 	"\n" +
@@ -4263,14 +4264,15 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11ClaimBonusRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x02 \x01(\tR\tcountryId\"\x88\x01\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\"\xef\x01\n" +
 	"\x12ClaimBonusResponse\x12(\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
 	"\x06amount\x18\b \x01(\rR\x06amount\x120\n" +
-	"\acharges\x18\a \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"V\n" +
+	"\acharges\x18\a \x01(\v2\x16.planet.v1.ChargesHeldR\achargesJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\x06budgetR\x10duration_secondsR\fblast_radiusR\n" +
+	"enclosuresR\x13enclosure_max_tiles\"j\n" +
 	"\vQuizOffered\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12+\n" +
-	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMsJ\x04\b\x03\x10\x04\"'\n" +
+	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMsJ\x04\b\x03\x10\x04R\x12subject_country_id\"'\n" +
 	"\x0fOpenQuizRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\"\x99\x01\n" +
 	"\x10OpenQuizResponse\x12\x1a\n" +
@@ -4313,7 +4315,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x10cleared_tile_ids\x18\x04 \x03(\rR\x0eclearedTileIds\x12+\n" +
 	"\x05point\x18\x05 \x01(\v2\x15.planet.v1.GlobePointR\x05point\x12/\n" +
 	"\aversion\x18\a \x01(\v2\x15.planet.v1.MapVersionR\aversion\x12.\n" +
-	"\x06struck\x18\b \x03(\v2\x16.planet.v1.TileShieldsR\x06struckJ\x04\b\x06\x10\aR\x0fstruck_tile_ids\"\x99\x02\n" +
+	"\x06struck\x18\b \x03(\v2\x16.planet.v1.TileShieldsR\x06struckJ\x04\b\x06\x10\aR\x0fstruck_tile_ids\"\xaa\x02\n" +
 	"\rTilesEnclosed\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12&\n" +
@@ -4322,7 +4324,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x0ffilled_tile_ids\x18\x04 \x03(\rR\rfilledTileIds\x12\x14\n" +
 	"\x05yours\x18\x05 \x01(\bR\x05yours\x12.\n" +
 	"\x06struck\x18\x06 \x03(\v2\x16.planet.v1.TileShieldsR\x06struck\x12/\n" +
-	"\aversion\x18\a \x01(\v2\x15.planet.v1.MapVersionR\aversion\"m\n" +
+	"\aversion\x18\a \x01(\v2\x15.planet.v1.MapVersionR\aversionR\x0fenclosures_left\"m\n" +
 	"\vTilesSpread\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x17\n" +
@@ -4335,7 +4337,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x13PlaceShieldResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"<\n" +
 	"\tHeartbeat\x12/\n" +
-	"\aversion\x18\x01 \x01(\v2\x15.planet.v1.MapVersionR\aversion\"\xd9\x01\n" +
+	"\aversion\x18\x01 \x01(\v2\x15.planet.v1.MapVersionR\aversion\"\xe2\x01\n" +
 	"\n" +
 	"TileUpdate\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
@@ -4344,20 +4346,20 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId\x12\x18\n" +
 	"\aclicked\x18\x04 \x01(\bR\aclicked\x12\x18\n" +
 	"\ashields\x18\x05 \x01(\rR\ashields\x12/\n" +
-	"\aversion\x18\x06 \x01(\v2\x15.planet.v1.MapVersionR\aversion*r\n" +
+	"\aversion\x18\x06 \x01(\v2\x15.planet.v1.MapVersionR\aversionR\aboosted*r\n" +
 	"\n" +
 	"SharedWith\x12\x1b\n" +
 	"\x17SHARED_WITH_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12SHARED_WITH_NOBODY\x10\x01\x12\x16\n" +
 	"\x12SHARED_WITH_GUESTS\x10\x02\x12\x17\n" +
-	"\x13SHARED_WITH_NETWORK\x10\x03*\xa8\x01\n" +
+	"\x13SHARED_WITH_NETWORK\x10\x03*\xc8\x01\n" +
 	"\tBonusKind\x12\x1a\n" +
 	"\x16BONUS_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11BONUS_KIND_REFILL\x10\x05\x12\x1c\n" +
 	"\x18BONUS_KIND_SPREAD_CLICKS\x10\x02\x12\x13\n" +
 	"\x0fBONUS_KIND_BOMB\x10\x03\x12\x1d\n" +
 	"\x19BONUS_KIND_ENCLOSE_CLICKS\x10\x04\x12\x16\n" +
-	"\x12BONUS_KIND_SHIELDS\x10\x062\xd9\v\n" +
+	"\x12BONUS_KIND_SHIELDS\x10\x06\"\x04\b\x01\x10\x01*\x18BONUS_KIND_TRIPLE_CLICKS2\xd9\v\n" +
 	"\fClickService\x12:\n" +
 	"\x05Click\x12\x17.planet.v1.ClickRequest\x1a\x18.planet.v1.ClickResponse\x12F\n" +
 	"\tGetBudget\x12\x1b.planet.v1.GetBudgetRequest\x1a\x1c.planet.v1.GetBudgetResponse\x12N\n" +

@@ -81,7 +81,7 @@ root package**:
 |---|---|
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `StorageConfig`, `NewModule` |
-| `auth` | `Config`, `NewModule`, `AdminGateConfig`, `NewAdminGate`, `ConnectorConfig`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
+| `auth` | `Config`, `NewModule`, `AdminConfig`, `NewAdminGate`, `ConnectorConfig`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
 | `player` | `Config`, `NewModule` |
 | `progression` | `Config`, `NewModule` |
 | `scoring` | `Config`, `NewModule` |

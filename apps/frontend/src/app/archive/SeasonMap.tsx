@@ -140,10 +140,13 @@ function Replay({reel, landmasses}: {reel: MapReel, landmasses: ReplayLandmasses
             onRules: none, onSwitchesChange: none, onBombDropped: none, onArmedChange: none,
             signal: aborted.signal,
         })
+        made.catch((e) => {
+            if (!aborted.signal.aborted) console.error("could not draw the season's map", e)
+        })
         return () => {
             aborted.abort()
             backend.current = undefined
-            void made.then((globe) => globe.dispose())
+            made.then((globe) => globe.dispose(), () => {})
         }
     }, [reel, landmasses])
 

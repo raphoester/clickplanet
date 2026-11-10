@@ -1,8 +1,9 @@
 # `src/app/viewer/` — the GPU layer
 
 - `globe.ts` — `createGlobe(options): Promise<Globe>`. Builds the scene, wires
-  input and the backends to it, starts rendering. Returns `{tilesCount,
-  setCountry, dispose}`. Its loop draws on demand — see [Drawing only when
+  input and the backends to it, starts rendering. Returns a `Globe` handle: `tilesCount`,
+  `tilesRead`, the setters `PlayScreen` pushes state through (`setCountry`, `setMapView`, `setSwitch`, …), the
+  camera's flights, `capture()` and `dispose()`. Its loop draws on demand — see [Drawing only when
   something changed](render-on-demand.md).
 - `useGlobe.ts` — owns one globe for the lifetime of the component. **Its effect
   must not depend on anything that changes per render**; the selected country and

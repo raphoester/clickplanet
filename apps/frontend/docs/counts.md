@@ -31,7 +31,7 @@ tile whose range was read at the stream's opening or after; a tile of a range ol
 read (`waiting`), then gets the shield if that read is older than the fortify. The waiting fortifies are dropped
 once every range is current.
 
-`claimedLive` is gone: `TileOwnership` keeps only the player's own clicks in flight (see
+`TileOwnership` keeps only the player's own clicks in flight (see
 [Rolling back a refused click](click-rollback.md)). A read is what a rollback goes back to; the stream settles a
 click.
 

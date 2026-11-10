@@ -23,22 +23,33 @@ Config is loaded from a YAML file, with environment variables overriding it — 
 func (c Config) Validate() error {
 	return errors.Join(
 		c.HTTPServer.Validate(),
-		c.Clicks.Validate(),
-		c.Auth.Validate(),
+		c.Planet.Validate(),
+		c.AntiBot.Validate(),
 		c.Chat.Validate(),
+		c.Auth.Validate(),
 		c.Player.Validate(),
+		c.Progression.Validate(),
+		c.Scoring.Validate(),
+		c.Gamemaster.Validate(),
+		c.Missions.Validate(),
+		c.Support.Validate(),
+		c.Clips.Validate(),
+		c.Alerts.Validate(),
+		c.Promo.Validate(),
+		c.Publishing.Validate(),
+		c.MCP.Validate(),
 	)
 }
 ```
 
 The binary never reads inside a block to check it, so a new bound is added in the module that owns it and nothing here changes. `errors.Join` also means a broken file reports **everything** wrong at once rather than one line per restart.
 
-- `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80; `consoleBindAddress` set to anything but loopback
+- `cpbootstrap.ServerConfig` — `bindAddress` empty; `consoleBindAddress` set to anything but loopback
 - `shared/cpredis.Config` — an `address` that is not a `host:port`, or a negative limit. Each module checks its own `redis` block, as it checks its database block
 - `shared/cppg.Config` — a connection setting or the schema left empty, or a schema that is not a plain lowercase identifier. Each module checks its own block, starting with `planet.Config`
-- `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click, plus whatever `bonus` refuses of its own
+- `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click
 - `antibot.Config` — with `antiBot.enabled`, an incomplete `antiBot.database` or `antiBot.redis` block, and the cohort's prefix bits. Its rules are checked when a set is saved and when one is read (see [The antibot's rules](antibot-rules.md))
-- `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it. `cpsession.VerifierConfig`, which planet declares, has nothing to check: two switches and no key
+- `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it. `cpsession.VerifierConfig`, which planet declares, has nothing to check: one switch and no key
 - `chat.Config` — an incomplete `chat.database` block. Every other chat setting has a usable default
 - `progression.Config` — an incomplete `progression.database` or `progression.redis` block
 - `support.Config` — an incomplete `support.database` block; with `support.attachments.enabled`, an incomplete bucket block, or a link good for more than 7 days. Every other support setting has a usable default
@@ -89,12 +100,13 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.enabled` — off registers nothing, so `auth.v1` 404s and clicks are judged on address alone
 - `auth.secret` — the Ed25519 seed the tokens are signed with, 32 bytes as 64 hex characters (`openssl rand -hex 32`); **required once `auth.enabled` is true**, and an empty or malformed one refuses the boot rather than being invented. It is the only key in the file: `planet` asks `auth` for the verifying half over the internal listener
 - `auth.ttl` — how long a minted token is accepted (default 1h)
-- `auth.rateLimiter.*` — the per-IP throttle on both `CreateSession` paths together, same shape as `rateLimiter`
+- `auth.rateLimiter.*` — the per-IP throttle on `CreateSession` and every sign-in call together (the admin page's too), same shape as `rateLimiter`
 - `auth.resumeLimiter.*` — the per-IP throttle on `ResumeSession`, same shape; its defaults suit it
 - `auth.turnstile.enabled` — off mints for anyone who asks, which is how a local backend runs without a widget
 - `auth.turnstile.secret` — the widget's secret half, from the environment
-- `auth.turnstile.hostnames` — the frontend origins siteverify must report; **empty refuses every token** rather than accepting any, and a production value must not include `localhost`
+- `auth.turnstile.hostnames` — the frontend origins siteverify must report; **empty refuses the boot** rather than accepting any token, and a production value must not include `localhost`
 - `auth.turnstile.action` — must match the widget's `data-action` (default `session`)
+- `auth.turnstile.timeout` — how long a siteverify call may take (default 10s)
 - `auth.database.*` — accounts and their sessions, same shape as `database`, schema `auth`; required when `auth.enabled`. `auth.database.password` belongs in the environment
 - `auth.sessions.guestTTL`, `auth.sessions.linkedTTL`, `auth.sessions.extendEvery` — how long an idle guest keeps its cookie (90 days), how long an idle signed-in account does (30 days), and how often using a session extends it (24h)
 - `auth.signIn.enabled` — off, `StartSignIn` and `CompleteSignIn` answer `Unimplemented` (404). On, at least one provider needs a `clientId`

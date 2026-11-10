@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -11,6 +12,8 @@ import (
 )
 
 var ErrNoShield = errors.New("no shield to place")
+
+const returnTimeout = 5 * time.Second
 
 type Gate interface {
 	Aim(ctx context.Context, payer clicks.Payer, tile uint32, country string) (placements.Aim, error)
@@ -56,7 +59,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
 	}
 
 	if _, err := u.tiles.Shield(ctx, aim.Tile, aim.Country, aim.Most, placement); err != nil {
-		return bonuses.Held{}, errors.Join(fmt.Errorf("failed to place the shield: %w", err), u.escrow.Return(ctx, placement))
+		returning, cancel := context.WithTimeout(context.WithoutCancel(ctx), returnTimeout)
+		defer cancel()
+		return bonuses.Held{}, errors.Join(fmt.Errorf("failed to place the shield: %w", err), u.escrow.Return(returning, placement))
 	}
 
 	return held, nil

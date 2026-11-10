@@ -1,11 +1,12 @@
 # The map's version, and the counts it orders
 
 **Every write of the map counts one, and every answer and every live event says where it was.** `clicks.MapVersion`
-is `{epoch, seq}`: `seq` counts the writes since the process started, and `epoch` is the second it started, since
-`seq` starts from zero at every boot. On the wire it is `planet.v1.MapVersion`, on `GetMapResponse`,
-`GetHoldingsResponse`, `TileUpdate`, `BombDropped`, `LandmassFortified`, `HoldingsChanged` and `Heartbeat`. A client
-compares two versions of one epoch; a version of another epoch means the server restarted, and what it holds is to
-be read again.
+is `{epoch, seq}`: `seq` counts the writes since the map last started, and `epoch` is the second it started, since
+`seq` starts from zero at every start. The map starts at boot, and again (`restartLocked`, every stream cut) when a
+reset wipes it and when an arena opens or closes; a new epoch is always later than the one before. On the wire it is
+`planet.v1.MapVersion`, on `GetMapResponse`, `GetHoldingsResponse`, `TileUpdate`, `BombDropped`, `LandmassFortified`,
+`HoldingsChanged` and `Heartbeat`. A client compares two versions of one epoch; a version of another epoch means the
+map started again, and what it holds is to be read again.
 
 ## One counter, under the tiles lock
 
@@ -33,7 +34,7 @@ every landmass with a tile held, whole (a flag a row does not list holds none of
 `GetTerritories` reads the tally too (`territories_query`), adding each landmass row to its country, so a flag's
 territory says how many of its tiles lie on each country's land.
 
-**`holdings_changed` carries what changed, at most once a second.** `moveLocked` marks the landmass and the two
+**`holdings_changed` carries what changed, at most once a second.** `putLocked` marks the landmass and the two
 flags of every change of owner in a `recount` (two `dirtySet`s, nothing else in memory). `Storage.Run` starts a
 one-second tick, `PublishTally`, that drains them under the write lock and publishes one `clicks.Change{Tally}` with
 the whole row of each landmass marked and the total of each flag marked, at the current version. It counts no write
@@ -52,7 +53,8 @@ compression, and one row is 14 to 111 bytes.
 `If-None-Match` that names the map's current version with a 304 before the handler runs, so nothing is read and no
 `MapRead` is told. It compares weakly, as RFC 9110 asks: Cloudflare turns a tag weak (`W/`) when it compresses. Caddy
 adds `-zstd` or `-gzip` to a strong tag it compresses and takes it off the `If-None-Match` it passes on, so the
-backend sees its own tag.
+backend sees its own tag. `MapDensity`, `GetFortresses` and `GetLandmass` get the same `Cache-Control` and no
+`ETag`.
 
 ## Tests
 

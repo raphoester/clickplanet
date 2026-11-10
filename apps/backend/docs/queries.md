@@ -69,7 +69,7 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   `GetAccount` and against the linked flag the click token carries (`accounts_query/parity_test.go`). A rule a parity
   test does not cover is a rule that can drift.
 - **So the domain has no exported fields.** A player domain type is built by a constructor (`NewProfile`,
-  `NewStats`, `NewVisit` to start one; `StatsOf`, `StreakOf`, `AccountOf` to restore one a store or
+  `NewStats`, `NewVisit` to start one; `StatsSnapshot.Restore`, `StreakOf`, `AccountOf` to restore one a store or
   another module kept), read through nouns (`Stats.TilesTaken()`, `Visit.Player()`), and changed
   through builders that answer a copy (`Stats.WithTake`, `Profile.Renamed`, `Player.Renamed`,
   `Visit.Keyed`). `players.Profile` has no getter: a store and the wire read it through `ProfileSnapshot`

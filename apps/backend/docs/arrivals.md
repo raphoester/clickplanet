@@ -1,7 +1,7 @@
 # Arrivals (`internal/auth/internal/arrivals/`)
 
 **Every account auth makes keeps how it came: a player's link, the YouTube link, CrazyGames, or unknown, and the host
-the browser came from.** The frontend is on Cloudflare Pages, Caddy sees only API calls, Cloudflare's free analytics see
+the browser came from.** The frontend is a Cloudflare Worker, Caddy sees only API calls, Cloudflare's free analytics see
 no query string and TikTok sends no referrer. So the server records it when it makes the account, from what the
 browser says its first page was.
 

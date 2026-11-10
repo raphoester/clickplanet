@@ -95,6 +95,7 @@ message ClickBudget {
   double refill_per_second = 3;
 
   reserved 4, 7;
+  reserved "cost", "next_cost";
 
   double slowdown = 8;
 
@@ -188,7 +189,8 @@ message GetMapResponse {
 }
 
 message MapVersion {
-  // The second the server started: seq starts again from zero on every start.
+  // The second the map started over: the server's start, a map reset, or an arena's open or close. seq starts again
+  // from zero each time.
   uint32 epoch = 1;
 
   uint64 seq = 2;
@@ -368,6 +370,7 @@ message ChargesHeld {
   bool bomb = 1;
 
   uint32 enclosures = 2;
+  reserved "enclose";
 
   uint32 spread_clicks_left = 3;
 
@@ -416,6 +419,9 @@ message TollStep {
 enum BonusKind {
   BONUS_KIND_UNSPECIFIED = 0;
 
+  reserved 1;
+  reserved "BONUS_KIND_TRIPLE_CLICKS";
+
   BONUS_KIND_REFILL = 5;
 
   BONUS_KIND_SPREAD_CLICKS = 2;
@@ -433,6 +439,9 @@ message BonusOffered {
   uint32 seed = 2;
 
   BonusKind kind = 3;
+
+  reserved 4;
+  reserved "duration_seconds";
 
   int64 expires_at_unix_ms = 5;
 }
@@ -452,6 +461,9 @@ message ClaimBonusRequest {
 }
 
 message ClaimBonusResponse {
+  reserved 1, 3, 4, 5, 6;
+  reserved "budget", "duration_seconds", "blast_radius", "enclosures", "enclosure_max_tiles";
+
   BonusKind kind = 2;
 
   uint32 amount = 8;
@@ -465,6 +477,7 @@ message QuizOffered {
   int64 expires_at_unix_ms = 2;
 
   reserved 3;
+  reserved "subject_country_id";
 }
 
 message OpenQuizRequest {
@@ -560,6 +573,7 @@ message TilesEnclosed {
 
   // Each lost one shield and kept its flag: with the shields it kept.
   repeated TileShields struck = 6;
+  reserved "enclosures_left";
 
   MapVersion version = 7;
 }
@@ -594,6 +608,7 @@ message TileUpdate {
 
   // Only the tile a click named: never a spread's neighbour, an enclosure's inside or a moderator's write.
   bool clicked = 4;
+  reserved "boosted";
 
   // The tile's shields after the update: 0 on every change of owner.
   uint32 shields = 5;
