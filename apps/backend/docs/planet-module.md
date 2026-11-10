@@ -51,9 +51,11 @@ internal/planet/internal/
 
 - **`clicks/`** — what a click is worth, what the map looks like, and what
   changes when somebody takes a tile. Its root holds the rules that need no
-  port: `Board` (which tile ids exist), `Toll` (what a click costs), `Outcome` and
-  `Shielding` (what a click does to a tile and its shields), `Claiming` (a player's
-  click written: the strike, then the owner it leaves, as an `Impact`), `Pacing` (how an
+  port: `Board` (which tile ids exist), `Toll` (what a click costs), `Tile` (a tile's
+  owner, shields and holder, and `Claimed`, the one rule a player's claim changes them by),
+  `Outcome` (taken, shielded or unchanged), `ShieldError`, `Claiming` (a player's claim
+  read, decided and written under one lock of the tiles, then its fortify, as an
+  `Impact`; see [A claim is one lock](tile-claim.md)), `Pacing` (how an
   operator's bulk change is spread out), `Geography` and `Borders`.
 - **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Scene`, `Footage`, `Player`, `Tally`, `Runs`,
   the `Storage` port, `Recording` (the tile writer that records each act) and `Retention`. `FindPlayers`, `TopPlayers` and
@@ -105,7 +107,7 @@ second implementation of the same port is a sibling directory, not a new layer.
 is the whole tile map as it is kept, and `clicks.TileStorageContractSuite`
 (`tile_storage_contract_testing.go`, behind the `testing` tag) is its behaviour:
 a no-op publishes nothing, a blast is one event, a restore is a compare-and-set,
-and so on. An adapter's test suite embeds it and sets `NewStorage`, then adds only
+a shield placed while a claim decides waits for its write, and so on. An adapter's test suite embeds it and sets `NewStorage`, then adds only
 what is its own — `inmemory_tile_storage` adds the snapshot and the slow-subscriber
 tests. A second tile storage runs the same suite by embedding it the same way.
 A port with one adapter and no second one coming (`ledger.Storage`) has no suite.

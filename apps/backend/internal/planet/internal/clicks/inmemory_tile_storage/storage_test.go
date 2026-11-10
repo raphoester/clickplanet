@@ -52,7 +52,7 @@ func (s *testSuite) TestAnEnclosureBiggerThanAStreamsBufferTakesOneSlotAndCutsNo
 
 	s.Require().NoError(storage.Enclose(ctx, clicks.Enclosure{Country: "fr"}, func(tiles clicks.Claimable) error {
 		for tile := uint32(1); tile <= 1000; tile++ {
-			s.Require().NoError(tiles.Set(ctx, tile, "fr"))
+			s.Require().NoError(tiles.Set(ctx, clicks.TileSnapshot{ID: tile, Owner: "fr"}.Restore()))
 		}
 		return nil
 	}))
@@ -198,7 +198,7 @@ func (s *testSuite) TestTheTerritoriesAreTheTilesEachCountryHoldsAndNoneForACoun
 	s.Equal([]clicks.FlagTiles{{Flag: "fr", Tiles: 3}}, tally.Countries)
 }
 
-var _ clicks.Claimable = (*inmemory_tile_storage.Storage)(nil)
+var _ clicks.ClaimableTiles = (*inmemory_tile_storage.Storage)(nil)
 
 func stateBatch(s *inmemory_tile_storage.Storage, start uint32, end uint32) (map[uint32]string, error) {
 	batch, err := s.StateBatchDense(start, end)

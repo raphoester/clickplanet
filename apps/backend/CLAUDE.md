@@ -70,6 +70,8 @@ and says what is in it. Read the doc before you change its area.
 - [Rules](docs/rules.md) — every game rule, in rule sets kept in postgres; `default` holds every value, another set only
   what it changes; the set in force in one atomic pointer; what a change does to what is already there; a frozen set.
 - [Shields](docs/shields.md) — a charge on a tile; each shield takes one foreign click.
+- [A claim is one lock](docs/tile-claim.md) — `clicks.Tile` holds owner, shields and holder; a claim reads, decides and
+  writes it under one lock; why a lock and not a version per tile.
 - [Fortify](docs/fortify.md) — a take that makes a landmass whole gives every tile of it a shield.
 - [Who holds the tiles](docs/tile-holders.md) — each tile keeps the account whose take holds it; `GetLandmass`
   reads a landmass's holders and its last fortify.

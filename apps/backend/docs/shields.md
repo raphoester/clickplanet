@@ -9,28 +9,26 @@ none left, the next click takes it.
 both buckets, sets the pace, counts in `clicks_total{status="ok"}` and is reported
 to the jury.
 
-- **A tile's shields are part of the tile**, kept by `inmemory_tile_storage` in a
-  `[]uint8` beside the owners, under the same lock. **Every change of owner sets them
-  to 0** — a click, a spread, an enclose, a bomb, `ReassignCountry`, `RevertPlayer`,
-  `PaintRandomTiles` — so no shield ever stands on a tile for a flag that lost it,
-  and no write path has to know about them. `Strike(tile, owner)` and
-  `Shield(tile, country, most)` check the owner under that lock, so a strike or a
-  placement racing a capture finds the new owner.
-- **The rule is `clicks.OutcomeOf(owner, flag, shields)`**, pure and tested in the
-  `clicks` root: `Unchanged` when the tile wears the flag, `Shielded` when a shield
-  stands, `Taken` otherwise. `clicks.Shielding` is the rule over the storage: `Outcome`
-  foresees it and spends nothing, and `Strike` spends the shield.
-  A strike that lost the race for the last shield is a take.
-- **`clicks.Claiming` is the one way a player's click reaches a tile**: it strikes,
-  writes the owner the outcome leaves, and answers a `clicks.Impact` (the tile, its
-  owner before, the outcome and the shields standing after). `ledger.Recording` calls
-  it for the tile clicked, each neighbour of a spread and each tile of an enclosure,
-  and records what it answered. `clicks.ShieldError` is what a placement is
-  refused for (`ErrNotYourTile`, `ErrTileFull`), read by the use case before it spends
-  and by the storage under its lock.
-- **A shielded click writes no owner**: `OwnerAfter` is the owner, so the write is a
-  no-op and records no take. The strike publishes the tile's new count instead: a
-  `TileUpdate` whose `Value` is its `Previous`, with `Shields` set.
+- **A tile's shields are part of the tile**: `clicks.Tile` is its owner, its shields and
+  its holder, kept by `inmemory_tile_storage` in one `tileState` per tile, under one lock.
+  **Every change of owner sets them to 0** — a click, a spread, an enclose, a bomb,
+  `ReassignCountry`, `RevertPlayer`, `PaintRandomTiles` — so no shield ever stands on a
+  tile for a flag that lost it.
+- **The rule is `clicks.Tile.Claimed(flag, by)`**, pure and tested in the `clicks` root,
+  over `clicks.OutcomeOf(owner, flag, shields)`: `Unchanged` when the tile wears the flag,
+  `Shielded` when a shield stands (one struck, the flag and the holder kept), `Taken`
+  otherwise (the flag, no shield, held by `by`).
+- **`clicks.Claiming` is the one way a player's click reaches a tile**: under one lock
+  of the tiles it reads the tile, asks `Claimed`, writes what it answered, and answers a
+  `clicks.Impact` (the tile, its owner before, the outcome and the shields standing
+  after). So a placement cannot land between the read and the write: it waits, then is
+  struck by the claim or refused (`ErrNotYourTile`). See [A claim is one lock](tile-claim.md).
+  `ledger.Recording` calls it for the tile clicked, each neighbour of a spread and each
+  tile of an enclosure, and records what it answered. `clicks.ShieldError` is what a
+  placement is refused for (`ErrNotYourTile`, `ErrTileFull`), read by the use case
+  before it spends and by the storage under its lock.
+- **A shielded click writes no owner**, and records no take. It publishes the tile's new
+  count: a `TileUpdate` whose `Value` is its `Previous`, with `Shields` set.
 - **Every `TileUpdate` carries the tile's shields after it** (0 on any change of
   owner), and every `GetMap` batch the shielded tiles in its range
   (`DenseBatch.Shields`, `GetMapResponse.shields`). So they ride the one channel

@@ -7,9 +7,10 @@ the same lock, and is flushed in the same row. The ledger has the same fact, but
 means every change of every one of its tiles, and the tiles a spread or an enclose took are only in JSON payloads:
 thousands of index probes, or a scan of the whole ledger, for one card on the 1-vCPU box.
 
-- **A player's take sets it**: `Set` and `Click` read the account from the context (`cpctx.GetAccount`), as
-  `Fortify` already does for `Fortification.Account`. So a click, and each tile a spread or an enclose takes, is
-  held by the player who made it. A click that changes no owner (its own flag, or a shield struck) keeps the holder.
+- **A player's take sets it**: `clicks.Tile.Claimed` holds a taken tile for the account in the context
+  (`cpctx.GetAccount`), as `Fortify` does for `Fortification.Account`. So a click, and each tile a spread or an
+  enclose takes, is held by the player who made it. A claim that changes no owner (its own flag, or a shield struck)
+  keeps the holder.
 - **Any other write leaves nobody**: a bomb's clear, `Reassign`, `Restore` (a revert or a paint), and a take with no
   account in its context. This is `GetTileHolder`'s rule too: an operator's write keeps no take.
 - **Kept in `planet.tiles.holder`** (NULL for nobody), loaded at boot. Migration `20261026180000_tile_holders`
