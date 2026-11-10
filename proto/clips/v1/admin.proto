@@ -50,6 +50,17 @@ service AdminService {
 
   // Deletes a video from the list and from the bucket.
   rpc RemoveVideo(RemoveVideoRequest) returns (RemoveVideoResponse);
+
+  // Which players' names the game's posts on TikTok and YouTube may show, as the judge (Claude Haiku) or the operator
+  // decided, the newest first. A cast leaves out a name hidden. A name is judged the first time a cast holds it, and
+  // again once its player renames. The game itself shows every name.
+  rpc ListNameVerdicts(ListNameVerdictsRequest) returns (ListNameVerdictsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The operator's verdict of the name a player was judged under: shown or hidden in the game's posts, until the
+  // player renames. NotFound for a player whose name was never judged.
+  rpc SetNameVerdict(SetNameVerdictRequest) returns (SetNameVerdictResponse);
 }
 
 // What a snapshot read and kept: counts and states, never a metric.
@@ -215,3 +226,41 @@ message RemoveVideoRequest {
 }
 
 message RemoveVideoResponse {}
+
+enum VerdictBy {
+  VERDICT_BY_UNSPECIFIED = 0;
+  VERDICT_BY_JUDGE = 1;
+  VERDICT_BY_OPERATOR = 2;
+}
+
+message NameVerdict {
+  string account_id = 1;
+  // The name judged: the player's name then.
+  string name = 2;
+  // Whether the game's posts may show it.
+  bool shown = 3;
+  // Why it is hidden; empty for a name shown.
+  string reason = 4;
+  VerdictBy decided_by = 5;
+  google.protobuf.Timestamp decided_at = 6;
+}
+
+message ListNameVerdictsRequest {
+  // Only the names hidden.
+  bool hidden_only = 1;
+}
+
+message ListNameVerdictsResponse {
+  repeated NameVerdict verdicts = 1;
+}
+
+message SetNameVerdictRequest {
+  string account_id = 1;
+  bool shown = 2;
+  // Why it is hidden, in a few plain words; dropped for a name shown.
+  string reason = 3;
+}
+
+message SetNameVerdictResponse {
+  NameVerdict verdict = 1;
+}

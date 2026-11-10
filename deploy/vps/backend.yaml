@@ -348,6 +348,11 @@ clips:
       name: clickplanet-media
       accessKeyId: 918067992c114dc8f4fcea4aa7ac7921
       secretAccessKey: env://MEDIA_BUCKET_SECRET
+  # The judge of which names the game's posts may show (docs/clip-name-verdicts.md). Empty, as long as no
+  # ANTHROPIC_API_KEY secret is set: then it sends nothing, and no cast names anyone.
+  judge:
+    anthropic:
+      apiKey: env://ANTHROPIC_API_KEY
 
 # The game's Discord server: a player's link, its flag's role, and the pings. A player joins it by signing in with
 # Discord (auth.discord.joinServer). See deploy/vps/README.md, "Discord pings".

@@ -232,9 +232,10 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   [Clips](../../frontend/docs/clips.md)), and each story answers the numbers to name (`Story.Fighters`, the generator's
   `Pick.fighters`). **A check holds them to the story's sides** (`checkFighters`: a fighter of its attacker, its rival
   or a flag it took from, of a tour's flag or of a place's holder, each once; none for a seasonal story), never to
-  taste. **Which names may be shown is the model's call**: players choose their names freely and the game filters
-  none, so the instructions ask it to leave out anything that would get a post taken down or shame the game, and to
-  leave a name out when unsure. A name is never in the words it writes, and the log never prints one.
+  taste. **Which names may be shown is not the editor's call**: the cast holds none that TikTok and YouTube forbid,
+  since a judge of its own screens them first ([The names a post may show](clip-name-verdicts.md)). Until 2026-11-09
+  the editor's instructions asked it to leave such names out, and it named an Irish player called after the IRA. A
+  name is never in the words it writes, and the log never prints one.
 - **Claude Haiku 5.5** (`claude-haiku-5-5`), through Anthropic's Go SDK: adaptive thinking at effort `medium`,
   `max_tokens` 8,000, the answer held to the schema by structured outputs, 2 minutes and one retry. **A refusal is the
   end of it**: Haiku has no fallback model on the server, so `stop_reason: "refusal"` (with its category) is no answer

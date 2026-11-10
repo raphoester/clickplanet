@@ -410,6 +410,11 @@ clips:
       name: clickplanet-media
       accessKeyId: ""
       secretAccessKey: ""
+  # The judge of which names the game's posts may show. With no key it sends nothing, and no cast names anyone.
+  judge:
+    anthropic:
+      apiKey: ""
+    model: claude-haiku-5-5
 
 # A battle's teaser: each rule set's cards, over backgrounds the operator uploads on the backoffice's Promo page. Off:
 # every background call is refused and the bucket below is not read, so no card is saved and no battle is teased. It
