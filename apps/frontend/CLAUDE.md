@@ -75,9 +75,6 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   battle look: the mood, the chip and its clock, the start moment, the debrief's three screens when the gamemaster
   debriefs its round, matched by the round's id, and the announcements queue that shows one full-screen moment at a
   time.
-- [Halloween](docs/halloween.md) — an entry of kind `halloween` dresses the game: the mood, a violet halo, pumpkins
-  and a skeleton on the zones' edges, the dock's crown that the rest keeps clear of, and the bonus box as a carved
-  jack-o'-lantern with the box's question marks.
 - [The Hall of Fame](docs/hall-of-fame.md) — the board's crown (a gold button on a phone), and the modal's carousel of seasons: each
   ended one's winner flag, then the "?" of the one that runs; View opens a season's slides: the podium and the whole
   table, the race (each flag's points or map share round by round, drawn as a timelapse), players, the Final Battle,

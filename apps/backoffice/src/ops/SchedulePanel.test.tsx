@@ -199,7 +199,7 @@ describe("the rule schedule page", () => {
         fireEvent.click(await screen.findByRole("button", {name: "Add an entry"}))
 
         const kind = screen.getByLabelText("Kind") as HTMLSelectElement
-        expect(within(kind).getAllByRole("option").map(option => option.textContent)).toEqual(["plain", "battle", "halloween"])
+        expect(within(kind).getAllByRole("option").map(option => option.textContent)).toEqual(["plain", "battle"])
         expect(kind.value).toBe(String(EntryKind.BATTLE))
     })
 
