@@ -50,6 +50,17 @@ func (c *Capitals) Is(tile uint32) bool {
 	return ok
 }
 
+// CountryOf is the country whose capital the tile is: empty for a tile that is none.
+func (c *Capitals) CountryOf(tile uint32) string {
+	return c.countries[tile]
+}
+
+// Has is true for a country with a capital.
+func (c *Capitals) Has(country string) bool {
+	_, ok := c.tiles[country]
+	return ok
+}
+
 // All is every capital, by country.
 func (c *Capitals) All() []Capital {
 	all := make([]Capital, 0, len(c.tiles))

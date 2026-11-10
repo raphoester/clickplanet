@@ -359,6 +359,102 @@ func (x *BombLanded) GetLandmassId() uint32 {
 	return 0
 }
 
+// A flag knocked out of an arena: another flag's take felled its capital, and every other tile it held went blank.
+type FlagKnockedOut struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Country string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
+	// The flag whose take felled the capital.
+	By string `protobuf:"bytes,2,opt,name=by,proto3" json:"by,omitempty"`
+	// The capital.
+	TileId    uint32 `protobuf:"varint,3,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
+	AccountId string `protobuf:"bytes,4,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// How many other tiles it held.
+	Cleared       uint32                 `protobuf:"varint,5,opt,name=cleared,proto3" json:"cleared,omitempty"`
+	KnockedOutAt  *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=knocked_out_at,json=knockedOutAt,proto3" json:"knocked_out_at,omitempty"`
+	Position      uint64                 `protobuf:"varint,7,opt,name=position,proto3" json:"position,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FlagKnockedOut) Reset() {
+	*x = FlagKnockedOut{}
+	mi := &file_planet_v1_events_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FlagKnockedOut) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FlagKnockedOut) ProtoMessage() {}
+
+func (x *FlagKnockedOut) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_events_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FlagKnockedOut.ProtoReflect.Descriptor instead.
+func (*FlagKnockedOut) Descriptor() ([]byte, []int) {
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *FlagKnockedOut) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
+}
+
+func (x *FlagKnockedOut) GetBy() string {
+	if x != nil {
+		return x.By
+	}
+	return ""
+}
+
+func (x *FlagKnockedOut) GetTileId() uint32 {
+	if x != nil {
+		return x.TileId
+	}
+	return 0
+}
+
+func (x *FlagKnockedOut) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *FlagKnockedOut) GetCleared() uint32 {
+	if x != nil {
+		return x.Cleared
+	}
+	return 0
+}
+
+func (x *FlagKnockedOut) GetKnockedOutAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.KnockedOutAt
+	}
+	return nil
+}
+
+func (x *FlagKnockedOut) GetPosition() uint64 {
+	if x != nil {
+		return x.Position
+	}
+	return 0
+}
+
 type Fortified struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Country       string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
@@ -374,7 +470,7 @@ type Fortified struct {
 
 func (x *Fortified) Reset() {
 	*x = Fortified{}
-	mi := &file_planet_v1_events_proto_msgTypes[3]
+	mi := &file_planet_v1_events_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -386,7 +482,7 @@ func (x *Fortified) String() string {
 func (*Fortified) ProtoMessage() {}
 
 func (x *Fortified) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[3]
+	mi := &file_planet_v1_events_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -399,7 +495,7 @@ func (x *Fortified) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Fortified.ProtoReflect.Descriptor instead.
 func (*Fortified) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{3}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Fortified) GetCountry() string {
@@ -466,7 +562,7 @@ type ShieldPlaced struct {
 
 func (x *ShieldPlaced) Reset() {
 	*x = ShieldPlaced{}
-	mi := &file_planet_v1_events_proto_msgTypes[4]
+	mi := &file_planet_v1_events_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -478,7 +574,7 @@ func (x *ShieldPlaced) String() string {
 func (*ShieldPlaced) ProtoMessage() {}
 
 func (x *ShieldPlaced) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[4]
+	mi := &file_planet_v1_events_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -491,7 +587,7 @@ func (x *ShieldPlaced) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShieldPlaced.ProtoReflect.Descriptor instead.
 func (*ShieldPlaced) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{4}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ShieldPlaced) GetAccountId() string {
@@ -553,7 +649,7 @@ type ShieldsStruck struct {
 
 func (x *ShieldsStruck) Reset() {
 	*x = ShieldsStruck{}
-	mi := &file_planet_v1_events_proto_msgTypes[5]
+	mi := &file_planet_v1_events_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -565,7 +661,7 @@ func (x *ShieldsStruck) String() string {
 func (*ShieldsStruck) ProtoMessage() {}
 
 func (x *ShieldsStruck) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[5]
+	mi := &file_planet_v1_events_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -578,7 +674,7 @@ func (x *ShieldsStruck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShieldsStruck.ProtoReflect.Descriptor instead.
 func (*ShieldsStruck) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{5}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ShieldsStruck) GetAccountId() string {
@@ -628,7 +724,7 @@ type StruckTile struct {
 
 func (x *StruckTile) Reset() {
 	*x = StruckTile{}
-	mi := &file_planet_v1_events_proto_msgTypes[6]
+	mi := &file_planet_v1_events_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -640,7 +736,7 @@ func (x *StruckTile) String() string {
 func (*StruckTile) ProtoMessage() {}
 
 func (x *StruckTile) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[6]
+	mi := &file_planet_v1_events_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -653,7 +749,7 @@ func (x *StruckTile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StruckTile.ProtoReflect.Descriptor instead.
 func (*StruckTile) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{6}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *StruckTile) GetTileId() uint32 {
@@ -687,7 +783,7 @@ type BonusClaimed struct {
 
 func (x *BonusClaimed) Reset() {
 	*x = BonusClaimed{}
-	mi := &file_planet_v1_events_proto_msgTypes[7]
+	mi := &file_planet_v1_events_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -699,7 +795,7 @@ func (x *BonusClaimed) String() string {
 func (*BonusClaimed) ProtoMessage() {}
 
 func (x *BonusClaimed) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[7]
+	mi := &file_planet_v1_events_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -712,7 +808,7 @@ func (x *BonusClaimed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BonusClaimed.ProtoReflect.Descriptor instead.
 func (*BonusClaimed) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{7}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *BonusClaimed) GetAccountId() string {
@@ -740,7 +836,7 @@ type QuizAnswered struct {
 
 func (x *QuizAnswered) Reset() {
 	*x = QuizAnswered{}
-	mi := &file_planet_v1_events_proto_msgTypes[8]
+	mi := &file_planet_v1_events_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -752,7 +848,7 @@ func (x *QuizAnswered) String() string {
 func (*QuizAnswered) ProtoMessage() {}
 
 func (x *QuizAnswered) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[8]
+	mi := &file_planet_v1_events_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -765,7 +861,7 @@ func (x *QuizAnswered) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuizAnswered.ProtoReflect.Descriptor instead.
 func (*QuizAnswered) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{8}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *QuizAnswered) GetAccountId() string {
@@ -812,7 +908,7 @@ type ClickTried struct {
 
 func (x *ClickTried) Reset() {
 	*x = ClickTried{}
-	mi := &file_planet_v1_events_proto_msgTypes[9]
+	mi := &file_planet_v1_events_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -824,7 +920,7 @@ func (x *ClickTried) String() string {
 func (*ClickTried) ProtoMessage() {}
 
 func (x *ClickTried) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[9]
+	mi := &file_planet_v1_events_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -837,7 +933,7 @@ func (x *ClickTried) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClickTried.ProtoReflect.Descriptor instead.
 func (*ClickTried) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{9}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ClickTried) GetScope() string {
@@ -924,7 +1020,7 @@ type MapRead struct {
 
 func (x *MapRead) Reset() {
 	*x = MapRead{}
-	mi := &file_planet_v1_events_proto_msgTypes[10]
+	mi := &file_planet_v1_events_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -936,7 +1032,7 @@ func (x *MapRead) String() string {
 func (*MapRead) ProtoMessage() {}
 
 func (x *MapRead) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[10]
+	mi := &file_planet_v1_events_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -949,7 +1045,7 @@ func (x *MapRead) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapRead.ProtoReflect.Descriptor instead.
 func (*MapRead) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{10}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *MapRead) GetScope() string {
@@ -990,7 +1086,7 @@ type StreamOpened struct {
 
 func (x *StreamOpened) Reset() {
 	*x = StreamOpened{}
-	mi := &file_planet_v1_events_proto_msgTypes[11]
+	mi := &file_planet_v1_events_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1002,7 +1098,7 @@ func (x *StreamOpened) String() string {
 func (*StreamOpened) ProtoMessage() {}
 
 func (x *StreamOpened) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[11]
+	mi := &file_planet_v1_events_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1015,7 +1111,7 @@ func (x *StreamOpened) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamOpened.ProtoReflect.Descriptor instead.
 func (*StreamOpened) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{11}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *StreamOpened) GetScope() string {
@@ -1044,7 +1140,7 @@ type BoxCaught struct {
 
 func (x *BoxCaught) Reset() {
 	*x = BoxCaught{}
-	mi := &file_planet_v1_events_proto_msgTypes[12]
+	mi := &file_planet_v1_events_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1056,7 +1152,7 @@ func (x *BoxCaught) String() string {
 func (*BoxCaught) ProtoMessage() {}
 
 func (x *BoxCaught) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[12]
+	mi := &file_planet_v1_events_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1069,7 +1165,7 @@ func (x *BoxCaught) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BoxCaught.ProtoReflect.Descriptor instead.
 func (*BoxCaught) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{12}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *BoxCaught) GetScope() string {
@@ -1103,7 +1199,7 @@ type BoxLapsed struct {
 
 func (x *BoxLapsed) Reset() {
 	*x = BoxLapsed{}
-	mi := &file_planet_v1_events_proto_msgTypes[13]
+	mi := &file_planet_v1_events_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1115,7 +1211,7 @@ func (x *BoxLapsed) String() string {
 func (*BoxLapsed) ProtoMessage() {}
 
 func (x *BoxLapsed) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[13]
+	mi := &file_planet_v1_events_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1128,7 +1224,7 @@ func (x *BoxLapsed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BoxLapsed.ProtoReflect.Descriptor instead.
 func (*BoxLapsed) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{13}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *BoxLapsed) GetScope() string {
@@ -1156,7 +1252,7 @@ type ForeignBoxClaimed struct {
 
 func (x *ForeignBoxClaimed) Reset() {
 	*x = ForeignBoxClaimed{}
-	mi := &file_planet_v1_events_proto_msgTypes[14]
+	mi := &file_planet_v1_events_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1168,7 +1264,7 @@ func (x *ForeignBoxClaimed) String() string {
 func (*ForeignBoxClaimed) ProtoMessage() {}
 
 func (x *ForeignBoxClaimed) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[14]
+	mi := &file_planet_v1_events_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1181,7 +1277,7 @@ func (x *ForeignBoxClaimed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForeignBoxClaimed.ProtoReflect.Descriptor instead.
 func (*ForeignBoxClaimed) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{14}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ForeignBoxClaimed) GetScope() string {
@@ -1213,7 +1309,7 @@ type AllegiancePledged struct {
 
 func (x *AllegiancePledged) Reset() {
 	*x = AllegiancePledged{}
-	mi := &file_planet_v1_events_proto_msgTypes[15]
+	mi := &file_planet_v1_events_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1225,7 +1321,7 @@ func (x *AllegiancePledged) String() string {
 func (*AllegiancePledged) ProtoMessage() {}
 
 func (x *AllegiancePledged) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[15]
+	mi := &file_planet_v1_events_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1238,7 +1334,7 @@ func (x *AllegiancePledged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AllegiancePledged.ProtoReflect.Descriptor instead.
 func (*AllegiancePledged) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{15}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *AllegiancePledged) GetAccountId() string {
@@ -1280,7 +1376,7 @@ type ArenaOpened struct {
 
 func (x *ArenaOpened) Reset() {
 	*x = ArenaOpened{}
-	mi := &file_planet_v1_events_proto_msgTypes[16]
+	mi := &file_planet_v1_events_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1292,7 +1388,7 @@ func (x *ArenaOpened) String() string {
 func (*ArenaOpened) ProtoMessage() {}
 
 func (x *ArenaOpened) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[16]
+	mi := &file_planet_v1_events_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1305,7 +1401,7 @@ func (x *ArenaOpened) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArenaOpened.ProtoReflect.Descriptor instead.
 func (*ArenaOpened) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{16}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ArenaOpened) GetArenaId() string {
@@ -1333,7 +1429,7 @@ type ArenaClosed struct {
 
 func (x *ArenaClosed) Reset() {
 	*x = ArenaClosed{}
-	mi := &file_planet_v1_events_proto_msgTypes[17]
+	mi := &file_planet_v1_events_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1345,7 +1441,7 @@ func (x *ArenaClosed) String() string {
 func (*ArenaClosed) ProtoMessage() {}
 
 func (x *ArenaClosed) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[17]
+	mi := &file_planet_v1_events_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1358,7 +1454,7 @@ func (x *ArenaClosed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArenaClosed.ProtoReflect.Descriptor instead.
 func (*ArenaClosed) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{17}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ArenaClosed) GetArenaId() string {
@@ -1405,7 +1501,16 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"account_id\x18\x06 \x01(\tR\taccountId\x12\x1a\n" +
 	"\bposition\x18\a \x01(\x04R\bposition\x12\x1f\n" +
 	"\vlandmass_id\x18\b \x01(\rR\n" +
-	"landmassId\"\xee\x01\n" +
+	"landmassId\"\xea\x01\n" +
+	"\x0eFlagKnockedOut\x12\x18\n" +
+	"\acountry\x18\x01 \x01(\tR\acountry\x12\x0e\n" +
+	"\x02by\x18\x02 \x01(\tR\x02by\x12\x17\n" +
+	"\atile_id\x18\x03 \x01(\rR\x06tileId\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x04 \x01(\tR\taccountId\x12\x18\n" +
+	"\acleared\x18\x05 \x01(\rR\acleared\x12@\n" +
+	"\x0eknocked_out_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\fknockedOutAt\x12\x1a\n" +
+	"\bposition\x18\a \x01(\x04R\bposition\"\xee\x01\n" +
 	"\tFortified\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x1f\n" +
 	"\vlandmass_id\x18\x02 \x01(\rR\n" +
@@ -1520,59 +1625,61 @@ func file_planet_v1_events_proto_rawDescGZIP() []byte {
 }
 
 var file_planet_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_planet_v1_events_proto_goTypes = []any{
 	(ClickOutcome)(0),             // 0: planet.v1.ClickOutcome
 	(*TilesTaken)(nil),            // 1: planet.v1.TilesTaken
 	(*TakenTile)(nil),             // 2: planet.v1.TakenTile
 	(*BombLanded)(nil),            // 3: planet.v1.BombLanded
-	(*Fortified)(nil),             // 4: planet.v1.Fortified
-	(*ShieldPlaced)(nil),          // 5: planet.v1.ShieldPlaced
-	(*ShieldsStruck)(nil),         // 6: planet.v1.ShieldsStruck
-	(*StruckTile)(nil),            // 7: planet.v1.StruckTile
-	(*BonusClaimed)(nil),          // 8: planet.v1.BonusClaimed
-	(*QuizAnswered)(nil),          // 9: planet.v1.QuizAnswered
-	(*ClickTried)(nil),            // 10: planet.v1.ClickTried
-	(*MapRead)(nil),               // 11: planet.v1.MapRead
-	(*StreamOpened)(nil),          // 12: planet.v1.StreamOpened
-	(*BoxCaught)(nil),             // 13: planet.v1.BoxCaught
-	(*BoxLapsed)(nil),             // 14: planet.v1.BoxLapsed
-	(*ForeignBoxClaimed)(nil),     // 15: planet.v1.ForeignBoxClaimed
-	(*AllegiancePledged)(nil),     // 16: planet.v1.AllegiancePledged
-	(*ArenaOpened)(nil),           // 17: planet.v1.ArenaOpened
-	(*ArenaClosed)(nil),           // 18: planet.v1.ArenaClosed
-	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
-	(*GlobePoint)(nil),            // 20: planet.v1.GlobePoint
-	(*durationpb.Duration)(nil),   // 21: google.protobuf.Duration
+	(*FlagKnockedOut)(nil),        // 4: planet.v1.FlagKnockedOut
+	(*Fortified)(nil),             // 5: planet.v1.Fortified
+	(*ShieldPlaced)(nil),          // 6: planet.v1.ShieldPlaced
+	(*ShieldsStruck)(nil),         // 7: planet.v1.ShieldsStruck
+	(*StruckTile)(nil),            // 8: planet.v1.StruckTile
+	(*BonusClaimed)(nil),          // 9: planet.v1.BonusClaimed
+	(*QuizAnswered)(nil),          // 10: planet.v1.QuizAnswered
+	(*ClickTried)(nil),            // 11: planet.v1.ClickTried
+	(*MapRead)(nil),               // 12: planet.v1.MapRead
+	(*StreamOpened)(nil),          // 13: planet.v1.StreamOpened
+	(*BoxCaught)(nil),             // 14: planet.v1.BoxCaught
+	(*BoxLapsed)(nil),             // 15: planet.v1.BoxLapsed
+	(*ForeignBoxClaimed)(nil),     // 16: planet.v1.ForeignBoxClaimed
+	(*AllegiancePledged)(nil),     // 17: planet.v1.AllegiancePledged
+	(*ArenaOpened)(nil),           // 18: planet.v1.ArenaOpened
+	(*ArenaClosed)(nil),           // 19: planet.v1.ArenaClosed
+	(*timestamppb.Timestamp)(nil), // 20: google.protobuf.Timestamp
+	(*GlobePoint)(nil),            // 21: planet.v1.GlobePoint
+	(*durationpb.Duration)(nil),   // 22: google.protobuf.Duration
 }
 var file_planet_v1_events_proto_depIdxs = []int32{
-	19, // 0: planet.v1.TilesTaken.taken_at:type_name -> google.protobuf.Timestamp
+	20, // 0: planet.v1.TilesTaken.taken_at:type_name -> google.protobuf.Timestamp
 	2,  // 1: planet.v1.TilesTaken.tiles:type_name -> planet.v1.TakenTile
-	20, // 2: planet.v1.TakenTile.point:type_name -> planet.v1.GlobePoint
-	19, // 3: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
-	19, // 4: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
-	19, // 5: planet.v1.ShieldPlaced.placed_at:type_name -> google.protobuf.Timestamp
-	19, // 6: planet.v1.ShieldsStruck.struck_at:type_name -> google.protobuf.Timestamp
-	7,  // 7: planet.v1.ShieldsStruck.tiles:type_name -> planet.v1.StruckTile
-	19, // 8: planet.v1.BonusClaimed.claimed_at:type_name -> google.protobuf.Timestamp
-	19, // 9: planet.v1.QuizAnswered.answered_at:type_name -> google.protobuf.Timestamp
-	19, // 10: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
-	0,  // 11: planet.v1.ClickTried.outcome:type_name -> planet.v1.ClickOutcome
-	20, // 12: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
-	19, // 13: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
-	19, // 14: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
-	21, // 15: planet.v1.BoxCaught.after:type_name -> google.protobuf.Duration
-	19, // 16: planet.v1.BoxCaught.caught_at:type_name -> google.protobuf.Timestamp
-	19, // 17: planet.v1.BoxLapsed.lapsed_at:type_name -> google.protobuf.Timestamp
-	19, // 18: planet.v1.ForeignBoxClaimed.claimed_at:type_name -> google.protobuf.Timestamp
-	19, // 19: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
-	19, // 20: planet.v1.ArenaOpened.opened_at:type_name -> google.protobuf.Timestamp
-	19, // 21: planet.v1.ArenaClosed.closed_at:type_name -> google.protobuf.Timestamp
-	22, // [22:22] is the sub-list for method output_type
-	22, // [22:22] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	21, // 2: planet.v1.TakenTile.point:type_name -> planet.v1.GlobePoint
+	20, // 3: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
+	20, // 4: planet.v1.FlagKnockedOut.knocked_out_at:type_name -> google.protobuf.Timestamp
+	20, // 5: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
+	20, // 6: planet.v1.ShieldPlaced.placed_at:type_name -> google.protobuf.Timestamp
+	20, // 7: planet.v1.ShieldsStruck.struck_at:type_name -> google.protobuf.Timestamp
+	8,  // 8: planet.v1.ShieldsStruck.tiles:type_name -> planet.v1.StruckTile
+	20, // 9: planet.v1.BonusClaimed.claimed_at:type_name -> google.protobuf.Timestamp
+	20, // 10: planet.v1.QuizAnswered.answered_at:type_name -> google.protobuf.Timestamp
+	20, // 11: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
+	0,  // 12: planet.v1.ClickTried.outcome:type_name -> planet.v1.ClickOutcome
+	21, // 13: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
+	20, // 14: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
+	20, // 15: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
+	22, // 16: planet.v1.BoxCaught.after:type_name -> google.protobuf.Duration
+	20, // 17: planet.v1.BoxCaught.caught_at:type_name -> google.protobuf.Timestamp
+	20, // 18: planet.v1.BoxLapsed.lapsed_at:type_name -> google.protobuf.Timestamp
+	20, // 19: planet.v1.ForeignBoxClaimed.claimed_at:type_name -> google.protobuf.Timestamp
+	20, // 20: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
+	20, // 21: planet.v1.ArenaOpened.opened_at:type_name -> google.protobuf.Timestamp
+	20, // 22: planet.v1.ArenaClosed.closed_at:type_name -> google.protobuf.Timestamp
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_events_proto_init() }
@@ -1587,7 +1694,7 @@ func file_planet_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_events_proto_rawDesc), len(file_planet_v1_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   18,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -37,7 +37,7 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
   globe or a hook itself, such as the roster's count, the race it ranks the countries by for the anthem, the turn it
   makes the mood and the globe's halo from, or the missions it draws on the globe. Or the place where a card shows does it, given its inputs as props (`PlayerCardPlace`,
   `HolderCardPlace`, `TerritoryCardPlace`), and shows the card from the store.
-- **What the globe tells goes into the store of its feature.** `useGlobe` hands `createGlobe` the verbs of three
+- **What the globe tells goes into the store of its feature.** `useGlobe` hands `createGlobe` the verbs of four
   stores, and puts the stores back to their start when it unmounts:
   - `useRefusedClicks` (`clicks/refusedClicksStore.ts`): the count of clicks the bank or a frozen map refused,
     the VPN, ban and session flags, and the flag that locked a click out. `ClickBudgetMeter` and the three modals
@@ -46,6 +46,8 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
     the charges, the rules, the switches and the armed bomb. `PlayScreen` reads the charges and the rules only for
     its hooks and the clicks panel's toll. `MissionsDone` reads the rules for the rewards it names.
   - `useNews` (`news/newsStore.ts`): the news line, below.
+  - `useArena` (`arena/arenaStore.ts`): the arena's flags, capitals and flags out, which the out window, the picker
+    and the Change button read, and the flag whose out window was closed (see [The arena](arena.md)).
 
   So `useGlobe` returns only what `PlayScreen` hands back to the globe or lays the screen out with.
 - **A test sets a store with `use<Feature>.setState(...)` and puts it back in `afterEach`**, since the store lives as

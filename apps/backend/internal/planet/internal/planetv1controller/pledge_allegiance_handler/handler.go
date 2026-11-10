@@ -40,6 +40,8 @@ func (h PledgeAllegianceHandler) PledgeAllegiance(
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	case errors.Is(err, clicks.ErrUnknownCountry):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	case errors.Is(err, allegiances.ErrDown):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	default:
 		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
 	}

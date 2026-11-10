@@ -15,6 +15,7 @@ import {ClickBudgetSource} from '../../backends/clickBudget.ts';
 import {useRefusedClicks} from '../clicks/refusedClicksStore.ts';
 import {useBonus} from '../bonus/bonusStore.ts';
 import {useNews} from '../news/newsStore.ts';
+import {useArena} from '../arena/arenaStore.ts';
 import {Peek} from '../../domain/tilePeek.ts';
 import {Territory, TerritoryPeek} from '../../domain/territory.ts';
 import {Shot} from '../../domain/clip/camera.ts';
@@ -96,6 +97,7 @@ export function useGlobe(options: UseGlobeOptions) {
         const refused = useRefusedClicks.getState()
         const bonus = useBonus.getState()
         const news = useNews.getState()
+        const arena = useArena.getState()
 
         createGlobe({
             tileClicker,
@@ -121,7 +123,11 @@ export function useGlobe(options: UseGlobeOptions) {
             onBanned: refused.ban,
             onSessionUnavailable: refused.failSession,
             onAllegianceLocked: refused.lockOut,
-            onOutOfReach: refused.refuseOutOfReach,
+            onOutOfReach: () => {
+                refused.refuseOutOfReach()
+                arena.ask()
+            },
+            onArenaFlags: arena.follow,
             onBonusWon: bonus.win,
             onCharges: bonus.setCharges,
             onRules: bonus.setRules,
@@ -174,6 +180,7 @@ export function useGlobe(options: UseGlobeOptions) {
         useRefusedClicks.setState(useRefusedClicks.getInitialState(), true)
         useBonus.setState(useBonus.getInitialState(), true)
         useNews.setState(useNews.getInitialState(), true)
+        useArena.setState(useArena.getInitialState(), true)
     }, [])
 
     useEffect(() => {

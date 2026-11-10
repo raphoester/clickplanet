@@ -12,12 +12,13 @@ const tilesOf = () => new MapTiles(6, 4, new MapClock())
 
 const changes = (): TileChanges => ({owners: [], shields: []})
 
-const batch = (start: number, end: number, version: MapVersion, owners: Record<number, string>, shields: Record<number, number> = {}, arena = false): Ownerships => ({
+const batch = (start: number, end: number, version: MapVersion, owners: Record<number, string>, shields: Record<number, number> = {}, arena = false, knockedOut: string[] = []): Ownerships => ({
     range: {start, end},
     version,
     bindings: new Map(Object.entries(owners).map(([tile, owner]) => [Number(tile), owner])),
     shields: new Map(Object.entries(shields).map(([tile, count]) => [Number(tile), count])),
     arena,
+    knockedOut,
 })
 
 const update = (tile: number, newCountry: string | undefined, version: MapVersion, shields = 0): Update =>
@@ -207,6 +208,47 @@ describe("a server that started again", () => {
 
         read(tiles, batch(5, 6, at(500), {}, {}, false))
         expect(tiles.arena).toBe(true)
+    })
+})
+
+describe("an arena knocks a flag out", () => {
+    it("clears every tile the knock-out names and keeps the flag out", () => {
+        const tiles = tilesOf()
+        tiles.opened(at(10))
+        read(tiles, batch(1, 4, at(10), {1: "fr", 2: "fr", 3: "de"}, {2: 3}, true))
+        read(tiles, batch(5, 6, at(10), {}, {}, true))
+
+        const knocked = changes()
+        tiles.applyKnockOut("fr", [2], at(12), knocked)
+
+        expect(knocked.owners).toEqual([{tile: 2, country: undefined}])
+        expect(tiles.ownership.ownerOf(2)).toBeUndefined()
+        expect(tiles.shields.shieldsOf(2)).toBe(0)
+        expect(tiles.ownership.ownerOf(1)).toBe("fr")
+        expect([...tiles.knockedOut]).toEqual(["fr"])
+    })
+
+    it("leaves a tile a later change already wrote", () => {
+        const tiles = tilesOf()
+        tiles.opened(at(10))
+        read(tiles, batch(1, 4, at(10), {2: "fr"}, {}, true))
+        live(tiles, update(2, "de", at(13)))
+
+        tiles.applyKnockOut("fr", [2], at(12), changes())
+
+        expect(tiles.ownership.ownerOf(2)).toBe("de")
+    })
+
+    it("adds the flags a read of the same start names, and forgets them with a new start", () => {
+        const tiles = tilesOf()
+        tiles.opened(at(10))
+        tiles.applyKnockOut("fr", [], at(12), changes())
+        read(tiles, batch(1, 4, at(11), {}, {}, true, ["de"]))
+        expect([...tiles.knockedOut].sort()).toEqual(["de", "fr"])
+
+        tiles.opened(at(0, START + 60))
+        read(tiles, batch(1, 4, at(0, START + 60), {}, {}, true, ["it"]))
+        expect([...tiles.knockedOut]).toEqual(["it"])
     })
 })
 

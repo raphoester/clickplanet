@@ -57,16 +57,16 @@ func (s *testSuite) TestAnEmptyTableLoadsNothing() {
 func (s *testSuite) TestSaveThenLoad() {
 	ctx := context.Background()
 
-	s.Require().NoError(s.store.Save(ctx, clicks.World, append(append(owned("fr", 0), owned("us", 7)...), owned("de", 257_948)...), nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, append(append(owned("fr", 0), owned("us", 7)...), owned("de", 257_948)...), nil, nil))
 
 	s.Equal(map[uint32]string{0: "fr", 7: "us", 257_948: "de"}, s.load())
 }
 
 func (s *testSuite) TestSaveOverwritesAnOwnerAndDeletesAFreedTile() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1, 2, 3), nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1, 2, 3), nil, nil))
 
-	s.Require().NoError(s.store.Save(ctx, clicks.World, append(owned("us", 1), owned("", 2, 4)...), nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, append(owned("us", 1), owned("", 2, 4)...), nil, nil))
 
 	s.Equal(map[uint32]string{1: "us", 3: "fr"}, s.load(),
 		"a freed tile has no row, and freeing one that had none is not an error")
@@ -79,7 +79,7 @@ func (s *testSuite) TestSaveSpansChunks() {
 		ids[i] = uint32(i)
 	}
 
-	s.Require().NoError(s.store.Save(context.Background(), clicks.World, owned("bg", ids...), nil))
+	s.Require().NoError(s.store.Save(context.Background(), clicks.World, owned("bg", ids...), nil, nil))
 
 	s.Len(s.load(), count)
 }
@@ -91,7 +91,7 @@ func (s *testSuite) TestAFailedSaveWritesNothing() {
 	for i := range ids {
 		ids[i] = uint32(i)
 	}
-	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 20_000), nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 20_000), nil, nil))
 	_, err := s.db.On(ctx).ExecContext(ctx, `ALTER TABLE tiles ADD CONSTRAINT not_bg_past_ten_thousand CHECK (id < 10000 OR country <> 'bg')`)
 	s.Require().NoError(err)
 	defer func() {
@@ -99,7 +99,7 @@ func (s *testSuite) TestAFailedSaveWritesNothing() {
 		s.Require().NoError(err)
 	}()
 
-	s.Require().Error(s.store.Save(ctx, clicks.World, owned("bg", ids...), nil))
+	s.Require().Error(s.store.Save(ctx, clicks.World, owned("bg", ids...), nil, nil))
 
 	s.Equal(map[uint32]string{20_000: "fr"}, s.load())
 }
@@ -109,8 +109,8 @@ func (s *testSuite) TestShieldsAreKeptWithTheirTile() {
 	s.Require().NoError(s.store.Save(ctx, clicks.World, []inmemory_tile_storage.Tile{
 		{ID: 1, Owner: "fr", Shields: 3},
 		{ID: 2, Owner: "fr"},
-	}, nil))
-	s.Require().NoError(s.store.Save(ctx, clicks.World, []inmemory_tile_storage.Tile{{ID: 1, Owner: "fr", Shields: 2}}, nil))
+	}, nil, nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, []inmemory_tile_storage.Tile{{ID: 1, Owner: "fr", Shields: 2}}, nil, nil))
 
 	shields := map[uint32]int{}
 	s.Require().NoError(s.store.Load(ctx, clicks.World, func(tile inmemory_tile_storage.Tile) {
@@ -126,8 +126,8 @@ func (s *testSuite) TestTheHolderIsKeptWithItsTile() {
 		{ID: 1, Owner: "fr", Holder: ana},
 		{ID: 2, Owner: "fr", Holder: ana},
 		{ID: 3, Owner: "de"},
-	}, nil))
-	s.Require().NoError(s.store.Save(ctx, clicks.World, []inmemory_tile_storage.Tile{{ID: 2, Owner: "fr"}}, nil))
+	}, nil, nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, []inmemory_tile_storage.Tile{{ID: 2, Owner: "fr"}}, nil, nil))
 
 	holders := map[uint32]cpsession.AccountID{}
 	s.Require().NoError(s.store.Load(ctx, clicks.World, func(tile inmemory_tile_storage.Tile) {
@@ -142,10 +142,10 @@ func (s *testSuite) TestALandmassLockIsKeptForItsMapAlone() {
 		{ID: 3, Asset: "borders-a.bin", FortifiedBy: "fr"},
 		{ID: 4, Asset: "borders-a.bin", FortifiedBy: "de"},
 		{ID: 3, Asset: "borders-b.bin", FortifiedBy: "us"},
-	}))
+	}, nil))
 	s.Require().NoError(s.store.Save(ctx, clicks.World, nil, []inmemory_tile_storage.Landmass{
 		{ID: 3, Asset: "borders-a.bin", FortifiedBy: "bg"},
-	}))
+	}, nil))
 
 	s.Equal(map[clicks.LandmassID]string{3: "bg", 4: "de"}, s.landmasses("borders-a.bin"))
 	s.Equal(map[clicks.LandmassID]string{3: "us"}, s.landmasses("borders-b.bin"))

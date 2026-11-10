@@ -59,6 +59,20 @@ func LandmassFortified(fortification *clicks.Fortification, version clicks.MapVe
 	}
 }
 
+func KnockOut(knockOut *clicks.KnockOut, version clicks.MapVersion) *planetv1.PlanetEvent {
+	return &planetv1.PlanetEvent{
+		Event: &planetv1.PlanetEvent_KnockOut{
+			KnockOut: &planetv1.KnockOut{
+				CountryId:      knockOut.Country,
+				ByCountryId:    knockOut.By,
+				TileId:         knockOut.Tile,
+				ClearedTileIds: knockOut.Cleared,
+				Version:        Version(version),
+			},
+		},
+	}
+}
+
 func HoldingsChanged(tally *clicks.Tally, version clicks.MapVersion) *planetv1.PlanetEvent {
 	return &planetv1.PlanetEvent{
 		Event: &planetv1.PlanetEvent_HoldingsChanged{
@@ -132,5 +146,6 @@ func Map(batch clicks.DenseBatch) *planetv1.GetMapResponse {
 		Shields:     shields,
 		Version:     Version(batch.Version),
 		Arena:       batch.Arena,
+		KnockedOut:  batch.KnockedOut,
 	}
 }

@@ -344,12 +344,13 @@ is the list, and the backend refuses any other.
 ## Announcements
 
 The chat also shows lines nobody sent: `ChatEvent.announcement` on the stream,
-and `GetHistoryResponse.announcements` beside the messages. Six kinds today:
+and `GetHistoryResponse.announcements` beside the messages. Seven kinds today:
 `bomb`, every bomb that went off, `mute`, every mute an operator gave,
 `round`, every round of a season that closed, `fortify`, every landmass of 50
-tiles or more a flag fortified, `champion`, the country that won a season, and
+tiles or more a flag fortified, `champion`, the country that won a season,
 `flag_mission`, every flag that finished its mission of the day, in the World
-and in that flag's room.
+and in that flag's room, and `knock_out`, every flag an arena knocked out
+("👑 Germany knocked out France", `KnockOutLine`).
 
 - **Decoded, not trusted**: `decodedAnnouncement` reads the `kind` and parses
   the JSON `payload` into a typed `ChatAnnouncement`. A kind this build does not

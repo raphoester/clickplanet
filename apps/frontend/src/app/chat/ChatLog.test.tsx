@@ -2,7 +2,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {ChatMessage, FlagMissionAnnouncement} from "../../backends/chat.ts"
+import {ChatMessage, FlagMissionAnnouncement, KnockOutAnnouncement} from "../../backends/chat.ts"
 import {quoteOf} from "../../domain/chatLog.ts"
 import ChatLog from "./ChatLog.tsx"
 import {QUOTE_MAX_LENGTH} from "./QuoteLine.tsx"
@@ -53,6 +53,16 @@ describe("ChatLog's flag mission line", () => {
 
         const line = screen.getByText((_, element) => element?.classList.contains("chat-announcement-text") ?? false)
         expect(line.textContent).toBe("France completed its flag mission (+1 season point)")
+    })
+})
+
+describe("ChatLog's knock-out line", () => {
+    it("says which flag knocked out which", () => {
+        const knockOut: KnockOutAnnouncement = {kind: "knock_out", id: "a1", announcedAt: Date.UTC(2026, 10, 11, 20), country: "fr", by: "de"}
+        render(<ChatLog loading={false} messages={[]} announcements={[knockOut]}/>)
+
+        const line = screen.getByText((_, element) => element?.classList.contains("chat-announcement-text") ?? false)
+        expect(line.textContent).toBe("Germany knocked out France")
     })
 })
 

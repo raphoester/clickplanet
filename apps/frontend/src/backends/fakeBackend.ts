@@ -813,6 +813,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return () => this.holdingsCallbacks.delete(id)
     }
 
+    public listenForKnockOuts(): () => void {
+        return () => {}
+    }
+
     public listenForFortifications(callback: (fortification: Fortification) => void): () => void {
         const id = UUIDv4()
         this.fortificationCallbacks.set(id, callback)
@@ -864,7 +868,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 const held = this.shields.get(tile)
                 if (held) shields.set(tile, held)
             }
-            callback({range, version: this.version(), bindings, shields, arena: false})
+            callback({range, version: this.version(), bindings, shields, arena: false, knockedOut: []})
         }
     }
 }

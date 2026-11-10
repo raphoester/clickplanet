@@ -1,9 +1,9 @@
 # Arena battles: a battle on a blank map
 
 **A battle whose rule set has `arena.on` is an arena battle: it is fought on a blank map, and the map from before comes
-back, tile for tile, when it ends** (the owner, 2026-11-09). It is slices 1 and 2 of the Capital Siege game mode: the
-blank map and back, then each country's capital and the take rule ([Capitals and reach](#capitals-and-reach)). The
-knock-out, the speed and the replays come in later slices. **Do not schedule an
+back, tile for tile, when it ends** (the owner, 2026-11-09). It is slices 1 to 3 of the Capital Siege game mode: the
+blank map and back, then each country's capital and the take rule ([Capitals and reach](#capitals-and-reach)), then
+the knock-out ([The knock-out](#the-knock-out)). The speed and the replays come in later slices. **Do not schedule an
 arena battle in production before slice 5**: the replays, the map history and the clips read the ledger across the
 battle as if the map never changed.
 
@@ -129,6 +129,43 @@ map.
   `StateBatchDense` from `playing`), and draws the reach and the capitals itself: see the frontend's
   [The arena](../../frontend/docs/arena.md).
 
+## The knock-out
+
+**A take of a flag's capital knocks the flag out: the taker keeps the capital, and every other tile of the flag goes
+blank** (the owner, 2026-11-09). It is decided where a fortify is: under the tiles lock, right after the take, so two
+takes racing for one capital knock the flag out once.
+
+- **The rule** (`clicks.KnockOutError`, pure): an arena plays, the tile is a capital, its flag is not out yet, and the
+  taker is another flag. It reads the capital's flag, not the tile's last owner, so a capital left blank (a bomb,
+  until slice 4 refuses them) still falls to the next take. Every take asks, a click's, each tile of a spread's and
+  an enclosure's; a bomb takes no tile for the bomber, so it never knocks a flag out.
+- **The claim** (`clicks.Claiming`) asks `Claimable.KnockOut` after a take is written. **An enclosure asks it once
+  its whole pocket is written**, so the blank never clears a tile the same pocket takes after it: a shielded tile of
+  the out flag inside the pocket keeps its flag through the pocket, then goes blank.
+- **The storage** (`inmemory_tile_storage`, `knock_out.go`) clears every tile the out flag holds (no shield, no
+  holder, the landmass counts moved, dirty for the flush), keeps the flag out, and publishes **one**
+  `clicks.Change{KnockOut}` at one map version, with every tile it cleared: right after the take's update for a click
+  or a spread, after the enclosure and its fortifies for an enclosure. The stream sends it as
+  `PlanetEvent.knock_out` (`country_id`, `by_country_id`, `tile_id`, `cleared_tile_ids`, `version`).
+- **The flags out are kept with the tiles** (the owner, 2026-11-10): in memory beside the board, and in
+  `planet.knockouts` (`map`, `flag`, `by_flag`, `knocked_out_at`, never the world's map), written by the map's flush
+  in the transaction that writes the tiles, so a flag is never saved out apart from its blank land. A failed flush
+  keeps them for the next one. The boot reads them with the map (`LoadOutFlags`); the arena's close deletes them with
+  its map (`Wipe`). Every map read says them (`GetMapResponse.knocked_out`, stamped by `StateBatchDense`).
+- **Which flags still stand** (`clicks.Stands`, read through `Storage.Stands`): outside an arena every flag; in one,
+  a flag with a capital that is not out. A region flag (England, Scotland, Wales, Brittany) has no capital, so it
+  never stands in an arena. The allegiance reads it (see [Allegiance](allegiance.md)).
+- **In the ledger**: a `knock_out` event after the take (and its fortify), on the capital, the taker's account and
+  flag, the out flag as `previous`, and the cleared tiles. Its takes are each cleared tile as a bomb's (for nobody),
+  so the map history sees the blank; `GetLedger` shows each as a blank tile; it strikes nothing.
+- **To the other modules**: the ledger relay tells `planet.v1.FlagKnockedOut` (`country`, `by`, `tile_id`,
+  `account_id`, `cleared`, `knocked_out_at`, `position`) once the ledger flushed it, in order with the takes. The chat
+  announces every one ("Germany knocked out France"; the owner, 2026-11-10: no rule on whether the flag had players).
+  No Discord ping.
+- **Scoring needs nothing**: an out flag holds no tile at the battle's end, so it scores nothing.
+- **The page** shows the knock-out and asks a player whose flag is out to pick one still in: see the frontend's
+  [The arena](../../frontend/docs/arena.md).
+
 ## Gamemaster: the arena battles (`internal/gamemaster/internal/arenas/`)
 
 - `play_arenas_usecase` (the second step of `gamemaster-plan`, each second): judges the battle that runs (`Plan.Unjudged`, `Plan.Judge`,
@@ -153,6 +190,16 @@ map.
   the end's freeze starts late (the close still comes once the cut battle is scored).
 
 ## Tests
+
+Slice 3: `clicks`' `knock_out_test.go` pins the rule and the standing; `inmemory_tile_storage`'s `knock_out_test.go`
+the take of a capital that clears the flag's other tiles in one change after the take, the taker keeping the capital,
+a flag out once, a blank capital that still falls, nothing on the world's map, an enclosure that knocks out once its
+pocket is written, the flag out saved by the flush (again after a failed one) and read at boot, and gone with its
+arena; `postgres_tile_store`'s `knockouts_test.go` the rows of each map, kept once, deleted by a wipe, none on the
+world's; the migrations' `knockouts_test.go`; `ledger_test.go` the event's entry, takes and scenes, and `Recording`
+noting it after the take; the relay's `FlagKnockedOut`; the stream's sink and `GetMap`'s out flags;
+`allegiances`' arena rule and `Book`.
+
 
 Slice 2: `arenas`' `reach_test.go` pins a take next to the land, across a water with a coast held, refused across one
 without, no reach outside an arena, and a spread past the tile taken or from a struck one; `rules_test.go` the capital

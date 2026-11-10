@@ -390,6 +390,16 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 points: values.points,
                 order: flagMissionOrderOf(values),
             }
+        case "knock_out":
+            if (typeof values.country !== "string" || values.country === "") return undefined
+            if (typeof values.by !== "string" || values.by === "") return undefined
+            return {
+                kind: "knock_out",
+                id: announcement.id,
+                announcedAt: Number(announcement.announcedAtUnixMs),
+                country: values.country,
+                by: values.by,
+            }
         default:
             return undefined
     }

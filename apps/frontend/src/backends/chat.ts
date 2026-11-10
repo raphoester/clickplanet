@@ -42,7 +42,7 @@ export type ChatQuote = {
 }
 
 export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | RoundAnnouncement | FortifyAnnouncement | ChampionAnnouncement
-    | FlagMissionAnnouncement
+    | FlagMissionAnnouncement | KnockOutAnnouncement
 
 export type BombAnnouncement = {
     kind: "bomb"
@@ -109,6 +109,15 @@ export type FlagMissionAnnouncement = {
     points: number
     // None for a kind of flag mission this build does not know: the line only says it was done.
     order?: FlagMissionOrder
+}
+
+// An arena knocked country out: by took its capital.
+export type KnockOutAnnouncement = {
+    kind: "knock_out"
+    id: string
+    announcedAt: number
+    country: string
+    by: string
 }
 
 export type ChatHistory = {

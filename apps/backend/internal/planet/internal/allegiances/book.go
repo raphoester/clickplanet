@@ -29,14 +29,17 @@ type Teller interface {
 	Pledged(account Account, flag string, previous string)
 }
 
-func NewBook(store Store, countries CountryChecker, lock func() Lock, clock cptime.Clock, teller Teller) Book {
-	return Book{store: store, countries: countries, lock: lock, clock: clock, teller: teller}
+func NewBook(
+	store Store, countries CountryChecker, lock func() Lock, standing Standing, clock cptime.Clock, teller Teller,
+) Book {
+	return Book{store: store, countries: countries, lock: lock, standing: standing, clock: clock, teller: teller}
 }
 
 type Book struct {
 	store     Store
 	countries CountryChecker
 	lock      func() Lock
+	standing  Standing
 	clock     cptime.Clock
 	teller    Teller
 }
@@ -54,7 +57,7 @@ func (b Book) Pledge(ctx context.Context, payer clicks.Payer, flag string) error
 	var previous string
 	changed := false
 	if err := b.store.Change(ctx, account, func(allegiance Allegiance) (Allegiance, error) {
-		pledged, err := allegiance.Pledged(flag, at, lock)
+		pledged, err := allegiance.Pledged(flag, at, lock, b.standing)
 		previous, changed = allegiance.flag, err == nil && pledged.flag != allegiance.flag
 		return pledged, err
 	}); err != nil {
