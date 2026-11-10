@@ -145,6 +145,8 @@ function noticeSaid(notice: BonusNotice, rules: BonusRules | undefined): Omit<Sa
     switch (notice) {
         case "shieldFull":
             return {text: "That tile holds all the shields it can", chip: "Full", ms: NOTICE_MS}
+        case "shieldCapital":
+            return {text: "No shield on a capital", ms: NOTICE_MS}
         case "shieldTaken":
             return {text: "Tile taken. Tap it again to shield it", ms: NOTICE_MS}
         case "shieldNotYours":

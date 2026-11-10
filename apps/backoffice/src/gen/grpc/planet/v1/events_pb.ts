@@ -65,6 +65,13 @@ export enum ClickOutcome {
    * @generated from enum value: CLICK_OUTCOME_FAILED = 8;
    */
   FAILED = 8,
+
+  /**
+   * In an arena, a tile next to none of the flag's land and across none of its waters.
+   *
+   * @generated from enum value: CLICK_OUTCOME_OUT_OF_REACH = 9;
+   */
+  OUT_OF_REACH = 9,
 }
 // Retrieve enum metadata with: proto3.getEnumType(ClickOutcome)
 proto3.util.setEnumType(ClickOutcome, "planet.v1.ClickOutcome", [
@@ -77,6 +84,7 @@ proto3.util.setEnumType(ClickOutcome, "planet.v1.ClickOutcome", [
   { no: 6, name: "CLICK_OUTCOME_OTHER_FLAG" },
   { no: 7, name: "CLICK_OUTCOME_INVALID" },
   { no: 8, name: "CLICK_OUTCOME_FAILED" },
+  { no: 9, name: "CLICK_OUTCOME_OUT_OF_REACH" },
 ]);
 
 /**

@@ -85,6 +85,7 @@ export const GROUPS: {title: string, fields: Field[]}[] = [
     ]},
     {title: "Arena", fields: [
         {path: "arena.freeze", label: "No play after the blank map and before the end (s)", kind: "seconds"},
+        {path: "arena.capitalShields", label: "Shields on each capital at the start", kind: "whole"},
     ]},
     {title: "Quizzes", fields: [
         {path: "bonuses.quiz.minInterval", label: "Shortest quiz wait (s)", kind: "seconds"},

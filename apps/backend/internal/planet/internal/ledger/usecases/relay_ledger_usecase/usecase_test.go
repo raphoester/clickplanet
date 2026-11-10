@@ -248,7 +248,7 @@ func TestNothingNewSendsNothing(t *testing.T) {
 
 func TestClicksForOneFlagOnOneTileAtOnceTellOneTake(t *testing.T) {
 	for range 500 {
-		tiles := inmemory_tile_storage.New(clicks.BordersOf(100), inmemory_tile_storage.Config{},
+		tiles := inmemory_tile_storage.New(clicks.BordersOf(100), clicks.NoCapitals(), inmemory_tile_storage.Config{},
 			inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 		require.NoError(t, tiles.Set(t.Context(), 7, "de"))
 		storage := flushed(t)

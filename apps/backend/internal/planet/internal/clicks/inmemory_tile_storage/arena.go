@@ -11,8 +11,11 @@ import (
 var errWorldIsNoArena = errors.New("the world's map is no arena's")
 
 // Blank plays the blank map of an arena once keep says to: what changed is saved to the map in play first, which
-// stays as it is, and the arena's map has no tile yet. The map starts a new epoch and every stream is cut.
-func (s *Storage) Blank(ctx context.Context, arena clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error) {
+// stays as it is, and the arena's map holds only its start, stored in keep's transaction. The map starts a new epoch
+// and every stream is cut.
+func (s *Storage) Blank(
+	ctx context.Context, arena clicks.MapID, start []clicks.StartTile, keep func(ctx context.Context) (bool, error),
+) (bool, error) {
 	if arena == clicks.World {
 		return false, errWorldIsNoArena
 	}
@@ -26,14 +29,21 @@ func (s *Storage) Blank(ctx context.Context, arena clicks.MapID, keep func(ctx c
 	if err := s.flushLocked(ctx); err != nil {
 		return false, fmt.Errorf("failed to save the map before blanking it: %w", err)
 	}
-	blanked, err := keep(ctx)
+	tiles := make([]Tile, 0, len(start))
+	for _, seed := range start {
+		tiles = append(tiles, Tile{ID: seed.Tile, Owner: seed.Country, Shields: seed.Shields})
+	}
+	blanked, err := s.persistence.Open(ctx, arena, tiles, keep)
 	if err != nil || !blanked {
-		return false, err
+		return false, err //nolint:wrapcheck // keep and the store name it.
 	}
 
 	s.playing = arena
 	s.emptyLocked()
-	s.restartLocked()
+	defer s.restartLocked()
+	if err := s.fillLocked(ctx); err != nil {
+		return true, fmt.Errorf("opened the arena, but could not read its map: %w", err)
+	}
 
 	return true, nil
 }

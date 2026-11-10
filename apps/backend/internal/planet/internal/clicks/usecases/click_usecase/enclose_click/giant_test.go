@@ -173,7 +173,7 @@ type game struct {
 func newGame(t testing.TB, w world) *game {
 	t.Helper()
 
-	tiles := inmemory_tile_storage.New(w.borders, inmemory_tile_storage.Config{SubscriberBuffer: 1024},
+	tiles := inmemory_tile_storage.New(w.borders, clicks.NoCapitals(), inmemory_tile_storage.Config{SubscriberBuffer: 1024},
 		inmemory_tile_storage.NewMemoryPersistence(nil), cptime.SystemClock{}, nil)
 	require.NoError(t, tiles.Load(t.Context(), clicks.World))
 	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), nil)

@@ -49,7 +49,7 @@ func (h PlaceShieldHandler) PlaceShield(
 		return connect.NewResponse(&planetv1.PlaceShieldResponse{Charges: chargesheld.Encode(held)}), nil
 	case errors.Is(err, clicks.ErrUnknownCountry), errors.Is(err, clicks.ErrTileOutOfRange):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	case errors.Is(err, clicks.ErrNotYourTile), errors.Is(err, clicks.ErrTileFull):
+	case errors.Is(err, clicks.ErrNotYourTile), errors.Is(err, clicks.ErrTileFull), errors.Is(err, clicks.ErrCapital):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, place_shield_usecase.ErrNoShield):
 		return nil, connect.NewError(connect.CodeNotFound, err)

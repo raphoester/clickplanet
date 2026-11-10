@@ -37,6 +37,12 @@ describe("placementOf", () => {
         expect(placementOf("fr", "fr", 40, undefined)).toBe("place")
         expect(placementOf("fr", "fr", 40, 0)).toBe("place")
     })
+
+    it("sends nothing to a capital the flag holds in an arena, full or not, and clicks one it does not", () => {
+        expect(placementOf("fr", "fr", 0, 10, true)).toBe("capital")
+        expect(placementOf("fr", "fr", 100, 10, true)).toBe("capital")
+        expect(placementOf("de", "fr", 100, 10, true)).toBe("click")
+    })
 })
 
 describe("TileShields", () => {

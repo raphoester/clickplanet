@@ -13,6 +13,7 @@ import (
 
 func New(
 	borders *clicks.Borders,
+	capitals *clicks.Capitals,
 	config Config,
 	persistence Persistence,
 	clock cptime.Clock,
@@ -29,6 +30,7 @@ func New(
 		config:      config,
 		logger:      logger,
 		persistence: persistence,
+		capitals:    capitals,
 		playing:     clicks.World,
 		board:       newBoard(borders.Tiles()),
 		landmasses:  newLandmasses(borders),
@@ -43,6 +45,7 @@ type Storage struct {
 	config      Config
 	logger      *slog.Logger
 	persistence Persistence
+	capitals    *clicks.Capitals
 
 	// Held through a flush, from what it takes to what it saves, so a wipe never meets a save of the map before it.
 	flushing sync.Mutex
@@ -202,6 +205,9 @@ func (s *Storage) Shield(_ context.Context, tile uint32, country string, most in
 	if tile > s.board.last() {
 		return fmt.Errorf("%w: %d", clicks.ErrTileOutOfRange, tile)
 	}
+	if s.capitalLocked(tile) {
+		return fmt.Errorf("tile %d: %w", tile, clicks.ErrCapital)
+	}
 	if err := clicks.ShieldError(s.board.ownerOf(tile), country, s.board.shieldsOn(tile), min(most, math.MaxUint8)); err != nil {
 		return fmt.Errorf("tile %d: %w", tile, err)
 	}
@@ -222,6 +228,30 @@ func (s *Storage) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, 
 
 	batch := s.board.batch(start, end)
 	batch.Version = s.version
+	batch.Arena = s.playing != clicks.World
 
 	return batch, nil
+}
+
+// HoldsAny says whether the country holds one of the tiles.
+func (s *Storage) HoldsAny(country string, tiles []uint32) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	code, ok := s.board.codeOf(country)
+	if !ok {
+		return false
+	}
+	for _, tile := range tiles {
+		if tile <= s.board.last() && s.board.tiles[tile].owner == code {
+			return true
+		}
+	}
+
+	return false
+}
+
+// An arena's capitals keep the shields they started with: no placement and no fortify adds one, whoever holds them.
+func (s *Storage) capitalLocked(tile uint32) bool {
+	return s.playing != clicks.World && s.capitals.Is(tile)
 }

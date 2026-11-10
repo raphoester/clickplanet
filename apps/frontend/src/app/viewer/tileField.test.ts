@@ -314,6 +314,19 @@ describe.each([["plain", PLAIN], ["compact", COMPACT]] as const)("the %s layout"
                 {start: at(f, layout.pulse, 6), count: 1},
             ])
         })
+
+        it("keeps each mark on a bit of its own, so a capital and the front share a tile", () => {
+            const f = field()
+
+            f.setFront([3], true)
+            f.setMissionMarks([3], true)
+            f.setCapitalMarks([3, 5], true)
+            expect([3, 5].map(tile => valueOf(f, layout.pulse, tile))).toEqual([2 + 4 + 8, 8])
+
+            f.setCapitalMarks([3], false)
+            f.setFront([3], false)
+            expect(valueOf(f, layout.pulse, 3)).toBe(4)
+        })
     })
 
     describe("geometry", () => {

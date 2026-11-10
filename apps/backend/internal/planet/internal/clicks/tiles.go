@@ -52,6 +52,9 @@ type DenseBatch struct {
 	Tiles   []byte
 
 	Shields []TileShields
+
+	// The map is an arena's, not the world's.
+	Arena bool
 }
 
 type TileShields struct {

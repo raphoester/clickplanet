@@ -26,6 +26,9 @@ message ArenaRules {
   optional bool on = 1;
   // Every play is refused this long after the map goes blank and before the battle ends. 0 to 30 s.
   google.protobuf.Duration freeze = 2;
+  // The shields each country's capital starts the arena with, past bonuses.shield.per_tile. No shield is added to a
+  // capital while the arena plays. 0 to 255.
+  optional uint32 capital_shields = 3;
 }
 
 message ClickRules {

@@ -40,6 +40,8 @@ const (
 	// An unknown flag, a tile off the map, or two bonuses together.
 	ClickOutcome_CLICK_OUTCOME_INVALID ClickOutcome = 7
 	ClickOutcome_CLICK_OUTCOME_FAILED  ClickOutcome = 8
+	// In an arena, a tile next to none of the flag's land and across none of its waters.
+	ClickOutcome_CLICK_OUTCOME_OUT_OF_REACH ClickOutcome = 9
 )
 
 // Enum value maps for ClickOutcome.
@@ -54,17 +56,19 @@ var (
 		6: "CLICK_OUTCOME_OTHER_FLAG",
 		7: "CLICK_OUTCOME_INVALID",
 		8: "CLICK_OUTCOME_FAILED",
+		9: "CLICK_OUTCOME_OUT_OF_REACH",
 	}
 	ClickOutcome_value = map[string]int32{
-		"CLICK_OUTCOME_UNSPECIFIED": 0,
-		"CLICK_OUTCOME_TAKEN":       1,
-		"CLICK_OUTCOME_STRUCK":      2,
-		"CLICK_OUTCOME_UNCHANGED":   3,
-		"CLICK_OUTCOME_THROTTLED":   4,
-		"CLICK_OUTCOME_REFUSED":     5,
-		"CLICK_OUTCOME_OTHER_FLAG":  6,
-		"CLICK_OUTCOME_INVALID":     7,
-		"CLICK_OUTCOME_FAILED":      8,
+		"CLICK_OUTCOME_UNSPECIFIED":  0,
+		"CLICK_OUTCOME_TAKEN":        1,
+		"CLICK_OUTCOME_STRUCK":       2,
+		"CLICK_OUTCOME_UNCHANGED":    3,
+		"CLICK_OUTCOME_THROTTLED":    4,
+		"CLICK_OUTCOME_REFUSED":      5,
+		"CLICK_OUTCOME_OTHER_FLAG":   6,
+		"CLICK_OUTCOME_INVALID":      7,
+		"CLICK_OUTCOME_FAILED":       8,
+		"CLICK_OUTCOME_OUT_OF_REACH": 9,
 	}
 )
 
@@ -1441,7 +1445,7 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"pledged_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tpledgedAt\"a\n" +
 	"\vArenaClosed\x12\x19\n" +
 	"\barena_id\x18\x01 \x01(\tR\aarenaId\x127\n" +
-	"\tclosed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt*\x88\x02\n" +
+	"\tclosed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt*\xa8\x02\n" +
 	"\fClickOutcome\x12\x1d\n" +
 	"\x19CLICK_OUTCOME_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13CLICK_OUTCOME_TAKEN\x10\x01\x12\x18\n" +
@@ -1451,7 +1455,8 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\x15CLICK_OUTCOME_REFUSED\x10\x05\x12\x1c\n" +
 	"\x18CLICK_OUTCOME_OTHER_FLAG\x10\x06\x12\x19\n" +
 	"\x15CLICK_OUTCOME_INVALID\x10\a\x12\x18\n" +
-	"\x14CLICK_OUTCOME_FAILED\x10\bB\xb3\x01\n" +
+	"\x14CLICK_OUTCOME_FAILED\x10\b\x12\x1e\n" +
+	"\x1aCLICK_OUTCOME_OUT_OF_REACH\x10\tB\xb3\x01\n" +
 	"\rcom.planet.v1B\vEventsProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 

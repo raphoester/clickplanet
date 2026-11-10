@@ -157,6 +157,9 @@ describe("Inventory", () => {
 
         rerender(inventory({charges, switches, notice: {notice: "shieldNotYours", seq: 2}}))
         expect(bubble()).toBe("Shields go on your own tiles")
+
+        rerender(inventory({charges, switches, notice: {notice: "shieldCapital", seq: 3}}))
+        expect(bubble()).toBe("No shield on a capital")
     })
 
     it("says so, for a while, when an enclose click closed nothing", () => {

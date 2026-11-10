@@ -27,7 +27,7 @@ type testSuite struct {
 func (s *testSuite) SetupTest() {
 	const maxIndex = 250_000
 	s.storage = inmemory_tile_storage.New(
-		clicks.BordersOf(maxIndex),
+		clicks.BordersOf(maxIndex), clicks.NoCapitals(),
 		inmemory_tile_storage.Config{},
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}),
 		cptime.SystemClock{},

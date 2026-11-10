@@ -1,7 +1,9 @@
 # The tile map's geometry
 
 `coordinates-<hash>.bin` says where every tile is and `borders-<hash>.bin` says whose ground it sits
-on. Both are shared by the two apps exactly as [`/proto`](../proto) is. Neither app may keep its own
+on; `capitals-<hash>.json` says which tile is each country's capital and `waters-<hash>.json` which bodies of water
+each coast tile touches (see [Capitals and waters](#capitals-and-waters)). They are shared by the apps exactly as
+[`/proto`](../proto) is. Neither app may keep its own
 generator or its own copy of the numbers; each carries a **generated copy**, because each is built
 from its own directory as its Docker build context and so cannot read anything at the repo root at
 build time:
@@ -9,7 +11,8 @@ build time:
 | app | copy | refreshed by |
 | --- | --- | --- |
 | frontend | `apps/frontend/static/<blob>`; the coordinates only when the rebuild below fails | `npm run map` |
-| backend | `apps/backend/generated/map/<blob>`, embedded | `make map` |
+| frontend | `apps/frontend/static/capitals-<hash>.json` and `waters-<hash>.json` | `npm run map:generate` |
+| backend | `apps/backend/generated/map/<blob>`, all four, embedded | `make map` |
 | backoffice | `apps/backoffice/src/gen/map/coordinates-<hash>.bin` alone, bundled by Vite | `npm run map` |
 
 All three copies of each blob are committed and byte-identical, so git stores the bytes once.
@@ -96,6 +99,31 @@ inside a country's ground (England, Scotland, Wales, Brittany: `REGIONS`), which
 They are not a budget that creeps: both blobs are cut from one `groundOf` call, so a tile on open sea
 or a tile in no country is not a map that drifted, it is a generator that broke.
 
+## Capitals and waters
+
+Both are written by `npm run map:generate` from the same answer as the tiles, and read only in an arena battle (see
+the backend's [Arena battles](../apps/backend/docs/arenas.md#capitals-and-reach)). Tiles are named by their wire id
+(index + 1).
+
+- **`capitals-<hash>.json`** — `{"tiles": N, "capitals": {"fr": <tile>, …}}`, one for each country with ground, 239.
+  `scripts/map/capitals.mjs` reads Natural Earth's populated places (`ne_10m_populated_places`) and picks each
+  country's city: its main capital (`Admin-0 capital`, not the alternate one: La Paz, Abidjan, Pretoria, Naypyidaw),
+  else a territory's or a claimed capital (`Admin-0 *`: Nuuk, Stanley, Gaza City), else its biggest place (McMurdo
+  Station, Tórshavn, San Juan); among equals, the country's own place before one of a land it absorbs (Mogadishu,
+  not Hargeisa), then the biggest. The capital is the country's tile nearest the city. A country of one tile, a seat
+  among them, starts on it; one with no place at all (the French Southern Territories) in the middle of its biggest
+  landmass. No hand-kept list.
+- **`waters-<hash>.json`** — `{"tiles": N, "bodies": [[<tile>, …], …]}`, each body's coast tiles ascending, the
+  longest first. `scripts/map/waters.mjs` flood-fills the lattice's water vertices: two that touch are one body, so a
+  strait narrower than a cell cuts a sea in two. 342 bodies, 18,839 coast tiles, 385 of them on two bodies. The ocean
+  is one body (15,294 coast tiles); Gibraltar, the Danish straits, Bab-el-Mandeb and Hormuz are open; the Black Sea
+  with Marmara and Azov is cut off at the Bosporus (205), the Caspian is its own (161), and each lake too. The owner
+  took the bodies as the lattice draws them, with no hand fix (2026-11-09).
+
+`npm run map:audit` fails on a country with ground and no capital, a capital off its own ground, and waters that
+differ from a fresh flood-fill. The backend refuses to boot on a capital off its ground or a file of another map's
+size.
+
 ## Regenerating renumbers every tile
 
 A tile id is an index into the coordinates blob, so a regeneration moves every id after the first
@@ -132,7 +160,7 @@ first run. A second run over its own output would write an identity migration.
 **The rest of the checklist**, which the generator prints:
 
 ```bash
-cd apps/backend && make map          # copy both blobs, then commit every copy
+cd apps/backend && make map          # copy the four files, then commit every copy
 cd apps/backoffice && npm run map    # copy the coordinates blob
 cd apps/frontend && npm run borderLines   # traced from both blobs, stale until it is run
 cd apps/frontend && npm run landmask      # which lattice points are tiles, what the browser downloads

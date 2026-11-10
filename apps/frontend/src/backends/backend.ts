@@ -23,6 +23,8 @@ export type Ownerships = {
     version: MapVersion
     bindings: Map<number, string>
     shields: Map<number, number>
+    // The map read is an arena's: a battle's blank map, started from each country's capital.
+    arena: boolean
 }
 
 // A read lists every row; a change lists the rows that changed, a flag that left the map at 0.
@@ -257,6 +259,14 @@ export class FrozenError extends Error {
     constructor(options?: {cause?: unknown}) {
         super("the map is frozen", options)
         this.name = "FrozenError"
+    }
+}
+
+// In an arena, a tile next to none of the flag's land and across none of its waters.
+export class OutOfReachError extends Error {
+    constructor(options?: {cause?: unknown}) {
+        super("the tile is out of the flag's reach", options)
+        this.name = "OutOfReachError"
     }
 }
 

@@ -58,6 +58,21 @@ export function writeBordersAsset(fileName: string): void {
     writeFileSync(join(viewerDir, "bordersAsset.ts"), assetModule("BORDERS_URL", fileName))
 }
 
+export function writeSharedJSON(kind: "capitals" | "waters", value: unknown): {fileName: string, byteLength: number} {
+    const bytes = Buffer.from(`${JSON.stringify(value)}\n`)
+    const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 8)
+    const fileName = `${kind}-${hash}.json`
+    const pattern = new RegExp(`^${kind}-[0-9a-f]{8}\\.json$`)
+
+    for (const directory of [mapDir, staticDir]) {
+        sweep(directory, pattern, fileName)
+        writeFileSync(join(directory, fileName), bytes)
+    }
+    writeFileSync(join(viewerDir, `${kind}Asset.ts`), assetModule(`${kind.toUpperCase()}_URL`, fileName))
+
+    return {fileName, byteLength: bytes.byteLength}
+}
+
 function sharedBlobName(pattern: RegExp): string {
     const names = readdirSync(mapDir).filter((entry) => pattern.test(entry))
     if (names.length !== 1) {

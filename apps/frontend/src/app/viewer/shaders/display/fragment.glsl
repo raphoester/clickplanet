@@ -34,6 +34,14 @@ const float HIGHLIGHT_FLOOR = 0.35;
 const vec3 MISSION = vec3(0.784, 0.341, 0.298);
 const float MISSION_RING_PX = 2.5;
 
+// A capital still standing, in an arena: a crown on the top of the tile, over its flag and its shield.
+const vec2 CROWN_AT = vec2(0.0, -0.34);
+const float CROWN_SIZE = 0.4;
+
+bool marked(float bit) {
+    return mod(floor(vPulse / bit), 2.0) > 0.5;
+}
+
 #include ../flagFrame.glsl;
 
 vec2 atlasUVof(vec4 region, vec2 uv) {
@@ -73,6 +81,14 @@ vec4 shielded(vec4 colour, vec2 coordinates) {
     return vec4(mix(colour.rgb, mark.rgb, cover), mix(colour.a, 1.0, cover));
 }
 
+vec4 crowned(vec4 colour, vec2 coordinates, float shown) {
+    vec2 at = (coordinates - CROWN_AT) / CROWN_SIZE;
+    if (max(abs(at.x), abs(at.y)) > 0.5) return colour;
+    vec4 mark = shieldMark(shieldMost + 1.0, at);
+    float cover = mark.a * shown;
+    return vec4(mix(colour.rgb, mark.rgb, cover), mix(colour.a, 1.0, cover));
+}
+
 void main() {
     vec2 coordinates = gl_PointCoord - vec2(0.5);
     // A disc a few pixels wide is drawn square: round, the discs left holes between them on the painted flag.
@@ -107,7 +123,10 @@ void main() {
     vec3 ember = mix(vec3(0.07, 0.02, 0.01), vec3(1.0, 0.32, 0.04), vScorch * vScorch);
     colour = mix(colour, vec4(ember, 0.95), vScorch * 0.9);
 
-    float aimed = vPulse > 3.5 ? (1.0 - flagPaint) * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
+    float capital = marked(8.0) ? (1.0 - flagPaint) * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
+    if (capital > 0.0) colour = crowned(colour, coordinates, capital);
+
+    float aimed = marked(4.0) ? (1.0 - flagPaint) * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
     if (aimed > 0.0) {
         float pixel = 1.0 / vSpriteSize;
         float inner = 0.5 - pixel - max(MISSION_RING_PX * pixelRatio * pixel, 0.06);

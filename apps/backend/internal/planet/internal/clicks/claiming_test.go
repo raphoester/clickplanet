@@ -18,7 +18,7 @@ func tenAShield() int { return 10 }
 
 func claimable(t *testing.T, owners map[uint32]string) *inmemory_tile_storage.Storage {
 	t.Helper()
-	tiles := inmemory_tile_storage.New(clicks.BordersOf(100, []uint32{20, 21, 22}), inmemory_tile_storage.Config{},
+	tiles := inmemory_tile_storage.New(clicks.BordersOf(100, []uint32{20, 21, 22}), clicks.NoCapitals(), inmemory_tile_storage.Config{},
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 	for tile, owner := range owners {
 		require.NoError(t, tiles.Set(t.Context(), tile, owner))

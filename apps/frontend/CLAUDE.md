@@ -54,6 +54,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   announcements, delivery, and what was missed.
 - [The front, for a first visit](docs/front-guide.md) — a browser's first visit opens on its own country, flies to
   its flag's nearest fight once the tiles are read, and rings the tiles it can take, until it has taken 50.
+- [The arena](docs/arena.md) — a battle on a blank map: the tiles the flag can take (next to its land, or across a
+  water where it holds a coast) ringed, each capital still standing marked, a click elsewhere stopped with "Take a
+  tile next to your land", no shield on a capital; where the page learns that an arena plays.
 - [Ghosts, for a quiet first visit](docs/ghosts.md) — while fewer than 7 play, a guided page sees fake raids near it,
   painted on that page only, kept in its storage, read by the board and the front, and taken back with no click.
 - [Who is playing](docs/who-is-playing.md) — the "Online · N" list beside the chat.

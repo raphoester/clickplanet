@@ -17,7 +17,7 @@ the players who left in their first two minutes left after fewer than 30 clicks.
   (`flownZoomsOf`'s `most`). Not if the player took the globe first (`Pilot.cancel`), and not when the flag holds no
   tile: it stays on its country, and its first tile there makes a front.
 - **The front is lit** (`domain/front.ts`, `Front`): every tile the flag does not hold, enemy or free, that touches one
-  it holds. A white ring beats on each, as the gold one does on a tile a flag misses to fortify (see
+  it holds. In an arena, every page lights it, and the coasts of the flag's waters too (see [The arena](arena.md)). A white ring beats on each, as the gold one does on a tile a flag misses to fortify (see
   [Fortify](fortify.md)). It follows every change of owner (`touch`, in `applyChanges`), a ghost's tiles included, and
   the flag played (`follow`, in `setCountry`). It stays lit for the whole page, even once the count is reached.
 - **The map fights back** while fewer than 7 play: fake raids on the front, painted on this page only. See
@@ -27,8 +27,9 @@ the players who left in their first two minutes left after fewer than 30 clicks.
   grid cell of twice that, and a tile's neighbours are in the two cells around it on each axis.
   `neighbours.test.ts` checks it on the shipped map: no tile has more than six.
 - **The ring shares the fortify pulse's slot**: bit 1 is the gold ring, bit 2 the white one, bit 4 a mission's still
-  red ring (`TileField.setPulses`, `setFront`, `setMissionMarks`, see [Missions](missions.md)); the shaders read them
-  back with `mod` and a threshold, gold first, and only bits 1 and 2 beat. The ring beats at
+  red ring, bit 8 a capital's crown (`TileField.setPulses`, `setFront`, `setMissionMarks`,
+  `setCapitalMarks`, see [Missions](missions.md) and [The arena](arena.md)); the shaders read each bit back with
+  `floor` and `mod`, and only bits 1 and 2 beat. The ring beats at
   `AMBIENT_FRAME_MS` while a lit tile faces the camera (`pulsing`).
 - **Trying it in fake mode**: every tile starts French there, so a guided Bulgaria holds nothing. Clear the page's
   storage, reload, and `fakeBackend.takeLandmass(39, "bg", 120)` in the console lights the front around most of

@@ -12,11 +12,12 @@ const tilesOf = () => new MapTiles(6, 4, new MapClock())
 
 const changes = (): TileChanges => ({owners: [], shields: []})
 
-const batch = (start: number, end: number, version: MapVersion, owners: Record<number, string>, shields: Record<number, number> = {}): Ownerships => ({
+const batch = (start: number, end: number, version: MapVersion, owners: Record<number, string>, shields: Record<number, number> = {}, arena = false): Ownerships => ({
     range: {start, end},
     version,
     bindings: new Map(Object.entries(owners).map(([tile, owner]) => [Number(tile), owner])),
     shields: new Map(Object.entries(shields).map(([tile, count]) => [Number(tile), count])),
+    arena,
 })
 
 const update = (tile: number, newCountry: string | undefined, version: MapVersion, shields = 0): Update =>
@@ -191,6 +192,21 @@ describe("a server that started again", () => {
 
         expect(read(tiles, batch(1, 4, at(900), {1: "fr"}))).toEqual({current: false, owners: [], shields: []})
         expect(live(tiles, update(2, "fr", at(901))).owners).toEqual([])
+    })
+
+    it("says the map is an arena's from the reads of the start that plays it, and not from an older start's", () => {
+        const tiles = tilesOf()
+        tiles.opened(at(500))
+        read(tiles, batch(1, 4, at(500), {}))
+        expect(tiles.arena).toBe(false)
+
+        tiles.opened(at(0, START + 60))
+        read(tiles, batch(5, 6, at(500), {}, {}, false))
+        read(tiles, batch(1, 4, at(0, START + 60), {}, {}, true))
+        expect(tiles.arena).toBe(true)
+
+        read(tiles, batch(5, 6, at(500), {}, {}, false))
+        expect(tiles.arena).toBe(true)
     })
 })
 

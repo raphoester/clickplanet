@@ -35,6 +35,7 @@ import {
     UpdatesListener,
     VPNBlockedError,
     FrozenError,
+    OutOfReachError,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
@@ -52,6 +53,7 @@ import {
     LandmassHoldings,
     MapVersion as MapVersionMessage,
     PlanetEvent,
+    ReachRefusal,
     SharedWith,
 } from "../gen/grpc/planet/v1/planet_pb.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
@@ -1071,6 +1073,7 @@ export function asClickError(e: unknown): unknown {
 
     if (e instanceof ConnectError) {
         if (e.code === Code.FailedPrecondition && e.findDetails(FrozenRefusal).length > 0) return new FrozenError({cause: e})
+        if (e.code === Code.FailedPrecondition && e.findDetails(ReachRefusal).length > 0) return new OutOfReachError({cause: e})
         if (e.code === Code.ResourceExhausted) return new RateLimitedError({cause: e})
         if (e.code === Code.PermissionDenied) return bannedOf(e) ?? new VPNBlockedError({cause: e})
         if (e.code === Code.Unauthenticated) return new SessionUnavailableError({cause: e})
@@ -1086,7 +1089,7 @@ export function versionOf(version: MapVersionMessage | undefined): MapVersion {
 }
 
 export function ownershipsOf(res: GetMapResponse, range: TileRange): Ownerships {
-    return {range, version: versionOf(res.version), bindings: bindingsOf(res), shields: shieldsOf(res)}
+    return {range, version: versionOf(res.version), bindings: bindingsOf(res), shields: shieldsOf(res), arena: res.arena}
 }
 
 export function countsOf(message: GetHoldingsResponse | HoldingsChanged): Counts {

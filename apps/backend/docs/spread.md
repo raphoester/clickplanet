@@ -38,3 +38,7 @@ sends it to every caller.
 
 A spread is one event per click, which is why a caller's bonus feed buffers 32
 events rather than a handful.
+
+**In an arena, a spread takes only the neighbours in the flag's reach** (`arenas.Reach.Around`, read after the clicked
+tile is written): a click that took its tile reaches every neighbour, and one a shield took reaches only those that
+touch other land of the flag or lie across one of its waters. See [Arena battles](arenas.md#capitals-and-reach).

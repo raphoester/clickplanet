@@ -118,9 +118,12 @@ type ArenaRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	On    *bool                  `protobuf:"varint,1,opt,name=on,proto3,oneof" json:"on,omitempty"`
 	// Every play is refused this long after the map goes blank and before the battle ends. 0 to 30 s.
-	Freeze        *durationpb.Duration `protobuf:"bytes,2,opt,name=freeze,proto3" json:"freeze,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Freeze *durationpb.Duration `protobuf:"bytes,2,opt,name=freeze,proto3" json:"freeze,omitempty"`
+	// The shields each country's capital starts the arena with, past bonuses.shield.per_tile. No shield is added to a
+	// capital while the arena plays. 0 to 255.
+	CapitalShields *uint32 `protobuf:"varint,3,opt,name=capital_shields,json=capitalShields,proto3,oneof" json:"capital_shields,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ArenaRules) Reset() {
@@ -165,6 +168,13 @@ func (x *ArenaRules) GetFreeze() *durationpb.Duration {
 		return x.Freeze
 	}
 	return nil
+}
+
+func (x *ArenaRules) GetCapitalShields() uint32 {
+	if x != nil && x.CapitalShields != nil {
+		return *x.CapitalShields
+	}
+	return 0
 }
 
 type ClickRules struct {
@@ -1005,12 +1015,14 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x11allegiance_locked\x18\x05 \x01(\bH\x01R\x10allegianceLocked\x88\x01\x01\x12+\n" +
 	"\x05arena\x18\x06 \x01(\v2\x15.planet.v1.ArenaRulesR\x05arenaB\t\n" +
 	"\a_frozenB\x14\n" +
-	"\x12_allegiance_locked\"[\n" +
+	"\x12_allegiance_locked\"\x9d\x01\n" +
 	"\n" +
 	"ArenaRules\x12\x13\n" +
 	"\x02on\x18\x01 \x01(\bH\x00R\x02on\x88\x01\x01\x121\n" +
-	"\x06freeze\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06freezeB\x05\n" +
-	"\x03_on\"\xbd\x04\n" +
+	"\x06freeze\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06freeze\x12,\n" +
+	"\x0fcapital_shields\x18\x03 \x01(\rH\x01R\x0ecapitalShields\x88\x01\x01B\x05\n" +
+	"\x03_onB\x12\n" +
+	"\x10_capital_shields\"\xbd\x04\n" +
 	"\n" +
 	"ClickRules\x12\x19\n" +
 	"\x05tempo\x18\x01 \x01(\x01H\x00R\x05tempo\x88\x01\x01\x12\"\n" +

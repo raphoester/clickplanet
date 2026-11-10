@@ -77,8 +77,9 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   [Allegiance](allegiance.md)
 - `arena.on` — a battle that plays the set is an arena battle, played on a blank map; the gamemaster reads it, planet plays no
   rule of it (off; **refused in `default`**, or every battle would be one: `PartOf.InDefault`). `arena.freeze` — how
-  long an arena takes no play after the map goes blank and before the battle ends, 0 to 30 s (8 s). See
-  [Arena battles](arenas.md)
+  long an arena takes no play after the map goes blank and before the battle ends, 0 to 30 s (8 s).
+  `arena.capitalShields` — the shields each capital starts an arena with, past `bonuses.shield.perTile`, 0 to 255
+  (100). See [Arena battles](arenas.md)
 
 ## A frozen map
 

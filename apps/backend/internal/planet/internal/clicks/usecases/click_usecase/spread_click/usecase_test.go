@@ -37,7 +37,7 @@ func played(t *testing.T) context.Context {
 
 type stubNeighbours map[uint32][]uint32
 
-func (s stubNeighbours) Neighbours(id uint32) []uint32 { return s[id] }
+func (s stubNeighbours) Around(_ string, tile uint32) []uint32 { return s[tile] }
 
 type recordingStorage struct {
 	tiles map[uint32]string
@@ -229,4 +229,24 @@ func TestASpreadTheStoreCannotSpendFailsWithTheTileTakenAndNoNeighbour(t *testin
 	require.ErrorIs(t, err, down)
 	assert.Equal(t, map[uint32]string{100: "fr"}, storage.tiles)
 	assert.Empty(t, publisher.spreads)
+}
+
+// In an arena, the reach leaves out the neighbours the flag cannot take.
+type armReach map[string][]uint32
+
+func (a armReach) Around(flag string, _ uint32) []uint32 { return a[flag] }
+
+func TestASpreadTakesOnlyTheNeighboursInTheFlagsReach(t *testing.T) {
+	storage := &recordingStorage{tiles: map[uint32]string{}}
+	spreads := bonuses.NewMemoryStore()
+	spreads.Keep(caller, bonuses.Held{SpreadClicks: 1})
+	publisher := &recordingPublisher{}
+	useCase := spread_click.New(stubClick{storage: storage}, charges(spreads), armReach{"fr": {90, 91}}, storage, publisher)
+
+	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+
+	require.NoError(t, err)
+	assert.Equal(t, map[uint32]string{100: "fr", 90: "fr", 91: "fr"}, storage.tiles)
+	require.Len(t, publisher.spreads, 1)
+	assert.Equal(t, []uint32{90, 91}, publisher.spreads[0].Neighbours)
 }

@@ -36,6 +36,8 @@ const MAX_PIPS = 12
 
 const LOW_WATER = 3
 
+const OUT_OF_REACH = "Take a tile next to your land"
+
 const COUNTDOWN_FROM_S = 1.5
 
 const STEP_MS = 250
@@ -52,6 +54,7 @@ export default function ClickBudgetMeter({
     const budget = useClickBudget((store) => store.budget)
     const refusals = useRefusedClicks((refused) => refused.refusals)
     const lockedOut = useRefusedClicks((refused) => refused.lockedOut)
+    const outOfReach = useRefusedClicks((refused) => refused.outOfReach)
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
     const wait = useRef<HTMLSpanElement>(null)
@@ -226,6 +229,8 @@ export default function ClickBudgetMeter({
         {children}
 
         {lockedOut && <Bubble key={lockedOut.id} anchor={root}>{heldLine(lockedOut.allegiance, Date.now())}</Bubble>}
+
+        {outOfReach && !lockedOut && <Bubble key={`reach-${outOfReach.id}`} anchor={root}>{OUT_OF_REACH}</Bubble>}
 
         {open && !compact && popover && <Popover onClose={toggleOpen}>{popover}</Popover>}
     </div>

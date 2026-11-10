@@ -2,6 +2,7 @@ package postgres_tile_store_test
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 
@@ -61,4 +62,35 @@ func (s *testSuite) TestAForgottenHolderHoldsNoTileOfAnyMap() {
 			s.Equal("fr", tile.Owner)
 		}))
 	}
+}
+
+func (s *testSuite) TestAnOpenWritesTheStartInKeepsTransaction() {
+	ctx := context.Background()
+	start := []inmemory_tile_storage.Tile{{ID: 4, Owner: "fr", Shields: 100}, {ID: 9, Owner: "de", Shields: 100}}
+
+	opened, err := s.store.Open(ctx, battle, start, func(context.Context) (bool, error) { return true, nil })
+
+	s.Require().NoError(err)
+	s.True(opened)
+	s.Equal(map[uint32]string{4: "fr", 9: "de"}, s.loadOn(battle))
+	s.Require().NoError(s.store.Load(ctx, battle, func(tile inmemory_tile_storage.Tile) {
+		s.Equal(100, tile.Shields, "tile %d", tile.ID)
+		s.Equal(cpsession.NoAccount, tile.Holder, "no player's take")
+	}))
+	s.Empty(s.loadOn(clicks.World))
+}
+
+func (s *testSuite) TestAnOpenKeepRefusesWritesNoStart() {
+	ctx := context.Background()
+	start := []inmemory_tile_storage.Tile{{ID: 4, Owner: "fr", Shields: 100}}
+
+	opened, err := s.store.Open(ctx, battle, start, func(context.Context) (bool, error) { return false, nil })
+	s.Require().NoError(err)
+	s.False(opened)
+
+	down := errors.New("the arena could not be kept")
+	_, err = s.store.Open(ctx, battle, start, func(context.Context) (bool, error) { return false, down })
+	s.Require().ErrorIs(err, down)
+
+	s.Empty(s.loadOn(battle))
 }

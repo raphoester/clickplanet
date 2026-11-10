@@ -63,7 +63,7 @@ backend's [Arena battles](../../backend/docs/arenas.md)): Clicks (the
 tempo with them), Boxes, What a box is (the kinds'
 weights), Charges (with "Enclosures unlimited: enclose spends no charge", the set's `bonuses.enclose.unlimited`: see
 the backend's [Unlimited enclosures](../../backend/docs/enclose.md#unlimited-enclosures-bonusesencloseunlimited)), Arena (`arena.freeze`, how long an arena takes no play after the
-map goes blank and before the battle ends), New
+map goes blank and before the battle ends, and `arena.capitalShields`, the shields each capital starts with), New
 accounts (with "Refill at first sign-in", the set's `bonuses.signInRefill`: see the backend's
 [A guest's first sign-in](../../backend/docs/sign-in-refill.md)), Quizzes (with their on switch), and the Toll, whose steps are rows to add and remove.
 `GROUPS` names each value by its path in the set's rules (`Rules.toJson`), so the form needs no code per value: a

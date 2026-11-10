@@ -125,6 +125,8 @@ enum ClickOutcome {
   // An unknown flag, a tile off the map, or two bonuses together.
   CLICK_OUTCOME_INVALID = 7;
   CLICK_OUTCOME_FAILED = 8;
+  // In an arena, a tile next to none of the flag's land and across none of its waters.
+  CLICK_OUTCOME_OUT_OF_REACH = 9;
 }
 
 message MapRead {

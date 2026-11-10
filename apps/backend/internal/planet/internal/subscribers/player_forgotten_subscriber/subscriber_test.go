@@ -67,6 +67,6 @@ func TestAnEventWithNoAccountIsRefused(t *testing.T) {
 }
 
 func tiles() *inmemory_tile_storage.Storage {
-	return inmemory_tile_storage.New(clicks.BordersOf(10), inmemory_tile_storage.Config{},
+	return inmemory_tile_storage.New(clicks.BordersOf(10), clicks.NoCapitals(), inmemory_tile_storage.Config{},
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 }
