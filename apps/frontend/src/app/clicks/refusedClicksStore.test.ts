@@ -8,7 +8,7 @@ describe("useRefusedClicks", () => {
     })
     afterEach(() => vi.useRealTimers())
 
-    it("shakes the meter on a tap out of an arena's reach, which is no dry tap", () => {
+    it("shakes the meter on a tap out of the flag's reach, which is no dry tap", () => {
         useRefusedClicks.getState().refuseOutOfReach()
 
         expect(useRefusedClicks.getState()).toMatchObject({refusals: 1, dryTaps: 0})

@@ -14,7 +14,6 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
@@ -143,7 +142,7 @@ func TestAClickRefusedForItsFlagSaysWhichFlagAndUntilWhen(t *testing.T) {
 }
 
 func TestAClickOutOfItsFlagsReachInAnArenaSaysSo(t *testing.T) {
-	useCase := &stubUseCase{err: fmt.Errorf("%w: tile 7 for fr", arenas.ErrOutOfReach)}
+	useCase := &stubUseCase{err: fmt.Errorf("%w: tile 7 for fr", clicks.ErrOutOfReach)}
 
 	_, err := clickOn(t, useCase, &planetv1.ClickRequest{TileId: 7, CountryId: "fr"})
 

@@ -17,6 +17,10 @@ type toll []clicks.TollStep
 
 func (t toll) Steps() []clicks.TollStep { return t }
 
+func noReach() clicks.Reaching { return false }
+
+func noCapitalRule() clicks.CapitalRules { return clicks.CapitalRules{} }
+
 func answered(t *testing.T, handler get_bonus_rules_handler.GetBonusRulesHandler) *planetv1.GetBonusRulesResponse {
 	t.Helper()
 
@@ -28,7 +32,7 @@ func answered(t *testing.T, handler get_bonus_rules_handler.GetBonusRulesHandler
 func TestTheRulesAreThoseInForce(t *testing.T) {
 	rules := bonuses.TestRules()
 	inForce := func() bonuses.Rules { return rules }
-	handler := get_bonus_rules_handler.New(inForce, bonuses.NewBombing(inForce, 0.004), toll{})
+	handler := get_bonus_rules_handler.New(inForce, bonuses.NewBombing(inForce, 0.004), toll{}, noReach, noCapitalRule)
 
 	rules.Bomb.Rings = 5
 	rules.Enclose = bonuses.EncloseRules{MaxTiles: 40, Held: 4, MaxPerBox: 2, Unlimited: true}
@@ -51,12 +55,28 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 
 func TestTheClientIsToldEveryTollStepInOrder(t *testing.T) {
 	steps := toll{{Share: 0.1, Slowdown: 1.5}, {Share: 0.2, Slowdown: 2.5}, {Share: 0.3, Slowdown: 4}}
-	got := answered(t, get_bonus_rules_handler.New(bonuses.TestRules, bonuses.NewBombing(bonuses.TestRules, 0.004), steps)).
-		GetTollSteps()
+	got := answered(t, get_bonus_rules_handler.New(bonuses.TestRules, bonuses.NewBombing(bonuses.TestRules, 0.004), steps,
+		noReach, noCapitalRule)).GetTollSteps()
 
 	require.Len(t, got, 3)
 	for i, step := range steps {
 		assert.InDelta(t, step.Share, got[i].GetShare(), 1e-9)
 		assert.InDelta(t, step.Slowdown, got[i].GetSlowdown(), 1e-9)
 	}
+}
+
+func TestThePageIsToldTheReachAndTheCapitalRulesInForce(t *testing.T) {
+	reach := clicks.Reaching(false)
+	capitals := clicks.CapitalRules{}
+	handler := get_bonus_rules_handler.New(bonuses.TestRules, bonuses.NewBombing(bonuses.TestRules, 0.004), toll{},
+		func() clicks.Reaching { return reach }, func() clicks.CapitalRules { return capitals })
+
+	off := answered(t, handler)
+	reach, capitals = true, clicks.CapitalRules{KnockOut: true, FixedShields: true}
+	on := answered(t, handler)
+
+	assert.False(t, off.GetReach() || off.GetKnockOut() || off.GetCapitalShieldsFixed())
+	assert.True(t, on.GetReach())
+	assert.True(t, on.GetKnockOut())
+	assert.True(t, on.GetCapitalShieldsFixed())
 }

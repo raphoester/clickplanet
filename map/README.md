@@ -102,7 +102,7 @@ or a tile in no country is not a map that drifted, it is a generator that broke.
 ## Capitals and waters
 
 Both are written by `npm run map:generate` from the same answer as the tiles, and read only in an arena battle (see
-the backend's [Arena battles](../apps/backend/docs/arenas.md#capitals-and-reach)). Tiles are named by their wire id
+the backend's [Arena battles](../apps/backend/docs/arenas.md#seeds) and [The reach](../apps/backend/docs/reach.md)). Tiles are named by their wire id
 (index + 1).
 
 - **`capitals-<hash>.json`** — `{"tiles": N, "capitals": {"fr": <tile>, …}}`, one for each country with ground, 239.

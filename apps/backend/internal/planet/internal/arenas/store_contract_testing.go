@@ -26,7 +26,7 @@ var (
 )
 
 func (s *StoreContractSuite) opening(id ID) Opening {
-	return Opening{ID: id, EndsAt: contractEndsAt, OpenedAt: contractOpenedAt}
+	return Opening{ID: id, EndsAt: contractEndsAt, OpenedAt: contractOpenedAt, Freeze: 8500 * time.Millisecond}
 }
 
 func (s *StoreContractSuite) find(id ID) Arena {
@@ -39,6 +39,7 @@ func (s *StoreContractSuite) sameOpening(want, got Opening) {
 	s.Equal(want.ID, got.ID)
 	s.True(want.EndsAt.Equal(got.EndsAt), "ends at: want %s, got %s", want.EndsAt, got.EndsAt)
 	s.True(want.OpenedAt.Equal(got.OpenedAt), "opened at: want %s, got %s", want.OpenedAt, got.OpenedAt)
+	s.Equal(want.Freeze, got.Freeze)
 }
 
 func (s *StoreContractSuite) TestAnArenaNeverKeptNeverOpened() {

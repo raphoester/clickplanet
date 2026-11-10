@@ -274,21 +274,7 @@ describe("PlanetBackend.getOwnerships", () => {
         backend.close()
     })
 
-    it("says whether the map read is an arena's", async () => {
-        const getMap = getMapMock(async () => new GetMapResponse({
-            startTileId: 1, codes: ["", "fr"], tiles: tileBytes([1, 0]), arena: true,
-            version: new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(9)}),
-        }))
-        const backend = backendWith(getMap)
-
-        const seen: boolean[] = []
-        await backend.getOwnerships([{start: 1, end: 2}], ({arena}) => seen.push(arena))
-
-        expect(seen).toEqual([true])
-        backend.close()
-    })
-
-    it("says which flags the arena knocked out", async () => {
+    it("says which flags are knocked out", async () => {
         const getMap = getMapMock(async () => new GetMapResponse({
             startTileId: 1, codes: ["", "fr"], tiles: tileBytes([1, 0]), arena: true, knockedOut: ["de", "it"],
             version: new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(9)}),
@@ -538,7 +524,7 @@ describe("PlanetBackend.clickTile", () => {
         backend.close()
     })
 
-    it("reports a click out of the flag's reach in an arena as an OutOfReachError, sent once", async () => {
+    it("reports a click out of the flag's reach as an OutOfReachError, sent once", async () => {
         const refused = new ConnectError("out of reach", Code.FailedPrecondition, undefined, [new ReachRefusal()])
         const click = vi.fn().mockRejectedValue(refused)
         const backend = backendWith(click)
@@ -1703,10 +1689,11 @@ describe("the rules", () => {
         ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(),
             listenForEvents: noEvents(), ...fields}) as never
 
-    it("reads the toll, the sizes of the charges, the sign-in refill and unlimited enclosures", async () => {
+    it("reads the toll, the sizes of the charges, the sign-in refill, unlimited enclosures, the reach and the capitals' rules", async () => {
         const getBonusRules = vi.fn().mockResolvedValue(new GetBonusRulesResponse({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, enclosuresUnlimited: true,
+            reach: true, knockOut: true, capitalShieldsFixed: false,
         }))
         const backend = new PlanetBackend(clientWith({getBonusRules}), 1_000)
 
@@ -1719,6 +1706,7 @@ describe("the rules", () => {
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, enclosuresUnlimited: true,
+            reach: true, knockOut: true, capitalShieldsFixed: false,
         }))
         backend.close()
     })

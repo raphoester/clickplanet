@@ -41,21 +41,3 @@ func TestAFreezePast30SecondsIsRefused(t *testing.T) {
 	require.ErrorIs(t, err, rules.ErrInvalidSet)
 	assert.ErrorContains(t, err, "arena.freeze is 31s, outside 0s to 30s")
 }
-
-func TestACapitalStartsWithDefaultsShields(t *testing.T) {
-	arena := rules.Snapshot{Name: "battle", Rules: &planetv1.Rules{Arena: &planetv1.ArenaRules{On: new(true)}}}
-
-	set, err := arena.Restore(parts.All(), rules.Seeded())
-
-	require.NoError(t, err)
-	assert.Equal(t, uint32(100), set.TakePlayedSnapshot().Rules.GetArena().GetCapitalShields())
-}
-
-func TestMoreCapitalShieldsThanATileKeepsAreRefused(t *testing.T) {
-	many := rules.Snapshot{Name: "battle", Rules: &planetv1.Rules{Arena: &planetv1.ArenaRules{CapitalShields: new(uint32(256))}}}
-
-	_, err := many.Restore(parts.All(), rules.Seeded())
-
-	require.ErrorIs(t, err, rules.ErrInvalidSet)
-	assert.ErrorContains(t, err, "arena.capitalShields is 256, over what a tile keeps (255)")
-}

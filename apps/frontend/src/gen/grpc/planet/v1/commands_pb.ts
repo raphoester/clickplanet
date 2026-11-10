@@ -334,9 +334,10 @@ export class ArenaCommand extends Message<ArenaCommand> {
 }
 
 /**
- * Plays the arena's map, blank, while the world's map stays as it is: a new epoch, so every client reads the map again.
- * An arena opens once, never after it closed, and never at or after ends_at; planet tells ArenaOpened when it opens. Every
- * play is refused for the rule set's arena.freeze after it opens and before ends_at.
+ * Plays the arena's map, fresh, while the world's map stays as it is: a new epoch, so every client reads the map again.
+ * The map starts as rule_set's seed says. An arena opens once, never after it closed, and never at or after ends_at;
+ * planet tells ArenaOpened when it opens. Every play is refused for rule_set's arena.freeze after it opens and before
+ * ends_at.
  *
  * @generated from message planet.v1.OpenArena
  */
@@ -351,6 +352,11 @@ export class OpenArena extends Message<OpenArena> {
    */
   endsAt?: Timestamp;
 
+  /**
+   * @generated from field: string rule_set = 3;
+   */
+  ruleSet = "";
+
   constructor(data?: PartialMessage<OpenArena>) {
     super();
     proto3.util.initPartial(data, this);
@@ -361,6 +367,7 @@ export class OpenArena extends Message<OpenArena> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "arena_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 3, name: "rule_set", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenArena {

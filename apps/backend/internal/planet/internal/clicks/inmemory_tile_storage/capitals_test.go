@@ -16,8 +16,16 @@ func capitalsWith(shields int) []clicks.StartTile {
 	return []clicks.StartTile{{Tile: island[0], Country: "fr", Shields: shields}, {Tile: 20, Country: "de", Shields: shields}}
 }
 
+// withCapitals plays every capital rule.
 func (s *testSuite) withCapitals(persistence *inmemory_tile_storage.MemoryPersistence) *inmemory_tile_storage.Storage {
-	storage := inmemory_tile_storage.New(borders, capitals, inmemory_tile_storage.Config{}, persistence,
+	return s.withCapitalRules(persistence, clicks.CapitalRules{KnockOut: true, FixedShields: true})
+}
+
+func (s *testSuite) withCapitalRules(
+	persistence *inmemory_tile_storage.MemoryPersistence, played clicks.CapitalRules,
+) *inmemory_tile_storage.Storage {
+	play := clicks.NewCapitalPlay(capitals, func() clicks.CapitalRules { return played })
+	storage := inmemory_tile_storage.New(borders, play, inmemory_tile_storage.Config{}, persistence,
 		cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{},
 		slog.New(slog.DiscardHandler))
 	s.Require().NoError(storage.Load(context.Background(), clicks.World))
@@ -56,7 +64,7 @@ func (s *testSuite) TestABlankThatCannotBeKeptStartsNoCapital() {
 	s.Empty(owner)
 }
 
-func (s *testSuite) TestACapitalTakesNoShieldWhileAnArenaPlays() {
+func (s *testSuite) TestACapitalTakesNoShieldWhileItsShieldsAreFixed() {
 	ctx := context.Background()
 	storage := s.withCapitals(inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}))
 	_, err := storage.Blank(ctx, battle, capitalsWith(0), keeps(true))
@@ -71,16 +79,26 @@ func (s *testSuite) TestACapitalTakesNoShieldWhileAnArenaPlays() {
 	s.Require().NoError(err, "a tile that is no capital still takes one")
 }
 
-func (s *testSuite) TestACapitalTakesShieldsOnTheWorldsMap() {
+func (s *testSuite) TestACapitalsShieldsAreFixedOnTheWorldsMapToo() {
 	ctx := context.Background()
 	storage := s.withCapitals(inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{20: "de"}))
 
 	_, err := storage.Shield(ctx, 20, "de", 10, clicks.PlacementID{})
+	s.Require().ErrorIs(err, clicks.ErrCapital)
+}
+
+func (s *testSuite) TestACapitalTakesShieldsWhileItsShieldsAreNotFixed() {
+	ctx := context.Background()
+	storage := s.withCapitalRules(inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), clicks.CapitalRules{})
+	_, err := storage.Blank(ctx, battle, capitalsWith(0), keeps(true))
 	s.Require().NoError(err)
+
+	_, err = storage.Shield(ctx, 20, "de", 10, clicks.PlacementID{})
+	s.Require().NoError(err, "an arena's capital is a tile like any other")
 	s.Equal(1, storage.Shields(20))
 }
 
-func (s *testSuite) TestAFortifyLeavesAnArenasCapitalAsItStarted() {
+func (s *testSuite) TestAFortifyLeavesACapitalWhoseShieldsAreFixedAsItIs() {
 	ctx := context.Background()
 	storage := s.withCapitals(inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}))
 	_, err := storage.Blank(ctx, battle, capitalsWith(0), keeps(true))

@@ -10,7 +10,6 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
@@ -85,7 +84,7 @@ func outcomeOf(out click_usecase.Out, err error) planetv1.ClickOutcome {
 		return planetv1.ClickOutcome_CLICK_OUTCOME_THROTTLED
 	case errors.As(err, &otherFlag):
 		return planetv1.ClickOutcome_CLICK_OUTCOME_OTHER_FLAG
-	case errors.Is(err, arenas.ErrOutOfReach):
+	case errors.Is(err, clicks.ErrOutOfReach):
 		return planetv1.ClickOutcome_CLICK_OUTCOME_OUT_OF_REACH
 	case errors.Is(err, clicks.ErrUnknownCountry), errors.Is(err, clicks.ErrTileOutOfRange),
 		errors.Is(err, clicks.ErrBonusesTogether):

@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/close_arena_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
@@ -43,7 +44,9 @@ func (h Handler) openArena(ctx context.Context, command *planetv1.OpenArena) err
 	if err != nil || command.GetEndsAt() == nil {
 		return nil
 	}
-	_, err = h.open.Execute(ctx, open_arena_usecase.Command{Arena: id, EndsAt: command.GetEndsAt().AsTime()})
+	_, err = h.open.Execute(ctx, open_arena_usecase.Command{
+		Arena: id, EndsAt: command.GetEndsAt().AsTime(), Set: rules.SetName(command.GetRuleSet()),
+	})
 	if errors.Is(err, arenas.ErrRefused) {
 		return nil
 	}

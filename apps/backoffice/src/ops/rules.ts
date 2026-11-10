@@ -84,8 +84,8 @@ export const GROUPS: {title: string, fields: Field[]}[] = [
         {path: "bonuses.welcome.boxAfter", label: "First box after (s)", kind: "seconds"},
     ]},
     {title: "Arena", fields: [
-        {path: "arena.freeze", label: "No play after the blank map and before the end (s)", kind: "seconds"},
-        {path: "arena.capitalShields", label: "Shields on each capital at the start", kind: "whole"},
+        {path: "arena.freeze", label: "No play after the fresh map and before the end (s)", kind: "seconds"},
+        {path: "seed.capitals.shields", label: "Capital seed: shields on each capital", kind: "whole"},
     ]},
     {title: "Quizzes", fields: [
         {path: "bonuses.quiz.minInterval", label: "Shortest quiz wait (s)", kind: "seconds"},
@@ -106,7 +106,8 @@ export type TollStep = {share: string, slowdown: string}
 // A set as the form edits it: every value as typed. Outside default, "" and undefined are default's value.
 export type Draft = {
     name: string, values: Record<string, string>, quiz?: boolean, signInRefill?: boolean, frozen?: boolean,
-    allegianceLocked?: boolean, arena?: boolean, enclosuresUnlimited?: boolean, toll?: TollStep[]
+    allegianceLocked?: boolean, arena?: boolean, enclosuresUnlimited?: boolean, toll?: TollStep[], reach?: boolean,
+    knockOut?: boolean, fixedShields?: boolean
 }
 
 export function draftOf(set: RuleSet): Draft {
@@ -122,6 +123,9 @@ export function draftOf(set: RuleSet): Draft {
         frozen: rules.frozen,
         allegianceLocked: rules.allegianceLocked,
         arena: rules.arena?.on,
+        reach: rules.reach,
+        knockOut: rules.capitals?.knockOut,
+        fixedShields: rules.capitals?.fixedShields,
         toll: rules.toll?.steps.map(step => ({
             share: String(Number((step.share * 100).toPrecision(12))), slowdown: String(step.slowdown),
         })),
@@ -169,6 +173,9 @@ export const SWITCHES = [
     {key: "frozen", label: "Frozen"},
     {key: "allegianceLocked", label: "Flags locked"},
     {key: "arena", label: "Arena"},
+    {key: "reach", label: "Reach"},
+    {key: "knockOut", label: "Knock-out"},
+    {key: "fixedShields", label: "No shield on a capital"},
     {key: "quiz", label: "Quizzes on"},
     {key: "signInRefill", label: "Refill at first sign-in"},
     {key: "enclosuresUnlimited", label: "Enclosures unlimited"},
@@ -224,7 +231,8 @@ export function yesOf(on: boolean | undefined): string {
 export function ruleSetOf(draft: Draft): RuleSet {
     const json: JsonObject = {}
     const switches = {
-        "frozen": draft.frozen, "allegianceLocked": draft.allegianceLocked, "arena.on": draft.arena,
+        "frozen": draft.frozen, "allegianceLocked": draft.allegianceLocked, "arena.on": draft.arena, "reach": draft.reach,
+        "capitals.knockOut": draft.knockOut, "capitals.fixedShields": draft.fixedShields,
         "bonuses.quiz.enabled": draft.quiz,
         "bonuses.signInRefill": draft.signInRefill, "bonuses.enclose.unlimited": draft.enclosuresUnlimited,
     }

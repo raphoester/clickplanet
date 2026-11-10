@@ -42,9 +42,9 @@ func TestEachCommandIsOneArenaCommandInPlanetsWords(t *testing.T) {
 		wire    *planetv1.ArenaCommand
 	}{
 		{
-			moments.ArenaCommand{Action: moments.OpenArena, Arena: battle, At: starts, EndsAt: ends},
+			moments.ArenaCommand{Action: moments.OpenArena, Arena: battle, At: starts, EndsAt: ends, Set: "siege"},
 			&planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_OpenArena{OpenArena: &planetv1.OpenArena{
-				ArenaId: battle, EndsAt: timestamppb.New(ends),
+				ArenaId: battle, EndsAt: timestamppb.New(ends), RuleSet: "siege",
 			}}},
 		},
 		{

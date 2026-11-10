@@ -23,9 +23,7 @@ export type Ownerships = {
     version: MapVersion
     bindings: Map<number, string>
     shields: Map<number, number>
-    // The map read is an arena's: a battle's blank map, started from each country's capital.
-    arena: boolean
-    // The flags the arena knocked out.
+    // The flags knocked out on the map read.
     knockedOut: readonly string[]
 }
 
@@ -115,7 +113,7 @@ export type Fortification = {
     version: MapVersion
 }
 
-// A flag out of the arena: another flag took its capital, and every other tile it held went blank.
+// A flag knocked out: another flag took its capital, and every other tile it held went blank.
 export type KnockOut = {
     countryId: string
     byCountryId: string
@@ -275,7 +273,7 @@ export class FrozenError extends Error {
     }
 }
 
-// In an arena, a tile next to none of the flag's land and across none of its waters.
+// While the reach plays, a tile next to none of the flag's land and across none of its waters.
 export class OutOfReachError extends Error {
     constructor(options?: {cause?: unknown}) {
         super("the tile is out of the flag's reach", options)

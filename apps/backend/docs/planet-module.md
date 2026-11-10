@@ -28,9 +28,11 @@ internal/planet/internal/
   rules/                          the rule sets, and the one the game plays
     postgres_rule_set_store/
     usecases/
-  arenas/                         the blank map an arena battle is fought on: when it opened and closed; its map is the tile map's
+  arenas/                         the shell of a fresh map an arena battle is fought on: when it opened and closed, its freeze,
+                                  and the Seed contract it starts from; its map is the tile map's
     postgres_arena_store/
     usecases/
+  seeds/                          the patterns a fresh map starts from (capitals), each an arenas.Seed
   quizzes/                        the quiz bank, and how a round's question is drawn
   resets/                         the map's resets, each applied once
     postgres_reset_store/
@@ -154,7 +156,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Gate`, `Escrow`, `Tiles` |
 | `placements/usecases/return_placements_usecase` | at boot, gives back every shield a stop left between the hand and the map | `Placements`, `Escrow` |
 | `resets/usecases/reset_map_usecase` | wipes the map once per reset (see [The map reset](map-reset.md)) | `Tiles`, `resets.Store` |
-| `arenas/usecases/open_arena_usecase` | saves the world's map, plays the arena's blank one and tells `ArenaOpened`, once per arena (see [Arena battles](arenas.md)) | `Tiles`, `Starts`, `Arenas`, `Outbox`, `InPlay` |
+| `arenas/usecases/open_arena_usecase` | reads the battle's set, saves the world's map, plays the arena's seeded one and tells `ArenaOpened`, once per arena (see [Arena battles](arenas.md)) | `Tiles`, `Setups`, `Arenas`, `Outbox`, `InPlay` |
 | `arenas/usecases/close_arena_usecase` | deletes the arena's map, plays the world's again and tells `ArenaClosed`, once per arena | `Tiles`, `Arenas`, `Outbox`, `InPlay` |
 | `rules/usecases/play_rules_usecase` | plays the set postgres keeps, at boot and when it changes; `Plays` | `Sets`, `Choices`, `Rules` |
 | `rules/usecases/save_rule_set_usecase` | the operator makes a set or replaces its values; never the one that plays | `Sets`, `Playing` |

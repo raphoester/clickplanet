@@ -2641,6 +2641,12 @@ type GetBonusRulesResponse struct {
 	SignInRefill bool `protobuf:"varint,9,opt,name=sign_in_refill,json=signInRefill,proto3" json:"sign_in_refill,omitempty"`
 	// Enclose needs no charge and spends none.
 	EnclosuresUnlimited bool `protobuf:"varint,10,opt,name=enclosures_unlimited,json=enclosuresUnlimited,proto3" json:"enclosures_unlimited,omitempty"`
+	// A take lands only next to the flag's land or across a water where it holds a coast.
+	Reach bool `protobuf:"varint,11,opt,name=reach,proto3" json:"reach,omitempty"`
+	// A capital taken by another flag knocks its flag out.
+	KnockOut bool `protobuf:"varint,12,opt,name=knock_out,json=knockOut,proto3" json:"knock_out,omitempty"`
+	// No shield goes on a capital.
+	CapitalShieldsFixed bool `protobuf:"varint,13,opt,name=capital_shields_fixed,json=capitalShieldsFixed,proto3" json:"capital_shields_fixed,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -2734,6 +2740,27 @@ func (x *GetBonusRulesResponse) GetSignInRefill() bool {
 func (x *GetBonusRulesResponse) GetEnclosuresUnlimited() bool {
 	if x != nil {
 		return x.EnclosuresUnlimited
+	}
+	return false
+}
+
+func (x *GetBonusRulesResponse) GetReach() bool {
+	if x != nil {
+		return x.Reach
+	}
+	return false
+}
+
+func (x *GetBonusRulesResponse) GetKnockOut() bool {
+	if x != nil {
+		return x.KnockOut
+	}
+	return false
+}
+
+func (x *GetBonusRulesResponse) GetCapitalShieldsFixed() bool {
+	if x != nil {
+		return x.CapitalShieldsFixed
 	}
 	return false
 }
@@ -4232,7 +4259,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11GetChargesRequest\"F\n" +
 	"\x12GetChargesResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x16\n" +
-	"\x14GetBonusRulesRequest\"\x8a\x03\n" +
+	"\x14GetBonusRulesRequest\"\xf1\x03\n" +
 	"\x15GetBonusRulesResponse\x12!\n" +
 	"\fblast_radius\x18\x01 \x01(\x01R\vblastRadius\x12.\n" +
 	"\x13enclosure_max_tiles\x18\x02 \x01(\rR\x11enclosureMaxTiles\x12#\n" +
@@ -4246,7 +4273,10 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\ftile_shields\x18\b \x01(\rR\vtileShields\x12$\n" +
 	"\x0esign_in_refill\x18\t \x01(\bR\fsignInRefill\x121\n" +
 	"\x14enclosures_unlimited\x18\n" +
-	" \x01(\bR\x13enclosuresUnlimitedJ\x04\b\x05\x10\x06R\thome_soil\"<\n" +
+	" \x01(\bR\x13enclosuresUnlimited\x12\x14\n" +
+	"\x05reach\x18\v \x01(\bR\x05reach\x12\x1b\n" +
+	"\tknock_out\x18\f \x01(\bR\bknockOut\x122\n" +
+	"\x15capital_shields_fixed\x18\r \x01(\bR\x13capitalShieldsFixedJ\x04\b\x05\x10\x06R\thome_soil\"<\n" +
 	"\bTollStep\x12\x14\n" +
 	"\x05share\x18\x01 \x01(\x01R\x05share\x12\x1a\n" +
 	"\bslowdown\x18\x02 \x01(\x01R\bslowdown\"\xa7\x01\n" +

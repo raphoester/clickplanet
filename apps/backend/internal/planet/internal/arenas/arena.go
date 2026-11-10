@@ -32,17 +32,19 @@ func (id ID) Map() clicks.MapID {
 	return clicks.MapID(id)
 }
 
-// Opening is an arena open: the map blank since OpenedAt, for a battle that ends at EndsAt.
+// Opening is an arena open: its map played since OpenedAt, for a battle that ends at EndsAt, with no play for Freeze
+// after it opened and before it ends.
 type Opening struct {
 	ID       ID
 	EndsAt   time.Time
 	OpenedAt time.Time
+	Freeze   time.Duration
 }
 
-// Freezes is true while the arena takes no play: freeze after the map went blank, and from freeze before the battle's
-// end until the map is back.
-func (o Opening) Freezes(now time.Time, freeze time.Duration) bool {
-	return now.Before(o.OpenedAt.Add(freeze)) || !now.Before(o.EndsAt.Add(-freeze))
+// Freezes is true while the arena takes no play: its freeze after its map played, and from its freeze before the
+// battle's end until the world's map is back.
+func (o Opening) Freezes(now time.Time) bool {
+	return now.Before(o.OpenedAt.Add(o.Freeze)) || !now.Before(o.EndsAt.Add(-o.Freeze))
 }
 
 // Closing is an arena closed at a time: its map is deleted and the world's plays again, or it never opened.
@@ -67,9 +69,9 @@ func (a Arena) Played() clicks.MapID {
 	return clicks.World
 }
 
-// Open is the arena opened now, or false when it is open already. It opens once, never after it closed, never at or
-// after its end, and never while another is open: each is refused.
-func (a Arena) Open(endsAt, now time.Time, playing Arena) (Opening, bool, error) {
+// Open is the arena opened now with its freeze, or false when it is open already. It opens once, never after it closed,
+// never at or after its end, and never while another is open: each is refused.
+func (a Arena) Open(endsAt, now time.Time, freeze time.Duration, playing Arena) (Opening, bool, error) {
 	switch {
 	case a.Opened && !a.Closed:
 		return Opening{}, false, nil
@@ -80,7 +82,7 @@ func (a Arena) Open(endsAt, now time.Time, playing Arena) (Opening, bool, error)
 	case playing.Opened && playing.ID != a.ID:
 		return Opening{}, false, fmt.Errorf("%w: arena %s while arena %s is open", ErrRefused, a.ID, playing.ID)
 	}
-	return Opening{ID: a.ID, EndsAt: endsAt.UTC(), OpenedAt: now.UTC()}, true, nil
+	return Opening{ID: a.ID, EndsAt: endsAt.UTC(), OpenedAt: now.UTC(), Freeze: freeze}, true, nil
 }
 
 // Close is the arena closed now, or false when it closed already. One never opened closes too, with no map to bring

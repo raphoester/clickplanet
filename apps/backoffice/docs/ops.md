@@ -54,16 +54,20 @@ given its name. The form takes the page's place, with "← All sets" back.
 [Rules](../../backend/docs/rules.md)): every set postgres keeps, `default` first, with its map (`Open`, or `Frozen` for
 a set that takes no play, `playOf`), its tempo (`3×`), its clicks (`60 in hand, 0.2 a second`) and its boxes.
 
-**The form edits every value of a set, grouped**, under three switches, "Frozen: the map takes no play" (the set's
+**The form edits every value of a set, grouped**, under six switches, "Frozen: the map takes no play" (the set's
 `frozen`: while it plays, planet refuses every click, bomb, shield, refill, box and quiz; see the backend's
-[A frozen map](../../backend/docs/rules.md#a-frozen-map)), and "Flags locked: no player changes country" (the set's
-`allegianceLocked`, for a battle's set: see the backend's [Allegiance](../../backend/docs/allegiance.md)) and "Arena: the battle is
-fought on a blank map" (the set's `arena.on`, never shown on `default`, which the backend refuses it for: see the
-backend's [Arena battles](../../backend/docs/arenas.md)): Clicks (the
+[A frozen map](../../backend/docs/rules.md#a-frozen-map)), "Flags locked: no player changes country" (the set's
+`allegianceLocked`, for a battle's set: see the backend's [Allegiance](../../backend/docs/allegiance.md)), "Arena: the battle is
+fought on a fresh map" (the set's `arena.on`, never shown on `default`, which the backend refuses it for: see the
+backend's [Arena battles](../../backend/docs/arenas.md)), "Reach: a take lands only next to the flag's land or across
+its waters" (`reach`: see the backend's [The reach](../../backend/docs/reach.md)), "Knock-out: a capital taken clears
+its flag" and "No shield on a capital" (`capitals.knockOut`, `capitals.fixedShields`: see the backend's
+[The capitals' rules](../../backend/docs/capitals.md)): Clicks (the
 tempo with them), Boxes, What a box is (the kinds'
 weights), Charges (with "Enclosures unlimited: enclose spends no charge", the set's `bonuses.enclose.unlimited`: see
-the backend's [Unlimited enclosures](../../backend/docs/enclose.md#unlimited-enclosures-bonusesencloseunlimited)), Arena (`arena.freeze`, how long an arena takes no play after the
-map goes blank and before the battle ends, and `arena.capitalShields`, the shields each capital starts with), New
+the backend's [Unlimited enclosures](../../backend/docs/enclose.md#unlimited-enclosures-bonusesencloseunlimited)), Arena (`arena.freeze`, how long an arena takes no play after its
+fresh map plays and before the battle ends, and `seed.capitals.shields`, the shields each capital starts with in the
+capitals seed, the one pattern so far: a second one brings a picker), New
 accounts (with "Refill at first sign-in", the set's `bonuses.signInRefill`: see the backend's
 [A guest's first sign-in](../../backend/docs/sign-in-refill.md)), Quizzes (with their on switch), and the Toll, whose steps are rows to add and remove.
 `GROUPS` names each value by its path in the set's rules (`Rules.toJson`), so the form needs no code per value: a

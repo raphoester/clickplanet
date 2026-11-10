@@ -1,10 +1,11 @@
-package arenas
+package clicks
 
 import (
 	"errors"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 )
 
 var ErrOutOfReach = errors.New("the tile touches none of the flag's land and is on the coast of none of its waters")
@@ -14,40 +15,47 @@ type Neighbourhood interface {
 }
 
 type Shores interface {
-	BodiesOf(tile uint32) []clicks.BodyID
-	CoastOf(body clicks.BodyID) []uint32
+	BodiesOf(tile uint32) []BodyID
+	CoastOf(body BodyID) []uint32
 }
 
 type Holdings interface {
 	HoldsAny(country string, tiles []uint32) bool
 }
 
-// Reach is where a flag's take lands while an arena plays: on its own land, on a tile next to it, or on the coast of a
-// water where it holds a coast. Outside an arena, everywhere.
+// Reaching is true while the rules in force hold a take within its flag's reach.
+type Reaching bool
+
+func (Reaching) Validate() error { return nil }
+
+var ReachPart = rules.PartOf[Reaching]{Key: "reach", Read: func(m *planetv1.Rules) Reaching { return Reaching(m.GetReach()) }}
+
+// Reach is where a flag's take lands while the rules in force hold it: on its own land, on a tile next to it, or on the
+// coast of a water where it holds a coast. Otherwise, everywhere.
 type Reach struct {
-	arena      *InPlay
+	on         func() Reaching
 	neighbours Neighbourhood
 	waters     Shores
 	held       Holdings
 }
 
-func NewReach(arena *InPlay, neighbours Neighbourhood, waters Shores, held Holdings) Reach {
-	return Reach{arena: arena, neighbours: neighbours, waters: waters, held: held}
+func NewReach(on func() Reaching, neighbours Neighbourhood, waters Shores, held Holdings) Reach {
+	return Reach{on: on, neighbours: neighbours, waters: waters, held: held}
 }
 
 func (r Reach) Refuses(flag string, tile uint32) error {
-	if !r.arena.Playing() || r.reaches(flag, tile) {
+	if !bool(r.on()) || r.reaches(flag, tile) {
 		return nil
 	}
 
 	return fmt.Errorf("%w: tile %d for %s", ErrOutOfReach, tile, flag)
 }
 
-// Around is the tile's neighbours a take of the flag lands on. Outside an arena it is the map's own table: read it,
+// Around is the tile's neighbours a take of the flag lands on. Without the reach it is the map's own table: read it,
 // never write it.
 func (r Reach) Around(flag string, tile uint32) []uint32 {
 	neighbours := r.neighbours.Neighbours(tile)
-	if !r.arena.Playing() {
+	if !r.on() {
 		return neighbours
 	}
 

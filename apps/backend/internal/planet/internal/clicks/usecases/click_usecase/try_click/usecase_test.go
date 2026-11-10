@@ -14,7 +14,6 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/try_click"
@@ -104,7 +103,7 @@ func TestEachAnswerIsAnOutcome(t *testing.T) {
 			planetv1.ClickOutcome_CLICK_OUTCOME_OTHER_FLAG,
 		},
 		"out of reach": {
-			answer{err: fmt.Errorf("%w: tile 42 for fr", arenas.ErrOutOfReach)}, planetv1.ClickOutcome_CLICK_OUTCOME_OUT_OF_REACH,
+			answer{err: fmt.Errorf("%w: tile 42 for fr", clicks.ErrOutOfReach)}, planetv1.ClickOutcome_CLICK_OUTCOME_OUT_OF_REACH,
 		},
 		"unknown flag":      {answer{err: fmt.Errorf("%w: zz", clicks.ErrUnknownCountry)}, planetv1.ClickOutcome_CLICK_OUTCOME_INVALID},
 		"off the map":       {answer{err: clicks.ErrTileOutOfRange}, planetv1.ClickOutcome_CLICK_OUTCOME_INVALID},

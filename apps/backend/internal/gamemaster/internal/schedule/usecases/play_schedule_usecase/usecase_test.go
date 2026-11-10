@@ -30,8 +30,9 @@ type command struct {
 }
 
 type commanded struct {
-	sent []command
-	err  error
+	sent    []command
+	antibot []command
+	err     error
 }
 
 func (c *commanded) Play(_ context.Context, turn schedule.Turn, decidedAt time.Time) error {
@@ -40,6 +41,26 @@ func (c *commanded) Play(_ context.Context, turn schedule.Turn, decidedAt time.T
 	}
 	c.sent = append(c.sent, command{set: turn.TakeSnapshot().Set, decidedAt: decidedAt})
 	return nil
+}
+
+func (c *commanded) PlayAntibot(_ context.Context, turn schedule.Turn, decidedAt time.Time) error {
+	if c.err != nil {
+		return c.err
+	}
+	c.antibot = append(c.antibot, command{set: turn.TakeSnapshot().Set, decidedAt: decidedAt})
+	return nil
+}
+
+// battles answers whether a battle's set waits, and counts what it was asked.
+type battles struct {
+	waits bool
+	err   error
+	asked []schedule.Kind
+}
+
+func (b *battles) SetWaits(_ context.Context, turn schedule.Turn, _ time.Time) (bool, error) {
+	b.asked = append(b.asked, turn.TakeSnapshot().Kind)
+	return b.waits, b.err
 }
 
 func (c *commanded) sets() []schedule.SetName {
@@ -55,6 +76,7 @@ type harness struct {
 	clock    *cptime.FixedClock
 	entries  *inmemory_entry_store.Store
 	seasons  *inmemory_season_store.Store
+	battles  *battles
 	commands *commanded
 	useCase  *play_schedule_usecase.UseCase
 }
@@ -65,9 +87,9 @@ func newHarness(t *testing.T, at time.Time) *harness {
 
 	h := &harness{
 		t: t, clock: cptime.NewFixedClock(at), entries: inmemory_entry_store.New(), seasons: inmemory_season_store.New(),
-		commands: &commanded{},
+		battles: &battles{}, commands: &commanded{},
 	}
-	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.commands, h.clock, 24*time.Hour)
+	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.battles, h.commands, h.clock, 24*time.Hour)
 	h.schedule(9, "rush", finale, battleEnds, 1)
 	return h
 }
@@ -109,7 +131,7 @@ func TestNothingIsSentWhileTheTurnHolds(t *testing.T) {
 
 func TestTheTurnIsSentAgainEachMinuteWithTheTimeItWasDecided(t *testing.T) {
 	h := newHarness(t, finale.Add(-time.Hour))
-	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.commands, h.clock, time.Minute)
+	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.battles, h.commands, h.clock, time.Minute)
 	h.execute()
 
 	h.clock.Advance(59 * time.Second)
@@ -127,7 +149,7 @@ func TestTheTurnIsSentAgainEachMinuteWithTheTimeItWasDecided(t *testing.T) {
 func TestASetAModuleRefusedPlaysOnceItIsMade(t *testing.T) {
 	h := newHarness(t, finale)
 	module := &refusing{keeps: cpcolls.NewSet[schedule.SetName]("default"), playing: "default"}
-	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, module, h.clock, time.Minute)
+	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.battles, module, h.clock, time.Minute)
 
 	h.execute()
 	assert.Equal(t, schedule.SetName("default"), module.playing, "rush is refused")
@@ -147,6 +169,8 @@ type refusing struct {
 	playing   schedule.SetName
 	decidedAt time.Time
 }
+
+func (r *refusing) PlayAntibot(context.Context, schedule.Turn, time.Time) error { return nil }
 
 func (r *refusing) Play(_ context.Context, turn schedule.Turn, decidedAt time.Time) error {
 	set := turn.TakeSnapshot().Set
@@ -278,4 +302,71 @@ func TestSeasonsThatCannotBeReadSendNothing(t *testing.T) {
 	require.ErrorIs(t, err, down)
 	assert.False(t, told)
 	assert.Empty(t, h.commands.sent)
+}
+
+func (h *harness) battle(n byte, set schedule.SetName, startsAt, endsAt time.Time) {
+	h.t.Helper()
+	require.NoError(h.t, h.entries.Save(h.t.Context(), schedule.EntrySnapshot{
+		ID: schedule.EntryID(uuid.UUID{15: n}), Set: set, Kind: schedule.Battle, StartsAt: startsAt, EndsAt: endsAt,
+		Priority: 2, MadeAt: finale.Add(-24 * time.Hour),
+	}.Restore()))
+}
+
+func TestABattlesSetWaitsForPlanetUntilItsBattleTookItsMap(t *testing.T) {
+	h := newHarness(t, finale.Add(-time.Second))
+	h.battle(10, "siege", finale, battleEnds)
+	h.execute()
+	h.battles.waits = true
+
+	h.clock.Advance(time.Second)
+	assert.True(t, h.execute(), "the battle starts")
+	h.clock.Advance(3 * time.Second)
+	assert.False(t, h.execute(), "still waiting")
+	h.battles.waits = false
+	h.clock.Advance(time.Second)
+	assert.True(t, h.execute(), "planet is told once the arena opened")
+	h.clock.Advance(time.Second)
+	assert.False(t, h.execute())
+
+	assert.Equal(t, []command{{set: "siege", decidedAt: finale}}, h.commands.antibot, "the antibot plays it at its time")
+	assert.Equal(t, []command{
+		{set: "default", decidedAt: finale.Add(-time.Second)},
+		{set: "siege", decidedAt: finale},
+	}, h.commands.sent, "planet gets it with the turn's decision time")
+}
+
+func TestAPlainTurnNeverAsksWhetherItsSetWaits(t *testing.T) {
+	h := newHarness(t, finale.Add(-time.Hour))
+	h.battles.waits = true
+
+	h.execute()
+
+	assert.Empty(t, h.battles.asked)
+	assert.Equal(t, []command{{set: "default", decidedAt: finale.Add(-time.Hour)}}, h.commands.sent)
+}
+
+func TestASetThatStillWaitsIsSentAgainToTheAntibotAlone(t *testing.T) {
+	h := newHarness(t, finale)
+	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.battles, h.commands, h.clock, time.Minute)
+	h.battle(10, "siege", finale, battleEnds)
+	h.battles.waits = true
+	h.execute()
+
+	h.clock.Advance(time.Minute)
+	h.execute()
+
+	assert.Equal(t, []command{{set: "siege", decidedAt: finale}, {set: "siege", decidedAt: finale}}, h.commands.antibot)
+	assert.Empty(t, h.commands.sent)
+}
+
+func TestAFailedReadOfTheWaitSendsNothing(t *testing.T) {
+	h := newHarness(t, finale)
+	h.battle(10, "siege", finale, battleEnds)
+	h.battles.err = errors.New("postgres is restarting")
+
+	_, _, err := h.useCase.Execute(t.Context())
+
+	require.Error(t, err)
+	assert.Empty(t, h.commands.sent)
+	assert.Empty(t, h.commands.antibot)
 }

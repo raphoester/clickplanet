@@ -14,7 +14,7 @@ import (
 
 func New(
 	borders *clicks.Borders,
-	capitals *clicks.Capitals,
+	capitals clicks.CapitalPlay,
 	config Config,
 	persistence Persistence,
 	transactioner cpatomic.Transactioner,
@@ -51,7 +51,7 @@ type Storage struct {
 	config        Config
 	logger        *slog.Logger
 	persistence   Persistence
-	capitals      *clicks.Capitals
+	capitals      clicks.CapitalPlay
 	transactioner cpatomic.Transactioner
 	placements    Placements
 
@@ -265,7 +265,8 @@ func (s *Storage) HoldsAny(country string, tiles []uint32) bool {
 	return false
 }
 
-// An arena's capitals keep the shields they started with: no placement and no fortify adds one, whoever holds them.
+// A capital whose shields the rules fix keeps the shields it has: no placement and no fortify adds one, whoever holds
+// it.
 func (s *Storage) capitalLocked(tile uint32) bool {
-	return s.playing != clicks.World && s.capitals.Is(tile)
+	return s.capitals.Fixes(tile)
 }

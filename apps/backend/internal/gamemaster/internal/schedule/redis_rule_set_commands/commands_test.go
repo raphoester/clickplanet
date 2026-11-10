@@ -49,6 +49,15 @@ func TestPlanetAndTheAntibotAreEachToldTheSetInTheirWords(t *testing.T) {
 	assert.True(t, proto.Equal(&antibotv1.PlayRuleSet{RuleSet: "rush", DecidedAt: timestamppb.New(finale)}, commands.commands[1]))
 }
 
+func TestTheAntibotAloneIsToldWhilePlanetsSetWaits(t *testing.T) {
+	commands := &sent{}
+
+	require.NoError(t, redis_rule_set_commands.New(commands).PlayAntibot(t.Context(), rush(t), finale))
+
+	require.Len(t, commands.commands, 1)
+	assert.True(t, proto.Equal(&antibotv1.PlayRuleSet{RuleSet: "rush", DecidedAt: timestamppb.New(finale)}, commands.commands[0]))
+}
+
 func TestACommandRedisDidNotTakeIsAnError(t *testing.T) {
 	down := errors.New("redis is down")
 

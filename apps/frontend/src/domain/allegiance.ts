@@ -1,6 +1,6 @@
 import {Countries} from "./countries.ts";
 import {describeEnd} from "./endTime.ts";
-import {ArenaFlags, stands} from "./standing.ts";
+import {Standing, stands} from "./standing.ts";
 
 export type Allegiance = {
     countryId: string
@@ -15,9 +15,9 @@ export type Allegiance = {
 // Why the flag held cannot change now: the rules in force, or the wait after a change.
 export type Lock = {kind: "rules"} | {kind: "wait", until: number}
 
-// A flag held that does not stand in the arena locks nothing: its player picks a flag still in at once.
-export function lockOf(allegiance: Allegiance | undefined, now: number, arena?: ArenaFlags): Lock | undefined {
-    if (allegiance && !stands(arena, allegiance.countryId)) return undefined
+// A flag held that does not stand locks nothing: its player picks a flag still in at once.
+export function lockOf(allegiance: Allegiance | undefined, now: number, standing?: Standing): Lock | undefined {
+    if (allegiance && !stands(standing, allegiance.countryId)) return undefined
     if (allegiance?.locked) return {kind: "rules"}
     if (allegiance?.changeableAt !== undefined && allegiance.changeableAt > now) return {kind: "wait", until: allegiance.changeableAt}
     return undefined

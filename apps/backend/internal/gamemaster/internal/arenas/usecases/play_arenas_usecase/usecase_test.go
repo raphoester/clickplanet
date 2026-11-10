@@ -147,7 +147,7 @@ func TestTheArenaOpensOnceAndClosesUntilPlanetTellsItClosed(t *testing.T) {
 		_, err = h.execute(t)
 		require.NoError(t, err)
 	}
-	open := moments.ArenaCommand{Action: moments.OpenArena, Arena: fought, At: starts, EndsAt: ends}
+	open := moments.ArenaCommand{Action: moments.OpenArena, Arena: fought, At: starts, EndsAt: ends, Set: "arena-battle"}
 	assert.Equal(t, []moments.ArenaCommand{open}, h.sent.commands)
 
 	h.clock.Advance(ends.Sub(h.clock.Now()))
@@ -207,5 +207,5 @@ func TestACommandRedisRefusedIsSentAgain(t *testing.T) {
 	h.sent.err = nil
 	_, err = h.execute(t)
 	require.NoError(t, err)
-	assert.Equal(t, []moments.ArenaCommand{{Action: moments.OpenArena, Arena: fought, At: starts, EndsAt: ends}}, h.sent.commands)
+	assert.Equal(t, []moments.ArenaCommand{{Action: moments.OpenArena, Arena: fought, At: starts, EndsAt: ends, Set: "arena-battle"}}, h.sent.commands)
 }

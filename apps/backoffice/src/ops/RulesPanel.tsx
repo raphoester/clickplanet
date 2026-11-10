@@ -128,8 +128,15 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                              defaults={defaults?.allegianceLocked} inherits={defaults !== undefined}
                              onChange={allegianceLocked => change({allegianceLocked})}/>
                 {draft.name.trim() !== DEFAULT_SET &&
-                    <SwitchField label="Arena: the battle is fought on a blank map" on={draft.arena} defaults={defaults?.arena}
+                    <SwitchField label="Arena: the battle is fought on a fresh map" on={draft.arena} defaults={defaults?.arena}
                                  inherits={defaults !== undefined} onChange={arena => change({arena})}/>}
+                <SwitchField label="Reach: a take lands only next to the flag's land or across its waters" on={draft.reach}
+                             defaults={defaults?.reach} inherits={defaults !== undefined} onChange={reach => change({reach})}/>
+                <SwitchField label="Knock-out: a capital taken clears its flag" on={draft.knockOut}
+                             defaults={defaults?.knockOut} inherits={defaults !== undefined}
+                             onChange={knockOut => change({knockOut})}/>
+                <SwitchField label="No shield on a capital" on={draft.fixedShields} defaults={defaults?.fixedShields}
+                             inherits={defaults !== undefined} onChange={fixedShields => change({fixedShields})}/>
             </div>
             <div className="rule-groups">
                 {GROUPS.map(group => (

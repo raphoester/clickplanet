@@ -47,7 +47,10 @@ func Seeded() Snapshot {
 			},
 			Frozen:           on(false),
 			AllegianceLocked: on(false),
-			Arena:            &planetv1.ArenaRules{On: on(false), Freeze: d(8 * time.Second), CapitalShields: n(100)},
+			Arena:            &planetv1.ArenaRules{On: on(false), Freeze: d(8 * time.Second)},
+			Seed:             &planetv1.Seed{Pattern: &planetv1.Seed_Capitals{Capitals: &planetv1.CapitalSeed{Shields: n(100)}}},
+			Reach:            on(false),
+			Capitals:         &planetv1.CapitalRules{KnockOut: on(false), FixedShields: on(false)},
 		},
 	}
 }

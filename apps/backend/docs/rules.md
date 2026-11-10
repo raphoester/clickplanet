@@ -21,9 +21,9 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 - **`Set.TakeSnapshot()` is what the set holds**: what is kept and edited. `TakePlayedSnapshot()` is what it plays,
   which the log lines print. `Set.Equal` compares what two sets play.
 
-- **Each part is read by the package that plays it.** `clicks` owns three parts, `clicks` (`Throttle`), `toll`
-  (`TollSteps`) and `frozen` (`Freeze`); `bonuses` owns `bonuses` (`Rules`), `allegiances` `allegianceLocked` (`Lock`)
-  and `arenas` `arena` (`Rules`). Each part has its `Validate`, its `…Of(message)` (`message.go`)
+- **Each part is read by the package that plays it.** `clicks` owns five parts, `clicks` (`Throttle`), `toll`
+  (`TollSteps`), `frozen` (`Freeze`), `reach` (`Reaching`) and `capitals` (`CapitalRules`); `bonuses` owns `bonuses`
+  (`Rules`), `allegiances` `allegianceLocked` (`Lock`), `arenas` `arena` (`Rules`) and `seeds` `seed` (`Pattern`). Each part has its `Validate`, its `…Of(message)` (`message.go`)
   and a `Part` (`rules.PartOf[R]{Key, Read}`). The `rules` package names none of them.
 - **`parts.All()` is the one list of parts** (`rules/parts`). A concept that reads the rules adds its field to
   `planet.v1.Rules`, its part, and one line there; nothing in `rules`, the store or the handlers changes.
@@ -76,11 +76,16 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 - `frozen` — the map takes no play (off). See [A frozen map](#a-frozen-map)
 - `allegianceLocked` — no account changes its flag; a first flag is still taken (off; on in a battle's set). See
   [Allegiance](allegiance.md)
-- `arena.on` — a battle that plays the set is an arena battle, played on a blank map; the gamemaster reads it, planet plays no
+- `arena.on` — a battle that plays the set is an arena battle, played on a fresh map; the gamemaster reads it, planet plays no
   rule of it (off; **refused in `default`**, or every battle would be one: `PartOf.InDefault`). `arena.freeze` — how
-  long an arena takes no play after the map goes blank and before the battle ends, 0 to 30 s (8 s).
-  `arena.capitalShields` — the shields each capital starts an arena with, past `bonuses.shield.perTile`, 0 to 255
-  (100). See [Arena battles](arenas.md)
+  long an arena takes no play after its map plays and before the battle ends, 0 to 30 s (8 s), read from the battle's
+  set as its arena opens. See [Arena battles](arenas.md)
+- `seed` — how an arena's fresh map starts: one pattern of a `oneof`. `capitals {shields}`, each capital held by its
+  country with that many shields, past `bonuses.shield.perTile`, 0 to 255 (100). Until 2026-11-10 it was
+  `arena.capitalShields`. See [Seeds](arenas.md#seeds)
+- `reach` — a take lands only next to the flag's land or across its waters (off). See [The reach](reach.md)
+- `capitals.knockOut`, `capitals.fixedShields` — a capital taken by another flag knocks its flag out; no shield goes on a
+  capital (off, off). See [The capitals' rules](capitals.md)
 
 ## A frozen map
 
@@ -136,8 +141,11 @@ The readers call it where they use the rules, not when they are built: a set tak
 - `bonuses.Part` — the box registry (waits, kinds, flight, miss, activity, welcome, quizzes, the quiz lean),
   `bonuses.Charges` (the stacks), `bonuses.Bombing` (the radius), `enclose_click`, `place_shield_usecase`,
   `clicks.Claiming` (a tile's most shields, for a fortify) and `GetBonusRules`.
-- `arenas.Part` — `arenas.InPlay` (an open arena's freeze, which the freeze interceptor reads too) and `arenas.Starts`
-  (each capital's shields), for `open_arena_usecase`.
+- `arenas.Part` and `seeds.Part` — read from the set an arena is opened for, never from the set in force: `arenas.Setups`
+  takes the freeze, which the opening keeps, and `seeds.Catalog` the seed (`rules.PartOf.Of(set)`).
+- `clicks.ReachPart` — `clicks.Reach` (`reach_click`, `spread_click`) and `GetBonusRules.reach`.
+- `clicks.CapitalsPart` — `clicks.CapitalPlay` in the tile storage (a shield on a capital, a fortify, the knock-out, the
+  standing) and `GetBonusRules` (`knock_out`, `capital_shields_fixed`).
 - **`play_rules_usecase` plays when something changes, never on a timer**: at boot and after each save (`Execute`) the
   set the schedule chose last, and `default` until it chose one; then each `planet.v1.PlayRuleSet` the schedule sends (`Play`, from
   `commands/play_rule_set_handler`); the same turn, sent again each minute with the same `decided_at`, is no newer

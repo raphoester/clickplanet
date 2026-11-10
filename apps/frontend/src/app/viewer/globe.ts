@@ -78,7 +78,7 @@ import {FLIGHT_SECONDS, flightAt, territoryShotOf} from "../../domain/flight.ts"
 import {pointOf} from "../../domain/clip/geometry.ts";
 import {Front, FrontChanges} from "../../domain/front.ts";
 import {CapitalMarks} from "../../domain/capitalMarks.ts";
-import {ArenaFlags, arenaFlagsOf} from "../../domain/standing.ts";
+import {Standing, standingOf} from "../../domain/standing.ts";
 import type {Waters} from "../../domain/waters.ts";
 import {MissionGround, MissionMarks, MissionTarget, groundsOf, nearestPlayable} from "../../domain/missionTargets.ts";
 import {Neighbours} from "../../domain/neighbours.ts";
@@ -223,11 +223,11 @@ export type GlobeOptions = {
     onBanned: (until: number) => void
     onSessionUnavailable: () => void
     onAllegianceLocked: (allegiance: Allegiance) => void
-    // A click in an arena on a tile the flag cannot reach, refused here or by the server.
+    // A click on a tile the flag cannot reach while the reach plays, refused here or by the server.
     onOutOfReach: () => void
-    // The flags of the arena that plays, each time a map read or a knock-out may change them; undefined on the world's
-    // map.
-    onArenaFlags?: (flags: ArenaFlags | undefined) => void
+    // The flags while the knock-out plays, each time the rules, a map read or a knock-out may change them; undefined
+    // while it does not.
+    onStanding?: (standing: Standing | undefined) => void
     onBonusWon: (reward: BonusReward) => void
     onCharges: (charges: Charges) => void
     onRules: (rules: BonusRules) => void
@@ -298,7 +298,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onSessionUnavailable,
         onAllegianceLocked,
         onOutOfReach,
-        onArenaFlags = () => {},
+        onStanding = () => {},
         onBonusWon,
         onCharges,
         onRules,
@@ -724,17 +724,19 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (nearest !== undefined) flyDown(nearest)
     }
 
-    type ArenaMap = {capitals: Capitals, waters: Waters}
-
-    // An arena's map: the front reaches across the flag's waters, and each capital still standing is marked.
-    let arena = false
-    let arenaMap: Promise<ArenaMap> | undefined
+    // The reach and the capitals rules, each followed as the rules in force say: the reach rings what the flag can take,
+    // across its waters; the capitals rules mark each capital still standing and keep shields off a fixed one.
+    let capitalsFile: Promise<Capitals> | undefined
+    let watersFile: Promise<Waters> | undefined
     let capitals: Capitals | undefined
     let capitalMarks: CapitalMarks | undefined
     let reach: Front | undefined
 
-    const publishArenaFlags = () => {
-        onArenaFlags(arena && capitals ? arenaFlagsOf(capitals, tiles.knockedOut) : undefined)
+    const capitalRules = (read: BonusRules | undefined) => (read?.knockOut || read?.capitalShieldsFixed) ?? false
+    const fixedCapitals = () => rules?.capitalShieldsFixed ? capitals : undefined
+
+    const publishStanding = () => {
+        onStanding(rules?.knockOut && capitals ? standingOf(capitals, tiles.knockedOut) : undefined)
     }
 
     const markCapitals = ({on, off}: FrontChanges) => {
@@ -744,22 +746,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
-    const playArena = (map: ArenaMap) => {
+    const playReach = (waters: Waters) => {
         if (front) lightFront(front.drop())
-        reach = new Front(neighbourhood(), shownOwnerOf, geometryData.positions, map.waters)
+        reach = new Front(neighbourhood(), shownOwnerOf, geometryData.positions, waters)
         front = reach
         lightFront(reach.follow(country.code))
-        capitals = map.capitals
-        capitalMarks = new CapitalMarks(map.capitals, (tile) => ownership.ownerOf(tile))
-        markCapitals(capitalMarks.follow())
-        publishArenaFlags()
     }
 
-    const leaveArena = () => {
-        if (capitalMarks) markCapitals(capitalMarks.drop())
-        capitalMarks = undefined
-        capitals = undefined
-        publishArenaFlags()
+    const leaveReach = () => {
         if (!reach) return
         lightFront(reach.drop())
         reach = undefined
@@ -767,23 +761,55 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (front) lightFront(front.follow(country.code))
     }
 
-    const followArena = (on: boolean) => {
-        if (on === arena) return
-        arena = on
+    const followReach = (on: boolean) => {
         if (!on) {
-            leaveArena()
+            leaveReach()
             return
         }
-        arenaMap ??= Promise.all([
-            loadCapitals(CAPITALS_URL, field.size, lifetime.signal),
-            loadWaters(WATERS_URL, field.size, lifetime.signal),
-        ]).then(([read, waters]) => ({capitals: read, waters}))
-        arenaMap.then((map) => {
-            if (arena && !reach && !lifetime.signal.aborted) playArena(map)
+        watersFile ??= loadWaters(WATERS_URL, field.size, lifetime.signal)
+        watersFile.then((waters) => {
+            if (rules?.reach && !reach && !lifetime.signal.aborted) playReach(waters)
         }, (e) => {
-            arenaMap = undefined
-            if (!lifetime.signal.aborted) console.error("could not read the arena's capitals and waters", e)
+            watersFile = undefined
+            if (!lifetime.signal.aborted) console.error("could not read the map's waters", e)
         })
+    }
+
+    const playCapitals = (read: Capitals) => {
+        capitals = read
+        capitalMarks = new CapitalMarks(read, (tile) => ownership.ownerOf(tile))
+        markCapitals(capitalMarks.follow())
+        publishStanding()
+    }
+
+    const leaveCapitals = () => {
+        if (capitalMarks) markCapitals(capitalMarks.drop())
+        capitalMarks = undefined
+        capitals = undefined
+        publishStanding()
+    }
+
+    const followCapitals = (on: boolean) => {
+        if (!on) {
+            if (capitals) leaveCapitals()
+            return
+        }
+        if (capitals) {
+            publishStanding()
+            return
+        }
+        capitalsFile ??= loadCapitals(CAPITALS_URL, field.size, lifetime.signal)
+        capitalsFile.then((read) => {
+            if (capitalRules(rules) && !capitals && !lifetime.signal.aborted) playCapitals(read)
+        }, (e) => {
+            capitalsFile = undefined
+            if (!lifetime.signal.aborted) console.error("could not read the map's capitals", e)
+        })
+    }
+
+    const followRules = (read: BonusRules) => {
+        followReach(read.reach)
+        followCapitals(capitalRules(read))
     }
 
     const highlight = (orbit: boolean) => {
@@ -880,6 +906,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 uniforms.shieldMarks.value = drawShieldMarks(read.tileShields, invalidate)
                 uniforms.shieldCells.value = shieldCellsOf(read.tileShields)
             }
+            followRules(read)
             invalidate()
             onRules(read)
         },
@@ -1161,7 +1188,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
 
         if (switches.shield && shielder) {
-            const placement = placementOf(owner, country.code, shields, rules?.tileShields, capitals?.has(tile) ?? false)
+            const placement = placementOf(owner, country.code, shields, rules?.tileShields, fixedCapitals()?.has(tile) ?? false)
             if (placement === "full") {
                 onNotice("shieldFull")
                 return
@@ -1266,8 +1293,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         tiles.read(batch, changes)
         applyChanges(changes.owners, false)
         showShields(changes.shields)
-        followArena(tiles.arena)
-        if (arena) publishArenaFlags()
+        if (capitals) publishStanding()
         if (tracking) targets.touch(rangeTiles(batch.range))
         if (!loaded) {
             const share = tiles.readShare()
@@ -1341,7 +1367,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const stopFortifications = updatesListener.listenForFortifications((fortification) => {
         const members = landmasses.tilesOf(fortification.landmass)
         releaseGhosts(members)
-        const shielding = capitals ? members.filter((tile) => !capitals?.has(tile)) : members
+        const fixed = fixedCapitals()
+        const shielding = fixed ? members.filter((tile) => !fixed.has(tile)) : members
         const raised = tiles.applyFortification(shielding, fortification.countryId, uniforms.shieldMost.value, fortification.version)
         markMissions(missionMarks.touch(raised.map(({tile}) => tile)))
         if (document.hidden || uniforms.motion.value === 0) showShields(raised)
@@ -1359,7 +1386,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         tiles.applyKnockOut(knockOut.countryId, knockOut.cleared, knockOut.version, changes)
         applyChanges(changes.owners)
         showShields(changes.shields)
-        publishArenaFlags()
+        publishStanding()
     })
 
     const atmosphere = addDisplayObjects(scene, field.displayPoints, graphics, sphere)

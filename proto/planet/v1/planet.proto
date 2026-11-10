@@ -409,6 +409,15 @@ message GetBonusRulesResponse {
 
   // Enclose needs no charge and spends none.
   bool enclosures_unlimited = 10;
+
+  // A take lands only next to the flag's land or across a water where it holds a coast.
+  bool reach = 11;
+
+  // A capital taken by another flag knocks its flag out.
+  bool knock_out = 12;
+
+  // No shield goes on a capital.
+  bool capital_shields_fixed = 13;
 }
 
 message TollStep {

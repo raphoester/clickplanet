@@ -2162,6 +2162,27 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
    */
   enclosuresUnlimited = false;
 
+  /**
+   * A take lands only next to the flag's land or across a water where it holds a coast.
+   *
+   * @generated from field: bool reach = 11;
+   */
+  reach = false;
+
+  /**
+   * A capital taken by another flag knocks its flag out.
+   *
+   * @generated from field: bool knock_out = 12;
+   */
+  knockOut = false;
+
+  /**
+   * No shield goes on a capital.
+   *
+   * @generated from field: bool capital_shields_fixed = 13;
+   */
+  capitalShieldsFixed = false;
+
   constructor(data?: PartialMessage<GetBonusRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2179,6 +2200,9 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
     { no: 8, name: "tile_shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 9, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 10, name: "enclosures_unlimited", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 11, name: "reach", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 12, name: "knock_out", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 13, name: "capital_shields_fixed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBonusRulesResponse {

@@ -46,7 +46,7 @@ func commandOf(command moments.ArenaCommand) (*planetv1.ArenaCommand, error) {
 	switch command.Action {
 	case moments.OpenArena:
 		return &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_OpenArena{OpenArena: &planetv1.OpenArena{
-			ArenaId: string(command.Arena), EndsAt: timestamppb.New(command.EndsAt),
+			ArenaId: string(command.Arena), EndsAt: timestamppb.New(command.EndsAt), RuleSet: string(command.Set),
 		}}}, nil
 	case moments.CloseArena:
 		return &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_CloseArena{CloseArena: &planetv1.CloseArena{

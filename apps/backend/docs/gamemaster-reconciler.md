@@ -17,7 +17,7 @@ season with no break could wipe the map before its Final Battle was scored.
 
 | What | Wanted | Known from | Command |
 |---|---|---|---|
-| planet's and the antibot's rule set | the turn's set | the module compares `decided_at` | `PlayRuleSet`, at boot, at each change, and again each minute with the same `decided_at` |
+| planet's and the antibot's rule set | the turn's set; planet's a battle's only once the battle is judged and its arena opened | the module compares `decided_at` | `PlayRuleSet`, at boot, at each change, as a wait ends, and again each minute with the same `decided_at` |
 | a scoring book | open while its season runs, closed once it ended | `BookClosed` or `BookMissed` (`closed_books`, `missed_books`) | `OpenBook` once, `CloseBook` until an answer |
 | a scoring round | open while it runs (judged, the map back, an arena battle's arena opened), scored once it ended | `RoundScored` or `RoundMissed` (`scored_rounds`, `missed_rounds`) | `OpenRound` once, `CloseRound` until an answer |
 | a planet arena | open while its arena battle runs and scoring answered the round before it; closed once scoring answered the battle's round | `ArenaOpened` (`opened_arenas`), `ArenaClosed` (`closed_arenas`) | `OpenArena` once until `ArenaOpened`, `CloseArena` until an answer |
