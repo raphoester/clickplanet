@@ -59,3 +59,13 @@ func TestARoundThatCannotBeWrittenIsAnError(t *testing.T) {
 
 	require.Error(t, file_replay_store.RoundStore(path).SaveRound(t.Context(), replays.NoRound))
 }
+
+func TestTheSeasonsMapIsWrittenAsTheBackendAnsweredIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "history.json")
+
+	require.NoError(t, file_replay_store.HistoryStore(path).SaveHistory(t.Context(), replays.History{Document: []byte(`{"history":{}}`)}))
+
+	written, err := os.ReadFile(path) //nolint:gosec // the file the test wrote.
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"history":{}}`, string(written))
+}

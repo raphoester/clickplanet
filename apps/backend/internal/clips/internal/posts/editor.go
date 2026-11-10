@@ -34,11 +34,13 @@ const (
 	recent       = 72 * time.Hour
 	reheadlining = 7 * 24 * time.Hour
 	lately       = 6
+	// A season: a saga is told when a reign is made and when it falls, days apart.
+	sagaMemory = 28 * 24 * time.Hour
 )
 
 // Inclusive: the posts at this time or after are what was told.
 func ToldSince(now time.Time) time.Time {
-	return now.Add(-reheadlining)
+	return now.Add(-sagaMemory)
 }
 
 type Offer struct {
@@ -47,8 +49,10 @@ type Offer struct {
 	First    []int
 	Findings Findings
 	Recent   []Telling
-	Shown    map[string]int
-	Now      time.Time
+	// The sagas told in the season, newest first.
+	Sagas []Telling
+	Shown map[string]int
+	Now   time.Time
 }
 
 func (o Offer) Slots() int {
@@ -75,8 +79,12 @@ func (f Findings) Offer(count int, told []Telling, now time.Time) Offer {
 		if !telling.At.Before(now.Add(-recent)) {
 			offer.Recent = append(offer.Recent, telling)
 		}
+		if telling.Key.Angle == Reigning && !telling.At.Before(now.Add(-sagaMemory)) {
+			offer.Sagas = append(offer.Sagas, telling)
+		}
 	}
 	slices.SortStableFunc(offer.Recent, func(a, b Telling) int { return b.At.Compare(a.At) })
+	slices.SortStableFunc(offer.Sagas, func(a, b Telling) int { return b.At.Compare(a.At) })
 	return offer
 }
 
@@ -209,7 +217,7 @@ func pastOf(told []Telling, now time.Time) *past {
 
 	p := &past{keys: cpcolls.NewSet[StoryKey](), headlines: cpcolls.NewSet[string]()}
 	for _, telling := range newest {
-		if telling.At.Before(ToldSince(now)) {
+		if telling.At.Before(now.Add(-reheadlining)) {
 			continue
 		}
 		if !telling.At.Before(now.Add(-recent)) {

@@ -5,6 +5,7 @@ const frame = (at: number, owners: Record<number, string>): MapFrame => ({
     at,
     tiles: Uint32Array.from(Object.keys(owners).map(Number)),
     owners: Object.values(owners),
+    changedAt: new Float64Array(Object.keys(owners).length).fill(at),
 })
 
 const history = (frames: MapFrame[]): MapHistory => ({frames, hits: new Map()})

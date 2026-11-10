@@ -13,11 +13,12 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 17 past every even hour from 06:00 to 22:00 UTC, or by hand with `workflow_dispatch`), so a story reaches the feed 2 to 3 hours after it
 happened rather than 10 to 20 under the two runs a day before (2026-10-24). Four jobs:
 
-1. **fetch**: the backend's `clips fetch -hours 12 -race race.json -season season.json -cast cast.json` over SSH, with
+1. **fetch**: the backend's `clips fetch -hours 12 -race race.json -season season.json -cast cast.json -history history.json` over SSH, with
    the deploy's `VPS_*` secrets. The job runs no npm at all, so the key to the VPS is in no job that installs this app's
    dependencies. The replay, the gamemaster's turn (`season.json`) and the round it debriefs (`race.json`) go on as an
    artifact; all are public data, the cast's names and numbers too, never an account. A turn or a round that could not be fetched is no file, and the run goes on without
-   a round to tell or a country to call up.
+   a round to tell or a country to call up. So is a history (`history.json`, the map every hour since the season
+   started): the run then tells no saga.
 2. **findings** and **choose**: `npm run clip -- --findings findings.json`, then, in a job of its own (it holds
    the Anthropic key and the VPS's, and runs no npm), the backend's `clips choose` reads it and prints the stories to
    render, up to 2, and no more than the platforms have left of their day, as the backend's publishing module counts
@@ -77,6 +78,15 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     left out, since there is nothing to play. **Europe is held without Russia**: Russia's ground is 71% of Natural
     Earth's Europe, so a flag holding Siberia would "hold Europe"; Russia is a place of its own. A share is of all the
     place's tiles, empty ones too.
+  - **`sagas`**: each place over the whole season, from `--history` (`domain/clip/saga.ts`, `sagasOf`): the world, each
+    continent and each country of 1,000 tiles or more, as a place is, and each flag that held over half of it, oldest
+    first, with when its conquest began (`pushedAt`, the last hour it held under a tenth before), when it held over
+    half (`since`) and when it fell (`until`, none while it holds), its peak, whom it took the place from and whom it
+    fell to. **The 12 hours the rest is searched in cannot see a war of days**: Czechia held China 5 days and lost it
+    in the battle hour of 2026-11-07, Brazil held South America for 9, Palau took Russia whole; China was in no clip in
+    9 days. A dip under half shorter than 3 hours does not end a reign, and a reign shorter than that which ended is
+    a raid and left out. A place no flag held over half of has none, and a country that is its whole continent
+    (Antarctica) is told as the continent.
   - **`seasonal`**: a day of the season won and each country called up after it (`round.ts`, `callup.ts`, below),
     told whole by this app, with the title, the key, the countries and the facts their clips would record
     (`StoryFacts`, `storyFactsOf`, the numbers `record()` works out, measured once by `measuredOf`).
@@ -87,8 +97,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     front's flag, its takes on the front's tiles in the front's stretch; on each tour, the flag's on the tour's tiles;
     on each place, the holder's of the place in the window. **A take is matched by its tile and the stretch, never by
     its time**: the cast's times are postgres's, the replay's the stream's.
-- **`--story <json>`** is the story to render, a `Pick` (`toldOf`): one front, tour, place or seasonal story of the
-  findings by its number, from 1, and for a front what the editor made of it: its `kind` (`attack`, `invasion`,
+- **`--story <json>`** is the story to render, a `Pick` (`toldOf`): one front, tour, place, saga or seasonal story of
+  the findings by its number, from 1, for a saga the reign it plays from (`reign`, from 1), its `attacker` and its
+  `rival`, and for a front what the editor made of it: its `kind` (`attack`, `invasion`,
   `comeback`, `kickout`, `rout`, `battle`), its `attacker`, its `rival` in a battle, whom it took from (`takenFrom`,
   the flag thrown out first), where it is told (`countries` of the front, or `continent`), the continent whose flags
   strike back together (`team`). A tour, a place and a seasonal story are the facts' own: the flag taking the world,
@@ -106,6 +117,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   its finale's round, numbered as its `finale_battle` so it keys as that battle does; 0 with none), with the round's id. Its timeline's battle to come that `ends_season` says when
   the finale starts (`finaleAtOf`). With none, that path answers 404, never the app's fallback page: no round is told
   and nobody is called up.
+- **`--history <path>`** is the map every hour since the season started, a `planet.v1.GetMapHistoryResponse` as the
+  backend's `GetMapHistory` answers it, served at `/__clip/history.json` the same way: the sagas are measured on it,
+  and a saga is played from it. With none, no place has a saga.
 - **`--race <path>`** is that round, a `scoring.v1.GetRoundResponse` as `ScoringService/GetRound` answers it by the
   debrief's id, served at `/__clip/race.json` the same way: its podium (`standings`), its end, and the season's
   scores after it (`after`). `src/clip/race.ts` (`dayOf`) makes a `Day` of the two, and none when either is missing
@@ -119,7 +133,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   account id is in it**: a run's files are public. With none, nobody is named and every clip is as before.
 - **A story's key says which story it is, the headline never does** (`storyKeyOf`, `domain/clip/story.ts`): the
   flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. **Its angle says what
-  the story tells of the flag there**: none for what it did, `holding` for what it holds, `round` for a day it won,
+  the story tells of the flag there**: none for what it did, `holding` for what it holds, `saga` for its reign over
+  days, `round` for a day it won,
   with the day (`round: "1.5"`, season and number; `"1.battle.2"` for a battle's round of its own), `callup` for a
   country called up after a day, with that day. The
   flag is the first of `sidesOf`: the loser of a rout, a continent's own flag when it strikes back together. The
@@ -146,8 +161,8 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   - **`format` names the kind of video**, and the section that describes it: `globe-replay`, the game's globe, in
     `globe`. A clip made another way (another layout, a video made by AI) is a new format with a section of its own,
     beside `common`, what every format has.
-  - **Every code is a word that says what it means**, never a number standing for one: `camera` is `front` or
-    `tour`, `look` `dive`, `flags` or `none` (a tour has none), `music` the anthem's country code or `none`,
+  - **Every code is a word that says what it means**, never a number standing for one: `camera` is `front`,
+    `tour` or `saga`, `look` `dive`, `flags` or `none` (a tour and a saga have none), `music` the anthem's country code or `none`,
     `storyKind` the story's kind, `language` `en` or a call-up's own (`voiceOf`). **A number is a quantity**, in the
     unit its name says: `durationSeconds`, `musicStartSeconds`, `spanMinutes` of the replay played, `tilesChanged`
     where the story is told (a bomb's cleared tiles too), `storyTilesChanged` (the fighting the camera follows),
@@ -275,6 +290,20 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   keyed by the content-addressed file, and both anthem scripts run it, since a new encode is a new file; a test
   fails when one is missing. A clip starts on the best highlight that leaves the anthem playing to its end, else
   early enough that it does.
+- **A saga's clip plays its place over days** (`sagaReviewOf`): from the conquest of the reign the pick names to the
+  end of the history, its counters the share of the place the attacker and the rival hold, and **the day it is at
+  as big as the counters** ("SAT 7 NOV"), since the days going by are the story. The history is played as a replay
+  (`ReplayBackend.ofHistory`): **each change at the second it was made**, its last of the hour (the history's
+  `seconds_into_step`), so an enclosure's tiles land together and clicks land one by one, as they did. Until
+  2026-11-10 each hour's changes were spread over the hour in an order of their own: Germany took China with 107
+  enclosures in 15 minutes of the battle of 2026-11-07, up to 3,294 tiles at once, and the clip showed dots raining
+  over Czechia's flag everywhere at once. **Its camera stays out over the place**
+  (`sagaCameraOf`), where the painted flags switching is what a viewer sees, closing in a little over the clip:
+  framed on a country's landmasses of a quarter of its biggest one or more, so French Guiana does not pull it off
+  France, or on the whole continent. **Its clock is part calendar** (`blendedPaceOf`): 40% of the play goes evenly
+  over the days, so a week held reads as a week going by, and the rest over the tiles that changed, so the battle
+  that rewrote the map takes its seconds. Each change is reached over the 5 minutes before it, so the clock runs into
+  an enclosure of a thousand tiles and lands it, and never stands still on it. It plays 11s and its call; it names nobody, since the cast holds 12 hours only.
 - **A holding's clip plays its flag's fighting for the place**, all over it, with the counter as the flag's share
   of it (`holdingStoryOf`, `inHolding`), and opens on all it holds there.
 - **`round.ts` tells a day of the season** from the turn and its round (`--season`, `--race`): **"FRANCE WINS DAY 5"**, or **"FRANCE WINS THE

@@ -15,11 +15,12 @@ export type Day = {
     table: {country: string, rank: number, points: number}[]
 }
 
-export type Kind = "attack" | "invasion" | "comeback" | "kickout" | "rout" | "battle" | "holding" | "round" | "callup"
+export type Kind = "attack" | "invasion" | "comeback" | "kickout" | "rout" | "battle" | "holding" | "saga" | "round" | "callup"
 
 // What a clip tells, as the editor wrote it from the findings, or as the data of the season gives it. team: the continent
 // whose flags strike back together. A holding is what the map is rather than what changed on it: its flag (attacker)
-// holds share of the place, the flags holding the most after it are its victims. A round is a day of the season its flag
+// holds share of the place, the flags holding the most after it are its victims. A saga is a place over days: the flag
+// (attacker) whose reign it tells, and the flag it took the place from or lost it to (rival). A round is a day of the season its flag
 // won, the next places on its podium its victims. A callup is a country that can still win the season after a day,
 // called to the Final Battle at finaleAt: the leader its victim.
 export type Story = {
@@ -34,7 +35,7 @@ export type Story = {
     finaleAt?: number
 }
 
-export const KINDS: readonly Kind[] = ["attack", "invasion", "comeback", "kickout", "rout", "battle", "holding", "round", "callup"]
+export const KINDS: readonly Kind[] = ["attack", "invasion", "comeback", "kickout", "rout", "battle", "holding", "saga", "round", "callup"]
 
 // The continent, as Natural Earth names it.
 export type RegionOf = (country: string) => string | undefined
@@ -52,7 +53,7 @@ export function sidesOf(story: Story): string[] {
     const team = teamFlagOf(story)
     if (story.kind === "rout") return team === undefined ? [story.victims[0]] : [story.victims[0], team]
     if (team !== undefined) return [team]
-    if (story.kind === "battle" && story.rival !== undefined) return [story.attacker, story.rival]
+    if ((story.kind === "battle" || story.kind === "saga") && story.rival !== undefined) return [story.attacker, story.rival]
     if (story.kind === "kickout" && story.victims.length > 0) return [story.attacker, story.victims[0]]
     return [story.attacker]
 }
@@ -67,7 +68,7 @@ export function fightersOf(story: Story, regionOf: RegionOf): (flag: string | un
 
 // Two stories with one key are one story told twice, whatever their headlines. angle: what the story tells of its flag
 // there, none for what it did; round: the day a round tells or a callup follows, "1.5", or the battle, "1.battle.2".
-export type StoryKey = {flag: string, continent: string, angle?: "holding" | "round" | "callup", round?: string}
+export type StoryKey = {flag: string, continent: string, angle?: "holding" | "saga" | "round" | "callup", round?: string}
 
 export function storyKeyOf(story: Story, regionOf: RegionOf): StoryKey {
     const place = story.place
@@ -77,6 +78,7 @@ export function storyKeyOf(story: Story, regionOf: RegionOf): StoryKey {
         continent: "region" in place ? place.region : country === undefined ? THE_WORLD : regionOf(country) ?? country,
     }
     if (story.kind === "holding") return {...key, angle: "holding"}
+    if (story.kind === "saga") return {...key, angle: "saga"}
     if (story.kind === "round" && story.day !== undefined) return {...key, angle: "round", round: roundKeyOf(story.day)}
     if (story.kind === "callup" && story.day !== undefined) return {...key, angle: "callup", round: roundKeyOf(story.day)}
     return key

@@ -51,7 +51,7 @@ func (s *testSuite) record(events ...ledger.Event) {
 	for i, event := range events {
 		entry, err := event.Entry()
 		s.Require().NoError(err)
-		stored = append(stored, inmemory_ledger_storage.Stored{Position: ledger.Position(i), Entry: entry}) //nolint:gosec // a few events.
+		stored = append(stored, inmemory_ledger_storage.Stored{Position: ledger.Position(i + 1), Entry: entry}) //nolint:gosec // a few events.
 	}
 	s.Require().NoError(s.store.Save(s.T().Context(), inmemory_ledger_storage.Changes{Entries: slices.Values(stored)}))
 }
@@ -73,9 +73,35 @@ func (s *testSuite) TestTheHistoryReplaysTheLedgerFromItsFirstEventIntoAFrameEac
 	s.True(proto.Equal(&planetv1.MapHistory{
 		Frames: []*planetv1.MapFrame{
 			{At: timestamppb.New(since), Owners: []*planetv1.TileOwner{{Tile: 1, CountryId: "fr"}}},
-			{At: timestamppb.New(since.Add(time.Hour)), Owners: []*planetv1.TileOwner{{Tile: 2, CountryId: "de"}, {Tile: 3, CountryId: "de"}}},
+			{At: timestamppb.New(since.Add(time.Hour)), Owners: []*planetv1.TileOwner{
+				{Tile: 2, CountryId: "de", SecondsIntoStep: 1800}, {Tile: 3, CountryId: "de", SecondsIntoStep: 1800},
+			}},
 			{At: timestamppb.New(until), Owners: []*planetv1.TileOwner{}},
 		},
 		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}, {Tile: 2, Hits: 1}, {Tile: 3, Hits: 1}},
+	}, history), "%v", history)
+}
+
+func (s *testSuite) TestTheHistoryReadsNothingBeforeTheLastResetAtOrBeforeItsWindow() {
+	ctx := s.T().Context()
+	s.record(ledger.Taking{Tile: 2, Scope: "203.0.113.7", Account: ada, Country: "de", At: since.Add(-30 * time.Minute)})
+	// A spread the ledger cannot replay, before the reset: reading it would fail the history.
+	_, err := s.db.On(ctx).ExecContext(ctx, `
+		INSERT INTO ledger_events (position, tile, scope, country, previous, taken_at, kind, payload)
+		VALUES (0, 4, '203.0.113.7', 'fr', '', $1, 'spread', '{"taken":"not a list"}')`, since.Add(-2*time.Hour))
+	s.Require().NoError(err)
+	_, err = s.db.On(ctx).ExecContext(ctx, `INSERT INTO map_resets (id, at) VALUES ('season-1', $1)`, since.Add(-time.Hour))
+	s.Require().NoError(err)
+
+	history, err := history_query.NewPostgresQuery(s.db).History(ctx, since, until, time.Hour)
+	s.Require().NoError(err)
+
+	s.True(proto.Equal(&planetv1.MapHistory{
+		Frames: []*planetv1.MapFrame{
+			{At: timestamppb.New(since), Owners: []*planetv1.TileOwner{{Tile: 2, CountryId: "de"}}},
+			{At: timestamppb.New(since.Add(time.Hour)), Owners: []*planetv1.TileOwner{}},
+			{At: timestamppb.New(until), Owners: []*planetv1.TileOwner{}},
+		},
+		Hits: []*planetv1.TileHits{},
 	}, history), "%v", history)
 }

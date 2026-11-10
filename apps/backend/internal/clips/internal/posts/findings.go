@@ -19,6 +19,8 @@ const (
 	Holding Angle = "holding"
 	DayWon  Angle = "round"
 	CallUp  Angle = "callup"
+	// What a flag did to a place over the season: a saga's.
+	Reigning Angle = "saga"
 )
 
 // Which story a post told: a post keeps it, so the editor reads what was told.
@@ -35,7 +37,7 @@ func (k StoryKey) known() bool {
 		return false
 	}
 	switch k.Angle {
-	case Deeds, Holding:
+	case Deeds, Holding, Reigning:
 		return k.Round == ""
 	case DayWon, CallUp:
 		return k.Round != ""
@@ -46,13 +48,14 @@ func (k StoryKey) known() bool {
 
 const TheWorld = "the world"
 
-// What the generator found in a replay, measured and never judged. A Story names a front, a tour, a place or a
+// What the generator found in a replay, measured and never judged. A Story names a front, a tour, a place, a saga or a
 // seasonal story by its place in its list, from 1.
 type Findings struct {
 	Since, Until time.Time
 	Fronts       []Front
 	Tours        []Tour
 	Places       []Place
+	Sagas        []Saga
 	Seasonal     []Seasonal
 	Names        map[string]string
 	// Each continent's own flag, empty for none.
@@ -138,6 +141,28 @@ type Place struct {
 	Fighters []Fighter
 }
 
+// A place over the season, and each flag that held over half of it, oldest first.
+type Saga struct {
+	Kind         PlaceKind
+	Code         string
+	Continent    string
+	Tiles        int
+	Reigns       []Reign
+	Holder       string
+	Share        float64
+	Since, Until time.Time
+}
+
+// A zero time is unset: PushedAt when the flag held a tenth of the place from the start, Until while it still holds.
+type Reign struct {
+	Flag                   string
+	PushedAt, Since, Until time.Time
+	Peak, Share            float64
+	TookFrom               string
+	TookFromShare          float64
+	LostTo                 string
+}
+
 // A day won or a call-up, headlined by the generator.
 type Seasonal struct {
 	Title     string
@@ -167,7 +192,7 @@ func FindingsOf(findings Findings) (Findings, error) {
 }
 
 func (f Findings) Any() bool {
-	return len(f.Fronts)+len(f.Tours)+len(f.Places) > 0
+	return len(f.Fronts)+len(f.Tours)+len(f.Places)+len(f.Sagas) > 0
 }
 
 type Kind string
@@ -190,13 +215,15 @@ const (
 	Dive         Look = "dive"
 )
 
-// A story to tell, as the generator's --story takes it. The editor makes one of a front, picks a tour or a place, and
-// words each; a seasonal story has words of its own.
+// A story to tell, as the generator's --story takes it. The editor makes one of a front, picks a tour, a place or a
+// saga, and words each; a seasonal story has words of its own.
 type Story struct {
-	Front, Tour, Place, Seasonal int
-	Kind                         Kind
-	Attacker, Rival              string
-	TakenFrom                    []string
+	Front, Tour, Place, Saga, Seasonal int
+	// The reign of the saga the clip plays from, from 1.
+	Reign           int
+	Kind            Kind
+	Attacker, Rival string
+	TakenFrom       []string
 	// Countries of the front, else a continent.
 	Countries []string
 	Continent string
@@ -219,6 +246,8 @@ func (s Story) Names() string {
 		return fmt.Sprintf("tour %d", s.Tour)
 	case s.Place > 0:
 		return fmt.Sprintf("place %d", s.Place)
+	case s.Saga > 0:
+		return fmt.Sprintf("saga %d", s.Saga)
 	case s.Seasonal > 0:
 		return fmt.Sprintf("seasonal %d", s.Seasonal)
 	default:
@@ -231,13 +260,14 @@ var ErrInvalidStory = errors.New("the story does not hold")
 // Whether the story is true to the findings, never whether it is good: its key when it is.
 func (f Findings) Check(story Story) (StoryKey, error) {
 	named := 0
-	for _, number := range []int{story.Front, story.Tour, story.Place, story.Seasonal} {
+	for _, number := range []int{story.Front, story.Tour, story.Place, story.Saga, story.Seasonal} {
 		if number > 0 {
 			named++
 		}
 	}
 	if named != 1 {
-		return StoryKey{}, fmt.Errorf("%w: it names %d of a front, a tour, a place and a seasonal story, not one", ErrInvalidStory, named)
+		return StoryKey{}, fmt.Errorf("%w: it names %d of a front, a tour, a place, a saga and a seasonal story, not one",
+			ErrInvalidStory, named)
 	}
 	if err := f.checkDrawn(story); err != nil {
 		return StoryKey{}, err
@@ -283,6 +313,11 @@ func (f Findings) keyOf(story Story) (StoryKey, error) {
 			continent = TheWorld
 		}
 		return StoryKey{Flag: place.Holder, Continent: continent, Angle: Holding}, nil
+	case story.Saga > 0:
+		if story.Saga > len(f.Sagas) {
+			return StoryKey{}, fmt.Errorf("%w: no saga %d of %d", ErrInvalidStory, story.Saga, len(f.Sagas))
+		}
+		return checkSaga(story, f.Sagas[story.Saga-1])
 	default:
 		if story.Front > len(f.Fronts) {
 			return StoryKey{}, fmt.Errorf("%w: no front %d of %d", ErrInvalidStory, story.Front, len(f.Fronts))
@@ -421,6 +456,38 @@ func (f Findings) checkFront(story Story, front Front) (StoryKey, error) {
 	return StoryKey{Flag: f.keyFlagOf(story, attacker), Continent: continent}, nil
 }
 
+// A saga plays its place from a reign to the end: its attacker and its rival are flags that held it from then on, or
+// the flag the reign took it from. It is told whole by the generator, so it has no kind, no look and no place of its own.
+func checkSaga(story Story, saga Saga) (StoryKey, error) {
+	refused := func(why string, args ...any) (StoryKey, error) {
+		return StoryKey{}, fmt.Errorf("%w: %s on saga %d", ErrInvalidStory, fmt.Sprintf(why, args...), story.Saga)
+	}
+
+	if story.Reign < 1 || story.Reign > len(saga.Reigns) {
+		return refused("no reign %d of %d", story.Reign, len(saga.Reigns))
+	}
+	if story.Kind != "" || story.Look != "" || len(story.Countries) > 0 || story.Continent != "" || story.Team != "" ||
+		len(story.TakenFrom) > 0 {
+		return refused("a saga has no kind, look, place, team or flags taken from of its own")
+	}
+	told := saga.Reigns[story.Reign-1:]
+	reigned := func(flag string) bool {
+		return slices.ContainsFunc(told, func(reign Reign) bool { return reign.Flag == flag })
+	}
+	if !reigned(story.Attacker) {
+		return refused("%q held no reign from reign %d", story.Attacker, story.Reign)
+	}
+	if story.Rival != "" && (story.Rival == story.Attacker || !reigned(story.Rival) && story.Rival != told[0].TookFrom) {
+		return refused("%q held no reign from reign %d, and reign %d took it from no %q", story.Rival, story.Reign, story.Reign, story.Rival)
+	}
+
+	continent := saga.Continent
+	if saga.Kind == World {
+		continent = TheWorld
+	}
+	return StoryKey{Flag: story.Attacker, Continent: continent, Angle: Reigning}, nil
+}
+
 // The loser of a rout, the continent's flag of a team, else the attacker: the generator's sidesOf.
 func (f Findings) keyFlagOf(story Story, attacker FrontFlag) string {
 	switch {
@@ -442,6 +509,8 @@ func (f Findings) sidesOf(story Story) []Fighter {
 		return f.Tours[story.Tour-1].Fighters
 	case story.Place > 0:
 		return f.Places[story.Place-1].Fighters
+	case story.Saga > 0:
+		return nil
 	default:
 		var sides []Fighter
 		for _, flag := range f.Fronts[story.Front-1].Flags {

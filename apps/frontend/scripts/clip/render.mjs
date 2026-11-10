@@ -16,7 +16,7 @@ const replay = flag("replay")
 if (!replay || has("help")) {
     console.error(`usage: npm run clip -- --replay <replay.json> [options]
 
-  --story <json>      the story to tell, a clips.v1.Pick: one front, tour, place or seasonal story of the findings by
+  --story <json>      the story to tell, a clips.v1.Pick: one front, tour, place, saga or seasonal story of the findings by
                       its number, for a front its kind, sides and place as the editor wrote them, and the editor's words:
                       headline, teasers, line, call, its flags and the anthem; for a front or a place its look, flags
                       or dive. A seasonal story has words of its own, and dives.
@@ -31,6 +31,8 @@ if (!replay || has("help")) {
                       called up to its Final Battle
   --cast <path>       who took which tiles (clips.v1.Cast): the fighters the story names are on its end card, and the
                       findings name each front's, tour's and place's top fighters
+  --history <path>    the map every hour since the season started (planet.v1.GetMapHistoryResponse): the findings tell
+                      each place's saga, who held over half of it from when to when, and a saga is told from it
   --silent            no anthem under the clip, for a sound added where it is posted
   --preview <s>       only the first s seconds of the clip
 
@@ -79,6 +81,7 @@ const optionalPath = (name) => {
 const racePath = optionalPath("race")
 const seasonPath = optionalPath("season")
 const castPath = optionalPath("cast")
+const historyPath = optionalPath("history")
 
 const server = await createServer({
     root: APP,
@@ -94,7 +97,7 @@ const server = await createServer({
                 createReadStream(replayPath).pipe(res)
             })
             // Answered either way: with no race or no season, a day or a call-up is no story, with no cast nobody is named,
-            // and the page must not read the app's fallback page.
+            // with no history no place has a saga, and the page must not read the app's fallback page.
             const optional = (path) => (_req, res) => {
                 if (path === undefined) {
                     res.statusCode = 404
@@ -108,6 +111,7 @@ const server = await createServer({
             vite.middlewares.use("/__clip/race.json", optional(racePath))
             vite.middlewares.use("/__clip/season.json", optional(seasonPath))
             vite.middlewares.use("/__clip/cast.json", optional(castPath))
+            vite.middlewares.use("/__clip/history.json", optional(historyPath))
         },
     }],
 })
@@ -325,7 +329,7 @@ try {
         const findings = await recorders[0].findings(pageOf())
         writeFileSync(resolve(flag("findings")), JSON.stringify(findings, null, 2) + "\n")
         const count = (name) => findings[name]?.length ?? 0
-        console.log(`${count("fronts")} fronts, ${count("tours")} tours, ${count("places")} places and ${count("seasonal")} seasonal stories, in ${flag("findings")}`)
+        console.log(`${count("fronts")} fronts, ${count("tours")} tours, ${count("places")} places, ${count("sagas")} sagas and ${count("seasonal")} seasonal stories, in ${flag("findings")}`)
         await done(0)
     }
 

@@ -52,6 +52,8 @@ const TIME = new Intl.DateTimeFormat("en-GB", {
     weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC",
 })
 
+const DAY = new Intl.DateTimeFormat("en-GB", {weekday: "short", day: "numeric", month: "short", timeZone: "UTC"})
+
 const ENGLISH = new Intl.DisplayNames(["en"], {type: "region", style: "short"})
 const LIST = new Intl.ListFormat("en-GB", {type: "conjunction"})
 
@@ -233,6 +235,8 @@ export function createOverlay(
     if (words.line !== undefined) element("p", "clip-line", top).textContent = words.line
 
     const bottom = element("footer", "clip-bottom", root)
+    // A saga is days long: the day it is at reads as big as its counters.
+    const day = story.kind === "saga" ? element("p", "clip-day", bottom) : undefined
     const counters = element("div", "clip-counters", bottom)
     // A call-up is about the season's points, which its end shows: the tiles of a few hours say nothing of them.
     const shown = (story.kind === "callup" ? [] : sides).map((side) => {
@@ -305,6 +309,7 @@ export function createOverlay(
                 delta.classList.toggle("clip-counter-delta--loss", moved < 0)
             }
             time.textContent = speech?.clock(replayAt) ?? `${TIME.format(new Date(replayAt))} UTC`
+            if (day !== undefined) day.textContent = DAY.format(new Date(replayAt)).toUpperCase()
             progress.style.transform = `scaleX(${played})`
             ending.style.opacity = String(over)
             top.style.opacity = String(1 - over)

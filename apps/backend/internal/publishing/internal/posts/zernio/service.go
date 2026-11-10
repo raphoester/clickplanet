@@ -30,7 +30,7 @@ const (
 	everyone = "PUBLIC_TO_EVERYONE"
 	gaming   = "20"
 	inFlight = "idempotency_conflict"
-	// About fifteen posts a day: a page this long holds the week a job reads, and more.
+	// About fifteen posts a day: a page this long holds weeks of them, and the list reads every page.
 	pageOfPosts = 500
 )
 
@@ -304,16 +304,27 @@ func (s *Service) Posts(ctx context.Context, since time.Time) ([]*publishingv1.P
 
 // fromDate is a date: a caller filters to the hour.
 func (s *Service) list(ctx context.Context, since time.Time) ([]cpzernio.Post, error) {
-	answer, err := s.api.ListPostsWithResponse(ctx, &cpzernio.ListPostsParams{
-		FromDate: &openapi_types.Date{Time: since.UTC()}, Limit: new(pageOfPosts),
-	})
-	if err != nil {
-		return nil, unreachable(err)
+	var listed []cpzernio.Post
+	for page := 1; ; page++ {
+		answer, err := s.api.ListPostsWithResponse(ctx, &cpzernio.ListPostsParams{
+			FromDate: &openapi_types.Date{Time: since.UTC()}, Limit: new(pageOfPosts), Page: new(page),
+		})
+		if err != nil {
+			return nil, unreachable(err)
+		}
+		if answer.JSON200 == nil || answer.JSON200.Posts == nil {
+			return nil, refusal(answer.HTTPResponse, answer.Body, "the list of posts")
+		}
+		listed = append(listed, *answer.JSON200.Posts...)
+
+		pages := 0
+		if answer.JSON200.Pagination != nil {
+			pages = valueOf(answer.JSON200.Pagination.Pages)
+		}
+		if page >= pages || len(*answer.JSON200.Posts) < pageOfPosts {
+			return listed, nil
+		}
 	}
-	if answer.JSON200 == nil || answer.JSON200.Posts == nil {
-		return nil, refusal(answer.HTTPResponse, answer.Body, "the list of posts")
-	}
-	return *answer.JSON200.Posts, nil
 }
 
 func failureOf(post cpzernio.Post) string {

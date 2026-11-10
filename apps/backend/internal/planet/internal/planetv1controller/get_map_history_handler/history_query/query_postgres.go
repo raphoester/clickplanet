@@ -23,11 +23,12 @@ type PostgresQuery struct {
 	db cppg.Conn
 }
 
-// From the first event: the map at the window's start is every take before it. Positions follow time, so the read stops
-// at the first event at or after the window's end.
+// The map at the window's start is every take before it, from the last reset at or before it, where the map was blank.
+// Positions follow time, so the read stops at the first event at or after the window's end.
 const events = `
 	SELECT kind, tile, COALESCE(scope, ''), COALESCE(account::text, ''), country, previous, taken_at, payload
 	FROM ledger_events
+	WHERE taken_at >= $1
 	ORDER BY position
 `
 
@@ -40,7 +41,8 @@ func (q *PostgresQuery) History(ctx context.Context, since, until time.Time, ste
 	if err != nil {
 		return nil, err
 	}
-	rows, err := q.db.On(ctx).QueryContext(ctx, events)
+	resets, blank := blankBefore(resets, since)
+	rows, err := q.db.On(ctx).QueryContext(ctx, events, blank)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the ledger: %w", err)
 	}
@@ -73,6 +75,20 @@ func (q *PostgresQuery) History(ctx context.Context, since, until time.Time, ste
 	return messageOf(history), nil
 }
 
+// The resets from the last one at or before since, and that one's time; the zero time when none precedes since.
+func blankBefore(resets []time.Time, since time.Time) ([]time.Time, time.Time) {
+	last := -1
+	for i, reset := range resets {
+		if !reset.After(since) {
+			last = i
+		}
+	}
+	if last < 0 {
+		return resets, time.Time{}
+	}
+	return resets[last:], resets[last]
+}
+
 // The map resets leave no event in the ledger.
 func (q *PostgresQuery) resets(ctx context.Context) ([]time.Time, error) {
 	rows, err := q.db.On(ctx).QueryContext(ctx, `SELECT at FROM map_resets ORDER BY at`)
@@ -95,12 +111,22 @@ func (q *PostgresQuery) resets(ctx context.Context) ([]time.Time, error) {
 	return resets, nil
 }
 
+// The first frame has no step before it.
+func secondsInto(frames []ledger.Frame, frame int, owner ledger.Owner) uint32 {
+	if frame == 0 || owner.At.Before(frames[frame-1].At) {
+		return 0
+	}
+	return uint32(owner.At.Sub(frames[frame-1].At) / time.Second)
+}
+
 func messageOf(history *ledger.History) *planetv1.MapHistory {
 	answer := &planetv1.MapHistory{}
-	for _, frame := range history.Frames() {
+	frames := history.Frames()
+	for i, frame := range frames {
 		shown := &planetv1.MapFrame{At: timestamppb.New(frame.At), Owners: make([]*planetv1.TileOwner, 0, len(frame.Owners))}
 		for _, tile := range slices.Sorted(maps.Keys(frame.Owners)) {
-			shown.Owners = append(shown.Owners, &planetv1.TileOwner{Tile: tile, CountryId: frame.Owners[tile]})
+			owner := frame.Owners[tile]
+			shown.Owners = append(shown.Owners, &planetv1.TileOwner{Tile: tile, CountryId: owner.Country, SecondsIntoStep: secondsInto(frames, i, owner)})
 		}
 		answer.Frames = append(answer.Frames, shown)
 	}

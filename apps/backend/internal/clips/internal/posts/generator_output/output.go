@@ -7,8 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	clipsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
@@ -60,6 +62,9 @@ func (f FindingsFile) Findings(_ context.Context) (posts.Findings, error) {
 			Fighters: fightersOf(place.GetFighters()),
 		})
 	}
+	for _, saga := range written.GetSagas() {
+		findings.Sagas = append(findings.Sagas, sagaOf(saga))
+	}
 	for _, seasonal := range written.GetSeasonal() {
 		facts, err := factsOf(seasonal.GetFacts())
 		if err != nil {
@@ -95,6 +100,29 @@ func frontOf(written *clipsv1.Front) posts.Front {
 	return front
 }
 
+func sagaOf(written *clipsv1.Saga) posts.Saga {
+	saga := posts.Saga{
+		Kind: posts.PlaceKind(written.GetKind()), Code: written.GetCode(), Continent: written.GetContinent(), Tiles: int(written.GetTiles()),
+		Holder: written.GetHolder(), Share: written.GetShare(), Since: timeOf(written.GetSince()), Until: timeOf(written.GetUntil()),
+	}
+	for _, reign := range written.GetReigns() {
+		saga.Reigns = append(saga.Reigns, posts.Reign{
+			Flag: reign.GetFlag(), PushedAt: timeOf(reign.GetPushedAt()), Since: timeOf(reign.GetSince()), Until: timeOf(reign.GetUntil()),
+			Peak: reign.GetPeak(), Share: reign.GetShare(), TookFrom: reign.GetTookFrom(), TookFromShare: reign.GetTookFromShare(),
+			LostTo: reign.GetLostTo(),
+		})
+	}
+	return saga
+}
+
+// Unset is the zero time, never 1970.
+func timeOf(written *timestamppb.Timestamp) time.Time {
+	if written == nil {
+		return time.Time{}
+	}
+	return written.AsTime()
+}
+
 func fightersOf(written []*clipsv1.TopFighter) []posts.Fighter {
 	if len(written) == 0 {
 		return nil
@@ -124,6 +152,7 @@ func StoryJSON(story posts.Story) ([]byte, error) {
 	}
 	written, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(&clipsv1.Pick{
 		Front: uint32(story.Front), Tour: uint32(story.Tour), Place: uint32(story.Place), Seasonal: uint32(story.Seasonal), //nolint:gosec // from 1, a few dozen at most.
+		Saga: uint32(story.Saga), Reign: uint32(story.Reign), //nolint:gosec // from 1, a few dozen at most.
 		Kind: string(story.Kind), Attacker: story.Attacker, Rival: story.Rival, TakenFrom: story.TakenFrom,
 		Countries: story.Countries, Continent: story.Continent, Team: story.Team,
 		Headline: story.Headline, Teasers: story.Teasers, Line: story.Line, Call: story.Call, CallFlags: story.CallFlags, Anthem: story.Anthem,

@@ -113,6 +113,14 @@ export class TileOwner extends Message<TileOwner> {
    */
   countryId = "";
 
+  /**
+   * When the tile went to this owner, its last change of the step: whole seconds after the frame before. 0 in the first
+   * frame. A replay plays each change at its time, so an enclosure's tiles land together, as they did.
+   *
+   * @generated from field: uint32 seconds_into_step = 3;
+   */
+  secondsIntoStep = 0;
+
   constructor(data?: PartialMessage<TileOwner>) {
     super();
     proto3.util.initPartial(data, this);
@@ -123,6 +131,7 @@ export class TileOwner extends Message<TileOwner> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "tile", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "seconds_into_step", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileOwner {

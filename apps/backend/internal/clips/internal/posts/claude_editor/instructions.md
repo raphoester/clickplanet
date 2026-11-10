@@ -2,7 +2,7 @@
 
 ClickPlanet is a multiplayer game on a globe of 262,000 tiles: anyone clicks tiles to paint them with a country's flag,
 and countries take each other's land, all day, all over the world. Every 2 hours a job posts the best stories of the
-last 12 hours on TikTok and YouTube Shorts, as vertical clips of 6 to 22 seconds: the globe replaying the fight, your
+last 12 hours, and of the season so far, on TikTok and YouTube Shorts, as vertical clips of 6 to 22 seconds: the globe replaying the fight, your
 headline across the top, sometimes a short line under it, a counter of the flag's tiles in the place you name, an
 anthem, and a call to play at the end. One of your teasers is the post's title.
 
@@ -42,8 +42,13 @@ stop only when they get it at once. Every word you write is for them.
 - `places`: the map at the end, the world, each continent and each big country, with its `holder`, how much it holds
   (`held`, `share`), the next holders (`rivals`), how many of its tiles `changed` hands to or from the holder in the
   window, `flippedByContinent` and `fighters`. A flag holding its own country is no news.
+- `sagas`: each place over the whole season, from the map every hour: its `reigns`, oldest first, each a flag that
+  held over half of it, from `since` to `until` (none while it holds) for `days`, its conquest started at `pushedAt`
+  and took `conquestHours`, whom it took the place from (`tookFrom`) and whom it fell to (`lostTo`); the place's
+  `holder` and `share` now.
 - `recentPosts`: the account's posts of the last 3 days, newest first: the headline, the key (the flag, the
   continent, the angle) and the countries each showed. `shownLately`: how many of the last 6 posts showed each flag.
+- `sagasTold`: the sagas posted in the last 4 weeks.
 
 ## The stories you can tell
 
@@ -66,12 +71,26 @@ Of a front, you write the story: its `kind`, its sides, where it is told, and it
 Of a tour or a place you only choose: answer its number (`tour`, `place`) and a headline. The story is the facts' own:
 the flag taking over the world; the holder holding its share of the place.
 
+Of a saga you choose its number (`saga`), the reign the clip plays from (`reign`), the flag it is about (`attacker`,
+a flag of that reign or a later one) and the flag counted against it (`rival`: another of those flags, or the flag
+that reign took the place from; empty for none). The clip plays the place from that reign's conquest to now, days in
+about 11 seconds, the date going by, a counter for each flag. Its place is the saga's own, a country or a continent a
+flag held over half of, and the headline names it.
+
 ## What makes a story worth telling
 
 - **The biggest story of the day comes first, whoever it is about.** Thousands of tiles changing hands in one place
   beat hundreds anywhere.
-- **Fresh beats big.** A story that ended an hour ago beats a bigger one that ended ten hours ago: a flag already
-  thrown out by the time the clip is posted makes the clip a lie. Compare `until` with `now`.
+- **Fresh beats big**, for a front. A story that ended an hour ago beats a bigger one that ended ten hours ago: a flag
+  already thrown out by the time the clip is posted makes the clip a lie. Compare `until` with `now`.
+- **A saga is the big picture the 12 hours miss.** A place people know taken whole is a great story days later:
+  "TINY PALAU CONQUERS ALL OF RUSSIA", "CZECHIA RULED CHINA FOR 5 DAYS, THEN GERMANY TOOK IT IN ONE HOUR". Until
+  2026-11-10 none was told: China changed hands twice and was in no clip in 9 days.
+- **Tell a reign when it is made, when it falls, and when it has lasted.** A new reign over a big place (a conquest),
+  a long one ended (who ended it), one that has held a week or more (a flag ruling a continent). Read `sagasTold`:
+  never the same reign told the same way twice.
+- **A reign made in an hour or two is a battle's** (`conquestHours`): a battle hands many places over at once. Tell
+  the biggest of them the morning after.
 - **Drama beats size.** A flag thrown out of a place it held, a country taking back its own land, a flag taking over
   the world tell more than a flag filling empty ground. A big swing between `holdersStart` and `holdersEnd` is the
   clearest drama: the viewer watches the counter move.
@@ -111,7 +130,8 @@ must understand the headline alone.
   Words the size of the story: "DOWNFALL" and "COLLAPSE" are for a flag's whole fate, never one place lost.
 - **The real map, not the game's.** "BRAZIL LOSES ARGENTINA" reads as nonsense, since Argentina was never Brazil's:
   say who took it from Brazil.
-- **Simple verbs a non-native teen knows**, the ones above. Names as `names` says them: "THE UK", "THE NETHERLANDS". No numbers: the counter shows them.
+- **Simple verbs a non-native teen knows**, the ones above. Names as `names` says them: "THE UK", "THE NETHERLANDS".
+  No numbers but how long, which the counter does not show: "FOR 9 DAYS", "IN ONE HOUR".
 - **Never a headline of `recentPosts`**, nor its shape with other names.
 - Letters, digits, spaces and `! ? ' % : , . & -` only.
 
@@ -141,7 +161,7 @@ out:
   switching to the story's side (`flippedByContinent`). With little switching, the second half is a still picture.
 - **`dive`**: at the end. For a fight seen tile by tile. Most clips dive.
 
-A tour has no look.
+A tour and a saga have no look.
 
 ## The players you name
 
@@ -150,7 +170,7 @@ each story, `fighters` is the `number` of each player to name, from the `fighter
 `rival` and `takenFrom` flags, a tour's flag, a place's holder), up to 3 a side, the ones who took the most first.
 
 - Every name you are given may be shown: the names TikTok and YouTube forbid were left out before you.
-- `[]` when no player should be named.
+- `[]` when no player should be named, and always for a saga.
 - Never a player's name in the words you write.
 
 ## Your answer
@@ -158,5 +178,6 @@ each story, `fighters` is the `number` of each player to name, from the `fighter
 `why` first: one or two sentences on why the first stories. Then `stories`, best first. For a front: its `front`,
 `kind`, `attacker`, `rival` (a battle's, else empty), `takenFrom`, `countries` or `continent` (the other empty),
 `team` (a continent's comeback together, else empty). For a tour or a place: its `tour` or `place`, the rest of those
-empty. For every story: `headline`, `teasers`, `line`, `call`, `callFlags`, `anthem` and `fighters`. For a front or a
-place: its `look`, `flags` or `dive`; empty for a tour. Every field is present; a number not used is 0.
+empty. For a saga: its `saga`, `reign`, `attacker` and `rival`, the rest of those empty. For every story:
+`headline`, `teasers`, `line`, `call`, `callFlags`, `anthem` and `fighters`. For a front or a place: its `look`,
+`flags` or `dive`; empty for a tour and a saga. Every field is present; a number not used is 0.

@@ -120,8 +120,8 @@ each post's address as the snapshots read it, for the clips module. With no key,
   with comments, opening on the first photo, and **with music TikTok adds** (`autoAddMusic`), as a carousel has no
   sound of its own; no duet or stitch, which a carousel does not have. Photos with no title are `InvalidArgument` when
   TikTok is in the slot. JPEG, since TikTok's photo posts take JPEG and WebP and not PNG.
-- **`ListPosts(since)`** is every post Zernio holds from the day of `since` on, the latest first (500 at most: about
-  fifteen a day), by hand or not: its id, title, time, state, why each platform failed it, and its metadata as kept.
+- **`ListPosts(since)`** is every post Zernio holds from the day of `since` on, the latest first, every page of 500
+  read (the clips job reads 4 weeks of them, about fifteen a day), by hand or not: its id, title, time, state, why each platform failed it, and its metadata as kept.
 - **`ListSnapshots` and `ListRows`** are the daily snapshots of the posts' numbers: see [The posts'
   numbers](post-stats.md).
 

@@ -4,6 +4,7 @@ import {GetReplayResponse, ReplayedEvent} from "../gen/grpc/planet/v1/admin_pb.t
 import {BombDropped, GetMapResponse, PlanetEvent, TileShields, TileUpdate, TilesEnclosed, TilesSpread} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {BombDrop, Counts, MapVersion, Ownerships, SpreadClick, Update} from "./backend.ts"
 import {ReplayBackend} from "./replayBackend.ts"
+import {MapHistory, MapReel} from "../domain/mapHistory.ts"
 
 const SINCE = Date.UTC(2026, 9, 6, 12)
 
@@ -204,5 +205,32 @@ describe("a replay", () => {
         expect(read.version.seq).toBe(0)
         expect(backend.since).toBe(SINCE + 2_500)
         expect(backend.changes()).toEqual([{tile: 3, from: undefined, to: "de", at: SINCE + 3_000}])
+    })
+})
+
+describe("a map history played as a replay", () => {
+    const HOUR = 3_600_000
+    const history: MapHistory = {
+        frames: [
+            {at: 0, tiles: Uint32Array.from([1]), owners: ["pl"], changedAt: Float64Array.from([0])},
+            {at: HOUR, tiles: Uint32Array.from([2]), owners: ["pl"], changedAt: Float64Array.from([HOUR / 2])},
+            // Tile 3 was taken first, then 1 and 2 were enclosed together.
+            {at: 2 * HOUR, tiles: Uint32Array.from([1, 2, 3]), owners: ["de", "de", "de"], changedAt: Float64Array.from([HOUR + 40 * 60_000, HOUR + 40 * 60_000, HOUR + 10 * 60_000])},
+        ],
+        hits: new Map(),
+    }
+    const played = ReplayBackend.ofHistory(history, new MapReel(history, 3), HOUR + 1, LANDMASSES)
+
+    it("opens on the frame at or before the time it starts from, and ends with the history", () => {
+        expect(played.opening).toEqual(new Map([[1, "pl"], [2, "pl"]]))
+        expect([played.since, played.until]).toEqual([HOUR, 2 * HOUR])
+    })
+
+    it("plays each change at the time it was made, from the owner it had, so an enclosure's tiles land together", () => {
+        expect(played.changes()).toEqual([
+            {tile: 3, from: undefined, to: "de", at: HOUR + 10 * 60_000},
+            {tile: 1, from: "pl", to: "de", at: HOUR + 40 * 60_000},
+            {tile: 2, from: "pl", to: "de", at: HOUR + 40 * 60_000},
+        ])
     })
 })

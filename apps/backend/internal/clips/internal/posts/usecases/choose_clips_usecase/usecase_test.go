@@ -102,7 +102,7 @@ func TestTheEditorIsOfferedTheFindingsAndWhatWasToldAndItsStoriesAreTheRun(t *te
 	assert.Equal(t, found, model.offers[0].Findings)
 	assert.Equal(t, 1, model.offers[0].Slots(), "the day won takes a slot")
 	assert.Equal(t, past.told, model.offers[0].Recent)
-	assert.Equal(t, []time.Time{now.Add(-7 * 24 * time.Hour)}, past.since)
+	assert.Equal(t, []time.Time{now.Add(-28 * 24 * time.Hour)}, past.since, "a season of sagas told")
 	assert.Equal(t, []posts.Chosen{
 		{Pick: 1, Story: posts.Story{Seasonal: 1}, Key: day18},
 		{Pick: 2, Story: battle, Key: posts.StoryKey{Flag: "fr", Continent: "Middle East"}},

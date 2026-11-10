@@ -26,6 +26,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/ssh_replay_source"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_cast_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_cast_usecase/log_fetch_cast"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_history_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_history_usecase/log_fetch_history"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase/log_fetch_replay"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_round_usecase"
@@ -121,7 +123,12 @@ func (c Config) withDefaults() Config {
 // turn, round, cast: where the gamemaster's turn, the round it debriefs and the replay's cast are written, or empty for
 // none; a round needs its turn. One the backend does not answer is no error: the replay is what the run needs, and they
 // only add the round of the season scored in it, the countries called up and the players the clips name.
-func Fetch(ctx context.Context, out, turn, round, cast string, config Config, logger *slog.Logger) error {
+// The files a fetch writes. Empty is none, but for the replay; a round and a history need the turn.
+type FetchFiles struct {
+	Replay, Turn, Round, Cast, History string
+}
+
+func Fetch(ctx context.Context, files FetchFiles, config Config, logger *slog.Logger) error {
 	config = config.withDefaults()
 
 	source, err := ssh_replay_source.New(config.Replay.SSH, ssh_replay_source.OpenSSH)
@@ -131,28 +138,34 @@ func Fetch(ctx context.Context, out, turn, round, cast string, config Config, lo
 
 	fetch := log_fetch_replay.New(fetch_replay_usecase.New(
 		replays.Request{Span: config.Replay.Span, Until: config.Replay.Until},
-		cptime.SystemClock{}, source, file_replay_store.Store(out),
+		cptime.SystemClock{}, source, file_replay_store.Store(files.Replay),
 	), logger)
 
 	replay, err := fetch.Execute(ctx)
 	if err != nil {
 		return err //nolint:wrapcheck // the use case already named what failed.
 	}
-	if cast != "" {
+	if files.Cast != "" {
 		// Its decorator warns that the cast is left out.
-		_, _ = log_fetch_cast.New(fetch_cast_usecase.New(source, file_replay_store.CastStore(cast)), logger).
+		_, _ = log_fetch_cast.New(fetch_cast_usecase.New(source, file_replay_store.CastStore(files.Cast)), logger).
 			Execute(ctx, replay.Window)
 	}
 
-	if turn == "" {
+	if files.Turn == "" {
 		return nil
 	}
-	// Their decorators warn that the turn or the round is left out.
-	told, err := log_fetch_turn.New(fetch_turn_usecase.New(source, file_replay_store.TurnStore(turn)), logger).Execute(ctx)
-	if err != nil || round == "" {
+	// Their decorators warn that the turn, the round or the season's map is left out.
+	told, err := log_fetch_turn.New(fetch_turn_usecase.New(source, file_replay_store.TurnStore(files.Turn)), logger).Execute(ctx)
+	if err != nil {
 		return nil //nolint:nilerr // the decorator warned: a run with no turn still has its replay.
 	}
-	_, _ = log_fetch_round.New(fetch_round_usecase.New(source, file_replay_store.RoundStore(round)), logger).Execute(ctx, told)
+	if files.Round != "" {
+		_, _ = log_fetch_round.New(fetch_round_usecase.New(source, file_replay_store.RoundStore(files.Round)), logger).Execute(ctx, told)
+	}
+	if files.History != "" {
+		_, _ = log_fetch_history.New(fetch_history_usecase.New(source, file_replay_store.HistoryStore(files.History)), logger).
+			Execute(ctx, told, replay.Window.Until)
+	}
 	return nil
 }
 

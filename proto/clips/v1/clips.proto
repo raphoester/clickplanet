@@ -20,6 +20,47 @@ message Findings {
   repeated Continent continents = 8;
   // The codes a clip has an anthem for, a continent's own flag among them: what a Pick's anthem names.
   repeated string anthems = 9;
+  // Each place over the whole season, from the map every hour: who held over half of it, from when to when. Empty
+  // when the run fetched no history.
+  repeated Saga sagas = 10;
+}
+
+// A place over the season: the world, a continent or a country of 1,000 tiles or more, and each flag that held over half
+// of it, oldest first. A dip under half shorter than 3 hours does not end a reign.
+message Saga {
+  // "world", "continent" or "country".
+  string kind = 1;
+  // The country's code; empty for the world and a continent.
+  string code = 2;
+  // The continent, or a country's; empty for the world.
+  string continent = 3;
+  uint32 tiles = 4;
+  repeated Reign reigns = 5;
+  // The flag holding the most of it at the end, and its share.
+  string holder = 6;
+  double share = 7;
+  // When the history it is measured on starts and ends.
+  google.protobuf.Timestamp since = 8;
+  google.protobuf.Timestamp until = 9;
+}
+
+// A flag holding over half of a place, from since to until.
+message Reign {
+  string flag = 1;
+  // When its conquest began: the last hour it held under a tenth of the place before it held over half. Unset when it
+  // held a tenth or more from the history's start.
+  google.protobuf.Timestamp pushed_at = 2;
+  google.protobuf.Timestamp since = 3;
+  // When it fell under half; unset while it still holds.
+  google.protobuf.Timestamp until = 4;
+  // The most of the place it held, and its share at its until or at the end.
+  double peak = 5;
+  double share = 6;
+  // The flag holding the most of the place, after it, when its conquest began; empty for none.
+  string took_from = 7;
+  double took_from_share = 8;
+  // The flag holding the most of the place, after it, when it fell; empty while it holds.
+  string lost_to = 9;
 }
 
 message Continent {
@@ -157,9 +198,9 @@ message StoryFacts {
   double score = 22;
 }
 
-// A story to tell, as the generator's --story takes it: one front, one tour, one place or one seasonal story of the
-// findings, by its number from 1, for a front what the editor made of it, and the editor's words. A seasonal story has
-// words of its own, and none of the editor's.
+// A story to tell, as the generator's --story takes it: one front, one tour, one place, one saga or one seasonal story
+// of the findings, by its number from 1, for a front what the editor made of it, and the editor's words. A seasonal
+// story has words of its own, and none of the editor's.
 message Pick {
   uint32 front = 1;
   uint32 tour = 2;
@@ -190,6 +231,10 @@ message Pick {
   string look = 18;
   // The players the clip names, by their number in the cast.
   repeated uint32 fighters = 19;
+  // A saga of the findings, by its number from 1, and the reign it plays from, from 1: the clip plays the place from
+  // that reign's conquest to the end of the history, its counters the attacker's share and the rival's.
+  uint32 saga = 20;
+  uint32 reign = 21;
 }
 
 message Clip {
