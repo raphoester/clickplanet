@@ -84,7 +84,7 @@ store's insert (`ON CONFLICT DO NOTHING`, which answers whether this call did it
   read the map opens nothing and is tried again. **A round told `from_nothing`, or a book's first round, keeps no start,
   reads no map and counts from nothing** (`books.CountsFromNothing`): a season after season 0 opens on a blank map,
   and the gamemaster tells planet to wipe it on another stream, so the wipe can land after the round opened; an arena battle's
-  round plays on a map planet blanks after day K is scored (see [Arena battles](arenas.md)).
+  round opens once planet told its arena's blank map plays (see [Arena battles](arenas.md)).
 - **`CloseRound{round_id, ends_at}`**: a round scored is not scored again. **A round never opened is not scored, and
   `close_round_usecase` records `scoring.v1.RoundMissed`** (round, end) in the outbox, at each such close: the
   gamemaster closes a round until scoring answers it, so a close that cannot apply is answered too (see [The gamemaster

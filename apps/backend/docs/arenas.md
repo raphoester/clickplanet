@@ -19,10 +19,12 @@ late, so **every step waits on a fact kept in postgres, never on a time margin**
 |---|---|---|---|
 | T1 | play_schedule | `PlayRuleSet` of the arena battle's set | the clock |
 | T1 | play_arenas | judges the battle once: `GetRuleSet(set).arena.on` → `battle_modes` | the clock |
-| T1 | play_scoring | `CloseRound` day K, then `OpenRound` of the battle with `from_nothing` | the judgement, for the open |
+| T1 | play_scoring | `CloseRound` day K | the clock |
 | ~T1+2 s | scoring | scores day K on the real map → `RoundScored` → `scored_rounds` | — |
-| ~T1+3 s | play_arenas | `OpenArena{arena_id, ends_at}` | day K answered (`scored_rounds` or `missed_rounds`), and no arena before it still open |
-| | planet | saves what changed to the world's map, then plays the arena's empty map: new epoch, every stream cut | — |
+| ~T1+3 s | play_arenas | `OpenArena{arena_id, ends_at}` | day K answered (`scored_rounds` or `missed_rounds`), no arena before it still open, and the arena not in `opened_arenas` |
+| | planet | saves what changed to the world's map, keeps the arena and records `ArenaOpened`, then plays the arena's empty map: new epoch, every stream cut | — |
+| ~T1+4 s | gamemaster | keeps it in `opened_arenas` (`gamemaster-arenas-opened`) | — |
+| | play_scoring | `OpenRound` of the battle with `from_nothing`; its start is T1 | the arena in `opened_arenas` |
 | T2 | play_scoring | `CloseRound` of the battle | the clock |
 | ~T2+2 s | scoring | scores the battle on the arena, from nothing → `RoundScored` | — |
 | ~T2+3 s | play_arenas | `CloseArena{arena_id}`, again each minute until `ArenaClosed` | the battle answered (`scored_rounds` or `missed_rounds`) |
@@ -37,11 +39,11 @@ the map is back), a season's reset (`play_resets_usecase`: a reset before the re
 next arena (`ArenasDueAt`). **Each wait is on the answer to a close, and every close is answered** (see [The gamemaster
 as a reconciler](gamemaster-reconciler.md)): a round scoring never opened is told missed, and an arena planet never
 opened closes all the same, so nothing waits for ever. A battle's round opens only once the battle is judged, in the same tick (`Plan.Judged`
-hands the judgement to the steps after the arena step): an arena battle's
-round counts from nothing, so its gain is the tiles held when it ends. A plan built with no arena battles (the zero
+hands the judgement to the steps after the arena step), and an arena battle's only once planet told its arena opened
+(`opened_arenas`): it counts from nothing, so its gain is the tiles held on the arena when it ends. A plan built with no arena battles (the zero
 `Arenas`, as `turn_query` builds it) waits for nothing.
 
-**Retries, crashes and restarts**: the judgement, the rounds scored or missed and the closed arenas are rows; the steps
+**Retries, crashes and restarts**: the judgement, the rounds scored or missed and the arenas opened and closed are rows; the steps
 keep only what they sent in this process, so a boot sends again what is due, and planet keeps each arena by its id. A
 close is sent again each minute until it is answered. A command Redis refused stops the tick, and it and every one after
 it go the next second.
@@ -50,6 +52,12 @@ it go the next second.
 down at its end) no longer stalls the game: its close is answered `RoundMissed`, the arena closes (it never opened
 either), and the day after opens on the world's map. Until 2026-11-10 its round was never scored, its arena never
 closed, and every round, day and season after it waited for ever.
+
+**An arena battle whose arena never opens** (judged too late, or `OpenArena` refused because it comes at or after the
+battle's end) **gets no open in scoring**: planet tells `ArenaOpened` only when the map goes blank, and the battle's
+round waits for it. At its end its `CloseRound` is answered `RoundMissed`, the arena closes with the map left as it is,
+and the battle scores nothing. Until 2026-11-10 its round opened at T1 with `from_nothing` all the same, so it was scored
+from nothing on the world's map, and each country gained its whole land.
 
 **An arena battle is judged once, as it starts, and kept** (`battle_modes`, enum `battle_mode`): a set edited during the
 battle changes no judgement. **A battle that opens its book is plain** (`Plan.Judge`): the season's reset blanked the
@@ -64,10 +72,11 @@ world's rows stay as they are while an arena plays, and a column added to a tile
 map.
 
 - **`OpenArena`** (`open_arena_usecase`): under the flush lock and the tiles lock, `Storage.Blank` saves what changed to
-  the world's map (the tiles not flushed yet), keeps the arena (`arenas`), and then plays the arena's map, which has no
-  row yet. Memory is emptied as `Wipe` empties it: a new epoch and every stream cut, so every page reads the blank map
-  again. **An arena opens once, never after it closed, never at or after its end, and never while another is open**
-  (`Arena.Open`): a refusal is dropped by the handler and logged at Error.
+  the world's map (the tiles not flushed yet), keeps the arena (`arenas`) in one transaction with
+  `planet.v1.ArenaOpened` recorded in planet's outbox, and then plays the arena's map, which has no row yet. Memory is
+  emptied as `Wipe` empties it: a new epoch and every stream cut, so every page reads the blank map again. **An arena
+  opens once, never after it closed, never at or after its end, and never while another is open** (`Arena.Open`): a
+  refusal tells nothing, is dropped by the handler and logged at Error.
 - **`CloseArena`** (`close_arena_usecase`): under the same locks, `Storage.PutBack` runs `Wipe` on the arena's map in
   one transaction with the arena kept closed (`closed_arenas`) and `planet.v1.ArenaClosed` recorded in planet's outbox.
   Only after the commit does the world's map play again, read as the boot reads it (`Load`'s steps: every tile, every
@@ -84,18 +93,19 @@ map.
   5 s cache.
 - **A deleted account** (`anonymize_takes_usecase`) is taken off every map, in memory and then in postgres
   (`Storage.ForgetHolder`), so the world's map played again names it no more.
-- **Planet's outbox** (`planet.outbox`, `outbox_event` `planet.v1.ArenaClosed`, relay `planet-outbox`) is new with
-  arenas: the map's facts still go through the ledger.
+- **Planet's outbox** (`planet.outbox`, `outbox_event` `planet.v1.ArenaOpened` and `planet.v1.ArenaClosed`, relay
+  `planet-outbox`) is new with arenas: the map's facts still go through the ledger.
 
 ## Gamemaster: the arena battles (`internal/gamemaster/internal/arenas/`)
 
 - `play_arenas_usecase` (the second step of `gamemaster-plan`, each second): judges the battle that runs (`Plan.Unjudged`, `Plan.Judge`,
-  `rpc_planet_arenas`), then sends each arena command due (`Plan.ArenasDueAt`), an open once per process and a close
-  again each minute until planet tells it closed, by time, a close before an open at one instant
-  (`redis_arena_commands`).
+  `rpc_planet_arenas`), then sends each arena command due (`Plan.ArenasDueAt`), an open once per process until planet
+  tells it opened and a close again each minute until planet tells it closed, by time, a close before an open at one
+  instant (`redis_arena_commands`).
+- `arena_opened_subscriber` (`gamemaster-arenas-opened`) → `hear_opened_arena_usecase` keeps the arena opened once.
 - `arena_closed_subscriber` (`gamemaster-arenas-closed`) → `hear_arena_usecase` keeps the arena closed once.
-- `postgres_arena_store` over `battle_modes` and `closed_arenas`, read in one statement (`ArenasKept`); `moments.Plan`
-  reads them with what scoring answered (`Kept`).
+- `postgres_arena_store` over `battle_modes`, `opened_arenas` and `closed_arenas`, read in one statement (`ArenasKept`);
+  `moments.Plan` reads them with what scoring answered (`Kept`).
 
 ## Known gaps
 
@@ -106,24 +116,23 @@ map.
   an arena battle; an operator's paint during an arena is lost with it.
 - **A set with `arena.on` on a plain entry** plays its rules on the real map: nothing blanks, since only a battle is
   judged.
-- **An arena battle whose arena never opens** (judged too late, or `OpenArena` refused past its end) still counts from
-  nothing on the world's map, so each country gains its whole land. The fix is to open its round once planet tells a new
-  `ArenaOpened`.
 - **A season end moved during an arena battle** cuts the battle; the arena's `ends_at` is the one planet was told, so
   the end's freeze starts late (the close still comes once the cut battle is scored).
 
 ## Tests
 
 `arenas`' tests pin the id, an arena opened once and refused closed, ended or beside another, closed once whether it
-opened or not, and the freeze's two windows; the arena part (default never plays in an arena, a freeze past 30 s
+opened or not, and the freeze's two windows; `open_arena_usecase`'s `ArenaOpened` told once and never on a refusal; the arena part (default never plays in an arena, a freeze past 30 s
 refused); `StoreContractSuite` on memory and postgres. `inmemory_tile_storage`'s `arena_test.go` pins the world's map
 saved with the tiles not flushed yet, the arena's map saved apart, the world played again tile for tile with shields,
 holders and locks, the arena's rows deleted, a holder forgotten on the world while an arena plays, the new epoch and the
 cut streams; `postgres_tile_store`'s `maps_test.go` each map's rows apart, a wipe of one map, a holder forgotten on
 every map; the migration's test every row kept before it as the world's, and its way back. The use cases' tests run the
-real storage. In the gamemaster, `moments`' `arenas_test.go` pins the judgement, the waits and the arena commands of two
-arena battles back to back; `play_scoring_usecase`'s `arena_test.go` the open that waits for its judgement,
-`from_nothing`, day K+1 held through a boot, and a battle judged in its last second told missed; `play_arenas_usecase`'s
-the close sent again until planet tells it, and an arena closed after its round was missed; `arenanight` plays an arena
-battle second by second with scoring and planet answering late, with boots in the middle, and one whose open Redis
-refused with the server down until an hour after its end.
+real storage. In the gamemaster, `moments`' `arenas_test.go` pins the judgement, the waits, the battle's round that waits for its arena
+opened, a battle whose arena never opens with no open and its close due, and the arena commands of two arena battles
+back to back; `play_scoring_usecase`'s `arena_test.go` the open that waits for its judgement, `from_nothing` once the arena
+opened, day K+1 held through a boot, a battle judged in its last second told missed, and a battle whose arena never opens
+told missed with no open; `play_arenas_usecase`'s the close sent again until planet tells it, and an arena closed after
+its round was missed; `arena_opened_subscriber`'s an arena kept opened once; `arenanight` plays an arena battle second by
+second with scoring and planet answering late, with boots in the middle, one whose open Redis refused with the server
+down until an hour after its end, and one whose open planet refuses at its end, so its round never opens.

@@ -143,7 +143,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
-| `arenas/usecases/open_arena_usecase` | saves the world's map and plays the arena's blank one, once per arena (see [Arena battles](arenas.md)) | `Tiles`, `Arenas`, `InPlay` |
+| `arenas/usecases/open_arena_usecase` | saves the world's map, plays the arena's blank one and tells `ArenaOpened`, once per arena (see [Arena battles](arenas.md)) | `Tiles`, `Arenas`, `Outbox`, `InPlay` |
 | `arenas/usecases/close_arena_usecase` | deletes the arena's map, plays the world's again and tells `ArenaClosed`, once per arena | `Tiles`, `Arenas`, `Outbox`, `InPlay` |
 | `rules/usecases/play_rules_usecase` | plays the set postgres keeps, at boot and when it changes; `Plays` | `Sets`, `Rules` |
 | `rules/usecases/save_rule_set_usecase` | the operator makes a set or replaces its values; never the one that plays | `Sets`, `Playing` |

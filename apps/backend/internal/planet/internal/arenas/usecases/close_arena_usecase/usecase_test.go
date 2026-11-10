@@ -66,7 +66,7 @@ func newHarness(t *testing.T) harness {
 	inPlay := arenas.NewInPlay(func() arenas.Rules { return arenas.Rules{Freeze: 8 * time.Second} }, clock)
 	return harness{
 		tiles: tiles, stored: stored, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock,
-		opening: open_arena_usecase.New(tiles, kept, inPlay, clock),
+		opening: open_arena_usecase.New(tiles, kept, &cpatomic.FakeOutbox{}, inPlay, clock),
 		useCase: close_arena_usecase.New(tiles, kept, outbox, inPlay, clock),
 	}
 }

@@ -60,6 +60,32 @@ func TestAnArenaOpensOnceTheRoundBeforeItIsScored(t *testing.T) {
 	}, backToBack(both([]moments.RoundID{"season-0/day-23"}, nil)).ArenasDueAt(firstStarts.Add(3*time.Second)))
 }
 
+func TestAnArenaBattlesRoundOpensFromNothingOnceItsArenaOpenedAndItsArenaOpensNoMore(t *testing.T) {
+	judged := []moments.Judgement{{Round: first, Mode: moments.Arena}}
+	scored := moments.Kept{Scored: []moments.RoundID{"season-0/day-23"}}
+	now := firstStarts.Add(5 * time.Second)
+	open := moments.Command{Action: moments.OpenRound, Book: "season-0", Round: first, Times: 2, At: firstStarts, FromNothing: true}
+
+	waiting := backToBack(moments.NewKnown(scored, moments.ArenasKept{Judged: judged}))
+	opened := backToBack(moments.NewKnown(scored, moments.ArenasKept{Judged: judged, Opened: []moments.RoundID{first}}))
+
+	assert.NotContains(t, waiting.DueAt(now), open, "the round waits for the blank map")
+	assert.Contains(t, opened.DueAt(now), open)
+	assert.Empty(t, opened.ArenasDueAt(now))
+}
+
+func TestAnArenaBattleWhoseArenaNeverOpensNeverOpensItsRoundAndClosesIt(t *testing.T) {
+	plan := backToBack(both([]moments.RoundID{"season-0/day-23"}, nil))
+
+	for at := firstStarts; at.Before(secondStarts); at = at.Add(time.Minute) {
+		for _, command := range plan.DueAt(at) {
+			assert.False(t, command.Action == moments.OpenRound && command.Round == first, "%s: %v", at, command)
+		}
+	}
+	assert.Contains(t, plan.DueAt(secondStarts),
+		moments.Command{Action: moments.CloseRound, Book: "season-0", Round: first, At: secondStarts})
+}
+
 func TestTheNextArenaWaitsForTheMapOfTheOneBefore(t *testing.T) {
 	scored := []moments.RoundID{"season-0/day-23", first}
 

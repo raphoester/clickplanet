@@ -19,11 +19,12 @@ season with no break could wipe the map before its Final Battle was scored.
 |---|---|---|---|
 | planet's and the antibot's rule set | the turn's set | the module compares `decided_at` | `PlayRuleSet`, at boot, at each change, and again each minute with the same `decided_at` |
 | a scoring book | open while its season runs, closed once it ended | `BookClosed` or `BookMissed` (`closed_books`, `missed_books`) | `OpenBook` once, `CloseBook` until an answer |
-| a scoring round | open while it runs (judged, the map back), scored once it ended | `RoundScored` or `RoundMissed` (`scored_rounds`, `missed_rounds`) | `OpenRound` once, `CloseRound` until an answer |
-| a planet arena | open while its arena battle runs and scoring answered the round before it; closed once scoring answered the battle's round | `ArenaClosed` (`closed_arenas`) | `OpenArena` once, `CloseArena` until an answer |
+| a scoring round | open while it runs (judged, the map back, an arena battle's arena opened), scored once it ended | `RoundScored` or `RoundMissed` (`scored_rounds`, `missed_rounds`) | `OpenRound` once, `CloseRound` until an answer |
+| a planet arena | open while its arena battle runs and scoring answered the round before it; closed once scoring answered the battle's round | `ArenaOpened` (`opened_arenas`), `ArenaClosed` (`closed_arenas`) | `OpenArena` once until `ArenaOpened`, `CloseArena` until an answer |
 | a map reset | done once a season after season 0 runs, scoring answered the book before it and no arena waits | Redis took it | `ResetMap` once per process |
 
-**Answered**: a round scored or missed, a book closed or missed, an arena closed (`Plan.settled`, `Known`). **Every round
+**Answered**: a round scored or missed, a book closed or missed, an arena closed (`Plan.settled`, `Known`). An arena
+opened is not an answer to a close: it is the fact an arena battle's round waits for before it opens. **Every round
 of an answered book is answered**: scoring closes a book after its rounds, on the one stream.
 
 **Scoring tells a close it cannot apply**: a `CloseRound` of a round it never opened records `scoring.v1.RoundMissed`, and
@@ -52,7 +53,8 @@ its `decided_at` (the latest decision wins). A missed round or book is told agai
 - **After downtime**: what ended meanwhile gets its close. A round that never opened comes back missed. A battle that
   started and ended while the server was down was never judged, so it has no arena.
 - **A refusal for good**: scoring refuses no close any more, it answers missed. A refused open (scoring's book not
-  open, planet's arena past its end) holds nothing back: its round is missed at its end. A refused rule set leaves the
+  open, planet's arena past its end) holds nothing back: its round is missed at its end. Planet tells nothing of an
+  arena it refused, so that battle's round never opens, and the battle scores nothing. A refused rule set leaves the
   module on its own set, logged at Error there; the turn sent again each minute plays it once the operator makes the
   set, with no new entry.
 
@@ -64,19 +66,15 @@ reads, 6 before. With the starts' transaction (5 round trips) and the schedule's
 No command in a steady state; one `XADD` a minute for each close with no answer, and 2 a minute for the turn. No call
 on the internal listener but the judgement, once per battle.
 
-## Known gap
-
-**An arena battle whose arena never opens** (judged too late, or `OpenArena` refused) still counts from nothing on the
-world's map, so each country gains its whole land. The fix is to open its round only once planet tells a new
-`ArenaOpened`.
-
 ## Tests
 
 `play_scoring_usecase`'s tests pin a close sent again each minute until scoring answers it, a boot after a season whose
 book closed that sends nothing, and an arena battle judged in its last second that scoring tells missed;
-`play_arenas_usecase`'s the arena closed until planet tells it, and closed after a missed round; `play_resets_usecase`'s
+`play_arenas_usecase`'s the arena closed until planet tells it, and closed after a missed round; `play_scoring_usecase`'s
+`arena_test.go` an arena battle whose arena never opens told missed with no open; `play_resets_usecase`'s
 a season with no break reset once the book before it is closed, or told missed; `play_schedule_usecase`'s the turn sent
 again each minute with its decision time, and a set refused that plays once it is made. `arenanight` plays an arena
-battle whose open Redis refused, with the server down to an hour after its end; `finalnight/no_break_test.go` plays
+battle whose open Redis refused, with the server down to an hour after its end, and one whose open planet refuses at its
+end; `finalnight/no_break_test.go` plays
 season 1 right after the Final Battle, and a restart across that end, with scoring answering late. Scoring's
 `season_end_test.go` pins a close of a round or book never opened told missed at each close.

@@ -7,7 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -25,6 +28,7 @@ type harness struct {
 	tiles   *inmemory_tile_storage.Storage
 	stored  *inmemory_tile_storage.MemoryPersistence
 	kept    *arenas.MemoryStore
+	outbox  *cpatomic.FakeOutbox
 	inPlay  *arenas.InPlay
 	clock   *cptime.FixedClock
 	useCase *open_arena_usecase.UseCase
@@ -38,11 +42,11 @@ func newHarness(t *testing.T) harness {
 		cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, clock,
 		slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context(), clicks.World))
-	kept := arenas.NewMemoryStore()
+	kept, outbox := arenas.NewMemoryStore(), &cpatomic.FakeOutbox{}
 	inPlay := arenas.NewInPlay(func() arenas.Rules { return arenas.Rules{Freeze: 8 * time.Second} }, clock)
 	return harness{
-		tiles: tiles, stored: stored, kept: kept, inPlay: inPlay, clock: clock,
-		useCase: open_arena_usecase.New(tiles, kept, inPlay, clock),
+		tiles: tiles, stored: stored, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock,
+		useCase: open_arena_usecase.New(tiles, kept, outbox, inPlay, clock),
 	}
 }
 
@@ -70,6 +74,9 @@ func TestAnArenaOpensOnABlankMapAndLeavesTheWorldsAsItIs(t *testing.T) {
 	playing, err := h.kept.Playing(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, clicks.MapID("battle"), playing.Played())
+	require.Len(t, h.outbox.Recorded(), 1)
+	assert.True(t, proto.Equal(&planetv1.ArenaOpened{ArenaId: "battle", OpenedAt: timestamppb.New(starts)},
+		h.outbox.Recorded()[0]))
 }
 
 func TestAnArenaToldTwiceOpensOnce(t *testing.T) {
@@ -84,6 +91,7 @@ func TestAnArenaToldTwiceOpensOnce(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, opened)
 	assert.Equal(t, "pt", h.owner(7), "the battle's map stays")
+	assert.Len(t, h.outbox.Recorded(), 1, "told once")
 }
 
 func TestAnArenaClosedEndedOrBesideAnotherOpensNothing(t *testing.T) {
@@ -109,6 +117,7 @@ func TestAnArenaClosedEndedOrBesideAnotherOpensNothing(t *testing.T) {
 			assert.False(t, opened)
 			assert.Equal(t, "fr", h.owner(1), "the map stays")
 			assert.False(t, bool(h.inPlay.Freeze()))
+			assert.Empty(t, h.outbox.Recorded())
 		})
 	}
 }

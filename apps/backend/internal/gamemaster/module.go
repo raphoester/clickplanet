@@ -13,11 +13,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1/gamemasterv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/arena_closed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/arena_opened_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/postgres_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/redis_arena_commands"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/rpc_planet_arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/hear_arena_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/hear_arena_usecase/log_hear_arena"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/hear_opened_arena_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/hear_opened_arena_usecase/log_hear_opened_arena"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/play_arenas_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/play_arenas_usecase/log_play_arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/gamemasterv1controller"
@@ -189,6 +192,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to scoring.v1.BookMissed: %w", err)
 	}
+	openedArenas, err := cpredis.Subscribe(ctx, streams, "gamemaster-arenas-opened", arena_opened_subscriber.New(
+		log_hear_opened_arena.New(hear_opened_arena_usecase.New(judged), props.Logger)))
+	if err != nil {
+		_ = streams.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to planet.v1.ArenaOpened: %w", err)
+	}
 	arenas, err := cpredis.Subscribe(ctx, streams, "gamemaster-arenas-closed", arena_closed_subscriber.New(
 		log_hear_arena.New(hear_arena_usecase.New(judged), props.Logger)))
 	if err != nil {
@@ -200,7 +210,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	turns := turn_query.NewPostgresQuery(db, clock, cutoff)
 	turnFeed := inprocess_turn_feed.New(log_turn_reader.New(turns, props.Logger))
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, turnFeed, cpredis.CloseAfter(streams, props.Logger,
-		ruleSchedule, planPlay, rounds, books, missedRounds, missedBooks, arenas, cpoutbox.NewRelay("gamemaster-outbox", db, streams, props.Logger))))
+		ruleSchedule, planPlay, rounds, books, missedRounds, missedBooks, openedArenas, arenas,
+		cpoutbox.NewRelay("gamemaster-outbox", db, streams, props.Logger))))
 
 	admin := gamemasterv1controller.AdminService{
 		GetScheduleHandler: get_schedule_handler.New(schedule_query.NewPostgresQuery(db, clock)),

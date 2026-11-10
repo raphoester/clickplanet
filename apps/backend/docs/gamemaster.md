@@ -28,7 +28,8 @@ internal/gamemaster/
                                     entry_times, scored_moments (scored_rounds, opened_rounds, closed_books, outbox),
                                     season_finales (season 0's Final Battle seeded), told_days, halloween_kind,
                                     halloween_times, told_battles_and_seasons, arenas (battle_modes, closed_arenas),
-                                    drop_scored_round_book, drop_halloween_kind, missed (missed_rounds, missed_books)
+                                    drop_scored_round_book, drop_halloween_kind, missed (missed_rounds, missed_books),
+                                    opened_arenas
     schedule/                       EntryID, SetName, Kind, Description, Times, Priority, Draft, Entry (NewEntry, Edited,
                                     Changeable), Schedule (New, With, TurnAt, SinceAt, BattlesAfter), Finale, Turn; the
                                     Store, Keeper and IDProvider ports, Playable; the store's contract suite; FakeKeeper and
@@ -88,16 +89,18 @@ internal/gamemaster/
       usecases/hear_book_usecase/   keeps a closed book, and records its season's end once; log_hear_book/
       usecases/hear_missed_round_usecase/  keeps a round scoring missed, once; log_hear_missed_round/
       usecases/hear_missed_book_usecase/   keeps a book scoring missed, once; log_hear_missed_book/
-    arenas/                         the battles fought on a blank map: Store (battle_modes, closed_arenas) and its contract
-                                    suite, ArenasKept in one statement; the rules are the plan's (Mode, Judgement,
-                                    ArenaCommand in moments)
+    arenas/                         the battles fought on a blank map: Store (battle_modes, opened_arenas,
+                                    closed_arenas) and its contract suite, ArenasKept in one statement; the rules are
+                                    the plan's (Mode, Judgement, ArenaCommand in moments)
       inmemory_arena_store/  postgres_arena_store/
       rpc_planet_arenas/            whether a set makes an arena battle, from planet.v1.InternalService/GetRuleSet
       redis_arena_commands/         planet.v1.ArenaCommand, on planet's one arena stream
+      arena_opened_subscriber/      hears planet.v1.ArenaOpened (gamemaster-arenas-opened)
       arena_closed_subscriber/      hears planet.v1.ArenaClosed (gamemaster-arenas-closed)
       usecases/play_arenas_usecase/ judges the battle that runs, once; sends each arena command due; a step of
                                     play_plan_usecase
         log_play_arenas/
+      usecases/hear_opened_arena_usecase/  keeps an arena opened once; log_hear_opened_arena/
       usecases/hear_arena_usecase/  keeps an arena closed once; log_hear_arena/
     arenanight/                     a test alone: an arena battle second by second, scoring and planet late, boots in the middle
     finalnight/                     a test alone: season 0's last day and its Final Battle, second by second
@@ -380,7 +383,7 @@ command's key (`moments.Key`, its action and ids) and when Redis took it, in mem
 - **Level-triggered, no outbox**, like the schedule: the clock and the answers decide, and a boot sends again what is
   due. `log_play_scoring` logs each command at Warn (`scoring is commanded`).
 - **With the arena battles kept** (`Plan.With`), **a battle's round opens once the battle is judged**, in the same tick, and an
-  arena battle's round with `from_nothing`; **no round or book opens while an arena battle that ended before it has its arena open**
+  arena battle's round once planet told its arena opened, with `from_nothing`; **no round or book opens while an arena battle that ended before it has its arena open**
   (`Plan.Waits`). See [Arena battles](arenas.md).
 - `redis_scoring_commands` sends each as one `scoring.v1.ScoringCommand` on its one stream
   (`commands:scoring.v1.ScoringCommand`), so a round's close always reaches scoring before its book's.
