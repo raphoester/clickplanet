@@ -1,4 +1,4 @@
-# Production deploy: one DigitalOcean droplet + Cloudflare Pages
+# Production deploy: one DigitalOcean droplet + a Cloudflare Worker
 
 Replaces the old DigitalOcean stack (droplet + managed Redis + load balancer +
 container registry, ~$50/month). The droplet was never the expensive part — the
@@ -6,12 +6,12 @@ managed add-ons were, and none of them are needed. Target cost is **~$6/month**.
 
 | Piece | Where | Cost |
 |---|---|---|
-| Frontend (static bundle + textures) | Cloudflare Pages | free |
+| Frontend (static bundle + textures) | Cloudflare Worker with static assets | free |
 | API (`cmd/api`)             | DigitalOcean droplet, Docker Compose | ~$6/mo |
 | TLS | Caddy, automatic Let's Encrypt over DNS-01 | free |
 | Images | GitHub Container Registry | free |
 | DNS | Cloudflare | free |
-| Photos and videos on a note | Cloudflare R2 (see [11](#11-photos-and-videos-on-a-note)) | free up to 10 GB |
+| Photos and videos on a note | Cloudflare R2 (see [12](#12-photos-and-videos-on-a-note)) | free up to 10 GB |
 
 Prices are from late 2025 — check before you commit.
 
@@ -257,28 +257,24 @@ ssh root@YOUR_IP 'nsenter -t $(docker inspect -f "{{.State.Pid}}" cp-caddy) -n s
 
 No `mptcp` line is correct.
 
-## 4. Frontend on Cloudflare Pages
+## 4. Frontend on a Cloudflare Worker
 
-Create a Pages project from the GitHub repo:
+The Worker `clickplanet` serves `dist` as static assets (`apps/frontend/wrangler.jsonc`). Workers Builds deploys it
+from the GitHub repo:
 
 | Setting | Value |
 |---|---|
 | Root directory | `apps/frontend` |
 | Build command | `npm ci && npm run build` |
-| Output directory | `dist` |
+| Deploy command | `npx wrangler deploy` |
 | Env var | `VITE_API_BASE_URL=https://api.clickplanet.lol` |
 | Env var | `VITE_TURNSTILE_SITEKEY=0x4AAAAAAEuFCQwAVFUYug8z` (see [§5](#5-turnstile-and-the-click-session)) |
 | Env var | `VITE_KLIPY_KEY=<the app key from partner.klipy.com>`: the chat's GIFs, with ads off for the key. Public: it is read off the page |
 
 Generated protobuf code is committed, so the build needs no `buf`.
 
-`npm run build` also copies `static/` into `dist/static/` and deletes the 24 MB
-`coordinates.json` from it — that file is the human-readable generator output,
-kept in the repo but never served. The viewer fetches
-`static/coordinates-<hash>.bin` at runtime instead (~5 MB, no JSON parse), so
-the coordinates are no longer in the JS bundle and Cloudflare's 25 MiB
-per-file limit is no longer close. `copy:static` fails the build if that
-`.bin` is missing — run `npm run coordinates:convert` if you hit that.
+`npm run build` also copies `static/` into `dist/static/`. `copy:static` fails the build if a content-addressed
+`.bin` is missing, and names the script that makes it.
 
 The `.bin` name carries a content hash, and `public/_headers` caches it
 `immutable` for a year: regenerating the tile map ships a new file name, so a
@@ -1080,7 +1076,7 @@ set visibility to **Public**, and link it to the repo. The droplet can then
 rather keep the package private, generate a read-only PAT with `read:packages`
 and run `docker login ghcr.io` once as `deploy`.
 
-Pages deploys itself on push; no workflow needed.
+Workers Builds deploys the frontend itself on push; no workflow needed.
 
 ## 8. Live chat
 

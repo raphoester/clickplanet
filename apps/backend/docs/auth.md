@@ -1,6 +1,6 @@
 # Auth (`internal/auth/`)
 
-**One module admits a caller: Turnstile, then the account its cookie holds, then the click token.** Every clicking browser gets an account, a guest one until it signs in; signing in with Google, Discord, an emailed code or a CrazyGames account links to the same row, so a guest's history needs no merge. Off by default (`auth.enabled`); off, `auth.v1` and `session.v1` 404.
+**One module admits a caller: Turnstile, then the account its cookie holds, then the click token.** Every clicking browser gets an account, a guest one until it signs in; signing in with Google, Discord, an emailed code or a CrazyGames account links to the same row, so a guest's history needs no merge. Off by default (`auth.enabled`); off, `auth.v1` 404s.
 
 It was two modules, `session` and `auth`, for one PR. The mint was auth's only caller, and "not a bot" and "who" are decided on the same request for the same purpose, so the line between them cut through one piece of work.
 
@@ -11,7 +11,6 @@ internal/auth/internal/
     inmemory_account_store/                the same port in maps, behind the testing tag
     uuid_id_provider/  random_token_generator/
     usecases/create_session_usecase/       attest, resume or start a guest, mint
-    usecases/create_anonymous_session_usecase/   deprecated: attest, mint with no account
     usecases/sign_out_usecase/  sign_out_everywhere_usecase/  delete_account_usecase/
     usecases/prune_guests_usecase/         deletes idle guests: Executor, Runner, and log_prune_guests
     usecases/purge_deletions_usecase/      deletes the accounts asked deleted past the grace period: Executor, Runner, and log_purge_deletions
@@ -62,13 +61,9 @@ internal/auth/internal/
     postgres_admin_token_store/            Connection (every token of one) and SaveTokens (an upsert)
   oauthcontroller/                         the connector's plain HTTP edge: metadata_handler/  register_handler/  authorize_handler/  token_handler/
   sessionheader/                           the cp_sid of a page that keeps no cookie, carried in X-Account-Session
-  sessionv1controller/                     deprecated SessionService
-    operator_query/                        PostgresQuery: the cookie's live session, its account and whether it operates
-    log_refusals/                          logs each caller it refused
   migrations/
 ```
 
-- **`session.v1.SessionService/CreateSession` is deprecated**, in the proto and in the code. It mints a token with no account for clients that predate accounts, and goes once none calls it. Both paths spend one mint budget, so the old one is not a second allowance.
 - **The cookie is `cp_sid`**: a 32-byte token from `random_token_generator`, `HttpOnly; Secure; SameSite=Lax; Path=/`, host-only on the API's domain. The API and the frontend are the same site, so it is not a third-party cookie. **Only its SHA-256 is stored** (`sessions.token_hash`), so a copy of the table signs nobody in. Caddy redacts `Cookie` and `Set-Cookie` in its logs.
 - **The rules are on `accounts.Session`**: `GuestSession` builds one with a full `guestTTL` (90 days) and `LinkedSession` with a full `linkedTTL` (30 days), `ExpiryError` is `ErrSessionExpired` past it, `Extendable(now, lifetime)` is whether `extendEvery` (24h) has passed since the last extension, `Extended(now, lifetime)` is a copy whose expiry moved by the TTL of its kind, and `Cookie` is its `Set-Cookie`. `Session.Linked` is read by the store (does the account have an identity), never written, so every session of an account extends as a linked one once any browser links it. `create_session_usecase` only orders them: attest, read the cookie, find the session, check it, extend and save it when due — or, when there is no cookie, no such session or an expired one, start and store a guest — then mint.
 - **Every account made keeps how it came** (`arrivals`): the guest in `CreateSession`, and the `Created` outcome of
@@ -90,7 +85,7 @@ internal/auth/internal/
 **OAuth 2.0 authorization code with PKCE, run by this server, over two RPCs.** No raw HTTP route and no Caddy change: the provider sends the browser to the frontend's callback page, and that page calls the API.
 
 - **`StartSignIn(provider, intent)`** draws a `signin.Flow` — state, PKCE verifier and nonce, 32 random bytes each, and the intent — seals it into the `cp_oauth` cookie (10 minutes, same attributes as `cp_sid`) and answers the provider's authorization URL. Nothing is stored on the server.
-- **The intent is sign in or link** (`accounts.Intent`). Unset on the wire is sign in, and so is a flow sealed before intents existed: `IntentSignIn` is the zero value. The menu's "Sign in with" buttons send sign in, and "Link" sends link.
+- **The intent is sign in or link** (`accounts.Intent`). Unset on the wire is sign in. The menu's "Sign in with" buttons send sign in, and "Link" sends link.
 - **A link needs an account when it starts.** With no live `cp_sid`, `StartSignIn` answers `Unauthenticated` and sets no cookie. The flow keeps the account id, and `CompleteSignIn` refuses a link whose browser is on another account or none by then (`Flow.AccountError`, `ErrFlowInvalid`), before the provider is asked.
 - **`CompleteSignIn(code, state)`** opens the cookie, checks the state (constant time) and the expiry, trades the code with the verifier, and clears `cp_oauth` on every answer it maps, success or refusal. A browser that did not start the sign-in has no cookie that matches, which is the whole CSRF defence: a code carried to a victim's browser is refused before the provider is asked.
 - **The cookie is AES-256-GCM** (`aes_flow_sealer`), under a key derived with HKDF from `auth.secret` and a label of its own, so there is no second secret to set and the browser can neither read the verifier nor change the flow.

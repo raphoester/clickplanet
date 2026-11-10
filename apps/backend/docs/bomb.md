@@ -2,7 +2,7 @@
 
 `claim_bonus_usecase` hands the bomb over with `Charges.Grant(holder, KindBomb)` and
 the client draws its aiming ring at `GetBonusRules.blast_radius`, the width of
-what it will clear. `DropBomb` spends it through `drop_bomb_usecase` with `Charges.SpendBomb`.
+what it will clear. `DropBomb` spends it through `drop_bomb_usecase` with `Charges.Spend(holder, Held.AfterBomb)`.
 
 **The client names a point, never a tile.** The sea has no tiles, and whether an
 aim is on land is the server's call: `Geography.Nearest` finds the closest tile,
@@ -26,8 +26,7 @@ bomb that visibly covered it. A circle has neither problem.
 one shield from each shielded tile in the blast, whoever's it is, and clears the
 rest, under one lock: a shielded tile keeps its flag, is not in `cleared_tile_ids`,
 and is listed in `struck` with the shields it kept (`Blast.Struck`, `Blast.Left`), so a
-client sets its shields at impact. `struck_tile_ids`, the same tiles with no count, is
-deprecated and still filled for the tabs loaded before. See [Shields](shields.md).
+client sets its shields at impact. See [Shields](shields.md).
 
 `drop_bomb_usecase` checks the country and the target **before** taking the bomb, so a
 malformed request does not cost one. The drop does not move the schedule: the next
@@ -58,5 +57,5 @@ before has no owner on its strikes), its strikes told as one `planet.v1.ShieldsS
 **The ban applies**: `refusal_drop_bomb` refuses a refused caller's drop before the
 bomb is spent, with the same `BanRefusal` as a click (see [A ban is told](antibot.md#a-ban-is-told)),
 so the bomb stays in hand. It sits inside the count so the counter can label it.
-`prom_drop_bomb` counts `bonus_bombs_dropped_total{outcome=land|sea|banned|refused}`
+`prom_drop_bomb` counts `bonus_bombs_dropped_total{outcome=land|sea|caller_refused|refused}`
 and `bonus_bomb_tiles_cleared_total`.

@@ -53,6 +53,11 @@ export default function TeaserCarousel({cards, turnMs = TEASER_TURN_MS}: {cards:
         if (moved <= -SWIPE_PX) go(shown + 1)
         else if (moved >= SWIPE_PX) go(shown - 1)
     }
+    const cancel = (event: PointerEvent) => {
+        if (swipe.current?.pointer !== event.pointerId) return
+        swipe.current = undefined
+        setDrag(undefined)
+    }
 
     return (
         <section className="teaser-carousel" aria-roledescription="carousel" aria-label="What the battle holds">
@@ -60,7 +65,7 @@ export default function TeaserCarousel({cards, turnMs = TEASER_TURN_MS}: {cards:
                  onPointerDown={down}
                  onPointerMove={move}
                  onPointerUp={up}
-                 onPointerCancel={up}>
+                 onPointerCancel={cancel}>
                 <div className="teaser-row"
                      data-dragging={drag !== undefined}
                      style={{transform: `translateX(calc(${-shown * 100}% + ${drag ?? 0}px))`}}>

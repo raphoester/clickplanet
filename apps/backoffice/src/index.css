@@ -412,15 +412,6 @@ button:disabled {
     margin-top: 8px;
 }
 
-.card-line {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 4px 12px;
-    margin-top: 4px;
-}
-
 .player-name {
     display: inline-flex;
     flex-wrap: wrap;
@@ -660,13 +651,6 @@ select, textarea, input:not([type="checkbox"]):not([type="range"]) {
 
 textarea {
     resize: vertical;
-}
-
-.rules-json {
-    width: 100%;
-    min-height: 28em;
-    box-sizing: border-box;
-    font-size: 13px;
 }
 
 .action {
@@ -951,19 +935,6 @@ textarea {
 .stats dd {
     margin: 0;
     font-variant-numeric: tabular-nums;
-}
-
-.open-form {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: end;
-    gap: 8px;
-    margin-bottom: 16px;
-}
-
-.open-form .field {
-    flex: 1 1 16em;
-    min-width: 0;
 }
 
 form.panel > .button {

@@ -1,7 +1,7 @@
 import {defineConfig} from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
-// The port is the backend's auth.adminGate.origin: the gate refuses any other origin.
+// The port is the backend's auth.admin.origin: the gate refuses any other origin.
 const PORT = 5174
 
 // `vite --mode demo` answers every call in the page, from src/demo, in place of the backend.

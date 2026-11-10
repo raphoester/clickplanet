@@ -175,7 +175,7 @@ all through a tile war. Rotation beats the rate limit; it is not a bot signal.
 On 11-03 chat accused Russia, and two people of it were playing two accounts each; nothing
 banned them, and the operator banned the two alts by hand. A `certain` reading of the rotator
 is a ban on its own, with bounds that only the obvious reach (see the
-[rotator](#rotator-one-hand-on-several-accounts)).
+[rotator](#what-each-one-actually-measures)).
 
 - **It bans accounts, never a network** (`convictsOf`): when turns alone make the verdict, no
   scope of the ring is banned, a guest's neither. A guest's network can be a school, a
@@ -293,7 +293,7 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   whether or not the process was. Stretching every window by the outage would buy
   nothing measurable and let a long outage hide a real absence.
 - **Except where a gap is the signal.** `metronome` ends a run on any gap over
-  `maxGap` (3s), and no restart is that short — so a gap spanning the outage
+  `maxGap` (7s), and no restart is that short — so a gap spanning the outage
   would read as a break every time, and the half hour of `certainFor` could never
   be reached across restarts. So the outage is taken out of that one gap
   (`detect.Outage`): it runs from the last flush (`saved_at`) to the moment
@@ -903,8 +903,8 @@ honest player flagged:
   no tile
 - a click planet refused (`CLICK_OUTCOME_REFUSED`) — it never reaches the jury at all
 
-**What a try tells.** <a id="what-a-try-tells"></a>A `ClickTried` names who (`scope`, `account_id`, `linked`,
-`account_created_at` as the throttle reads it), the tile, the flag, when, and **the outcome**: taken, struck, unchanged
+**What a try tells.** <a id="what-a-try-tells"></a>A `ClickTried` names who (`scope`, `account_id`, `linked`;
+it also carries `account_created_at`, which the listener does not read), the tile, the flag, when, and **the outcome**: taken, struck, unchanged
 (a no-op), throttled, refused, another flag than the account plays for, invalid (an unknown flag, a tile off the map,
 two bonuses together), or failed. With it go **the flag the tile wore before** (`owner`, `click_usecase.Out.Owner`:
 what the click read right before it wrote; for a try the game answered with an error, the tile's owner now) and its

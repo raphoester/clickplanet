@@ -12,7 +12,7 @@ its edge for the wire. A read is a query under its handler: see [Reads are queri
 
 ```
 internal/chat/internal/
-  messages/                             Message (Snapshot, Restore, TakeSnapshot, Named, Answering), MessageID, Quote,
+  messages/                             Message (Snapshot, Restore, TakeSnapshot, CheckSender, In, Answering), MessageID, Quote,
                                         Drafts, Thread, Record (RecordSnapshot), Limits (WithBanned), Banned (a
                                         cpphrases.List: NewBanned, DefaultBannedPhrases), ErrBanned, AccountID, Author,
                                         Room (World, FlagRoom, RoomOf), Rooms (EntryError), Showing,
@@ -38,11 +38,11 @@ internal/chat/internal/
     usecases/prune_usecase/             deletes past retention, from each table, each set of tables past its own
                                         (KeptFor: the chat's, the moderation history's); Runner — Pruner
       log_prune/                        logs what a prune deleted
-  reactions/                            Reaction, Reactor, AccountOf, Reactions, Count, Tally, Change, Named,
-                                        AccountsOf, the Storage port and its suite
+  reactions/                            Reaction, Reactor, AccountOf, Reactions, Count, Tally, Change, the Storage port
+                                        and its suite
     postgres_reaction_store/            Storage, over chat.reactions
     inmemory_reaction_storage/          Storage in a slice — behind the testing tag, tests only
-    usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher, Authors
+    usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher
       muting_react/                     refuses a muted caller before anything else — Mutes
   announcements/                        Announcement (its Room, WithRoom, In), AnnouncementID, Kind (Kinds, Known:
                                         announce_usecase refuses any other), Bomb, Fortify, Muted, Round, Champion
@@ -80,13 +80,13 @@ internal/chat/internal/
     postgres_removal_store/             Storage, over chat.removals
     usecases/remove_message_usecase/    takes a kept message out of what anybody is shown, records it with a copy of
                                         what it said, then tells the streams — Messages, Saver, Recorder, Publisher
+      audit_remove/                     logs every removal at Warn
   moderation/                           Action (NewMute, NewUnmute, NewRemoval, TakeSnapshot), Snapshot, Kind (Muted,
                                         Unmuted, Removed), Operator, Reason (ReasonOf, ErrInvalidReason), the Storage port:
                                         writes only
     postgres_moderation_store/          Storage, over chat.moderation; ActionsOn, what the judge counts the steps from
     inmemory_moderation_storage/        Storage in a slice, and Kept for a test — behind the testing tag, tests only
     usecases/forget_moderation_usecase/ deletes the actions taken on an account, takes it off the ones it took — Forgetter
-      audit_remove/                     logs every removal at Warn
   raids/                                RaidMode (Start, Ended, RunsAt, Admits, TakeSnapshot), Snapshot (Restore),
                                         DurationOf, MaxDuration, Book (Running), ErrGuest, ErrNoRaidMode, the Storage
                                         port and its suite

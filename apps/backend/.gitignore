@@ -5,3 +5,5 @@
 cmd/api/config.yaml
 
 tools/monitoring/prometheus.yaml
+
+node_modules/

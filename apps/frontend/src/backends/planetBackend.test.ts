@@ -1190,7 +1190,6 @@ describe("bombOf", () => {
                 countryId: "fr",
                 radius: 0.03,
                 clearedTileIds: [6, 7, 8],
-                struckTileIds: [5],
                 struck: [new TileShields({tileId: 5, shields: 2})],
                 point: new GlobePoint({x: 0, y: 1, z: 0}),
                 version: new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(12)}),

@@ -159,11 +159,11 @@ SET payload = jsonb_set(e.payload, '{landmass}', to_jsonb(COALESCE((
 ), 0)))
 WHERE e.payload ? 'landmass';
 
-INSERT INTO landmasses (asset, id, fortified_by)
-SELECT '${now}', r.to_id, l.fortified_by
+INSERT INTO landmasses (map, asset, id, fortified_by)
+SELECT l.map, '${now}', r.to_id, l.fortified_by
 FROM landmasses l
 JOIN landmass_remap r ON r.from_id = l.id
 WHERE l.asset = '${was}'
-ON CONFLICT (asset, id) DO UPDATE SET fortified_by = EXCLUDED.fortified_by;
+ON CONFLICT (map, asset, id) DO UPDATE SET fortified_by = EXCLUDED.fortified_by;
 `
 }

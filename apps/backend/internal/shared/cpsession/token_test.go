@@ -1,10 +1,7 @@
 package cpsession_test
 
 import (
-	"crypto/ed25519"
 	"encoding/base64"
-	"encoding/binary"
-	"encoding/hex"
 	"strings"
 	"testing"
 	"time"
@@ -13,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -163,28 +159,6 @@ func TestAGuestCannotMarkItsTokenLinked(t *testing.T) {
 	assert.ErrorIs(t, err, cpsession.ErrBadSignature)
 }
 
-func TestATokenMintedBeforeTheLinkedByteVerifiesAsNotLinked(t *testing.T) {
-	_, verifier := newPair(t)
-	secret, _ := cpsession.TestKeyPair()
-	seed, err := hex.DecodeString(secret)
-	require.NoError(t, err)
-	account := cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"))
-
-	payload := make([]byte, 0, linkedAt)
-	payload = append(payload, 1)
-	payload = binary.BigEndian.AppendUint64(payload, uint64(now.Add(ttl).UnixMilli()))
-	payload = append(payload, 1, 2, 3, 4, 5, 6, 7, 8)
-	payload = append(payload, account[:]...)
-	signed := append(append([]byte{}, payload...), cpipscope.Of("203.0.113.7")...)
-	token := append(append([]byte{}, payload...), ed25519.Sign(ed25519.NewKeyFromSeed(seed), signed)...)
-
-	claims, err := verifier.Verify(encode(token), "203.0.113.7", now)
-	require.NoError(t, err)
-	assert.Equal(t, account, claims.Account)
-	assert.False(t, claims.Linked)
-	assert.True(t, claims.Attested, "every mint before version 3 followed a Turnstile check")
-}
-
 func TestATokenSaysWhetherItWasMintedAfterATurnstileCheck(t *testing.T) {
 	signer, verifier := newPair(t)
 	account := cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"))
@@ -212,29 +186,6 @@ func TestATokenThatOnlyNamesItsHolderCannotClaimTheCheck(t *testing.T) {
 
 	_, err = verifier.Verify(encode(raw), "203.0.113.7", now)
 	assert.ErrorIs(t, err, cpsession.ErrBadSignature)
-}
-
-func TestATokenMintedBeforeTheAttestedByteVerifiesAsAttested(t *testing.T) {
-	_, verifier := newPair(t)
-	secret, _ := cpsession.TestKeyPair()
-	seed, err := hex.DecodeString(secret)
-	require.NoError(t, err)
-	account := cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"))
-
-	payload := make([]byte, 0, attestedAt)
-	payload = append(payload, 2)
-	payload = binary.BigEndian.AppendUint64(payload, uint64(now.Add(ttl).UnixMilli()))
-	payload = append(payload, 1, 2, 3, 4, 5, 6, 7, 8)
-	payload = append(payload, account[:]...)
-	payload = append(payload, 1)
-	signed := append(append([]byte{}, payload...), cpipscope.Of("203.0.113.7")...)
-	token := append(append([]byte{}, payload...), ed25519.Sign(ed25519.NewKeyFromSeed(seed), signed)...)
-
-	claims, err := verifier.Verify(encode(token), "203.0.113.7", now)
-	require.NoError(t, err)
-	assert.Equal(t, account, claims.Account)
-	assert.True(t, claims.Linked)
-	assert.True(t, claims.Attested, "every mint before version 3 followed a Turnstile check")
 }
 
 func TestASwappedAccountDoesNotVerify(t *testing.T) {
@@ -308,11 +259,13 @@ func TestATokenOfAnotherVersionIsMalformed(t *testing.T) {
 	token, err := signer.Mint("203.0.113.7", cpsession.Nobody, now)
 	require.NoError(t, err)
 
-	raw := decode(t, token.Value)
-	raw[0] = cpsession.Version + 1
+	for _, version := range []byte{cpsession.Version - 1, cpsession.Version + 1} {
+		raw := decode(t, token.Value)
+		raw[0] = version
 
-	_, err = verifier.Verify(encode(raw), "203.0.113.7", now)
-	assert.ErrorIs(t, err, cpsession.ErrMalformed)
+		_, err = verifier.Verify(encode(raw), "203.0.113.7", now)
+		assert.ErrorIs(t, err, cpsession.ErrMalformed)
+	}
 }
 
 func TestMalformedTokensAreRefusedRatherThanPanicking(t *testing.T) {

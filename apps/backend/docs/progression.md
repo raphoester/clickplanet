@@ -65,7 +65,7 @@ internal/progression/internal/
     caller/                         the account on the context, or Unauthenticated
     progressionmessage/             Title and Titles as progression.v1 messages, for the commands and the adapters
   subscribers/                      the edge for events, as the controller is for the wire
-    tile_taken_subscriber/  message_sent_subscriber/  bomb_landed_subscriber/  fortified_subscriber/  bonus_claimed_subscriber/
+    tiles_taken_subscriber/  message_sent_subscriber/  bomb_landed_subscriber/  fortified_subscriber/  bonus_claimed_subscriber/
     quiz_answered_subscriber/  missions_paid_subscriber/  stats_changed_subscriber/  season_ended_subscriber/
     player_created_subscriber/  player_leaving_subscriber/  player_returned_subscriber/  player_forgotten_subscriber/
     log_subscriber/
@@ -163,9 +163,9 @@ reads player's tables (but once, at its first migration, below).
   published. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the
   same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and
   leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today: a streak whose last day is before
-  yesterday reads 0, and `streak_best` keeps it. The rule is `Stats.AsOf` for the commands and
-  `progressionread.StreakNow`, the same `CASE`, in each query's SQL; `stats_test.go` and the queries' tests pin it
-  across UTC midnight.
+  yesterday reads 0, and `streak_best` keeps it. The rule is
+  `progressionread.StreakNow`, the same `CASE` in each query's SQL, which the queries' tests check against
+  `Stats.AsOf`; `stats_test.go` and the queries' tests pin it across UTC midnight.
 - **Messages sent come from `chat.v1.MessageSent`** (`player-stats-messages`), one event per message kept
   (`Stats.WithMessage`, `progression.stats.messages_sent`, player's migration `20261003140000_messages_sent`). Every message
   counts: the chat's own rate limit is the only bound. A message is no take, so it neither starts nor extends a
@@ -205,11 +205,11 @@ reads player's tables (but once, at its first migration, below).
   in memory so a click never waits on the database; a take reaches this module over the event bus, so a click already
   never waits on it, and the calls are few (production is ~15 takes a second at peak). A memory copy would load every
   account that ever took a tile at boot, and cost a dirty set, a flush loop and a window a hard kill loses.
-- **`Store.Record` is one transaction per fact**, under `pg_advisory_xact_lock` on the account: read the stats, apply
-  the rule, upsert. The rule stays in Go, and two facts never read the same stats. An advisory lock rather than
+- **`Store.Record` is one transaction per call**, under `pg_advisory_xact_lock` on the account: read the stats, apply
+  the rule, upsert. A call is one fact, or one account's takes of a batch. The rule stays in Go, and two calls never
+  read the same stats. An advisory lock rather than
   `FOR UPDATE`, because a first take has no row to lock; `TestFactsEachSubscriberCountsAtOnceAreAllKept`, the
   subscribers writing one account at once, fails without it.
-- **If takes ever outgrow one transaction each**, the subscriber can batch them; nothing else changes.
 
 ## Titles
 

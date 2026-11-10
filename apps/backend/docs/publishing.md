@@ -42,8 +42,8 @@ internal/publishing/
 - **An hour between two posts on a platform** (`Spacing`), whoever made them: two posts minutes apart split the first
   hour of reach that TikTok and YouTube both judge a Short on, among the same followers.
 - **TikTok: 3 in a trailing 24 hours, from 14:00 to 20:00 UTC**, after school across Europe. **YouTube: 12, from
-  07:00 to 23:00 UTC.** Why these numbers is the clips job's history: [The clips job](clips-job.md), "`Budget` is what
-  each platform takes". The hours are UTC, so they move an hour against Europe's clocks in summer.
+  07:00 to 23:00 UTC.** Why these numbers is the clips job's history: [The clips job](clips-job.md), "2 a run, every 2
+  hours, within a daily budget per platform". The hours are UTC, so they move an hour against Europe's clocks in summer.
 - **A day is a trailing 24 hours**, as Zernio counts TikTok's cap, not a calendar day.
 
 **`Calendar.Slot(platforms, feed, notBefore, now)` is when a post goes out**: the first whole minute, 5 minutes from

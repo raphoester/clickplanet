@@ -14,8 +14,6 @@ import {useSchedule} from "./scheduleStore.ts"
 import "../season/Season.css"
 import "./Battle.css"
 
-export const BATTLE_LABEL = "Battle ends in"
-
 function labelOf(battle: Battle): string {
     return `${battleNameOf(battle)} ends in`
 }

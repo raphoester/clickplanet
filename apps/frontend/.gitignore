@@ -21,9 +21,6 @@ dist-ssr
 *.sln
 *.sw?
 
-tls/
-
-nginx/
 .wrangler/
 
 /public/crazygames/

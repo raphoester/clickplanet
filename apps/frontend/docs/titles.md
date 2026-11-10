@@ -67,7 +67,7 @@ is the player's own view.
   read `TITLE_REVEAL` (`domain/titleReveal.ts`). **Nothing closes it before
   `TITLE_REVEAL.ready`**, and a click beside it never does: a player spamming the
   globe would otherwise dismiss it unseen. Then "Close" and "Wear it"
-  (`AccountStore.wearTitle`; left out when no account store is wired) appear, and
+  (`AccountStore.wearTitle`) appear, and
   Escape works. The server sends only the highest
   rank per track of what one take earned, so a jump of two ranks is one overlay.
   A title earned while no tab is open is never announced; it is simply there next

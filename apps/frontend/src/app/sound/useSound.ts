@@ -29,7 +29,9 @@ export function useSound(silenced = false) {
     useEffect(() => () => playerRef.current?.dispose(), [])
 
     const play: PlaySound = useCallback((name, options) => playerRef.current?.play(name, options), [])
-    const preview = useCallback((name: SoundName) => playerRef.current?.preview(name), [])
+    const preview = useCallback((name: SoundName) => {
+        if (!silencedRef.current) playerRef.current?.preview(name)
+    }, [])
 
     return {play, preview}
 }

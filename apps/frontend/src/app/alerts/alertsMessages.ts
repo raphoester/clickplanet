@@ -16,7 +16,17 @@ export function pingFailureOf(failure: AuthFailure): string {
         case "off":
         case "notOffered":
             return "Not available"
-        default:
+        case "startAgain":
+        case "refused":
+        case "notSignedIn":
+        case "linkedElsewhere":
+        case "alreadyLinked":
+        case "invalidEmail":
+        case "disposableEmail":
+        case "tooManyCodes":
+        case "wrongCode":
+        case "newCode":
+        case "failed":
             return "Try again"
     }
 }

@@ -2787,12 +2787,6 @@ export class BombDropped extends Message<BombDropped> {
   point?: GlobePoint;
 
   /**
-   * @generated from field: repeated uint32 struck_tile_ids = 6 [deprecated = true];
-   * @deprecated
-   */
-  struckTileIds: number[] = [];
-
-  /**
    * @generated from field: planet.v1.MapVersion version = 7;
    */
   version?: MapVersion;
@@ -2817,7 +2811,6 @@ export class BombDropped extends Message<BombDropped> {
     { no: 3, name: "radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 4, name: "cleared_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
     { no: 5, name: "point", kind: "message", T: GlobePoint },
-    { no: 6, name: "struck_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
     { no: 7, name: "version", kind: "message", T: MapVersion },
     { no: 8, name: "struck", kind: "message", T: TileShields, repeated: true },
   ]);

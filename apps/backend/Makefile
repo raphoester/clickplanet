@@ -110,10 +110,8 @@ check-format:
 		printf '%s\n' "$$out" | grep '^diff ' | awk '{print "  " $$3}'; \
 		exit 1; \
 	fi
-	@go mod tidy
-	@git diff --quiet -- go.mod go.sum || { \
+	@go mod tidy -diff || { \
 		echo "go.mod or go.sum is not tidy. Run 'make tidy' and commit the result."; \
-		git --no-pager diff --stat -- go.mod go.sum; \
 		exit 1; }
 
 setup-tools:

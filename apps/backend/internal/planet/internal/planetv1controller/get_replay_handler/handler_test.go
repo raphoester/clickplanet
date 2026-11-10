@@ -114,7 +114,8 @@ func TestEachSceneGoesOutAsTheLiveStreamSentIt(t *testing.T) {
 	bomb := events[1].GetEvent().GetBombDropped()
 	assert.Equal(t, uint32(5), bomb.GetTileId())
 	assert.Equal(t, []uint32{5, 6}, bomb.GetClearedTileIds())
-	assert.Equal(t, []uint32{7}, bomb.GetStruckTileIds()) //nolint:staticcheck // still sent to the tabs loaded before it was deprecated.
+	require.Len(t, bomb.GetStruck(), 1)
+	assert.Equal(t, uint32(7), bomb.GetStruck()[0].GetTileId())
 	assert.Equal(t, uint32(1), bomb.GetStruck()[0].GetShields())
 	assert.Nil(t, bomb.GetVersion(), "a replay is not the live map: no version")
 	assert.InDelta(t, 1.0, bomb.GetPoint().GetX(), 1e-9)

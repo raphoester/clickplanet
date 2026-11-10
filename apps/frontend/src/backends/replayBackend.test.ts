@@ -115,11 +115,8 @@ describe("a replay", () => {
         expect(rows(await backend.getHoldings())).toEqual({countries: {de: 2}, landmasses: {1: {de: 1}, 2: {de: 1}}})
     })
 
-    it("says what each struck tile kept, from its own map when the recording is older than the server saying it", () => {
-        const backend = replay(bomb(1, [], [{tileId: 2, shields: 1}]), new ReplayedEvent({
-            at: at(2),
-            event: new PlanetEvent({event: {case: "bombDropped", value: new BombDropped({tileId: 2, struckTileIds: [2]})}}),
-        }))
+    it("says what each struck tile kept, as the server recorded it", () => {
+        const backend = replay(bomb(1, [], [{tileId: 2, shields: 1}]), bomb(2, [], [{tileId: 2, shields: 0}]))
         const struck: {tile: number, shields: number}[][] = []
         backend.listenForBombs((drop: BombDrop) => struck.push(drop.struck))
 

@@ -23,8 +23,7 @@ export type ChatAdmin = Pick<
 >
 export type AntibotAdmin = PromiseClient<typeof AntibotAdminService>
 export type AlertsAdmin = PromiseClient<typeof AlertsAdminService>
-// The bans moved to the antibot: planet.v1 keeps the three calls only until this page has called antibot.v1 for a deploy.
-export type PlanetAdmin = Omit<PromiseClient<typeof PlanetAdminService>, "banPlayer" | "unbanPlayer" | "inspectPlayer">
+export type PlanetAdmin = PromiseClient<typeof PlanetAdminService>
 export type PlayerAdmin = PromiseClient<typeof PlayerAdminService>
 export type ProgressionAdmin = PromiseClient<typeof ProgressionAdminService>
 export type GamemasterAdmin = PromiseClient<typeof GamemasterAdminService>
@@ -38,8 +37,11 @@ export type ClipsAdmin = Pick<PromiseClient<typeof ClipsAdminService>, "createVi
 // The posts' numbers, a snapshot a day the server takes.
 export type PublishingAdmin = Pick<PromiseClient<typeof PublishingAdminService>, "listSnapshots" | "listRows">
 
-// The battle teasers: the background library and each rule set's cards.
-export type PromoAdmin = PromiseClient<typeof PromoAdminService>
+// The battle teasers: the background library and each rule set's cards. The teasers job's calls are not the page's.
+export type PromoAdmin = Pick<
+    PromiseClient<typeof PromoAdminService>,
+    "createBackgroundUpload" | "keepBackground" | "listBackgrounds" | "removeBackground" | "getCards" | "saveCards"
+>
 
 export type Clients = {
     alerts: AlertsAdmin, antibot: AntibotAdmin, chat: ChatAdmin, planet: PlanetAdmin, player: PlayerAdmin, progression: ProgressionAdmin,

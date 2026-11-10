@@ -22,7 +22,7 @@ defence against taking back the last tile for a free refill, and it costs no tim
   `Impact.Fortified`. A reassign or a revert that makes a landmass whole locks it to its
   holder instead (`settleLocked`), and so does the boot for every whole landmass with no
   lock: so the launch, and an operator, can never hand out a free fortify.
-- **Kept with the tiles**: `planet.landmasses (asset, id, fortified_by)`, written by the
+- **Kept with the tiles**: `planet.landmasses (map, asset, id, fortified_by)`, written by the
   same flush, so a lock and its shields are never saved apart. A row is keyed by the
   borders blob's name: a regenerated map numbers its landmasses again, and the boot
   reads only the rows of the blob it loaded (then settles the rest). The remap

@@ -203,6 +203,7 @@
 .title-frame-platinum { --title-frame: var(--platinum); }
 .title-frame-prism { --title-frame: color-mix(in srgb, var(--prism-2) 70%, var(--text)); }
 .title-frame-holo { --title-frame: color-mix(in srgb, var(--holo-1) 50%, var(--holo-2)); }
+.title-frame-pumpkin { --title-frame: var(--pumpkin); }
 
 .modal-content[class*="title-frame-"] {
     box-shadow: var(--drop-l), inset 0 0 0 var(--outline-thin) var(--title-frame);

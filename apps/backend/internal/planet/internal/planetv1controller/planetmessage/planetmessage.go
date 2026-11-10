@@ -38,7 +38,6 @@ func BombDropped(blast *clicks.Blast, version clicks.MapVersion) *planetv1.Plane
 				CountryId:      blast.CountryID,
 				Radius:         blast.Radius,
 				ClearedTileIds: blast.Cleared,
-				StruckTileIds:  blast.Struck, //nolint:staticcheck // the tabs loaded before it was deprecated still read it.
 				Point:          &planetv1.GlobePoint{X: blast.Point.X, Y: blast.Point.Y, Z: blast.Point.Z},
 				Version:        Version(version),
 				Struck:         struck,
