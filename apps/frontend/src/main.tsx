@@ -66,6 +66,8 @@ import {AlertsBackend} from "./backends/alerts.ts"
 import {ConnectAlertsBackend, newAlertsServiceClient} from "./backends/alertsBackend.ts"
 import {FakeAlertsBackend} from "./backends/fakeAlertsBackend.ts"
 import {DiscordAlerts} from "./app/alerts/discordAlerts.ts"
+import {ConnectAntibotBackend, newAntibotServiceClient} from "./backends/antibotBackend.ts"
+import {FakeAntibotBackend} from "./backends/fakeAntibotBackend.ts"
 
 // Strip the OAuth code and state from the URL before anything else can read or leak them.
 const callback = callbackOf(new URL(window.location.href))
@@ -279,7 +281,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 
     const fakeChat = new FakeChatBackend()
     const fakeSupport = new FakeSupportBackend()
-    Object.assign(window, {fakeChat, fakeSupport, fakePromo})
+    const fakeAntibot = new FakeAntibotBackend()
+    Object.assign(window, {fakeChat, fakeSupport, fakePromo, fakeAntibot})
     const fakeTurn = new FakeTurnBackend(seasonRunningAt(Date.now()))
     Object.assign(window, battleCommands(fakeTurn))
     const fakeStandings = new FakeStandingsBackend()
@@ -302,7 +305,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         bomber: fake,
         refiller: fake,
         shielder: fake,
-        warnings: fake,
         allegiance: fake,
         clickBudgetSource: fake,
         connection,
@@ -312,6 +314,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         badges: fakeBadges,
         nameplates: fakeNameplates,
         titles: fakePresence,
+        warnings: fakeAntibot,
         tileHolders: fake,
         landmasses: fake,
         turn: fakeTurn,
@@ -337,6 +340,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const support = new ConnectSupportBackend(newSupportServiceClient(config), session)
     const clips = new ConnectClipsBackend(newClipsServiceClient(config), session)
     const promo = new ConnectPromoBackend(newPromoServiceClient(config))
+    const antibot = new ConnectAntibotBackend(newAntibotServiceClient(config), session)
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest, landing), player, progression, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
@@ -356,7 +360,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         bomber: backend,
         refiller: backend,
         shielder: backend,
-        warnings: backend,
         allegiance: backend,
         clickBudgetSource: backend,
         connection,
@@ -367,6 +370,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         badges: progression,
         nameplates: player,
         titles: progression,
+        warnings: antibot,
         tileHolders: backend,
         landmasses: backend,
         turn,

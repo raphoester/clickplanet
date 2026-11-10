@@ -521,6 +521,13 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
   warnedAt?: Timestamp;
 
   /**
+   * When the account acknowledged its warning. Unset while it has not.
+   *
+   * @generated from field: google.protobuf.Timestamp warning_acknowledged_at = 20;
+   */
+  warningAcknowledgedAt?: Timestamp;
+
+  /**
    * @generated from field: repeated antibot.v1.WatchdogReading readings = 7;
    */
   readings: WatchdogReading[] = [];
@@ -587,6 +594,7 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
     { no: 6, name: "flags", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 18, name: "pardoned_until", kind: "message", T: Timestamp },
     { no: 19, name: "warned_at", kind: "message", T: Timestamp },
+    { no: 20, name: "warning_acknowledged_at", kind: "message", T: Timestamp },
     { no: 7, name: "readings", kind: "message", T: WatchdogReading, repeated: true },
     { no: 8, name: "suspects", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 9, name: "min_suspects", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },

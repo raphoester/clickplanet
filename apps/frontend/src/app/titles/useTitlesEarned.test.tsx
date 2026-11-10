@@ -3,7 +3,8 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render} from "@testing-library/react"
 import {StrictMode} from "react"
 import {PlayerTitle, TitlesListener} from "../../backends/progression.ts"
-import {TOKEN_CHECK_MS, useTitlesEarned} from "./useTitlesEarned.ts"
+import {useTitlesEarned} from "./useTitlesEarned.ts"
+import {TOKEN_CHECK_MS} from "../useHeldIdentity.ts"
 
 const settler: PlayerTitle = {id: "settler", name: "Settler"}
 

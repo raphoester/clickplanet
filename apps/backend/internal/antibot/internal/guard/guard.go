@@ -307,6 +307,7 @@ func (g *Guard) Examine(ctx context.Context, scope, account string) (Examination
 
 	examination := g.jury.Examine(scope, account, warned)
 	examination.WarnedAt = warning.At
+	examination.WarningAcknowledgedAt = warning.AcknowledgedAt
 
 	caller := bans.Caller{Scope: examination.Scope, Account: account}
 

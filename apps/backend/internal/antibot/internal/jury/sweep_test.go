@@ -8,7 +8,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 
 	"github.com/stretchr/testify/assert"
@@ -45,7 +44,7 @@ func (stubBanner) Flagged(context.Context) (int, error) { return 0, nil }
 func (stubBanner) Enforcing() bool { return true }
 
 func stubWarner(clock cptime.Clock) *warnings.Book {
-	return warnings.NewBook(stubBanner{}, clock, warnings.NewMemoryStore(), cpatomic.FakeTransactioner{}, &warnings.MemoryTeller{})
+	return warnings.NewBook(stubBanner{}, clock, warnings.NewMemoryStore(), &warnings.MemoryFeed{})
 }
 
 func inspect(t *testing.T, j *Jury, click detect.Click) {

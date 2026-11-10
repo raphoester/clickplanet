@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AcknowledgeWarningRequest, AcknowledgeWarningResponse, AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetTileHolderRequest, GetTileHolderResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
+import { AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetTileHolderRequest, GetTileHolderResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -198,17 +198,6 @@ export const ClickService = {
       name: "PledgeAllegiance",
       I: PledgeAllegianceRequest,
       O: PledgeAllegianceResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * The caller read its warning: its clicks, bombs and shields play again. A caller with no warning changes nothing.
-     *
-     * @generated from rpc planet.v1.ClickService.AcknowledgeWarning
-     */
-    acknowledgeWarning: {
-      name: "AcknowledgeWarning",
-      I: AcknowledgeWarningRequest,
-      O: AcknowledgeWarningResponse,
       kind: MethodKind.Unary,
     },
   }

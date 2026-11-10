@@ -53,6 +53,8 @@ func TestTheExaminationComesBackWhole(t *testing.T) {
 
 		PardonedUntil: at.Add(72 * time.Hour),
 		WarnedAt:      at.Add(-time.Hour),
+
+		WarningAcknowledgedAt: at.Add(-time.Minute),
 		Readings: []guard.Reading{
 			{Watchdog: "metronome", Level: "suspect", Evidence: "cadence clicks=120 spread=40ms", At: at},
 			{Watchdog: "sequencer", Level: "clear"},
@@ -80,6 +82,7 @@ func TestTheExaminationComesBackWhole(t *testing.T) {
 	assert.Equal(t, at.Add(24*time.Hour), res.GetBannedUntil().AsTime())
 	assert.Equal(t, at.Add(72*time.Hour), res.GetPardonedUntil().AsTime())
 	assert.Equal(t, at.Add(-time.Hour), res.GetWarnedAt().AsTime())
+	assert.Equal(t, at.Add(-time.Minute), res.GetWarningAcknowledgedAt().AsTime())
 
 	require.Len(t, res.GetReadings(), 2)
 	assert.Equal(t, "metronome", res.GetReadings()[0].GetWatchdog())
@@ -114,6 +117,7 @@ func TestAnUntrackedScopeStillSaysSo(t *testing.T) {
 	assert.Nil(t, res.GetBannedUntil())
 	assert.Nil(t, res.GetPardonedUntil())
 	assert.Nil(t, res.GetWarnedAt())
+	assert.Nil(t, res.GetWarningAcknowledgedAt())
 	assert.Nil(t, res.GetActiveFor())
 	assert.Nil(t, res.GetLastClickAt())
 }

@@ -48,7 +48,7 @@ internal/planet/internal/
   subscribers/                    the edge for events: player.v1.PlayerForgotten → anonymize_takes_usecase,
                                   player.v1.PlayerCreated → grant_sign_in_refill_usecase
   commands/                       the edge for commands: planet.v1.GrantCharges → apply_grant_usecase,
-                                  planet.v1.RefuseCaller, AdmitCaller and WarnCaller → refusals.Book,
+                                  planet.v1.RefuseCaller and AdmitCaller → refusals.Book,
                                   planet.v1.PlayRuleSet → play_rules_usecase, planet.v1.ResetMap → reset_map_usecase,
                                   planet.v1.ArenaCommand → open_arena_usecase and close_arena_usecase
 ```
@@ -94,10 +94,8 @@ internal/planet/internal/
   every kind through both.
 - **`refusals/`** — the callers planet refuses, each a scope or an account (`Caller`), until when, and when that was
   decided (`Refusal`, `Decision`). It keeps the latest decision (`Refusal.Decided`), from the commands another module
-  sends in planet's words (`RefuseCaller`, `AdmitCaller`, `WarnCaller`). A warning is a refusal of an account until it
-  acknowledges it (`Refusal.Acknowledged`, from `ClickService/AcknowledgeWarning`); a ban is not the caller's to end.
-  `Book.Refusal(payer)` is what the click, the bomb and the shield are refused from: a ban first, else a warning.
-  `Book.Refusals(payers)`, for the operator's lists, answers bans only. See [A ban is told](antibot.md#a-ban-is-told).
+  sends in planet's words (`RefuseCaller`, `AdmitCaller`). `Book.Refusal(payer)` is what the click, the bomb and the
+  shield are refused from. See [A ban is told](antibot.md#a-ban-is-told).
 - **`facts/`** — `Log` stamps each fact of a caller later than the one before and keeps it; `Relay` sends them every
   100ms, in order, from one goroutine. What tells: `try_click`, `get_map_usecase`, `listen_for_events_usecase`,
   `bonuses/box_facts` and `allegiances/allegiance_facts`. Planet does not know who listens.

@@ -11,7 +11,8 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
 
 - **The component that shows the state reads the store itself.** `SettingsPlace` reads the display settings, the
   board reads its guide, the phone's tab bar the chat's unread count, `ScheduleChip`, its sheets and `Moments` the
-  schedule, and the clicks meter and panel the click budget. `PlayScreen` reads a store only for what it draws or
+  schedule, the clicks meter and panel the click budget, and `WarningModal` the antibot's warning (`useWarning`,
+  `warning/warningStore.ts`). `PlayScreen` reads a store only for what it draws or
   hands a hook itself, such as the two display fields it gives the globe, and never to pass a value down. It reads
   plain fields where it can (the budget's sign-in multiplier, freeze and fast start, not the reading), so a store
   that changes often does not render the whole screen.
@@ -32,7 +33,7 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
   and `useConnection`.
 - **What a backend sends goes into its store from where its inputs are.** A hook that `PlayScreen` calls with the
   backend and what it knows links the two (`useQuizMaster`, `useRosterFeed`, `useRaceFeed`, `useScheduleFeed`,
-  `useMissionsFeed`, `useClickBudgetFeed`): it subscribes, writes the store, and puts the store back to its start once it stops, so nothing
+  `useMissionsFeed`, `useClickBudgetFeed`, `useWarningFeed`): it subscribes, writes the store, and puts the store back to its start once it stops, so nothing
   stale shows after it and StrictMode's second run follows one stream. `PlayScreen` reads back only what it hands the
   globe or a hook itself, such as the roster's count, the race it ranks the countries by for the anthem, the turn it
   makes the mood and the globe's halo from, or the missions it draws on the globe. Or the place where a card shows does it, given its inputs as props (`PlayerCardPlace`,
@@ -40,7 +41,7 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
 - **What the globe tells goes into the store of its feature.** `useGlobe` hands `createGlobe` the verbs of four
   stores, and puts the stores back to their start when it unmounts:
   - `useRefusedClicks` (`clicks/refusedClicksStore.ts`): the count of clicks the bank or a frozen map refused,
-    the VPN, ban, warning and session flags, and the flag that locked a click out. `ClickBudgetMeter` and the four modals
+    the VPN, ban and session flags, and the flag that locked a click out. `ClickBudgetMeter` and the three modals
     read it; `PlayScreen` reads the count only to hand it to `useSignInNudge`.
   - `useBonus` (`bonus/bonusStore.ts`): the box won, read by `BonusAward`, and what `Inventory` reads: the notice,
     the charges, the rules, the switches and the armed bomb. `PlayScreen` reads the charges and the rules only for

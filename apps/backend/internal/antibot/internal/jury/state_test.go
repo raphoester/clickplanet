@@ -30,7 +30,7 @@ func newJury(clock cptime.Clock, hooks Hooks, watchdog detect.Watchdog) *Jury {
 		return bans.Rules{Enforce: true, BanDurations: []time.Duration{time.Hour}, ReflagInterval: 5 * time.Minute}
 	}
 	banner := bans.NewBook(ladder, 72*time.Hour, clock, bans.NewMemoryStore(), bans.NewMemoryStore(), cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
-	warner := warnings.NewBook(banner, clock, warnings.NewMemoryStore(), cpatomic.FakeTransactioner{}, &warnings.MemoryTeller{})
+	warner := warnings.NewBook(banner, clock, warnings.NewMemoryStore(), &warnings.MemoryFeed{})
 	return New(Config{TrackWindow: time.Hour}, shipped, banner, warner, &MemoryTurns{}, clock, hooks, watchdog)
 }
 

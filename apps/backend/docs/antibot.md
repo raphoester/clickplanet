@@ -133,20 +133,24 @@ the rule, before any ban.
   the evidence, forgets the turns before every warning inside the rotator's `window`.
 - **Each account is warned once, ever** (`antibot.warnings`, one row per account, the first kept), and never forgotten,
   as offences are not. A pardoned caller is not warned.
-- **Not enforced, nobody is warned**: with `bans.enforce` off, a warning is neither kept nor told. Kept, it would ban a
+- **Not enforced, nobody is warned**: with `bans.enforce` off, a warning is neither kept nor shown. Kept, it would ban a
   ring that never saw it.
-- **Planet is told in its words**: `planet.v1.WarnCaller{account_id, decided_at}`, through the outbox in the
-  warning's transaction (`warnings/outbox_planet_teller`). Planet keeps it in `refused_callers` (`warning` true), by the
-  latest decision, as a ban. The account's clicks, bombs and shields are refused with `PermissionDenied` and a
-  `planet.v1.WarningRefusal` detail until it calls `ClickService/AcknowledgeWarning` (`Refusal.Acknowledged`); a ban
-  is not the caller's to end, and a ban on the scope or the account is told first. The page shows "One account per
-  player", and its Got it acknowledges. The tile clicked is rolled back as any refused click.
+- **The page hears it from the antibot, never from planet.** `antibot.v1.AntibotService` is the antibot's one public
+  service, routed by Caddy as every other. `ListenForEvents` (one stream per page, `listen_for_warnings_usecase`) sends
+  the caller's warning as the stream opens while it is not acknowledged, then each one as it is given: `warnings.Book`
+  publishes a warning kept to an in-process feed (`inprocess_warning_feed`), as progression's titles do. The page
+  shows "One account per player" and its Got it calls `AcknowledgeWarning`, which keeps `acknowledged_at` (the first
+  one). Clicks are not refused: the warning is a message on the screen, and a ring that plays on is banned as above.
+  Planet holds nothing of it.
+- **The cost is one more stream a page**: 6 for a guest, 7 signed in, 8 in a battle. HTTP/2 in production; a local
+  plain-HTTP stack already runs out of connections at 6 (Chrome's pool per host).
 - **The operator sees it**: the `antibot warning` log line (`account`, `alongside`, the opinions), the counter
-  `antibot_warnings_total`, and `warned_at` in `InspectPlayer`. Its `guilty` reads the ring as warned when the account
-  examined was.
+  `antibot_warnings_total`, and `warned_at` and `warning_acknowledged_at` in `InspectPlayer`. Its `guilty` reads the ring
+  as warned when the account examined was.
 - `TestACertainReadingOfTurnsWarnsTheRingAndBansNobody` and `TestAWarnedRingIsBannedOnASuspectReadingAndNoNetwork` pin
   the jury; `TestThePairOfNovember3OnOneAddressIsWarnedThenBanned`, `TestARingThatStopsAtItsWarningPlaysOn` and
-  `TestABootForgetsTheTurnsBeforeAWarningTheEvidenceStillHeld` the guard.
+  `TestABootForgetsTheTurnsBeforeAWarningTheEvidenceStillHeld` the guard; `listen_for_warnings_usecase`'s tests the
+  stream.
 
 ## Ten watchdogs, one jury
 

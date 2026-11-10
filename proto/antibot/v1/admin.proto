@@ -110,6 +110,8 @@ message InspectPlayerResponse {
   google.protobuf.Timestamp pardoned_until = 18;
   // When the account was warned that playing several accounts is refused. Unset for one never warned.
   google.protobuf.Timestamp warned_at = 19;
+  // When the account acknowledged its warning. Unset while it has not.
+  google.protobuf.Timestamp warning_acknowledged_at = 20;
 
   repeated WatchdogReading readings = 7;
 

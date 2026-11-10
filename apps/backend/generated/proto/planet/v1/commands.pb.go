@@ -191,59 +191,6 @@ func (*RefuseCaller_Scope) isRefuseCaller_Caller() {}
 
 func (*RefuseCaller_AccountId) isRefuseCaller_Caller() {}
 
-// Refuses the account's clicks, bombs and shields until it acknowledges its warning, by the same rule.
-type WarnCaller struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	DecidedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WarnCaller) Reset() {
-	*x = WarnCaller{}
-	mi := &file_planet_v1_commands_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WarnCaller) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WarnCaller) ProtoMessage() {}
-
-func (x *WarnCaller) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_commands_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WarnCaller.ProtoReflect.Descriptor instead.
-func (*WarnCaller) Descriptor() ([]byte, []int) {
-	return file_planet_v1_commands_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *WarnCaller) GetAccountId() string {
-	if x != nil {
-		return x.AccountId
-	}
-	return ""
-}
-
-func (x *WarnCaller) GetDecidedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.DecidedAt
-	}
-	return nil
-}
-
 // Ends the caller's refusal now, by the same rule.
 type AdmitCaller struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -259,7 +206,7 @@ type AdmitCaller struct {
 
 func (x *AdmitCaller) Reset() {
 	*x = AdmitCaller{}
-	mi := &file_planet_v1_commands_proto_msgTypes[3]
+	mi := &file_planet_v1_commands_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -271,7 +218,7 @@ func (x *AdmitCaller) String() string {
 func (*AdmitCaller) ProtoMessage() {}
 
 func (x *AdmitCaller) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_commands_proto_msgTypes[3]
+	mi := &file_planet_v1_commands_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -284,7 +231,7 @@ func (x *AdmitCaller) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdmitCaller.ProtoReflect.Descriptor instead.
 func (*AdmitCaller) Descriptor() ([]byte, []int) {
-	return file_planet_v1_commands_proto_rawDescGZIP(), []int{3}
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *AdmitCaller) GetCaller() isAdmitCaller_Caller {
@@ -347,7 +294,7 @@ type PlayRuleSet struct {
 
 func (x *PlayRuleSet) Reset() {
 	*x = PlayRuleSet{}
-	mi := &file_planet_v1_commands_proto_msgTypes[4]
+	mi := &file_planet_v1_commands_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -359,7 +306,7 @@ func (x *PlayRuleSet) String() string {
 func (*PlayRuleSet) ProtoMessage() {}
 
 func (x *PlayRuleSet) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_commands_proto_msgTypes[4]
+	mi := &file_planet_v1_commands_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -372,7 +319,7 @@ func (x *PlayRuleSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayRuleSet.ProtoReflect.Descriptor instead.
 func (*PlayRuleSet) Descriptor() ([]byte, []int) {
-	return file_planet_v1_commands_proto_rawDescGZIP(), []int{4}
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *PlayRuleSet) GetRuleSet() string {
@@ -402,7 +349,7 @@ type ResetMap struct {
 
 func (x *ResetMap) Reset() {
 	*x = ResetMap{}
-	mi := &file_planet_v1_commands_proto_msgTypes[5]
+	mi := &file_planet_v1_commands_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -414,7 +361,7 @@ func (x *ResetMap) String() string {
 func (*ResetMap) ProtoMessage() {}
 
 func (x *ResetMap) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_commands_proto_msgTypes[5]
+	mi := &file_planet_v1_commands_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -427,7 +374,7 @@ func (x *ResetMap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResetMap.ProtoReflect.Descriptor instead.
 func (*ResetMap) Descriptor() ([]byte, []int) {
-	return file_planet_v1_commands_proto_rawDescGZIP(), []int{5}
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ResetMap) GetResetId() string {
@@ -459,7 +406,7 @@ type ArenaCommand struct {
 
 func (x *ArenaCommand) Reset() {
 	*x = ArenaCommand{}
-	mi := &file_planet_v1_commands_proto_msgTypes[6]
+	mi := &file_planet_v1_commands_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -471,7 +418,7 @@ func (x *ArenaCommand) String() string {
 func (*ArenaCommand) ProtoMessage() {}
 
 func (x *ArenaCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_commands_proto_msgTypes[6]
+	mi := &file_planet_v1_commands_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -484,7 +431,7 @@ func (x *ArenaCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArenaCommand.ProtoReflect.Descriptor instead.
 func (*ArenaCommand) Descriptor() ([]byte, []int) {
-	return file_planet_v1_commands_proto_rawDescGZIP(), []int{6}
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ArenaCommand) GetCommand() isArenaCommand_Command {
@@ -541,7 +488,7 @@ type OpenArena struct {
 
 func (x *OpenArena) Reset() {
 	*x = OpenArena{}
-	mi := &file_planet_v1_commands_proto_msgTypes[7]
+	mi := &file_planet_v1_commands_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -553,7 +500,7 @@ func (x *OpenArena) String() string {
 func (*OpenArena) ProtoMessage() {}
 
 func (x *OpenArena) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_commands_proto_msgTypes[7]
+	mi := &file_planet_v1_commands_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -566,7 +513,7 @@ func (x *OpenArena) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenArena.ProtoReflect.Descriptor instead.
 func (*OpenArena) Descriptor() ([]byte, []int) {
-	return file_planet_v1_commands_proto_rawDescGZIP(), []int{7}
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *OpenArena) GetArenaId() string {
@@ -594,7 +541,7 @@ type CloseArena struct {
 
 func (x *CloseArena) Reset() {
 	*x = CloseArena{}
-	mi := &file_planet_v1_commands_proto_msgTypes[8]
+	mi := &file_planet_v1_commands_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -606,7 +553,7 @@ func (x *CloseArena) String() string {
 func (*CloseArena) ProtoMessage() {}
 
 func (x *CloseArena) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_commands_proto_msgTypes[8]
+	mi := &file_planet_v1_commands_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -619,7 +566,7 @@ func (x *CloseArena) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseArena.ProtoReflect.Descriptor instead.
 func (*CloseArena) Descriptor() ([]byte, []int) {
-	return file_planet_v1_commands_proto_rawDescGZIP(), []int{8}
+	return file_planet_v1_commands_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CloseArena) GetArenaId() string {
@@ -647,13 +594,7 @@ const file_planet_v1_commands_proto_rawDesc = "" +
 	"\x05until\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x129\n" +
 	"\n" +
 	"decided_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAtB\b\n" +
-	"\x06caller\"f\n" +
-	"\n" +
-	"WarnCaller\x12\x1d\n" +
-	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\x129\n" +
-	"\n" +
-	"decided_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\"\x8b\x01\n" +
+	"\x06caller\"\x8b\x01\n" +
 	"\vAdmitCaller\x12\x16\n" +
 	"\x05scope\x18\x01 \x01(\tH\x00R\x05scope\x12\x1f\n" +
 	"\n" +
@@ -696,36 +637,34 @@ func file_planet_v1_commands_proto_rawDescGZIP() []byte {
 	return file_planet_v1_commands_proto_rawDescData
 }
 
-var file_planet_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_planet_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_planet_v1_commands_proto_goTypes = []any{
 	(*GrantCharges)(nil),          // 0: planet.v1.GrantCharges
 	(*RefuseCaller)(nil),          // 1: planet.v1.RefuseCaller
-	(*WarnCaller)(nil),            // 2: planet.v1.WarnCaller
-	(*AdmitCaller)(nil),           // 3: planet.v1.AdmitCaller
-	(*PlayRuleSet)(nil),           // 4: planet.v1.PlayRuleSet
-	(*ResetMap)(nil),              // 5: planet.v1.ResetMap
-	(*ArenaCommand)(nil),          // 6: planet.v1.ArenaCommand
-	(*OpenArena)(nil),             // 7: planet.v1.OpenArena
-	(*CloseArena)(nil),            // 8: planet.v1.CloseArena
-	(BonusKind)(0),                // 9: planet.v1.BonusKind
-	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
+	(*AdmitCaller)(nil),           // 2: planet.v1.AdmitCaller
+	(*PlayRuleSet)(nil),           // 3: planet.v1.PlayRuleSet
+	(*ResetMap)(nil),              // 4: planet.v1.ResetMap
+	(*ArenaCommand)(nil),          // 5: planet.v1.ArenaCommand
+	(*OpenArena)(nil),             // 6: planet.v1.OpenArena
+	(*CloseArena)(nil),            // 7: planet.v1.CloseArena
+	(BonusKind)(0),                // 8: planet.v1.BonusKind
+	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
 }
 var file_planet_v1_commands_proto_depIdxs = []int32{
-	9,  // 0: planet.v1.GrantCharges.kind:type_name -> planet.v1.BonusKind
-	10, // 1: planet.v1.RefuseCaller.until:type_name -> google.protobuf.Timestamp
-	10, // 2: planet.v1.RefuseCaller.decided_at:type_name -> google.protobuf.Timestamp
-	10, // 3: planet.v1.WarnCaller.decided_at:type_name -> google.protobuf.Timestamp
-	10, // 4: planet.v1.AdmitCaller.decided_at:type_name -> google.protobuf.Timestamp
-	10, // 5: planet.v1.PlayRuleSet.decided_at:type_name -> google.protobuf.Timestamp
-	10, // 6: planet.v1.ResetMap.decided_at:type_name -> google.protobuf.Timestamp
-	7,  // 7: planet.v1.ArenaCommand.open_arena:type_name -> planet.v1.OpenArena
-	8,  // 8: planet.v1.ArenaCommand.close_arena:type_name -> planet.v1.CloseArena
-	10, // 9: planet.v1.OpenArena.ends_at:type_name -> google.protobuf.Timestamp
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	8, // 0: planet.v1.GrantCharges.kind:type_name -> planet.v1.BonusKind
+	9, // 1: planet.v1.RefuseCaller.until:type_name -> google.protobuf.Timestamp
+	9, // 2: planet.v1.RefuseCaller.decided_at:type_name -> google.protobuf.Timestamp
+	9, // 3: planet.v1.AdmitCaller.decided_at:type_name -> google.protobuf.Timestamp
+	9, // 4: planet.v1.PlayRuleSet.decided_at:type_name -> google.protobuf.Timestamp
+	9, // 5: planet.v1.ResetMap.decided_at:type_name -> google.protobuf.Timestamp
+	6, // 6: planet.v1.ArenaCommand.open_arena:type_name -> planet.v1.OpenArena
+	7, // 7: planet.v1.ArenaCommand.close_arena:type_name -> planet.v1.CloseArena
+	9, // 8: planet.v1.OpenArena.ends_at:type_name -> google.protobuf.Timestamp
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_commands_proto_init() }
@@ -738,11 +677,11 @@ func file_planet_v1_commands_proto_init() {
 		(*RefuseCaller_Scope)(nil),
 		(*RefuseCaller_AccountId)(nil),
 	}
-	file_planet_v1_commands_proto_msgTypes[3].OneofWrappers = []any{
+	file_planet_v1_commands_proto_msgTypes[2].OneofWrappers = []any{
 		(*AdmitCaller_Scope)(nil),
 		(*AdmitCaller_AccountId)(nil),
 	}
-	file_planet_v1_commands_proto_msgTypes[6].OneofWrappers = []any{
+	file_planet_v1_commands_proto_msgTypes[5].OneofWrappers = []any{
 		(*ArenaCommand_OpenArena)(nil),
 		(*ArenaCommand_CloseArena)(nil),
 	}
@@ -752,7 +691,7 @@ func file_planet_v1_commands_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_commands_proto_rawDesc), len(file_planet_v1_commands_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

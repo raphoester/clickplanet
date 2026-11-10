@@ -1,12 +1,12 @@
 import Modal from "./Modal.tsx";
 import {GAME_RULES} from "./BannedModal.tsx";
-import {useRefusedClicks} from "../clicks/refusedClicksStore.ts";
-import {WarningAcknowledger} from "../../backends/backend.ts";
+import {useWarning} from "../warning/warningStore.ts";
+import {WarningAcknowledger} from "../../backends/antibot.ts";
 import "./BannedModal.css"
 
 export default function WarningModal({warnings}: {warnings: WarningAcknowledger}) {
-    const warned = useRefusedClicks((refused) => refused.warned)
-    const dismiss = useRefusedClicks((refused) => refused.dismissWarning)
+    const warned = useWarning((warning) => warning.warned)
+    const dismiss = useWarning((warning) => warning.dismiss)
     if (!warned) return null
 
     const acknowledge = () => {

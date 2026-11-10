@@ -55,9 +55,8 @@ import {
     TileShields,
     TilesSpread,
     TileUpdate,
-    WarningRefusal,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {AllegianceLockedError, BankFullError, BannedError, BonusLostError, FrozenError, OutOfReachError, ShieldRefusedError, RateLimitedError, VPNBlockedError, WarnedError} from "./backend.ts"
+import {AllegianceLockedError, BankFullError, BannedError, BonusLostError, FrozenError, OutOfReachError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusRules, Charges} from "../domain/bonus.ts"
@@ -576,19 +575,6 @@ describe("PlanetBackend.clickTile", () => {
 
         expect(error).toBeInstanceOf(BannedError)
         expect(error).toMatchObject({until, cause: refused})
-        expect(click).toHaveBeenCalledTimes(1)
-        backend.close()
-    })
-
-    it("reports a warning as a WarnedError, never as the VPN", async () => {
-        const refused = new ConnectError("the caller is warned", Code.PermissionDenied, undefined, [new WarningRefusal()])
-        const click = vi.fn().mockRejectedValue(refused)
-        const backend = backendWith(click)
-
-        const error = await backend.clickTile(1, "fr").catch((e: unknown) => e)
-
-        expect(error).toBeInstanceOf(WarnedError)
-        expect(error).toMatchObject({cause: refused})
         expect(click).toHaveBeenCalledTimes(1)
         backend.close()
     })
@@ -1346,15 +1332,6 @@ describe("PlanetBackend bombs", () => {
         backend.close()
     })
 
-    it("reports a bomb refused for a warning as a WarnedError", async () => {
-        const dropBomb = vi.fn().mockRejectedValue(new ConnectError("the caller is warned", Code.PermissionDenied, undefined,
-            [new WarningRefusal()]))
-        const backend = new PlanetBackend(clientWith({dropBomb}), 1_000)
-
-        await expect(backend.dropBomb({x: 1, y: 0, z: 0}, "fr")).rejects.toBeInstanceOf(WarnedError)
-        backend.close()
-    })
-
     it("hands over the tile updates that came before a blast, before the blast", async () => {
         const events = [
             tileUpdateEvent({tileId: 7, countryId: "jp"}),
@@ -1574,20 +1551,6 @@ describe("PlanetBackend shields", () => {
         backend.close()
     })
 
-    it("reports a shield refused for a warning as a WarnedError, and gives the shield back", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({shields: 2})})
-        const placeShield = vi.fn().mockRejectedValue(new ConnectError("the caller is warned", Code.PermissionDenied, undefined,
-            [new WarningRefusal()]))
-        const backend = new PlanetBackend(clientWith({getCharges, placeShield}), 1_000)
-        const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.shields).toBe(2))
-
-        await expect(backend.placeShield(7, "fr")).rejects.toBeInstanceOf(WarnedError)
-
-        expect(seen.at(-1)?.shields).toBe(2)
-        backend.close()
-    })
-
     it("mints a new session and places once more when the server refuses the token", async () => {
         const placeShield = vi.fn()
             .mockRejectedValueOnce(new ConnectError("expired", Code.Unauthenticated))
@@ -1720,13 +1683,10 @@ describe("asBonusError", () => {
             .toBeInstanceOf(SessionUnavailableError)
     })
 
-    it("reads a ban or a warning on a bomb or a shield, and leaves any other denial alone", () => {
+    it("reads a ban on a bomb or a shield, and leaves any other denial alone", () => {
         const banned = new ConnectError("the caller is banned", Code.PermissionDenied, undefined,
             [new BanRefusal({bannedUntilUnixMs: BigInt(1_700_003_600_000)})])
         expect(asBonusError(banned)).toMatchObject({until: 1_700_003_600_000})
-
-        const warned = new ConnectError("the caller is warned", Code.PermissionDenied, undefined, [new WarningRefusal()])
-        expect(asBonusError(warned)).toBeInstanceOf(WarnedError)
 
         const denied = new ConnectError("no", Code.PermissionDenied)
         expect(asBonusError(denied)).toBe(denied)
@@ -1735,34 +1695,6 @@ describe("asBonusError", () => {
     it("leaves anything else alone", () => {
         const boom = new Error("boom")
         expect(asBonusError(boom)).toBe(boom)
-    })
-})
-
-describe("PlanetBackend warning", () => {
-    const clientWith = (fields: Record<string, unknown>) =>
-        ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), ...fields}) as never
-
-    it("acknowledges the warning with the identity, which needs no new session", async () => {
-        const acknowledgeWarning = vi.fn().mockResolvedValue({})
-        const token = vi.fn()
-        const session: SessionProvider = {token, held: () => undefined, identity: async () => "identity-1",
-            heldIdentity: () => "identity-1", invalidate: () => {}}
-        const backend = new PlanetBackend(clientWith({acknowledgeWarning}), 1_000, session)
-
-        await backend.acknowledgeWarning()
-
-        expect(acknowledgeWarning).toHaveBeenCalledWith({}, expect.anything())
-        expect((acknowledgeWarning.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("identity-1")
-        expect(token).not.toHaveBeenCalled()
-        backend.close()
-    })
-
-    it("fails when the server could not take it, so the player can press again", async () => {
-        const down = new ConnectError("down", Code.Internal)
-        const backend = new PlanetBackend(clientWith({acknowledgeWarning: vi.fn().mockRejectedValue(down)}), 1_000)
-
-        await expect(backend.acknowledgeWarning()).rejects.toBe(down)
-        backend.close()
     })
 })
 

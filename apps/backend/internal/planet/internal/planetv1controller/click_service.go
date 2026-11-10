@@ -2,7 +2,6 @@ package planetv1controller
 
 import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/acknowledge_warning_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/answer_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
@@ -44,7 +43,6 @@ type ClickService struct {
 	get_landmass_handler.GetLandmassHandler
 	get_allegiance_handler.GetAllegianceHandler
 	pledge_allegiance_handler.PledgeAllegianceHandler
-	acknowledge_warning_handler.AcknowledgeWarningHandler
 }
 
 var _ planetv1connect.ClickServiceHandler = ClickService{}

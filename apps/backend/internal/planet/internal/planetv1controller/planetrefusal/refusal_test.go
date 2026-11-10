@@ -30,18 +30,6 @@ func TestARefusedCallerIsDeniedAndToldUntilWhen(t *testing.T) {
 	assert.Equal(t, until.UnixMilli(), ban.GetBannedUntilUnixMs())
 }
 
-func TestAWarnedCallerIsDeniedAndToldItIsAWarning(t *testing.T) {
-	refused, ok := planetrefusal.Refusal(fmt.Errorf("wrapped: %w", clicks.NewWarning()))
-	require.True(t, ok)
-
-	assert.Equal(t, connect.CodePermissionDenied, refused.Code())
-	require.Len(t, refused.Details(), 1)
-	detail, err := refused.Details()[0].Value()
-	require.NoError(t, err)
-	_, isWarning := detail.(*planetv1.WarningRefusal)
-	assert.True(t, isWarning)
-}
-
 func TestAnyOtherErrorIsNoRefusal(t *testing.T) {
 	_, ok := planetrefusal.Refusal(clicks.ErrThrottled)
 	assert.False(t, ok)

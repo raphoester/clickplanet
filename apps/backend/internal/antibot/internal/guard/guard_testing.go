@@ -22,13 +22,13 @@ func NewInMemory(
 	accountBans *bans.MemoryStore,
 	enforcer *bans.MemoryEnforcer,
 	warned *warnings.MemoryStore,
-	teller *warnings.MemoryTeller,
+	feed *warnings.MemoryFeed,
 	evidences *evidence.MemoryPersistence,
 	heard ...evidence.Section,
 ) *Guard {
 	book := bans.NewBook(rules.Reader(inForce, bans.Part), config.Evidence.WithDefaults().Retention, clock,
 		scopeBans, accountBans, cpatomic.FakeTransactioner{}, enforcer)
-	warner := warnings.NewBook(book, clock, warned, cpatomic.FakeTransactioner{}, teller)
+	warner := warnings.NewBook(book, clock, warned, feed)
 
 	return New(config, inForce, clock, observer, book, warner, evidences, heard...)
 }

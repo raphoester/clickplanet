@@ -71,6 +71,22 @@ func (m *MemoryStore) Keep(_ context.Context, warning Warning) (bool, error) {
 	return true, nil
 }
 
+func (m *MemoryStore) Acknowledge(_ context.Context, account string, at time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return m.failing
+	}
+	warning, warned := m.rows[account]
+	if !warned || !warning.Pending() {
+		return nil
+	}
+	warning.AcknowledgedAt = at
+	m.rows[account] = warning
+	return nil
+}
+
 func (m *MemoryStore) FailWith(err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -78,24 +94,23 @@ func (m *MemoryStore) FailWith(err error) {
 	m.failing = err
 }
 
-var _ Teller = (*MemoryTeller)(nil)
+var _ Feed = (*MemoryFeed)(nil)
 
-type MemoryTeller struct {
-	mu   sync.Mutex
-	told []Warning
+type MemoryFeed struct {
+	mu        sync.Mutex
+	published []Warning
 }
 
-func (m *MemoryTeller) Tell(_ context.Context, warning Warning) error {
+func (m *MemoryFeed) Publish(warning Warning) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.told = append(m.told, warning)
-	return nil
+	m.published = append(m.published, warning)
 }
 
-func (m *MemoryTeller) Told() []Warning {
+func (m *MemoryFeed) Published() []Warning {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return slices.Clone(m.told)
+	return slices.Clone(m.published)
 }

@@ -50,7 +50,7 @@ func watch(t *testing.T) watched {
 	enforcer := &bans.MemoryEnforcer{}
 	marks := listener.NewMarks()
 	watchdogs := guard.NewInMemory(config, inForce, clock, guard.Observer{}, bans.NewMemoryStore(), bans.NewMemoryStore(),
-		enforcer, warnings.NewMemoryStore(), &warnings.MemoryTeller{}, evidence.NewMemoryPersistence(), marks)
+		enforcer, warnings.NewMemoryStore(), &warnings.MemoryFeed{}, evidence.NewMemoryPersistence(), marks)
 	require.NoError(t, watchdogs.Load(t.Context()))
 
 	ctx, cancel := context.WithCancel(t.Context())

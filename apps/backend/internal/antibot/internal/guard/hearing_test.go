@@ -53,7 +53,7 @@ func TestTheLastFlushWaitsForWhatTheFeedsStillHandle(t *testing.T) {
 	inForce := rules.NewInForce()
 	inForce.Enforce(set)
 	watchdogs := guard.NewInMemory(guard.Config{}, inForce, cptime.NewFixedClock(time.Now()), guard.Observer{},
-		bans.NewMemoryStore(), bans.NewMemoryStore(), &bans.MemoryEnforcer{}, warnings.NewMemoryStore(), &warnings.MemoryTeller{},
+		bans.NewMemoryStore(), bans.NewMemoryStore(), &bans.MemoryEnforcer{}, warnings.NewMemoryStore(), &warnings.MemoryFeed{},
 		evidence.NewMemoryPersistence(), seen)
 
 	hearing := watchdogs.Hearing(lateFeed{handled: handled})

@@ -55,23 +55,25 @@ func encode(out guard.Examination) *antibotv1.InspectPlayerResponse {
 	}
 
 	res := &antibotv1.InspectPlayerResponse{
-		Scope:            out.Scope,
-		AccountId:        out.Account,
-		Tracked:          &out.Tracked,
-		Banned:           &out.Banned,
-		BannedUntil:      timestampOrNil(out.BannedUntil),
-		Offence:          uint32(out.Offence), //nolint:gosec // an offence count, never negative.
-		Flags:            uint32(out.Flags),   //nolint:gosec // a flag count, never negative.
-		PardonedUntil:    timestampOrNil(out.PardonedUntil),
-		WarnedAt:         timestampOrNil(out.WarnedAt),
-		Readings:         readings,
-		Suspects:         uint32(out.Suspects),    //nolint:gosec // bounded by the watchdogs.
-		MinSuspects:      uint32(out.MinSuspects), //nolint:gosec // defaulted to at least one.
-		Guilty:           &out.Guilty,
-		Clicks:           uint32(out.Clicks), //nolint:gosec // a click count, never negative.
-		TopCountry:       out.TopCountry,
-		TopCountryClicks: uint32(out.TopCountryClicks), //nolint:gosec // a click count, never negative.
-		LastClickAt:      timestampOrNil(out.LastClickAt),
+		Scope:         out.Scope,
+		AccountId:     out.Account,
+		Tracked:       &out.Tracked,
+		Banned:        &out.Banned,
+		BannedUntil:   timestampOrNil(out.BannedUntil),
+		Offence:       uint32(out.Offence), //nolint:gosec // an offence count, never negative.
+		Flags:         uint32(out.Flags),   //nolint:gosec // a flag count, never negative.
+		PardonedUntil: timestampOrNil(out.PardonedUntil),
+		WarnedAt:      timestampOrNil(out.WarnedAt),
+
+		WarningAcknowledgedAt: timestampOrNil(out.WarningAcknowledgedAt),
+		Readings:              readings,
+		Suspects:              uint32(out.Suspects),    //nolint:gosec // bounded by the watchdogs.
+		MinSuspects:           uint32(out.MinSuspects), //nolint:gosec // defaulted to at least one.
+		Guilty:                &out.Guilty,
+		Clicks:                uint32(out.Clicks), //nolint:gosec // a click count, never negative.
+		TopCountry:            out.TopCountry,
+		TopCountryClicks:      uint32(out.TopCountryClicks), //nolint:gosec // a click count, never negative.
+		LastClickAt:           timestampOrNil(out.LastClickAt),
 	}
 
 	if out.Tracked {

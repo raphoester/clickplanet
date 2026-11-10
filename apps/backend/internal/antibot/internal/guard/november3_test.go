@@ -108,7 +108,7 @@ func TestThePairOfNovember3OnOneAddressIsWarnedThenBanned(t *testing.T) {
 
 	s.switchTabs(r, 30*time.Minute, tabs, 4*time.Second, 10*time.Second)
 	require.ElementsMatch(t, []string{"lynx", "zebra"}, s.warnedAccounts())
-	warnedAt := s.teller.Told()[0].At
+	warnedAt := s.feed.Published()[0].At
 
 	s.switchTabs(r, 3*time.Hour, tabs, 4*time.Second, 10*time.Second)
 

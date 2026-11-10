@@ -37,7 +37,7 @@ type stack struct {
 	accountBans    *bans.MemoryStore
 	enforcer       *bans.MemoryEnforcer
 	warned         *warnings.MemoryStore
-	teller         *warnings.MemoryTeller
+	feed           *warnings.MemoryFeed
 	evidence       *evidence.MemoryPersistence
 	forgetEvidence bool
 
@@ -65,7 +65,7 @@ func newStack(t *testing.T, options ...option) *stack {
 		accountBans: bans.NewMemoryStore(),
 		enforcer:    &bans.MemoryEnforcer{},
 		warned:      warnings.NewMemoryStore(),
-		teller:      &warnings.MemoryTeller{},
+		feed:        &warnings.MemoryFeed{},
 		evidence:    evidence.NewMemoryPersistence(),
 		inForce:     rules.NewInForce(),
 	}
@@ -124,7 +124,7 @@ func (s *stack) boot() {
 		OnRise:       func(watchdog, level string) { s.rises = append(s.rises, watchdog+" "+level) },
 		OnStateError: func(err error) { s.errors = append(s.errors, err) },
 		OnStart:      func(guard.Description) { close(started) },
-	}, s.bans, s.accountBans, s.enforcer, s.warned, s.teller, s.evidence)
+	}, s.bans, s.accountBans, s.enforcer, s.warned, s.feed, s.evidence)
 	if err := built.Load(context.Background()); err != nil {
 		panic(err)
 	}

@@ -153,6 +153,8 @@ type Examination struct {
 	PardonedUntil time.Time
 	WarnedAt      time.Time
 
+	WarningAcknowledgedAt time.Time
+
 	Readings []Reading
 
 	Suspects    int

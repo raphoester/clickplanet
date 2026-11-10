@@ -14,7 +14,6 @@ import {
     TileHolders,
     LandmassReader,
     UpdatesListener,
-    WarningAcknowledger,
 } from "../../backends/backend.ts";
 import News from "../news/News.tsx";
 import ConnectionLost from "../components/ConnectionLost.tsx";
@@ -67,6 +66,8 @@ import {usePresence} from "../players/usePresence.ts";
 import {useRosterFeed} from "../players/useRosterFeed.ts";
 import {useTitlesEarned} from "../titles/useTitlesEarned.ts";
 import {TitlesListener} from "../../backends/progression.ts";
+import {WarningAcknowledger, WarningsListener} from "../../backends/antibot.ts";
+import {useWarningFeed} from "../warning/useWarningFeed.ts";
 import {useBadges} from "../badges/badgesStore.ts";
 import {useBadgesFeed} from "../badges/useBadgesFeed.ts";
 import {BadgesBackend} from "../../backends/badges.ts";
@@ -144,7 +145,6 @@ export type Backends = {
     bomber: Bomber
     refiller: Refiller
     shielder: Shielder
-    warnings: WarningAcknowledger
     allegiance: AllegianceSource
     chatBackend: ChatRooms
     account: AccountStore
@@ -153,6 +153,7 @@ export type Backends = {
     badges: BadgesBackend
     nameplates: NameplatesBackend
     titles: TitlesListener
+    warnings: WarningsListener & WarningAcknowledger
     tileHolders: TileHolders
     landmasses: LandmassReader
     turn: TurnBackend
@@ -228,6 +229,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         // The title worn may follow the one earned: the next read of this player's badge says.
         if (ownAccountId) useBadges.getState().expire(ownAccountId)
     })
+    useWarningFeed(backends.warnings)
     const crowd = useRoster(onlineCount)
     useScheduleFeed(backends.turn, backends.standings)
     useTeaserCardsFeed(backends.promo)

@@ -40,7 +40,6 @@ func (s *StoreContractSuite) kept(caller Caller) Snapshot {
 
 func (s *StoreContractSuite) same(want, got Snapshot) {
 	s.True(want.Until.Equal(got.Until), "until: want %s, got %s", want.Until, got.Until)
-	s.Equal(want.Warning, got.Warning, "warning")
 	s.True(want.DecidedAt.Equal(got.DecidedAt), "decided at: want %s, got %s", want.DecidedAt, got.DecidedAt)
 }
 
@@ -76,20 +75,6 @@ func (s *StoreContractSuite) TestAChangeIsKeptAndReadBack() {
 
 	s.same(Snapshot{Until: contractAt.Add(time.Hour), DecidedAt: contractAt}, s.kept(aScope))
 	s.Equal(Snapshot{}, s.kept(anAccount))
-}
-
-func (s *StoreContractSuite) TestAWarningIsKeptAndReadBack() {
-	s.keep(anAccount, Snapshot{Until: contractAt, Warning: true, DecidedAt: contractAt})
-
-	s.same(Snapshot{Until: contractAt, Warning: true, DecidedAt: contractAt}, s.kept(anAccount))
-}
-
-func (s *StoreContractSuite) TestAChangeEndsAWarning() {
-	s.keep(anAccount, Snapshot{Until: contractAt, Warning: true, DecidedAt: contractAt})
-
-	s.keep(anAccount, Snapshot{Until: contractAt.Add(time.Minute), DecidedAt: contractAt.Add(time.Minute)})
-
-	s.same(Snapshot{Until: contractAt.Add(time.Minute), DecidedAt: contractAt.Add(time.Minute)}, s.kept(anAccount))
 }
 
 func (s *StoreContractSuite) TestAScopeAndAnAccountOfTheSameNameAreTwoCallers() {

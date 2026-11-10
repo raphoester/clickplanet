@@ -43,6 +43,7 @@ func (s *StoreContractSuite) warned(accounts ...string) map[string]Warning {
 func (s *StoreContractSuite) same(want, got Warning) {
 	s.Equal(want.Account, got.Account)
 	s.True(want.At.Equal(got.At), "at: want %s, got %s", want.At, got.At)
+	s.True(want.AcknowledgedAt.Equal(got.AcknowledgedAt), "acknowledged at: want %s, got %s", want.AcknowledgedAt, got.AcknowledgedAt)
 }
 
 func (s *StoreContractSuite) TestAnAccountNeverWarnedIsNotIn() {
@@ -87,4 +88,28 @@ func (s *StoreContractSuite) TestSinceAnswersTheWarningsFromATime() {
 	}
 	s.same(Warning{Account: grace, At: contractAt}, accounts[grace])
 	s.same(Warning{Account: alan, At: contractAt.Add(time.Hour)}, accounts[alan])
+}
+
+func (s *StoreContractSuite) TestAWarningIsPendingUntilAcknowledged() {
+	s.keep(Warning{Account: ada, At: contractAt})
+	s.True(s.warned(ada)[ada].Pending())
+
+	s.Require().NoError(s.store.Acknowledge(s.T().Context(), ada, contractAt.Add(time.Minute)))
+
+	s.same(Warning{Account: ada, At: contractAt, AcknowledgedAt: contractAt.Add(time.Minute)}, s.warned(ada)[ada])
+}
+
+func (s *StoreContractSuite) TestTheFirstAcknowledgementIsKept() {
+	s.keep(Warning{Account: ada, At: contractAt})
+	s.Require().NoError(s.store.Acknowledge(s.T().Context(), ada, contractAt.Add(time.Minute)))
+
+	s.Require().NoError(s.store.Acknowledge(s.T().Context(), ada, contractAt.Add(time.Hour)))
+
+	s.same(Warning{Account: ada, At: contractAt, AcknowledgedAt: contractAt.Add(time.Minute)}, s.warned(ada)[ada])
+}
+
+func (s *StoreContractSuite) TestAnAccountNeverWarnedAcknowledgesNothing() {
+	s.Require().NoError(s.store.Acknowledge(s.T().Context(), ada, contractAt))
+
+	s.Empty(s.warned(ada))
 }

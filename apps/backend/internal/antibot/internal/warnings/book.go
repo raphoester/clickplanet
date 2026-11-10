@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Warning struct {
-	Account string
-	At      time.Time
+	Account        string
+	At             time.Time
+	AcknowledgedAt time.Time
 }
+
+func (w Warning) Pending() bool { return w.AcknowledgedAt.IsZero() }
 
 type Store interface {
 	// Warned holds each of the accounts ever warned; an account never warned is not in it.
@@ -20,33 +22,28 @@ type Store interface {
 	Since(ctx context.Context, from time.Time) ([]Warning, error)
 	// Keep keeps a warning unless its account was warned before, and answers whether it kept it.
 	Keep(ctx context.Context, warning Warning) (bool, error)
+	// Acknowledge keeps the first acknowledgement of the account's warning; an account never warned changes nothing.
+	Acknowledge(ctx context.Context, account string, at time.Time) error
 }
 
-// What a warning asks of the game: the account is refused until it acknowledges it.
-type Teller interface {
-	Tell(ctx context.Context, warning Warning) error
+// Whoever shows the account its warning while it plays.
+type Feed interface {
+	Publish(warning Warning)
 }
 
 type Enforcing interface {
 	Enforcing() bool
 }
 
-func NewBook(
-	enforcing Enforcing,
-	clock cptime.Clock,
-	store Store,
-	transactioner cpatomic.Transactioner,
-	teller Teller,
-) *Book {
-	return &Book{enforcing: enforcing, clock: clock, store: store, transactioner: transactioner, teller: teller}
+func NewBook(enforcing Enforcing, clock cptime.Clock, store Store, feed Feed) *Book {
+	return &Book{enforcing: enforcing, clock: clock, store: store, feed: feed}
 }
 
 type Book struct {
-	enforcing     Enforcing
-	clock         cptime.Clock
-	store         Store
-	transactioner cpatomic.Transactioner
-	teller        Teller
+	enforcing Enforcing
+	clock     cptime.Clock
+	store     Store
+	feed      Feed
 }
 
 func (b *Book) Warned(ctx context.Context, accounts []string) (bool, error) {
@@ -57,7 +54,7 @@ func (b *Book) Warned(ctx context.Context, accounts []string) (bool, error) {
 	return len(warned) > 0, nil
 }
 
-// Not enforced, a warning is neither kept nor told: kept, it would ban a ring that never saw it.
+// Not enforced, a warning is neither kept nor shown: kept, it would ban a ring that never saw it.
 func (b *Book) Warn(ctx context.Context, accounts []string) ([]Warning, error) {
 	if !b.enforcing.Enforcing() {
 		return nil, nil
@@ -67,22 +64,28 @@ func (b *Book) Warn(ctx context.Context, accounts []string) ([]Warning, error) {
 	for _, account := range accounts {
 		warning := Warning{Account: account, At: b.clock.Now()}
 
-		var kept bool
-		if err := b.transactioner.InTx(ctx, func(ctx context.Context) error {
-			var err error
-			if kept, err = b.store.Keep(ctx, warning); err != nil || !kept {
-				return err //nolint:wrapcheck // the book names the account below.
-			}
-			return b.teller.Tell(ctx, warning) //nolint:wrapcheck // the book names the account below.
-		}); err != nil {
+		kept, err := b.store.Keep(ctx, warning)
+		if err != nil {
 			return warned, fmt.Errorf("failed to warn %q: %w", account, err)
 		}
-
 		if kept {
+			b.feed.Publish(warning)
 			warned = append(warned, warning)
 		}
 	}
 	return warned, nil
+}
+
+func (b *Book) Acknowledge(ctx context.Context, account string) error {
+	if err := b.store.Acknowledge(ctx, account, b.clock.Now()); err != nil {
+		return fmt.Errorf("failed to keep the warning of %q acknowledged: %w", account, err)
+	}
+	return nil
+}
+
+func (b *Book) Pending(ctx context.Context, account string) (bool, error) {
+	warning, warned, err := b.Warning(ctx, account)
+	return warned && warning.Pending(), err
 }
 
 func (b *Book) Warning(ctx context.Context, account string) (Warning, bool, error) {

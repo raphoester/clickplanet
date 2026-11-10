@@ -54,7 +54,7 @@ type harness struct {
 	jury     *jury.Jury
 	banner   *bans.Book
 	warned   *warnings.MemoryStore
-	teller   *warnings.MemoryTeller
+	feed     *warnings.MemoryFeed
 	turns    *jury.MemoryTurns
 	clock    *cptime.FixedClock
 	reports  []detect.Report
@@ -68,8 +68,8 @@ func newHarness(t *testing.T, rules jury.Rules, ban bans.Rules, watchdogs ...det
 
 	h.banner = bans.NewBook(func() bans.Rules { return ban }, pardon, h.clock, bans.NewMemoryStore(), bans.NewMemoryStore(),
 		cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
-	h.warned, h.teller, h.turns = warnings.NewMemoryStore(), &warnings.MemoryTeller{}, &jury.MemoryTurns{}
-	warner := warnings.NewBook(h.banner, h.clock, h.warned, cpatomic.FakeTransactioner{}, h.teller)
+	h.warned, h.feed, h.turns = warnings.NewMemoryStore(), &warnings.MemoryFeed{}, &jury.MemoryTurns{}
+	warner := warnings.NewBook(h.banner, h.clock, h.warned, h.feed)
 	h.jury = jury.New(jury.Config{TrackWindow: time.Hour}, func() jury.Rules { return rules }, h.banner, warner, h.turns, h.clock, jury.Hooks{
 		OnFlag: func(report detect.Report) {
 			h.reports = append(h.reports, report)
@@ -219,7 +219,7 @@ func TestACertainReadingOfTurnsWarnsTheRingAndBansNobody(t *testing.T) {
 	assert.False(t, h.inspect(detect.Click{Scope: "school", Account: "guest", Tile: 1, Country: "FR", At: at}))
 
 	assert.Empty(t, h.reports)
-	assert.Equal(t, []warnings.Warning{{Account: "guest", At: at}, {Account: "tab", At: at}}, h.teller.Told())
+	assert.Equal(t, []warnings.Warning{{Account: "guest", At: at}, {Account: "tab", At: at}}, h.feed.Published())
 	assert.Equal(t, []jury.Forgotten{{Account: "guest", Until: at}, {Account: "tab", Until: at}}, h.turns.Forgotten(),
 		"the turns that earned the warning never ban")
 	require.Len(t, h.warnings, 2)
@@ -241,7 +241,7 @@ func TestAWarnedRingIsBannedOnASuspectReadingAndNoNetwork(t *testing.T) {
 		"a new account beside one warned is the same person")
 
 	assert.Equal(t, []banned{{account: "alt"}, {account: "main", alongside: "alt"}}, h.banned())
-	assert.Empty(t, h.teller.Told(), "a ring is warned once")
+	assert.Empty(t, h.feed.Published(), "a ring is warned once")
 	assert.True(t, h.jury.Examine("school", "", true).Guilty)
 	assert.False(t, h.jury.Examine("school", "", false).Guilty)
 
@@ -261,7 +261,7 @@ func TestAPardonedCallerIsNotWarned(t *testing.T) {
 
 	h.inspect(detect.Click{Scope: "home", Account: "guest", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()})
 
-	assert.Empty(t, h.teller.Told())
+	assert.Empty(t, h.feed.Published())
 	assert.Empty(t, h.turns.Forgotten())
 }
 
@@ -743,7 +743,7 @@ func TestAFlagThatCannotBeKeptIsReported(t *testing.T) {
 	store.FailWith(cause)
 
 	book := bans.NewBook(banRules, pardon, clock, store, store, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
-	warner := warnings.NewBook(book, clock, warnings.NewMemoryStore(), cpatomic.FakeTransactioner{}, &warnings.MemoryTeller{})
+	warner := warnings.NewBook(book, clock, warnings.NewMemoryStore(), &warnings.MemoryFeed{})
 	j := jury.New(jury.Config{TrackWindow: time.Hour}, juryRules, book, warner, &jury.MemoryTurns{}, clock, jury.Hooks{},
 		&stubWatchdog{name: "sure", verdict: detect.Certain})
 

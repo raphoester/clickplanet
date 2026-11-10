@@ -60,14 +60,7 @@ service ClickService {
   // Refused within the hour after a change, and while the rules in force lock the flags, as a click for another flag
   // is.
   rpc PledgeAllegiance(PledgeAllegianceRequest) returns (PledgeAllegianceResponse);
-
-  // The caller read its warning: its clicks, bombs and shields play again. A caller with no warning changes nothing.
-  rpc AcknowledgeWarning(AcknowledgeWarningRequest) returns (AcknowledgeWarningResponse);
 }
-
-message AcknowledgeWarningRequest {}
-
-message AcknowledgeWarningResponse {}
 
 message GetAllegianceRequest {}
 
@@ -157,10 +150,6 @@ message ReachRefusal {}
 message BanRefusal {
   int64 banned_until_unix_ms = 1;
 }
-
-// The detail of a PermissionDenied that Click, DropBomb and PlaceShield answer an account warned that playing several
-// accounts is refused, until it calls AcknowledgeWarning.
-message WarningRefusal {}
 
 message GetBudgetRequest {
   string country_id = 1;

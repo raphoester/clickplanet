@@ -106,7 +106,8 @@ close nothing, for the bubble that says so, and `closeShapes(true)` puts it back
 `unlimitEnclosures(false)` stops it.
 `fakeBackend.ban(90)` refuses this player's clicks, bombs and shields for 90
 minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
-`fakeBackend.warn()` refuses them as a warning does, until the warning modal's "Got it".
+`fakeAntibot.warn()` warns this player for playing several accounts, as the antibot does, and the warning modal's
+"Got it" acknowledges it.
 `fakeBackend.setTempo(3)` refills the bank three times as fast, as a rule set
 of the server can, and `fakeBackend.setTempo(1)` puts it back.
 `fakeBackend.fastStart(true)` plays a new guest's fast start (the signed-in pace, "Sign in: keep this speed"), and

@@ -50,7 +50,6 @@ import {
     VPNBlockedError,
     FrozenError,
     OutOfReachError,
-    WarnedError,
 } from "../../backends/backend.ts";
 import {SessionUnavailableError} from "../../backends/session.ts";
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
@@ -222,7 +221,6 @@ export type GlobeOptions = {
     onFrozen: () => void
     onVPNBlocked: () => void
     onBanned: (until: number) => void
-    onWarned: () => void
     onSessionUnavailable: () => void
     onAllegianceLocked: (allegiance: Allegiance) => void
     // A click in an arena on a tile the flag cannot reach, refused here or by the server.
@@ -297,7 +295,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onFrozen,
         onVPNBlocked,
         onBanned,
-        onWarned,
         onSessionUnavailable,
         onAllegianceLocked,
         onOutOfReach,
@@ -897,7 +894,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         bomber.dropBomb({x: point.x, y: point.y, z: point.z}, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
             ownDropAt = undefined
-            reportClaimFailure(e, {onSessionUnavailable, onBanned, onWarned})
+            reportClaimFailure(e, {onSessionUnavailable, onBanned})
         })
     }
 
@@ -957,7 +954,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         shielder.placeShield(tile, country.code).catch((e) => {
             if (lifetime.signal.aborted || e instanceof ShieldRefusedError) return
             if (e instanceof AllegianceLockedError) onAllegianceLocked(e.allegiance)
-            else reportClaimFailure(e, {onSessionUnavailable, onBanned, onWarned})
+            else reportClaimFailure(e, {onSessionUnavailable, onBanned})
         })
     }
 
@@ -1111,7 +1108,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 .then(takeReward)
                 .catch((e) => {
                     if (lifetime.signal.aborted) return
-                    reportClaimFailure(e, {onSessionUnavailable, onBanned, onWarned})
+                    reportClaimFailure(e, {onSessionUnavailable, onBanned})
                 })
             return
         }
@@ -1216,7 +1213,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }, (e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))
-            if (reportClickFailure(e, {onRateLimited, onFrozen, onVPNBlocked, onBanned, onWarned, onSessionUnavailable, onAllegianceLocked, onOutOfReach})) playSound("refused")
+            if (reportClickFailure(e, {onRateLimited, onFrozen, onVPNBlocked, onBanned, onSessionUnavailable, onAllegianceLocked, onOutOfReach})) playSound("refused")
         })
     }, listenerOptions);
 
@@ -1705,12 +1702,11 @@ function prefersReducedMotion(): boolean {
 
 export function reportClaimFailure(
     error: unknown,
-    handlers: {onSessionUnavailable: () => void, onBanned: (until: number) => void, onWarned: () => void},
+    handlers: {onSessionUnavailable: () => void, onBanned: (until: number) => void},
 ) {
     if (error instanceof BonusLostError) return
     if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
     else if (error instanceof BannedError) handlers.onBanned(error.until)
-    else if (error instanceof WarnedError) handlers.onWarned()
     else console.error(error)
 }
 
@@ -1721,7 +1717,6 @@ export function reportClickFailure(
         onFrozen: () => void,
         onVPNBlocked: () => void,
         onBanned: (until: number) => void,
-        onWarned: () => void,
         onSessionUnavailable: () => void,
         onAllegianceLocked: (allegiance: Allegiance) => void,
         onOutOfReach: () => void,
@@ -1731,7 +1726,6 @@ export function reportClickFailure(
     else if (error instanceof FrozenError) handlers.onFrozen()
     else if (error instanceof VPNBlockedError) handlers.onVPNBlocked()
     else if (error instanceof BannedError) handlers.onBanned(error.until)
-    else if (error instanceof WarnedError) handlers.onWarned()
     else if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
     else if (error instanceof AllegianceLockedError) handlers.onAllegianceLocked(error.allegiance)
     else if (error instanceof OutOfReachError) handlers.onOutOfReach()

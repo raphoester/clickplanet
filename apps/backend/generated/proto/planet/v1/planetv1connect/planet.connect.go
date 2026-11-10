@@ -80,9 +80,6 @@ const (
 	// ClickServicePledgeAllegianceProcedure is the fully-qualified name of the ClickService's
 	// PledgeAllegiance RPC.
 	ClickServicePledgeAllegianceProcedure = "/planet.v1.ClickService/PledgeAllegiance"
-	// ClickServiceAcknowledgeWarningProcedure is the fully-qualified name of the ClickService's
-	// AcknowledgeWarning RPC.
-	ClickServiceAcknowledgeWarningProcedure = "/planet.v1.ClickService/AcknowledgeWarning"
 )
 
 // ClickServiceClient is a client for the planet.v1.ClickService service.
@@ -112,8 +109,6 @@ type ClickServiceClient interface {
 	// Refused within the hour after a change, and while the rules in force lock the flags, as a click for another flag
 	// is.
 	PledgeAllegiance(context.Context, *connect.Request[v1.PledgeAllegianceRequest]) (*connect.Response[v1.PledgeAllegianceResponse], error)
-	// The caller read its warning: its clicks, bombs and shields play again. A caller with no warning changes nothing.
-	AcknowledgeWarning(context.Context, *connect.Request[v1.AcknowledgeWarningRequest]) (*connect.Response[v1.AcknowledgeWarningResponse], error)
 }
 
 // NewClickServiceClient constructs a client for the planet.v1.ClickService service. By default, it
@@ -248,37 +243,30 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(clickServiceMethods.ByName("PledgeAllegiance")),
 			connect.WithClientOptions(opts...),
 		),
-		acknowledgeWarning: connect.NewClient[v1.AcknowledgeWarningRequest, v1.AcknowledgeWarningResponse](
-			httpClient,
-			baseURL+ClickServiceAcknowledgeWarningProcedure,
-			connect.WithSchema(clickServiceMethods.ByName("AcknowledgeWarning")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
 // clickServiceClient implements ClickServiceClient.
 type clickServiceClient struct {
-	click              *connect.Client[v1.ClickRequest, v1.ClickResponse]
-	getBudget          *connect.Client[v1.GetBudgetRequest, v1.GetBudgetResponse]
-	mapDensity         *connect.Client[v1.MapDensityRequest, v1.MapDensityResponse]
-	getMap             *connect.Client[v1.GetMapRequest, v1.GetMapResponse]
-	getHoldings        *connect.Client[v1.GetHoldingsRequest, v1.GetHoldingsResponse]
-	listenForEvents    *connect.Client[v1.ListenForEventsRequest, v1.PlanetEvent]
-	claimBonus         *connect.Client[v1.ClaimBonusRequest, v1.ClaimBonusResponse]
-	dropBomb           *connect.Client[v1.DropBombRequest, v1.DropBombResponse]
-	useRefill          *connect.Client[v1.UseRefillRequest, v1.UseRefillResponse]
-	getCharges         *connect.Client[v1.GetChargesRequest, v1.GetChargesResponse]
-	getBonusRules      *connect.Client[v1.GetBonusRulesRequest, v1.GetBonusRulesResponse]
-	openQuiz           *connect.Client[v1.OpenQuizRequest, v1.OpenQuizResponse]
-	answerQuiz         *connect.Client[v1.AnswerQuizRequest, v1.AnswerQuizResponse]
-	placeShield        *connect.Client[v1.PlaceShieldRequest, v1.PlaceShieldResponse]
-	getFortresses      *connect.Client[v1.GetFortressesRequest, v1.GetFortressesResponse]
-	getTileHolder      *connect.Client[v1.GetTileHolderRequest, v1.GetTileHolderResponse]
-	getLandmass        *connect.Client[v1.GetLandmassRequest, v1.GetLandmassResponse]
-	getAllegiance      *connect.Client[v1.GetAllegianceRequest, v1.GetAllegianceResponse]
-	pledgeAllegiance   *connect.Client[v1.PledgeAllegianceRequest, v1.PledgeAllegianceResponse]
-	acknowledgeWarning *connect.Client[v1.AcknowledgeWarningRequest, v1.AcknowledgeWarningResponse]
+	click            *connect.Client[v1.ClickRequest, v1.ClickResponse]
+	getBudget        *connect.Client[v1.GetBudgetRequest, v1.GetBudgetResponse]
+	mapDensity       *connect.Client[v1.MapDensityRequest, v1.MapDensityResponse]
+	getMap           *connect.Client[v1.GetMapRequest, v1.GetMapResponse]
+	getHoldings      *connect.Client[v1.GetHoldingsRequest, v1.GetHoldingsResponse]
+	listenForEvents  *connect.Client[v1.ListenForEventsRequest, v1.PlanetEvent]
+	claimBonus       *connect.Client[v1.ClaimBonusRequest, v1.ClaimBonusResponse]
+	dropBomb         *connect.Client[v1.DropBombRequest, v1.DropBombResponse]
+	useRefill        *connect.Client[v1.UseRefillRequest, v1.UseRefillResponse]
+	getCharges       *connect.Client[v1.GetChargesRequest, v1.GetChargesResponse]
+	getBonusRules    *connect.Client[v1.GetBonusRulesRequest, v1.GetBonusRulesResponse]
+	openQuiz         *connect.Client[v1.OpenQuizRequest, v1.OpenQuizResponse]
+	answerQuiz       *connect.Client[v1.AnswerQuizRequest, v1.AnswerQuizResponse]
+	placeShield      *connect.Client[v1.PlaceShieldRequest, v1.PlaceShieldResponse]
+	getFortresses    *connect.Client[v1.GetFortressesRequest, v1.GetFortressesResponse]
+	getTileHolder    *connect.Client[v1.GetTileHolderRequest, v1.GetTileHolderResponse]
+	getLandmass      *connect.Client[v1.GetLandmassRequest, v1.GetLandmassResponse]
+	getAllegiance    *connect.Client[v1.GetAllegianceRequest, v1.GetAllegianceResponse]
+	pledgeAllegiance *connect.Client[v1.PledgeAllegianceRequest, v1.PledgeAllegianceResponse]
 }
 
 // Click calls planet.v1.ClickService.Click.
@@ -376,11 +364,6 @@ func (c *clickServiceClient) PledgeAllegiance(ctx context.Context, req *connect.
 	return c.pledgeAllegiance.CallUnary(ctx, req)
 }
 
-// AcknowledgeWarning calls planet.v1.ClickService.AcknowledgeWarning.
-func (c *clickServiceClient) AcknowledgeWarning(ctx context.Context, req *connect.Request[v1.AcknowledgeWarningRequest]) (*connect.Response[v1.AcknowledgeWarningResponse], error) {
-	return c.acknowledgeWarning.CallUnary(ctx, req)
-}
-
 // ClickServiceHandler is an implementation of the planet.v1.ClickService service.
 type ClickServiceHandler interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
@@ -408,8 +391,6 @@ type ClickServiceHandler interface {
 	// Refused within the hour after a change, and while the rules in force lock the flags, as a click for another flag
 	// is.
 	PledgeAllegiance(context.Context, *connect.Request[v1.PledgeAllegianceRequest]) (*connect.Response[v1.PledgeAllegianceResponse], error)
-	// The caller read its warning: its clicks, bombs and shields play again. A caller with no warning changes nothing.
-	AcknowledgeWarning(context.Context, *connect.Request[v1.AcknowledgeWarningRequest]) (*connect.Response[v1.AcknowledgeWarningResponse], error)
 }
 
 // NewClickServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -540,12 +521,6 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(clickServiceMethods.ByName("PledgeAllegiance")),
 		connect.WithHandlerOptions(opts...),
 	)
-	clickServiceAcknowledgeWarningHandler := connect.NewUnaryHandler(
-		ClickServiceAcknowledgeWarningProcedure,
-		svc.AcknowledgeWarning,
-		connect.WithSchema(clickServiceMethods.ByName("AcknowledgeWarning")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/planet.v1.ClickService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClickServiceClickProcedure:
@@ -586,8 +561,6 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceGetAllegianceHandler.ServeHTTP(w, r)
 		case ClickServicePledgeAllegianceProcedure:
 			clickServicePledgeAllegianceHandler.ServeHTTP(w, r)
-		case ClickServiceAcknowledgeWarningProcedure:
-			clickServiceAcknowledgeWarningHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -671,8 +644,4 @@ func (UnimplementedClickServiceHandler) GetAllegiance(context.Context, *connect.
 
 func (UnimplementedClickServiceHandler) PledgeAllegiance(context.Context, *connect.Request[v1.PledgeAllegianceRequest]) (*connect.Response[v1.PledgeAllegianceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.PledgeAllegiance is not implemented"))
-}
-
-func (UnimplementedClickServiceHandler) AcknowledgeWarning(context.Context, *connect.Request[v1.AcknowledgeWarningRequest]) (*connect.Response[v1.AcknowledgeWarningResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.AcknowledgeWarning is not implemented"))
 }

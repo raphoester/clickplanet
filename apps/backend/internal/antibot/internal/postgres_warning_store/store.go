@@ -2,6 +2,7 @@ package postgres_warning_store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -26,7 +27,7 @@ func (s *Store) Warned(ctx context.Context, accounts []string) (map[string]warni
 	}
 
 	found, err := s.read(ctx,
-		`SELECT account::text, warned_at FROM warnings WHERE account = ANY($1::text[]::uuid[])`, accounts)
+		`SELECT account::text, warned_at, acknowledged_at FROM warnings WHERE account = ANY($1::text[]::uuid[])`, accounts)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +38,7 @@ func (s *Store) Warned(ctx context.Context, accounts []string) (map[string]warni
 }
 
 func (s *Store) Since(ctx context.Context, from time.Time) ([]warnings.Warning, error) {
-	return s.read(ctx, `SELECT account::text, warned_at FROM warnings WHERE warned_at >= $1`, from.UTC())
+	return s.read(ctx, `SELECT account::text, warned_at, acknowledged_at FROM warnings WHERE warned_at >= $1`, from.UTC())
 }
 
 func (s *Store) Keep(ctx context.Context, warning warnings.Warning) (bool, error) {
@@ -54,6 +55,15 @@ func (s *Store) Keep(ctx context.Context, warning warnings.Warning) (bool, error
 	return kept == 1, nil
 }
 
+func (s *Store) Acknowledge(ctx context.Context, account string, at time.Time) error {
+	if _, err := s.db.On(ctx).ExecContext(ctx,
+		`UPDATE warnings SET acknowledged_at = $2 WHERE account = $1 AND acknowledged_at IS NULL`,
+		account, at.UTC()); err != nil {
+		return fmt.Errorf("failed to keep the acknowledgement: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) read(ctx context.Context, query string, args ...any) ([]warnings.Warning, error) {
 	rows, err := s.db.On(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
@@ -63,11 +73,17 @@ func (s *Store) read(ctx context.Context, query string, args ...any) ([]warnings
 
 	var found []warnings.Warning
 	for rows.Next() {
-		var warning warnings.Warning
-		if err := rows.Scan(&warning.Account, &warning.At); err != nil {
+		var (
+			warning      warnings.Warning
+			acknowledged sql.NullTime
+		)
+		if err := rows.Scan(&warning.Account, &warning.At, &acknowledged); err != nil {
 			return nil, fmt.Errorf("failed to scan a warning: %w", err)
 		}
 		warning.At = warning.At.UTC()
+		if acknowledged.Valid {
+			warning.AcknowledgedAt = acknowledged.Time.UTC()
+		}
 		found = append(found, warning)
 	}
 	if err := rows.Err(); err != nil {

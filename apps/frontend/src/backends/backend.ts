@@ -223,10 +223,6 @@ export interface Shielder {
     placeShield(tileId: number, countryId: string): Promise<void>
 }
 
-export interface WarningAcknowledger {
-    acknowledgeWarning(): Promise<void>
-}
-
 export interface AllegianceSource {
     listenForAllegiance(callback: (allegiance: Allegiance | undefined) => void): () => void
 
@@ -301,12 +297,5 @@ export class BannedError extends Error {
         super("the account or its network is banned", options)
         this.name = "BannedError"
         this.until = until
-    }
-}
-
-export class WarnedError extends Error {
-    constructor(options?: {cause?: unknown}) {
-        super("the account was warned for playing several accounts", options)
-        this.name = "WarnedError"
     }
 }

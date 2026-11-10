@@ -83,68 +83,6 @@ proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
 ]);
 
 /**
- * @generated from message planet.v1.AcknowledgeWarningRequest
- */
-export class AcknowledgeWarningRequest extends Message<AcknowledgeWarningRequest> {
-  constructor(data?: PartialMessage<AcknowledgeWarningRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.AcknowledgeWarningRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AcknowledgeWarningRequest {
-    return new AcknowledgeWarningRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AcknowledgeWarningRequest {
-    return new AcknowledgeWarningRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AcknowledgeWarningRequest {
-    return new AcknowledgeWarningRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AcknowledgeWarningRequest | PlainMessage<AcknowledgeWarningRequest> | undefined, b: AcknowledgeWarningRequest | PlainMessage<AcknowledgeWarningRequest> | undefined): boolean {
-    return proto3.util.equals(AcknowledgeWarningRequest, a, b);
-  }
-}
-
-/**
- * @generated from message planet.v1.AcknowledgeWarningResponse
- */
-export class AcknowledgeWarningResponse extends Message<AcknowledgeWarningResponse> {
-  constructor(data?: PartialMessage<AcknowledgeWarningResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.AcknowledgeWarningResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AcknowledgeWarningResponse {
-    return new AcknowledgeWarningResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AcknowledgeWarningResponse {
-    return new AcknowledgeWarningResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AcknowledgeWarningResponse {
-    return new AcknowledgeWarningResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AcknowledgeWarningResponse | PlainMessage<AcknowledgeWarningResponse> | undefined, b: AcknowledgeWarningResponse | PlainMessage<AcknowledgeWarningResponse> | undefined): boolean {
-    return proto3.util.equals(AcknowledgeWarningResponse, a, b);
-  }
-}
-
-/**
  * @generated from message planet.v1.GetAllegianceRequest
  */
 export class GetAllegianceRequest extends Message<GetAllegianceRequest> {
@@ -635,40 +573,6 @@ export class BanRefusal extends Message<BanRefusal> {
 
   static equals(a: BanRefusal | PlainMessage<BanRefusal> | undefined, b: BanRefusal | PlainMessage<BanRefusal> | undefined): boolean {
     return proto3.util.equals(BanRefusal, a, b);
-  }
-}
-
-/**
- * The detail of a PermissionDenied that Click, DropBomb and PlaceShield answer an account warned that playing several
- * accounts is refused, until it calls AcknowledgeWarning.
- *
- * @generated from message planet.v1.WarningRefusal
- */
-export class WarningRefusal extends Message<WarningRefusal> {
-  constructor(data?: PartialMessage<WarningRefusal>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.WarningRefusal";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WarningRefusal {
-    return new WarningRefusal().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WarningRefusal {
-    return new WarningRefusal().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WarningRefusal {
-    return new WarningRefusal().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: WarningRefusal | PlainMessage<WarningRefusal> | undefined, b: WarningRefusal | PlainMessage<WarningRefusal> | undefined): boolean {
-    return proto3.util.equals(WarningRefusal, a, b);
   }
 }
 

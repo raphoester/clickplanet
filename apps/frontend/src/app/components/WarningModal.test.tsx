@@ -4,16 +4,16 @@ import {act, cleanup, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import WarningModal from "./WarningModal.tsx"
 import {GAME_RULES} from "./BannedModal.tsx"
-import {useRefusedClicks} from "../clicks/refusedClicksStore.ts"
+import {useWarning} from "../warning/warningStore.ts"
 
 afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
-    useRefusedClicks.setState(useRefusedClicks.getInitialState(), true)
+    useWarning.setState(useWarning.getInitialState(), true)
 })
 
 function warned() {
-    act(() => useRefusedClicks.getState().warn())
+    act(() => useWarning.getState().warn())
 }
 
 function acknowledging() {
@@ -54,7 +54,7 @@ describe("WarningModal", () => {
 
         expect(warnings.acknowledgeWarning).toHaveBeenCalledTimes(1)
         await waitFor(() => expect(screen.queryByText("One account per player")).toBeNull())
-        expect(useRefusedClicks.getState().warned).toBe(false)
+        expect(useWarning.getState().warned).toBe(false)
     })
 
     it("stays open when the server could not take it, so the player can press again", async () => {
@@ -67,13 +67,13 @@ describe("WarningModal", () => {
         await user.click(screen.getByRole("button", {name: "Got it"}))
         await waitFor(() => expect(logged).toHaveBeenCalledTimes(1))
 
-        expect(useRefusedClicks.getState().warned).toBe(true)
+        expect(useWarning.getState().warned).toBe(true)
         expect(screen.getByText("One account per player")).not.toBeNull()
 
         await user.click(screen.getByRole("button", {name: "Got it"}))
 
         expect(warnings.acknowledgeWarning).toHaveBeenCalledTimes(2)
-        await waitFor(() => expect(useRefusedClicks.getState().warned).toBe(false))
+        await waitFor(() => expect(useWarning.getState().warned).toBe(false))
     })
 
     it("closes on the × and Escape without acknowledging", async () => {
@@ -85,9 +85,20 @@ describe("WarningModal", () => {
             () => user.keyboard("{Escape}")]) {
             warned()
             await close()
-            expect(useRefusedClicks.getState().warned).toBe(false)
+            expect(useWarning.getState().warned).toBe(false)
             expect(screen.queryByText("One account per player")).toBeNull()
         }
         expect(warnings.acknowledgeWarning).not.toHaveBeenCalled()
+    })
+
+    it("shows again when the stream sends the warning after a close", async () => {
+        const user = userEvent.setup()
+        render(<WarningModal warnings={acknowledging()}/>)
+        warned()
+
+        await user.click(screen.getByRole("button", {name: "Close"}))
+        warned()
+
+        expect(screen.getByText("One account per player")).not.toBeNull()
     })
 })

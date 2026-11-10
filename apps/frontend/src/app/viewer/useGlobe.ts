@@ -121,7 +121,6 @@ export function useGlobe(options: UseGlobeOptions) {
             onFrozen: refused.refuse,
             onVPNBlocked: refused.blockVPN,
             onBanned: refused.ban,
-            onWarned: refused.warn,
             onSessionUnavailable: refused.failSession,
             onAllegianceLocked: refused.lockOut,
             onOutOfReach: () => {
