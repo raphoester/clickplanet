@@ -64,7 +64,7 @@ func TestAnArenaBattlesRoundOpensFromNothingOnceItsArenaOpenedAndItsArenaOpensNo
 	judged := []moments.Judgement{{Round: first, Mode: moments.Arena}}
 	scored := moments.Kept{Scored: []moments.RoundID{"season-0/day-23"}}
 	now := firstStarts.Add(5 * time.Second)
-	open := moments.Command{Action: moments.OpenRound, Book: "season-0", Round: first, Times: 2, At: firstStarts, FromNothing: true}
+	open := moments.Command{Action: moments.OpenRound, Book: "season-0", Round: first, Times: 2, At: firstStarts, FromNothing: true, Ranking: moments.RankedByGain}
 
 	waiting := backToBack(moments.NewKnown(scored, moments.ArenasKept{Judged: judged}))
 	opened := backToBack(moments.NewKnown(scored, moments.ArenasKept{Judged: judged, Opened: []moments.RoundID{first}}))
@@ -124,14 +124,14 @@ func TestWhatComesAfterAnArenaBattleWaitsForItsMap(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, 24, int(day.Number))
 	assert.Contains(t, back.DueAt(secondEnds.Add(time.Minute)),
-		moments.Command{Action: moments.OpenRound, Book: "season-0", Round: "season-0/day-24", Times: 1, At: secondEnds})
+		moments.Command{Action: moments.OpenRound, Book: "season-0", Round: "season-0/day-24", Times: 1, At: secondEnds, Ranking: moments.RankedByHeldAndGain})
 }
 
 func TestAPlanThatKnowsNoArenaOpensEveryRoundOnTime(t *testing.T) {
 	plan := moments.NewPlan(calendar(season.Finale{}), cutoff, nil, battle(early, firstStarts, secondStarts))
 
 	assert.Contains(t, plan.DueAt(firstStarts),
-		moments.Command{Action: moments.OpenRound, Book: "season-0", Round: first, Times: 2, At: firstStarts})
+		moments.Command{Action: moments.OpenRound, Book: "season-0", Round: first, Times: 2, At: firstStarts, Ranking: moments.RankedByGain})
 }
 
 func TestAPlanJudgedOpensTheBattleAsAPlanReadAfterTheJudgementWasKept(t *testing.T) {

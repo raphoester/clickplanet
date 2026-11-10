@@ -79,8 +79,13 @@ func openBook(id string, at time.Time) *scoringv1.ScoringCommand {
 
 func openRound(id, book string, times uint32, at time.Time) *scoringv1.ScoringCommand {
 	return &scoringv1.ScoringCommand{Command: &scoringv1.ScoringCommand_OpenRound{OpenRound: &scoringv1.OpenRound{
-		RoundId: id, BookId: book, Times: times, StartsAt: timestamppb.New(at),
+		RoundId: id, BookId: book, Times: times, StartsAt: timestamppb.New(at), Ranking: scoringv1.Ranking_RANKING_GAIN,
 	}}}
+}
+
+func rankedBy(command *scoringv1.ScoringCommand, ranking scoringv1.Ranking) *scoringv1.ScoringCommand {
+	command.GetOpenRound().Ranking = ranking
+	return command
 }
 
 func closeRound(id string, at time.Time) *scoringv1.ScoringCommand {
@@ -194,6 +199,42 @@ func TestARoundToldToCountFromNothingIsScoredOnTheTilesHeldAtItsEnd(t *testing.T
 	assert.Equal(t, books.Country("de"), scored[1].Results[0].Country)
 	assert.Equal(t, uint32(2*25), scored[1].Results[0].Points)
 	assert.Equal(t, uint32(2*18), scored[1].Results[1].Points)
+}
+
+func TestADayRankedOnTheGroundHeldAndGainedIsScoredOnBothRanks(t *testing.T) {
+	stack := newStack()
+	stack.territory.held = map[books.Country]uint32{"ie": 50, "br": 30, "fr": 15, "lv": 5}
+	require.NoError(t, stack.handler.Handle(t.Context(), openBook("season-1", utc(8, 0))))
+	require.NoError(t, stack.handler.Handle(t.Context(), openRound("season-1/day-1", "season-1", 1, utc(8, 0))))
+	require.NoError(t, stack.handler.Handle(t.Context(), closeRound("season-1/day-1", utc(8, 21))))
+	day := rankedBy(openRound("season-1/day-2", "season-1", 1, utc(8, 21)), scoringv1.Ranking_RANKING_HELD_AND_GAIN)
+	require.NoError(t, stack.handler.Handle(t.Context(), day))
+
+	stack.territory.held = map[books.Country]uint32{"ie": 50, "br": 28, "fr": 10, "lv": 12}
+	require.NoError(t, stack.handler.Handle(t.Context(), closeRound("season-1/day-2", utc(9, 21))))
+
+	scored, err := stack.rounds.ScoredIn(t.Context(), "season-1")
+	require.NoError(t, err)
+	require.Len(t, scored, 2)
+	assert.Equal(t, []books.Result{
+		{Country: "ie", Rank: 1, Points: 25, Share: 0.5},
+		{Country: "lv", Rank: 2, Points: 18, Share: 0.12},
+		{Country: "br", Rank: 3, Points: 15, Share: 0.28},
+		{Country: "fr", Rank: 4, Points: 12, Share: 0.1},
+	}, scored[1].Results, "ie held the most and kept it, lv gained the most, fr lost ground and still scores")
+}
+
+func TestARoundWithNoRankingIsRefusedAndDropped(t *testing.T) {
+	stack := newStack()
+	require.NoError(t, stack.handler.Handle(t.Context(), openBook("season-1", utc(8, 0))))
+
+	for _, ranking := range []scoringv1.Ranking{scoringv1.Ranking_RANKING_UNSPECIFIED, scoringv1.Ranking(99)} {
+		require.NoError(t, stack.handler.Handle(t.Context(), rankedBy(openRound("season-1/day-1", "season-1", 1, utc(8, 0)), ranking)))
+	}
+
+	_, found, err := stack.rounds.Find(t.Context(), "season-1/day-1")
+	require.NoError(t, err)
+	assert.False(t, found)
 }
 
 func TestACloseOfARoundOrABookNeverOpenedIsToldMissedAtEachClose(t *testing.T) {

@@ -42,15 +42,23 @@ func TestEachCommandIsOneScoringCommandInScoringsWords(t *testing.T) {
 			}}},
 		},
 		{
-			moments.Command{Action: moments.OpenRound, Book: "season-0", Round: entry, Times: 3, At: finale},
+			moments.Command{Action: moments.OpenRound, Book: "season-0", Round: entry, Times: 3, At: finale, Ranking: moments.RankedByGain},
 			&scoringv1.ScoringCommand{Command: &scoringv1.ScoringCommand_OpenRound{OpenRound: &scoringv1.OpenRound{
-				RoundId: entry, BookId: "season-0", Times: 3, StartsAt: timestamppb.New(finale),
+				RoundId: entry, BookId: "season-0", Times: 3, StartsAt: timestamppb.New(finale), Ranking: scoringv1.Ranking_RANKING_GAIN,
 			}}},
 		},
 		{
-			moments.Command{Action: moments.OpenRound, Book: "season-0", Round: entry, Times: 2, At: finale, FromNothing: true},
+			moments.Command{Action: moments.OpenRound, Book: "season-0", Round: entry, Times: 2, At: finale, FromNothing: true, Ranking: moments.RankedByGain},
 			&scoringv1.ScoringCommand{Command: &scoringv1.ScoringCommand_OpenRound{OpenRound: &scoringv1.OpenRound{
 				RoundId: entry, BookId: "season-0", Times: 2, StartsAt: timestamppb.New(finale), FromNothing: true,
+				Ranking: scoringv1.Ranking_RANKING_GAIN,
+			}}},
+		},
+		{
+			moments.Command{Action: moments.OpenRound, Book: "season-0", Round: "season-0/day-24", Times: 1, At: finale, Ranking: moments.RankedByHeldAndGain},
+			&scoringv1.ScoringCommand{Command: &scoringv1.ScoringCommand_OpenRound{OpenRound: &scoringv1.OpenRound{
+				RoundId: "season-0/day-24", BookId: "season-0", Times: 1, StartsAt: timestamppb.New(finale),
+				Ranking: scoringv1.Ranking_RANKING_HELD_AND_GAIN,
 			}}},
 		},
 		{
@@ -89,6 +97,16 @@ func TestAnActionScoringHasNoCommandForIsAnErrorAndSendsNothing(t *testing.T) {
 	commands := &sent{}
 
 	err := redis_scoring_commands.New(commands).Send(t.Context(), moments.Command{Book: "season-0", At: finale})
+
+	require.Error(t, err)
+	assert.Empty(t, commands.commands)
+}
+
+func TestAnOpenWithARankingScoringHasNoneForIsAnErrorAndSendsNothing(t *testing.T) {
+	commands := &sent{}
+
+	err := redis_scoring_commands.New(commands).Send(t.Context(),
+		moments.Command{Action: moments.OpenRound, Book: "season-0", Round: "season-0/day-24", Times: 1, At: finale})
 
 	require.Error(t, err)
 	assert.Empty(t, commands.commands)

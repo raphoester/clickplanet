@@ -55,19 +55,23 @@ func (q *PostgresQuery) Round(ctx context.Context, id books.RoundID) (*scoringv1
 // Live is the round a stream shows: none until it is opened.
 func (q *PostgresQuery) Live(ctx context.Context, id books.RoundID) (*scoringv1.Round, bool, error) {
 	var (
-		book     string
-		times    int64
-		startsAt time.Time
-		endedAt  sql.NullTime
+		book, named string
+		times       int64
+		startsAt    time.Time
+		endedAt     sql.NullTime
 	)
 	err := q.db.On(ctx).QueryRowContext(ctx, `
-		SELECT round.book_id, round.times, round.starts_at, scored.ended_at
+		SELECT round.book_id, round.times, round.ranking, round.starts_at, scored.ended_at
 		FROM rounds AS round LEFT JOIN scored_rounds AS scored USING (round_id)
 		WHERE round.round_id = $1
-	`, string(id)).Scan(&book, &times, &startsAt, &endedAt)
+	`, string(id)).Scan(&book, &times, &named, &startsAt, &endedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, false, nil
 	}
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to read the round: %w", err)
+	}
+	ranking, err := books.RankingNamed(named)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to read the round: %w", err)
 	}
@@ -104,7 +108,7 @@ func (q *PostgresQuery) Live(ctx context.Context, id books.RoundID) (*scoringv1.
 		})
 	} else {
 		group.Go(func() (err error) {
-			shown.Standings, err = q.live(ctx, books.Round{ID: id, Times: shown.GetTimes()}, start)
+			shown.Standings, err = q.live(ctx, books.Round{ID: id, Times: shown.GetTimes(), Ranking: ranking}, start)
 			return err
 		})
 	}

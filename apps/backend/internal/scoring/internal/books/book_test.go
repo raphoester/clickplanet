@@ -34,13 +34,13 @@ func TestARoundHoldsTheTakesFromItsStartAndBeforeItsEndOnceScored(t *testing.T) 
 
 func TestARoundScoresOneToTenTimes(t *testing.T) {
 	for _, times := range []uint32{0, 11} {
-		_, err := books.NewRound("battle", "season-0", times, utc(31, 21))
+		_, err := books.NewRound("battle", "season-0", times, books.GainRanking{}, utc(31, 21))
 		require.ErrorIs(t, err, books.ErrInvalidTimes)
 		require.ErrorIs(t, err, books.ErrRefused)
 	}
-	round, err := books.NewRound("battle", "season-0", 10, utc(31, 21))
+	round, err := books.NewRound("battle", "season-0", 10, books.GainRanking{}, utc(31, 21))
 	require.NoError(t, err)
-	assert.Equal(t, books.Round{ID: "battle", Book: "season-0", Times: 10, StartsAt: utc(31, 21)}, round)
+	assert.Equal(t, books.Round{ID: "battle", Book: "season-0", Times: 10, Ranking: books.GainRanking{}, StartsAt: utc(31, 21)}, round)
 }
 
 func TestAGrantGivesPointsToACountry(t *testing.T) {

@@ -27,8 +27,8 @@ func utc(day, hour int) time.Time {
 
 var (
 	seasonZero = books.NewBook("season-0", utc(8, 0))
-	day24      = books.Round{ID: "season-0/day-24", Book: seasonZero.ID, Times: 1, StartsAt: utc(30, 21)}
-	battle     = books.Round{ID: "0192f5a0-7c00-7000-8000-000000000031", Book: seasonZero.ID, Times: 3, StartsAt: utc(31, 21)}
+	day24      = books.Round{ID: "season-0/day-24", Book: seasonZero.ID, Times: 1, Ranking: books.GainRanking{}, StartsAt: utc(30, 21)}
+	battle     = books.Round{ID: "0192f5a0-7c00-7000-8000-000000000031", Book: seasonZero.ID, Times: 3, Ranking: books.GainRanking{}, StartsAt: utc(31, 21)}
 )
 
 type testSuite struct {

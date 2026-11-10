@@ -40,7 +40,7 @@ func TestCountriesLevelOnEverythingShareTheRank(t *testing.T) {
 }
 
 func TestABookIsRankedFromItsRoundsWithItsTiebreakAsTheThirdKey(t *testing.T) {
-	battle := books.Round{ID: "battle", Book: "season-0", Times: 3}
+	battle := books.Round{ID: "battle", Book: "season-0", Times: 3, Ranking: books.GainRanking{}}
 	scored := []books.Scored{
 		{Round: day, Results: []books.Result{{Country: "fr", Rank: 1, Points: 25}, {Country: "de", Rank: 2, Points: 18}}},
 		{Round: battle, Results: []books.Result{{Country: "de", Rank: 1, Points: 75}, {Country: "fr", Rank: 2, Points: 54}, {Country: "it", Rank: 3, Points: 0}}},

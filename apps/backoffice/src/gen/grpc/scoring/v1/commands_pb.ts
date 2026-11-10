@@ -7,6 +7,39 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
+ * How a round places the countries that hold tiles when it closes. Countries in the same place share its points.
+ *
+ * @generated from enum scoring.v1.Ranking
+ */
+export enum Ranking {
+  /**
+   * @generated from enum value: RANKING_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * By the tiles each gained since the round opened, most first; only a gain scores.
+   *
+   * @generated from enum value: RANKING_GAIN = 1;
+   */
+  GAIN = 1,
+
+  /**
+   * By the sum of two ranks, on the tiles each holds and on the tiles it gained, smallest first, the gain's rank
+   * breaking a tie; every country placed scores.
+   *
+   * @generated from enum value: RANKING_HELD_AND_GAIN = 2;
+   */
+  HELD_AND_GAIN = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(Ranking)
+proto3.util.setEnumType(Ranking, "scoring.v1.Ranking", [
+  { no: 0, name: "RANKING_UNSPECIFIED" },
+  { no: 1, name: "RANKING_GAIN" },
+  { no: 2, name: "RANKING_HELD_AND_GAIN" },
+]);
+
+/**
  * One stream for every command, handled in order: a round closed, then its book, is always scored in that order. Each
  * command is idempotent by its ids: one handled twice, or one that is too late, changes nothing.
  *
@@ -120,8 +153,8 @@ export class OpenBook extends Message<OpenBook> {
 }
 
 /**
- * A round credits its book once it closes: the countries ranked by the tiles they gained since it opened, points by rank, times
- * `times`. Takes from starts_at count in it. A round whose book is not open is refused.
+ * A round credits its book once it closes: the countries placed by its ranking, points by place, times `times`. Takes
+ * from starts_at count in it. A round whose book is not open, or with no ranking, is refused.
  *
  * @generated from message scoring.v1.OpenRound
  */
@@ -155,6 +188,11 @@ export class OpenRound extends Message<OpenRound> {
    */
   fromNothing = false;
 
+  /**
+   * @generated from field: scoring.v1.Ranking ranking = 6;
+   */
+  ranking = Ranking.UNSPECIFIED;
+
   constructor(data?: PartialMessage<OpenRound>) {
     super();
     proto3.util.initPartial(data, this);
@@ -168,6 +206,7 @@ export class OpenRound extends Message<OpenRound> {
     { no: 3, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "starts_at", kind: "message", T: Timestamp },
     { no: 5, name: "from_nothing", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "ranking", kind: "enum", T: proto3.getEnumType(Ranking) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenRound {

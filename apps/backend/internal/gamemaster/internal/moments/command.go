@@ -40,7 +40,17 @@ type Command struct {
 	Tiebreak RoundID
 	// FromNothing is an OpenRound of an arena battle: its round counts from nothing, on the blank map.
 	FromNothing bool
+	Ranking     Ranking
 }
+
+// Ranking is how scoring places an OpenRound's countries: a day on the ground they hold and the ground they gained, so
+// holding ground pays; a battle, which shuffles the cards, on the ground gained alone.
+type Ranking string
+
+const (
+	RankedByGain        Ranking = "gain"
+	RankedByHeldAndGain Ranking = "held and gain"
+)
 
 // Key is a command's identity: an open is sent once per process, a close again until scoring answers it.
 type Key struct {

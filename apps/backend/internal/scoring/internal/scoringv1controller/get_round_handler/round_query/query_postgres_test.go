@@ -39,9 +39,9 @@ func utc(day, hour int) time.Time {
 
 var (
 	seasonZero = books.NewBook("season-0", utc(8, 0))
-	day23      = books.Round{ID: "season-0/day-23", Book: seasonZero.ID, Times: 1, StartsAt: utc(29, 21)}
-	day24      = books.Round{ID: "season-0/day-24", Book: seasonZero.ID, Times: 1, StartsAt: utc(30, 21)}
-	battle     = books.Round{ID: "0192f5a0-7c00-7000-8000-000000000031", Book: seasonZero.ID, Times: 3, StartsAt: utc(31, 21)}
+	day23      = books.Round{ID: "season-0/day-23", Book: seasonZero.ID, Times: 1, Ranking: books.GainRanking{}, StartsAt: utc(29, 21)}
+	day24      = books.Round{ID: "season-0/day-24", Book: seasonZero.ID, Times: 1, Ranking: books.GainRanking{}, StartsAt: utc(30, 21)}
+	battle     = books.Round{ID: "0192f5a0-7c00-7000-8000-000000000031", Book: seasonZero.ID, Times: 3, Ranking: books.GainRanking{}, StartsAt: utc(31, 21)}
 )
 
 type testSuite struct {
@@ -103,7 +103,7 @@ func (s *testSuite) TestAnOpenRoundRanksTheMapNowTimesItsTimes() {
 }
 
 func (s *testSuite) TestAnOpenRoundRanksTheTilesGainedSinceItOpened() {
-	day25 := books.Round{ID: "season-0/day-25", Book: seasonZero.ID, Times: 1, StartsAt: utc(31, 23)}
+	day25 := books.Round{ID: "season-0/day-25", Book: seasonZero.ID, Times: 1, Ranking: books.GainRanking{}, StartsAt: utc(31, 23)}
 	_, err := s.rounds.Open(s.T().Context(), day25, books.Start{"fr": 30, "de": 5})
 	s.Require().NoError(err)
 	s.territory.held = map[books.Country]uint32{"fr": 25, "de": 20}
@@ -112,6 +112,22 @@ func (s *testSuite) TestAnOpenRoundRanksTheTilesGainedSinceItOpened() {
 		RoundId: string(day25.ID), BookId: "season-0", Times: 1, StartedAtUnixMs: utc(31, 23).UnixMilli(),
 		Standings: []*scoringv1.RoundStanding{
 			{Rank: 1, CountryId: "de", Share: 0.2, Points: 25}, {Rank: 2, CountryId: "fr", Share: 0.25},
+		},
+		Takes: []*scoringv1.RoundTakes{}, Players: []*scoringv1.Standing{},
+		Start: []*scoringv1.RoundStart{{CountryId: "fr", Tiles: 30}, {CountryId: "de", Tiles: 5}},
+	}, s.round(day25.ID)), s.round(day25.ID))
+}
+
+func (s *testSuite) TestAnOpenDayRankedOnTheGroundHeldAndGainedRanksBoth() {
+	day25 := books.Round{ID: "season-0/day-25", Book: seasonZero.ID, Times: 1, Ranking: books.HeldAndGainRanking{}, StartsAt: utc(31, 23)}
+	_, err := s.rounds.Open(s.T().Context(), day25, books.Start{"fr": 30, "de": 5})
+	s.Require().NoError(err)
+	s.territory.held = map[books.Country]uint32{"fr": 30, "de": 20}
+
+	s.True(proto.Equal(&scoringv1.Round{
+		RoundId: string(day25.ID), BookId: "season-0", Times: 1, StartedAtUnixMs: utc(31, 23).UnixMilli(),
+		Standings: []*scoringv1.RoundStanding{
+			{Rank: 1, CountryId: "de", Share: 0.2, Points: 25}, {Rank: 2, CountryId: "fr", Share: 0.3, Points: 18},
 		},
 		Takes: []*scoringv1.RoundTakes{}, Players: []*scoringv1.Standing{},
 		Start: []*scoringv1.RoundStart{{CountryId: "fr", Tiles: 30}, {CountryId: "de", Tiles: 5}},

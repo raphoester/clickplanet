@@ -57,9 +57,10 @@ With no book there are no boards. `app/standings/` draws it.
   from 94 to 82px. **While a round runs, a Gained column follows the tiles**:
   the tiles the country holds now less what it held when the round opened (`Round.start`,
   `countryLines`' `gain`), signed, green up and red down (`--gain`, `--loss`), with its
-  own hint (`gained`, `gainedBattle`). A round ranks that gain (see the backend's
-  [Scoring](../../backend/docs/scoring.md#the-rules)), so the number beside the points
-  is the one that earns them; it moves with the tiles, live, while the points follow
+  own hint (`gained`, `gainedBattle`). A battle ranks that gain alone; a day ranks it and
+  the tiles held, one rank each, added (since 2026-11-10; see the backend's
+  [Scoring](../../backend/docs/scoring.md#the-rules)), so the numbers beside the points
+  are the ones that earn them; they move with the tiles, live, while the points follow
   the round's read every 10s. The owner asked for it on 2026-11-06: the points alone
   did not say why a smaller flag won the day. **Today is its own column so the points line up**:
   as a badge beside the points it pushed only the rows that had one. **While a
@@ -89,8 +90,8 @@ With no book there are no boards. `app/standings/` draws it.
   (`.leaderboard-sort`), faint, and in `--text` on the head sorted by; before the word
   so the word stays over its column's right-aligned numbers. Points first. A tap on a
   head sorts by it and, as on any head, says what it means. Country and Today do not
-  sort: the board ranks by a number, not a name, and Today follows Gained, since a
-  round scores the gain. It replaced a switch of two pills, Season and Territory, on the heading's line, on
+  sort: the board ranks by a number, not a name, and Today follows Tiles and Gained,
+  which a round scores. It replaced a switch of two pills, Season and Territory, on the heading's line, on
   2026-11-06: once a round scored the gain, a third order was one pill too many.
   Points ranks by the points of the days closed, then by tiles (`domain/race.ts`,
   `countryLines`), and lists a country with points that holds no ground; Gained ranks

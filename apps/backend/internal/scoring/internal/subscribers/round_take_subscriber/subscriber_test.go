@@ -24,15 +24,15 @@ const (
 
 var (
 	day = books.Round{
-		ID: "season-0/day-24", Book: "season-0", Times: 1,
+		ID: "season-0/day-24", Book: "season-0", Times: 1, Ranking: books.GainRanking{},
 		StartsAt: time.Date(2026, 10, 30, 21, 0, 0, 0, time.UTC),
 	}
 	battle = books.Round{
-		ID: "0192f5a0-7c00-7000-8000-000000000031", Book: "season-0", Times: 3,
+		ID: "0192f5a0-7c00-7000-8000-000000000031", Book: "season-0", Times: 3, Ranking: books.GainRanking{},
 		StartsAt: time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC),
 	}
 	lifetimeDay = books.Round{
-		ID: "lifetime/day-1", Book: "lifetime", Times: 1,
+		ID: "lifetime/day-1", Book: "lifetime", Times: 1, Ranking: books.GainRanking{},
 		StartsAt: time.Date(2026, 10, 31, 22, 0, 0, 0, time.UTC),
 	}
 )
