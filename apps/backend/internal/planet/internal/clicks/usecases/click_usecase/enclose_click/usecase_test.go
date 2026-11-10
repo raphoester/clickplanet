@@ -46,31 +46,35 @@ type tiles map[uint32]string
 
 func (t tiles) Owner(tile uint32) (string, bool) { return t[tile], true }
 
-func (t tiles) Set(_ context.Context, tile uint32, value string) error {
-	t[tile] = value
-	return nil
-}
-
 type shields map[uint32]int
-
-func (d shields) Shields(tile uint32) int { return d[tile] }
-
-func (d shields) Strike(_ context.Context, tile uint32, _ string) bool {
-	if d[tile] == 0 {
-		return false
-	}
-	d[tile]--
-
-	return true
-}
 
 type board struct {
 	tiles
 	shields
 }
 
-func (b board) Click(ctx context.Context, tile uint32, value string) error {
-	return b.Set(ctx, tile, value)
+func (b board) Tile(id uint32) (clicks.Tile, error) {
+	return clicks.TileSnapshot{ID: id, Owner: b.tiles[id], Shields: b.shields[id]}.Restore(), nil
+}
+
+func (b board) Set(_ context.Context, tile clicks.Tile) error {
+	kept := tile.TakeSnapshot()
+	b.tiles[kept.ID] = kept.Owner
+	if kept.Shields == 0 {
+		delete(b.shields, kept.ID)
+		return nil
+	}
+	b.shields[kept.ID] = kept.Shields
+
+	return nil
+}
+
+func (b board) Click(ctx context.Context, tile clicks.Tile) error {
+	return b.Set(ctx, tile)
+}
+
+func (b board) Claim(_ context.Context, write func(clicks.Claimable) error) error {
+	return write(b)
 }
 
 func (b board) Fortify(context.Context, uint32, string, int) (clicks.Fortification, error) {

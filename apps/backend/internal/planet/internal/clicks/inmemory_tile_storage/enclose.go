@@ -31,44 +31,26 @@ type insideEnclosure struct {
 
 var _ clicks.Claimable = (*insideEnclosure)(nil)
 
-func (e *insideEnclosure) Owner(tile uint32) (string, bool) {
-	if tile > e.storage.board.last() {
-		return "", false
+func (e *insideEnclosure) Tile(id uint32) (clicks.Tile, error) {
+	return e.storage.tileLocked(id)
+}
+
+func (e *insideEnclosure) Set(_ context.Context, tile clicks.Tile) error {
+	return e.put(tile)
+}
+
+func (e *insideEnclosure) Click(_ context.Context, tile clicks.Tile) error {
+	return e.put(tile)
+}
+
+func (e *insideEnclosure) put(tile clicks.Tile) error {
+	update, changed, err := e.storage.writeLocked(tile, false)
+	if !changed {
+		return err
 	}
-
-	return e.storage.board.ownerOf(tile), true
-}
-
-func (e *insideEnclosure) Shields(tile uint32) int {
-	if tile > e.storage.board.last() {
-		return 0
-	}
-
-	return e.storage.board.shieldsOn(tile)
-}
-
-func (e *insideEnclosure) Strike(_ context.Context, tile uint32, owner string) bool {
-	left, struck := e.storage.strikeLocked(tile, owner)
-	if struck {
-		e.enclosure.Filled = append(e.enclosure.Filled, tile)
-		e.enclosure.Struck = append(e.enclosure.Struck, clicks.TileShields{Tile: tile, Shields: left})
-	}
-
-	return struck
-}
-
-func (e *insideEnclosure) Set(ctx context.Context, tile uint32, value string) error {
-	return e.put(ctx, clicks.TileUpdate{Tile: tile, Value: value})
-}
-
-func (e *insideEnclosure) Click(ctx context.Context, tile uint32, value string) error {
-	return e.put(ctx, clicks.TileUpdate{Tile: tile, Value: value, Clicked: true})
-}
-
-func (e *insideEnclosure) put(ctx context.Context, update clicks.TileUpdate) error {
-	_, changed, err := e.storage.putLocked(update, holderOf(ctx))
-	if changed {
-		e.enclosure.Filled = append(e.enclosure.Filled, update.Tile)
+	e.enclosure.Filled = append(e.enclosure.Filled, update.Tile)
+	if update.Value == update.Previous {
+		e.enclosure.Struck = append(e.enclosure.Struck, clicks.TileShields{Tile: update.Tile, Shields: update.Shields})
 	}
 
 	return err

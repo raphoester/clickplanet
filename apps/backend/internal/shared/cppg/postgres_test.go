@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"testing/fstest"
@@ -96,4 +97,33 @@ func TestCloseAfterClosesThePoolOnceEveryRunnerStopped(t *testing.T) {
 	assert.Equal(t, "tiles+ledger", runner.Name())
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `SELECT 1`)
 	require.ErrorContains(t, err, "database is closed")
+}
+
+func TestAPoolKeepsEveryConnectionItOpened(t *testing.T) {
+	config := cppg.StartTestServer(t).ConfigFor("pooled")
+	most := 4
+	config.Pool.MaxOpenConns = &most
+	db := cppg.New(config)
+	require.NoError(t, db.ConnectCtx(t.Context()))
+	t.Cleanup(func() { _ = db.Close() })
+
+	var busy, done sync.WaitGroup
+	release := make(chan struct{})
+	for range most {
+		busy.Add(1)
+		done.Go(func() {
+			assert.NoError(t, db.InTx(t.Context(), func(ctx context.Context) error {
+				busy.Done()
+				<-release
+				return ctx.Err()
+			}))
+		})
+	}
+	busy.Wait()
+	close(release)
+	done.Wait()
+
+	stats := db.Stats()
+	assert.Equal(t, most, stats.Idle)
+	assert.Zero(t, stats.MaxIdleClosed, "no connection closed for want of an idle slot")
 }

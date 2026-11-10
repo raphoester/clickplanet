@@ -2,6 +2,7 @@ package clicks_test
 
 import (
 	"log/slog"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -86,6 +87,81 @@ func TestAClaimOfATileTheFlagHoldsDoesNotFortify(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Zero(t, tiles.Shields(20))
+}
+
+func atOnce(n int, do func(i int)) {
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := range n {
+		wg.Go(func() {
+			<-start
+			do(i)
+		})
+	}
+	close(start)
+	wg.Wait()
+}
+
+func TestClaimsOfOneTileForOneFlagAtOnceTakeItOnce(t *testing.T) {
+	for range 300 {
+		tiles := claimable(t, map[uint32]string{7: "de"})
+		claiming := clicks.NewClaiming(tiles, tenAShield)
+
+		outcomes := make([]clicks.Outcome, 8)
+		atOnce(len(outcomes), func(i int) {
+			impact, err := claiming.Click(t.Context(), 7, "fr")
+			assert.NoError(t, err)
+			outcomes[i] = impact.Outcome
+		})
+
+		require.Equal(t, map[clicks.Outcome]int{clicks.Taken: 1, clicks.Unchanged: 7}, tally(outcomes))
+	}
+}
+
+func tally(outcomes []clicks.Outcome) map[clicks.Outcome]int {
+	counts := map[clicks.Outcome]int{}
+	for _, outcome := range outcomes {
+		counts[outcome]++
+	}
+	return counts
+}
+
+func TestAShieldPlacedDuringAForeignClaimIsStruckOrRefusedButNeverLost(t *testing.T) {
+	for range 1_000 {
+		tiles := claimable(t, map[uint32]string{7: "de"})
+		claiming := clicks.NewClaiming(tiles, tenAShield)
+
+		var impact clicks.Impact
+		placements := make([]error, 4)
+		atOnce(1+len(placements), func(i int) {
+			if i == len(placements) {
+				var err error
+				impact, err = claiming.Click(t.Context(), 7, "fr")
+				assert.NoError(t, err)
+				return
+			}
+			placements[i] = tiles.Shield(t.Context(), 7, "de", 10)
+		})
+
+		placed := 0
+		for _, err := range placements {
+			if err == nil {
+				placed++
+				continue
+			}
+			require.ErrorIs(t, err, clicks.ErrNotYourTile)
+		}
+		owner, _ := tiles.Owner(7)
+		if placed == 0 {
+			require.Equal(t, clicks.Impact{Tile: 7, Owner: "de", Outcome: clicks.Taken}, impact)
+			require.Equal(t, "fr", owner)
+			require.Zero(t, tiles.Shields(7))
+			continue
+		}
+		require.Equal(t, clicks.Shielded, impact.Outcome, "a shield placed before the click took it")
+		require.Equal(t, "de", owner)
+		require.Equal(t, placed-1, tiles.Shields(7), "every other shield placed still stands")
+	}
 }
 
 func TestAnEnclosureClaimsItsTilesAsOneChangeNamingWhoClosedIt(t *testing.T) {

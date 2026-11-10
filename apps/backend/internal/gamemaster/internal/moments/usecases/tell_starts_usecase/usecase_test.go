@@ -48,6 +48,7 @@ type harness struct {
 	entries *inmemory_entry_store.Store
 	store   *inmemory_moment_store.Store
 	outbox  *cpatomic.FakeOutbox
+	planner moments.Planner
 	useCase *tell_starts_usecase.UseCase
 }
 
@@ -65,8 +66,15 @@ func newHarness(t *testing.T, at time.Time) *harness {
 }
 
 func (h *harness) boot() {
-	planner := moments.NewPlanner(h.seasons, h.entries, h.store, inmemory_arena_store.New(), season.Cutoff(21*time.Hour))
-	h.useCase = tell_starts_usecase.New(planner, h.store, outbox_moment_events.New(h.outbox), cpatomic.FakeTransactioner{}, h.clock)
+	h.planner = moments.NewPlanner(h.seasons, h.entries, h.store, inmemory_arena_store.New(), season.Cutoff(21*time.Hour))
+	h.useCase = tell_starts_usecase.New(h.store, outbox_moment_events.New(h.outbox), cpatomic.FakeTransactioner{}, h.clock)
+}
+
+func (h *harness) plan() moments.Plan {
+	h.t.Helper()
+	plan, err := h.planner.Plan(h.t.Context())
+	require.NoError(h.t, err)
+	return plan
 }
 
 func (h *harness) save(snapshot season.Snapshot) {
@@ -85,7 +93,7 @@ func (h *harness) addBattle() {
 
 func (h *harness) execute() []moments.Moment {
 	h.t.Helper()
-	told, err := h.useCase.Execute(h.t.Context())
+	told, err := h.useCase.Execute(h.t.Context(), h.plan())
 	require.NoError(h.t, err)
 	return told
 }
@@ -237,10 +245,11 @@ func TestABootBetweenTwoSeasonsTellsNothingThatEnded(t *testing.T) {
 
 func TestWhatCannotBeKeptIsAnErrorAndNothingIsTold(t *testing.T) {
 	h := newHarness(t, dayOneEnds.Add(20*day+12*time.Hour))
+	plan := h.plan()
 	down := errors.New("postgres is down")
 	h.store.FailWith(down)
 
-	_, err := h.useCase.Execute(t.Context())
+	_, err := h.useCase.Execute(t.Context(), plan)
 
 	require.ErrorIs(t, err, down)
 	assert.Empty(t, h.outbox.Recorded())

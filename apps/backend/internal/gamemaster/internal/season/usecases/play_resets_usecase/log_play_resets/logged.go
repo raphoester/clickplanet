@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/play_resets_usecase"
 )
@@ -19,8 +20,8 @@ type Logged struct {
 
 var _ play_resets_usecase.Executor = (*Logged)(nil)
 
-func (l *Logged) Execute(ctx context.Context) (season.Window, bool, error) {
-	starts, told, err := l.inner.Execute(ctx)
+func (l *Logged) Execute(ctx context.Context, plan moments.Plan) (season.Window, bool, error) {
+	starts, told, err := l.inner.Execute(ctx, plan)
 	if told {
 		l.logger.Warn("planet is told to reset the map", slog.Uint64("season", uint64(starts.Number)),
 			slog.Time("starts_at", starts.StartsAt))

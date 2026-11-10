@@ -532,24 +532,26 @@ func (s *stubTiles) Fortify(context.Context, uint32, string, int) (clicks.Fortif
 	return *s.fortify, nil
 }
 
-func (s *stubTiles) Strike(_ context.Context, tile uint32, _ string) bool {
-	if s.shields[tile] == 0 {
-		return false
+func (s *stubTiles) Tile(id uint32) (clicks.Tile, error) {
+	if id > lastTile {
+		return clicks.Tile{}, errOutOfRange
 	}
-	s.shields[tile]--
-	return true
+	return clicks.TileSnapshot{ID: id, Owner: s.owners[id], Shields: s.shields[id]}.Restore(), nil
 }
 
-func (s *stubTiles) Set(_ context.Context, tile uint32, value string) error {
-	if tile > lastTile {
-		return errOutOfRange
-	}
-	s.owners[tile] = value
+func (s *stubTiles) Set(_ context.Context, tile clicks.Tile) error {
+	kept := tile.TakeSnapshot()
+	s.owners[kept.ID] = kept.Owner
+	s.shields[kept.ID] = kept.Shields
 	return nil
 }
 
-func (s *stubTiles) Click(ctx context.Context, tile uint32, value string) error {
-	return s.Set(ctx, tile, value)
+func (s *stubTiles) Click(ctx context.Context, tile clicks.Tile) error {
+	return s.Set(ctx, tile)
+}
+
+func (s *stubTiles) Claim(_ context.Context, write func(clicks.Claimable) error) error {
+	return write(s)
 }
 
 func (s *stubTiles) Enclose(_ context.Context, _ clicks.Enclosure, write func(clicks.Claimable) error) error {
