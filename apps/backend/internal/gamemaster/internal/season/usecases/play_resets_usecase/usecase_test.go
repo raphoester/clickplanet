@@ -52,19 +52,64 @@ func (p planned) Execute(ctx context.Context) (season.Window, bool, error) {
 
 func harness(t *testing.T, at time.Time) (planned, *planet, *cptime.FixedClock) {
 	t.Helper()
-	useCase, told, clock, _ := harnessWith(t, at, season.Snapshot{Number: 0, Length: seasonZeroEnds.Sub(season.Origin)}, 16*time.Hour)
-	return useCase, told, clock
+	h := harnessWith(t, at, season.Snapshot{Number: 0, Length: seasonZeroEnds.Sub(season.Origin)}, 16*time.Hour)
+	h.close(moments.ClosedBook{Book: "season-0", EndedAt: seasonZeroEnds})
+	return h.useCase, h.told, h.clock
 }
 
-func harnessWith(t *testing.T, at time.Time, zero season.Snapshot, pause time.Duration,
-) (planned, *planet, *cptime.FixedClock, *inmemory_arena_store.Store) {
+type stores struct {
+	t       *testing.T
+	useCase planned
+	told    *planet
+	clock   *cptime.FixedClock
+	judged  *inmemory_arena_store.Store
+	kept    *inmemory_moment_store.Store
+}
+
+func (s stores) close(book moments.ClosedBook) {
+	s.t.Helper()
+	_, err := s.kept.KeepBook(s.t.Context(), book)
+	require.NoError(s.t, err)
+}
+
+func harnessWith(t *testing.T, at time.Time, zero season.Snapshot, pause time.Duration) stores {
 	t.Helper()
-	seasons, judged := inmemory_season_store.New(), inmemory_arena_store.New()
+	seasons, judged, kept := inmemory_season_store.New(), inmemory_arena_store.New(), inmemory_moment_store.New()
 	require.NoError(t, seasons.Save(t.Context(), zero.Restore()))
 	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{Number: 1, Break: pause, Length: 28 * 24 * time.Hour}.Restore()))
 	told, clock := &planet{}, cptime.NewFixedClock(at)
-	planner := moments.NewPlanner(seasons, inmemory_entry_store.New(), inmemory_moment_store.New(), judged, season.Cutoff(21*time.Hour))
-	return planned{t: t, planner: planner, useCase: play_resets_usecase.New(told, clock)}, told, clock, judged
+	planner := moments.NewPlanner(seasons, inmemory_entry_store.New(), kept, judged, season.Cutoff(21*time.Hour))
+	return stores{
+		t: t, useCase: planned{t: t, planner: planner, useCase: play_resets_usecase.New(told, clock)}, told: told, clock: clock,
+		judged: judged, kept: kept,
+	}
+}
+
+func TestASeasonWithNoBreakResetsOnceTheBookBeforeItIsClosed(t *testing.T) {
+	h := harnessWith(t, seasonZeroEnds, season.Snapshot{Number: 0, Length: seasonZeroEnds.Sub(season.Origin)}, 0)
+
+	_, sent, err := h.useCase.Execute(t.Context())
+	require.NoError(t, err)
+	assert.False(t, sent, "the finale is not scored yet")
+
+	h.close(moments.ClosedBook{Book: "season-0", EndedAt: seasonZeroEnds})
+	h.clock.Advance(2 * time.Second)
+	_, sent, err = h.useCase.Execute(t.Context())
+	require.NoError(t, err)
+	assert.True(t, sent)
+	assert.Equal(t, []season.Number{1}, h.told.reset)
+}
+
+func TestASeasonResetsOnceTheBookBeforeItIsToldMissed(t *testing.T) {
+	h := harnessWith(t, seasonZeroEnds, season.Snapshot{Number: 0, Length: seasonZeroEnds.Sub(season.Origin)}, 0)
+
+	_, err := h.kept.KeepMissedBook(t.Context(), moments.MissedBook{Book: "season-0", EndedAt: seasonZeroEnds})
+	require.NoError(t, err)
+	_, sent, err := h.useCase.Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.True(t, sent)
+	assert.Equal(t, []season.Number{1}, h.told.reset)
 }
 
 // An arena battle as season 0's finale, with season 1 starting as it ends: the reset waits for the map from before the arena battle,
@@ -74,7 +119,9 @@ func TestASeasonThatStartsAfterAnArenaBattleResetsOnceItsArenaClosed(t *testing.
 		Number: 0, Length: seasonZeroEnds.Sub(season.Origin),
 		Finale: season.Finale{Length: 2 * time.Hour, Set: schedule.SetName("arena-battle"), Times: 3},
 	}
-	useCase, told, clock, judged := harnessWith(t, seasonZeroEnds, zero, 0)
+	h := harnessWith(t, seasonZeroEnds, zero, 0)
+	useCase, told, clock, judged := h.useCase, h.told, h.clock, h.judged
+	h.close(moments.ClosedBook{Book: "season-0", EndedAt: seasonZeroEnds})
 	_, err := judged.KeepJudged(t.Context(), moments.Judgement{Round: moments.FinaleRoundOf(0), Mode: moments.Arena})
 	require.NoError(t, err)
 

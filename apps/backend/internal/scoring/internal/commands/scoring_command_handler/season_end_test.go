@@ -196,6 +196,42 @@ func TestARoundToldToCountFromNothingIsScoredOnTheTilesHeldAtItsEnd(t *testing.T
 	assert.Equal(t, uint32(2*18), scored[1].Results[1].Points)
 }
 
+func TestACloseOfARoundOrABookNeverOpenedIsToldMissedAtEachClose(t *testing.T) {
+	stack := newStack()
+	require.NoError(t, stack.handler.Handle(t.Context(), openBook("season-1", utc(8, 0))))
+
+	require.NoError(t, stack.handler.Handle(t.Context(), closeRound(battle, utc(8, 23))))
+	require.NoError(t, stack.handler.Handle(t.Context(), closeRound(battle, utc(8, 23))))
+	require.NoError(t, stack.handler.Handle(t.Context(), closeBook("season-0", "", utc(8, 0))))
+
+	missed := &scoringv1.RoundMissed{RoundId: battle, EndedAt: timestamppb.New(utc(8, 23))}
+	assertRecorded(t, []proto.Message{
+		missed, missed, &scoringv1.BookMissed{BookId: "season-0", EndedAt: timestamppb.New(utc(8, 0))},
+	}, stack.outbox.Recorded())
+	_, found, err := stack.rounds.Find(t.Context(), battle)
+	require.NoError(t, err)
+	assert.False(t, found, "a missed round is kept nowhere")
+	_, found, err = stack.books.Find(t.Context(), "season-0")
+	require.NoError(t, err)
+	assert.False(t, found)
+}
+
+func TestARoundOrABookClosedTwiceIsToldOnce(t *testing.T) {
+	stack := newStack()
+	stack.territory.held = map[books.Country]uint32{"fr": 3}
+	for range 2 {
+		require.NoError(t, stack.handler.Handle(t.Context(), openBook("season-1", utc(8, 0))))
+		require.NoError(t, stack.handler.Handle(t.Context(), openRound("season-1/day-1", "season-1", 1, utc(8, 0))))
+		require.NoError(t, stack.handler.Handle(t.Context(), closeRound("season-1/day-1", utc(8, 21))))
+		require.NoError(t, stack.handler.Handle(t.Context(), closeBook("season-1", "", utc(8, 21))))
+	}
+
+	recorded := stack.outbox.Recorded()
+	require.Len(t, recorded, 2)
+	assert.IsType(t, &scoringv1.RoundScored{}, recorded[0])
+	assert.IsType(t, &scoringv1.BookClosed{}, recorded[1])
+}
+
 func assertRecorded(t *testing.T, want, recorded []proto.Message) {
 	t.Helper()
 	require.Len(t, recorded, len(want))

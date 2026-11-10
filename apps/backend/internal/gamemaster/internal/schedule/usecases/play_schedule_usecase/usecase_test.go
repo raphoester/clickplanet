@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/play_schedule_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -66,7 +67,7 @@ func newHarness(t *testing.T, at time.Time) *harness {
 		t: t, clock: cptime.NewFixedClock(at), entries: inmemory_entry_store.New(), seasons: inmemory_season_store.New(),
 		commands: &commanded{},
 	}
-	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.commands, h.clock)
+	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.commands, h.clock, 24*time.Hour)
 	h.schedule(9, "rush", finale, battleEnds, 1)
 	return h
 }
@@ -104,6 +105,56 @@ func TestNothingIsSentWhileTheTurnHolds(t *testing.T) {
 	}
 
 	assert.Len(t, h.commands.sent, 1)
+}
+
+func TestTheTurnIsSentAgainEachMinuteWithTheTimeItWasDecided(t *testing.T) {
+	h := newHarness(t, finale.Add(-time.Hour))
+	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.commands, h.clock, time.Minute)
+	h.execute()
+
+	h.clock.Advance(59 * time.Second)
+	assert.False(t, h.execute())
+	h.clock.Advance(time.Second)
+	assert.False(t, h.execute(), "a turn sent again is not a new turn told")
+	h.clock.Advance(time.Second)
+	assert.False(t, h.execute())
+
+	decided := finale.Add(-time.Hour)
+	assert.Equal(t, []command{{set: "default", decidedAt: decided}, {set: "default", decidedAt: decided}}, h.commands.sent,
+		"a module that plays it already finds it no newer and changes nothing")
+}
+
+func TestASetAModuleRefusedPlaysOnceItIsMade(t *testing.T) {
+	h := newHarness(t, finale)
+	module := &refusing{keeps: cpcolls.NewSet[schedule.SetName]("default"), playing: "default"}
+	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, module, h.clock, time.Minute)
+
+	h.execute()
+	assert.Equal(t, schedule.SetName("default"), module.playing, "rush is refused")
+
+	module.keeps.Add("rush")
+	h.clock.Advance(30 * time.Second)
+	h.execute()
+	assert.Equal(t, schedule.SetName("default"), module.playing)
+	h.clock.Advance(30 * time.Second)
+	h.execute()
+	assert.Equal(t, schedule.SetName("rush"), module.playing)
+	assert.Equal(t, finale, module.decidedAt)
+}
+
+type refusing struct {
+	keeps     *cpcolls.Set[schedule.SetName]
+	playing   schedule.SetName
+	decidedAt time.Time
+}
+
+func (r *refusing) Play(_ context.Context, turn schedule.Turn, decidedAt time.Time) error {
+	set := turn.TakeSnapshot().Set
+	if !decidedAt.After(r.decidedAt) || !r.keeps.Contains(set) {
+		return nil
+	}
+	r.playing, r.decidedAt = set, decidedAt
+	return nil
 }
 
 func TestEachChangeOfTurnIsSentOnceAtItsTime(t *testing.T) {

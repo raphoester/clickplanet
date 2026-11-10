@@ -125,6 +125,9 @@ and says what is in it. Read the doc before you change its area.
   antibot, the seasons, days and battles it opens and closes in scoring's books, each season's finale (the Final
   Battle), the events in the game's words (each season, day and battle as it starts), and the steps before the Final
   Battle.
+- [The gamemaster as a reconciler](docs/gamemaster-reconciler.md) — each second, what the game wants against what the
+  modules answered: a close sent again until answered, scoring's `RoundMissed` and `BookMissed`, the reset after the
+  book before it, the boot, a refusal, the cost.
 - [Missions](docs/missions.md) — four or five missions a day per player, in the days the gamemaster tells
   (`DayStarted`), counted from planet's facts (takes, boxes, right answers, bombs, shields, fortifies), paid once done
   with a `GrantCharges` command to planet; one flag mission a day per flag, worth season points (`GrantPoints` to

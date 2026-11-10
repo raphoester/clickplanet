@@ -78,7 +78,7 @@ func TestAnArenaBattleCountsFromNothingAndTheDayAfterItWaitsForItsArena(t *testi
 	assert.Equal(t, moments.Command{Action: moments.OpenRound, Book: book, Round: dayRound(24), Times: 1, At: arenaEnds}, open)
 }
 
-func TestABootDuringTheWaitSendsTheCloseAgainAndHoldsTheDay(t *testing.T) {
+func TestABootDuringTheWaitHoldsTheDay(t *testing.T) {
 	h := newHarness(t, arenaStarts.Add(-time.Second))
 	h.arenaBattle()
 	h.judge(arenaRound, moments.Arena)
@@ -89,7 +89,29 @@ func TestABootDuringTheWaitSendsTheCloseAgainAndHoldsTheDay(t *testing.T) {
 	h.boot()
 	sent := h.execute()
 
-	assert.Contains(t, sent, moments.Command{Action: moments.CloseRound, Book: book, Round: arenaRound, At: arenaEnds})
+	assert.NotContains(t, sent, moments.Command{Action: moments.CloseRound, Book: book, Round: arenaRound, At: arenaEnds},
+		"scoring answered it")
 	_, ok := opensRound(sent, dayRound(24))
-	assert.False(t, ok)
+	assert.False(t, ok, "the arena is not closed")
+}
+
+func TestAnArenaBattleJudgedInItsLastSecondIsToldMissedAndTheDayAfterItWaitsForItsArenaAlone(t *testing.T) {
+	h := newHarness(t, arenaStarts.Add(-time.Second))
+	h.arenaBattle()
+	h.execute()
+	h.at(arenaStarts)
+	h.execute()
+
+	h.judge(arenaRound, moments.Arena)
+	h.at(arenaEnds)
+	assert.Equal(t, []moments.Command{{Action: moments.CloseRound, Book: book, Round: arenaRound, At: arenaEnds}}, h.execute())
+	kept, err := h.opened.Kept(t.Context())
+	require.NoError(t, err)
+	assert.Contains(t, kept.MissedRounds, arenaRound)
+
+	_, err = h.judged.KeepClosed(t.Context(), arenaRound)
+	require.NoError(t, err)
+	h.at(arenaEnds.Add(5 * time.Second))
+	_, ok := opensRound(h.execute(), dayRound(24))
+	assert.True(t, ok)
 }

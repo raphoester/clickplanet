@@ -107,7 +107,7 @@ func (b Book) rounds() []round {
 type Plan struct {
 	books  []Book
 	cutoff season.Cutoff
-	arenas Arenas
+	known  Known
 }
 
 // A day that opened keeps running to the season's end when the end moves before its cutoff: opened names the rounds
@@ -199,10 +199,11 @@ func (p Plan) Clashes(now time.Time) error {
 	return errors.Join(found...)
 }
 
-// DueAt is every command whose time has come: a book or a round opened while it runs, and closed once it ended, for
-// every season that started. By time, and at one instant OpenBook, CloseRound, OpenRound, then CloseBook. With the
-// arena battles known, a battle's round opens once it is judged, an arena battle's counting from nothing, and nothing opens while an
-// arena battle that ended before it waits for its map.
+// DueAt is every command whose time has come: a book or a round opened while it runs, and closed once it ended until
+// scoring answered it, for every season that started. By time, and at one instant OpenBook, CloseRound, OpenRound, then
+// CloseBook. With what was commanded known, a battle's round opens once it is judged, an arena battle's counting from
+// nothing, nothing opens while an arena battle that ended before it waits for its map, and a round or a book scoring
+// answered, scored, closed or missed, is closed no more.
 func (p Plan) DueAt(now time.Time) []Command {
 	var due []Command
 	for _, book := range p.books {
@@ -219,11 +220,11 @@ func (p Plan) DueAt(now time.Time) []Command {
 				if open, ok := p.opening(book, r); ok {
 					due = append(due, open)
 				}
-			default:
+			case !p.settled(book.ID(), r.id):
 				due = append(due, Command{Action: CloseRound, Book: book.ID(), Round: r.id, At: r.endsAt})
 			}
 		}
-		if book.Window.Ended(now) {
+		if book.Window.Ended(now) && !p.known.books.Contains(book.ID()) {
 			due = append(due, Command{Action: CloseBook, Book: book.ID(), Tiebreak: book.Tiebreak(), At: book.Window.EndsAt})
 		}
 	}
@@ -235,15 +236,32 @@ func (p Plan) DueAt(now time.Time) []Command {
 
 func (p Plan) opening(book Book, r round) (Command, bool) {
 	open := Command{Action: OpenRound, Book: book.ID(), Round: r.id, Times: r.times, At: r.startsAt}
-	if p.arenas.modes == nil {
+	if p.known.modes == nil {
 		return open, true
 	}
-	mode := p.arenas.modes[r.id]
+	mode := p.known.modes[r.id]
 	if (r.battle && mode == 0) || p.Waits(r.startsAt) {
 		return Command{}, false
 	}
 	open.FromNothing = mode == Arena
 	return open, true
+}
+
+// ResetAt is the season that runs at a time and starts on a blank map, once its map may be wiped: scoring answered the
+// book of the season before it, so that season's last round was read on the map before the wipe, and no arena battle
+// before it waits for its map, which would put the old season's map back.
+func (p Plan) ResetAt(at time.Time) (season.Window, bool) {
+	book, ok := p.BookAt(at)
+	running := book.Window
+	if !ok || !running.StartsOnBlankMap() || p.Waits(running.StartsAt) {
+		return season.Window{}, false
+	}
+	for _, before := range p.books {
+		if before.Window.Number+1 == running.Number && !p.known.books.Contains(before.ID()) {
+			return season.Window{}, false
+		}
+	}
+	return running, true
 }
 
 // BookAt is the book of the season that runs at a time.

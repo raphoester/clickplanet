@@ -16,20 +16,23 @@ var _ moments.Store = (*Store)(nil)
 func New() *Store {
 	return &Store{
 		rounds: map[moments.RoundID]moments.ScoredRound{}, books: map[moments.BookID]moments.ClosedBook{},
+		missedRounds: map[moments.RoundID]moments.MissedRound{}, missedBooks: map[moments.BookID]moments.MissedBook{},
 		opened: cpcolls.NewSet[moments.RoundID](), toldSeasons: cpcolls.NewSet[moments.BookID](),
 		toldDays: map[moments.RoundID]time.Time{}, toldBattles: cpcolls.NewSet[moments.RoundID](),
 	}
 }
 
 type Store struct {
-	mu          sync.Mutex
-	rounds      map[moments.RoundID]moments.ScoredRound
-	books       map[moments.BookID]moments.ClosedBook
-	opened      *cpcolls.Set[moments.RoundID]
-	toldSeasons *cpcolls.Set[moments.BookID]
-	toldDays    map[moments.RoundID]time.Time
-	toldBattles *cpcolls.Set[moments.RoundID]
-	failWith    error
+	mu           sync.Mutex
+	rounds       map[moments.RoundID]moments.ScoredRound
+	books        map[moments.BookID]moments.ClosedBook
+	missedRounds map[moments.RoundID]moments.MissedRound
+	missedBooks  map[moments.BookID]moments.MissedBook
+	opened       *cpcolls.Set[moments.RoundID]
+	toldSeasons  *cpcolls.Set[moments.BookID]
+	toldDays     map[moments.RoundID]time.Time
+	toldBattles  *cpcolls.Set[moments.RoundID]
+	failWith     error
 }
 
 func (s *Store) KeepRound(_ context.Context, scored moments.ScoredRound) (bool, error) {
@@ -57,6 +60,34 @@ func (s *Store) KeepBook(_ context.Context, closed moments.ClosedBook) (bool, er
 		return false, nil
 	}
 	s.books[closed.Book] = closed
+	return true, nil
+}
+
+func (s *Store) KeepMissedRound(_ context.Context, missed moments.MissedRound) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return false, s.failWith
+	}
+	if _, ok := s.missedRounds[missed.Round]; ok {
+		return false, nil
+	}
+	s.missedRounds[missed.Round] = missed
+	return true, nil
+}
+
+func (s *Store) KeepMissedBook(_ context.Context, missed moments.MissedBook) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return false, s.failWith
+	}
+	if _, ok := s.missedBooks[missed.Book]; ok {
+		return false, nil
+	}
+	s.missedBooks[missed.Book] = missed
 	return true, nil
 }
 
@@ -113,30 +144,28 @@ func (s *Store) KeepToldBattle(_ context.Context, round moments.RoundID) (bool, 
 	return true, nil
 }
 
-func (s *Store) Opened(context.Context) ([]moments.RoundID, error) {
+func (s *Store) Kept(context.Context) (moments.Kept, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
-		return nil, s.failWith
+		return moments.Kept{}, s.failWith
 	}
-	opened := make([]moments.RoundID, 0, s.opened.Len())
-	s.opened.ForEach(func(round moments.RoundID) { opened = append(opened, round) })
-	return opened, nil
-}
-
-func (s *Store) Scored(context.Context) ([]moments.RoundID, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return nil, s.failWith
-	}
-	scored := make([]moments.RoundID, 0, len(s.rounds))
+	var kept moments.Kept
+	s.opened.ForEach(func(round moments.RoundID) { kept.Opened = append(kept.Opened, round) })
 	for round := range s.rounds {
-		scored = append(scored, round)
+		kept.Scored = append(kept.Scored, round)
 	}
-	return scored, nil
+	for round := range s.missedRounds {
+		kept.MissedRounds = append(kept.MissedRounds, round)
+	}
+	for book := range s.books {
+		kept.Closed = append(kept.Closed, book)
+	}
+	for book := range s.missedBooks {
+		kept.MissedBooks = append(kept.MissedBooks, book)
+	}
+	return kept, nil
 }
 
 func (s *Store) FailWith(err error) {

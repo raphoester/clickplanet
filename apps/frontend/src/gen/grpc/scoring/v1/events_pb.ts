@@ -58,6 +58,52 @@ export class RoundScored extends Message<RoundScored> {
 }
 
 /**
+ * A round was closed that never opened: nothing scores it. Told at each close of it, so whoever closed it waits for no
+ * score.
+ *
+ * @generated from message scoring.v1.RoundMissed
+ */
+export class RoundMissed extends Message<RoundMissed> {
+  /**
+   * @generated from field: string round_id = 1;
+   */
+  roundId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ended_at = 2;
+   */
+  endedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<RoundMissed>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.RoundMissed";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "ended_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoundMissed {
+    return new RoundMissed().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoundMissed {
+    return new RoundMissed().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoundMissed {
+    return new RoundMissed().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoundMissed | PlainMessage<RoundMissed> | undefined, b: RoundMissed | PlainMessage<RoundMissed> | undefined): boolean {
+    return proto3.util.equals(RoundMissed, a, b);
+  }
+}
+
+/**
  * A book was closed.
  *
  * @generated from message scoring.v1.BookClosed
@@ -99,6 +145,51 @@ export class BookClosed extends Message<BookClosed> {
 
   static equals(a: BookClosed | PlainMessage<BookClosed> | undefined, b: BookClosed | PlainMessage<BookClosed> | undefined): boolean {
     return proto3.util.equals(BookClosed, a, b);
+  }
+}
+
+/**
+ * A book was closed that never opened: nothing ranks it. Told at each close of it.
+ *
+ * @generated from message scoring.v1.BookMissed
+ */
+export class BookMissed extends Message<BookMissed> {
+  /**
+   * @generated from field: string book_id = 1;
+   */
+  bookId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ended_at = 2;
+   */
+  endedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<BookMissed>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.BookMissed";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "ended_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BookMissed {
+    return new BookMissed().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BookMissed {
+    return new BookMissed().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BookMissed {
+    return new BookMissed().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BookMissed | PlainMessage<BookMissed> | undefined, b: BookMissed | PlainMessage<BookMissed> | undefined): boolean {
+    return proto3.util.equals(BookMissed, a, b);
   }
 }
 

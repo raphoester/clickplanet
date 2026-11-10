@@ -5,8 +5,6 @@ import (
 	"maps"
 	"slices"
 	"time"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 // Mode is how a battle plays, judged once as it starts.
@@ -35,40 +33,16 @@ type Judgement struct {
 	Mode  Mode
 }
 
-// Arenas is what the gamemaster kept of the arena battles: each battle judged, each round scored, and each
-// arena planet closed. The zero Arenas knows none: a plan with it opens every round on time and waits for nothing, as a
-// read of the plan needs.
-type Arenas struct {
-	modes  map[RoundID]Mode
-	scored *cpcolls.Set[RoundID]
-	closed *cpcolls.Set[RoundID]
-}
-
-func NewArenas(judged []Judgement, scored, closed []RoundID) Arenas {
-	known := Arenas{modes: map[RoundID]Mode{}, scored: cpcolls.NewSet(scored...), closed: cpcolls.NewSet(closed...)}
-	for _, judgement := range judged {
-		known.modes[judgement.Round] = judgement.Mode
-	}
-	return known
-}
-
-// With is the plan that knows the arena battles: a battle's round opens once it is judged, and what comes after an arena battle
-// waits for its arena to close.
-func (p Plan) With(arenas Arenas) Plan {
-	p.arenas = arenas
-	return p
-}
-
 // Judged is the plan that knows these battles judged too; a plan that knows no arena battles stays so.
 func (p Plan) Judged(judgements ...Judgement) Plan {
-	if p.arenas.modes == nil || len(judgements) == 0 {
+	if p.known.modes == nil || len(judgements) == 0 {
 		return p
 	}
-	modes := maps.Clone(p.arenas.modes)
+	modes := maps.Clone(p.known.modes)
 	for _, judgement := range judgements {
 		modes[judgement.Round] = judgement.Mode
 	}
-	p.arenas.modes = modes
+	p.known.modes = modes
 	return p
 }
 
@@ -78,7 +52,7 @@ func (p Plan) Waits(at time.Time) bool {
 	for _, book := range p.books {
 		for _, battle := range book.Battles {
 			round := battle.Round()
-			if p.arenas.modes[round] == Arena && !battle.EndsAt.After(at) && !p.arenas.closed.Contains(round) {
+			if p.known.modes[round] == Arena && !battle.EndsAt.After(at) && !p.known.closed.Contains(round) {
 				return true
 			}
 		}
@@ -89,7 +63,7 @@ func (p Plan) Waits(at time.Time) bool {
 // Unjudged is the battle that runs at a time and has no mode yet.
 func (p Plan) Unjudged(at time.Time) (Battle, bool) {
 	battle, ok := p.BattleAt(at)
-	if !ok || p.arenas.modes[battle.Round()] != 0 {
+	if !ok || p.known.modes[battle.Round()] != 0 {
 		return Battle{}, false
 	}
 	return battle, true
@@ -147,7 +121,7 @@ type ArenaCommand struct {
 	EndsAt time.Time
 }
 
-// ArenaKey is a command's identity: each is sent once per process.
+// ArenaKey is a command's identity: an open is sent once per process, a close again until planet answers it.
 type ArenaKey struct {
 	Action ArenaAction
 	Arena  RoundID
@@ -155,23 +129,27 @@ type ArenaKey struct {
 
 func (c ArenaCommand) Key() ArenaKey { return ArenaKey{Action: c.Action, Arena: c.Arena} }
 
-// ArenasDueAt is every arena command whose time has come. An arena opens while its battle runs, once the round before
-// it is scored on the map as it is and no arena battle before it waits for its map; it closes once the arena battle ended and its
-// round is scored on the arena. A close is sent until planet tells the arena closed.
+// Closes is true for the command planet answers with a fact: it is sent again until the fact comes.
+func (a ArenaAction) Closes() bool { return a == CloseArena }
+
+// ArenasDueAt is every arena command whose time has come. An arena opens while its battle runs, once scoring answered
+// the round before it, scored on the map as it is or missed, and no arena battle before it waits for its map; it closes
+// once the arena battle ended and scoring answered its round, scored on the arena or missed. A close is due until planet
+// tells the arena closed.
 func (p Plan) ArenasDueAt(now time.Time) []ArenaCommand {
 	var due []ArenaCommand
 	for _, book := range p.books {
 		for _, battle := range book.Battles {
 			round := battle.Round()
-			if p.arenas.modes[round] != Arena || p.arenas.closed.Contains(round) {
+			if p.known.modes[round] != Arena || p.known.closed.Contains(round) {
 				continue
 			}
 			switch {
 			case battle.runs(now):
-				if before, ok := p.roundBefore(battle); ok && p.arenas.scored.Contains(before.id) && !p.Waits(battle.StartsAt) {
+				if before, ok := p.roundBefore(battle); ok && p.settled(book.ID(), before.id) && !p.Waits(battle.StartsAt) {
 					due = append(due, ArenaCommand{Action: OpenArena, Arena: round, At: battle.StartsAt, EndsAt: battle.EndsAt})
 				}
-			case !now.Before(battle.EndsAt) && p.arenas.scored.Contains(round):
+			case !now.Before(battle.EndsAt) && p.settled(book.ID(), round):
 				due = append(due, ArenaCommand{Action: CloseArena, Arena: round, At: battle.EndsAt, EndsAt: battle.EndsAt})
 			}
 		}

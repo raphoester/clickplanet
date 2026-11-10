@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -40,16 +41,41 @@ var (
 )
 
 type commanded struct {
-	sent []moments.Command
-	err  error
+	t      *testing.T
+	kept   *inmemory_moment_store.Store
+	sent   []moments.Command
+	err    error
+	silent bool
 }
 
-func (c *commanded) Send(_ context.Context, command moments.Command) error {
+func (c *commanded) Send(ctx context.Context, command moments.Command) error {
 	if c.err != nil {
 		return c.err
 	}
 	c.sent = append(c.sent, command)
+	if !c.silent {
+		c.answer(ctx, command)
+	}
 	return nil
+}
+
+func (c *commanded) answer(ctx context.Context, command moments.Command) {
+	c.t.Helper()
+	kept, err := c.kept.Kept(ctx)
+	require.NoError(c.t, err)
+	var answered error
+	switch command.Action {
+	case moments.CloseRound:
+		if slices.Contains(kept.Opened, command.Round) {
+			_, answered = c.kept.KeepRound(ctx, moments.ScoredRound{Round: command.Round, Book: command.Book, EndedAt: command.At})
+		} else {
+			_, answered = c.kept.KeepMissedRound(ctx, moments.MissedRound{Round: command.Round, EndedAt: command.At})
+		}
+	case moments.CloseBook:
+		_, answered = c.kept.KeepBook(ctx, moments.ClosedBook{Book: command.Book, EndedAt: command.At})
+	case moments.OpenBook, moments.OpenRound:
+	}
+	require.NoError(c.t, answered)
 }
 
 type harness struct {
@@ -98,9 +124,9 @@ func (h *harness) noFinale() {
 }
 
 func (h *harness) boot() {
-	h.commands = &commanded{}
+	h.commands = &commanded{t: h.t, kept: h.opened}
 	h.planner = moments.NewPlanner(h.seasons, h.entries, h.opened, h.judged, cutoff)
-	h.useCase = play_scoring_usecase.New(h.opened, h.commands, h.clock)
+	h.useCase = play_scoring_usecase.New(h.opened, h.commands, h.clock, time.Minute)
 }
 
 func (h *harness) plan() moments.Plan {
@@ -159,17 +185,37 @@ func TestTheFinalBattleNightIsCommandedInOrderAndOnce(t *testing.T) {
 
 	h.at(seasonZeroEnds.Add(5 * time.Minute))
 	h.boot()
-	rebooted := h.execute()
+	assert.Empty(t, h.execute(), "a boot after the end sends nothing: scoring answered each close")
+}
 
-	closes := make([]moments.Command, 0, 26)
-	for n := 1; n <= 24; n++ {
-		closes = append(closes, closeDay(n))
+func TestABootAfterASeasonWhoseBookClosedSendsNothing(t *testing.T) {
+	h := newHarness(t, seasonZeroEnds.Add(10*day))
+	_, err := h.opened.KeepBook(t.Context(), moments.ClosedBook{Book: book, EndedAt: seasonZeroEnds})
+	require.NoError(t, err)
+
+	assert.Empty(t, h.execute())
+}
+
+func TestACloseIsSentAgainEachMinuteUntilScoringAnswersIt(t *testing.T) {
+	h := newHarness(t, seasonZeroEnds.Add(-time.Second))
+	h.execute()
+	h.commands.silent = true
+	closes := []moments.Command{
+		{Action: moments.CloseRound, Book: book, Round: battle, At: seasonZeroEnds},
+		{Action: moments.CloseBook, Book: book, Tiebreak: battle, At: seasonZeroEnds},
 	}
-	closes = append(closes,
-		moments.Command{Action: moments.CloseRound, Book: book, Round: battle, At: seasonZeroEnds},
-		moments.Command{Action: moments.CloseBook, Book: book, Tiebreak: battle, At: seasonZeroEnds},
-	)
-	assert.Equal(t, closes, rebooted, "a boot after the end closes what ended again, and opens nothing")
+
+	h.at(seasonZeroEnds)
+	assert.Equal(t, closes, h.execute())
+	h.at(seasonZeroEnds.Add(59 * time.Second))
+	assert.Empty(t, h.execute())
+	h.at(seasonZeroEnds.Add(time.Minute))
+	assert.Equal(t, closes, h.execute(), "no answer came: sent again, in order")
+
+	h.commands.answer(t.Context(), closes[0])
+	h.commands.answer(t.Context(), closes[1])
+	h.at(seasonZeroEnds.Add(5 * time.Minute))
+	assert.Empty(t, h.execute(), "scoring answered both")
 }
 
 func TestABootMidDayOpensTheBookAndTheRunningDay(t *testing.T) {
@@ -229,16 +275,17 @@ func TestADayThatOpenedRunsToASeasonEndMovedBeforeItsCutoff(t *testing.T) {
 	h.at(end.Add(-time.Second))
 	assert.Empty(t, h.execute(), "day 13 runs on")
 
+	h.commands.silent = true
 	h.at(end)
-	assert.Equal(t, []moments.Command{
+	closes := []moments.Command{
 		{Action: moments.CloseRound, Book: book, Round: dayRound(13), At: end},
 		{Action: moments.CloseBook, Book: book, At: end},
-	}, h.execute(), "the day is cut at the season's end; with no finale, no round breaks a tie")
+	}
+	assert.Equal(t, closes, h.execute(), "the day is cut at the season's end; with no finale, no round breaks a tie")
 
 	h.boot()
-	sent := h.execute()
-	assert.Equal(t, moments.Command{Action: moments.CloseRound, Book: book, Round: dayRound(13), At: end}, sent[len(sent)-2],
-		"a boot after it remembers the day opened")
+	h.commands.silent = true
+	assert.Equal(t, closes, h.execute(), "a boot before scoring answered remembers the day opened")
 }
 
 func TestABattleEntryRunningWhenTheSeasonEndMovesIsCutAtTheNewEndAndIsNoFinale(t *testing.T) {

@@ -39,20 +39,6 @@ func (s *Store) KeepJudged(_ context.Context, judgement moments.Judgement) (bool
 	return true, nil
 }
 
-func (s *Store) Judged(context.Context) ([]moments.Judgement, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return nil, s.failWith
-	}
-	judged := make([]moments.Judgement, 0, len(s.modes))
-	for round, mode := range s.modes {
-		judged = append(judged, moments.Judgement{Round: round, Mode: mode})
-	}
-	return judged, nil
-}
-
 func (s *Store) KeepClosed(_ context.Context, arena moments.RoundID) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -67,16 +53,19 @@ func (s *Store) KeepClosed(_ context.Context, arena moments.RoundID) (bool, erro
 	return true, nil
 }
 
-func (s *Store) Closed(context.Context) ([]moments.RoundID, error) {
+func (s *Store) ArenasKept(context.Context) (moments.ArenasKept, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
-		return nil, s.failWith
+		return moments.ArenasKept{}, s.failWith
 	}
-	closed := make([]moments.RoundID, 0, s.closed.Len())
-	s.closed.ForEach(func(arena moments.RoundID) { closed = append(closed, arena) })
-	return closed, nil
+	var kept moments.ArenasKept
+	for round, mode := range s.modes {
+		kept.Judged = append(kept.Judged, moments.Judgement{Round: round, Mode: mode})
+	}
+	s.closed.ForEach(func(arena moments.RoundID) { kept.Closed = append(kept.Closed, arena) })
+	return kept, nil
 }
 
 func (s *Store) FailWith(err error) {

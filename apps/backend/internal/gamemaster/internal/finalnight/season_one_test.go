@@ -40,11 +40,22 @@ func (r *resetsTold) Reset(_ context.Context, starts season.Window) error {
 }
 
 type scoringTold struct {
+	t        *testing.T
+	kept     *inmemory_moment_store.Store
 	commands []moments.Command
 }
 
-func (s *scoringTold) Send(_ context.Context, command moments.Command) error {
+func (s *scoringTold) Send(ctx context.Context, command moments.Command) error {
 	s.commands = append(s.commands, command)
+	var err error
+	switch command.Action {
+	case moments.CloseRound:
+		_, err = s.kept.KeepRound(ctx, moments.ScoredRound{Round: command.Round, Book: command.Book, EndedAt: command.At})
+	case moments.CloseBook:
+		_, err = s.kept.KeepBook(ctx, moments.ClosedBook{Book: command.Book, EndedAt: command.At})
+	case moments.OpenBook, moments.OpenRound:
+	}
+	require.NoError(s.t, err)
 	return nil
 }
 
@@ -58,14 +69,14 @@ func TestTheMapIsFrozenOverTheBreakAndResetAsSeasonOneStarts(t *testing.T) {
 		Priority: 1, MadeAt: seasonEnds.Add(-24 * time.Hour),
 	}.Restore()))
 
-	modules, planet, scoring := &planetAndAntibot{}, &resetsTold{}, &scoringTold{}
+	modules, planet, scoring := &planetAndAntibot{}, &resetsTold{}, &scoringTold{t: t, kept: kept}
 	judged := inmemory_arena_store.New()
 	boot := func() (*play_schedule_usecase.UseCase, *play_plan_usecase.UseCase) {
-		return play_schedule_usecase.New(entries, seasons, modules, clock), play_plan_usecase.New(
+		return play_schedule_usecase.New(entries, seasons, modules, clock, time.Minute), play_plan_usecase.New(
 			moments.NewPlanner(seasons, entries, kept, judged, season.Cutoff(21*time.Hour)),
 			play_resets_usecase.New(planet, clock),
-			play_arenas_usecase.New(judged, rulesOf{}, &arenaCommands{}, clock),
-			play_scoring_usecase.New(kept, scoring, clock),
+			play_arenas_usecase.New(judged, rulesOf{}, &arenaCommands{}, clock, time.Minute),
+			play_scoring_usecase.New(kept, scoring, clock, time.Minute),
 			tell_starts_usecase.New(kept, outbox_moment_events.New(&cpatomic.FakeOutbox{}), cpatomic.FakeTransactioner{}, clock))
 	}
 	rules, plan := boot()

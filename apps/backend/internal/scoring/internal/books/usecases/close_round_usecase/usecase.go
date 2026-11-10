@@ -38,12 +38,18 @@ func New(transactioner cpatomic.Transactioner, territory Territory, rounds Round
 	return &UseCase{transactioner: transactioner, territory: territory, rounds: rounds, outbox: outbox}
 }
 
-// Execute scores the round from the map now, and answers whether it did: a round never opened, or scored before, is
-// not scored.
+// Execute scores the round from the map now, and answers whether it did: a round scored before is not scored again,
+// and one never opened is not scored and is told missed, at each close of it.
 func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	round, found, err := u.rounds.Find(ctx, command.Round)
-	if err != nil || !found || round.Scored {
+	if err != nil {
 		return false, err //nolint:wrapcheck // the store says what failed.
+	}
+	if !found {
+		return false, u.miss(ctx, command)
+	}
+	if round.Scored {
+		return false, nil
 	}
 	start, err := u.rounds.StartOf(ctx, command.Round)
 	if err != nil {
@@ -69,6 +75,16 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 		return false, err //nolint:wrapcheck // each step named what failed.
 	}
 	return done, nil
+}
+
+func (u *UseCase) miss(ctx context.Context, command Command) error {
+	missed := &scoringv1.RoundMissed{RoundId: string(command.Round), EndedAt: timestamppb.New(command.EndsAt)}
+	return u.transactioner.InTx(ctx, func(ctx context.Context) error { //nolint:wrapcheck // the outbox names the event.
+		if err := u.outbox.Record(ctx, missed); err != nil {
+			return fmt.Errorf("failed to record round %s missed: %w", command.Round, err)
+		}
+		return nil
+	})
 }
 
 func eventOf(scored books.Scored) *scoringv1.RoundScored {

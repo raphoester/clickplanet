@@ -3,10 +3,10 @@ package play_arenas_usecase
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -33,20 +33,24 @@ type Executor interface {
 	Execute(ctx context.Context, plan moments.Plan) (Tick, error)
 }
 
-func New(judged Judged, planet Planet, commands Commands, clock cptime.Clock) *UseCase {
-	return &UseCase{judged: judged, planet: planet, commands: commands, clock: clock, sent: cpcolls.NewSet[moments.ArenaKey]()}
+func New(judged Judged, planet Planet, commands Commands, clock cptime.Clock, again time.Duration) *UseCase {
+	return &UseCase{
+		judged: judged, planet: planet, commands: commands, clock: clock, again: again, sent: map[moments.ArenaKey]time.Time{},
+	}
 }
 
-// UseCase judges the battle that runs, once, and sends each arena command whose time has come, once per process and in
-// order: a command Redis refused stops the tick, and it and every one after it go at the next Execute. Planet keeps
-// each arena, so a boot that sends them again changes nothing.
+// UseCase judges the battle that runs, once, and sends each arena command the plan says is due, in order: an open once
+// per process, and a close again each `again` until planet tells the arena closed. A command Redis refused stops the
+// tick, and it and every one after it go at the next Execute. Planet keeps each arena, so a boot that sends them again
+// changes nothing.
 type UseCase struct {
 	judged   Judged
 	planet   Planet
 	commands Commands
 	clock    cptime.Clock
+	again    time.Duration
 
-	sent *cpcolls.Set[moments.ArenaKey]
+	sent map[moments.ArenaKey]time.Time
 }
 
 var _ Executor = (*UseCase)(nil)
@@ -69,13 +73,13 @@ func (u *UseCase) Execute(ctx context.Context, plan moments.Plan) (Tick, error) 
 	}
 
 	for _, command := range plan.ArenasDueAt(now) {
-		if u.sent.Contains(command.Key()) {
+		if last, ok := u.sent[command.Key()]; ok && (!command.Action.Closes() || now.Sub(last) < u.again) {
 			continue
 		}
 		if err := u.commands.Send(ctx, command); err != nil {
 			return tick, err //nolint:wrapcheck // the adapter names the arena.
 		}
-		u.sent.Add(command.Key())
+		u.sent[command.Key()] = now
 		tick.Sent = append(tick.Sent, command)
 	}
 	return tick, nil

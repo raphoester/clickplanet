@@ -80,7 +80,7 @@ func newHarness(t *testing.T, set schedule.SetName) *harness {
 }
 
 func (h *harness) boot() {
-	h.useCase = play_arenas_usecase.New(h.judged, h.planet, h.sent, h.clock)
+	h.useCase = play_arenas_usecase.New(h.judged, h.planet, h.sent, h.clock, time.Minute)
 }
 
 func (h *harness) execute(t *testing.T) (play_arenas_usecase.Tick, error) {
@@ -135,7 +135,7 @@ func TestAPlanetThatCannotSayJudgesNothingAndIsAskedAgain(t *testing.T) {
 	assert.Equal(t, []moments.Judgement{{Round: fought, Mode: moments.Arena}}, tick.Judged)
 }
 
-func TestTheArenaOpensOnceAndClosesOncePerProcessAndAgainAfterABoot(t *testing.T) {
+func TestTheArenaOpensOnceAndClosesUntilPlanetTellsItClosed(t *testing.T) {
 	h := newHarness(t, "arena-battle")
 	_, err := h.execute(t)
 	require.NoError(t, err)
@@ -157,10 +157,39 @@ func TestTheArenaOpensOnceAndClosesOncePerProcessAndAgainAfterABoot(t *testing.T
 	closing := moments.ArenaCommand{Action: moments.CloseArena, Arena: fought, At: ends, EndsAt: ends}
 	assert.Equal(t, []moments.ArenaCommand{open, closing}, h.sent.commands)
 
+	h.clock.Advance(59 * time.Second)
+	_, err = h.execute(t)
+	require.NoError(t, err)
+	h.clock.Advance(time.Second)
+	_, err = h.execute(t)
+	require.NoError(t, err)
+	assert.Equal(t, []moments.ArenaCommand{open, closing, closing}, h.sent.commands, "no answer for a minute: sent again")
+
 	h.boot()
 	_, err = h.execute(t)
 	require.NoError(t, err)
-	assert.Equal(t, []moments.ArenaCommand{open, closing, closing}, h.sent.commands, "a boot closes again until planet tells it")
+	assert.Equal(t, []moments.ArenaCommand{open, closing, closing, closing}, h.sent.commands, "a boot closes again")
+
+	_, err = h.judged.KeepClosed(t.Context(), fought)
+	require.NoError(t, err)
+	h.clock.Advance(time.Hour)
+	_, err = h.execute(t)
+	require.NoError(t, err)
+	assert.Len(t, h.sent.commands, 4, "planet told it closed")
+}
+
+func TestAnArenaWhoseRoundScoringMissedCloses(t *testing.T) {
+	h := newHarness(t, "arena-battle")
+	_, err := h.execute(t)
+	require.NoError(t, err)
+
+	h.clock.Advance(ends.Sub(h.clock.Now()))
+	_, err = h.kept.KeepMissedRound(t.Context(), moments.MissedRound{Round: fought, EndedAt: ends})
+	require.NoError(t, err)
+	_, err = h.execute(t)
+	require.NoError(t, err)
+
+	assert.Equal(t, []moments.ArenaCommand{{Action: moments.CloseArena, Arena: fought, At: ends, EndsAt: ends}}, h.sent.commands)
 }
 
 func TestACommandRedisRefusedIsSentAgain(t *testing.T) {
