@@ -281,12 +281,12 @@ func (x *Saga) GetContenders() []*Contender {
 	return nil
 }
 
-// A flag holding a tenth of a place or more, from the first hour it did to the last.
+// A flag holding a tenth of a place or more, from the first hour it did.
 type Contender struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Flag  string                 `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
 	Since *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=since,proto3" json:"since,omitempty"`
-	// Unset while it still holds a tenth.
+	// When it fell under a tenth for the last time; unset while it still holds a tenth.
 	Until *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=until,proto3" json:"until,omitempty"`
 	// The most of the place it held, and its share at the end.
 	Peak          float64 `protobuf:"fixed64,4,opt,name=peak,proto3" json:"peak,omitempty"`

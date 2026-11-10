@@ -228,7 +228,7 @@ export class Saga extends Message<Saga> {
 }
 
 /**
- * A flag holding a tenth of a place or more, from the first hour it did to the last.
+ * A flag holding a tenth of a place or more, from the first hour it did.
  *
  * @generated from message clips.v1.Contender
  */
@@ -244,7 +244,7 @@ export class Contender extends Message<Contender> {
   since?: Timestamp;
 
   /**
-   * Unset while it still holds a tenth.
+   * When it fell under a tenth for the last time; unset while it still holds a tenth.
    *
    * @generated from field: google.protobuf.Timestamp until = 3;
    */
