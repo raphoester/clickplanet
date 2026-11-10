@@ -23,13 +23,13 @@ that listener (`props.AdminHTTP`), not admin services, so they are outside the g
   `deprecated = true` (its replacement is a tool already), and the hidden list in `internal/mcp/module.go`:
   - reads too big for a tool's answer: `planet` `GetReplay` (megabytes for a day), `GetLedger` (72 h of every act,
     page by page: a 24 h poll of it once pushed the box into swap) and `GetTerritories` (every tile of every country);
-  - the clips job's writes, which only the job calls over ssh: `clips` `KeepSnapshot`, `MakeCast` and
-    `KeepAppearance`;
+  - the clips job's writes, which only the job calls over ssh: `clips` `MakeCast` and `KeepAppearance`;
   - the posting of a job's video, which only a job calls over ssh: `publishing` `CreateMediaUpload` (a link to send
     a file to, which a tool has no file to send) and `SchedulePost` (a public post on TikTok and YouTube, at a slot
     `PlanPost` gave), and `promo` `PostTeaser` (a battle's teaser posted, which only the teasers job calls, with the
-    files it uploaded). `publishing` `GetRoom`, `PlanPost` and `ListPosts` stay: what each platform has left today,
-    when a post would go out, and what was posted; and `promo` `ListDueTeasers`, the battles whose teaser is due.
+    files it uploaded). `publishing` `GetRoom`, `PlanPost`, `ListPosts`, `ListSnapshots` and `ListRows` stay: what
+    each platform has left today, when a post would go out, what was posted and its numbers; and `promo`
+    `ListDueTeasers`, the battles whose teaser is due.
 - `tools_test.go` fails on an admin method with no comment, and on an embedded set that does not match the
   generated code.
 - **The server does not decide what Claude may do without asking.** `readOnlyHint` is a hint: the operator sets the

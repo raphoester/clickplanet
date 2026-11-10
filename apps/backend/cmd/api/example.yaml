@@ -381,8 +381,7 @@ alerts:
     alertsChannelId: ""
     battlesChannelId: ""
 
-# The numbers of the clips the clips job posted: `clips stats` sends a snapshot a day over ssh, the backoffice reads them.
-# And who each clip names: `clips fetch` makes a run's cast, `clips schedule` keeps who each post names.
+# Who each clip names: `clips fetch` makes a run's cast, `clips schedule` keeps who each post names.
 clips:
   database:
     host: localhost
@@ -446,11 +445,14 @@ promo:
 # The connector's MCP endpoint, on the admin listener: every admin method is a tool. The url's origin is the
 # authorization server's, so auth.connector.issuer must be that origin (http://localhost:8083/mcp).
 # The game's posts on its own TikTok and YouTube, through Zernio: how many each platform takes in a day, when each post
-# goes out, and the posts already there. The jobs that post ask it on the console listener. No key: every call is
-# refused, and the rest of the server runs.
+# goes out, and the posts already there, and a snapshot a day of their numbers. The clips job asks it on the console
+# listener, promo on the internal one. No key: every call is refused, and the rest of the server runs. No database
+# host: no snapshot, and posting still works.
 publishing:
   zernio:
     apiKey: ""
+  database:
+    host: ""
 
 mcp:
   enabled: false

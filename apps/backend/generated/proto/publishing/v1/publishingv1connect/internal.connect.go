@@ -42,6 +42,9 @@ const (
 	// InternalServiceListPostsProcedure is the fully-qualified name of the InternalService's ListPosts
 	// RPC.
 	InternalServiceListPostsProcedure = "/publishing.v1.InternalService/ListPosts"
+	// InternalServiceGetPostLinksProcedure is the fully-qualified name of the InternalService's
+	// GetPostLinks RPC.
+	InternalServiceGetPostLinksProcedure = "/publishing.v1.InternalService/GetPostLinks"
 )
 
 // InternalServiceClient is a client for the publishing.v1.InternalService service.
@@ -52,6 +55,9 @@ type InternalServiceClient interface {
 	SchedulePost(context.Context, *connect.Request[v1.SchedulePostRequest]) (*connect.Response[v1.SchedulePostResponse], error)
 	// Every post on the service scheduled since the day of since, with its metadata: AdminService.ListPosts.
 	ListPosts(context.Context, *connect.Request[v1.ListPostsRequest]) (*connect.Response[v1.ListPostsResponse], error)
+	// Each post's address on each platform, as the newest daily snapshot that has one read it: for the clips module, which
+	// tells a player the posts that name it. A post no snapshot read yet has none. Empty while the posts' numbers are off.
+	GetPostLinks(context.Context, *connect.Request[v1.GetPostLinksRequest]) (*connect.Response[v1.GetPostLinksResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the publishing.v1.InternalService service. By
@@ -85,6 +91,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getPostLinks: connect.NewClient[v1.GetPostLinksRequest, v1.GetPostLinksResponse](
+			httpClient,
+			baseURL+InternalServiceGetPostLinksProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetPostLinks")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -93,6 +106,7 @@ type internalServiceClient struct {
 	planPost     *connect.Client[v1.PlanPostRequest, v1.PlanPostResponse]
 	schedulePost *connect.Client[v1.SchedulePostRequest, v1.SchedulePostResponse]
 	listPosts    *connect.Client[v1.ListPostsRequest, v1.ListPostsResponse]
+	getPostLinks *connect.Client[v1.GetPostLinksRequest, v1.GetPostLinksResponse]
 }
 
 // PlanPost calls publishing.v1.InternalService.PlanPost.
@@ -110,6 +124,11 @@ func (c *internalServiceClient) ListPosts(ctx context.Context, req *connect.Requ
 	return c.listPosts.CallUnary(ctx, req)
 }
 
+// GetPostLinks calls publishing.v1.InternalService.GetPostLinks.
+func (c *internalServiceClient) GetPostLinks(ctx context.Context, req *connect.Request[v1.GetPostLinksRequest]) (*connect.Response[v1.GetPostLinksResponse], error) {
+	return c.getPostLinks.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the publishing.v1.InternalService service.
 type InternalServiceHandler interface {
 	// The slot a post on these platforms would take: AdminService.PlanPost.
@@ -118,6 +137,9 @@ type InternalServiceHandler interface {
 	SchedulePost(context.Context, *connect.Request[v1.SchedulePostRequest]) (*connect.Response[v1.SchedulePostResponse], error)
 	// Every post on the service scheduled since the day of since, with its metadata: AdminService.ListPosts.
 	ListPosts(context.Context, *connect.Request[v1.ListPostsRequest]) (*connect.Response[v1.ListPostsResponse], error)
+	// Each post's address on each platform, as the newest daily snapshot that has one read it: for the clips module, which
+	// tells a player the posts that name it. A post no snapshot read yet has none. Empty while the posts' numbers are off.
+	GetPostLinks(context.Context, *connect.Request[v1.GetPostLinksRequest]) (*connect.Response[v1.GetPostLinksResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -147,6 +169,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetPostLinksHandler := connect.NewUnaryHandler(
+		InternalServiceGetPostLinksProcedure,
+		svc.GetPostLinks,
+		connect.WithSchema(internalServiceMethods.ByName("GetPostLinks")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/publishing.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServicePlanPostProcedure:
@@ -155,6 +184,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceSchedulePostHandler.ServeHTTP(w, r)
 		case InternalServiceListPostsProcedure:
 			internalServiceListPostsHandler.ServeHTTP(w, r)
+		case InternalServiceGetPostLinksProcedure:
+			internalServiceGetPostLinksHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -174,4 +205,8 @@ func (UnimplementedInternalServiceHandler) SchedulePost(context.Context, *connec
 
 func (UnimplementedInternalServiceHandler) ListPosts(context.Context, *connect.Request[v1.ListPostsRequest]) (*connect.Response[v1.ListPostsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("publishing.v1.InternalService.ListPosts is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetPostLinks(context.Context, *connect.Request[v1.GetPostLinksRequest]) (*connect.Response[v1.GetPostLinksResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("publishing.v1.InternalService.GetPostLinks is not implemented"))
 }

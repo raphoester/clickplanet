@@ -137,7 +137,10 @@ and says what is in it. Read the doc before you change its area.
   job keeps (an hour apart, 3 a trailing day on TikTok from 14:00 to 20:00 UTC, 12 on YouTube from 07:00 to 23:00), a
   post scheduled ahead held as a reservation, the upload link that keeps every video off the server, `PlanPost` (with
   `by`, a slot that waits for every platform) and `SchedulePost` under one lock and its outcomes (scheduled, busy, taken, failed); a TikTok carousel of photos in place
-  of the video; the same calls on an `InternalService` for promo; no table, Zernio's list is the record.
+  of the video; the same calls on an `InternalService` for promo; no table of posts, Zernio's list is the record.
+- [The posts' numbers](docs/post-stats.md) — a snapshot a day of every post, taken by the publishing module in the
+  server from 08:17 UTC (`ListSnapshots`, `ListRows`), each address for the clips (`GetPostLinks`); the copy of the
+  clips module's snapshots.
 - [Support](docs/support.md) — suggestions, bug reports and player reports, with their photos and videos; each
   report told to the chat's judge (`PlayerReported`) and closed by its command (`DecideReport`).
 - [Discord pings](docs/alerts.md) — a Discord sign-in joins the game's server, with its flag's role and its username
@@ -145,7 +148,6 @@ and says what is in it. Read the doc before you change its area.
   when its flag is attacked, with a link that opens the globe on the attack, and `@everyone` when a battle or a season
   starts; the operator's unlink; `LinkMembers`, which links the players in the server no sign-in linked and names
   every member; off by default.
-- [Clip stats](docs/clip-stats.md) — where the posted clips' daily numbers are kept, for the backoffice.
 - [Clip videos](docs/clip-videos.md) — the videos the operator posts by hand: uploaded and downloaded on the backoffice,
   the files in the bucket under `clips/videos/`, a row each in `clips.videos`.
 - [The players a clip names](docs/clip-appearances.md) — a run's cast, numbers and names and never an account; who

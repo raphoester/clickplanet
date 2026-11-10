@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {csvOf, FIXED_COLUMNS, tableOf} from "./table.ts"
 
-// A row as `clips stats` writes it, as the backend's jsonb gives it back.
+// A row as the server's snapshot writes it, as the backend's jsonb gives it back.
 const tiktok = JSON.stringify({
     version: 1, takenAt: "2026-10-24T05:41:07Z", postId: "post-1", platform: "tiktok", accountId: "tt-1",
     platformPostId: "75", url: "https://www.tiktok.com/@x/video/75", publishedAt: "2026-10-22T16:40:03Z", ageHours: 36.02,

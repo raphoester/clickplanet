@@ -104,19 +104,21 @@ import {
     CreateVideoUploadResponse,
     KeepVideoRequest,
     KeepVideoResponse,
-    ListRowsRequest,
-    ListRowsResponse,
-    ListSnapshotsRequest,
-    ListSnapshotsResponse,
     ListVideosRequest,
     ListVideosResponse,
     RemoveVideoRequest,
     RemoveVideoResponse,
+    Video,
+} from "./gen/grpc/clips/v1/admin_pb.ts"
+import {
+    ListRowsRequest,
+    ListRowsResponse,
+    ListSnapshotsRequest,
+    ListSnapshotsResponse,
     StatsRow,
     StatsSnapshot,
     TikTokAccount,
-    Video,
-} from "./gen/grpc/clips/v1/admin_pb.ts"
+} from "./gen/grpc/publishing/v1/admin_pb.ts"
 import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
 import {GetLedgerRequest, GetLedgerResponse, LedgerChange} from "./gen/grpc/planet/v1/ledger_pb.ts"
 import {
@@ -421,6 +423,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return {
             alerts: this.alerts, antibot: this.antibot, chat: this, planet: this, player: this, progression: this.progression,
             gamemaster: this.gamemaster, missions: this.missions, support: this, clips: this, promo: this.promo,
+            publishing: this,
         }
     }
 

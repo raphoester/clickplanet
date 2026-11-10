@@ -32,11 +32,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_round_usecase/log_fetch_round"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_turn_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_turn_usecase/log_fetch_turn"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/ssh_stats_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/usecases/take_snapshot_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/usecases/take_snapshot_usecase/log_take_snapshot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/zernio_source"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -57,7 +52,6 @@ type (
 	Report          = posts.Report
 	Outcome         = posts.Outcome
 	PlatformOutcome = posts.PlatformOutcome
-	StatsReport     = stats.Report
 )
 
 type Config struct {
@@ -68,17 +62,12 @@ type Config struct {
 	Review time.Duration
 	// Each clip is one post on all of them that have room left in their day.
 	Platforms []Platform
-	// The posts a snapshot of their numbers reads: those scheduled since then. Zero is the last 4 weeks.
-	StatsSince time.Time
-
-	// The snapshot's alone: the posts go through the server's publishing module.
-	Zernio zernio_source.Config
 	// The editor's. No key is no editor: every run is its seasonal stories alone, and says why.
 	Anthropic cpanthropic.Config
 }
 
 type ReplayConfig struct {
-	// user@host of the machine the backend runs on: where the replay is asked, and the snapshots of stats kept.
+	// user@host of the machine the backend runs on: where the replay is asked, and each post planned and made.
 	SSH  string
 	Span time.Duration
 	// Zero is now.
@@ -94,7 +83,6 @@ const (
 
 	// A 22s clip is about 80 MB to upload, straight to the posting service's storage.
 	uploadTimeout = 10 * time.Minute
-	statsTimeout  = time.Minute
 )
 
 var (
@@ -307,24 +295,4 @@ func Schedule(ctx context.Context, folder string, config Config, clock cptime.Cl
 	}
 	log_keep_appearances.New(keep_appearances_usecase.New(appearances), logger).Execute(ctx, report)
 	return report, nil
-}
-
-// Keeps a snapshot of the numbers of every post of the job in the backend's postgres, over ssh, with what each post
-// was. A post that could not be read is in the report, not the error: the error is for a snapshot that could not be
-// taken or kept at all.
-func Stats(ctx context.Context, config Config, logger *slog.Logger) (StatsReport, error) {
-	source, err := zernio_source.New(config.Zernio, &http.Client{Timeout: statsTimeout})
-	if err != nil {
-		return StatsReport{}, fmt.Errorf("failed to build the posting service: %w", err)
-	}
-	store, err := ssh_stats_store.New(config.Replay.SSH, ssh_stats_store.OpenSSH)
-	if err != nil {
-		return StatsReport{}, fmt.Errorf("failed to build the store of the snapshots: %w", err)
-	}
-
-	snapshot := log_take_snapshot.New(take_snapshot_usecase.New(
-		source, store, cptime.SystemClock{}, config.StatsSince, defaultBackoff, posts.SystemPause{},
-	), logger)
-
-	return snapshot.Execute(ctx)
 }

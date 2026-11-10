@@ -299,3 +299,20 @@ func TestABaseURLThatIsNoHTTPAddressIsRefused(t *testing.T) {
 
 	assert.ErrorContains(t, publishing.Config{Zernio: publishing.ZernioConfig{BaseURL: "zernio.com"}}.Validate(), "publishing.zernio.baseURL")
 }
+
+func TestWithNoDatabaseTheNumbersAreOffAndPostingStillWorks(t *testing.T) {
+	client, internal := runBoth(t, publishing.Config{Zernio: publishing.ZernioConfig{APIKey: "the-key", BaseURL: (&zernioFake{}).serve(t)}})
+
+	links, err := internal.GetPostLinks(t.Context(), connect.NewRequest(&publishingv1.GetPostLinksRequest{PostIds: []string{"post-1"}}))
+	require.NoError(t, err)
+	assert.Empty(t, links.Msg.GetLinks(), "no snapshot read any link")
+
+	_, err = client.ListSnapshots(t.Context(), connect.NewRequest(&publishingv1.ListSnapshotsRequest{}))
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "publishing has no database")
+	_, err = client.ListRows(t.Context(), connect.NewRequest(&publishingv1.ListRowsRequest{}))
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+
+	_, err = client.GetRoom(t.Context(), connect.NewRequest(&publishingv1.GetRoomRequest{Platforms: []publishingv1.Platform{tiktok}}))
+	require.NoError(t, err)
+}
