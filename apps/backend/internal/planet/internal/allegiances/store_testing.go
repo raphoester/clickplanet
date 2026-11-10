@@ -4,6 +4,7 @@ package allegiances
 
 import (
 	"context"
+	"slices"
 	"sync"
 )
 
@@ -86,3 +87,13 @@ func (r *RecordedPledges) Told() []RecordedPledge {
 	defer r.mu.Unlock()
 	return append([]RecordedPledge(nil), r.told...)
 }
+
+// EveryFlagStands is the world's map, with no arena.
+type EveryFlagStands struct{}
+
+func (EveryFlagStands) Stands(string) bool { return true }
+
+// StandingFlags is an arena where only the flags it lists stand.
+type StandingFlags []string
+
+func (s StandingFlags) Stands(flag string) bool { return slices.Contains(s, flag) }

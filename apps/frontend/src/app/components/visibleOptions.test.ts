@@ -47,4 +47,9 @@ describe("visibleOptions", () => {
             expect(new Set(codes).size, search).toBe(codes.length)
         }
     })
+
+    it("keeps no value out of the list when none is selected", () => {
+        expect(visibleOptions(VALUES, undefined, "an")).toEqual([FRANCE, JAPAN, GERMANY])
+        expect(visibleOptions(VALUES, undefined, "jap")).toEqual([JAPAN])
+    })
 })

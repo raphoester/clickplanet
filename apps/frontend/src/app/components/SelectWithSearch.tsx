@@ -5,7 +5,8 @@ import CountryFlag from "./CountryFlag.tsx";
 import "./SelectWithSearch.css"
 
 type SelectWithSearchProps = {
-    selected: Value,
+    // None: the list holds only the values.
+    selected?: Value,
     values: Value[],
     onChange: (value: Value) => void
 }
@@ -16,7 +17,7 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
 
     const options = visibleOptions(props.values, props.selected, search)
 
-    const [activeCode, setActiveCode] = useState(props.selected.code)
+    const [activeCode, setActiveCode] = useState<string | undefined>(props.selected?.code ?? props.values[0]?.code)
     const activeIndex = Math.max(options.findIndex((v) => v.code === activeCode), 0)
     const activeOption: Value | undefined = options[activeIndex]
 
@@ -35,9 +36,9 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
         setSearch(next)
         const nextOptions = visibleOptions(props.values, props.selected, next)
         const cursor = next.trim() === ""
-            ? props.selected
+            ? props.selected ?? nextOptions[0]
             : nextOptions.find((v) => matchesSearch(v, next)) ?? props.selected
-        setActiveCode(cursor.code)
+        setActiveCode(cursor?.code)
     }
 
     const handleNavigationKey = (event: KeyboardEvent<HTMLElement>): boolean => {
@@ -106,7 +107,7 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
                     className="input-select-option"
                     key={v.code}
                     role="option"
-                    aria-selected={v.code === props.selected.code}
+                    aria-selected={v.code === props.selected?.code}
                     data-active={v.code === activeOption?.code}
                     onClick={() => choose(v)}>
                     <CountryFlag code={v.code}/>

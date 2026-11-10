@@ -266,6 +266,8 @@ func TestEveryKindReadsBackAsItWasWrittenDown(t *testing.T) {
 			Tile: 6, Landmass: 257, Ground: "de", Tiles: 2, Scope: "A", Account: "guest", Country: "fr", At: start,
 			Raised: []clicks.TileShields{{Tile: 5, Shields: 1}, {Tile: 6, Shields: 10}},
 		},
+		ledger.KnockingOut{Tile: 6, Scope: "A", Account: "guest", Country: "de", Out: "fr", At: start, Cleared: []uint32{5, 7}},
+		ledger.KnockingOut{Tile: 6, Scope: "A", Country: "de", Out: "fr", At: start, Cleared: []uint32{}},
 	} {
 		entry, err := event.Entry()
 		require.NoError(t, err)
@@ -510,9 +512,10 @@ func TestRetentionForgetsTakesPastIt(t *testing.T) {
 var errOutOfRange = errors.New("out of range")
 
 type stubTiles struct {
-	owners  map[uint32]string
-	shields map[uint32]int
-	fortify *clicks.Fortification
+	owners   map[uint32]string
+	shields  map[uint32]int
+	fortify  *clicks.Fortification
+	knockOut *clicks.KnockOut
 }
 
 func newTiles(owners map[uint32]string) *stubTiles {
@@ -530,6 +533,13 @@ func (s *stubTiles) Fortify(context.Context, uint32, string, int) (clicks.Fortif
 		return clicks.Fortification{}, clicks.ErrNotWhole
 	}
 	return *s.fortify, nil
+}
+
+func (s *stubTiles) KnockOut(context.Context, uint32, string) (clicks.KnockOut, error) {
+	if s.knockOut == nil {
+		return clicks.KnockOut{}, clicks.ErrNoKnockOut
+	}
+	return *s.knockOut, nil
 }
 
 func (s *stubTiles) Tile(id uint32) (clicks.Tile, error) {
@@ -818,6 +828,48 @@ func TestRecordingNotesAFortifyAfterTheTakeThatEarnedIt(t *testing.T) {
 		},
 	}, written(events))
 	assert.Len(t, replay(events), 1, "a fortify takes no tile")
+}
+
+func TestRecordingNotesAKnockOutAfterTheTakeThatFelledTheCapital(t *testing.T) {
+	tiles := newTiles(map[uint32]string{1: "fr", 2: "fr", 3: "de"})
+	tiles.knockOut = &clicks.KnockOut{Country: "fr", By: "de", Tile: 1, Cleared: []uint32{2}}
+	recording, events := recorded(tiles)
+
+	_, err := recording.Click(caller(t), 1, "de")
+	require.NoError(t, err)
+
+	assert.Equal(t, []ledger.Event{
+		ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Country: "de", Previous: "fr", At: start},
+		ledger.KnockingOut{Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Country: "de", Out: "fr", At: start, Cleared: []uint32{2}},
+	}, written(events))
+	assert.Equal(t, []ledger.Taking{
+		{Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Country: "de", Previous: "fr", At: start},
+		{Tile: 2, Scope: "1.2.3.4", Account: "a-guest", Previous: "fr", At: start},
+	}, replay(events), "each tile the knock-out cleared replays as a bomb's")
+}
+
+func TestAKnockOutIsWrittenDownOnTheCapitalWithTheTilesItCleared(t *testing.T) {
+	entry, err := ledger.KnockingOut{
+		Tile: 1, Scope: "A", Account: "guest", Country: "de", Out: "fr", At: start, Cleared: []uint32{2, 9},
+	}.Entry()
+	require.NoError(t, err)
+
+	assert.Equal(t, ledger.Entry{
+		Kind: "knock_out", Tile: 1, Scope: "A", Account: "guest", Country: "de", Previous: "fr", At: start,
+		Payload: []byte(`{"cleared":[2,9]}`),
+	}, entry)
+}
+
+func TestAKnockOutShowsEachTileItClearedAndStrikesNothing(t *testing.T) {
+	knockOut := ledger.KnockingOut{Tile: 1, Country: "de", Out: "fr", At: start, Cleared: []uint32{2}}
+	var scenes []ledger.Scene
+	knockOut.Show(func(scene ledger.Scene) { scenes = append(scenes, scene) })
+	var strikes []ledger.Strike
+	knockOut.Strikes(func(strike ledger.Strike) { strikes = append(strikes, strike) })
+
+	require.Len(t, scenes, 1)
+	assert.Equal(t, &ledger.Change{TileUpdate: clicks.TileUpdate{Tile: 2, Previous: "fr"}}, scenes[0].Change)
+	assert.Empty(t, strikes)
 }
 
 func TestAFortifyShowsEachShieldItRaised(t *testing.T) {

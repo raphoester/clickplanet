@@ -12,6 +12,8 @@ type Impact struct {
 	Shields int
 	// Set when this take made the tile's landmass whole and fortified it.
 	Fortified *Fortification
+	// Set when this take felled a flag's capital in an arena.
+	KnockedOut *KnockOut
 }
 
 // The tiles under the lock of one claim: nothing else reads or writes them until it ends.
@@ -20,6 +22,7 @@ type Claimable interface {
 	Set(ctx context.Context, tile Tile) error
 	Click(ctx context.Context, tile Tile) error
 	Fortify(ctx context.Context, tile uint32, flag string, most int) (Fortification, error)
+	KnockOut(ctx context.Context, tile uint32, flag string) (KnockOut, error)
 }
 
 type ClaimableTiles interface {
@@ -44,7 +47,8 @@ func (c Claiming) Claim(ctx context.Context, tile uint32, flag string) (Impact, 
 	return c.claimOne(ctx, tile, flag, Claimable.Set)
 }
 
-// Enclose claims the tiles inside as one write, which every stream hears as one change.
+// Enclose claims the tiles inside as one write, which every stream hears as one change. A capital it takes knocks its flag
+// out once the whole pocket is written, so the blank leaves the pocket's takes as they are.
 func (c Claiming) Enclose(ctx context.Context, enclosure Enclosure, inside []uint32) ([]Impact, error) {
 	enclosure.By = PayerOf(ctx)
 	most := c.shieldsPerTile()
@@ -57,6 +61,13 @@ func (c Claiming) Enclose(ctx context.Context, enclosure Enclosure, inside []uin
 			}
 			impacts = append(impacts, impact)
 		}
+		for i := range impacts {
+			knocked, err := knockedOut(ctx, tiles, enclosure.Country, impacts[i])
+			if err != nil {
+				return err
+			}
+			impacts[i] = knocked
+		}
 
 		return nil
 	})
@@ -68,8 +79,11 @@ func (c Claiming) claimOne(ctx context.Context, tile uint32, flag string, write 
 	most := c.shieldsPerTile()
 	var impact Impact
 	err := c.tiles.Claim(ctx, func(tiles Claimable) error {
-		var err error
-		impact, err = claim(ctx, tiles, tile, flag, write, most)
+		taken, err := claim(ctx, tiles, tile, flag, write, most)
+		if err != nil {
+			return err
+		}
+		impact, err = knockedOut(ctx, tiles, flag, taken)
 		return err
 	})
 
@@ -97,6 +111,23 @@ func claim(ctx context.Context, tiles Claimable, id uint32, flag string, write w
 	case err == nil:
 		return impact.fortified(fortification), nil
 	case errors.Is(err, ErrNotWhole), errors.Is(err, ErrFortifiedAlready):
+		return impact, nil
+	default:
+		return Impact{}, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
+	}
+}
+
+func knockedOut(ctx context.Context, tiles Claimable, flag string, impact Impact) (Impact, error) {
+	if impact.Outcome != Taken {
+		return impact, nil
+	}
+
+	knockOut, err := tiles.KnockOut(ctx, impact.Tile, flag)
+	switch {
+	case err == nil:
+		impact.KnockedOut = &knockOut
+		return impact, nil
+	case errors.Is(err, ErrNoKnockOut):
 		return impact, nil
 	default:
 		return Impact{}, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.

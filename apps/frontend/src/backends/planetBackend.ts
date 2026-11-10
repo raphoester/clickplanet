@@ -15,6 +15,7 @@ import {
     Counts,
     Enclosure,
     Fortification,
+    KnockOut,
     GlobePoint,
     Ownerships,
     OwnershipsGetter,
@@ -87,6 +88,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private readonly openingCallbacks = new Map<string, (version: MapVersion) => void>()
     private readonly holdingsCallbacks = new Map<string, (change: Counts) => void>()
     private readonly fortificationCallbacks = new Map<string, (fortification: Fortification) => void>()
+    private readonly knockOutCallbacks = new Map<string, (knockOut: KnockOut) => void>()
     private readonly allegianceCallbacks = new Map<string, (allegiance: Allegiance | undefined) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private stopListening: () => void
@@ -148,6 +150,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.openingCallbacks.clear()
         this.holdingsCallbacks.clear()
         this.fortificationCallbacks.clear()
+        this.knockOutCallbacks.clear()
         this.allegianceCallbacks.clear()
         this.pendingUpdates = []
     }
@@ -397,6 +400,15 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     return
                 }
 
+                const knockOut = knockOutOf(event)
+                if (knockOut) {
+                    // The take of the capital goes first.
+                    this.flushUpdates()
+                    this.streamVersion = knockOut.version
+                    this.knockOutCallbacks.forEach(callback => callback(knockOut))
+                    return
+                }
+
                 const enclosure = enclosureOf(event)
                 if (enclosure) {
                     // Earlier tile updates go first, or they repaint over the tiles it took.
@@ -625,6 +637,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.fortificationCallbacks.set(id, callback)
 
         return () => this.fortificationCallbacks.delete(id)
+    }
+
+    public listenForKnockOuts(callback: (knockOut: KnockOut) => void): () => void {
+        const id = generateUUID()
+        this.knockOutCallbacks.set(id, callback)
+
+        return () => this.knockOutCallbacks.delete(id)
     }
 
     public listenForBonuses(handlers: BonusHandlers): () => void {
@@ -926,6 +945,19 @@ export function fortificationOf(event: PlanetEvent): Fortification | undefined {
     return {landmass: fortified.landmassId, countryId: fortified.countryId, tile: fortified.tileId, version: versionOf(fortified.version)}
 }
 
+export function knockOutOf(event: PlanetEvent): KnockOut | undefined {
+    if (event.event.case !== "knockOut") return undefined
+
+    const knocked = event.event.value
+    return {
+        countryId: knocked.countryId,
+        byCountryId: knocked.byCountryId,
+        tile: knocked.tileId,
+        cleared: knocked.clearedTileIds,
+        version: versionOf(knocked.version),
+    }
+}
+
 // The refill and the sizes of the charges may have moved, and only a reading says by how much.
 export function rulesChanged(event: PlanetEvent): boolean {
     return event.event.case === "rulesChanged"
@@ -1089,7 +1121,10 @@ export function versionOf(version: MapVersionMessage | undefined): MapVersion {
 }
 
 export function ownershipsOf(res: GetMapResponse, range: TileRange): Ownerships {
-    return {range, version: versionOf(res.version), bindings: bindingsOf(res), shields: shieldsOf(res), arena: res.arena}
+    return {
+        range, version: versionOf(res.version), bindings: bindingsOf(res), shields: shieldsOf(res), arena: res.arena,
+        knockedOut: res.knockedOut,
+    }
 }
 
 export function countsOf(message: GetHoldingsResponse | HoldingsChanged): Counts {

@@ -38,6 +38,9 @@ export class MapTiles {
     // A fortify adds a shield: it waits for the read of a tile whose value may be older than the stream.
     private waiting: Fortifying[] = []
     private inArena = false
+    // The flags the arena knocked out, in the epoch they were heard in: they only grow until a new epoch.
+    private out = new Set<string>()
+    private outEpoch: number | undefined
 
     constructor(size: number, private readonly batchSize: number, private readonly clock: MapClock) {
         this.ownership = new TileOwnership(size)
@@ -95,12 +98,17 @@ export class MapTiles {
         return this.inArena
     }
 
+    public get knockedOut(): ReadonlySet<string> {
+        return this.out
+    }
+
     // Whether the range is current: else read it again.
-    public read({range, version, bindings, shields, arena}: Ownerships, changes: TileChanges): boolean {
+    public read({range, version, bindings, shields, arena, knockedOut}: Ownerships, changes: TileChanges): boolean {
         if (!this.clock.counts(version)) return false
         const index = this.rangeOf(range.start)
         if (index === undefined) return false
         this.inArena = arena
+        this.knockOut(knockedOut, version)
 
         for (let tile = range.start; tile <= range.end; tile++) {
             if (!this.take(tile, version.seq)) continue
@@ -154,6 +162,17 @@ export class MapTiles {
         }
     }
 
+    public applyKnockOut(flag: string, cleared: readonly number[], version: MapVersion, changes: TileChanges): void {
+        this.heard(version)
+        if (!this.clock.counts(version)) return
+        this.knockOut([flag], version)
+        for (const tile of cleared) {
+            if (!this.take(tile, version.seq)) continue
+            this.ownership.set(tile, undefined, changes.owners)
+            this.shields.set(tile, 0, changes.shields)
+        }
+    }
+
     // The server raised every tile of the landmass below the most: its flag held them all.
     public applyFortification(tiles: ArrayLike<number>, flag: string, most: number, version: MapVersion): ShieldChange[] {
         const changes: ShieldChange[] = []
@@ -175,6 +194,14 @@ export class MapTiles {
             const shields = this.shields.shieldsOf(tile)
             if (this.ownership.ownerOf(tile) === flag && shields < most) this.shields.set(tile, shields + 1, changes)
         }
+    }
+
+    private knockOut(flags: readonly string[], {epoch}: MapVersion) {
+        if (this.outEpoch !== epoch) {
+            this.out = new Set()
+            this.outEpoch = epoch
+        }
+        for (const flag of flags) this.out.add(flag)
     }
 
     private take(tile: number, seq: number): boolean {

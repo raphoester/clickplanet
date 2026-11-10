@@ -96,6 +96,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/battle_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/day_ended_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/flag_knocked_out_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/flag_mission_done_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/log_subscriber"
@@ -197,6 +198,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to planet.v1.Fortified: %w", err)
 	}
 
+	knockOuts, err := cpredis.Subscribe(ctx, streams, "chat-announcements-knock-outs",
+		log_subscriber.New(flag_knocked_out_subscriber.New(announce), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to planet.v1.FlagKnockedOut: %w", err)
+	}
+
 	flagMissions, err := cpredis.Subscribe(ctx, streams, "chat-announcements-flag-missions",
 		log_subscriber.New(flag_mission_done_subscriber.New(announce), props.Logger))
 	if err != nil {
@@ -285,7 +293,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune_usecase.NewRunner(storage.PruneInterval, prune),
-		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, flagMissions, deletions, forgottenModeration, mutings,
+		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, knockOuts, flagMissions, deletions, forgottenModeration, mutings,
 			days, battles, champions, departures, reports,
 			cpoutbox.NewRelay("chat-outbox", db, redis_outbox_sender.New(streams, streams.Commands()), props.Logger))))
 

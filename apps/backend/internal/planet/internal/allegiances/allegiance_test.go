@@ -17,8 +17,10 @@ const (
 	locked = allegiances.Lock(true)
 )
 
+var world = allegiances.EveryFlagStands{}
+
 func TestTheFirstFlagStartsNoWait(t *testing.T) {
-	first, err := allegiances.Allegiance{}.Pledged("fr", at, open)
+	first, err := allegiances.Allegiance{}.Pledged("fr", at, open, world)
 	require.NoError(t, err)
 
 	assert.Equal(t, allegiances.Snapshot{Flag: "fr"}, first.TakeSnapshot())
@@ -27,7 +29,7 @@ func TestTheFirstFlagStartsNoWait(t *testing.T) {
 func TestTheSameFlagChangesNothing(t *testing.T) {
 	kept := allegiances.Snapshot{Flag: "fr", ChangedAt: at}.Restore()
 
-	again, err := kept.Pledged("fr", at.Add(time.Minute), open)
+	again, err := kept.Pledged("fr", at.Add(time.Minute), open, world)
 	require.NoError(t, err)
 
 	assert.Equal(t, kept.TakeSnapshot(), again.TakeSnapshot())
@@ -36,7 +38,7 @@ func TestTheSameFlagChangesNothing(t *testing.T) {
 func TestTheFirstChangeIsFreeAndStartsTheWait(t *testing.T) {
 	first := allegiances.Snapshot{Flag: "fr"}.Restore()
 
-	changed, err := first.Pledged("de", at, open)
+	changed, err := first.Pledged("de", at, open, world)
 	require.NoError(t, err)
 
 	assert.Equal(t, allegiances.Snapshot{Flag: "de", ChangedAt: at}, changed.TakeSnapshot())
@@ -45,7 +47,7 @@ func TestTheFirstChangeIsFreeAndStartsTheWait(t *testing.T) {
 func TestAChangeWithinTheHourIsRefusedWithTheFlagAndUntilWhen(t *testing.T) {
 	kept := allegiances.Snapshot{Flag: "de", ChangedAt: at}.Restore()
 
-	_, err := kept.Pledged("fr", at.Add(time.Hour-time.Nanosecond), open)
+	_, err := kept.Pledged("fr", at.Add(time.Hour-time.Nanosecond), open, world)
 
 	require.ErrorIs(t, err, allegiances.ErrChangedTooSoon)
 	var refusal allegiances.Refusal
@@ -56,7 +58,7 @@ func TestAChangeWithinTheHourIsRefusedWithTheFlagAndUntilWhen(t *testing.T) {
 func TestAChangeAnHourLaterIsAllowedAndStartsTheWaitAgain(t *testing.T) {
 	kept := allegiances.Snapshot{Flag: "de", ChangedAt: at}.Restore()
 
-	changed, err := kept.Pledged("fr", at.Add(time.Hour), open)
+	changed, err := kept.Pledged("fr", at.Add(time.Hour), open, world)
 	require.NoError(t, err)
 
 	assert.Equal(t, allegiances.Snapshot{Flag: "fr", ChangedAt: at.Add(time.Hour)}, changed.TakeSnapshot())
@@ -66,18 +68,18 @@ func TestAReleasedFlagChangesAtOnceAndStartsTheWaitAgain(t *testing.T) {
 	released := allegiances.Snapshot{Flag: "de", ChangedAt: at}.Restore().Released()
 	assert.Equal(t, allegiances.Snapshot{Flag: "de"}, released.TakeSnapshot())
 
-	changed, err := released.Pledged("fr", at.Add(time.Minute), open)
+	changed, err := released.Pledged("fr", at.Add(time.Minute), open, world)
 	require.NoError(t, err)
 	assert.Equal(t, allegiances.Snapshot{Flag: "fr", ChangedAt: at.Add(time.Minute)}, changed.TakeSnapshot())
 
-	_, err = changed.Pledged("de", at.Add(2*time.Minute), open)
+	_, err = changed.Pledged("de", at.Add(2*time.Minute), open, world)
 	require.ErrorIs(t, err, allegiances.ErrChangedTooSoon)
 }
 
 func TestAReleaseDoesNotLiftALock(t *testing.T) {
 	released := allegiances.Snapshot{Flag: "de", ChangedAt: at}.Restore().Released()
 
-	_, err := released.Pledged("fr", at, locked)
+	_, err := released.Pledged("fr", at, locked, world)
 
 	require.ErrorIs(t, err, allegiances.ErrLocked)
 }
@@ -85,7 +87,7 @@ func TestAReleaseDoesNotLiftALock(t *testing.T) {
 func TestALockRefusesAChangeLongAfterTheWait(t *testing.T) {
 	kept := allegiances.Snapshot{Flag: "de", ChangedAt: at}.Restore()
 
-	_, err := kept.Pledged("fr", at.Add(24*time.Hour), locked)
+	_, err := kept.Pledged("fr", at.Add(24*time.Hour), locked, world)
 
 	require.ErrorIs(t, err, allegiances.ErrLocked)
 	var refusal allegiances.Refusal
@@ -96,17 +98,17 @@ func TestALockRefusesAChangeLongAfterTheWait(t *testing.T) {
 func TestALockRefusesTheFirstChangeToo(t *testing.T) {
 	first := allegiances.Snapshot{Flag: "de"}.Restore()
 
-	_, err := first.Pledged("fr", at, locked)
+	_, err := first.Pledged("fr", at, locked, world)
 
 	require.ErrorIs(t, err, allegiances.ErrLocked)
 }
 
 func TestALockStillTakesAFirstFlagAndTheSameFlag(t *testing.T) {
-	first, err := allegiances.Allegiance{}.Pledged("fr", at, locked)
+	first, err := allegiances.Allegiance{}.Pledged("fr", at, locked, world)
 	require.NoError(t, err)
 	assert.Equal(t, allegiances.Snapshot{Flag: "fr"}, first.TakeSnapshot())
 
-	again, err := first.Pledged("fr", at, locked)
+	again, err := first.Pledged("fr", at, locked, world)
 	require.NoError(t, err)
 	assert.Equal(t, first.TakeSnapshot(), again.TakeSnapshot())
 }
@@ -151,4 +153,58 @@ func TestNoFlagIsPlayedBeforeOneIsPledged(t *testing.T) {
 	var refusal allegiances.Refusal
 	require.ErrorAs(t, err, &refusal)
 	assert.Empty(t, refusal.Flag)
+}
+
+func TestInAnArenaAFlagThatDoesNotStandIsRefused(t *testing.T) {
+	arena := allegiances.StandingFlags{"de", "it"}
+	kept := allegiances.Snapshot{Flag: "de"}.Restore()
+
+	_, err := kept.Pledged("fr", at, open, arena)
+	require.ErrorIs(t, err, allegiances.ErrDown)
+
+	_, err = allegiances.Allegiance{}.Pledged("gb-eng", at, open, arena)
+	require.ErrorIs(t, err, allegiances.ErrDown, "a newcomer picks a flag still in")
+}
+
+func TestInAnArenaANewcomerPicksAFlagStillIn(t *testing.T) {
+	first, err := allegiances.Allegiance{}.Pledged("de", at, locked, allegiances.StandingFlags{"de"})
+	require.NoError(t, err)
+
+	assert.Equal(t, allegiances.Snapshot{Flag: "de"}, first.TakeSnapshot())
+}
+
+func TestAnAccountWhoseFlagIsOutChangesAtOncePastTheLockAndTheWait(t *testing.T) {
+	kept := allegiances.Snapshot{Flag: "fr", ChangedAt: at}.Restore()
+
+	changed, err := kept.Pledged("de", at.Add(time.Minute), locked, allegiances.StandingFlags{"de"})
+	require.NoError(t, err)
+
+	assert.Equal(t, allegiances.Snapshot{Flag: "de", ChangedAt: at.Add(time.Minute)}, changed.TakeSnapshot(),
+		"it starts the wait as any change does")
+}
+
+func TestARegionFlagsAccountChangesAtOnceInAnArena(t *testing.T) {
+	kept := allegiances.Snapshot{Flag: "gb-eng"}.Restore()
+
+	changed, err := kept.Pledged("gb", at, locked, allegiances.StandingFlags{"gb"})
+	require.NoError(t, err)
+
+	assert.Equal(t, "gb", changed.TakeSnapshot().Flag)
+}
+
+func TestAnAccountWhoseFlagStandsIsHeldByTheLockInAnArena(t *testing.T) {
+	kept := allegiances.Snapshot{Flag: "fr"}.Restore()
+
+	_, err := kept.Pledged("de", at, locked, allegiances.StandingFlags{"fr", "de"})
+
+	require.ErrorIs(t, err, allegiances.ErrLocked)
+}
+
+func TestTheSameFlagAgainChangesNothingEvenOut(t *testing.T) {
+	kept := allegiances.Snapshot{Flag: "fr", ChangedAt: at}.Restore()
+
+	again, err := kept.Pledged("fr", at, locked, allegiances.StandingFlags{})
+	require.NoError(t, err)
+
+	assert.Equal(t, kept.TakeSnapshot(), again.TakeSnapshot())
 }

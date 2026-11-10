@@ -78,6 +78,7 @@ import {FLIGHT_SECONDS, flightAt, territoryShotOf} from "../../domain/flight.ts"
 import {pointOf} from "../../domain/clip/geometry.ts";
 import {Front, FrontChanges} from "../../domain/front.ts";
 import {CapitalMarks} from "../../domain/capitalMarks.ts";
+import {ArenaFlags, arenaFlagsOf} from "../../domain/standing.ts";
 import type {Waters} from "../../domain/waters.ts";
 import {MissionGround, MissionMarks, MissionTarget, groundsOf, nearestPlayable} from "../../domain/missionTargets.ts";
 import {Neighbours} from "../../domain/neighbours.ts";
@@ -224,6 +225,9 @@ export type GlobeOptions = {
     onAllegianceLocked: (allegiance: Allegiance) => void
     // A click in an arena on a tile the flag cannot reach, refused here or by the server.
     onOutOfReach: () => void
+    // The flags of the arena that plays, each time a map read or a knock-out may change them; undefined on the world's
+    // map.
+    onArenaFlags?: (flags: ArenaFlags | undefined) => void
     onBonusWon: (reward: BonusReward) => void
     onCharges: (charges: Charges) => void
     onRules: (rules: BonusRules) => void
@@ -294,6 +298,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onSessionUnavailable,
         onAllegianceLocked,
         onOutOfReach,
+        onArenaFlags = () => {},
         onBonusWon,
         onCharges,
         onRules,
@@ -728,6 +733,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let capitalMarks: CapitalMarks | undefined
     let reach: Front | undefined
 
+    const publishArenaFlags = () => {
+        onArenaFlags(arena && capitals ? arenaFlagsOf(capitals, tiles.knockedOut) : undefined)
+    }
+
     const markCapitals = ({on, off}: FrontChanges) => {
         if (on.length === 0 && off.length === 0) return
         field.setCapitalMarks(off, false)
@@ -743,12 +752,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         capitals = map.capitals
         capitalMarks = new CapitalMarks(map.capitals, (tile) => ownership.ownerOf(tile))
         markCapitals(capitalMarks.follow())
+        publishArenaFlags()
     }
 
     const leaveArena = () => {
         if (capitalMarks) markCapitals(capitalMarks.drop())
         capitalMarks = undefined
         capitals = undefined
+        publishArenaFlags()
         if (!reach) return
         lightFront(reach.drop())
         reach = undefined
@@ -1254,6 +1265,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         applyChanges(changes.owners, false)
         showShields(changes.shields)
         followArena(tiles.arena)
+        if (arena) publishArenaFlags()
         if (tracking) targets.touch(rangeTiles(batch.range))
         if (!loaded) {
             const share = tiles.readShare()
@@ -1338,6 +1350,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (news) playSound("fortify", {volume: own ? 1 : DISTANT_BOMB_VOLUME})
         onFortified({fortification, name: landmassName(fortification.landmass, borders.codes[fortification.landmass]), tiles: members.length, news})
         if (tracking) targets.lock(fortification.landmass, fortification.countryId)
+    })
+
+    const stopKnockOuts = updatesListener.listenForKnockOuts((knockOut) => {
+        const changes = noChanges()
+        tiles.applyKnockOut(knockOut.countryId, knockOut.cleared, knockOut.version, changes)
+        applyChanges(changes.owners)
+        showShields(changes.shields)
+        publishArenaFlags()
     })
 
     const atmosphere = addDisplayObjects(scene, field.displayPoints, graphics, sphere)
@@ -1519,6 +1539,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             stopOpenings()
             stopHoldings()
             stopFortifications()
+            stopKnockOuts()
             reading?.abort()
             stopBonuses?.()
             stopBombs?.()

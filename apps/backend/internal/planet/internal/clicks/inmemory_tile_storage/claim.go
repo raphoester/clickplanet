@@ -50,3 +50,13 @@ func (c *insideClaim) Fortify(ctx context.Context, tile uint32, flag string, mos
 
 	return fortification, nil
 }
+
+func (c *insideClaim) KnockOut(ctx context.Context, tile uint32, flag string) (clicks.KnockOut, error) {
+	knockOut, err := c.storage.knockOutLocked(ctx, tile, flag)
+	if err != nil {
+		return clicks.KnockOut{}, err
+	}
+	c.storage.publishLocked(clicks.Change{KnockOut: &knockOut})
+
+	return knockOut, nil
+}

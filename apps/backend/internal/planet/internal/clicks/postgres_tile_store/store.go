@@ -3,6 +3,7 @@ package postgres_tile_store
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -83,6 +84,7 @@ func (s *Store) LoadLandmasses(
 
 func (s *Store) Save(
 	ctx context.Context, played clicks.MapID, tiles []inmemory_tile_storage.Tile, landmasses []inmemory_tile_storage.Landmass,
+	out []inmemory_tile_storage.OutFlag,
 ) error {
 	var (
 		taken, freed     []int64
@@ -116,8 +118,57 @@ func (s *Store) Save(
 			}
 		}
 
-		return saveLandmasses(ctx, tx, played, landmasses)
+		if err := saveLandmasses(ctx, tx, played, landmasses); err != nil {
+			return err
+		}
+		return saveOutFlags(ctx, tx, played, out)
 	})
+}
+
+func saveOutFlags(ctx context.Context, tx cppg.Querier, played clicks.MapID, out []inmemory_tile_storage.OutFlag) error {
+	if len(out) == 0 {
+		return nil
+	}
+
+	flags := make([]string, len(out))
+	by := make([]string, len(out))
+	at := make([]string, len(out))
+	for i, flag := range out {
+		flags[i], by[i], at[i] = flag.Flag, flag.By, flag.At.UTC().Format(time.RFC3339Nano)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO knockouts (map, flag, by_flag, knocked_out_at)
+		SELECT $1, * FROM unnest($2::text[], $3::text[], $4::timestamptz[])
+		ON CONFLICT (map, flag) DO NOTHING
+	`, string(played), pq.Array(flags), pq.Array(by), pq.Array(at)); err != nil {
+		return fmt.Errorf("failed to keep the flags out: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Store) LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out inmemory_tile_storage.OutFlag)) error {
+	rows, err := s.db.On(ctx).QueryContext(ctx,
+		`SELECT flag, by_flag, knocked_out_at FROM knockouts WHERE map = $1`, string(played))
+	if err != nil {
+		return fmt.Errorf("failed to read the flags out: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var out inmemory_tile_storage.OutFlag
+		if err := rows.Scan(&out.Flag, &out.By, &out.At); err != nil {
+			return fmt.Errorf("failed to read a flag out: %w", err)
+		}
+		out.At = out.At.UTC()
+		visit(out)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to read the flags out: %w", err)
+	}
+
+	return nil
 }
 
 func upsertTiles(
@@ -221,6 +272,9 @@ func (s *Store) Wipe(ctx context.Context, played clicks.MapID, keep func(ctx con
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM landmasses WHERE map = $1`, string(played)); err != nil {
 			return fmt.Errorf("failed to delete the landmasses' locks: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM knockouts WHERE map = $1`, string(played)); err != nil {
+			return fmt.Errorf("failed to delete the flags out: %w", err)
 		}
 		wiped = true
 		return nil

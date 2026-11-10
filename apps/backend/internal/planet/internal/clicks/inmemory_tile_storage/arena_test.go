@@ -127,7 +127,7 @@ func (s *testSuite) TestAPutBackOfAnArenaThatDoesNotPlayDeletesItsMapAndLeavesMe
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage, _ := s.worldBeforeABattle(persistence)
-	s.Require().NoError(persistence.Save(ctx, "stale", []inmemory_tile_storage.Tile{{ID: 5, Owner: "pt"}}, nil))
+	s.Require().NoError(persistence.Save(ctx, "stale", []inmemory_tile_storage.Tile{{ID: 5, Owner: "pt"}}, nil, nil))
 
 	put, err := storage.PutBack(ctx, "stale", keeps(true))
 

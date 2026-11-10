@@ -182,6 +182,9 @@ message GetMapResponse {
 
   // The map is an arena's: a battle's blank map, which started with each country's capital.
   bool arena = 6;
+
+  // The flags the arena knocked out: each lost its capital to another flag.
+  repeated string knocked_out = 7;
 }
 
 message MapVersion {
@@ -260,7 +263,26 @@ message PlanetEvent {
 
     // Only on a stream opened with a signed-in account's token, and only that account's.
     ChargesGranted charges_granted = 12;
+
+    KnockOut knock_out = 13;
   }
+}
+
+// The one event of a knock-out, after the take that felled the capital: every other tile of the flag went blank, with
+// no shield.
+message KnockOut {
+  // The flag out of the arena.
+  string country_id = 1;
+
+  // The flag whose take felled the capital, and holds it now.
+  string by_country_id = 2;
+
+  // The capital.
+  uint32 tile_id = 3;
+
+  repeated uint32 cleared_tile_ids = 4;
+
+  MapVersion version = 5;
 }
 
 // A grant from outside the player's own clicks, such as a mission paid: all it holds now.
