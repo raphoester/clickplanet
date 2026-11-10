@@ -10,6 +10,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
+	sync "sync"
 	unsafe "unsafe"
 )
 
@@ -20,37 +21,215 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type GetPostLinksRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zernio's post ids.
+	PostIds       []string `protobuf:"bytes,1,rep,name=post_ids,json=postIds,proto3" json:"post_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPostLinksRequest) Reset() {
+	*x = GetPostLinksRequest{}
+	mi := &file_publishing_v1_internal_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPostLinksRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPostLinksRequest) ProtoMessage() {}
+
+func (x *GetPostLinksRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_publishing_v1_internal_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPostLinksRequest.ProtoReflect.Descriptor instead.
+func (*GetPostLinksRequest) Descriptor() ([]byte, []int) {
+	return file_publishing_v1_internal_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *GetPostLinksRequest) GetPostIds() []string {
+	if x != nil {
+		return x.PostIds
+	}
+	return nil
+}
+
+type GetPostLinksResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Links         []*PostLink            `protobuf:"bytes,1,rep,name=links,proto3" json:"links,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPostLinksResponse) Reset() {
+	*x = GetPostLinksResponse{}
+	mi := &file_publishing_v1_internal_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPostLinksResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPostLinksResponse) ProtoMessage() {}
+
+func (x *GetPostLinksResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_publishing_v1_internal_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPostLinksResponse.ProtoReflect.Descriptor instead.
+func (*GetPostLinksResponse) Descriptor() ([]byte, []int) {
+	return file_publishing_v1_internal_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GetPostLinksResponse) GetLinks() []*PostLink {
+	if x != nil {
+		return x.Links
+	}
+	return nil
+}
+
+type PostLink struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	PostId string                 `protobuf:"bytes,1,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
+	// "tiktok", "youtube".
+	Platform      string `protobuf:"bytes,2,opt,name=platform,proto3" json:"platform,omitempty"`
+	Url           string `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PostLink) Reset() {
+	*x = PostLink{}
+	mi := &file_publishing_v1_internal_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PostLink) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PostLink) ProtoMessage() {}
+
+func (x *PostLink) ProtoReflect() protoreflect.Message {
+	mi := &file_publishing_v1_internal_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PostLink.ProtoReflect.Descriptor instead.
+func (*PostLink) Descriptor() ([]byte, []int) {
+	return file_publishing_v1_internal_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *PostLink) GetPostId() string {
+	if x != nil {
+		return x.PostId
+	}
+	return ""
+}
+
+func (x *PostLink) GetPlatform() string {
+	if x != nil {
+		return x.Platform
+	}
+	return ""
+}
+
+func (x *PostLink) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
 var File_publishing_v1_internal_proto protoreflect.FileDescriptor
 
 const file_publishing_v1_internal_proto_rawDesc = "" +
 	"\n" +
-	"\x1cpublishing/v1/internal.proto\x12\rpublishing.v1\x1a\x19publishing/v1/admin.proto2\x91\x02\n" +
+	"\x1cpublishing/v1/internal.proto\x12\rpublishing.v1\x1a\x19publishing/v1/admin.proto\"0\n" +
+	"\x13GetPostLinksRequest\x12\x19\n" +
+	"\bpost_ids\x18\x01 \x03(\tR\apostIds\"E\n" +
+	"\x14GetPostLinksResponse\x12-\n" +
+	"\x05links\x18\x01 \x03(\v2\x17.publishing.v1.PostLinkR\x05links\"Q\n" +
+	"\bPostLink\x12\x17\n" +
+	"\apost_id\x18\x01 \x01(\tR\x06postId\x12\x1a\n" +
+	"\bplatform\x18\x02 \x01(\tR\bplatform\x12\x10\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url2\xef\x02\n" +
 	"\x0fInternalService\x12P\n" +
 	"\bPlanPost\x12\x1e.publishing.v1.PlanPostRequest\x1a\x1f.publishing.v1.PlanPostResponse\"\x03\x90\x02\x01\x12W\n" +
 	"\fSchedulePost\x12\".publishing.v1.SchedulePostRequest\x1a#.publishing.v1.SchedulePostResponse\x12S\n" +
-	"\tListPosts\x12\x1f.publishing.v1.ListPostsRequest\x1a .publishing.v1.ListPostsResponse\"\x03\x90\x02\x01B\xd1\x01\n" +
+	"\tListPosts\x12\x1f.publishing.v1.ListPostsRequest\x1a .publishing.v1.ListPostsResponse\"\x03\x90\x02\x01\x12\\\n" +
+	"\fGetPostLinks\x12\".publishing.v1.GetPostLinksRequest\x1a#.publishing.v1.GetPostLinksResponse\"\x03\x90\x02\x01B\xd1\x01\n" +
 	"\x11com.publishing.v1B\rInternalProtoP\x01ZXgithub.com/raphoester/clickplanet.lol-backend/generated/proto/publishing/v1;publishingv1\xa2\x02\x03PXX\xaa\x02\rPublishing.V1\xca\x02\rPublishing\\V1\xe2\x02\x19Publishing\\V1\\GPBMetadata\xea\x02\x0ePublishing::V1b\x06proto3"
 
+var (
+	file_publishing_v1_internal_proto_rawDescOnce sync.Once
+	file_publishing_v1_internal_proto_rawDescData []byte
+)
+
+func file_publishing_v1_internal_proto_rawDescGZIP() []byte {
+	file_publishing_v1_internal_proto_rawDescOnce.Do(func() {
+		file_publishing_v1_internal_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_publishing_v1_internal_proto_rawDesc), len(file_publishing_v1_internal_proto_rawDesc)))
+	})
+	return file_publishing_v1_internal_proto_rawDescData
+}
+
+var file_publishing_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_publishing_v1_internal_proto_goTypes = []any{
-	(*PlanPostRequest)(nil),      // 0: publishing.v1.PlanPostRequest
-	(*SchedulePostRequest)(nil),  // 1: publishing.v1.SchedulePostRequest
-	(*ListPostsRequest)(nil),     // 2: publishing.v1.ListPostsRequest
-	(*PlanPostResponse)(nil),     // 3: publishing.v1.PlanPostResponse
-	(*SchedulePostResponse)(nil), // 4: publishing.v1.SchedulePostResponse
-	(*ListPostsResponse)(nil),    // 5: publishing.v1.ListPostsResponse
+	(*GetPostLinksRequest)(nil),  // 0: publishing.v1.GetPostLinksRequest
+	(*GetPostLinksResponse)(nil), // 1: publishing.v1.GetPostLinksResponse
+	(*PostLink)(nil),             // 2: publishing.v1.PostLink
+	(*PlanPostRequest)(nil),      // 3: publishing.v1.PlanPostRequest
+	(*SchedulePostRequest)(nil),  // 4: publishing.v1.SchedulePostRequest
+	(*ListPostsRequest)(nil),     // 5: publishing.v1.ListPostsRequest
+	(*PlanPostResponse)(nil),     // 6: publishing.v1.PlanPostResponse
+	(*SchedulePostResponse)(nil), // 7: publishing.v1.SchedulePostResponse
+	(*ListPostsResponse)(nil),    // 8: publishing.v1.ListPostsResponse
 }
 var file_publishing_v1_internal_proto_depIdxs = []int32{
-	0, // 0: publishing.v1.InternalService.PlanPost:input_type -> publishing.v1.PlanPostRequest
-	1, // 1: publishing.v1.InternalService.SchedulePost:input_type -> publishing.v1.SchedulePostRequest
-	2, // 2: publishing.v1.InternalService.ListPosts:input_type -> publishing.v1.ListPostsRequest
-	3, // 3: publishing.v1.InternalService.PlanPost:output_type -> publishing.v1.PlanPostResponse
-	4, // 4: publishing.v1.InternalService.SchedulePost:output_type -> publishing.v1.SchedulePostResponse
-	5, // 5: publishing.v1.InternalService.ListPosts:output_type -> publishing.v1.ListPostsResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2, // 0: publishing.v1.GetPostLinksResponse.links:type_name -> publishing.v1.PostLink
+	3, // 1: publishing.v1.InternalService.PlanPost:input_type -> publishing.v1.PlanPostRequest
+	4, // 2: publishing.v1.InternalService.SchedulePost:input_type -> publishing.v1.SchedulePostRequest
+	5, // 3: publishing.v1.InternalService.ListPosts:input_type -> publishing.v1.ListPostsRequest
+	0, // 4: publishing.v1.InternalService.GetPostLinks:input_type -> publishing.v1.GetPostLinksRequest
+	6, // 5: publishing.v1.InternalService.PlanPost:output_type -> publishing.v1.PlanPostResponse
+	7, // 6: publishing.v1.InternalService.SchedulePost:output_type -> publishing.v1.SchedulePostResponse
+	8, // 7: publishing.v1.InternalService.ListPosts:output_type -> publishing.v1.ListPostsResponse
+	1, // 8: publishing.v1.InternalService.GetPostLinks:output_type -> publishing.v1.GetPostLinksResponse
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_publishing_v1_internal_proto_init() }
@@ -65,12 +244,13 @@ func file_publishing_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_publishing_v1_internal_proto_rawDesc), len(file_publishing_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   0,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_publishing_v1_internal_proto_goTypes,
 		DependencyIndexes: file_publishing_v1_internal_proto_depIdxs,
+		MessageInfos:      file_publishing_v1_internal_proto_msgTypes,
 	}.Build()
 	File_publishing_v1_internal_proto = out.File
 	file_publishing_v1_internal_proto_goTypes = nil

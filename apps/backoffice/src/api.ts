@@ -5,6 +5,7 @@ import {AdminService as AntibotAdmin} from "./gen/grpc/antibot/v1/admin_connect.
 import {AdminService as AuthAdmin} from "./gen/grpc/auth/v1/admin_connect.ts"
 import {AdminService as ChatAdmin} from "./gen/grpc/chat/v1/admin_connect.ts"
 import {AdminService as ClipsAdmin} from "./gen/grpc/clips/v1/admin_connect.ts"
+import {AdminService as PublishingAdmin} from "./gen/grpc/publishing/v1/admin_connect.ts"
 import {AdminService as PlanetAdmin} from "./gen/grpc/planet/v1/admin_connect.ts"
 import {AdminService as PlayerAdmin} from "./gen/grpc/player/v1/admin_connect.ts"
 import {AdminService as ProgressionAdmin} from "./gen/grpc/progression/v1/admin_connect.ts"
@@ -36,6 +37,7 @@ export const gamemasterAdmin = createPromiseClient(GamemasterAdmin, transport)
 export const missionsAdmin = createPromiseClient(MissionsAdmin, transport)
 export const supportAdmin = createPromiseClient(SupportAdmin, transport)
 export const promoAdmin = createPromiseClient(PromoAdmin, transport)
+export const publishingAdmin = createPromiseClient(PublishingAdmin, transport)
 
 // For the calls that walk the whole map or every player: a revert, a reassign, a paint, a replay, a reconciliation.
 export const LONG_CALL_MS = 120_000

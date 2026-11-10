@@ -31,7 +31,8 @@ each line names a doc in [`docs/`](docs) and says what is in it.
   tool on it (a reason with each mute, unmute and rename), and its moderation history: what Claude and the operator did,
   and why.
 - [The map tools](docs/map-tools.md) — reassign a country, paint random tiles, download a replay.
-- [Clip stats](docs/clip-stats.md) — the daily numbers of the posted clips, and a CSV of them.
+- [Clip stats](docs/clip-stats.md) — the daily numbers of every post the game made, from `publishing.v1`, and a CSV of
+  them.
 - [Videos](docs/videos.md) — the season-end videos: uploaded from the Mac, downloaded with their caption on a phone.
 - [Promo](docs/promo.md) — the battle teasers: the background library (upload, remove) and each rule set's cards, written with
   `{path}` placeholders of the rules or the battle's points from a picker and shown as players will read them, in a ×3

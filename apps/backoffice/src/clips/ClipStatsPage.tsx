@@ -1,8 +1,8 @@
 import {useCallback, useState} from "react"
-import {ClipsAdmin} from "../clients.ts"
+import {PublishingAdmin} from "../clients.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {When} from "../components/When.tsx"
-import {StatsSnapshot, TikTokAccount} from "../gen/grpc/clips/v1/admin_pb.ts"
+import {StatsSnapshot, TikTokAccount} from "../gen/grpc/publishing/v1/admin_pb.ts"
 import {saveText} from "../map/download.ts"
 import {wordsOf} from "../refusal.ts"
 import {countOf} from "../support/labels.ts"
@@ -22,31 +22,31 @@ const SPANS: {span: Span, label: string}[] = [
 
 export type Save = (name: string, text: string, type: string) => void
 
-// The numbers of the clips the clips job posted, a snapshot a day (`clips stats`), and a table of them for a
-// spreadsheet. A read: the job keeps them, over ssh.
-export function ClipStatsPage({clips, save = saveText, now = () => new Date()}: {
-    clips: ClipsAdmin, save?: Save, now?: () => Date,
+// The numbers of the game's posts, a snapshot a day the server's publishing module takes, and a table of them for a
+// spreadsheet. A read.
+export function ClipStatsPage({publishing, save = saveText, now = () => new Date()}: {
+    publishing: PublishingAdmin, save?: Save, now?: () => Date,
 }) {
     const list = useCallback(
-        async (signal: AbortSignal) => (await clips.listSnapshots({limit: SHOWN}, {signal})).snapshots,
-        [clips],
+        async (signal: AbortSignal) => (await publishing.listSnapshots({limit: SHOWN}, {signal})).snapshots,
+        [publishing],
     )
     const [snapshots, again] = useCall(list)
 
     return (
         <section aria-label="Clip stats">
             <p className="hint">
-                Every day at 05:41 UTC, <code>clips stats</code> reads the numbers of every clip of the last 4 weeks from
-                Zernio, on each platform, with what the clip was. TikTok sends its business numbers 24 to 48 hours after a
-                post, for 7 days.
+                Every day from 08:17 UTC, the server reads the numbers of every post of the last 4 weeks from Zernio
+                (clips, battle teasers and posts made by hand), on each platform, with what the post was. TikTok sends its
+                business numbers 24 to 48 hours after a post, for 7 days.
             </p>
             {snapshots.state === "loading" && <p className="muted">Loading…</p>}
             {snapshots.state === "failed" && <FailureNotice failure={snapshots} onRetry={again}/>}
             {snapshots.state === "done" && (
                 <>
-                    <Download clips={clips} latest={snapshots.value[0]} save={save} now={now}/>
+                    <Download publishing={publishing} latest={snapshots.value[0]} save={save} now={now}/>
                     {snapshots.value.length === 0
-                        ? <p className="muted">No snapshot yet: the first comes with the next run of the clips stats workflow.</p>
+                        ? <p className="muted">No snapshot yet: the server takes the first from 08:17 UTC.</p>
                         : <>
                             <TikTokLanes snapshot={snapshots.value[0]}/>
                             <Snapshots snapshots={snapshots.value}/>
@@ -57,14 +57,14 @@ export function ClipStatsPage({clips, save = saveText, now = () => new Date()}: 
     )
 }
 
-function Download({clips, latest, save, now}: {
-    clips: ClipsAdmin, latest: StatsSnapshot | undefined, save: Save, now: () => Date,
+function Download({publishing, latest, save, now}: {
+    publishing: PublishingAdmin, latest: StatsSnapshot | undefined, save: Save, now: () => Date,
 }) {
     const [span, setSpan] = useState<Span>("last")
     const [saved, start] = useAction<Table>(wordsOf)
 
     const download = () => start(async () => {
-        const table = await tableFileOf(clips, windowOf(span, latest, now()), now())
+        const table = await tableFileOf(publishing, windowOf(span, latest, now()), now())
         save(table.name, table.csv, "text/csv")
         return table
     })

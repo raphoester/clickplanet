@@ -332,8 +332,9 @@ clips:
     dbName: clickplanet
     sslMode: disable
     schema: clips
+    # One since the snapshots moved to publishing (2026-11-10), so the sum below max_connections did not grow.
     pool:
-      maxOpenConns: 2
+      maxOpenConns: 1
   redis:
     address: redis:6379
     password: env://REDIS_PASSWORD
@@ -404,11 +405,23 @@ promo:
       secretAccessKey: env://MEDIA_BUCKET_SECRET
 
 # The game's posts on its own TikTok and YouTube, through Zernio: how many each platform takes in a day, when each post
-# goes out, and the posts already there (apps/backend/docs/publishing.md). The repository's ZERNIO_API_KEY, the one the
-# clips workflows hold; empty while it is not set, and then every call is refused.
+# goes out, the posts already there, and a snapshot a day of their numbers, in the publishing schema
+# (apps/backend/docs/publishing.md). The repository's ZERNIO_API_KEY, rendered here by the deploy; empty while it is
+# not set, and then every call is refused.
 publishing:
   zernio:
     apiKey: env://ZERNIO_API_KEY
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: publishing
+    # One: a snapshot a day, in one transaction, and the backoffice's reads of it.
+    pool:
+      maxOpenConns: 1
 
 # The connector's MCP endpoint, on the admin listener: every admin method is a tool. The url comes from API_DOMAIN,
 # through docker-compose.yaml.

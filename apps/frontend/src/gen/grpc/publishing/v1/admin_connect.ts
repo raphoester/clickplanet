@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateMediaUploadRequest, CreateMediaUploadResponse, GetRoomRequest, GetRoomResponse, ListPostsRequest, ListPostsResponse, PlanPostRequest, PlanPostResponse, SchedulePostRequest, SchedulePostResponse } from "./admin_pb.js";
+import { CreateMediaUploadRequest, CreateMediaUploadResponse, GetRoomRequest, GetRoomResponse, ListPostsRequest, ListPostsResponse, ListRowsRequest, ListRowsResponse, ListSnapshotsRequest, ListSnapshotsResponse, PlanPostRequest, PlanPostResponse, SchedulePostRequest, SchedulePostResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -85,6 +85,32 @@ export const AdminService = {
       name: "ListPosts",
       I: ListPostsRequest,
       O: ListPostsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The summaries of the daily snapshots of the posts' numbers taken in a window, the newest first: what each read and
+     * kept, never a metric. The server takes one a day, after YouTube's quota starts again at midnight Pacific.
+     *
+     * @generated from rpc publishing.v1.AdminService.ListSnapshots
+     */
+    listSnapshots: {
+      name: "ListSnapshots",
+      I: ListSnapshotsRequest,
+      O: ListSnapshotsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The rows of the snapshots taken in a window, the oldest snapshot first, a page at a time: each post's numbers on
+     * each platform, as Zernio answered them, and the post's metadata. InvalidArgument for a page this call did not give.
+     *
+     * @generated from rpc publishing.v1.AdminService.ListRows
+     */
+    listRows: {
+      name: "ListRows",
+      I: ListRowsRequest,
+      O: ListRowsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

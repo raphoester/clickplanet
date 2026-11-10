@@ -71,679 +71,6 @@ func (VerdictBy) EnumDescriptor() ([]byte, []int) {
 	return file_clips_v1_admin_proto_rawDescGZIP(), []int{0}
 }
 
-// What a snapshot read and kept: counts and states, never a metric.
-type StatsSnapshot struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	TakenAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=taken_at,json=takenAt,proto3" json:"taken_at,omitempty"`
-	// The posts read are those scheduled since then.
-	Since *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=since,proto3" json:"since,omitempty"`
-	// The posts of the job read, and those of them out on no platform yet.
-	Posts  uint32 `protobuf:"varint,3,opt,name=posts,proto3" json:"posts,omitempty"`
-	NotOut uint32 `protobuf:"varint,4,opt,name=not_out,json=notOut,proto3" json:"not_out,omitempty"`
-	// The rows of the whole snapshot, of every part.
-	Rows uint32 `protobuf:"varint,5,opt,name=rows,proto3" json:"rows,omitempty"`
-	// Rows of a platform whose numbers Zernio was still fetching.
-	Syncing uint32 `protobuf:"varint,6,opt,name=syncing,proto3" json:"syncing,omitempty"`
-	// The YouTube rows with a retention curve.
-	Curves         uint32           `protobuf:"varint,7,opt,name=curves,proto3" json:"curves,omitempty"`
-	TiktokAccounts []*TikTokAccount `protobuf:"bytes,8,rep,name=tiktok_accounts,json=tiktokAccounts,proto3" json:"tiktok_accounts,omitempty"`
-	// The posts that could not be read whole: their numbers of that day are lost.
-	Unread        []*UnreadPost `protobuf:"bytes,9,rep,name=unread,proto3" json:"unread,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StatsSnapshot) Reset() {
-	*x = StatsSnapshot{}
-	mi := &file_clips_v1_admin_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StatsSnapshot) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StatsSnapshot) ProtoMessage() {}
-
-func (x *StatsSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StatsSnapshot.ProtoReflect.Descriptor instead.
-func (*StatsSnapshot) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *StatsSnapshot) GetTakenAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.TakenAt
-	}
-	return nil
-}
-
-func (x *StatsSnapshot) GetSince() *timestamppb.Timestamp {
-	if x != nil {
-		return x.Since
-	}
-	return nil
-}
-
-func (x *StatsSnapshot) GetPosts() uint32 {
-	if x != nil {
-		return x.Posts
-	}
-	return 0
-}
-
-func (x *StatsSnapshot) GetNotOut() uint32 {
-	if x != nil {
-		return x.NotOut
-	}
-	return 0
-}
-
-func (x *StatsSnapshot) GetRows() uint32 {
-	if x != nil {
-		return x.Rows
-	}
-	return 0
-}
-
-func (x *StatsSnapshot) GetSyncing() uint32 {
-	if x != nil {
-		return x.Syncing
-	}
-	return 0
-}
-
-func (x *StatsSnapshot) GetCurves() uint32 {
-	if x != nil {
-		return x.Curves
-	}
-	return 0
-}
-
-func (x *StatsSnapshot) GetTiktokAccounts() []*TikTokAccount {
-	if x != nil {
-		return x.TiktokAccounts
-	}
-	return nil
-}
-
-func (x *StatsSnapshot) GetUnread() []*UnreadPost {
-	if x != nil {
-		return x.Unread
-	}
-	return nil
-}
-
-// Whether TikTok's business lane is live on one account.
-type TikTokAccount struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Username  string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
-	// What TikTok said the account was when it was connected to Zernio: "business", "personal" or "unknown".
-	AccountType string `protobuf:"bytes,3,opt,name=account_type,json=accountType,proto3" json:"account_type,omitempty"`
-	// Whether the commercial music library answered for it, which it does only through TikTok for Business, and why
-	// not when it did not.
-	CommercialMusic        bool   `protobuf:"varint,4,opt,name=commercial_music,json=commercialMusic,proto3" json:"commercial_music,omitempty"`
-	CommercialMusicRefusal string `protobuf:"bytes,5,opt,name=commercial_music_refusal,json=commercialMusicRefusal,proto3" json:"commercial_music_refusal,omitempty"`
-	// Its rows of the snapshot, and how many of them hold a metric only the business lane gives.
-	Rows         uint32 `protobuf:"varint,6,opt,name=rows,proto3" json:"rows,omitempty"`
-	BusinessRows uint32 `protobuf:"varint,7,opt,name=business_rows,json=businessRows,proto3" json:"business_rows,omitempty"`
-	// Whether its lane answers: the music library, or a business metric on a post, whatever account_type says.
-	Live          bool `protobuf:"varint,8,opt,name=live,proto3" json:"live,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TikTokAccount) Reset() {
-	*x = TikTokAccount{}
-	mi := &file_clips_v1_admin_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TikTokAccount) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TikTokAccount) ProtoMessage() {}
-
-func (x *TikTokAccount) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TikTokAccount.ProtoReflect.Descriptor instead.
-func (*TikTokAccount) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *TikTokAccount) GetAccountId() string {
-	if x != nil {
-		return x.AccountId
-	}
-	return ""
-}
-
-func (x *TikTokAccount) GetUsername() string {
-	if x != nil {
-		return x.Username
-	}
-	return ""
-}
-
-func (x *TikTokAccount) GetAccountType() string {
-	if x != nil {
-		return x.AccountType
-	}
-	return ""
-}
-
-func (x *TikTokAccount) GetCommercialMusic() bool {
-	if x != nil {
-		return x.CommercialMusic
-	}
-	return false
-}
-
-func (x *TikTokAccount) GetCommercialMusicRefusal() string {
-	if x != nil {
-		return x.CommercialMusicRefusal
-	}
-	return ""
-}
-
-func (x *TikTokAccount) GetRows() uint32 {
-	if x != nil {
-		return x.Rows
-	}
-	return 0
-}
-
-func (x *TikTokAccount) GetBusinessRows() uint32 {
-	if x != nil {
-		return x.BusinessRows
-	}
-	return 0
-}
-
-func (x *TikTokAccount) GetLive() bool {
-	if x != nil {
-		return x.Live
-	}
-	return false
-}
-
-type UnreadPost struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PostId        string                 `protobuf:"bytes,1,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
-	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UnreadPost) Reset() {
-	*x = UnreadPost{}
-	mi := &file_clips_v1_admin_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UnreadPost) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UnreadPost) ProtoMessage() {}
-
-func (x *UnreadPost) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UnreadPost.ProtoReflect.Descriptor instead.
-func (*UnreadPost) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *UnreadPost) GetPostId() string {
-	if x != nil {
-		return x.PostId
-	}
-	return ""
-}
-
-func (x *UnreadPost) GetReason() string {
-	if x != nil {
-		return x.Reason
-	}
-	return ""
-}
-
-// One platform of one post at one snapshot.
-type StatsRow struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	TakenAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=taken_at,json=takenAt,proto3" json:"taken_at,omitempty"`
-	// The Zernio post id.
-	PostId   string `protobuf:"bytes,2,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
-	Platform string `protobuf:"bytes,3,opt,name=platform,proto3" json:"platform,omitempty"`
-	// The row as the job wrote it, a JSON object: what Zernio answered, as it came, and the post's metadata. Its key
-	// "version" names its shape. Kept as JSON, so a metric Zernio adds is kept with no change here.
-	Document      string `protobuf:"bytes,4,opt,name=document,proto3" json:"document,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StatsRow) Reset() {
-	*x = StatsRow{}
-	mi := &file_clips_v1_admin_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StatsRow) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StatsRow) ProtoMessage() {}
-
-func (x *StatsRow) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StatsRow.ProtoReflect.Descriptor instead.
-func (*StatsRow) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *StatsRow) GetTakenAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.TakenAt
-	}
-	return nil
-}
-
-func (x *StatsRow) GetPostId() string {
-	if x != nil {
-		return x.PostId
-	}
-	return ""
-}
-
-func (x *StatsRow) GetPlatform() string {
-	if x != nil {
-		return x.Platform
-	}
-	return ""
-}
-
-func (x *StatsRow) GetDocument() string {
-	if x != nil {
-		return x.Document
-	}
-	return ""
-}
-
-type KeepSnapshotRequest struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Snapshot *StatsSnapshot         `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
-	// Each of the snapshot's taken_at. None is a snapshot that kept no row.
-	Rows          []*StatsRow `protobuf:"bytes,2,rep,name=rows,proto3" json:"rows,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *KeepSnapshotRequest) Reset() {
-	*x = KeepSnapshotRequest{}
-	mi := &file_clips_v1_admin_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *KeepSnapshotRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*KeepSnapshotRequest) ProtoMessage() {}
-
-func (x *KeepSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use KeepSnapshotRequest.ProtoReflect.Descriptor instead.
-func (*KeepSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *KeepSnapshotRequest) GetSnapshot() *StatsSnapshot {
-	if x != nil {
-		return x.Snapshot
-	}
-	return nil
-}
-
-func (x *KeepSnapshotRequest) GetRows() []*StatsRow {
-	if x != nil {
-		return x.Rows
-	}
-	return nil
-}
-
-type KeepSnapshotResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The rows of this part kept.
-	Rows          uint32 `protobuf:"varint,1,opt,name=rows,proto3" json:"rows,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *KeepSnapshotResponse) Reset() {
-	*x = KeepSnapshotResponse{}
-	mi := &file_clips_v1_admin_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *KeepSnapshotResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*KeepSnapshotResponse) ProtoMessage() {}
-
-func (x *KeepSnapshotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use KeepSnapshotResponse.ProtoReflect.Descriptor instead.
-func (*KeepSnapshotResponse) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *KeepSnapshotResponse) GetRows() uint32 {
-	if x != nil {
-		return x.Rows
-	}
-	return 0
-}
-
-type ListSnapshotsRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unset is every snapshot kept, and now.
-	Since *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
-	Until *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=until,proto3" json:"until,omitempty"`
-	// Unset is 100; at most 500.
-	Limit         uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListSnapshotsRequest) Reset() {
-	*x = ListSnapshotsRequest{}
-	mi := &file_clips_v1_admin_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListSnapshotsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListSnapshotsRequest) ProtoMessage() {}
-
-func (x *ListSnapshotsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListSnapshotsRequest.ProtoReflect.Descriptor instead.
-func (*ListSnapshotsRequest) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *ListSnapshotsRequest) GetSince() *timestamppb.Timestamp {
-	if x != nil {
-		return x.Since
-	}
-	return nil
-}
-
-func (x *ListSnapshotsRequest) GetUntil() *timestamppb.Timestamp {
-	if x != nil {
-		return x.Until
-	}
-	return nil
-}
-
-func (x *ListSnapshotsRequest) GetLimit() uint32 {
-	if x != nil {
-		return x.Limit
-	}
-	return 0
-}
-
-type ListSnapshotsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Snapshots     []*StatsSnapshot       `protobuf:"bytes,1,rep,name=snapshots,proto3" json:"snapshots,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListSnapshotsResponse) Reset() {
-	*x = ListSnapshotsResponse{}
-	mi := &file_clips_v1_admin_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListSnapshotsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListSnapshotsResponse) ProtoMessage() {}
-
-func (x *ListSnapshotsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListSnapshotsResponse.ProtoReflect.Descriptor instead.
-func (*ListSnapshotsResponse) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *ListSnapshotsResponse) GetSnapshots() []*StatsSnapshot {
-	if x != nil {
-		return x.Snapshots
-	}
-	return nil
-}
-
-type ListRowsRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The snapshots taken in [since, until). Unset is every snapshot kept, and now.
-	Since *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
-	Until *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=until,proto3" json:"until,omitempty"`
-	// Unset is 500; at most 2000.
-	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
-	// The next_page of the page before; empty is the first.
-	Page          string `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListRowsRequest) Reset() {
-	*x = ListRowsRequest{}
-	mi := &file_clips_v1_admin_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListRowsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListRowsRequest) ProtoMessage() {}
-
-func (x *ListRowsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListRowsRequest.ProtoReflect.Descriptor instead.
-func (*ListRowsRequest) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *ListRowsRequest) GetSince() *timestamppb.Timestamp {
-	if x != nil {
-		return x.Since
-	}
-	return nil
-}
-
-func (x *ListRowsRequest) GetUntil() *timestamppb.Timestamp {
-	if x != nil {
-		return x.Until
-	}
-	return nil
-}
-
-func (x *ListRowsRequest) GetLimit() uint32 {
-	if x != nil {
-		return x.Limit
-	}
-	return 0
-}
-
-func (x *ListRowsRequest) GetPage() string {
-	if x != nil {
-		return x.Page
-	}
-	return ""
-}
-
-type ListRowsResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Rows  []*StatsRow            `protobuf:"bytes,1,rep,name=rows,proto3" json:"rows,omitempty"`
-	// Empty on the last page.
-	NextPage      string `protobuf:"bytes,2,opt,name=next_page,json=nextPage,proto3" json:"next_page,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListRowsResponse) Reset() {
-	*x = ListRowsResponse{}
-	mi := &file_clips_v1_admin_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListRowsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListRowsResponse) ProtoMessage() {}
-
-func (x *ListRowsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListRowsResponse.ProtoReflect.Descriptor instead.
-func (*ListRowsResponse) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *ListRowsResponse) GetRows() []*StatsRow {
-	if x != nil {
-		return x.Rows
-	}
-	return nil
-}
-
-func (x *ListRowsResponse) GetNextPage() string {
-	if x != nil {
-		return x.NextPage
-	}
-	return ""
-}
-
 type MakeCastRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Since *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
@@ -755,7 +82,7 @@ type MakeCastRequest struct {
 
 func (x *MakeCastRequest) Reset() {
 	*x = MakeCastRequest{}
-	mi := &file_clips_v1_admin_proto_msgTypes[10]
+	mi := &file_clips_v1_admin_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -767,7 +94,7 @@ func (x *MakeCastRequest) String() string {
 func (*MakeCastRequest) ProtoMessage() {}
 
 func (x *MakeCastRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[10]
+	mi := &file_clips_v1_admin_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -780,7 +107,7 @@ func (x *MakeCastRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MakeCastRequest.ProtoReflect.Descriptor instead.
 func (*MakeCastRequest) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{10}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *MakeCastRequest) GetSince() *timestamppb.Timestamp {
@@ -806,7 +133,7 @@ type MakeCastResponse struct {
 
 func (x *MakeCastResponse) Reset() {
 	*x = MakeCastResponse{}
-	mi := &file_clips_v1_admin_proto_msgTypes[11]
+	mi := &file_clips_v1_admin_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -818,7 +145,7 @@ func (x *MakeCastResponse) String() string {
 func (*MakeCastResponse) ProtoMessage() {}
 
 func (x *MakeCastResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[11]
+	mi := &file_clips_v1_admin_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -831,7 +158,7 @@ func (x *MakeCastResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MakeCastResponse.ProtoReflect.Descriptor instead.
 func (*MakeCastResponse) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{11}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *MakeCastResponse) GetCast() *Cast {
@@ -859,7 +186,7 @@ type KeepAppearanceRequest struct {
 
 func (x *KeepAppearanceRequest) Reset() {
 	*x = KeepAppearanceRequest{}
-	mi := &file_clips_v1_admin_proto_msgTypes[12]
+	mi := &file_clips_v1_admin_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -871,7 +198,7 @@ func (x *KeepAppearanceRequest) String() string {
 func (*KeepAppearanceRequest) ProtoMessage() {}
 
 func (x *KeepAppearanceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[12]
+	mi := &file_clips_v1_admin_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -884,7 +211,7 @@ func (x *KeepAppearanceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KeepAppearanceRequest.ProtoReflect.Descriptor instead.
 func (*KeepAppearanceRequest) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{12}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *KeepAppearanceRequest) GetCastId() string {
@@ -938,7 +265,7 @@ type KeepAppearanceResponse struct {
 
 func (x *KeepAppearanceResponse) Reset() {
 	*x = KeepAppearanceResponse{}
-	mi := &file_clips_v1_admin_proto_msgTypes[13]
+	mi := &file_clips_v1_admin_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -950,7 +277,7 @@ func (x *KeepAppearanceResponse) String() string {
 func (*KeepAppearanceResponse) ProtoMessage() {}
 
 func (x *KeepAppearanceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[13]
+	mi := &file_clips_v1_admin_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -963,7 +290,7 @@ func (x *KeepAppearanceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KeepAppearanceResponse.ProtoReflect.Descriptor instead.
 func (*KeepAppearanceResponse) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{13}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *KeepAppearanceResponse) GetKept() uint32 {
@@ -983,7 +310,7 @@ type CreateVideoUploadRequest struct {
 
 func (x *CreateVideoUploadRequest) Reset() {
 	*x = CreateVideoUploadRequest{}
-	mi := &file_clips_v1_admin_proto_msgTypes[14]
+	mi := &file_clips_v1_admin_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -995,7 +322,7 @@ func (x *CreateVideoUploadRequest) String() string {
 func (*CreateVideoUploadRequest) ProtoMessage() {}
 
 func (x *CreateVideoUploadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[14]
+	mi := &file_clips_v1_admin_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1008,7 +335,7 @@ func (x *CreateVideoUploadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateVideoUploadRequest.ProtoReflect.Descriptor instead.
 func (*CreateVideoUploadRequest) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{14}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CreateVideoUploadRequest) GetContentType() string {
@@ -1036,7 +363,7 @@ type CreateVideoUploadResponse struct {
 
 func (x *CreateVideoUploadResponse) Reset() {
 	*x = CreateVideoUploadResponse{}
-	mi := &file_clips_v1_admin_proto_msgTypes[15]
+	mi := &file_clips_v1_admin_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1048,7 +375,7 @@ func (x *CreateVideoUploadResponse) String() string {
 func (*CreateVideoUploadResponse) ProtoMessage() {}
 
 func (x *CreateVideoUploadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[15]
+	mi := &file_clips_v1_admin_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1061,7 +388,7 @@ func (x *CreateVideoUploadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateVideoUploadResponse.ProtoReflect.Descriptor instead.
 func (*CreateVideoUploadResponse) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{15}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateVideoUploadResponse) GetVideoId() string {
@@ -1090,7 +417,7 @@ type KeepVideoRequest struct {
 
 func (x *KeepVideoRequest) Reset() {
 	*x = KeepVideoRequest{}
-	mi := &file_clips_v1_admin_proto_msgTypes[16]
+	mi := &file_clips_v1_admin_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1102,7 +429,7 @@ func (x *KeepVideoRequest) String() string {
 func (*KeepVideoRequest) ProtoMessage() {}
 
 func (x *KeepVideoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[16]
+	mi := &file_clips_v1_admin_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1115,7 +442,7 @@ func (x *KeepVideoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KeepVideoRequest.ProtoReflect.Descriptor instead.
 func (*KeepVideoRequest) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{16}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *KeepVideoRequest) GetVideoId() string {
@@ -1147,7 +474,7 @@ type KeepVideoResponse struct {
 
 func (x *KeepVideoResponse) Reset() {
 	*x = KeepVideoResponse{}
-	mi := &file_clips_v1_admin_proto_msgTypes[17]
+	mi := &file_clips_v1_admin_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1159,7 +486,7 @@ func (x *KeepVideoResponse) String() string {
 func (*KeepVideoResponse) ProtoMessage() {}
 
 func (x *KeepVideoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[17]
+	mi := &file_clips_v1_admin_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1172,7 +499,7 @@ func (x *KeepVideoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KeepVideoResponse.ProtoReflect.Descriptor instead.
 func (*KeepVideoResponse) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{17}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{7}
 }
 
 type ListVideosRequest struct {
@@ -1183,7 +510,7 @@ type ListVideosRequest struct {
 
 func (x *ListVideosRequest) Reset() {
 	*x = ListVideosRequest{}
-	mi := &file_clips_v1_admin_proto_msgTypes[18]
+	mi := &file_clips_v1_admin_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1195,7 +522,7 @@ func (x *ListVideosRequest) String() string {
 func (*ListVideosRequest) ProtoMessage() {}
 
 func (x *ListVideosRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[18]
+	mi := &file_clips_v1_admin_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1208,7 +535,7 @@ func (x *ListVideosRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListVideosRequest.ProtoReflect.Descriptor instead.
 func (*ListVideosRequest) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{18}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{8}
 }
 
 type ListVideosResponse struct {
@@ -1221,7 +548,7 @@ type ListVideosResponse struct {
 
 func (x *ListVideosResponse) Reset() {
 	*x = ListVideosResponse{}
-	mi := &file_clips_v1_admin_proto_msgTypes[19]
+	mi := &file_clips_v1_admin_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1233,7 +560,7 @@ func (x *ListVideosResponse) String() string {
 func (*ListVideosResponse) ProtoMessage() {}
 
 func (x *ListVideosResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[19]
+	mi := &file_clips_v1_admin_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1246,7 +573,7 @@ func (x *ListVideosResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListVideosResponse.ProtoReflect.Descriptor instead.
 func (*ListVideosResponse) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{19}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListVideosResponse) GetVideos() []*Video {
@@ -1274,7 +601,7 @@ type Video struct {
 
 func (x *Video) Reset() {
 	*x = Video{}
-	mi := &file_clips_v1_admin_proto_msgTypes[20]
+	mi := &file_clips_v1_admin_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1286,7 +613,7 @@ func (x *Video) String() string {
 func (*Video) ProtoMessage() {}
 
 func (x *Video) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[20]
+	mi := &file_clips_v1_admin_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1299,7 +626,7 @@ func (x *Video) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Video.ProtoReflect.Descriptor instead.
 func (*Video) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{20}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Video) GetVideoId() string {
@@ -1367,7 +694,7 @@ type RemoveVideoRequest struct {
 
 func (x *RemoveVideoRequest) Reset() {
 	*x = RemoveVideoRequest{}
-	mi := &file_clips_v1_admin_proto_msgTypes[21]
+	mi := &file_clips_v1_admin_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1379,7 +706,7 @@ func (x *RemoveVideoRequest) String() string {
 func (*RemoveVideoRequest) ProtoMessage() {}
 
 func (x *RemoveVideoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[21]
+	mi := &file_clips_v1_admin_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1392,7 +719,7 @@ func (x *RemoveVideoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveVideoRequest.ProtoReflect.Descriptor instead.
 func (*RemoveVideoRequest) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{21}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RemoveVideoRequest) GetVideoId() string {
@@ -1410,7 +737,7 @@ type RemoveVideoResponse struct {
 
 func (x *RemoveVideoResponse) Reset() {
 	*x = RemoveVideoResponse{}
-	mi := &file_clips_v1_admin_proto_msgTypes[22]
+	mi := &file_clips_v1_admin_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1422,7 +749,7 @@ func (x *RemoveVideoResponse) String() string {
 func (*RemoveVideoResponse) ProtoMessage() {}
 
 func (x *RemoveVideoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[22]
+	mi := &file_clips_v1_admin_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1435,7 +762,7 @@ func (x *RemoveVideoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveVideoResponse.ProtoReflect.Descriptor instead.
 func (*RemoveVideoResponse) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{22}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{12}
 }
 
 type NameVerdict struct {
@@ -1455,7 +782,7 @@ type NameVerdict struct {
 
 func (x *NameVerdict) Reset() {
 	*x = NameVerdict{}
-	mi := &file_clips_v1_admin_proto_msgTypes[23]
+	mi := &file_clips_v1_admin_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1467,7 +794,7 @@ func (x *NameVerdict) String() string {
 func (*NameVerdict) ProtoMessage() {}
 
 func (x *NameVerdict) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[23]
+	mi := &file_clips_v1_admin_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1480,7 +807,7 @@ func (x *NameVerdict) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NameVerdict.ProtoReflect.Descriptor instead.
 func (*NameVerdict) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{23}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *NameVerdict) GetAccountId() string {
@@ -1535,7 +862,7 @@ type ListNameVerdictsRequest struct {
 
 func (x *ListNameVerdictsRequest) Reset() {
 	*x = ListNameVerdictsRequest{}
-	mi := &file_clips_v1_admin_proto_msgTypes[24]
+	mi := &file_clips_v1_admin_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1547,7 +874,7 @@ func (x *ListNameVerdictsRequest) String() string {
 func (*ListNameVerdictsRequest) ProtoMessage() {}
 
 func (x *ListNameVerdictsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[24]
+	mi := &file_clips_v1_admin_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1560,7 +887,7 @@ func (x *ListNameVerdictsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNameVerdictsRequest.ProtoReflect.Descriptor instead.
 func (*ListNameVerdictsRequest) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{24}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListNameVerdictsRequest) GetHiddenOnly() bool {
@@ -1579,7 +906,7 @@ type ListNameVerdictsResponse struct {
 
 func (x *ListNameVerdictsResponse) Reset() {
 	*x = ListNameVerdictsResponse{}
-	mi := &file_clips_v1_admin_proto_msgTypes[25]
+	mi := &file_clips_v1_admin_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1591,7 +918,7 @@ func (x *ListNameVerdictsResponse) String() string {
 func (*ListNameVerdictsResponse) ProtoMessage() {}
 
 func (x *ListNameVerdictsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[25]
+	mi := &file_clips_v1_admin_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1604,7 +931,7 @@ func (x *ListNameVerdictsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNameVerdictsResponse.ProtoReflect.Descriptor instead.
 func (*ListNameVerdictsResponse) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{25}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListNameVerdictsResponse) GetVerdicts() []*NameVerdict {
@@ -1626,7 +953,7 @@ type SetNameVerdictRequest struct {
 
 func (x *SetNameVerdictRequest) Reset() {
 	*x = SetNameVerdictRequest{}
-	mi := &file_clips_v1_admin_proto_msgTypes[26]
+	mi := &file_clips_v1_admin_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1638,7 +965,7 @@ func (x *SetNameVerdictRequest) String() string {
 func (*SetNameVerdictRequest) ProtoMessage() {}
 
 func (x *SetNameVerdictRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[26]
+	mi := &file_clips_v1_admin_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1651,7 +978,7 @@ func (x *SetNameVerdictRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetNameVerdictRequest.ProtoReflect.Descriptor instead.
 func (*SetNameVerdictRequest) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{26}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SetNameVerdictRequest) GetAccountId() string {
@@ -1684,7 +1011,7 @@ type SetNameVerdictResponse struct {
 
 func (x *SetNameVerdictResponse) Reset() {
 	*x = SetNameVerdictResponse{}
-	mi := &file_clips_v1_admin_proto_msgTypes[27]
+	mi := &file_clips_v1_admin_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1696,7 +1023,7 @@ func (x *SetNameVerdictResponse) String() string {
 func (*SetNameVerdictResponse) ProtoMessage() {}
 
 func (x *SetNameVerdictResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_admin_proto_msgTypes[27]
+	mi := &file_clips_v1_admin_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1709,7 +1036,7 @@ func (x *SetNameVerdictResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetNameVerdictResponse.ProtoReflect.Descriptor instead.
 func (*SetNameVerdictResponse) Descriptor() ([]byte, []int) {
-	return file_clips_v1_admin_proto_rawDescGZIP(), []int{27}
+	return file_clips_v1_admin_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *SetNameVerdictResponse) GetVerdict() *NameVerdict {
@@ -1723,55 +1050,7 @@ var File_clips_v1_admin_proto protoreflect.FileDescriptor
 
 const file_clips_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x14clips/v1/admin.proto\x12\bclips.v1\x1a\x14clips/v1/clips.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdd\x02\n" +
-	"\rStatsSnapshot\x125\n" +
-	"\btaken_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\atakenAt\x120\n" +
-	"\x05since\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12\x14\n" +
-	"\x05posts\x18\x03 \x01(\rR\x05posts\x12\x17\n" +
-	"\anot_out\x18\x04 \x01(\rR\x06notOut\x12\x12\n" +
-	"\x04rows\x18\x05 \x01(\rR\x04rows\x12\x18\n" +
-	"\asyncing\x18\x06 \x01(\rR\asyncing\x12\x16\n" +
-	"\x06curves\x18\a \x01(\rR\x06curves\x12@\n" +
-	"\x0ftiktok_accounts\x18\b \x03(\v2\x17.clips.v1.TikTokAccountR\x0etiktokAccounts\x12,\n" +
-	"\x06unread\x18\t \x03(\v2\x14.clips.v1.UnreadPostR\x06unread\"\x9f\x02\n" +
-	"\rTikTokAccount\x12\x1d\n" +
-	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\x12\x1a\n" +
-	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
-	"\faccount_type\x18\x03 \x01(\tR\vaccountType\x12)\n" +
-	"\x10commercial_music\x18\x04 \x01(\bR\x0fcommercialMusic\x128\n" +
-	"\x18commercial_music_refusal\x18\x05 \x01(\tR\x16commercialMusicRefusal\x12\x12\n" +
-	"\x04rows\x18\x06 \x01(\rR\x04rows\x12#\n" +
-	"\rbusiness_rows\x18\a \x01(\rR\fbusinessRows\x12\x12\n" +
-	"\x04live\x18\b \x01(\bR\x04live\"=\n" +
-	"\n" +
-	"UnreadPost\x12\x17\n" +
-	"\apost_id\x18\x01 \x01(\tR\x06postId\x12\x16\n" +
-	"\x06reason\x18\x02 \x01(\tR\x06reason\"\x92\x01\n" +
-	"\bStatsRow\x125\n" +
-	"\btaken_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\atakenAt\x12\x17\n" +
-	"\apost_id\x18\x02 \x01(\tR\x06postId\x12\x1a\n" +
-	"\bplatform\x18\x03 \x01(\tR\bplatform\x12\x1a\n" +
-	"\bdocument\x18\x04 \x01(\tR\bdocument\"r\n" +
-	"\x13KeepSnapshotRequest\x123\n" +
-	"\bsnapshot\x18\x01 \x01(\v2\x17.clips.v1.StatsSnapshotR\bsnapshot\x12&\n" +
-	"\x04rows\x18\x02 \x03(\v2\x12.clips.v1.StatsRowR\x04rows\"*\n" +
-	"\x14KeepSnapshotResponse\x12\x12\n" +
-	"\x04rows\x18\x01 \x01(\rR\x04rows\"\x90\x01\n" +
-	"\x14ListSnapshotsRequest\x120\n" +
-	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
-	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\rR\x05limit\"N\n" +
-	"\x15ListSnapshotsResponse\x125\n" +
-	"\tsnapshots\x18\x01 \x03(\v2\x17.clips.v1.StatsSnapshotR\tsnapshots\"\x9f\x01\n" +
-	"\x0fListRowsRequest\x120\n" +
-	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
-	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\rR\x05limit\x12\x12\n" +
-	"\x04page\x18\x04 \x01(\tR\x04page\"W\n" +
-	"\x10ListRowsResponse\x12&\n" +
-	"\x04rows\x18\x01 \x03(\v2\x12.clips.v1.StatsRowR\x04rows\x12\x1b\n" +
-	"\tnext_page\x18\x02 \x01(\tR\bnextPage\"u\n" +
+	"\x14clips/v1/admin.proto\x12\bclips.v1\x1a\x14clips/v1/clips.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"u\n" +
 	"\x0fMakeCastRequest\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
 	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\"6\n" +
@@ -1840,11 +1119,8 @@ const file_clips_v1_admin_proto_rawDesc = "" +
 	"\tVerdictBy\x12\x1a\n" +
 	"\x16VERDICT_BY_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10VERDICT_BY_JUDGE\x10\x01\x12\x17\n" +
-	"\x13VERDICT_BY_OPERATOR\x10\x022\x87\a\n" +
-	"\fAdminService\x12M\n" +
-	"\fKeepSnapshot\x12\x1d.clips.v1.KeepSnapshotRequest\x1a\x1e.clips.v1.KeepSnapshotResponse\x12U\n" +
-	"\rListSnapshots\x12\x1e.clips.v1.ListSnapshotsRequest\x1a\x1f.clips.v1.ListSnapshotsResponse\"\x03\x90\x02\x01\x12F\n" +
-	"\bListRows\x12\x19.clips.v1.ListRowsRequest\x1a\x1a.clips.v1.ListRowsResponse\"\x03\x90\x02\x01\x12A\n" +
+	"\x13VERDICT_BY_OPERATOR\x10\x022\x99\x05\n" +
+	"\fAdminService\x12A\n" +
 	"\bMakeCast\x12\x19.clips.v1.MakeCastRequest\x1a\x1a.clips.v1.MakeCastResponse\x12S\n" +
 	"\x0eKeepAppearance\x12\x1f.clips.v1.KeepAppearanceRequest\x1a .clips.v1.KeepAppearanceResponse\x12\\\n" +
 	"\x11CreateVideoUpload\x12\".clips.v1.CreateVideoUploadRequest\x1a#.clips.v1.CreateVideoUploadResponse\x12D\n" +
@@ -1870,91 +1146,62 @@ func file_clips_v1_admin_proto_rawDescGZIP() []byte {
 }
 
 var file_clips_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_clips_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_clips_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_clips_v1_admin_proto_goTypes = []any{
 	(VerdictBy)(0),                    // 0: clips.v1.VerdictBy
-	(*StatsSnapshot)(nil),             // 1: clips.v1.StatsSnapshot
-	(*TikTokAccount)(nil),             // 2: clips.v1.TikTokAccount
-	(*UnreadPost)(nil),                // 3: clips.v1.UnreadPost
-	(*StatsRow)(nil),                  // 4: clips.v1.StatsRow
-	(*KeepSnapshotRequest)(nil),       // 5: clips.v1.KeepSnapshotRequest
-	(*KeepSnapshotResponse)(nil),      // 6: clips.v1.KeepSnapshotResponse
-	(*ListSnapshotsRequest)(nil),      // 7: clips.v1.ListSnapshotsRequest
-	(*ListSnapshotsResponse)(nil),     // 8: clips.v1.ListSnapshotsResponse
-	(*ListRowsRequest)(nil),           // 9: clips.v1.ListRowsRequest
-	(*ListRowsResponse)(nil),          // 10: clips.v1.ListRowsResponse
-	(*MakeCastRequest)(nil),           // 11: clips.v1.MakeCastRequest
-	(*MakeCastResponse)(nil),          // 12: clips.v1.MakeCastResponse
-	(*KeepAppearanceRequest)(nil),     // 13: clips.v1.KeepAppearanceRequest
-	(*KeepAppearanceResponse)(nil),    // 14: clips.v1.KeepAppearanceResponse
-	(*CreateVideoUploadRequest)(nil),  // 15: clips.v1.CreateVideoUploadRequest
-	(*CreateVideoUploadResponse)(nil), // 16: clips.v1.CreateVideoUploadResponse
-	(*KeepVideoRequest)(nil),          // 17: clips.v1.KeepVideoRequest
-	(*KeepVideoResponse)(nil),         // 18: clips.v1.KeepVideoResponse
-	(*ListVideosRequest)(nil),         // 19: clips.v1.ListVideosRequest
-	(*ListVideosResponse)(nil),        // 20: clips.v1.ListVideosResponse
-	(*Video)(nil),                     // 21: clips.v1.Video
-	(*RemoveVideoRequest)(nil),        // 22: clips.v1.RemoveVideoRequest
-	(*RemoveVideoResponse)(nil),       // 23: clips.v1.RemoveVideoResponse
-	(*NameVerdict)(nil),               // 24: clips.v1.NameVerdict
-	(*ListNameVerdictsRequest)(nil),   // 25: clips.v1.ListNameVerdictsRequest
-	(*ListNameVerdictsResponse)(nil),  // 26: clips.v1.ListNameVerdictsResponse
-	(*SetNameVerdictRequest)(nil),     // 27: clips.v1.SetNameVerdictRequest
-	(*SetNameVerdictResponse)(nil),    // 28: clips.v1.SetNameVerdictResponse
-	(*timestamppb.Timestamp)(nil),     // 29: google.protobuf.Timestamp
-	(*Cast)(nil),                      // 30: clips.v1.Cast
+	(*MakeCastRequest)(nil),           // 1: clips.v1.MakeCastRequest
+	(*MakeCastResponse)(nil),          // 2: clips.v1.MakeCastResponse
+	(*KeepAppearanceRequest)(nil),     // 3: clips.v1.KeepAppearanceRequest
+	(*KeepAppearanceResponse)(nil),    // 4: clips.v1.KeepAppearanceResponse
+	(*CreateVideoUploadRequest)(nil),  // 5: clips.v1.CreateVideoUploadRequest
+	(*CreateVideoUploadResponse)(nil), // 6: clips.v1.CreateVideoUploadResponse
+	(*KeepVideoRequest)(nil),          // 7: clips.v1.KeepVideoRequest
+	(*KeepVideoResponse)(nil),         // 8: clips.v1.KeepVideoResponse
+	(*ListVideosRequest)(nil),         // 9: clips.v1.ListVideosRequest
+	(*ListVideosResponse)(nil),        // 10: clips.v1.ListVideosResponse
+	(*Video)(nil),                     // 11: clips.v1.Video
+	(*RemoveVideoRequest)(nil),        // 12: clips.v1.RemoveVideoRequest
+	(*RemoveVideoResponse)(nil),       // 13: clips.v1.RemoveVideoResponse
+	(*NameVerdict)(nil),               // 14: clips.v1.NameVerdict
+	(*ListNameVerdictsRequest)(nil),   // 15: clips.v1.ListNameVerdictsRequest
+	(*ListNameVerdictsResponse)(nil),  // 16: clips.v1.ListNameVerdictsResponse
+	(*SetNameVerdictRequest)(nil),     // 17: clips.v1.SetNameVerdictRequest
+	(*SetNameVerdictResponse)(nil),    // 18: clips.v1.SetNameVerdictResponse
+	(*timestamppb.Timestamp)(nil),     // 19: google.protobuf.Timestamp
+	(*Cast)(nil),                      // 20: clips.v1.Cast
 }
 var file_clips_v1_admin_proto_depIdxs = []int32{
-	29, // 0: clips.v1.StatsSnapshot.taken_at:type_name -> google.protobuf.Timestamp
-	29, // 1: clips.v1.StatsSnapshot.since:type_name -> google.protobuf.Timestamp
-	2,  // 2: clips.v1.StatsSnapshot.tiktok_accounts:type_name -> clips.v1.TikTokAccount
-	3,  // 3: clips.v1.StatsSnapshot.unread:type_name -> clips.v1.UnreadPost
-	29, // 4: clips.v1.StatsRow.taken_at:type_name -> google.protobuf.Timestamp
-	1,  // 5: clips.v1.KeepSnapshotRequest.snapshot:type_name -> clips.v1.StatsSnapshot
-	4,  // 6: clips.v1.KeepSnapshotRequest.rows:type_name -> clips.v1.StatsRow
-	29, // 7: clips.v1.ListSnapshotsRequest.since:type_name -> google.protobuf.Timestamp
-	29, // 8: clips.v1.ListSnapshotsRequest.until:type_name -> google.protobuf.Timestamp
-	1,  // 9: clips.v1.ListSnapshotsResponse.snapshots:type_name -> clips.v1.StatsSnapshot
-	29, // 10: clips.v1.ListRowsRequest.since:type_name -> google.protobuf.Timestamp
-	29, // 11: clips.v1.ListRowsRequest.until:type_name -> google.protobuf.Timestamp
-	4,  // 12: clips.v1.ListRowsResponse.rows:type_name -> clips.v1.StatsRow
-	29, // 13: clips.v1.MakeCastRequest.since:type_name -> google.protobuf.Timestamp
-	29, // 14: clips.v1.MakeCastRequest.until:type_name -> google.protobuf.Timestamp
-	30, // 15: clips.v1.MakeCastResponse.cast:type_name -> clips.v1.Cast
-	29, // 16: clips.v1.KeepAppearanceRequest.scheduled_at:type_name -> google.protobuf.Timestamp
-	21, // 17: clips.v1.ListVideosResponse.videos:type_name -> clips.v1.Video
-	29, // 18: clips.v1.Video.kept_at:type_name -> google.protobuf.Timestamp
-	0,  // 19: clips.v1.NameVerdict.decided_by:type_name -> clips.v1.VerdictBy
-	29, // 20: clips.v1.NameVerdict.decided_at:type_name -> google.protobuf.Timestamp
-	24, // 21: clips.v1.ListNameVerdictsResponse.verdicts:type_name -> clips.v1.NameVerdict
-	24, // 22: clips.v1.SetNameVerdictResponse.verdict:type_name -> clips.v1.NameVerdict
-	5,  // 23: clips.v1.AdminService.KeepSnapshot:input_type -> clips.v1.KeepSnapshotRequest
-	7,  // 24: clips.v1.AdminService.ListSnapshots:input_type -> clips.v1.ListSnapshotsRequest
-	9,  // 25: clips.v1.AdminService.ListRows:input_type -> clips.v1.ListRowsRequest
-	11, // 26: clips.v1.AdminService.MakeCast:input_type -> clips.v1.MakeCastRequest
-	13, // 27: clips.v1.AdminService.KeepAppearance:input_type -> clips.v1.KeepAppearanceRequest
-	15, // 28: clips.v1.AdminService.CreateVideoUpload:input_type -> clips.v1.CreateVideoUploadRequest
-	17, // 29: clips.v1.AdminService.KeepVideo:input_type -> clips.v1.KeepVideoRequest
-	19, // 30: clips.v1.AdminService.ListVideos:input_type -> clips.v1.ListVideosRequest
-	22, // 31: clips.v1.AdminService.RemoveVideo:input_type -> clips.v1.RemoveVideoRequest
-	25, // 32: clips.v1.AdminService.ListNameVerdicts:input_type -> clips.v1.ListNameVerdictsRequest
-	27, // 33: clips.v1.AdminService.SetNameVerdict:input_type -> clips.v1.SetNameVerdictRequest
-	6,  // 34: clips.v1.AdminService.KeepSnapshot:output_type -> clips.v1.KeepSnapshotResponse
-	8,  // 35: clips.v1.AdminService.ListSnapshots:output_type -> clips.v1.ListSnapshotsResponse
-	10, // 36: clips.v1.AdminService.ListRows:output_type -> clips.v1.ListRowsResponse
-	12, // 37: clips.v1.AdminService.MakeCast:output_type -> clips.v1.MakeCastResponse
-	14, // 38: clips.v1.AdminService.KeepAppearance:output_type -> clips.v1.KeepAppearanceResponse
-	16, // 39: clips.v1.AdminService.CreateVideoUpload:output_type -> clips.v1.CreateVideoUploadResponse
-	18, // 40: clips.v1.AdminService.KeepVideo:output_type -> clips.v1.KeepVideoResponse
-	20, // 41: clips.v1.AdminService.ListVideos:output_type -> clips.v1.ListVideosResponse
-	23, // 42: clips.v1.AdminService.RemoveVideo:output_type -> clips.v1.RemoveVideoResponse
-	26, // 43: clips.v1.AdminService.ListNameVerdicts:output_type -> clips.v1.ListNameVerdictsResponse
-	28, // 44: clips.v1.AdminService.SetNameVerdict:output_type -> clips.v1.SetNameVerdictResponse
-	34, // [34:45] is the sub-list for method output_type
-	23, // [23:34] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	19, // 0: clips.v1.MakeCastRequest.since:type_name -> google.protobuf.Timestamp
+	19, // 1: clips.v1.MakeCastRequest.until:type_name -> google.protobuf.Timestamp
+	20, // 2: clips.v1.MakeCastResponse.cast:type_name -> clips.v1.Cast
+	19, // 3: clips.v1.KeepAppearanceRequest.scheduled_at:type_name -> google.protobuf.Timestamp
+	11, // 4: clips.v1.ListVideosResponse.videos:type_name -> clips.v1.Video
+	19, // 5: clips.v1.Video.kept_at:type_name -> google.protobuf.Timestamp
+	0,  // 6: clips.v1.NameVerdict.decided_by:type_name -> clips.v1.VerdictBy
+	19, // 7: clips.v1.NameVerdict.decided_at:type_name -> google.protobuf.Timestamp
+	14, // 8: clips.v1.ListNameVerdictsResponse.verdicts:type_name -> clips.v1.NameVerdict
+	14, // 9: clips.v1.SetNameVerdictResponse.verdict:type_name -> clips.v1.NameVerdict
+	1,  // 10: clips.v1.AdminService.MakeCast:input_type -> clips.v1.MakeCastRequest
+	3,  // 11: clips.v1.AdminService.KeepAppearance:input_type -> clips.v1.KeepAppearanceRequest
+	5,  // 12: clips.v1.AdminService.CreateVideoUpload:input_type -> clips.v1.CreateVideoUploadRequest
+	7,  // 13: clips.v1.AdminService.KeepVideo:input_type -> clips.v1.KeepVideoRequest
+	9,  // 14: clips.v1.AdminService.ListVideos:input_type -> clips.v1.ListVideosRequest
+	12, // 15: clips.v1.AdminService.RemoveVideo:input_type -> clips.v1.RemoveVideoRequest
+	15, // 16: clips.v1.AdminService.ListNameVerdicts:input_type -> clips.v1.ListNameVerdictsRequest
+	17, // 17: clips.v1.AdminService.SetNameVerdict:input_type -> clips.v1.SetNameVerdictRequest
+	2,  // 18: clips.v1.AdminService.MakeCast:output_type -> clips.v1.MakeCastResponse
+	4,  // 19: clips.v1.AdminService.KeepAppearance:output_type -> clips.v1.KeepAppearanceResponse
+	6,  // 20: clips.v1.AdminService.CreateVideoUpload:output_type -> clips.v1.CreateVideoUploadResponse
+	8,  // 21: clips.v1.AdminService.KeepVideo:output_type -> clips.v1.KeepVideoResponse
+	10, // 22: clips.v1.AdminService.ListVideos:output_type -> clips.v1.ListVideosResponse
+	13, // 23: clips.v1.AdminService.RemoveVideo:output_type -> clips.v1.RemoveVideoResponse
+	16, // 24: clips.v1.AdminService.ListNameVerdicts:output_type -> clips.v1.ListNameVerdictsResponse
+	18, // 25: clips.v1.AdminService.SetNameVerdict:output_type -> clips.v1.SetNameVerdictResponse
+	18, // [18:26] is the sub-list for method output_type
+	10, // [10:18] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_clips_v1_admin_proto_init() }
@@ -1969,7 +1216,7 @@ func file_clips_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clips_v1_admin_proto_rawDesc), len(file_clips_v1_admin_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   28,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

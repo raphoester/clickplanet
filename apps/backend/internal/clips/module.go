@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1/clipsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/publishing/v1/publishingv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/appearances/postgres_appearance_store"
 	forget_appearances "github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/appearances/usecases/forget_account_usecase"
@@ -28,15 +29,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/create_video_upload_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/get_appearances_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/get_appearances_handler/appearances_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/get_appearances_handler/appearances_query/rpc_publishing_links"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/keep_appearance_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/keep_snapshot_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/keep_video_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_name_verdicts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_name_verdicts_handler/verdicts_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_rows_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_rows_handler/rows_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_snapshots_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_snapshots_handler/snapshots_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_videos_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_videos_handler/videos_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/make_cast_handler"
@@ -47,8 +44,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/postgres_optout_store"
 	forget_optouts "github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/usecases/set_name_shown_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/snapshots/postgres_snapshot_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/snapshots/usecases/keep_snapshot_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/claude_name_judge"
@@ -73,9 +68,9 @@ import (
 
 const moduleName = "clips"
 
-// The server's side of the clips job: the numbers of the clips it posted, a snapshot a day, which `clips stats` sends
-// over ssh and the backoffice reads; the cast of each run and who each post names, which `clips fetch` and `clips
-// schedule` ask over ssh; and, on the public router, the posts that name the caller.
+// The server's side of the clips job: the cast of each run and who each post names, which `clips fetch` and `clips
+// schedule` ask over ssh; the videos the operator posts by hand; and, on the public router, the posts that name the
+// caller. The numbers of the posts are the publishing module's.
 func NewModule(config ModuleConfig) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
@@ -160,9 +155,6 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 		forgottenCasts, forgottenAppearances, forgottenOptOuts, forgottenVerdicts)))
 
 	adminService := clipsv1controller.AdminService{
-		KeepSnapshotHandler:  keep_snapshot_handler.New(keep_snapshot_usecase.New(postgres_snapshot_store.New(db))),
-		ListSnapshotsHandler: list_snapshots_handler.New(snapshots_query.NewPostgresQuery(db)),
-		ListRowsHandler:      list_rows_handler.New(rows_query.NewPostgresQuery(db)),
 		MakeCastHandler: make_cast_handler.New(make_cast_usecase.New(
 			rpc_planet_ledger.New(planetv1connect.NewInternalServiceClient(internal, baseURL)),
 			casts.NewShownNames(rpc_player_names.New(playerv1connect.NewInternalServiceClient(internal, baseURL)), optOuts,
@@ -185,8 +177,9 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 	}
 
 	clipsService := clipsv1controller.ClipsService{
-		GetAppearancesHandler: get_appearances_handler.New(appearances_query.NewPostgresQuery(db, clock)),
-		SetNameShownHandler:   set_name_shown_handler.New(set_name_shown_usecase.New(optOuts)),
+		GetAppearancesHandler: get_appearances_handler.New(appearances_query.NewPostgresQuery(db,
+			rpc_publishing_links.New(publishingv1connect.NewInternalServiceClient(internal, baseURL), props.Logger), clock)),
+		SetNameShownHandler: set_name_shown_handler.New(set_name_shown_usecase.New(optOuts)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return clipsv1connect.NewClipsServiceHandler(clipsService, options...)
