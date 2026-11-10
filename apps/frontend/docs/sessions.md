@@ -98,6 +98,24 @@ lifecycle left to get wrong.
 visitor. `.turnstile-host` in `index.css` is where it would appear if Turnstile
 decides this one has to tick a box.
 
+**A box that asks for a tick fills the screen.** From Nov 4 to Nov 10 2026, 14% of
+the networks that met the check had to tick the box at least once, and 9% never
+passed it. Before, the box sat small at the bottom, over the menu, in the
+visitor's language, while every tap painted its tile and then turned it red with
+no word. Now Turnstile's `before-interactive-callback` adds `asking` to the
+host: it covers the screen with `--scrim` and centres the box, so the globe
+behind takes no tap until the box is ticked. `after-interactive-callback`, a
+token, a failure or a timeout takes it off. The host counts the widgets that
+ask, so a second one still asking keeps it on. No text of ours is added: the
+box says what to do.
+
+**A box that asks gets 5 minutes, not 30 s.** `ATTESTATION_TIMEOUT_MS` (30 s)
+ends a check that never answers; a person has to find the box and tick it, so
+`before-interactive-callback` restarts the timer at `ASKING_TIMEOUT_MS`. Before,
+a box left 30 s was removed and the taps waiting on it all failed into
+`SessionUnavailableModal`. `turnstileAttester.test.ts` pins both, with a fake
+`window.turnstile`.
+
 **Turnstile draws the checkbox inside a closed shadow root**, so no selector on
 this page reaches it and no rule of ours styles it. That makes
 `pointer-events: none` on the host unusable, however tempting: the property
