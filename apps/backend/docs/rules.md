@@ -21,8 +21,9 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 - **`Set.TakeSnapshot()` is what the set holds**: what is kept and edited. `TakePlayedSnapshot()` is what it plays,
   which the log lines print. `Set.Equal` compares what two sets play.
 
-- **Each part is read by the package that plays it.** `clicks` owns two parts, `clicks` (`Throttle`) and `toll`
-  (`TollSteps`); `bonuses` owns `bonuses` (`Rules`). Each part has its `Validate`, its `…Of(message)` (`message.go`)
+- **Each part is read by the package that plays it.** `clicks` owns three parts, `clicks` (`Throttle`), `toll`
+  (`TollSteps`) and `frozen` (`Freeze`); `bonuses` owns `bonuses` (`Rules`), `allegiances` `allegianceLocked` (`Lock`)
+  and `arenas` `arena` (`Rules`). Each part has its `Validate`, its `…Of(message)` (`message.go`)
   and a `Part` (`rules.PartOf[R]{Key, Read}`). The `rules` package names none of them.
 - **`parts.All()` is the one list of parts** (`rules/parts`). A concept that reads the rules adds its field to
   `planet.v1.Rules`, its part, and one line there; nothing in `rules`, the store or the handlers changes.
@@ -88,7 +89,7 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 AnswerQuiz with `FailedPrecondition` and a `planet.v1.FrozenRefusal` detail (`clicks.ErrFrozen`), before any of them
 spends a click or a charge. The map still loads and streams; tile cards, the board and PledgeAllegiance go on, and so
 do the operator's tools. A freeze is played like any set: the schedule picks it (a plain entry over the break between
-two seasons, see [Before the Final Battle](gamemaster.md#before-the-final-battle-sat-31-oct-2026-2100-utc)), so no
+two seasons, see [A freeze over the break](gamemaster.md#a-freeze-over-the-break-between-two-seasons)), so no
 operator call freezes the map at once.
 
 - **The client learns it from planet, the module that refuses**: `GetBudget` answers `ClickBudget.frozen` (only
@@ -129,11 +130,14 @@ The readers call it where they use the rules, not when they are built: a set tak
 - `clicks.ThrottlePart` — `clicks.Buckets` (the multipliers, `newAccountClicks`, `fastStart`), `try_click` (`ClickTried.tempo`),
   and the click limiter: `cpratelimit.NewRuled` reads `Throttle.Policy(inForce.Since())`, its rate, bank and tempo.
 - `clicks.TollPart` — `clicks.Toll`: the price of each click, and `GetBonusRules.toll_steps`.
+- `clicks.FreezePart` — the freeze interceptor (`planetv1controller.NewFreezeInterceptor`) and `get_budget_usecase`.
 - `allegiances.LockPart` — `allegiances.Book` (a pledge and a click for another flag) and `allegiance_query`
   (`Allegiance.locked`).
 - `bonuses.Part` — the box registry (waits, kinds, flight, miss, activity, welcome, quizzes, the quiz lean),
   `bonuses.Charges` (the stacks), `bonuses.Bombing` (the radius), `enclose_click`, `place_shield_usecase`,
   `clicks.Claiming` (a tile's most shields, for a fortify) and `GetBonusRules`.
+- `arenas.Part` — `arenas.InPlay` (an open arena's freeze, which the freeze interceptor reads too) and `arenas.Starts`
+  (each capital's shields), for `open_arena_usecase`.
 - **`play_rules_usecase` plays when something changes, never on a timer**: at boot and after each save (`Execute`) the
   set the schedule chose last, and `default` until it chose one; then each `planet.v1.PlayRuleSet` the schedule sends (`Play`, from
   `commands/play_rule_set_handler`); the same turn, sent again each minute with the same `decided_at`, is no newer

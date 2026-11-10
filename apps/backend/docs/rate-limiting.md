@@ -93,7 +93,7 @@ Chat and sessions each have **their own limiter instance** with their own budget
 - `chat.rateLimiter` — one message every 3s, five in hand. A message fans out to every connected client and lands in a log everyone will read.
 - `chat.reactionLimiter` — one reaction a second, ten in hand. A reaction is a short row and a small frame.
 - `chat.seenLimiter` — one seen mark a second, ten in hand. The client sends one at most every 2s anyway.
-- `auth.rateLimiter` — one mint every 30s, ten in hand, across both `CreateSession` paths. A mint costs a siteverify round trip to a third party, so an unthrottled `CreateSession` is a free way to spend this server's Turnstile quota.
+- `auth.rateLimiter` — one mint every 30s, ten in hand, across `CreateSession` and every sign-in call. A mint costs a siteverify round trip to a third party, so an unthrottled `CreateSession` is a free way to spend this server's Turnstile quota.
 - `auth.resumeLimiter` — one `ResumeSession` a second, ten in hand. It costs one row read and no third party.
 - `support.rateLimiter` — one note or report a minute, three in hand. Each is a row the operator reads by hand.
 - `support.noteLimiter` — ten suggestions and bug reports a day, per account and per address together.

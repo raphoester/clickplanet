@@ -41,7 +41,7 @@ type Config struct {
 	Missions    missions.Config
 	Support     support.Config
 	MCP         mcp.Config
-	// The numbers of the clips the clips job posted.
+	// Who each clip names and who keeps out, the names a post may show, and the operator's videos.
 	Clips clips.ModuleConfig
 	// The game's Discord server: a player's link, its flag's role, and the pings.
 	Alerts alerts.Config

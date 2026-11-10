@@ -30,12 +30,12 @@ player could paint for one country and defend another click to click. **Only
   player's Discord role (see [Discord pings](alerts.md)), and `chat` to end the player's stream of the room of the
   flag it left (see [Chat](chat.md#rooms)).
   **`Book.PlayError(ctx, payer, flag)`** reads the store, with 1s to do it, and asks `PlayError`. A caller
-  with no account (the deprecated mint, `auth` off) is held to nothing, and a flag that
+  with no account (`auth` off) is held to nothing, and a flag that
   is no country is left to the click use case, which refuses it.
   **A flag that cannot be read refuses nothing**: the read's error is `ErrUnread`, which `allegiance_click` and the
   shield's gate let through and `log_allegiances` logs, as a refusal that cannot be read does (see
   [Anti-bot](antibot.md)). Postgres down lets an account play a flag it did not pledge, rather than stop every click;
-  a shield still needs postgres to be spent. Until 2026-11-10 a read that failed refused the click.
+  a shield still needs postgres to be spent.
 - **It is checked after the refusal and before the throttle** (`allegiance_click`,
   between `refusal_click` and `throttle_click`): a refused caller is told its
   refusal first, and a click refused for its flag spends no token.
@@ -62,8 +62,8 @@ player could paint for one country and defend another click to click. **Only
   click, so it has none at load.
 - **No memory copy: every click and every shield reads postgres**, and a change writes
   it, in `planet.allegiances` (`account`, `flag`, `changed_at`, NULL for a first flag).
-  Only the tile map is kept in memory and flushed. A failing database fails the click,
-  as the error net's `internal`. `allegiances.StoreContractSuite` runs on postgres and
+  Only the tile map is kept in memory and flushed. A failing database lets the click
+  through, as above. `allegiances.StoreContractSuite` runs on postgres and
   on `MemoryStore`, the fake the use cases are tested over (behind the tag).
 - **A row is never deleted**, not even with its account: without the row the next flag
   is a first flag again, which would hand out a free change. The row names nobody once

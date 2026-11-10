@@ -413,8 +413,7 @@ read `suspect`, as it does in a tile war, and two suspects are a ban.
   them apart. That is a click while `auth.enabled` is off.
 - **A guest that takes a new account starts a new run.** That is `churner`'s to read.
 - `click_gap_skew` and `click_clock_coherence` are each payer's, not each scope's.
-- **The runs are saved by payer.** A section saved before this decodes with no run
-  and keeps its stamina, which was the payer's already.
+- **The runs are saved by payer.**
 - **Known risk: 400ms is close to a hand.** Simulated, a hand at even 300-900ms gaps
   with no pause over `maxGap` dips under it in 1 run of 12 inside ten minutes, and
   in 1 of 5 inside thirty. Past `certainFor` one such window reads `certain`: the
@@ -543,8 +542,7 @@ under 400ms and it makes 1,080 tries in 30 minutes.
 - **`cohort`'s `crowd` bound is the anti-bot's own** (`certainMembers`), never a rule set's: planet's rule sets hold
   planet's words only. A countdown makes people start on the second, a carrier's NAT can put six of them on one /24,
   and a fast tempo makes them pace alike, so a faster set may need a higher bound. `chain` and `lockstep` do not move.
-- A run saved before this decodes with no length, so its `sustained` starts again at the deploy; its gaps and clicks
-  are kept. `tempo_test.go` pins all of it at production's bounds.
+- `tempo_test.go` pins all of it at production's bounds.
 
 **`defender`: what is clicked, not when.** The bots of 2026-09-14 retook from a
 queue behind the throttle: tiles came back 0.4s, 1.5s, 2.5s … 40s after they were
@@ -885,8 +883,7 @@ and every other watchdog read `clear`.
   (`Observer.OnRotationShare`). People pile up near 1.
 - **Kept per account, per slot**, one bit per second: 40 bytes a slot, and the scope it
   clicked from last. The section is saved with the slot length, and one saved under
-  another length is dropped on load. One saved per scope, before 2026-11-03, loads empty:
-  the deploy costs the window, and `certain` reads four hours after it at the soonest.
+  another length is dropped on load.
 - **What it cannot tell**: two people who pass one device back and forth each time a
   bank is empty read as one hand, and four hours of that is a ban on both. That is the
   cost of the rule. Two who pass it every few minutes rarely share four hours of slots.
@@ -905,15 +902,16 @@ honest player flagged:
 - a click planet refused (`CLICK_OUTCOME_REFUSED`) — it never reaches the jury at all
 
 **What a try tells.** <a id="what-a-try-tells"></a>A `ClickTried` names who (`scope`, `account_id`, `linked`), the tile, the flag, when, and **the outcome**: taken, struck, unchanged
-(a no-op), throttled, refused, another flag than the account plays for, invalid (an unknown flag, a tile off the map,
-two bonuses together), or failed. With it go **the flag the tile wore before** (`owner`, `click_usecase.Out.Owner`:
+(a no-op), throttled, refused, another flag than the account plays for, out of reach (in an arena, a tile next to none
+of the flag's land and across none of its waters), invalid (an unknown flag, a tile off the map, two bonuses together),
+or failed. With it go **the flag the tile wore before** (`owner`, `click_usecase.Out.Owner`:
 what the click read right before it wrote; for a try the game answered with an error, the tile's owner now) and its
 position. The listener feeds the guard as far as the click went:
 
 | outcome | `Attempted` | `Inspect` | `Committed` |
 |---|---|---|---|
 | refused | | | |
-| throttled, other flag | yes | | |
+| throttled, other flag, out of reach | yes | | |
 | invalid, failed | yes | yes | |
 | taken, struck, unchanged | yes | yes | yes |
 

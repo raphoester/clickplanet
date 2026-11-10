@@ -49,7 +49,7 @@ of each run, who each post names, and who keeps out.**
   `name` set to NULL), so a post of that run keeps the others. Until 2026-11-04 the three heard `auth.v1.AccountDeleted`
   (`clips-casts-accounts`, `clips-appearances-accounts`, `clips-optouts-accounts`); why the new groups miss no deletion
   is in [Player](player.md#the-deploy-that-moved-the-others-to-players-events).
-- **The pool closes after the runners**, with `cppg.CloseAfter` around the three subscribers, not as a closer:
+- **The pool closes after the runners**, with `cppg.CloseAfter` around the four subscribers, not as a closer:
   closers run before the runners stop, and the runners use the pool and Redis. `module_test.go` boots it and calls it
   on the console listener, which fails if the pool is closed.
 - **What it does not undo**: a player who turns the clips off after a run's cast is still named by that run's clips,

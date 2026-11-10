@@ -46,8 +46,9 @@ Caddyfile; it moves to any provider that rents a Linux box.
 - `backend.yaml` — API config. Each secret is an `env://NAME` anchor, so the
   file names the variable and never holds the value.
 - `env.public` — the settings that are not secret (`API_DOMAIN`,
-  `FRONTEND_ORIGIN`, and `CRAZYGAMES_ORIGIN`, the CrazyGames page, which Caddy
-  answers CORS for too), in git so a change to any shows up in a diff
+  `FRONTEND_ORIGIN`, `CRAZYGAMES_ORIGIN`, the CrazyGames page, which Caddy
+  answers CORS for too, and `ADMIN_ORIGIN`, the backoffice's origin, the only
+  one the admin gate answers), in git so a change to any shows up in a diff
 - `render-env.sh` — writes the three env files the stack reads, from the
   repository's Actions secrets plus `env.public`. Every deploy runs it, and so
   does `bootstrap.sh` (see [Where the secrets live](#where-the-secrets-live)).
@@ -128,7 +129,7 @@ Both records on `clickplanet.lol` are **proxied**:
 | Name | Type | Value | Proxy |
 |---|---|---|---|
 | `api` | A | Droplet IPv4 | **Proxied (orange cloud)** |
-| `@` / `www` | CNAME | Pages target | Proxied (orange) |
+| `@` / `www` | Worker | custom domains of the Worker `clickplanet` | Proxied (orange) |
 
 The orange cloud on `api` is load-bearing here, not cosmetic. `bootstrap.sh`
 restricts ports 80 and 443 to Cloudflare's published IP ranges, so a grey-clouded
@@ -294,7 +295,7 @@ Already created, as **clickplanet click session**:
 
 | | |
 |---|---|
-| Sitekey | `0x4AAAAAAEuFCQwAVFUYug8z` — public, goes in the Pages build |
+| Sitekey | `0x4AAAAAAEuFCQwAVFUYug8z` — public, goes in the build of the Worker `clickplanet` |
 | Secret key | dash.cloudflare.com → Turnstile → the widget → *Settings*; an Actions secret, `TURNSTILE_SECRET` |
 | Hostnames | `clickplanet.lol`, `www.clickplanet.lol` |
 | Mode | Managed |
@@ -319,7 +320,7 @@ development if you want one.
 It gives you two keys:
 
 - the **sitekey**, public — it is read straight off the page — which goes in the
-  Pages build as `VITE_TURNSTILE_SITEKEY`
+  build of the Worker `clickplanet` as `VITE_TURNSTILE_SITEKEY`
 - the **secret key**, which becomes the `TURNSTILE_SECRET` Actions secret and
   reaches the box only in `.env.backend`
 
@@ -377,7 +378,7 @@ documentation of what each secret is for, and holds no value — see
 ### If clicks start failing with 401
 
 - **Every click** — the frontend build has no sitekey, or
-  Pages was not rebuilt after the env var was added.
+  the Worker `clickplanet` was not rebuilt after the build variable was added.
 - **Every click, in the browser only** — check the preflight. `caddy/Caddyfile` must
   list `X-Session-Token` in `Access-Control-Allow-Headers`; a custom header on a
   cross-origin POST is what makes it preflighted, and a preflight that omits it
@@ -1886,4 +1887,4 @@ To check it: `curl -sI https://media.clickplanet.lol/promo/does-not-exist` answe
 - **Lost or corrupt chat messages:** the same, with the `chat` schema and `chat-DATE.sql`.
 - **Backend rolled back below the chat mute:** that build refuses a history holding an announcement kind it does not know, so the chat is hidden until `delete from chat.announcements where kind = 'mute'` in psql.
 - **In-process storage misbehaving:** there is no config switch back to Redis — that code is gone. Roll the backend image back to a pre-migration `<sha>` and restore the matching Redis stack from git history.
-- **Frontend:** roll back the deployment in the Pages dashboard.
+- **Frontend:** roll back the deployment of the `clickplanet` Worker in the Cloudflare dashboard.

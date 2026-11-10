@@ -40,8 +40,8 @@ What the page does with them:
   one chart with two scales. A hover on either reads the same slot on both, in the line above them; the peak is
   labelled; the slot still filling is a hollow dot, off the line, since its count is short. "Table" lists every slot.
 - **The heatmap** (`Heatmap`, `heat.ts`): the map seen flat, 1440×720. Each tile is drawn where it is, as wide as
-  its longitude stretches far north; what changed hands glows over the land around it (a box blur, twice, round the
-  world from east to west), on a log scale up to the hottest pixel. The colors are tokens (`--map-*`, `--heat-0` to
+  its longitude stretches far north; what changed hands glows over the land around it (a box blur, three times, round the
+  world from east to west), on a square root up to the hottest pixel. The colors are tokens (`--map-*`, `--heat-0` to
   `--heat-3`), read when it draws, and it draws again when the color scheme changes. The line under it names the
   degree with the most changes, or the degree under the pointer, with its tiles.
 - **The countries** (`CountryTable`): what each holds now, its share of the map, and the tiles it won and lost by play

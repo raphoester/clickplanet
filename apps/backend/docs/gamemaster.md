@@ -572,40 +572,14 @@ and its end on the public listener, and opens the stream, whose first event is i
 battle takes the rest of today, and the other smoke tests need a day. The suite's season 0 ends at 23:00, so its 2 h
 finale starts at the cutoff.
 
-## Before the Final Battle (Sat 31 Oct 2026, 21:00 UTC)
+## A freeze over the break between two seasons
 
-**Season 0's finale is the Final Battle**: migration `20261028150000_season_finales` gives season 0 a finale of 2
-hours, set `rush`, times 3, "Triple points.". It runs 21:00 to 23:00 UTC because season 0 ends at 23:00; moving the end
-moves it. No entry is needed, and none may be a battle over it. Before 21:00:
-
-1. Ops → Game rules: if planet keeps no `rush`, Copy `default`, name it `rush`, tempo 3, box waits 60–120 s, 30 an
-   hour. Save.
-2. Ops → Anti-bot rules: if the antibot keeps no `rush`, Copy `default`, name it `rush`, `cohort.certainMembers` 50.
-   Save.
-3. Ops → Rule schedule: season 0's Final Battle shows as a row "Season 0's final battle". **A battle entry added
-   earlier for that night** (the former way: `rush`, kind battle, 21:00 to 23:00) **must be deleted**: it would be a
-   second round × 3 in season 0's book, and a second battle on the client's timeline. Delete it before 21:00 (only an
-   entry to come is deleted). The row warns while a module lacks `rush`.
-4. Ops → Seasons: season 0 shows "2 h, rush × 3". To change its words or times, edit season 0 before 21:00; from 21:00
-   its end and its finale are locked.
-
-If a module lacks `rush` at 21:00, it refuses the command and plays on with its set (see [A set a module lacks once
-the entry runs](#a-set-a-module-lacks-once-the-entry-runs)); the round × 3 still runs in scoring. Once `rush` plays, no
-module saves `rush`.
-
-**On prod (2026-10-28) the set is `urf`, not `rush`**: the operator had made `urf` in both modules and a `urf` battle
-entry for that night. The entry was deleted and season 0's finale edited to play `urf` (2 h, × 3); the migration's
-`rush` seed is what a fresh database gets.
-
-**The freeze after it (Sat 31 Oct 23:00 to Sun 1 Nov 15:00 UTC)**: the map is frozen over the break before season 1
-(see [A frozen map](rules.md#a-frozen-map)). Before 23:00:
+The map is frozen over a break the way any set plays (see [A frozen map](rules.md#a-frozen-map)):
 
 1. Ops → Game rules: Copy `default`, name it `frozen`, tick "Frozen: the map takes no play". Save.
 2. Ops → Anti-bot rules: Copy `default`, name it `frozen`. Save.
-3. Ops → Seasons: add season 1 with a break of 16 h, so it starts Sun 1 Nov 15:00 UTC; the client counts down to it
-   on the frozen dock.
-4. Ops → Rule schedule: add a plain entry `frozen`, from Sat 31 Oct 23:00 to Sun 1 Nov 15:00 UTC, priority 1. It
+3. Ops → Rule schedule: add a plain entry `frozen` from the season's end to the next season's start, priority 1. It
    starts as the Final Battle ends, so it overlaps no finale.
 
-At 15:00 the freeze ends, season 1 opens its book and day 1, and **the map is reset** (see [The map reset](map-reset.md)):
-the gamemaster tells planet `ResetMap{season-1}`, once.
+At the next season's start the freeze ends, the season opens its book and day 1, and **the map is reset** (see
+[The map reset](map-reset.md)).

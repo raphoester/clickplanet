@@ -252,7 +252,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	store := postgres_account_store.New(db)
 	clock := cptime.SystemClock{}
 
-	// One budget for both mints, so the deprecated path is not a second allowance.
+	// One budget for the mint and every sign-in, so no path is a second allowance.
 	mintLimiter := cpratelimit.New("mint-limiter", config.RateLimiter, clock)
 	props.Runners.Add(mintLimiter)
 
