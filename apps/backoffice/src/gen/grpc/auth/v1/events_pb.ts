@@ -7,8 +7,8 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
- * The account is gone, and everything another module keeps about it goes too: a guest idle too long, or an account
- * whose deletion was asked for longer ago than the grace period.
+ * The account is gone, and everything another module keeps about it goes too: a guest idle too long, a guest that
+ * asked to be deleted, or an account whose deletion was asked for longer ago than the grace period.
  *
  * @generated from message auth.v1.AccountDeleted
  */

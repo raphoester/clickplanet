@@ -544,6 +544,6 @@ $(log "bootstrap complete")
   stack     ${STACK_DIR}
   logs      sudo -u ${DEPLOY_USER} docker compose --project-directory ${STACK_DIR} logs -f
 
-Next: point Cloudflare Pages at apps/frontend with
+Next: build the Cloudflare Worker clickplanet from apps/frontend with
 VITE_API_BASE_URL=https://${API_DOMAIN} (no trailing slash).
 DONE

@@ -251,7 +251,7 @@ export class ChatMessage extends Message<ChatMessage> {
   replyTo?: Quote;
 
   /**
-   * Empty for a message kept before accounts. An account the other players can no longer name was deleted.
+   * An account the other players can no longer name was deleted.
    *
    * @generated from field: string author_account_id = 14;
    */

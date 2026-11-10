@@ -1,5 +1,7 @@
 package messages
 
+import "strings"
+
 type Record struct {
 	message   Message
 	ip        string
@@ -31,8 +33,9 @@ func (r Record) TakeSnapshot() RecordSnapshot {
 }
 
 func truncate(value string, maxBytes int) string {
+	value = strings.ToValidUTF8(value, "")
 	if len(value) <= maxBytes {
 		return value
 	}
-	return value[:maxBytes]
+	return strings.ToValidUTF8(value[:maxBytes], "")
 }

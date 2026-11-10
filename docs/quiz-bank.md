@@ -1,7 +1,8 @@
 # Shared quiz bank
 
-`quiz/` is the **third and last thing the root holds**, and the one that is shared with only *one*
-app. `bank.json` is every question the quizzes can ask and the answer to each; `make quiz`
+`quiz/` is one of the four things the root holds for the apps, beside `proto/`, `map/` and
+[`docs/moderation.md`](moderation.md), and, like the last, it is shared with only *one* app. `bank.json` is
+every question the quizzes can ask and the answer to each; `make quiz`
 copies it into `apps/backend/generated/quiz/`, where it is embedded.
 
 **The frontend deliberately has no copy**, because the answers are in it: a bank served to the page

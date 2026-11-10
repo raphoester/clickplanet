@@ -81,6 +81,8 @@ and says what is in it. Read the doc before you change its area.
 - [Who holds the tiles](docs/tile-holders.md) — each tile keeps the account whose take holds it; `GetLandmass`
   reads a landmass's holders and its last fortify.
 - [Charges](docs/charges.md) — every bonus is a charge, kept until the player uses it.
+- [Bonus boxes](docs/bonus-boxes.md) — the box each caller is offered on a schedule of its own, the kinds it grants,
+  `ClaimBonus`, `bonus_offered` and the hourly cap.
 - [Spread](docs/spread.md), [Bomb](docs/bomb.md), [Enclose](docs/enclose.md), [Refill](docs/refill.md) — what
   each charge does to a click or to the bucket.
 - [Quizzes](docs/quizzes.md) — the quiz banner, its short clock, and the charge a right answer gives.
@@ -126,8 +128,8 @@ and says what is in it. Read the doc before you change its area.
   board may rank, kept from player's events.
 - [The gamemaster](docs/gamemaster.md) — every moment of the game: the rule schedule that commands planet and the
   antibot, the seasons, days and battles it opens and closes in scoring's books, each season's finale (the Final
-  Battle), the events in the game's words (each season, day and battle as it starts), and the steps before the Final
-  Battle.
+  Battle), the events in the game's words (each season, day and battle as it starts), and how to freeze the map over
+  the break between two seasons.
 - [The gamemaster as a reconciler](docs/gamemaster-reconciler.md) — each second, what the game wants against what the
   modules answered: a close sent again until answered, scoring's `RoundMissed` and `BookMissed`, the reset after the
   book before it, the boot, a refusal, the cost.

@@ -2,7 +2,7 @@
 
 **The videos the operator posts by hand**, such as the season-end timelapses. They are uploaded on the backoffice's
 Videos page from a computer, then downloaded on a phone, where the TikTok app picks the sound (no API sets a TikTok
-library sound). Kept by the clips module, beside its stats and casts, because they are the clips' videos (the user,
+library sound). Kept by the clips module, beside its casts, because they are the clips' videos (the user,
 2026-10-30). Shown on the backoffice's [Videos](../../backoffice/docs/videos.md) page.
 
 ```

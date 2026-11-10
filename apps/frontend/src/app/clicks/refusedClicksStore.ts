@@ -3,8 +3,10 @@ import {Allegiance} from "../../domain/allegiance.ts"
 import {BUBBLE_MS} from "../components/Bubble.tsx"
 
 type RefusedClicksStore = {
-    // One more for each click the bank or a frozen map turned down.
+    // One more for each click the page turned down: the meter shakes.
     refusals: number
+    // One more for each click the bank or a frozen map turned down.
+    dryTaps: number
     vpnBlocked: boolean
     bannedUntil?: number
     sessionUnavailable: boolean
@@ -27,9 +29,10 @@ export const useRefusedClicks = create<RefusedClicksStore>()((set) => {
 
     return {
         refusals: 0,
+        dryTaps: 0,
         vpnBlocked: false,
         sessionUnavailable: false,
-        refuse: () => set(({refusals}) => ({refusals: refusals + 1})),
+        refuse: () => set(({refusals, dryTaps}) => ({refusals: refusals + 1, dryTaps: dryTaps + 1})),
         blockVPN: () => set({vpnBlocked: true}),
         ban: (until) => set({bannedUntil: until}),
         failSession: () => set({sessionUnavailable: true}),

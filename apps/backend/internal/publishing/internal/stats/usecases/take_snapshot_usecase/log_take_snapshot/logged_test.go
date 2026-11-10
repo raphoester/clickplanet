@@ -46,9 +46,9 @@ func TestASnapshotLogsItsCountsEachTikTokLaneAndEachPostLost(t *testing.T) {
 	assert.Contains(t, logs, `level=WARN msg="youtube gave no retention curve" why="412 youtube_analytics_scope_missing: connect the YouTube account again in Zernio to grant the analytics scope" videos=3`)
 }
 
-func TestAFailedSnapshotLogsNothing(t *testing.T) {
+func TestAFailedSnapshotLogsItsError(t *testing.T) {
 	logs, err := run(t, stubExecutor{err: errors.New("no")})
 
 	require.EqualError(t, err, "no")
-	assert.Empty(t, logs)
+	assert.Contains(t, logs, `level=ERROR msg="the snapshot of the posts could not be taken, tried again in an hour" error=no`)
 }

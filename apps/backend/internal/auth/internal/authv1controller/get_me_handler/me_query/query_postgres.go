@@ -86,13 +86,8 @@ func (q *PostgresQuery) Me(ctx context.Context, cookieHeader string) (*authv1.Ge
 }
 
 func tokenHash(cookieHeader string) ([]byte, bool) {
-	cookies, err := http.ParseCookie(cookieHeader)
-	if err != nil {
-		return nil, false
-	}
-
-	for _, cookie := range cookies {
-		if cookie.Name == cookieName && cookie.Value != "" {
+	for _, cookie := range (&http.Request{Header: http.Header{"Cookie": {cookieHeader}}}).CookiesNamed(cookieName) {
+		if cookie.Value != "" {
 			sum := sha256.Sum256([]byte(cookie.Value))
 			return sum[:], true
 		}

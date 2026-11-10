@@ -16,14 +16,10 @@ func TokenFromCookies(cookieHeader string) (*Token, error) {
 	return TokenOf(value), nil
 }
 
+// Not http.ParseCookie: it refuses the whole header for one malformed cookie another site of the domain set.
 func CookieValue(cookieHeader string, name string) (string, bool) {
-	cookies, err := http.ParseCookie(cookieHeader)
-	if err != nil {
-		return "", false
-	}
-
-	for _, cookie := range cookies {
-		if cookie.Name == name && cookie.Value != "" {
+	for _, cookie := range (&http.Request{Header: http.Header{"Cookie": {cookieHeader}}}).CookiesNamed(name) {
+		if cookie.Value != "" {
 			return cookie.Value, true
 		}
 	}

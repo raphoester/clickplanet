@@ -60,7 +60,7 @@ func (r *Registry) OpenQuiz(token string, entrant Entrant) (Asked, bool) {
 	defer r.mu.Unlock()
 
 	quiz, ok := r.quizOffers[token]
-	if !ok || quiz.entrant != entrant || !now.Before(quiz.expiresAt) {
+	if !ok || quiz.entrant != entrant || (!quiz.opened() && !now.Before(quiz.expiresAt)) {
 		return Asked{}, false
 	}
 
