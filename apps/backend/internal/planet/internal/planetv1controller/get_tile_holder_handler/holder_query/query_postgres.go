@@ -23,16 +23,16 @@ type PostgresQuery struct {
 const lastChange = `
 	SELECT COALESCE(account::text, ''), country, taken_at FROM (
 		(SELECT position, account, country, taken_at FROM ledger_events
-		WHERE kind = 'take' AND tile = $1
+		WHERE kind = 'take' AND tile = $1 AND NOT forgotten
 		ORDER BY position DESC LIMIT 1)
 		UNION ALL
 		(SELECT position, account, country, taken_at FROM ledger_events
-		WHERE kind IN ('spread', 'enclose')
+		WHERE kind IN ('spread', 'enclose') AND NOT forgotten
 			AND payload @> jsonb_build_object('taken', jsonb_build_array(jsonb_build_object('tile', $1::integer)))
 		ORDER BY position DESC LIMIT 1)
 		UNION ALL
 		(SELECT position, account, '', taken_at FROM ledger_events
-		WHERE kind = 'bomb'
+		WHERE kind = 'bomb' AND NOT forgotten
 			AND payload @> jsonb_build_object('cleared', jsonb_build_array(jsonb_build_object('tile', $1::integer)))
 		ORDER BY position DESC LIMIT 1)
 		ORDER BY position DESC LIMIT 1

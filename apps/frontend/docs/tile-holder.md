@@ -54,10 +54,19 @@ tap never is, and the bomb's hold-to-drop is already one.
 - **A take with no account is a deleted account** (`DELETED_ACCOUNT`): the ledger
   keeps a deleted account's takes with no account, so the card says "Deleted
   account", the flag and when, with a name that opens nothing, and asks for no card.
-- **The card shows only while the tile wears the flag of its last take**
+  **So is a take whose account `GetPlayer` does not know** (`NotFound`): an account
+  asked deleted is hidden for its 30 days of grace, and its takes keep its id until
+  the purge.
+- **The card names a player only while the tile wears the flag of its last take**
   (`holderShown`): the ledger is a second behind, and an operator's write keeps no
-  take, so a tile that changed hands since says nothing rather than the wrong
+  take, so a tile that changed hands since names nobody rather than the wrong
   player.
+- **A card always opens; when it cannot name a player, it says why**
+  (`HolderErrorCard`, `HolderError` in the store), over the tile's flag and its
+  country: "No record of who took this tile." when no take of the tile's flag
+  holds it (`unknown`), and "Who took this tile could not be loaded." when a read
+  fails (`failed`, logged to the console too). A read the next peek aborted shows
+  nothing.
 - **A tile the player holds itself says "You took it"** (`HolderShown.mine`): the
   holder is the account `AccountStore` reads, which it reads for a signed-in
   player alone, so a guest sees its own tile under its guest name.

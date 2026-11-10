@@ -55,6 +55,18 @@ func (s *testSuite) record(events ...ledger.Event) {
 	s.Require().NoError(s.store.Save(s.T().Context(), inmemory_ledger_storage.Changes{Entries: slices.Values(stored)}))
 }
 
+func (s *testSuite) flush(events int, head ledger.Position, forgotten map[ledger.Caller]ledger.Position) {
+	s.Require().NoError(s.store.Save(s.T().Context(), inmemory_ledger_storage.Changes{
+		From:    ledger.Position(events), //nolint:gosec // a few events.
+		Entries: slices.Values([]inmemory_ledger_storage.Stored{}),
+		Marks:   inmemory_ledger_storage.Marks{Head: head, Forgotten: forgotten},
+	}))
+}
+
+func (s *testSuite) forget(caller ledger.Caller, events int) {
+	s.flush(events, 0, map[ledger.Caller]ledger.Position{caller: ledger.Position(events)}) //nolint:gosec // a few events.
+}
+
 func (s *testSuite) holder(tile uint32) *planetv1.TileHolder {
 	answer, err := holder_query.NewPostgresQuery(s.db).TileHolder(s.T().Context(), tile)
 	s.Require().NoError(err)
@@ -138,6 +150,41 @@ func (s *testSuite) TestADeletedAccountsTakeStillHoldsTheTile() {
 
 	s.True(proto.Equal(&planetv1.TileHolder{CountryId: "de", TakenAtUnixMs: minute(1).UnixMilli()}, s.holder(1)))
 	s.True(proto.Equal(&planetv1.TileHolder{CountryId: "de", TakenAtUnixMs: minute(3).UnixMilli()}, s.holder(3)))
+}
+
+func (s *testSuite) TestATileARevertGaveBackIsHeldByTheTakeBeforeTheRevertedOnes() {
+	events := everyKind()
+	s.record(events...)
+
+	s.forget(ledger.Caller{Account: bob}, len(events))
+
+	s.True(proto.Equal(&planetv1.TileHolder{AccountId: ada, CountryId: "fr", TakenAtUnixMs: minute(0).UnixMilli()}, s.holder(1)))
+	s.True(proto.Equal(&planetv1.TileHolder{AccountId: ada, CountryId: "fr", TakenAtUnixMs: minute(2).UnixMilli()}, s.holder(2)),
+		"the tile a forgotten spread took")
+	s.Nil(s.holder(3), "a tile only a forgotten spread took")
+}
+
+func (s *testSuite) TestATakeARevertOfItsScopeForgotHoldsNothing() {
+	events := everyKind()
+	s.record(events...)
+
+	s.forget(ledger.Caller{Scope: "198.51.100.4"}, len(events))
+
+	s.True(proto.Equal(&planetv1.TileHolder{AccountId: ada, CountryId: "fr", TakenAtUnixMs: minute(0).UnixMilli()}, s.holder(1)))
+	s.Nil(s.holder(9), "a take with no account, from the forgotten scope")
+}
+
+func (s *testSuite) TestAForgottenTakeStaysForgottenOnceItsMarkLeftWithTheHeadAndItsAccountIsDeleted() {
+	events := everyKind()
+	s.record(events...)
+	s.forget(ledger.Caller{Account: bob}, len(events))
+	s.flush(len(events), ledger.Position(len(events)), map[ledger.Caller]ledger.Position{})
+	account, err := ledger.AccountIDOf(bob)
+	s.Require().NoError(err)
+
+	s.Require().NoError(s.store.AnonymizeTakes(s.T().Context(), account))
+
+	s.True(proto.Equal(&planetv1.TileHolder{AccountId: ada, CountryId: "fr", TakenAtUnixMs: minute(0).UnixMilli()}, s.holder(1)))
 }
 
 func (s *testSuite) TestATileNobodyEverTookIsHeldByNobody() {

@@ -227,6 +227,22 @@ func copyEvents(ctx context.Context, tx cppg.Querier, changes inmemory_ledger_st
 	return nil
 }
 
+const forgetScopesEvents = `
+	UPDATE ledger_events SET forgotten = true
+	FROM unnest($1::text[], $2::bigint[]) AS mark (scope, before_position)
+	WHERE ledger_events.scope = mark.scope
+		AND ledger_events.position >= $3 AND ledger_events.position < mark.before_position
+		AND NOT ledger_events.forgotten
+`
+
+const forgetAccountsEvents = `
+	UPDATE ledger_events SET forgotten = true
+	FROM unnest($1::uuid[], $2::bigint[]) AS mark (account, before_position)
+	WHERE ledger_events.account = mark.account
+		AND ledger_events.position < mark.before_position
+		AND NOT ledger_events.forgotten
+`
+
 func saveForgotten(ctx context.Context, tx cppg.Querier, marks inmemory_ledger_storage.Marks, head int64) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM ledger_forgotten WHERE before_position <= $1`, head); err != nil {
 		return fmt.Errorf("failed to delete forgotten scopes: %w", err)
@@ -256,6 +272,9 @@ func saveForgotten(ctx context.Context, tx cppg.Querier, marks inmemory_ledger_s
 		`, pq.Array(scopes), pq.Array(scopeBefores)); err != nil {
 			return fmt.Errorf("failed to write forgotten scopes: %w", err)
 		}
+		if _, err := tx.ExecContext(ctx, forgetScopesEvents, pq.Array(scopes), pq.Array(scopeBefores), head); err != nil {
+			return fmt.Errorf("failed to forget the events of forgotten scopes: %w", err)
+		}
 	}
 
 	if len(accounts) > 0 {
@@ -266,6 +285,9 @@ func saveForgotten(ctx context.Context, tx cppg.Querier, marks inmemory_ledger_s
 				before_position = GREATEST(ledger_forgotten_accounts.before_position, EXCLUDED.before_position)
 		`, pq.Array(accounts), pq.Array(accountBefores)); err != nil {
 			return fmt.Errorf("failed to write forgotten accounts: %w", err)
+		}
+		if _, err := tx.ExecContext(ctx, forgetAccountsEvents, pq.Array(accounts), pq.Array(accountBefores)); err != nil {
+			return fmt.Errorf("failed to forget the events of forgotten accounts: %w", err)
 		}
 	}
 

@@ -15,10 +15,22 @@ export type HolderShown = {
     id: number
 }
 
+// "failed": a read threw. "unknown": no take of the tile's flag, so nobody to name.
+export type HolderError = {
+    error: "failed" | "unknown"
+    countryCode: string
+    tile: TileFacts
+    point: Point
+    touch: boolean
+    id: number
+}
+
+export type HolderCardShown = HolderShown | HolderError
+
 type TileHolderStore = {
-    holder?: HolderShown
+    holder?: HolderCardShown
     heldId?: number
-    show: (holder: HolderShown | undefined) => void
+    show: (holder: HolderCardShown | undefined) => void
     hold: (held: boolean) => void
     dismiss: () => void
 }

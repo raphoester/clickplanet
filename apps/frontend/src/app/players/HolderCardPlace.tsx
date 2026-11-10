@@ -5,6 +5,7 @@ import {DayMissions} from "../../backends/missions.ts"
 import {CountryTiles} from "../../backends/progression.ts"
 import {holderShown, Peek} from "../../domain/tilePeek.ts"
 import HolderCard from "./HolderCard.tsx"
+import HolderErrorCard from "./HolderErrorCard.tsx"
 import {deletedLineOf, LEAVE_GRACE_MS, playerLineOf} from "./tileHolder.ts"
 import {holderHeld, useTileHolder} from "./tileHolderStore.ts"
 
@@ -28,21 +29,23 @@ export default function HolderCardPlace({holders, players, pointing, accountId, 
         if (!pointing) return
 
         const {peek, id} = pointing
+        const place = {
+            tile: {owner: peek.countryCode, ground: peek.ground, shields: peek.shields},
+            point: peek.point, touch: peek.touch, id,
+        }
         const asking = new AbortController()
         const ask = async () => {
             const held = holderShown(await holders.tileHolder(peek.tile, asking.signal), peek)
             const player = held && await playerOf(held, players)
             if (asking.signal.aborted) return
             show(held && player
-                ? {
-                    ...player, mine: held.accountId === accountId,
-                    tile: {owner: peek.countryCode, ground: peek.ground, shields: peek.shields},
-                    takenAt: held.takenAt, point: peek.point, touch: peek.touch, id,
-                }
-                : undefined)
+                ? {...player, mine: held.accountId === accountId, takenAt: held.takenAt, ...place}
+                : {error: "unknown", countryCode: peek.countryCode, ...place})
         }
         ask().catch((e) => {
-            if (!asking.signal.aborted) console.error("could not read who holds the tile", e)
+            if (asking.signal.aborted) return
+            console.error("could not read who holds the tile", e)
+            show({error: "failed", countryCode: peek.countryCode, ...place})
         })
         return () => asking.abort()
     }, [holders, players, pointing, accountId, show])
@@ -57,6 +60,13 @@ export default function HolderCardPlace({holders, players, pointing, accountId, 
     useEffect(() => dismiss, [dismiss])
 
     if (!holder) return null
+    if ("error" in holder) {
+        return <HolderErrorCard key={`holder-${holder.id}`}
+                                holder={holder}
+                                missions={missions}
+                                onHold={hold}
+                                onClose={dismiss}/>
+    }
     return <HolderCard key={`holder-${holder.id}`}
                        holder={holder}
                        missions={missions}
@@ -64,8 +74,9 @@ export default function HolderCardPlace({holders, players, pointing, accountId, 
                        onClose={dismiss}/>
 }
 
-async function playerOf(held: TileHolder, players: PlayerInfoBackend): Promise<{line: PlayerLine, playsFor: CountryTiles[]} | undefined> {
-    if (!held.accountId) return {line: deletedLineOf(held.countryCode), playsFor: []}
-    const info = await players.playerInfo(held.accountId)
-    return info && {line: playerLineOf(held.accountId, held.countryCode, info), playsFor: info.playsFor}
+// GetPlayer hides an account asked deleted until it is purged, and only then are its takes blanked.
+async function playerOf(held: TileHolder, players: PlayerInfoBackend): Promise<{line: PlayerLine, playsFor: CountryTiles[]}> {
+    const info = held.accountId ? await players.playerInfo(held.accountId) : undefined
+    if (!info) return {line: deletedLineOf(held.countryCode), playsFor: []}
+    return {line: playerLineOf(held.accountId, held.countryCode, info), playsFor: info.playsFor}
 }
