@@ -18,12 +18,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/outbox_moment_events"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_book_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_round_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_plan_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/tell_starts_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/play_schedule_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/play_resets_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -108,17 +111,17 @@ func TestSeasonZerosLastDayAndItsFinalePlaySecondBySecond(t *testing.T) {
 		rounds: hear_round_usecase.New(planner, kept, told, cpatomic.FakeTransactioner{}),
 		books:  hear_book_usecase.New(planner, kept, told, cpatomic.FakeTransactioner{}),
 	}
-	points := play_scoring_usecase.New(planner, kept, scored, clock)
 	planet := &arenaCommands{}
-	arenaPlay := play_arenas_usecase.New(planner, judged, rulesOf{}, planet, clock)
+	plan := play_plan_usecase.New(planner,
+		play_resets_usecase.New(&resetsTold{}, clock),
+		play_arenas_usecase.New(judged, rulesOf{}, planet, clock),
+		play_scoring_usecase.New(kept, scored, clock),
+		tell_starts_usecase.New(kept, outbox_moment_events.New(&cpatomic.FakeOutbox{}), cpatomic.FakeTransactioner{}, clock))
 
 	tick := func() {
 		_, _, err := rules.Execute(t.Context())
 		require.NoError(t, err)
-		_, err = arenaPlay.Execute(t.Context())
-		require.NoError(t, err)
-		_, err = points.Execute(t.Context())
-		require.NoError(t, err)
+		require.NoError(t, plan.Execute(t.Context()))
 	}
 	tick()
 	scored.commands, outbox = nil, &cpatomic.FakeOutbox{}

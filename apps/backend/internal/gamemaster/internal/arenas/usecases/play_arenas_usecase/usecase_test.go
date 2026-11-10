@@ -80,7 +80,14 @@ func newHarness(t *testing.T, set schedule.SetName) *harness {
 }
 
 func (h *harness) boot() {
-	h.useCase = play_arenas_usecase.New(h.planner, h.judged, h.planet, h.sent, h.clock)
+	h.useCase = play_arenas_usecase.New(h.judged, h.planet, h.sent, h.clock)
+}
+
+func (h *harness) execute(t *testing.T) (play_arenas_usecase.Tick, error) {
+	t.Helper()
+	plan, err := h.planner.Plan(t.Context())
+	require.NoError(t, err)
+	return h.useCase.Execute(t.Context(), plan)
 }
 
 func (h *harness) scored(t *testing.T, round moments.RoundID, at time.Time) {
@@ -92,13 +99,13 @@ func (h *harness) scored(t *testing.T, round moments.RoundID, at time.Time) {
 func TestTheBattleThatRunsIsJudgedOnce(t *testing.T) {
 	h := newHarness(t, "arena-battle")
 
-	tick, err := h.useCase.Execute(t.Context())
+	tick, err := h.execute(t)
 	require.NoError(t, err)
 	assert.Equal(t, []moments.Judgement{{Round: fought, Mode: moments.Arena}}, tick.Judged)
 
 	h.planet.arenas["arena-battle"] = false
 	h.clock.Advance(time.Minute)
-	tick, err = h.useCase.Execute(t.Context())
+	tick, err = h.execute(t)
 	require.NoError(t, err)
 	assert.Empty(t, tick.Judged, "a set edited later changes no judgement")
 	assert.Equal(t, 1, h.planet.asked)
@@ -108,7 +115,7 @@ func TestABattleWhoseSetPlaysNoArenaIsPlainAndOpensNone(t *testing.T) {
 	h := newHarness(t, "urf")
 	h.scored(t, "season-0/day-23", starts)
 
-	tick, err := h.useCase.Execute(t.Context())
+	tick, err := h.execute(t)
 
 	require.NoError(t, err)
 	assert.Equal(t, []moments.Judgement{{Round: fought, Mode: moments.Plain}}, tick.Judged)
@@ -119,25 +126,25 @@ func TestAPlanetThatCannotSayJudgesNothingAndIsAskedAgain(t *testing.T) {
 	h := newHarness(t, "arena-battle")
 	h.planet.err = errors.New("planet is down")
 
-	_, err := h.useCase.Execute(t.Context())
+	_, err := h.execute(t)
 	require.Error(t, err)
 
 	h.planet.err = nil
-	tick, err := h.useCase.Execute(t.Context())
+	tick, err := h.execute(t)
 	require.NoError(t, err)
 	assert.Equal(t, []moments.Judgement{{Round: fought, Mode: moments.Arena}}, tick.Judged)
 }
 
 func TestTheArenaOpensOnceAndClosesOncePerProcessAndAgainAfterABoot(t *testing.T) {
 	h := newHarness(t, "arena-battle")
-	_, err := h.useCase.Execute(t.Context())
+	_, err := h.execute(t)
 	require.NoError(t, err)
 	assert.Empty(t, h.sent.commands, "day 23 is not scored yet")
 
 	h.scored(t, "season-0/day-23", starts)
 	for range 3 {
 		h.clock.Advance(time.Second)
-		_, err = h.useCase.Execute(t.Context())
+		_, err = h.execute(t)
 		require.NoError(t, err)
 	}
 	open := moments.ArenaCommand{Action: moments.OpenArena, Arena: fought, At: starts, EndsAt: ends}
@@ -145,13 +152,13 @@ func TestTheArenaOpensOnceAndClosesOncePerProcessAndAgainAfterABoot(t *testing.T
 
 	h.clock.Advance(ends.Sub(h.clock.Now()))
 	h.scored(t, fought, ends)
-	_, err = h.useCase.Execute(t.Context())
+	_, err = h.execute(t)
 	require.NoError(t, err)
 	closing := moments.ArenaCommand{Action: moments.CloseArena, Arena: fought, At: ends, EndsAt: ends}
 	assert.Equal(t, []moments.ArenaCommand{open, closing}, h.sent.commands)
 
 	h.boot()
-	_, err = h.useCase.Execute(t.Context())
+	_, err = h.execute(t)
 	require.NoError(t, err)
 	assert.Equal(t, []moments.ArenaCommand{open, closing, closing}, h.sent.commands, "a boot closes again until planet tells it")
 }
@@ -159,17 +166,17 @@ func TestTheArenaOpensOnceAndClosesOncePerProcessAndAgainAfterABoot(t *testing.T
 func TestACommandRedisRefusedIsSentAgain(t *testing.T) {
 	h := newHarness(t, "arena-battle")
 	h.scored(t, "season-0/day-23", starts)
-	_, err := h.useCase.Execute(t.Context())
+	_, err := h.execute(t)
 	require.NoError(t, err)
 	h.sent.commands = nil
 	h.boot()
 	h.sent.err = errors.New("redis is down")
 
-	_, err = h.useCase.Execute(t.Context())
+	_, err = h.execute(t)
 	require.Error(t, err)
 
 	h.sent.err = nil
-	_, err = h.useCase.Execute(t.Context())
+	_, err = h.execute(t)
 	require.NoError(t, err)
 	assert.Equal(t, []moments.ArenaCommand{{Action: moments.OpenArena, Arena: fought, At: starts, EndsAt: ends}}, h.sent.commands)
 }

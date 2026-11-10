@@ -54,6 +54,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_book_usecase/log_hear_book"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_round_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_round_usecase/log_hear_round"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_plan_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_plan_usecase/log_play_plan"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase/log_play_scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/tell_starts_usecase"
@@ -144,17 +146,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	heard := postgres_moment_store.New(db)
 	judged := postgres_arena_store.New(db)
 	planner := moments.NewPlanner(seasons, entries, heard, judged, cutoff)
-	resetting := play_resets_usecase.NewRunner(scheduleCheck, log_play_resets.New(
-		play_resets_usecase.New(planner, redis_map_commands.New(streams.Commands()), clock), props.Logger))
-	arenaPlay := play_arenas_usecase.NewRunner(scheduleCheck, log_play_arenas.New(play_arenas_usecase.New(planner, judged,
-		rpc_planet_arenas.New(planetv1connect.NewInternalServiceClient(internal, baseURL)),
-		redis_arena_commands.New(streams.Commands()), clock), props.Logger))
-	scoringPlay := play_scoring_usecase.NewRunner(scheduleCheck, log_play_scoring.New(
-		play_scoring_usecase.New(planner, heard, redis_scoring_commands.New(streams.Commands()), clock), props.Logger))
-
 	told := outbox_moment_events.New(cpoutbox.New(db))
-	startTelling := tell_starts_usecase.NewRunner(scheduleCheck, log_tell_starts.New(
-		tell_starts_usecase.New(planner, heard, told, db, clock), props.Logger))
+	planPlay := play_plan_usecase.NewRunner(scheduleCheck, log_play_plan.New(play_plan_usecase.New(planner,
+		log_play_resets.New(play_resets_usecase.New(redis_map_commands.New(streams.Commands()), clock), props.Logger),
+		log_play_arenas.New(play_arenas_usecase.New(judged,
+			rpc_planet_arenas.New(planetv1connect.NewInternalServiceClient(internal, baseURL)),
+			redis_arena_commands.New(streams.Commands()), clock), props.Logger),
+		log_play_scoring.New(play_scoring_usecase.New(heard, redis_scoring_commands.New(streams.Commands()), clock), props.Logger),
+		log_tell_starts.New(tell_starts_usecase.New(heard, told, db, clock), props.Logger),
+	), props.Logger))
 	rounds, err := cpredis.Subscribe(ctx, streams, "gamemaster-rounds", round_scored_subscriber.New(
 		log_hear_round.New(hear_round_usecase.New(planner, heard, told, db), props.Logger)))
 	if err != nil {
@@ -180,7 +180,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	turns := turn_query.NewPostgresQuery(db, clock, cutoff)
 	turnFeed := inprocess_turn_feed.New(log_turn_reader.New(turns, props.Logger))
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, turnFeed, cpredis.CloseAfter(streams, props.Logger,
-		ruleSchedule, resetting, scoringPlay, arenaPlay, startTelling, rounds, books, arenas, cpoutbox.NewRelay("gamemaster-outbox", db, streams, props.Logger))))
+		ruleSchedule, planPlay, rounds, books, arenas, cpoutbox.NewRelay("gamemaster-outbox", db, streams, props.Logger))))
 
 	admin := gamemasterv1controller.AdminService{
 		GetScheduleHandler: get_schedule_handler.New(schedule_query.NewPostgresQuery(db, clock)),

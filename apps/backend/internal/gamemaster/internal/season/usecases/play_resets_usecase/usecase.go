@@ -9,10 +9,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Planner interface {
-	Plan(ctx context.Context) (moments.Plan, error)
-}
-
 type Commands interface {
 	// Reset asks planet to start the season on a blank map; planet wipes it once per season.
 	Reset(ctx context.Context, starts season.Window) error
@@ -20,11 +16,11 @@ type Commands interface {
 
 // Execute answers the season whose start it told, and told is true when it told one.
 type Executor interface {
-	Execute(ctx context.Context) (starts season.Window, told bool, err error)
+	Execute(ctx context.Context, plan moments.Plan) (starts season.Window, told bool, err error)
 }
 
-func New(planner Planner, commands Commands, clock cptime.Clock) *UseCase {
-	return &UseCase{planner: planner, commands: commands, clock: clock, told: cpcolls.NewSet[season.Number]()}
+func New(commands Commands, clock cptime.Clock) *UseCase {
+	return &UseCase{commands: commands, clock: clock, told: cpcolls.NewSet[season.Number]()}
 }
 
 // UseCase tells planet once per process that the running season starts on a blank map. Planet keeps each reset, so
@@ -32,7 +28,6 @@ func New(planner Planner, commands Commands, clock cptime.Clock) *UseCase {
 // that starts after an arena battle waits for the map from before the arena battle to be back, or the arena battle's end would undo the
 // reset.
 type UseCase struct {
-	planner  Planner
 	commands Commands
 	clock    cptime.Clock
 
@@ -41,11 +36,7 @@ type UseCase struct {
 
 var _ Executor = (*UseCase)(nil)
 
-func (u *UseCase) Execute(ctx context.Context) (season.Window, bool, error) {
-	plan, err := u.planner.Plan(ctx)
-	if err != nil {
-		return season.Window{}, false, err //nolint:wrapcheck // the planner names it.
-	}
+func (u *UseCase) Execute(ctx context.Context, plan moments.Plan) (season.Window, bool, error) {
 	book, ok := plan.BookAt(u.clock.Now())
 	running := book.Window
 	if !ok || !running.StartsOnBlankMap() || u.told.Contains(running.Number) || plan.Waits(running.StartsAt) {

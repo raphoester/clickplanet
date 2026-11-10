@@ -64,7 +64,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `httpServer.internalBindAddress` — where the services other modules call listen (see [Calling another module](composite-layer.md#calling-another-module)); empty serves none, a caller that dials it then fails, and a non-loopback address refuses the boot
 - `httpServer.allowedOrigin` — the frontend's exact origin (`scheme://host[:port]`, no path). The public router answers CORS for it alone, with `Access-Control-Allow-Credentials: true`, so the `cp_sid` cookie travels on the web client's mint. **Empty, `*` or anything that is not an origin refuses the boot**: a browser drops a credentialed answer that allows every origin, so a wrong value would only show up as every mint starting a new guest. In production it comes from `FRONTEND_ORIGIN`, the value the Caddyfile allows, which sets the same headers and overwrites these.
 - `gameMap.maxIndex` — total number of tiles
-- `database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the planet module's postgres and the schema its tables live in; any of them but `password` and `pool` empty refuses the boot. `database.password` belongs in the environment
+- `database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.maxOpenConns` — the planet module's postgres and the schema its tables live in; any of them but `password` and `pool` empty refuses the boot. `database.password` belongs in the environment. `pool.maxOpenConns` is the most connections the module's pool opens, and the pool keeps each one it opened (idle = open); unset is unbounded, which only tests do
 - `tilesStorage.flushInterval` — how often the tiles changed since the last flush are written to postgres (1s)
 - `ledger.retention`, `ledger.sweepInterval` — how long the operator tools can trace and revert a take (72h)
 - `ledgerStorage.flushInterval` — how often new takes are written to postgres (1s, and on shutdown)
@@ -113,7 +113,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.email.sendLimiter.*` — the per-address throttle on codes, same shape as `rateLimiter` (default 3, then one every 20 minutes)
 - `auth.prune.idleFor`, `auth.prune.interval` — how long a guest goes unused before it is deleted (default `guestTTL`, never less), and how often the prune runs (1h)
 - `auth.deletion.grace`, `auth.deletion.interval` — how long an account whose player asked to delete it is kept for a sign-in to bring it back (default 30 days, which the privacy policy names), and how often the purge runs (1h)
-- `chat.database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.*` — the chat module's postgres, same shape as `database`; any of them but `password` and `pool` empty refuses the boot. `chat.database.password` belongs in the environment
+- `chat.database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.maxOpenConns` — the chat module's postgres, same shape as `database`; any of them but `password` and `pool` empty refuses the boot. `chat.database.password` belongs in the environment
 - `chat.storage.historySize`, `chat.storage.retention`, `chat.storage.pruneInterval`, `chat.storage.subscriberBuffer`
 - `chat.storage.moderationRetention` — how long the moderation history keeps a mute, an unmute and a removal, with the
   removed message's copy (default 90 days). See [The moderation history](chat.md#the-moderation-history)
