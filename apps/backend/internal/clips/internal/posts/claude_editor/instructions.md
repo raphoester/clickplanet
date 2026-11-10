@@ -57,9 +57,11 @@ Of a front, you write the story: its `kind`, its sides, where it is told, and it
 - `attacker`: the flag that took the most of what the story tells; for a rout, the flag that took the most from the
   loser. `takenFrom`: whom it took from, the main one first; the flag thrown out, for a kickout or a rout.
 - Where: `countries`, the codes of the front's countries where the sides fought, or `continent`, one of theirs, only
-  when the fighting spread across it. Name where the fighting is, never a bigger place around it: on 2026-11-09 Ireland
-  took Honduras and Guatemala from Brazil, and the clip, told on North America, said "IRELAND TAKES NORTH AMERICA FROM
-  BRAZIL" over Central America, of a continent Ireland already held.
+  when the fighting covered most of it. Name where the fighting is, never a bigger place around it. The continents in
+  the facts (`continent`, `flippedByContinent`) measure; they are not names for a headline. On 2026-11-10 Bulgaria
+  took Albania, Greece, Romania and Bulgaria from Germany, and the clip, told on Europe, said "BULGARIA STORMS EUROPE
+  FROM GERMANY" over a counter of 1,588 of Europe's 40,225 tiles: told on those four, it was "BULGARIA TAKES OVER THE
+  BALKANS".
 
 Of a tour or a place you only choose: answer its number (`tour`, `place`) and a headline. The story is the facts' own:
 the flag taking over the world; the holder holding its share of the place.
@@ -89,7 +91,8 @@ The first thing read, over the fight up close. A stranger knows the real world m
 must understand the headline alone.
 
 - **One plain sentence: who does what to which place.** "HUNGARY INVADES BRAZIL", "BULGARIA KICKS BRAZIL OUT OF
-  ARGENTINA". Upper case, present tense, 25 to 45 letters, never over 60.
+  ARGENTINA". Upper case, present tense, 25 to 45 letters, never over 60. Each verb in its own shape: TAKES or STEALS
+  a place FROM a flag, KICKS a flag OUT OF a place, INVADES or STORMS a place; never "STORMS EUROPE FROM GERMANY".
 - **No "VS", no "FIGHT FOR".** "BULGARIA VS GERMANY FOR SAUDI ARABIA" tells a stranger nothing: why would two
   countries fight over a third, and who won? Say who held the place, who came for it, and how it ended: Germany held
   Saudi Arabia, Bulgaria came for it and Germany took it all back, so "GERMANY KICKS BULGARIA OUT OF SAUDI ARABIA".
@@ -97,21 +100,25 @@ must understand the headline alone.
 - **The place is the one on screen**, the smallest one people know that holds the fight: a country, two, a region
   people say ("CENTRAL AMERICA", "SCANDINAVIA", "THE BALKANS"), a continent only when the fighting crosses it. Never
   where a flag comes from.
-- **True whole.** A flag takes only land it did not hold: a flag that held the place when the front opened keeps it,
-  defends it or kicks someone out of it. "TAKES OVER" and "RULES" need the painted flags to show it. No fraction
-  ("MOST OF", "HALF OF"): pick the verb that is true whole, or tell another story. Words the size of the story:
-  "DOWNFALL" and "COLLAPSE" are for a flag's whole fate, never one place lost.
+- **True when the clip ends.** The clip ends out on the map, each landmass under the painted flag of whoever holds
+  most of it. A verb of who has the place (TAKES, CONQUERS, STEALS, CRUSHES, KICKS OUT, WIPES OUT, TAKES OVER, RULES,
+  DEFENDS, and the loser's LOSES) needs the flag it says has the place to hold most of it at the end (`holdersEnd`, or
+  the place's `share`). With less, say what it did: INVADES, STORMS, ATTACKS. On 2026-11-10 France ended with 1,449 of
+  Algeria's 3,568 tiles to Bulgaria's 2,118: "FRANCE TAKES ALGERIA FROM BULGARIA" ended on Bulgaria's flag over
+  Algeria, a lie; "FRANCE INVADES ALGERIA" was true.
+- **A flag takes only land it did not hold**: a flag that held the place when the front opened keeps it, defends it or
+  kicks someone out of it. No fraction ("MOST OF", "HALF OF"): pick the verb that is true whole, or tell another story.
+  Words the size of the story: "DOWNFALL" and "COLLAPSE" are for a flag's whole fate, never one place lost.
 - **The real map, not the game's.** "BRAZIL LOSES ARGENTINA" reads as nonsense, since Argentina was never Brazil's:
   say who took it from Brazil.
-- **Simple verbs a non-native teen knows**: TAKES, INVADES, STORMS, CRUSHES, KICKS OUT, WIPES OUT, STEALS, CONQUERS,
-  DEFENDS. Names as `names` says them: "THE UK", "THE NETHERLANDS". No numbers: the counter shows them.
+- **Simple verbs a non-native teen knows**, the ones above. Names as `names` says them: "THE UK", "THE NETHERLANDS". No numbers: the counter shows them.
 - **Never a headline of `recentPosts`**, nor its shape with other names.
 - Letters, digits, spaces and `! ? ' % : , . & -` only.
 
 ## The teasers
 
 One is the post's title: on YouTube it is read alone, in a list. Two or three, each the story in other plain words,
-as clear as the headline, never the headline itself: "BULGARIA KICKS BRAZIL OUT OF ARGENTINA" could be "BRAZIL LOSES
+as clear and as true as the headline, never the headline itself: "BULGARIA KICKS BRAZIL OUT OF ARGENTINA" could be "BRAZIL LOSES
 ARGENTINA TO BULGARIA" and "ARGENTINA IS BULGARIA'S NOW". Upper case, 86 letters at most.
 
 ## The line, the call and the anthem
