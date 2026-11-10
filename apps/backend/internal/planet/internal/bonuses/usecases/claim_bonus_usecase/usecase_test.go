@@ -2,6 +2,7 @@ package claim_bonus_usecase_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -165,4 +166,31 @@ func TestTheAnswerSaysOnlyWhatThePoolKept(t *testing.T) {
 
 	assert.Equal(t, 1, out.Amount, "the pool held 7 of 8, so a box of 4 added 1")
 	assert.Equal(t, bonuses.Held{SpreadClicks: 8}, out.Held)
+}
+
+func TestAClaimIsGrantedWhenTheCallerLeavesAfterIt(t *testing.T) {
+	charger, store := charges()
+	ctx, leave := context.WithCancel(played(t))
+	leave()
+
+	_, err := claim_bonus_usecase.New(granting(bonuses.KindBomb), charger, cpredis.NewRecordedEvents(), clock).
+		Execute(ctx, claim_bonus_usecase.In{Token: "a-token"})
+	require.NoError(t, err)
+
+	assert.Equal(t, bonuses.Held{Bomb: true}, store.Kept(guest))
+}
+
+func TestAFailedGrantIsNotARefusalAndIsToldToNobody(t *testing.T) {
+	registry := granting(bonuses.KindBomb)
+	charger, store := charges()
+	store.FailWith(errors.New("postgres is down"))
+	events := cpredis.NewRecordedEvents()
+
+	_, err := claim_bonus_usecase.New(registry, charger, events, clock).
+		Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
+
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, claim_bonus_usecase.ErrNoSuchBonus)
+	assert.Empty(t, registry.published)
+	assert.Empty(t, events.Published())
 }

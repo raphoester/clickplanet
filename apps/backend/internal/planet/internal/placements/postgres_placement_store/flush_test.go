@@ -41,7 +41,8 @@ func setup(t *testing.T) flushed {
 
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
 	charges := bonuses.NewCharges(postgres_charge_store.New(db), bonuses.TestRules)
-	require.NoError(t, charges.Grant(t.Context(), holder, bonuses.KindShields, 2))
+	_, err := charges.Grant(t.Context(), holder, bonuses.KindShields, 2)
+	require.NoError(t, err)
 	store := postgres_placement_store.New(db)
 	return flushed{
 		db: db, tiles: postgres_tile_store.New(db), store: store,

@@ -65,12 +65,21 @@ func TestTheTokenAndCountryReachTheUseCase(t *testing.T) {
 }
 
 func TestARefusedClaimIsNotFoundAndSaysNothingAboutWhy(t *testing.T) {
-	_, err := claim(t, &stubUseCase{err: errors.New("lapsed, or never yours")})
+	_, err := claim(t, &stubUseCase{err: fmt.Errorf("lapsed, or never yours: %w", claim_bonus_usecase.ErrNoSuchBonus)})
 
 	require.Error(t, err)
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 	assert.Contains(t, err.Error(), claim_bonus_usecase.ErrNoSuchBonus.Error())
 	assert.NotContains(t, err.Error(), "lapsed")
+}
+
+func TestAFailedGrantIsLeftToTheErrorNet(t *testing.T) {
+	down := errors.New("postgres is down")
+
+	_, err := claim(t, &stubUseCase{err: down})
+
+	require.ErrorIs(t, err, down)
+	assert.NotEqual(t, connect.CodeNotFound, connect.CodeOf(err))
 }
 
 func TestEveryKindTheServerGrantsHasAWireName(t *testing.T) {
