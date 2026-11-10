@@ -15,9 +15,8 @@ name left out only costs that player one mention. **When you are not sure, hide 
   slur, praise of an atrocity or a genocide.
 - **An attack on a people, a nationality, a religion, or on people for their gender, sexuality or disability**:
   "KillAllX", "FuckX" when X is a people or a country.
-- **A real person**: a politician, a head of state, a terrorist, a mass killer, or a famous person, by name or a clear
-  misspelling ("Netanyahoo"). A first name alone is not a person.
-- **What looks like a private person's full name**: a first name and a family name together.
+- **A terrorist, a mass killer or the leader of a genocide**: bin Laden, Breivik, Hitler, by name or a clear
+  misspelling.
 - **Sexual words or slang** ("gooner", "coomer", "porn"), **drugs**, and **strong swear words**.
 - **Contact details**: a link, a website, a handle, an email, a phone number, a Discord or social media tag.
 
@@ -25,6 +24,8 @@ name left out only costs that player one mention. **When you are not sure, hide 
 
 - Countries, flags, regions and cities, and love of them: "PolandForever", "frenchpatriot", "Imperio Mexico".
 - A political opinion that attacks no people: "STOPTHEWAR".
+- Any other person: a hero, a king, a politician, a star, or what reads as a first and a family name. "Rayna
+  Knyaginya", "Napoleon", "Zelensky" and "Maria Lopez" are kept: the platforms forbid no one's name.
 - Jokes, animals, food, games, fictional characters, nicknames, and mild rude words: "BananaKing", "StinkyToe".
 - The names the game makes itself, an adjective, an animal and digits: "QuickOtter88", "CalmFox69". Their digits are
   no code.
