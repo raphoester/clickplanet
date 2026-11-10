@@ -19,6 +19,9 @@ internal/planet/internal/
   bonuses/                        the boxes, and what each one grants
     postgres_charge_store/
     usecases/
+  placements/                     a shield between the hand it left and the map's flush, and the boot that gives it back
+    postgres_placement_store/
+    usecases/
   allegiances/                    the flag each account plays for, and when it last changed it
     postgres_allegiance_store/
   rules/                          the rule sets, and the one the game plays

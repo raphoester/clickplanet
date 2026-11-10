@@ -112,6 +112,17 @@ func TestEachShieldIsPlacedOnce(t *testing.T) {
 	assert.True(t, held.Empty())
 }
 
+func TestAShieldGivenBackIsTheOneTakenWhateverTheStackSize(t *testing.T) {
+	smaller := chargeRules
+	smaller.Shield.Held = 5
+
+	spent, ok := Held{Shields: 12}.AfterShield()
+	require.True(t, ok)
+
+	assert.Equal(t, Held{Shields: 12}, spent.WithShieldBack())
+	assert.Equal(t, 11, spent.Granted(KindShields, 1, smaller).Shields, "a grant would have kept it")
+}
+
 func TestARefillIsOneFill(t *testing.T) {
 	used, ok := Held{}.Granted(KindRefill, 1, chargeRules).AfterRefill()
 	require.True(t, ok)

@@ -13,7 +13,7 @@ type TileStorage interface {
 	StateBatchDense(start uint32, end uint32) (DenseBatch, error)
 
 	Shields(tile uint32) int
-	Shield(ctx context.Context, tile uint32, country string, most int) error
+	Shield(ctx context.Context, tile uint32, country string, most int, placement PlacementID) (int, error)
 	Claim(ctx context.Context, write func(tiles Claimable) error) error
 	Enclose(ctx context.Context, enclosure Enclosure, write func(tiles Claimable) error) error
 	Fortresses() map[LandmassID]string

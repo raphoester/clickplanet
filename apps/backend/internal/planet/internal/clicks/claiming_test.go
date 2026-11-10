@@ -10,16 +10,25 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func tenAShield() int { return 10 }
 
+func shield(t *testing.T, tiles *inmemory_tile_storage.Storage, tile uint32, flag string, shields int) {
+	t.Helper()
+	for range shields {
+		_, err := tiles.Shield(t.Context(), tile, flag, 10, clicks.PlacementID{})
+		require.NoError(t, err)
+	}
+}
+
 func claimable(t *testing.T, owners map[uint32]string) *inmemory_tile_storage.Storage {
 	t.Helper()
 	tiles := inmemory_tile_storage.New(clicks.BordersOf(100, []uint32{20, 21, 22}), inmemory_tile_storage.Config{},
-		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cptime.SystemClock{}, slog.New(slog.DiscardHandler))
+		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 	for tile, owner := range owners {
 		require.NoError(t, tiles.Set(t.Context(), tile, owner))
 	}
@@ -40,8 +49,7 @@ func TestAClaimTakesAForeignTileAndSaysWhoHeldIt(t *testing.T) {
 func TestAClaimOnAShieldStrikesItAndSaysHowManyAreLeft(t *testing.T) {
 	tiles := claimable(t, map[uint32]string{7: "de"})
 	ctx := t.Context()
-	require.NoError(t, tiles.Shield(ctx, 7, "de", 10))
-	require.NoError(t, tiles.Shield(ctx, 7, "de", 10))
+	shield(t, tiles, 7, "de", 2)
 
 	impact, err := clicks.NewClaiming(tiles, tenAShield).Click(ctx, 7, "fr")
 	require.NoError(t, err)
@@ -140,7 +148,7 @@ func TestAShieldPlacedDuringAForeignClaimIsStruckOrRefusedButNeverLost(t *testin
 				assert.NoError(t, err)
 				return
 			}
-			placements[i] = tiles.Shield(t.Context(), 7, "de", 10)
+			_, placements[i] = tiles.Shield(t.Context(), 7, "de", 10, clicks.PlacementID{})
 		})
 
 		placed := 0
@@ -166,7 +174,7 @@ func TestAShieldPlacedDuringAForeignClaimIsStruckOrRefusedButNeverLost(t *testin
 
 func TestAnEnclosureClaimsItsTilesAsOneChangeNamingWhoClosedIt(t *testing.T) {
 	tiles := claimable(t, map[uint32]string{7: "de", 8: "de"})
-	require.NoError(t, tiles.Shield(t.Context(), 8, "de", 10))
+	shield(t, tiles, 8, "de", 1)
 	listener, _, err := tiles.Subscribe(t.Context())
 	require.NoError(t, err)
 	ctx := cpctx.AddAccountToContext(t.Context(), "a-player")

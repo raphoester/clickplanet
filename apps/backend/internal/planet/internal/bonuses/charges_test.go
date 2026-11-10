@@ -20,6 +20,17 @@ func TestABombIsSpentOnceAndOnlyByItsHolder(t *testing.T) {
 	assert.Equal(t, bonuses.Held{}, store.Kept("alice"))
 }
 
+func TestAChargeReturnedComesBackAboveTheStackSize(t *testing.T) {
+	store := bonuses.NewMemoryStore()
+	store.Keep("alice", bonuses.Held{Shields: 31})
+	charges := bonuses.NewCharges(store, bonuses.TestRules)
+
+	require.NoError(t, charges.Spend(t.Context(), "alice", bonuses.Held.AfterShield))
+	require.NoError(t, charges.Return(t.Context(), "alice", bonuses.Held.WithShieldBack))
+
+	assert.Equal(t, bonuses.Held{Shields: 31}, store.Kept("alice"))
+}
+
 func TestACallerWithNoAccountHoldsNothing(t *testing.T) {
 	charges := bonuses.NewCharges(bonuses.NewMemoryStore(), bonuses.TestRules)
 

@@ -72,6 +72,8 @@ and says what is in it. Read the doc before you change its area.
 - [Shields](docs/shields.md) — a charge on a tile; each shield takes one foreign click.
 - [A claim is one lock](docs/tile-claim.md) — `clicks.Tile` holds owner, shields and holder; a claim reads, decides and
   writes it under one lock; why a lock and not a version per tile.
+- [A shield's way from the hand to the tile](docs/placements.md) — the placement row between the spend and the map's
+  flush; a refusal gives the shield back with no cap; the boot gives back what a stop left.
 - [Fortify](docs/fortify.md) — a take that makes a landmass whole gives every tile of it a shield.
 - [Who holds the tiles](docs/tile-holders.md) — each tile keeps the account whose take holds it; `GetLandmass`
   reads a landmass's holders and its last fortify.

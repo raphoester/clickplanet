@@ -50,6 +50,8 @@ saves what changed first, under the flush lock, then plays the arena's empty map
 loads the world's again, so no flush of the arena's map lands after it. See [Arena battles](arenas.md).
 
 **The charges have no memory copy**: every call reads and writes `planet.charges`, on the same pool. See [Charges](charges.md).
+A shield placed is the one write of both: the flush that saves its tile ends its row in `planet.placements`, in the same
+transaction, and the boot gives back every row left. See [A shield's way from the hand to the tile](placements.md).
 
 The antibot's evidence is in postgres too, in the `antibot` schema, the same way, and its bans are read and written there on every call. Planet's refused callers, which those bans keep, are a table of the `planet` schema, read on every click — see [What survives a restart](antibot.md#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](player.md). The scoring module's standings are kept the same way, in the `scoring` schema — see [Scoring](scoring.md). So are the support module's notes, in the `support` schema — see [Support](support.md) — and the posts' daily numbers, in the `publishing` schema — see [The posts' numbers](post-stats.md).
 

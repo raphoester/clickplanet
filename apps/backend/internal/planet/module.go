@@ -83,6 +83,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase/audit_revert"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/top_players_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/postgres_placement_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/usecases/return_placements_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/usecases/return_placements_usecase/log_return_placements"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/answer_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
@@ -218,7 +223,16 @@ func NewModule(config Config) cpbootstrap.Module {
 				closeStores()
 				return fmt.Errorf("failed to read the arena open: %w", err)
 			}
-			tilesStorage := inmemory_tile_storage.New(borders, config.TilesStorage, postgres_tile_store.New(db), clock, props.Logger)
+			inForce := rules.NewInForce(clock)
+			game := rules.Reader(inForce, bonuses.Part)
+			charges := bonuses.NewCharges(postgres_charge_store.New(db), game)
+			placementStore := postgres_placement_store.New(db)
+			escrow := placements.NewEscrow(db, charges, placementStore, uuid_id_provider.Provider{}, clock)
+			// Before any request, and a failure only waits for the next boot: a row this boot made is a shield not flushed yet.
+			_, _ = log_return_placements.New(return_placements_usecase.New(placementStore, escrow), props.Logger).Execute(ctx)
+
+			tilesStorage := inmemory_tile_storage.New(borders, config.TilesStorage, postgres_tile_store.New(db), db, escrow, clock,
+				props.Logger)
 			if err := tilesStorage.Load(ctx, playing.Played()); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to load the tile map: %w", err)
@@ -233,7 +247,6 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			ruleParts := parts.All()
 			ruleSets := postgres_rule_set_store.New(db, ruleParts)
-			inForce := rules.NewInForce(clock)
 			play := play_rules_usecase.New(ruleSets, postgres_choice_store.New(db), inForce)
 			playRules := log_play_rules.New(play, props.Logger)
 			if _, _, err := playRules.Execute(ctx); err != nil {
@@ -253,7 +266,6 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to handle planet.v1.ResetMap: %w", err)
 			}
 			throttle := rules.Reader(inForce, clicks.ThrottlePart)
-			game := rules.Reader(inForce, bonuses.Part)
 			freeze := rules.Reader(inForce, clicks.FreezePart)
 			lock := rules.Reader(inForce, allegiances.LockPart)
 
@@ -267,8 +279,6 @@ func NewModule(config Config) cpbootstrap.Module {
 				closeStores()
 				return fmt.Errorf("failed to handle planet.v1.ArenaCommand: %w", err)
 			}
-
-			charges := bonuses.NewCharges(postgres_charge_store.New(db), game)
 
 			bank, err := quizzes.Load(tilesStorage)
 			if err != nil {
@@ -495,7 +505,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
-					place_shield_usecase.New(charges, writer, countries, book, game), refusing)),
+					place_shield_usecase.New(placements.NewGate(tilesStorage, countries, book, game), escrow, writer),
+					refusing)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
 				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db)),
 				GetLandmassHandler: get_landmass_handler.New(borders,
