@@ -5,12 +5,12 @@ import {LeaderboardEntry} from "../domain/leaderboard.ts";
 import {CountryLine, countryLines, CountryOrder, scoringNow, shownOrder} from "../domain/race.ts";
 import {sharePercent} from "../domain/territory.ts";
 import {Figure, FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts";
-import {DELTA_HOLD_MS, NO_TILE_DELTAS, signed, TileDelta, TileDeltas} from "../domain/tileDeltas.ts";
+import {DELTA_HOLD_MS, NO_TILE_DELTAS, TileDelta, TileDeltas} from "../domain/tileDeltas.ts";
 import {truncate} from "./truncate.ts";
 import Bubble from "./components/Bubble.tsx";
 import ScrollArea from "./components/ScrollArea.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
-import {ChevronIcon, SwordsIcon} from "./components/icons.tsx";
+import {ChevronIcon, SwordsIcon, TrendIcon} from "./components/icons.tsx";
 import RankCoin from "./components/RankCoin.tsx";
 import {useBoardGuide} from "./boardGuideStore.ts";
 import {useRace} from "./standings/raceStore.ts";
@@ -139,8 +139,7 @@ export default function Leaderboard(props: LeaderboardProps) {
                             {truncate(line.country.name, NAME_MAX_LENGTH)}
                         </td>
                         <td className={tilesClass(delta?.net)}>
-                            {count.format(line.tiles)} <MapShare tiles={line.tiles} tilesCount={props.tilesCount}/>
-                            <DeltaBadge delta={delta}/>
+                            <TileCount tiles={line.tiles} delta={delta}/> <MapShare tiles={line.tiles} tilesCount={props.tilesCount}/>
                         </td>
                         {line.gain !== undefined && <td className="leaderboard-table-number leaderboard-table-gain">
                             <span className={gainClass(line.gain)}>{gained.format(line.gain)}</span>
@@ -187,9 +186,8 @@ function LeaderFrame({line, scored, battle, gainFigure, tilesCount, delta, isPla
                         </Hint>
                     </span>}
                     <span className={tilesClass(delta?.net, "leader-frame-tiles")}>
-                        {count.format(line.tiles)} tiles
+                        <TileCount tiles={line.tiles} delta={delta}/> tiles
                         {scored && <> <MapShare tiles={line.tiles} tilesCount={tilesCount}/></>}
-                        <DeltaBadge delta={delta}/>
                     </span>
                 </span>
             </span>
@@ -257,12 +255,14 @@ function Today({points, battle}: {points: number, battle: boolean}) {
     return <span className="leaderboard-today">+{points}<span className="sr-only">{battle ? " this battle" : " today"}</span></span>
 }
 
-function DeltaBadge({delta}: {delta?: TileDelta}) {
-    if (!delta) return null
-    return <span key={delta.beat}
-                 className="leaderboard-delta"
-                 style={{animationDuration: `${DELTA_HOLD_MS}ms`}}
-                 aria-hidden="true">{signed(delta.net)}</span>
+function TileCount({tiles, delta}: {tiles: number, delta?: TileDelta}) {
+    return <span className="leaderboard-count">
+        {delta && <span key={delta.beat}
+                        className="leaderboard-delta"
+                        style={{animationDuration: `${DELTA_HOLD_MS}ms`}}
+                        aria-hidden="true"><TrendIcon down={delta.net < 0}/></span>}
+        {count.format(tiles)}
+    </span>
 }
 
 function MapShare({tiles, tilesCount}: {tiles: number, tilesCount: number}) {

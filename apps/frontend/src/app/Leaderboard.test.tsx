@@ -47,7 +47,7 @@ describe("Leaderboard", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 123)]}/>)
 
         expect(within(leader()!).getByText("12.30")).toBeDefined()
-        expect(within(leader()!).getByText("123 tiles")).toBeDefined()
+        expect(leader()!.querySelector(".leader-frame-tiles")!.textContent).toBe("123 tiles")
     })
 
     it("writes each country's share of the map beside its tiles, in whole percents", () => {
@@ -189,27 +189,32 @@ describe("Leaderboard", () => {
 })
 
 describe("Leaderboard tile deltas", () => {
-    const badges = () => [leader()!, ...rows()].map(r => r.querySelector(".leaderboard-delta")?.textContent)
+    const arrows = () => [leader()!, ...rows()].map(r => r.querySelector(".leaderboard-count .leaderboard-delta"))
 
-    it("floats what a country just won next to its count", () => {
+    it("puts an arrow on the count of each country that just moved", () => {
         render(<Leaderboard tilesCount={1000}
                             data={[entry("fr", 503), entry("jp", 250), entry("de", 100)]}
-                            deltas={deltas({fr: 3, jp: 2})}/>)
+                            deltas={deltas({fr: 3, jp: -2})}/>)
 
-        expect(badges()).toEqual(["+3", "+2", undefined])
+        expect(arrows().map((arrow) => arrow !== null)).toEqual([true, true, false])
     })
 
-    it("spells a loss with its minus", () => {
-        render(<Leaderboard tilesCount={1000} data={[entry("fr", 600), entry("jp", 498)]} deltas={deltas({jp: -2})}/>)
-        expect(badges()).toEqual([undefined, "-2"])
+    it("points a loss the other way from a gain", () => {
+        render(<Leaderboard tilesCount={1000}
+                            data={[entry("fr", 503), entry("jp", 250), entry("de", 100)]}
+                            deltas={deltas({fr: 3, jp: 2, de: -2})}/>)
+
+        const [won, wonToo, lost] = arrows().map((arrow) => arrow!.innerHTML)
+        expect(wonToo).toBe(won)
+        expect(lost).not.toBe(won)
     })
 
-    it("badges nothing while the board is still", () => {
+    it("puts no arrow up while the board is still", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
-        expect(badges()).toEqual([undefined, undefined])
+        expect(arrows()).toEqual([null, null])
     })
 
-    it("colours the count itself the way the badge reads", () => {
+    it("colours the count itself the way the arrow points", () => {
         render(<Leaderboard tilesCount={1000}
                             data={[entry("fr", 600), entry("jp", 503), entry("de", 248), entry("gb-eng", 10)]}
                             deltas={deltas({jp: 3, de: -2})}/>)
@@ -222,17 +227,14 @@ describe("Leaderboard tile deltas", () => {
             ])
     })
 
-    it("keeps the badge out of what a screen reader reads", () => {
+    it("keeps the arrow out of what a screen reader reads", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 503), entry("jp", 250)]} deltas={deltas({fr: 3, jp: 1})}/>)
-
-        for (const place of [leader()!, rows()[0]]) {
-            expect(place.querySelector(".leaderboard-delta")!.getAttribute("aria-hidden")).toBe("true")
-        }
+        expect(arrows().map((arrow) => arrow!.getAttribute("aria-hidden"))).toEqual(["true", "true"])
     })
 
-    it("leaves the count itself as the number it is", () => {
+    it("writes nothing between the count, its share and the next column", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 600), entry("jp", 503)]} deltas={deltas({jp: 3})}/>)
-        expect(cells()).toEqual([["2", "Japan", "503 50%+3"]])
+        expect(cells()).toEqual([["2", "Japan", "503 50%"]])
     })
 })
 

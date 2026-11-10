@@ -14,11 +14,12 @@
   settles a click. It counts nothing.
 - `leaderboard.ts` — `rankCountries`, a pure sort over the server's counts. Ties break
   on country code so equally-placed rows stop swapping.
-- `tileDeltas.ts` — what the leaderboard floats beside a tile count as "+3" or
-  "-2". `takeInChanges` folds one board into the badges already up, so a country
-  on a run keeps one badge counting up instead of flashing "+1" three times, and
-  a country that wins a tile back and loses it again drops its badge rather than
-  reading "+0". `expireBadges` retires one `DELTA_HOLD_MS` after its last tile.
+- `tileDeltas.ts` — each country's net move in the last moments: the leaderboard's
+  arrow before a tile count, up or down, reads its sign. `takeInChanges` folds one
+  board into the badges already up, so a country on a run keeps one badge instead
+  of starting a new one for each tile, and a country that wins a tile back and
+  loses it again drops its badge rather than pointing either way. `expireBadges`
+  retires one `DELTA_HOLD_MS` after its last tile.
   **Both hand back the map they were given when nothing moved**, so a quiet
   leaderboard costs no render.
 - `countries.ts` — the country list, keyed by code.

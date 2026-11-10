@@ -4,7 +4,6 @@ import {
     DELTA_HOLD_MS,
     expireBadges,
     NO_TILE_DELTAS,
-    signed,
     takeInChanges,
     TileDeltas,
     tileCounts,
@@ -122,12 +121,5 @@ describe("expireBadges", () => {
         badges = takeInChanges(badges, counts({jp: 1}), counts({jp: 2}), 1_000)
 
         expect([...expireBadges(badges, DELTA_HOLD_MS + 1).keys()]).toEqual(["jp"])
-    })
-})
-
-describe("signed", () => {
-    it("spells a gain with its plus, and a loss with its minus", () => {
-        expect(signed(3)).toBe("+3")
-        expect(signed(-3)).toBe("-3")
     })
 })
