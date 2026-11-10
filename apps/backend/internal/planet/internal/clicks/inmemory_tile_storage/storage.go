@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -15,6 +16,8 @@ func New(
 	borders *clicks.Borders,
 	config Config,
 	persistence Persistence,
+	transactioner cpatomic.Transactioner,
+	placements Placements,
 	clock cptime.Clock,
 	logger *slog.Logger,
 ) *Storage {
@@ -25,24 +28,31 @@ func New(
 	config = config.withDefaults()
 
 	return &Storage{
-		clock:       clock,
-		config:      config,
-		logger:      logger,
-		persistence: persistence,
-		playing:     clicks.World,
-		board:       newBoard(borders.Tiles()),
-		landmasses:  newLandmasses(borders),
-		recount:     newRecount(borders.Landmasses()),
-		version:     clicks.MapVersion{Epoch: uint32(clock.Now().Unix())}, //nolint:gosec // seconds fit a uint32 until 2106.
-		feed:        newFeed(config.SubscriberBuffer, logger),
+		clock:         clock,
+		config:        config,
+		logger:        logger,
+		persistence:   persistence,
+		transactioner: transactioner,
+		placements:    placements,
+		playing:       clicks.World,
+		board:         newBoard(borders.Tiles()),
+		landmasses:    newLandmasses(borders),
+		recount:       newRecount(borders.Landmasses()),
+		version:       clicks.MapVersion{Epoch: uint32(clock.Now().Unix())}, //nolint:gosec // seconds fit a uint32 until 2106.
+		feed:          newFeed(config.SubscriberBuffer, logger),
 	}
 }
 
 type Storage struct {
-	clock       cptime.Clock
-	config      Config
-	logger      *slog.Logger
-	persistence Persistence
+	clock         cptime.Clock
+	config        Config
+	logger        *slog.Logger
+	persistence   Persistence
+	transactioner cpatomic.Transactioner
+	placements    Placements
+
+	// Under mu: the shields placed since the last flush, confirmed by the flush that saves their tiles.
+	placed []clicks.PlacementID
 
 	// Held through a flush, from what it takes to what it saves, so a wipe never meets a save of the map before it.
 	flushing sync.Mutex
@@ -195,20 +205,21 @@ func (s *Storage) Shields(tile uint32) int {
 	return s.board.shieldsOn(tile)
 }
 
-func (s *Storage) Shield(_ context.Context, tile uint32, country string, most int) error {
+func (s *Storage) Shield(_ context.Context, tile uint32, country string, most int, placement clicks.PlacementID) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if tile > s.board.last() {
-		return fmt.Errorf("%w: %d", clicks.ErrTileOutOfRange, tile)
+		return 0, fmt.Errorf("%w: %d", clicks.ErrTileOutOfRange, tile)
 	}
 	if err := clicks.ShieldError(s.board.ownerOf(tile), country, s.board.shieldsOn(tile), min(most, math.MaxUint8)); err != nil {
-		return fmt.Errorf("tile %d: %w", tile, err)
+		return 0, fmt.Errorf("tile %d: %w", tile, err)
 	}
 	now := s.board.raise(tile)
+	s.placed = append(s.placed, placement)
 	s.publishLocked(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: country, Previous: country, Shields: now}})
 
-	return nil
+	return now, nil
 }
 
 func (s *Storage) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, error) {

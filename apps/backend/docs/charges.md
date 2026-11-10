@@ -67,6 +67,8 @@ its own.
 - **Each spend is atomic**: `Charges.Spend` checks and takes in one `Change`, so two
   tabs racing for the last one get one, and the other `bonuses.ErrNotHeld`.
   `bonuses.StoreContractSuite` runs on postgres and on `MemoryStore` (behind the tag).
+- **A return undoes a spend**: `Charges.Return` puts back what a spend took, and reads no rule, since it grants
+  nothing. Only a shield the map refused comes back this way (see [A shield's way](placements.md)).
 - **Only a grant pushes them** (`charges_granted`, above). Otherwise they are not live news: `GetCharges` answers what the
   caller holds, read by the client at load and when its account changes, and
   `ClaimBonusResponse.charges` answers the claim, `PlaceShieldResponse.charges` a
