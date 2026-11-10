@@ -8,7 +8,7 @@ import (
 )
 
 type Charger interface {
-	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) error
+	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) (bonuses.Gain, error)
 	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
 
@@ -51,7 +51,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 	for _, kind := range bonuses.Kinds {
 		if amount := in.Grant.Count(kind); amount > 0 {
-			if err := u.charger.Grant(ctx, holder, kind, amount); err != nil {
+			if _, err := u.charger.Grant(ctx, holder, kind, amount); err != nil {
 				return Out{}, err
 			}
 		}

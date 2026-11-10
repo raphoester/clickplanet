@@ -1,4 +1,4 @@
-// Package mapdata holds the tile coordinates and borders blobs, copied from the monorepo-shared /map by
+// Package mapdata holds the tile coordinates, borders, capitals and waters blobs, copied from the monorepo-shared /map by
 // `make map` — this app's half of that source, the way generated/proto is its half of /proto.
 //
 // The directory is `map` to mirror the source it comes from; the package cannot be, since map is
@@ -18,21 +18,31 @@ import (
 // Globbed because the file is content-addressed, which keeps `make map` a copy with no generated
 // constant beside it, and makes drift between the two apps visible in the name.
 //
-//go:embed coordinates-*.bin borders-*.bin
+//go:embed coordinates-*.bin borders-*.bin capitals-*.json waters-*.json
 var files embed.FS
 
 // Coordinates returns the blob and the name it is content-addressed under.
 func Coordinates() ([]byte, string, error) {
-	return read("coordinates")
+	return read("coordinates", "bin")
 }
 
 // Borders returns the tile to landmass table and the name it is content-addressed under.
 func Borders() ([]byte, string, error) {
-	return read("borders")
+	return read("borders", "bin")
 }
 
-func read(asset string) ([]byte, string, error) {
-	entries, err := fs.Glob(files, asset+"-*.bin")
+// Capitals returns each country's capital tile and the name it is content-addressed under.
+func Capitals() ([]byte, string, error) {
+	return read("capitals", "json")
+}
+
+// Waters returns each body of water's coast tiles and the name it is content-addressed under.
+func Waters() ([]byte, string, error) {
+	return read("waters", "json")
+}
+
+func read(asset, extension string) ([]byte, string, error) {
+	entries, err := fs.Glob(files, asset+"-*."+extension)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to glob the %s blob: %w", asset, err)
 	}

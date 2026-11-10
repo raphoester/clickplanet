@@ -19,7 +19,7 @@ func (s *Storage) fortifyLocked(ctx context.Context, tile uint32, flag string, m
 	members := s.landmasses.tilesOf(landmass)
 	raised := make([]clicks.TileShields, 0, len(members))
 	for _, member := range members {
-		if s.board.shieldsOn(member) < most {
+		if s.board.shieldsOn(member) < most && !s.capitalLocked(member) {
 			raised = append(raised, clicks.TileShields{Tile: member, Shields: s.board.raise(member)})
 		}
 	}

@@ -2,6 +2,7 @@ package answer_quiz_usecase_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -20,10 +21,12 @@ import (
 
 var now = time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC)
 
+const guest bonuses.Holder = "a-guest"
+
 func asPlayer(t *testing.T) context.Context {
 	t.Helper()
 
-	return cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
+	return cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), string(guest))
 }
 
 type fakeRegistry struct {
@@ -45,24 +48,24 @@ func (f *fakeRegistry) Publish(taken bonuses.Taken) {
 	f.published = append(f.published, taken)
 }
 
-type fakeCharger struct{ held bonuses.Held }
-
-func (f *fakeCharger) Held(context.Context, bonuses.Holder) (bonuses.Held, error) { return f.held, nil }
-
-func (f *fakeCharger) Grant(_ context.Context, _ bonuses.Holder, kind bonuses.Kind, amount int) error {
-	f.held = f.held.Granted(kind, amount, bonuses.TestRules())
-	return nil
+func charges() (bonuses.Charges, *bonuses.MemoryStore) {
+	store := bonuses.NewMemoryStore()
+	return bonuses.NewCharges(store, bonuses.TestRules), store
 }
 
-func newUseCase(answered bonuses.Answered, known bool) (*answer_quiz_usecase.UseCase, *fakeRegistry, *fakeCharger) {
+func newUseCase(answered bonuses.Answered, known bool) (*answer_quiz_usecase.UseCase, *fakeRegistry, *bonuses.MemoryStore) {
 	registry := &fakeRegistry{answered: answered, known: known}
-	charger := &fakeCharger{}
+	charger, store := charges()
 
-	return answer_quiz_usecase.New(registry, charger, cpredis.NewRecordedEvents(), cptime.NewFixedClock(now)), registry, charger
+	return answer_quiz_usecase.New(registry, charger, cpredis.NewRecordedEvents(), cptime.NewFixedClock(now)), registry, store
+}
+
+func rightFor(kind bonuses.Kind, amount int) bonuses.Answered {
+	return bonuses.Answered{Correct: true, Reward: bonuses.Reward{Kind: kind, Amount: amount}}
 }
 
 func TestARightAnswerGrantsTheChargeAndTellsThePlanet(t *testing.T) {
-	useCase, registry, charger := newUseCase(bonuses.Answered{
+	useCase, registry, store := newUseCase(bonuses.Answered{
 		Correct:       true,
 		CorrectChoice: 2,
 		Reward:        bonuses.Reward{Kind: bonuses.KindSpreadClicks, Amount: 3},
@@ -73,10 +76,11 @@ func TestARightAnswerGrantsTheChargeAndTellsThePlanet(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, out.Correct)
+	assert.Equal(t, 2, out.CorrectChoice)
 	assert.Equal(t, bonuses.KindSpreadClicks, out.Kind)
 	assert.Equal(t, 3, out.Amount)
 	assert.Equal(t, 3, out.Held.SpreadClicks)
-	assert.Equal(t, 3, charger.held.SpreadClicks, "the charge is held by the account that answered")
+	assert.Equal(t, 3, store.Kept(guest).SpreadClicks, "the charge is held by the account that answered")
 
 	require.Len(t, registry.published, 1)
 	assert.Equal(t, bonuses.Taken{
@@ -87,7 +91,8 @@ func TestARightAnswerGrantsTheChargeAndTellsThePlanet(t *testing.T) {
 }
 
 func TestAWrongAnswerChangesNothingAndTellsNobody(t *testing.T) {
-	useCase, registry, charger := newUseCase(bonuses.Answered{CorrectChoice: 1}, true)
+	useCase, registry, store := newUseCase(bonuses.Answered{CorrectChoice: 1}, true)
+	store.Keep(guest, bonuses.Held{Shields: 4})
 
 	out, err := useCase.Execute(asPlayer(t), answer_quiz_usecase.In{Token: "t", Choice: 0, CountryID: "bg"})
 	require.NoError(t, err, "a wrong answer landed; it is not a failed call")
@@ -96,8 +101,8 @@ func TestAWrongAnswerChangesNothingAndTellsNobody(t *testing.T) {
 	assert.Equal(t, 1, out.CorrectChoice, "it still says which one was right")
 	assert.Empty(t, out.Kind)
 	assert.Zero(t, out.Amount)
-	assert.True(t, out.Held.Empty())
-	assert.True(t, charger.held.Empty())
+	assert.Equal(t, bonuses.Held{Shields: 4}, out.Held, "it says what the account holds")
+	assert.Equal(t, bonuses.Held{Shields: 4}, store.Kept(guest))
 	assert.Empty(t, registry.published, "nothing happened, so the planet is told nothing")
 }
 
@@ -105,14 +110,15 @@ func TestEveryAnswerIsToldToTheOtherModulesRightOrWrong(t *testing.T) {
 	for _, correct := range []bool{true, false} {
 		events := cpredis.NewRecordedEvents()
 		registry := &fakeRegistry{answered: bonuses.Answered{Correct: correct, Reward: bonuses.Reward{Kind: bonuses.KindRefill, Amount: 1}}, known: true}
+		charger, _ := charges()
 
-		_, err := answer_quiz_usecase.New(registry, &fakeCharger{}, events, cptime.NewFixedClock(now)).
+		_, err := answer_quiz_usecase.New(registry, charger, events, cptime.NewFixedClock(now)).
 			Execute(asPlayer(t), answer_quiz_usecase.In{Token: "t"})
 		require.NoError(t, err)
 
 		require.Len(t, events.Published(), 1)
 		assert.True(t, proto.Equal(&planetv1.QuizAnswered{
-			AccountId: "a-guest", Correct: correct, AnsweredAt: timestamppb.New(now),
+			AccountId: string(guest), Correct: correct, AnsweredAt: timestamppb.New(now),
 		}, events.Published()[0]), "correct: %v", correct)
 	}
 }
@@ -126,15 +132,38 @@ func TestAQuizThatIsNotThisCallersIsNotFound(t *testing.T) {
 }
 
 func TestTheAmountIsWhatWasKeptNotWhatWasDrawn(t *testing.T) {
-	useCase, _, charger := newUseCase(bonuses.Answered{
-		Correct: true,
-		Reward:  bonuses.Reward{Kind: bonuses.KindEncloseClicks, Amount: 3},
-	}, true)
-	charger.held = bonuses.Held{Enclosures: 2}
+	useCase, _, store := newUseCase(rightFor(bonuses.KindEncloseClicks, 3), true)
+	store.Keep(guest, bonuses.Held{Enclosures: 2})
 
 	out, err := useCase.Execute(asPlayer(t), answer_quiz_usecase.In{Token: "t"})
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, out.Amount, "the stack holds 3, and 2 were already in it")
 	assert.Equal(t, 3, out.Held.Enclosures)
+}
+
+func TestARightAnswerIsGrantedWhenTheCallerLeavesAfterIt(t *testing.T) {
+	useCase, _, store := newUseCase(rightFor(bonuses.KindBomb, 1), true)
+	ctx, leave := context.WithCancel(asPlayer(t))
+	leave()
+
+	_, err := useCase.Execute(ctx, answer_quiz_usecase.In{Token: "t"})
+	require.NoError(t, err)
+
+	assert.Equal(t, bonuses.Held{Bomb: true}, store.Kept(guest))
+}
+
+func TestAFailedGrantIsNotARefusalAndIsToldToNobody(t *testing.T) {
+	registry := &fakeRegistry{answered: rightFor(bonuses.KindBomb, 1), known: true}
+	charger, store := charges()
+	store.FailWith(errors.New("postgres is down"))
+	events := cpredis.NewRecordedEvents()
+
+	_, err := answer_quiz_usecase.New(registry, charger, events, cptime.NewFixedClock(now)).
+		Execute(asPlayer(t), answer_quiz_usecase.In{Token: "t"})
+
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, answer_quiz_usecase.ErrNoSuchQuiz)
+	assert.Empty(t, registry.published)
+	assert.Empty(t, events.Published())
 }

@@ -17,4 +17,5 @@ var (
 
 	ErrNotYourTile = errors.New("the tile does not wear the flag")
 	ErrTileFull    = errors.New("the tile holds as many shields as it can")
+	ErrCapital     = errors.New("a capital takes no shield while an arena plays")
 )

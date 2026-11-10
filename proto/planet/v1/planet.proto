@@ -141,6 +141,10 @@ message ClickResponse {
 // answer while the rules in force freeze the map.
 message FrozenRefusal {}
 
+// The detail of the FailedPrecondition that Click answers in an arena, for a tile that touches none of the flag's land
+// and is on the coast of no water where the flag holds a coast.
+message ReachRefusal {}
+
 // The detail of a PermissionDenied that Click, DropBomb and PlaceShield answer a banned caller.
 message BanRefusal {
   int64 banned_until_unix_ms = 1;
@@ -175,6 +179,9 @@ message GetMapResponse {
   repeated TileShields shields = 4;
 
   MapVersion version = 5;
+
+  // The map is an arena's: a battle's blank map, which started with each country's capital.
+  bool arena = 6;
 }
 
 message MapVersion {

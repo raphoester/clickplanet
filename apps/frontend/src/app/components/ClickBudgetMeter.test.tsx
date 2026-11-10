@@ -250,6 +250,22 @@ describe("ClickBudgetMeter and the price", () => {
             vi.useRealTimers()
         }
     })
+
+    it("says for a while, with a shake, to take a tile next to the flag's land in an arena", () => {
+        vi.useFakeTimers()
+        try {
+            render(budgeted(reading(), <ClickBudgetMeter/>))
+
+            act(() => useRefusedClicks.getState().refuseOutOfReach())
+            expect(screen.getByRole("status").textContent).toBe("Take a tile next to your land")
+            expect(meter().classList.contains("click-budget-refused")).toBe(true)
+
+            act(() => void vi.advanceTimersByTime(BUBBLE_MS))
+            expect(screen.queryByRole("status")).toBeNull()
+        } finally {
+            vi.useRealTimers()
+        }
+    })
 })
 
 describe("ClickBudgetMeter for a guest", () => {

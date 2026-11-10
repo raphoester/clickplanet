@@ -2,6 +2,7 @@ package answer_quiz_handler
 
 import (
 	"context"
+	"errors"
 
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -31,8 +32,11 @@ func (h AnswerQuizHandler) AnswerQuiz(
 		Choice:    int(req.Msg.GetChoice()),
 		CountryID: req.Msg.GetCountryId(),
 	})
-	if err != nil {
+	if errors.Is(err, answer_quiz_usecase.ErrNoSuchQuiz) {
 		return nil, connect.NewError(connect.CodeNotFound, answer_quiz_usecase.ErrNoSuchQuiz)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	return connect.NewResponse(&planetv1.AnswerQuizResponse{

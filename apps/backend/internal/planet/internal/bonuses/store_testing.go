@@ -4,6 +4,7 @@ package bonuses
 
 import (
 	"context"
+	"fmt"
 	"sync"
 )
 
@@ -19,10 +20,13 @@ func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{hands: map[Holder]Held{}}
 }
 
-func (m *MemoryStore) Change(_ context.Context, holder Holder, change func(Held) (Held, error)) error {
+func (m *MemoryStore) Change(ctx context.Context, holder Holder, change func(Held) (Held, error)) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("the hand was not changed: %w", err)
+	}
 	if m.failing != nil {
 		return m.failing
 	}

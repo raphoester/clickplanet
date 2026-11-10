@@ -121,6 +121,7 @@ export function useGlobe(options: UseGlobeOptions) {
             onBanned: refused.ban,
             onSessionUnavailable: refused.failSession,
             onAllegianceLocked: refused.lockOut,
+            onOutOfReach: refused.refuseOutOfReach,
             onBonusWon: bonus.win,
             onCharges: bonus.setCharges,
             onRules: bonus.setRules,

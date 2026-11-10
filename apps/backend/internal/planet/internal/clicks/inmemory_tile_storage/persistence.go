@@ -18,6 +18,8 @@ type Persistence interface {
 	LoadLandmasses(ctx context.Context, played clicks.MapID, asset string,
 		visit func(landmass clicks.LandmassID, fortifiedBy string)) error
 	Save(ctx context.Context, played clicks.MapID, tiles []Tile, landmasses []Landmass) error
+	// Open writes a map's first tiles in one transaction with keep, once keep says to.
+	Open(ctx context.Context, played clicks.MapID, tiles []Tile, keep func(ctx context.Context) (bool, error)) (bool, error)
 	// Wipe deletes every tile and every landmass's lock of a map, in one transaction with keep, once keep says to.
 	Wipe(ctx context.Context, played clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error)
 	// ForgetHolder takes an account off every tile of every map.

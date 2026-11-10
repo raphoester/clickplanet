@@ -47,7 +47,7 @@ func Seeded() Snapshot {
 			},
 			Frozen:           on(false),
 			AllegianceLocked: on(false),
-			Arena:            &planetv1.ArenaRules{On: on(false), Freeze: d(8 * time.Second)},
+			Arena:            &planetv1.ArenaRules{On: on(false), Freeze: d(8 * time.Second), CapitalShields: n(100)},
 		},
 	}
 }

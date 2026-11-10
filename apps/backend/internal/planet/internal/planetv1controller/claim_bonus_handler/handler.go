@@ -2,6 +2,7 @@ package claim_bonus_handler
 
 import (
 	"context"
+	"errors"
 
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -30,8 +31,11 @@ func (h ClaimBonusHandler) ClaimBonus(
 		Token:     req.Msg.GetToken(),
 		CountryID: req.Msg.GetCountryId(),
 	})
-	if err != nil {
+	if errors.Is(err, claim_bonus_usecase.ErrNoSuchBonus) {
 		return nil, connect.NewError(connect.CodeNotFound, claim_bonus_usecase.ErrNoSuchBonus)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	return connect.NewResponse(&planetv1.ClaimBonusResponse{

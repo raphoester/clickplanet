@@ -1,6 +1,7 @@
 package open_arena_usecase_test
 
 import (
+	"context"
 	"log/slog"
 	"testing"
 	"time"
@@ -19,10 +20,29 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
+var capitals = clicks.NewCapitals(map[string]uint32{"fr": 50, "de": 60})
+
 var (
 	starts = time.Date(2026, 11, 10, 21, 0, 3, 0, time.UTC)
 	ends   = time.Date(2026, 11, 10, 23, 0, 0, 0, time.UTC)
 )
+
+// The storage's transaction, as postgres runs it: the outbox records in it.
+type inTx struct {
+	*inmemory_tile_storage.MemoryPersistence
+}
+
+func (p inTx) Open(
+	ctx context.Context, played clicks.MapID, tiles []inmemory_tile_storage.Tile, keep func(context.Context) (bool, error),
+) (bool, error) {
+	var opened bool
+	err := cpatomic.FakeTransactioner{}.InTx(ctx, func(ctx context.Context) error {
+		var err error
+		opened, err = p.MemoryPersistence.Open(ctx, played, tiles, keep)
+		return err //nolint:wrapcheck // the persistence names it.
+	})
+	return opened, err
+}
 
 type harness struct {
 	tiles   *inmemory_tile_storage.Storage
@@ -38,15 +58,16 @@ func newHarness(t *testing.T) harness {
 	t.Helper()
 	clock := cptime.NewFixedClock(starts)
 	stored := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{1: "fr", 2: "fr", 3: "de"})
-	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), inmemory_tile_storage.Config{}, stored,
+	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), capitals, inmemory_tile_storage.Config{}, inTx{stored},
 		cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, clock,
 		slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context(), clicks.World))
 	kept, outbox := arenas.NewMemoryStore(), &cpatomic.FakeOutbox{}
-	inPlay := arenas.NewInPlay(func() arenas.Rules { return arenas.Rules{Freeze: 8 * time.Second} }, clock)
+	arenaRules := func() arenas.Rules { return arenas.Rules{Freeze: 8 * time.Second, CapitalShields: 100} }
+	inPlay := arenas.NewInPlay(arenaRules, clock)
 	return harness{
 		tiles: tiles, stored: stored, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock,
-		useCase: open_arena_usecase.New(tiles, kept, outbox, inPlay, clock),
+		useCase: open_arena_usecase.New(tiles, arenas.NewStarts(capitals, arenaRules), kept, outbox, inPlay, clock),
 	}
 }
 
@@ -67,7 +88,7 @@ func TestAnArenaOpensOnABlankMapAndLeavesTheWorldsAsItIs(t *testing.T) {
 		assert.Empty(t, h.owner(tile), "tile %d", tile)
 	}
 	assert.Equal(t, map[uint32]string{1: "fr", 2: "fr", 3: "de", 4: "it"}, h.stored.Stored(), "the tile not flushed yet too")
-	assert.Empty(t, h.stored.StoredOn("battle"))
+	assert.Equal(t, map[uint32]string{50: "fr", 60: "de"}, h.stored.StoredOn("battle"), "the capitals alone")
 	assert.True(t, bool(h.inPlay.Freeze()), "the map takes no play right after it went blank")
 	h.clock.Advance(8 * time.Second)
 	assert.False(t, bool(h.inPlay.Freeze()))
@@ -120,4 +141,19 @@ func TestAnArenaClosedEndedOrBesideAnotherOpensNothing(t *testing.T) {
 			assert.Empty(t, h.outbox.Recorded())
 		})
 	}
+}
+
+func TestAnArenaOpensWithEachCapitalHeldByItsCountryAndItsShields(t *testing.T) {
+	h := newHarness(t)
+
+	opened, err := h.useCase.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends})
+
+	require.NoError(t, err)
+	assert.True(t, opened)
+	assert.Equal(t, "fr", h.owner(50))
+	assert.Equal(t, "de", h.owner(60))
+	assert.Equal(t, 100, h.tiles.Shields(50))
+	assert.Equal(t, map[uint32]string{50: "fr", 60: "de"}, h.stored.StoredOn("battle"), "kept with the arena, before a flush")
+	assert.Equal(t, map[uint32]int{50: 100, 60: 100}, h.stored.StoredShieldsOn("battle"))
+	assert.Equal(t, map[uint32]string{1: "fr", 2: "fr", 3: "de"}, h.stored.Stored(), "the world's map has no capital")
 }

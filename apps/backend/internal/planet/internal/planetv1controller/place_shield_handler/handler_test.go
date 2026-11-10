@@ -55,6 +55,7 @@ func TestEachRefusalHasItsCode(t *testing.T) {
 		clicks.ErrTileOutOfRange:         connect.CodeInvalidArgument,
 		clicks.ErrNotYourTile:            connect.CodeFailedPrecondition,
 		clicks.ErrTileFull:               connect.CodeFailedPrecondition,
+		clicks.ErrCapital:                connect.CodeFailedPrecondition,
 		place_shield_usecase.ErrNoShield: connect.CodeNotFound,
 	} {
 		_, refused := place(t, &stubUseCase{err: err})

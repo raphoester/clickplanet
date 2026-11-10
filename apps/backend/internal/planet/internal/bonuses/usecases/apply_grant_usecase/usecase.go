@@ -15,8 +15,7 @@ type Grants interface {
 }
 
 type Charger interface {
-	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) error
-	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
+	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) (bonuses.Gain, error)
 }
 
 type Streams interface {
@@ -62,14 +61,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		if !first {
 			return nil
 		}
-		if err := u.charger.Grant(ctx, holder, in.Kind, in.Amount); err != nil {
-			return err //nolint:wrapcheck // the charger named it.
-		}
-		held, err := u.charger.Held(ctx, holder)
+		gain, err := u.charger.Grant(ctx, holder, in.Kind, in.Amount)
 		if err != nil {
 			return err //nolint:wrapcheck // the charger named it.
 		}
-		granted = &held
+		granted = &gain.After
 		return nil
 	}); err != nil {
 		return err

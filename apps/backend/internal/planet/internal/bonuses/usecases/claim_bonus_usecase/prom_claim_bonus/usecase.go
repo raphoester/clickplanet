@@ -2,6 +2,7 @@ package prom_claim_bonus
 
 import (
 	"context"
+	"errors"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -63,8 +64,11 @@ func (d *Decorator) Execute(ctx context.Context, in claim_bonus_usecase.In) (cla
 	out, err := d.implementation.Execute(ctx, in)
 
 	outcome := "granted"
-	if err != nil {
+	switch {
+	case errors.Is(err, claim_bonus_usecase.ErrNoSuchBonus):
 		outcome = "refused"
+	case err != nil:
+		outcome = "failed"
 	}
 	d.claims.WithLabelValues(outcome).Inc()
 

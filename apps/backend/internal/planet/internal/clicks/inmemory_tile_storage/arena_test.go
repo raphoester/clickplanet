@@ -14,6 +14,8 @@ import (
 
 const battle = clicks.MapID("battle")
 
+var noStart = []clicks.StartTile{}
+
 // The world as a battle finds it: an island fortified by France, one tile held by ana's take, and a German tile not
 // flushed yet.
 func (s *testSuite) worldBeforeABattle(persistence *inmemory_tile_storage.MemoryPersistence) (*inmemory_tile_storage.Storage, cpsession.AccountID) {
@@ -36,7 +38,7 @@ func (s *testSuite) TestABlankKeepsTheWorldWithTheTilesNotFlushedYetAndPlaysAnEm
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage, ana := s.worldBeforeABattle(persistence)
 
-	blanked, err := storage.Blank(ctx, battle, keeps(true))
+	blanked, err := storage.Blank(ctx, battle, noStart, keeps(true))
 
 	s.Require().NoError(err)
 	s.True(blanked)
@@ -59,7 +61,7 @@ func (s *testSuite) TestABlankKeepSaysNoToLeavesTheMap() {
 	_, version, err := storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
-	blanked, err := storage.Blank(ctx, battle, keeps(false))
+	blanked, err := storage.Blank(ctx, battle, noStart, keeps(false))
 
 	s.Require().NoError(err)
 	s.False(blanked)
@@ -73,7 +75,7 @@ func (s *testSuite) TestABlankKeepSaysNoToLeavesTheMap() {
 func (s *testSuite) TestTheWorldIsNoArena() {
 	storage := s.newStorage(inmemory_tile_storage.Config{})
 
-	_, blankErr := storage.Blank(context.Background(), clicks.World, keeps(true))
+	_, blankErr := storage.Blank(context.Background(), clicks.World, noStart, keeps(true))
 	_, putBackErr := storage.PutBack(context.Background(), clicks.World, keeps(true))
 
 	s.Require().Error(blankErr)
@@ -84,7 +86,7 @@ func (s *testSuite) TestAPutBackDeletesTheArenasMapAndPlaysTheWorldTileForTile()
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage, ana := s.worldBeforeABattle(persistence)
-	_, err := storage.Blank(ctx, battle, keeps(true))
+	_, err := storage.Blank(ctx, battle, noStart, keeps(true))
 	s.Require().NoError(err)
 	for _, tile := range append([]uint32{12, 13}, island...) {
 		s.Require().NoError(storage.Set(ctx, tile, "it"))
@@ -140,7 +142,7 @@ func (s *testSuite) TestAPutBackThatCannotBeKeptLeavesTheMap() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage, _ := s.worldBeforeABattle(persistence)
-	_, err := storage.Blank(ctx, battle, keeps(true))
+	_, err := storage.Blank(ctx, battle, noStart, keeps(true))
 	s.Require().NoError(err)
 	s.Require().NoError(storage.Set(ctx, 13, "it"))
 	down := errors.New("postgres is down")
@@ -157,7 +159,7 @@ func (s *testSuite) TestAHolderForgottenWhileAnArenaPlaysHoldsNothingWhenTheWorl
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage, ana := s.worldBeforeABattle(persistence)
-	_, err := storage.Blank(ctx, battle, keeps(true))
+	_, err := storage.Blank(ctx, battle, noStart, keeps(true))
 	s.Require().NoError(err)
 
 	_, err = storage.ForgetHolder(ctx, ana)

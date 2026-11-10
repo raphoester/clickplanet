@@ -1,8 +1,9 @@
 # Arena battles: a battle on a blank map
 
 **A battle whose rule set has `arena.on` is an arena battle: it is fought on a blank map, and the map from before comes
-back, tile for tile, when it ends** (the owner, 2026-11-09). It is slice 1 of the Capital Siege game mode: the blank map
-and back. Capitals, the take rule, the knock-out, the speed and the replays come in later slices. **Do not schedule an
+back, tile for tile, when it ends** (the owner, 2026-11-09). It is slices 1 and 2 of the Capital Siege game mode: the
+blank map and back, then each country's capital and the take rule ([Capitals and reach](#capitals-and-reach)). The
+knock-out, the speed and the replays come in later slices. **Do not schedule an
 arena battle in production before slice 5**: the replays, the map history and the clips read the ledger across the
 battle as if the map never changed.
 
@@ -72,9 +73,9 @@ world's rows stay as they are while an arena plays, and a column added to a tile
 map.
 
 - **`OpenArena`** (`open_arena_usecase`): under the flush lock and the tiles lock, `Storage.Blank` saves what changed to
-  the world's map (the tiles not flushed yet), keeps the arena (`arenas`) in one transaction with
-  `planet.v1.ArenaOpened` recorded in planet's outbox, and then plays the arena's map, which has no row yet. Memory is
-  emptied as `Wipe` empties it: a new epoch and every stream cut, so every page reads the blank map again. **An arena
+  the world's map (the tiles not flushed yet), then `Persistence.Open` keeps the arena (`arenas`), records
+  `planet.v1.ArenaOpened` in planet's outbox and writes the start (see [Capitals and reach](#capitals-and-reach)), in
+  one transaction, and the arena's map plays. Memory is emptied as `Wipe` empties it: a new epoch and every stream cut, so every page reads the blank map again. **An arena
   opens once, never after it closed, never at or after its end, and never while another is open** (`Arena.Open`): a
   refusal tells nothing, is dropped by the handler and logged at Error.
 - **`CloseArena`** (`close_arena_usecase`): under the same locks, `Storage.PutBack` runs `Wipe` on the arena's map in
@@ -95,6 +96,38 @@ map.
   (`Storage.ForgetHolder`), so the world's map played again names it no more.
 - **Planet's outbox** (`planet.outbox`, `outbox_event` `planet.v1.ArenaOpened` and `planet.v1.ArenaClosed`, relay
   `planet-outbox`) is new with arenas: the map's facts still go through the ledger.
+
+## Capitals and reach
+
+**Each flag starts the arena on its capital, and takes only next to its land or across its waters** (the owner,
+2026-11-09).
+
+- **The capitals** (`clicks.Capitals`, from `/map`'s `capitals-<hash>.json`): each country's tile nearest its capital
+  city, picked by the map generator (see [`/map/README.md`](../../../map/README.md)). Planet keeps the 235 of the flags
+  a player can play for. A region flag (England, Scotland, Wales, Brittany) has no ground, so no capital.
+- **The start** (`arenas.Starts`): each capital, held by its country, with `arena.capitalShields` shields (100), read
+  from the rules in force as the arena opens. `Storage.Blank` hands it to `Persistence.Open`, which writes it on the
+  arena's map **in one transaction with the arena kept** (`open_arena_usecase`'s keep), then fills memory from it as the
+  boot does. Before, the arena's rows waited for the next flush: a crash in between would have booted an arena with no
+  capital. No ledger event and no holder: no player took them. A one-tile landmass held whole settles locked to its
+  holder, as at boot.
+- **No shield is added to a capital while an arena plays**, whoever holds it: `PlaceShield` is refused with
+  `clicks.ErrCapital` (`FailedPrecondition`, the charge given back) and a fortify raises every tile of the landmass but
+  it. The storage knows the capitals and reads `playing != World` under its lock (`capitalLocked`). On the world's map a
+  capital tile is a tile like any other.
+- **The reach** (`arenas.Reach`): while an arena is open (`InPlay.Playing`), a take of a flag lands on a tile it holds,
+  on a tile next to one it holds (`Geography.Neighbours`), or on a coast tile of a body of water where it holds a coast
+  tile (`clicks.Waters`, from `/map`'s `waters-<hash>.json`). The board answers through `Storage.HoldsAny`, under one read
+  lock; the ocean's coast is a scan of at most 15,294 tiles, only for a tile that touches none of the flag's land.
+  - **A click** out of reach is refused by `reach_click`, outside the throttle as `allegiance_click` is, so it spends no
+    token: `FailedPrecondition` with a `ReachRefusal` detail, told to the antibot as `CLICK_OUTCOME_OUT_OF_REACH` (an
+    attempt, not inspected).
+  - **A spread** takes only the neighbours in reach (`Reach.Around`), read after the clicked tile is written.
+  - **An enclosure** needs no check: its pocket is walled by the flag's own tiles alone, see [Enclose](enclose.md).
+  - **A bomb** takes no tile for the bomber, so the reach does not touch it; slice 4 refuses bombs.
+- **The page** learns the map is an arena's from every map read (`GetMapResponse.arena`, stamped by
+  `StateBatchDense` from `playing`), and draws the reach and the capitals itself: see the frontend's
+  [The arena](../../frontend/docs/arena.md).
 
 ## Gamemaster: the arena battles (`internal/gamemaster/internal/arenas/`)
 
@@ -120,6 +153,18 @@ map.
   the end's freeze starts late (the close still comes once the cut battle is scored).
 
 ## Tests
+
+Slice 2: `arenas`' `reach_test.go` pins a take next to the land, across a water with a coast held, refused across one
+without, no reach outside an arena, and a spread past the tile taken or from a struck one; `rules_test.go` the capital
+shields of default and their bound. `inmemory_tile_storage`'s `capitals_test.go` pins the start kept with the arena
+before any flush, none when keep says no, no shield on a capital in an arena but one on the world's map, a fortify
+that skips a capital, the map's `Arena`, and `HoldsAny`; `postgres_tile_store`'s `maps_test.go` an `Open` in keep's
+transaction and none when keep refuses or fails. `open_arena_usecase` opens with each capital and its shields;
+`reach_click` refuses before the inner click; `throttle_test.go` keeps the token of three clicks out of reach over
+HTTP; `click_handler` answers the `ReachRefusal`; `spread_click` takes only the neighbours in reach. The shipped
+`waters` and `capitals` are pinned in `embedded_geodesic_map`'s `waters_test.go`.
+
+Slice 1:
 
 `arenas`' tests pin the id, an arena opened once and refused closed, ended or beside another, closed once whether it
 opened or not, and the freeze's two windows; `open_arena_usecase`'s `ArenaOpened` told once and never on a refusal; the arena part (default never plays in an arena, a freeze past 30 s

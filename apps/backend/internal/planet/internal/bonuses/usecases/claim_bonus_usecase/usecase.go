@@ -3,6 +3,7 @@ package claim_bonus_usecase
 import (
 	"context"
 	"errors"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -13,8 +14,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// One error for every failure: telling them apart helps a script guessing tokens.
+// One error for every refusal: telling them apart helps a script guessing tokens.
 var ErrNoSuchBonus = errors.New("no bonus to claim")
+
+const grantTimeout = 5 * time.Second
 
 type Registry interface {
 	Claim(token string, entrant bonuses.Entrant, scope string) (bonuses.Reward, bool)
@@ -22,8 +25,7 @@ type Registry interface {
 }
 
 type Charger interface {
-	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) error
-	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
+	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) (bonuses.Gain, error)
 }
 
 type Publisher interface {
@@ -62,15 +64,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, ErrNoSuchBonus
 	}
 
+	// The offer is taken: a caller who leaves now must still get the charge.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), grantTimeout)
+	defer cancel()
+
 	holder := bonuses.HolderOf(payer)
-	before, err := u.charger.Held(ctx, holder)
-	if err != nil {
-		return Out{}, err
-	}
-	if err := u.charger.Grant(ctx, holder, reward.Kind, reward.Amount); err != nil {
-		return Out{}, err
-	}
-	held, err := u.charger.Held(ctx, holder)
+	gain, err := u.charger.Grant(ctx, holder, reward.Kind, reward.Amount)
 	if err != nil {
 		return Out{}, err
 	}
@@ -80,5 +79,5 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		u.events.Publish(&planetv1.BonusClaimed{AccountId: string(holder), ClaimedAt: timestamppb.New(u.clock.Now())})
 	}
 
-	return Out{Kind: reward.Kind, Amount: held.Count(reward.Kind) - before.Count(reward.Kind), Held: held}, nil
+	return Out{Kind: reward.Kind, Amount: gain.Count(reward.Kind), Held: gain.After}, nil
 }

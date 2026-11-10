@@ -14,7 +14,7 @@ type Grants interface {
 }
 
 type Charger interface {
-	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) error
+	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) (bonuses.Gain, error)
 }
 
 func New(
@@ -44,6 +44,7 @@ func (u *UseCase) Execute(ctx context.Context, holder bonuses.Holder) error {
 		if !first {
 			return nil
 		}
-		return u.charger.Grant(ctx, holder, bonuses.KindRefill, 1) //nolint:wrapcheck // the charger named it.
+		_, err = u.charger.Grant(ctx, holder, bonuses.KindRefill, 1)
+		return err //nolint:wrapcheck // the charger named it.
 	})
 }

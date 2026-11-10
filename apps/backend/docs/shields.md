@@ -43,6 +43,10 @@ to the jury.
   session-gated like `DropBomb` and not throttled. `refusal_place_shield` refuses a
   refused caller before anything is spent, as `refusal_click` does a click (see
   [A ban is told](antibot.md#a-ban-is-told)). The answer is the charges left.
+- **A capital takes no shield while an arena plays** (`ErrCapital`, `FailedPrecondition`), whoever holds it: it keeps
+  the shields it started with (`arena.capitalShields`, past the per-tile cap), and a fortify raises every tile of its
+  landmass but it. The storage reads it under its lock, as it reads a full tile, so the charge is given back. See
+  [Arena battles](arenas.md#capitals-and-reach).
 - **Kept with the tile**: `planet.tiles.shields`, written by the flush that writes
   the owner.
 - **Told to the other modules** as `planet.v1.ShieldPlaced`, with the tile's shields after it, by the ledger relay once

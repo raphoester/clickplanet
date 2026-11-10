@@ -864,7 +864,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 const held = this.shields.get(tile)
                 if (held) shields.set(tile, held)
             }
-            callback({range, version: this.version(), bindings, shields})
+            callback({range, version: this.version(), bindings, shields, arena: false})
         }
     }
 }

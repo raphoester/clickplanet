@@ -14,7 +14,11 @@ import (
 )
 
 type Tiles interface {
-	Blank(ctx context.Context, arena clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error)
+	Blank(ctx context.Context, arena clicks.MapID, start []clicks.StartTile, keep func(ctx context.Context) (bool, error)) (bool, error)
+}
+
+type Starts interface {
+	Tiles() []clicks.StartTile
 }
 
 type Arenas interface {
@@ -37,12 +41,13 @@ type Executor interface {
 	Execute(ctx context.Context, command Command) (bool, error)
 }
 
-func New(tiles Tiles, kept Arenas, outbox cpatomic.Outbox, inPlay InPlay, clock cptime.Clock) *UseCase {
-	return &UseCase{tiles: tiles, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock}
+func New(tiles Tiles, starts Starts, kept Arenas, outbox cpatomic.Outbox, inPlay InPlay, clock cptime.Clock) *UseCase {
+	return &UseCase{tiles: tiles, starts: starts, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock}
 }
 
 type UseCase struct {
 	tiles  Tiles
+	starts Starts
 	kept   Arenas
 	outbox cpatomic.Outbox
 	inPlay InPlay
@@ -52,11 +57,11 @@ type UseCase struct {
 var _ Executor = (*UseCase)(nil)
 
 // Execute keeps the arena open and records ArenaOpened, in one transaction under the map's locks, and plays the arena's
-// blank map: the world's map stays in postgres as it is. The arena is read under the locks, so a command told twice
-// opens it once and is told once.
+// blank map with each flag's capital: the world's map stays in postgres as it is. The arena is read under the locks, so
+// a command told twice opens it once and is told once.
 func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	var opening arenas.Opening
-	opened, err := u.tiles.Blank(ctx, command.Arena.Map(), func(ctx context.Context) (bool, error) {
+	opened, err := u.tiles.Blank(ctx, command.Arena.Map(), u.starts.Tiles(), func(ctx context.Context) (bool, error) {
 		arena, err := u.kept.Find(ctx, command.Arena)
 		if err != nil {
 			return false, err //nolint:wrapcheck // the store names it.

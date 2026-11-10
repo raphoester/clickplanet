@@ -36,6 +36,11 @@ func (p *InPlay) Close(id ID) {
 	}
 }
 
+// Playing says whether an arena's map plays now.
+func (p *InPlay) Playing() bool {
+	return p.open.Load() != nil
+}
+
 // Freeze is the arena's freeze, as long as the rules in force say.
 func (p *InPlay) Freeze() clicks.Freeze {
 	open := p.open.Load()

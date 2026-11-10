@@ -2,6 +2,7 @@ package prom_answer_quiz
 
 import (
 	"context"
+	"errors"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -60,8 +61,10 @@ func (d *Decorator) Execute(
 
 	outcome := "wrong"
 	switch {
-	case err != nil:
+	case errors.Is(err, answer_quiz_usecase.ErrNoSuchQuiz):
 		outcome = "refused"
+	case err != nil:
+		outcome = "failed"
 	case out.Correct:
 		outcome = "correct"
 	}

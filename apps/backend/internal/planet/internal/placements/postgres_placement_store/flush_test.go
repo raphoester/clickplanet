@@ -41,7 +41,8 @@ func setup(t *testing.T) flushed {
 
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
 	charges := bonuses.NewCharges(postgres_charge_store.New(db), bonuses.TestRules)
-	require.NoError(t, charges.Grant(t.Context(), holder, bonuses.KindShields, 2))
+	_, err := charges.Grant(t.Context(), holder, bonuses.KindShields, 2)
+	require.NoError(t, err)
 	store := postgres_placement_store.New(db)
 	return flushed{
 		db: db, tiles: postgres_tile_store.New(db), store: store,
@@ -52,7 +53,7 @@ func setup(t *testing.T) flushed {
 func (f flushed) storage(t *testing.T, confirming inmemory_tile_storage.Placements) *inmemory_tile_storage.Storage {
 	t.Helper()
 
-	storage := inmemory_tile_storage.New(clicks.BordersOf(100), inmemory_tile_storage.Config{}, f.tiles, f.db, confirming,
+	storage := inmemory_tile_storage.New(clicks.BordersOf(100), clicks.NoCapitals(), inmemory_tile_storage.Config{}, f.tiles, f.db, confirming,
 		cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 	require.NoError(t, storage.Load(t.Context(), clicks.World))
 	require.NoError(t, storage.Set(t.Context(), 7, "fr"))

@@ -53,7 +53,9 @@ and says what is in it. Read the doc before you change its area.
   wiped once per reset, a new epoch, and replays that start at the reset.
 - [Arena battles](docs/arenas.md) — a battle whose set has `arena.on` plays on a blank map, and the map from
   before comes back at its end; the order that waits on facts kept (day K scored, the arena opened, the map back), the
-  freeze, the gaps. No arena battle in production before slice 5.
+  freeze, the gaps; each flag's capital with its shields, written with the arena, and the reach: a take only next to
+  the flag's land or across its waters.
+  No arena battle in production before slice 5.
 - [The map's version](docs/map-version.md) — every write counts one, published under the tiles lock so streams get
   them in order; `GetHoldings` and the one-second `holdings_changed`; the ETag and the 304.
 - [The live streams](docs/live-streams.md) — the `ListenForEvents` streams, served two ways, and how they end on

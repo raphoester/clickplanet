@@ -15,6 +15,10 @@ import {createBorderLines, loadBorderLines} from "./borderLines.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import {BORDERS_URL} from "./bordersAsset.ts";
 import {BORDER_LINES_URL} from "./borderLinesAsset.ts";
+import {CAPITALS_URL} from "./capitalsAsset.ts";
+import {WATERS_URL} from "./watersAsset.ts";
+import {Capitals, loadCapitals} from "./capitals.ts";
+import {loadWaters} from "./waters.ts";
 import {displayPointSize, flagPaint, flownZoomsOf, inOrbit, pickPointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {SlotRanking} from "./slotRanking.ts";
@@ -45,6 +49,7 @@ import {
     UpdatesListener,
     VPNBlockedError,
     FrozenError,
+    OutOfReachError,
 } from "../../backends/backend.ts";
 import {SessionUnavailableError} from "../../backends/session.ts";
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
@@ -70,8 +75,10 @@ import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {Peek, Peeked, Point, TilePeek} from "../../domain/tilePeek.ts";
 import {rankHoldings, Territory, TerritoryPeek} from "../../domain/territory.ts";
 import {FLIGHT_SECONDS, flightAt, territoryShotOf} from "../../domain/flight.ts";
-import {dot, pointOf} from "../../domain/clip/geometry.ts";
+import {pointOf} from "../../domain/clip/geometry.ts";
 import {Front, FrontChanges} from "../../domain/front.ts";
+import {CapitalMarks} from "../../domain/capitalMarks.ts";
+import type {Waters} from "../../domain/waters.ts";
 import {MissionGround, MissionMarks, MissionTarget, groundsOf, nearestPlayable} from "../../domain/missionTargets.ts";
 import {Neighbours} from "../../domain/neighbours.ts";
 import {GhostTake, Ghosts} from "../../domain/ghosts.ts";
@@ -215,6 +222,8 @@ export type GlobeOptions = {
     onBanned: (until: number) => void
     onSessionUnavailable: () => void
     onAllegianceLocked: (allegiance: Allegiance) => void
+    // A click in an arena on a tile the flag cannot reach, refused here or by the server.
+    onOutOfReach: () => void
     onBonusWon: (reward: BonusReward) => void
     onCharges: (charges: Charges) => void
     onRules: (rules: BonusRules) => void
@@ -284,6 +293,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onBanned,
         onSessionUnavailable,
         onAllegianceLocked,
+        onOutOfReach,
         onBonusWon,
         onCharges,
         onRules,
@@ -473,8 +483,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             const along = camera.position.x * borders.frames[at] + camera.position.y * borders.frames[at + 1] + camera.position.z * borders.frames[at + 2]
             if (along > 0) return true
         }
-        const lit = front?.nearestTo(camera.position)
-        return lit !== undefined && dot(pointOf(geometryData.positions, lit), camera.position) > 0
+        return front?.facing(camera.position) ?? false
     }
 
     const publishBoard = (live: boolean) => {
@@ -515,6 +524,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         field.setOwners(ghosts.size === 0 ? changes : changes.filter(({tile}) => ghosts.flagOf(tile) === undefined))
         if (front) lightFront(front.touch(tiles))
         markMissions(missionMarks.touch(tiles))
+        if (capitalMarks) markCapitals(capitalMarks.touch(tiles))
         if (tracking) targets.touch(tiles)
         invalidate()
     }
@@ -683,6 +693,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     let army: GhostArmy | undefined
 
+    let neighbours: Neighbours | undefined
+    const neighbourhood = () => neighbours ??= new Neighbours(geometryData.positions)
+
     const ghostGround = (neighbours: Neighbours): Ground => ({
         positions: geometryData.positions,
         neighboursOf: (tile) => neighbours.of(tile),
@@ -696,13 +709,70 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     })
 
     const goToFront = () => {
-        const neighbours = new Neighbours(geometryData.positions)
-        front = new Front(neighbours, shownOwnerOf, geometryData.positions)
-        army = new GhostArmy(ghostGround(neighbours), ghosts, Math.random, Date.now())
-        lightFront(front.follow(country.code))
+        if (!front) {
+            front = new Front(neighbourhood(), shownOwnerOf, geometryData.positions)
+            lightFront(front.follow(country.code))
+        }
+        army = new GhostArmy(ghostGround(neighbourhood()), ghosts, Math.random, Date.now())
         if (taken || !homeShot) return
         const nearest = front.nearestTo(homeShot.direction)
         if (nearest !== undefined) flyDown(nearest)
+    }
+
+    type ArenaMap = {capitals: Capitals, waters: Waters}
+
+    // An arena's map: the front reaches across the flag's waters, and each capital still standing is marked.
+    let arena = false
+    let arenaMap: Promise<ArenaMap> | undefined
+    let capitals: Capitals | undefined
+    let capitalMarks: CapitalMarks | undefined
+    let reach: Front | undefined
+
+    const markCapitals = ({on, off}: FrontChanges) => {
+        if (on.length === 0 && off.length === 0) return
+        field.setCapitalMarks(off, false)
+        field.setCapitalMarks(on, true)
+        invalidate()
+    }
+
+    const playArena = (map: ArenaMap) => {
+        if (front) lightFront(front.drop())
+        reach = new Front(neighbourhood(), shownOwnerOf, geometryData.positions, map.waters)
+        front = reach
+        lightFront(reach.follow(country.code))
+        capitals = map.capitals
+        capitalMarks = new CapitalMarks(map.capitals, (tile) => ownership.ownerOf(tile))
+        markCapitals(capitalMarks.follow())
+    }
+
+    const leaveArena = () => {
+        if (capitalMarks) markCapitals(capitalMarks.drop())
+        capitalMarks = undefined
+        capitals = undefined
+        if (!reach) return
+        lightFront(reach.drop())
+        reach = undefined
+        front = showFront && loaded ? new Front(neighbourhood(), shownOwnerOf, geometryData.positions) : undefined
+        if (front) lightFront(front.follow(country.code))
+    }
+
+    const followArena = (on: boolean) => {
+        if (on === arena) return
+        arena = on
+        if (!on) {
+            leaveArena()
+            return
+        }
+        arenaMap ??= Promise.all([
+            loadCapitals(CAPITALS_URL, field.size, lifetime.signal),
+            loadWaters(WATERS_URL, field.size, lifetime.signal),
+        ]).then(([read, waters]) => ({capitals: read, waters}))
+        arenaMap.then((map) => {
+            if (arena && !reach && !lifetime.signal.aborted) playArena(map)
+        }, (e) => {
+            arenaMap = undefined
+            if (!lifetime.signal.aborted) console.error("could not read the arena's capitals and waters", e)
+        })
     }
 
     const highlight = (orbit: boolean) => {
@@ -1050,6 +1120,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
+        if (reach && !reach.reaches(tile)) {
+            onOutOfReach()
+            playSound("refused")
+            return
+        }
+
         if (!regions.get(country.code)) {
             warnOnce(`No sprite region for country "${country.code}", ignoring the click`)
             return
@@ -1072,9 +1148,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
 
         if (switches.shield && shielder) {
-            const placement = placementOf(owner, country.code, shields, rules?.tileShields)
+            const placement = placementOf(owner, country.code, shields, rules?.tileShields, capitals?.has(tile) ?? false)
             if (placement === "full") {
                 onNotice("shieldFull")
+                return
+            }
+            if (placement === "capital") {
+                onNotice("shieldCapital")
                 return
             }
             if (placement === "place") {
@@ -1120,7 +1200,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }, (e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))
-            if (reportClickFailure(e, {onRateLimited, onFrozen, onVPNBlocked, onBanned, onSessionUnavailable, onAllegianceLocked})) playSound("refused")
+            if (reportClickFailure(e, {onRateLimited, onFrozen, onVPNBlocked, onBanned, onSessionUnavailable, onAllegianceLocked, onOutOfReach})) playSound("refused")
         })
     }, listenerOptions);
 
@@ -1173,6 +1253,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         tiles.read(batch, changes)
         applyChanges(changes.owners, false)
         showShields(changes.shields)
+        followArena(tiles.arena)
         if (tracking) targets.touch(rangeTiles(batch.range))
         if (!loaded) {
             const share = tiles.readShare()
@@ -1246,7 +1327,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const stopFortifications = updatesListener.listenForFortifications((fortification) => {
         const members = landmasses.tilesOf(fortification.landmass)
         releaseGhosts(members)
-        const raised = tiles.applyFortification(members, fortification.countryId, uniforms.shieldMost.value, fortification.version)
+        const shielding = capitals ? members.filter((tile) => !capitals?.has(tile)) : members
+        const raised = tiles.applyFortification(shielding, fortification.countryId, uniforms.shieldMost.value, fortification.version)
         markMissions(missionMarks.touch(raised.map(({tile}) => tile)))
         if (document.hidden || uniforms.motion.value === 0) showShields(raised)
         else waves.start(fortification.landmass, members, fortification.tile, performance.now() / 1000)
@@ -1614,6 +1696,7 @@ export function reportClickFailure(
         onBanned: (until: number) => void,
         onSessionUnavailable: () => void,
         onAllegianceLocked: (allegiance: Allegiance) => void,
+        onOutOfReach: () => void,
     },
 ): boolean {
     if (error instanceof RateLimitedError) handlers.onRateLimited()
@@ -1622,6 +1705,7 @@ export function reportClickFailure(
     else if (error instanceof BannedError) handlers.onBanned(error.until)
     else if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
     else if (error instanceof AllegianceLockedError) handlers.onAllegianceLocked(error.allegiance)
+    else if (error instanceof OutOfReachError) handlers.onOutOfReach()
     else {
         console.error(error)
         return false
