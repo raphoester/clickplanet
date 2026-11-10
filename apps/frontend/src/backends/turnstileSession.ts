@@ -208,6 +208,9 @@ const SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render
 
 const ATTESTATION_TIMEOUT_MS = 30_000
 
+// A person who has to find and tick the box needs more than the 30 s an invisible check gets.
+const ASKING_TIMEOUT_MS = 5 * 60_000
+
 type TurnstileOptions = {
     sitekey: string
     action: string
@@ -215,6 +218,8 @@ type TurnstileOptions = {
     callback: (token: string) => void
     "error-callback": (code?: string) => void
     "timeout-callback": () => void
+    "before-interactive-callback": () => void
+    "after-interactive-callback": () => void
 }
 
 type TurnstileApi = {
@@ -275,11 +280,19 @@ function turnstileHost(): HTMLElement {
     return host
 }
 
+let askingWidgets = 0
+
+function countAsking(change: 1 | -1): void {
+    askingWidgets += change
+    turnstileHost().classList.toggle("asking", askingWidgets > 0)
+}
+
 export function turnstileAttester(sitekey: string, action: string): Attester {
     return () => new Promise<string>((resolve, reject) => {
         loadTurnstile().then((turnstile) => {
             let widgetId: string | undefined
             let settled = false
+            let asking = false
 
             const discard = () => {
                 if (widgetId === undefined) return
@@ -287,18 +300,24 @@ export function turnstileAttester(sitekey: string, action: string): Attester {
                 widgetId = undefined
             }
 
+            const stopAsking = () => {
+                if (!asking) return
+                asking = false
+                countAsking(-1)
+            }
+
             const finish = (outcome: () => void) => {
                 if (settled) return
                 settled = true
                 clearTimeout(timer)
+                stopAsking()
                 discard()
                 outcome()
             }
 
-            const timer = setTimeout(
-                () => finish(() => reject(new Error("Turnstile did not answer in time"))),
-                ATTESTATION_TIMEOUT_MS,
-            )
+            const expire = () => finish(() => reject(new Error("Turnstile did not answer in time")))
+
+            let timer = setTimeout(expire, ATTESTATION_TIMEOUT_MS)
 
             widgetId = turnstile.render(turnstileHost(), {
                 sitekey,
@@ -307,6 +326,14 @@ export function turnstileAttester(sitekey: string, action: string): Attester {
                 callback: (token) => finish(() => resolve(token)),
                 "error-callback": (code) => finish(() => reject(new Error(`Turnstile failed: ${code ?? "unknown"}`))),
                 "timeout-callback": () => finish(() => reject(new Error("the Turnstile challenge timed out"))),
+                "before-interactive-callback": () => {
+                    if (settled || asking) return
+                    asking = true
+                    countAsking(1)
+                    clearTimeout(timer)
+                    timer = setTimeout(expire, ASKING_TIMEOUT_MS)
+                },
+                "after-interactive-callback": stopAsking,
             })
 
             if (widgetId === undefined) {

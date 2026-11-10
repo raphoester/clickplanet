@@ -468,3 +468,12 @@ th {
     transform: translateX(-50%);
     z-index: 512;
 }
+
+.turnstile-host.asking {
+    inset: 0;
+    transform: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--scrim);
+}
