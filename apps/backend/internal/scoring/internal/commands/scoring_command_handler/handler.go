@@ -124,11 +124,26 @@ func (h Dispatcher) openRound(ctx context.Context, command *scoringv1.OpenRound)
 	if err := checkTime(command.GetStartsAt()); err != nil {
 		return err
 	}
+	ranking, err := rankingOf(command.GetRanking())
+	if err != nil {
+		return refused(err)
+	}
 	_, err = h.useCases.OpenRound.Execute(ctx, open_round_usecase.Command{
-		Round: round, Book: book, Times: command.GetTimes(), StartsAt: command.GetStartsAt().AsTime(),
+		Round: round, Book: book, Times: command.GetTimes(), Ranking: ranking, StartsAt: command.GetStartsAt().AsTime(),
 		FromNothing: command.GetFromNothing(),
 	})
 	return err //nolint:wrapcheck // the use case named it.
+}
+
+func rankingOf(ranking scoringv1.Ranking) (books.Ranking, error) {
+	switch ranking {
+	case scoringv1.Ranking_RANKING_GAIN:
+		return books.GainRanking{}, nil
+	case scoringv1.Ranking_RANKING_HELD_AND_GAIN:
+		return books.HeldAndGainRanking{}, nil
+	case scoringv1.Ranking_RANKING_UNSPECIFIED:
+	}
+	return nil, fmt.Errorf("%w: %s", books.ErrUnknownRanking, ranking)
 }
 
 func (h Dispatcher) closeRound(ctx context.Context, command *scoringv1.CloseRound) error {

@@ -1,24 +1,15 @@
-import {useEffect, useRef, useState} from "react"
+import {useEffect, useRef} from "react"
 import {PlayerTitle, TitlesListener} from "../../backends/progression.ts"
+import {useHeldIdentity} from "../useHeldIdentity.ts"
 
-export const TOKEN_CHECK_MS = 1_000
-
-// The server reads the token as the stream opens: a new token opens it again.
 export function useTitlesEarned(
     backend: TitlesListener,
     signedIn: boolean,
     onEarned: (title: PlayerTitle) => void,
 ): void {
-    const [token, setToken] = useState(() => backend.heldIdentity())
+    const token = useHeldIdentity(backend)
     const earned = useRef(onEarned)
     earned.current = onEarned
-
-    useEffect(() => {
-        const check = () => setToken(backend.heldIdentity())
-        check()
-        const timer = window.setInterval(check, TOKEN_CHECK_MS)
-        return () => window.clearInterval(timer)
-    }, [backend])
 
     useEffect(() => {
         if (!signedIn || !token) return

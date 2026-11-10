@@ -22,6 +22,59 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// How a round places the countries that hold tiles when it closes. Countries in the same place share its points.
+type Ranking int32
+
+const (
+	Ranking_RANKING_UNSPECIFIED Ranking = 0
+	// By the tiles each gained since the round opened, most first; only a gain scores.
+	Ranking_RANKING_GAIN Ranking = 1
+	// By the sum of two ranks, on the tiles each holds and on the tiles it gained, smallest first, the gain's rank
+	// breaking a tie; every country placed scores.
+	Ranking_RANKING_HELD_AND_GAIN Ranking = 2
+)
+
+// Enum value maps for Ranking.
+var (
+	Ranking_name = map[int32]string{
+		0: "RANKING_UNSPECIFIED",
+		1: "RANKING_GAIN",
+		2: "RANKING_HELD_AND_GAIN",
+	}
+	Ranking_value = map[string]int32{
+		"RANKING_UNSPECIFIED":   0,
+		"RANKING_GAIN":          1,
+		"RANKING_HELD_AND_GAIN": 2,
+	}
+)
+
+func (x Ranking) Enum() *Ranking {
+	p := new(Ranking)
+	*p = x
+	return p
+}
+
+func (x Ranking) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Ranking) Descriptor() protoreflect.EnumDescriptor {
+	return file_scoring_v1_commands_proto_enumTypes[0].Descriptor()
+}
+
+func (Ranking) Type() protoreflect.EnumType {
+	return &file_scoring_v1_commands_proto_enumTypes[0]
+}
+
+func (x Ranking) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Ranking.Descriptor instead.
+func (Ranking) EnumDescriptor() ([]byte, []int) {
+	return file_scoring_v1_commands_proto_rawDescGZIP(), []int{0}
+}
+
 // One stream for every command, handled in order: a round closed, then its book, is always scored in that order. Each
 // command is idempotent by its ids: one handled twice, or one that is too late, changes nothing.
 type ScoringCommand struct {
@@ -192,8 +245,8 @@ func (x *OpenBook) GetStartsAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// A round credits its book once it closes: the countries ranked by the tiles they gained since it opened, points by rank, times
-// `times`. Takes from starts_at count in it. A round whose book is not open is refused.
+// A round credits its book once it closes: the countries placed by its ranking, points by place, times `times`. Takes
+// from starts_at count in it. A round whose book is not open, or with no ranking, is refused.
 type OpenRound struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	RoundId string                 `protobuf:"bytes,1,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
@@ -202,7 +255,8 @@ type OpenRound struct {
 	Times    uint32                 `protobuf:"varint,3,opt,name=times,proto3" json:"times,omitempty"`
 	StartsAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
 	// The round counts from nothing: its gain is the tiles each country holds when it closes, and opening it reads no map.
-	FromNothing   bool `protobuf:"varint,5,opt,name=from_nothing,json=fromNothing,proto3" json:"from_nothing,omitempty"`
+	FromNothing   bool    `protobuf:"varint,5,opt,name=from_nothing,json=fromNothing,proto3" json:"from_nothing,omitempty"`
+	Ranking       Ranking `protobuf:"varint,6,opt,name=ranking,proto3,enum=scoring.v1.Ranking" json:"ranking,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -270,6 +324,13 @@ func (x *OpenRound) GetFromNothing() bool {
 		return x.FromNothing
 	}
 	return false
+}
+
+func (x *OpenRound) GetRanking() Ranking {
+	if x != nil {
+		return x.Ranking
+	}
+	return Ranking_RANKING_UNSPECIFIED
 }
 
 // Scores the round from the map now. Takes before ends_at still count in its numbers when they arrive after it. A round
@@ -476,13 +537,14 @@ const file_scoring_v1_commands_proto_rawDesc = "" +
 	"\acommand\"\\\n" +
 	"\bOpenBook\x12\x17\n" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\x127\n" +
-	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\"\xb1\x01\n" +
+	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\"\xe0\x01\n" +
 	"\tOpenRound\x12\x19\n" +
 	"\bround_id\x18\x01 \x01(\tR\aroundId\x12\x17\n" +
 	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x14\n" +
 	"\x05times\x18\x03 \x01(\rR\x05times\x127\n" +
 	"\tstarts_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x12!\n" +
-	"\ffrom_nothing\x18\x05 \x01(\bR\vfromNothing\"\\\n" +
+	"\ffrom_nothing\x18\x05 \x01(\bR\vfromNothing\x12-\n" +
+	"\aranking\x18\x06 \x01(\x0e2\x13.scoring.v1.RankingR\aranking\"\\\n" +
 	"\n" +
 	"CloseRound\x12\x19\n" +
 	"\bround_id\x18\x01 \x01(\tR\aroundId\x123\n" +
@@ -496,7 +558,11 @@ const file_scoring_v1_commands_proto_rawDesc = "" +
 	"\acountry\x18\x02 \x01(\tR\acountry\x12\x16\n" +
 	"\x06points\x18\x03 \x01(\rR\x06points\x129\n" +
 	"\n" +
-	"granted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tgrantedAtB\xbc\x01\n" +
+	"granted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tgrantedAt*O\n" +
+	"\aRanking\x12\x17\n" +
+	"\x13RANKING_UNSPECIFIED\x10\x00\x12\x10\n" +
+	"\fRANKING_GAIN\x10\x01\x12\x19\n" +
+	"\x15RANKING_HELD_AND_GAIN\x10\x02B\xbc\x01\n" +
 	"\x0ecom.scoring.v1B\rCommandsProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1;scoringv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Scoring.V1\xca\x02\n" +
 	"Scoring\\V1\xe2\x02\x16Scoring\\V1\\GPBMetadata\xea\x02\vScoring::V1b\x06proto3"
@@ -513,31 +579,34 @@ func file_scoring_v1_commands_proto_rawDescGZIP() []byte {
 	return file_scoring_v1_commands_proto_rawDescData
 }
 
+var file_scoring_v1_commands_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_scoring_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_scoring_v1_commands_proto_goTypes = []any{
-	(*ScoringCommand)(nil),        // 0: scoring.v1.ScoringCommand
-	(*OpenBook)(nil),              // 1: scoring.v1.OpenBook
-	(*OpenRound)(nil),             // 2: scoring.v1.OpenRound
-	(*CloseRound)(nil),            // 3: scoring.v1.CloseRound
-	(*CloseBook)(nil),             // 4: scoring.v1.CloseBook
-	(*GrantPoints)(nil),           // 5: scoring.v1.GrantPoints
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(Ranking)(0),                  // 0: scoring.v1.Ranking
+	(*ScoringCommand)(nil),        // 1: scoring.v1.ScoringCommand
+	(*OpenBook)(nil),              // 2: scoring.v1.OpenBook
+	(*OpenRound)(nil),             // 3: scoring.v1.OpenRound
+	(*CloseRound)(nil),            // 4: scoring.v1.CloseRound
+	(*CloseBook)(nil),             // 5: scoring.v1.CloseBook
+	(*GrantPoints)(nil),           // 6: scoring.v1.GrantPoints
+	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
 }
 var file_scoring_v1_commands_proto_depIdxs = []int32{
-	1, // 0: scoring.v1.ScoringCommand.open_book:type_name -> scoring.v1.OpenBook
-	2, // 1: scoring.v1.ScoringCommand.open_round:type_name -> scoring.v1.OpenRound
-	3, // 2: scoring.v1.ScoringCommand.close_round:type_name -> scoring.v1.CloseRound
-	4, // 3: scoring.v1.ScoringCommand.close_book:type_name -> scoring.v1.CloseBook
-	6, // 4: scoring.v1.OpenBook.starts_at:type_name -> google.protobuf.Timestamp
-	6, // 5: scoring.v1.OpenRound.starts_at:type_name -> google.protobuf.Timestamp
-	6, // 6: scoring.v1.CloseRound.ends_at:type_name -> google.protobuf.Timestamp
-	6, // 7: scoring.v1.CloseBook.ends_at:type_name -> google.protobuf.Timestamp
-	6, // 8: scoring.v1.GrantPoints.granted_at:type_name -> google.protobuf.Timestamp
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	2,  // 0: scoring.v1.ScoringCommand.open_book:type_name -> scoring.v1.OpenBook
+	3,  // 1: scoring.v1.ScoringCommand.open_round:type_name -> scoring.v1.OpenRound
+	4,  // 2: scoring.v1.ScoringCommand.close_round:type_name -> scoring.v1.CloseRound
+	5,  // 3: scoring.v1.ScoringCommand.close_book:type_name -> scoring.v1.CloseBook
+	7,  // 4: scoring.v1.OpenBook.starts_at:type_name -> google.protobuf.Timestamp
+	7,  // 5: scoring.v1.OpenRound.starts_at:type_name -> google.protobuf.Timestamp
+	0,  // 6: scoring.v1.OpenRound.ranking:type_name -> scoring.v1.Ranking
+	7,  // 7: scoring.v1.CloseRound.ends_at:type_name -> google.protobuf.Timestamp
+	7,  // 8: scoring.v1.CloseBook.ends_at:type_name -> google.protobuf.Timestamp
+	7,  // 9: scoring.v1.GrantPoints.granted_at:type_name -> google.protobuf.Timestamp
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_scoring_v1_commands_proto_init() }
@@ -556,13 +625,14 @@ func file_scoring_v1_commands_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scoring_v1_commands_proto_rawDesc), len(file_scoring_v1_commands_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_scoring_v1_commands_proto_goTypes,
 		DependencyIndexes: file_scoring_v1_commands_proto_depIdxs,
+		EnumInfos:         file_scoring_v1_commands_proto_enumTypes,
 		MessageInfos:      file_scoring_v1_commands_proto_msgTypes,
 	}.Build()
 	File_scoring_v1_commands_proto = out.File

@@ -59,9 +59,9 @@ type AdminServiceClient interface {
 	// still reads certain bans the caller again on its next click, so fix the rule that misfired first. A guest the jury
 	// banned is banned on its account and its scope: two calls. NotFound when no offence is left.
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
-	// What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
-	// and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
-	// is read on the scope of its latest take.
+	// What the antibot holds on one caller now, and how close it is to a ban: any running ban, the account's warning,
+	// each watchdog's level and evidence, the suspects against how many make a ban, and whether the jury would ban on a
+	// click now. An account is read on the scope of its latest take.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	// Every rule set the antibot keeps, and the one it judges with now. SaveRuleSet changes one.
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
@@ -160,9 +160,9 @@ type AdminServiceHandler interface {
 	// still reads certain bans the caller again on its next click, so fix the rule that misfired first. A guest the jury
 	// banned is banned on its account and its scope: two calls. NotFound when no offence is left.
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
-	// What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
-	// and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
-	// is read on the scope of its latest take.
+	// What the antibot holds on one caller now, and how close it is to a ban: any running ban, the account's warning,
+	// each watchdog's level and evidence, the suspects against how many make a ban, and whether the jury would ban on a
+	// click now. An account is read on the scope of its latest take.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	// Every rule set the antibot keeps, and the one it judges with now. SaveRuleSet changes one.
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)

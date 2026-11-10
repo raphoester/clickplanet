@@ -100,7 +100,7 @@ func (s *Service) Told(ctx context.Context, since time.Time) ([]posts.Telling, e
 		}
 		told = append(told, posts.Telling{
 			Key: key, Countries: metadata.CountriesOf(kept), At: post.GetScheduledFor().AsTime(), Title: post.GetTitle(),
-			State: post.GetStatus(), Failure: post.GetFailure(),
+			State: post.GetStatus(), Failure: post.GetFailure(), Facts: metadata.FactsOf(kept),
 		})
 	}
 	return told, nil

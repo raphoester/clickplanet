@@ -39,7 +39,16 @@ const found: Found = {
             {flag: "pw", pushedAt: Date.UTC(2026, 10, 7, 20), since: Date.UTC(2026, 10, 7, 21), until: undefined, peak: 0.9712,
                 share: 0.9071, tookFrom: "lv", tookFromShare: 0.4404, lostTo: undefined},
         ],
+        contenders: [
+            {flag: "ru", since: Date.UTC(2026, 10, 1, 15), until: Date.UTC(2026, 10, 7, 21), peak: 0.991, share: 0},
+            {flag: "pw", since: Date.UTC(2026, 10, 7, 20), until: undefined, peak: 0.9712, share: 0.9071},
+        ],
     }],
+    paths: [{flag: "pw", marks: [
+        {at: Date.UTC(2026, 10, 1, 15), tilesByContinent: {}},
+        {at: Date.UTC(2026, 10, 10, 14), tilesByContinent: {Europe: 25877, Oceania: 12}},
+    ]}],
+    continentTiles: {Europe: 40225, "Middle East": 9000},
     seasonal: [{story: {kind: "round", attacker: "pw", rival: undefined, victims: ["dz"], place: {region: "the world"},
         day: {season: 0, number: 18, finale: false, own: false, endedAt: Date.UTC(2026, 9, 25, 21), podium: [{country: "pw", rank: 1, points: 30}], table: []}}, measured}],
     anthems: ["dz", "eu", "fr"],
@@ -80,12 +89,24 @@ describe("the findings", () => {
                 {flag: "pw", pushedAt: "2026-11-07T20:00:00Z", since: "2026-11-07T21:00:00Z", peak: 0.971, share: 0.907, tookFrom: "lv",
                     tookFromShare: 0.44},
             ],
+            contenders: [
+                {flag: "ru", since: "2026-11-01T15:00:00Z", until: "2026-11-07T21:00:00Z", peak: 0.991},
+                {flag: "pw", since: "2026-11-07T20:00:00Z", peak: 0.971, share: 0.907},
+            ],
         }])
+    })
+
+    it("tell each reigning flag's land on each continent over the season, and each continent's size", () => {
+        expect(json.paths).toEqual([{flag: "pw", marks: [
+            {at: "2026-11-01T15:00:00Z"},
+            {at: "2026-11-10T14:00:00Z", tilesByContinent: {Europe: 25877, Oceania: 12}},
+        ]}])
+        expect(json.continents).toEqual(expect.arrayContaining([{name: "Europe", flag: "eu", tiles: 40225}, {name: "Middle East", tiles: 9000}]))
     })
 
     it("say how every code in them is said, and name every continent with its own flag", () => {
         expect(json.names).toEqual({dz: "Algeria", fr: "France", ie: "Ireland", lv: "Latvia", pw: "Palau", ru: "Russia", tr: "Turkey"})
-        expect(json.continents).toEqual(expect.arrayContaining([{name: "Europe", flag: "eu"}, {name: "Middle East"}, {name: "Africa"}]))
+        expect(json.continents).toEqual(expect.arrayContaining([{name: "Europe", flag: "eu", tiles: 40225}, {name: "Middle East", tiles: 9000}, {name: "Africa"}]))
     })
 
     it("list the anthems a clip can play", () => {
@@ -146,13 +167,14 @@ describe("the story --story names", () => {
         expect(toldOf(`{"seasonal":1,"fighters":[1]}`).fighters).toEqual([])
     })
 
-    it("is a saga told from one of its reigns, about one of its flags, against another or none, with no look", () => {
-        expect(toldOf(`{"saga":2,"reign":1,"attacker":"de","rival":"cz","headline":"GERMANY TAKES CHINA","call":"FIGHT BACK"}`).told)
-            .toEqual({saga: 2, reign: 1, attacker: "de", rival: "cz"})
-        expect(toldOf(`{"saga":1,"reign":2,"attacker":"pw","headline":"PALAU CONQUERS RUSSIA","call":"FIGHT BACK","fighters":[3]}`))
-            .toMatchObject({told: {saga: 1, reign: 2, attacker: "pw", rival: undefined}, fighters: []})
-        expect(() => toldOf(`{"saga":1,"attacker":"pw",${WORDS}}`)).toThrow("from one of its reigns, about one of its flags")
-        expect(() => toldOf(`{"saga":1,"reign":1,${WORDS}}`)).toThrow("from one of its reigns, about one of its flags")
+    it("is a saga told from a time, about one of its flags, against another or none, with no look", () => {
+        const since = Date.UTC(2026, 10, 7, 19)
+        expect(toldOf(`{"saga":2,"since":"2026-11-07T19:00:00Z","attacker":"de","rival":"cz","headline":"GERMANY TAKES CHINA","call":"FIGHT BACK"}`).told)
+            .toEqual({saga: 2, since, attacker: "de", rival: "cz"})
+        expect(toldOf(`{"saga":1,"since":"2026-11-07T19:00:00Z","attacker":"pw","headline":"PALAU CONQUERS RUSSIA","call":"FIGHT BACK","fighters":[3]}`))
+            .toMatchObject({told: {saga: 1, since, attacker: "pw", rival: undefined}, fighters: []})
+        expect(() => toldOf(`{"saga":1,"attacker":"pw",${WORDS}}`)).toThrow("from a time, about one of its flags")
+        expect(() => toldOf(`{"saga":1,"since":"2026-11-07T19:00:00Z",${WORDS}}`)).toThrow("from a time, about one of its flags")
     })
 
     it("is a seasonal story by its number alone, in words of its own", () => {

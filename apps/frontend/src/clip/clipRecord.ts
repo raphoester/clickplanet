@@ -1,6 +1,6 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {ClipRecord} from "../gen/grpc/clips/v1/clips_pb.ts"
-import {Story} from "../domain/clip/story.ts"
+import {Story, THE_WORLD} from "../domain/clip/story.ts"
 import {Look} from "../domain/clip/look.ts"
 import {voiceOf} from "./callUp.ts"
 
@@ -30,6 +30,8 @@ export type Shown = {
     solidity: number
     // The players its end card names.
     fighters: number
+    // The small line under the headline.
+    line: string | undefined
 }
 
 const NONE = "none"
@@ -43,6 +45,7 @@ export function languageOf(story: Story): string {
 
 export function clipRecordOf(shown: Shown): ClipRecord {
     const tour = shown.camera === "tour"
+    const place = tour ? {region: THE_WORLD} : shown.story.place
     return new ClipRecord({
         format: "globe-replay",
         generator: shown.generator || "unknown",
@@ -52,6 +55,7 @@ export function clipRecordOf(shown: Shown): ClipRecord {
             musicStartSeconds: rounded(shown.music?.from ?? 0, 2),
             language: languageOf(shown.story),
             fighters: shown.fighters,
+            line: shown.line ?? "",
         },
         globe: {
             camera: shown.camera,
@@ -71,6 +75,10 @@ export function clipRecordOf(shown: Shown): ClipRecord {
             tourStops: tour ? shown.tourStops : 0,
             solidity: rounded(shown.solidity, 2),
             storyEndedAt: Timestamp.fromDate(new Date(shown.until)),
+            attacker: shown.story.attacker,
+            rival: shown.story.rival ?? "",
+            placeCountries: "country" in place ? [place.country] : "countries" in place ? place.countries : [],
+            placeRegion: "region" in place ? place.region : "",
         },
     })
 }

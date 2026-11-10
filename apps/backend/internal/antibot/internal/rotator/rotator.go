@@ -188,6 +188,28 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	return a.verdict, a.evidence
 }
 
+// Every reading is judged again: a partner's would still name the turns forgotten.
+func (w *Watchdog) ForgetTurns(account string, until time.Time) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	a, ok := w.accounts[accountID(account)]
+	if !ok {
+		return
+	}
+
+	last := w.slotOf(until)
+	for at := range a.slots {
+		if at <= last {
+			delete(a.slots, at)
+		}
+	}
+
+	for _, b := range w.accounts {
+		b.judgedAt = time.Time{}
+	}
+}
+
 func (w *Watchdog) slotOf(at time.Time) slot { return slot(at.Unix() / w.span) }
 
 func (w *Watchdog) words() int { return int((w.span + 63) / 64) }

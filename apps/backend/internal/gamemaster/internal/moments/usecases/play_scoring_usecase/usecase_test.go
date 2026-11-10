@@ -161,7 +161,7 @@ func TestTheFinalBattleNightIsCommandedInOrderAndOnce(t *testing.T) {
 	h := newHarness(t, finale.Add(-time.Second))
 	booted := h.execute()
 	require.NotEmpty(t, booted)
-	assert.Equal(t, moments.Command{Action: moments.OpenRound, Book: book, Round: dayRound(24), Times: 1, At: dayEnds(23)},
+	assert.Equal(t, moments.Command{Action: moments.OpenRound, Book: book, Round: dayRound(24), Times: 1, At: dayEnds(23), Ranking: moments.RankedByHeldAndGain},
 		booted[len(booted)-1], "the boot opens day 24, which runs")
 
 	sentAt := map[time.Time][]moments.Command{}
@@ -175,7 +175,7 @@ func TestTheFinalBattleNightIsCommandedInOrderAndOnce(t *testing.T) {
 	assert.Equal(t, map[time.Time][]moments.Command{
 		finale: {
 			closeDay(24),
-			{Action: moments.OpenRound, Book: book, Round: battle, Times: 3, At: finale},
+			{Action: moments.OpenRound, Book: book, Round: battle, Times: 3, At: finale, Ranking: moments.RankedByGain},
 		},
 		seasonZeroEnds: {
 			{Action: moments.CloseRound, Book: book, Round: battle, At: seasonZeroEnds},
@@ -227,7 +227,7 @@ func TestABootMidDayOpensTheBookAndTheRunningDay(t *testing.T) {
 	for n := 1; n <= 12; n++ {
 		expected = append(expected, closeDay(n))
 	}
-	expected = append(expected, moments.Command{Action: moments.OpenRound, Book: book, Round: dayRound(13), Times: 1, At: dayEnds(12)})
+	expected = append(expected, moments.Command{Action: moments.OpenRound, Book: book, Round: dayRound(13), Times: 1, At: dayEnds(12), Ranking: moments.RankedByHeldAndGain})
 	assert.Equal(t, expected, sent)
 	assert.Empty(t, h.execute(), "each is sent once")
 }
@@ -242,7 +242,7 @@ func TestAMovedSeasonEndMovesItsBookItsDaysAndItsFinale(t *testing.T) {
 	h.at(finale)
 	assert.Equal(t, []moments.Command{
 		closeDay(24),
-		{Action: moments.OpenRound, Book: book, Round: dayRound(25), Times: 1, At: finale},
+		{Action: moments.OpenRound, Book: book, Round: dayRound(25), Times: 1, At: finale, Ranking: moments.RankedByHeldAndGain},
 	}, h.execute(), "a day runs from 21:00 now, and the finale waits for the new end")
 
 	h.at(seasonZeroEnds)
@@ -253,7 +253,7 @@ func TestAMovedSeasonEndMovesItsBookItsDaysAndItsFinale(t *testing.T) {
 	require.Len(t, sent, 8, "the days 25 to 31 close")
 	assert.Equal(t, []moments.Command{
 		closeDay(31),
-		{Action: moments.OpenRound, Book: book, Round: battle, Times: 3, At: finale.Add(7 * day)},
+		{Action: moments.OpenRound, Book: book, Round: battle, Times: 3, At: finale.Add(7 * day), Ranking: moments.RankedByGain},
 	}, sent[6:])
 
 	h.at(seasonZeroEnds.Add(7 * day))

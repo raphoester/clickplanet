@@ -55,7 +55,8 @@ policy" (Oct 30 2026).
 
 **A modal has `--space-5` on every side**, and its × sits in the corner at that
 distance. Its scrollbar sits in that padding, so the text has as much room on
-the right as on the left. The panel is 376px wide: a 328px column of text.
+the right as on the left. The panel is 376px wide: a 328px column of text. A `Modal` given no `onClose` has no ×,
+and Escape and the backdrop leave it open: the warning before an alt ban is one.
 
 ## Debugging mobile layout
 

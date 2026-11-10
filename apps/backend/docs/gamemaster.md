@@ -380,8 +380,13 @@ answers it** (`Action.Closes`; see [The gamemaster as a reconciler](gamemaster-r
 command's key (`moments.Key`, its action and ids) and when Redis took it, in memory.
 
 - `OpenBook{season-N, starts_at}` while the season runs; `CloseBook{season-N, ends_at, tiebreak_round_id}` once it ended.
-- `OpenRound{id, book, times, starts_at}` while a day (times 1) or a battle (the entry's times) runs; `CloseRound{id,
-  ends_at}` once it ended.
+- `OpenRound{id, book, times, starts_at, ranking}` while a day (times 1) or a battle (the entry's times) runs;
+  `CloseRound{id, ends_at}` once it ended. **The plan names how scoring places the round's countries**
+  (`Command.Ranking`): a day on its rank on the ground held plus its rank on the ground gained
+  (`RankedByHeldAndGain`), so holding ground pays; a battle, the finale and an arena battle included, on the gain alone
+  (`RankedByGain`), since a battle is there to shuffle the cards (the owner, 2026-11-10; see
+  [Scoring](scoring.md#the-rules)). `redis_scoring_commands` says it in scoring's words, `scoring.v1.Ranking`, and an
+  open with no ranking it knows is an error that sends nothing.
 - **An open is only sent while what it opens has not ended**: a round that already ended is never opened, since scoring
   would score it from today's map. **A close is due for every ended round and book scoring has not answered**: scored
   or missed for a round, closed or missed for a book, and every round of an answered book (`Plan.settled`). So a boot

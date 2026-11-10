@@ -25,22 +25,23 @@ var ErrInvalidTimes = fmt.Errorf("a round scores 1 to %d times its points", MaxT
 // ErrRefused is a command that can never apply: delivered again, it would hold back the ones after it.
 var ErrRefused = errors.New("refused")
 
-// Round credits its book once scored: the countries ranked by the tiles they gained during it, times Times.
+// Round credits its book once scored: the countries placed by its ranking, times Times.
 type Round struct {
 	ID       RoundID
 	Book     BookID
 	Times    uint32
+	Ranking  Ranking
 	StartsAt time.Time
 	Scored   bool
 	// EndsAt is a scored round's.
 	EndsAt time.Time
 }
 
-func NewRound(id RoundID, book BookID, times uint32, startsAt time.Time) (Round, error) {
+func NewRound(id RoundID, book BookID, times uint32, ranking Ranking, startsAt time.Time) (Round, error) {
 	if err := checkTimes(times); err != nil {
 		return Round{}, fmt.Errorf("%w: round %q: %w", ErrRefused, id, err)
 	}
-	return Round{ID: id, Book: book, Times: times, StartsAt: startsAt.UTC()}, nil
+	return Round{ID: id, Book: book, Times: times, Ranking: ranking, StartsAt: startsAt.UTC()}, nil
 }
 
 func checkTimes(times uint32) error {

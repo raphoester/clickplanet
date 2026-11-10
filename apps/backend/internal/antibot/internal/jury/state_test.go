@@ -9,6 +9,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -29,7 +30,8 @@ func newJury(clock cptime.Clock, hooks Hooks, watchdog detect.Watchdog) *Jury {
 		return bans.Rules{Enforce: true, BanDurations: []time.Duration{time.Hour}, ReflagInterval: 5 * time.Minute}
 	}
 	banner := bans.NewBook(ladder, 72*time.Hour, clock, bans.NewMemoryStore(), bans.NewMemoryStore(), cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
-	return New(Config{TrackWindow: time.Hour}, shipped, banner, clock, hooks, watchdog)
+	warner := warnings.NewBook(banner, clock, warnings.NewMemoryStore(), &warnings.MemoryFeed{})
+	return New(Config{TrackWindow: time.Hour}, shipped, banner, warner, &MemoryTurns{}, clock, hooks, watchdog)
 }
 
 func shipped() Rules {
@@ -104,7 +106,7 @@ func TestAReadingOfTurnsStillCountsForNothingAfterARestart(t *testing.T) {
 	require.NoError(t, restarted.Load(data))
 
 	assert.True(t, restarted.callers["caller"].opinions["saying"].Evidence.Turns)
-	assert.Zero(t, restarted.Examine("caller", "").Suspects)
+	assert.Zero(t, restarted.Examine("caller", "", false).Suspects)
 }
 
 func TestForgetDropsSilentCallersAndOldOpinions(t *testing.T) {
@@ -135,6 +137,6 @@ func TestWhereEachAccountClickedLastSurvivesASaveAndLoad(t *testing.T) {
 	require.NoError(t, restarted.Accounts().Load(data))
 	restarted.Accounts().Forget(clock.Now().Add(-time.Minute))
 
-	assert.Equal(t, "home", restarted.Examine("", "player").Scope)
-	assert.Empty(t, restarted.Examine("", "gone").Scope, "a sighting past the retention is forgotten")
+	assert.Equal(t, "home", restarted.Examine("", "player", false).Scope)
+	assert.Empty(t, restarted.Examine("", "gone", false).Scope, "a sighting past the retention is forgotten")
 }

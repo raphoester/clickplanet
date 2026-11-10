@@ -229,40 +229,42 @@
     color: var(--loss);
 }
 
+.leaderboard-count {
+    position: relative;
+}
+
+/* In the gap before the count, as a head's sort chevron is, so nothing on the line moves. */
 .leaderboard-delta {
     position: absolute;
-    left: calc(100% + 2px);
-    bottom: 7px;
+    top: 50%;
+    right: calc(100% + 3px);
+    display: flex;
+    translate: 0 -60%;
     pointer-events: none;
-    font-family: var(--font-text);
-    font-weight: 700;
-    font-size: var(--text-xs);
-    line-height: 1;
-    color: inherit;
-    text-shadow: var(--text-drop);
+    filter: drop-shadow(var(--text-drop));
     animation: leaderboard-delta 2.5s ease-out forwards;
 }
 
 @keyframes leaderboard-delta {
     0% {
         opacity: 0;
-        transform: translateY(2px) scale(0.55);
+        transform: scale(0.4);
     }
-    6% {
+    8% {
         opacity: 1;
-        transform: translateY(-1px) scale(1.15);
+        transform: scale(1.4);
     }
-    12% {
+    16% {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: scale(1);
     }
-    78% {
+    80% {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: scale(1);
     }
     100% {
         opacity: 0;
-        transform: translateY(-4px) scale(0.95);
+        transform: scale(1);
     }
 }
 
@@ -310,12 +312,11 @@
     min-width: 0;
 }
 
-/* The share comes first so the tiles' delta badge floats into the room after the line. */
 .leader-frame-line {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    column-gap: var(--space-2);
+    column-gap: var(--space-4);
 }
 
 .leader-frame-name {
@@ -351,11 +352,6 @@
     font-weight: 600;
     font-size: var(--text-xs);
     color: var(--text-muted);
-}
-
-.leader-frame-tiles .leaderboard-delta {
-    left: calc(100% + 4px);
-    bottom: 2px;
 }
 
 .leader-frame-share {

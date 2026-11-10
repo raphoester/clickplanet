@@ -28,7 +28,7 @@ var (
 )
 
 const roundColumns = `
-	SELECT round.round_id, round.book_id, round.times, round.starts_at, scored.ended_at
+	SELECT round.round_id, round.book_id, round.times, round.ranking, round.starts_at, scored.ended_at
 	FROM rounds AS round LEFT JOIN scored_rounds AS scored USING (round_id)
 `
 
@@ -38,12 +38,16 @@ type scanner interface {
 
 func scanRound(row scanner, extra ...any) (books.Round, error) {
 	var (
-		id, book string
-		times    int64
-		endedAt  sql.NullTime
-		round    books.Round
+		id, book, ranking string
+		times             int64
+		endedAt           sql.NullTime
+		round             books.Round
+		err               error
 	)
-	if err := row.Scan(append([]any{&id, &book, &times, &round.StartsAt, &endedAt}, extra...)...); err != nil {
+	if err := row.Scan(append([]any{&id, &book, &times, &ranking, &round.StartsAt, &endedAt}, extra...)...); err != nil {
+		return books.Round{}, err //nolint:wrapcheck // each caller says what it read.
+	}
+	if round.Ranking, err = books.RankingNamed(ranking); err != nil {
 		return books.Round{}, err //nolint:wrapcheck // each caller says what it read.
 	}
 	round.ID, round.Book, round.StartsAt = books.RoundID(id), books.BookID(book), round.StartsAt.UTC()
@@ -106,8 +110,9 @@ func (s *Store) Open(ctx context.Context, round books.Round, start books.Start) 
 	err := s.db.InTx(ctx, func(ctx context.Context) error {
 		tx := s.db.On(ctx)
 		opening, err := tx.ExecContext(ctx, `
-			INSERT INTO rounds (round_id, book_id, times, starts_at) VALUES ($1, $2, $3, $4) ON CONFLICT (round_id) DO NOTHING
-		`, string(round.ID), string(round.Book), int64(round.Times), round.StartsAt)
+			INSERT INTO rounds (round_id, book_id, times, ranking, starts_at) VALUES ($1, $2, $3, $4::round_ranking, $5)
+			ON CONFLICT (round_id) DO NOTHING
+		`, string(round.ID), string(round.Book), int64(round.Times), round.Ranking.Name(), round.StartsAt)
 		if err != nil {
 			return fmt.Errorf("failed to open the round: %w", err)
 		}
@@ -196,7 +201,7 @@ func (s *Store) Score(ctx context.Context, scored books.Scored) (bool, error) {
 
 func (s *Store) ScoredIn(ctx context.Context, book books.BookID) ([]books.Scored, error) {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `
-		SELECT round.round_id, round.book_id, round.times, round.starts_at, scored.ended_at,
+		SELECT round.round_id, round.book_id, round.times, round.ranking, round.starts_at, scored.ended_at,
 		       result.country, result.rank, result.points, result.share
 		FROM rounds AS round
 		JOIN scored_rounds AS scored USING (round_id)

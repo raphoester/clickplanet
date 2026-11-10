@@ -146,7 +146,7 @@ invite there**: the pages link `/play?discord=join`, the game's Discord sign-in
 
 **`terms.html` is the terms of service**, linked beside it and built
 the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in.
-**`BannedModal` links its "Play fair" section** by its `id="play-fair"`, which
+**`BannedModal` and `WarningModal` link its "Play fair" section** by its `id="play-fair"`, which
 `BannedModal.test.tsx` pins: keep the id if the heading changes. The
 privacy policy says what Google and Discord send us; a new provider, or a new
 field kept from one, changes that page and its date.

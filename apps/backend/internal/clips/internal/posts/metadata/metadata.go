@@ -5,6 +5,7 @@ package metadata
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -92,4 +93,37 @@ func CountriesOf(metadata map[string]any) []string {
 		}
 	}
 	return countries
+}
+
+// What a post's clip told, from its record: zero for a post with none, or with one written before it kept what it told.
+func FactsOf(metadata map[string]any) posts.TellingFacts {
+	kept, ok := metadata[recordKey].(map[string]any)
+	if !ok {
+		return posts.TellingFacts{}
+	}
+	written, err := json.Marshal(kept)
+	if err != nil {
+		return posts.TellingFacts{}
+	}
+	var record clipsv1.PostRecord
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(written, &record); err != nil {
+		return posts.TellingFacts{}
+	}
+	globe := record.GetClip().GetGlobe()
+	if globe.GetAttacker() == "" {
+		return posts.TellingFacts{}
+	}
+	shareOf := func(tiles uint32) float64 {
+		if globe.GetPlaceTiles() == 0 {
+			return 0
+		}
+		return float64(tiles) / float64(globe.GetPlaceTiles())
+	}
+	until := globe.GetStoryEndedAt().AsTime()
+	return posts.TellingFacts{
+		Kind: globe.GetStoryKind(), Attacker: globe.GetAttacker(), Rival: globe.GetRival(), Countries: globe.GetPlaceCountries(),
+		Region: globe.GetPlaceRegion(), Line: record.GetClip().GetCommon().GetLine(),
+		Since: until.Add(-time.Duration(globe.GetSpanMinutes() * float64(time.Minute))), Until: until,
+		ShareAtStart: shareOf(globe.GetFlagTilesStart()), ShareAtEnd: shareOf(globe.GetFlagTilesEnd()),
+	}
 }

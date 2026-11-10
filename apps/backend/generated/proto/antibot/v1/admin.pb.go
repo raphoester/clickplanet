@@ -570,27 +570,31 @@ func (x *InspectPlayerRequest) GetAccountId() string {
 }
 
 type InspectPlayerResponse struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Scope            string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	AccountId        string                 `protobuf:"bytes,17,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Tracked          *bool                  `protobuf:"varint,2,opt,name=tracked,proto3,oneof" json:"tracked,omitempty"`
-	Banned           *bool                  `protobuf:"varint,3,opt,name=banned,proto3,oneof" json:"banned,omitempty"`
-	BannedUntil      *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
-	Offence          uint32                 `protobuf:"varint,5,opt,name=offence,proto3" json:"offence,omitempty"`
-	Flags            uint32                 `protobuf:"varint,6,opt,name=flags,proto3" json:"flags,omitempty"`
-	PardonedUntil    *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=pardoned_until,json=pardonedUntil,proto3" json:"pardoned_until,omitempty"`
-	Readings         []*WatchdogReading     `protobuf:"bytes,7,rep,name=readings,proto3" json:"readings,omitempty"`
-	Suspects         uint32                 `protobuf:"varint,8,opt,name=suspects,proto3" json:"suspects,omitempty"`
-	MinSuspects      uint32                 `protobuf:"varint,9,opt,name=min_suspects,json=minSuspects,proto3" json:"min_suspects,omitempty"`
-	Guilty           *bool                  `protobuf:"varint,10,opt,name=guilty,proto3,oneof" json:"guilty,omitempty"`
-	Clicks           uint32                 `protobuf:"varint,11,opt,name=clicks,proto3" json:"clicks,omitempty"`
-	ActiveFor        *durationpb.Duration   `protobuf:"bytes,12,opt,name=active_for,json=activeFor,proto3" json:"active_for,omitempty"`
-	LongestGap       *durationpb.Duration   `protobuf:"bytes,13,opt,name=longest_gap,json=longestGap,proto3" json:"longest_gap,omitempty"`
-	LastClickAt      *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=last_click_at,json=lastClickAt,proto3" json:"last_click_at,omitempty"`
-	TopCountry       string                 `protobuf:"bytes,15,opt,name=top_country,json=topCountry,proto3" json:"top_country,omitempty"`
-	TopCountryClicks uint32                 `protobuf:"varint,16,opt,name=top_country_clicks,json=topCountryClicks,proto3" json:"top_country_clicks,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId     string                 `protobuf:"bytes,17,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Tracked       *bool                  `protobuf:"varint,2,opt,name=tracked,proto3,oneof" json:"tracked,omitempty"`
+	Banned        *bool                  `protobuf:"varint,3,opt,name=banned,proto3,oneof" json:"banned,omitempty"`
+	BannedUntil   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
+	Offence       uint32                 `protobuf:"varint,5,opt,name=offence,proto3" json:"offence,omitempty"`
+	Flags         uint32                 `protobuf:"varint,6,opt,name=flags,proto3" json:"flags,omitempty"`
+	PardonedUntil *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=pardoned_until,json=pardonedUntil,proto3" json:"pardoned_until,omitempty"`
+	// When the account was warned that playing several accounts is refused. Unset for one never warned.
+	WarnedAt *timestamppb.Timestamp `protobuf:"bytes,19,opt,name=warned_at,json=warnedAt,proto3" json:"warned_at,omitempty"`
+	// When the account acknowledged its warning. Unset while it has not.
+	WarningAcknowledgedAt *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=warning_acknowledged_at,json=warningAcknowledgedAt,proto3" json:"warning_acknowledged_at,omitempty"`
+	Readings              []*WatchdogReading     `protobuf:"bytes,7,rep,name=readings,proto3" json:"readings,omitempty"`
+	Suspects              uint32                 `protobuf:"varint,8,opt,name=suspects,proto3" json:"suspects,omitempty"`
+	MinSuspects           uint32                 `protobuf:"varint,9,opt,name=min_suspects,json=minSuspects,proto3" json:"min_suspects,omitempty"`
+	Guilty                *bool                  `protobuf:"varint,10,opt,name=guilty,proto3,oneof" json:"guilty,omitempty"`
+	Clicks                uint32                 `protobuf:"varint,11,opt,name=clicks,proto3" json:"clicks,omitempty"`
+	ActiveFor             *durationpb.Duration   `protobuf:"bytes,12,opt,name=active_for,json=activeFor,proto3" json:"active_for,omitempty"`
+	LongestGap            *durationpb.Duration   `protobuf:"bytes,13,opt,name=longest_gap,json=longestGap,proto3" json:"longest_gap,omitempty"`
+	LastClickAt           *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=last_click_at,json=lastClickAt,proto3" json:"last_click_at,omitempty"`
+	TopCountry            string                 `protobuf:"bytes,15,opt,name=top_country,json=topCountry,proto3" json:"top_country,omitempty"`
+	TopCountryClicks      uint32                 `protobuf:"varint,16,opt,name=top_country_clicks,json=topCountryClicks,proto3" json:"top_country_clicks,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *InspectPlayerResponse) Reset() {
@@ -675,6 +679,20 @@ func (x *InspectPlayerResponse) GetFlags() uint32 {
 func (x *InspectPlayerResponse) GetPardonedUntil() *timestamppb.Timestamp {
 	if x != nil {
 		return x.PardonedUntil
+	}
+	return nil
+}
+
+func (x *InspectPlayerResponse) GetWarnedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.WarnedAt
+	}
+	return nil
+}
+
+func (x *InspectPlayerResponse) GetWarningAcknowledgedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.WarningAcknowledgedAt
 	}
 	return nil
 }
@@ -859,7 +877,7 @@ const file_antibot_v1_admin_proto_rawDesc = "" +
 	"\x14InspectPlayerRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x02 \x01(\tR\taccountId\"\x8e\x06\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\"\x9b\a\n" +
 	"\x15InspectPlayerResponse\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
@@ -870,6 +888,8 @@ const file_antibot_v1_admin_proto_rawDesc = "" +
 	"\aoffence\x18\x05 \x01(\rR\aoffence\x12\x14\n" +
 	"\x05flags\x18\x06 \x01(\rR\x05flags\x12A\n" +
 	"\x0epardoned_until\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\rpardonedUntil\x127\n" +
+	"\twarned_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\bwarnedAt\x12R\n" +
+	"\x17warning_acknowledged_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\x15warningAcknowledgedAt\x127\n" +
 	"\breadings\x18\a \x03(\v2\x1b.antibot.v1.WatchdogReadingR\breadings\x12\x1a\n" +
 	"\bsuspects\x18\b \x01(\rR\bsuspects\x12!\n" +
 	"\fmin_suspects\x18\t \x01(\rR\vminSuspects\x12\x1b\n" +
@@ -944,26 +964,28 @@ var file_antibot_v1_admin_proto_depIdxs = []int32{
 	14, // 6: antibot.v1.UnbanPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
 	14, // 7: antibot.v1.InspectPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
 	14, // 8: antibot.v1.InspectPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
-	11, // 9: antibot.v1.InspectPlayerResponse.readings:type_name -> antibot.v1.WatchdogReading
-	13, // 10: antibot.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
-	13, // 11: antibot.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
-	14, // 12: antibot.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
-	14, // 13: antibot.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
-	5,  // 14: antibot.v1.AdminService.BanPlayer:input_type -> antibot.v1.BanPlayerRequest
-	7,  // 15: antibot.v1.AdminService.UnbanPlayer:input_type -> antibot.v1.UnbanPlayerRequest
-	9,  // 16: antibot.v1.AdminService.InspectPlayer:input_type -> antibot.v1.InspectPlayerRequest
-	0,  // 17: antibot.v1.AdminService.GetRules:input_type -> antibot.v1.GetRulesRequest
-	3,  // 18: antibot.v1.AdminService.SaveRuleSet:input_type -> antibot.v1.SaveRuleSetRequest
-	6,  // 19: antibot.v1.AdminService.BanPlayer:output_type -> antibot.v1.BanPlayerResponse
-	8,  // 20: antibot.v1.AdminService.UnbanPlayer:output_type -> antibot.v1.UnbanPlayerResponse
-	10, // 21: antibot.v1.AdminService.InspectPlayer:output_type -> antibot.v1.InspectPlayerResponse
-	1,  // 22: antibot.v1.AdminService.GetRules:output_type -> antibot.v1.GetRulesResponse
-	4,  // 23: antibot.v1.AdminService.SaveRuleSet:output_type -> antibot.v1.SaveRuleSetResponse
-	19, // [19:24] is the sub-list for method output_type
-	14, // [14:19] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	14, // 9: antibot.v1.InspectPlayerResponse.warned_at:type_name -> google.protobuf.Timestamp
+	14, // 10: antibot.v1.InspectPlayerResponse.warning_acknowledged_at:type_name -> google.protobuf.Timestamp
+	11, // 11: antibot.v1.InspectPlayerResponse.readings:type_name -> antibot.v1.WatchdogReading
+	13, // 12: antibot.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
+	13, // 13: antibot.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
+	14, // 14: antibot.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
+	14, // 15: antibot.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
+	5,  // 16: antibot.v1.AdminService.BanPlayer:input_type -> antibot.v1.BanPlayerRequest
+	7,  // 17: antibot.v1.AdminService.UnbanPlayer:input_type -> antibot.v1.UnbanPlayerRequest
+	9,  // 18: antibot.v1.AdminService.InspectPlayer:input_type -> antibot.v1.InspectPlayerRequest
+	0,  // 19: antibot.v1.AdminService.GetRules:input_type -> antibot.v1.GetRulesRequest
+	3,  // 20: antibot.v1.AdminService.SaveRuleSet:input_type -> antibot.v1.SaveRuleSetRequest
+	6,  // 21: antibot.v1.AdminService.BanPlayer:output_type -> antibot.v1.BanPlayerResponse
+	8,  // 22: antibot.v1.AdminService.UnbanPlayer:output_type -> antibot.v1.UnbanPlayerResponse
+	10, // 23: antibot.v1.AdminService.InspectPlayer:output_type -> antibot.v1.InspectPlayerResponse
+	1,  // 24: antibot.v1.AdminService.GetRules:output_type -> antibot.v1.GetRulesResponse
+	4,  // 25: antibot.v1.AdminService.SaveRuleSet:output_type -> antibot.v1.SaveRuleSetResponse
+	21, // [21:26] is the sub-list for method output_type
+	16, // [16:21] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_antibot_v1_admin_proto_init() }

@@ -23,7 +23,7 @@ func TestRunSuite(t *testing.T) {
 var (
 	seasonZero = books.NewBook("season-0", time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC))
 	finale     = books.Round{
-		ID: "season-0/finale", Book: seasonZero.ID, Times: 3, StartsAt: time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC),
+		ID: "season-0/finale", Book: seasonZero.ID, Times: 3, Ranking: books.GainRanking{}, StartsAt: time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC),
 	}
 )
 

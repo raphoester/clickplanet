@@ -25,8 +25,8 @@ message OpenBook {
   google.protobuf.Timestamp starts_at = 2;
 }
 
-// A round credits its book once it closes: the countries ranked by the tiles they gained since it opened, points by rank, times
-// `times`. Takes from starts_at count in it. A round whose book is not open is refused.
+// A round credits its book once it closes: the countries placed by its ranking, points by place, times `times`. Takes
+// from starts_at count in it. A round whose book is not open, or with no ranking, is refused.
 message OpenRound {
   string round_id = 1;
   string book_id = 2;
@@ -35,6 +35,17 @@ message OpenRound {
   google.protobuf.Timestamp starts_at = 4;
   // The round counts from nothing: its gain is the tiles each country holds when it closes, and opening it reads no map.
   bool from_nothing = 5;
+  Ranking ranking = 6;
+}
+
+// How a round places the countries that hold tiles when it closes. Countries in the same place share its points.
+enum Ranking {
+  RANKING_UNSPECIFIED = 0;
+  // By the tiles each gained since the round opened, most first; only a gain scores.
+  RANKING_GAIN = 1;
+  // By the sum of two ranks, on the tiles each holds and on the tiles it gained, smallest first, the gain's rank
+  // breaking a tie; every country placed scores.
+  RANKING_HELD_AND_GAIN = 2;
 }
 
 // Scores the round from the map now. Takes before ends_at still count in its numbers when they arrive after it. A round

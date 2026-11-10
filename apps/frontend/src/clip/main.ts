@@ -34,7 +34,7 @@ import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flippedTo, flipsOf, Look, LOOKS} from "../domain/clip/look.ts"
 import {cameraOf, framingOf, overviewOf, PullBack, sagaCameraOf, screensOf} from "../domain/clip/camera.ts"
 import {blendedPaceOf, paceOf, playedAt, PODIUM_ENDING_SECONDS, timelineFor, timelineOf} from "../domain/clip/pace.ts"
-import {framedTilesOf, sagasOf} from "../domain/clip/saga.ts"
+import {framedTilesOf, pathsOf, sagasOf} from "../domain/clip/saga.ts"
 import {stopsOf, tourOf, tourSecondsOf, Visit} from "../domain/clip/tour.ts"
 import {flagsZoomOf, tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {mulberry32} from "../app/viewer/stars.ts"
@@ -322,22 +322,32 @@ async function choose(): Promise<Chosen> {
     // A landmass is one country's: the window's flips, read once, are each place's.
     const flippedInWindow = places.length === 0 ? []
         : flipsOf(borders.assignment, ownersAfter(replay.opening, everything.filter(({at}) => at < since)), window, window.map(({tile}) => tile))
-    // Each place over the season: who held over half of it, from when to when.
+    // Each place over the season: who held a tenth of it and who held over half of it, from when to when; and the land of
+    // each flag that held over half of a place, on each continent.
     const sagas = focus !== undefined || history === undefined ? [] : sagasOf(history, borders.assignment.length, groundAt, regionOf)
-    // The clip of a saga plays its place from the conquest of the reign it starts at to the end of the history.
-    const sagaReviewOf = (told: {saga: number, reign: number, attacker: string, rival: string | undefined}): Review => {
+    const reigning = new Set(sagas.flatMap(({reigns}) => reigns.map(({flag}) => flag)))
+    const paths = history === undefined ? [] : pathsOf(history, borders.assignment.length, reigning, groundAt, regionOf)
+    // The clip of a saga plays its place from the time the editor chose to the end of the history.
+    const sagaReviewOf = (told: {saga: number, since: number, attacker: string, rival: string | undefined}): Review => {
         const found = sagas[told.saga - 1]
         if (!found || history === undefined) throw new Error(`no saga number ${told.saga}: the findings hold ${sagas.length}`)
-        const reign = found.reigns[told.reign - 1]
-        if (!reign) throw new Error(`no reign number ${told.reign} in saga ${told.saga}: it holds ${found.reigns.length}`)
-        const victims = told.rival !== undefined ? [told.rival] : reign.tookFrom !== undefined ? [reign.tookFrom] : []
-        const story: Story = {kind: "saga", attacker: told.attacker, rival: told.rival, victims, place: found.place, share: found.share}
-        const backend = ReplayBackend.ofHistory(history, new MapReel(history, borders.assignment.length), reign.pushedAt ?? found.since,
+        if (told.since < found.since || told.since >= found.until) {
+            throw new Error(`saga ${told.saga} runs from ${new Date(found.since).toISOString()} to ${new Date(found.until).toISOString()}, `
+                + `not from ${new Date(told.since).toISOString()}`)
+        }
+        const backend = ReplayBackend.ofHistory(history, new MapReel(history, borders.assignment.length), told.since,
             {assignment: borders.assignment, count: borders.codes.length})
+        const inSaga = (tile: number) => inHolding(found.place, groundAt(tile), regionOf)
+        // With no rival, the flag holding the most of the place after the attacker when the clip starts.
+        const [next] = rankedBy(tally([...backend.opening].flatMap(([tile, owner]) => owner !== told.attacker && inSaga(tile) ? [owner] : [])))
+        const victims = told.rival !== undefined ? [told.rival] : next === undefined ? [] : [next[0]]
+        const story: Story = {kind: "saga", attacker: told.attacker, rival: told.rival, victims, place: found.place, share: found.share}
         const sides = fightersOf(story, regionOf)
         const played = backend.changes()
-        const changes = played.filter(({tile, from, to}) => (sides(from) || sides(to)) && inHolding(story.place, groundAt(tile), regionOf))
-        if (changes.length === 0) throw new Error(`neither side of the saga of ${placeName(story.place)} held any of it from reign ${told.reign}`)
+        const changes = played.filter(({tile, from, to}) => (sides(from) || sides(to)) && inSaga(tile))
+        if (changes.length === 0) {
+            throw new Error(`neither side of the saga of ${placeName(story.place)} held any of it from ${new Date(told.since).toISOString()}`)
+        }
         const front = {heart: meanOf(changes.map(({tile}) => pointAt(tile))) ?? {x: 0, y: 0, z: 1}, changes}
         const solidity = solidityAfter(story.attacker, changes, ownersAfter(backend.opening, played), pointAt)
         return {front, story, score: 0, scope: undefined, world: false, backend, solidity, look: "flags"}
@@ -556,7 +566,7 @@ async function choose(): Promise<Chosen> {
             ...measured, story, generator: params.get("commit") ?? "", seconds: timeline.seconds, music,
             camera: world ? "tour" : saga ? "saga" : "front", look: world || saga ? undefined : look,
             landmassesFlipped: flips.length, screens, tourStops: stops.length,
-            fighters: clipFighters.length,
+            fighters: clipFighters.length, line: words.line,
         })
 
         return {
@@ -590,8 +600,9 @@ async function choose(): Promise<Chosen> {
 
     return {
         findings: findingsOf({
-            since, until, fronts: fronts.map(frontFound), tours: toursFound, places: places.map(placeFound), sagas, seasonal: seasonalFound,
-            anthems: Object.keys(RECORDED).sort(),
+            since, until, fronts: fronts.map(frontFound), tours: toursFound, places: places.map(placeFound), sagas, paths,
+            seasonal: seasonalFound, anthems: Object.keys(RECORDED).sort(),
+            continentTiles: Object.fromEntries(tally(Array.from({length: borders.assignment.length}, (_, i) => continentAt(i + 1) ?? []).flat())),
         }).toJson(),
         record,
     }

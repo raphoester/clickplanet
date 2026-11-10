@@ -90,6 +90,13 @@ type round struct {
 	battle   bool
 }
 
+func (r round) ranking() Ranking {
+	if r.battle {
+		return RankedByGain
+	}
+	return RankedByHeldAndGain
+}
+
 func (b Book) rounds() []round {
 	rounds := make([]round, 0, len(b.Days)+len(b.Battles))
 	for _, day := range b.Days {
@@ -235,7 +242,7 @@ func (p Plan) DueAt(now time.Time) []Command {
 }
 
 func (p Plan) opening(book Book, r round) (Command, bool) {
-	open := Command{Action: OpenRound, Book: book.ID(), Round: r.id, Times: r.times, At: r.startsAt}
+	open := Command{Action: OpenRound, Book: book.ID(), Round: r.id, Times: r.times, At: r.startsAt, Ranking: r.ranking()}
 	if p.known.modes == nil {
 		return open, true
 	}

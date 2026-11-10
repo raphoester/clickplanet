@@ -54,9 +54,13 @@ func commandOf(command moments.Command) (*scoringv1.ScoringCommand, error) {
 			BookId: string(command.Book), StartsAt: at,
 		}}}, nil
 	case moments.OpenRound:
+		ranking, err := rankingOf(command.Ranking)
+		if err != nil {
+			return nil, err
+		}
 		return &scoringv1.ScoringCommand{Command: &scoringv1.ScoringCommand_OpenRound{OpenRound: &scoringv1.OpenRound{
 			RoundId: string(command.Round), BookId: string(command.Book), Times: uint32(command.Times), StartsAt: at,
-			FromNothing: command.FromNothing,
+			FromNothing: command.FromNothing, Ranking: ranking,
 		}}}, nil
 	case moments.CloseRound:
 		return &scoringv1.ScoringCommand{Command: &scoringv1.ScoringCommand_CloseRound{CloseRound: &scoringv1.CloseRound{
@@ -68,4 +72,14 @@ func commandOf(command moments.Command) (*scoringv1.ScoringCommand, error) {
 		}}}, nil
 	}
 	return nil, fmt.Errorf("scoring has no command to %s", command.Action)
+}
+
+func rankingOf(ranking moments.Ranking) (scoringv1.Ranking, error) {
+	switch ranking {
+	case moments.RankedByGain:
+		return scoringv1.Ranking_RANKING_GAIN, nil
+	case moments.RankedByHeldAndGain:
+		return scoringv1.Ranking_RANKING_HELD_AND_GAIN, nil
+	}
+	return scoringv1.Ranking_RANKING_UNSPECIFIED, fmt.Errorf("scoring has no ranking %q", ranking)
 }

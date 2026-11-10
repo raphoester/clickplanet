@@ -44,9 +44,9 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
-     * and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
-     * is read on the scope of its latest take.
+     * What the antibot holds on one caller now, and how close it is to a ban: any running ban, the account's warning,
+     * each watchdog's level and evidence, the suspects against how many make a ban, and whether the jury would ban on a
+     * click now. An account is read on the scope of its latest take.
      *
      * @generated from rpc antibot.v1.AdminService.InspectPlayer
      */

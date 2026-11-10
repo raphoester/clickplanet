@@ -112,7 +112,7 @@ func TestTheMapIsFrozenOverTheBreakAndResetAsSeasonOneStarts(t *testing.T) {
 	assert.Equal(t, []time.Time{seasonOneStarts}, planet.at)
 	assert.Equal(t, map[time.Time][]moments.Command{seasonOneStarts: {
 		{Action: moments.OpenBook, Book: "season-1", At: seasonOneStarts},
-		{Action: moments.OpenRound, Book: "season-1", Round: "season-1/day-1", Times: 1, At: seasonOneStarts},
+		{Action: moments.OpenRound, Book: "season-1", Round: "season-1/day-1", Times: 1, At: seasonOneStarts, Ranking: moments.RankedByHeldAndGain},
 	}}, opensAt, "no book or round opens over the break")
 
 	clock.Advance(4 * time.Minute)

@@ -13,9 +13,9 @@ var (
 	contractEnd     = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
 	contractBook    = NewBook("season-0", contractStart)
 	contractNext    = NewBook("season-1", contractEnd.Add(24*time.Hour))
-	contractDay     = Round{ID: "season-0/day-24", Book: contractBook.ID, Times: 1, StartsAt: contractEnd.Add(-26 * time.Hour)}
-	contractBattle  = Round{ID: "0192f5a0-7c00-7000-8000-000000000031", Book: contractBook.ID, Times: 3, StartsAt: contractEnd.Add(-2 * time.Hour)}
-	contractNextDay = Round{ID: "season-1/day-1", Book: contractNext.ID, Times: 1, StartsAt: contractNext.StartsAt}
+	contractDay     = Round{ID: "season-0/day-24", Book: contractBook.ID, Times: 1, Ranking: HeldAndGainRanking{}, StartsAt: contractEnd.Add(-26 * time.Hour)}
+	contractBattle  = Round{ID: "0192f5a0-7c00-7000-8000-000000000031", Book: contractBook.ID, Times: 3, Ranking: GainRanking{}, StartsAt: contractEnd.Add(-2 * time.Hour)}
+	contractNextDay = Round{ID: "season-1/day-1", Book: contractNext.ID, Times: 1, Ranking: GainRanking{}, StartsAt: contractNext.StartsAt}
 )
 
 type BooksContractSuite struct {
@@ -142,7 +142,7 @@ func (s *RoundsContractSuite) TestARoundNeverOpenedIsNotFound() {
 func (s *RoundsContractSuite) TestARoundOpenedIsFoundOpenAndOpeningItAgainChangesNothing() {
 	opened, err := s.rounds.Open(s.T().Context(), contractDay, Start{})
 	s.Require().NoError(err)
-	again, err := s.rounds.Open(s.T().Context(), Round{ID: contractDay.ID, Book: contractBook.ID, Times: 2, StartsAt: contractEnd}, Start{})
+	again, err := s.rounds.Open(s.T().Context(), Round{ID: contractDay.ID, Book: contractBook.ID, Times: 2, Ranking: GainRanking{}, StartsAt: contractEnd}, Start{})
 	s.Require().NoError(err)
 
 	s.True(opened)

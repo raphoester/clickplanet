@@ -56,11 +56,14 @@ type Findings struct {
 	Tours        []Tour
 	Places       []Place
 	Sagas        []Saga
+	Paths        []Path
 	Seasonal     []Seasonal
 	Names        map[string]string
 	// Each continent's own flag, empty for none.
 	Continents map[string]string
-	Anthems    []string
+	// Each continent's size in tiles.
+	ContinentTiles map[string]int
+	Anthems        []string
 }
 
 type Front struct {
@@ -141,16 +144,36 @@ type Place struct {
 	Fighters []Fighter
 }
 
-// A place over the season, and each flag that held over half of it, oldest first.
+// A place over the season: each flag that held over half of it, and each that held a tenth of it, oldest first.
 type Saga struct {
 	Kind         PlaceKind
 	Code         string
 	Continent    string
 	Tiles        int
 	Reigns       []Reign
+	Contenders   []Contender
 	Holder       string
 	Share        float64
 	Since, Until time.Time
+}
+
+// A flag holding a tenth of a place or more from Since; Until, when it fell under a tenth for the last time, is zero while
+// it still holds a tenth.
+type Contender struct {
+	Flag         string
+	Since, Until time.Time
+	Peak, Share  float64
+}
+
+// A flag's land on each continent over the season: one flag's story across places.
+type Path struct {
+	Flag  string
+	Marks []PathMark
+}
+
+type PathMark struct {
+	At               time.Time
+	TilesByContinent map[string]int
 }
 
 // A zero time is unset: PushedAt when the flag held a tenth of the place from the start, Until while it still holds.
@@ -219,8 +242,8 @@ const (
 // saga, and words each; a seasonal story has words of its own.
 type Story struct {
 	Front, Tour, Place, Saga, Seasonal int
-	// The reign of the saga the clip plays from, from 1.
-	Reign           int
+	// When a saga's clip starts: it plays the place from then to the end of the history.
+	Since           time.Time
 	Kind            Kind
 	Attacker, Rival string
 	TakenFrom       []string
@@ -456,29 +479,35 @@ func (f Findings) checkFront(story Story, front Front) (StoryKey, error) {
 	return StoryKey{Flag: f.keyFlagOf(story, attacker), Continent: continent}, nil
 }
 
-// A saga plays its place from a reign to the end: its attacker and its rival are flags that held it from then on, or
-// the flag the reign took it from. It is told whole by the generator, so it has no kind, no look and no place of its own.
+// A saga plays its place from the time the editor chose to the end of the history: its attacker and its rival are flags
+// that held a tenth of the place from then on. It is told whole by the generator, so it has no kind, no look and no place
+// of its own.
 func checkSaga(story Story, saga Saga) (StoryKey, error) {
 	refused := func(why string, args ...any) (StoryKey, error) {
 		return StoryKey{}, fmt.Errorf("%w: %s on saga %d", ErrInvalidStory, fmt.Sprintf(why, args...), story.Saga)
 	}
 
-	if story.Reign < 1 || story.Reign > len(saga.Reigns) {
-		return refused("no reign %d of %d", story.Reign, len(saga.Reigns))
+	if story.Since.Before(saga.Since) || !story.Since.Before(saga.Until) {
+		return refused("it starts at %s, out of its history from %s to %s", story.Since.Format(time.RFC3339),
+			saga.Since.Format(time.RFC3339), saga.Until.Format(time.RFC3339))
 	}
 	if story.Kind != "" || story.Look != "" || len(story.Countries) > 0 || story.Continent != "" || story.Team != "" ||
 		len(story.TakenFrom) > 0 {
 		return refused("a saga has no kind, look, place, team or flags taken from of its own")
 	}
-	told := saga.Reigns[story.Reign-1:]
-	reigned := func(flag string) bool {
-		return slices.ContainsFunc(told, func(reign Reign) bool { return reign.Flag == flag })
+	contends := func(flag string) bool {
+		return slices.ContainsFunc(saga.Contenders, func(contender Contender) bool {
+			return contender.Flag == flag && (contender.Until.IsZero() || contender.Until.After(story.Since))
+		})
 	}
-	if !reigned(story.Attacker) {
-		return refused("%q held no reign from reign %d", story.Attacker, story.Reign)
+	if !contends(story.Attacker) {
+		return refused("%q held no tenth of it from %s", story.Attacker, story.Since.Format(time.RFC3339))
 	}
-	if story.Rival != "" && (story.Rival == story.Attacker || !reigned(story.Rival) && story.Rival != told[0].TookFrom) {
-		return refused("%q held no reign from reign %d, and reign %d took it from no %q", story.Rival, story.Reign, story.Reign, story.Rival)
+	if story.Rival == story.Attacker {
+		return refused("%q is its own rival", story.Rival)
+	}
+	if story.Rival != "" && !contends(story.Rival) {
+		return refused("the rival %q held no tenth of it from %s", story.Rival, story.Since.Format(time.RFC3339))
 	}
 
 	continent := saga.Continent

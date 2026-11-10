@@ -28,19 +28,33 @@ type Telling struct {
 	Title     string
 	State     string
 	Failure   string
+	// What its clip told, from the record kept with it: zero for a post made before the record kept it.
+	Facts TellingFacts
+}
+
+// What a post's clip told: its kind, its sides, where (countries, else a continent or TheWorld), its line, the stretch it
+// played, and the share of the place its key's flag held when it started and when it ended.
+type TellingFacts struct {
+	Kind                     string
+	Attacker, Rival          string
+	Countries                []string
+	Region                   string
+	Line                     string
+	Since, Until             time.Time
+	ShareAtStart, ShareAtEnd float64
 }
 
 const (
 	recent       = 72 * time.Hour
 	reheadlining = 7 * 24 * time.Hour
 	lately       = 6
-	// A season: a saga is told when a reign is made and when it falls, days apart.
-	sagaMemory = 28 * 24 * time.Hour
+	// About a season: what its viewers already know, so each post tells what comes next.
+	seasonMemory = 28 * 24 * time.Hour
 )
 
 // Inclusive: the posts at this time or after are what was told.
 func ToldSince(now time.Time) time.Time {
-	return now.Add(-sagaMemory)
+	return now.Add(-seasonMemory)
 }
 
 type Offer struct {
@@ -48,9 +62,8 @@ type Offer struct {
 	// The seasonal stories told first whatever the editor says, by their number in the findings, from 1.
 	First    []int
 	Findings Findings
-	Recent   []Telling
-	// The sagas told in the season, newest first.
-	Sagas []Telling
+	// The posts of the season, newest first: from the season's start when the findings know it, else of the last 3 days.
+	Told  []Telling
 	Shown map[string]int
 	Now   time.Time
 }
@@ -75,17 +88,25 @@ func (f Findings) Offer(count int, told []Telling, now time.Time) Offer {
 	for _, flags := range past.shown {
 		flags.ForEach(func(flag string) { offer.Shown[flag]++ })
 	}
+	since := f.seasonSince(now.Add(-recent))
+	if earliest := now.Add(-seasonMemory); since.Before(earliest) {
+		since = earliest
+	}
 	for _, telling := range told {
-		if !telling.At.Before(now.Add(-recent)) {
-			offer.Recent = append(offer.Recent, telling)
-		}
-		if telling.Key.Angle == Reigning && !telling.At.Before(now.Add(-sagaMemory)) {
-			offer.Sagas = append(offer.Sagas, telling)
+		if !telling.At.Before(since) {
+			offer.Told = append(offer.Told, telling)
 		}
 	}
-	slices.SortStableFunc(offer.Recent, func(a, b Telling) int { return b.At.Compare(a.At) })
-	slices.SortStableFunc(offer.Sagas, func(a, b Telling) int { return b.At.Compare(a.At) })
+	slices.SortStableFunc(offer.Told, func(a, b Telling) int { return b.At.Compare(a.At) })
 	return offer
+}
+
+// When the history the sagas are measured on starts: the season's start.
+func (f Findings) seasonSince(otherwise time.Time) time.Time {
+	if len(f.Sagas) == 0 {
+		return otherwise
+	}
+	return f.Sagas[0].Since
 }
 
 type Edition struct {

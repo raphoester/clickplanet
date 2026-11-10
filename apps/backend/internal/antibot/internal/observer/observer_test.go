@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/observer"
 )
 
@@ -36,6 +38,22 @@ antibot_opinions_total{level="suspect",watchdog="sequencer"} 2
 # TYPE antibot_opinions_standing gauge
 antibot_opinions_standing{level="suspect",watchdog="sequencer"} 1
 `), "antibot_opinions_total", "antibot_opinions_standing"))
+}
+
+func TestAWarningIsLoggedAndCounted(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	var logged strings.Builder
+	observed := observer.New(slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{})), registry)
+
+	observed.OnWarn(guard.Report{Account: "alt", Alongside: "main", Opinions: []detect.Opinion{{Watchdog: "rotator"}}})
+
+	assert.Contains(t, logged.String(), `msg="antibot warning"`)
+	assert.Contains(t, logged.String(), "account=alt alongside=main")
+	assert.NoError(t, testutil.GatherAndCompare(registry, strings.NewReader(`
+# HELP antibot_warnings_total Accounts warned that playing several accounts is refused, before any ban for it
+# TYPE antibot_warnings_total counter
+antibot_warnings_total 1
+`), "antibot_warnings_total"))
 }
 
 type flagged struct {
