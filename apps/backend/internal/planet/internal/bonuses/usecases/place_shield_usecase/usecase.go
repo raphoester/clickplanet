@@ -13,7 +13,7 @@ var ErrNoShield = errors.New("no shield to place")
 
 type Shields interface {
 	Spend(ctx context.Context, holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) error
-	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) error
+	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) (bonuses.Gain, error)
 	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
 
@@ -78,8 +78,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
 	}
 
 	if err := u.tiles.Shield(ctx, in.TileID, in.CountryID, perTile); err != nil {
-		return bonuses.Held{}, errors.Join(fmt.Errorf("failed to place the shield: %w", err),
-			u.shields.Grant(ctx, holder, bonuses.KindShields, 1))
+		_, refund := u.shields.Grant(ctx, holder, bonuses.KindShields, 1)
+		return bonuses.Held{}, errors.Join(fmt.Errorf("failed to place the shield: %w", err), refund)
 	}
 
 	return u.shields.Held(ctx, holder)

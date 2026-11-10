@@ -35,18 +35,29 @@ func (c Charges) Held(ctx context.Context, holder Holder) (Held, error) {
 	return held, nil
 }
 
-func (c Charges) Grant(ctx context.Context, holder Holder, kind Kind, amount int) error {
+type Gain struct {
+	Before Held
+	After  Held
+}
+
+func (g Gain) Count(kind Kind) int {
+	return g.After.Count(kind) - g.Before.Count(kind)
+}
+
+func (c Charges) Grant(ctx context.Context, holder Holder, kind Kind, amount int) (Gain, error) {
 	if holder == NoHolder {
-		return nil
+		return Gain{}, nil
 	}
 
 	rules := c.rules()
+	var gain Gain
 	if err := c.store.Change(ctx, holder, func(held Held) (Held, error) {
-		return held.Granted(kind, amount, rules), nil
+		gain = Gain{Before: held, After: held.Granted(kind, amount, rules)}
+		return gain.After, nil
 	}); err != nil {
-		return fmt.Errorf("failed to grant %s %d %s: %w", holder, amount, kind, err)
+		return Gain{}, fmt.Errorf("failed to grant %s %d %s: %w", holder, amount, kind, err)
 	}
-	return nil
+	return gain, nil
 }
 
 func (c Charges) Spend(ctx context.Context, holder Holder, after func(Held) (Held, bool)) error {

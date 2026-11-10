@@ -26,8 +26,9 @@ its own.
   stack to the rule set's `bonuses.enclose.held` (3), spread clicks pool to `bonuses.spread.clicks`
   (8) and shields stack to `bonuses.shield.held` (30) (see [Rules](rules.md)). A box draws its amount evenly from 1 to `maxPerBox`, or from
   `bonuses.shield.minPerBox` for shields (`amountOf`, `crypto/rand`), and the grant caps it at the size. The claim answers
-  `ClaimBonusResponse.amount` as **what was kept**, `Count` after less `Count`
-  before, so a player is never told of clicks that did not fit.
+  `ClaimBonusResponse.amount` as **what was kept**: `Charges.Grant` answers the hand before and after it
+  (`bonuses.Gain`), both read under the lock of its one transaction, so a player is never told of clicks that did not
+  fit, and a spend in another tab cannot change the number.
 - **The schedule offers no kind that is full** for any account that clicked as
   the entrant within `activeWithin` (`Registry.offerable`): the linked account
   itself, or every guest behind the scope. The schedule is by entrant and a charge
@@ -67,6 +68,11 @@ its own.
 - **Each spend is atomic**: `Charges.Spend` checks and takes in one `Change`, so two
   tabs racing for the last one get one, and the other `bonuses.ErrNotHeld`.
   `bonuses.StoreContractSuite` runs on postgres and on `MemoryStore` (behind the tag).
+- **A box or a right answer is taken from memory before its grant**, so a grant that fails (the database down) loses
+  it. That failure is not a refusal: `NotFound` is only for a token that is not the caller's or not there, and a failed
+  grant goes to the error net (logged, answered `internal`). `bonus_claims_total` and `quiz_answers_total` count it
+  `failed`, apart from `refused`. Once the offer is taken, the grant does not stop when the page leaves: it runs on
+  `context.WithoutCancel` for at most 5 s.
 - **Only a grant pushes them** (`charges_granted`, above). Otherwise they are not live news: `GetCharges` answers what the
   caller holds, read by the client at load and when its account changes, and
   `ClaimBonusResponse.charges` answers the claim, `PlaceShieldResponse.charges` a

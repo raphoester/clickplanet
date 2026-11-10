@@ -3,6 +3,7 @@ package answer_quiz_usecase
 import (
 	"context"
 	"errors"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -15,13 +16,15 @@ import (
 
 var ErrNoSuchQuiz = errors.New("no quiz to answer")
 
+const grantTimeout = 5 * time.Second
+
 type Registry interface {
 	AnswerQuiz(token string, entrant bonuses.Entrant, choice int) (bonuses.Answered, bool)
 	Publish(taken bonuses.Taken)
 }
 
 type Charger interface {
-	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) error
+	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) (bonuses.Gain, error)
 	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
 }
 
@@ -67,25 +70,23 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 
 	holder := bonuses.HolderOf(payer)
-	before, err := u.charger.Held(ctx, holder)
+	if !answered.Correct {
+		held, err := u.charger.Held(ctx, holder)
+		if err != nil {
+			return Out{}, err
+		}
+		u.publishAnswer(holder, false)
+		return Out{CorrectChoice: answered.CorrectChoice, Held: held}, nil
+	}
+
+	// The quiz is spent: a caller who leaves now must still get the charge.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), grantTimeout)
+	defer cancel()
+
+	gain, err := u.charger.Grant(ctx, holder, answered.Reward.Kind, answered.Reward.Amount)
 	if err != nil {
 		return Out{}, err
 	}
-	out := Out{Correct: answered.Correct, CorrectChoice: answered.CorrectChoice, Held: before}
-
-	if !answered.Correct {
-		u.publishAnswer(holder, false)
-		return out, nil
-	}
-
-	if err := u.charger.Grant(ctx, holder, answered.Reward.Kind, answered.Reward.Amount); err != nil {
-		return Out{}, err
-	}
-	if out.Held, err = u.charger.Held(ctx, holder); err != nil {
-		return Out{}, err
-	}
-	out.Kind = answered.Reward.Kind
-	out.Amount = out.Held.Count(answered.Reward.Kind) - before.Count(answered.Reward.Kind)
 
 	u.registry.Publish(bonuses.Taken{
 		CountryID:   in.CountryID,
@@ -94,7 +95,13 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	})
 	u.publishAnswer(holder, true)
 
-	return out, nil
+	return Out{
+		Correct:       true,
+		CorrectChoice: answered.CorrectChoice,
+		Kind:          answered.Reward.Kind,
+		Amount:        gain.Count(answered.Reward.Kind),
+		Held:          gain.After,
+	}, nil
 }
 
 func (u *UseCase) publishAnswer(holder bonuses.Holder, correct bool) {
