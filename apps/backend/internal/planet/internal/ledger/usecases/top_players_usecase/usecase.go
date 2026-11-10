@@ -17,7 +17,7 @@ type Owners interface {
 }
 
 type Refusals interface {
-	Refusal(ctx context.Context, payer clicks.Payer) (clicks.Refusal, bool, error)
+	Refusals(ctx context.Context, payers []clicks.Payer) (map[clicks.Payer]clicks.Refusal, error)
 }
 
 type In struct {
@@ -46,12 +46,16 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	players := ledger.ByTakes(tally.Players(u.owners))
 	out := Out{Total: len(players), Players: ledger.Top(players, in.Limit)}
 
+	payers := make([]clicks.Payer, len(out.Players))
 	for i, player := range out.Players {
-		refusal, refused, err := u.refusals.Refusal(ctx, clicks.Payer{Scope: player.Scope, Account: player.Account})
-		if err != nil {
-			return Out{}, fmt.Errorf("failed to read the refusals: %w", err)
-		}
-		if refused {
+		payers[i] = clicks.Payer{Scope: player.Scope, Account: player.Account}
+	}
+	refused, err := u.refusals.Refusals(ctx, payers)
+	if err != nil {
+		return Out{}, fmt.Errorf("failed to read the refusals: %w", err)
+	}
+	for i, payer := range payers {
+		if refusal, ok := refused[payer]; ok {
 			out.Players[i].Refused(refusal)
 		}
 	}

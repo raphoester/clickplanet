@@ -1,6 +1,7 @@
 package placements_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,7 +38,13 @@ var twoATile = func() bonuses.Rules {
 func gate(t *testing.T, pledged string) placements.Gate {
 	t.Helper()
 
-	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), func() allegiances.Lock { return false },
+	return gateOn(t, allegiances.NewMemoryStore(), pledged)
+}
+
+func gateOn(t *testing.T, store *allegiances.MemoryStore, pledged string) placements.Gate {
+	t.Helper()
+
+	book := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return false },
 		cptime.NewFixedClock(takenAt), &allegiances.RecordedPledges{})
 	if pledged != "" {
 		require.NoError(t, book.Pledge(t.Context(), clicks.Payer{Account: string(alice)}, pledged))
@@ -80,4 +87,15 @@ func TestTheGateRefusesAFlagTheCallerDoesNotPlayFor(t *testing.T) {
 
 	_, err = aim(t, gate(t, ""), 7, "fr")
 	require.ErrorIs(t, err, allegiances.ErrNoFlag)
+}
+
+func TestAFlagThatCannotBeReadRefusesNoPlacement(t *testing.T) {
+	store := allegiances.NewMemoryStore()
+	g := gateOn(t, store, "fr")
+	store.FailWith(errors.New("postgres is down"))
+
+	aimed, err := aim(t, g, 7, "fr")
+
+	require.NoError(t, err)
+	assert.Equal(t, placements.Aim{Tile: 7, Country: "fr", Most: 2}, aimed)
 }

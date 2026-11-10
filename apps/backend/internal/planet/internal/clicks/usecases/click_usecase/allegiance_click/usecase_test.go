@@ -2,6 +2,7 @@ package allegiance_click_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -31,11 +32,19 @@ func (c *countingClicks) Execute(_ context.Context, in click_usecase.In) (click_
 func setup(t *testing.T) (*allegiance_click.UseCase, *countingClicks, allegiances.Book, *cptime.FixedClock) {
 	t.Helper()
 
+	useCase, inner, book, clock, _ := setupOn(t)
+	return useCase, inner, book, clock
+}
+
+func setupOn(t *testing.T) (*allegiance_click.UseCase, *countingClicks, allegiances.Book, *cptime.FixedClock, *allegiances.MemoryStore) {
+	t.Helper()
+
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
 	inner := &countingClicks{}
-	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), func() allegiances.Lock { return false }, clock, &allegiances.RecordedPledges{})
+	store := allegiances.NewMemoryStore()
+	book := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return false }, clock, &allegiances.RecordedPledges{})
 
-	return allegiance_click.New(inner, book), inner, book, clock
+	return allegiance_click.New(inner, book), inner, book, clock, store
 }
 
 func played(t *testing.T) context.Context {
@@ -92,4 +101,14 @@ func TestAClickWithNoAccountIsHeldToNothing(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, inner.seen, 1)
+}
+
+func TestAClickWhoseFlagCannotBeReadReachesTheMap(t *testing.T) {
+	useCase, inner, book, _, store := setupOn(t)
+	require.NoError(t, book.Pledge(played(t), clicks.PayerOf(played(t)), "fr"))
+	store.FailWith(errors.New("postgres is down"))
+
+	require.NoError(t, clickFor(t, useCase, "de"))
+
+	assert.Len(t, inner.seen, 1, "as a refusal that cannot be read, a flag that cannot be read refuses nothing")
 }

@@ -24,6 +24,7 @@ internal/planet/internal/
     usecases/
   allegiances/                    the flag each account plays for, and when it last changed it
     postgres_allegiance_store/
+    log_allegiances/
   rules/                          the rule sets, and the one the game plays
     postgres_rule_set_store/
     usecases/

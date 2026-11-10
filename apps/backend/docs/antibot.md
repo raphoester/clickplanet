@@ -97,9 +97,11 @@ changes, until when to refuse it.
   rule that fired is in the `antibot ban` log line and in `InspectPlayer`, never on the wire.
 - **`refusal_click` sits outside the throttle**, as the VPN block does: a refused click spends no token, or the client
   would show a 429 instead of the refusal. `refusal_drop_bomb` and `refusal_place_shield` refuse before the bomb or the
-  shield is spent, so it stays in hand. Each reads two primary keys in postgres, with 1s to do it. **A refusal that
-  cannot be read refuses nothing** (`log_refusals` logs why): postgres down lets a refused caller click, rather than
-  every player's clicks being refused.
+  shield is spent, so it stays in hand. Each reads the scope's and the account's rows in one query on the primary key
+  (`Store.Refusals`), with 1s to do it. **A refusal that cannot be read refuses nothing** (`log_refusals` logs why):
+  postgres down lets a refused caller click, rather than every player's clicks being refused. The flag's gate after it
+  fails the same way (see [Allegiance](allegiance.md)): until 2026-11-10 it refused every click when postgres was down,
+  so the refusal's gate letting it through changed nothing.
 - **So a ban does not feed itself**: a refused try is told (`CLICK_OUTCOME_REFUSED`), and the listener hands it to no
   watchdog. The end the player was told does not move however much it clicks; only an accomplice's click can extend it
   (see the `rotator`). The ban lapses on its own, and the evidence windows have forgotten the caller by then.

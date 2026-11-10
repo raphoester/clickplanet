@@ -145,6 +145,7 @@ func TestAStoreThatFailsFailsThePledge(t *testing.T) {
 
 	assert.ErrorIs(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, "fr"), down)
 	assert.ErrorIs(t, b.PlayError(t.Context(), clicks.Payer{Account: alice}, "fr"), down)
+	assert.ErrorIs(t, b.PlayError(t.Context(), clicks.Payer{Account: alice}, "fr"), allegiances.ErrUnread)
 	assert.ErrorIs(t, b.Release(t.Context(), alice), down)
 }
 

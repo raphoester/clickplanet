@@ -22,12 +22,44 @@ type Store struct {
 
 var _ refusals.Store = (*Store)(nil)
 
-func (s *Store) Refusal(ctx context.Context, caller refusals.Caller) (refusals.Refusal, error) {
-	kept, err := keptOf(ctx, s.db.On(ctx), caller)
-	if err != nil {
-		return refusals.Refusal{}, err
+func (s *Store) Refusals(ctx context.Context, callers []refusals.Caller) (map[refusals.Caller]refusals.Refusal, error) {
+	kept := make(map[refusals.Caller]refusals.Refusal, len(callers))
+	if len(callers) == 0 {
+		return kept, nil
 	}
-	return kept.Restore(), nil
+
+	kinds, keys := make([]string, 0, len(callers)), make([]string, 0, len(callers))
+	for _, caller := range callers {
+		kind, key := keyOf(caller)
+		kinds, keys = append(kinds, kind), append(keys, key)
+	}
+
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
+		SELECT r.kind::text, r.caller, r.refused_until, r.decided_at
+		FROM refused_callers r
+		JOIN unnest($1::text[], $2::text[]) AS c (kind, caller) ON r.kind = c.kind::caller_kind AND r.caller = c.caller
+	`, kinds, keys)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the refusals: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var kind, key string
+		var row refusals.Snapshot
+		if err := rows.Scan(&kind, &key, &row.Until, &row.DecidedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan a refusal: %w", err)
+		}
+		caller, err := callerOf(kind, key)
+		if err != nil {
+			return nil, err
+		}
+		kept[caller] = refusals.Snapshot{Until: row.Until.UTC(), DecidedAt: row.DecidedAt.UTC()}.Restore()
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the refusals: %w", err)
+	}
+	return kept, nil
 }
 
 func (s *Store) Change(ctx context.Context, caller refusals.Caller, change func(refusals.Refusal) refusals.Refusal) error {
@@ -81,4 +113,14 @@ func keyOf(caller refusals.Caller) (string, string) {
 		return "account", caller.Account
 	}
 	return "scope", caller.Scope
+}
+
+func callerOf(kind, key string) (refusals.Caller, error) {
+	switch kind {
+	case "account":
+		return refusals.Caller{Account: key}, nil
+	case "scope":
+		return refusals.Caller{Scope: key}, nil
+	}
+	return refusals.Caller{}, fmt.Errorf("a refusal of an unknown kind %q", kind)
 }

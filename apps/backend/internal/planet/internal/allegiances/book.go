@@ -2,11 +2,17 @@ package allegiances
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
+
+const readTimeout = time.Second
+
+var ErrUnread = errors.New("the flag an account plays for could not be read")
 
 type Store interface {
 	Allegiance(ctx context.Context, account Account) (Allegiance, error)
@@ -77,9 +83,11 @@ func (b Book) PlayError(ctx context.Context, payer clicks.Payer, flag string) er
 		return nil
 	}
 
-	allegiance, err := b.store.Allegiance(ctx, account)
+	read, cancel := context.WithTimeout(ctx, readTimeout)
+	defer cancel()
+	allegiance, err := b.store.Allegiance(read, account)
 	if err != nil {
-		return fmt.Errorf("could not read the flag account %s plays for: %w", account, err)
+		return fmt.Errorf("%w: account %s: %w", ErrUnread, account, err)
 	}
 	if err := allegiance.PlayError(flag, b.lock()); err != nil {
 		return fmt.Errorf("account %s may not play for %q: %w", account, flag, err)

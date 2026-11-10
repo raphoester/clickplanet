@@ -29,9 +29,13 @@ player could paint for one country and defend another click to click. **Only
   same flag again, a refusal and a release tell nothing. `alerts` hears it to move the
   player's Discord role (see [Discord pings](alerts.md)), and `chat` to end the player's stream of the room of the
   flag it left (see [Chat](chat.md#rooms)).
-  **`Book.PlayError(ctx, payer, flag)`** reads the store and asks `PlayError`. A caller
+  **`Book.PlayError(ctx, payer, flag)`** reads the store, with 1s to do it, and asks `PlayError`. A caller
   with no account (the deprecated mint, `auth` off) is held to nothing, and a flag that
   is no country is left to the click use case, which refuses it.
+  **A flag that cannot be read refuses nothing**: the read's error is `ErrUnread`, which `allegiance_click` and the
+  shield's gate let through and `log_allegiances` logs, as a refusal that cannot be read does (see
+  [Anti-bot](antibot.md)). Postgres down lets an account play a flag it did not pledge, rather than stop every click;
+  a shield still needs postgres to be spent. Until 2026-11-10 a read that failed refused the click.
 - **It is checked after the refusal and before the throttle** (`allegiance_click`,
   between `refusal_click` and `throttle_click`): a refused caller is told its
   refusal first, and a click refused for its flag spends no token.

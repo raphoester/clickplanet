@@ -2,8 +2,10 @@ package placements
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
@@ -54,7 +56,7 @@ func (g Gate) Aim(ctx context.Context, payer clicks.Payer, tile uint32, country 
 		return Aim{}, fmt.Errorf("tile %d: %w", tile, err)
 	}
 
-	if err := g.allegiances.PlayError(ctx, payer, country); err != nil {
+	if err := g.allegiances.PlayError(ctx, payer, country); err != nil && !errors.Is(err, allegiances.ErrUnread) {
 		return Aim{}, err //nolint:wrapcheck // the book names the flag the caller plays for.
 	}
 

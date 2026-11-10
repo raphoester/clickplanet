@@ -13,20 +13,28 @@ type MemoryStore struct {
 	mu      sync.Mutex
 	rows    map[Caller]Snapshot
 	failing error
+	reads   int
 }
 
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{rows: map[Caller]Snapshot{}}
 }
 
-func (m *MemoryStore) Refusal(_ context.Context, caller Caller) (Refusal, error) {
+func (m *MemoryStore) Refusals(_ context.Context, callers []Caller) (map[Caller]Refusal, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	m.reads++
 	if m.failing != nil {
-		return Refusal{}, m.failing
+		return nil, m.failing
 	}
-	return m.rows[caller].Restore(), nil
+	kept := map[Caller]Refusal{}
+	for _, caller := range callers {
+		if row, ok := m.rows[caller]; ok {
+			kept[caller] = row.Restore()
+		}
+	}
+	return kept, nil
 }
 
 func (m *MemoryStore) Change(_ context.Context, caller Caller, change func(Refusal) Refusal) error {
@@ -48,6 +56,13 @@ func (m *MemoryStore) Kept(caller Caller) Snapshot {
 	defer m.mu.Unlock()
 
 	return m.rows[caller]
+}
+
+func (m *MemoryStore) Reads() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.reads
 }
 
 func (m *MemoryStore) FailWith(err error) {
