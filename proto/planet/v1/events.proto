@@ -172,6 +172,12 @@ message AllegiancePledged {
   google.protobuf.Timestamp pledged_at = 4;
 }
 
+// The arena opened: its blank map plays since opened_at, and the world's map waits as it was. Told once per arena.
+message ArenaOpened {
+  string arena_id = 1;
+  google.protobuf.Timestamp opened_at = 2;
+}
+
 // The arena closed: its map is deleted and the world's plays again, or it never opened and nothing changed.
 message ArenaClosed {
   string arena_id = 1;

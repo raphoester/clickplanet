@@ -335,8 +335,8 @@ export class ArenaCommand extends Message<ArenaCommand> {
 
 /**
  * Plays the arena's map, blank, while the world's map stays as it is: a new epoch, so every client reads the map again.
- * An arena opens once, never after it closed, and never at or after ends_at. Every play is refused for the rule set's
- * arena.freeze after it opens and before ends_at.
+ * An arena opens once, never after it closed, and never at or after ends_at; planet tells ArenaOpened when it opens. Every
+ * play is refused for the rule set's arena.freeze after it opens and before ends_at.
  *
  * @generated from message planet.v1.OpenArena
  */

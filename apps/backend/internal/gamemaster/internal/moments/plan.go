@@ -201,9 +201,9 @@ func (p Plan) Clashes(now time.Time) error {
 
 // DueAt is every command whose time has come: a book or a round opened while it runs, and closed once it ended until
 // scoring answered it, for every season that started. By time, and at one instant OpenBook, CloseRound, OpenRound, then
-// CloseBook. With what was commanded known, a battle's round opens once it is judged, an arena battle's counting from
-// nothing, nothing opens while an arena battle that ended before it waits for its map, and a round or a book scoring
-// answered, scored, closed or missed, is closed no more.
+// CloseBook. With what was commanded known, a battle's round opens once it is judged, an arena battle's once planet
+// opened its arena and counting from nothing, nothing opens while an arena battle that ended before it waits for its
+// map, and a round or a book scoring answered, scored, closed or missed, is closed no more.
 func (p Plan) DueAt(now time.Time) []Command {
 	var due []Command
 	for _, book := range p.books {
@@ -240,7 +240,7 @@ func (p Plan) opening(book Book, r round) (Command, bool) {
 		return open, true
 	}
 	mode := p.known.modes[r.id]
-	if (r.battle && mode == 0) || p.Waits(r.startsAt) {
+	if (r.battle && mode == 0) || (mode == Arena && !p.known.opened.Contains(r.id)) || p.Waits(r.startsAt) {
 		return Command{}, false
 	}
 	open.FromNothing = mode == Arena

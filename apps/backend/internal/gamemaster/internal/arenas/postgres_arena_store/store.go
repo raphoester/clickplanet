@@ -33,6 +33,15 @@ func (s *Store) KeepJudged(ctx context.Context, judgement moments.Judgement) (bo
 	return inserted(res)
 }
 
+func (s *Store) KeepOpened(ctx context.Context, arena moments.RoundID) (bool, error) {
+	res, err := s.db.On(ctx).ExecContext(ctx,
+		`INSERT INTO opened_arenas (round_id) VALUES ($1) ON CONFLICT (round_id) DO NOTHING`, string(arena))
+	if err != nil {
+		return false, fmt.Errorf("failed to keep arena %s opened: %w", arena, err)
+	}
+	return inserted(res)
+}
+
 func (s *Store) KeepClosed(ctx context.Context, arena moments.RoundID) (bool, error) {
 	res, err := s.db.On(ctx).ExecContext(ctx,
 		`INSERT INTO closed_arenas (round_id) VALUES ($1) ON CONFLICT (round_id) DO NOTHING`, string(arena))
@@ -45,6 +54,8 @@ func (s *Store) KeepClosed(ctx context.Context, arena moments.RoundID) (bool, er
 func (s *Store) ArenasKept(ctx context.Context) (moments.ArenasKept, error) {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `
 		SELECT 'judged', round_id, mode::text FROM battle_modes
+		UNION ALL
+		SELECT 'opened', round_id, '' FROM opened_arenas
 		UNION ALL
 		SELECT 'closed', round_id, '' FROM closed_arenas
 	`)
@@ -66,6 +77,8 @@ func (s *Store) ArenasKept(ctx context.Context) (moments.ArenasKept, error) {
 				return moments.ArenasKept{}, err
 			}
 			kept.Judged = append(kept.Judged, moments.Judgement{Round: moments.RoundID(round), Mode: judged})
+		case "opened":
+			kept.Opened = append(kept.Opened, moments.RoundID(round))
 		case "closed":
 			kept.Closed = append(kept.Closed, moments.RoundID(round))
 		default:

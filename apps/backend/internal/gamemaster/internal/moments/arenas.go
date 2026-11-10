@@ -133,9 +133,9 @@ func (c ArenaCommand) Key() ArenaKey { return ArenaKey{Action: c.Action, Arena: 
 func (a ArenaAction) Closes() bool { return a == CloseArena }
 
 // ArenasDueAt is every arena command whose time has come. An arena opens while its battle runs, once scoring answered
-// the round before it, scored on the map as it is or missed, and no arena battle before it waits for its map; it closes
-// once the arena battle ended and scoring answered its round, scored on the arena or missed. A close is due until planet
-// tells the arena closed.
+// the round before it, scored on the map as it is or missed, and no arena battle before it waits for its map, until
+// planet tells it opened; it closes once the arena battle ended and scoring answered its round, scored on the arena or
+// missed. A close is due until planet tells the arena closed.
 func (p Plan) ArenasDueAt(now time.Time) []ArenaCommand {
 	var due []ArenaCommand
 	for _, book := range p.books {
@@ -145,7 +145,7 @@ func (p Plan) ArenasDueAt(now time.Time) []ArenaCommand {
 				continue
 			}
 			switch {
-			case battle.runs(now):
+			case battle.runs(now) && !p.known.opened.Contains(round):
 				if before, ok := p.roundBefore(battle); ok && p.settled(book.ID(), before.id) && !p.Waits(battle.StartsAt) {
 					due = append(due, ArenaCommand{Action: OpenArena, Arena: round, At: battle.StartsAt, EndsAt: battle.EndsAt})
 				}

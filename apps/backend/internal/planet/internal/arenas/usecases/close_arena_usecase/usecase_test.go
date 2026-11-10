@@ -42,6 +42,18 @@ func (p inTx) Wipe(ctx context.Context, played clicks.MapID, keep func(context.C
 	return wiped, err
 }
 
+func (p inTx) Open(
+	ctx context.Context, played clicks.MapID, tiles []inmemory_tile_storage.Tile, keep func(context.Context) (bool, error),
+) (bool, error) {
+	var opened bool
+	err := cpatomic.FakeTransactioner{}.InTx(ctx, func(ctx context.Context) error {
+		var err error
+		opened, err = p.MemoryPersistence.Open(ctx, played, tiles, keep)
+		return err //nolint:wrapcheck // the persistence names it.
+	})
+	return opened, err
+}
+
 type harness struct {
 	tiles   *inmemory_tile_storage.Storage
 	stored  *inmemory_tile_storage.MemoryPersistence
@@ -67,7 +79,8 @@ func newHarness(t *testing.T) harness {
 	inPlay := arenas.NewInPlay(arenaRules, clock)
 	return harness{
 		tiles: tiles, stored: stored, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock,
-		opening: open_arena_usecase.New(tiles, arenas.NewStarts(clicks.NoCapitals(), arenaRules), kept, inPlay, clock),
+		opening: open_arena_usecase.New(tiles, arenas.NewStarts(clicks.NoCapitals(), arenaRules), kept,
+			&cpatomic.FakeOutbox{}, inPlay, clock),
 		useCase: close_arena_usecase.New(tiles, kept, outbox, inPlay, clock),
 	}
 }

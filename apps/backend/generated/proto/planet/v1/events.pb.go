@@ -1269,6 +1269,59 @@ func (x *AllegiancePledged) GetPledgedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// The arena opened: its blank map plays since opened_at, and the world's map waits as it was. Told once per arena.
+type ArenaOpened struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ArenaId       string                 `protobuf:"bytes,1,opt,name=arena_id,json=arenaId,proto3" json:"arena_id,omitempty"`
+	OpenedAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=opened_at,json=openedAt,proto3" json:"opened_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArenaOpened) Reset() {
+	*x = ArenaOpened{}
+	mi := &file_planet_v1_events_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArenaOpened) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArenaOpened) ProtoMessage() {}
+
+func (x *ArenaOpened) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_events_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArenaOpened.ProtoReflect.Descriptor instead.
+func (*ArenaOpened) Descriptor() ([]byte, []int) {
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ArenaOpened) GetArenaId() string {
+	if x != nil {
+		return x.ArenaId
+	}
+	return ""
+}
+
+func (x *ArenaOpened) GetOpenedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OpenedAt
+	}
+	return nil
+}
+
 // The arena closed: its map is deleted and the world's plays again, or it never opened and nothing changed.
 type ArenaClosed struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1280,7 +1333,7 @@ type ArenaClosed struct {
 
 func (x *ArenaClosed) Reset() {
 	*x = ArenaClosed{}
-	mi := &file_planet_v1_events_proto_msgTypes[16]
+	mi := &file_planet_v1_events_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1292,7 +1345,7 @@ func (x *ArenaClosed) String() string {
 func (*ArenaClosed) ProtoMessage() {}
 
 func (x *ArenaClosed) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[16]
+	mi := &file_planet_v1_events_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1305,7 +1358,7 @@ func (x *ArenaClosed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArenaClosed.ProtoReflect.Descriptor instead.
 func (*ArenaClosed) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{16}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ArenaClosed) GetArenaId() string {
@@ -1434,6 +1487,9 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\bprevious\x18\x03 \x01(\tR\bprevious\x129\n" +
 	"\n" +
 	"pledged_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tpledgedAt\"a\n" +
+	"\vArenaOpened\x12\x19\n" +
+	"\barena_id\x18\x01 \x01(\tR\aarenaId\x127\n" +
+	"\topened_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bopenedAt\"a\n" +
 	"\vArenaClosed\x12\x19\n" +
 	"\barena_id\x18\x01 \x01(\tR\aarenaId\x127\n" +
 	"\tclosed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt*\xa8\x02\n" +
@@ -1464,7 +1520,7 @@ func file_planet_v1_events_proto_rawDescGZIP() []byte {
 }
 
 var file_planet_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_planet_v1_events_proto_goTypes = []any{
 	(ClickOutcome)(0),             // 0: planet.v1.ClickOutcome
 	(*TilesTaken)(nil),            // 1: planet.v1.TilesTaken
@@ -1483,38 +1539,40 @@ var file_planet_v1_events_proto_goTypes = []any{
 	(*BoxLapsed)(nil),             // 14: planet.v1.BoxLapsed
 	(*ForeignBoxClaimed)(nil),     // 15: planet.v1.ForeignBoxClaimed
 	(*AllegiancePledged)(nil),     // 16: planet.v1.AllegiancePledged
-	(*ArenaClosed)(nil),           // 17: planet.v1.ArenaClosed
-	(*timestamppb.Timestamp)(nil), // 18: google.protobuf.Timestamp
-	(*GlobePoint)(nil),            // 19: planet.v1.GlobePoint
-	(*durationpb.Duration)(nil),   // 20: google.protobuf.Duration
+	(*ArenaOpened)(nil),           // 17: planet.v1.ArenaOpened
+	(*ArenaClosed)(nil),           // 18: planet.v1.ArenaClosed
+	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
+	(*GlobePoint)(nil),            // 20: planet.v1.GlobePoint
+	(*durationpb.Duration)(nil),   // 21: google.protobuf.Duration
 }
 var file_planet_v1_events_proto_depIdxs = []int32{
-	18, // 0: planet.v1.TilesTaken.taken_at:type_name -> google.protobuf.Timestamp
+	19, // 0: planet.v1.TilesTaken.taken_at:type_name -> google.protobuf.Timestamp
 	2,  // 1: planet.v1.TilesTaken.tiles:type_name -> planet.v1.TakenTile
-	19, // 2: planet.v1.TakenTile.point:type_name -> planet.v1.GlobePoint
-	18, // 3: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
-	18, // 4: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
-	18, // 5: planet.v1.ShieldPlaced.placed_at:type_name -> google.protobuf.Timestamp
-	18, // 6: planet.v1.ShieldsStruck.struck_at:type_name -> google.protobuf.Timestamp
+	20, // 2: planet.v1.TakenTile.point:type_name -> planet.v1.GlobePoint
+	19, // 3: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
+	19, // 4: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
+	19, // 5: planet.v1.ShieldPlaced.placed_at:type_name -> google.protobuf.Timestamp
+	19, // 6: planet.v1.ShieldsStruck.struck_at:type_name -> google.protobuf.Timestamp
 	7,  // 7: planet.v1.ShieldsStruck.tiles:type_name -> planet.v1.StruckTile
-	18, // 8: planet.v1.BonusClaimed.claimed_at:type_name -> google.protobuf.Timestamp
-	18, // 9: planet.v1.QuizAnswered.answered_at:type_name -> google.protobuf.Timestamp
-	18, // 10: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
+	19, // 8: planet.v1.BonusClaimed.claimed_at:type_name -> google.protobuf.Timestamp
+	19, // 9: planet.v1.QuizAnswered.answered_at:type_name -> google.protobuf.Timestamp
+	19, // 10: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
 	0,  // 11: planet.v1.ClickTried.outcome:type_name -> planet.v1.ClickOutcome
-	19, // 12: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
-	18, // 13: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
-	18, // 14: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
-	20, // 15: planet.v1.BoxCaught.after:type_name -> google.protobuf.Duration
-	18, // 16: planet.v1.BoxCaught.caught_at:type_name -> google.protobuf.Timestamp
-	18, // 17: planet.v1.BoxLapsed.lapsed_at:type_name -> google.protobuf.Timestamp
-	18, // 18: planet.v1.ForeignBoxClaimed.claimed_at:type_name -> google.protobuf.Timestamp
-	18, // 19: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
-	18, // 20: planet.v1.ArenaClosed.closed_at:type_name -> google.protobuf.Timestamp
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	20, // 12: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
+	19, // 13: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
+	19, // 14: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
+	21, // 15: planet.v1.BoxCaught.after:type_name -> google.protobuf.Duration
+	19, // 16: planet.v1.BoxCaught.caught_at:type_name -> google.protobuf.Timestamp
+	19, // 17: planet.v1.BoxLapsed.lapsed_at:type_name -> google.protobuf.Timestamp
+	19, // 18: planet.v1.ForeignBoxClaimed.claimed_at:type_name -> google.protobuf.Timestamp
+	19, // 19: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
+	19, // 20: planet.v1.ArenaOpened.opened_at:type_name -> google.protobuf.Timestamp
+	19, // 21: planet.v1.ArenaClosed.closed_at:type_name -> google.protobuf.Timestamp
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_events_proto_init() }
@@ -1529,7 +1587,7 @@ func file_planet_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_events_proto_rawDesc), len(file_planet_v1_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

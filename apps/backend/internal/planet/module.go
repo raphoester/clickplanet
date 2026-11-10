@@ -286,8 +286,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			inPlay.Resume(playing)
 			reach := arenas.NewReach(inPlay, geography, waters, tilesStorage)
 			arenaCommands, err := cpredis.Handle(ctx, streams, arena_command_handler.New(
-				log_open_arena.New(open_arena_usecase.New(tilesStorage, arenas.NewStarts(capitals, arenaRules), arenaStore, inPlay,
-					clock), props.Logger),
+				log_open_arena.New(open_arena_usecase.New(tilesStorage, arenas.NewStarts(capitals, arenaRules), arenaStore,
+					cpoutbox.New(db), inPlay, clock), props.Logger),
 				log_close_arena.New(close_arena_usecase.New(tilesStorage, arenaStore, cpoutbox.New(db), inPlay, clock),
 					props.Logger)))
 			if err != nil {

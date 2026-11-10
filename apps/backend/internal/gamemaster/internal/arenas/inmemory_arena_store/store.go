@@ -14,13 +14,17 @@ import (
 var _ arenas.Store = (*Store)(nil)
 
 func New() *Store {
-	return &Store{modes: map[moments.RoundID]moments.Mode{}, closed: cpcolls.NewSet[moments.RoundID]()}
+	return &Store{
+		modes: map[moments.RoundID]moments.Mode{}, opened: cpcolls.NewSet[moments.RoundID](),
+		closed: cpcolls.NewSet[moments.RoundID](),
+	}
 }
 
 // Store keeps the arena battles in maps.
 type Store struct {
 	mu       sync.Mutex
 	modes    map[moments.RoundID]moments.Mode
+	opened   *cpcolls.Set[moments.RoundID]
 	closed   *cpcolls.Set[moments.RoundID]
 	failWith error
 }
@@ -39,17 +43,25 @@ func (s *Store) KeepJudged(_ context.Context, judgement moments.Judgement) (bool
 	return true, nil
 }
 
+func (s *Store) KeepOpened(_ context.Context, arena moments.RoundID) (bool, error) {
+	return s.keep(s.opened, arena)
+}
+
 func (s *Store) KeepClosed(_ context.Context, arena moments.RoundID) (bool, error) {
+	return s.keep(s.closed, arena)
+}
+
+func (s *Store) keep(in *cpcolls.Set[moments.RoundID], arena moments.RoundID) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
 		return false, s.failWith
 	}
-	if s.closed.Contains(arena) {
+	if in.Contains(arena) {
 		return false, nil
 	}
-	s.closed.Add(arena)
+	in.Add(arena)
 	return true, nil
 }
 
@@ -64,6 +76,7 @@ func (s *Store) ArenasKept(context.Context) (moments.ArenasKept, error) {
 	for round, mode := range s.modes {
 		kept.Judged = append(kept.Judged, moments.Judgement{Round: round, Mode: mode})
 	}
+	s.opened.ForEach(func(arena moments.RoundID) { kept.Opened = append(kept.Opened, arena) })
 	s.closed.ForEach(func(arena moments.RoundID) { kept.Closed = append(kept.Closed, arena) })
 	return kept, nil
 }

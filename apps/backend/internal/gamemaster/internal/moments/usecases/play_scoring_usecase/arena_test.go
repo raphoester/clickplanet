@@ -28,6 +28,12 @@ func (h *harness) arenaBattle() {
 	}.Restore()))
 }
 
+func (h *harness) arenaOpened() {
+	h.t.Helper()
+	_, err := h.judged.KeepOpened(h.t.Context(), arenaRound)
+	require.NoError(h.t, err)
+}
+
 func opensRound(sent []moments.Command, round moments.RoundID) (moments.Command, bool) {
 	for _, command := range sent {
 		if command.Action == moments.OpenRound && command.Round == round {
@@ -53,15 +59,18 @@ func TestABattleOpensOnceItIsJudged(t *testing.T) {
 	}, h.execute())
 }
 
-func TestAnArenaBattleCountsFromNothingAndTheDayAfterItWaitsForItsArena(t *testing.T) {
+func TestAnArenaBattleCountsFromNothingOnceItsArenaOpenedAndTheDayAfterItWaitsForItsArena(t *testing.T) {
 	h := newHarness(t, arenaStarts.Add(-time.Second))
 	h.arenaBattle()
 	h.judge(arenaRound, moments.Arena)
 	h.execute()
 
 	h.at(arenaStarts)
+	assert.Equal(t, []moments.Command{closeDay(23)}, h.execute(), "the battle waits for the blank map")
+
+	h.arenaOpened()
+	h.at(arenaStarts.Add(5 * time.Second))
 	assert.Equal(t, []moments.Command{
-		closeDay(23),
 		{Action: moments.OpenRound, Book: book, Round: arenaRound, Times: 2, At: arenaStarts, FromNothing: true},
 	}, h.execute())
 
@@ -114,4 +123,23 @@ func TestAnArenaBattleJudgedInItsLastSecondIsToldMissedAndTheDayAfterItWaitsForI
 	h.at(arenaEnds.Add(5 * time.Second))
 	_, ok := opensRound(h.execute(), dayRound(24))
 	assert.True(t, ok)
+}
+
+func TestAnArenaBattleWhoseArenaNeverOpensIsToldMissedAndCountsNothingOnTheWorldsMap(t *testing.T) {
+	h := newHarness(t, arenaStarts.Add(-time.Second))
+	h.arenaBattle()
+	h.judge(arenaRound, moments.Arena)
+	h.execute()
+
+	for at := arenaStarts; at.Before(arenaEnds); at = at.Add(time.Minute) {
+		h.at(at)
+		_, ok := opensRound(h.execute(), arenaRound)
+		require.False(t, ok, "at %s", at)
+	}
+	h.at(arenaEnds)
+	assert.Equal(t, []moments.Command{{Action: moments.CloseRound, Book: book, Round: arenaRound, At: arenaEnds}}, h.execute())
+	kept, err := h.opened.Kept(t.Context())
+	require.NoError(t, err)
+	assert.Contains(t, kept.MissedRounds, arenaRound)
+	assert.NotContains(t, kept.Opened, arenaRound)
 }

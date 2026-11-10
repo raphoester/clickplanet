@@ -17,6 +17,7 @@ import (
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/hear_arena_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/hear_opened_arena_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/play_arenas_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
@@ -128,14 +129,17 @@ func (s *scoring) Send(_ context.Context, command moments.Command) error {
 	return nil
 }
 
-// planet keeps each arena once, as its arena store does, and tells ArenaClosed once.
+// planet keeps each arena once, as its arena store does, refuses an open at or after its end, and tells ArenaOpened and
+// ArenaClosed once.
 type planet struct {
-	t       *testing.T
-	journal *journal
-	late    *late
-	hear    *hear_arena_usecase.Hearing
-	opened  *cpcolls.Set[moments.RoundID]
-	closed  *cpcolls.Set[moments.RoundID]
+	t          *testing.T
+	journal    *journal
+	late       *late
+	openLate   time.Duration
+	hearOpened *hear_opened_arena_usecase.Hearing
+	hearClosed *hear_arena_usecase.Hearing
+	opened     *cpcolls.Set[moments.RoundID]
+	closed     *cpcolls.Set[moments.RoundID]
 }
 
 func (p *planet) Arena(_ context.Context, set schedule.SetName) (bool, error) {
@@ -150,17 +154,26 @@ func (p *planet) Reset(_ context.Context, starts season.Window) error {
 func (p *planet) Send(_ context.Context, command moments.ArenaCommand) error {
 	switch command.Action {
 	case moments.OpenArena:
-		if !p.opened.Contains(command.Arena) && !p.closed.Contains(command.Arena) {
+		p.late.after(p.journal.clock.Now().Add(p.openLate), func(ctx context.Context) {
+			if p.opened.Contains(command.Arena) || p.closed.Contains(command.Arena) {
+				return
+			}
+			if !p.journal.clock.Now().Before(command.EndsAt) {
+				p.journal.note("arena refused")
+				return
+			}
 			p.opened.Add(command.Arena)
+			_, err := p.hearOpened.Execute(ctx, command.Arena)
+			require.NoError(p.t, err)
 			p.journal.note("blank the map")
-		}
+		})
 	case moments.CloseArena:
 		p.late.after(p.journal.clock.Now().Add(planetLate), func(ctx context.Context) {
 			if p.closed.Contains(command.Arena) {
 				return
 			}
 			p.closed.Add(command.Arena)
-			_, err := p.hear.Execute(ctx, command.Arena)
+			_, err := p.hearClosed.Execute(ctx, command.Arena)
 			require.NoError(p.t, err)
 			p.journal.note("map back")
 		})
@@ -204,7 +217,8 @@ func newNight(t *testing.T, at time.Time) *night {
 			opened: cpcolls.NewSet[moments.RoundID](),
 		},
 		planet: &planet{
-			t: t, journal: notes, late: answers, hear: hear_arena_usecase.New(judged),
+			t: t, journal: notes, late: answers, openLate: planetLate,
+			hearOpened: hear_opened_arena_usecase.New(judged), hearClosed: hear_arena_usecase.New(judged),
 			opened: cpcolls.NewSet[moments.RoundID](), closed: cpcolls.NewSet[moments.RoundID](),
 		},
 	}
@@ -254,9 +268,9 @@ func TestAnArenaBattleBlanksTheMapAfterDay23IsScoredAndDay24WaitsForTheMapBack(t
 
 	assert.Equal(t, []string{
 		"21:00:00 close round season-0/day-23",
-		"21:00:00 open round " + string(fought) + " from nothing true",
 		"21:00:02 scored season-0/day-23",
-		"21:00:02 blank the map",
+		"21:00:05 blank the map",
+		"21:00:05 open round " + string(fought) + " from nothing true",
 		"23:00:00 close round " + string(fought),
 		"23:00:02 scored " + string(fought),
 		"23:00:05 map back",
@@ -273,6 +287,8 @@ func TestBootsMidBattleAndWhileItWaitsKeepTheOrder(t *testing.T) {
 
 	j := n.journal
 	assert.Less(t, j.index(t, "scored season-0/day-23"), j.index(t, "blank the map"), "day 23 is scored on the map")
+	assert.Less(t, j.index(t, "blank the map"), j.index(t, "open round "+string(fought)+" from nothing true"),
+		"the arena battle counts on its arena")
 	assert.Less(t, j.index(t, "scored "+string(fought)), j.index(t, "map back"), "the arena battle is scored on its arena")
 	assert.Less(t, j.index(t, "map back"), j.index(t, "open round season-0/day-24 from nothing false"))
 	assert.Less(t, j.index(t, "map back"), j.index(t, "day 24 told"))
@@ -287,7 +303,7 @@ func TestAnArenaBattleWhoseRoundNeverOpenedClosesItsArenaAfterABootAndDay24Opens
 
 	n.clock.Advance(time.Second)
 	n.scoring.down = errors.New("redis is down")
-	require.Error(t, n.plan.Execute(t.Context()), "the battle is judged, and its round's open is refused")
+	require.Error(t, n.plan.Execute(t.Context()), "the battle is judged, and day 23's close is refused")
 	n.scoring.down = nil
 	n.clock.Advance(arenaEnds.Add(time.Hour).Sub(n.clock.Now()))
 	n.boot()
@@ -303,6 +319,26 @@ func TestAnArenaBattleWhoseRoundNeverOpenedClosesItsArenaAfterABootAndDay24Opens
 		"00:00:06 day 24 told",
 	}, n.journal.entries)
 	assert.Zero(t, n.journal.count("blank the map"), "the battle ended before day 23 was scored: no arena opened")
+}
+
+func TestAnArenaPlanetRefusesAtItsEndNeverOpensItsRoundAndDay24Opens(t *testing.T) {
+	n := newNight(t, arenaStarts.Add(-time.Minute))
+	n.until(arenaStarts.Add(-time.Second))
+	n.journal.entries = nil
+	n.planet.openLate = arenaEnds.Sub(arenaStarts.Add(scoringLate))
+
+	n.until(arenaEnds.Add(time.Minute))
+
+	assert.Equal(t, []string{
+		"21:00:00 close round season-0/day-23",
+		"21:00:02 scored season-0/day-23",
+		"23:00:00 arena refused",
+		"23:00:00 close round " + string(fought),
+		"23:00:02 missed " + string(fought),
+		"23:00:05 map back",
+		"23:00:05 open round season-0/day-24 from nothing false",
+		"23:00:05 day 24 told",
+	}, n.journal.entries, "the battle never counts from nothing on the world's map")
 }
 
 func (j *journal) count(entry string) int {
