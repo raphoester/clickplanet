@@ -20,8 +20,8 @@ func utc(day, hour int) time.Time {
 
 var (
 	seasonZero = books.NewBook("season-0", utc(8, 0))
-	day24      = books.Round{ID: "season-0/day-24", Book: seasonZero.ID, Times: 1, StartsAt: utc(30, 21)}
-	battle     = books.Round{ID: "battle", Book: seasonZero.ID, Times: 3, StartsAt: utc(31, 21)}
+	day24      = books.Round{ID: "season-0/day-24", Book: seasonZero.ID, Times: 1, Ranking: books.GainRanking{}, StartsAt: utc(30, 21)}
+	battle     = books.Round{ID: "battle", Book: seasonZero.ID, Times: 3, Ranking: books.GainRanking{}, StartsAt: utc(31, 21)}
 	ada        = books.AccountID{15: 1}
 	bob        = books.AccountID{15: 2}
 )

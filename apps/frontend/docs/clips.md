@@ -320,7 +320,7 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   FINAL BATTLE"**, with where it leaves the winner in the season ("Leads the season with 86 points"). Only the run
   whose window holds the cutoff finds it, and the job tells it once, by its key. It plays the 3 hours before
   the cutoff, the winner's takes where it took the most (`frontOf`; anyone's when it took none), counts its tiles
-  (the podium's points say who won: a day is won by the ground gained before its cutoff), and ends pulled back over all
+  (the podium's points say who won: a day is won by the ground held and the ground gained before its cutoff), and ends pulled back over all
   the winner holds, then on the podium, the places that scored with their points, then "WHO WINS DAY 6?". The ending
   lasts 4s instead of 2.5, to read it. **Never its losses, never two places at once**: until 2026-11-09 it played every
   change to or from the flag, all over the world, and "IRELAND LEADS THE SEASON BY 53 POINTS" opened on Sweden taking

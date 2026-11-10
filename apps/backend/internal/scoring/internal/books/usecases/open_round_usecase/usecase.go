@@ -29,6 +29,7 @@ type Command struct {
 	Round    books.RoundID
 	Book     books.BookID
 	Times    uint32
+	Ranking  books.Ranking
 	StartsAt time.Time
 	// FromNothing is a round told to count from nothing.
 	FromNothing bool
@@ -47,7 +48,7 @@ type UseCase struct {
 // Execute answers whether it opened the round: one kept before is left as it is, and one whose book is not open is
 // refused.
 func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
-	round, err := books.NewRound(command.Round, command.Book, command.Times, command.StartsAt)
+	round, err := books.NewRound(command.Round, command.Book, command.Times, command.Ranking, command.StartsAt)
 	if err != nil {
 		return false, err //nolint:wrapcheck // the round says why.
 	}

@@ -152,11 +152,11 @@ func TestSeasonZerosLastDayAndItsFinalePlaySecondBySecond(t *testing.T) {
 	assert.Equal(t, map[time.Time][]moments.Command{
 		finaleStarts.Add(-24 * time.Hour): {
 			{Action: moments.CloseRound, Book: book, Round: "season-0/day-23", At: finaleStarts.Add(-24 * time.Hour)},
-			{Action: moments.OpenRound, Book: book, Round: "season-0/day-24", Times: 1, At: finaleStarts.Add(-24 * time.Hour)},
+			{Action: moments.OpenRound, Book: book, Round: "season-0/day-24", Times: 1, At: finaleStarts.Add(-24 * time.Hour), Ranking: moments.RankedByHeldAndGain},
 		},
 		finaleStarts: {
 			{Action: moments.CloseRound, Book: book, Round: "season-0/day-24", At: finaleStarts},
-			{Action: moments.OpenRound, Book: book, Round: "season-0/finale", Times: 3, At: finaleStarts},
+			{Action: moments.OpenRound, Book: book, Round: "season-0/finale", Times: 3, At: finaleStarts, Ranking: moments.RankedByGain},
 		},
 		seasonEnds: {
 			{Action: moments.CloseRound, Book: book, Round: "season-0/finale", At: seasonEnds},

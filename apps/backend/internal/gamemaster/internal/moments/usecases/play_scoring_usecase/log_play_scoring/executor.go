@@ -33,6 +33,9 @@ func (l *Logged) Execute(ctx context.Context, plan moments.Plan) ([]moments.Comm
 		if command.Times != 0 {
 			attrs = append(attrs, slog.Uint64("times", uint64(command.Times)))
 		}
+		if command.Ranking != "" {
+			attrs = append(attrs, slog.String("ranking", string(command.Ranking)))
+		}
 		if command.Tiebreak != "" {
 			attrs = append(attrs, slog.String("tiebreak", string(command.Tiebreak)))
 		}

@@ -46,7 +46,7 @@ func TestARoundClosedOnItsAverageKeepsItsResultsWithItsAverageShareAndTheRoundIn
 	kept, err := store.ScoredIn(t.Context(), "season-0")
 	require.NoError(t, err)
 	assert.Equal(t, []books.Scored{{
-		Round: books.Round{ID: "season-0/day-19", Book: "season-0", Times: 1, StartsAt: utc(25, 21), Scored: true, EndsAt: utc(26, 21)},
+		Round: books.Round{ID: "season-0/day-19", Book: "season-0", Times: 1, Ranking: books.GainRanking{}, StartsAt: utc(25, 21), Scored: true, EndsAt: utc(26, 21)},
 		Results: []books.Result{
 			{Country: "fr", Rank: 1, Points: 25, Share: 0.25},
 			{Country: "de", Rank: 2, Points: 18, Share: 0.1},
@@ -55,7 +55,7 @@ func TestARoundClosedOnItsAverageKeepsItsResultsWithItsAverageShareAndTheRoundIn
 	open, found, err := store.Find(t.Context(), "season-0/day-20")
 	require.NoError(t, err)
 	require.True(t, found)
-	assert.Equal(t, books.Round{ID: "season-0/day-20", Book: "season-0", Times: 1, StartsAt: utc(26, 21)}, open,
+	assert.Equal(t, books.Round{ID: "season-0/day-20", Book: "season-0", Times: 1, Ranking: books.GainRanking{}, StartsAt: utc(26, 21)}, open,
 		"the round in progress is scored at its end, from the map")
 }
 
@@ -109,26 +109,26 @@ func TestSeasonZeroBecomesABookAndItsRoundsKeepTheirDayNumbersAndTheirResults(t 
 	require.NoError(t, err)
 	assert.Equal(t, []books.Scored{
 		{
-			Round: books.Round{ID: "season-0/day-19", Book: "season-0", Times: 1, StartsAt: utc(25, 21), Scored: true, EndsAt: utc(26, 21)},
+			Round: books.Round{ID: "season-0/day-19", Book: "season-0", Times: 1, Ranking: books.GainRanking{}, StartsAt: utc(25, 21), Scored: true, EndsAt: utc(26, 21)},
 			Results: []books.Result{
 				{Country: "fr", Rank: 1, Points: 25, Share: 0.3}, {Country: "de", Rank: 2, Points: 18, Share: 0.2},
 			},
 		},
 		{
-			Round:   books.Round{ID: battle, Book: "season-0", Times: 2, StartsAt: utc(27, 18), Scored: true, EndsAt: utc(27, 20)},
+			Round:   books.Round{ID: battle, Book: "season-0", Times: 2, Ranking: books.GainRanking{}, StartsAt: utc(27, 18), Scored: true, EndsAt: utc(27, 20)},
 			Results: []books.Result{{Country: "it", Rank: 1, Points: 50, Share: 0.1}},
 		},
 		{
-			Round:   books.Round{ID: "season-0/day-20", Book: "season-0", Times: 1, StartsAt: utc(26, 21), Scored: true, EndsAt: utc(27, 21)},
+			Round:   books.Round{ID: "season-0/day-20", Book: "season-0", Times: 1, Ranking: books.GainRanking{}, StartsAt: utc(26, 21), Scored: true, EndsAt: utc(27, 21)},
 			Results: []books.Result{{Country: "de", Rank: 1, Points: 25, Share: 0.4}},
 		},
 	}, scored)
 
 	open, err := store.Of(t.Context(), []books.BookID{"season-0"})
 	require.NoError(t, err)
-	assert.Contains(t, open, books.Round{ID: "season-0/day-21", Book: "season-0", Times: 1, StartsAt: utc(27, 21)},
+	assert.Contains(t, open, books.Round{ID: "season-0/day-21", Book: "season-0", Times: 1, Ranking: books.GainRanking{}, StartsAt: utc(27, 21)},
 		"the day in progress is still open, and the gamemaster's CloseRound at 21:00 scores it")
-	assert.Contains(t, open, books.Round{ID: "season-0/own-2", Book: "season-0", Times: 3, StartsAt: utc(28, 18)},
+	assert.Contains(t, open, books.Round{ID: "season-0/own-2", Book: "season-0", Times: 3, Ranking: books.GainRanking{}, StartsAt: utc(28, 18)},
 		"a round of its own with no entry is named by its place")
 
 	var counted, takes, players, contributions, mains int

@@ -55,7 +55,7 @@ func TestABattleOpensOnceItIsJudged(t *testing.T) {
 	h.judge(arenaRound, moments.Plain)
 	h.at(arenaStarts.Add(time.Second))
 	assert.Equal(t, []moments.Command{
-		{Action: moments.OpenRound, Book: book, Round: arenaRound, Times: 2, At: arenaStarts},
+		{Action: moments.OpenRound, Book: book, Round: arenaRound, Times: 2, At: arenaStarts, Ranking: moments.RankedByGain},
 	}, h.execute())
 }
 
@@ -71,7 +71,7 @@ func TestAnArenaBattleCountsFromNothingOnceItsArenaOpenedAndTheDayAfterItWaitsFo
 	h.arenaOpened()
 	h.at(arenaStarts.Add(5 * time.Second))
 	assert.Equal(t, []moments.Command{
-		{Action: moments.OpenRound, Book: book, Round: arenaRound, Times: 2, At: arenaStarts, FromNothing: true},
+		{Action: moments.OpenRound, Book: book, Round: arenaRound, Times: 2, At: arenaStarts, FromNothing: true, Ranking: moments.RankedByGain},
 	}, h.execute())
 
 	h.at(arenaEnds)
@@ -84,7 +84,7 @@ func TestAnArenaBattleCountsFromNothingOnceItsArenaOpenedAndTheDayAfterItWaitsFo
 	h.at(arenaEnds.Add(6 * time.Second))
 	open, ok := opensRound(h.execute(), dayRound(24))
 	require.True(t, ok)
-	assert.Equal(t, moments.Command{Action: moments.OpenRound, Book: book, Round: dayRound(24), Times: 1, At: arenaEnds}, open)
+	assert.Equal(t, moments.Command{Action: moments.OpenRound, Book: book, Round: dayRound(24), Times: 1, At: arenaEnds, Ranking: moments.RankedByHeldAndGain}, open)
 }
 
 func TestABootDuringTheWaitHoldsTheDay(t *testing.T) {
