@@ -33,9 +33,9 @@ func (s *StoreContractSuite) keep(caller Caller, kept Snapshot) {
 }
 
 func (s *StoreContractSuite) kept(caller Caller) Snapshot {
-	refusal, err := s.store.Refusal(s.T().Context(), caller)
+	kept, err := s.store.Refusals(s.T().Context(), []Caller{caller})
 	s.Require().NoError(err)
-	return refusal.TakeSnapshot()
+	return kept[caller].TakeSnapshot()
 }
 
 func (s *StoreContractSuite) same(want, got Snapshot) {
@@ -46,6 +46,28 @@ func (s *StoreContractSuite) same(want, got Snapshot) {
 func (s *StoreContractSuite) TestACallerNeverDecidedOnIsRefusedNothing() {
 	s.Equal(Snapshot{}, s.kept(aScope))
 	s.Equal(Snapshot{}, s.kept(anAccount))
+}
+
+func (s *StoreContractSuite) TestManyCallersAreReadAtOnceAndOnlyThoseDecidedOnAreIn() {
+	another := Caller{Account: "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e60"}
+	s.keep(aScope, Snapshot{Until: contractAt.Add(time.Hour), DecidedAt: contractAt})
+	s.keep(anAccount, Snapshot{Until: contractAt.Add(time.Minute), DecidedAt: contractAt})
+
+	kept, err := s.store.Refusals(s.T().Context(), []Caller{aScope, anAccount, another, aScope})
+
+	s.Require().NoError(err)
+	s.Len(kept, 2)
+	s.same(Snapshot{Until: contractAt.Add(time.Hour), DecidedAt: contractAt}, kept[aScope].TakeSnapshot())
+	s.same(Snapshot{Until: contractAt.Add(time.Minute), DecidedAt: contractAt}, kept[anAccount].TakeSnapshot())
+}
+
+func (s *StoreContractSuite) TestNoCallersReadNothing() {
+	s.keep(aScope, Snapshot{Until: contractAt.Add(time.Hour), DecidedAt: contractAt})
+
+	kept, err := s.store.Refusals(s.T().Context(), nil)
+
+	s.Require().NoError(err)
+	s.Empty(kept)
 }
 
 func (s *StoreContractSuite) TestAChangeIsKeptAndReadBack() {

@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/allegiance_facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/audit_release"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/log_allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/postgres_allegiance_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/postgres_arena_store"
@@ -364,6 +365,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			pricer := clicks.NewToll(rules.Reader(inForce, clicks.TollPart), tilesStorage)
 
 			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, lock, clock, allegiance_facts.New(told))
+			flags := log_allegiances.New(book, props.Logger)
 
 			writer := ledger.NewRecording(tilesStorage,
 				clicks.NewClaiming(tilesStorage, func() int { return game().Shield.PerTile }), takings, clock)
@@ -389,7 +391,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			clickUseCase = reach_click.New(clickUseCase, reach)
 
 			// Outside the throttle, so a click refused for its flag spends nothing.
-			clickUseCase = allegiance_click.New(clickUseCase, book)
+			clickUseCase = allegiance_click.New(clickUseCase, flags)
 
 			// Outside the throttle: a refused click must not spend a token, or the client shows a 429.
 			clickUseCase = refusal_click.New(clickUseCase, refusing, props.Metrics)
@@ -523,7 +525,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
-					place_shield_usecase.New(placements.NewGate(tilesStorage, countries, book, game), escrow, writer),
+					place_shield_usecase.New(placements.NewGate(tilesStorage, countries, flags, game), escrow, writer),
 					refusing)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
 				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db)),

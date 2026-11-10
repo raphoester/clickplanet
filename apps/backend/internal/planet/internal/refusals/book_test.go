@@ -41,6 +41,29 @@ func TestAPayerIsRefusedUntilTheRefusalThatEndsLast(t *testing.T) {
 	assert.Equal(t, at.Add(time.Hour), refusal.Until())
 }
 
+func TestAPayersScopeAndAccountAreReadAtOnce(t *testing.T) {
+	store := refusals.NewMemoryStore()
+
+	_, _, err := refusals.NewBook(store, cptime.NewFixedClock(at)).Refusal(t.Context(), clicks.Payer{Scope: scope, Account: account})
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, store.Reads())
+}
+
+func TestManyPayersAreReadAtOnceAndOnlyTheRefusedAreIn(t *testing.T) {
+	store := refusals.NewMemoryStore()
+	book := refusals.NewBook(store, cptime.NewFixedClock(at))
+	require.NoError(t, book.Decide(t.Context(), refusals.Caller{Scope: scope}, refusals.Refused(at.Add(time.Hour), at)))
+	byScope := clicks.Payer{Scope: scope, Account: "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e60"}
+	free := clicks.Payer{Scope: "198.51.100.4", Account: account}
+
+	refused, err := book.Refusals(t.Context(), []clicks.Payer{byScope, free})
+
+	require.NoError(t, err)
+	assert.Equal(t, map[clicks.Payer]clicks.Refusal{byScope: clicks.NewRefusal(at.Add(time.Hour))}, refused)
+	assert.Equal(t, 1, store.Reads())
+}
+
 func TestARefusalThatEndedRefusesNothing(t *testing.T) {
 	clock := cptime.NewFixedClock(at)
 	book := refusals.NewBook(refusals.NewMemoryStore(), clock)

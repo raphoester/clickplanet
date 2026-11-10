@@ -1,6 +1,8 @@
 # Durability
 
-**The map lives in memory; postgres is where it is kept.** A click never waits on the database.
+**The map lives in memory; postgres is where it is kept.** A click never waits on a write. It reads two rows before
+it plays: the caller's refusals (scope and account in one query) and the account's flag, each with 1s, and a read that
+fails or takes longer refuses nothing (see [Anti-bot](antibot.md) and [Allegiance](allegiance.md)).
 
 - **Boot loads it.** `inmemory_tile_storage.Load` reads every row of `planet.tiles` of the map that plays — one per owned tile, `(map, id, country, shields, holder)`; an unowned tile has no row. 180k rows load in about 60ms. **A failed load refuses the boot**: an empty map that then flushes would be every player's territory gone. A row past `gameMap.maxIndex` is skipped and logged.
 - **A flush writes what changed.** Every write under the tiles lock sets the tile's bit in a `dirty` bitmap (one bit per tile, ~32 KB). Every `tilesStorage.flushInterval` (1s), `Flush` takes the bits, reads each tile's owner **as it is now**, and hands them to `postgres_tile_store.Save`: one transaction, an upsert for owned tiles and a delete for freed ones, in chunks of 10k. A tile clicked five times between flushes is written once. A failed save puts the bits back; the next tick retries. Each flush has a 10s timeout, so a stuck connection cannot stall the loop.
