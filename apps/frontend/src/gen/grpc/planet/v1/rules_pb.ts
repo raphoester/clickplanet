@@ -50,6 +50,25 @@ export class Rules extends Message<Rules> {
    */
   arena?: ArenaRules;
 
+  /**
+   * How an arena's fresh map starts.
+   *
+   * @generated from field: planet.v1.Seed seed = 7;
+   */
+  seed?: Seed;
+
+  /**
+   * A take of a flag lands only on its land, on a tile next to it, or on a coast of a water where it holds a coast.
+   *
+   * @generated from field: optional bool reach = 8;
+   */
+  reach?: boolean;
+
+  /**
+   * @generated from field: planet.v1.CapitalRules capitals = 9;
+   */
+  capitals?: CapitalRules;
+
   constructor(data?: PartialMessage<Rules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -64,6 +83,9 @@ export class Rules extends Message<Rules> {
     { no: 4, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 5, name: "allegiance_locked", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 6, name: "arena", kind: "message", T: ArenaRules },
+    { no: 7, name: "seed", kind: "message", T: Seed },
+    { no: 8, name: "reach", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 9, name: "capitals", kind: "message", T: CapitalRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rules {
@@ -84,7 +106,7 @@ export class Rules extends Message<Rules> {
 }
 
 /**
- * A battle played with on is an arena battle: it is fought on a blank map, and the map from before comes back when it
+ * A battle played with on is an arena battle: it is fought on a fresh map, and the map from before comes back when it
  * ends. Never on in default.
  *
  * @generated from message planet.v1.ArenaRules
@@ -96,19 +118,11 @@ export class ArenaRules extends Message<ArenaRules> {
   on?: boolean;
 
   /**
-   * Every play is refused this long after the map goes blank and before the battle ends. 0 to 30 s.
+   * Every play is refused this long after the fresh map plays and before the battle ends. 0 to 30 s.
    *
    * @generated from field: google.protobuf.Duration freeze = 2;
    */
   freeze?: Duration;
-
-  /**
-   * The shields each country's capital starts the arena with, past bonuses.shield.per_tile. No shield is added to a
-   * capital while the arena plays. 0 to 255.
-   *
-   * @generated from field: optional uint32 capital_shields = 3;
-   */
-  capitalShields?: number;
 
   constructor(data?: PartialMessage<ArenaRules>) {
     super();
@@ -120,7 +134,6 @@ export class ArenaRules extends Message<ArenaRules> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "on", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 2, name: "freeze", kind: "message", T: Duration },
-    { no: 3, name: "capital_shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ArenaRules {
@@ -137,6 +150,137 @@ export class ArenaRules extends Message<ArenaRules> {
 
   static equals(a: ArenaRules | PlainMessage<ArenaRules> | undefined, b: ArenaRules | PlainMessage<ArenaRules> | undefined): boolean {
     return proto3.util.equals(ArenaRules, a, b);
+  }
+}
+
+/**
+ * One pattern; a set that holds another pattern than default's plays its own alone.
+ *
+ * @generated from message planet.v1.Seed
+ */
+export class Seed extends Message<Seed> {
+  /**
+   * @generated from oneof planet.v1.Seed.pattern
+   */
+  pattern: {
+    /**
+     * @generated from field: planet.v1.CapitalSeed capitals = 1;
+     */
+    value: CapitalSeed;
+    case: "capitals";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<Seed>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.Seed";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "capitals", kind: "message", T: CapitalSeed, oneof: "pattern" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Seed {
+    return new Seed().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Seed {
+    return new Seed().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Seed {
+    return new Seed().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Seed | PlainMessage<Seed> | undefined, b: Seed | PlainMessage<Seed> | undefined): boolean {
+    return proto3.util.equals(Seed, a, b);
+  }
+}
+
+/**
+ * Each country's capital, held by its country, with this many shields, past bonuses.shield.per_tile. 0 to 255.
+ *
+ * @generated from message planet.v1.CapitalSeed
+ */
+export class CapitalSeed extends Message<CapitalSeed> {
+  /**
+   * @generated from field: optional uint32 shields = 1;
+   */
+  shields?: number;
+
+  constructor(data?: PartialMessage<CapitalSeed>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.CapitalSeed";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CapitalSeed {
+    return new CapitalSeed().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CapitalSeed {
+    return new CapitalSeed().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CapitalSeed {
+    return new CapitalSeed().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CapitalSeed | PlainMessage<CapitalSeed> | undefined, b: CapitalSeed | PlainMessage<CapitalSeed> | undefined): boolean {
+    return proto3.util.equals(CapitalSeed, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.CapitalRules
+ */
+export class CapitalRules extends Message<CapitalRules> {
+  /**
+   * A take of a flag's capital by another flag clears every other tile of the flag, and the flag is out.
+   *
+   * @generated from field: optional bool knock_out = 1;
+   */
+  knockOut?: boolean;
+
+  /**
+   * No shield is placed on a capital, and a fortify skips it.
+   *
+   * @generated from field: optional bool fixed_shields = 2;
+   */
+  fixedShields?: boolean;
+
+  constructor(data?: PartialMessage<CapitalRules>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.CapitalRules";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "knock_out", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 2, name: "fixed_shields", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CapitalRules {
+    return new CapitalRules().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CapitalRules {
+    return new CapitalRules().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CapitalRules {
+    return new CapitalRules().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CapitalRules | PlainMessage<CapitalRules> | undefined, b: CapitalRules | PlainMessage<CapitalRules> | undefined): boolean {
+    return proto3.util.equals(CapitalRules, a, b);
   }
 }
 

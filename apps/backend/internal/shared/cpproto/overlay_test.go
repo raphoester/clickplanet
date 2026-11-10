@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -88,4 +89,31 @@ func TestOverlayChangesNeitherBaseNorTop(t *testing.T) {
 
 	assert.True(t, proto.Equal(base(), kept), "%v", kept)
 	assert.InDelta(t, 3.0, top.GetClicks().GetTempo(), 1e-9)
+}
+
+func TestOverlayMergesTheOneofCaseBothHold(t *testing.T) {
+	ends := timestamppb.New(time.Date(2026, 11, 12, 22, 0, 0, 0, time.UTC))
+	base := &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_OpenArena{
+		OpenArena: &planetv1.OpenArena{ArenaId: "battle", EndsAt: ends},
+	}}
+
+	overlaid := cpproto.Overlay(base, &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_OpenArena{
+		OpenArena: &planetv1.OpenArena{RuleSet: "siege"},
+	}})
+
+	want := &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_OpenArena{
+		OpenArena: &planetv1.OpenArena{ArenaId: "battle", EndsAt: ends, RuleSet: "siege"},
+	}}
+	assert.True(t, proto.Equal(want, overlaid), "%v", overlaid)
+}
+
+func TestOverlayPlaysTopsOneofCaseAloneOverAnother(t *testing.T) {
+	base := &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_OpenArena{
+		OpenArena: &planetv1.OpenArena{ArenaId: "battle", RuleSet: "siege"},
+	}}
+	top := &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_CloseArena{CloseArena: &planetv1.CloseArena{}}}
+
+	overlaid := cpproto.Overlay(base, top)
+
+	assert.True(t, proto.Equal(top, overlaid), "nothing of base's other case: %v", overlaid)
 }

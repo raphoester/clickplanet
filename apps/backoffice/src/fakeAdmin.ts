@@ -374,7 +374,10 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         },
         frozen: false,
         allegianceLocked: false,
-        arena: {on: false, freeze: "8s", capitalShields: 100},
+        arena: {on: false, freeze: "8s"},
+        seed: {capitals: {shields: 100}},
+        reach: false,
+        capitals: {knockOut: false, fixedShields: false},
     })})], playing: "default"})
     roster = [
         new RosterEntry({key: "1", accountId: ACCOUNT, name: "BraveFox42", countryId: "fr"}),

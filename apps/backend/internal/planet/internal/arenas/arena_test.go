@@ -40,13 +40,13 @@ func TestTheMapThatPlaysIsTheArenasWhileItIsOpen(t *testing.T) {
 func TestAnArenaOpensOnce(t *testing.T) {
 	now := starts.Add(3 * time.Second)
 
-	opening, opened, err := arenas.Arena{ID: "battle"}.Open(ends, now, arenas.Arena{})
+	opening, opened, err := arenas.Arena{ID: "battle"}.Open(ends, now, 8*time.Second, arenas.Arena{})
 
 	require.NoError(t, err)
 	assert.True(t, opened)
-	assert.Equal(t, arenas.Opening{ID: "battle", EndsAt: ends, OpenedAt: now}, opening)
+	assert.Equal(t, arenas.Opening{ID: "battle", EndsAt: ends, OpenedAt: now, Freeze: 8 * time.Second}, opening)
 
-	_, opened, err = arenas.Arena{ID: "battle", Opening: opening, Opened: true}.Open(ends, now.Add(time.Second), arenas.Arena{})
+	_, opened, err = arenas.Arena{ID: "battle", Opening: opening, Opened: true}.Open(ends, now.Add(time.Second), 8*time.Second, arenas.Arena{})
 	require.NoError(t, err)
 	assert.False(t, opened, "an arena open already changes nothing")
 }
@@ -54,9 +54,9 @@ func TestAnArenaOpensOnce(t *testing.T) {
 func TestAnArenaClosedEndedOrBesideAnotherIsRefused(t *testing.T) {
 	now := starts.Add(3 * time.Second)
 
-	_, _, closed := arenas.Arena{ID: "battle", Closed: true}.Open(ends, now, arenas.Arena{})
-	_, _, ended := arenas.Arena{ID: "battle"}.Open(ends, ends, arenas.Arena{})
-	_, _, beside := arenas.Arena{ID: "battle"}.Open(ends, now, arenas.Arena{ID: "other", Opened: true})
+	_, _, closed := arenas.Arena{ID: "battle", Closed: true}.Open(ends, now, 0, arenas.Arena{})
+	_, _, ended := arenas.Arena{ID: "battle"}.Open(ends, ends, 0, arenas.Arena{})
+	_, _, beside := arenas.Arena{ID: "battle"}.Open(ends, now, 0, arenas.Arena{ID: "other", Opened: true})
 
 	require.ErrorIs(t, closed, arenas.ErrRefused)
 	require.ErrorIs(t, ended, arenas.ErrRefused)
@@ -74,15 +74,16 @@ func TestAnArenaClosesOnceOpenedOrNot(t *testing.T) {
 	assert.False(t, closed)
 }
 
-func TestAnArenaFreezesAfterTheMapWentBlankAndBeforeTheBattleEnds(t *testing.T) {
-	opening := arenas.Opening{ID: "battle", EndsAt: ends, OpenedAt: starts.Add(3 * time.Second)}
+func TestAnArenaFreezesAfterItsMapPlaysAndBeforeTheBattleEnds(t *testing.T) {
 	freeze := 8 * time.Second
+	opening := arenas.Opening{ID: "battle", EndsAt: ends, OpenedAt: starts.Add(3 * time.Second), Freeze: freeze}
 
-	assert.True(t, opening.Freezes(opening.OpenedAt, freeze))
-	assert.True(t, opening.Freezes(opening.OpenedAt.Add(freeze-time.Millisecond), freeze))
-	assert.False(t, opening.Freezes(opening.OpenedAt.Add(freeze), freeze))
-	assert.False(t, opening.Freezes(ends.Add(-freeze-time.Millisecond), freeze))
-	assert.True(t, opening.Freezes(ends.Add(-freeze), freeze))
-	assert.True(t, opening.Freezes(ends.Add(time.Minute), freeze), "until the map is back")
-	assert.False(t, opening.Freezes(starts.Add(time.Hour), 0))
+	assert.True(t, opening.Freezes(opening.OpenedAt))
+	assert.True(t, opening.Freezes(opening.OpenedAt.Add(freeze-time.Millisecond)))
+	assert.False(t, opening.Freezes(opening.OpenedAt.Add(freeze)))
+	assert.False(t, opening.Freezes(ends.Add(-freeze-time.Millisecond)))
+	assert.True(t, opening.Freezes(ends.Add(-freeze)))
+	assert.True(t, opening.Freezes(ends.Add(time.Minute)), "until the map is back")
+	opening.Freeze = 0
+	assert.False(t, opening.Freezes(starts.Add(time.Hour)))
 }

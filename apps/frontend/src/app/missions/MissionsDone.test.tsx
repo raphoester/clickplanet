@@ -7,7 +7,7 @@ import {AWARD_MS} from "../bonus/BonusAward.tsx"
 import {useBonus} from "../bonus/bonusStore.ts"
 import {NO_MISSIONS, useMissions} from "./missionsStore.ts"
 
-const rules = {blastRadius: 0.05, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [], signInRefill: false, enclosuresUnlimited: false}
+const rules = {blastRadius: 0.05, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [], signInRefill: false, enclosuresUnlimited: false, reach: false, knockOut: false, capitalShieldsFixed: false}
 
 function paid(...missions: Mission[]) {
     useBonus.setState({rules})

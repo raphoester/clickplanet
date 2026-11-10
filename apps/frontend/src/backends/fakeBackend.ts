@@ -107,6 +107,9 @@ const RULES: BonusRules = {
     toll: TOLL_STEPS,
     signInRefill: true,
     enclosuresUnlimited: false,
+    reach: false,
+    knockOut: false,
+    capitalShieldsFixed: false,
 }
 
 export type FakeBackendOptions = {
@@ -868,7 +871,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 const held = this.shields.get(tile)
                 if (held) shields.set(tile, held)
             }
-            callback({range, version: this.version(), bindings, shields, arena: false, knockedOut: []})
+            callback({range, version: this.version(), bindings, shields, knockedOut: []})
         }
     }
 }

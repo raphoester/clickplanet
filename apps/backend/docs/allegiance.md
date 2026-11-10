@@ -19,12 +19,13 @@ player could paint for one country and defend another click to click. **Only
   flag and the same flag still go, so a newcomer joins mid-battle. The hour's wait is not touched: a change before the
   battle still counts after it. `PlayError(flag, lock)` says the lock in its refusal too, so a page that hears a refused
   click learns it.
-- **In an arena, only a flag still in may be picked** (the owner, 2026-11-09): `Pledged(flag, at, lock, standing)` reads
-  `Standing.Stands`, which the tile storage answers (see [The knock-out](arenas.md#the-knock-out)). A flag knocked
+- **While the knock-out plays, only a flag still in may be picked** (the owner, 2026-11-09): `Pledged(flag, at, lock, standing)` reads
+  `Standing.Stands`, which the tile storage answers (see [The knock-out](capitals.md#the-knock-out-capitalsknockout)). A flag knocked
   out, or with no capital (England, Scotland, Wales, Brittany), is refused, `ErrDown` (`FailedPrecondition`), to a
   newcomer too. **An account whose flag does not stand changes at once, past the lock and the hour**: the change
-  starts the hour's wait as any change does. Outside an arena every flag stands, so nothing changes there. After the
-  battle everybody keeps the flag picked. `PlayError` is not touched: a flag with no land reaches nothing already.
+  starts the hour's wait as any change does. While the knock-out does not play every flag stands, so nothing changes
+  there. After the battle everybody keeps the flag picked. `PlayError` is not touched: with the reach, a flag with no
+  land reaches nothing already (without it, see [Arena battles](arenas.md#known-gaps)).
 - **`allegiances.Book.Pledge(ctx, payer, flag)`** applies `Pledged` at the clock's
   time, in the store's `Change`: one transaction under `pg_advisory_xact_lock` on the
   account, so two tabs pledging two flags at once cannot both change it. A caller with

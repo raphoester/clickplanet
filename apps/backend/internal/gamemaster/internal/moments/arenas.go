@@ -5,6 +5,8 @@ import (
 	"maps"
 	"slices"
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 )
 
 // Mode is how a battle plays, judged once as it starts.
@@ -44,6 +46,36 @@ func (p Plan) Judged(judgements ...Judgement) Plan {
 	}
 	p.known.modes = modes
 	return p
+}
+
+// SetWaits is true while planet must not play the set of the battle the turn plays at a time: the battle is not judged
+// yet, or it is an arena battle whose arena planet has not told opened, so its set would play on the map from before
+// it. A turn of no battle of the plan, and a plan that knows no arena battles, wait for nothing.
+func (p Plan) SetWaits(turn schedule.TurnSnapshot, at time.Time) bool {
+	battle, ok := p.battleOf(turn, at)
+	if !ok || p.known.modes == nil {
+		return false
+	}
+	round := battle.Round()
+	mode, judged := p.known.modes[round]
+	if !judged {
+		return true
+	}
+	return mode == Arena && !p.known.opened.Contains(round) && !p.known.closed.Contains(round)
+}
+
+func (p Plan) battleOf(turn schedule.TurnSnapshot, at time.Time) (Battle, bool) {
+	if turn.Kind != schedule.Battle {
+		return Battle{}, false
+	}
+	for _, book := range p.books {
+		for _, battle := range book.Battles {
+			if battle.runs(at) && battle.EndsSeason == turn.Finale && (turn.Finale || battle.Entry == turn.Entry) {
+				return battle, true
+			}
+		}
+	}
+	return Battle{}, false
 }
 
 // Waits is true while an arena battle that ended at or before a time has its arena open: the map from before it is not back
@@ -113,12 +145,13 @@ func (a ArenaAction) String() string {
 }
 
 // ArenaCommand is what the gamemaster asks planet for an arena battle: At is the battle's start for an open, its end for a
-// close. The arena is named by the battle's round.
+// close. The arena is named by the battle's round; an open names the battle's set, which says how its map starts.
 type ArenaCommand struct {
 	Action ArenaAction
 	Arena  RoundID
 	At     time.Time
 	EndsAt time.Time
+	Set    schedule.SetName
 }
 
 // ArenaKey is a command's identity: an open is sent once per process, a close again until planet answers it.
@@ -147,7 +180,9 @@ func (p Plan) ArenasDueAt(now time.Time) []ArenaCommand {
 			switch {
 			case battle.runs(now) && !p.known.opened.Contains(round):
 				if before, ok := p.roundBefore(battle); ok && p.settled(book.ID(), before.id) && !p.Waits(battle.StartsAt) {
-					due = append(due, ArenaCommand{Action: OpenArena, Arena: round, At: battle.StartsAt, EndsAt: battle.EndsAt})
+					due = append(due, ArenaCommand{
+						Action: OpenArena, Arena: round, At: battle.StartsAt, EndsAt: battle.EndsAt, Set: battle.Set,
+					})
 				}
 			case !now.Before(battle.EndsAt) && p.settled(book.ID(), round):
 				due = append(due, ArenaCommand{Action: CloseArena, Arena: round, At: battle.EndsAt, EndsAt: battle.EndsAt})

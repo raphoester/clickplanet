@@ -148,12 +148,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	entries := postgres_entry_store.New(db)
 	seasons := postgres_season_store.New(db)
-	ruleSchedule := play_schedule_usecase.NewRunner(scheduleCheck, log_play_schedule.New(
-		play_schedule_usecase.New(entries, seasons, redis_rule_set_commands.New(streams.Commands()), clock, sendAgain),
-		props.Logger))
 	heard := postgres_moment_store.New(db)
 	judged := postgres_arena_store.New(db)
 	planner := moments.NewPlanner(seasons, entries, heard, judged, cutoff)
+	ruleSchedule := play_schedule_usecase.NewRunner(scheduleCheck, log_play_schedule.New(
+		play_schedule_usecase.New(entries, seasons, planner, redis_rule_set_commands.New(streams.Commands()), clock, sendAgain),
+		props.Logger))
 	told := outbox_moment_events.New(cpoutbox.New(db))
 	planPlay := play_plan_usecase.NewRunner(scheduleCheck, log_play_plan.New(play_plan_usecase.New(planner,
 		log_play_resets.New(play_resets_usecase.New(redis_map_commands.New(streams.Commands()), clock), props.Logger),

@@ -59,8 +59,8 @@ func (o *outFlags) markUnsaved(out []OutFlag) {
 // knockOutLocked knocks out the flag whose capital the take of tile felled: every other tile it holds goes blank, with
 // no shield and no holder, and it is kept out.
 func (s *Storage) knockOutLocked(ctx context.Context, tile uint32, flag string) (clicks.KnockOut, error) {
-	country := s.capitals.CountryOf(tile)
-	if err := clicks.KnockOutError(s.playing != clicks.World, country, s.out.has(country), flag); err != nil {
+	country, err := s.capitals.Felled(tile, flag, s.out.has)
+	if err != nil {
 		return clicks.KnockOut{}, err //nolint:wrapcheck // the sentinel, unwrapped: every take asks.
 	}
 
@@ -84,11 +84,11 @@ func (s *Storage) knockOutLocked(ctx context.Context, tile uint32, flag string) 
 	}, nil
 }
 
-// Stands says whether the flag is still in the game: always outside an arena, and in one while it has a capital that
-// is not out.
+// Stands says whether the flag is still in the game: always while the knock-out does not play, and while it does,
+// while it has a capital that is not out.
 func (s *Storage) Stands(flag string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return clicks.Stands(s.playing != clicks.World, s.capitals.Has(flag), s.out.has(flag))
+	return s.capitals.Stands(flag, s.out.has(flag))
 }

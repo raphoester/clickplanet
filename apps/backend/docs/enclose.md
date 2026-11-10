@@ -24,11 +24,11 @@ tells closed from open — there is no second rule.
 - **Each tile inside meets its shields**: a shielded tile loses one and is not
   taken. A bonus is never a way around the rule. `tiles_enclosed` lists it among the filled tiles, and in `struck`
   with the shields it kept.
-- **In an arena, a pocket needs no check of the flag's reach** (see [Arena battles](arenas.md#capitals-and-reach)):
+- **While the reach plays, a pocket needs no check of it** (see [The reach](reach.md)):
   it is walled by the flag's own tiles alone, and its flood stops at any coast, so every tile inside is the flag's
   inside. The click that closed it was checked.
 - **A capital inside a pocket knocks its flag out once the whole pocket is written** (see
-  [The knock-out](arenas.md#the-knock-out)): the blank never clears a tile the pocket takes after the capital, and the
+  [The knock-out](capitals.md#the-knock-out-capitalsknockout)): the blank never clears a tile the pocket takes after the capital, and the
   knock-out goes on the stream after the enclosure and its fortifies.
 - **An enclosure is one click**, spent through `Charges.Spend(holder, Held.AfterEnclose)` only by a
   click sent with enclose on that closed a pocket, so a click that closes nothing

@@ -24,8 +24,8 @@ cache entirely:
   follows the owned ones across; see `/map/README.md`.
 - `/static/capitals-<hash>.json` and `/static/waters-<hash>.json` — each country's
   capital tile, and each body of water's coast tiles. Fetched at runtime by
-  `capitals.ts` and `waters.ts` the first time a map read says an arena plays (see
-  [The arena](arena.md)); URLs in `capitalsAsset.ts` and `watersAsset.ts`. Copies of
+  `capitals.ts` and `waters.ts` the first time a capitals' rule or the reach plays (see
+  [The capitals](capitals.md) and [The reach](reach.md)); URLs in `capitalsAsset.ts` and `watersAsset.ts`. Copies of
   `/map` like the two above, written by the same `npm run map:generate`.
 - `/static/borderLines-<hash>.bin` — the countries' outlines, traced onto the
   tile lattice, with the two landmasses each run is between, fetched at runtime by

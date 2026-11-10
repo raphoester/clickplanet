@@ -59,12 +59,14 @@ message ArenaCommand {
   }
 }
 
-// Plays the arena's map, blank, while the world's map stays as it is: a new epoch, so every client reads the map again.
-// An arena opens once, never after it closed, and never at or after ends_at; planet tells ArenaOpened when it opens. Every
-// play is refused for the rule set's arena.freeze after it opens and before ends_at.
+// Plays the arena's map, fresh, while the world's map stays as it is: a new epoch, so every client reads the map again.
+// The map starts as rule_set's seed says. An arena opens once, never after it closed, and never at or after ends_at;
+// planet tells ArenaOpened when it opens. Every play is refused for rule_set's arena.freeze after it opens and before
+// ends_at.
 message OpenArena {
   string arena_id = 1;
   google.protobuf.Timestamp ends_at = 2;
+  string rule_set = 3;
 }
 
 // Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map left

@@ -163,11 +163,27 @@ describe("the game rules page", () => {
         render(<RulesPanel planet={admin}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
-        pick("Arena: the battle is fought on a blank map", "yes")
+        pick("Arena: the battle is fought on a fresh map", "yes")
         save()
 
         await waitFor(() => expect(sent(admin)).toBeDefined())
         expect(sent(admin)?.rules?.arena?.on).toBe(true)
+    })
+
+    it("plays the reach, the knock-out and fixed capital shields, each a switch of its own", async () => {
+        const admin = withCalm()
+        render(<RulesPanel planet={admin}/>)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
+        pick("Reach: a take lands only next to the flag's land or across its waters", "yes")
+        pick("Knock-out: a capital taken clears its flag", "yes")
+        pick("No shield on a capital", "no")
+        save()
+
+        await waitFor(() => expect(sent(admin)).toBeDefined())
+        expect(sent(admin)?.rules?.reach).toBe(true)
+        expect(sent(admin)?.rules?.capitals?.knockOut).toBe(true)
+        expect(sent(admin)?.rules?.capitals?.fixedShields).toBe(false)
     })
 
     it("makes a new set from a copy of default, which holds only what is typed", async () => {

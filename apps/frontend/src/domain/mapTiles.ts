@@ -37,8 +37,7 @@ export class MapTiles {
     private told: MapVersion | undefined
     // A fortify adds a shield: it waits for the read of a tile whose value may be older than the stream.
     private waiting: Fortifying[] = []
-    private inArena = false
-    // The flags the arena knocked out, in the epoch they were heard in: they only grow until a new epoch.
+    // The flags knocked out, in the epoch they were heard in: they only grow until a new epoch.
     private out = new Set<string>()
     private outEpoch: number | undefined
 
@@ -93,21 +92,15 @@ export class MapTiles {
         return this.ranges.every((_, index) => this.current(index))
     }
 
-    // What the last read that counted said: a map becomes an arena's, or the world's again, only with a new epoch.
-    public get arena(): boolean {
-        return this.inArena
-    }
-
     public get knockedOut(): ReadonlySet<string> {
         return this.out
     }
 
     // Whether the range is current: else read it again.
-    public read({range, version, bindings, shields, arena, knockedOut}: Ownerships, changes: TileChanges): boolean {
+    public read({range, version, bindings, shields, knockedOut}: Ownerships, changes: TileChanges): boolean {
         if (!this.clock.counts(version)) return false
         const index = this.rangeOf(range.start)
         if (index === undefined) return false
-        this.inArena = arena
         this.knockOut(knockedOut, version)
 
         for (let tile = range.start; tile <= range.end; tile++) {

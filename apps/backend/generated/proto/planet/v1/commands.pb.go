@@ -475,13 +475,15 @@ func (*ArenaCommand_OpenArena) isArenaCommand_Command() {}
 
 func (*ArenaCommand_CloseArena) isArenaCommand_Command() {}
 
-// Plays the arena's map, blank, while the world's map stays as it is: a new epoch, so every client reads the map again.
-// An arena opens once, never after it closed, and never at or after ends_at; planet tells ArenaOpened when it opens. Every
-// play is refused for the rule set's arena.freeze after it opens and before ends_at.
+// Plays the arena's map, fresh, while the world's map stays as it is: a new epoch, so every client reads the map again.
+// The map starts as rule_set's seed says. An arena opens once, never after it closed, and never at or after ends_at;
+// planet tells ArenaOpened when it opens. Every play is refused for rule_set's arena.freeze after it opens and before
+// ends_at.
 type OpenArena struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ArenaId       string                 `protobuf:"bytes,1,opt,name=arena_id,json=arenaId,proto3" json:"arena_id,omitempty"`
 	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	RuleSet       string                 `protobuf:"bytes,3,opt,name=rule_set,json=ruleSet,proto3" json:"rule_set,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -528,6 +530,13 @@ func (x *OpenArena) GetEndsAt() *timestamppb.Timestamp {
 		return x.EndsAt
 	}
 	return nil
+}
+
+func (x *OpenArena) GetRuleSet() string {
+	if x != nil {
+		return x.RuleSet
+	}
+	return ""
 }
 
 // Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map left
@@ -615,10 +624,11 @@ const file_planet_v1_commands_proto_rawDesc = "" +
 	"open_arena\x18\x01 \x01(\v2\x14.planet.v1.OpenArenaH\x00R\topenArena\x128\n" +
 	"\vclose_arena\x18\x02 \x01(\v2\x15.planet.v1.CloseArenaH\x00R\n" +
 	"closeArenaB\t\n" +
-	"\acommand\"[\n" +
+	"\acommand\"v\n" +
 	"\tOpenArena\x12\x19\n" +
 	"\barena_id\x18\x01 \x01(\tR\aarenaId\x123\n" +
-	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"'\n" +
+	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12\x19\n" +
+	"\brule_set\x18\x03 \x01(\tR\aruleSet\"'\n" +
 	"\n" +
 	"CloseArena\x12\x19\n" +
 	"\barena_id\x18\x01 \x01(\tR\aarenaIdB\xb5\x01\n" +

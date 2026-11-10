@@ -68,7 +68,7 @@ landmass of 50 tiles or more a flag fortified (`{country, ground, landmass, tile
 from its own table, `ground` for a country's main one; see [Fortify](fortify.md)), `champion`, the country that
 won a season, and `flag_mission`, every flag that finished its mission of the day (see
 [The flag's mission](missions.md#the-flags-mission)), told in that flag's room too, and `knock_out`, every flag an
-arena knocked out (`{country, by}`; see [Arena battles](arenas.md#the-knock-out)).
+arena knocked out (`{country, by}`; see [The knock-out](capitals.md#the-knock-out-capitalsknockout)).
 
 - **A separate type and a separate table, not a message with no author.** An announcement has no name, tag, IP,
   text or reactions, and a message has no kind or payload; sharing a base would make every column of one

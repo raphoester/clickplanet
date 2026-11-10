@@ -9,6 +9,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -17,8 +18,8 @@ type Tiles interface {
 	Blank(ctx context.Context, arena clicks.MapID, start []clicks.StartTile, keep func(ctx context.Context) (bool, error)) (bool, error)
 }
 
-type Starts interface {
-	Tiles() []clicks.StartTile
+type Setups interface {
+	Setup(ctx context.Context, set rules.SetName) (arenas.Setup, error)
 }
 
 type Arenas interface {
@@ -31,9 +32,11 @@ type InPlay interface {
 	Open(opening arenas.Opening)
 }
 
+// Command opens the arena for a battle that ends at EndsAt, set up as its rule set says.
 type Command struct {
 	Arena  arenas.ID
 	EndsAt time.Time
+	Set    rules.SetName
 }
 
 type Executor interface {
@@ -41,13 +44,13 @@ type Executor interface {
 	Execute(ctx context.Context, command Command) (bool, error)
 }
 
-func New(tiles Tiles, starts Starts, kept Arenas, outbox cpatomic.Outbox, inPlay InPlay, clock cptime.Clock) *UseCase {
-	return &UseCase{tiles: tiles, starts: starts, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock}
+func New(tiles Tiles, setups Setups, kept Arenas, outbox cpatomic.Outbox, inPlay InPlay, clock cptime.Clock) *UseCase {
+	return &UseCase{tiles: tiles, setups: setups, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock}
 }
 
 type UseCase struct {
 	tiles  Tiles
-	starts Starts
+	setups Setups
 	kept   Arenas
 	outbox cpatomic.Outbox
 	inPlay InPlay
@@ -57,11 +60,16 @@ type UseCase struct {
 var _ Executor = (*UseCase)(nil)
 
 // Execute keeps the arena open and records ArenaOpened, in one transaction under the map's locks, and plays the arena's
-// blank map with each flag's capital: the world's map stays in postgres as it is. The arena is read under the locks, so
-// a command told twice opens it once and is told once.
+// fresh map, seeded as the battle's set says: the world's map stays in postgres as it is. The arena is read under the
+// locks, so a command told twice opens it once and is told once.
 func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
+	setup, err := u.setups.Setup(ctx, command.Set)
+	if err != nil {
+		return false, err //nolint:wrapcheck // the setups name the set.
+	}
+
 	var opening arenas.Opening
-	opened, err := u.tiles.Blank(ctx, command.Arena.Map(), u.starts.Tiles(), func(ctx context.Context) (bool, error) {
+	opened, err := u.tiles.Blank(ctx, command.Arena.Map(), setup.Seed.Tiles(), func(ctx context.Context) (bool, error) {
 		arena, err := u.kept.Find(ctx, command.Arena)
 		if err != nil {
 			return false, err //nolint:wrapcheck // the store names it.
@@ -70,7 +78,7 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 		if err != nil {
 			return false, err //nolint:wrapcheck // the store names it.
 		}
-		next, opens, err := arena.Open(command.EndsAt, u.clock.Now(), playing)
+		next, opens, err := arena.Open(command.EndsAt, u.clock.Now(), setup.Freeze, playing)
 		if err != nil || !opens {
 			return false, err //nolint:wrapcheck // the arena says why.
 		}

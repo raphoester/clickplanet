@@ -32,7 +32,7 @@ describe("reportClickFailure", () => {
         expect(h.onVPNBlocked).not.toHaveBeenCalled()
     })
 
-    it("sends a click out of the flag's reach in an arena to the reach bubble, and to nothing else", () => {
+    it("sends a click out of the flag's reach to the reach bubble, and to nothing else", () => {
         const h = handlers()
 
         expect(reportClickFailure(new OutOfReachError(), h)).toBe(true)

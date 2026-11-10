@@ -36,8 +36,13 @@ type Part interface {
 
 type Parts []Part
 
+// Of is the part as the set plays it.
+func (p PartOf[R]) Of(set Set) R {
+	return set.parts[p.Key].(R) //nolint:forcetypeassert // Restore keeps each part as its R.
+}
+
 func Reader[R Rules](inForce *InForce, part PartOf[R]) func() R {
 	return func() R {
-		return inForce.set.Load().set.parts[part.Key].(R) //nolint:forcetypeassert // Restore keeps each part as its R.
+		return part.Of(inForce.set.Load().set)
 	}
 }

@@ -42,7 +42,12 @@ func (s *testSuite) TestAWipeDeletesTheFlagsOutOfItsMap() {
 	s.Len(s.outOn(other), 1)
 }
 
-func (s *testSuite) TestTheWorldsMapKeepsNoFlagOut() {
-	s.Require().Error(s.store.Save(context.Background(), clicks.World, nil, nil,
-		[]inmemory_tile_storage.OutFlag{{Flag: "fr", By: "de", At: time.Now()}}))
+func (s *testSuite) TestTheWorldsMapKeepsItsFlagsOutToo() {
+	at := time.Date(2026, 11, 11, 20, 3, 4, 0, time.UTC)
+	out := []inmemory_tile_storage.OutFlag{{Flag: "fr", By: "de", At: at}}
+
+	s.Require().NoError(s.store.Save(context.Background(), clicks.World, nil, nil, out))
+
+	s.Equal(out, s.outOn(clicks.World))
+	s.Empty(s.outOn(battle))
 }

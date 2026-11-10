@@ -18,6 +18,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -75,12 +78,12 @@ func newHarness(t *testing.T) harness {
 		slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context(), clicks.World))
 	kept, outbox := arenas.NewMemoryStore(), &cpatomic.FakeOutbox{}
-	arenaRules := func() arenas.Rules { return arenas.Rules{Freeze: 8 * time.Second} }
-	inPlay := arenas.NewInPlay(arenaRules, clock)
+	inPlay := arenas.NewInPlay(clock)
+	setups := arenas.NewSetups(rules.NewMemoryStore(parts.All(), rules.Seeded()),
+		seeds.NewCatalog(seeds.Ground{Capitals: clicks.NewCapitals(map[string]uint32{})}))
 	return harness{
 		tiles: tiles, stored: stored, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock,
-		opening: open_arena_usecase.New(tiles, arenas.NewStarts(clicks.NoCapitals(), arenaRules), kept,
-			&cpatomic.FakeOutbox{}, inPlay, clock),
+		opening: open_arena_usecase.New(tiles, setups, kept, &cpatomic.FakeOutbox{}, inPlay, clock),
 		useCase: close_arena_usecase.New(tiles, kept, outbox, inPlay, clock),
 	}
 }
@@ -96,7 +99,7 @@ func closedAt(at time.Time) proto.Message {
 
 func TestAnArenaClosedBringsTheMapFromBeforeItBackAndTellsItOnce(t *testing.T) {
 	h := newHarness(t)
-	_, err := h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends})
+	_, err := h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends, Set: rules.Default})
 	require.NoError(t, err)
 	require.NoError(t, h.tiles.Set(t.Context(), 1, "it"))
 	require.NoError(t, h.tiles.Set(t.Context(), 9, "it"))
@@ -136,13 +139,13 @@ func TestAnArenaNeverOpenedClosesAndIsToldWithTheMapLeftAsItIs(t *testing.T) {
 	assert.Equal(t, "fr", h.owner(1))
 	require.Len(t, h.outbox.Recorded(), 1)
 	assert.True(t, proto.Equal(closedAt(starts), h.outbox.Recorded()[0]))
-	_, err = h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends})
+	_, err = h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends, Set: rules.Default})
 	require.ErrorIs(t, err, arenas.ErrRefused, "an arena closed never opens")
 }
 
 func TestAnArenaThatCannotCloseLeavesTheMapAndTellsNothing(t *testing.T) {
 	h := newHarness(t)
-	_, err := h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends})
+	_, err := h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends, Set: rules.Default})
 	require.NoError(t, err)
 	require.NoError(t, h.tiles.Set(t.Context(), 9, "it"))
 	down := errors.New("postgres is down")

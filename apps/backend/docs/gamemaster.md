@@ -43,7 +43,8 @@ internal/gamemaster/
       usecases/add_entry_usecase/     audit_add_entry/
       usecases/edit_entry_usecase/    audit_edit_entry/
       usecases/delete_entry_usecase/  audit_delete_entry/
-      usecases/play_schedule_usecase/ the turn at now, commanded when it changes; Runner
+      usecases/play_schedule_usecase/ the turn at now, commanded when it changes; a battle's set to planet once its
+                                    battle took its map; Runner
         log_play_schedule/          logs each turn told, and a failure
     season/                         Number, Origin, Draft, Season, Window, Calendar (Added, Edited, Deletable, With,
                                     Windows, RunningAt, NextAfter, Finales); Finale, Window.FinaleStartsAt;
@@ -194,13 +195,20 @@ remembers none: a module may have kept a stale set. **It sends the same turn aga
 no newer and changes nothing, and one that refused its set plays it once the set is made. `log_play_schedule` logs each
 new turn told at Warn (`the schedule plays`, `set`, `entry`); a turn sent again is not logged.
 
+**Planet plays a battle's set only once the battle took its map** (2026-11-10): while the battle is not judged, or is an
+arena battle whose arena planet has not told opened (`Planner.SetWaits`, `Plan.SetWaits`), the antibot alone is told
+(`PlayAntibot`) and planet keeps the set before. Planet is told as soon as the wait ends, with the turn's decision time,
+and that is logged as a turn told too. Only a battle's turn is asked, and only until planet was told. See
+[Arena battles](arenas.md#the-order).
+
 **Level-triggered, with no outbox.** The runner keeps the last turn it told and its decision time in memory, and moves
 them only once Redis took both commands. A send Redis refuses is tried again the next second; a crash is followed by the
 boot's send. The outbox is for a command decided in the transaction of a change (see
 [the outbox](composite-layer.md#what-may-not-be-lost-the-outbox)): here the clock decides, and nothing is written.
 
-**`redis_rule_set_commands` sends one command to each module, in its words**: `planet.v1.PlayRuleSet{rule_set,
-decided_at}` and `antibot.v1.PlayRuleSet{rule_set, decided_at}`, each on its own command stream
+**`redis_rule_set_commands` sends one command to each module, in its words** (`Play`, or `PlayAntibot` alone while
+planet's set waits): `planet.v1.PlayRuleSet{rule_set, decided_at}` and `antibot.v1.PlayRuleSet{rule_set, decided_at}`,
+each on its own command stream
 (`commands:planet.v1.PlayRuleSet`, `commands:antibot.v1.PlayRuleSet`). `decided_at` is the runner's now when the turn
 changed, or at the boot, and stays the same when the turn is sent again. Scoring hears no
 rule set: a battle reaches it as a round (see [Commanding scoring](#commanding-scoring)).

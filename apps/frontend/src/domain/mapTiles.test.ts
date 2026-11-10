@@ -12,12 +12,11 @@ const tilesOf = () => new MapTiles(6, 4, new MapClock())
 
 const changes = (): TileChanges => ({owners: [], shields: []})
 
-const batch = (start: number, end: number, version: MapVersion, owners: Record<number, string>, shields: Record<number, number> = {}, arena = false, knockedOut: string[] = []): Ownerships => ({
+const batch = (start: number, end: number, version: MapVersion, owners: Record<number, string>, shields: Record<number, number> = {}, knockedOut: string[] = []): Ownerships => ({
     range: {start, end},
     version,
     bindings: new Map(Object.entries(owners).map(([tile, owner]) => [Number(tile), owner])),
     shields: new Map(Object.entries(shields).map(([tile, count]) => [Number(tile), count])),
-    arena,
     knockedOut,
 })
 
@@ -195,28 +194,14 @@ describe("a server that started again", () => {
         expect(live(tiles, update(2, "fr", at(901))).owners).toEqual([])
     })
 
-    it("says the map is an arena's from the reads of the start that plays it, and not from an older start's", () => {
-        const tiles = tilesOf()
-        tiles.opened(at(500))
-        read(tiles, batch(1, 4, at(500), {}))
-        expect(tiles.arena).toBe(false)
-
-        tiles.opened(at(0, START + 60))
-        read(tiles, batch(5, 6, at(500), {}, {}, false))
-        read(tiles, batch(1, 4, at(0, START + 60), {}, {}, true))
-        expect(tiles.arena).toBe(true)
-
-        read(tiles, batch(5, 6, at(500), {}, {}, false))
-        expect(tiles.arena).toBe(true)
-    })
 })
 
-describe("an arena knocks a flag out", () => {
+describe("a knock-out", () => {
     it("clears every tile the knock-out names and keeps the flag out", () => {
         const tiles = tilesOf()
         tiles.opened(at(10))
-        read(tiles, batch(1, 4, at(10), {1: "fr", 2: "fr", 3: "de"}, {2: 3}, true))
-        read(tiles, batch(5, 6, at(10), {}, {}, true))
+        read(tiles, batch(1, 4, at(10), {1: "fr", 2: "fr", 3: "de"}, {2: 3}))
+        read(tiles, batch(5, 6, at(10), {}, {}))
 
         const knocked = changes()
         tiles.applyKnockOut("fr", [2], at(12), knocked)
@@ -231,7 +216,7 @@ describe("an arena knocks a flag out", () => {
     it("leaves a tile a later change already wrote", () => {
         const tiles = tilesOf()
         tiles.opened(at(10))
-        read(tiles, batch(1, 4, at(10), {2: "fr"}, {}, true))
+        read(tiles, batch(1, 4, at(10), {2: "fr"}, {}))
         live(tiles, update(2, "de", at(13)))
 
         tiles.applyKnockOut("fr", [2], at(12), changes())
@@ -243,11 +228,11 @@ describe("an arena knocks a flag out", () => {
         const tiles = tilesOf()
         tiles.opened(at(10))
         tiles.applyKnockOut("fr", [], at(12), changes())
-        read(tiles, batch(1, 4, at(11), {}, {}, true, ["de"]))
+        read(tiles, batch(1, 4, at(11), {}, {}, ["de"]))
         expect([...tiles.knockedOut].sort()).toEqual(["de", "fr"])
 
         tiles.opened(at(0, START + 60))
-        read(tiles, batch(1, 4, at(0, START + 60), {}, {}, true, ["it"]))
+        read(tiles, batch(1, 4, at(0, START + 60), {}, {}, ["it"]))
         expect([...tiles.knockedOut]).toEqual(["it"])
     })
 })

@@ -102,18 +102,36 @@ func (s *testSuite) TestACapitalLeftBlankStillFallsToTheNextTake() {
 	s.Equal([]uint32{5, island[1]}, impact.KnockedOut.Cleared)
 }
 
-func (s *testSuite) TestATakeOnTheWorldsMapKnocksNobodyOut() {
+func (s *testSuite) TestATakeKnocksNobodyOutWhileTheKnockOutDoesNotPlay() {
 	ctx := context.Background()
-	storage := s.withCapitals(inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{island[0]: "fr", 5: "fr"}))
+	storage := s.withCapitalRules(inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), clicks.CapitalRules{})
+	_, err := storage.Blank(ctx, battle, capitalsWith(0), keeps(true))
+	s.Require().NoError(err)
+	s.Require().NoError(storage.Set(ctx, 5, "fr"))
 
 	impact, err := clicks.NewClaiming(storage, tenShields).Click(ctx, island[0], "de")
 
 	s.Require().NoError(err)
-	s.Nil(impact.KnockedOut)
+	s.Nil(impact.KnockedOut, "an arena alone knocks nobody out")
 	owner, _ := storage.Owner(5)
 	s.Equal("fr", owner)
 	s.True(storage.Stands("fr"))
-	s.True(storage.Stands("gb-eng"), "every flag stands outside an arena")
+	s.True(storage.Stands("gb-eng"), "every flag stands")
+}
+
+func (s *testSuite) TestTheKnockOutPlaysOnTheWorldsMapToo() {
+	ctx := context.Background()
+	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{island[0]: "fr", 5: "fr"})
+	storage := s.withCapitals(persistence)
+
+	impact, err := clicks.NewClaiming(storage, tenShields).Click(ctx, island[0], "de")
+
+	s.Require().NoError(err)
+	s.Require().NotNil(impact.KnockedOut)
+	s.Equal([]uint32{5}, impact.KnockedOut.Cleared)
+	s.False(storage.Stands("fr"))
+	s.Require().NoError(storage.Flush(ctx))
+	s.Contains(persistence.StoredOutFlagsOn(clicks.World), "fr")
 }
 
 func (s *testSuite) TestAnEnclosureKnocksOutOnceItsPocketIsWritten() {

@@ -41,7 +41,9 @@ func (c *closes) Execute(_ context.Context, arena arenas.ID) (close_arena_usecas
 }
 
 func openArena(id string, endsAt *timestamppb.Timestamp) *planetv1.ArenaCommand {
-	return &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_OpenArena{OpenArena: &planetv1.OpenArena{ArenaId: id, EndsAt: endsAt}}}
+	return &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_OpenArena{OpenArena: &planetv1.OpenArena{
+		ArenaId: id, EndsAt: endsAt, RuleSet: "siege",
+	}}}
 }
 
 func closeArena(id string) *planetv1.ArenaCommand {
@@ -55,7 +57,7 @@ func TestEachCommandGoesToItsUseCase(t *testing.T) {
 	require.NoError(t, handler.Handle(t.Context(), openArena("battle", timestamppb.New(ends))))
 	require.NoError(t, handler.Handle(t.Context(), closeArena("battle")))
 
-	assert.Equal(t, []open_arena_usecase.Command{{Arena: "battle", EndsAt: ends}}, open.told)
+	assert.Equal(t, []open_arena_usecase.Command{{Arena: "battle", EndsAt: ends, Set: "siege"}}, open.told)
 	assert.Equal(t, []arenas.ID{"battle"}, closing.told)
 }
 

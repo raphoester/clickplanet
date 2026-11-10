@@ -251,7 +251,7 @@ describe("ClickBudgetMeter and the price", () => {
         }
     })
 
-    it("says for a while, with a shake, to take a tile next to the flag's land in an arena", () => {
+    it("says for a while, with a shake, to take a tile next to the flag's land while the reach plays", () => {
         vi.useFakeTimers()
         try {
             render(budgeted(reading(), <ClickBudgetMeter/>))

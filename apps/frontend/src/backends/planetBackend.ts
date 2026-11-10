@@ -487,6 +487,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 toll: res.tollSteps.map(({share, slowdown}) => ({share, slowdown})),
                 signInRefill: res.signInRefill,
                 enclosuresUnlimited: res.enclosuresUnlimited,
+                reach: res.reach,
+                knockOut: res.knockOut,
+                capitalShieldsFixed: res.capitalShieldsFixed,
             }
             this.rules = rules
             this.bonusCallbacks.forEach(handlers => handlers.onRules(rules))
@@ -990,7 +993,7 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
 
 const NO_RULES: BonusRules = {
     blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, shields: 0, tileShields: 0, toll: [], signInRefill: false,
-    enclosuresUnlimited: false,
+    enclosuresUnlimited: false, reach: false, knockOut: false, capitalShieldsFixed: false,
 }
 
 function rewardOf(
@@ -1122,7 +1125,7 @@ export function versionOf(version: MapVersionMessage | undefined): MapVersion {
 
 export function ownershipsOf(res: GetMapResponse, range: TileRange): Ownerships {
     return {
-        range, version: versionOf(res.version), bindings: bindingsOf(res), shields: shieldsOf(res), arena: res.arena,
+        range, version: versionOf(res.version), bindings: bindingsOf(res), shields: shieldsOf(res),
         knockedOut: res.knockedOut,
     }
 }

@@ -158,6 +158,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/play_rules_usecase/log_play_rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase/audit_save_rule_set"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_created_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_forgotten_subscriber"
@@ -244,7 +245,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			// Before any request, and a failure only waits for the next boot: a row this boot made is a shield not flushed yet.
 			_, _ = log_return_placements.New(return_placements_usecase.New(placementStore, escrow), props.Logger).Execute(ctx)
 
-			tilesStorage := inmemory_tile_storage.New(borders, capitals, config.TilesStorage, postgres_tile_store.New(db), db,
+			capitalPlay := clicks.NewCapitalPlay(capitals, rules.Reader(inForce, clicks.CapitalsPart))
+			tilesStorage := inmemory_tile_storage.New(borders, capitalPlay, config.TilesStorage, postgres_tile_store.New(db), db,
 				escrow, clock, props.Logger)
 			if err := tilesStorage.Load(ctx, playing.Played()); err != nil {
 				closeStores()
@@ -282,12 +284,12 @@ func NewModule(config Config) cpbootstrap.Module {
 			freeze := rules.Reader(inForce, clicks.FreezePart)
 			lock := rules.Reader(inForce, allegiances.LockPart)
 
-			arenaRules := rules.Reader(inForce, arenas.Part)
-			inPlay := arenas.NewInPlay(arenaRules, clock)
+			inPlay := arenas.NewInPlay(clock)
 			inPlay.Resume(playing)
-			reach := arenas.NewReach(inPlay, geography, waters, tilesStorage)
+			reach := clicks.NewReach(rules.Reader(inForce, clicks.ReachPart), geography, waters, tilesStorage)
+			setups := arenas.NewSetups(ruleSets, seeds.NewCatalog(seeds.Ground{Capitals: capitals}))
 			arenaCommands, err := cpredis.Handle(ctx, streams, arena_command_handler.New(
-				log_open_arena.New(open_arena_usecase.New(tilesStorage, arenas.NewStarts(capitals, arenaRules), arenaStore,
+				log_open_arena.New(open_arena_usecase.New(tilesStorage, setups, arenaStore,
 					cpoutbox.New(db), inPlay, clock), props.Logger),
 				log_close_arena.New(close_arena_usecase.New(tilesStorage, arenaStore, cpoutbox.New(db), inPlay, clock),
 					props.Logger)))
@@ -517,13 +519,14 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetHoldingsHandler: get_holdings_handler.New(holdings_query.NewMemoryQuery(tilesStorage)),
 				ListenForEventsHandler: listen_for_events_handler.New(
 					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry, inForce, told)),
-				ClaimBonusHandler:    claim_bonus_handler.New(claimBonus),
-				DropBombHandler:      drop_bomb_handler.New(dropBomb),
-				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
-				GetChargesHandler:    get_charges_handler.New(get_charges_usecase.New(charges)),
-				GetBonusRulesHandler: get_bonus_rules_handler.New(game, bombing, pricer),
-				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
-				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
+				ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
+				DropBombHandler:   drop_bomb_handler.New(dropBomb),
+				UseRefillHandler:  use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
+				GetChargesHandler: get_charges_handler.New(get_charges_usecase.New(charges)),
+				GetBonusRulesHandler: get_bonus_rules_handler.New(game, bombing, pricer,
+					rules.Reader(inForce, clicks.ReachPart), rules.Reader(inForce, clicks.CapitalsPart)),
+				OpenQuizHandler:   open_quiz_handler.New(openQuiz),
+				AnswerQuizHandler: answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
 					place_shield_usecase.New(placements.NewGate(tilesStorage, countries, flags, game), escrow, writer),
 					refusing)),

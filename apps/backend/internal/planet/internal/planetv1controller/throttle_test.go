@@ -14,7 +14,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -60,7 +59,7 @@ func clickAs(t *testing.T, server *httptest.Server, ip string) (*connect.Respons
 
 type farAway struct{}
 
-func (farAway) Refuses(string, uint32) error { return arenas.ErrOutOfReach }
+func (farAway) Refuses(string, uint32) error { return clicks.ErrOutOfReach }
 
 func TestAClickOutOfReachSpendsNoToken(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))

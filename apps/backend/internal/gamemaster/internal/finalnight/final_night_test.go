@@ -50,6 +50,8 @@ type planetAndAntibot struct {
 	played []played
 }
 
+func (p *planetAndAntibot) PlayAntibot(context.Context, schedule.Turn, time.Time) error { return nil }
+
 func (p *planetAndAntibot) Play(_ context.Context, turn schedule.Turn, decidedAt time.Time) error {
 	if len(p.played) > 0 && !decidedAt.After(p.played[len(p.played)-1].at) {
 		return nil
@@ -108,7 +110,7 @@ func TestSeasonZerosLastDayAndItsFinalePlaySecondBySecond(t *testing.T) {
 	told := outbox_moment_events.New(outbox)
 
 	modules := &planetAndAntibot{}
-	rules := play_schedule_usecase.New(entries, seasons, modules, clock, time.Minute)
+	rules := play_schedule_usecase.New(entries, seasons, planner, modules, clock, time.Minute)
 	scored := &scoring{
 		t:      t,
 		rounds: hear_round_usecase.New(planner, kept, told, cpatomic.FakeTransactioner{}),

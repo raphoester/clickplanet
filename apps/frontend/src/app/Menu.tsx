@@ -8,7 +8,7 @@ import {Allegiance, Lock, lockOf, minutesLeftOf} from "../domain/allegiance.ts";
 import {describeEnd} from "../domain/endTime.ts";
 import Leaderboard from "./Leaderboard.tsx";
 import CountryPicker from "./CountryPicker.tsx";
-import {useArena} from "./arena/arenaStore.ts";
+import {useStanding} from "./knockout/standingStore.ts";
 import MenuPanel from "./components/MenuPanel.tsx";
 import HomeLogo from "./components/HomeLogo.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
@@ -270,8 +270,8 @@ function PlayingFor({country, allegiance, rank, changeRef, onChange, slim, pill}
 function ChangeButton({allegiance, changeRef, onChange}: Pick<PlayingForProps, "allegiance" | "changeRef" | "onChange">) {
     useNow()
     const now = Date.now()
-    const arena = useArena((store) => store.flags)
-    const lock = lockOf(allegiance, now, arena)
+    const standing = useStanding((store) => store.standing)
+    const lock = lockOf(allegiance, now, standing)
 
     return <button ref={changeRef}
                    type="button"

@@ -12,18 +12,37 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-const ledgerKnockOut = "20261111140100"
+const (
+	ledgerKnockOut       = "20261111140100"
+	knockOutsOnEveryMap  = "20261111150100"
+	insertKnockOutOfFrom = `INSERT INTO knockouts (map, flag, by_flag, knocked_out_at) VALUES ($1, 'fr', 'de', now())`
+)
 
-func TestAFlagOutIsKeptOnAnArenasMapOnly(t *testing.T) {
+func TestAFlagOutIsKeptOncePerMapTheWorldsToo(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
-	insert := `INSERT INTO knockouts (map, flag, by_flag, knocked_out_at) VALUES ($1, 'fr', 'de', now())`
 
-	_, err := db.On(t.Context()).ExecContext(t.Context(), insert, "battle")
+	_, err := db.On(t.Context()).ExecContext(t.Context(), insertKnockOutOfFrom, "battle")
 	require.NoError(t, err)
-	_, err = db.On(t.Context()).ExecContext(t.Context(), insert, "battle")
-	require.Error(t, err, "a flag is out of one arena once")
-	_, err = db.On(t.Context()).ExecContext(t.Context(), insert, "world")
-	require.Error(t, err, "the world's map knocks nobody out")
+	_, err = db.On(t.Context()).ExecContext(t.Context(), insertKnockOutOfFrom, "battle")
+	require.Error(t, err, "a flag is out of one map once")
+	_, err = db.On(t.Context()).ExecContext(t.Context(), insertKnockOutOfFrom, "world")
+	require.NoError(t, err, "the knock-out is a rule of its own, on any map")
+}
+
+func TestTheWorldsFlagsOutGoWithTheWayBack(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	for _, played := range []string{"world", "battle"} {
+		_, err := db.On(t.Context()).ExecContext(t.Context(), insertKnockOutOfFrom, played)
+		require.NoError(t, err)
+	}
+
+	down, err := fs.ReadFile(migrations.FS, knockOutsOnEveryMap+"_knockouts_on_every_map.down.sql")
+	require.NoError(t, err)
+	_, err = db.On(t.Context()).ExecContext(t.Context(), string(down))
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, countWhere(t, db, `SELECT count(*) FROM knockouts WHERE map = 'battle'`))
+	assert.Equal(t, 0, countWhere(t, db, `SELECT count(*) FROM knockouts WHERE map = 'world'`))
 }
 
 func TestTheKnockOutsGoBackWithTheirLedgerEvents(t *testing.T) {

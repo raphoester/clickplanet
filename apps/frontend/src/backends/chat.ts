@@ -111,7 +111,7 @@ export type FlagMissionAnnouncement = {
     order?: FlagMissionOrder
 }
 
-// An arena knocked country out: by took its capital.
+// A knock-out: by took the capital of country.
 export type KnockOutAnnouncement = {
     kind: "knock_out"
     id: string

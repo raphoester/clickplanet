@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 )
 
@@ -56,7 +57,7 @@ func TestAnArenaOpensOnceTheRoundBeforeItIsScored(t *testing.T) {
 	assert.Empty(t, backToBack(both(nil, nil)).ArenasDueAt(firstStarts))
 
 	assert.Equal(t, []moments.ArenaCommand{
-		{Action: moments.OpenArena, Arena: first, At: firstStarts, EndsAt: secondStarts},
+		{Action: moments.OpenArena, Arena: first, At: firstStarts, EndsAt: secondStarts, Set: "rush"},
 	}, backToBack(both([]moments.RoundID{"season-0/day-23"}, nil)).ArenasDueAt(firstStarts.Add(3*time.Second)))
 }
 
@@ -94,7 +95,7 @@ func TestTheNextArenaWaitsForTheMapOfTheOneBefore(t *testing.T) {
 	}, backToBack(both(scored, nil)).ArenasDueAt(secondStarts.Add(3*time.Second)), "the second opens on the first's map")
 
 	assert.Equal(t, []moments.ArenaCommand{
-		{Action: moments.OpenArena, Arena: second, At: secondStarts, EndsAt: secondEnds},
+		{Action: moments.OpenArena, Arena: second, At: secondStarts, EndsAt: secondEnds, Set: "rush"},
 	}, backToBack(both(scored, []moments.RoundID{first})).ArenasDueAt(secondStarts.Add(6*time.Second)))
 }
 
@@ -153,4 +154,34 @@ func TestAPlanThatKnowsNoArenaStaysSoOnceJudged(t *testing.T) {
 	judged := plan.Judged(moments.Judgement{Round: first, Mode: moments.Arena})
 
 	assert.Equal(t, plan.DueAt(firstStarts), judged.DueAt(firstStarts))
+}
+
+var firstTurn = schedule.TurnSnapshot{Entry: early, Set: "rush", Kind: schedule.Battle, StartsAt: firstStarts, EndsAt: secondStarts}
+
+func TestABattlesSetWaitsForItsJudgement(t *testing.T) {
+	now := firstStarts.Add(time.Second)
+
+	assert.True(t, backToBack(knowing(nil, nil, nil)).SetWaits(firstTurn, now))
+	assert.False(t, backToBack(knowing([]moments.Judgement{{Round: first, Mode: moments.Plain}}, nil, nil)).
+		SetWaits(firstTurn, now), "a plain battle plays its set at once")
+}
+
+func TestAnArenaBattlesSetWaitsForItsArenaOpened(t *testing.T) {
+	now := firstStarts.Add(3 * time.Second)
+	judged := []moments.Judgement{{Round: first, Mode: moments.Arena}}
+
+	waiting := backToBack(moments.NewKnown(moments.Kept{}, moments.ArenasKept{Judged: judged}))
+	opened := backToBack(moments.NewKnown(moments.Kept{}, moments.ArenasKept{Judged: judged, Opened: []moments.RoundID{first}}))
+
+	assert.True(t, waiting.SetWaits(firstTurn, now), "it would play on the map from before")
+	assert.False(t, opened.SetWaits(firstTurn, now))
+}
+
+func TestATurnOfNoBattleOfThePlanWaitsForNothing(t *testing.T) {
+	plan := backToBack(knowing(nil, nil, nil))
+	now := firstStarts.Add(time.Second)
+
+	assert.False(t, plan.SetWaits(schedule.TurnSnapshot{Set: "default", Kind: schedule.Plain}, now))
+	assert.False(t, plan.SetWaits(schedule.TurnSnapshot{Set: "rush", Kind: schedule.Battle}, now), "an entry the plan has no battle of")
+	assert.False(t, backToBack(moments.Known{}).SetWaits(firstTurn, now), "a plan that knows no arena battles")
 }

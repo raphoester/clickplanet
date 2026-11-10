@@ -10,12 +10,11 @@ import (
 // InPlay is the arena open now, in memory: every play asks it whether the map is frozen.
 type InPlay struct {
 	open  atomic.Pointer[Opening]
-	rules func() Rules
 	clock cptime.Clock
 }
 
-func NewInPlay(rules func() Rules, clock cptime.Clock) *InPlay {
-	return &InPlay{rules: rules, clock: clock}
+func NewInPlay(clock cptime.Clock) *InPlay {
+	return &InPlay{clock: clock}
 }
 
 // Resume takes on the arena open at boot, if any.
@@ -36,13 +35,8 @@ func (p *InPlay) Close(id ID) {
 	}
 }
 
-// Playing says whether an arena's map plays now.
-func (p *InPlay) Playing() bool {
-	return p.open.Load() != nil
-}
-
-// Freeze is the arena's freeze, as long as the rules in force say.
+// Freeze is the arena's freeze, as long as its opening says.
 func (p *InPlay) Freeze() clicks.Freeze {
 	open := p.open.Load()
-	return clicks.Freeze(open != nil && open.Freezes(p.clock.Now(), p.rules().Freeze))
+	return clicks.Freeze(open != nil && open.Freezes(p.clock.Now()))
 }

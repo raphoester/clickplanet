@@ -47,8 +47,9 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
     the charges, the rules, the switches and the armed bomb. `PlayScreen` reads the charges and the rules only for
     its hooks and the clicks panel's toll. `MissionsDone` reads the rules for the rewards it names.
   - `useNews` (`news/newsStore.ts`): the news line, below.
-  - `useArena` (`arena/arenaStore.ts`): the arena's flags, capitals and flags out, which the out window, the picker
-    and the Change button read, and the flag whose out window was closed (see [The arena](arena.md)).
+  - `useStanding` (`knockout/standingStore.ts`): while the knock-out plays, the capitals' flags and the flags out, which
+    the out window, the picker and the Change button read, and the flag whose out window was closed (see
+    [The capitals](capitals.md)).
 
   So `useGlobe` returns only what `PlayScreen` hands back to the globe or lays the screen out with.
 - **A test sets a store with `use<Feature>.setState(...)` and puts it back in `afterEach`**, since the store lives as

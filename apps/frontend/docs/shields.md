@@ -25,8 +25,8 @@ in `backends/backend.ts`, `domain/shields.ts` the count per tile and the rule,
 - **Shield is a switch.** While it is on, a click on a tile the flag holds sends
   `PlaceShield` (session-gated, not throttled) instead of a click, and spends
   no click. A tile already at its most sends nothing and the slot says "Full".
-  In an arena a capital takes none: it sends nothing and the slot says so (see
-  [The arena](arena.md)). Any other tile gets an ordinary click.
+  While the rules fix the capitals' shields a capital takes none: it sends nothing and the slot says so (see
+  [The capitals](capitals.md)). Any other tile gets an ordinary click.
 - **A click on another flag's shielded tile is shielded** (`outcomeOf`): it costs
   a click and takes nothing, so the globe paints no flag and plays the hit; the
   update brings the count. A take is predicted only on a tile with none, so a

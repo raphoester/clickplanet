@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/reach_click"
 )
@@ -30,10 +30,10 @@ func (s stubReach) Refuses(string, uint32) error { return s.err }
 func TestAClickOutOfReachGoesNoFurther(t *testing.T) {
 	inner := &countingClicks{}
 
-	_, err := reach_click.New(inner, stubReach{err: arenas.ErrOutOfReach}).Execute(t.Context(),
+	_, err := reach_click.New(inner, stubReach{err: clicks.ErrOutOfReach}).Execute(t.Context(),
 		click_usecase.In{TileID: 7, CountryID: "fr"})
 
-	require.ErrorIs(t, err, arenas.ErrOutOfReach)
+	require.ErrorIs(t, err, clicks.ErrOutOfReach)
 	assert.Empty(t, inner.seen, "the throttle inside never sees it, so it spends no token")
 }
 

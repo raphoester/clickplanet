@@ -41,3 +41,14 @@ func (c Commands) Play(ctx context.Context, turn schedule.Turn, decidedAt time.T
 	}
 	return nil
 }
+
+func (c Commands) PlayAntibot(ctx context.Context, turn schedule.Turn, decidedAt time.Time) error {
+	ctx, cancel := context.WithTimeout(ctx, sendTimeout)
+	defer cancel()
+
+	set := string(turn.TakeSnapshot().Set)
+	if err := c.commands.Send(ctx, &antibotv1.PlayRuleSet{RuleSet: set, DecidedAt: timestamppb.New(decidedAt)}); err != nil {
+		return fmt.Errorf("failed to command the antibot's rule set %q: %w", set, err)
+	}
+	return nil
+}

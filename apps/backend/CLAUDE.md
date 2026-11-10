@@ -51,12 +51,13 @@ and says what is in it. Read the doc before you change its area.
 - [The map load](docs/map-load.md) — `GetMap` is a cached HTTP GET; the stream carries what follows.
 - [The map reset](docs/map-reset.md) — a season after season 0 starts on a blank map: the gamemaster's `ResetMap`,
   wiped once per reset, a new epoch, and replays that start at the reset.
-- [Arena battles](docs/arenas.md) — a battle whose set has `arena.on` plays on a blank map, and the map from
-  before comes back at its end; the order that waits on facts kept (day K scored, the arena opened, the map back), the
-  freeze, the gaps; each flag's capital with its shields, written with the arena, and the reach: a take only next to
-  the flag's land or across its waters; the knock-out: a capital taken clears its flag's land in one event, the flags
-  out kept with the tiles, and the pick of a flag still in.
-  No arena battle in production before slice 5.
+- [Arena battles](docs/arenas.md) — a battle whose set has `arena.on` plays on a fresh map, and the map from
+  before comes back at its end; the arena is a shell: it switches the map and seeds it (`seeds`, the capitals pattern);
+  the order that waits on facts kept (day K scored, the arena opened, the battle's set played after, the map back), the
+  freeze, the gaps. No arena battle in production before slice 5.
+- [The reach](docs/reach.md) — a knob: a take only next to the flag's land or across its waters, on any map.
+- [The capitals' rules](docs/capitals.md) — two knobs: no shield on a capital, and the knock-out (a capital taken clears
+  its flag's land in one event, the flags out kept with the tiles, the pick of a flag still in).
 - [The map's version](docs/map-version.md) — every write counts one, published under the tiles lock so streams get
   them in order; `GetHoldings` and the one-second `holdings_changed`; the ETag and the 304.
 - [The live streams](docs/live-streams.md) — the `ListenForEvents` streams, served two ways, and how they end on

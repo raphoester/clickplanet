@@ -69,3 +69,12 @@ func (p Planner) With(ctx context.Context, changed ...schedule.Entry) (Plan, err
 	}
 	return NewPlan(calendar, p.cutoff, kept.Opened, append(entries, changed...)...).With(NewKnown(kept, arenas)), nil
 }
+
+// SetWaits is true while planet must not play the set of the battle the turn plays at a time: see Plan.SetWaits.
+func (p Planner) SetWaits(ctx context.Context, turn schedule.Turn, at time.Time) (bool, error) {
+	plan, err := p.Plan(ctx)
+	if err != nil {
+		return false, err
+	}
+	return plan.SetWaits(turn.TakeSnapshot(), at), nil
+}

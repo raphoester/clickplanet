@@ -71,9 +71,12 @@ func TestTheMapIsFrozenOverTheBreakAndResetAsSeasonOneStarts(t *testing.T) {
 
 	modules, planet, scoring := &planetAndAntibot{}, &resetsTold{}, &scoringTold{t: t, kept: kept}
 	judged := inmemory_arena_store.New()
+	_, err := judged.KeepJudged(t.Context(), moments.Judgement{Round: moments.FinaleRoundOf(0), Mode: moments.Plain})
+	require.NoError(t, err, "the finale was judged as it started, before this test's last second of it")
 	boot := func() (*play_schedule_usecase.UseCase, *play_plan_usecase.UseCase) {
-		return play_schedule_usecase.New(entries, seasons, modules, clock, time.Minute), play_plan_usecase.New(
-			moments.NewPlanner(seasons, entries, kept, judged, season.Cutoff(21*time.Hour)),
+		planner := moments.NewPlanner(seasons, entries, kept, judged, season.Cutoff(21*time.Hour))
+		return play_schedule_usecase.New(entries, seasons, planner, modules, clock, time.Minute), play_plan_usecase.New(
+			planner,
 			play_resets_usecase.New(planet, clock),
 			play_arenas_usecase.New(judged, rulesOf{}, &arenaCommands{}, clock, time.Minute),
 			play_scoring_usecase.New(kept, scoring, clock, time.Minute),

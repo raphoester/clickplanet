@@ -28,7 +28,7 @@ type Look = {
     digit: string
 }
 
-// The plain shield, each count up to the most, then the crown of a capital in an arena.
+// The plain shield, each count up to the most, then the crown of a capital still standing.
 export function shieldCellsOf(most: number): THREE.Vector2 {
     return new THREE.Vector2(COLUMNS, Math.ceil((Math.max(1, most) + 2) / COLUMNS))
 }
