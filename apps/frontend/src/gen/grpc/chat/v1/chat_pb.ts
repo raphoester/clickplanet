@@ -427,11 +427,6 @@ export class Quote extends Message<Quote> {
  */
 export class SendMessageRequest extends Message<SendMessageRequest> {
   /**
-   * @generated from field: string author_id = 2;
-   */
-  authorId = "";
-
-  /**
    * @generated from field: string country_id = 3;
    */
   countryId = "";
@@ -476,7 +471,6 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chat.v1.SendMessageRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "author_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "body" },
     { no: 7, name: "gif", kind: "message", T: Gif, oneof: "body" },

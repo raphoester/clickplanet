@@ -33,14 +33,12 @@ import {
     TileRange,
     Update,
     UpdatesListener,
-    VPNBlockedError,
     FrozenError,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
 import {Allegiance, lockOf} from "../domain/allegiance.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
-import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
 import {nearestTile, tilesWithin} from "../domain/blast.ts";
@@ -112,8 +110,6 @@ const RULES: BonusRules = {
 }
 
 export type FakeBackendOptions = {
-    vpnBlocked?: boolean
-    sessionUnavailable?: boolean
     tilePositions?: () => Promise<Float32Array>
     // The borders blob's tile → landmass table: the map's tiles, what each flag holds of each landmass, and fortifying.
     landmasses: () => Promise<{assignment: Uint16Array, count: number}>
@@ -165,12 +161,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     private rules = RULES
     private bannedUntil: number | undefined
-    private readonly vpnBlocked: boolean
-    private readonly sessionUnavailable: boolean
 
     constructor(batchUpdateDurationMs: number, options: FakeBackendOptions) {
-        this.vpnBlocked = options.vpnBlocked ?? false
-        this.sessionUnavailable = options.sessionUnavailable ?? false
         this.tilePositions = options.tilePositions
         this.ready = options.landmasses().then(({assignment, count}) => {
             const tally = new FakeTally(assignment, count)
@@ -254,9 +246,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public async clickTile(tileId: number, countryId: string, switches: Switches = ALL_OFF) {
         if (switches.spread && switches.enclose) throw new Error("spread and enclose switched on together")
-        if (this.sessionUnavailable) throw new SessionUnavailableError()
         this.refuseBanned()
-        if (this.vpnBlocked) throw new VPNBlockedError()
         if (this.frozen) throw new FrozenError()
         this.play(countryId)
 
@@ -595,7 +585,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async placeShield(tileId: number, countryId: string): Promise<void> {
-        if (this.sessionUnavailable) throw new SessionUnavailableError()
         this.refuseBanned()
         this.play(countryId)
         if (this.charges.shields === 0) throw new BonusLostError()
@@ -735,7 +724,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async dropBomb(target: GlobePoint, countryId: string): Promise<void> {
-        if (this.sessionUnavailable) throw new SessionUnavailableError()
         this.refuseBanned()
         if (!this.charges.bomb) throw new BonusLostError()
 

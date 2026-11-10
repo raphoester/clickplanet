@@ -45,7 +45,7 @@ func (s *testSuite) posted(account messages.AccountID, ip string) {
 	s.Require().NoError(postgres_message_store.New(s.db).Append(s.T().Context(), messages.NewRecord(
 		messages.Restored(s.T(), messages.Snapshot{
 			ID: messages.MessageID(account.String() + ip), SentAt: now.Add(-time.Hour), Account: account, Country: "fr", Text: "hi",
-		}), "browser-1", ip, "test-agent")))
+		}), ip, "test-agent")))
 }
 
 func (s *testSuite) muted(id byte, account messages.AccountID, scope mutes.Scope, duration time.Duration) mutes.Mute {

@@ -156,7 +156,7 @@ func TestAHistoryTheBackendDoesNotGiveIsAnErrorThatSaysWhy(t *testing.T) {
 	require.ErrorContains(t, err, "400 Bad Request")
 }
 
-func TestASlotIsTheCalendarsFromTheRunsBoundOrNone(t *testing.T) {
+func TestASlotIsTheCalendarsOrNone(t *testing.T) {
 	fake := ssh(t, []string{
 		written(t, &publishingv1.PlanPostResponse{Slot: &publishingv1.Slot{
 			At: timestamppb.New(at), Platforms: []publishingv1.Platform{publishingv1.Platform_PLATFORM_YOUTUBE},
@@ -165,25 +165,23 @@ func TestASlotIsTheCalendarsFromTheRunsBoundOrNone(t *testing.T) {
 	}, "", 0)
 	publishing := service(t, fake, nil)
 
-	slot, found, err := publishing.Slot(t.Context(), []posts.Platform{posts.TikTok, posts.YouTube}, time.Time{})
+	slot, found, err := publishing.Slot(t.Context(), []posts.Platform{posts.TikTok, posts.YouTube})
 	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, posts.Slot{At: at, Platforms: []posts.Platform{posts.YouTube}}, slot)
 	var asked publishingv1.PlanPostRequest
 	assert.Equal(t, "PlanPost", fake.call(t, 1, &asked))
-	assert.Nil(t, asked.GetNotBefore(), "no bound of the run's own")
+	assert.Nil(t, asked.GetNotBefore())
 
-	_, found, err = publishing.Slot(t.Context(), []posts.Platform{posts.TikTok}, at)
+	_, found, err = publishing.Slot(t.Context(), []posts.Platform{posts.TikTok})
 	require.NoError(t, err)
 	assert.False(t, found)
-	fake.call(t, 2, &asked)
-	assert.Equal(t, at, asked.GetNotBefore().AsTime())
 }
 
 func TestAnSSHThatFailsToPlanIsBusySinceTheBackendMayBeRestarting(t *testing.T) {
 	fake := ssh(t, nil, "Connection refused", 255)
 
-	_, _, err := service(t, fake, nil).Slot(t.Context(), []posts.Platform{posts.TikTok}, time.Time{})
+	_, _, err := service(t, fake, nil).Slot(t.Context(), []posts.Platform{posts.TikTok})
 
 	var busy *posts.BusyError
 	require.ErrorAs(t, err, &busy)

@@ -1,7 +1,7 @@
 import {useEffect} from "react"
 import {Mood} from "../../domain/mood.ts"
 
-export const MOOD_ATTRIBUTE = "data-mood"
+const MOOD_ATTRIBUTE = "data-mood"
 
 export function useMood(mood: Mood | undefined) {
     useEffect(() => {

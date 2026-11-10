@@ -38,21 +38,33 @@ func (p *planet) Reset(_ context.Context, starts season.Window) error {
 	return nil
 }
 
-func harness(t *testing.T, at time.Time) (*play_resets_usecase.UseCase, *planet, *cptime.FixedClock) {
+type planned struct {
+	t       *testing.T
+	planner moments.Planner
+	useCase *play_resets_usecase.UseCase
+}
+
+func (p planned) Execute(ctx context.Context) (season.Window, bool, error) {
+	plan, err := p.planner.Plan(ctx)
+	require.NoError(p.t, err)
+	return p.useCase.Execute(ctx, plan)
+}
+
+func harness(t *testing.T, at time.Time) (planned, *planet, *cptime.FixedClock) {
 	t.Helper()
 	useCase, told, clock, _ := harnessWith(t, at, season.Snapshot{Number: 0, Length: seasonZeroEnds.Sub(season.Origin)}, 16*time.Hour)
 	return useCase, told, clock
 }
 
 func harnessWith(t *testing.T, at time.Time, zero season.Snapshot, pause time.Duration,
-) (*play_resets_usecase.UseCase, *planet, *cptime.FixedClock, *inmemory_arena_store.Store) {
+) (planned, *planet, *cptime.FixedClock, *inmemory_arena_store.Store) {
 	t.Helper()
 	seasons, judged := inmemory_season_store.New(), inmemory_arena_store.New()
 	require.NoError(t, seasons.Save(t.Context(), zero.Restore()))
 	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{Number: 1, Break: pause, Length: 28 * 24 * time.Hour}.Restore()))
 	told, clock := &planet{}, cptime.NewFixedClock(at)
 	planner := moments.NewPlanner(seasons, inmemory_entry_store.New(), inmemory_moment_store.New(), judged, season.Cutoff(21*time.Hour))
-	return play_resets_usecase.New(planner, told, clock), told, clock, judged
+	return planned{t: t, planner: planner, useCase: play_resets_usecase.New(told, clock)}, told, clock, judged
 }
 
 // An arena battle as season 0's finale, with season 1 starting as it ends: the reset waits for the map from before the arena battle,

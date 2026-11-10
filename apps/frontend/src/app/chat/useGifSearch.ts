@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useState} from "react";
 import {GifChoice, GifQuery, GifSearch} from "../../backends/gifs.ts";
 
-export const TYPING_PAUSE_MS = 350
+const TYPING_PAUSE_MS = 350
 
 export type GifSearchStatus = 'loading' | 'ready' | 'failed'
 

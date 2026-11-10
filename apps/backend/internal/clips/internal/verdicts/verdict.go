@@ -1,5 +1,5 @@
 // Whether a player's name may be shown in the game's posts. TikTok and YouTube take down a post that names a terrorist
-// group, a hate code or a real person, and strike the channel; the game itself shows every name. Each name is judged
+// group, a hate code or a mass killer, and strike the channel; the game itself shows every name. Each name is judged
 // once, and judged again when its player renames.
 package verdicts
 

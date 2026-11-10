@@ -384,7 +384,8 @@ func (s *TileStorageContractSuite) TestRestorePublishesOneOrdinaryUpdatePerTile(
 
 func (s *TileStorageContractSuite) shield(tile uint32, country string, shields int) {
 	for range shields {
-		s.Require().NoError(s.storage.Shield(context.Background(), tile, country, 10))
+		_, err := s.storage.Shield(context.Background(), tile, country, 10, PlacementID{})
+		s.Require().NoError(err)
 	}
 }
 
@@ -392,9 +393,12 @@ func (s *TileStorageContractSuite) TestShieldPublishesTheShieldsStanding() {
 	s.Require().NoError(s.set(context.Background(), 7, "fr"))
 	listener, ctx := s.subscribe(2 * time.Second)
 
-	s.Require().NoError(s.storage.Shield(ctx, 7, "fr", 10))
-	s.Require().NoError(s.storage.Shield(ctx, 7, "fr", 10))
+	first, err := s.storage.Shield(ctx, 7, "fr", 10, PlacementID{15: 1})
+	s.Require().NoError(err)
+	second, err := s.storage.Shield(ctx, 7, "fr", 10, PlacementID{15: 2})
+	s.Require().NoError(err)
 
+	s.Equal([]int{1, 2}, []int{first, second}, "each placement answers the shields it left")
 	s.Equal(&TileUpdate{Tile: 7, Value: "fr", Previous: "fr", Shields: 1}, s.next(ctx, listener).Update)
 	s.Equal(&TileUpdate{Tile: 7, Value: "fr", Previous: "fr", Shields: 2}, s.next(ctx, listener).Update)
 	s.Equal(2, s.storage.Shields(7))
@@ -404,11 +408,16 @@ func (s *TileStorageContractSuite) TestShieldRefusesATileOfAnotherFlagAndAFullOn
 	ctx := context.Background()
 	s.Require().NoError(s.set(ctx, 7, "fr"))
 
-	s.Require().ErrorIs(s.storage.Shield(ctx, 7, "de", 10), ErrNotYourTile)
-	s.Require().ErrorIs(s.storage.Shield(ctx, 8, "fr", 10), ErrNotYourTile, "an empty tile wears no flag")
-	s.Require().NoError(s.storage.Shield(ctx, 7, "fr", 1))
-	s.Require().ErrorIs(s.storage.Shield(ctx, 7, "fr", 1), ErrTileFull)
-	s.Require().ErrorIs(s.storage.Shield(ctx, contractMaxIndex+1, "fr", 1), ErrTileOutOfRange)
+	placed := func(tile uint32, country string, most int) error {
+		_, err := s.storage.Shield(ctx, tile, country, most, PlacementID{})
+		return err //nolint:wrapcheck // the test reads the storage's own error.
+	}
+
+	s.Require().ErrorIs(placed(7, "de", 10), ErrNotYourTile)
+	s.Require().ErrorIs(placed(8, "fr", 10), ErrNotYourTile, "an empty tile wears no flag")
+	s.Require().NoError(placed(7, "fr", 1))
+	s.Require().ErrorIs(placed(7, "fr", 1), ErrTileFull)
+	s.Require().ErrorIs(placed(contractMaxIndex+1, "fr", 1), ErrTileOutOfRange)
 
 	s.Equal(1, s.storage.Shields(7))
 }
@@ -434,7 +443,10 @@ func (s *TileStorageContractSuite) TestAShieldPlacedWhileAClaimDecidesWaitsForIt
 	s.Require().NoError(s.storage.Claim(ctx, func(tiles Claimable) error {
 		tile, err := tiles.Tile(7)
 		s.Require().NoError(err)
-		go func() { placed <- s.storage.Shield(ctx, 7, "de", 10) }()
+		go func() {
+			_, err := s.storage.Shield(ctx, 7, "de", 10, PlacementID{})
+			placed <- err
+		}()
 		s.Never(func() bool { return len(placed) > 0 }, 100*time.Millisecond, 10*time.Millisecond)
 
 		taken, impact := tile.Claimed("fr", cpsession.NoAccount)
@@ -595,8 +607,7 @@ func (s *TileStorageContractSuite) TestAnotherFlagFortifyingALandmassLetsTheFirs
 func (s *TileStorageContractSuite) TestAFortifyStopsAtTheMostATileHolds() {
 	ctx := context.Background()
 	s.own("fr", contractIsland...)
-	s.Require().NoError(s.storage.Shield(ctx, 90_001, "fr", 2))
-	s.Require().NoError(s.storage.Shield(ctx, 90_001, "fr", 2))
+	s.shield(90_001, "fr", 2)
 
 	fortification, err := s.fortify(ctx, 90_002, "fr", 2)
 
@@ -669,7 +680,7 @@ func (s *TileStorageContractSuite) TestAClickThatChangesNoOwnerKeepsTheHolder() 
 	ana, anaID := s.asAccount()
 	bob, _ := s.asAccount()
 	s.Require().NoError(s.click(ana, contractIsland[0], "fr"))
-	s.Require().NoError(s.storage.Shield(ana, contractIsland[0], "fr", 3))
+	s.shield(contractIsland[0], "fr", 1)
 
 	s.Equal(Unchanged, s.claim(bob, contractIsland[0], "fr").Outcome)
 	s.Equal(Shielded, s.claim(bob, contractIsland[0], "de").Outcome)
@@ -734,7 +745,7 @@ func (s *TileStorageContractSuite) TestEveryWriteCountsOneAfterTheVersionTheSubs
 	s.NotZero(opening.Epoch)
 
 	s.Require().NoError(s.click(ctx, 7, "de"))
-	s.Require().NoError(s.storage.Shield(ctx, 8, "fr", 10))
+	s.shield(8, "fr", 1)
 	s.Require().Equal(Shielded, s.claim(ctx, 8, "de").Outcome)
 	_, err = s.storage.Clear(ctx, Blast{Cleared: []uint32{7}})
 	s.Require().NoError(err)
@@ -800,8 +811,7 @@ func (s *TileStorageContractSuite) TestConcurrentWritesReachEverySubscriberInVer
 func (s *TileStorageContractSuite) TestAnEnclosureIsOneChangeAtOneVersionWithEveryTileItWrote() {
 	background := context.Background()
 	s.Require().NoError(s.set(background, 12, "de"))
-	s.Require().NoError(s.storage.Shield(background, 12, "de", 10))
-	s.Require().NoError(s.storage.Shield(background, 12, "de", 10))
+	s.shield(12, "de", 2)
 	ctx, cancel := context.WithTimeout(background, 2*time.Second)
 	s.T().Cleanup(cancel)
 	listener, opened, err := s.storage.Subscribe(ctx)

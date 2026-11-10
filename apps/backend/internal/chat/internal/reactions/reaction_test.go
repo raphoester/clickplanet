@@ -2,7 +2,6 @@ package reactions_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -71,15 +70,6 @@ func TestWithAndWithoutLeaveTheReceiverAsItWas(t *testing.T) {
 
 func TestNoReactorOwnsNothing(t *testing.T) {
 	assert.False(t, reactions.Reactions{}.With(clown, ada).Tally(reactions.NoReactor)[0].Mine())
-}
-
-func TestAppliedPutsOnAndTakesOff(t *testing.T) {
-	on := reactions.Reactions{}.Applied(reactions.On("", skull, ada, time.Time{}))
-	off := on.Applied(reactions.Off("", skull, ada, time.Time{}))
-
-	assert.True(t, on.Given(skull, ada))
-	assert.False(t, off.Given(skull, ada))
-	assert.Empty(t, off.Tally(ada))
 }
 
 func TestEveryAccountReactsAsItselfAndNoAccountIsNobody(t *testing.T) {

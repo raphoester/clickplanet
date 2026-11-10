@@ -19,7 +19,6 @@ type ClickSessionVerifier = cpconnect.SessionVerifier
 func NewSessionInterceptor(
 	verifier ClickSessionVerifier,
 	clock cptime.Clock,
-	enforce bool,
 	registerer prometheus.Registerer,
 ) connect.Interceptor {
 	checks := promauto.With(registerer).NewCounterVec(prometheus.CounterOpts{
@@ -31,7 +30,6 @@ func NewSessionInterceptor(
 		verifier,
 		clock,
 		ErrNoSession,
-		enforce,
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
 		cpconnect.Attested(planetv1connect.ClickServiceClickProcedure),
 		cpconnect.Attested(planetv1connect.ClickServiceClaimBonusProcedure),

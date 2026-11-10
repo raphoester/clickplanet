@@ -59,6 +59,6 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		return errEmptyUpdate
 	}
 	return s.stream.Send(&chatv1.ChatEvent{
-		Event: &chatv1.ChatEvent_Message{Message: chatmessage.Encode(message, nil, 0)},
+		Event: &chatv1.ChatEvent_Message{Message: chatmessage.Encode(message)},
 	})
 }

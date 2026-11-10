@@ -138,7 +138,6 @@ export type OutgoingReaction = {
 }
 
 export type OutgoingMessage = {
-    authorId: string
     countryCode: string
     text: string
     replyTo?: string

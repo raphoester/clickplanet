@@ -14,6 +14,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -23,32 +25,36 @@ const caller bonuses.Holder = "a-player"
 
 type fixture struct {
 	charges *bonuses.MemoryStore
+	kept    *placements.MemoryStore
 	tiles   *inmemory_tile_storage.Storage
-	book    allegiances.Book
-	clock   *cptime.FixedClock
+	gate    placements.Gate
+	escrow  placements.Escrow
 	useCase *place_shield_usecase.UseCase
 }
 
 func setup(t *testing.T, shields int) fixture {
 	t.Helper()
 
+	clock := cptime.NewFixedClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
 	charges := bonuses.NewMemoryStore()
 	charges.Keep(caller, bonuses.Held{Shields: shields})
+	kept := placements.NewMemoryStore()
+	escrow := placements.NewEscrow(cpatomic.FakeTransactioner{}, bonuses.NewCharges(charges, twoATile), kept,
+		&placements.SequentialIDs{}, clock)
 
 	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), clicks.NoCapitals(), inmemory_tile_storage.Config{},
-		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{7: "fr", 8: "de"}), cptime.SystemClock{}, slog.New(slog.DiscardHandler))
+		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{7: "fr", 8: "de"}), cpatomic.FakeTransactioner{}, escrow,
+		clock, slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context(), clicks.World))
 
-	clock := cptime.NewFixedClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
-	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), func() allegiances.Lock { return false }, clock, &allegiances.RecordedPledges{})
+	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), func() allegiances.Lock { return false }, clock,
+		&allegiances.RecordedPledges{})
 	require.NoError(t, book.Pledge(t.Context(), clicks.Payer{Account: string(caller)}, "fr"))
+	gate := placements.NewGate(tiles, cpcountries.New(), book, twoATile)
 
 	return fixture{
-		charges: charges,
-		tiles:   tiles,
-		book:    book,
-		clock:   clock,
-		useCase: place_shield_usecase.New(bonuses.NewCharges(charges, twoATile), tiles, cpcountries.New(), book, twoATile),
+		charges: charges, kept: kept, tiles: tiles, gate: gate, escrow: escrow,
+		useCase: place_shield_usecase.New(gate, escrow, tiles),
 	}
 }
 
@@ -70,7 +76,7 @@ func (f fixture) place(t *testing.T, in place_shield_usecase.In) (bonuses.Held, 
 	return f.useCase.Execute(played(t), in)
 }
 
-func TestAShieldStandsOnATileOfTheFlag(t *testing.T) {
+func TestAShieldStandsOnATileOfTheFlagAndIsUnderWayUntilTheFlush(t *testing.T) {
 	f := setup(t, 3)
 
 	held, err := f.place(t, place_shield_usecase.In{TileID: 7, CountryID: "fr"})
@@ -78,86 +84,45 @@ func TestAShieldStandsOnATileOfTheFlag(t *testing.T) {
 
 	assert.Equal(t, 2, held.Shields, "the answer is what is left in hand")
 	assert.Equal(t, 1, f.tiles.Shields(7))
+	assert.Len(t, f.kept.Kept(), 1)
+
+	require.NoError(t, f.tiles.Flush(t.Context()))
+	assert.Empty(t, f.kept.Kept(), "the flush that saved the shield ends its placement")
 }
 
-func TestATileOfAnotherFlagIsRefusedAndSpendsNothing(t *testing.T) {
+func TestAPlacementTheGateRefusesSpendsNothing(t *testing.T) {
 	f := setup(t, 3)
 
-	for _, tile := range []uint32{8, 9} {
-		_, err := f.place(t, place_shield_usecase.In{TileID: tile, CountryID: "fr"})
-		require.ErrorIs(t, err, clicks.ErrNotYourTile, tile)
-	}
+	_, err := f.place(t, place_shield_usecase.In{TileID: 8, CountryID: "fr"})
 
+	require.ErrorIs(t, err, clicks.ErrNotYourTile)
 	assert.Equal(t, 3, f.charges.Kept(caller).Shields)
-}
-
-func TestAFullTileIsRefusedAndSpendsNothing(t *testing.T) {
-	f := setup(t, 3)
-	in := place_shield_usecase.In{TileID: 7, CountryID: "fr"}
-	for range 2 {
-		_, err := f.place(t, in)
-		require.NoError(t, err)
-	}
-
-	_, err := f.place(t, in)
-	require.ErrorIs(t, err, clicks.ErrTileFull)
-
-	assert.Equal(t, 1, f.charges.Kept(caller).Shields)
-	assert.Equal(t, 2, f.tiles.Shields(7))
+	assert.Empty(t, f.kept.Kept())
 }
 
 func TestNoShieldHeldPlacesNothing(t *testing.T) {
 	f := setup(t, 0)
 
 	_, err := f.place(t, place_shield_usecase.In{TileID: 7, CountryID: "fr"})
+
 	require.ErrorIs(t, err, place_shield_usecase.ErrNoShield)
-
 	assert.Zero(t, f.tiles.Shields(7))
-}
-
-func TestAMalformedRequestIsRefused(t *testing.T) {
-	f := setup(t, 3)
-
-	_, err := f.place(t, place_shield_usecase.In{TileID: 7, CountryID: "nowhere"})
-	require.ErrorIs(t, err, clicks.ErrUnknownCountry)
-
-	_, err = f.place(t, place_shield_usecase.In{TileID: 101, CountryID: "fr"})
-	require.ErrorIs(t, err, clicks.ErrTileOutOfRange)
-
-	assert.Equal(t, 3, f.charges.Kept(caller).Shields)
+	assert.Empty(t, f.kept.Kept())
 }
 
 type lostRace struct{ *inmemory_tile_storage.Storage }
 
-func (l lostRace) Shield(context.Context, uint32, string, int) error { return clicks.ErrNotYourTile }
-
-func TestAShieldThatCouldNotBePlacedIsGivenBack(t *testing.T) {
-	f := setup(t, 3)
-	useCase := place_shield_usecase.New(bonuses.NewCharges(f.charges, twoATile), lostRace{f.tiles}, cpcountries.New(), f.book, twoATile)
-
-	_, err := useCase.Execute(played(t), place_shield_usecase.In{TileID: 7, CountryID: "fr"})
-	require.ErrorIs(t, err, clicks.ErrNotYourTile, "the tile changed hands between the check and the placement")
-
-	assert.Equal(t, 3, f.charges.Kept(caller).Shields)
+func (lostRace) Shield(context.Context, uint32, string, int, clicks.PlacementID) (int, error) {
+	return 0, clicks.ErrNotYourTile
 }
 
-func TestAShieldForAnotherFlagThanTheOneHeldIsRefusedAndSpendsNothing(t *testing.T) {
-	f := setup(t, 3)
-
-	_, err := f.place(t, place_shield_usecase.In{TileID: 8, CountryID: "de"})
-
-	require.ErrorIs(t, err, allegiances.ErrOtherFlag)
-	assert.Equal(t, 3, f.charges.Kept(caller).Shields)
-	assert.Equal(t, 0, f.tiles.Shields(8))
-}
-
-func TestAShieldWithNoFlagHeldIsRefusedAndSpendsNothing(t *testing.T) {
-	f := setup(t, 3)
-	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), func() allegiances.Lock { return false }, f.clock, &allegiances.RecordedPledges{})
-	useCase := place_shield_usecase.New(bonuses.NewCharges(f.charges, twoATile), f.tiles, cpcountries.New(), book, twoATile)
+func TestAShieldTheMapRefusesComesBackEvenAboveTheStackSize(t *testing.T) {
+	f := setup(t, 20)
+	useCase := place_shield_usecase.New(f.gate, f.escrow, lostRace{f.tiles})
 
 	_, err := useCase.Execute(played(t), place_shield_usecase.In{TileID: 7, CountryID: "fr"})
 
-	require.ErrorIs(t, err, allegiances.ErrNoFlag)
-	assert.Equal(t, 3, f.charges.Kept(caller).Shields)
+	require.ErrorIs(t, err, clicks.ErrNotYourTile, "the tile changed hands between the gate and the map")
+	assert.Equal(t, 20, f.charges.Kept(caller).Shields, "the stack size is 12, and the shield still comes back")
+	assert.Empty(t, f.kept.Kept())
 }

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnnounceRequest, AnnounceResponse, GetNameplatesRequest, GetNameplatesResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, GetRosterRequest, GetRosterResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse } from "./player_pb.js";
+import { AnnounceRequest, AnnounceResponse, GetNameplatesRequest, GetNameplatesResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse } from "./player_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -56,16 +56,6 @@ export const PlayerService = {
       I: LeaveRequest,
       O: LeaveResponse,
       kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc player.v1.PlayerService.GetRoster
-     */
-    getRoster: {
-      name: "GetRoster",
-      I: GetRosterRequest,
-      O: GetRosterResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * @generated from rpc player.v1.PlayerService.ListenForEvents

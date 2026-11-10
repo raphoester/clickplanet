@@ -1,4 +1,4 @@
-.PHONY: proto map quiz moderation test lint lint-ci tidy check-format check-quiz check-moderation setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains historic-scripts zernio zernio-spec metrics
+.PHONY: proto map quiz moderation test lint lint-ci tidy check-format check-quiz check-moderation setup-tools deadcode dBuild vpn-lists disposable-domains historic-scripts zernio zernio-spec metrics
 
 TEST_TAG := testing
 
@@ -55,18 +55,6 @@ check-moderation:
 
 dBuild:
 	@docker build -t clickplanet-back:local .
-
-dRun:
-	@docker run \
-		-d \
-		-p 8080:8080 \
-		--name clickplanet \
-		-v ./cmd/api:/home/app/config \
-		clickplanet-back:local \
-		/home/app/api -config /home/app/config/config.yaml
-
-dRm:
-	@docker rm -f clickplanet
 
 # bash -o pipefail, not .SHELLFLAGS: macOS ships GNU Make 3.81.
 test:

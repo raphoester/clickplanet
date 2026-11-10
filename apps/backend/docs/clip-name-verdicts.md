@@ -18,9 +18,12 @@ the cast.** The game itself shows every name: the chat, the boards and the map a
 - **The judge is Claude Haiku 5.5** (`claude_name_judge`), through Anthropic's Go SDK: its instructions
   (`instructions.md`, embedded) list what the platforms forbid and what stays, and say **when unsure, hide**: a name
   left out costs one mention, a strike costs the channel. Hidden: an armed, terrorist or extremist group, a hate
-  ideology or its codes, an attack on a people, a real person, what looks like a private person's full name, sexual
-  words, drugs and strong swearing, contact details. Kept: countries and love of them, opinions that attack no one,
-  jokes, mild rude words, and the names the game makes itself. The names go as JSON, each with a number, 100 a call;
+  ideology or its codes, an attack on a people, a terrorist, a mass killer or the leader of a genocide, sexual words,
+  drugs and strong swearing, contact details. Kept: countries and love of them, opinions that attack no one, any
+  other person (a hero, a politician, a star, a first and a family name), jokes, mild rude words, and the names the
+  game makes itself. **Only what the platforms forbid is hidden**: until 2026-11-10 the instructions also hid every
+  real person and every name that read as a private person's full name, which the platforms do not forbid, and the
+  judge hid "RAYNA KNYAGINYA", a Bulgarian national heroine. The names go as JSON, each with a number, 100 a call;
   the answer is held to a schema by structured outputs (each number, `shown`, a short `reason`), at effort `medium`,
   2 minutes and one retry. A name is data, never an instruction. **No word list**: a list kept by hand goes stale,
   and the model knows the groups and the people.

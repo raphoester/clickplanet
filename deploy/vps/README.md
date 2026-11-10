@@ -374,35 +374,9 @@ The env files on the box are gitignored. `.env.example` beside them is
 documentation of what each secret is for, and holds no value — see
 [Where the secrets live](#where-the-secrets-live).
 
-### Roll it out in three steps
-
-`backend.yaml` ships `auth.enabled: false`, and `auth.enforce: false`
-under it. Nothing below breaks a running site at any point: the API starts
-minting before anything requires a session, and starts requiring one only once
-the clients that can mint are the overwhelming majority.
-
-1. Set `auth.enabled: true` in `backend.yaml` (leave `enforce` false) and
-   deploy the backend. Then watch:
-
-   ```bash
-   docker compose exec backend wget -qO- localhost:8080/metrics | grep click_session_checks
-   ```
-
-   `verdict="missing"` is every click from a client that sends no token —
-   at this point, all of them.
-
-2. Deploy the frontend with `VITE_TURNSTILE_SITEKEY` set. `verdict="valid"`
-   should climb and `missing` should fall away as caches expire.
-
-3. Once `valid` is the overwhelming majority, set `auth.enforce: true` in
-   `backend.yaml` and redeploy.
-
-Flipping `enforce` before step 2 has settled refuses real players with a 401.
-The number to watch is `missing`, not the clock.
-
 ### If clicks start failing with 401
 
-- **Every click, right after enabling** — the frontend build has no sitekey, or
+- **Every click** — the frontend build has no sitekey, or
   Pages was not rebuilt after the env var was added.
 - **Every click, in the browser only** — check the preflight. `caddy/Caddyfile` must
   list `X-Session-Token` in `Access-Control-Allow-Headers`; a custom header on a

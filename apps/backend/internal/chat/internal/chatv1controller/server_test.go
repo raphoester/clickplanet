@@ -80,7 +80,7 @@ func startChatServer(
 				subscriber, messages.NewRooms(messages.FakeFlags{}), listen_for_events_usecase.DefaultHeartbeat)),
 		},
 		connect.WithInterceptors(
-			cpconnect.NewErrorInterceptor(nil, nil),
+			cpconnect.NewErrorInterceptor(nil),
 			NewBlocklistInterceptor(blocklist),
 			NewRateLimitInterceptor(limiter),
 			NewSessionInterceptor(keyVerifier{verifier: verifier}, clock),
@@ -99,7 +99,6 @@ func sendOnce(server *httptest.Server, ip string) error {
 
 func sendWithToken(server *httptest.Server, ip string, token string) error {
 	req := connect.NewRequest(&chatv1.SendMessageRequest{
-		AuthorId:  "some-uuid",
 		CountryId: "fr",
 		Body:      &chatv1.SendMessageRequest_Text{Text: "hello"},
 	})

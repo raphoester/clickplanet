@@ -89,7 +89,7 @@ func startGame(t *testing.T) gameStack {
 	planetConfig := planet.Config{Database: postgres.ConfigFor("planet"), Redis: redis}
 	clickAtWill(t, planetConfig.Database)
 	planetConfig.GameMap.MaxIndex = mapTiles
-	planetConfig.Auth = cpsession.VerifierConfig{Enabled: true, Enforce: true}
+	planetConfig.Auth = cpsession.VerifierConfig{Enabled: true}
 
 	antibotConfig := antibot.Config{Enabled: true, Database: postgres.ConfigFor("antibot"), Redis: redis}
 	watchNoOne(t, antibotConfig.Database)

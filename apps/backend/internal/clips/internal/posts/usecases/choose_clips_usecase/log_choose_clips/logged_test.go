@@ -80,17 +80,6 @@ func TestAFailureSaysNothing(t *testing.T) {
 	assert.Empty(t, logs)
 }
 
-func TestEachChosenStoryIsLoggedWithTheArmsOfItsClip(t *testing.T) {
-	logs, err := run(t, stubExecutor{choice: posts.Choice{
-		Chosen:   []posts.Chosen{day18, {Pick: 2, Story: battle, Key: posts.StoryKey{Flag: "fr", Continent: "Middle East"}}},
-		Assigned: []posts.Assignment{{Pick: 1, Variants: posts.Variants{"length": "short"}}, {Pick: 2, Variants: posts.Variants{}}},
-	}})
-
-	require.NoError(t, err)
-	assert.Contains(t, logs, `round=0.18 arms="length short"`)
-	assert.Contains(t, logs, `continent="Middle East"`+"\n")
-}
-
 func TestHowTheEditorsCallWentIsLoggedWithWhatItCost(t *testing.T) {
 	spend := posts.Spend{Model: "claude-haiku-5-5", InputTokens: 4200, CacheWriteTokens: 1800, OutputTokens: 600, USD: 0.00095}
 	chosen := []posts.Chosen{day18}

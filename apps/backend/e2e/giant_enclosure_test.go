@@ -105,9 +105,8 @@ func (f *fighter) click(ctx context.Context, tile uint32, enclose bool) (time.Du
 }
 
 func (f *fighter) tilesTaken() int64 {
-	req := connect.NewRequest(&progressionv1.GetStatsRequest{})
-	f.send(req.Header())
-	res, err := progressionv1connect.NewProgressionServiceClient(fast, f.stack.baseURL).GetStats(f.t.Context(), req)
+	res, err := progressionv1connect.NewAdminServiceClient(fast, f.stack.consoleURL).GetProgress(f.t.Context(),
+		connect.NewRequest(&progressionv1.AdminGetProgressRequest{AccountId: f.account}))
 	if err != nil {
 		return -1
 	}

@@ -9,7 +9,7 @@ import {usePlayerCard} from "./playerCardStore.ts"
 
 afterEach(() => {
     cleanup()
-    usePlayerCard.setState({openable: false, player: undefined})
+    usePlayerCard.setState({player: undefined})
 })
 
 const ana: PlayerLine = {accountId: "account-ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED}
@@ -17,17 +17,13 @@ const ana: PlayerLine = {accountId: "account-ana", name: "Ana", countryCode: "fr
 const missing: PlayerInfoBackend = {playerInfo: async () => undefined}
 
 describe("PlayerCardPlace", () => {
-    it("lets a name open a card only while it is there, and shows the card opened until it is closed", async () => {
-        const {unmount} = render(<PlayerCardPlace backend={missing} reporter={new FakeSupportBackend()}/>)
-        expect(usePlayerCard.getState().openable).toBe(true)
+    it("shows the card opened until it is closed", async () => {
+        render(<PlayerCardPlace backend={missing} reporter={new FakeSupportBackend()}/>)
 
         act(() => usePlayerCard.getState().open(ana))
         expect(screen.getByRole("dialog", {name: "Ana"})).toBeDefined()
 
         await userEvent.click(screen.getByRole("button", {name: "Close"}))
         expect(screen.queryByRole("dialog")).toBeNull()
-
-        unmount()
-        expect(usePlayerCard.getState().openable).toBe(false)
     })
 })

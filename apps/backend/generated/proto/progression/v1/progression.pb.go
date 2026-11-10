@@ -89,86 +89,6 @@ func (x *Stats) GetStreakLastDay() string {
 	return ""
 }
 
-type GetStatsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetStatsRequest) Reset() {
-	*x = GetStatsRequest{}
-	mi := &file_progression_v1_progression_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetStatsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetStatsRequest) ProtoMessage() {}
-
-func (x *GetStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetStatsRequest.ProtoReflect.Descriptor instead.
-func (*GetStatsRequest) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{1}
-}
-
-type GetStatsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Stats         *Stats                 `protobuf:"bytes,1,opt,name=stats,proto3" json:"stats,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetStatsResponse) Reset() {
-	*x = GetStatsResponse{}
-	mi := &file_progression_v1_progression_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetStatsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetStatsResponse) ProtoMessage() {}
-
-func (x *GetStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetStatsResponse.ProtoReflect.Descriptor instead.
-func (*GetStatsResponse) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *GetStatsResponse) GetStats() *Stats {
-	if x != nil {
-		return x.Stats
-	}
-	return nil
-}
-
 type CountryTiles struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
@@ -179,7 +99,7 @@ type CountryTiles struct {
 
 func (x *CountryTiles) Reset() {
 	*x = CountryTiles{}
-	mi := &file_progression_v1_progression_proto_msgTypes[3]
+	mi := &file_progression_v1_progression_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -191,7 +111,7 @@ func (x *CountryTiles) String() string {
 func (*CountryTiles) ProtoMessage() {}
 
 func (x *CountryTiles) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[3]
+	mi := &file_progression_v1_progression_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -204,7 +124,7 @@ func (x *CountryTiles) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CountryTiles.ProtoReflect.Descriptor instead.
 func (*CountryTiles) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{3}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *CountryTiles) GetCountryId() string {
@@ -229,7 +149,7 @@ type GetFrontsRequest struct {
 
 func (x *GetFrontsRequest) Reset() {
 	*x = GetFrontsRequest{}
-	mi := &file_progression_v1_progression_proto_msgTypes[4]
+	mi := &file_progression_v1_progression_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -241,7 +161,7 @@ func (x *GetFrontsRequest) String() string {
 func (*GetFrontsRequest) ProtoMessage() {}
 
 func (x *GetFrontsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[4]
+	mi := &file_progression_v1_progression_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -254,7 +174,7 @@ func (x *GetFrontsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFrontsRequest.ProtoReflect.Descriptor instead.
 func (*GetFrontsRequest) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{4}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{2}
 }
 
 type GetFrontsResponse struct {
@@ -267,7 +187,7 @@ type GetFrontsResponse struct {
 
 func (x *GetFrontsResponse) Reset() {
 	*x = GetFrontsResponse{}
-	mi := &file_progression_v1_progression_proto_msgTypes[5]
+	mi := &file_progression_v1_progression_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -279,7 +199,7 @@ func (x *GetFrontsResponse) String() string {
 func (*GetFrontsResponse) ProtoMessage() {}
 
 func (x *GetFrontsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[5]
+	mi := &file_progression_v1_progression_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -292,7 +212,7 @@ func (x *GetFrontsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFrontsResponse.ProtoReflect.Descriptor instead.
 func (*GetFrontsResponse) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{5}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetFrontsResponse) GetPlaysFor() []*CountryTiles {
@@ -317,7 +237,7 @@ type GetTitlesRequest struct {
 
 func (x *GetTitlesRequest) Reset() {
 	*x = GetTitlesRequest{}
-	mi := &file_progression_v1_progression_proto_msgTypes[6]
+	mi := &file_progression_v1_progression_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -329,7 +249,7 @@ func (x *GetTitlesRequest) String() string {
 func (*GetTitlesRequest) ProtoMessage() {}
 
 func (x *GetTitlesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[6]
+	mi := &file_progression_v1_progression_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -342,7 +262,7 @@ func (x *GetTitlesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTitlesRequest.ProtoReflect.Descriptor instead.
 func (*GetTitlesRequest) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{6}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{4}
 }
 
 type GetTitlesResponse struct {
@@ -356,7 +276,7 @@ type GetTitlesResponse struct {
 
 func (x *GetTitlesResponse) Reset() {
 	*x = GetTitlesResponse{}
-	mi := &file_progression_v1_progression_proto_msgTypes[7]
+	mi := &file_progression_v1_progression_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -368,7 +288,7 @@ func (x *GetTitlesResponse) String() string {
 func (*GetTitlesResponse) ProtoMessage() {}
 
 func (x *GetTitlesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[7]
+	mi := &file_progression_v1_progression_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -381,7 +301,7 @@ func (x *GetTitlesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTitlesResponse.ProtoReflect.Descriptor instead.
 func (*GetTitlesResponse) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{7}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetTitlesResponse) GetWorn() *Title {
@@ -417,7 +337,7 @@ type Track struct {
 
 func (x *Track) Reset() {
 	*x = Track{}
-	mi := &file_progression_v1_progression_proto_msgTypes[8]
+	mi := &file_progression_v1_progression_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -429,7 +349,7 @@ func (x *Track) String() string {
 func (*Track) ProtoMessage() {}
 
 func (x *Track) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[8]
+	mi := &file_progression_v1_progression_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -442,7 +362,7 @@ func (x *Track) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Track.ProtoReflect.Descriptor instead.
 func (*Track) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{8}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Track) GetId() string {
@@ -484,7 +404,7 @@ type Step struct {
 
 func (x *Step) Reset() {
 	*x = Step{}
-	mi := &file_progression_v1_progression_proto_msgTypes[9]
+	mi := &file_progression_v1_progression_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -496,7 +416,7 @@ func (x *Step) String() string {
 func (*Step) ProtoMessage() {}
 
 func (x *Step) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[9]
+	mi := &file_progression_v1_progression_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -509,7 +429,7 @@ func (x *Step) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Step.ProtoReflect.Descriptor instead.
 func (*Step) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{9}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Step) GetTitle() *Title {
@@ -542,7 +462,7 @@ type WearTitleRequest struct {
 
 func (x *WearTitleRequest) Reset() {
 	*x = WearTitleRequest{}
-	mi := &file_progression_v1_progression_proto_msgTypes[10]
+	mi := &file_progression_v1_progression_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -554,7 +474,7 @@ func (x *WearTitleRequest) String() string {
 func (*WearTitleRequest) ProtoMessage() {}
 
 func (x *WearTitleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[10]
+	mi := &file_progression_v1_progression_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -567,7 +487,7 @@ func (x *WearTitleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WearTitleRequest.ProtoReflect.Descriptor instead.
 func (*WearTitleRequest) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{10}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *WearTitleRequest) GetTitleId() string {
@@ -586,7 +506,7 @@ type WearTitleResponse struct {
 
 func (x *WearTitleResponse) Reset() {
 	*x = WearTitleResponse{}
-	mi := &file_progression_v1_progression_proto_msgTypes[11]
+	mi := &file_progression_v1_progression_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -598,7 +518,7 @@ func (x *WearTitleResponse) String() string {
 func (*WearTitleResponse) ProtoMessage() {}
 
 func (x *WearTitleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[11]
+	mi := &file_progression_v1_progression_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -611,7 +531,7 @@ func (x *WearTitleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WearTitleResponse.ProtoReflect.Descriptor instead.
 func (*WearTitleResponse) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{11}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *WearTitleResponse) GetWorn() *Title {
@@ -630,7 +550,7 @@ type GetBadgesRequest struct {
 
 func (x *GetBadgesRequest) Reset() {
 	*x = GetBadgesRequest{}
-	mi := &file_progression_v1_progression_proto_msgTypes[12]
+	mi := &file_progression_v1_progression_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -642,7 +562,7 @@ func (x *GetBadgesRequest) String() string {
 func (*GetBadgesRequest) ProtoMessage() {}
 
 func (x *GetBadgesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[12]
+	mi := &file_progression_v1_progression_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -655,7 +575,7 @@ func (x *GetBadgesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBadgesRequest.ProtoReflect.Descriptor instead.
 func (*GetBadgesRequest) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{12}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetBadgesRequest) GetAccountIds() []string {
@@ -676,7 +596,7 @@ type GetBadgesResponse struct {
 
 func (x *GetBadgesResponse) Reset() {
 	*x = GetBadgesResponse{}
-	mi := &file_progression_v1_progression_proto_msgTypes[13]
+	mi := &file_progression_v1_progression_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -688,7 +608,7 @@ func (x *GetBadgesResponse) String() string {
 func (*GetBadgesResponse) ProtoMessage() {}
 
 func (x *GetBadgesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[13]
+	mi := &file_progression_v1_progression_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -701,7 +621,7 @@ func (x *GetBadgesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBadgesResponse.ProtoReflect.Descriptor instead.
 func (*GetBadgesResponse) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{13}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetBadgesResponse) GetBadges() []*Badge {
@@ -723,7 +643,7 @@ type Badge struct {
 
 func (x *Badge) Reset() {
 	*x = Badge{}
-	mi := &file_progression_v1_progression_proto_msgTypes[14]
+	mi := &file_progression_v1_progression_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -735,7 +655,7 @@ func (x *Badge) String() string {
 func (*Badge) ProtoMessage() {}
 
 func (x *Badge) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[14]
+	mi := &file_progression_v1_progression_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -748,7 +668,7 @@ func (x *Badge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Badge.ProtoReflect.Descriptor instead.
 func (*Badge) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{14}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Badge) GetAccountId() string {
@@ -781,7 +701,7 @@ type GetProgressRequest struct {
 
 func (x *GetProgressRequest) Reset() {
 	*x = GetProgressRequest{}
-	mi := &file_progression_v1_progression_proto_msgTypes[15]
+	mi := &file_progression_v1_progression_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -793,7 +713,7 @@ func (x *GetProgressRequest) String() string {
 func (*GetProgressRequest) ProtoMessage() {}
 
 func (x *GetProgressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[15]
+	mi := &file_progression_v1_progression_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -806,7 +726,7 @@ func (x *GetProgressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProgressRequest.ProtoReflect.Descriptor instead.
 func (*GetProgressRequest) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{15}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetProgressRequest) GetAccountId() string {
@@ -825,7 +745,7 @@ type GetProgressResponse struct {
 
 func (x *GetProgressResponse) Reset() {
 	*x = GetProgressResponse{}
-	mi := &file_progression_v1_progression_proto_msgTypes[16]
+	mi := &file_progression_v1_progression_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -837,7 +757,7 @@ func (x *GetProgressResponse) String() string {
 func (*GetProgressResponse) ProtoMessage() {}
 
 func (x *GetProgressResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[16]
+	mi := &file_progression_v1_progression_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -850,7 +770,7 @@ func (x *GetProgressResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProgressResponse.ProtoReflect.Descriptor instead.
 func (*GetProgressResponse) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{16}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetProgressResponse) GetProgress() *Progress {
@@ -873,7 +793,7 @@ type Progress struct {
 
 func (x *Progress) Reset() {
 	*x = Progress{}
-	mi := &file_progression_v1_progression_proto_msgTypes[17]
+	mi := &file_progression_v1_progression_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -885,7 +805,7 @@ func (x *Progress) String() string {
 func (*Progress) ProtoMessage() {}
 
 func (x *Progress) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[17]
+	mi := &file_progression_v1_progression_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -898,7 +818,7 @@ func (x *Progress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Progress.ProtoReflect.Descriptor instead.
 func (*Progress) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{17}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Progress) GetStats() *Stats {
@@ -944,7 +864,7 @@ type ListenForEventsRequest struct {
 
 func (x *ListenForEventsRequest) Reset() {
 	*x = ListenForEventsRequest{}
-	mi := &file_progression_v1_progression_proto_msgTypes[18]
+	mi := &file_progression_v1_progression_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -956,7 +876,7 @@ func (x *ListenForEventsRequest) String() string {
 func (*ListenForEventsRequest) ProtoMessage() {}
 
 func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[18]
+	mi := &file_progression_v1_progression_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -969,7 +889,7 @@ func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{18}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{16}
 }
 
 type ProgressionEvent struct {
@@ -985,7 +905,7 @@ type ProgressionEvent struct {
 
 func (x *ProgressionEvent) Reset() {
 	*x = ProgressionEvent{}
-	mi := &file_progression_v1_progression_proto_msgTypes[19]
+	mi := &file_progression_v1_progression_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -997,7 +917,7 @@ func (x *ProgressionEvent) String() string {
 func (*ProgressionEvent) ProtoMessage() {}
 
 func (x *ProgressionEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[19]
+	mi := &file_progression_v1_progression_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1010,7 +930,7 @@ func (x *ProgressionEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProgressionEvent.ProtoReflect.Descriptor instead.
 func (*ProgressionEvent) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{19}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ProgressionEvent) GetEvent() isProgressionEvent_Event {
@@ -1062,7 +982,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_progression_v1_progression_proto_msgTypes[20]
+	mi := &file_progression_v1_progression_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1074,7 +994,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[20]
+	mi := &file_progression_v1_progression_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1087,7 +1007,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{20}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{18}
 }
 
 type TitleEarned struct {
@@ -1099,7 +1019,7 @@ type TitleEarned struct {
 
 func (x *TitleEarned) Reset() {
 	*x = TitleEarned{}
-	mi := &file_progression_v1_progression_proto_msgTypes[21]
+	mi := &file_progression_v1_progression_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1111,7 +1031,7 @@ func (x *TitleEarned) String() string {
 func (*TitleEarned) ProtoMessage() {}
 
 func (x *TitleEarned) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[21]
+	mi := &file_progression_v1_progression_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1124,7 +1044,7 @@ func (x *TitleEarned) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TitleEarned.ProtoReflect.Descriptor instead.
 func (*TitleEarned) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{21}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *TitleEarned) GetTitle() *Title {
@@ -1145,10 +1065,7 @@ const file_progression_v1_progression_proto_rawDesc = "" +
 	"\x0estreak_current\x18\x02 \x01(\rR\rstreakCurrent\x12\x1f\n" +
 	"\vstreak_best\x18\x03 \x01(\rR\n" +
 	"streakBest\x12&\n" +
-	"\x0fstreak_last_day\x18\x04 \x01(\tR\rstreakLastDay\"\x11\n" +
-	"\x0fGetStatsRequest\"?\n" +
-	"\x10GetStatsResponse\x12+\n" +
-	"\x05stats\x18\x01 \x01(\v2\x15.progression.v1.StatsR\x05stats\"C\n" +
+	"\x0fstreak_last_day\x18\x04 \x01(\tR\rstreakLastDay\"C\n" +
 	"\fCountryTiles\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
@@ -1205,9 +1122,8 @@ const file_progression_v1_progression_proto_rawDesc = "" +
 	"\x05event\"\v\n" +
 	"\tHeartbeat\":\n" +
 	"\vTitleEarned\x12+\n" +
-	"\x05title\x18\x01 \x01(\v2\x15.progression.v1.TitleR\x05title2\xec\x04\n" +
-	"\x12ProgressionService\x12M\n" +
-	"\bGetStats\x12\x1f.progression.v1.GetStatsRequest\x1a .progression.v1.GetStatsResponse\x12P\n" +
+	"\x05title\x18\x01 \x01(\v2\x15.progression.v1.TitleR\x05title2\x9d\x04\n" +
+	"\x12ProgressionService\x12P\n" +
 	"\tGetTitles\x12 .progression.v1.GetTitlesRequest\x1a!.progression.v1.GetTitlesResponse\x12P\n" +
 	"\tWearTitle\x12 .progression.v1.WearTitleRequest\x1a!.progression.v1.WearTitleResponse\x12P\n" +
 	"\tGetFronts\x12 .progression.v1.GetFrontsRequest\x1a!.progression.v1.GetFrontsResponse\x12U\n" +
@@ -1228,72 +1144,67 @@ func file_progression_v1_progression_proto_rawDescGZIP() []byte {
 	return file_progression_v1_progression_proto_rawDescData
 }
 
-var file_progression_v1_progression_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_progression_v1_progression_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_progression_v1_progression_proto_goTypes = []any{
 	(*Stats)(nil),                  // 0: progression.v1.Stats
-	(*GetStatsRequest)(nil),        // 1: progression.v1.GetStatsRequest
-	(*GetStatsResponse)(nil),       // 2: progression.v1.GetStatsResponse
-	(*CountryTiles)(nil),           // 3: progression.v1.CountryTiles
-	(*GetFrontsRequest)(nil),       // 4: progression.v1.GetFrontsRequest
-	(*GetFrontsResponse)(nil),      // 5: progression.v1.GetFrontsResponse
-	(*GetTitlesRequest)(nil),       // 6: progression.v1.GetTitlesRequest
-	(*GetTitlesResponse)(nil),      // 7: progression.v1.GetTitlesResponse
-	(*Track)(nil),                  // 8: progression.v1.Track
-	(*Step)(nil),                   // 9: progression.v1.Step
-	(*WearTitleRequest)(nil),       // 10: progression.v1.WearTitleRequest
-	(*WearTitleResponse)(nil),      // 11: progression.v1.WearTitleResponse
-	(*GetBadgesRequest)(nil),       // 12: progression.v1.GetBadgesRequest
-	(*GetBadgesResponse)(nil),      // 13: progression.v1.GetBadgesResponse
-	(*Badge)(nil),                  // 14: progression.v1.Badge
-	(*GetProgressRequest)(nil),     // 15: progression.v1.GetProgressRequest
-	(*GetProgressResponse)(nil),    // 16: progression.v1.GetProgressResponse
-	(*Progress)(nil),               // 17: progression.v1.Progress
-	(*ListenForEventsRequest)(nil), // 18: progression.v1.ListenForEventsRequest
-	(*ProgressionEvent)(nil),       // 19: progression.v1.ProgressionEvent
-	(*Heartbeat)(nil),              // 20: progression.v1.Heartbeat
-	(*TitleEarned)(nil),            // 21: progression.v1.TitleEarned
-	(*Title)(nil),                  // 22: progression.v1.Title
+	(*CountryTiles)(nil),           // 1: progression.v1.CountryTiles
+	(*GetFrontsRequest)(nil),       // 2: progression.v1.GetFrontsRequest
+	(*GetFrontsResponse)(nil),      // 3: progression.v1.GetFrontsResponse
+	(*GetTitlesRequest)(nil),       // 4: progression.v1.GetTitlesRequest
+	(*GetTitlesResponse)(nil),      // 5: progression.v1.GetTitlesResponse
+	(*Track)(nil),                  // 6: progression.v1.Track
+	(*Step)(nil),                   // 7: progression.v1.Step
+	(*WearTitleRequest)(nil),       // 8: progression.v1.WearTitleRequest
+	(*WearTitleResponse)(nil),      // 9: progression.v1.WearTitleResponse
+	(*GetBadgesRequest)(nil),       // 10: progression.v1.GetBadgesRequest
+	(*GetBadgesResponse)(nil),      // 11: progression.v1.GetBadgesResponse
+	(*Badge)(nil),                  // 12: progression.v1.Badge
+	(*GetProgressRequest)(nil),     // 13: progression.v1.GetProgressRequest
+	(*GetProgressResponse)(nil),    // 14: progression.v1.GetProgressResponse
+	(*Progress)(nil),               // 15: progression.v1.Progress
+	(*ListenForEventsRequest)(nil), // 16: progression.v1.ListenForEventsRequest
+	(*ProgressionEvent)(nil),       // 17: progression.v1.ProgressionEvent
+	(*Heartbeat)(nil),              // 18: progression.v1.Heartbeat
+	(*TitleEarned)(nil),            // 19: progression.v1.TitleEarned
+	(*Title)(nil),                  // 20: progression.v1.Title
 }
 var file_progression_v1_progression_proto_depIdxs = []int32{
-	0,  // 0: progression.v1.GetStatsResponse.stats:type_name -> progression.v1.Stats
-	3,  // 1: progression.v1.GetFrontsResponse.plays_for:type_name -> progression.v1.CountryTiles
-	3,  // 2: progression.v1.GetFrontsResponse.plays_against:type_name -> progression.v1.CountryTiles
-	22, // 3: progression.v1.GetTitlesResponse.worn:type_name -> progression.v1.Title
-	22, // 4: progression.v1.GetTitlesResponse.wearable:type_name -> progression.v1.Title
-	8,  // 5: progression.v1.GetTitlesResponse.tracks:type_name -> progression.v1.Track
-	9,  // 6: progression.v1.Track.steps:type_name -> progression.v1.Step
-	22, // 7: progression.v1.Step.title:type_name -> progression.v1.Title
-	22, // 8: progression.v1.WearTitleResponse.worn:type_name -> progression.v1.Title
-	14, // 9: progression.v1.GetBadgesResponse.badges:type_name -> progression.v1.Badge
-	22, // 10: progression.v1.Badge.worn_title:type_name -> progression.v1.Title
-	17, // 11: progression.v1.GetProgressResponse.progress:type_name -> progression.v1.Progress
-	0,  // 12: progression.v1.Progress.stats:type_name -> progression.v1.Stats
-	22, // 13: progression.v1.Progress.titles:type_name -> progression.v1.Title
-	22, // 14: progression.v1.Progress.worn_title:type_name -> progression.v1.Title
-	3,  // 15: progression.v1.Progress.plays_for:type_name -> progression.v1.CountryTiles
-	3,  // 16: progression.v1.Progress.plays_against:type_name -> progression.v1.CountryTiles
-	20, // 17: progression.v1.ProgressionEvent.heartbeat:type_name -> progression.v1.Heartbeat
-	21, // 18: progression.v1.ProgressionEvent.title_earned:type_name -> progression.v1.TitleEarned
-	22, // 19: progression.v1.TitleEarned.title:type_name -> progression.v1.Title
-	1,  // 20: progression.v1.ProgressionService.GetStats:input_type -> progression.v1.GetStatsRequest
-	6,  // 21: progression.v1.ProgressionService.GetTitles:input_type -> progression.v1.GetTitlesRequest
-	10, // 22: progression.v1.ProgressionService.WearTitle:input_type -> progression.v1.WearTitleRequest
-	4,  // 23: progression.v1.ProgressionService.GetFronts:input_type -> progression.v1.GetFrontsRequest
-	12, // 24: progression.v1.ProgressionService.GetBadges:input_type -> progression.v1.GetBadgesRequest
-	15, // 25: progression.v1.ProgressionService.GetProgress:input_type -> progression.v1.GetProgressRequest
-	18, // 26: progression.v1.ProgressionService.ListenForEvents:input_type -> progression.v1.ListenForEventsRequest
-	2,  // 27: progression.v1.ProgressionService.GetStats:output_type -> progression.v1.GetStatsResponse
-	7,  // 28: progression.v1.ProgressionService.GetTitles:output_type -> progression.v1.GetTitlesResponse
-	11, // 29: progression.v1.ProgressionService.WearTitle:output_type -> progression.v1.WearTitleResponse
-	5,  // 30: progression.v1.ProgressionService.GetFronts:output_type -> progression.v1.GetFrontsResponse
-	13, // 31: progression.v1.ProgressionService.GetBadges:output_type -> progression.v1.GetBadgesResponse
-	16, // 32: progression.v1.ProgressionService.GetProgress:output_type -> progression.v1.GetProgressResponse
-	19, // 33: progression.v1.ProgressionService.ListenForEvents:output_type -> progression.v1.ProgressionEvent
-	27, // [27:34] is the sub-list for method output_type
-	20, // [20:27] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	1,  // 0: progression.v1.GetFrontsResponse.plays_for:type_name -> progression.v1.CountryTiles
+	1,  // 1: progression.v1.GetFrontsResponse.plays_against:type_name -> progression.v1.CountryTiles
+	20, // 2: progression.v1.GetTitlesResponse.worn:type_name -> progression.v1.Title
+	20, // 3: progression.v1.GetTitlesResponse.wearable:type_name -> progression.v1.Title
+	6,  // 4: progression.v1.GetTitlesResponse.tracks:type_name -> progression.v1.Track
+	7,  // 5: progression.v1.Track.steps:type_name -> progression.v1.Step
+	20, // 6: progression.v1.Step.title:type_name -> progression.v1.Title
+	20, // 7: progression.v1.WearTitleResponse.worn:type_name -> progression.v1.Title
+	12, // 8: progression.v1.GetBadgesResponse.badges:type_name -> progression.v1.Badge
+	20, // 9: progression.v1.Badge.worn_title:type_name -> progression.v1.Title
+	15, // 10: progression.v1.GetProgressResponse.progress:type_name -> progression.v1.Progress
+	0,  // 11: progression.v1.Progress.stats:type_name -> progression.v1.Stats
+	20, // 12: progression.v1.Progress.titles:type_name -> progression.v1.Title
+	20, // 13: progression.v1.Progress.worn_title:type_name -> progression.v1.Title
+	1,  // 14: progression.v1.Progress.plays_for:type_name -> progression.v1.CountryTiles
+	1,  // 15: progression.v1.Progress.plays_against:type_name -> progression.v1.CountryTiles
+	18, // 16: progression.v1.ProgressionEvent.heartbeat:type_name -> progression.v1.Heartbeat
+	19, // 17: progression.v1.ProgressionEvent.title_earned:type_name -> progression.v1.TitleEarned
+	20, // 18: progression.v1.TitleEarned.title:type_name -> progression.v1.Title
+	4,  // 19: progression.v1.ProgressionService.GetTitles:input_type -> progression.v1.GetTitlesRequest
+	8,  // 20: progression.v1.ProgressionService.WearTitle:input_type -> progression.v1.WearTitleRequest
+	2,  // 21: progression.v1.ProgressionService.GetFronts:input_type -> progression.v1.GetFrontsRequest
+	10, // 22: progression.v1.ProgressionService.GetBadges:input_type -> progression.v1.GetBadgesRequest
+	13, // 23: progression.v1.ProgressionService.GetProgress:input_type -> progression.v1.GetProgressRequest
+	16, // 24: progression.v1.ProgressionService.ListenForEvents:input_type -> progression.v1.ListenForEventsRequest
+	5,  // 25: progression.v1.ProgressionService.GetTitles:output_type -> progression.v1.GetTitlesResponse
+	9,  // 26: progression.v1.ProgressionService.WearTitle:output_type -> progression.v1.WearTitleResponse
+	3,  // 27: progression.v1.ProgressionService.GetFronts:output_type -> progression.v1.GetFrontsResponse
+	11, // 28: progression.v1.ProgressionService.GetBadges:output_type -> progression.v1.GetBadgesResponse
+	14, // 29: progression.v1.ProgressionService.GetProgress:output_type -> progression.v1.GetProgressResponse
+	17, // 30: progression.v1.ProgressionService.ListenForEvents:output_type -> progression.v1.ProgressionEvent
+	25, // [25:31] is the sub-list for method output_type
+	19, // [19:25] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_progression_v1_progression_proto_init() }
@@ -1302,7 +1213,7 @@ func file_progression_v1_progression_proto_init() {
 		return
 	}
 	file_progression_v1_title_proto_init()
-	file_progression_v1_progression_proto_msgTypes[19].OneofWrappers = []any{
+	file_progression_v1_progression_proto_msgTypes[17].OneofWrappers = []any{
 		(*ProgressionEvent_Heartbeat)(nil),
 		(*ProgressionEvent_TitleEarned)(nil),
 	}
@@ -1312,7 +1223,7 @@ func file_progression_v1_progression_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_progression_v1_progression_proto_rawDesc), len(file_progression_v1_progression_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

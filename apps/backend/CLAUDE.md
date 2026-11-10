@@ -74,6 +74,8 @@ and says what is in it. Read the doc before you change its area.
 - [Shields](docs/shields.md) — a charge on a tile; each shield takes one foreign click.
 - [A claim is one lock](docs/tile-claim.md) — `clicks.Tile` holds owner, shields and holder; a claim reads, decides and
   writes it under one lock; why a lock and not a version per tile.
+- [A shield's way from the hand to the tile](docs/placements.md) — the placement row between the spend and the map's
+  flush; a refusal gives the shield back with no cap; the boot gives back what a stop left.
 - [Fortify](docs/fortify.md) — a take that makes a landmass whole gives every tile of it a shield.
 - [Who holds the tiles](docs/tile-holders.md) — each tile keeps the account whose take holds it; `GetLandmass`
   reads a landmass's holders and its last fortify.
@@ -157,7 +159,7 @@ and says what is in it. Read the doc before you change its area.
 - [The players a clip names](docs/clip-appearances.md) — a run's cast, numbers and names and never an account; who
   each post names; the opt-out, kept by clips and not by player; the public read the game tells a player from.
 - [The names a post may show](docs/clip-name-verdicts.md) — a Claude Haiku judge leaves out of every cast a name
-  TikTok and YouTube forbid (a terrorist group, a hate code, a real person); each name judged once, again on a rename;
+  TikTok and YouTube forbid (a terrorist group, a hate code, a mass killer); each name judged once, again on a rename;
   the operator's verdict; no names with no key.
 
 ## Operator tools and jobs
@@ -172,4 +174,4 @@ and says what is in it. Read the doc before you change its area.
   every 6 hours, each battle starting within 36 hours posted by an hour before it through publishing's
   `InternalService`, a carousel of its cards on TikTok and a slideshow on YouTube; no battle teased twice.
 - [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them through the
-  publishing module, over ssh; its experiments, the model editor and the stats.
+  publishing module, over ssh; the model editor, the stats and the experiments it ran.

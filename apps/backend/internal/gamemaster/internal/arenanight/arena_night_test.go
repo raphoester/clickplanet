@@ -21,12 +21,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/outbox_moment_events"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_round_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_plan_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/tell_starts_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/play_resets_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -124,6 +126,11 @@ func (p *planet) Arena(_ context.Context, set schedule.SetName) (bool, error) {
 	return set == "arena-battle", nil
 }
 
+func (p *planet) Reset(_ context.Context, starts season.Window) error {
+	p.journal.note("reset for season %d", starts.Number)
+	return nil
+}
+
 func (p *planet) Send(_ context.Context, command moments.ArenaCommand) error {
 	switch command.Action {
 	case moments.OpenArena:
@@ -157,10 +164,8 @@ type night struct {
 	scoring *scoring
 	planet  *planet
 
-	points *play_scoring_usecase.UseCase
-	arenas *play_arenas_usecase.UseCase
-	starts *tell_starts_usecase.UseCase
-	told   int
+	plan *play_plan_usecase.UseCase
+	told int
 }
 
 func newNight(t *testing.T, at time.Time) *night {
@@ -190,20 +195,17 @@ func newNight(t *testing.T, at time.Time) *night {
 
 // boot is a restart: what each runner sent is forgotten, what postgres keeps stays.
 func (n *night) boot() {
-	n.points = play_scoring_usecase.New(n.planner, n.kept, n.scoring, n.clock)
-	n.arenas = play_arenas_usecase.New(n.planner, n.judged, n.planet, n.planet, n.clock)
-	n.starts = tell_starts_usecase.New(n.planner, n.kept, outbox_moment_events.New(n.outbox), cpatomic.FakeTransactioner{}, n.clock)
+	n.plan = play_plan_usecase.New(n.planner,
+		play_resets_usecase.New(n.planet, n.clock),
+		play_arenas_usecase.New(n.judged, n.planet, n.planet, n.clock),
+		play_scoring_usecase.New(n.kept, n.scoring, n.clock),
+		tell_starts_usecase.New(n.kept, outbox_moment_events.New(n.outbox), cpatomic.FakeTransactioner{}, n.clock))
 }
 
 func (n *night) tick() {
 	n.t.Helper()
 	n.late.deliver(n.t.Context(), n.clock.Now())
-	_, err := n.arenas.Execute(n.t.Context())
-	require.NoError(n.t, err)
-	_, err = n.points.Execute(n.t.Context())
-	require.NoError(n.t, err)
-	_, err = n.starts.Execute(n.t.Context())
-	require.NoError(n.t, err)
+	require.NoError(n.t, n.plan.Execute(n.t.Context()))
 	recorded := n.outbox.Recorded()
 	for _, event := range recorded[n.told:] {
 		if day, ok := event.(*gamemasterv1.DayStarted); ok {

@@ -1,7 +1,7 @@
 /* The rail of places, and beside it the open place or, folded, the flag played for. The two keep clear of the
    dock at every width: on a short window the panel scrolls rather than run under it. */
 .menu-shell {
-    --menu-room: calc(100vh - 48px - var(--dock-height) - var(--dock-crown));
+    --menu-room: calc(100vh - 48px - var(--dock-height));
     position: absolute;
     top: 16px;
     left: 16px;

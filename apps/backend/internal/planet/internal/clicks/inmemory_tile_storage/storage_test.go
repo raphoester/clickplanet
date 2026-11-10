@@ -10,6 +10,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/suite"
 )
@@ -30,7 +31,7 @@ var borders = clicks.BordersOf(maxIndex, island)
 
 func (s *testSuite) SetupSuite() {
 	s.NewStorage = func(borders *clicks.Borders) clicks.TileStorage {
-		return inmemory_tile_storage.New(borders, clicks.NoCapitals(), inmemory_tile_storage.Config{}, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cptime.SystemClock{}, slog.New(slog.DiscardHandler))
+		return inmemory_tile_storage.New(borders, clicks.NoCapitals(), inmemory_tile_storage.Config{}, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 	}
 }
 
@@ -39,7 +40,7 @@ func (s *testSuite) newStorage(cfg inmemory_tile_storage.Config) *inmemory_tile_
 }
 
 func (s *testSuite) newStorageOn(cfg inmemory_tile_storage.Config, persistence inmemory_tile_storage.Persistence) *inmemory_tile_storage.Storage {
-	return inmemory_tile_storage.New(borders, clicks.NoCapitals(), cfg, persistence, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
+	return inmemory_tile_storage.New(borders, clicks.NoCapitals(), cfg, persistence, cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 }
 
 func (s *testSuite) TestAnEnclosureBiggerThanAStreamsBufferTakesOneSlotAndCutsNoStream() {

@@ -26,7 +26,7 @@ beforeEach(() => ["Ana", "Bo", "Cy", "kiran_07", "guest_Bo", "guest_a1b2c3"].for
 
 afterEach(() => {
     cleanup()
-    usePlayerCard.setState({openable: false, player: undefined})
+    usePlayerCard.setState({player: undefined})
     useChat.setState(useChat.getInitialState(), true)
     useBadges.getState().serve(undefined)
     useNameplates.getState().serve(undefined)
@@ -78,7 +78,6 @@ describe("ChatLog", () => {
     })
 
     it("opens the author of a message from its name, and tells a guest by its nameplate", async () => {
-        usePlayerCard.setState({openable: true})
         render(<ChatLog loading={false}
                         messages={[message("1", "Ana", "fr"), message("2", "guest_Bo", "de")]}/>)
 
@@ -97,15 +96,7 @@ describe("ChatLog", () => {
         expect(screen.getAllByText(/a1b2c3/)).toHaveLength(1)
     })
 
-    it("shows a plain name with nothing to open", () => {
-        render(<ChatLog loading={false} messages={[message("1", "Ana", "fr")]}/>)
-
-        expect(screen.queryByRole("button", {name: "Ana"})).toBeNull()
-        expect(screen.getByText("Ana")).toBeDefined()
-    })
-
     it("crowns an admin's message, and keeps it on the player it opens", async () => {
-        usePlayerCard.setState({openable: true})
         named("Ana", {admin: true})
         render(<ChatLog loading={false} messages={[message("1", "Ana", "fr"), message("2", "kiran_07", "in")]}/>)
 
@@ -143,7 +134,6 @@ describe("ChatLog", () => {
     })
 
     it("names an account nobody can name [deleted], in grey, with nothing to open or report", () => {
-        usePlayerCard.setState({openable: true})
         useNameplates.setState({nameplates: {...useNameplates.getState().nameplates, "account-gone": null}})
         const {container} = render(<ChatLog loading={false} onReport={vi.fn()} messages={[message("1", "gone", "fr")]}/>)
 

@@ -33,8 +33,6 @@ func kindOf(kind gamemasterv1.EntryKind) (schedule.Kind, error) {
 		return schedule.Plain, nil
 	case gamemasterv1.EntryKind_ENTRY_KIND_BATTLE:
 		return schedule.Battle, nil
-	case gamemasterv1.EntryKind_ENTRY_KIND_HALLOWEEN:
-		return schedule.Halloween, nil
 	case gamemasterv1.EntryKind_ENTRY_KIND_UNSPECIFIED:
 	}
 	return "", fmt.Errorf("%w: %q", schedule.ErrUnknownKind, kind.String())
@@ -47,8 +45,6 @@ func KindOf(kind schedule.Kind) (gamemasterv1.EntryKind, error) {
 		return gamemasterv1.EntryKind_ENTRY_KIND_PLAIN, nil
 	case schedule.Battle:
 		return gamemasterv1.EntryKind_ENTRY_KIND_BATTLE, nil
-	case schedule.Halloween:
-		return gamemasterv1.EntryKind_ENTRY_KIND_HALLOWEEN, nil
 	}
 	return gamemasterv1.EntryKind_ENTRY_KIND_UNSPECIFIED, fmt.Errorf("%w: %q", schedule.ErrUnknownKind, kind)
 }

@@ -4,6 +4,7 @@ package cppg
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io/fs"
 	"net"
@@ -166,4 +167,8 @@ func (p *Postgres) Purge(ctx context.Context) error {
 		return fmt.Errorf("failed to empty the tables: %w", err)
 	}
 	return nil
+}
+
+func (p *Postgres) Stats() sql.DBStats {
+	return p.sqlClient.Stats()
 }

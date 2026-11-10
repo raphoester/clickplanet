@@ -12,6 +12,5 @@ type AccountID = cpsession.AccountID
 // guest, which no board ranks.
 type Store interface {
 	Keep(ctx context.Context, account AccountID) error
-	IsPlayer(ctx context.Context, account AccountID) (bool, error)
 	Forget(ctx context.Context, account AccountID) error
 }

@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {Point} from "./geometry.ts"
-import {SCRIBBLE_BELOW, solidityOf} from "./solidity.ts"
+import {solidityOf} from "./solidity.ts"
 
 const SPACING = 0.004
 
@@ -35,7 +35,7 @@ describe("the solidity of what was taken", () => {
         const bar = Array.from({length: 30}, (_, column) => tile(column, 30))
         const letters = [...stroke, ...bar]
 
-        expect(solidityOf(letters, letters)).toBeLessThan(SCRIBBLE_BELOW)
+        expect(solidityOf(letters, letters)).toBeLessThan(0.75)
     })
 
     it("is whole when nothing taken is held any more", () => {

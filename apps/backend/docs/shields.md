@@ -37,7 +37,9 @@ to the jury.
   A tile not wearing the flag (`ErrNotYourTile`) and a full one (`ErrTileFull`) are
   `FailedPrecondition` and spend nothing; no shield held is `NotFound`; an unknown
   country or tile is `InvalidArgument`. A placement the tile refuses after the
-  charge was spent (it changed hands in between) gives the shield back. It is
+  charge was spent (it changed hands in between) gives the shield back, with no cap,
+  and a stop between the spend and the map's flush gives it back at the next boot:
+  see [A shield's way from the hand to the tile](placements.md). It is
   session-gated like `DropBomb` and not throttled. `refusal_place_shield` refuses a
   refused caller before anything is spent, as `refusal_click` does a click (see
   [A ban is told](antibot.md#a-ban-is-told)). The answer is the charges left.

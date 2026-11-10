@@ -12,7 +12,7 @@ export const OUTLINE_SECONDS = 0.5
 export const FILL_FROM = 0.5
 export const FILL_SECONDS = 0.45
 
-export const WAVES_AT = [0.55, 0.8]
+const WAVES_AT = [0.55, 0.8]
 export const WAVE_SECONDS = 1.1
 
 export const FADE_FROM = 1.9

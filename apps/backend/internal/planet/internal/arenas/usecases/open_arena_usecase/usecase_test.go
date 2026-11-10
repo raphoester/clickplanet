@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -35,7 +36,8 @@ func newHarness(t *testing.T) harness {
 	t.Helper()
 	clock := cptime.NewFixedClock(starts)
 	stored := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{1: "fr", 2: "fr", 3: "de"})
-	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), capitals, inmemory_tile_storage.Config{}, stored, clock,
+	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), capitals, inmemory_tile_storage.Config{}, stored,
+		cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, clock,
 		slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context(), clicks.World))
 	kept := arenas.NewMemoryStore()

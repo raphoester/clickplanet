@@ -24,14 +24,6 @@ type Store struct {
 
 var _ departures.Store = (*Store)(nil)
 
-func (s *Store) Departure(ctx context.Context, account departures.AccountID) (departures.Departure, error) {
-	kept, err := keptOf(ctx, s.db.On(ctx), account)
-	if err != nil {
-		return departures.Departure{}, err
-	}
-	return kept.Restore(), nil
-}
-
 func (s *Store) Change(ctx context.Context, account departures.AccountID, change func(departures.Departure) departures.Departure) error {
 	return s.db.InTx(ctx, func(ctx context.Context) error {
 		tx := s.db.On(ctx)

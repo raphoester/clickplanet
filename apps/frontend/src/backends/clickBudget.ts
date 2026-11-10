@@ -51,14 +51,6 @@ export function nextClickProgress(budget: ClickBudget, at: number): number {
     return tokens - Math.floor(tokens)
 }
 
-export function secondsToNextClick(budget: ClickBudget, at: number): number {
-    const tokens = tokensAt(budget, at)
-    if (tokens >= 1) return 0
-    if (budget.perSecond <= 0) return Infinity
-
-    return (1 - tokens) / budget.perSecond
-}
-
 export function secondsToOneMore(budget: ClickBudget, at: number): number | undefined {
     const tokens = tokensAt(budget, at)
     if (tokens >= budget.capacity || budget.perSecond <= 0) return undefined

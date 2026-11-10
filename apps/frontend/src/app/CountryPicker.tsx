@@ -12,7 +12,7 @@ export type CountryPickerProps = {
     allegiance?: Allegiance,
 }
 
-export const CHANGE_RULE = "You can change country once an hour."
+const CHANGE_RULE = "You can change country once an hour."
 export const LOCKED_RULE = "You can't change country right now."
 
 function ruleLineOf(lock: Lock | undefined, now: number): string {

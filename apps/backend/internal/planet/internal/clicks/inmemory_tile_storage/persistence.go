@@ -26,6 +26,11 @@ type Persistence interface {
 	ForgetHolder(ctx context.Context, account cpsession.AccountID) error
 }
 
+// Placements ends each placement whose shield a flush saved, in the transaction that saved it.
+type Placements interface {
+	Confirm(ctx context.Context, placed []clicks.PlacementID) error
+}
+
 type Tile struct {
 	ID      uint32
 	Owner   string
@@ -155,12 +160,12 @@ func (s *Storage) Flush(ctx context.Context) error {
 	defer s.flushing.Unlock()
 
 	s.mu.Lock()
-	playing, tiles, landmasses := s.playing, s.board.drainDirty(), s.landmasses.drainDirty(s.board.nameOf)
+	playing, tiles, landmasses, placed := s.playing, s.board.drainDirty(), s.landmasses.drainDirty(s.board.nameOf), s.drainPlacedLocked()
 	s.mu.Unlock()
 
-	if err := s.save(ctx, playing, tiles, landmasses); err != nil {
+	if err := s.save(ctx, playing, tiles, landmasses, placed); err != nil {
 		s.mu.Lock()
-		s.markDirtyLocked(tiles, landmasses)
+		s.markDirtyLocked(tiles, landmasses, placed)
 		s.mu.Unlock()
 		return err
 	}
@@ -169,29 +174,42 @@ func (s *Storage) Flush(ctx context.Context) error {
 
 // flushLocked saves what changed while the caller holds the flush lock and the tiles lock.
 func (s *Storage) flushLocked(ctx context.Context) error {
-	tiles, landmasses := s.board.drainDirty(), s.landmasses.drainDirty(s.board.nameOf)
-	if err := s.save(ctx, s.playing, tiles, landmasses); err != nil {
-		s.markDirtyLocked(tiles, landmasses)
+	tiles, landmasses, placed := s.board.drainDirty(), s.landmasses.drainDirty(s.board.nameOf), s.drainPlacedLocked()
+	if err := s.save(ctx, s.playing, tiles, landmasses, placed); err != nil {
+		s.markDirtyLocked(tiles, landmasses, placed)
 		return err
 	}
 	return nil
 }
 
-func (s *Storage) save(ctx context.Context, playing clicks.MapID, tiles []Tile, landmasses []Landmass) error {
-	if len(tiles) == 0 && len(landmasses) == 0 {
+func (s *Storage) save(ctx context.Context, playing clicks.MapID, tiles []Tile, landmasses []Landmass, placed []clicks.PlacementID) error {
+	if len(tiles) == 0 && len(landmasses) == 0 && len(placed) == 0 {
 		return nil
 	}
-	if err := s.persistence.Save(ctx, playing, tiles, landmasses); err != nil {
-		return fmt.Errorf("failed to save %d tiles and %d landmasses: %w", len(tiles), len(landmasses), err)
+	if err := s.transactioner.InTx(ctx, func(ctx context.Context) error {
+		if err := s.persistence.Save(ctx, playing, tiles, landmasses); err != nil {
+			return err //nolint:wrapcheck // wrapped once below.
+		}
+		return s.placements.Confirm(ctx, placed) //nolint:wrapcheck // wrapped once below.
+	}); err != nil {
+		return fmt.Errorf("failed to save %d tiles, %d landmasses and %d shields placed: %w",
+			len(tiles), len(landmasses), len(placed), err)
 	}
 	return nil
 }
 
-func (s *Storage) markDirtyLocked(tiles []Tile, landmasses []Landmass) {
+func (s *Storage) markDirtyLocked(tiles []Tile, landmasses []Landmass, placed []clicks.PlacementID) {
 	for _, tile := range tiles {
 		s.board.markDirty(tile.ID)
 	}
 	for _, landmass := range landmasses {
 		s.landmasses.markDirty(landmass.ID)
 	}
+	s.placed = append(s.placed, placed...)
+}
+
+func (s *Storage) drainPlacedLocked() []clicks.PlacementID {
+	placed := s.placed
+	s.placed = nil
+	return placed
 }

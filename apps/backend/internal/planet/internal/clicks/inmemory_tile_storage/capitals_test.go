@@ -6,6 +6,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -16,7 +17,8 @@ func capitalsWith(shields int) []clicks.StartTile {
 }
 
 func (s *testSuite) withCapitals(persistence *inmemory_tile_storage.MemoryPersistence) *inmemory_tile_storage.Storage {
-	storage := inmemory_tile_storage.New(borders, capitals, inmemory_tile_storage.Config{}, persistence, cptime.SystemClock{},
+	storage := inmemory_tile_storage.New(borders, capitals, inmemory_tile_storage.Config{}, persistence,
+		cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{},
 		slog.New(slog.DiscardHandler))
 	s.Require().NoError(storage.Load(context.Background(), clicks.World))
 	return storage
@@ -60,18 +62,21 @@ func (s *testSuite) TestACapitalTakesNoShieldWhileAnArenaPlays() {
 	_, err := storage.Blank(ctx, battle, capitalsWith(0), keeps(true))
 	s.Require().NoError(err)
 
-	s.Require().ErrorIs(storage.Shield(ctx, 20, "de", 10), clicks.ErrCapital)
+	_, err = storage.Shield(ctx, 20, "de", 10, clicks.PlacementID{})
+	s.Require().ErrorIs(err, clicks.ErrCapital)
 	s.Zero(storage.Shields(20))
 
 	s.Require().NoError(storage.Set(ctx, 21, "de"))
-	s.Require().NoError(storage.Shield(ctx, 21, "de", 10), "a tile that is no capital still takes one")
+	_, err = storage.Shield(ctx, 21, "de", 10, clicks.PlacementID{})
+	s.Require().NoError(err, "a tile that is no capital still takes one")
 }
 
 func (s *testSuite) TestACapitalTakesShieldsOnTheWorldsMap() {
 	ctx := context.Background()
 	storage := s.withCapitals(inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{20: "de"}))
 
-	s.Require().NoError(storage.Shield(ctx, 20, "de", 10))
+	_, err := storage.Shield(ctx, 20, "de", 10, clicks.PlacementID{})
+	s.Require().NoError(err)
 	s.Equal(1, storage.Shields(20))
 }
 

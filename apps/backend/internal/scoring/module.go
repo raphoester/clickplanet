@@ -103,10 +103,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if err := db.ConnectCtx(ctx); err != nil {
 		return fmt.Errorf("failed to connect the scoring module to postgres: %w", err)
 	}
-	if err := db.RenameSchemaFrom(ctx, migrations.FormerSchema); err != nil {
-		_ = db.Close()
-		return fmt.Errorf("failed to rename the %s schema: %w", migrations.FormerSchema, err)
-	}
 	if err := db.Migrate(ctx, migrations.FS); err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
@@ -160,7 +156,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			OpenBook:   log_command.New("open_book", open_book_usecase.New(bookStore), props.Logger),
 			OpenRound:  log_command.New("open_round", open_round_usecase.New(bookStore, roundStore, territories), props.Logger),
 			CloseRound: log_command.New("close_round", close_round_usecase.New(db, territories, roundStore, outbox), props.Logger),
-			CloseBook:  log_command.New("close_book", close_book_usecase.New(db, bookStore, roundStore, grantStore, outbox), props.Logger),
+			CloseBook:  log_command.New("close_book", close_book_usecase.New(db, bookStore, outbox), props.Logger),
 		}), props.Logger)))
 	if err != nil {
 		closeStores()

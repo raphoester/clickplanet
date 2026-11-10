@@ -72,9 +72,10 @@ func (s *testSuite) TestShieldsAreKeptWithTheirTileAndGoneWithItsFlag() {
 
 	s.Require().NoError(storage.Set(ctx, 1, "fr"))
 	s.Require().NoError(storage.Set(ctx, 2, "fr"))
-	s.Require().NoError(storage.Shield(ctx, 1, "fr", 10))
-	s.Require().NoError(storage.Shield(ctx, 1, "fr", 10))
-	s.Require().NoError(storage.Shield(ctx, 2, "fr", 10))
+	for _, tile := range []uint32{1, 1, 2} {
+		_, err := storage.Shield(ctx, tile, "fr", 10, clicks.PlacementID{})
+		s.Require().NoError(err)
+	}
 	s.Require().NoError(storage.Set(ctx, 2, "de"))
 	s.Require().NoError(storage.Flush(ctx))
 

@@ -29,7 +29,6 @@ func (h SendMessageHandler) SendMessage(
 ) (*connect.Response[chatv1.SendMessageResponse], error) {
 	message, err := h.useCase.Execute(ctx, send_message_usecase.In{
 		Account:   messages.AccountIDOf(cpctx.GetAccount(ctx)),
-		AuthorID:  req.Msg.GetAuthorId(),
 		Room:      messages.RoomOf(req.Msg.GetFlagRoom()),
 		CountryID: req.Msg.GetCountryId(),
 		Text:      req.Msg.GetText(),
@@ -42,6 +41,6 @@ func (h SendMessageHandler) SendMessage(
 	}
 
 	return connect.NewResponse(&chatv1.SendMessageResponse{
-		Message: chatmessage.Encode(message, nil, 0),
+		Message: chatmessage.Encode(message),
 	}), nil
 }

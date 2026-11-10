@@ -34,7 +34,6 @@ type Clip struct {
 	seconds      float64
 	teaserNames  []string
 	record       ClipRecord
-	variants     Variants
 	cast         string
 	fighters     []ClipFighter
 }
@@ -62,7 +61,7 @@ func (c Clip) TakeSnapshot() ClipSnapshot {
 	return ClipSnapshot{
 		Pick: c.pick, Title: c.title, Key: c.key, Teasers: c.teasers, Countries: c.countries,
 		ContinentTag: c.continentTag, Attribution: c.attribution, Video: c.video, Seconds: c.seconds, TeaserNames: c.teaserNames,
-		Record: c.record, Variants: c.variants, Cast: c.cast, Fighters: c.fighters,
+		Record: c.record, Cast: c.cast, Fighters: c.fighters,
 	}
 }
 
@@ -82,8 +81,6 @@ type ClipSnapshot struct {
 	// The name of each teaser's wording, in the same order; none for a clip written before they were named.
 	TeaserNames []string
 	Record      ClipRecord
-	// The arm of each experiment the clip is in, as the generator applied or carried it: none when it is in none.
-	Variants Variants
 	// The cast its fighters are numbered in; empty when it names nobody.
 	Cast     string
 	Fighters []ClipFighter
@@ -131,6 +128,6 @@ func (s ClipSnapshot) Restore() (Clip, error) {
 	return Clip{
 		pick: s.Pick, title: s.Title, key: s.Key, teasers: s.Teasers, countries: s.Countries,
 		continentTag: s.ContinentTag, attribution: s.Attribution, video: s.Video, seconds: s.Seconds, teaserNames: s.TeaserNames,
-		record: s.Record, variants: s.Variants, cast: s.Cast, fighters: s.Fighters,
+		record: s.Record, cast: s.Cast, fighters: s.Fighters,
 	}, nil
 }

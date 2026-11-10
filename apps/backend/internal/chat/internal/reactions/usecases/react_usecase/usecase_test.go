@@ -69,7 +69,7 @@ func (s *testSuite) sent(id messages.MessageID) {
 
 func (s *testSuite) sentIn(id messages.MessageID, room messages.Room) {
 	s.Require().NoError(s.messages.Append(context.Background(),
-		messages.NewRecord(s.message(id, room), "", "", "")))
+		messages.NewRecord(s.message(id, room), "", "")))
 }
 
 func (s *testSuite) message(id messages.MessageID, room messages.Room) messages.Message {

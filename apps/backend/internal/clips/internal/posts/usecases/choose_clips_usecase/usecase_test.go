@@ -81,7 +81,7 @@ func (e *editor) Edit(_ context.Context, offer posts.Offer) (posts.Edition, post
 }
 
 func editedBy(w written, h *history, model *editor) *choose_clips_usecase.UseCase {
-	return choose_clips_usecase.New(w, h, h, cptime.NewFixedClock(now), room, nil, posts.LoadedDice(0), model)
+	return choose_clips_usecase.New(w, h, h, cptime.NewFixedClock(now), room, model)
 }
 
 func answering(stories ...posts.Story) *editor {
@@ -108,10 +108,6 @@ func TestTheEditorIsOfferedTheFindingsAndWhatWasToldAndItsStoriesAreTheRun(t *te
 		{Pick: 2, Story: battle, Key: posts.StoryKey{Flag: "fr", Continent: "Middle East"}},
 	}, choice.Chosen)
 	assert.Equal(t, posts.Editorial{Asked: true, Why: "the war", Spend: model.spend}, choice.Editorial)
-	assert.Equal(t, []posts.Assignment{
-		{Pick: 1, Story: posts.Story{Seasonal: 1}, Variants: posts.Variants{}},
-		{Pick: 2, Story: battle, Variants: posts.Variants{}},
-	}, choice.Assigned)
 }
 
 func TestAStoryOfTheEditorsThatDoesNotHoldIsSkippedAndTheRunGoesOn(t *testing.T) {
@@ -184,23 +180,6 @@ func TestARoomThatCannotBeReadFailsTheRunRatherThanPostOverTheCap(t *testing.T) 
 	_, err := editedBy(written{findings: found}, &history{roomErr: unreachable}, &editor{}).Execute(t.Context())
 
 	require.ErrorIs(t, err, unreachable)
-}
-
-func TestEachStoryChosenIsPutInAnArmOfEveryExperiment(t *testing.T) {
-	length := posts.Experiments{{Name: "length", Arms: []posts.Arm{{Name: "as-chosen", Weight: 1}, {Name: "short", Weight: 1}}, Control: "as-chosen"}}
-	past := &history{}
-
-	choice, err := choose_clips_usecase.New(
-		written{findings: found}, past, past, cptime.NewFixedClock(now), room, length, &posts.RolledDice{Faces: []int{1, 0}},
-		answering(battle),
-	).Execute(t.Context())
-
-	require.NoError(t, err)
-	require.Len(t, choice.Chosen, 2)
-	assert.Equal(t, []posts.Assignment{
-		{Pick: 1, Story: posts.Story{Seasonal: 1}, Variants: posts.Variants{"length": "short"}},
-		{Pick: 2, Story: battle, Variants: posts.Variants{"length": "as-chosen"}},
-	}, choice.Assigned)
 }
 
 func TestAnEditorThatCannotAnswerLeavesTheRunItsDayWonAndSaysWhy(t *testing.T) {

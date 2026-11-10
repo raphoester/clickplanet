@@ -5,7 +5,7 @@ import {angleBetween, dot, densest, Point} from "./geometry.ts"
 const HEART_RADIANS = 0.2
 
 // About 2,900 km: western Europe from France, and the neighbours a war spills into.
-export const FRONT_RADIANS = 0.45
+const FRONT_RADIANS = 0.45
 
 export type Front = {
     heart: Point

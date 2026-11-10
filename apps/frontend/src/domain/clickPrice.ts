@@ -1,6 +1,6 @@
 import {ClickPrice} from "../backends/clickBudget.ts"
 
-export const NEAR_NEXT_STEP = 0.8
+const NEAR_NEXT_STEP = 0.8
 
 export function describePrice(price: ClickPrice | undefined, countryName: string): {headline: string, detail: string} | undefined {
     if (!price) return undefined

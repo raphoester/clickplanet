@@ -78,7 +78,7 @@ func (s *testSuite) SetupTest() {
 
 func (s *testSuite) sent(snapshot messages.Snapshot) {
 	s.Require().NoError(postgres_message_store.New(s.db).Append(s.T().Context(),
-		messages.NewRecord(messages.Restored(s.T(), snapshot), "browser-1", "203.0.113.7", "test-agent")))
+		messages.NewRecord(messages.Restored(s.T(), snapshot), "203.0.113.7", "test-agent")))
 }
 
 // A message a minute, from Ada and Bob in turn, the last one a minute ago: "1" to "<count>".

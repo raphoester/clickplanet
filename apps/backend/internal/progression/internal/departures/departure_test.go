@@ -12,21 +12,21 @@ import (
 var start = time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
 
 func TestAnAccountNobodyAskedToDeleteIsNotLeaving(t *testing.T) {
-	assert.False(t, departures.Departure{}.Leaving())
+	assert.False(t, departures.Departure{}.TakeSnapshot().Leaving)
 }
 
 func TestARequestMakesTheAccountLeaveAndARestoreBringsItBack(t *testing.T) {
 	left := departures.Departure{}.Decided(departures.Leaves(start))
-	assert.True(t, left.Leaving())
+	assert.True(t, left.TakeSnapshot().Leaving)
 
 	back := left.Decided(departures.Returns(start.Add(time.Hour)))
-	assert.False(t, back.Leaving())
+	assert.False(t, back.TakeSnapshot().Leaving)
 }
 
 func TestAnOlderDecisionHeardLateChangesNothing(t *testing.T) {
 	back := departures.Departure{}.Decided(departures.Returns(start.Add(time.Hour)))
 
-	assert.False(t, back.Decided(departures.Leaves(start)).Leaving(), "the request was before the restore")
+	assert.False(t, back.Decided(departures.Leaves(start)).TakeSnapshot().Leaving, "the request was before the restore")
 }
 
 func TestADecisionHeardTwiceIsTheSame(t *testing.T) {

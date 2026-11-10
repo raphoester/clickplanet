@@ -33,14 +33,12 @@ if (!replay || has("help")) {
                       findings name each front's, tour's and place's top fighters
   --silent            no anthem under the clip, for a sound added where it is posted
   --preview <s>       only the first s seconds of the clip
-  --variants <json>   the arm of each experiment the clip is in, as the posting job assigned it: {"length":"short"}.
-                      An experiment or an arm the generator does not know fails the clip
 
 Everything below is chosen from the replay when left out:
   --since, --until    the window searched, as ISO times; default the last 12 hours
   --hours <n>         the window's length, its busiest stretches
   --seconds <n>       the clip's length, at most 22; default 8.5 to 17.5 by how far the fighting moves (10 to 19 with a
-                      day's podium), 6.5 to 19 for a tour by its stops. Not with the experiment "length"
+                      day's podium), 6.5 to 19 for a tour by its stops
   --focus <code>      only what changed hands on that country's ground
   --flags             come back out of the tiles halfway, to watch the painted flags change, over the story's look
   --dive              come back out of the tiles at the end, over the story's look
@@ -244,7 +242,7 @@ const COMMIT = commitOf()
 
 function pageOf() {
     const query = new URLSearchParams({fps: flag("fps", "30"), commit: COMMIT})
-    for (const name of ["since", "until", "hours", "seconds", "focus", "headline", "variants", "story", "pick"]) {
+    for (const name of ["since", "until", "hours", "seconds", "focus", "headline", "story", "pick"]) {
         if (flag(name)) query.set(name, flag(name))
     }
     for (const name of ["flags", "dive", "silent"]) {
@@ -265,8 +263,6 @@ async function record(recorders) {
         `  music: ${recording.music ? `${recording.music.title}, the anthem of ${recording.music.whose}, from ${recording.music.from.toFixed(1)}s` : "none"}`,
         ...recording.fighters.length > 0
             ? [`  fighters: ${recording.fighters.map(({number, name, flag, took}) => `#${number} ${name} for ${flag} (${took} ${took === 1 ? "tile" : "tiles"})`).join(", ")}`] : [],
-        ...Object.keys(recording.variants).length > 0
-            ? [`  arms: ${Object.entries(recording.variants).map(([name, arm]) => `${name} ${arm}`).join(", ")}`] : [],
     ].join("\n"))
     if (has("plan")) return recording
 

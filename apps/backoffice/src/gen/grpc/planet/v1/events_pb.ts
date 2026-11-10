@@ -679,11 +679,6 @@ export class ClickTried extends Message<ClickTried> {
   linked = false;
 
   /**
-   * @generated from field: google.protobuf.Timestamp account_created_at = 4;
-   */
-  accountCreatedAt?: Timestamp;
-
-  /**
    * @generated from field: uint32 tile_id = 5;
    */
   tileId = 0;
@@ -735,7 +730,6 @@ export class ClickTried extends Message<ClickTried> {
     { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 4, name: "account_created_at", kind: "message", T: Timestamp },
     { no: 5, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "tried_at", kind: "message", T: Timestamp },

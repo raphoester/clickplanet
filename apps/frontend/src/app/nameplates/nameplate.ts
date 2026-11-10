@@ -4,7 +4,7 @@ import {Painted} from "../chat/authorStyle.ts"
 import {Unnamed} from "./nameplatesStore.ts"
 
 // What a name reads for an account nobody can name: deleted, asked deleted, or a message kept before accounts.
-export const DELETED_NAME = "[deleted]"
+const DELETED_NAME = "[deleted]"
 
 // Empty until it is read.
 export function nameOf(nameplate: Nameplate | Unnamed | undefined): string {

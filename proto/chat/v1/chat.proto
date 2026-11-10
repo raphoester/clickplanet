@@ -93,9 +93,8 @@ message Quote {
 }
 
 message SendMessageRequest {
-  reserved 1;
-  reserved "author_name";
-  string author_id = 2;
+  reserved 1, 2;
+  reserved "author_name", "author_id";
   string country_id = 3;
   oneof body {
     string text = 4;

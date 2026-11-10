@@ -97,14 +97,13 @@ func TestEditFlagsSayWhichFindingsHowManyClipsAndWhetherOnlyThePrompt(t *testing
 	require.ErrorIs(t, err, flags.ErrArguments)
 }
 
-func TestScheduleFlagsSayWhichClipsWhenAndWhereTheSummaryGoes(t *testing.T) {
+func TestScheduleFlagsSayWhichClipsAndWhereTheSummaryGoes(t *testing.T) {
 	t.Setenv(flags.HostVariable, "deploy@vps.example")
 
-	parsed, err := flags.Parse([]string{"schedule", "-clips", "clips", "-review", "3h", "-summary", "summary.md"})
+	parsed, err := flags.Parse([]string{"schedule", "-clips", "clips", "-summary", "summary.md"})
 
 	require.NoError(t, err)
 	var job clips.Config
-	job.Review = 3 * time.Hour
 	job.Replay.SSH = "deploy@vps.example"
 	assert.Equal(t, flags.Config{Command: flags.Schedule, ClipsFolder: "clips", SummaryFile: "summary.md", Job: job}, parsed)
 }
@@ -165,7 +164,7 @@ func TestFlagsWithAPartMissingOrWrongSayHowToCallTheCommand(t *testing.T) {
 		"choose, no such platform":   {"choose", "-findings", "findings.json", "-platforms", "instagram"},
 		"schedule, no folder":        {"schedule", "-ssh", "deploy@vps.example"},
 		"schedule, no host":          {"schedule", "-clips", "clips"},
-		"schedule, a wrong review":   {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-review", "soon"},
+		"schedule, no review now":    {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-review", "4h"},
 		"schedule, no spacing now":   {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-spacing", "1h"},
 		"schedule, no such platform": {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-platforms", "tiktok,instagram"},
 		"schedule, a platform twice": {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-platforms", "tiktok,tiktok"},

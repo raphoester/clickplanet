@@ -8,6 +8,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/suite"
@@ -29,7 +30,7 @@ func (s *testSuite) SetupTest() {
 	s.storage = inmemory_tile_storage.New(
 		clicks.BordersOf(maxIndex), clicks.NoCapitals(),
 		inmemory_tile_storage.Config{},
-		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}),
+		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{},
 		cptime.SystemClock{},
 		slog.New(slog.DiscardHandler),
 	)
@@ -96,7 +97,8 @@ func (s *testSuite) owner(tile uint32) string {
 
 func (s *testSuite) shield(tile uint32, country string, shields int) {
 	for range shields {
-		s.Require().NoError(s.storage.Shield(context.Background(), tile, country, 10))
+		_, err := s.storage.Shield(context.Background(), tile, country, 10, clicks.PlacementID{})
+		s.Require().NoError(err)
 	}
 }
 

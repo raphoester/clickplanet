@@ -8,8 +8,9 @@ import (
 )
 
 // Wipe empties the map in play once keep says to, in keep's transaction: every tile blank, with no holder and no
-// shield, and no fortify lock. The map starts a new epoch and every stream is cut, so every client reads it again. No flush runs
-// meanwhile, so none writes the map before it back.
+// shield, and no fortify lock. The map starts a new epoch and every stream is cut, so every client reads it again. What
+// changed is saved first, so every shield placed is confirmed. No flush runs meanwhile, so none writes the map before it
+// back.
 func (s *Storage) Wipe(ctx context.Context, keep func(ctx context.Context) (bool, error)) (bool, error) {
 	s.flushing.Lock()
 	defer s.flushing.Unlock()
@@ -17,6 +18,9 @@ func (s *Storage) Wipe(ctx context.Context, keep func(ctx context.Context) (bool
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if err := s.flushLocked(ctx); err != nil {
+		return false, fmt.Errorf("failed to save the map before wiping it: %w", err)
+	}
 	wiped, err := s.persistence.Wipe(ctx, s.playing, keep)
 	if err != nil {
 		return false, fmt.Errorf("failed to wipe the stored map: %w", err)

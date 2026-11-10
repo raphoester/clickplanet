@@ -31,12 +31,12 @@ function fakeGlobe(): Globe & {
     graphics: ReturnType<typeof vi.fn>,
     dispose: ReturnType<typeof vi.fn>,
 } {
-    return {tilesCount: 257_948, tilesRead: Promise.resolve(), setCountry: vi.fn(), setCrowd: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), setHalo: vi.fn(), setBonusLook: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), flyToLastLoss: vi.fn(), setMissions: vi.fn(), flyToMission: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
+    return {tilesCount: 257_948, tilesRead: Promise.resolve(), setCountry: vi.fn(), setCrowd: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), setHalo: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), flyToLastLoss: vi.fn(), setMissions: vi.fn(), flyToMission: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
 }
 
 function Harness(props: {country: typeof FRANCE, backends: ReturnType<typeof backends>, onResult: (r: unknown) => void}) {
     const container = useRef<HTMLDivElement>(null)
-    props.onResult(useGlobe({container, ...props.backends, country: props.country, clickHue: undefined, mapView: "split", halo: "calm", bonusLook: "box", missions: [], rendering: "sharp"}))
+    props.onResult(useGlobe({container, ...props.backends, country: props.country, clickHue: undefined, mapView: "split", halo: "calm", missions: [], rendering: "sharp"}))
     return <div ref={container}/>
 }
 
@@ -174,7 +174,7 @@ describe("useGlobe", () => {
 
         function Hued(props: {hue: number | undefined}) {
             const container = useRef<HTMLDivElement>(null)
-            useGlobe({container, ...deps, country: FRANCE, clickHue: props.hue, mapView: "split", halo: "calm", bonusLook: "box", missions: [], rendering: "sharp"})
+            useGlobe({container, ...deps, country: FRANCE, clickHue: props.hue, mapView: "split", halo: "calm", missions: [], rendering: "sharp"})
             return <div ref={container}/>
         }
 
@@ -194,7 +194,7 @@ describe("useGlobe", () => {
 
         function Crowded(props: {crowd: number | undefined}) {
             const container = useRef<HTMLDivElement>(null)
-            useGlobe({container, ...deps, country: FRANCE, crowd: props.crowd, clickHue: undefined, mapView: "split", halo: "calm", bonusLook: "box", missions: [], rendering: "sharp"})
+            useGlobe({container, ...deps, country: FRANCE, crowd: props.crowd, clickHue: undefined, mapView: "split", halo: "calm", missions: [], rendering: "sharp"})
             return <div ref={container}/>
         }
 
@@ -214,7 +214,7 @@ describe("useGlobe", () => {
 
         function Viewed(props: {view: MapView}) {
             const container = useRef<HTMLDivElement>(null)
-            useGlobe({container, ...deps, country: FRANCE, clickHue: undefined, mapView: props.view, halo: "calm", bonusLook: "box", missions: [], rendering: "sharp"})
+            useGlobe({container, ...deps, country: FRANCE, clickHue: undefined, mapView: props.view, halo: "calm", missions: [], rendering: "sharp"})
             return <div ref={container}/>
         }
 
@@ -234,7 +234,7 @@ describe("useGlobe", () => {
 
         function Rendered(props: {rendering: Rendering}) {
             const container = useRef<HTMLDivElement>(null)
-            useGlobe({container, ...deps, country: FRANCE, clickHue: undefined, mapView: "split", halo: "calm", bonusLook: "box", missions: [], rendering: props.rendering})
+            useGlobe({container, ...deps, country: FRANCE, clickHue: undefined, mapView: "split", halo: "calm", missions: [], rendering: props.rendering})
             return <div ref={container}/>
         }
 
@@ -368,7 +368,7 @@ describe("useGlobe", () => {
         createGlobe.mockResolvedValue(fakeGlobe())
 
         function NoContainer() {
-            useGlobe({container: createRef<HTMLDivElement>(), ...backends(), country: FRANCE, clickHue: undefined, mapView: "split", halo: "calm", bonusLook: "box", missions: [], rendering: "sharp"})
+            useGlobe({container: createRef<HTMLDivElement>(), ...backends(), country: FRANCE, clickHue: undefined, mapView: "split", halo: "calm", missions: [], rendering: "sharp"})
             return null
         }
         render(<NoContainer/>)

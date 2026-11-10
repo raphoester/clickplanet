@@ -259,11 +259,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fakeTurn.endBattle()
             return "the battle is over: closeBattle() or closeFinale() sends its results"
         },
-        startHalloween: (minutes = 120) => {
-            const since = Date.now()
-            fakeTurn.startHalloween(crypto.randomUUID(), since, since + minutes * 60_000)
-            return "Halloween is on: endBattle() ends it"
-        },
         offerSignIn: () => {
             fakeAccount.offerSignIn()
             void account.load().then(() => account.followCrazyGames())
