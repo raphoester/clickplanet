@@ -39,7 +39,8 @@ func (s *Storage) Blank(ctx context.Context, arena clicks.MapID, keep func(ctx c
 }
 
 // PutBack deletes an arena's map once keep says to, in keep's transaction. When the arena's map plays, the world's
-// plays again, read as the boot reads it: a new epoch and every stream cut. What memory held of the arena is dropped.
+// plays again, read as the boot reads it: a new epoch and every stream cut. What changed is saved first, so every
+// shield placed is confirmed; then what memory held of the arena is dropped.
 func (s *Storage) PutBack(ctx context.Context, arena clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error) {
 	if arena == clicks.World {
 		return false, errWorldIsNoArena
@@ -51,6 +52,9 @@ func (s *Storage) PutBack(ctx context.Context, arena clicks.MapID, keep func(ctx
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if err := s.flushLocked(ctx); err != nil {
+		return false, fmt.Errorf("failed to save the map before deleting the arena's: %w", err)
+	}
 	dropped, err := s.persistence.Wipe(ctx, arena, keep)
 	if err != nil {
 		return false, fmt.Errorf("failed to delete the arena's map: %w", err)

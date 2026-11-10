@@ -15,7 +15,7 @@ type Tiles interface {
 	Owner(tile uint32) (string, bool)
 	Shields(tile uint32) int
 	Clear(ctx context.Context, blast clicks.Blast) (clicks.Blast, error)
-	Shield(ctx context.Context, tile uint32, country string, most int) error
+	Shield(ctx context.Context, tile uint32, country string, most int, placement clicks.PlacementID) (int, error)
 }
 
 type Claims interface {
@@ -100,18 +100,19 @@ func (r Recording) Clear(ctx context.Context, blast clicks.Blast) (clicks.Blast,
 	return cleared, nil
 }
 
-func (r Recording) Shield(ctx context.Context, tile uint32, country string, most int) error {
-	if err := r.tiles.Shield(ctx, tile, country, most); err != nil {
-		return err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
+func (r Recording) Shield(
+	ctx context.Context, tile uint32, country string, most int, placement clicks.PlacementID,
+) (int, error) {
+	shields, err := r.tiles.Shield(ctx, tile, country, most, placement)
+	if err != nil {
+		return 0, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 	}
 
 	r.record(ctx, func(by Caller, at time.Time) Event {
-		return Shielding{
-			Tile: tile, Scope: by.Scope, Account: by.Account, Country: country, Shields: r.tiles.Shields(tile), At: at,
-		}
+		return Shielding{Tile: tile, Scope: by.Scope, Account: by.Account, Country: country, Shields: shields, At: at}
 	})
 
-	return nil
+	return shields, nil
 }
 
 func (r Recording) claim(ctx context.Context, flag string, tiles []uint32) ([]clicks.Impact, error) {

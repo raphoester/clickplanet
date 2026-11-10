@@ -59,7 +59,7 @@ func (s *Storage) Reactions(
 	given := make(map[messages.MessageID]reactions.Reactions)
 	for _, change := range s.given {
 		if slices.Contains(ids, change.MessageID()) {
-			given[change.MessageID()] = given[change.MessageID()].Applied(change)
+			given[change.MessageID()] = given[change.MessageID()].With(change.Reaction(), change.Reactor())
 		}
 	}
 	for id, version := range s.versions {

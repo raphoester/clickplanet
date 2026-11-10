@@ -5,11 +5,12 @@
 
 import { ListPostsRequest, ListPostsResponse, PlanPostRequest, PlanPostResponse, SchedulePostRequest, SchedulePostResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
+import { GetPostLinksRequest, GetPostLinksResponse } from "./internal_pb.js";
 
 /**
- * What another module asks publishing: the promo module posts each battle's teaser itself. The same calls, in the same
- * words, as the operator's AdminService, on the loopback internal listener. FailedPrecondition for every call while the
- * server holds no key of the posting service.
+ * What another module asks publishing: the promo module posts each battle's teaser itself, in the same calls and words
+ * as the operator's AdminService, and the clips module reads where each post is. On the loopback internal listener.
+ * FailedPrecondition for every call while the server holds no key of the posting service.
  *
  * @generated from service publishing.v1.InternalService
  */
@@ -48,6 +49,19 @@ export const InternalService = {
       name: "ListPosts",
       I: ListPostsRequest,
       O: ListPostsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Each post's address on each platform, as the newest daily snapshot that has one read it: for the clips module, which
+     * tells a player the posts that name it. A post no snapshot read yet has none. Empty while the posts' numbers are off.
+     *
+     * @generated from rpc publishing.v1.InternalService.GetPostLinks
+     */
+    getPostLinks: {
+      name: "GetPostLinks",
+      I: GetPostLinksRequest,
+      O: GetPostLinksResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

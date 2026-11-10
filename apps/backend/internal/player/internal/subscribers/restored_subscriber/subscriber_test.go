@@ -31,7 +31,7 @@ func TestARestoredAccountIsShownAgain(t *testing.T) {
 	require.NoError(t, err)
 	departure, err := store.Departure(t.Context(), account)
 	require.NoError(t, err)
-	assert.False(t, departure.Leaving())
+	assert.False(t, departure.TakeSnapshot().Leaving)
 }
 
 func TestARestoreWithNoTimeIsRefused(t *testing.T) {

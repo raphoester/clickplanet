@@ -1419,15 +1419,14 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12*\n" +
 	"\x05color\x18\x03 \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12\x14\n" +
 	"\x05admin\x18\x04 \x01(\bR\x05admin\x12\x14\n" +
-	"\x05guest\x18\x05 \x01(\bR\x05guest2\xa5\x05\n" +
+	"\x05guest\x18\x05 \x01(\bR\x05guest2\xd8\x04\n" +
 	"\rPlayerService\x12I\n" +
 	"\n" +
 	"GetProfile\x12\x1c.player.v1.GetProfileRequest\x1a\x1d.player.v1.GetProfileResponse\x12@\n" +
 	"\aSetName\x12\x19.player.v1.SetNameRequest\x1a\x1a.player.v1.SetNameResponse\x12C\n" +
 	"\bSetColor\x12\x1a.player.v1.SetColorRequest\x1a\x1b.player.v1.SetColorResponse\x12C\n" +
 	"\bAnnounce\x12\x1a.player.v1.AnnounceRequest\x1a\x1b.player.v1.AnnounceResponse\x12:\n" +
-	"\x05Leave\x12\x17.player.v1.LeaveRequest\x1a\x18.player.v1.LeaveResponse\x12K\n" +
-	"\tGetRoster\x12\x1b.player.v1.GetRosterRequest\x1a\x1c.player.v1.GetRosterResponse\"\x03\x90\x02\x01\x12N\n" +
+	"\x05Leave\x12\x17.player.v1.LeaveRequest\x1a\x18.player.v1.LeaveResponse\x12N\n" +
 	"\x0fListenForEvents\x12!.player.v1.ListenForEventsRequest\x1a\x16.player.v1.PlayerEvent0\x01\x12K\n" +
 	"\tGetPlayer\x12\x1b.player.v1.GetPlayerRequest\x1a\x1c.player.v1.GetPlayerResponse\"\x03\x90\x02\x01\x12W\n" +
 	"\rGetNameplates\x12\x1f.player.v1.GetNameplatesRequest\x1a .player.v1.GetNameplatesResponse\"\x03\x90\x02\x01B\xb3\x01\n" +
@@ -1498,21 +1497,19 @@ var file_player_v1_player_proto_depIdxs = []int32{
 	6,  // 18: player.v1.PlayerService.SetColor:input_type -> player.v1.SetColorRequest
 	8,  // 19: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
 	10, // 20: player.v1.PlayerService.Leave:input_type -> player.v1.LeaveRequest
-	12, // 21: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
-	15, // 22: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
-	20, // 23: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
-	23, // 24: player.v1.PlayerService.GetNameplates:input_type -> player.v1.GetNameplatesRequest
-	2,  // 25: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
-	4,  // 26: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
-	7,  // 27: player.v1.PlayerService.SetColor:output_type -> player.v1.SetColorResponse
-	9,  // 28: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
-	11, // 29: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
-	13, // 30: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
-	16, // 31: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
-	21, // 32: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
-	24, // 33: player.v1.PlayerService.GetNameplates:output_type -> player.v1.GetNameplatesResponse
-	25, // [25:34] is the sub-list for method output_type
-	16, // [16:25] is the sub-list for method input_type
+	15, // 21: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
+	20, // 22: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
+	23, // 23: player.v1.PlayerService.GetNameplates:input_type -> player.v1.GetNameplatesRequest
+	2,  // 24: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
+	4,  // 25: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
+	7,  // 26: player.v1.PlayerService.SetColor:output_type -> player.v1.SetColorResponse
+	9,  // 27: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
+	11, // 28: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
+	16, // 29: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
+	21, // 30: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
+	24, // 31: player.v1.PlayerService.GetNameplates:output_type -> player.v1.GetNameplatesResponse
+	24, // [24:32] is the sub-list for method output_type
+	16, // [16:24] is the sub-list for method input_type
 	16, // [16:16] is the sub-list for extension type_name
 	16, // [16:16] is the sub-list for extension extendee
 	0,  // [0:16] is the sub-list for field type_name

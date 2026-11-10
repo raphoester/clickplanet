@@ -1,7 +1,7 @@
 import {create} from "zustand"
 import {CountryOrder} from "../domain/race.ts"
 
-export const COUNTRY_ORDER_STORAGE_KEY = "clickplanet-country-order"
+const COUNTRY_ORDER_STORAGE_KEY = "clickplanet-country-order"
 
 const ORDERS: readonly CountryOrder[] = ["points", "tiles", "gain"]
 

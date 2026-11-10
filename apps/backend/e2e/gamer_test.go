@@ -199,9 +199,8 @@ func (p *gamer) progression() progressionv1connect.ProgressionServiceClient {
 func (p *gamer) stats() *progressionv1.Stats {
 	p.t.Helper()
 
-	req := connect.NewRequest(&progressionv1.GetStatsRequest{})
-	p.send(req.Header())
-	res, err := p.progression().GetStats(p.t.Context(), req)
+	res, err := progressionv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.consoleURL).GetProgress(p.t.Context(),
+		connect.NewRequest(&progressionv1.AdminGetProgressRequest{AccountId: p.account()}))
 	require.NoError(p.t, err)
 	return res.Msg.GetStats()
 }
@@ -292,9 +291,7 @@ func (p *gamer) chat() chatv1connect.ChatServiceClient {
 func (p *gamer) post(text string) *chatv1.ChatMessage {
 	p.t.Helper()
 
-	req := connect.NewRequest(&chatv1.SendMessageRequest{
-		AuthorId: "browser-1", CountryId: "fr", Body: &chatv1.SendMessageRequest_Text{Text: text},
-	})
+	req := connect.NewRequest(&chatv1.SendMessageRequest{CountryId: "fr", Body: &chatv1.SendMessageRequest_Text{Text: text}})
 	p.send(req.Header())
 	res, err := p.chat().SendMessage(p.t.Context(), req)
 	require.NoError(p.t, err)

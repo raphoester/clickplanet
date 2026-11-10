@@ -102,7 +102,7 @@ function StandingRow({standing, you}: StandingRowProps) {
     const style = authorStyle(paintOf(nameplate))
     const name = useWordFilter().masked(nameOf(nameplate))
     const player = lineOf(standing.accountId, standing.countryCode, nameplate)
-    const openPlayer = usePlayerCard((card) => card.openable ? card.open : undefined)
+    const openPlayer = usePlayerCard((card) => card.open)
 
     return <tr className={you ? "leaderboard-entry leaderboard-entry-player" : "leaderboard-entry"}
                aria-current={you ? "true" : undefined}>
@@ -112,7 +112,7 @@ function StandingRow({standing, you}: StandingRowProps) {
                 {country && <span className="standings-flag" role="img" aria-label={country.name} title={country.name}>
                     <CountryFlag code={country.code}/>
                 </span>}
-                {openPlayer && player
+                {player
                     ? <button type="button"
                               className="standings-name player-name-button"
                               style={style}

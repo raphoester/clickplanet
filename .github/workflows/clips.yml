@@ -112,9 +112,8 @@ jobs:
           name: findings
 
       # Up to 2, within what each platform has left of its trailing day, as the backend's publishing module counts it,
-      # and what was told, both asked of it over ssh: the model's stories of the findings, each checked against them,
-      # with the arm of each experiment its clip is in:
-      # [{"pick":1,"story":{"front":3,"kind":"battle",...,"headline":"FRANCE VS TURKEY"},"variants":{}}].
+      # and what was told, both asked of it over ssh: the model's stories of the findings, each checked against them:
+      # [{"pick":1,"story":{"front":3,"kind":"battle",...,"headline":"FRANCE VS TURKEY"}}].
       # What the model's call cost goes to the summary; a model that fails leaves the run its day won alone, and the summary says why.
       - name: choose the clips of the run
         id: choose
@@ -174,20 +173,17 @@ jobs:
           name: replay
           path: apps/frontend
 
-      # One recorder: with no GPU each one draws every frame, so a second one adds nothing. The generator applies the
-      # arms it acts on, and writes every arm into the clip's record for schedule. The model's story, its headline in
-      # it, goes through the environment, never into the script: it is the model's text.
+      # One recorder: with no GPU each one draws every frame, so a second one adds nothing. The model's story, its
+      # headline in it, goes through the environment, never into the script: it is the model's text.
       - name: render the clip
         env:
           PICK: ${{ matrix.clip.pick }}
           STORY: ${{ toJSON(matrix.clip.story) }}
-          VARIANTS: ${{ toJSON(matrix.clip.variants) }}
         run: |
           race=$([ -f race.json ] && echo "--race race.json" || true)
           season=$([ -f season.json ] && echo "--season season.json" || true)
           cast=$([ -f cast.json ] && echo "--cast cast.json" || true)
-          npm run clip -- --replay replay.json $race $season $cast --pick "$PICK" --story "$STORY" --variants "$VARIANTS" \
-            --recorders 1
+          npm run clip -- --replay replay.json $race $season $cast --pick "$PICK" --story "$STORY" --recorders 1
 
       - uses: actions/upload-artifact@v4
         with:

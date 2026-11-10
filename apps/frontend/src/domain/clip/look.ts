@@ -11,7 +11,7 @@ const MIN_LANDMASS_TILES = 20
 const CHECKPOINTS = 8
 
 // A landmass this big reads as a painted flag at a continent's framing: Latvia, not Belgium.
-export const READABLE_FLIP_TILES = 100
+const READABLE_FLIP_TILES = 100
 
 // holders: who held most of the landmass, in turn, from the first. tile: one tile of it, to say where it is.
 export type Flip = {landmass: number, tiles: number, holders: string[], tile: number}

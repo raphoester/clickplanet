@@ -12,7 +12,7 @@ burger menu (see [The menu](menu.md)), by group:
 - **Moderation**: Reports, which the operator acts on and closes (see [Acting on a report](reports.md)),
   and Players, who played and every tool on one player (see [The player page](player-page.md)).
 - **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](map-tools.md)).
-- **Clips**: Clip stats, the daily numbers of the clips the clips job posts, and a CSV of them (see
+- **Clips**: Clip stats, the daily numbers of every post the game made, the clips' among them, and a CSV of them (see
   [Clip stats](clip-stats.md)), and Videos, the season-end videos to post by hand, with their captions (see
   [Videos](videos.md)).
 - **Ops**: Timeline, what the gamemaster does next, as blocks and a list; Reconcile titles, the run after a deploy; Link Discord members, the players in the Discord server whom no sign-in linked; Game rules, the rule sets the game plays by; Anti-bot rules,

@@ -31,11 +31,3 @@ func OutcomeOf(owner, flag string, shields int) Outcome {
 		return Taken
 	}
 }
-
-func (o Outcome) OwnerAfter(owner, flag string) string {
-	if o == Taken {
-		return flag
-	}
-
-	return owner
-}

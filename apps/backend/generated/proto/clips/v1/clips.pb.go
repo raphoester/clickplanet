@@ -1528,7 +1528,6 @@ type ClipRecord struct {
 	Generator     string                 `protobuf:"bytes,2,opt,name=generator,proto3" json:"generator,omitempty"`
 	Common        *ClipCommon            `protobuf:"bytes,3,opt,name=common,proto3" json:"common,omitempty"`
 	Globe         *GlobeReplay           `protobuf:"bytes,4,opt,name=globe,proto3" json:"globe,omitempty"`
-	Variants      map[string]string      `protobuf:"bytes,5,rep,name=variants,proto3" json:"variants,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1587,13 +1586,6 @@ func (x *ClipRecord) GetCommon() *ClipCommon {
 func (x *ClipRecord) GetGlobe() *GlobeReplay {
 	if x != nil {
 		return x.Globe
-	}
-	return nil
-}
-
-func (x *ClipRecord) GetVariants() map[string]string {
-	if x != nil {
-		return x.Variants
 	}
 	return nil
 }
@@ -2508,17 +2500,13 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\vClipFighter\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\rR\x06number\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
-	"\x04flag\x18\x03 \x01(\tR\x04flag\"\x9a\x02\n" +
+	"\x04flag\x18\x03 \x01(\tR\x04flag\"\xad\x01\n" +
 	"\n" +
 	"ClipRecord\x12\x16\n" +
 	"\x06format\x18\x01 \x01(\tR\x06format\x12\x1c\n" +
 	"\tgenerator\x18\x02 \x01(\tR\tgenerator\x12,\n" +
 	"\x06common\x18\x03 \x01(\v2\x14.clips.v1.ClipCommonR\x06common\x12+\n" +
-	"\x05globe\x18\x04 \x01(\v2\x15.clips.v1.GlobeReplayR\x05globe\x12>\n" +
-	"\bvariants\x18\x05 \x03(\v2\".clips.v1.ClipRecord.VariantsEntryR\bvariants\x1a;\n" +
-	"\rVariantsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb5\x01\n" +
+	"\x05globe\x18\x04 \x01(\v2\x15.clips.v1.GlobeReplayR\x05globeJ\x04\b\x05\x10\x06R\bvariants\"\xb5\x01\n" +
 	"\n" +
 	"ClipCommon\x12)\n" +
 	"\x10duration_seconds\x18\x01 \x01(\x01R\x0fdurationSeconds\x12\x14\n" +
@@ -2600,7 +2588,7 @@ func file_clips_v1_clips_proto_rawDescGZIP() []byte {
 	return file_clips_v1_clips_proto_rawDescData
 }
 
-var file_clips_v1_clips_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
+var file_clips_v1_clips_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_clips_v1_clips_proto_goTypes = []any{
 	(*Findings)(nil),              // 0: clips.v1.Findings
 	(*Continent)(nil),             // 1: clips.v1.Continent
@@ -2637,20 +2625,19 @@ var file_clips_v1_clips_proto_goTypes = []any{
 	nil,                           // 32: clips.v1.Place.RivalsEntry
 	nil,                           // 33: clips.v1.Place.FlippedByContinentEntry
 	nil,                           // 34: clips.v1.StoryFacts.NamesEntry
-	nil,                           // 35: clips.v1.ClipRecord.VariantsEntry
-	(*timestamppb.Timestamp)(nil), // 36: google.protobuf.Timestamp
+	(*timestamppb.Timestamp)(nil), // 35: google.protobuf.Timestamp
 }
 var file_clips_v1_clips_proto_depIdxs = []int32{
-	36, // 0: clips.v1.Findings.since:type_name -> google.protobuf.Timestamp
-	36, // 1: clips.v1.Findings.until:type_name -> google.protobuf.Timestamp
+	35, // 0: clips.v1.Findings.since:type_name -> google.protobuf.Timestamp
+	35, // 1: clips.v1.Findings.until:type_name -> google.protobuf.Timestamp
 	2,  // 2: clips.v1.Findings.fronts:type_name -> clips.v1.Front
 	6,  // 3: clips.v1.Findings.tours:type_name -> clips.v1.Tour
 	7,  // 4: clips.v1.Findings.places:type_name -> clips.v1.Place
 	8,  // 5: clips.v1.Findings.seasonal:type_name -> clips.v1.Seasonal
 	23, // 6: clips.v1.Findings.names:type_name -> clips.v1.Findings.NamesEntry
 	1,  // 7: clips.v1.Findings.continents:type_name -> clips.v1.Continent
-	36, // 8: clips.v1.Front.since:type_name -> google.protobuf.Timestamp
-	36, // 9: clips.v1.Front.until:type_name -> google.protobuf.Timestamp
+	35, // 8: clips.v1.Front.since:type_name -> google.protobuf.Timestamp
+	35, // 9: clips.v1.Front.until:type_name -> google.protobuf.Timestamp
 	3,  // 10: clips.v1.Front.countries:type_name -> clips.v1.FrontCountry
 	4,  // 11: clips.v1.Front.flags:type_name -> clips.v1.FrontFlag
 	24, // 12: clips.v1.FrontCountry.holders_start:type_name -> clips.v1.FrontCountry.HoldersStartEntry
@@ -2659,8 +2646,8 @@ var file_clips_v1_clips_proto_depIdxs = []int32{
 	27, // 15: clips.v1.FrontFlag.took_from:type_name -> clips.v1.FrontFlag.TookFromEntry
 	28, // 16: clips.v1.FrontFlag.flipped_by_continent:type_name -> clips.v1.FrontFlag.FlippedByContinentEntry
 	5,  // 17: clips.v1.FrontFlag.fighters:type_name -> clips.v1.TopFighter
-	36, // 18: clips.v1.Tour.since:type_name -> google.protobuf.Timestamp
-	36, // 19: clips.v1.Tour.until:type_name -> google.protobuf.Timestamp
+	35, // 18: clips.v1.Tour.since:type_name -> google.protobuf.Timestamp
+	35, // 19: clips.v1.Tour.until:type_name -> google.protobuf.Timestamp
 	29, // 20: clips.v1.Tour.by_continent:type_name -> clips.v1.Tour.ByContinentEntry
 	30, // 21: clips.v1.Tour.took_from:type_name -> clips.v1.Tour.TookFromEntry
 	31, // 22: clips.v1.Tour.flipped_by_continent:type_name -> clips.v1.Tour.FlippedByContinentEntry
@@ -2671,28 +2658,27 @@ var file_clips_v1_clips_proto_depIdxs = []int32{
 	19, // 27: clips.v1.Seasonal.key:type_name -> clips.v1.StoryKey
 	9,  // 28: clips.v1.Seasonal.facts:type_name -> clips.v1.StoryFacts
 	34, // 29: clips.v1.StoryFacts.names:type_name -> clips.v1.StoryFacts.NamesEntry
-	36, // 30: clips.v1.StoryFacts.story_ended_at:type_name -> google.protobuf.Timestamp
+	35, // 30: clips.v1.StoryFacts.story_ended_at:type_name -> google.protobuf.Timestamp
 	19, // 31: clips.v1.Clip.key:type_name -> clips.v1.StoryKey
 	18, // 32: clips.v1.Clip.countries:type_name -> clips.v1.TaggedCountry
 	13, // 33: clips.v1.Clip.record:type_name -> clips.v1.ClipRecord
 	12, // 34: clips.v1.Clip.fighters:type_name -> clips.v1.ClipFighter
 	14, // 35: clips.v1.ClipRecord.common:type_name -> clips.v1.ClipCommon
 	15, // 36: clips.v1.ClipRecord.globe:type_name -> clips.v1.GlobeReplay
-	35, // 37: clips.v1.ClipRecord.variants:type_name -> clips.v1.ClipRecord.VariantsEntry
-	36, // 38: clips.v1.GlobeReplay.story_ended_at:type_name -> google.protobuf.Timestamp
-	13, // 39: clips.v1.PostRecord.clip:type_name -> clips.v1.ClipRecord
-	17, // 40: clips.v1.PostRecord.post:type_name -> clips.v1.PostFacts
-	36, // 41: clips.v1.PostFacts.scheduled_at:type_name -> google.protobuf.Timestamp
-	36, // 42: clips.v1.Cast.since:type_name -> google.protobuf.Timestamp
-	36, // 43: clips.v1.Cast.until:type_name -> google.protobuf.Timestamp
-	21, // 44: clips.v1.Cast.fighters:type_name -> clips.v1.Fighter
-	22, // 45: clips.v1.Cast.takes:type_name -> clips.v1.CastTake
-	36, // 46: clips.v1.CastTake.at:type_name -> google.protobuf.Timestamp
-	47, // [47:47] is the sub-list for method output_type
-	47, // [47:47] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	35, // 37: clips.v1.GlobeReplay.story_ended_at:type_name -> google.protobuf.Timestamp
+	13, // 38: clips.v1.PostRecord.clip:type_name -> clips.v1.ClipRecord
+	17, // 39: clips.v1.PostRecord.post:type_name -> clips.v1.PostFacts
+	35, // 40: clips.v1.PostFacts.scheduled_at:type_name -> google.protobuf.Timestamp
+	35, // 41: clips.v1.Cast.since:type_name -> google.protobuf.Timestamp
+	35, // 42: clips.v1.Cast.until:type_name -> google.protobuf.Timestamp
+	21, // 43: clips.v1.Cast.fighters:type_name -> clips.v1.Fighter
+	22, // 44: clips.v1.Cast.takes:type_name -> clips.v1.CastTake
+	35, // 45: clips.v1.CastTake.at:type_name -> google.protobuf.Timestamp
+	46, // [46:46] is the sub-list for method output_type
+	46, // [46:46] is the sub-list for method input_type
+	46, // [46:46] is the sub-list for extension type_name
+	46, // [46:46] is the sub-list for extension extendee
+	0,  // [0:46] is the sub-list for field type_name
 }
 
 func init() { file_clips_v1_clips_proto_init() }
@@ -2706,7 +2692,7 @@ func file_clips_v1_clips_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clips_v1_clips_proto_rawDesc), len(file_clips_v1_clips_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   36,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

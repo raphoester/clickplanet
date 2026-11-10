@@ -73,6 +73,8 @@ its own.
   grant goes to the error net (logged, answered `internal`). `bonus_claims_total` and `quiz_answers_total` count it
   `failed`, apart from `refused`. Once the offer is taken, the grant does not stop when the page leaves: it runs on
   `context.WithoutCancel` for at most 5 s.
+- **A return undoes a spend**: `Charges.Return` puts back what a spend took, and reads no rule, since it grants
+  nothing. Only a shield the map refused comes back this way (see [A shield's way](placements.md)).
 - **Only a grant pushes them** (`charges_granted`, above). Otherwise they are not live news: `GetCharges` answers what the
   caller holds, read by the client at load and when its account changes, and
   `ClaimBonusResponse.charges` answers the claim, `PlaceShieldResponse.charges` a

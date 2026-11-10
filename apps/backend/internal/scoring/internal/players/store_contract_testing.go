@@ -3,15 +3,22 @@
 package players
 
 import (
+	"context"
+
 	"github.com/stretchr/testify/suite"
 )
+
+type ReadableStore interface {
+	Store
+	IsPlayer(ctx context.Context, account AccountID) (bool, error)
+}
 
 type StoreContractSuite struct {
 	suite.Suite
 
-	NewStore func() Store
+	NewStore func() ReadableStore
 
-	store Store
+	store ReadableStore
 }
 
 func (s *StoreContractSuite) SetupTest() {

@@ -60,6 +60,7 @@ type harness struct {
 	opened   *inmemory_moment_store.Store
 	judged   *inmemory_arena_store.Store
 	commands *commanded
+	planner  moments.Planner
 	useCase  *play_scoring_usecase.UseCase
 }
 
@@ -98,7 +99,15 @@ func (h *harness) noFinale() {
 
 func (h *harness) boot() {
 	h.commands = &commanded{}
-	h.useCase = play_scoring_usecase.New(moments.NewPlanner(h.seasons, h.entries, h.opened, h.judged, cutoff), h.opened, h.commands, h.clock)
+	h.planner = moments.NewPlanner(h.seasons, h.entries, h.opened, h.judged, cutoff)
+	h.useCase = play_scoring_usecase.New(h.opened, h.commands, h.clock)
+}
+
+func (h *harness) plan() moments.Plan {
+	h.t.Helper()
+	plan, err := h.planner.Plan(h.t.Context())
+	require.NoError(h.t, err)
+	return plan
 }
 
 func (h *harness) at(at time.Time) {
@@ -107,7 +116,7 @@ func (h *harness) at(at time.Time) {
 
 func (h *harness) execute() []moments.Command {
 	h.t.Helper()
-	sent, err := h.useCase.Execute(h.t.Context())
+	sent, err := h.useCase.Execute(h.t.Context(), h.plan())
 	require.NoError(h.t, err)
 	return sent
 }
@@ -255,7 +264,7 @@ func TestACommandRedisDidNotTakeIsSentAgainBeforeTheOnesAfterIt(t *testing.T) {
 	h.commands.err = down
 	h.clock.Advance(time.Second)
 
-	sent, err := h.useCase.Execute(t.Context())
+	sent, err := h.useCase.Execute(t.Context(), h.plan())
 	require.ErrorIs(t, err, down)
 	assert.Empty(t, sent)
 
@@ -271,15 +280,4 @@ func TestNoSeasonStartedSendsNothing(t *testing.T) {
 	h := newHarness(t, season.Origin.Add(-time.Second))
 
 	assert.Empty(t, h.execute())
-}
-
-func TestSeasonsThatCannotBeReadSendNothing(t *testing.T) {
-	h := newHarness(t, finale)
-	down := errors.New("postgres is down")
-	h.seasons.FailWith(down)
-
-	_, err := h.useCase.Execute(t.Context())
-
-	require.ErrorIs(t, err, down)
-	assert.Empty(t, h.commands.sent)
 }

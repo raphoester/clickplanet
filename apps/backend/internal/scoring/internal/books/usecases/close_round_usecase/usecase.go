@@ -72,19 +72,9 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 }
 
 func eventOf(scored books.Scored) *scoringv1.RoundScored {
-	results := make([]*scoringv1.RoundResult, 0, len(scored.Results))
-	for _, result := range scored.Results {
-		results = append(results, &scoringv1.RoundResult{
-			Country: string(result.Country),
-			Rank:    result.Rank,
-			Points:  result.Points,
-			Share:   result.Share,
-		})
-	}
 	return &scoringv1.RoundScored{
 		RoundId: string(scored.Round.ID),
 		BookId:  string(scored.Round.Book),
 		EndedAt: timestamppb.New(scored.Round.EndsAt),
-		Results: results,
 	}
 }

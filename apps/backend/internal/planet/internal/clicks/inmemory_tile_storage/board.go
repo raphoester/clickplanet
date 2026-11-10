@@ -56,15 +56,21 @@ func (b *board) shieldsOn(tile uint32) int {
 	return int(b.tiles[tile].shields)
 }
 
-// A change of owner takes the tile's shields with it, and its holder is whoever made the change.
-func (b *board) move(tile uint32, to uint16, holder uint32) (from uint16) {
+func (b *board) tile(id uint32) clicks.TileSnapshot {
+	state := b.tiles[id]
+	return clicks.TileSnapshot{
+		ID: id, Owner: b.codes.nameOf(state.owner), Shields: int(state.shields), Holder: b.holders.accountOf(state.holder),
+	}
+}
+
+func (b *board) put(tile uint32, state tileState) (from uint16) {
 	from = b.tiles[tile].owner
 	if from != unownedCode {
 		b.held[from]--
 	}
-	b.count(to)
+	b.count(state.owner)
 
-	b.tiles[tile] = heldFor(to, holder)
+	b.tiles[tile] = state
 	b.dirty.mark(tile)
 
 	return from

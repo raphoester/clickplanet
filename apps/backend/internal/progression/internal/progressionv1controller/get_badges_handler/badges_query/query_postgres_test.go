@@ -2,7 +2,6 @@ package badges_query_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -176,26 +175,14 @@ func (s *testSuite) TestAFailedReadIsAnError() {
 	s.Error(err)
 }
 
-// The rules the commands apply, over the same rows: a username's streak as of today (Stats.AsOf) and the title its
-// wardrobe shows as worn (wearing.WornOf), and nothing for a guest.
-func (s *testSuite) badgeOf(account accounts.AccountID, wardrobe wearing.Wardrobe) *progressionv1.Badge {
-	named, err := s.nameplates.Named(s.T().Context(), account)
-	s.Require().NoError(err)
-	if !named {
-		return nil
-	}
-	counted, err := s.stats.Stats(s.T().Context(), account)
-	if errors.Is(err, stats.ErrNoStats) {
-		counted = stats.NewStats(account)
-	} else {
-		s.Require().NoError(err)
-	}
+// The title the commands show as worn (wearing.WornOf), over the same rows, beside the streak the test expects today.
+func (s *testSuite) badgeOf(account accounts.AccountID, streak uint32, wardrobe wearing.Wardrobe) *progressionv1.Badge {
 	showcase, err := wardrobe.Showcase(s.T().Context(), account)
 	s.Require().NoError(err)
 
 	badge := &progressionv1.Badge{
 		AccountId: account.String(),
-		Streak:    counted.AsOf(stats.DayOf(today)).Streak().Days(),
+		Streak:    streak,
 		WornTitle: progressionmessage.Title(showcase.Worn()),
 	}
 	if badge.GetStreak() == 0 && badge.GetWornTitle() == nil {
@@ -221,14 +208,16 @@ func (s *testSuite) TestEachBadgeIsWhatTheRulesShowBesideTheName() {
 	s.Require().NoError(s.worn.Wear(s.T().Context(), guest, "og", today))
 
 	everyone := []accounts.AccountID{ada, bob, guest, cy, dan, eve}
+	streaks := map[accounts.AccountID]uint32{ada: 2, bob: 0, cy: 0, dan: 0}
 	catalog := titles.NewCatalog()
 	wardrobe := wearing.NewWardrobe(s.worn, titles.NewBook(s.titles, catalog), catalog)
 	badges := s.badges(everyone...)
 
 	for _, account := range everyone {
-		want := s.badgeOf(account, wardrobe)
+		streak, named := streaks[account]
+		want := s.badgeOf(account, streak, wardrobe)
 		badge, shown := badges[account.String()]
-		if want == nil {
+		if !named || want == nil {
 			s.False(shown, "%s shows nothing beside its name, so it has no badge, got %v", account, badge)
 			continue
 		}

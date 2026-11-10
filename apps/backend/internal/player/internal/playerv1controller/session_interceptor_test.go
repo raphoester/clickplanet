@@ -31,8 +31,8 @@ func (v tokenVerifier) Verify(_ context.Context, token string, _ string, _ time.
 }
 
 var verifier = tokenVerifier{
-	"a-click-token":     {ID: "a-mint", Account: ada, Attested: true},
-	"an-identity-token": {ID: "a-resume", Account: ada},
+	"a-click-token":     {Account: ada, Attested: true},
+	"an-identity-token": {Account: ada},
 }
 
 type fakeRequest struct {
@@ -100,10 +100,9 @@ func TestTheReadsOfTheCallerTakeTheIdentityTokenOfAResumedSession(t *testing.T) 
 	}
 }
 
-func TestAnyonesPlayerTheRosterAndTheNameplatesNeedNoToken(t *testing.T) {
+func TestAnyonesPlayerAndTheNameplatesNeedNoToken(t *testing.T) {
 	for _, procedure := range []string{
 		playerv1connect.PlayerServiceGetPlayerProcedure,
-		playerv1connect.PlayerServiceGetRosterProcedure,
 		playerv1connect.PlayerServiceGetNameplatesProcedure,
 	} {
 		for _, token := range []string{"", "forged"} {

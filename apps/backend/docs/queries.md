@@ -2,8 +2,8 @@
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
-(`GetHistory`, `GetMessage`, `ListMessages`, `ListModeration`), player (`GetProfile`, `GetPlayer`, `GetPlayers`, `GetNameplates`, `GetRoster`, `ListRenames`), progression (`GetStats`,
-`GetTitles`, `GetBadges`, `GetProgress`, `AdminService/GetProgress`), planet
+(`GetHistory`, `GetMessage`, `ListMessages`, `ListModeration`), player (`GetProfile`, `GetPlayer`, `GetPlayers`, `GetNameplates`, `AdminService/GetRoster`, `ListRenames`), progression
+(`GetTitles`, `GetBadges`, `GetProgress`, `AdminService/GetProgress`), planet
 (`GetTakesByCountry`, `GetLedgerTotals`, `GetMapHistory`, `GetTerritories`, `GetLedger`, `GetTileHolder`, `GetLandmass`, `GetHoldings`),
 gamemaster (`GetSeasonTotals`, `GetSeasonReplay`), missions (`AdminService/ListFlagDays`,
 `AdminService/GetMissionTotals`, `AdminService/GetRules`), auth
@@ -45,7 +45,7 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
 - **A query imports no domain package.** Player's queries import neither `presence` nor `playermessage`, and
   progression's neither `stats`, `titles`, `wearing` nor `progressionmessage`; their ids are the shared
   `cpsession.AccountID`. A small display rule a command also applies
-  is written again in the query's SQL, and each side has its own tests: a streak as of today (`Streak.AsOf`), the
+  is written again in the query's SQL, and each side has its own tests: the
   guest name (`DisplayNameOf`), and a guest showing no badge (`badges_query` reads `nameplates` alone). A
   game rule is never written again: titles go through the port above, never thresholds in SQL. Chat's
   `history_query` imports neither `messages`, `reactions`, `announcements` nor `feed`: it takes the
@@ -57,8 +57,8 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   names them with a map of its own, as `authprovider` does. The handlers still parse an id with
   `accounts.AccountIDOf`, as every edge does.
 - **Every rule written twice has a parity test**, which runs the same stored rows through both copies and asks for
-  the same answer. Player: `IntroducePlayer` against `GetPlayers`. Progression: a command's stats as of a day against
-  `GetStats`, and a command's streak as of today and title worn (`Stats.AsOf`, `Wardrobe.Showcase`) against `GetBadges`.
+  the same answer. Player: `IntroducePlayer` against `GetPlayers`. Progression: a command's title worn (`Wardrobe.Showcase`)
+  against `GetBadges`.
   Chat (`history_query/parity_test.go`): a message is in the
   history exactly when `React` may react to it and `SendMessage` may reply to it; `React`'s answer against the
   history's reactions, cap of names included; `SendMessage`'s answer against the message the history reads back,

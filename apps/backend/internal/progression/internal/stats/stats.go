@@ -261,11 +261,6 @@ func (s Stats) WithMissionsPaid(inAll uint64) Stats {
 	return s
 }
 
-func (s Stats) AsOf(today Day) Stats {
-	s.streak = s.streak.AsOf(today)
-	return s
-}
-
 type Streak struct {
 	days    uint32
 	lastDay Day
@@ -285,12 +280,4 @@ func (s Streak) Covers(day Day) bool {
 	}
 	first := Day{midnight: s.lastDay.midnight.AddDate(0, 0, -int(s.days-1))}
 	return !day.Before(first)
-}
-
-func (s Streak) AsOf(today Day) Streak {
-	if s.lastDay.Empty() || s.lastDay == today || s.lastDay.Following() == today {
-		return s
-	}
-	s.days = 0
-	return s
 }

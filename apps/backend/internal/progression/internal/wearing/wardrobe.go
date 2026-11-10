@@ -24,19 +24,15 @@ type Titles interface {
 }
 
 type Showcase struct {
-	worn  titles.Standing
-	shown []titles.Standing
+	worn titles.Standing
 }
 
 func ShowcaseOf(catalog titles.Catalog, held titles.IDs, choice titles.ID) Showcase {
-	shown := catalog.Shown(held)
 	chosen, _ := catalog.StandingOf(choice)
-	return Showcase{worn: WornOf(shown, chosen), shown: shown}
+	return Showcase{worn: WornOf(catalog.Shown(held), chosen)}
 }
 
 func (s Showcase) Worn() titles.Standing { return s.worn }
-
-func (s Showcase) Shown() []titles.Standing { return s.shown }
 
 type Wardrobe struct {
 	store   Store
@@ -58,7 +54,7 @@ func (w Wardrobe) Showcase(ctx context.Context, account accounts.AccountID) (Sho
 		return Showcase{}, fmt.Errorf("failed to read the title chosen: %w", err)
 	}
 	chosen, _ := w.catalog.StandingOf(choice)
-	return Showcase{worn: WornOf(shown, chosen), shown: shown}, nil
+	return Showcase{worn: WornOf(shown, chosen)}, nil
 }
 
 func (w Wardrobe) Wear(ctx context.Context, account accounts.AccountID, title titles.ID, at time.Time) error {

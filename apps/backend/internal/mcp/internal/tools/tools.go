@@ -28,7 +28,6 @@ var (
 		"planet.v1.AdminService.GetReplay",
 		"planet.v1.AdminService.GetLedger",
 		"planet.v1.AdminService.GetTerritories",
-		"clips.v1.AdminService.KeepSnapshot",
 		"clips.v1.AdminService.MakeCast",
 		"clips.v1.AdminService.KeepAppearance",
 		"publishing.v1.AdminService.CreateMediaUpload",
@@ -74,7 +73,7 @@ func CatalogOf(set []byte, leftOut []protoreflect.FullName, hidden []protoreflec
 			}
 			for j := range service.Methods().Len() {
 				method := service.Methods().Get(j)
-				if slices.Contains(hidden, method.FullName()) || deprecated(method) ||
+				if slices.Contains(hidden, method.FullName()) ||
 					method.IsStreamingClient() || method.IsStreamingServer() {
 					continue
 				}
@@ -99,11 +98,6 @@ func CatalogOf(set []byte, leftOut []protoreflect.FullName, hidden []protoreflec
 	}
 
 	return catalog, nil
-}
-
-func deprecated(method protoreflect.MethodDescriptor) bool {
-	options, _ := method.Options().(*descriptorpb.MethodOptions)
-	return options.GetDeprecated()
 }
 
 func toolOf(method protoreflect.MethodDescriptor) (Tool, error) {

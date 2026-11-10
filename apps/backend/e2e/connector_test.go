@@ -215,7 +215,6 @@ func (s *testSuite) TestClaudeConnectsWithTheOperatorsYesAndCallsAToolAsTheOpera
 	assert.True(t, listed["planet_top_players"])
 	assert.False(t, listed["planet_grant_charges"])
 	assert.NotContains(t, listed, "auth_approve_connection")
-	assert.NotContains(t, listed, "planet_ban_player", "a deprecated method is no tool")
 
 	_, answer = claude.mcp(claude.access, `{"jsonrpc":"2.0","id":3,"method":"tools/call",
 		"params":{"name":"planet_grant_charges","arguments":{"accountId":"`+operator.account()+`","bomb":true}}}`)

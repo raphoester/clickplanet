@@ -33,7 +33,7 @@ export function nextBattleOf(battles: BattleToCome[], now: number): BattleToCome
     return battles.find((battle) => battle.startsAt > now)
 }
 
-export const FINALE_NEAR_MS = 48 * 60 * 60_000
+const FINALE_NEAR_MS = 48 * 60 * 60_000
 
 export type Finale = {
     roundId: string

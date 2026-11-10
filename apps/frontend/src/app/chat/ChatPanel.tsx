@@ -128,7 +128,6 @@ export default function ChatPanel(props: ChatPanelProps) {
     const send = async (text: string, gif?: Gif) => {
         const target = replyingTo
         const message: OutgoingMessage = {
-            authorId: identity.authorId,
             countryCode: props.country.code,
             text,
             replyTo: target?.id,

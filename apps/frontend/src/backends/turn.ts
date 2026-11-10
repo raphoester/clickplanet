@@ -1,7 +1,7 @@
 import {MapHistory} from "../domain/mapHistory.ts"
 import {Seasons, SeasonTotals} from "./season.ts"
 
-export type TurnKind = "battle" | "plain" | "halloween"
+export type TurnKind = "battle" | "plain"
 
 export type Turn = {
     kind: TurnKind

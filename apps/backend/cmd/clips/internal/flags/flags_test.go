@@ -55,7 +55,6 @@ func TestFetchTakesItsHostFromTheEnvironmentAndAFlagWinsOverIt(t *testing.T) {
 }
 
 func TestChooseFlagsSayWhichFindingsHowManyClipsAndTheBackendThatSaysWhatWasTold(t *testing.T) {
-	t.Setenv(flags.KeyVariable, "the-key")
 	t.Setenv(flags.EditorKeyVariable, "")
 	t.Setenv(flags.HostVariable, "deploy@vps.example")
 
@@ -98,15 +97,13 @@ func TestEditFlagsSayWhichFindingsHowManyClipsAndWhetherOnlyThePrompt(t *testing
 	require.ErrorIs(t, err, flags.ErrArguments)
 }
 
-func TestScheduleFlagsSayWhichClipsWhenAndWhereTheSummaryGoes(t *testing.T) {
-	t.Setenv(flags.KeyVariable, "the-key")
+func TestScheduleFlagsSayWhichClipsAndWhereTheSummaryGoes(t *testing.T) {
 	t.Setenv(flags.HostVariable, "deploy@vps.example")
 
-	parsed, err := flags.Parse([]string{"schedule", "-clips", "clips", "-review", "3h", "-summary", "summary.md"})
+	parsed, err := flags.Parse([]string{"schedule", "-clips", "clips", "-summary", "summary.md"})
 
 	require.NoError(t, err)
 	var job clips.Config
-	job.Review = 3 * time.Hour
 	job.Replay.SSH = "deploy@vps.example"
 	assert.Equal(t, flags.Config{Command: flags.Schedule, ClipsFolder: "clips", SummaryFile: "summary.md", Job: job}, parsed)
 }
@@ -167,7 +164,7 @@ func TestFlagsWithAPartMissingOrWrongSayHowToCallTheCommand(t *testing.T) {
 		"choose, no such platform":   {"choose", "-findings", "findings.json", "-platforms", "instagram"},
 		"schedule, no folder":        {"schedule", "-ssh", "deploy@vps.example"},
 		"schedule, no host":          {"schedule", "-clips", "clips"},
-		"schedule, a wrong review":   {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-review", "soon"},
+		"schedule, no review now":    {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-review", "4h"},
 		"schedule, no spacing now":   {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-spacing", "1h"},
 		"schedule, no such platform": {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-platforms", "tiktok,instagram"},
 		"schedule, a platform twice": {"schedule", "-clips", "clips", "-ssh", "deploy@vps.example", "-platforms", "tiktok,tiktok"},
@@ -189,42 +186,4 @@ func TestAMissingPartIsToldApartFromAFlagThatDoesNotParse(t *testing.T) {
 
 	require.ErrorIs(t, missing, flags.ErrArguments)
 	require.NotErrorIs(t, unparsed, flags.ErrArguments)
-}
-
-func TestStatsFlagsSayWhichBackendKeepsTheSnapshotsAndFromWhichDay(t *testing.T) {
-	t.Setenv(flags.KeyVariable, "the-key")
-	t.Setenv(flags.HostVariable, "")
-
-	parsed, err := flags.Parse([]string{"stats", "-ssh", "deploy@vps.example", "-since", "2026-10-13"})
-
-	require.NoError(t, err)
-	var job clips.Config
-	job.Zernio.APIKey = "the-key"
-	job.Replay.SSH = "deploy@vps.example"
-	job.StatsSince = time.Date(2026, 10, 13, 0, 0, 0, 0, time.UTC)
-	assert.Equal(t, flags.Config{Command: flags.Stats, Job: job}, parsed)
-}
-
-func TestStatsTakeTheirHostFromTheEnvironmentAndReadTheDefaultWindowWithNoDay(t *testing.T) {
-	t.Setenv(flags.HostVariable, "deploy@vps.example")
-
-	parsed, err := flags.Parse([]string{"stats"})
-
-	require.NoError(t, err)
-	assert.Equal(t, "deploy@vps.example", parsed.Job.Replay.SSH)
-	assert.True(t, parsed.Job.StatsSince.IsZero())
-}
-
-func TestStatsWithNoHostOrADayThatIsNoDayIsRefused(t *testing.T) {
-	t.Setenv(flags.HostVariable, "")
-
-	for _, args := range [][]string{
-		{"stats"},
-		{"stats", "-ssh", "deploy@vps.example", "-since", "13/10/2026"},
-		{"stats", "-ssh", "deploy@vps.example", "-since", "2026-10-13T00:00:00Z"},
-	} {
-		_, err := flags.Parse(args)
-
-		require.ErrorContains(t, err, "usage:", args)
-	}
 }

@@ -45,6 +45,11 @@ const (
 	AdminServiceSchedulePostProcedure = "/publishing.v1.AdminService/SchedulePost"
 	// AdminServiceListPostsProcedure is the fully-qualified name of the AdminService's ListPosts RPC.
 	AdminServiceListPostsProcedure = "/publishing.v1.AdminService/ListPosts"
+	// AdminServiceListSnapshotsProcedure is the fully-qualified name of the AdminService's
+	// ListSnapshots RPC.
+	AdminServiceListSnapshotsProcedure = "/publishing.v1.AdminService/ListSnapshots"
+	// AdminServiceListRowsProcedure is the fully-qualified name of the AdminService's ListRows RPC.
+	AdminServiceListRowsProcedure = "/publishing.v1.AdminService/ListRows"
 )
 
 // AdminServiceClient is a client for the publishing.v1.AdminService service.
@@ -73,6 +78,12 @@ type AdminServiceClient interface {
 	// Every post on the service scheduled since the day of since, by hand or by a job, the latest first: its time, its
 	// state, why a platform failed it, and the metadata it was posted with.
 	ListPosts(context.Context, *connect.Request[v1.ListPostsRequest]) (*connect.Response[v1.ListPostsResponse], error)
+	// The summaries of the daily snapshots of the posts' numbers taken in a window, the newest first: what each read and
+	// kept, never a metric. The server takes one a day, after YouTube's quota starts again at midnight Pacific.
+	ListSnapshots(context.Context, *connect.Request[v1.ListSnapshotsRequest]) (*connect.Response[v1.ListSnapshotsResponse], error)
+	// The rows of the snapshots taken in a window, the oldest snapshot first, a page at a time: each post's numbers on
+	// each platform, as Zernio answered them, and the post's metadata. InvalidArgument for a page this call did not give.
+	ListRows(context.Context, *connect.Request[v1.ListRowsRequest]) (*connect.Response[v1.ListRowsResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the publishing.v1.AdminService service. By default,
@@ -119,6 +130,20 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		listSnapshots: connect.NewClient[v1.ListSnapshotsRequest, v1.ListSnapshotsResponse](
+			httpClient,
+			baseURL+AdminServiceListSnapshotsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListSnapshots")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		listRows: connect.NewClient[v1.ListRowsRequest, v1.ListRowsResponse](
+			httpClient,
+			baseURL+AdminServiceListRowsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListRows")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -129,6 +154,8 @@ type adminServiceClient struct {
 	planPost          *connect.Client[v1.PlanPostRequest, v1.PlanPostResponse]
 	schedulePost      *connect.Client[v1.SchedulePostRequest, v1.SchedulePostResponse]
 	listPosts         *connect.Client[v1.ListPostsRequest, v1.ListPostsResponse]
+	listSnapshots     *connect.Client[v1.ListSnapshotsRequest, v1.ListSnapshotsResponse]
+	listRows          *connect.Client[v1.ListRowsRequest, v1.ListRowsResponse]
 }
 
 // CreateMediaUpload calls publishing.v1.AdminService.CreateMediaUpload.
@@ -154,6 +181,16 @@ func (c *adminServiceClient) SchedulePost(ctx context.Context, req *connect.Requ
 // ListPosts calls publishing.v1.AdminService.ListPosts.
 func (c *adminServiceClient) ListPosts(ctx context.Context, req *connect.Request[v1.ListPostsRequest]) (*connect.Response[v1.ListPostsResponse], error) {
 	return c.listPosts.CallUnary(ctx, req)
+}
+
+// ListSnapshots calls publishing.v1.AdminService.ListSnapshots.
+func (c *adminServiceClient) ListSnapshots(ctx context.Context, req *connect.Request[v1.ListSnapshotsRequest]) (*connect.Response[v1.ListSnapshotsResponse], error) {
+	return c.listSnapshots.CallUnary(ctx, req)
+}
+
+// ListRows calls publishing.v1.AdminService.ListRows.
+func (c *adminServiceClient) ListRows(ctx context.Context, req *connect.Request[v1.ListRowsRequest]) (*connect.Response[v1.ListRowsResponse], error) {
+	return c.listRows.CallUnary(ctx, req)
 }
 
 // AdminServiceHandler is an implementation of the publishing.v1.AdminService service.
@@ -182,6 +219,12 @@ type AdminServiceHandler interface {
 	// Every post on the service scheduled since the day of since, by hand or by a job, the latest first: its time, its
 	// state, why a platform failed it, and the metadata it was posted with.
 	ListPosts(context.Context, *connect.Request[v1.ListPostsRequest]) (*connect.Response[v1.ListPostsResponse], error)
+	// The summaries of the daily snapshots of the posts' numbers taken in a window, the newest first: what each read and
+	// kept, never a metric. The server takes one a day, after YouTube's quota starts again at midnight Pacific.
+	ListSnapshots(context.Context, *connect.Request[v1.ListSnapshotsRequest]) (*connect.Response[v1.ListSnapshotsResponse], error)
+	// The rows of the snapshots taken in a window, the oldest snapshot first, a page at a time: each post's numbers on
+	// each platform, as Zernio answered them, and the post's metadata. InvalidArgument for a page this call did not give.
+	ListRows(context.Context, *connect.Request[v1.ListRowsRequest]) (*connect.Response[v1.ListRowsResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -224,6 +267,20 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceListSnapshotsHandler := connect.NewUnaryHandler(
+		AdminServiceListSnapshotsProcedure,
+		svc.ListSnapshots,
+		connect.WithSchema(adminServiceMethods.ByName("ListSnapshots")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceListRowsHandler := connect.NewUnaryHandler(
+		AdminServiceListRowsProcedure,
+		svc.ListRows,
+		connect.WithSchema(adminServiceMethods.ByName("ListRows")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/publishing.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceCreateMediaUploadProcedure:
@@ -236,6 +293,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceSchedulePostHandler.ServeHTTP(w, r)
 		case AdminServiceListPostsProcedure:
 			adminServiceListPostsHandler.ServeHTTP(w, r)
+		case AdminServiceListSnapshotsProcedure:
+			adminServiceListSnapshotsHandler.ServeHTTP(w, r)
+		case AdminServiceListRowsProcedure:
+			adminServiceListRowsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -263,4 +324,12 @@ func (UnimplementedAdminServiceHandler) SchedulePost(context.Context, *connect.R
 
 func (UnimplementedAdminServiceHandler) ListPosts(context.Context, *connect.Request[v1.ListPostsRequest]) (*connect.Response[v1.ListPostsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("publishing.v1.AdminService.ListPosts is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListSnapshots(context.Context, *connect.Request[v1.ListSnapshotsRequest]) (*connect.Response[v1.ListSnapshotsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("publishing.v1.AdminService.ListSnapshots is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListRows(context.Context, *connect.Request[v1.ListRowsRequest]) (*connect.Response[v1.ListRowsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("publishing.v1.AdminService.ListRows is not implemented"))
 }

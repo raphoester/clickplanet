@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -16,6 +16,8 @@ func New(
 	borders *clicks.Borders,
 	config Config,
 	persistence Persistence,
+	transactioner cpatomic.Transactioner,
+	placements Placements,
 	clock cptime.Clock,
 	logger *slog.Logger,
 ) *Storage {
@@ -26,24 +28,31 @@ func New(
 	config = config.withDefaults()
 
 	return &Storage{
-		clock:       clock,
-		config:      config,
-		logger:      logger,
-		persistence: persistence,
-		playing:     clicks.World,
-		board:       newBoard(borders.Tiles()),
-		landmasses:  newLandmasses(borders),
-		recount:     newRecount(borders.Landmasses()),
-		version:     clicks.MapVersion{Epoch: uint32(clock.Now().Unix())}, //nolint:gosec // seconds fit a uint32 until 2106.
-		feed:        newFeed(config.SubscriberBuffer, logger),
+		clock:         clock,
+		config:        config,
+		logger:        logger,
+		persistence:   persistence,
+		transactioner: transactioner,
+		placements:    placements,
+		playing:       clicks.World,
+		board:         newBoard(borders.Tiles()),
+		landmasses:    newLandmasses(borders),
+		recount:       newRecount(borders.Landmasses()),
+		version:       clicks.MapVersion{Epoch: uint32(clock.Now().Unix())}, //nolint:gosec // seconds fit a uint32 until 2106.
+		feed:          newFeed(config.SubscriberBuffer, logger),
 	}
 }
 
 type Storage struct {
-	clock       cptime.Clock
-	config      Config
-	logger      *slog.Logger
-	persistence Persistence
+	clock         cptime.Clock
+	config        Config
+	logger        *slog.Logger
+	persistence   Persistence
+	transactioner cpatomic.Transactioner
+	placements    Placements
+
+	// Under mu: the shields placed since the last flush, confirmed by the flush that saves their tiles.
+	placed []clicks.PlacementID
 
 	// Held through a flush, from what it takes to what it saves, so a wipe never meets a save of the map before it.
 	flushing sync.Mutex
@@ -61,54 +70,49 @@ type Storage struct {
 
 var _ clicks.TileStorage = (*Storage)(nil)
 
-func (s *Storage) Set(ctx context.Context, tile uint32, value string) error {
-	return s.put(clicks.TileUpdate{Tile: tile, Value: value}, holderOf(ctx))
-}
-
-func (s *Storage) Click(ctx context.Context, tile uint32, value string) error {
-	return s.put(clicks.TileUpdate{Tile: tile, Value: value, Clicked: true}, holderOf(ctx))
-}
-
-func (s *Storage) put(update clicks.TileUpdate, holder cpsession.AccountID) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	written, changed, err := s.putLocked(update, holder)
-	if changed {
-		s.publishLocked(clicks.Change{Update: &written})
+func (s *Storage) tileLocked(id uint32) (clicks.Tile, error) {
+	if id > s.board.last() {
+		return clicks.Tile{}, fmt.Errorf("%w: %d (max %d)", clicks.ErrTileOutOfRange, id, s.board.last())
 	}
 
-	return err
+	return s.board.tile(id).Restore(), nil
 }
 
-func (s *Storage) putLocked(update clicks.TileUpdate, holder cpsession.AccountID) (clicks.TileUpdate, bool, error) {
-	if update.Tile > s.board.last() {
-		return clicks.TileUpdate{}, false, fmt.Errorf("tile %d out of range (max %d)", update.Tile, s.board.last())
+func (s *Storage) writeLocked(tile clicks.Tile, clicked bool) (clicks.TileUpdate, bool, error) {
+	written := tile.TakeSnapshot()
+	if written.ID > s.board.last() {
+		return clicks.TileUpdate{}, false, fmt.Errorf("%w: %d (max %d)", clicks.ErrTileOutOfRange, written.ID, s.board.last())
 	}
 
-	update.Previous = s.board.ownerOf(update.Tile)
-	if update.Previous == update.Value {
-		return clicks.TileUpdate{}, false, nil
-	}
-
-	id, err := s.board.intern(update.Value)
+	owner, err := s.board.intern(written.Owner)
 	if err != nil {
 		return clicks.TileUpdate{}, false, err
 	}
-
-	held := noHolder
-	if id != unownedCode {
-		held = s.board.holders.intern(holder)
+	shields := uint8(written.Shields) //nolint:gosec // a claim only takes shields away.
+	state := tileState{owner: owner, shields: shields, holder: s.board.holders.intern(written.Holder)}
+	before := s.board.tiles[written.ID]
+	if state == before {
+		return clicks.TileUpdate{}, false, nil
 	}
-	s.moveLocked(update.Tile, id, held)
+	s.putLocked(written.ID, state)
 
-	return update, true, nil
+	return clicks.TileUpdate{
+		Tile: written.ID, Value: written.Owner, Previous: s.board.nameOf(before.owner), Clicked: clicked && owner != before.owner,
+		Shields: written.Shields,
+	}, true, nil
 }
 
-func (s *Storage) moveLocked(tile uint32, to uint16, holder uint32) {
-	from := s.board.move(tile, to, holder)
-	s.landmasses.moved(tile, from, to)
-	s.recount.moved(s.landmasses.of(tile), from, to)
+// An operator's write or a blast: the shields go home and no player's take holds the tile.
+func (s *Storage) moveLocked(tile uint32, to uint16) {
+	s.putLocked(tile, tileState{owner: to})
+}
+
+func (s *Storage) putLocked(tile uint32, state tileState) {
+	from := s.board.put(tile, state)
+	if from != state.owner {
+		s.landmasses.moved(tile, from, state.owner)
+		s.recount.moved(s.landmasses.of(tile), from, state.owner)
+	}
 }
 
 // Under s.mu: every stream then gets the changes in the order of their versions.
@@ -119,6 +123,9 @@ func (s *Storage) publishLocked(change clicks.Change) {
 }
 
 func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for _, tile := range blast.Cleared {
 		if tile > s.board.last() {
 			return clicks.Blast{}, fmt.Errorf("tile %d out of range (max %d)", tile, s.board.last())
@@ -131,9 +138,6 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 	var left []int
 	var struckOwners []string
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	for _, tile := range blast.Cleared {
 		if s.board.shieldsOn(tile) > 0 {
 			struck = append(struck, tile)
@@ -143,7 +147,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 		}
 		if owner := s.board.ownerOf(tile); owner != "" {
 			owners = append(owners, owner)
-			s.moveLocked(tile, unownedCode, noHolder)
+			s.moveLocked(tile, unownedCode)
 			cleared = append(cleared, tile)
 		}
 	}
@@ -173,12 +177,12 @@ func (s *Storage) Held(country string) int {
 }
 
 func (s *Storage) Owner(tile uint32) (string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	if tile > s.board.last() {
 		return "", false
 	}
-
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 
 	return s.board.ownerOf(tile), true
 }
@@ -191,51 +195,31 @@ func (s *Storage) Subscribe(ctx context.Context) (<-chan clicks.Change, clicks.M
 }
 
 func (s *Storage) Shields(tile uint32) int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	if tile > s.board.last() {
 		return 0
 	}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	return s.board.shieldsOn(tile)
 }
 
-func (s *Storage) Strike(_ context.Context, tile uint32, owner string) bool {
+func (s *Storage) Shield(_ context.Context, tile uint32, country string, most int, placement clicks.PlacementID) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	left, struck := s.strikeLocked(tile, owner)
-	if struck {
-		s.publishLocked(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: owner, Previous: owner, Shields: left}})
-	}
-
-	return struck
-}
-
-func (s *Storage) strikeLocked(tile uint32, owner string) (int, bool) {
-	if tile > s.board.last() || s.board.ownerOf(tile) != owner || s.board.shieldsOn(tile) == 0 {
-		return 0, false
-	}
-
-	return s.board.strike(tile), true
-}
-
-func (s *Storage) Shield(_ context.Context, tile uint32, country string, most int) error {
 	if tile > s.board.last() {
-		return fmt.Errorf("%w: %d", clicks.ErrTileOutOfRange, tile)
+		return 0, fmt.Errorf("%w: %d", clicks.ErrTileOutOfRange, tile)
 	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if err := clicks.ShieldError(s.board.ownerOf(tile), country, s.board.shieldsOn(tile), min(most, math.MaxUint8)); err != nil {
-		return fmt.Errorf("tile %d: %w", tile, err)
+		return 0, fmt.Errorf("tile %d: %w", tile, err)
 	}
 	now := s.board.raise(tile)
+	s.placed = append(s.placed, placement)
 	s.publishLocked(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: country, Previous: country, Shields: now}})
 
-	return nil
+	return now, nil
 }
 
 func (s *Storage) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, error) {

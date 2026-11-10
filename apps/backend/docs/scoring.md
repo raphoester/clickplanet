@@ -33,11 +33,11 @@ internal/scoring/internal/
                                   book and account, DeleteAccount) and its contract suite
     postgres_contribution_store/  inmemory_contribution_store/
     usecases/record_take_usecase/  forget_account_usecase/
-  players/                        an account player made a player (PlayerCreated): the Store port (Keep, IsPlayer,
-                                  Forget) and its contract suite
+  players/                        an account player made a player (PlayerCreated): the Store port (Keep, Forget)
+                                  and its contract suite
     postgres_player_store/  inmemory_player_store/
     usecases/keep_player_usecase/  forget_player_usecase/
-  departures/                     Departure (Decided, Leaving), Decision (Leaves, Returns): an account asked deleted;
+  departures/                     Departure (Decided), Decision (Leaves, Returns): an account asked deleted;
                                   the Store port and its contract suite
     postgres_departure_store/  inmemory_departure_store/
     usecases/decide_departure_usecase/  forget_departure_usecase/
@@ -87,11 +87,11 @@ store's insert (`ON CONFLICT DO NOTHING`, which answers whether this call did it
   round plays on a map planet blanks after day K is scored (see [Arena battles](arenas.md)).
 - **`CloseRound{round_id, ends_at}`**: a round never opened, or scored, is not scored. Else `close_round_usecase` reads
   the round's start and the map once (`GetTerritories`), ranks the gains (`Round.Results`), keeps the results and records **`scoring.v1.RoundScored`**
-  (round, book, end, each country's rank, points and share) in the outbox, in one transaction. A failure to read the map
+  (round, book, end) in the outbox, in one transaction. A failure to read the map
   scores nothing and is tried again. Nothing freezes the map: a round closed late is scored from the map as it is then.
-- **`CloseBook{book_id, ends_at, tiebreak_round_id}`**: a book never opened, or closed, is not ranked. Else
-  `close_book_usecase` reads every round of the book scored, ranks them (`Book.Table`), closes the book and records
-  **`scoring.v1.BookClosed`** (book, end, the table with each tiebreak's points), in one transaction. Scoring ranks by
+- **`CloseBook{book_id, ends_at, tiebreak_round_id}`**: a book never opened, or closed, is not closed again. Else
+  `close_book_usecase` closes the book with its tiebreak round and records **`scoring.v1.BookClosed`** (book, end), in
+  one transaction. Its table is ranked at each read (`Book.Table`). Scoring ranks by
   the tiebreak round it is given and never picks one: the gamemaster names its season's finale, or none when the season
   had no finale (see [The gamemaster](gamemaster.md#the-finale)).
 

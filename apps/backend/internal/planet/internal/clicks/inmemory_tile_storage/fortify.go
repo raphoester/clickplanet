@@ -9,26 +9,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-func (s *Storage) Fortify(ctx context.Context, tile uint32, flag string, most int) (clicks.Fortification, error) {
-	s.mu.RLock()
-	err := s.fortifyErrorLocked(s.landmasses.of(tile), flag)
-	s.mu.RUnlock()
-	if err != nil {
-		return clicks.Fortification{}, err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	fortification, err := s.fortifyLocked(ctx, tile, flag, most)
-	if err != nil {
-		return clicks.Fortification{}, err
-	}
-	s.publishLocked(clicks.Change{Fortification: &fortification})
-
-	return fortification, nil
-}
-
 func (s *Storage) fortifyLocked(ctx context.Context, tile uint32, flag string, most int) (clicks.Fortification, error) {
 	landmass := s.landmasses.of(tile)
 	if err := s.fortifyErrorLocked(landmass, flag); err != nil {

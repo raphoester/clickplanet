@@ -188,7 +188,7 @@ func (accountVerifier) Verify(_ context.Context, token string, _ string, _ time.
 	if err != nil {
 		return nil, fmt.Errorf("not an account: %w", err)
 	}
-	return &cpsession.Claims{ID: "a-mint", Account: cpsession.AccountID(account), Linked: linked, Attested: !named}, nil
+	return &cpsession.Claims{Account: cpsession.AccountID(account), Linked: linked, Attested: !named}, nil
 }
 
 func accountServer(t *testing.T, change func(*clicks.Throttle)) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
@@ -215,7 +215,7 @@ func refillServer(t *testing.T, change func(*clicks.Throttle), refills *bonuses.
 		},
 		connect.WithInterceptors(
 			errorNet(),
-			NewSessionInterceptor(accountVerifier{}, clock, true, prometheus.NewRegistry()),
+			NewSessionInterceptor(accountVerifier{}, clock, prometheus.NewRegistry()),
 			NewSessionReaderInterceptor(accountVerifier{}, clock),
 		),
 	))

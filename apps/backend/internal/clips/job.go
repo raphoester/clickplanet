@@ -32,11 +32,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_round_usecase/log_fetch_round"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_turn_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_turn_usecase/log_fetch_turn"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/ssh_stats_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/usecases/take_snapshot_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/usecases/take_snapshot_usecase/log_take_snapshot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/zernio_source"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -49,36 +44,26 @@ type (
 	Offer           = posts.Offer
 	Findings        = posts.Findings
 	Seasonal        = posts.Seasonal
-	Assignment      = posts.Assignment
 	Choice          = posts.Choice
 	Editorial       = posts.Editorial
-	Variants        = posts.Variants
 	Platform        = posts.Platform
 	Report          = posts.Report
 	Outcome         = posts.Outcome
 	PlatformOutcome = posts.PlatformOutcome
-	StatsReport     = stats.Report
 )
 
 type Config struct {
 	Replay ReplayConfig
 
 	PerRun int
-	// Zero is none: a post goes out as soon as its clip is rendered.
-	Review time.Duration
 	// Each clip is one post on all of them that have room left in their day.
 	Platforms []Platform
-	// The posts a snapshot of their numbers reads: those scheduled since then. Zero is the last 4 weeks.
-	StatsSince time.Time
-
-	// The snapshot's alone: the posts go through the server's publishing module.
-	Zernio zernio_source.Config
 	// The editor's. No key is no editor: every run is its seasonal stories alone, and says why.
 	Anthropic cpanthropic.Config
 }
 
 type ReplayConfig struct {
-	// user@host of the machine the backend runs on: where the replay is asked, and the snapshots of stats kept.
+	// user@host of the machine the backend runs on: where the replay is asked, and each post planned and made.
 	SSH  string
 	Span time.Duration
 	// Zero is now.
@@ -94,7 +79,6 @@ const (
 
 	// A 22s clip is about 80 MB to upload, straight to the posting service's storage.
 	uploadTimeout = 10 * time.Minute
-	statsTimeout  = time.Minute
 )
 
 var (
@@ -128,7 +112,6 @@ func (c Config) withDefaults() Config {
 	if c.PerRun <= 0 {
 		c.PerRun = defaultPerRun
 	}
-	c.Review = max(c.Review, 0)
 	if len(c.Platforms) == 0 {
 		c.Platforms = defaultPlatforms
 	}
@@ -175,18 +158,12 @@ func Fetch(ctx context.Context, out, turn, round, cast string, config Config, lo
 
 // What a run asks of the platforms: when each post goes out is the publishing module's calendar.
 func planOf(config Config) posts.Plan {
-	return posts.Plan{Review: config.Review, Platforms: config.Platforms, BestOnly: bestOnly}
+	return posts.Plan{Platforms: config.Platforms, BestOnly: bestOnly}
 }
 
-// Each story to render, with the arm of each experiment that runs its clip is in (Choice.Assigned), and how the
-// editor's call went.
+// Each story to render, and how the editor's call went.
 func Choose(ctx context.Context, findings string, config Config, logger *slog.Logger) (Choice, error) {
 	config = config.withDefaults()
-
-	experiments, err := posts.ExperimentsOf(running...)
-	if err != nil {
-		return Choice{}, fmt.Errorf("the experiments that run: %w", err)
-	}
 
 	publishing, err := ssh_publishing.New(config.Replay.SSH, ssh_publishing.OpenSSH, &http.Client{Timeout: uploadTimeout})
 	if err != nil {
@@ -199,8 +176,7 @@ func Choose(ctx context.Context, findings string, config Config, logger *slog.Lo
 
 	choose := log_choose_clips.New(choose_clips_usecase.New(
 		generator_output.FindingsFile(findings), log_history.New(publishing, logger), publishing, cptime.SystemClock{},
-		choose_clips_usecase.Room{PerRun: config.PerRun, Plan: planOf(config)},
-		experiments, posts.SystemDice{}, editor,
+		choose_clips_usecase.Room{PerRun: config.PerRun, Plan: planOf(config)}, editor,
 	), logger)
 
 	return choose.Execute(ctx) //nolint:wrapcheck // the use case already named what failed.
@@ -274,15 +250,10 @@ func Edit(ctx context.Context, findings string, promptOnly bool, config Config, 
 	return trial, nil
 }
 
-// clock: the time each post's review is counted from. Each post is planned and posted by the server's publishing module,
-// over ssh. Then the server keeps who each post names: one it cannot keep is a warning, the post is out already.
-func Schedule(ctx context.Context, folder string, config Config, clock cptime.Clock, logger *slog.Logger) (Report, error) {
+// Each post is planned and posted by the server's publishing module, over ssh. Then the server keeps who each post
+// names: one it cannot keep is a warning, the post is out already.
+func Schedule(ctx context.Context, folder string, config Config, logger *slog.Logger) (Report, error) {
 	config = config.withDefaults()
-
-	experiments, err := posts.ExperimentsOf(running...)
-	if err != nil {
-		return nil, fmt.Errorf("the experiments that run: %w", err)
-	}
 
 	publishing, err := ssh_publishing.New(config.Replay.SSH, ssh_publishing.OpenSSH, &http.Client{Timeout: uploadTimeout})
 	if err != nil {
@@ -291,7 +262,7 @@ func Schedule(ctx context.Context, folder string, config Config, clock cptime.Cl
 	sender := posts.NewSender(publishing, log_service.New(publishing, logger), defaultBackoff, posts.SystemPause{})
 
 	schedule := log_schedule_clips.New(schedule_clips_usecase.New(
-		generator_output.Folder(folder), planOf(config), clock, posts.SystemDice{}, sender, experiments,
+		generator_output.Folder(folder), planOf(config), posts.SystemDice{}, sender,
 	), logger)
 
 	report, err := schedule.Execute(ctx)
@@ -307,24 +278,4 @@ func Schedule(ctx context.Context, folder string, config Config, clock cptime.Cl
 	}
 	log_keep_appearances.New(keep_appearances_usecase.New(appearances), logger).Execute(ctx, report)
 	return report, nil
-}
-
-// Keeps a snapshot of the numbers of every post of the job in the backend's postgres, over ssh, with what each post
-// was. A post that could not be read is in the report, not the error: the error is for a snapshot that could not be
-// taken or kept at all.
-func Stats(ctx context.Context, config Config, logger *slog.Logger) (StatsReport, error) {
-	source, err := zernio_source.New(config.Zernio, &http.Client{Timeout: statsTimeout})
-	if err != nil {
-		return StatsReport{}, fmt.Errorf("failed to build the posting service: %w", err)
-	}
-	store, err := ssh_stats_store.New(config.Replay.SSH, ssh_stats_store.OpenSSH)
-	if err != nil {
-		return StatsReport{}, fmt.Errorf("failed to build the store of the snapshots: %w", err)
-	}
-
-	snapshot := log_take_snapshot.New(take_snapshot_usecase.New(
-		source, store, cptime.SystemClock{}, config.StatsSince, defaultBackoff, posts.SystemPause{},
-	), logger)
-
-	return snapshot.Execute(ctx)
 }

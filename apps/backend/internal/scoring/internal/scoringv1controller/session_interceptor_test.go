@@ -24,7 +24,7 @@ var holder = cpsession.AccountID{15: 1}
 type identityVerifier struct{}
 
 func (identityVerifier) Verify(context.Context, string, string, time.Time) (*cpsession.Claims, error) {
-	return &cpsession.Claims{ID: "a-mint", Account: holder}, nil
+	return &cpsession.Claims{Account: holder}, nil
 }
 
 type fakeRequest struct {

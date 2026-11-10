@@ -3,17 +3,24 @@
 package nameplates
 
 import (
+	"context"
+
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 )
 
+type ReadableStore interface {
+	Store
+	Named(ctx context.Context, account accounts.AccountID) (bool, error)
+}
+
 type StoreContractSuite struct {
 	suite.Suite
 
-	NewStore func() Store
+	NewStore func() ReadableStore
 
-	store Store
+	store ReadableStore
 }
 
 func (s *StoreContractSuite) SetupTest() {

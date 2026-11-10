@@ -222,7 +222,8 @@ message ClipRecord {
   string generator = 2;
   ClipCommon common = 3;
   GlobeReplay globe = 4;
-  map<string, string> variants = 5;
+  reserved 5;
+  reserved "variants";
 }
 
 message ClipCommon {

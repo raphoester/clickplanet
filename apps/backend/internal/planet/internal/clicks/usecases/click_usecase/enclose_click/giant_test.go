@@ -28,6 +28,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/relay_ledger_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -174,7 +175,7 @@ func newGame(t testing.TB, w world) *game {
 	t.Helper()
 
 	tiles := inmemory_tile_storage.New(w.borders, inmemory_tile_storage.Config{SubscriberBuffer: 1024},
-		inmemory_tile_storage.NewMemoryPersistence(nil), cptime.SystemClock{}, nil)
+		inmemory_tile_storage.NewMemoryPersistence(nil), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, nil)
 	require.NoError(t, tiles.Load(t.Context(), clicks.World))
 	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), nil)
 	require.NoError(t, takings.Load(t.Context()))
@@ -473,7 +474,8 @@ func TestGiantEnclosures(t *testing.T) {
 		g.paint(t, r.inside, "ru")
 		for i, tile := range r.inside {
 			if i%7 == 0 {
-				require.NoError(t, g.tiles.Shield(t.Context(), tile, "ru", 3))
+				_, err := g.tiles.Shield(t.Context(), tile, "ru", 3, clicks.PlacementID{})
+				require.NoError(t, err)
 			}
 		}
 		g.paint(t, r.wall, "ua")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,9 +15,13 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/relay_ledger_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 const ada = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
@@ -240,4 +245,37 @@ func TestNothingNewSendsNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, n)
 	assert.Empty(t, events.sent)
+}
+
+func TestClicksForOneFlagOnOneTileAtOnceTellOneTake(t *testing.T) {
+	for range 500 {
+		tiles := inmemory_tile_storage.New(clicks.BordersOf(100), inmemory_tile_storage.Config{},
+			inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
+		require.NoError(t, tiles.Set(t.Context(), 7, "de"))
+		storage := flushed(t)
+		recording := ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }), storage, cptime.NewFixedClock(at))
+		ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), ada)
+
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		for range 8 {
+			wg.Go(func() {
+				<-start
+				_, err := recording.Click(ctx, 7, "fr")
+				assert.NoError(t, err)
+			})
+		}
+		close(start)
+		wg.Wait()
+		require.NoError(t, storage.Flush(t.Context()))
+
+		events := &sender{}
+		_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
+		require.NoError(t, err)
+
+		require.Len(t, events.sent, 1)
+		require.True(t, proto.Equal(&planetv1.TilesTaken{
+			AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{{TileId: 7, Previous: "de"}},
+		}, events.sent[0]), "%v", events.sent[0])
+	}
 }

@@ -1,6 +1,7 @@
 package postgres_appearance_store_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -30,6 +31,14 @@ type testSuite struct {
 	db    *cppg.Postgres
 	store *postgres_appearance_store.Store
 	query *appearances_query.PostgresQuery
+	links links
+}
+
+// Where publishing says each post is.
+type links map[appearances_query.PostOnPlatform]string
+
+func (l links) Of(context.Context, []string) (map[appearances_query.PostOnPlatform]string, error) {
+	return l, nil
 }
 
 var now = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
@@ -37,11 +46,13 @@ var now = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
 func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "clips", migrations.FS)
 	s.store = postgres_appearance_store.New(s.db)
-	s.query = appearances_query.NewPostgresQuery(s.db, cptime.NewFixedClock(now))
+	s.links = links{}
+	s.query = appearances_query.NewPostgresQuery(s.db, s.links, cptime.NewFixedClock(now))
 }
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
+	clear(s.links)
 }
 
 func (s *testSuite) account(last string) casts.AccountID {
@@ -54,16 +65,6 @@ func (s *testSuite) keep(post string, at time.Time, platforms []appearances.Plat
 	kept, err := appearances.PostOf(appearances.PostID(post), "FRANCE VS TURKEY", platforms, at)
 	s.Require().NoError(err)
 	s.Require().NoError(s.store.Keep(s.T().Context(), kept.AppearancesOf(accounts)))
-}
-
-func (s *testSuite) snapshot(post, platform, url string, takenAt time.Time) {
-	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(),
-		`INSERT INTO snapshots (taken_at, summary) VALUES ($1, '{}') ON CONFLICT DO NOTHING`, takenAt)
-	s.Require().NoError(err)
-	_, err = s.db.On(s.T().Context()).ExecContext(s.T().Context(),
-		`INSERT INTO snapshot_rows (taken_at, post_id, platform, document) VALUES ($1, $2, $3, jsonb_build_object('url', $4::text))`,
-		takenAt, post, platform, url)
-	s.Require().NoError(err)
 }
 
 func (s *testSuite) appearances(account casts.AccountID) *clipsv1.GetAppearancesResponse {
@@ -95,12 +96,10 @@ func (s *testSuite) TestThePostsOutThisWeekNameTheCallerNewestFirst() {
 	s.Len(s.appearances(bob).GetAppearances(), 1)
 }
 
-func (s *testSuite) TestALinkIsTheNewestSnapshotsAddress() {
+func (s *testSuite) TestALinkIsTheAddressPublishingKnows() {
 	ada := s.account("01")
 	s.keep("monday", now.Add(-2*24*time.Hour), []appearances.Platform{appearances.TikTok, appearances.YouTube}, ada)
-	s.snapshot("monday", "tiktok", "https://tiktok.example/old", now.Add(-30*time.Hour))
-	s.snapshot("monday", "tiktok", "https://tiktok.example/7", now.Add(-6*time.Hour))
-	s.snapshot("monday", "youtube", "", now.Add(-6*time.Hour))
+	s.links[appearances_query.PostOnPlatform{Post: "monday", Platform: "tiktok"}] = "https://tiktok.example/7"
 
 	got := s.appearances(ada)
 	s.True(proto.Equal(&clipsv1.Appearance{

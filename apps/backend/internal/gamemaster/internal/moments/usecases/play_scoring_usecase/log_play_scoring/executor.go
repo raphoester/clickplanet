@@ -20,8 +20,8 @@ type Logged struct {
 
 var _ play_scoring_usecase.Executor = (*Logged)(nil)
 
-func (l *Logged) Execute(ctx context.Context) ([]moments.Command, error) {
-	sent, err := l.inner.Execute(ctx)
+func (l *Logged) Execute(ctx context.Context, plan moments.Plan) ([]moments.Command, error) {
+	sent, err := l.inner.Execute(ctx, plan)
 	for _, command := range sent {
 		attrs := []any{
 			slog.String("command", command.Action.String()), slog.String("book", string(command.Book)),

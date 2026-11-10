@@ -200,7 +200,7 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	}
 
 	metrics := cpprom.NewRegistry()
-	errorNet := cpconnect.NewErrorInterceptor(options.Logger, nil)
+	errorNet := cpconnect.NewErrorInterceptor(options.Logger)
 
 	draining, drain := context.WithCancel(context.Background())
 	defer drain()

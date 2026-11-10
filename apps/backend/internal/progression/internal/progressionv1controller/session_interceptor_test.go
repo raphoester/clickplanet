@@ -33,8 +33,8 @@ func (v tokenVerifier) Verify(_ context.Context, token string, _ string, _ time.
 }
 
 var verifier = tokenVerifier{
-	"a-click-token":     {ID: "a-mint", Account: ada, Attested: true},
-	"an-identity-token": {ID: "a-resume", Account: ada},
+	"a-click-token":     {Account: ada, Attested: true},
+	"an-identity-token": {Account: ada},
 }
 
 type fakeRequest struct {
@@ -55,10 +55,10 @@ func run(t *testing.T, procedure string, token string) (string, bool, error) {
 	)
 	next := connect.UnaryFunc(func(ctx context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {
 		account, ran = cpctx.GetAccount(ctx), true
-		return connect.NewResponse(&progressionv1.GetStatsResponse{}), nil
+		return connect.NewResponse(&progressionv1.GetTitlesResponse{}), nil
 	})
 
-	inner := connect.NewRequest(&progressionv1.GetStatsRequest{})
+	inner := connect.NewRequest(&progressionv1.GetTitlesRequest{})
 	if token != "" {
 		inner.Header().Set(cpconnect.SessionHeader, token)
 	}
@@ -86,7 +86,6 @@ func TestTheProceduresThatActForTheCallerNeedAClickToken(t *testing.T) {
 
 func TestTheReadsOfTheCallerTakeTheIdentityTokenOfAResumedSession(t *testing.T) {
 	for _, procedure := range []string{
-		progressionv1connect.ProgressionServiceGetStatsProcedure,
 		progressionv1connect.ProgressionServiceGetTitlesProcedure,
 		progressionv1connect.ProgressionServiceGetFrontsProcedure,
 	} {
@@ -101,7 +100,7 @@ func TestTheReadsOfTheCallerTakeTheIdentityTokenOfAResumedSession(t *testing.T) 
 	}
 }
 
-func TestAnyonesPlayerTheRosterAndTheBadgesNeedNoToken(t *testing.T) {
+func TestAnyonesProgressAndTheBadgesNeedNoToken(t *testing.T) {
 	for _, procedure := range []string{
 		progressionv1connect.ProgressionServiceGetProgressProcedure,
 		progressionv1connect.ProgressionServiceGetBadgesProcedure,

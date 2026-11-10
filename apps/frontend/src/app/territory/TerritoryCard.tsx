@@ -44,11 +44,11 @@ export default function TerritoryCard({shown, flag, players, missions, now = Dat
     const more = holdings.length - listed.length
     const top = players?.top ?? []
     const fortifier = players?.fortifier && players.fortifier.line.countryCode === fortifiedBy ? players.fortifier : undefined
-    const openPlayer = usePlayerCard((card) => card.openable ? card.open : undefined)
-    const onOpen = openPlayer && ((player: PlayerLine) => {
+    const openPlayer = usePlayerCard((card) => card.open)
+    const onOpen = (player: PlayerLine) => {
         onClose()
         openPlayer(player)
-    })
+    }
 
     return <PointerCard point={point}
                         touch={touch}
@@ -115,13 +115,13 @@ export default function TerritoryCard({shown, flag, players, missions, now = Dat
     </PointerCard>
 }
 
-function PlayerName({line, onOpen}: {line: PlayerLine, onOpen?: (player: PlayerLine) => void}) {
+function PlayerName({line, onOpen}: {line: PlayerLine, onOpen: (player: PlayerLine) => void}) {
     const shown = useWordFilter().masked(line.name)
     const text = truncate(shown, NAME_MAX_LENGTH)
     const streak = useBadge(line.accountId)?.streak ?? 0
     // The flame is a button of its own: it stands beside the name's button, never inside it.
     return <span className="territory-card-player-name">
-        {!onOpen || line.guest || !line.accountId
+        {line.guest || !line.accountId
             ? <span className="territory-card-player-name-text" title={shown}>{text}</span>
             : <button type="button" className="territory-card-player-name-text" title={shown} onClick={() => onOpen(line)}>{text}</button>}
         {line.admin && <AdminCrown/>}

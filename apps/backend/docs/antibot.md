@@ -408,8 +408,7 @@ read `suspect`, as it does in a tile war, and two suspects are a ban.
   token outside the whole click chain, so `try_click` tells every try with its payer, and the bot of 2026-09-14 is
   still caught.
 - **With no account, the hands behind a scope are still one caller**: nothing tells
-  them apart. That is the deprecated mint, and a click with no valid token while
-  `auth.enforce` is off.
+  them apart. That is a click while `auth.enabled` is off.
 - **A guest that takes a new account starts a new run.** That is `churner`'s to read.
 - `click_gap_skew` and `click_clock_coherence` are each payer's, not each scope's.
 - **The runs are saved by payer.** A section saved before this decodes with no run
@@ -903,8 +902,7 @@ honest player flagged:
   no tile
 - a click planet refused (`CLICK_OUTCOME_REFUSED`) — it never reaches the jury at all
 
-**What a try tells.** <a id="what-a-try-tells"></a>A `ClickTried` names who (`scope`, `account_id`, `linked`;
-it also carries `account_created_at`, which the listener does not read), the tile, the flag, when, and **the outcome**: taken, struck, unchanged
+**What a try tells.** <a id="what-a-try-tells"></a>A `ClickTried` names who (`scope`, `account_id`, `linked`), the tile, the flag, when, and **the outcome**: taken, struck, unchanged
 (a no-op), throttled, refused, another flag than the account plays for, invalid (an unknown flag, a tile off the map,
 two bonuses together), or failed. With it go **the flag the tile wore before** (`owner`, `click_usecase.Out.Owner`:
 what the click read right before it wrote; for a try the game answered with an error, the tile's owner now) and its
@@ -941,8 +939,7 @@ A crash loses the tries of the last 100ms; a Redis that does not take them loses
 
 **The watchdogs judge only the clicks the throttle let through** (`Inspect`): a try it refused spent nothing.
 
-**The rule `bans.enforce` is the rollout switch,** the same shape as
-`auth.enforce`: false judges, logs and counts, and tells planet to refuse nobody. The
+**The rule `bans.enforce` is the rollout switch:** false judges, logs and counts, and tells planet to refuse nobody. The
 two surfaces are built for a box with no dashboard — `click_reaction_seconds` is
 a histogram whose raw bucket counts show the bot band by eye, and each flag
 writes one `antibot ban` log line carrying the scope, every watchdog's verdict

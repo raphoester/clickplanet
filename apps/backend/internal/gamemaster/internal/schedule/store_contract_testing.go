@@ -58,7 +58,7 @@ func (s *StoreContractSuite) TestAnEntryIsReadAsItWasKept() {
 
 func (s *StoreContractSuite) TestAnEntryOfEveryKindIsKept() {
 	n := byte(0)
-	for kind, times := range map[Kind]Times{Plain: 0, Battle: 3, Halloween: 0} {
+	for kind, times := range map[Kind]Times{Plain: 0, Battle: 3} {
 		n++
 		snapshot := kept(n, finaleStarts, finaleStarts.Add(time.Hour)).TakeSnapshot()
 		snapshot.Kind, snapshot.Times = kind, times

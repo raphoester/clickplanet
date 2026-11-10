@@ -4,9 +4,9 @@ package publishing.v1;
 
 import "publishing/v1/admin.proto";
 
-// What another module asks publishing: the promo module posts each battle's teaser itself. The same calls, in the same
-// words, as the operator's AdminService, on the loopback internal listener. FailedPrecondition for every call while the
-// server holds no key of the posting service.
+// What another module asks publishing: the promo module posts each battle's teaser itself, in the same calls and words
+// as the operator's AdminService, and the clips module reads where each post is. On the loopback internal listener.
+// FailedPrecondition for every call while the server holds no key of the posting service.
 service InternalService {
   // The slot a post on these platforms would take: AdminService.PlanPost.
   rpc PlanPost(PlanPostRequest) returns (PlanPostResponse) {
@@ -18,4 +18,25 @@ service InternalService {
   rpc ListPosts(ListPostsRequest) returns (ListPostsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+  // Each post's address on each platform, as the newest daily snapshot that has one read it: for the clips module, which
+  // tells a player the posts that name it. A post no snapshot read yet has none. Empty while the posts' numbers are off.
+  rpc GetPostLinks(GetPostLinksRequest) returns (GetPostLinksResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetPostLinksRequest {
+  // Zernio's post ids.
+  repeated string post_ids = 1;
+}
+
+message GetPostLinksResponse {
+  repeated PostLink links = 1;
+}
+
+message PostLink {
+  string post_id = 1;
+  // "tiktok", "youtube".
+  string platform = 2;
+  string url = 3;
 }

@@ -76,3 +76,12 @@ func (c Charges) Spend(ctx context.Context, holder Holder, after func(Held) (Hel
 	}
 	return nil
 }
+
+func (c Charges) Return(ctx context.Context, holder Holder, back func(Held) Held) error {
+	if err := c.store.Change(ctx, holder, func(held Held) (Held, error) {
+		return back(held), nil
+	}); err != nil {
+		return fmt.Errorf("failed to give %s back a charge: %w", holder, err)
+	}
+	return nil
+}

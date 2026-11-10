@@ -183,3 +183,10 @@ func (h Held) AfterShield() (Held, bool) {
 
 	return h, true
 }
+
+// WithShieldBack undoes AfterShield: the same shield comes back, so no stack size applies.
+func (h Held) WithShieldBack() Held {
+	h.Shields++
+
+	return h
+}

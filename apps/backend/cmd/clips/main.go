@@ -13,12 +13,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/cmd/clips/internal/display"
 	"github.com/raphoester/clickplanet.lol-backend/cmd/clips/internal/flags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var (
 	errUnsent         = errors.New("a clip was not scheduled")
-	errUnread         = errors.New("a post was not read whole, and its snapshot is lost")
 	errUnknownCommand = errors.New("no such command")
 )
 
@@ -53,8 +51,6 @@ func runCommand(ctx context.Context, parsed flags.Config, out io.Writer, logger 
 		return schedule(ctx, parsed, out, logger)
 	case flags.Edit:
 		return edit(ctx, parsed, out, logger)
-	case flags.Stats:
-		return snapshot(ctx, parsed, logger)
 	default:
 		return fmt.Errorf("%w: %q", errUnknownCommand, parsed.Command)
 	}
@@ -75,7 +71,7 @@ func choose(ctx context.Context, parsed flags.Config, out io.Writer, logger *slo
 	if err := display.Editorial(parsed.SummaryFile, choice.Editorial); err != nil {
 		return err //nolint:wrapcheck // the display already named what it could not write.
 	}
-	return display.Picks(out, choice.Assigned) //nolint:wrapcheck // the display already named what it could not write.
+	return display.Picks(out, choice.Chosen) //nolint:wrapcheck // the display already named what it could not write.
 }
 
 func edit(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.Logger) error {
@@ -87,7 +83,7 @@ func edit(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.
 }
 
 func schedule(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.Logger) error {
-	report, err := clips.Schedule(ctx, parsed.ClipsFolder, parsed.Job, cptime.SystemClock{}, logger)
+	report, err := clips.Schedule(ctx, parsed.ClipsFolder, parsed.Job, logger)
 	if err != nil {
 		return fmt.Errorf("failed to schedule the clips of the run: %w", err)
 	}
@@ -98,18 +94,6 @@ func schedule(ctx context.Context, parsed flags.Config, out io.Writer, logger *s
 	}
 	if !scheduled {
 		return errUnsent
-	}
-	return nil
-}
-
-// No display: the backoffice shows the snapshots, and the log says what was kept and what was lost.
-func snapshot(ctx context.Context, parsed flags.Config, logger *slog.Logger) error {
-	report, err := clips.Stats(ctx, parsed.Job, logger)
-	if err != nil {
-		return fmt.Errorf("failed to take a snapshot of the posts' numbers: %w", err)
-	}
-	if !report.Complete() {
-		return errUnread
 	}
 	return nil
 }

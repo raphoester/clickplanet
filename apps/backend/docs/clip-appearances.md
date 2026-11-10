@@ -2,8 +2,8 @@
 
 **A clip ends on its top fighters, and the game tells each of them** (the frontend's
 [Clips](../../frontend/docs/clips.md) and [In a clip](../../frontend/docs/clip-appearances.md)). A player who sees
-their name in a clip shares it. The clips module of the server keeps what this needs, in its `clips` schema, beside
-the [Clip stats](clip-stats.md): **the cast of each run, who each post names, and who keeps out.**
+their name in a clip shares it. The clips module of the server keeps what this needs, in its `clips` schema: **the cast
+of each run, who each post names, and who keeps out.**
 
 **An account id never leaves the server.** The run's files are public artifacts of a public repo (the backend's
 [The clips job](clips-job.md)), so the job is handed numbers and names, and gives numbers back.
@@ -37,15 +37,21 @@ the [Clip stats](clip-stats.md): **the cast of each run, who each post names, an
   the posts out in the last 7 days that name the caller, the newest first, each with its headline, its time and a
   link per platform (`appearances_query`). It needs the identity token (`clipsv1controller.NewSessionInterceptor`,
   `Identified`): a player reads its own, and no request names an account. **A post scheduled for later is not out**,
-  so the game never tells a clip before it plays. **A link is the video's address once a snapshot of the stats read
-  it** (the newest `snapshot_rows.document->>'url'` of that post and platform, `snapshot_rows_post`), else empty: the
-  daily snapshot is the one read of Zernio that has it, and the game links to the channel until then.
+  so the game never tells a clip before it plays. **A link is the video's address once a snapshot of the posts' numbers
+  read it**, which clips asks the publishing module (`publishing.v1.InternalService/GetPostLinks`, the newest address
+  of that post and platform; `rpc_publishing_links`), else empty: the daily snapshot is the one read of Zernio that
+  has it, and the game links to the channel until then. A publishing that does not answer leaves every link empty,
+  with a warning, and the posts are still read (see [The posts' numbers](post-stats.md)). Until 2026-11-10 the query
+  joined the clips module's own `snapshot_rows`.
 - **A deleted account is forgotten** (`player.v1.PlayerForgotten`, which player tells for every account auth deletes,
   so the module subscribes to Redis): its appearances and its opt-out are deleted (`clips-appearances-forgotten`,
   `clips-optouts-forgotten`), and in a cast its number stays and names no one (`clips-casts-forgotten`, `account` and
   `name` set to NULL), so a post of that run keeps the others. Until 2026-11-04 the three heard `auth.v1.AccountDeleted`
   (`clips-casts-accounts`, `clips-appearances-accounts`, `clips-optouts-accounts`); why the new groups miss no deletion
   is in [Player](player.md#the-deploy-that-moved-the-others-to-players-events).
+- **The pool closes after the runners**, with `cppg.CloseAfter` around the three subscribers, not as a closer:
+  closers run before the runners stop, and the runners use the pool and Redis. `module_test.go` boots it and calls it
+  on the console listener, which fails if the pool is closed.
 - **What it does not undo**: a player who turns the clips off after a run's cast is still named by that run's clips,
   posted within the next 3 hours, and a posted clip stays on TikTok and YouTube.
 - **Tests**: the domain and the use cases on in-memory stores (`casts.MemoryStore`, `appearances.MemoryStore`,

@@ -40,8 +40,8 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → spread_click    (with Spread: spends a spread click and claims the neighbours too)
   → clicks/usecases/click_usecase (validates tile ID + country)
   → ledger.Recording.Click() [records a take or a strike]
-  → clicks.Claiming.Click() (asks clicks.Shielding: take, strike a shield, or nothing)
-  → MemoryTileStorage.Click() [writes the flag; fans the update out in process, marked `clicked`]
+  → clicks.Claiming.Click() → MemoryTileStorage.Claim [one write lock: read the tile, clicks.Tile.Claimed decides
+      take, strike or nothing, write it, fortify after a take; each write fanned out in process as it lands]
   → every subscriber: one per open ListenForEvents stream
 
   … the try, as planet.v1.ClickTried on Redis
@@ -50,7 +50,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → planet's refuse_caller_handler (commands:planet.v1.RefuseCaller): planet.refused_callers, read by refusal_click
 ```
 
-`Click` is `Set` with the update marked `clicked`, which only the tile a click named carries: every client rings it, and a spread's neighbours, an enclosure's inside and the moderation writes stay plain `Set`s. Both are a no-op when the tile already holds that value — no write, no update published.
+A claim's `Click` writes the tile as its `Set` does, and marks the update `clicked` when the owner changed: only the tile a click took carries it, and every client rings it. A strike, a spread's neighbours, an enclosure's inside and the moderation writes stay plain. A claim that changes nothing writes nothing and publishes nothing. Why the claim is one lock is in [A claim is one lock](tile-claim.md).
 
 ```
 POST /chat.v1.ChatService/SendMessage   [X-Session-Token: required, naming an account]

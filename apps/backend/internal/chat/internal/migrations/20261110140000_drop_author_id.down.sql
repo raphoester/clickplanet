@@ -1,0 +1,2 @@
+ALTER TABLE messages ADD COLUMN author_id text NOT NULL DEFAULT '';
+ALTER TABLE messages ALTER COLUMN author_id DROP DEFAULT;

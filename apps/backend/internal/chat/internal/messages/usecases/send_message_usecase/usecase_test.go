@@ -89,7 +89,6 @@ func (s *testSuite) published() []messages.Snapshot {
 func validIn() send_message_usecase.In {
 	return send_message_usecase.In{
 		Account:   guest,
-		AuthorID:  "8f14e45f-ea23-4a1b-9c11-0b0d1a2b3c4d",
 		Room:      messages.World,
 		CountryID: "fr",
 		Text:      "hello planet",
@@ -109,7 +108,6 @@ func (s *testSuite) TestNominalCase() {
 
 	s.Equal([]messages.RecordSnapshot{{
 		Message:   draft,
-		AuthorID:  "8f14e45f-ea23-4a1b-9c11-0b0d1a2b3c4d",
 		IP:        "1.2.3.4",
 		UserAgent: "curl/8",
 	}}, s.kept(), "what is kept is who sent it, and not a copy of what that account is called")

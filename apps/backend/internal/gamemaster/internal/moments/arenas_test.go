@@ -103,3 +103,24 @@ func TestAPlanThatKnowsNoArenaOpensEveryRoundOnTime(t *testing.T) {
 	assert.Contains(t, plan.DueAt(firstStarts),
 		moments.Command{Action: moments.OpenRound, Book: "season-0", Round: first, Times: 2, At: firstStarts})
 }
+
+func TestAPlanJudgedOpensTheBattleAsAPlanReadAfterTheJudgementWasKept(t *testing.T) {
+	unjudged := backToBack(moments.NewArenas(nil, []moments.RoundID{"season-0/day-23"}, nil))
+	arena := moments.Judgement{Round: first, Mode: moments.Arena}
+
+	judged := unjudged.Judged(arena)
+
+	kept := backToBack(moments.NewArenas([]moments.Judgement{arena}, []moments.RoundID{"season-0/day-23"}, nil))
+	assert.Equal(t, kept.DueAt(firstStarts), judged.DueAt(firstStarts))
+	assert.Equal(t, kept.ArenasDueAt(firstStarts), judged.ArenasDueAt(firstStarts))
+	_, ok := unjudged.Unjudged(firstStarts)
+	assert.True(t, ok, "the plan judged is a copy")
+}
+
+func TestAPlanThatKnowsNoArenaStaysSoOnceJudged(t *testing.T) {
+	plan := moments.NewPlan(calendar(season.Finale{}), cutoff, nil, battle(early, firstStarts, secondStarts))
+
+	judged := plan.Judged(moments.Judgement{Round: first, Mode: moments.Arena})
+
+	assert.Equal(t, plan.DueAt(firstStarts), judged.DueAt(firstStarts))
+}

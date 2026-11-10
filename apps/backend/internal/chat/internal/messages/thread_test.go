@@ -36,7 +36,7 @@ func newThreading(t *testing.T, size int) threading {
 func (s threading) sent(kept messages.Snapshot) {
 	s.t.Helper()
 	require.NoError(s.t, s.storage.Append(s.t.Context(),
-		messages.NewRecord(messages.Restored(s.t, kept), "browser-1", "203.0.113.7", "test-agent")))
+		messages.NewRecord(messages.Restored(s.t, kept), "203.0.113.7", "test-agent")))
 }
 
 func (s threading) quote(replyTo messages.MessageID) messages.Quote {
@@ -85,7 +85,7 @@ func TestAReplyToAReplyQuotesThatReplyAlone(t *testing.T) {
 	thread.sent(messages.Snapshot{ID: "question", SentAt: draftedAt.Add(-2 * time.Hour), Account: ada, Text: "who holds the north"})
 	answer, err := thread.thread.Reply(t.Context(), thread.draft, "question")
 	require.NoError(t, err)
-	require.NoError(t, thread.storage.Append(t.Context(), messages.NewRecord(answer, "browser-1", "203.0.113.7", "test-agent")))
+	require.NoError(t, thread.storage.Append(t.Context(), messages.NewRecord(answer, "203.0.113.7", "test-agent")))
 
 	quote := thread.quote("draft")
 

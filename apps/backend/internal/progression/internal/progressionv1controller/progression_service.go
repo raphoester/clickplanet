@@ -6,7 +6,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_badges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_fronts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_progress_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_stats_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/reconcile_titles_handler"
@@ -14,7 +13,6 @@ import (
 )
 
 type ProgressionService struct {
-	get_stats_handler.GetStatsHandler
 	get_titles_handler.GetTitlesHandler
 	wear_title_handler.WearTitleHandler
 	get_fronts_handler.GetFrontsHandler

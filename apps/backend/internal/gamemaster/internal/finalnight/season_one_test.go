@@ -10,15 +10,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/play_arenas_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/outbox_moment_events"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_plan_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/tell_starts_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/usecases/play_schedule_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/usecases/play_resets_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -54,20 +59,20 @@ func TestTheMapIsFrozenOverTheBreakAndResetAsSeasonOneStarts(t *testing.T) {
 	}.Restore()))
 
 	modules, planet, scoring := &planetAndAntibot{}, &resetsTold{}, &scoringTold{}
-	boot := func() (*play_schedule_usecase.UseCase, *play_resets_usecase.UseCase, *play_scoring_usecase.UseCase) {
-		planner := moments.NewPlanner(seasons, entries, kept, inmemory_arena_store.New(), season.Cutoff(21*time.Hour))
-		return play_schedule_usecase.New(entries, seasons, modules, clock),
-			play_resets_usecase.New(planner, planet, clock),
-			play_scoring_usecase.New(planner, kept, scoring, clock)
+	judged := inmemory_arena_store.New()
+	boot := func() (*play_schedule_usecase.UseCase, *play_plan_usecase.UseCase) {
+		return play_schedule_usecase.New(entries, seasons, modules, clock), play_plan_usecase.New(
+			moments.NewPlanner(seasons, entries, kept, judged, season.Cutoff(21*time.Hour)),
+			play_resets_usecase.New(planet, clock),
+			play_arenas_usecase.New(judged, rulesOf{}, &arenaCommands{}, clock),
+			play_scoring_usecase.New(kept, scoring, clock),
+			tell_starts_usecase.New(kept, outbox_moment_events.New(&cpatomic.FakeOutbox{}), cpatomic.FakeTransactioner{}, clock))
 	}
-	rules, resets, points := boot()
+	rules, plan := boot()
 	tick := func() {
 		_, _, err := rules.Execute(t.Context())
 		require.NoError(t, err)
-		_, _, err = resets.Execute(t.Context())
-		require.NoError(t, err)
-		_, err = points.Execute(t.Context())
-		require.NoError(t, err)
+		require.NoError(t, plan.Execute(t.Context()))
 	}
 	tick()
 	scoring.commands = nil
@@ -97,7 +102,7 @@ func TestTheMapIsFrozenOverTheBreakAndResetAsSeasonOneStarts(t *testing.T) {
 	}}, opensAt, "no book or round opens over the break")
 
 	clock.Advance(4 * time.Minute)
-	rules, resets, points = boot()
+	rules, plan = boot()
 	tick()
 	assert.Equal(t, []season.Number{1, 1}, planet.of, "a boot tells it again: planet keeps season-1 and wipes nothing")
 }

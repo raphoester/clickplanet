@@ -26,12 +26,12 @@ func TestARequestHidesTheAccountUntilALaterRestore(t *testing.T) {
 	require.NoError(t, useCase.Execute(t.Context(), account, departures.Leaves(start)))
 	left, err := store.Departure(t.Context(), account)
 	require.NoError(t, err)
-	assert.True(t, left.Leaving())
+	assert.True(t, left.TakeSnapshot().Leaving)
 
 	require.NoError(t, useCase.Execute(t.Context(), account, departures.Returns(start.Add(time.Hour))))
 	back, err := store.Departure(t.Context(), account)
 	require.NoError(t, err)
-	assert.False(t, back.Leaving())
+	assert.False(t, back.TakeSnapshot().Leaving)
 }
 
 func TestARequestHeardAfterALaterRestoreLeavesTheAccountShown(t *testing.T) {
@@ -43,7 +43,7 @@ func TestARequestHeardAfterALaterRestoreLeavesTheAccountShown(t *testing.T) {
 
 	departure, err := store.Departure(t.Context(), account)
 	require.NoError(t, err)
-	assert.False(t, departure.Leaving())
+	assert.False(t, departure.TakeSnapshot().Leaving)
 }
 
 func TestADecisionWithNoTimeIsRefused(t *testing.T) {
@@ -54,7 +54,7 @@ func TestADecisionWithNoTimeIsRefused(t *testing.T) {
 	require.ErrorIs(t, err, departures.ErrNoTime)
 	departure, err := store.Departure(t.Context(), account)
 	require.NoError(t, err)
-	assert.False(t, departure.Leaving())
+	assert.False(t, departure.TakeSnapshot().Leaving)
 }
 
 func TestAStoreFailureIsAnError(t *testing.T) {

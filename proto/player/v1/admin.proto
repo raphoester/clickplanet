@@ -20,7 +20,7 @@ service AdminService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // PlayerService/GetRoster, for the admin page's home: who is playing now.
+  // Who is playing now, for the admin page's home.
   rpc GetRoster(GetRosterRequest) returns (GetRosterResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }

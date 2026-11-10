@@ -89,7 +89,7 @@ func (s *testSuite) historyIn(viewer messages.AccountID, room messages.Room) *ch
 
 func (s *testSuite) keep(kept messages.Snapshot) {
 	s.Require().NoError(s.messages.Append(s.T().Context(),
-		messages.NewRecord(messages.Restored(s.T(), kept), "browser-1", "203.0.113.7", "test-agent")))
+		messages.NewRecord(messages.Restored(s.T(), kept), "203.0.113.7", "test-agent")))
 }
 
 func (s *testSuite) sentAt(text string, account messages.AccountID, at time.Time) {

@@ -31,9 +31,12 @@ func (s *StoreContractSuite) decide(account byte, decision Decision) {
 }
 
 func (s *StoreContractSuite) departure(account byte) Departure {
-	departure, err := s.store.Departure(s.T().Context(), players.AccountID{15: account})
-	s.Require().NoError(err)
-	return departure
+	var kept Departure
+	s.Require().NoError(s.store.Change(s.T().Context(), players.AccountID{15: account}, func(d Departure) Departure {
+		kept = d
+		return d
+	}))
+	return kept
 }
 
 func (s *StoreContractSuite) TestAnAccountNobodyAskedToDeleteHasTheZeroDeparture() {
@@ -66,5 +69,5 @@ func (s *StoreContractSuite) TestAForgottenAccountHasTheZeroDepartureAgain() {
 	s.Require().NoError(s.store.Forget(s.T().Context(), players.AccountID{15: 1}), "twice is not an error")
 
 	s.Equal(Departure{}, s.departure(1))
-	s.True(s.departure(2).Leaving())
+	s.True(s.departure(2).leaving)
 }

@@ -20,12 +20,11 @@ func (s stubQuery) Roster() *playerv1.GetRosterResponse {
 	return s.answer
 }
 
-func TestTheRosterIsTheQuerysAndMayBeCached(t *testing.T) {
+func TestTheRosterIsTheQuerys(t *testing.T) {
 	query := stubQuery{answer: &playerv1.GetRosterResponse{Entries: []*playerv1.RosterEntry{{Key: "k1", Name: "Ada_L", CountryId: "fr"}}}}
 
 	res, err := get_roster_handler.New(query).GetRoster(t.Context(), connect.NewRequest(&playerv1.GetRosterRequest{}))
 
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(query.answer, res.Msg))
-	assert.Equal(t, "public, max-age=5", res.Header().Get("Cache-Control"))
 }

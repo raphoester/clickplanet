@@ -42,7 +42,7 @@ export const AdminService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * PlayerService/GetRoster, for the admin page's home: who is playing now.
+     * Who is playing now, for the admin page's home.
      *
      * @generated from rpc player.v1.AdminService.GetRoster
      */

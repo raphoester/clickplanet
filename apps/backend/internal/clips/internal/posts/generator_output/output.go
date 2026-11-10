@@ -172,7 +172,7 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 			Pick: posts.Pick(written.GetPick()), Title: written.GetTitle(), Key: keyOf(written.GetKey()),
 			Teasers: written.GetTeasers(), Countries: countriesOf(written.GetCountries()),
 			ContinentTag: written.GetContinentTag(), Attribution: written.GetCredit(), Video: posts.VideoFile(video),
-			TeaserNames: written.GetTeaserNames(), Record: record, Variants: written.GetRecord().GetVariants(),
+			TeaserNames: written.GetTeaserNames(), Record: record,
 			Seconds: written.GetRecord().GetCommon().GetDurationSeconds(),
 			Cast:    written.GetCast(), Fighters: clipFightersOf(written.GetFighters()),
 		}.Restore()

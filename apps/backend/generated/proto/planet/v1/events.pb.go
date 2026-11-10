@@ -788,15 +788,14 @@ func (x *QuizAnswered) GetAnsweredAt() *timestamppb.Timestamp {
 // Every click a caller tried, whatever came of it. The callers' facts are told in the order they ended, each at a
 // later time than the one before: a time names its fact.
 type ClickTried struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Scope            string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	AccountId        string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Linked           bool                   `protobuf:"varint,3,opt,name=linked,proto3" json:"linked,omitempty"`
-	AccountCreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=account_created_at,json=accountCreatedAt,proto3" json:"account_created_at,omitempty"`
-	TileId           uint32                 `protobuf:"varint,5,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
-	Country          string                 `protobuf:"bytes,6,opt,name=country,proto3" json:"country,omitempty"`
-	TriedAt          *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=tried_at,json=triedAt,proto3" json:"tried_at,omitempty"`
-	Outcome          ClickOutcome           `protobuf:"varint,8,opt,name=outcome,proto3,enum=planet.v1.ClickOutcome" json:"outcome,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Scope     string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AccountId string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Linked    bool                   `protobuf:"varint,3,opt,name=linked,proto3" json:"linked,omitempty"`
+	TileId    uint32                 `protobuf:"varint,5,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
+	Country   string                 `protobuf:"bytes,6,opt,name=country,proto3" json:"country,omitempty"`
+	TriedAt   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=tried_at,json=triedAt,proto3" json:"tried_at,omitempty"`
+	Outcome   ClickOutcome           `protobuf:"varint,8,opt,name=outcome,proto3,enum=planet.v1.ClickOutcome" json:"outcome,omitempty"`
 	// The flag the tile wore before the try.
 	Owner string `protobuf:"bytes,9,opt,name=owner,proto3" json:"owner,omitempty"`
 	// Unset for a tile off the map.
@@ -856,13 +855,6 @@ func (x *ClickTried) GetLinked() bool {
 		return x.Linked
 	}
 	return false
-}
-
-func (x *ClickTried) GetAccountCreatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.AccountCreatedAt
-	}
-	return nil
 }
 
 func (x *ClickTried) GetTileId() uint32 {
@@ -1397,14 +1389,13 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x18\n" +
 	"\acorrect\x18\x02 \x01(\bR\acorrect\x12;\n" +
 	"\vanswered_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"answeredAt\"\x9f\x03\n" +
+	"answeredAt\"\xef\x02\n" +
 	"\n" +
 	"ClickTried\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x02 \x01(\tR\taccountId\x12\x16\n" +
-	"\x06linked\x18\x03 \x01(\bR\x06linked\x12H\n" +
-	"\x12account_created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x10accountCreatedAt\x12\x17\n" +
+	"\x06linked\x18\x03 \x01(\bR\x06linked\x12\x17\n" +
 	"\atile_id\x18\x05 \x01(\rR\x06tileId\x12\x18\n" +
 	"\acountry\x18\x06 \x01(\tR\acountry\x125\n" +
 	"\btried_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\atriedAt\x121\n" +
@@ -1412,7 +1403,7 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\x05owner\x18\t \x01(\tR\x05owner\x121\n" +
 	"\bposition\x18\n" +
 	" \x01(\v2\x15.planet.v1.GlobePointR\bposition\x12\x14\n" +
-	"\x05tempo\x18\v \x01(\x01R\x05tempo\"\x81\x01\n" +
+	"\x05tempo\x18\v \x01(\x01R\x05tempoJ\x04\b\x04\x10\x05R\x12account_created_at\"\x81\x01\n" +
 	"\aMapRead\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x12\n" +
 	"\x04maps\x18\x02 \x01(\x01R\x04maps\x12\x17\n" +
@@ -1503,23 +1494,22 @@ var file_planet_v1_events_proto_depIdxs = []int32{
 	7,  // 7: planet.v1.ShieldsStruck.tiles:type_name -> planet.v1.StruckTile
 	18, // 8: planet.v1.BonusClaimed.claimed_at:type_name -> google.protobuf.Timestamp
 	18, // 9: planet.v1.QuizAnswered.answered_at:type_name -> google.protobuf.Timestamp
-	18, // 10: planet.v1.ClickTried.account_created_at:type_name -> google.protobuf.Timestamp
-	18, // 11: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
-	0,  // 12: planet.v1.ClickTried.outcome:type_name -> planet.v1.ClickOutcome
-	19, // 13: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
-	18, // 14: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
-	18, // 15: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
-	20, // 16: planet.v1.BoxCaught.after:type_name -> google.protobuf.Duration
-	18, // 17: planet.v1.BoxCaught.caught_at:type_name -> google.protobuf.Timestamp
-	18, // 18: planet.v1.BoxLapsed.lapsed_at:type_name -> google.protobuf.Timestamp
-	18, // 19: planet.v1.ForeignBoxClaimed.claimed_at:type_name -> google.protobuf.Timestamp
-	18, // 20: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
-	18, // 21: planet.v1.ArenaClosed.closed_at:type_name -> google.protobuf.Timestamp
-	22, // [22:22] is the sub-list for method output_type
-	22, // [22:22] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	18, // 10: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
+	0,  // 11: planet.v1.ClickTried.outcome:type_name -> planet.v1.ClickOutcome
+	19, // 12: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
+	18, // 13: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
+	18, // 14: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
+	20, // 15: planet.v1.BoxCaught.after:type_name -> google.protobuf.Duration
+	18, // 16: planet.v1.BoxCaught.caught_at:type_name -> google.protobuf.Timestamp
+	18, // 17: planet.v1.BoxLapsed.lapsed_at:type_name -> google.protobuf.Timestamp
+	18, // 18: planet.v1.ForeignBoxClaimed.claimed_at:type_name -> google.protobuf.Timestamp
+	18, // 19: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
+	18, // 20: planet.v1.ArenaClosed.closed_at:type_name -> google.protobuf.Timestamp
+	21, // [21:21] is the sub-list for method output_type
+	21, // [21:21] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_events_proto_init() }

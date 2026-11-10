@@ -26,7 +26,6 @@ type PlayerService struct {
 	set_color_handler.SetColorHandler
 	announce_handler.AnnounceHandler
 	leave_handler.LeaveHandler
-	get_roster_handler.GetRosterHandler
 	listen_for_events_handler.ListenForEventsHandler
 	get_player_handler.GetPlayerHandler
 	get_nameplates_handler.GetNameplatesHandler

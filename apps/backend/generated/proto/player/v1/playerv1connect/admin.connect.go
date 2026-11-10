@@ -57,7 +57,7 @@ type AdminServiceClient interface {
 	// Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
 	// fronts are progression.v1.AdminService/GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.AdminGetPlayerRequest]) (*connect.Response[v1.AdminGetPlayerResponse], error)
-	// PlayerService/GetRoster, for the admin page's home: who is playing now.
+	// Who is playing now, for the admin page's home.
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	// Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
 	SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error)
@@ -171,7 +171,7 @@ type AdminServiceHandler interface {
 	// Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
 	// fronts are progression.v1.AdminService/GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.AdminGetPlayerRequest]) (*connect.Response[v1.AdminGetPlayerResponse], error)
-	// PlayerService/GetRoster, for the admin page's home: who is playing now.
+	// Who is playing now, for the admin page's home.
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	// Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
 	SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error)

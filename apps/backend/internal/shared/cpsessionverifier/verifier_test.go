@@ -109,7 +109,7 @@ func setUp(t *testing.T) (*cpsessionverifier.Verifier, *stubAuth, *cpsession.Sig
 func TestItAsksAuthOnceAndKeepsTheKey(t *testing.T) {
 	verifier, auth, signer := setUp(t)
 
-	token, err := signer.Mint(ip, cpsession.Nobody, now)
+	token, err := signer.Mint(ip, cpsession.Holder{}, now)
 	require.NoError(t, err)
 
 	for range 5 {
@@ -123,7 +123,7 @@ func TestItAsksAuthOnceAndKeepsTheKey(t *testing.T) {
 func TestConcurrentFirstClicksAskOnce(t *testing.T) {
 	verifier, auth, signer := setUp(t)
 
-	token, err := signer.Mint(ip, cpsession.Nobody, now)
+	token, err := signer.Mint(ip, cpsession.Holder{}, now)
 	require.NoError(t, err)
 
 	var wg sync.WaitGroup
@@ -147,7 +147,7 @@ func TestAFailedFetchIsNotRememberedAndTheNextClickTriesAgain(t *testing.T) {
 
 	auth.answerWith("", errors.New("auth is not up yet"))
 
-	token, err := signer.Mint(ip, cpsession.Nobody, now)
+	token, err := signer.Mint(ip, cpsession.Holder{}, now)
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(t.Context(), token.Value, ip, now)
@@ -155,9 +155,8 @@ func TestAFailedFetchIsNotRememberedAndTheNextClickTriesAgain(t *testing.T) {
 
 	auth.answerWith(public, nil)
 
-	claims, err := verifier.Verify(t.Context(), token.Value, ip, now)
+	_, err = verifier.Verify(t.Context(), token.Value, ip, now)
 	require.NoError(t, err)
-	assert.Equal(t, token.ID, claims.ID)
 	assert.Equal(t, 2, auth.asked())
 }
 
@@ -165,7 +164,7 @@ func TestAKeyThisServerCannotUseIsAnError(t *testing.T) {
 	verifier, auth, signer := setUp(t)
 	auth.answerWith("not-a-key", nil)
 
-	token, err := signer.Mint(ip, cpsession.Nobody, now)
+	token, err := signer.Mint(ip, cpsession.Holder{}, now)
 	require.NoError(t, err)
 
 	_, err = verifier.Verify(t.Context(), token.Value, ip, now)
@@ -183,7 +182,7 @@ func TestAnUnreachableAuthIsAnErrorRatherThanAPanic(t *testing.T) {
 func TestACallerThatLeavesStopsWaitingAndTheFetchGoesOnForTheOthers(t *testing.T) {
 	verifier, auth, signer := setUp(t)
 	held := auth.hold()
-	token, err := signer.Mint(ip, cpsession.Nobody, now)
+	token, err := signer.Mint(ip, cpsession.Holder{}, now)
 	require.NoError(t, err)
 
 	leaving, leave := context.WithCancel(t.Context())
@@ -220,7 +219,7 @@ func TestACallerWhoseContextIsDoneDoesNotWaitForAuth(t *testing.T) {
 	verifier, auth, signer := setUp(t)
 	held := auth.hold()
 	t.Cleanup(func() { close(held) })
-	token, err := signer.Mint(ip, cpsession.Nobody, now)
+	token, err := signer.Mint(ip, cpsession.Holder{}, now)
 	require.NoError(t, err)
 
 	done, cancel := context.WithCancel(t.Context())

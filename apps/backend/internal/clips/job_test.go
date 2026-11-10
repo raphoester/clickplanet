@@ -22,12 +22,13 @@ import (
 	publishingv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/publishing/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/publishing/v1/publishingv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 // The backend as the job reaches it: its publishing module, a fake of it on httptest, behind an ssh on the PATH that
 // sends each call there with curl, which prints nothing of a call it refuses, as busybox's wget does.
 type backend struct {
+	publishingv1connect.UnimplementedAdminServiceHandler
+
 	t       *testing.T
 	mu      sync.Mutex
 	storage *httptest.Server
@@ -141,8 +142,8 @@ func (b *backend) ListPosts(
 }
 
 // Today at 15:00 UTC.
-func afternoon() *cptime.FixedClock {
-	return cptime.NewFixedClock(time.Now().UTC().Truncate(24 * time.Hour).Add(15 * time.Hour))
+func afternoon() time.Time {
+	return time.Now().UTC().Truncate(24 * time.Hour).Add(15 * time.Hour)
 }
 
 func rendered(t *testing.T, folder string, pick int, title, flag string, countries ...string) {
@@ -159,14 +160,13 @@ func rendered(t *testing.T, folder string, pick int, title, flag string, countri
 }
 
 func TestARunPostsEveryClipOfTheFolderThroughTheBackendBestFirstAndReportsEachOne(t *testing.T) {
-	clock := afternoon()
-	b := serve(t, clock.Now())
+	b := serve(t, afternoon())
 	folder := t.TempDir()
 	rendered(t, folder, 2, "FRANCE IS ATTACKING EUROPE", "fr", "fr", "de")
 	rendered(t, folder, 1, "KOSOVO IS ATTACKING THE MIDDLE EAST", "xk")
 	var logs bytes.Buffer
 
-	report, err := clips.Schedule(t.Context(), folder, b.config(), clock, slog.New(slog.NewTextHandler(&logs, nil)))
+	report, err := clips.Schedule(t.Context(), folder, b.config(), slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
 	require.Len(t, b.posted, 2)
@@ -212,14 +212,13 @@ func TestARunPostsEveryClipOfTheFolderThroughTheBackendBestFirstAndReportsEachOn
 }
 
 func TestARunTheBackendRefusesReportsWhyForEachClip(t *testing.T) {
-	clock := afternoon()
-	b := serve(t, clock.Now())
+	b := serve(t, afternoon())
 	b.failure = "zernio answered 401 to the list of accounts: Invalid API key"
 	folder := t.TempDir()
 	rendered(t, folder, 1, "KOSOVO IS ATTACKING THE MIDDLE EAST", "xk")
 	var logs bytes.Buffer
 
-	report, err := clips.Schedule(t.Context(), folder, b.config(), clock, slog.New(slog.NewTextHandler(&logs, nil)))
+	report, err := clips.Schedule(t.Context(), folder, b.config(), slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
 	require.Len(t, report, 1)
@@ -242,15 +241,14 @@ func findings(t *testing.T) string {
 	return path
 }
 
-// The stories told, in no experiment. With no ANTHROPIC_API_KEY the run is its seasonal stories alone.
+// The stories told. With no ANTHROPIC_API_KEY the run is its seasonal stories alone.
 func toldBy(t *testing.T, choice clips.Choice) []clips.Story {
 	t.Helper()
 
-	stories := make([]clips.Story, 0, len(choice.Assigned))
-	for i, assignment := range choice.Assigned {
-		assert.Empty(t, assignment.Variants)
-		assert.Equal(t, clips.Pick(i+1), assignment.Pick)
-		stories = append(stories, assignment.Story)
+	stories := make([]clips.Story, 0, len(choice.Chosen))
+	for i, chosen := range choice.Chosen {
+		assert.Equal(t, clips.Pick(i+1), chosen.Pick)
+		stories = append(stories, chosen.Story)
 	}
 	return stories
 }
@@ -275,7 +273,7 @@ func TestARunWhenEveryPlatformHasPostedItsDayChoosesNothing(t *testing.T) {
 	picks, err := clips.Choose(t.Context(), findings(t), b.config(), slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
-	assert.Empty(t, picks.Assigned)
+	assert.Empty(t, picks.Chosen)
 	assert.False(t, picks.Editorial.Asked)
 	assert.Contains(t, logs.String(), `msg="every platform has posted its day already"`)
 }
@@ -291,7 +289,7 @@ func TestTikTokTakesTheBestClipOfARunWhileItHasRoom(t *testing.T) {
 			picks, err := clips.Choose(t.Context(), findings(t), config, slog.New(slog.DiscardHandler))
 
 			require.NoError(t, err)
-			assert.Len(t, picks.Assigned, want)
+			assert.Len(t, picks.Chosen, want)
 		})
 	}
 }
@@ -309,40 +307,16 @@ func TestARunThatCannotReachTheBackendChoosesNothingAndSaysWhy(t *testing.T) {
 }
 
 func TestADayOneRunScheduledIsNotToldByTheNext(t *testing.T) {
-	clock := afternoon()
-	b := serve(t, clock.Now())
+	b := serve(t, afternoon())
 	folder := t.TempDir()
 	clip := `{"pick": 1, "title": "ALGERIA WINS DAY 17", "teasers": ["ALGERIA TAKES DAY 17"], "key": {"flag": "dz", "continent": "the world", "angle": "round", "round": "0.17"}}`
 	require.NoError(t, os.WriteFile(filepath.Join(folder, "clip-1.json"), []byte(clip), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(folder, "clip-1.mp4"), []byte("the video"), 0o600))
-	_, err := clips.Schedule(t.Context(), folder, b.config(), clock, slog.New(slog.DiscardHandler))
+	_, err := clips.Schedule(t.Context(), folder, b.config(), slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 
 	picks, err := clips.Choose(t.Context(), findings(t), b.config(), slog.New(slog.DiscardHandler))
 
 	require.NoError(t, err)
 	assert.Equal(t, []clips.Story{{Seasonal: 2}}, toldBy(t, picks))
-}
-
-func renderedIn(t *testing.T, folder string, pick int, title, variants string) {
-	t.Helper()
-
-	clip := fmt.Sprintf(`{"pick": %d, "title": %q, "teasers": [%q], "key": {"flag": "dz", "continent": "Africa"}, `+
-		`"record": {"format": "globe-replay", "common": {"durationSeconds": 10}, "variants": %s}}`,
-		pick, title, "SAID ANOTHER WAY: "+title, variants)
-	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.json", pick)), []byte(clip), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.mp4", pick)), []byte(title), 0o600))
-}
-
-func TestAClipInAnExperimentThatDoesNotRunIsNotPosted(t *testing.T) {
-	clock := afternoon()
-	b := serve(t, clock.Now())
-	folder := t.TempDir()
-	renderedIn(t, folder, 1, "ALGERIA STRIKES BACK", `{"sound": "trending"}`)
-
-	_, err := clips.Schedule(t.Context(), folder, b.config(), clock, slog.New(slog.DiscardHandler))
-
-	require.ErrorContains(t, err, `no experiment "sound" runs`)
-	assert.Empty(t, b.posted)
-	assert.Empty(t, b.uploads)
 }

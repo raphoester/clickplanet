@@ -532,36 +532,38 @@ func (s *stubTiles) Fortify(context.Context, uint32, string, int) (clicks.Fortif
 	return *s.fortify, nil
 }
 
-func (s *stubTiles) Strike(_ context.Context, tile uint32, _ string) bool {
-	if s.shields[tile] == 0 {
-		return false
+func (s *stubTiles) Tile(id uint32) (clicks.Tile, error) {
+	if id > lastTile {
+		return clicks.Tile{}, errOutOfRange
 	}
-	s.shields[tile]--
-	return true
+	return clicks.TileSnapshot{ID: id, Owner: s.owners[id], Shields: s.shields[id]}.Restore(), nil
 }
 
-func (s *stubTiles) Set(_ context.Context, tile uint32, value string) error {
-	if tile > lastTile {
-		return errOutOfRange
-	}
-	s.owners[tile] = value
+func (s *stubTiles) Set(_ context.Context, tile clicks.Tile) error {
+	kept := tile.TakeSnapshot()
+	s.owners[kept.ID] = kept.Owner
+	s.shields[kept.ID] = kept.Shields
 	return nil
 }
 
-func (s *stubTiles) Click(ctx context.Context, tile uint32, value string) error {
-	return s.Set(ctx, tile, value)
+func (s *stubTiles) Click(ctx context.Context, tile clicks.Tile) error {
+	return s.Set(ctx, tile)
+}
+
+func (s *stubTiles) Claim(_ context.Context, write func(clicks.Claimable) error) error {
+	return write(s)
 }
 
 func (s *stubTiles) Enclose(_ context.Context, _ clicks.Enclosure, write func(clicks.Claimable) error) error {
 	return write(s)
 }
 
-func (s *stubTiles) Shield(_ context.Context, tile uint32, _ string, _ int) error {
+func (s *stubTiles) Shield(_ context.Context, tile uint32, _ string, _ int, _ clicks.PlacementID) (int, error) {
 	if tile > lastTile {
-		return errOutOfRange
+		return 0, errOutOfRange
 	}
 	s.shields[tile]++
-	return nil
+	return s.shields[tile], nil
 }
 
 func (s *stubTiles) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, error) {
@@ -784,8 +786,12 @@ func TestRecordingNotesAnEnclosureAsOneEventOnTheTileThatClosedIt(t *testing.T) 
 func TestRecordingNotesAShieldPlacedWithTheShieldsTheTileNowHolds(t *testing.T) {
 	recording, events := recorded(newTiles(map[uint32]string{1: "fr"}))
 
-	require.NoError(t, recording.Shield(caller(t), 1, "fr", 10))
-	require.NoError(t, recording.Shield(caller(t), 1, "fr", 10))
+	first, err := recording.Shield(caller(t), 1, "fr", 10, clicks.PlacementID{})
+	require.NoError(t, err)
+	second, err := recording.Shield(caller(t), 1, "fr", 10, clicks.PlacementID{})
+	require.NoError(t, err)
+
+	assert.Equal(t, []int{1, 2}, []int{first, second})
 
 	assert.Equal(t, []ledger.Event{
 		ledger.Shielding{Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", Shields: 1, At: start},
@@ -828,7 +834,8 @@ func TestAFortifyShowsEachShieldItRaised(t *testing.T) {
 func TestRecordingNotesNothingForAShieldTheTileRefused(t *testing.T) {
 	recording, events := recorded(newTiles(map[uint32]string{}))
 
-	require.ErrorIs(t, recording.Shield(caller(t), lastTile+1, "fr", 10), errOutOfRange)
+	_, err := recording.Shield(caller(t), lastTile+1, "fr", 10, clicks.PlacementID{})
+	require.ErrorIs(t, err, errOutOfRange)
 
 	assert.Empty(t, written(events))
 }

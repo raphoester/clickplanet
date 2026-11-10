@@ -1,8 +1,8 @@
-export const ACCOUNT_SESSION_HEADER = "X-Account-Session"
+const ACCOUNT_SESSION_HEADER = "X-Account-Session"
 
 const NO_ACCOUNT_SESSION = "none"
 
-export const ACCOUNT_STORAGE_KEY = "clickplanet-account"
+const ACCOUNT_STORAGE_KEY = "clickplanet-account"
 
 export type AccountCarrier = {
     read(): string | undefined

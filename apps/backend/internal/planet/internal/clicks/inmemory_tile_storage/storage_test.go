@@ -10,6 +10,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/suite"
 )
@@ -30,7 +31,7 @@ var borders = clicks.BordersOf(maxIndex, island)
 
 func (s *testSuite) SetupSuite() {
 	s.NewStorage = func(borders *clicks.Borders) clicks.TileStorage {
-		return inmemory_tile_storage.New(borders, inmemory_tile_storage.Config{}, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cptime.SystemClock{}, slog.New(slog.DiscardHandler))
+		return inmemory_tile_storage.New(borders, inmemory_tile_storage.Config{}, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 	}
 }
 
@@ -39,7 +40,7 @@ func (s *testSuite) newStorage(cfg inmemory_tile_storage.Config) *inmemory_tile_
 }
 
 func (s *testSuite) newStorageOn(cfg inmemory_tile_storage.Config, persistence inmemory_tile_storage.Persistence) *inmemory_tile_storage.Storage {
-	return inmemory_tile_storage.New(borders, cfg, persistence, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
+	return inmemory_tile_storage.New(borders, cfg, persistence, cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 }
 
 func (s *testSuite) TestAnEnclosureBiggerThanAStreamsBufferTakesOneSlotAndCutsNoStream() {
@@ -52,7 +53,7 @@ func (s *testSuite) TestAnEnclosureBiggerThanAStreamsBufferTakesOneSlotAndCutsNo
 
 	s.Require().NoError(storage.Enclose(ctx, clicks.Enclosure{Country: "fr"}, func(tiles clicks.Claimable) error {
 		for tile := uint32(1); tile <= 1000; tile++ {
-			s.Require().NoError(tiles.Set(ctx, tile, "fr"))
+			s.Require().NoError(tiles.Set(ctx, clicks.TileSnapshot{ID: tile, Owner: "fr"}.Restore()))
 		}
 		return nil
 	}))
@@ -198,7 +199,7 @@ func (s *testSuite) TestTheTerritoriesAreTheTilesEachCountryHoldsAndNoneForACoun
 	s.Equal([]clicks.FlagTiles{{Flag: "fr", Tiles: 3}}, tally.Countries)
 }
 
-var _ clicks.Claimable = (*inmemory_tile_storage.Storage)(nil)
+var _ clicks.ClaimableTiles = (*inmemory_tile_storage.Storage)(nil)
 
 func stateBatch(s *inmemory_tile_storage.Storage, start uint32, end uint32) (map[uint32]string, error) {
 	batch, err := s.StateBatchDense(start, end)

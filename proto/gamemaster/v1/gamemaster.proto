@@ -49,14 +49,14 @@ message GetSeasonTotalsResponse {
 }
 
 // What an entry is to the players. The game client reads the kind that plays and gives it a look: a battle has one,
-// Halloween another, a plain entry none.
+// a plain entry none.
 enum EntryKind {
   ENTRY_KIND_UNSPECIFIED = 0;
   // A change of the rules with no look for the players: a quieter antibot bound for a day.
   ENTRY_KIND_PLAIN = 1;
   ENTRY_KIND_BATTLE = 2;
-  // A plain entry the client dresses for Halloween. It scores nothing, as a plain one.
-  ENTRY_KIND_HALLOWEEN = 3;
+  reserved 3;
+  reserved "ENTRY_KIND_HALLOWEEN";
 }
 
 message GetTurnRequest {}

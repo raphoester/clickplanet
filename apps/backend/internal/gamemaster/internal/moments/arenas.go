@@ -2,6 +2,7 @@ package moments
 
 import (
 	"cmp"
+	"maps"
 	"slices"
 	"time"
 
@@ -55,6 +56,19 @@ func NewArenas(judged []Judgement, scored, closed []RoundID) Arenas {
 // waits for its arena to close.
 func (p Plan) With(arenas Arenas) Plan {
 	p.arenas = arenas
+	return p
+}
+
+// Judged is the plan that knows these battles judged too; a plan that knows no arena battles stays so.
+func (p Plan) Judged(judgements ...Judgement) Plan {
+	if p.arenas.modes == nil || len(judgements) == 0 {
+		return p
+	}
+	modes := maps.Clone(p.arenas.modes)
+	for _, judgement := range judgements {
+		modes[judgement.Round] = judgement.Mode
+	}
+	p.arenas.modes = modes
 	return p
 }
 

@@ -1,7 +1,7 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {LONG_CALL_MS} from "../api.ts"
-import {ClipsAdmin} from "../clients.ts"
-import {StatsSnapshot} from "../gen/grpc/clips/v1/admin_pb.ts"
+import {PublishingAdmin} from "../clients.ts"
+import {StatsSnapshot} from "../gen/grpc/publishing/v1/admin_pb.ts"
 import {csvOf, tableOf} from "./table.ts"
 
 export type Window = {since: Date | undefined, until: Date | undefined}
@@ -27,11 +27,11 @@ export function windowOf(span: Span, latest: StatsSnapshot | undefined, now: Dat
 export type Table = {name: string, csv: string, rows: number}
 
 // Every row of the snapshots taken in the window, page after page, as the backend keeps them.
-export async function documentsOf(clips: ClipsAdmin, window: Window, signal?: AbortSignal): Promise<string[]> {
+export async function documentsOf(publishing: PublishingAdmin, window: Window, signal?: AbortSignal): Promise<string[]> {
     const documents: string[] = []
     let page = ""
     do {
-        const answer = await clips.listRows({
+        const answer = await publishing.listRows({
             since: window.since === undefined ? undefined : Timestamp.fromDate(window.since),
             until: window.until === undefined ? undefined : Timestamp.fromDate(window.until),
             limit: 2000,
@@ -43,8 +43,8 @@ export async function documentsOf(clips: ClipsAdmin, window: Window, signal?: Ab
     return documents
 }
 
-export async function tableFileOf(clips: ClipsAdmin, window: Window, now: Date): Promise<Table> {
-    const documents = await documentsOf(clips, window)
+export async function tableFileOf(publishing: PublishingAdmin, window: Window, now: Date): Promise<Table> {
+    const documents = await documentsOf(publishing, window)
     return {
         name: `clip-stats-${stampOf(window.since)}-${stampOf(window.until ?? now)}.csv`,
         csv: csvOf(tableOf(documents)),

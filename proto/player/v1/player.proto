@@ -13,10 +13,6 @@ service PlayerService {
 
   rpc Leave(LeaveRequest) returns (LeaveResponse);
 
-  rpc GetRoster(GetRosterRequest) returns (GetRosterResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
-  }
-
   rpc ListenForEvents(ListenForEventsRequest) returns (stream PlayerEvent);
 
   // Who a player is on its public card. Its stats, titles and fronts are progression.v1's GetProgress.

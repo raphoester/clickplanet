@@ -58,7 +58,7 @@ const rows = () => within(screen.getAllByRole("list")[0]).getAllByRole("listitem
 describe("TerritoryCard", () => {
     afterEach(() => {
         cleanup()
-        usePlayerCard.setState({openable: false, player: undefined})
+        usePlayerCard.setState({player: undefined})
         useBadges.getState().serve(undefined)
     })
 
@@ -115,7 +115,6 @@ describe("TerritoryCard", () => {
     })
 
     it("lists the players who hold the most of it, and closes to open a signed-in one's card", () => {
-        usePlayerCard.setState({openable: true})
         const onClose = vi.fn()
         show(SICILY, {players: PLAYERS, onClose})
 
@@ -129,7 +128,6 @@ describe("TerritoryCard", () => {
     })
 
     it("says a streak when its flame is pressed, and opens no card", () => {
-        usePlayerCard.setState({openable: true})
         const onClose = vi.fn()
         useBadges.setState({badges: STREAKS})
         show(SICILY, {players: STREAKED, onClose})
@@ -143,7 +141,6 @@ describe("TerritoryCard", () => {
     })
 
     it("opens a card from a name that wears a crown and a flame", () => {
-        usePlayerCard.setState({openable: true})
         const onClose = vi.fn()
         useBadges.setState({badges: STREAKS})
         show(SICILY, {players: STREAKED, onClose})
@@ -158,7 +155,6 @@ describe("TerritoryCard", () => {
 
     it("puts no button inside another", () => {
         const warned = vi.spyOn(console, "error").mockImplementation(() => {})
-        usePlayerCard.setState({openable: true})
         useBadges.setState({badges: STREAKS})
         show(SICILY, {players: STREAKED})
 
