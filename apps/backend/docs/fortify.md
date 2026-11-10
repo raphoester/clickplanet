@@ -13,8 +13,8 @@ defence against taking back the last tile for a free refill, and it costs no tim
   holder with no shields.
 - **The lock lives with the tiles**, in `inmemory_tile_storage`'s `landmasses`: a count
   per landmass and per flag, moved with the board by every change of owner
-  (`moveLocked`), and the flag that fortified each landmass last. `Fortify(tile, flag, most)` checks and
-  raises under the tiles lock, so two takes racing for the last tile fortify once. It
+  (`putLocked`), and the flag that fortified each landmass last. A claim's `Fortify(tile, flag, most)` checks and
+  raises under the lock of the take that asks it, so two takes racing for the last tile fortify once. It
   publishes one `clicks.Change{Fortification}` on the map's channel, after the updates
   that made the landmass whole.
 - **Only a player's take fortifies.** `clicks.Claiming` asks `Fortify` after each take,

@@ -1,13 +1,6 @@
 package inmemory_tile_storage
 
-import (
-	"context"
-
-	"github.com/google/uuid"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
-)
+import "github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 
 const noHolder = uint32(0)
 
@@ -53,13 +46,4 @@ func (h *holderbook) forget(account cpsession.AccountID) {
 	}
 	delete(h.ids, account)
 	h.accounts[id] = cpsession.NoAccount
-}
-
-// The account a player's take is made for, as the session interceptor put it in the context.
-func holderOf(ctx context.Context) cpsession.AccountID {
-	account, err := uuid.Parse(cpctx.GetAccount(ctx))
-	if err != nil {
-		return cpsession.NoAccount
-	}
-	return cpsession.AccountID(account)
 }

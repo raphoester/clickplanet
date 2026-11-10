@@ -13,7 +13,7 @@ be read again.
   `publishLocked` raises it and stamps the `clicks.Change` it publishes, so a write that changes nothing (a click on
   a tile already its flag, a strike with no shield left) counts nothing. A bomb, a fortify and each tile of a reassign
   or a restore count one each.
-- **Every publish runs under `s.mu`**, in `put`, `Clear`, `Strike`, `Shield`, `Fortify`, `Reassign` and `Restore`. So
+- **Every publish runs under `s.mu`**, in a claim's writes (`Claim`, `Enclose`), `Clear`, `Shield`, `Reassign` and `Restore`. So
   every stream gets the changes in the order of their versions: two writes cannot reach a channel in the other order.
   `feed.publish` never blocks (a full channel is cut, see [The live streams](live-streams.md)), about 1-2 µs for 50 to
   100 streams, so the lock is held no longer than a click already holds it. The lock order is `s.mu` then `feed.mu`;
