@@ -142,9 +142,7 @@ The clip ends on its top fighters, and the caption names them too: a player who 
 each story, `fighters` is the `number` of each player to name, from the `fighters` of its sides (a front's `attacker`,
 `rival` and `takenFrom` flags, a tour's flag, a place's holder), up to 3 a side, the ones who took the most first.
 
-- **Leave out a name that would get the post taken down or shame the game**: a slur, a sexual or hateful word, an
-  insult, a name mocking a people, a religion or a tragedy, a political or extremist message, a real person's full
-  name, a phone number, an email, a website or a handle, and any name you are not sure of. Fewer names is fine.
+- Every name you are given may be shown: the names TikTok and YouTube forbid were left out before you.
 - `[]` when no player should be named.
 - Never a player's name in the words you write.
 

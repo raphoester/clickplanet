@@ -14,11 +14,11 @@ the [Clip stats](clip-stats.md): **the cast of each run, who each post names, an
   admin's handler and all, page after page, through `rpc_planet_ledger`; `LedgerChange.account_id` is the account of
   each change), and the name each account may be shown under (`casts.ShownNames`): its username from player
   (`InternalService/GetPlayers`, through `rpc_player_names`; a guest has none, see [Player](player.md)), unless
-  it is in `opt_outs`. **A fighter is a player with such a name who took a tile from another flag**: filling empty
-  ground is no fight (`Take.captured`). The fighters are numbered from 1 by tiles taken, then by name
-  (`casts.CastOf`). The answer is the `clips.v1.Cast`: its id, its window, each fighter's number and name, and each of
-  their takes from another flag under its number. A guest, a player who turned the clips off, and a change of no
-  account are in no cast.
+  it is in `opt_outs` or its name is hidden ([The names a post may show](clip-name-verdicts.md)). **A fighter is a
+  player with such a name who took a tile from another flag**: filling empty ground is no fight (`Take.captured`). The
+  fighters are numbered from 1 by tiles taken, then by name (`casts.CastOf`). The answer is the `clips.v1.Cast`: its
+  id, its window, each fighter's number and name, and each of their takes from another flag under its number. A guest,
+  a player who turned the clips off, a player whose name is hidden, and a change of no account are in no cast.
 - **The opt-out is the clips module's own** (`optouts/`, table `opt_outs`, one row an account): player never hears
   of the clips. `ClipsService/SetNameShown(name_shown)` keeps the caller out, or forgets the row
   (`set_name_shown_usecase`); `GetAppearances` answers `name_shown`, true with no row. Any identified caller may

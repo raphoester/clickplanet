@@ -31,6 +31,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/keep_appearance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/keep_snapshot_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/keep_video_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_name_verdicts_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_name_verdicts_handler/verdicts_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_rows_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_rows_handler/rows_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_snapshots_handler"
@@ -40,6 +42,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/make_cast_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/remove_video_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/set_name_shown_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/set_name_verdict_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/postgres_optout_store"
 	forget_optouts "github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/usecases/forget_account_usecase"
@@ -48,6 +51,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/stats/snapshots/usecases/keep_snapshot_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers/player_forgotten_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/claude_name_judge"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/postgres_verdict_store"
+	forget_verdicts "github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/usecases/forget_account_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/usecases/screen_names_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/usecases/set_verdict_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/postgres_video_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/s3_video_bucket"
@@ -55,6 +63,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/usecases/keep_video_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/usecases/remove_video_usecase"
 	video_ids "github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/uuid_id_provider"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -86,6 +95,10 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 		return fmt.Errorf("failed to build the bucket of the videos: %w", err)
 	}
 	videoBucket := s3_video_bucket.New(files, config.Videos.lifetimes())
+	nameJudge, err := nameJudgeOf(config.Judge)
+	if err != nil {
+		return err
+	}
 	videoRules := videos.Rules{MaxBytes: config.Videos.MaxBytes}
 
 	internal, baseURL, err := props.Internal.Dial()
@@ -116,6 +129,7 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 	videoStore := postgres_video_store.New(db)
 	appearances := postgres_appearance_store.New(db)
 	optOuts := postgres_optout_store.New(db)
+	nameVerdicts := postgres_verdict_store.New(db)
 
 	forgottenCasts, err := cpredis.Subscribe(ctx, streams, "clips-casts-forgotten",
 		log_subscriber.New(player_forgotten_subscriber.New(forget_casts.New(castStore)), props.Logger))
@@ -135,9 +149,15 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 		closeStores()
 		return fmt.Errorf("failed to subscribe the opt-outs to player.v1.PlayerForgotten: %w", err)
 	}
+	forgottenVerdicts, err := cpredis.Subscribe(ctx, streams, "clips-verdicts-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_verdicts.New(nameVerdicts)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the name verdicts to player.v1.PlayerForgotten: %w", err)
+	}
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-		forgottenCasts, forgottenAppearances, forgottenOptOuts)))
+		forgottenCasts, forgottenAppearances, forgottenOptOuts, forgottenVerdicts)))
 
 	adminService := clipsv1controller.AdminService{
 		KeepSnapshotHandler:  keep_snapshot_handler.New(keep_snapshot_usecase.New(postgres_snapshot_store.New(db))),
@@ -145,15 +165,18 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 		ListRowsHandler:      list_rows_handler.New(rows_query.NewPostgresQuery(db)),
 		MakeCastHandler: make_cast_handler.New(make_cast_usecase.New(
 			rpc_planet_ledger.New(planetv1connect.NewInternalServiceClient(internal, baseURL)),
-			casts.NewShownNames(rpc_player_names.New(playerv1connect.NewInternalServiceClient(internal, baseURL)), optOuts),
+			casts.NewShownNames(rpc_player_names.New(playerv1connect.NewInternalServiceClient(internal, baseURL)), optOuts,
+				screen_names_usecase.New(nameVerdicts, nameJudge, clock)),
 			castStore, uuid_id_provider.Provider{}, clock,
 		)),
 		KeepAppearanceHandler: keep_appearance_handler.New(keep_appearance_usecase.New(castStore, appearances, clock)),
 		CreateVideoUploadHandler: create_video_upload_handler.New(
 			create_upload_usecase.New(video_ids.Provider{}, videoRules, videoBucket)),
-		KeepVideoHandler:   keep_video_handler.New(keep_video_usecase.New(videoBucket, videoStore, videoRules, clock)),
-		ListVideosHandler:  list_videos_handler.New(videos_query.NewPostgresQuery(db, videoBucket)),
-		RemoveVideoHandler: remove_video_handler.New(remove_video_usecase.New(videoBucket, videoStore)),
+		KeepVideoHandler:        keep_video_handler.New(keep_video_usecase.New(videoBucket, videoStore, videoRules, clock)),
+		ListVideosHandler:       list_videos_handler.New(videos_query.NewPostgresQuery(db, videoBucket)),
+		RemoveVideoHandler:      remove_video_handler.New(remove_video_usecase.New(videoBucket, videoStore)),
+		ListNameVerdictsHandler: list_name_verdicts_handler.New(verdicts_query.NewPostgresQuery(db)),
+		SetNameVerdictHandler:   set_name_verdict_handler.New(set_verdict_usecase.New(nameVerdicts, clock)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return clipsv1connect.NewAdminServiceHandler(adminService, options...)
@@ -171,7 +194,8 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 		return fmt.Errorf("failed to mount clips.v1.ClipsService: %w", err)
 	}
 
-	props.Logger.Info("clips built", slog.String("schema", config.Database.Schema), slog.Bool("videos", config.Videos.Enabled))
+	props.Logger.Info("clips built", slog.String("schema", config.Database.Schema), slog.Bool("videos", config.Videos.Enabled),
+		slog.Bool("nameJudge", config.Judge.Anthropic.APIKey != ""))
 	return nil
 }
 
@@ -181,6 +205,26 @@ type ModuleConfig struct {
 	Redis    cpredis.Config
 	// The videos the operator posts by hand, in the same bucket as the support module's files.
 	Videos VideosConfig
+	Judge  NameJudgeConfig
+}
+
+type NameJudgeConfig struct {
+	// ANTHROPIC_API_KEY. None sends nothing, and no cast names anyone.
+	Anthropic cpanthropic.Config
+	// Unset is claude_name_judge.DefaultModel, Claude Haiku 5.5.
+	Model string
+}
+
+// The judge of the names on a client of Anthropic's API built here; with no key, one that sends nothing.
+func nameJudgeOf(config NameJudgeConfig) (screen_names_usecase.Judge, error) {
+	client, err := cpanthropic.NewClient(config.Anthropic)
+	if errors.Is(err, cpanthropic.ErrNoKey) {
+		return claude_name_judge.Unkeyed{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to build the name judge's client of Anthropic's API: %w", err)
+	}
+	return claude_name_judge.New(client, config.Model), nil
 }
 
 type VideosConfig struct {
@@ -225,6 +269,9 @@ func (c ModuleConfig) withDefaults() ModuleConfig {
 	}
 	if c.Videos.LinkTTL <= 0 {
 		c.Videos.LinkTTL = defaultLinkTTL
+	}
+	if c.Judge.Model == "" {
+		c.Judge.Model = claude_name_judge.DefaultModel
 	}
 	return c
 }
