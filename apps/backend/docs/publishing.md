@@ -6,12 +6,14 @@ calendar everything that posts keeps: the clips job, since the same day, over ss
 clips job](clips-job.md)), and the promo module, which posts each battle's teaser, on the internal listener (its
 `teasers/rpc_publishing`, see [Battle teasers on TikTok and YouTube](teasers-job.md)) (the owner, 2026-11-09: "let's
 put publishing in the server, definitely"). Two posters that share TikTok's 3 posts a day need one arbiter, and TikTok
-punished a pace of 10 a day once (see [The clips job](clips-job.md), "Why so few on TikTok"). **It keeps no table**:
-Zernio's post list is the record of what went out and what is to come, posts made by hand included.
+punished a pace of 10 a day once (see [The clips job](clips-job.md), "Why so few on TikTok"). **It keeps no table of
+posts**: Zernio's post list is the record of what went out and what is to come, posts made by hand included. **It
+takes a snapshot a day of every post's numbers**, in the server, and keeps those (see [The posts'
+numbers](post-stats.md)).
 
 ```
 internal/publishing/
-  module.go                         Config (zernio), NewModule: off with no key
+  module.go                         Config (zernio, database), NewModule: off with no key, no snapshot with no database
   internal/
     calendar/                       Platform (PlatformsOf), Posting, Feed (With), PostedSince, Calendar (Left, Slot,
                                     SlotBy, Open), Budget, Allowance, Hours, Slot; Default, the game's
@@ -23,10 +25,14 @@ internal/publishing/
       usecases/create_upload_usecase/  checks the file, asks the service where to upload it
       usecases/schedule_post_usecase/  under one lock: the slot checked against what the service holds, then the post
         log_schedule_post/          each post with its title, time and platforms; never its words or metadata
-    publishingv1controller/         AdminService and InternalService (bags of the same handlers), Off (no key)
+    stats/                          the snapshot of the posts' numbers (see post-stats.md)
+    migrations/                     snapshots, snapshot_rows
+    publishingv1controller/         AdminService, the one value mounted as both services; Off (no key), StatsOff (no
+                                    database)
       publishingwire/               the wire's platforms and slot
       create_media_upload_handler/  get_room_handler/room_query/  plan_post_handler/plan_query/
       schedule_post_handler/        list_posts_handler/ (the zernio adapter answers it in the wire's words)
+      list_snapshots_handler/  list_rows_handler/  get_post_links_handler/   the posts' numbers (see post-stats.md)
 ```
 
 ## The calendar
@@ -73,8 +79,8 @@ for a run's best clip alone; the calendar knows no run.
 `publishing.v1.AdminService`, on the console listener, which a job calls over ssh as the clips job asks for a replay
 (see [Operator tools](admin.md)), and on the admin listener behind the gate. **`publishing.v1.InternalService`** is
 `PlanPost`, `SchedulePost` and `ListPosts` again, the same handlers in the same words, on the loopback internal
-listener, for another module: promo, which posts each battle's teaser itself (`internal.proto`). With no key, both are
-`FailedPrecondition`.
+listener, for another module: promo, which posts each battle's teaser itself (`internal.proto`); and `GetPostLinks`,
+each post's address as the snapshots read it, for the clips module. With no key, both are `FailedPrecondition`.
 
 - **`CreateMediaUpload(file_name, content_type, size_bytes)`** answers where to upload a file, and the address a post
   names it by: Zernio's own storage, through `POST /v1/media/presign` with the key. **No byte of a file passes
@@ -116,12 +122,14 @@ listener, for another module: promo, which posts each battle's teaser itself (`i
   TikTok is in the slot. JPEG, since TikTok's photo posts take JPEG and WebP and not PNG.
 - **`ListPosts(since)`** is every post Zernio holds from the day of `since` on, the latest first (500 at most: about
   fifteen a day), by hand or not: its id, title, time, state, why each platform failed it, and its metadata as kept.
+- **`ListSnapshots` and `ListRows`** are the daily snapshots of the posts' numbers: see [The posts'
+  numbers](post-stats.md).
 
 **Errors**: `InvalidArgument` for a request the domain refuses, `Unavailable` for a read Zernio is busy for, and the
 [error net](error-net.md) for the rest. **No key, no posting** (`publishingv1controller.Off`): every call is
 `FailedPrecondition`, the boot logs it, and the rest of the server runs. **The connector hides
 `CreateMediaUpload` and `SchedulePost`** (see [Claude as a connector](connector.md)): a job's plumbing, and a public
-post. `GetRoom`, `PlanPost` and `ListPosts` are tools.
+post. `GetRoom`, `PlanPost`, `ListPosts`, `ListSnapshots` and `ListRows` are tools.
 
 **Nothing an error says carries a URL**: an upload link is a credential, and Go's `url.Error` prints the address it
 failed on, so `zernio.unreachable` keeps the cause and drops the address. The key goes in the `Authorization` header
@@ -129,14 +137,10 @@ of the calls to Zernio's API alone.
 
 ## Configuration
 
-`publishing.zernio.apiKey`, `env://ZERNIO_API_KEY` in `deploy/vps/backend.yaml`: the repository's Actions secret that
-the clips workflows hold too, rendered into the backend's environment by every deploy. Empty, the module is off.
-`publishing.zernio.baseURL` is a test's fake; empty is Zernio's own API. See [Configuration](configuration.md).
-
-## Not here yet
-
-- **The daily snapshot of the posts' numbers still reads Zernio from the job** (`clips stats`), and the clips module
-  keeps it: it moves here once the snapshots' tables do.
+`publishing.zernio.apiKey`, `env://ZERNIO_API_KEY` in `deploy/vps/backend.yaml`: the repository's Actions secret,
+rendered into the backend's environment by every deploy; since 2026-11-10 no other workflow reads it. Empty, the
+module is off. `publishing.zernio.baseURL` is a test's fake; empty is Zernio's own API. `publishing.database`, schema
+`publishing`, one connection: the snapshots; no host, no snapshot. See [Configuration](configuration.md).
 
 ## Tests
 
@@ -154,3 +158,5 @@ upload link, the room, a slot, a slot that waits for TikTok's hours with `by` an
 slot, the same slot taken after, the list with the post's metadata, every refusal of a wrong request, and
 `FailedPrecondition` with no key; and on the internal listener, a slot with `by`, a carousel posted and listed back, and
 `FailedPrecondition` with no key there too.
+
+The snapshot's tests are in [The posts' numbers](post-stats.md#tests).

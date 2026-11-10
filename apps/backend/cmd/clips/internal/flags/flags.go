@@ -17,7 +17,6 @@ const usage = `usage:
   clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
   clips edit -findings <findings.json> [-count 2] [-prompt]
   clips schedule -clips <folder> [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
-  clips stats [-ssh <user@host>] [-since 2026-10-13]
 
 Every command asks the production backend over ssh, as its operator does: CLICKPLANET_SSH stands in for -ssh.
 fetch asks it for a replay, and the ledger keeps 72 hours in memory, so a replay cannot reach further back. With
@@ -29,9 +28,8 @@ told yet, then the stories Claude (ANTHROPIC_API_KEY) makes of the generator's f
 against them and against the headlines of the last week. It takes no more than the platform with the most room left
 takes, as the backend's publishing module counts it, and TikTok a run's best clip alone. schedule sends every clip of
 the folder to the publishing module, which posts it as one post on every platform that takes it, at the first slot of
-its calendar, then tells the backend who each post names, so the game tells them. stats keeps a snapshot of the numbers of every
-post of the job scheduled since the date, default the last 4 weeks, in the backend's postgres: a row for each platform
-of each post, read from Zernio (ZERNIO_API_KEY). A model that cannot answer leaves the run its day won alone; -summary
+its calendar, then tells the backend who each post names, so the game tells them. The posts' numbers are the backend's:
+its publishing module takes a snapshot a day. A model that cannot answer leaves the run its day won alone; -summary
 adds how the call went, and what it cost, to that file. edit tries the editor on saved findings, as many clips as
 -count, the told stories read from the backend when CLICKPLANET_SSH is set: -prompt prints what it would be sent,
 counted when ANTHROPIC_API_KEY is set, and asks for no answer.`
@@ -43,11 +41,9 @@ const (
 	Choose   Command = "choose"
 	Schedule Command = "schedule"
 	Edit     Command = "edit"
-	Stats    Command = "stats"
 )
 
 const (
-	KeyVariable       = "ZERNIO_API_KEY"
 	EditorKeyVariable = "ANTHROPIC_API_KEY"
 	HostVariable      = "CLICKPLANET_SSH"
 )
@@ -88,8 +84,6 @@ func Parse(args []string) (Config, error) {
 		return parseSchedule(args[1:])
 	case Edit:
 		return parseEdit(args[1:])
-	case Stats:
-		return parseStats(args[1:])
 	default:
 		return Config{}, misused(ErrArguments)
 	}
@@ -186,30 +180,6 @@ func withPlatforms(parsed Config, platforms string) (Config, error) {
 			return Config{}, misused(err)
 		}
 		parsed.Job.Platforms = chosen
-	}
-	return parsed, nil
-}
-
-func parseStats(args []string) (Config, error) {
-	parsed := Config{Command: Stats}
-	parsed.Job.Zernio.APIKey = os.Getenv(KeyVariable)
-
-	flags := flag.NewFlagSet(string(Stats), flag.ContinueOnError)
-	flags.StringVar(&parsed.Job.Replay.SSH, "ssh", os.Getenv(HostVariable), "user@host of the machine the backend runs on")
-	since := flags.String("since", "", "the day of the first post read, default 4 weeks ago")
-	if err := flags.Parse(args); err != nil {
-		return Config{}, misused(err)
-	}
-	if parsed.Job.Replay.SSH == "" {
-		return Config{}, misused(ErrArguments)
-	}
-
-	if *since != "" {
-		day, err := time.Parse(time.DateOnly, *since)
-		if err != nil {
-			return Config{}, misused(err)
-		}
-		parsed.Job.StatsSince = day
 	}
 	return parsed, nil
 }

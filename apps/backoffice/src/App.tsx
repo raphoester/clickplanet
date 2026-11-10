@@ -120,7 +120,7 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "reassign" && <ReassignPanel planet={CLIENTS.planet}/>}
                 {page === "paint" && <PaintPanel planet={CLIENTS.planet}/>}
                 {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
-                {page === "clips" && <ClipStatsPage clips={CLIENTS.clips}/>}
+                {page === "clips" && <ClipStatsPage publishing={CLIENTS.publishing}/>}
                 {page === "videos" && <VideosPage clips={CLIENTS.clips}/>}
                 {page === "promo" && <PromoPage promo={CLIENTS.promo} planet={CLIENTS.planet}/>}
                 {page === "titles" && <TitlesPanel progression={CLIENTS.progression}/>}

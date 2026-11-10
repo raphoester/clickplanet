@@ -27,6 +27,8 @@ import (
 // The backend as the job reaches it: its publishing module, a fake of it on httptest, behind an ssh on the PATH that
 // sends each call there with curl, which prints nothing of a call it refuses, as busybox's wget does.
 type backend struct {
+	publishingv1connect.UnimplementedAdminServiceHandler
+
 	t       *testing.T
 	mu      sync.Mutex
 	storage *httptest.Server

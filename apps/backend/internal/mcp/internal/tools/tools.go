@@ -28,7 +28,6 @@ var (
 		"planet.v1.AdminService.GetReplay",
 		"planet.v1.AdminService.GetLedger",
 		"planet.v1.AdminService.GetTerritories",
-		"clips.v1.AdminService.KeepSnapshot",
 		"clips.v1.AdminService.MakeCast",
 		"clips.v1.AdminService.KeepAppearance",
 		"publishing.v1.AdminService.CreateMediaUpload",

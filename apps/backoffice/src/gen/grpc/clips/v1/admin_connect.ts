@@ -3,15 +3,14 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateVideoUploadRequest, CreateVideoUploadResponse, KeepAppearanceRequest, KeepAppearanceResponse, KeepSnapshotRequest, KeepSnapshotResponse, KeepVideoRequest, KeepVideoResponse, ListNameVerdictsRequest, ListNameVerdictsResponse, ListRowsRequest, ListRowsResponse, ListSnapshotsRequest, ListSnapshotsResponse, ListVideosRequest, ListVideosResponse, MakeCastRequest, MakeCastResponse, RemoveVideoRequest, RemoveVideoResponse, SetNameVerdictRequest, SetNameVerdictResponse } from "./admin_pb.js";
+import { CreateVideoUploadRequest, CreateVideoUploadResponse, KeepAppearanceRequest, KeepAppearanceResponse, KeepVideoRequest, KeepVideoResponse, ListNameVerdictsRequest, ListNameVerdictsResponse, ListVideosRequest, ListVideosResponse, MakeCastRequest, MakeCastResponse, RemoveVideoRequest, RemoveVideoResponse, SetNameVerdictRequest, SetNameVerdictResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * What became of the clips the clips job posts: a snapshot a day of each post's numbers on each platform, sent by the
- * job's `clips stats` over ssh and read by the backoffice, which makes the table. And the players a clip names: the
- * cast of a run, which the job's `clips fetch` makes, and who each post named, which `clips schedule` keeps. The rest
+ * The players a clip names: the cast of a run, which the job's `clips fetch` makes, and who each post named, which
+ * `clips schedule` keeps. The numbers of the posts are publishing's (publishing.v1.AdminService/ListSnapshots). The rest
  * of the package is what the frontend's generator hands the job (clips.proto), and what a player reads of the clips
- * that name it (appearances.proto). Not public: some of the numbers are not, and a cast holds account ids. No
+ * that name it (appearances.proto). Not public: a cast holds account ids. No
  * authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the
  * public router.
  *
@@ -20,43 +19,6 @@ import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 export const AdminService = {
   typeName: "clips.v1.AdminService",
   methods: {
-    /**
-     * Keeps a snapshot's summary and some of its rows: a snapshot is sent in parts, each with the summary. A row kept
-     * again (the same snapshot, post and platform) replaces the one kept, and so does a summary, so a part sent twice
-     * is kept once. InvalidArgument for a row of another snapshot, or whose document is not a JSON object.
-     *
-     * @generated from rpc clips.v1.AdminService.KeepSnapshot
-     */
-    keepSnapshot: {
-      name: "KeepSnapshot",
-      I: KeepSnapshotRequest,
-      O: KeepSnapshotResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * The summaries of the snapshots taken in a window, the newest first.
-     *
-     * @generated from rpc clips.v1.AdminService.ListSnapshots
-     */
-    listSnapshots: {
-      name: "ListSnapshots",
-      I: ListSnapshotsRequest,
-      O: ListSnapshotsResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
-    },
-    /**
-     * The rows of the snapshots taken in a window, the oldest snapshot first, a page at a time.
-     *
-     * @generated from rpc clips.v1.AdminService.ListRows
-     */
-    listRows: {
-      name: "ListRows",
-      I: ListRowsRequest,
-      O: ListRowsResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
-    },
     /**
      * Numbers each player who took tiles from another flag in a window, at most 72 hours, and keeps which account each
      * number is, for 3 days. The answer holds names and numbers, never an account id.

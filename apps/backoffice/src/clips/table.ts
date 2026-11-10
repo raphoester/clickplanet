@@ -1,5 +1,5 @@
-// The table of the clips' numbers, made in the page from the rows the backend keeps (clips.v1.StatsRow.document, the
-// row as `clips stats` wrote it): the backend sends what Zernio answered, never a table, so a column needs no change
+// The table of the posts' numbers, made in the page from the rows the backend keeps (publishing.v1.StatsRow.document,
+// the row as the server's snapshot wrote it): the backend sends what Zernio answered, never a table, so a column needs no change
 // there. The CSV is for a spreadsheet; the rows themselves stay the source of truth.
 
 // The columns every table starts with, in this order. The others are what the rows hold, by name.
