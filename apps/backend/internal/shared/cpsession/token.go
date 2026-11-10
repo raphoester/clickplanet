@@ -22,11 +22,6 @@ var (
 const Version = 3
 
 const (
-	versionWithoutLinked   = 1
-	versionWithoutAttested = 2
-)
-
-const (
 	versionLen  = 1
 	expiryLen   = 8
 	idLen       = 8
@@ -42,9 +37,6 @@ const (
 
 	payloadLen = versionLen + expiryLen + idLen + accountLen + linkedLen + attestedLen
 	tokenLen   = payloadLen + ed25519.SignatureSize
-
-	tokenWithoutAttestedLen = tokenLen - attestedLen
-	tokenWithoutLinkedLen   = tokenWithoutAttestedLen - linkedLen
 )
 
 type ID string
@@ -148,21 +140,14 @@ func (v *Verifier) Verify(value string, ip string, now time.Time) (*Claims, erro
 		return nil, fmt.Errorf("%w: the token is empty", ErrMalformed)
 	}
 
-	length := tokenLen
-	switch raw[0] {
-	case Version:
-	case versionWithoutAttested:
-		length = tokenWithoutAttestedLen
-	case versionWithoutLinked:
-		length = tokenWithoutLinkedLen
-	default:
+	if raw[0] != Version {
 		return nil, fmt.Errorf("%w: token version %d, this server mints %d", ErrMalformed, raw[0], Version)
 	}
-	if len(raw) != length {
-		return nil, fmt.Errorf("%w: got %d bytes, want %d", ErrMalformed, len(raw), length)
+	if len(raw) != tokenLen {
+		return nil, fmt.Errorf("%w: got %d bytes, want %d", ErrMalformed, len(raw), tokenLen)
 	}
 
-	payload, signature := raw[:length-ed25519.SignatureSize], raw[length-ed25519.SignatureSize:]
+	payload, signature := raw[:payloadLen], raw[payloadLen:]
 
 	// Signature before expiry: a forger must not learn whether the token is in date.
 	if !ed25519.Verify(v.key, signed(payload, ip), signature) {
@@ -175,11 +160,10 @@ func (v *Verifier) Verify(value string, ip string, now time.Time) (*Claims, erro
 	}
 
 	return &Claims{
-		ID:      ID(hex.EncodeToString(payload[idAt:accountAt])),
-		Account: AccountID(payload[accountAt:linkedAt]),
-		Linked:  len(payload) > linkedAt && payload[linkedAt] == 1,
-		// Before version 3, every mint followed a Turnstile check.
-		Attested: raw[0] != Version || payload[attestedAt] == 1,
+		ID:       ID(hex.EncodeToString(payload[idAt:accountAt])),
+		Account:  AccountID(payload[accountAt:linkedAt]),
+		Linked:   payload[linkedAt] == 1,
+		Attested: payload[attestedAt] == 1,
 	}, nil
 }
 

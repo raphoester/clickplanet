@@ -254,7 +254,7 @@ func (g *Guard) Load(ctx context.Context) error {
 }
 
 func (g *Guard) Flagged(ctx context.Context) (int, error) {
-	return g.jury.Flagged(ctx) //nolint:wrapcheck // the banner already named what failed.
+	return g.banner.Flagged(ctx) //nolint:wrapcheck // the banner already named what failed.
 }
 
 func (g *Guard) Ban(ctx context.Context, scope, account string, duration time.Duration) (Sentence, error) {

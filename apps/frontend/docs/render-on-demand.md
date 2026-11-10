@@ -9,7 +9,7 @@ phone that is a flat battery for a still image, and it is why the game was
 reported as a battery eater.
 
 `drawsFrame` in `globe.ts` is the whole rule, kept out of the loop so it is
-under test. Four things can ask for a frame:
+under test. Five things can ask for a frame:
 
 - **The camera turned** — for a drag, the damping glide after one, a zoom, or
   the idle spin. The loop reads this from OrbitControls' `change` event as well
@@ -26,7 +26,7 @@ under test. Four things can ask for a frame:
   cap, as a drag does.
 - **Something the loop drives is still moving** — every `update` that animates
   answers a boolean: `blasts`, `bonusBox`, `enclosureEffect`, `clickEffects`,
-  `clickGlints` and `TileField.setHover`. **The frame an effect *ends* on counts**: it is the
+  `clickGlints`, `fortifyWaves` and `TileField.setHover`. **The frame an effect *ends* on counts**: it is the
   one that takes the flash, the box or the highlight off the screen, so each one
   answers `true` on the tick it stops as well as while it runs.
 - **Something outside the loop touched the scene** — `invalidate()`, which
@@ -34,6 +34,8 @@ under test. Four things can ask for a frame:
   listener, the lapsed-box branch and `capture()` call for themselves. It is
   read and cleared once per tick, and only ever set from outside the loop, so
   clearing it on a tick that then skips its frame cannot lose one.
+- **A pulse is on screen** — `ambient`: the front's and the missions' slow pulses, drawn at most every
+  `AMBIENT_FRAME_MS` (see [The front, for a first visit](front-guide.md)).
 
 **The idle spin is capped at `IDLE_FRAME_MS`, and it is the one animation the
 cap has to be generous with.** It is the only thing that moves with nobody

@@ -1,6 +1,6 @@
 # Pages and routes
 
-Three pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
+Five pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
 `vite.config.ts`):
 
 | Path | File | What |

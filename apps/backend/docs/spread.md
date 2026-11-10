@@ -7,7 +7,7 @@ always has, and the neighbours reach it over the stream like anyone else's.
 
 `claim_bonus_usecase` adds the box's clicks to the pool with
 `Charges.Grant(holder, KindSpreadClicks, amount)`. Each accepted click sent with
-spread on then spends one with `Charges.SpendSpreadClick`, after the rule accepted
+spread on then spends one with `Charges.Spend(holder, Held.AfterSpreadClick)`, after the rule accepted
 it: a refused click spreads nothing and costs nothing, and a click with spread off
 never touches the pool.
 

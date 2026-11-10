@@ -65,8 +65,7 @@ address>`), so Back goes to the list, as it was.
   ban, its pardon and its clicks. The antibot off (its service absent, `unimplemented`) reads as such, not as a
   failure. A ban or an unban reads it again, and a mute or an unmute reads `GetMute` again.
 - **The ban tools are the antibot's** (`antibot.v1.AdminService`, the `antibot` client), since the antibot became a
-  module of its own; `planet.v1` keeps the three calls for a deploy, answered by the antibot, then drops them. A ban
-  reaches planet a moment after its answer.
+  module of its own. A ban reaches planet a moment after its answer.
 - **The tools, one at a time behind tabs**, so the page stays short: Ban (`BanPlayer`, the ladder's next step by
   default), Unban (`UnbanPlayer`, which forgets the latest offence and pardons the key, and says until when;
   `not_found` is no ban left), Revert (`RevertPlayer`, dry run first), and for an account alone Mute (`Mute`), Unmute

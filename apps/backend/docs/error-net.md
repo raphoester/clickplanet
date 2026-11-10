@@ -24,7 +24,7 @@ infer that conversion.
 **What each module still owns is its own mapping.** A caller error is named by
 the part that found it and turned into a code by the handler that knows which
 procedure was asked — `click_handler` and `get_map_handler` in planet,
-`send_message_handler` for `messages.ErrInvalidMessage`, `create_session_handler` and `sessionv1controller`
+`send_message_handler` for `messages.ErrInvalidMessage`, `create_session_handler`
 for `attestation.ErrAttestationFailed`. The net never sees those, because a `*connect.Error`
 is passed through untouched.
 

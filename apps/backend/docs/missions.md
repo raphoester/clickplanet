@@ -125,8 +125,7 @@ internal/missions/internal/
   - **`GetMissions` answers each mission in its kind's own message** (`missionmessage`, `Sheet.Statuses`): what every
     mission has is its id, its reward, `done` and `paid`; what it asks is a `oneof`, a message per kind with its own
     fields, its goal and how far it went. A client skips a kind it does not know, so a new kind
-    reaches an old client as nothing. The reward is a `oneof` too (`charges` today). `country_id` and `enlisted` are
-    deprecated and left empty.
+    reaches an old client as nothing. The reward is a `oneof` too (`charges` today).
   - **A fact counts on every mission it fits, whatever flag it is for** (`Sheet.WithFact`): after a change of flag the
     day's rivals and grounds still count, and its tiles for the old flag stop. A change of flag gets no second set,
     since an account has one day. The client never names the flag. **Progress is counted from planet's events**, one

@@ -196,7 +196,6 @@ func TestASinkFramesABlastWithEveryTileItCleared(t *testing.T) {
 	assert.Equal(t, "fr", dropped.GetCountryId())
 	assert.InDelta(t, 0.03, dropped.GetRadius(), 1e-9)
 	assert.Equal(t, []uint32{6, 7, 8}, dropped.GetClearedTileIds())
-	assert.Equal(t, []uint32{9}, dropped.GetStruckTileIds()) //nolint:staticcheck // still sent to the tabs loaded before it was deprecated.
 	require.Len(t, dropped.GetStruck(), 1)
 	assert.Equal(t, uint32(9), dropped.GetStruck()[0].GetTileId())
 	assert.Equal(t, uint32(2), dropped.GetStruck()[0].GetShields(), "with the shields it kept")

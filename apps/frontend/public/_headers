@@ -17,6 +17,30 @@
   ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
 
+/static/borders-*.bin
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
+/static/borderLines-*.bin
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
+/static/earth/earth-*.jpg
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
+/static/og-image-*.jpg
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
+/static/reactions/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
+/static/anthems/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
 /robots.txt
   ! Cache-Control
   Cache-Control: public, max-age=3600

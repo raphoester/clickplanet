@@ -12,7 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-var ErrNoSession = errors.New("clicks require a session; call session.v1.SessionService/CreateSession first")
+var ErrNoSession = errors.New("clicks require a session; call auth.v1.AuthService/CreateSession first")
 
 type ClickSessionVerifier = cpconnect.SessionVerifier
 

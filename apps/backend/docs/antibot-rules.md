@@ -146,8 +146,8 @@ on its own, so planet never hears of a crowd, and the antibot never follows plan
   refuses an entry of a set the antibot lacks.
 - **For the Final Battle** (Sat 31 Oct 2026, 21:00–23:00 UTC), an entry plays `rush`. An antibot set `rush` that holds
   `cohort.certainMembers` 50 makes the crowd bound 50 for the evening, and judges with default's for the rest. It must
-  be saved before 21:00: while `rush` plays, a save of `rush` is refused, and an antibot with no `rush` refuses the
-  command and keeps `default`.
+  be saved before 21:00: an antibot with no `rush` refuses the command and keeps `default`. A save of `rush` while it
+  plays takes over at once.
 
 ## The machine, in the YAML
 

@@ -26,7 +26,7 @@ export const useMissions = create<MissionsStore>()((set) => ({
     // The first day says nothing paid: what was paid before the page opened was shown then.
     hear: (day) => set(({state, paid}) => {
         const now = state.kind === "ready" ? newlyPaid(state.day.missions, day.missions) : []
-        return {state: {kind: "ready", day}, paid: now.length > 0 ? now : paid}
+        return {state: {kind: "ready", day}, paid: now.length > 0 ? [...(paid ?? []), ...now] : paid}
     }),
     fail: () => set((missions) => missions.state.kind === "ready" ? missions : {state: {kind: "failed"}}),
     dismissPaid: () => set({paid: undefined}),

@@ -17,7 +17,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   and its fade; a modal's padding; how to debug a mobile layout.
 - [Protocol Buffers](docs/protobuf.md) — types from the shared `/proto`, generated into `src/gen/grpc`.
 - [Static assets](docs/static-assets.md) — the content-addressed files in `static/`, and how each is made.
-- [Pages and routes](docs/routes.md) — the two pages Vite builds, and their routes.
+- [Pages and routes](docs/routes.md) — the five pages Vite builds, and their routes.
 
 ## Architecture
 

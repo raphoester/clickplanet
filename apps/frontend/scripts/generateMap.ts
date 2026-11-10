@@ -103,7 +103,8 @@ if (remapAt) {
 console.log(`
 next:
   gameMap.maxIndex is now ${count} — update cmd/api/example.yaml and deploy/vps/backend.yaml
-  cd ../backend && make map        # copy both blobs, then commit all three copies of each
+  cd ../backend && make map        # copy both blobs, then commit every copy
+  cd ../backoffice && npm run map  # copy the coordinates blob
   npm run borderLines              # traced from both blobs, stale until it is run
   npm run landmask                 # which lattice points are tiles, what the browser downloads
   npm run earth                    # the globe's texture, cut from the new tile field

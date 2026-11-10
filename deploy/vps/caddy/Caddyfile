@@ -32,7 +32,7 @@
 
 	encode zstd gzip
 
-	# The admin page calls with the game's cookie: the backend refuses any other origin, Caddy only says which.
+	# The admin page calls with its cp_admin cookie: the backend refuses any other origin, Caddy only says which.
 	@admin path_regexp ^/[a-z]+\.v1\.AdminService/
 	# The connector: Claude reaches it from Anthropic's servers, with no page and no cookie, so it gets no CORS.
 	@connector path /mcp /oauth/* /.well-known/oauth-authorization-server /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/*
@@ -73,12 +73,6 @@
 
 	# header_up without + replaces a client-sent X-Real-IP, so a forged one is dropped.
 	handle /planet.v1.ClickService/* {
-		reverse_proxy backend:8080 {
-			header_up X-Real-IP {client_ip}
-		}
-	}
-
-	handle /session.v1.SessionService/* {
 		reverse_proxy backend:8080 {
 			header_up X-Real-IP {client_ip}
 		}

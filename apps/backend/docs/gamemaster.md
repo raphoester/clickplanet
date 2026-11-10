@@ -26,8 +26,8 @@ internal/gamemaster/
   internal/
     migrations/                     schedule_entries, entry_kind, entry_description, seasons (season 0 seeded),
                                     entry_times, scored_moments (scored_rounds, opened_rounds, closed_books, outbox),
-                                    season_finales (season 0's Final Battle seeded), told_days,
-                                    told_battles_and_seasons
+                                    season_finales (season 0's Final Battle seeded), told_days, halloween_kind,
+                                    halloween_times, told_battles_and_seasons, arenas (battle_modes, closed_arenas)
     schedule/                       EntryID, SetName, Kind, Description, Times, Priority, Draft, Entry (NewEntry, Edited,
                                     Changeable), Schedule (New, With, TurnAt, SinceAt, BattlesAfter), Finale, Turn; the
                                     Store, Keeper and IDProvider ports, Playable; the store's contract suite; FakeKeeper and

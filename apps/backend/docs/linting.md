@@ -14,8 +14,8 @@ superset of gofmt, so anything it accepts `gofmt` accepts.
 `make check-format` is the non-rewriting half, and it is what CI runs. Note that
 `golangci-lint fmt --diff` **prints a diff but exits 0 either way**, so the
 target tests its output rather than its status — a `check-format` written the
-obvious way passes on an unformatted tree. It also runs `go mod tidy` and fails
-on a resulting diff, so an untidy `go.mod` is caught in the same place.
+obvious way passes on an unformatted tree. It also runs `go mod tidy -diff`, which
+writes nothing and fails on an untidy `go.mod`, so that is caught in the same place.
 
 **`run.build-tags` is `testing`**, for the same reason `go vet` needs it: without
 the tag the linters load a tree where the shared helpers are undefined and report

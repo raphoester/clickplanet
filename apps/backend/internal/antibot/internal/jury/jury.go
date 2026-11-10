@@ -53,7 +53,6 @@ func (c Config) withDefaults() Config {
 type Banner interface {
 	Flag(ctx context.Context, caller bans.Caller) (bans.Sentence, bool, error)
 	Pardoned(ctx context.Context, caller bans.Caller) (bool, error)
-	Flagged(ctx context.Context) (int, error)
 }
 
 type Hooks struct {
@@ -223,10 +222,6 @@ func (j *Jury) Committed(click detect.Click) {
 	for _, watchdog := range j.watchdogs {
 		watchdog.Committed(click)
 	}
-}
-
-func (j *Jury) Flagged(ctx context.Context) (int, error) {
-	return j.banner.Flagged(ctx) //nolint:wrapcheck // the banner already named what failed.
 }
 
 func (j *Jury) record(click detect.Click) {

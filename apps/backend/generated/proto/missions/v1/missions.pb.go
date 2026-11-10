@@ -215,13 +215,9 @@ func (*Heartbeat) Descriptor() ([]byte, []int) {
 
 // The caller's own missions of the day, drawn at its first read or take for the flag it played then.
 type GetMissionsResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Deprecated: Marked as deprecated in missions/v1/missions.proto.
-	CountryId string `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	// Deprecated: Marked as deprecated in missions/v1/missions.proto.
-	Enlisted     bool       `protobuf:"varint,2,opt,name=enlisted,proto3" json:"enlisted,omitempty"`
-	EndsAtUnixMs int64      `protobuf:"varint,3,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
-	Missions     []*Mission `protobuf:"bytes,4,rep,name=missions,proto3" json:"missions,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	EndsAtUnixMs int64                  `protobuf:"varint,3,opt,name=ends_at_unix_ms,json=endsAtUnixMs,proto3" json:"ends_at_unix_ms,omitempty"`
+	Missions     []*Mission             `protobuf:"bytes,4,rep,name=missions,proto3" json:"missions,omitempty"`
 	// The day's mission of the flag the caller plays now, the same for each of its players. Unset with no flag.
 	FlagMission   *FlagMission `protobuf:"bytes,5,opt,name=flag_mission,json=flagMission,proto3" json:"flag_mission,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -256,22 +252,6 @@ func (x *GetMissionsResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetMissionsResponse.ProtoReflect.Descriptor instead.
 func (*GetMissionsResponse) Descriptor() ([]byte, []int) {
 	return file_missions_v1_missions_proto_rawDescGZIP(), []int{4}
-}
-
-// Deprecated: Marked as deprecated in missions/v1/missions.proto.
-func (x *GetMissionsResponse) GetCountryId() string {
-	if x != nil {
-		return x.CountryId
-	}
-	return ""
-}
-
-// Deprecated: Marked as deprecated in missions/v1/missions.proto.
-func (x *GetMissionsResponse) GetEnlisted() bool {
-	if x != nil {
-		return x.Enlisted
-	}
-	return false
 }
 
 func (x *GetMissionsResponse) GetEndsAtUnixMs() int64 {
@@ -1354,14 +1334,12 @@ const file_missions_v1_missions_proto_rawDesc = "" +
 	"\x03day\x18\x01 \x01(\v2 .missions.v1.GetMissionsResponseH\x00R\x03day\x126\n" +
 	"\theartbeat\x18\x02 \x01(\v2\x16.missions.v1.HeartbeatH\x00R\theartbeatB\a\n" +
 	"\x05event\"\v\n" +
-	"\tHeartbeat\"\xee\x01\n" +
-	"\x13GetMissionsResponse\x12!\n" +
-	"\n" +
-	"country_id\x18\x01 \x01(\tB\x02\x18\x01R\tcountryId\x12\x1e\n" +
-	"\benlisted\x18\x02 \x01(\bB\x02\x18\x01R\benlisted\x12%\n" +
+	"\tHeartbeat\"\xcd\x01\n" +
+	"\x13GetMissionsResponse\x12%\n" +
 	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs\x120\n" +
 	"\bmissions\x18\x04 \x03(\v2\x14.missions.v1.MissionR\bmissions\x12;\n" +
-	"\fflag_mission\x18\x05 \x01(\v2\x18.missions.v1.FlagMissionR\vflagMission\"\x85\x05\n" +
+	"\fflag_mission\x18\x05 \x01(\v2\x18.missions.v1.FlagMissionR\vflagMissionJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\n" +
+	"country_idR\benlisted\"\x85\x05\n" +
 	"\aMission\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x122\n" +
 	"\x06reward\x18\x02 \x01(\v2\x1a.missions.v1.MissionRewardR\x06reward\x12\x12\n" +

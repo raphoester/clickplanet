@@ -12,8 +12,6 @@ type Question struct {
 
 	NamesSubject bool `json:"namesSubject"`
 
-	Ask string `json:"ask"`
-
 	Text   string   `json:"text"`
 	Answer string   `json:"answer"`
 	Wrong  []string `json:"wrong"`

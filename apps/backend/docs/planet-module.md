@@ -27,6 +27,10 @@ internal/planet/internal/
   arenas/                         the blank map an arena battle is fought on: when it opened and closed; its map is the tile map's
     postgres_arena_store/
     usecases/
+  quizzes/                        the quiz bank, and how a round's question is drawn
+  resets/                         the map's resets, each applied once
+    postgres_reset_store/
+    usecases/
   refusals/                       the callers planet refuses, and until when: the latest decision on each
     postgres_refusal_store/
     log_refusals/
@@ -40,7 +44,9 @@ internal/planet/internal/
   subscribers/                    the edge for events: player.v1.PlayerForgotten → anonymize_takes_usecase,
                                   player.v1.PlayerCreated → grant_sign_in_refill_usecase
   commands/                       the edge for commands: planet.v1.GrantCharges → apply_grant_usecase,
-                                  planet.v1.RefuseCaller and AdmitCaller → refusals.Book
+                                  planet.v1.RefuseCaller and AdmitCaller → refusals.Book,
+                                  planet.v1.PlayRuleSet → play_rules_usecase, planet.v1.ResetMap → reset_map_usecase,
+                                  planet.v1.ArenaCommand → open_arena_usecase and close_arena_usecase
 ```
 
 - **`clicks/`** — what a click is worth, what the map looks like, and what
@@ -121,7 +127,7 @@ because it serves every concept over one Connect service. It only maps.
 | `ledger/usecases/find_players_usecase` | who is painting a flag, and where, and whom planet refuses | `Ledger`, `Owners`, `Borders`, `Refusals` |
 | `ledger/usecases/top_players_usecase` | who takes the most tiles, every flag, and whom planet refuses | `Ledger`, `Owners`, `Refusals` |
 | `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |
-| `ledger/usecases/anonymize_takes_usecase` | flushes the ledger, then takes a deleted account off every take postgres keeps | `Ledger`, `Takes` |
+| `ledger/usecases/anonymize_takes_usecase` | flushes the ledger, then takes a deleted account off every take postgres keeps, then forgets it as the holder of its tiles | `Ledger`, `Takes`, `Tiles` |
 | `ledger/usecases/replay_usecase` | the map as it was at a time, and every act on it since | `Ledger`, `MaxIndexReader`, `DenseMapReader`, `Clock` |
 | `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Charger` |
 | `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
@@ -143,9 +149,8 @@ invisible to the others — `inmemory_tile_storage` happens to satisfy several o
 these ports at once, which is why `module.go` hands it over several times.
 
 **`click_usecase` is the only one with an interface of its own (`IUseCase`)**,
-because the click chain decorates it — `prom_click`, `throttle_click`,
-`allegiance_click`, `refusal_click`, `try_click`, and the bonus decorators `spread_click`, `enclose_click` and
-`bonus_click`. The counting is a wrapper rather than a line inside the rule, so
+because the click chain decorates it, from the inside out — `spread_click`, `enclose_click`, `prom_click`,
+`throttle_click`, `bonus_click`, `allegiance_click`, `refusal_click` and `try_click` (`module.go` builds it). The counting is a wrapper rather than a line inside the rule, so
 a process that does not want it leaves it out and the rule does not change.
 
 **`try_click` is outside every gate**, so a try the refusal, the allegiance or the throttle stopped is told too, with

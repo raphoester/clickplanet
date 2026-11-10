@@ -507,7 +507,8 @@ message BombDropped {
 
   GlobePoint point = 5;
 
-  repeated uint32 struck_tile_ids = 6 [deprecated = true];
+  reserved 6;
+  reserved "struck_tile_ids";
 
   MapVersion version = 7;
 

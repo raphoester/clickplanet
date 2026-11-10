@@ -17,8 +17,7 @@ apart:
 browser an account: a guest one, kept in the `cp_sid` cookie the answer sets
 (HttpOnly, on the API's host). The next mint sends the cookie back and gets the
 same account. The page never reads the cookie; the menu learns what it holds
-from `GetMe` — see [Sign-in](sign-in.md). `session.v1` is deprecated on the
-backend and this build no longer calls it.
+from `GetMe` — see [Sign-in](sign-in.md).
 
 **`invalidate` also drops a mint in flight.** A sign-in or a sign-out changes
 the account the cookie names, and a token minted before that would name the old

@@ -159,7 +159,9 @@ function labelOf(step: Step, size: number): string {
             return `Uploading… ${percentOf(step.sent, size)}%`
         case "keeping":
             return "Keeping…"
-        default:
+        case "ready":
+        case "done":
+        case "refused":
             return "Upload"
     }
 }
