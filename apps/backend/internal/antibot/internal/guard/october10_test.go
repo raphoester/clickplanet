@@ -109,7 +109,7 @@ func TestTakingTurnsUnderFourHoursBansNobody(t *testing.T) {
 	assert.Regexp(t, `^rotation accounts=3 byChance=\d+ flag=PL sharedSeconds=0 sharedSlots=\d+$`, reading.Evidence)
 }
 
-func TestFourHoursOfTurnsBanTheAccountsTheRotatorIsSureOf(t *testing.T) {
+func TestFourHoursOfTurnsWarnTheAccountsTheRotatorIsSureOf(t *testing.T) {
 	s := newStack(t)
 	s.signIn("desktop-one", "desktop-two", "phone", "student")
 
@@ -117,7 +117,7 @@ func TestFourHoursOfTurnsBanTheAccountsTheRotatorIsSureOf(t *testing.T) {
 	r := rand.New(rand.NewPCG(10, 11))
 
 	start := s.clock.Now()
-	for len(s.reports) == 0 && s.clock.Now().Sub(start) < 5*time.Hour {
+	for len(s.warnings) == 0 && s.clock.Now().Sub(start) < 5*time.Hour {
 		cycle := s.clock.Now()
 		s.burst(r, sharedAddress, "desktop-one", "PL", 25*time.Second, 500*time.Millisecond)
 		s.rest(cycle.Add(45 * time.Second))
@@ -127,21 +127,18 @@ func TestFourHoursOfTurnsBanTheAccountsTheRotatorIsSureOf(t *testing.T) {
 		s.rest(cycle.Add(150 * time.Second))
 	}
 
-	require.Len(t, s.reports, 2)
+	require.Len(t, s.warnings, 2)
+	assert.Empty(t, s.reports, "a ring is warned before it is banned")
 	assert.InDelta(t, 4*time.Hour, s.clock.Now().Sub(start), float64(10*time.Minute))
 	assert.Equal(t, []string{"rotator suspect", "rotator certain"}, s.rises, "no other watchdog read anything")
 
-	banned := map[string]string{}
-	for _, report := range s.reports {
-		banned[report.Account] = report.Alongside
+	warned := map[string]string{}
+	for _, report := range s.warnings {
+		warned[report.Account] = report.Alongside
 	}
-	assert.Len(t, banned, 2, "the phone's few seconds a slot are not yet sure")
-	assert.Contains(t, banned, "desktop-one")
-	assert.Contains(t, banned, "desktop-two")
-
-	assert.Empty(t, s.bans.Stored(), "turns leave the address alone")
-	assert.False(t, s.clickAs(sharedAddress, "student", 1, "PL"))
-	assert.False(t, s.clickAs(sharedAddress, "phone", 1, "PL"))
+	assert.Len(t, warned, 2, "the phone's few seconds a slot are not yet sure")
+	assert.Contains(t, warned, "desktop-one")
+	assert.Contains(t, warned, "desktop-two")
 }
 
 func TestTwoPlayersSideBySideAreNeverRead(t *testing.T) {

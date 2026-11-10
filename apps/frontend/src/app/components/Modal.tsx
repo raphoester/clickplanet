@@ -11,14 +11,17 @@ export type ModalProps = {
     footer?: ReactNode;
     stayOnBackdropClick?: boolean;
     className?: string;
-    onClose: () => void;
+    onClose?: () => void;
 }
+
+const stays = () => {}
 
 export default function Modal(props: ModalProps) {
     const panel = useRef<HTMLDivElement>(null)
     const titleId = useId()
 
-    useModalDialog(panel, props.onClose)
+    const onClose = props.onClose ?? stays
+    useModalDialog(panel, onClose)
 
     return createPortal(
         // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
@@ -26,7 +29,7 @@ export default function Modal(props: ModalProps) {
             className="modal"
             onClick={(e) => {
                 if (props.stayOnBackdropClick) return
-                if (e.target === e.currentTarget) props.onClose()
+                if (e.target === e.currentTarget) onClose()
             }}>
             <div
                 ref={panel}
@@ -37,12 +40,12 @@ export default function Modal(props: ModalProps) {
                 tabIndex={-1}>
                 <div className="modal-header">
                     <h2 id={titleId}>{props.title}</h2>
-                    <button type="button"
+                    {props.onClose && <button type="button"
                             className="icon-button"
                             aria-label="Close"
                             onClick={props.onClose}>
                         <CloseIcon/>
-                    </button>
+                    </button>}
                 </div>
                 <ScrollArea className="modal-body">
                     {props.children}

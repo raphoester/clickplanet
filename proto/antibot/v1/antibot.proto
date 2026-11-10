@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package antibot.v1;
+
+service AntibotService {
+  // The caller's warning while it is not acknowledged: once as the stream opens, then as it is given. Unauthenticated
+  // without a token.
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream AntibotEvent);
+
+  // The caller read its warning, so the stream stops telling it. A caller with no warning changes nothing.
+  rpc AcknowledgeWarning(AcknowledgeWarningRequest) returns (AcknowledgeWarningResponse);
+}
+
+message ListenForEventsRequest {}
+
+message AntibotEvent {
+  oneof event {
+    Heartbeat heartbeat = 1;
+    Warning warning = 2;
+  }
+}
+
+message Heartbeat {}
+
+// The account was told that playing several accounts is refused, and that more of it is a ban.
+message Warning {}
+
+message AcknowledgeWarningRequest {}
+
+message AcknowledgeWarningResponse {}

@@ -11,7 +11,8 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
 
 - **The component that shows the state reads the store itself.** `SettingsPlace` reads the display settings, the
   board reads its guide, the phone's tab bar the chat's unread count, `ScheduleChip`, its sheets and `Moments` the
-  schedule, and the clicks meter and panel the click budget. `PlayScreen` reads a store only for what it draws or
+  schedule, the clicks meter and panel the click budget, and `WarningModal` the antibot's warning (`useWarning`,
+  `warning/warningStore.ts`). `PlayScreen` reads a store only for what it draws or
   hands a hook itself, such as the two display fields it gives the globe, and never to pass a value down. It reads
   plain fields where it can (the budget's sign-in multiplier, freeze and fast start, not the reading), so a store
   that changes often does not render the whole screen.
@@ -32,7 +33,7 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
   and `useConnection`.
 - **What a backend sends goes into its store from where its inputs are.** A hook that `PlayScreen` calls with the
   backend and what it knows links the two (`useQuizMaster`, `useRosterFeed`, `useRaceFeed`, `useScheduleFeed`,
-  `useMissionsFeed`, `useClickBudgetFeed`): it subscribes, writes the store, and puts the store back to its start once it stops, so nothing
+  `useMissionsFeed`, `useClickBudgetFeed`, `useWarningFeed`): it subscribes, writes the store, and puts the store back to its start once it stops, so nothing
   stale shows after it and StrictMode's second run follows one stream. `PlayScreen` reads back only what it hands the
   globe or a hook itself, such as the roster's count, the race it ranks the countries by for the anthem, the turn it
   makes the mood and the globe's halo from, or the missions it draws on the globe. Or the place where a card shows does it, given its inputs as props (`PlayerCardPlace`,

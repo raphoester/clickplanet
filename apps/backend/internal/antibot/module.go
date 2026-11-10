@@ -10,12 +10,14 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1/antibotv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/acknowledge_warning_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/ban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rule_set_names_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rule_set_names_handler/rule_set_names_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rules_handler/rule_sets_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/inspect_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/unban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
@@ -29,16 +31,20 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_choice_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_evidence_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_rule_set_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_warning_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/ban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/ban_player_usecase/audit_ban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/inspect_player_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/listen_for_warnings_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/play_rules_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/play_rules_usecase/log_play_rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/save_rule_set_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/save_rule_set_usecase/audit_save_rule_set"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/unban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/unban_player_usecase/audit_unban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings/inprocess_warning_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -81,6 +87,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			book := bans.NewBook(rules.Reader(inForce, bans.Part), config.Evidence.WithDefaults().Retention, clock,
 				postgres_ban_store.NewScopes(db), postgres_ban_store.NewAccounts(db),
 				db, outbox_planet_enforcer.New(cpoutbox.New(db)))
+			feed := inprocess_warning_feed.New()
+			warner := warnings.NewBook(book, clock, postgres_warning_store.New(db), feed)
 
 			// The bans running at a deploy reach planet's refused callers with no hand migration.
 			players := play_rules_usecase.New(ruleSets, postgres_choice_store.New(db), inForce, book)
@@ -96,7 +104,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			marks := listener.NewMarks()
-			watchdogs := guard.New(config.Config, inForce, clock, observer.New(props.Logger, props.Metrics), book,
+			watchdogs := guard.New(config.Config, inForce, clock, observer.New(props.Logger, props.Metrics), book, warner,
 				postgres_evidence_store.New(db), marks)
 			if err := watchdogs.Load(ctx); err != nil {
 				closeStores()
@@ -129,6 +137,18 @@ func NewModule(config Config) cpbootstrap.Module {
 				return antibotv1connect.NewAdminServiceHandler(admin, options...)
 			}); err != nil {
 				return fmt.Errorf("failed to mount antibot.v1.AdminService: %w", err)
+			}
+
+			antibotService := antibotv1controller.AntibotService{
+				ListenForEventsHandler: listen_for_events_handler.New(
+					listen_for_warnings_usecase.New(feed, warner, props.Server.StreamHeartbeat)),
+				AcknowledgeWarningHandler: acknowledge_warning_handler.New(warner),
+			}
+			if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+				return antibotv1connect.NewAntibotServiceHandler(antibotService, options...)
+			}, antibotv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),
+				antibotv1controller.NewStreamSessionReader(props.Sessions, clock)); err != nil {
+				return fmt.Errorf("failed to mount antibot.v1.AntibotService: %w", err)
 			}
 
 			internalService := antibotv1controller.InternalService{

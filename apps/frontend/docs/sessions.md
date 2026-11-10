@@ -67,7 +67,7 @@ one token in hand serves both.
   claim, an announce.
 - **`identity()`** answers any fresh token, and otherwise resumes one silently;
   **`heldIdentity()`** is the same without the call. The reads use them: the
-  history, the budget, the charges, both streams, the titles earned. `PlanetBackend`
+  history, the budget, the charges, both streams, the titles earned, the antibot's warning. `PlanetBackend`
   resumes at load (`followIdentity`), so a player back the next day is named
   from the first frame, with no Turnstile check and no click.
 - **A cookie with no live session resumes nothing**: a first visit stays

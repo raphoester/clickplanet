@@ -89,6 +89,11 @@ func New(logger *slog.Logger, registerer prometheus.Registerer) guard.Observer {
 		Help: "Times a caller has been flagged, counted once per watchdog that argued for it",
 	}, []string{"watchdog"})
 
+	warned := factory.NewCounter(prometheus.CounterOpts{
+		Name: "antibot_warnings_total",
+		Help: "Accounts warned that playing several accounts is refused, before any ban for it",
+	})
+
 	opinions := factory.NewCounterVec(prometheus.CounterOpts{
 		Name: "antibot_opinions_total",
 		Help: "Times a watchdog's reading of a caller rose to a level it had not held within jury.suspicionWindow; suspect includes certain",
@@ -151,6 +156,24 @@ func New(logger *slog.Logger, registerer prometheus.Registerer) guard.Observer {
 			}
 
 			logger.Warn("antibot ban", fields...)
+		},
+
+		OnWarn: func(report guard.Report) {
+			warned.Inc()
+
+			fields := make([]any, 0, 5+len(report.Opinions))
+			fields = append(fields,
+				slog.String("scope", report.Scope),
+				slog.String("account", report.Account),
+				slog.String("alongside", report.Alongside),
+				slog.Int("clicks", report.Clicks),
+				slog.String("topCountry", report.TopCountry),
+			)
+			for _, opinion := range report.Opinions {
+				fields = append(fields, slog.String(opinion.Watchdog, opinion.String()))
+			}
+
+			logger.Warn("antibot warning", fields...)
 		},
 
 		OnRise: func(watchdog, level string) {

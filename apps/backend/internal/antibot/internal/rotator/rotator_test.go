@@ -486,3 +486,32 @@ func TestUnsetBoundsNeverRead(t *testing.T) {
 
 	assert.Equal(t, detect.Clear, h.read(one).verdict)
 }
+
+func TestTheTurnsBeforeAWarningAreForgotten(t *testing.T) {
+	h := newHarness(production())
+	main := linked(address, "main", "fr")
+	alt := guest(line, "alt", "fr")
+	h.turns(66, main, alt)
+	require.Equal(t, detect.Certain, h.read(main).verdict)
+
+	h.watchdog.ForgetTurns("main", h.clock.Now())
+
+	assert.Equal(t, detect.Clear, h.read(main).verdict, "its own reading is judged again at once")
+	assert.Equal(t, detect.Clear, h.read(alt).verdict, "a partner's reading is judged again at once")
+
+	h.turns(24, main, alt)
+
+	r := h.read(alt)
+	assert.Equal(t, detect.Suspect, r.verdict, "the turns since the warning count from zero")
+	assert.Contains(t, r.evidence.Fields, detect.Field{Key: "sharedSlots", Value: 24})
+}
+
+func TestForgettingAnAccountNeverSeenChangesNothing(t *testing.T) {
+	h := newHarness(production())
+	one, two := linked(address, "one", "fr"), linked(address, "two", "fr")
+	h.turns(66, one, two)
+
+	h.watchdog.ForgetTurns("nobody", h.clock.Now())
+
+	assert.Equal(t, detect.Certain, h.read(one).verdict)
+}

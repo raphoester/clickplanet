@@ -94,7 +94,8 @@ changes, until when to refuse it.
   domain's error, and `planetrefusal.Refusal` maps it in `click_handler`, `drop_bomb_handler` and
   `place_shield_handler`. The detail kept its name: it is the wire's.
 - **No reason goes out.** The client links the terms' "Play fair" section (`/terms#play-fair`). The
-  rule that fired is in the `antibot ban` log line and in `InspectPlayer`, never on the wire.
+  rule that fired is in the `antibot ban` log line and in `InspectPlayer`, never on the wire. A ring of accounts is
+  told its rule once, before its ban: see [A ring is warned before its ban](#a-ring-is-warned-before-its-ban).
 - **`refusal_click` sits outside the throttle**, as the VPN block does: a refused click spends no token, or the client
   would show a 429 instead of the refusal. `refusal_drop_bomb` and `refusal_place_shield` refuse before the bomb or the
   shield is spent, so it stays in hand. Each reads the scope's and the account's rows in one query on the primary key
@@ -111,6 +112,45 @@ changes, until when to refuse it.
   config block was `antiBot.shadowBan` and the package `antibot/internal/shadowban`.
 - `TestARefusedCallerIsToldUntilWhenAndSpendsNoToken` pins the refusal over HTTP, and the e2e
   `TestABanReachesPlanetAndTheCallerIsRefused` the whole way round, through Redis.
+
+## A ring is warned before its ban
+
+**Since 2026-11-10, turns alone warn a ring once before they ban it.** Players banned for playing several accounts did
+not know where the ban came from, and many did not know it is forbidden. The ban still says no reason; the warning says
+the rule, before any ban.
+
+- **The jury warns** on turns alone (the `rotator` at `certain`, no other watchdog guilty) when no account of the ring
+  was ever warned: each account of the ring is warned (`warnings.Book.Warn`), and nobody is banned. No other verdict
+  is warned: a warning would tell a script where the line is.
+- **The jury bans** on turns alone when an account of the ring was warned before, from `suspect`: `rotator.minSlots`
+  (24 shared slots, about two hours) with `minByChance` (90). A new account beside a warned one is the same person. A
+  suspect reading of a ring never warned still counts for nothing.
+- **The turns before the warning never ban.** The rotator keeps 24 hours of slots, and the four hours that earned the
+  warning are in them: the main account's next click would read `certain` again, even if it stopped. So the jury tells
+  the rotator to forget each warned account's slots up to the slot of its warning (`rotator.ForgetTurns`), and every
+  reading is judged again. The ban comes 115 to 125 minutes of turns after the warning. A ring that stops plays on.
+- **A boot forgets them again.** The evidence saved before a warning comes back after a crash, so `Guard.Load`, after
+  the evidence, forgets the turns before every warning inside the rotator's `window`.
+- **Each account is warned once, ever** (`antibot.warnings`, one row per account, the first kept), and never forgotten,
+  as offences are not. A pardoned caller is not warned.
+- **Not enforced, nobody is warned**: with `bans.enforce` off, a warning is neither kept nor shown. Kept, it would ban a
+  ring that never saw it.
+- **The page hears it from the antibot, never from planet.** `antibot.v1.AntibotService` is the antibot's one public
+  service, routed by Caddy as every other. `ListenForEvents` (one stream per page, `listen_for_warnings_usecase`) sends
+  the caller's warning as the stream opens while it is not acknowledged, then each one as it is given: `warnings.Book`
+  publishes a warning kept to an in-process feed (`inprocess_warning_feed`), as progression's titles do. The page
+  shows "One account per player", which cannot be dismissed: the player holds "Hold to confirm" for 2 seconds, and it
+  calls `AcknowledgeWarning`, which keeps `acknowledged_at` (the first one). So the player cannot say it was missed. Clicks are not refused: the warning is a message on the screen, and a ring that plays on is banned as above.
+  Planet holds nothing of it.
+- **The cost is one more stream a page**: 6 for a guest, 7 signed in, 8 in a battle. HTTP/2 in production; a local
+  plain-HTTP stack already runs out of connections at 6 (Chrome's pool per host).
+- **The operator sees it**: the `antibot warning` log line (`account`, `alongside`, the opinions), the counter
+  `antibot_warnings_total`, and `warned_at` and `warning_acknowledged_at` in `InspectPlayer`. Its `guilty` reads the ring
+  as warned when the account examined was.
+- `TestACertainReadingOfTurnsWarnsTheRingAndBansNobody` and `TestAWarnedRingIsBannedOnASuspectReadingAndNoNetwork` pin
+  the jury; `TestThePairOfNovember3OnOneAddressIsWarnedThenBanned`, `TestARingThatStopsAtItsWarningPlaysOn` and
+  `TestABootForgetsTheTurnsBeforeAWarningTheEvidenceStillHeld` the guard; `listen_for_warnings_usecase`'s tests the
+  stream.
 
 ## Ten watchdogs, one jury
 
@@ -161,7 +201,8 @@ person plays, and the keenest players read both. Together they banned two people
 - `TestTheNewcomerOfOctober12WhoPlaysHardAndDefendsIsNotBanned` replays the player,
   and `TestWithNoAccountTheSameHandsAreBannedAsOneCaller` is `cadence` with `defence`.
 
-**Suspect turns never count, since 2026-10-20.** From 10-11 to 10-19 every ban but one was
+**Suspect turns never count, since 2026-10-20**, but on a ring warned before (see [A ring is warned before its
+ban](#a-ring-is-warned-before-its-ban)). From 10-11 to 10-19 every ban but one was
 `rotator` beside `defence` or beside a `cadence` at its bound. The ones checked were
 children: one on a PC, one switching between two browsers on a phone, both chatting
 all through a tile war. Rotation beats the rate limit; it is not a bot signal.
@@ -173,11 +214,12 @@ all through a tile war. Rotation beats the rate limit; it is not a bot signal.
 - `TestThePhoneOfOctober19SwitchingBrowsersInATileWarIsNotBanned` and
   `TestThePCOfOctober19AtACadenceTheMorningAfterItsTurnsIsNotBanned` replay the two.
 
-**Certain turns ban alone, since 2026-11-03.** The game's rule is now "two accounts, a ban".
+**Certain turns act alone, since 2026-11-03.** The game's rule is now "two accounts, a ban".
 On 11-03 chat accused Russia, and two people of it were playing two accounts each; nothing
 banned them, and the operator banned the two alts by hand. A `certain` reading of the rotator
-is a ban on its own, with bounds that only the obvious reach (see the
-[rotator](#what-each-one-actually-measures)).
+acts on its own, with bounds that only the obvious reach (see the
+[rotator](#what-each-one-actually-measures)): a ban until 2026-11-10, a warning first since (see
+[A ring is warned before its ban](#a-ring-is-warned-before-its-ban)).
 
 - **It bans accounts, never a network** (`convictsOf`): when turns alone make the verdict, no
   scope of the ring is banned, a guest's neither. A guest's network can be a school, a
@@ -187,9 +229,9 @@ is a ban on its own, with bounds that only the obvious reach (see the
 - **The whole ring, not the newer account.** A ban on the newer account alone costs a cheater
   nothing: a fresh guest takes seconds (on 10-24 one player made six). The rule is for the
   person, and the person plays the main account.
-- `TestACertainReadingOfTurnsBansTheRingAndNoNetwork` pins it in the jury, and
-  `TestTheAccountOfNovember3AndItsGuestOnAVPNAreBanned` and
-  `TestThePairOfNovember3OnOneAddressIsBanned` replay the two through the guard.
+- `TestAWarnedRingIsBannedOnASuspectReadingAndNoNetwork` pins it in the jury, and
+  `TestTheAccountOfNovember3AndItsGuestOnAVPNAreWarnedThenBanned` and
+  `TestThePairOfNovember3OnOneAddressIsWarnedThenBanned` replay the two through the guard.
 
 **Crossing is also what makes it fast.** The overnight sweep from the
 screenshots trips no watchdog's `Certain` for a long time — `sequencer` wants two
@@ -829,10 +871,10 @@ and every other watchdog read `clear`.
   pair, judged at the first moment it can be, reads once in 400 times.
 - **`minSlots` (24) shared slots read `suspect`**: two hours of shared slots, since an
   hour of turns happens. The jury counts it for nothing: beside another watchdog it
-  banned children (see suspect turns never count, above).
+  banned children (see suspect turns never count, above). On a ring warned before, it bans.
   `TestTakingTurnsUnderFourHoursBansNobody` pins it.
 - **`certainSlots` (48) shared slots, where chance gives `certainByChance` (300) shared
-  seconds, read `certain`**, and that bans alone. Both, since 2026-11-03: four hours of
+  seconds, read `certain`**, and that warns a ring alone, once. Both, since 2026-11-03: four hours of
   turns in the window, and enough seconds that luck is no answer. Slow turns need more
   slots: 37 seconds each a slot reach 300 at 66 (`TestSlowTurnsAreCertainOnlyOnceChanceIsSure`).
   `certainSlots` 0 turns the level off.
@@ -884,8 +926,10 @@ and every other watchdog read `clear`.
 - **Kept per account, per slot**, one bit per second: 40 bytes a slot, and the scope it
   clicked from last. The section is saved with the slot length, and one saved under
   another length is dropped on load.
+- **A warned account's slots up to its warning are forgotten** (`ForgetTurns`), and every account's reading is judged
+  again, since a partner's cached one still names them.
 - **What it cannot tell**: two people who pass one device back and forth each time a
-  bank is empty read as one hand, and four hours of that is a ban on both. That is the
+  bank is empty read as one hand, and four hours of that is a warning to both, and two more a ban. That is the
   cost of the rule. Two who pass it every few minutes rarely share four hours of slots.
 - The counter-move is to click with two accounts in the same seconds, which takes two
   hands or a script, and a script is what the other watchdogs read.
