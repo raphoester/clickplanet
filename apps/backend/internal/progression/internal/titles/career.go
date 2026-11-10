@@ -21,8 +21,6 @@ func CareerOf(stats stats.Stats, account accounts.Account, fights finales.Fights
 
 func (c Career) Stats() stats.Stats { return c.stats }
 
-func (c Career) Account() accounts.Account { return c.account }
-
 func CareersOf(
 	page []stats.Stats, accounts map[accounts.AccountID]accounts.Account, fights map[accounts.AccountID]finales.Fights,
 ) []Career {

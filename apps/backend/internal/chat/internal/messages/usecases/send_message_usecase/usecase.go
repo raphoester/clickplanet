@@ -42,7 +42,6 @@ const writeTimeout = 5 * time.Second
 
 type In struct {
 	Account   messages.AccountID
-	AuthorID  string
 	Room      messages.Room
 	CountryID string
 	Text      string
@@ -102,7 +101,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
-	if err := u.appender.Append(ctx, messages.NewRecord(message, in.AuthorID, ip, in.UserAgent)); err != nil {
+	if err := u.appender.Append(ctx, messages.NewRecord(message, ip, in.UserAgent)); err != nil {
 		return messages.Message{}, fmt.Errorf("failed to store chat message: %w", err)
 	}
 

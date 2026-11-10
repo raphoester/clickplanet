@@ -39,22 +39,22 @@ internal/progression/internal/
     rpc_scoring_finales/            the table and the round's players, from scoring.v1.InternalService
     usecases/record_finale_usecase/ — on gamemaster.v1.SeasonEnded: the fights kept, then each fighter awarded
     usecases/forget_fights_usecase/
-  nameplates/                       the Store port (Keep, Named, Forget) and its contract suite: an account with a username, as
+  nameplates/                       the Store port (Keep, Forget) and its contract suite: an account with a username, as
                                     player tells it
     postgres_nameplate_store/       the Store over progression.nameplates
     inmemory_nameplate_store/       the same port in maps, behind the testing tag
     usecases/keep_nameplate_usecase/  forget_nameplate_usecase/
-  departures/                       Departure (Decided, Leaving), Decision (Leaves, Returns): an account its player asked to delete,
+  departures/                       Departure (Decided), Decision (Leaves, Returns): an account its player asked to delete,
                                     as player tells it; the Store port and its contract suite
     postgres_departure_store/       the Store over progression.departures, under an advisory lock per account
     inmemory_departure_store/       the same port in maps, behind the testing tag
     usecases/decide_departure_usecase/  forget_departure_usecase/
   progressionv1controller/          ProgressionService and AdminService (bags), the session interceptor, the stream's session reader
-    get_stats_handler/  get_titles_handler/  wear_title_handler/  get_fronts_handler/  get_badges_handler/
+    get_titles_handler/  wear_title_handler/  get_fronts_handler/  get_badges_handler/
     get_progress_handler/  listen_for_events_handler/
     reconcile_titles_handler/  admin_get_progress_handler/   AdminService's own
       admin_get_progress_handler/admin_progress_query/   PostgresQuery: what progression keeps of one account, a guest's too
-    get_stats_handler/stats_query/  get_titles_handler/titles_query/  get_badges_handler/badges_query/
+    get_titles_handler/titles_query/  get_badges_handler/badges_query/
     get_progress_handler/progress_query/
                                     PostgresQuery: the response straight from SQL
     inprocess_title_catalog/        the Titles port of three queries: shown, worn and each track, from titles.Catalog
@@ -100,14 +100,12 @@ key, so progression's code never names auth.
 
 `progression.v1.ProgressionService` is public; Caddy routes `/progression.v1.ProgressionService/*`.
 
-- **The caller is the account in the token.** `GetStats`, `GetTitles` and `GetFronts` sit behind
+- **The caller is the account in the token.** `GetTitles` and `GetFronts` sit behind
   `NewSessionInterceptor` (`cpconnect.NewSessionInterceptor`, always enforcing) as `Identified`: they read only the
   caller's own, so the identity token resumed from the cookie is enough. `WearTitle` is `Attested`: it changes what
   the other players see, so it takes the click token. No token, a bad one, or one with no account is
   `Unauthenticated`. `progression_session_checks{verdict}` counts the verdicts. `GetBadges` and `GetProgress` need no
   token; `ListenForEvents` reads one (below). See [Sessions](sessions.md).
-- **`GetStats`** answers `tiles_taken`, `streak_current`, `streak_best` and `streak_last_day` (YYYY-MM-DD), as of
-  today (`stats_query`).
 - **`GetTitles`** (`titles_query`) is the caller's showcase (the worn title, and the titles shown, which are the ones
   it can wear) and each track's steps and progress, with its stats as of today.
 - **`WearTitle(title_id)`** (`wear_title_usecase`) answers the title now worn, which the page draws beside its own
@@ -151,7 +149,7 @@ reads player's tables (but once, at its first migration, below).
   decision, the ones its own departure no longer keeps too, so progression keeps the latest by `decided_at` whatever
   it hears first. A decision with no time is refused (`ErrNoTime`), so a broken event is buried rather than read as the
   oldest one. `GetBadges` and `GetProgress` leave a leaving account out, exactly as a deleted one: the page shows a
-  player nobody can name as deleted. Nothing is deleted, so a return shows it again as it was. `GetStats`, `GetTitles`
+  player nobody can name as deleted. Nothing is deleted, so a return shows it again as it was. `GetTitles`
   and `GetFronts` (the caller's own) and the operator's `GetProgress` still read it.
 
 ## The stats
@@ -162,10 +160,9 @@ reads player's tables (but once, at its first migration, below).
   continent is one write, not 51,000. A strike on a shield takes no tile and is never
   published. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the
   same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and
-  leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today: a streak whose last day is before
+  leaves the streak alone (`Stats.WithTake`). The reads take it as of today: a streak whose last day is before
   yesterday reads 0, and `streak_best` keeps it. The rule is
-  `progressionread.StreakNow`, the same `CASE` in each query's SQL, which the queries' tests check against
-  `Stats.AsOf`; `stats_test.go` and the queries' tests pin it across UTC midnight.
+  `progressionread.StreakNow`, the same `CASE` in each query's SQL; the queries' tests pin it across UTC midnight.
 - **Messages sent come from `chat.v1.MessageSent`** (`player-stats-messages`), one event per message kept
   (`Stats.WithMessage`, `progression.stats.messages_sent`, player's migration `20261003140000_messages_sent`). Every message
   counts: the chat's own rate limit is the only bound. A message is no take, so it neither starts nor extends a
@@ -268,10 +265,9 @@ reads player's tables (but once, at its first migration, below).
   then the first shown, and none for an account that shows no title. So a player who wore `Settler` wears `Raider` the
   moment it earns it, and nothing is rewritten when a rank is added or a title revoked. `wearing.Wardrobe` (the store,
   the titles shown through its `Titles` port, which `titles.Book` fills, and the catalog) is what the use cases call:
-  `Showcase` is the worn title and the titles shown; `Wear` refuses a title that is not shown and keeps the choice.
+  `Showcase` is the worn title; `Wear` refuses a title that is not shown and keeps the choice.
   **The title worn is a badge**: `GetBadges` answers it by account, and the page draws it beside every name; no name
-  carries it. `wearing.ShowcaseOf(catalog, held, choice)` is the same rule over what a query read: the titles shown
-  and the one worn.
+  carries it. `wearing.ShowcaseOf(catalog, held, choice)` is the same rule over what a query read: the one worn.
 - **A listener grants them, not the stats' write.** `record_stats_usecase` publishes `progression.v1.StatsChanged`
   (stream `events:progression.v1.StatsChanged`) once a change is counted. The `player-titles` subscriber
   (`stats_changed_subscriber`, `award_titles_usecase`) reads the stats, then the career (`Careers.Of`: player's
@@ -341,10 +337,10 @@ undo what the page learns of its own badges. `get_badges_handler`, `badges_query
   guest, whatever it holds, one never named, an unknown or deleted one), one asked deleted (a departure leaving), and
   one with neither a streak today nor a title worn. So a caller reads a missing account as "nothing to draw" and never
   tells the reasons apart, and nothing hidden from the other players leaks.
-- **The same numbers as the commands**: `progressionread.StreakNow` in SQL is `Stats.AsOf`, and the held titles and
-  the choice go through the `Titles` port (`inprocess_title_catalog.Worn`, `wearing.ShowcaseOf`), the rule
-  `Wardrobe.Showcase` applies. A parity test (`TestEachBadgeIsWhatTheRulesShowBesideTheName`) runs the same rows
-  through both.
+- **The same title worn as the commands**: the held titles and the choice go through the `Titles` port
+  (`inprocess_title_catalog.Worn`, `wearing.ShowcaseOf`), the rule `Wardrobe.Showcase` applies. A parity test
+  (`TestEachBadgeIsWhatTheRulesShowBesideTheName`) runs the same rows through both. The streak is
+  `progressionread.StreakNow`, a rule only the queries apply (see [The stats](#the-stats)).
 - **It moved from player as it was.** It spoke only of streaks and titles, by account id, so only the guest rule
   changed: a guest is an account with no nameplate, where it was one with no profile.
 

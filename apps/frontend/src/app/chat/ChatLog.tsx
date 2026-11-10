@@ -226,7 +226,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
     const opens = startsGroup(previous?.kind === "message" ? previous.message : undefined, message)
     const words = useWordFilter()
     const name = words.masked(nameOf(nameplate))
-    const openPlayer = usePlayerCard((card) => card.openable ? card.open : undefined)
+    const openPlayer = usePlayerCard((card) => card.open)
     const onReport = author && !message.removed ? props.onReport : undefined
 
     return <li className={messageClass(flashing, message.id, opens, spotlit)}
@@ -240,7 +240,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                   title={countryName(message.countryCode)}>
                 <CountryFlag code={message.countryCode}/>
             </span>
-            {openPlayer && author
+            {author
                 ? <button type="button"
                           className="chat-message-author player-name-button"
                           title={name}

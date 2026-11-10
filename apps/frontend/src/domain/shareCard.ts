@@ -2,7 +2,7 @@ import {Countries, Country} from "./countries.ts";
 import {LeaderboardEntry} from "./leaderboard.ts";
 import {RECRUIT_TAG, SOURCE_TAG_PARAM} from "./landing.ts";
 
-export const SHARE_ORIGIN = "https://clickplanet.lol"
+const SHARE_ORIGIN = "https://clickplanet.lol"
 
 export const SHARE_FLAG_PARAM = "f"
 

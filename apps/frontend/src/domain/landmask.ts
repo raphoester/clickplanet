@@ -1,7 +1,7 @@
 import {latticePositions, latticeSize, positionsHash, tilePositions} from "./lattice.ts"
 
-export const LANDMASK_MAGIC = "CPLM"
-export const LANDMASK_FORMAT_VERSION = 1
+const LANDMASK_MAGIC = "CPLM"
+const LANDMASK_FORMAT_VERSION = 1
 export const LANDMASK_HEADER_BYTES = 24
 
 export type Landmask = {

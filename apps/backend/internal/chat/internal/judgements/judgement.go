@@ -89,8 +89,6 @@ func (s Snapshot) Restore() (Judgement, error) {
 
 func (j Judgement) TakeSnapshot() Snapshot { return j.snapshot }
 
-func (j Judgement) Verdict() Verdict { return j.snapshot.Verdict }
-
 // What support keeps as the decision's comment: the reason, and who decided it.
 func (j Judgement) Comment() string {
 	return Client + ": " + j.snapshot.Reason

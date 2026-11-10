@@ -48,10 +48,7 @@ type Holder struct {
 	Attested bool
 }
 
-var Nobody = Holder{Account: NoAccount}
-
 type Claims struct {
-	ID       ID
 	Account  AccountID
 	Linked   bool
 	Attested bool
@@ -160,7 +157,6 @@ func (v *Verifier) Verify(value string, ip string, now time.Time) (*Claims, erro
 	}
 
 	return &Claims{
-		ID:       ID(hex.EncodeToString(payload[idAt:accountAt])),
 		Account:  AccountID(payload[accountAt:linkedAt]),
 		Linked:   payload[linkedAt] == 1,
 		Attested: payload[attestedAt] == 1,

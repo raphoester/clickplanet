@@ -95,10 +95,10 @@ func TestEveryProcedureNeedsATokenMintedAfterACheck(t *testing.T) {
 
 	for _, procedure := range procedures {
 		attested := NewSessionInterceptor(
-			tokenVerifier{claims: cpsession.Claims{ID: "a-mint", Account: ada, Attested: true}},
+			tokenVerifier{claims: cpsession.Claims{Account: ada, Attested: true}},
 			cptime.SystemClock{}, prometheus.NewRegistry())
 		identified := NewSessionInterceptor(
-			tokenVerifier{claims: cpsession.Claims{ID: "a-resume", Account: ada}},
+			tokenVerifier{claims: cpsession.Claims{Account: ada}},
 			cptime.SystemClock{}, prometheus.NewRegistry())
 
 		account, ran, err := run(t.Context(), attested, procedure, "a-click-token")
@@ -133,10 +133,10 @@ func TestThePageAsksWhatItMayAttachWithNoSessionAndSpendsNothing(t *testing.T) {
 func TestAnUploadNeedsATokenMintedAfterACheck(t *testing.T) {
 	ada := cpsession.AccountID{15: 1}
 	attested := NewSessionInterceptor(
-		tokenVerifier{claims: cpsession.Claims{ID: "a-mint", Account: ada, Attested: true}},
+		tokenVerifier{claims: cpsession.Claims{Account: ada, Attested: true}},
 		cptime.SystemClock{}, prometheus.NewRegistry())
 	identified := NewSessionInterceptor(
-		tokenVerifier{claims: cpsession.Claims{ID: "a-resume", Account: ada}},
+		tokenVerifier{claims: cpsession.Claims{Account: ada}},
 		cptime.SystemClock{}, prometheus.NewRegistry())
 
 	_, ran, err := run(t.Context(), attested, supportv1connect.SupportServiceCreateUploadProcedure, "a-click-token")

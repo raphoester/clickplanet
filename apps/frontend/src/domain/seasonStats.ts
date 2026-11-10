@@ -1,7 +1,7 @@
 import {Season, SeasonTotals} from "../backends/season.ts"
 import {BookStep, Round, RoundStanding, Score, Standing} from "../backends/standings.ts"
 
-export const STATS_SHOWN = 10
+const STATS_SHOWN = 10
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -59,7 +59,7 @@ export function bigNumbersOf(season: Season, totals: SeasonTotals | undefined, t
     return numbers
 }
 
-export const RACE_SHOWN = 8
+const RACE_SHOWN = 8
 
 export type RaceMeasure = "points" | "share"
 

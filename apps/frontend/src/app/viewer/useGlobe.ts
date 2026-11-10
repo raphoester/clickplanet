@@ -1,7 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {createGlobe, Globe} from './globe.ts';
 import {Halo} from './atmosphere.ts';
-import {BoxLook} from './bonusBox.ts';
 import {CapturedFrame} from './capture.ts';
 import {GraphicsReport, NO_GRAPHICS} from './graphicsReport.ts';
 import {Country} from '../../domain/countries.ts';
@@ -49,7 +48,6 @@ export type UseGlobeOptions = {
     clickHue: number | undefined
     mapView: MapView
     halo: Halo
-    bonusLook: BoxLook
     // Each change is a scan of every tile: keep its identity while the targets are the same.
     missions: readonly MissionTarget[]
     // A change rebuilds the globe: antialiasing is fixed when the context is made.
@@ -57,7 +55,7 @@ export type UseGlobeOptions = {
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, crowd, clickHue, mapView, halo, bonusLook, missions, rendering} = options
+    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, crowd, clickHue, mapView, halo, missions, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -83,7 +81,6 @@ export function useGlobe(options: UseGlobeOptions) {
     const latestClickHue = useRef(clickHue)
     const latestMapView = useRef(mapView)
     const latestHalo = useRef(halo)
-    const latestBonusLook = useRef(bonusLook)
     const latestMissions = useRef(missions)
 
     useEffect(() => {
@@ -153,7 +150,6 @@ export function useGlobe(options: UseGlobeOptions) {
             globe.setClickHue(latestClickHue.current)
             globe.setMapView(latestMapView.current)
             globe.setHalo(latestHalo.current)
-            globe.setBonusLook(latestBonusLook.current)
             globe.setMissions(latestMissions.current)
             if (import.meta.env.DEV) Object.assign(window, {clickplanetGlobe: globe})
             setTilesCount(globe.tilesCount)
@@ -203,11 +199,6 @@ export function useGlobe(options: UseGlobeOptions) {
         latestHalo.current = halo
         globeRef.current?.setHalo(halo)
     }, [halo])
-
-    useEffect(() => {
-        latestBonusLook.current = bonusLook
-        globeRef.current?.setBonusLook(bonusLook)
-    }, [bonusLook])
 
     useEffect(() => {
         latestMissions.current = missions

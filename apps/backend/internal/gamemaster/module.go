@@ -124,10 +124,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if err := db.ConnectCtx(ctx); err != nil {
 		return fmt.Errorf("failed to connect the gamemaster module to postgres: %w", err)
 	}
-	if err := db.RenameSchemaFrom(ctx, migrations.FormerSchema); err != nil {
-		_ = db.Close()
-		return fmt.Errorf("failed to rename the %s schema: %w", migrations.FormerSchema, err)
-	}
 	if err := db.Migrate(ctx, migrations.FS); err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)

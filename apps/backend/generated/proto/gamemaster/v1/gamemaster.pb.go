@@ -24,7 +24,7 @@ const (
 )
 
 // What an entry is to the players. The game client reads the kind that plays and gives it a look: a battle has one,
-// Halloween another, a plain entry none.
+// a plain entry none.
 type EntryKind int32
 
 const (
@@ -32,8 +32,6 @@ const (
 	// A change of the rules with no look for the players: a quieter antibot bound for a day.
 	EntryKind_ENTRY_KIND_PLAIN  EntryKind = 1
 	EntryKind_ENTRY_KIND_BATTLE EntryKind = 2
-	// A plain entry the client dresses for Halloween. It scores nothing, as a plain one.
-	EntryKind_ENTRY_KIND_HALLOWEEN EntryKind = 3
 )
 
 // Enum value maps for EntryKind.
@@ -42,13 +40,11 @@ var (
 		0: "ENTRY_KIND_UNSPECIFIED",
 		1: "ENTRY_KIND_PLAIN",
 		2: "ENTRY_KIND_BATTLE",
-		3: "ENTRY_KIND_HALLOWEEN",
 	}
 	EntryKind_value = map[string]int32{
 		"ENTRY_KIND_UNSPECIFIED": 0,
 		"ENTRY_KIND_PLAIN":       1,
 		"ENTRY_KIND_BATTLE":      2,
-		"ENTRY_KIND_HALLOWEEN":   3,
 	}
 )
 
@@ -1149,12 +1145,11 @@ const file_gamemaster_v1_gamemaster_proto_rawDesc = "" +
 	"\btimeline\x18\x03 \x01(\v2\x17.gamemaster.v1.TimelineH\x00R\btimeline\x122\n" +
 	"\adebrief\x18\x04 \x01(\v2\x16.gamemaster.v1.DebriefH\x00R\adebriefB\a\n" +
 	"\x05event\"\v\n" +
-	"\tHeartbeat*n\n" +
+	"\tHeartbeat*p\n" +
 	"\tEntryKind\x12\x1a\n" +
 	"\x16ENTRY_KIND_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10ENTRY_KIND_PLAIN\x10\x01\x12\x15\n" +
-	"\x11ENTRY_KIND_BATTLE\x10\x02\x12\x18\n" +
-	"\x14ENTRY_KIND_HALLOWEEN\x10\x032\x8c\x03\n" +
+	"\x11ENTRY_KIND_BATTLE\x10\x02\"\x04\b\x03\x10\x03*\x14ENTRY_KIND_HALLOWEEN2\x8c\x03\n" +
 	"\x11GamemasterService\x12M\n" +
 	"\aGetTurn\x12\x1d.gamemaster.v1.GetTurnRequest\x1a\x1e.gamemaster.v1.GetTurnResponse\"\x03\x90\x02\x01\x12Z\n" +
 	"\x0fListenForEvents\x12%.gamemaster.v1.ListenForEventsRequest\x1a\x1e.gamemaster.v1.GamemasterEvent0\x01\x12e\n" +

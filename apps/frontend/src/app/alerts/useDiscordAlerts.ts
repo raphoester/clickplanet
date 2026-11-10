@@ -12,7 +12,7 @@ const NOTHING: DiscordOffer = {}
 
 // A Discord sign-in joins the server a second or two after it comes back: the backend's alerts module hears it, then
 // asks Discord. The link is read again after each of these waits, until it reads linked.
-export const JOIN_WAITS_MS: readonly number[] = [1_000, 2_000, 4_000]
+const JOIN_WAITS_MS: readonly number[] = [1_000, 2_000, 4_000]
 
 // connectable: the server offers Discord's sign-in, which is the one way in.
 // joining: this page came back from a Discord sign-in or link, which may not have joined yet.

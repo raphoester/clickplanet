@@ -25,8 +25,8 @@ func (b Backoff) Wait(failed int, asked time.Duration) (time.Duration, bool) {
 
 // The publishing module's calendar.
 type Planner interface {
-	// The slot of a post on the platforms from notBefore on, zero for none of the run's own: false when none takes it.
-	Slot(ctx context.Context, platforms []Platform, notBefore time.Time) (Slot, bool, error)
+	// The slot of a post on the platforms: false when none takes it.
+	Slot(ctx context.Context, platforms []Platform) (Slot, bool, error)
 }
 
 func NewSender(planner Planner, service Service, backoff Backoff, pause Pause) *Sender {
@@ -43,11 +43,11 @@ type Sender struct {
 // The post at the slot the calendar gives it, planned again after each wait and each slot taken, so a wait never sends
 // it at a time already past or crowded. Held, and no error, when no platform takes it. It answers the post as it was
 // sent: its slot, or the platforms asked when none was given.
-func (s *Sender) Send(ctx context.Context, post Post, notBefore time.Time) (sent Post, scheduled Scheduled, held bool, err error) {
+func (s *Sender) Send(ctx context.Context, post Post) (sent Post, scheduled Scheduled, held bool, err error) {
 	asked := post.platforms
 	busy, taken := 0, 0
 	for {
-		slot, found, err := s.planner.Slot(ctx, asked, notBefore)
+		slot, found, err := s.planner.Slot(ctx, asked)
 		if err == nil && !found {
 			return post, Scheduled{}, true, nil
 		}

@@ -118,7 +118,6 @@ bonus:
 
 auth:
   enabled: true
-  enforce: true
   secret: env://SESSION_SECRET
   ttl: 1h
   rateLimiter:

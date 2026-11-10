@@ -1,15 +1,10 @@
 package posts
 
-import (
-	"slices"
-	"time"
-)
+import "slices"
 
 // What a run asks of the platforms. When each post goes out, and whether a platform has room for it, is the publishing
 // module's calendar, which every job that posts keeps.
 type Plan struct {
-	// From the end of the run to the post; none by default.
-	Review    time.Duration
 	Platforms []Platform
 	// The platforms that take a run's best clip alone.
 	BestOnly []Platform
@@ -29,14 +24,6 @@ func (p Plan) PlatformsOf(place int) []Platform {
 		}
 	}
 	return of
-}
-
-// The soonest a post planned at now may go out: the review from now, or no bound of the run's own.
-func (p Plan) NotBefore(now time.Time) time.Time {
-	if p.Review <= 0 {
-		return time.Time{}
-	}
-	return now.Add(p.Review)
 }
 
 // How many clips a run makes: perRun at most, and no more than the platform with the most room left takes, since a

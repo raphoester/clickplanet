@@ -7,7 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
- * A round was scored: its results credit its book.
+ * A round was scored.
  *
  * @generated from message scoring.v1.RoundScored
  */
@@ -27,11 +27,6 @@ export class RoundScored extends Message<RoundScored> {
    */
   endedAt?: Timestamp;
 
-  /**
-   * @generated from field: repeated scoring.v1.RoundResult results = 4;
-   */
-  results: RoundResult[] = [];
-
   constructor(data?: PartialMessage<RoundScored>) {
     super();
     proto3.util.initPartial(data, this);
@@ -43,7 +38,6 @@ export class RoundScored extends Message<RoundScored> {
     { no: 1, name: "round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "ended_at", kind: "message", T: Timestamp },
-    { no: 4, name: "results", kind: "message", T: RoundResult, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoundScored {
@@ -64,64 +58,7 @@ export class RoundScored extends Message<RoundScored> {
 }
 
 /**
- * @generated from message scoring.v1.RoundResult
- */
-export class RoundResult extends Message<RoundResult> {
-  /**
-   * @generated from field: string country = 1;
-   */
-  country = "";
-
-  /**
-   * @generated from field: uint32 rank = 2;
-   */
-  rank = 0;
-
-  /**
-   * Times the round's times.
-   *
-   * @generated from field: uint32 points = 3;
-   */
-  points = 0;
-
-  /**
-   * @generated from field: double share = 4;
-   */
-  share = 0;
-
-  constructor(data?: PartialMessage<RoundResult>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "scoring.v1.RoundResult";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "points", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 4, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoundResult {
-    return new RoundResult().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoundResult {
-    return new RoundResult().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoundResult {
-    return new RoundResult().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoundResult | PlainMessage<RoundResult> | undefined, b: RoundResult | PlainMessage<RoundResult> | undefined): boolean {
-    return proto3.util.equals(RoundResult, a, b);
-  }
-}
-
-/**
- * A book was closed and ranked.
+ * A book was closed.
  *
  * @generated from message scoring.v1.BookClosed
  */
@@ -136,11 +73,6 @@ export class BookClosed extends Message<BookClosed> {
    */
   endedAt?: Timestamp;
 
-  /**
-   * @generated from field: repeated scoring.v1.Place table = 3;
-   */
-  table: Place[] = [];
-
   constructor(data?: PartialMessage<BookClosed>) {
     super();
     proto3.util.initPartial(data, this);
@@ -151,7 +83,6 @@ export class BookClosed extends Message<BookClosed> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "ended_at", kind: "message", T: Timestamp },
-    { no: 3, name: "table", kind: "message", T: Place, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BookClosed {
@@ -168,69 +99,6 @@ export class BookClosed extends Message<BookClosed> {
 
   static equals(a: BookClosed | PlainMessage<BookClosed> | undefined, b: BookClosed | PlainMessage<BookClosed> | undefined): boolean {
     return proto3.util.equals(BookClosed, a, b);
-  }
-}
-
-/**
- * @generated from message scoring.v1.Place
- */
-export class Place extends Message<Place> {
-  /**
-   * @generated from field: string country = 1;
-   */
-  country = "";
-
-  /**
-   * @generated from field: uint32 rank = 2;
-   */
-  rank = 0;
-
-  /**
-   * @generated from field: uint32 points = 3;
-   */
-  points = 0;
-
-  /**
-   * @generated from field: uint32 rounds_won = 4;
-   */
-  roundsWon = 0;
-
-  /**
-   * The points of the book's tiebreak round.
-   *
-   * @generated from field: uint32 tiebreak_points = 5;
-   */
-  tiebreakPoints = 0;
-
-  constructor(data?: PartialMessage<Place>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "scoring.v1.Place";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "points", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 4, name: "rounds_won", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 5, name: "tiebreak_points", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Place {
-    return new Place().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Place {
-    return new Place().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Place {
-    return new Place().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: Place | PlainMessage<Place> | undefined, b: Place | PlainMessage<Place> | undefined): boolean {
-    return proto3.util.equals(Place, a, b);
   }
 }
 

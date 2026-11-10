@@ -38,7 +38,6 @@ func (p Post) TakeSnapshot() PostSnapshot {
 		Title: p.clip.title, CallToAction: p.wording.call.ID, Key: p.clip.key, Countries: p.clip.countryCodes(),
 		Video: p.clip.video, At: p.at, Platforms: p.platforms, TikTok: p.wording.tiktok(p.clip), YouTube: p.wording.youtube(p.clip),
 		Record: p.clip.record, Teaser: p.wording.teaserName, RunPosition: p.position, RunSize: p.ofRun,
-		Variants: p.clip.variants,
 	}
 }
 
@@ -59,8 +58,6 @@ type PostSnapshot struct {
 	Teaser      string
 	RunPosition int
 	RunSize     int
-	// The arm of each experiment its clip is in.
-	Variants Variants
 }
 
 type Scheduled struct {

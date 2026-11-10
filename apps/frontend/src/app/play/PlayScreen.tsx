@@ -126,7 +126,6 @@ import {DiscordAlerts} from "../alerts/discordAlerts.ts";
 import {useDiscordAlerts} from "../alerts/useDiscordAlerts.ts";
 import {useUnderAttack} from "../alerts/useUnderAttack.ts";
 import {Halo} from "../viewer/atmosphere.ts";
-import "../halloween/Halloween.css"
 import "./PlayScreen.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
@@ -239,7 +238,6 @@ export default function PlayScreen(props: PlayScreenProps) {
     const [accepted] = useState(acceptedClicks)
     useGuidedTakes(props.showFront ?? false, accepted.listenForClicks)
     const mood = moodOf(turn, frozen)
-    const halloween = turn?.kind === "halloween"
     useMood(mood)
     const battleOver = useBattleOver(battle, debrief)
     const countryOrder = useCountryOrder((stored) => stored.order)
@@ -300,8 +298,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         crowd,
         clickHue: hueOf(color),
         mapView,
-        halo: haloOf(battle, halloween),
-        bonusLook: halloween ? "pumpkin" : "box",
+        halo: haloOf(battle),
         missions: missionTargets,
         rendering,
     })
@@ -564,10 +561,8 @@ export default function PlayScreen(props: PlayScreenProps) {
     </>
 }
 
-function haloOf(battle: Battle | undefined, halloween: boolean): Halo {
-    if (battle) return "war"
-    if (halloween) return "haunt"
-    return "calm"
+function haloOf(battle: Battle | undefined): Halo {
+    return battle ? "war" : "calm"
 }
 
 function StatusCard({status}: {status: GlobeStatus}) {

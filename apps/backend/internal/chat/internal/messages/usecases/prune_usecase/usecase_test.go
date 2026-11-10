@@ -38,7 +38,7 @@ func TestAPruneDeletesMessagesReactionsAndAnnouncementsPastRetention(t *testing.
 	for _, at := range []time.Time{now.Add(-48 * time.Hour), now.Add(-time.Hour)} {
 		id := messages.MessageID(at.String())
 		require.NoError(t, sent.Append(t.Context(),
-			messages.NewRecord(messages.Restored(t, messages.Snapshot{ID: id, SentAt: at}), "", "", "")))
+			messages.NewRecord(messages.Restored(t, messages.Snapshot{ID: id, SentAt: at}), "", "")))
 		require.NoError(t, given.Save(t.Context(), reactions.On(id, 1, "guest:a", at)))
 		_, err := announced.AppendOnce(t.Context(), announcements.NewAnnouncement(announcements.AnnouncementID(uuid.New()), announcements.KindBomb, at, nil))
 		require.NoError(t, err)
@@ -57,7 +57,7 @@ func TestTheModerationHistoryIsPrunedPastARetentionOfItsOwn(t *testing.T) {
 	history := inmemory_moderation_storage.New()
 	for _, at := range []time.Time{now.Add(-100 * 24 * time.Hour), now.Add(-48 * time.Hour)} {
 		require.NoError(t, sent.Append(t.Context(), messages.NewRecord(
-			messages.Restored(t, messages.Snapshot{ID: messages.MessageID(at.String()), SentAt: at}), "", "", "")))
+			messages.Restored(t, messages.Snapshot{ID: messages.MessageID(at.String()), SentAt: at}), "", "")))
 		require.NoError(t, history.Record(t.Context(),
 			moderation.NewUnmute(messages.AccountID{15: 1}, mutes.Chat, at, "", moderation.Operator{})))
 	}

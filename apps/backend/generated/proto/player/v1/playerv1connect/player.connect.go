@@ -44,8 +44,6 @@ const (
 	PlayerServiceAnnounceProcedure = "/player.v1.PlayerService/Announce"
 	// PlayerServiceLeaveProcedure is the fully-qualified name of the PlayerService's Leave RPC.
 	PlayerServiceLeaveProcedure = "/player.v1.PlayerService/Leave"
-	// PlayerServiceGetRosterProcedure is the fully-qualified name of the PlayerService's GetRoster RPC.
-	PlayerServiceGetRosterProcedure = "/player.v1.PlayerService/GetRoster"
 	// PlayerServiceListenForEventsProcedure is the fully-qualified name of the PlayerService's
 	// ListenForEvents RPC.
 	PlayerServiceListenForEventsProcedure = "/player.v1.PlayerService/ListenForEvents"
@@ -63,7 +61,6 @@ type PlayerServiceClient interface {
 	SetColor(context.Context, *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error)
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
-	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlayerEvent], error)
 	// Who a player is on its public card. Its stats, titles and fronts are progression.v1's GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
@@ -112,13 +109,6 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(playerServiceMethods.ByName("Leave")),
 			connect.WithClientOptions(opts...),
 		),
-		getRoster: connect.NewClient[v1.GetRosterRequest, v1.GetRosterResponse](
-			httpClient,
-			baseURL+PlayerServiceGetRosterProcedure,
-			connect.WithSchema(playerServiceMethods.ByName("GetRoster")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
 		listenForEvents: connect.NewClient[v1.ListenForEventsRequest, v1.PlayerEvent](
 			httpClient,
 			baseURL+PlayerServiceListenForEventsProcedure,
@@ -149,7 +139,6 @@ type playerServiceClient struct {
 	setColor        *connect.Client[v1.SetColorRequest, v1.SetColorResponse]
 	announce        *connect.Client[v1.AnnounceRequest, v1.AnnounceResponse]
 	leave           *connect.Client[v1.LeaveRequest, v1.LeaveResponse]
-	getRoster       *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.PlayerEvent]
 	getPlayer       *connect.Client[v1.GetPlayerRequest, v1.GetPlayerResponse]
 	getNameplates   *connect.Client[v1.GetNameplatesRequest, v1.GetNameplatesResponse]
@@ -180,11 +169,6 @@ func (c *playerServiceClient) Leave(ctx context.Context, req *connect.Request[v1
 	return c.leave.CallUnary(ctx, req)
 }
 
-// GetRoster calls player.v1.PlayerService.GetRoster.
-func (c *playerServiceClient) GetRoster(ctx context.Context, req *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error) {
-	return c.getRoster.CallUnary(ctx, req)
-}
-
 // ListenForEvents calls player.v1.PlayerService.ListenForEvents.
 func (c *playerServiceClient) ListenForEvents(ctx context.Context, req *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlayerEvent], error) {
 	return c.listenForEvents.CallServerStream(ctx, req)
@@ -207,7 +191,6 @@ type PlayerServiceHandler interface {
 	SetColor(context.Context, *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error)
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
-	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlayerEvent]) error
 	// Who a player is on its public card. Its stats, titles and fronts are progression.v1's GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
@@ -252,13 +235,6 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(playerServiceMethods.ByName("Leave")),
 		connect.WithHandlerOptions(opts...),
 	)
-	playerServiceGetRosterHandler := connect.NewUnaryHandler(
-		PlayerServiceGetRosterProcedure,
-		svc.GetRoster,
-		connect.WithSchema(playerServiceMethods.ByName("GetRoster")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
 	playerServiceListenForEventsHandler := connect.NewServerStreamHandler(
 		PlayerServiceListenForEventsProcedure,
 		svc.ListenForEvents,
@@ -291,8 +267,6 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceAnnounceHandler.ServeHTTP(w, r)
 		case PlayerServiceLeaveProcedure:
 			playerServiceLeaveHandler.ServeHTTP(w, r)
-		case PlayerServiceGetRosterProcedure:
-			playerServiceGetRosterHandler.ServeHTTP(w, r)
 		case PlayerServiceListenForEventsProcedure:
 			playerServiceListenForEventsHandler.ServeHTTP(w, r)
 		case PlayerServiceGetPlayerProcedure:
@@ -326,10 +300,6 @@ func (UnimplementedPlayerServiceHandler) Announce(context.Context, *connect.Requ
 
 func (UnimplementedPlayerServiceHandler) Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.Leave is not implemented"))
-}
-
-func (UnimplementedPlayerServiceHandler) GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetRoster is not implemented"))
 }
 
 func (UnimplementedPlayerServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlayerEvent]) error {

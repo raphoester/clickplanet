@@ -130,7 +130,7 @@ export const WIDTH = 1.3
 
 export const ORBIT_WIDTH = 0.25
 
-export const HIGHLIGHT_WIDTH = 2.6
+const HIGHLIGHT_WIDTH = 2.6
 
 const FEATHER = 1
 
@@ -153,7 +153,7 @@ const HIGHLIGHT_COLOUR = new THREE.Color(1, 1, 1)
 
 // Must match MISSION in shaders/display/fragment.glsl and --mission in tokens.css: one colour for a mission's place.
 const MISSION_COLOUR = new THREE.Color(0.784, 0.341, 0.298)
-export const MISSION_WIDTH = 2
+const MISSION_WIDTH = 2
 const MISSION_INK = 0.9
 
 // Must match AIMED_COLUMNS in shaders/borderLine/vertex.glsl.

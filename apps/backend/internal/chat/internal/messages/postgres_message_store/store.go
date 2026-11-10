@@ -26,12 +26,12 @@ var _ messages.Storage = (*Store)(nil)
 func (s *Store) Append(ctx context.Context, record messages.Record) error {
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
 		WITH kept AS (
-			INSERT INTO messages (id, sent_at, account_id, author_id, country, ip, user_agent, text, reply_to, room)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			INSERT INTO messages (id, sent_at, account_id, country, ip, user_agent, text, reply_to, room)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			RETURNING seq
 		)
 		INSERT INTO gifs (message_seq, url, width, height)
-		SELECT seq, $11, $12, $13 FROM kept WHERE $11 <> ''
+		SELECT seq, $10, $11, $12 FROM kept WHERE $10 <> ''
 	`, row(record)...); err != nil {
 		return fmt.Errorf("failed to insert a message: %w", err)
 	}
@@ -159,7 +159,6 @@ func row(record messages.Record) []any {
 		string(message.ID),
 		message.SentAt.UTC(),
 		account(message.Account),
-		kept.AuthorID,
 		message.Country,
 		kept.IP,
 		kept.UserAgent,

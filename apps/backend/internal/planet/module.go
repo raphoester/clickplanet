@@ -439,7 +439,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			if config.Auth.Enabled {
 				interceptors = append(interceptors,
-					planetv1controller.NewSessionInterceptor(props.Sessions, clock, config.Auth.Enforce, props.Metrics),
+					planetv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),
 					planetv1controller.NewSessionReaderInterceptor(props.Sessions, clock))
 			}
 

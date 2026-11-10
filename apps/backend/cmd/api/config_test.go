@@ -154,7 +154,6 @@ promo:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: promo}
 auth:
   enabled: true
-  enforce: true
   secret: "%s"
   ttl: 2h
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: auth}
@@ -173,7 +172,6 @@ func TestOnlyAuthReadsTheSeedOutOfTheAuthBlock(t *testing.T) {
 	assert.Equal(t, secret, config.Auth.Secret)
 	assert.Equal(t, 2*time.Hour, config.Auth.TTL)
 	assert.True(t, config.Planet.Auth.Enabled)
-	assert.True(t, config.Planet.Auth.Enforce)
 
 	planetBlock := reflect.TypeOf(config.Planet.Auth)
 	for i := range planetBlock.NumField() {

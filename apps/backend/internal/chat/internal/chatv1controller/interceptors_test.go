@@ -187,7 +187,7 @@ func blocklistOf(t *testing.T, prefixes []string) SenderBlocklist {
 type identityVerifier struct{}
 
 func (identityVerifier) Verify(context.Context, string, string, time.Time) (*cpsession.Claims, error) {
-	return &cpsession.Claims{ID: "a-mint", Account: cpsession.AccountID{15: 1}}, nil
+	return &cpsession.Claims{Account: cpsession.AccountID{15: 1}}, nil
 }
 
 func TestAnIdentityTokenNamesTheReaderAndTheSeenMarkOnly(t *testing.T) {

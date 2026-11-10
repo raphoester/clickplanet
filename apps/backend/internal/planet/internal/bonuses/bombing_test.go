@@ -86,7 +86,8 @@ func TestProductionsBombClearsAboutOneBankInland(t *testing.T) {
 }
 
 func inland(geography *clicks.Geography, id uint32) bool {
-	for _, tile := range geography.Disc(id, 8) {
+	centre, _ := geography.Position(id)
+	for _, tile := range geography.Within(centre, 8*geography.Spacing()) {
 		if len(geography.Neighbours(tile)) != clicks.MaxDegree {
 			return false
 		}

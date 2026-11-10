@@ -134,7 +134,7 @@ func (s *testSuite) TestAnOffenceRemovesMutesAndClosesTheReportInOneGo() {
 
 	out := s.judged(reportOf(first, "m-2"))
 
-	s.Equal(judgements.Acted, out.Judgement.Verdict())
+	s.Equal(judgements.Acted, out.Judgement.TakeSnapshot().Verdict)
 	s.Equal(int64(3000), out.Spend.Input)
 	s.Equal([]messages.MessageID{"m-2"}, s.removed.ids)
 
@@ -169,7 +169,7 @@ func (s *testSuite) TestNoOffenceDismissesTheReportAndTouchesNothing() {
 
 	out := s.judged(reportOf(first, "m-2"))
 
-	s.Equal(judgements.Dismissed, out.Judgement.Verdict())
+	s.Equal(judgements.Dismissed, out.Judgement.TakeSnapshot().Verdict)
 	s.Empty(s.removed.ids)
 	s.Empty(s.mutes.Kept())
 	s.Require().Len(s.decisions(), 1)
@@ -196,7 +196,7 @@ func (s *testSuite) TestManyReportsOfOneMessageAreOneJudgement() {
 	s.Equal(1, s.judge.calls, "the model is asked once per message")
 	s.Len(s.removed.ids, 1)
 	s.Empty(s.mutes.Kept(), "a first offence, counted once")
-	s.Equal(judgements.Acted, out.Judgement.Verdict())
+	s.Equal(judgements.Acted, out.Judgement.TakeSnapshot().Verdict)
 	s.Require().Len(s.decisions(), 2)
 	s.Equal(second.String(), s.decisions()[1].GetReportId())
 	s.Equal("Claude judge: as report "+first.String()+": offence 1 (chat): a slur; 1 message removed",
@@ -212,7 +212,7 @@ func (s *testSuite) TestWhatIsNeverActedOnIsLeftOpenAndFlagged() {
 
 		out := s.judged(reportOf(first, "m-2"))
 
-		s.Equal(judgements.LeftOpen, out.Judgement.Verdict(), category)
+		s.Equal(judgements.LeftOpen, out.Judgement.TakeSnapshot().Verdict, category)
 		s.True(out.Judgement.TakeSnapshot().Flagged, category)
 		s.Empty(s.removed.ids, category)
 		s.Empty(s.mutes.Kept(), category)
@@ -226,7 +226,7 @@ func (s *testSuite) TestACheatingReportIsLeftOpenUnread() {
 
 	out := s.judged(report)
 
-	s.Equal(judgements.LeftOpen, out.Judgement.Verdict())
+	s.Equal(judgements.LeftOpen, out.Judgement.TakeSnapshot().Verdict)
 	s.True(out.Judgement.TakeSnapshot().Flagged)
 	s.Zero(s.conversations.reads)
 	s.Zero(s.judge.calls)
@@ -235,7 +235,7 @@ func (s *testSuite) TestACheatingReportIsLeftOpenUnread() {
 func (s *testSuite) TestAMessagePastTheRetentionIsDismissedAndTheModelNotAsked() {
 	out := s.judged(reportOf(first, "m-pruned"))
 
-	s.Equal(judgements.Dismissed, out.Judgement.Verdict())
+	s.Equal(judgements.Dismissed, out.Judgement.TakeSnapshot().Verdict)
 	s.Zero(s.judge.calls)
 	s.Require().Len(s.decisions(), 1)
 	s.Contains(s.decisions()[0].GetComment(), "past the chat's retention")
@@ -246,7 +246,7 @@ func (s *testSuite) TestAMessageRemovedAlreadyClosesTheReportAsActed() {
 
 	out := s.judged(reportOf(first, "m-2"))
 
-	s.Equal(judgements.Acted, out.Judgement.Verdict())
+	s.Equal(judgements.Acted, out.Judgement.TakeSnapshot().Verdict)
 	s.Zero(s.judge.calls)
 	s.Empty(s.removed.ids)
 }
@@ -254,7 +254,7 @@ func (s *testSuite) TestAMessageRemovedAlreadyClosesTheReportAsActed() {
 func (s *testSuite) TestAMessageOfAnotherPlayerIsLeftOpen() {
 	out := s.judged(reportOf(first, "m-1"))
 
-	s.Equal(judgements.LeftOpen, out.Judgement.Verdict())
+	s.Equal(judgements.LeftOpen, out.Judgement.TakeSnapshot().Verdict)
 	s.Zero(s.judge.calls)
 }
 
@@ -263,7 +263,7 @@ func (s *testSuite) TestTheOperatorsOwnAccountIsNeverActedOn() {
 
 	out := s.judged(reportOf(first, "m-2"))
 
-	s.Equal(judgements.LeftOpen, out.Judgement.Verdict())
+	s.Equal(judgements.LeftOpen, out.Judgement.TakeSnapshot().Verdict)
 	s.Zero(s.judge.calls)
 	s.Empty(s.removed.ids)
 }
@@ -278,14 +278,14 @@ func (s *testSuite) TestOnceTheHourlyCapIsSpentTheRestIsLeftOpen() {
 	out := s.judged(reportOf(second, "m-4"))
 
 	s.Equal(1, s.judge.calls)
-	s.Equal(judgements.LeftOpen, out.Judgement.Verdict())
+	s.Equal(judgements.LeftOpen, out.Judgement.TakeSnapshot().Verdict)
 	s.True(out.Judgement.TakeSnapshot().Flagged)
 	s.Contains(out.Judgement.TakeSnapshot().Reason, "cap")
 
 	s.clock.Advance(time.Hour)
 	third := s.judged(reportOf(judgements.ReportID{15: 3}, "m-4"))
 	s.Equal(2, s.judge.calls, "a message left before it was judged is judged at the next report")
-	s.Equal(judgements.Acted, third.Judgement.Verdict())
+	s.Equal(judgements.Acted, third.Judgement.TakeSnapshot().Verdict)
 }
 
 func (s *testSuite) TestWithNoKeyEveryReportIsLeftOpen() {
@@ -293,7 +293,7 @@ func (s *testSuite) TestWithNoKeyEveryReportIsLeftOpen() {
 
 	out := s.judged(reportOf(first, "m-2"))
 
-	s.Equal(judgements.LeftOpen, out.Judgement.Verdict())
+	s.Equal(judgements.LeftOpen, out.Judgement.TakeSnapshot().Verdict)
 	s.False(out.Judgement.TakeSnapshot().Judged)
 	s.Empty(s.outbox.Recorded())
 }
@@ -305,7 +305,7 @@ func (s *testSuite) TestARefusalIsLeftOpenAndStandsForTheMessage() {
 	out := s.judged(reportOf(second, "m-2"))
 
 	s.Equal(1, s.judge.calls)
-	s.Equal(judgements.LeftOpen, out.Judgement.Verdict())
+	s.Equal(judgements.LeftOpen, out.Judgement.TakeSnapshot().Verdict)
 }
 
 func (s *testSuite) TestAFailureOfTheModelIsTriedAgainAndKeepsNothing() {
@@ -318,7 +318,7 @@ func (s *testSuite) TestAFailureOfTheModelIsTriedAgainAndKeepsNothing() {
 
 	s.judge.err = nil
 	out := s.judged(reportOf(first, "m-2"))
-	s.Equal(judgements.Acted, out.Judgement.Verdict())
+	s.Equal(judgements.Acted, out.Judgement.TakeSnapshot().Verdict)
 }
 
 func (s *testSuite) TestAFailureToKeepTheJudgementClosesNothing() {
@@ -417,5 +417,5 @@ func (s *testSuite) TestAReadThatFailsSpendsNothingOfTheCap() {
 
 	s.history.FailWith(nil)
 	out := s.judged(reportOf(first, "m-2"))
-	s.Equal(judgements.Acted, out.Judgement.Verdict(), "the bus tried it again, and the cap still had its call")
+	s.Equal(judgements.Acted, out.Judgement.TakeSnapshot().Verdict, "the bus tried it again, and the cap still had its call")
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/cmd/clips/internal/display"
 	"github.com/raphoester/clickplanet.lol-backend/cmd/clips/internal/flags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var (
@@ -72,7 +71,7 @@ func choose(ctx context.Context, parsed flags.Config, out io.Writer, logger *slo
 	if err := display.Editorial(parsed.SummaryFile, choice.Editorial); err != nil {
 		return err //nolint:wrapcheck // the display already named what it could not write.
 	}
-	return display.Picks(out, choice.Assigned) //nolint:wrapcheck // the display already named what it could not write.
+	return display.Picks(out, choice.Chosen) //nolint:wrapcheck // the display already named what it could not write.
 }
 
 func edit(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.Logger) error {
@@ -84,7 +83,7 @@ func edit(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.
 }
 
 func schedule(ctx context.Context, parsed flags.Config, out io.Writer, logger *slog.Logger) error {
-	report, err := clips.Schedule(ctx, parsed.ClipsFolder, parsed.Job, cptime.SystemClock{}, logger)
+	report, err := clips.Schedule(ctx, parsed.ClipsFolder, parsed.Job, logger)
 	if err != nil {
 		return fmt.Errorf("failed to schedule the clips of the run: %w", err)
 	}

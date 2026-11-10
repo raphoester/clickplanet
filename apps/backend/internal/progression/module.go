@@ -34,8 +34,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_fronts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_progress_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_progress_handler/progress_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_stats_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_stats_handler/stats_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_titles_handler/titles_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/inprocess_title_catalog"
@@ -171,7 +169,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger, runners...)))
 
 	progressionService := progressionv1controller.ProgressionService{
-		GetStatsHandler:  get_stats_handler.New(stats_query.NewPostgresQuery(db, clock)),
 		GetTitlesHandler: get_titles_handler.New(titles_query.NewPostgresQuery(db, titleCards, clock)),
 		WearTitleHandler: wear_title_handler.New(wear_title_usecase.New(wardrobe, clock)),
 		GetFrontsHandler: get_fronts_handler.New(fronts),

@@ -135,8 +135,6 @@ func (c Count) Total() int { return c.total }
 
 func (c Count) Mine() bool { return c.mine }
 
-func (c Count) Reactors() []Reactor { return c.reactors }
-
 // The accounts that gave it, oldest first: a guest tag from before accounts is nobody.
 func (c Count) Accounts() []messages.AccountID {
 	accounts := make([]messages.AccountID, 0, len(c.reactors))
@@ -185,13 +183,6 @@ func (c Change) Reactor() Reactor { return c.reactor }
 func (c Change) On() bool { return c.on }
 
 func (c Change) At() time.Time { return c.at }
-
-func (r Reactions) Applied(change Change) Reactions {
-	if change.on {
-		return r.With(change.reaction, change.reactor)
-	}
-	return r.Without(change.reaction, change.reactor)
-}
 
 var ErrUnknownMessage = errors.New("no such chat message")
 

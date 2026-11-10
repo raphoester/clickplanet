@@ -28,7 +28,7 @@ func TestARequestedDeletionHidesTheAccount(t *testing.T) {
 	require.NoError(t, err)
 	departure, err := store.Departure(t.Context(), account)
 	require.NoError(t, err)
-	assert.True(t, departure.Leaving())
+	assert.True(t, departure.TakeSnapshot().Leaving)
 }
 
 func TestARequestWithNoTimeIsRefused(t *testing.T) {

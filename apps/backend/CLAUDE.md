@@ -170,4 +170,4 @@ and says what is in it. Read the doc before you change its area.
   every 6 hours, each battle starting within 36 hours posted by an hour before it through publishing's
   `InternalService`, a carousel of its cards on TikTok and a slideshow on YouTube; no battle teased twice.
 - [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them through the
-  publishing module, over ssh; its experiments, the model editor and the stats.
+  publishing module, over ssh; the model editor, the stats and the experiments it ran.

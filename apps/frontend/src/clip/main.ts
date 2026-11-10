@@ -38,7 +38,6 @@ import {installVirtualClock} from "./virtualClock.ts"
 import {createOverlay, hashtagsOf, nameOf, placeName, wordsOf} from "./overlay.ts"
 import {findingsOf, FrontFound, Measured, PlaceFound, SeasonalFound, Told, toldOf, TourFound} from "./findings.ts"
 import {clipRecordOf} from "./clipRecord.ts"
-import {Variants, variantsOf} from "./experiments.ts"
 import {dayOf, finaleAtOf} from "./race.ts"
 import {castOf} from "./cast.ts"
 
@@ -60,8 +59,6 @@ export type Recording = {
     teasers: string[]
     // The players the end card names, with the flag each fought for and the tiles it took.
     fighters: {number: number, name: string, flag: string, took: number}[]
-    // The arm of each experiment the clip is in.
-    variants: Variants
     // What to post with the clip, as a clips.v1.Clip.
     clip: JsonValue
 }
@@ -394,8 +391,6 @@ async function choose(): Promise<Chosen> {
     }
 
     const record = async (): Promise<Recording> => {
-        // The arms the job put the clip in, read before anything is built: an arm nobody knows fails the clip.
-        const variants = variantsOf(params.get("variants"))
         const pick = numberParam("pick") ?? 1
         const {told, written, fighters: chosen} = storyParam()
         const picked = reviewOf(told)
@@ -513,7 +508,7 @@ async function choose(): Promise<Chosen> {
         const clipFighters = named.flatMap(({flag, fighters}) => fighters.map(({number, name, took}) => ({number, name, flag, took})))
         const clipRecord = clipRecordOf({
             ...measured, story, generator: params.get("commit") ?? "", seconds: timeline.seconds, music,
-            look: world ? undefined : look, landmassesFlipped: flips.length, screens, tourStops: stops.length, variants,
+            look: world ? undefined : look, landmassesFlipped: flips.length, screens, tourStops: stops.length,
             fighters: clipFighters.length,
         })
 
@@ -534,7 +529,6 @@ async function choose(): Promise<Chosen> {
             call: words.call,
             teasers: words.teasers,
             fighters: clipFighters,
-            variants,
             clip: new Clip({
                 pick, title: words.headline, key, teasers: words.teasers,
                 countries: hashtags.countries, continentTag: hashtags.continent ?? "", credit: music?.credit ?? "", record: clipRecord,

@@ -1,7 +1,6 @@
 import {create} from "zustand"
 
-// "you" is a phone sheet only: on a desktop the rail opens the profile as a modal.
-export type MenuTab = "board" | "missions" | "you" | "share" | "invite" | "settings"
+export type MenuTab = "board" | "missions" | "share" | "invite" | "settings"
 
 export type SheetName = "board" | "missions" | "chat" | "you" | "share" | "invite" | "settings" | "season" | "battle" | "clicks"
 

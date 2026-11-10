@@ -11,7 +11,7 @@ rendered (`proto/clips/v1/clips.proto`).
 ```
 clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-cast <cast.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
 clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
-clips schedule -clips <folder> [-review 0] [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
+clips schedule -clips <folder> [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
 clips edit -findings <findings.json> [-count 2] [-prompt]
 ```
 
@@ -35,10 +35,10 @@ clips edit -findings <findings.json> [-count 2] [-prompt]
   ledger answers from memory. 12 hours and not 2: the editor sees a story whole, and reads the last posts to tell it
   once; the generator searches its last 12 hours anyway (`newsSince`).
 - **`choose` prints the stories to render**, as a JSON array on the standard output, each with its number in the
-  run, the story as the generator's `--story` takes it, and the arm of every experiment its clip is in
-  (`[{"pick":1,"story":{"front":3,"kind":"battle",…,"headline":"FRANCE VS TURKEY"},"variants":{}}]`,
+  run and the story as the generator's `--story` takes it
+  (`[{"pick":1,"story":{"front":3,"kind":"battle",…,"headline":"FRANCE VS TURKEY"}}]`,
   or `[]` on a quiet run or a full day): the workflow makes one render job of each. The log goes to the standard
-  error, with each story of the editor's skipped and why, and each one chosen with its key and its arms. It needs
+  error, with each story of the editor's skipped and why, and each one chosen with its key. It needs
   the backend over ssh (`-ssh` or `CLICKPLANET_SSH`), whose [publishing module](publishing.md) says what was told and how much
   room each platform has left, and `ANTHROPIC_API_KEY`, the editor's.
   `-platforms` is `schedule`'s, so it counts the room of the platforms the clips will go to. `-summary` adds how the
@@ -52,12 +52,10 @@ clips edit -findings <findings.json> [-count 2] [-prompt]
 - **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the backend's
   [publishing module](publishing.md), over ssh, which posts it **as one post on every platform that takes it**
   (`-platforms`, default all: `tiktok,youtube`): room left in its day, its hours, and on TikTok the run's best clip
-  alone (below, "What each platform takes"), and adds a table to the summary: a row for each clip on each platform, its arms, its time, and
+  alone (below, "What each platform takes"), and adds a table to the summary: a row for each clip on each platform, its time, and
   whether it is scheduled there, or one row for a clip held because every platform has posted its day or is out of
-  its hours. **A clip in an
-  experiment that does not run, or in an arm it has not, fails the run before anything is posted**
-  (`posts.ErrUnknownVariant`): once out, it would be counted in the wrong arm. It exits 1 when a
-  platform did not take a clip, when the folder holds none, or when the summary cannot be written. **Platforms are
+  its hours. It exits 1 when a platform did not take a clip, when the folder holds none, or when the summary cannot
+  be written. **Platforms are
   independent**: a platform that refuses does not stop the others, and a clip refused does not stop the next one.
   **Then it tells the backend who each post names** ([`KeepAppearance`](clip-appearances.md), over ssh as `fetch`
   asks, `-ssh` or `CLICKPLANET_SSH`), the platforms that took it with it, so the game tells each player
@@ -76,53 +74,25 @@ clips edit -findings <findings.json> [-count 2] [-prompt]
     the domain (`clips.PlatformsOf`: each known, each once). No flag pointer leaves it.
     Flags and not `cpconfigs`: the job has a few settings and two secrets, and a workflow passes them on the
     command line.
-  - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the stories, each with its arms,
-    and how the editor's call went), `clips.Edit` (the editor's trial) and `clips.Schedule` (the `Report`), in
+  - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the stories, and how the editor's
+    call went), `clips.Edit` (the editor's trial) and `clips.Schedule` (the `Report`), in
     `internal/clips/job.go`, which wires the objects as a `module.go` does.
     A clip or a platform the service refused is in the report, not in the error: the error is for a run that
     could not be made at all.
   - **The display owns the output and says how it went** (`cmd/clips/internal/display`): `display.Picks`
-    writes the array (a clip in no experiment has `"variants":{}`, never `null`; the story is protojson of a
-    `clips.v1.Pick`, through `clips.StoryJSON`), `display.Editorial` adds how the editor's call went to the summary,
+    writes the array (the story is protojson of a `clips.v1.Pick`, through `clips.StoryJSON`), `display.Editorial` adds how the editor's call went to the summary,
     `display.Trial` prints `edit`'s, `display.Report` writes the table, to the summary file when one is named, and answers
     whether every clip is scheduled on each of its platforms. It does not turn that into an error: `schedule` in `main.go` decides, and
     exits 1 on `errUnsent`.
   - **The dispatch acts on `fetch`, `choose`, `schedule` and `edit`, and on nothing else**: any other command is
     `errUnknownCommand`, and nothing is fetched, printed, posted or kept.
 
-**Experiments run on the clips, to learn what makes one do well, and the job alone decides who is in which arm**
-(`internal/clips/experiments.go`, `posts/experiment.go`). The posts' numbers are set beside what each clip was (its
-`record`, below), and an experiment is what makes that comparison fair: the arm is a coin, not a choice made from the
-story, so a short clip is not short because its story was small.
+**No experiment runs on the clips since 2026-11-05, and the code that ran them went on 2026-11-10.** `choose`
+flipped a coin per experiment for each clip, the arm went with it to the generator (`--variants`) and into its record
+(`ClipRecord.variants`, now `reserved`), and `schedule` checked it before posting: the arm was a coin, not a choice made
+from the story, so the posts' numbers compared fair. The posts of then keep their arm in their record, which the
+backoffice's table shows as `meta.record.clip.variants.*`.
 
-- **`running` in `experiments.go` is the one list of the experiments that run**, empty since `sound` stopped
-  (2026-11-05). Each has a name, its arms with their
-  weights (`posts.Arm{Name, Weight}`: 1 to 1 is an even split, 3 to 1 is three clips in four), and its
-  control, **the arm that is exactly what a clip was before the experiment**. `posts.ExperimentsOf` refuses a list
-  with no name or one name twice, an experiment of fewer than two arms, an arm with no name, twice or with no weight,
-  or a control that is no arm; `choose` and `schedule` both fail then. **Stopping an experiment is taking its entry
-  out, and nothing else**: the generator renders as before with no arm, and a clip in it rendered by that run's
-  commit is still checked by that commit.
-- **`choose` flips one coin per experiment for each story chosen** (`Experiments.AssignEach`, with
-  `posts.SystemDice`, in the order of the list), after the stories are chosen and apart from them: an arm never
-  changes which story is told. A coin of its own per experiment makes two experiments at once a factorial design,
-  every pair of arms in about the share of their weights, so each one's effect is read across the other's. **An
-  experiment on which stories are told needs a coin of the run's instead**, flipped once before anything is chosen
-  and carried by every clip of the run, since a coin per clip would let one run mix two editors' stories: `editor`
-  had one (below), and its code went with it.
-- **The arms travel with the clip, as data**: `choose` prints them with the story; the workflow's render job of the
-  clip hands them to the generator (`--variants '{"length":"short"}'`), which applies the ones it acts on, refuses
-  one it does not know, and writes them all into the clip's `ClipRecord.variants` (the frontend's
-  [Clips](../../frontend/docs/clips.md)); `schedule` reads them back from `clip-<n>.json` (`posts.ClipSnapshot.Variants`), checks every clip
-  against `running` before it posts any, carries them on each post (`posts.PostSnapshot.Variants`) and writes them in
-  the summary. The record, and so the post's Zernio metadata, keeps them as the generator wrote them: what the
-  analysis reads.
-- **An arm acts where its difference is made**: at render time in the generator (the length below), or at post time
-  in the job, through what the post carries (`posts.PostSnapshot`) and the adapter that writes it (as the sound did, below).
-  **The control of each is what is sent without it.** The generator still lists an experiment it has nothing to apply
-  for, so it refuses an arm nobody knows on every experiment, and carries the arms of the rest to `schedule`.
-- **Adding one** is an entry in `running`, its name and arms in the generator's `src/clip/experiments.ts`, and the
-  code that acts on its arms, never on its control.
 - **`length` ran from 2026-10-24 to 2026-10-28**: `as-chosen`, the control, against `short`, the shortest a story of
   its kind plays (8.5s for a front, 10 with a day's podium). It was stopped by judgment, not on the numbers: an 8.5s
   clip is too short a format. Its posts keep their arm in their record. The teaser rolled when posting is an
@@ -321,8 +291,7 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   - **A platform out of its hours is left out of the post, never waited for** (the module's `PlanPost`): the clip
     goes out on the others at once. A platform left out no longer holds the post back, so its time is found again
     without it: a TikTok post by hand at 19:30 does not push a YouTube post to 20:30. The hours are UTC, so they move
-    an hour against Europe's clocks in summer. `Schedule` takes the clock the review is counted from; `main.go` passes
-    the system's.
+    an hour against Europe's clocks in summer.
   - **What counts is Zernio's post list, as the publishing module reads it**: every post on the platform in the
     trailing day, **made by hand or not**, and every one still to go out, at the platform's own time. **A room that
     cannot be read fails the run**, rather than post over the cap. **A new post counts in every trailing day that
@@ -354,14 +323,12 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
 - **Each post also keeps what it was, to be set beside its numbers**, under one key of its Zernio `metadata`,
   `record` (`posts/metadata`): the publishing module's daily snapshot keeps it beside the post's TikTok and YouTube
   analytics (see [The posts' numbers](post-stats.md)), to learn what makes a clip do well. **It records and
-  decides nothing**: the dice are rolled in the same order as before (the arms of the experiments above are
-  `choose`'s coins, not these), so
-  the captions, the times and the order are what they were, and the tests pin the metadata whole (`metadata_test.go`).
+  decides nothing**: the dice are rolled in the same order as before, so the captions, the times and the order are what they were, and the tests pin the metadata whole (`metadata_test.go`).
   - **It is one document, a `clips.v1.PostRecord` as protojson writes it**, not keys of Zernio's top level: its
     shape is the proto's and it grows there, with nothing to move in Zernio. `schema` names the message it is,
     `clips.v1.PostRecord`; a change that is not additive is a new message under a new name, so a reader always knows
     what it holds. `clip` is what the generator wrote (`clips.v1.ClipRecord`: its format, its commit, what every
-    format has, its format's own section, its experiments' arms; the frontend's [Clips](../../frontend/docs/clips.md)), kept as written
+    format has, its format's own section; the frontend's [Clips](../../frontend/docs/clips.md)), kept as written
     (`posts.ClipRecord`, which the job never reads); absent for a clip written before the generator kept one. `post`
     is what this job made of the clip: `teaser`, the name of the teaser rolled (`editor` for the model's,
     `takes-the-day` for the generator's own; `unnamed` for a clip whose teasers have none), `callToAction`, `scheduledAt` (the slot the publishing module planned: the dashboard can move
@@ -375,12 +342,11 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
     uploaded. Zernio's `metadata` takes any JSON object and states no size, but for three keys of its own
     (`usageCounted`, `usageRefunded`, `hidden`). Posts made before the record have none, and none is filled in after.
 - **`Plan` is what a run asks**: the platforms of each clip (`PlatformsOf`: all of them, but TikTok, which takes the
-  best alone, for the first only), its review (`NotBefore`: `Review` from now, none by default: `-review 0` and no
-  flag are both none), and how many clips a run makes (`Clips`). It rolls each post's words too (`Plan.Post`: `Dice`,
+  best alone, for the first only), and how many clips a run makes (`Clips`). It rolls each post's words too (`Plan.Post`: `Dice`,
   `SystemDice`), so no post exists without them. **When it goes out is the publishing module's** (2026-11-09):
   `schedule` plans each clip once the one before it is sent, best first (`Ranked`), and the module's `PlanPost` gives
-  its slot (`Post.At`): **on every platform with room left in its day, as soon as it can**, the 5-minute lead and the
-  review on, on a whole minute, and **an hour from every post on each of its platforms, before it or after it**,
+  its slot (`Post.At`): **on every platform with room left in its day, as soon as it can**, the 5-minute lead on, on a
+  whole minute, and **an hour from every post on each of its platforms, before it or after it**,
   whoever made it (see [Publishing](publishing.md)). The post just sent is in the module's calendar, so a wait that
   moved a post later moves the next one too, and a clip refused takes no place, so the next one goes in it. **A
   platform is a `Platform`** (`tiktok`, `youtube`), and `PlatformsOf` is the only way from a name to one: each known,
@@ -432,7 +398,7 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   made by a browser that came by it is counted as YouTube's (see [Arrivals](arrivals.md)); TikTok's caption link
   has none, since nobody can click it there.
 - **No review, and nothing sent for a time already past** (2026-10-24). The review was 4 hours to cancel a clip in
-  the dashboard before its time, and nobody did, so it is off; `-review` puts it back. **A post goes out 5 minutes
+  the dashboard before its time, and nobody did, so it went, and its `-review` flag on 2026-11-10. **A post goes out 5 minutes
   ahead** at the soonest, not now: the publishing module's lead (see [Publishing](publishing.md)). **Each try plans
   the slot again** (`Sender.Send`), so a wait never sends a post at a time already past or crowded: later, never
   sooner. `Sender.Send` answers the post as it was sent, at its slot, which the report reads, or that it was held.
@@ -443,7 +409,7 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   slot taken** (`ErrTaken`: another post took its room or its spacing since it was planned) is planned again at once,
   3 times in a row at most. `Pause` is the wait, so a test takes no time (`RecordedPause` moves the fixed clock
   instead).
-- **`Planner` is the module's calendar and `Service` its post, one try**: `Slot(ctx, platforms, notBefore)` and
+- **`Planner` is the module's calendar and `Service` its post, one try**: `Slot(ctx, platforms)` and
   `Schedule(ctx, post) (Scheduled, error)`, at the post's slot, on each of its platforms that takes it, and a post
   scheduled twice is one post there. `Scheduled` is the post's id and each platform it is not on, with why
   (`Refused`); the error is a post made on no platform.

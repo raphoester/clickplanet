@@ -66,7 +66,7 @@ func TestAFirstOffenceRemovesTheMessageAndMutesNobody(t *testing.T) {
 	assert.Equal(t, []messages.MessageID{"m-2"}, decision.Remove)
 	assert.Zero(t, decision.Mute)
 	assert.Equal(t, "offence 1 (chat): an insult aimed at a player", decision.Reason)
-	assert.Equal(t, judgements.Acted, decision.Judgement.Verdict())
+	assert.Equal(t, judgements.Acted, decision.Judgement.TakeSnapshot().Verdict)
 	assert.Equal(t, "offence 1 (chat): an insult aimed at a player; 1 message removed", decision.Judgement.TakeSnapshot().Reason)
 }
 
@@ -108,7 +108,7 @@ func TestOnlyThePlayersOwnMessagesNotRemovedYetAreRemoved(t *testing.T) {
 func TestAnOffenceWithNoMessageOfThePlayersIsLeftOpen(t *testing.T) {
 	decision := decide(judgements.Answer{Category: judgements.CategoryOffence, Offending: []messages.MessageID{"m-1"}})
 
-	assert.Equal(t, judgements.LeftOpen, decision.Judgement.Verdict())
+	assert.Equal(t, judgements.LeftOpen, decision.Judgement.TakeSnapshot().Verdict)
 	assert.True(t, decision.Judgement.TakeSnapshot().Flagged)
 	assert.Empty(t, decision.Remove)
 }
@@ -132,7 +132,7 @@ func TestAFirstSpamIsRemovedAndIsNoOffence(t *testing.T) {
 
 	assert.Equal(t, "spam, no offence: a link to a server", decision.Reason)
 	assert.Zero(t, decision.Mute)
-	assert.Equal(t, judgements.Acted, decision.Judgement.Verdict())
+	assert.Equal(t, judgements.Acted, decision.Judgement.TakeSnapshot().Verdict)
 }
 
 func TestSpamAgainAfterARemovalIsAnOffence(t *testing.T) {
@@ -148,7 +148,7 @@ func TestAfterADayMuteTheMessageGoesAndTheReportIsTheOperators(t *testing.T) {
 	decision := decide(judgements.Answer{Category: judgements.CategoryOffence, Offending: []messages.MessageID{"m-2"}, What: "a slur"},
 		mute(now.Add(-time.Hour), mutes.Chat, 24*time.Hour, "offence 4 (chat): a slur"))
 
-	assert.Equal(t, judgements.LeftOpen, decision.Judgement.Verdict())
+	assert.Equal(t, judgements.LeftOpen, decision.Judgement.TakeSnapshot().Verdict)
 	assert.Equal(t, []messages.MessageID{"m-2"}, decision.Remove)
 	assert.Zero(t, decision.Mute, "no step mutes past a day")
 	assert.True(t, decision.Judgement.TakeSnapshot().Flagged)
@@ -161,7 +161,7 @@ func TestWhatIsNeverActedOnIsLeftOpenAndFlagged(t *testing.T) {
 	} {
 		decision := decide(judgements.Answer{Category: category, Offending: []messages.MessageID{"m-2"}, Severe: true, Why: "asks a kid for its age"})
 
-		assert.Equal(t, judgements.LeftOpen, decision.Judgement.Verdict(), category)
+		assert.Equal(t, judgements.LeftOpen, decision.Judgement.TakeSnapshot().Verdict, category)
 		assert.True(t, decision.Judgement.TakeSnapshot().Flagged, category)
 		assert.Empty(t, decision.Remove, category)
 		assert.Zero(t, decision.Mute, category)

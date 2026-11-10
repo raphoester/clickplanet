@@ -5,9 +5,9 @@ import {PlaySound} from "../sound/soundPlayer.ts";
 import {useRoomLog, UseRoomLogOptions} from "./useRoomLog.ts";
 import {useSeenMark} from "./useSeenMark.ts";
 
-export const FLASH_MS = 1600
+const FLASH_MS = 1600
 
-export const TOAST_MS = 4000
+const TOAST_MS = 4000
 
 const NOTHING: ReadonlySet<string> = new Set()
 

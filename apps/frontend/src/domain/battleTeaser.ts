@@ -8,7 +8,7 @@ export const BATTLE_TEASED_STORAGE_KEY = "clickplanet-battle-teased"
 
 // A battle is teased in the day before it starts, as a page opens, and again once a few hours passed: a player who
 // comes back in the evening hears of it again, one who reloads does not.
-export const BATTLE_TEASER_WITHIN_MS = 24 * HOUR
+const BATTLE_TEASER_WITHIN_MS = 24 * HOUR
 export const BATTLE_TEASER_EVERY_MS = 6 * HOUR
 
 // A newcomer plays before a full screen talks of a battle: half the start bank, before it runs dry.

@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {foughtOver, losersOf, takersFrom, TileChange} from "./changes.ts"
+import {foughtOver, TileChange} from "./changes.ts"
 
 function took(to: string | undefined, from: string | undefined, count: number, first = 1, at = 0): TileChange[] {
     return Array.from({length: count}, (_, i) => ({tile: first + i, from, to, at}))
@@ -18,17 +18,5 @@ describe("the countries fought over", () => {
         const changes = [...took("ro", undefined, 600, 1), ...took("ro", "de", 600, 1, 50)]
 
         expect(foughtOver(changes, ground, 0, 10)).toEqual([])
-    })
-})
-
-describe("the losers and the takers", () => {
-    const changes = [...took("il", "dz", 30), ...took("es", "dz", 20, 31), ...took("bg", "ps", 10, 51), ...took(undefined, "fr", 40, 61)]
-
-    it("are ranked by tiles lost to another flag, a bomb's crater aside", () => {
-        expect(losersOf(changes)).toEqual(["dz", "ps"])
-    })
-
-    it("take from one loser, the most first", () => {
-        expect(takersFrom(changes, "dz")).toEqual(["il", "es"])
     })
 })

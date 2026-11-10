@@ -86,23 +86,6 @@ func TestEveryPositionIsOnTheUnitSphere(t *testing.T) {
 	}
 }
 
-func TestADiscInlandIsTheHoneycombSeries(t *testing.T) {
-	const deepInlandTile = 14
-
-	for radius, expected := range map[int]int{1: 7, 2: 19, 3: 37, 4: 61, 5: 91} {
-		assert.Len(t, geography.Disc(deepInlandTile, radius), expected, "radius %d", radius)
-	}
-}
-
-func TestNoDiscIsBiggerThanTheHoneycombSeries(t *testing.T) {
-	const radius = 3
-	ceiling := 1 + 3*radius*(radius+1)
-
-	for id := uint32(1); id <= tiles; id += 97 {
-		require.LessOrEqual(t, len(geography.Disc(id, radius)), ceiling, "tile %d", id)
-	}
-}
-
 func TestAdjacencyAloneFindsTheContinents(t *testing.T) {
 	sizes := landmassSizes(geography)
 

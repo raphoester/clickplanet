@@ -27,7 +27,8 @@ internal/gamemaster/
     migrations/                     schedule_entries, entry_kind, entry_description, seasons (season 0 seeded),
                                     entry_times, scored_moments (scored_rounds, opened_rounds, closed_books, outbox),
                                     season_finales (season 0's Final Battle seeded), told_days, halloween_kind,
-                                    halloween_times, told_battles_and_seasons, arenas (battle_modes, closed_arenas)
+                                    halloween_times, told_battles_and_seasons, arenas (battle_modes, closed_arenas),
+                                    drop_scored_round_book, drop_halloween_kind
     schedule/                       EntryID, SetName, Kind, Description, Times, Priority, Draft, Entry (NewEntry, Edited,
                                     Changeable), Schedule (New, With, TurnAt, SinceAt, BattlesAfter), Finale, Turn; the
                                     Store, Keeper and IDProvider ports, Playable; the store's contract suite; FakeKeeper and
@@ -111,17 +112,16 @@ internal/gamemaster/
 `gamemaster.schedule_entries`. Each has an end: one that never ended could never be stopped.
 
 **The times are how many times a day's points a battle scores** (`schedule.Times`, column `times`): 1 to 10 for a
-battle, 0 for a plain or a Halloween entry, which scores nothing; anything else is refused with the draft's other reasons
+battle, 0 for a plain entry, which scores nothing; anything else is refused with the draft's other reasons
 (`ErrInvalidEntry`), and postgres checks it too. Migration `20261028130000_entry_times` gave every battle kept 3: the
 only one planned was the Final Battle, worth three days.
 
 **The kind is what the entry is to the players** (`schedule.Kind`, the postgres enum `entry_kind`): `battle`, which
-the game client gives a war-like look, `halloween`, a plain entry the client dresses for Halloween (migration
-`20261031130000_halloween_kind`, and `20261031150000_halloween_times` for postgres's check on its times: a kind added
-to the enum is a kind added to that check too), or `plain`, a change of the rules with no look for them (a quieter antibot bound for a
+the game client gives a war-like look, or `plain`, a change of the rules with no look for them (a quieter antibot bound for a
 day). Only a battle is a round, or on the timeline. The set's name is the operator's word and never crosses to the players; the kind is the published
 language the client reads (see [The game client](#the-game-client)). A kind nobody knows is refused
-(`ErrUnknownKind`). More kinds will come: each is a value of the enum, in the proto and in postgres, and a word the
+(`ErrUnknownKind`). The `halloween` kind went on 2026-11-10 (`20261110150000_drop_halloween_kind`): the one entry of
+that kind, over since 2026-10-31, plays on as a plain one. More kinds will come: each is a value of the enum, in the proto and in postgres, and a word the
 client interprets.
 
 **The description is the entry's words for the players** (`schedule.Description`): what its rules are, in plain

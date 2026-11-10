@@ -1,8 +1,0 @@
-services:
-  backend:
-    image: clickplanet-back:local
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./cmd/api/config.yaml:/home/app/config/config.yaml
-    command: /home/app/api -config /home/app/config/config.yaml

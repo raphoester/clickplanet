@@ -598,7 +598,7 @@ describe("ChatPanel", () => {
             JSON.stringify({authorId: "author-1"}),
         ))
 
-        it("posts the message with the identity and the country being played", async () => {
+        it("posts the message with the country being played", async () => {
             const {backend} = stubBackend()
             const {user} = setup(backend)
             await screen.findByRole("textbox", {name: "Message"})
@@ -606,7 +606,6 @@ describe("ChatPanel", () => {
             await user.type(messageBox(), "hello{Enter}")
 
             expect(backend.sendMessage).toHaveBeenCalledWith({
-                authorId: "author-1",
                 countryCode: "fr",
                 text: "hello",
             })
@@ -1166,7 +1165,6 @@ describe("ChatPanel replies", () => {
         await user.type(messageBox(), "we do{Enter}")
 
         expect(backend.sendMessage).toHaveBeenCalledWith({
-            authorId: "author-1",
             countryCode: "fr",
             text: "we do",
             replyTo: "m1",

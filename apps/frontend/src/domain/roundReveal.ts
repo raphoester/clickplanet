@@ -4,7 +4,7 @@ import {debriefedFor, debriefScreensOf} from "./battleBrief.ts"
 
 export const REVEAL_WITHIN_MS = 6 * 60 * 60 * 1000
 export const REVEAL_SEEN_STORAGE_KEY = "clickplanet-round-seen"
-export const REVEAL_ROWS = 10
+const REVEAL_ROWS = 10
 const PODIUM = 3
 
 export const ROUND_REVEAL = {podium: 3.4, slide: 0.7, settle: 1.6, hold: 2.4, champion: 2.2} as const
@@ -22,7 +22,7 @@ export function seasonOverLine(season: number): string {
     return `Season ${season} is over!`
 }
 
-export const MEDALS = ["🥇", "🥈", "🥉"] as const
+const MEDALS = ["🥇", "🥈", "🥉"] as const
 
 export function medalOf(rank: number): string {
     return MEDALS[rank - 1] ?? ""

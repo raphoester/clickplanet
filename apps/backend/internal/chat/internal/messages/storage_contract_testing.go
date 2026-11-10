@@ -32,7 +32,7 @@ func (s *StorageContractSuite) message(snapshot Snapshot) Message {
 }
 
 func (s *StorageContractSuite) keep(message Message, ip string) {
-	s.Require().NoError(s.storage.Append(context.Background(), NewRecord(message, "some-uuid", ip, "test-agent")))
+	s.Require().NoError(s.storage.Append(context.Background(), NewRecord(message, ip, "test-agent")))
 }
 
 func (s *StorageContractSuite) sent(text string, at time.Time) Message {

@@ -97,7 +97,8 @@ message ClickTried {
   string scope = 1;
   string account_id = 2;
   bool linked = 3;
-  google.protobuf.Timestamp account_created_at = 4;
+  reserved 4;
+  reserved "account_created_at";
   uint32 tile_id = 5;
   string country = 6;
   google.protobuf.Timestamp tried_at = 7;

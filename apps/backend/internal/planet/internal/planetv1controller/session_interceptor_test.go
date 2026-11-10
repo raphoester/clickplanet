@@ -25,47 +25,46 @@ import (
 )
 
 type fakeVerifier struct {
-	valid map[string]cpsession.ID
-	named map[string]cpsession.ID
+	valid map[string]cpsession.AccountID
+	named map[string]cpsession.AccountID
 	asked []string
 }
 
 func (v *fakeVerifier) Verify(_ context.Context, token string, _ string, _ time.Time) (*cpsession.Claims, error) {
 	v.asked = append(v.asked, token)
 
-	if id, ok := v.named[token]; ok {
-		return &cpsession.Claims{ID: id}, nil
+	if account, ok := v.named[token]; ok {
+		return &cpsession.Claims{Account: account}, nil
 	}
-	id, ok := v.valid[token]
+	account, ok := v.valid[token]
 	if !ok {
 		return nil, errors.New("no")
 	}
-	return &cpsession.Claims{ID: id, Attested: true}, nil
+	return &cpsession.Claims{Account: account, Attested: true}, nil
 }
 
 type sessionResult struct {
-	ran       bool
-	sessionID string
-	registry  prometheus.Gatherer
-	err       error
+	ran      bool
+	account  string
+	registry prometheus.Gatherer
+	err      error
 }
 
 func checkSession(
 	t *testing.T,
 	verifier ClickSessionVerifier,
-	enforce bool,
 	procedure string,
 	token string,
 ) sessionResult {
 	t.Helper()
 
 	registry := prometheus.NewRegistry()
-	interceptor := NewSessionInterceptor(verifier, nil, enforce, registry)
+	interceptor := NewSessionInterceptor(verifier, nil, registry)
 
 	result := sessionResult{registry: registry}
 	next := connect.UnaryFunc(func(ctx context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {
 		result.ran = true
-		result.sessionID = cpctx.GetSessionID(ctx)
+		result.account = cpctx.GetAccount(ctx)
 		return connect.NewResponse(&planetv1.ClickResponse{}), nil
 	})
 
@@ -83,25 +82,23 @@ func checkSession(
 
 func validVerifier() *fakeVerifier {
 	return &fakeVerifier{
-		valid: map[string]cpsession.ID{"good-token": "abcd1234"},
-		named: map[string]cpsession.ID{"identity-token": "ef567890"},
+		valid: map[string]cpsession.AccountID{"good-token": {15: 1}},
+		named: map[string]cpsession.AccountID{"identity-token": {15: 2}},
 	}
 }
 
-func TestSessionInterceptorWhenEnforcing(t *testing.T) {
-	const enforce = true
-
-	t.Run("lets a click with a valid session through and puts its id on the context", func(t *testing.T) {
-		result := checkSession(t, validVerifier(), enforce, planetv1connect.ClickServiceClickProcedure, "good-token")
+func TestSessionInterceptor(t *testing.T) {
+	t.Run("lets a click with a valid session through and puts its account on the context", func(t *testing.T) {
+		result := checkSession(t, validVerifier(), planetv1connect.ClickServiceClickProcedure, "good-token")
 
 		require.NoError(t, result.err)
 		require.True(t, result.ran)
-		require.Equal(t, "abcd1234", result.sessionID)
+		require.Equal(t, cpsession.AccountID{15: 1}.String(), result.account)
 		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "valid"), 1e-9)
 	})
 
 	t.Run("refuses a click carrying no session at all", func(t *testing.T) {
-		result := checkSession(t, validVerifier(), enforce, planetv1connect.ClickServiceClickProcedure, "")
+		result := checkSession(t, validVerifier(), planetv1connect.ClickServiceClickProcedure, "")
 
 		require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(result.err))
 		require.ErrorIs(t, result.err, ErrNoSession)
@@ -110,7 +107,7 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 	})
 
 	t.Run("refuses a click carrying a session it did not mint", func(t *testing.T) {
-		result := checkSession(t, validVerifier(), enforce, planetv1connect.ClickServiceClickProcedure, "forged")
+		result := checkSession(t, validVerifier(), planetv1connect.ClickServiceClickProcedure, "forged")
 
 		require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(result.err))
 		require.False(t, result.ran)
@@ -118,7 +115,7 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 	})
 
 	t.Run("refuses a click whose token only names its holder, so the client passes Turnstile", func(t *testing.T) {
-		result := checkSession(t, validVerifier(), enforce, planetv1connect.ClickServiceClickProcedure, "identity-token")
+		result := checkSession(t, validVerifier(), planetv1connect.ClickServiceClickProcedure, "identity-token")
 
 		require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(result.err))
 		require.False(t, result.ran)
@@ -133,7 +130,7 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 			planetv1connect.ClickServiceOpenQuizProcedure,
 			planetv1connect.ClickServiceAnswerQuizProcedure,
 		} {
-			result := checkSession(t, validVerifier(), enforce, procedure, "")
+			result := checkSession(t, validVerifier(), procedure, "")
 
 			require.ErrorIs(t, result.err, ErrNoSession, procedure)
 			require.False(t, result.ran, procedure)
@@ -147,7 +144,7 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 			planetv1connect.ClickServiceGetMapProcedure,
 			planetv1connect.ClickServiceMapDensityProcedure,
 		} {
-			result := checkSession(t, verifier, enforce, procedure, "")
+			result := checkSession(t, verifier, procedure, "")
 
 			require.NoError(t, result.err, "a session is never needed to load or watch the planet")
 			require.True(t, result.ran)
@@ -157,46 +154,8 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 	})
 }
 
-func TestSessionInterceptorWhenObserving(t *testing.T) {
-	const enforce = false
-
-	t.Run("lets a click carrying no session through, and counts it", func(t *testing.T) {
-		result := checkSession(t, validVerifier(), enforce, planetv1connect.ClickServiceClickProcedure, "")
-
-		require.NoError(t, result.err)
-		require.True(t, result.ran)
-		require.Empty(t, result.sessionID)
-		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "missing"), 1e-9)
-	})
-
-	t.Run("lets a click carrying a forged session through, and counts it", func(t *testing.T) {
-		result := checkSession(t, validVerifier(), enforce, planetv1connect.ClickServiceClickProcedure, "forged")
-
-		require.NoError(t, result.err)
-		require.True(t, result.ran)
-		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "invalid"), 1e-9)
-	})
-
-	t.Run("lets a click whose token only names its holder through as if it had none, and counts it", func(t *testing.T) {
-		result := checkSession(t, validVerifier(), enforce, planetv1connect.ClickServiceClickProcedure, "identity-token")
-
-		require.NoError(t, result.err)
-		require.True(t, result.ran)
-		require.Empty(t, result.sessionID)
-		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "unattested"), 1e-9)
-	})
-
-	t.Run("still reports the id of a session it did mint", func(t *testing.T) {
-		result := checkSession(t, validVerifier(), enforce, planetv1connect.ClickServiceClickProcedure, "good-token")
-
-		require.NoError(t, result.err)
-		require.Equal(t, "abcd1234", result.sessionID)
-		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "valid"), 1e-9)
-	})
-}
-
 func TestSessionCheckRunsBeforeTheThrottle(t *testing.T) {
-	interceptor := NewSessionInterceptor(validVerifier(), nil, true, prometheus.NewRegistry())
+	interceptor := NewSessionInterceptor(validVerifier(), nil, prometheus.NewRegistry())
 
 	limiter := &fakeLimiter{allow: true}
 	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, onePrice, buckets), nil,
@@ -210,7 +169,7 @@ func TestSessionCheckRunsBeforeTheThrottle(t *testing.T) {
 }
 
 func TestSessionRefusalIsA401OverHTTP(t *testing.T) {
-	interceptor := NewSessionInterceptor(validVerifier(), nil, true, prometheus.NewRegistry())
+	interceptor := NewSessionInterceptor(validVerifier(), nil, prometheus.NewRegistry())
 
 	server := clickServer(t, connect.WithInterceptors(
 		errorNet(),

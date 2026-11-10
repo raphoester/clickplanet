@@ -18,8 +18,6 @@ type SignerConfig struct {
 
 type VerifierConfig struct {
 	Enabled bool
-
-	Enforce bool
 }
 
 const defaultTTL = time.Hour

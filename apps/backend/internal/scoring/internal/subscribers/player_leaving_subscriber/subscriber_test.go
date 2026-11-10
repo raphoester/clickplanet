@@ -32,7 +32,7 @@ func TestTheOtherPlayersNoLongerSeeALeavingPlayer(t *testing.T) {
 
 	departure, err := store.Departure(t.Context(), ada)
 	require.NoError(t, err)
-	assert.True(t, departure.Leaving())
+	assert.True(t, departure.TakeSnapshot().Leaving)
 }
 
 func TestADecisionWithNoTimeIsRefused(t *testing.T) {

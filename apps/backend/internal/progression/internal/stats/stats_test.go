@@ -67,16 +67,6 @@ func TestALateTakeCountsATileAndLeavesTheStreakAlone(t *testing.T) {
 	assert.Equal(t, "2026-09-18", counted.Streak().LastDay().String())
 }
 
-func TestAStreakReadsZeroOnceAWholeDayWentBy(t *testing.T) {
-	counted := taken(beforeMidnight.Add(-24*time.Hour), beforeMidnight)
-	today := stats.DayOf(beforeMidnight)
-
-	assert.Equal(t, uint32(2), counted.AsOf(today).Streak().Days())
-	assert.Equal(t, uint32(2), counted.AsOf(today.Following()).Streak().Days(), "yesterday's streak can still be extended today")
-	assert.Equal(t, uint32(0), counted.AsOf(today.Following().Following()).Streak().Days())
-	assert.Equal(t, uint32(2), counted.AsOf(today.Following().Following()).StreakBest())
-}
-
 func TestAStreakCoversEachDayOfItsRunAndNoOther(t *testing.T) {
 	counted := taken(beforeMidnight.Add(-24*time.Hour), beforeMidnight, beforeMidnight.Add(24*time.Hour))
 	first, last := stats.DayOf(beforeMidnight.Add(-24*time.Hour)), stats.DayOf(beforeMidnight.Add(24*time.Hour))
@@ -97,7 +87,6 @@ func TestNoTakeIsNoDay(t *testing.T) {
 
 	assert.True(t, counted.Streak().LastDay().Empty())
 	assert.Empty(t, counted.Streak().LastDay().String())
-	assert.Equal(t, counted, counted.AsOf(stats.DayOf(beforeMidnight)))
 }
 
 func TestAMessageCountsAMessageAndLeavesTheTilesAndTheStreakAlone(t *testing.T) {

@@ -64,7 +64,6 @@ func send(useCase stubUseCase) (*connect.Response[chatv1.SendMessageResponse], e
 
 func sendAs(ctx context.Context, useCase stubUseCase) (*connect.Response[chatv1.SendMessageResponse], error) {
 	req := connect.NewRequest(&chatv1.SendMessageRequest{
-		AuthorId:         "some-uuid",
 		CountryId:        "fr",
 		Body:             &chatv1.SendMessageRequest_Text{Text: "hello planet"},
 		ReplyToMessageId: "message-0",
@@ -81,7 +80,6 @@ func TestSendMessageMapsTheRequest(t *testing.T) {
 
 	assert.Equal(t, send_message_usecase.In{
 		Account:   cpsession.NoAccount,
-		AuthorID:  "some-uuid",
 		Room:      messages.World,
 		CountryID: "fr",
 		Text:      "hello planet",

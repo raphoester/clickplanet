@@ -60,7 +60,7 @@ func TestAMessageCarriesWhatItsSnapshotHolds(t *testing.T) {
 
 	encoded := chatmessage.Encode(messages.Restored(t, messages.Snapshot{
 		ID: "message-1", SentAt: at, Account: ada, Country: "fr", Text: "hello",
-	}), nil, 0)
+	}))
 
 	assert.Equal(t, "message-1", encoded.GetId())
 	assert.Equal(t, at.UnixMilli(), encoded.GetSentAtUnixMs())
@@ -72,7 +72,7 @@ func TestAMessageCarriesWhatItsSnapshotHolds(t *testing.T) {
 func TestAMessageWithNoAccountCarriesNoAccountID(t *testing.T) {
 	encoded := chatmessage.Encode(messages.Restored(t, messages.Snapshot{
 		ID: "message-1", SentAt: time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC), Country: "fr", Text: "hello",
-	}), nil, 0)
+	}))
 
 	assert.Empty(t, encoded.GetAuthorAccountId(), "not an id of zeros")
 }
@@ -82,8 +82,8 @@ func TestAReplyCarriesTheMessageItQuotesAndAPlainMessageNone(t *testing.T) {
 
 	reply := chatmessage.Encode(messages.Restored(t, messages.Snapshot{
 		ID: "message-2", Quote: messages.Quote{MessageID: "message-1", Account: ada, Text: "who holds the north"},
-	}), nil, 0)
-	plain := chatmessage.Encode(messages.Restored(t, messages.Snapshot{ID: "message-3"}), nil, 0)
+	}))
+	plain := chatmessage.Encode(messages.Restored(t, messages.Snapshot{ID: "message-3"}))
 
 	assert.Equal(t, "message-1", reply.GetReplyTo().GetMessageId())
 	assert.Equal(t, ada.String(), reply.GetReplyTo().GetAuthorAccountId())
