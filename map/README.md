@@ -132,7 +132,8 @@ first run. A second run over its own output would write an identity migration.
 **The rest of the checklist**, which the generator prints:
 
 ```bash
-cd apps/backend && make map          # copy both blobs, then commit all three copies of each
+cd apps/backend && make map          # copy both blobs, then commit every copy
+cd apps/backoffice && npm run map    # copy the coordinates blob
 cd apps/frontend && npm run borderLines   # traced from both blobs, stale until it is run
 cd apps/frontend && npm run landmask      # which lattice points are tiles, what the browser downloads
 cd apps/frontend && npm run earth         # the globe's texture, cut from the new tile field

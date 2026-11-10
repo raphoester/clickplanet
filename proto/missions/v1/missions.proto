@@ -26,8 +26,8 @@ message Heartbeat {}
 
 // The caller's own missions of the day, drawn at its first read or take for the flag it played then.
 message GetMissionsResponse {
-  string country_id = 1 [deprecated = true];
-  bool enlisted = 2 [deprecated = true];
+  reserved 1, 2;
+  reserved "country_id", "enlisted";
   int64 ends_at_unix_ms = 3;
   repeated Mission missions = 4;
   // The day's mission of the flag the caller plays now, the same for each of its players. Unset with no flag.

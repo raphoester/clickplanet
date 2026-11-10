@@ -1,7 +1,8 @@
 # What this is
 
 **The operator's page, at `backoffice.clickplanet.lol`.** It calls the backend's `AdminService`s, which were
-reachable only over SSH before, and **every admin method has a place on it**. One page at a time, picked in the
+reachable only over SSH before. **Most admin methods have a place on it**; the jobs' calls and a few reads are
+Claude's and the jobs' alone (see [Claude as a connector](../../backend/docs/connector.md)). One page at a time, picked in the
 burger menu (see [The menu](menu.md)), by group:
 
 - **Overview**: Home, how the game is doing now and over the last hours (see [The home page](home.md)).

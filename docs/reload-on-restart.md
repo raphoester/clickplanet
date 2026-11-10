@@ -1,6 +1,6 @@
 # A server restart reloads the page
 
-**The game page reloads itself when the backend it talks to restarts.** The frontend (Cloudflare Pages) and the
+**The game page reloads itself when the backend it talks to restarts.** The frontend (a Cloudflare Worker) and the
 backend deploy apart, and a page stays open for hours. Before this, every change of the wire had to keep the old
 shape for the tabs opened before the deploy: the old field deprecated, both paths served, the old one cleared in a
 second PR. Now a page that sees a new server reloads, and gets the bundle built for it. So a change of the wire can be
@@ -37,11 +37,11 @@ so the player plays on as before.
 
 ## The order of the deploys
 
-**The new frontend must be live before the backend restarts.** One merge starts both: Pages builds the frontend, and
+**The new frontend must be live before the backend restarts.** One merge starts both: Workers Builds deploys the frontend, and
 the `deploy backend` workflow builds the image and restarts the container (about 3 minutes, sometimes much more).
 
 - **Frontend first** is the normal case. A page loaded between the two is the new bundle on the old server: what it
   calls new fails until the backend restarts, and the restart reloads it.
 - **Backend first** reloads every page onto the old bundle, and nothing reloads it again until the next restart.
-  When a merge with a hard switch deployed in that order, run `deploy backend` again (`workflow_dispatch`) once Pages
-  is live: the second restart reloads the pages onto the new bundle.
+  When a merge with a hard switch deployed in that order, run `deploy backend` again (`workflow_dispatch`) once the
+  frontend is live: the second restart reloads the pages onto the new bundle.

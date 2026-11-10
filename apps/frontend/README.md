@@ -15,7 +15,7 @@ world change live.
 | **3D rendering** | Three.js with custom GLSL shaders                      |
 | **Real-time**    | Connect server streaming + Protocol Buffers (binary)   |
 | **API**          | HTTP + protobuf serialization via `@bufbuild/protobuf` |
-| **Deployment**   | Docker → Nginx, DigitalOcean                           |
+| **Deployment**   | Cloudflare Worker with static assets                   |
 
 ---
 
@@ -45,27 +45,10 @@ Country flag textures are packed into a single sprite atlas to minimize draw cal
 attribute per point (`regionVector`: x, y, width, height in atlas UV space), updated on the GPU directly when ownership
 changes.
 
-### Real-time architecture
+### The rest
 
-The backend exposes three contracts, implemented behind a clean interface:
-
-```typescript
-interface TileClicker {
-    clickTile(tileId, countryId): Promise<void>
-}
-
-interface OwnershipsGetter {
-    getCurrentOwnershipsByBatch(...): Promise<void>
-}
-
-interface UpdatesListener {
-    listenForUpdatesBatch(callback): () => void
-}
-```
-
-On load, tile ownerships are fetched in batches of 10,000 via HTTP (protobuf binary). A `ListenForUpdates` server
-stream then carries live `TileUpdate` messages, reopened with a capped backoff whenever it drops. Updates are batched client-side at 100ms intervals before being applied to the GPU
-geometry, avoiding per-message re-renders under high traffic.
+The docs are in [`docs/`](docs), indexed by [`CLAUDE.md`](CLAUDE.md): start with
+[Architecture](docs/architecture.md) and [Data flow](docs/data-flow.md).
 
 ---
 
@@ -75,5 +58,5 @@ geometry, avoiding per-message re-renders under high traffic.
 npm install
 npm run dev       # dev server: home page at http://localhost:5173, game at /play
 npm run build     # production build
-npm run proto     # regenerate types from proto/planet/v1/planet.proto
+npm run proto     # regenerate types from the shared /proto
 ```

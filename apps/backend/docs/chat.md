@@ -16,7 +16,7 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 The client also sends a UUID it persists locally, kept in the log and **trusted for nothing**. **The sender's address is never public.** It is kept in `chat.messages.ip` for moderation. The salted hash of it that used to go beside every name (`author_tag`) is gone from the wire and the table (migration `20260918210000_drop_tag`): it changed whenever a player changed network, and it told anybody which names shared one.
 
-**Abuse controls live at the edge**, in two interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). **Both are `shared/cpconnect`'s**, the same ones the click chain uses — see [Shared interceptors](interceptors.md). The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline once let a sender forge a line in the old log file, and a NUL is not valid in a postgres `text`. **A text with a character of a historic script is refused** (`cpscripts.Historic`, see [Shared](shared.md)): lines of wide cuneiform signs were spammed in Nov 2026. Every alphabet written today, emojis, punctuation and symbols pass.
+**Abuse controls live at the edge**, in four interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every unary chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load), and `chat.reactionLimiter` and `chat.seenLimiter` throttle `React` and `MarkSeen`. **All are `shared/cpconnect`'s**, the same ones the click chain uses — see [Shared interceptors](interceptors.md). The domain then bounds the message in **runes** (280), validates UTF-8, and **strips control characters** — a newline once let a sender forge a line in the old log file, and a NUL is not valid in a postgres `text`. **A text with a character of a historic script is refused** (`cpscripts.Historic`, see [Shared](shared.md)): lines of wide cuneiform signs were spammed in Nov 2026. Every alphabet written today, emojis, punctuation and symbols pass.
 
 **A text that says a banned phrase is refused**, at send, before the player module is asked anything (`Limits.WithBanned`,
 `messages.Banned`): the first of the three layers of [Chat moderation](../../../docs/moderation.md), and the only one that
@@ -55,7 +55,7 @@ The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Cl
 
 **Each table has its own `Storage` port and a contract suite** (`messages.StorageContractSuite`, `reactions.StorageContractSuite`, behind the `testing` tag). The postgres stores run it against a real postgres; `inmemory_message_storage` and `inmemory_reaction_storage` run it too, and exist **only for tests** — both files carry the `testing` tag, have no persistence port and are never built into the binary. Use case tests use them instead of hand-written fakes.
 
-**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, then announcements, older than `retention`, then the mutes that ended before it and the removals made before it, then the moderation history older than its own `moderationRetention` (see [The moderation history](#the-moderation-history)), once at boot and every `pruneInterval`, and `log_prune` logs it. Each set of tables is `prune_usecase.KeptFor(retention, pruners...)`. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
+**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, then announcements, older than `retention`, then the mutes that ended before it, the removals made before it and the judgements made before it, then the moderation history older than its own `moderationRetention` (see [The moderation history](#the-moderation-history)), once at boot and every `pruneInterval`, and `log_prune` logs it. Each set of tables is `prune_usecase.KeptFor(retention, pruners...)`. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
 
 The table holds **personal data** — IPs next to user-authored text — so the retention window is a policy decision rather than a cache size.
 
@@ -209,9 +209,9 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
 - **It keeps its place and its author, and loses its text and its reactions**: the history answers it with
   `removed` and no text, and the quote of every reply to it too (`history_query`). The text never leaves the server
   again. The client writes "This message has been deleted".
-- **Nobody acts on it**: `Store.Shown` and `Store.Message` count it in the window and refuse it, so a reaction or a
+- **Nobody acts on it**: `Store.Message` counts it in the window and refuses it, so a reaction or a
   reply to it is `NotFound`. The parity test runs removals through the history, `React` and `SendMessage`.
-- **Only a kept message can be removed** (`Store.Kept`: within the retention, removed or not), else
+- **Only a kept message can be removed** (`Store.KeptMessage`: within the retention, removed or not), else
   `removals.ErrUnknownMessage`, `NotFound`. Removing twice keeps the latest time.
 - **Every open stream is told**: `remove_message_usecase` publishes `feed.MessageRemoved` once the removal is kept,
   and the stream sends `message_removed`, which the client empties at once. A client that missed it shows the
@@ -267,7 +267,8 @@ player's: see [Who owns which history](#who-owns-which-history).
 - **Written in the action's transaction**: `mute_usecase`, `unmute_usecase` and `remove_message_usecase` each open one
   (`InTx`) and call `moderation.Storage.Record` beside their own store, so a mute, an unmute or a removal is never kept
   without its record, nor a record without it. The domain builds it (`moderation.NewMute`, `NewUnmute`, `NewRemoval`);
-  the store only writes, and the query reads.
+  the store writes it and reads an account's actions back for the judge (`ActionsOn`), and the query reads it for the
+  operator.
 - **The reason** is `moderation.ReasonOf`: support's text rule (`notes.TextOf`: valid UTF-8, lines kept, every other
   control character stripped, the ends trimmed), but empty is no reason, and 500 characters at most. A reason it refuses
   is `InvalidArgument`, before anything is done. An older caller sends none, and its action is kept with none.
@@ -427,8 +428,8 @@ account, its text), which the client draws above the reply, its author named by 
 - **One level.** A quote is the message answered, never what that one answered: a reply to a reply quotes the
   reply alone.
 - **Only a message in the window can be answered** (`messages.ErrNotShown` → `NotFound`), the rule `React` has.
-  `Storage.Message` asks the same question as `Shown` and answers the message, restored. The contract suite pins
-  the two against each other, and a parity test against the history.
+  `Storage.Message` asks it for one id and answers the message, restored. The contract suite pins it
+  (`TestAMessageIsReadOnlyWhileItIsShown`), and a parity test against the history.
 - **`messages.Thread` makes the reply**: it holds the storage, the clock and the window, and the use case calls one
   method. `Reply(ctx, draft, id)` answers the draft as it is for no id. Otherwise it reads the message answered and
   answers `draft.Answering(answered)`.
@@ -447,7 +448,7 @@ account, its text), which the client draws above the reply, its author named by 
 
 - **Who reacts** (`reactions.ReactorOf`): the account, `account:<uuid>`, whether it chose a username or not. No account is refused with `Unauthenticated` (`messages.ErrNoAccount`). So two accounts behind one address are two reactors. A reactor gives each reaction at most once per message. Rows from before, `guest:<tag>`, match no caller and age out with the retention.
 - **`React` is on or off, not a toggle.** Asking for what is already there changes nothing, is not written and is not published, so a retry cannot flip it twice. It answers the message's counts with `mine` set for the caller.
-- **Only a message in the window can be reacted to** (`ErrUnknownMessage` → `NotFound`): nobody is shown any other. `postgres_message_store.Shown` asks the same question as the history, for one id.
+- **Only a message in the window can be reacted to** (`ErrUnknownMessage` → `NotFound`): nobody is shown any other. `postgres_message_store`'s `Message` asks the same question as the history, for one id.
 - **Saved, then read back, then published, with no lock.** Two reactions at once can publish their tallies in either order, so **each tally carries a version**: `chat.reaction_versions` holds one counter per message, bumped in the same statement as the change (a data-modifying CTE: no row changed, no bump), and read in the same statement as the reactions, so a tally and its version are one snapshot. The client keeps the highest version it has seen per message and drops a lower one. This holds across processes, which an in-memory lock would not. `reactions.Reactions` is a value: `With`/`Without` answer a copy.
 - **The stream sends all of a message's counts, not the difference** (`ReactionsChanged`), with their version, so a client that missed a frame is right on the next, and one that gets two out of order keeps the newer. It cannot know who reads it, so `mine` is always false there; the client keeps its own between calls.
 - **`GetHistory` marks the caller's own.** It reads the optional token (the session reader covers it): the account's reactions are marked, and a caller with no token has none.
@@ -504,7 +505,7 @@ was sent.
   `ErrInvalidMessage`. So no player makes a reader's browser load an address it chose.
 - **An operator can take a player's GIFs away and leave it its text**: a mute of the kind `Gifs` (see
   [Mutes](#mutes)).
-- **A guest sends no GIF**: `Message.SentBy(author)` refuses it with `ErrGuestGif`, `PermissionDenied`, once the
+- **A guest sends no GIF**: `Message.CheckSender(author)` refuses it with `ErrGuestGif`, `PermissionDenied`, once the
   author is known and before anything is kept. A guest account is free and a private tab is a new one, so a mute
   does not stop a guest who posts GIFs; the same reason a guest's address is not a link. The player module says who
   is a guest: the `guest` of `IntroducePlayer`'s player, and `rpc_player_authors` answers `messages.GuestOf`.

@@ -66,8 +66,8 @@ Everything below exists to make whatever it is set to real:
 - **An answer cannot be sent without the question having been read.** A token
   answered before it was opened fails: that is a client guessing at three choices
   it was never sent.
-- **Each bank entry carries five wrong answers and a round shows two**, drawn at
-  the open. The same question is not the same three choices twice, so "press the
+- **Each bank entry carries five wrong answers and a round shows two**, drawn when
+  the quiz is offered (`Bank.Draw`). The same question is not the same three choices twice, so "press the
   second one for Estonia" is worth nothing.
 
 **A wrong answer is not a failed call.** It resolves, grants nothing, and says
@@ -104,8 +104,8 @@ which is the whole distinction: after a win there is nothing left to give away.
 
 **Both quiz procedures are session-gated**, beside `ClaimBonus` on
 `NewSessionInterceptor`'s list. `AnswerQuiz` because it grants the same charge a
-box does, and `OpenQuiz` not only for symmetry: opening is what starts the five
-seconds, and the caller they are started for has to be the caller that answers.
+box does, and `OpenQuiz` not only for symmetry: opening is what starts the
+`answerWindow`, and the caller it is started for has to be the caller that answers.
 
 **Switched on and off from the rule set** (`bonuses.quiz.enabled`). The bank is loaded at
 every boot, so a switch needs no restart. Off, no quiz is asked and the boxes fly

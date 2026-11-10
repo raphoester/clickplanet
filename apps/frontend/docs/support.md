@@ -54,7 +54,7 @@ the foot of Settings, and a report of another player, from that player's card.
   two calls were one tile too many in a place of eight.
 - **A click beside it does not close it once something is typed**
   (`stayOnBackdropClick`): the ×, Escape and Close still do.
-- `SettingsPlace` shows Feedback only with a `support` backend wired. It asks
+- `SettingsPlace` always shows the Feedback tile. It asks
   for `FeedbackBackend` (the two sends and the two contracts of the files), not
   the whole `SupportBackend`.
 - **A player is reported from its card.** With a `reporter` wired, `PlayerCard`

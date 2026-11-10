@@ -30,6 +30,6 @@ listener, and the backoffice on the admin listener, behind the gate (see [Operat
 - **Its tables** (`clips` schema, migration `20261025090000_snapshots`): `snapshots(taken_at, summary)` and
   `snapshot_rows(taken_at, post_id, platform, document)`, a row deleted with its snapshot. Nothing prunes them: a
   day is about 2 MB at 4 weeks of posts read daily, compressed by postgres.
-- **The pool is a closer**, not `cppg.CloseAfter`: the module runs nothing in the background, and `CloseAfter` of
-  no runner closes the pool as soon as the server starts. `module_test.go` boots it and calls it on the console
-  listener, which fails if it does.
+- **The pool closes after the runners**, with `cppg.CloseAfter` around the `player.v1.PlayerForgotten` subscribers
+  (casts, appearances, opt-outs), not as a closer: closers run before the runners stop, and the runners use the pool
+  and Redis. `module_test.go` boots it and calls it on the console listener, which fails if the pool is closed.

@@ -6,7 +6,7 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
 - **It plays from the gamemaster's debrief.** The gamemaster's stream carries the
   last moment scoring scored (`Debrief`: a day, a battle or a season), in its words
   (Day 24, the battle's number and times, the finale, Season 0) and with its ids.
-  `useDebriefed` reads the numbers from scoring by them: the round's results, takes,
+  `useScheduleFeed` reads the numbers from scoring by them, into `useSchedule`'s `closed`: the round's results, takes,
   players and the book before and after it (`GetRound`), or, for a season no round
   finished, the book's scores (`GetScores`). `domain/debrief.ts`'s `closedOf` joins
   the two into a `ClosedRound` (`moment`: `day`, `battle` or `season`), and

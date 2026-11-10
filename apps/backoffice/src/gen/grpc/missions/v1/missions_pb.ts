@@ -159,18 +159,6 @@ export class Heartbeat extends Message<Heartbeat> {
  */
 export class GetMissionsResponse extends Message<GetMissionsResponse> {
   /**
-   * @generated from field: string country_id = 1 [deprecated = true];
-   * @deprecated
-   */
-  countryId = "";
-
-  /**
-   * @generated from field: bool enlisted = 2 [deprecated = true];
-   * @deprecated
-   */
-  enlisted = false;
-
-  /**
    * @generated from field: int64 ends_at_unix_ms = 3;
    */
   endsAtUnixMs = protoInt64.zero;
@@ -195,8 +183,6 @@ export class GetMissionsResponse extends Message<GetMissionsResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "missions.v1.GetMissionsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "enlisted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "ends_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 4, name: "missions", kind: "message", T: Mission, repeated: true },
     { no: 5, name: "flag_mission", kind: "message", T: FlagMission },

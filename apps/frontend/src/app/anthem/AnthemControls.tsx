@@ -42,8 +42,11 @@ export default function AnthemControls({anthem}: AnthemControlsProps) {
             anthem: {on: true, volume: settings.anthem.volume > 0 ? settings.anthem.volume : 0.3},
         })
 
-    const setVolume = (volume: number) =>
-        setSettings({...settings, anthem: {on: volume > 0 || settings.anthem.on, volume}})
+    const setVolume = (volume: number) => setSettings({
+        ...settings,
+        enabled: volume > 0 || settings.enabled,
+        anthem: {on: volume > 0 || settings.anthem.on, volume},
+    })
 
     return <section className={playing ? "anthem anthem--playing" : "anthem"} aria-label="National anthem">
         <button type="button"

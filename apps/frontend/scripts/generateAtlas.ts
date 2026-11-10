@@ -13,6 +13,8 @@ const pngFiles = fs.readdirSync(spritesDir)
 Smith.default.run({src: pngFiles}, (err: Error | null, result: Smith.SpritesmithResult) => {
     if (err) throw err;
 
-    const {fileName, width, height} = writeAtlas(result.image, result.coordinates);
+    const byCode = Object.fromEntries(Object.entries(result.coordinates)
+        .map(([file, coordinates]) => [path.basename(file, ".png"), coordinates]));
+    const {fileName, width, height} = writeAtlas(result.image, byCode);
     console.log(`Atlas generated: ${fileName} (${width}x${height}, ${pngFiles.length} flags)`);
 });

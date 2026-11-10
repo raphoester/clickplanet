@@ -6,7 +6,7 @@ import sharp from "sharp"
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const staticDir = join(frontendRoot, "static")
-const pages = ["index.html", "play.html"].map(page => join(frontendRoot, page))
+const pages = ["index.html", "play.html", "archive.html"].map(page => join(frontendRoot, page))
 
 export const OG_IMAGE_WIDTH = 1200
 export const OG_IMAGE_HEIGHT = 627

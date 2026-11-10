@@ -443,8 +443,6 @@ promo:
       accessKeyId: ""
       secretAccessKey: ""
 
-# The connector's MCP endpoint, on the admin listener: every admin method is a tool. The url's origin is the
-# authorization server's, so auth.connector.issuer must be that origin (http://localhost:8083/mcp).
 # The game's posts on its own TikTok and YouTube, through Zernio: how many each platform takes in a day, when each post
 # goes out, and the posts already there. The jobs that post ask it on the console listener. No key: every call is
 # refused, and the rest of the server runs.
@@ -452,6 +450,8 @@ publishing:
   zernio:
     apiKey: ""
 
+# The connector's MCP endpoint, on the admin listener: every admin method is a tool. The url's origin is the
+# authorization server's, so auth.connector.issuer must be that origin (http://localhost:8083/mcp).
 mcp:
   enabled: false
   url: ""

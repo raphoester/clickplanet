@@ -13,12 +13,10 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/session/v1/sessionv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/postgres_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/random_token_generator"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/create_anonymous_session_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/create_session_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/delete_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase"
@@ -99,7 +97,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/oauthcontroller/register_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/oauthcontroller/token_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionheader"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/cloudflare_mailer"
@@ -400,15 +397,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		if err := mountConnector(config, props, connectionSealer, adminTokens, db, clock); err != nil {
 			return err
 		}
-	}
-
-	sessionService := sessionv1controller.NewSessionService(
-		create_anonymous_session_usecase.New(attester, signer, clock), props.Logger,
-	)
-	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
-		return sessionv1connect.NewSessionServiceHandler(sessionService, options...)
-	}, sessionv1controller.NewRateLimitInterceptor(mintLimiter)); err != nil {
-		return fmt.Errorf("failed to mount the deprecated session.v1: %w", err)
 	}
 
 	props.Logger.Info(

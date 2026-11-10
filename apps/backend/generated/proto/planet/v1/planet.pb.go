@@ -3427,9 +3427,7 @@ type BombDropped struct {
 	Radius         float64                `protobuf:"fixed64,3,opt,name=radius,proto3" json:"radius,omitempty"`
 	ClearedTileIds []uint32               `protobuf:"varint,4,rep,packed,name=cleared_tile_ids,json=clearedTileIds,proto3" json:"cleared_tile_ids,omitempty"`
 	Point          *GlobePoint            `protobuf:"bytes,5,opt,name=point,proto3" json:"point,omitempty"`
-	// Deprecated: Marked as deprecated in planet/v1/planet.proto.
-	StruckTileIds []uint32    `protobuf:"varint,6,rep,packed,name=struck_tile_ids,json=struckTileIds,proto3" json:"struck_tile_ids,omitempty"`
-	Version       *MapVersion `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
+	Version        *MapVersion            `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
 	// Each lost one shield and kept its flag: with the shields it kept.
 	Struck        []*TileShields `protobuf:"bytes,8,rep,name=struck,proto3" json:"struck,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -3497,14 +3495,6 @@ func (x *BombDropped) GetClearedTileIds() []uint32 {
 func (x *BombDropped) GetPoint() *GlobePoint {
 	if x != nil {
 		return x.Point
-	}
-	return nil
-}
-
-// Deprecated: Marked as deprecated in planet/v1/planet.proto.
-func (x *BombDropped) GetStruckTileIds() []uint32 {
-	if x != nil {
-		return x.StruckTileIds
 	}
 	return nil
 }
@@ -4149,17 +4139,16 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x06target\x18\x01 \x01(\v2\x15.planet.v1.GlobePointR\x06target\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\"\x12\n" +
-	"\x10DropBombResponse\"\xc1\x02\n" +
+	"\x10DropBombResponse\"\xac\x02\n" +
 	"\vBombDropped\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12\x16\n" +
 	"\x06radius\x18\x03 \x01(\x01R\x06radius\x12(\n" +
 	"\x10cleared_tile_ids\x18\x04 \x03(\rR\x0eclearedTileIds\x12+\n" +
-	"\x05point\x18\x05 \x01(\v2\x15.planet.v1.GlobePointR\x05point\x12*\n" +
-	"\x0fstruck_tile_ids\x18\x06 \x03(\rB\x02\x18\x01R\rstruckTileIds\x12/\n" +
+	"\x05point\x18\x05 \x01(\v2\x15.planet.v1.GlobePointR\x05point\x12/\n" +
 	"\aversion\x18\a \x01(\v2\x15.planet.v1.MapVersionR\aversion\x12.\n" +
-	"\x06struck\x18\b \x03(\v2\x16.planet.v1.TileShieldsR\x06struck\"\x99\x02\n" +
+	"\x06struck\x18\b \x03(\v2\x16.planet.v1.TileShieldsR\x06struckJ\x04\b\x06\x10\aR\x0fstruck_tile_ids\"\x99\x02\n" +
 	"\rTilesEnclosed\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12&\n" +

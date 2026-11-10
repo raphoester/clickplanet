@@ -87,7 +87,7 @@ func (h *harness) inspect(click detect.Click) bool {
 
 func (h *harness) flagged() int {
 	h.t.Helper()
-	flagged, err := h.jury.Flagged(h.t.Context())
+	flagged, err := h.banner.Flagged(h.t.Context())
 	require.NoError(h.t, err)
 	return flagged
 }

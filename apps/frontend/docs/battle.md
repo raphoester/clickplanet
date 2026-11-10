@@ -151,7 +151,7 @@ On a phone the chip opens `BattleSheet` or `SeasonSheet`, which read the same st
   same facts.
 - **The facts are the description, when the operator wrote one, and when the battle
   ends**, then "See the rules" when the battle has cards (see [The rules, asked for](#the-rules-asked-for)). The
-  season's countdowns follow (today's end and the season's), so a player
+  season's countdown follows (no day runs during a battle), so a player
   loses no clock while the chip is the battle's.
   The facts explain no rule on their own: what a battle changes is the operator's
   description, read from the server.

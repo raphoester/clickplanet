@@ -34,8 +34,11 @@ func (q Query) Plan(ctx context.Context, platforms []calendar.Platform, notBefor
 		return nil, fmt.Errorf("failed to read what each platform holds: %w", err)
 	}
 
-	slot, found := q.calendar.Slot(platforms, feed, notBefore, now)
-	if !by.IsZero() {
+	var slot calendar.Slot
+	var found bool
+	if by.IsZero() {
+		slot, found = q.calendar.Slot(platforms, feed, notBefore, now)
+	} else {
 		slot, found = q.calendar.SlotBy(platforms, feed, notBefore, by, now)
 	}
 	if !found {

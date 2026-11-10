@@ -187,13 +187,6 @@
     text-align: left;
 }
 
-.account-confirm-text ul {
-    margin: 0;
-    padding-left: 20px;
-    font-size: var(--text-m);
-    color: var(--text-soft);
-}
-
 .account-confirm-text a {
     text-decoration: underline;
 }

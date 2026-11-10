@@ -32,7 +32,7 @@ its own.
   the entrant within `activeWithin` (`Registry.offerable`): the linked account
   itself, or every guest behind the scope. The schedule is by entrant and a charge
   is by account, so `bonus_click` tells the registry both on every accepted click,
-  with the scope for the antibot: `Clicked(entrant, scope, holder)`. The registry reads the charges through
+  with the scope for the antibot: `Clicked(Click)`, a `Click` that names the entrant, the scope and the holder. The registry reads the charges through
   its `Holdings` port, which `bonuses.Charges` satisfies: a hand it cannot read is offered nothing.
 - **Off by default, one at a time.** `ClickRequest.spread` and `enclose` say what
   the player switched on for this click, and `click_usecase.In` carries them.
@@ -67,7 +67,7 @@ its own.
 - **Each spend is atomic**: `Charges.Spend` checks and takes in one `Change`, so two
   tabs racing for the last one get one, and the other `bonuses.ErrNotHeld`.
   `bonuses.StoreContractSuite` runs on postgres and on `MemoryStore` (behind the tag).
-- **Nothing pushes them.** They are not live news: `GetCharges` answers what the
+- **Only a grant pushes them** (`charges_granted`, above). Otherwise they are not live news: `GetCharges` answers what the
   caller holds, read by the client at load and when its account changes, and
   `ClaimBonusResponse.charges` answers the claim, `PlaceShieldResponse.charges` a
   shield placed. After that the client follows

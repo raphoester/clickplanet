@@ -136,7 +136,7 @@ A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `Access-Control-Allow-Origin: *` itself, so `VITE_API_BASE_URL=http://localhost:8080
 npm run dev` works with no proxy in between.
 
-Docker (only for the local full stack in `deploy/`; production is Cloudflare Pages):
+Docker (only for the local full stack in `deploy/`; production is a Cloudflare Worker with static assets):
 ```bash
 npm run dBuild   # Build the image as clickplanet-front:local
 ```

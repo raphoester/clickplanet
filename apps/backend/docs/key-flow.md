@@ -6,7 +6,7 @@ POST /auth.v1.AuthService/CreateSession   [Cookie: cp_sid=…, sent by the web c
   → AuthService → create_session_handler
   → create_session_usecase: attest (turnstile_attester → Cloudflare siteverify)
   → accounts: the cookie's live Session (extended and saved when due), or a GuestSession, stored
-  → shared/cpsession.Signer.Mint [Ed25519 over version+expiry+id+account+scope; nothing stored]
+  → shared/cpsession.Signer.Mint [Ed25519 over version+expiry+id+account+linked+attested+scope; nothing stored]
   ← token, and Set-Cookie when the session is new or renewed
 
 POST /auth.v1.AuthService/StartSignIn   [Cookie: cp_sid, read for a link only]
@@ -24,19 +24,20 @@ POST /auth.v1.AuthService/CompleteEmailSignIn   [Cookie: cp_email, cp_sid]
   → complete_email_sign_in_usecase: open the challenge, spend a guess, check the code, then as CompleteSignIn
   ← Set-Cookie: cp_sid (new session), cp_email cleared; a wrong code keeps cp_email
 
-POST /session.v1.SessionService/CreateSession   [deprecated]
-  → create_anonymous_session_usecase: attest, then mint with no account
-
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
-  → [cpbootstrap: error net], CacheInterceptor, VPNBlockInterceptor, SessionInterceptor
+  → [cpbootstrap: error net], CacheInterceptor, VPNBlockInterceptor,
+      FreezeInterceptor (a frozen set refuses the play: FailedPrecondition, a FrozenRefusal), SessionInterceptor
       [props.Sessions: the key from auth.v1.InternalService, asked once per process
        then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
   → try_click       (tells the try, whatever came of it: facts.Log, sent to Redis every 100ms; refuses nothing)
   → refusal_click   (a refused caller is PermissionDenied, with a BanRefusal: when the refusal ends)
   → allegiance_click (a flag other than the one pledged, or none pledged, is refused, and spends nothing)
+  → bonus_click     (an accepted click tells the bonus registry, with the bank the throttle left)
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
   → prom_click      (counts)
+  → enclose_click   (with Enclose and an enclosure held: a take that closes a pocket fills it)
+  → spread_click    (with Spread: spends a spread click and claims the neighbours too)
   → clicks/usecases/click_usecase (validates tile ID + country)
   → ledger.Recording.Click() [records a take or a strike]
   → clicks.Claiming.Click() (asks clicks.Shielding: take, strike a shield, or nothing)

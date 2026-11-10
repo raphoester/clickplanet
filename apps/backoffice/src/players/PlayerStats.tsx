@@ -1,5 +1,4 @@
 import {ReactNode} from "react"
-import {When} from "../components/When.tsx"
 import {Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {spanOf} from "./durations.ts"
 
@@ -13,17 +12,6 @@ export function PlayerStats({player}: {player: Player}) {
             <Stat label="Tiles/min">{player.tilesPerMinute.toFixed(1)}</Stat>
             <Stat label="Active">{spanOf(player.activeFor)}</Stat>
         </dl>
-    )
-}
-
-export function BanLine({player}: {player: Player}) {
-    if (player.banned !== true) return null
-    return (
-        <span className="decision">
-            <span className="badge badge-bug">Banned</span>
-            <span className="muted">until</span>
-            <When at={player.bannedUntil}/>
-        </span>
     )
 }
 

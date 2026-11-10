@@ -105,7 +105,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
                 owners.set(tile, enclosure!.countryId)
                 shields.delete(tile)
             }
-            for (const {tile, shields: left} of [...struckOf(event, shields), ...enclosure?.struck ?? []]) {
+            for (const {tile, shields: left} of [...bomb?.struck ?? [], ...enclosure?.struck ?? []]) {
                 if (left > 0) shields.set(tile, left)
                 else shields.delete(tile)
             }
@@ -184,7 +184,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
             flush()
             const dropped = bombOf(event)
             if (dropped) {
-                const bomb = {...dropped, struck: struckOf(event, this.shields), version}
+                const bomb = {...dropped, version}
                 for (const tile of bomb.cleared) this.own(tile, undefined, 0)
                 for (const {tile, shields} of bomb.struck) this.own(tile, this.owners.get(tile), shields)
                 for (const listener of this.bombListeners) listener(bomb)
@@ -280,12 +280,4 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
         if (shields > 0) this.shields.set(tile, shields)
         else this.shields.delete(tile)
     }
-}
-
-// A replay recorded before the server said what each struck tile kept: one shield less than the replay held.
-function struckOf(event: PlanetEvent, shields: ReadonlyMap<number, number>): {tile: number, shields: number}[] {
-    if (event.event.case !== "bombDropped") return []
-    const dropped = event.event.value
-    if (dropped.struck.length > 0) return dropped.struck.map(({tileId, shields: left}) => ({tile: tileId, shields: left}))
-    return dropped.struckTileIds.map((tile) => ({tile, shields: Math.max(0, (shields.get(tile) ?? 1) - 1)}))
 }

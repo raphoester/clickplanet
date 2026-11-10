@@ -141,9 +141,9 @@ with no wait, and **a click that timed out is not sent again**, since it may
 have landed and costs a click and maybe a charge. It is rolled back, and the
 echo repaints it if it did land.
 
-The backend refuses a click in four ways, and `clickTile` translates all of
-them into errors declared beside the interfaces — the first three in `backend.ts`,
-the last in `session.ts` — so `globe.ts` recognises them without knowing what a
+The backend refuses a click in five ways, and `clickTile` translates all of
+them into errors declared beside the interfaces — `SessionUnavailableError` in
+`session.ts`, the others in `backend.ts` — so `globe.ts` recognises them without knowing what a
 Connect code is:
 
 - `resource_exhausted` → `RateLimitedError`. The per-IP token bucket is spent.
@@ -167,7 +167,7 @@ Everything else is a transport fault and still reaches the console.
 the detail), and the bomb or the shield stays in hand, since the server spent
 nothing.
 
-`FakeBackend` reproduces all four, so every refusal is reachable in dev: it
+`FakeBackend` reproduces the throttle, the ban and the frozen map in dev: it
 enforces the same bucket as production's `rateLimiter` (one click every 5s, 60 in hand), and takes `vpnBlocked` and
 `sessionUnavailable` options that refuse every click (there is no address and no
 widget there to judge). Its own simulated traffic bypasses all of them, standing
@@ -195,7 +195,7 @@ detail** on a refused one, which is the reading that matters most, and
 (`rulesChanged`) or comes back after a gap: the server can change the whole game's refill at once (the
 backend's [Rules](../../backend/docs/rules.md)), and only a reading says by how much.
 The same event reads `GetBonusRules` again (see [Charges](charges.md)). **`GetBudget`
-carries the token already held** (`SessionProvider.held()`, never a mint):
+carries the token already held** (`SessionProvider.identity()`, never a mint):
 without it the server reads the bucket of an address with no account, which is
 never spent and always full, and the next click contradicts it. It also subtracts its own clicks in
 flight, so the counter only ever *under*-promises: a counter that says 1 and is
@@ -268,7 +268,7 @@ stream said since still wins, by its version. A gap in which nothing moved reads
 nothing. See [The counts are the server's](counts.md).
 
 **The planet stream carries the click token it can have without a mint.** Each
-(re)connect puts `SessionProvider.held()` in `X-Session-Token`, so the server
+(re)connect puts `SessionProvider.heldIdentity()` in `X-Session-Token`, so the server
 knows which account the stream serves; with none held it opens without one and
 the server follows the address. It never calls `token()`: watching the planet is
 not worth a Turnstile check. The server reads the token only when the stream
@@ -288,7 +288,7 @@ would only say whether the health RPC gets through.
 
 - **Any answer is the server reached**, a refusal it sent included. A failed
   fetch (connect-web's `Unknown` over a `TypeError`), a timeout
-  (`DeadlineExceeded`, the 2s `timeoutMs`) and a proxy with nothing behind it
+  (`DeadlineExceeded`, the 10s `timeoutMs`) and a proxy with nothing behind it
   (`Unavailable`, a 502 to 504) are misses. A call the page cancelled says nothing.
 - **A stream is followed past its opening**: each message is the server reached,
   and a break is a miss.

@@ -12,8 +12,6 @@ the whole `proto` directory, so a new package needs no config change; run
   `SendMessageRequest`, `GetHistoryResponse`
 - [`auth/v1/auth.proto`](../../../proto/auth/v1/auth.proto) — the mint, the
   account and sign-in (`AuthService`)
-- [`session/v1/session.proto`](../../../proto/session/v1/session.proto) — the
-  deprecated mint, no longer called
 - [`player/v1/player.proto`](../../../proto/player/v1/player.proto) — the
   username and who is playing (`PlayerService`)
 - [`scoring/v1/scoring.proto`](../../../proto/scoring/v1/scoring.proto) — the
