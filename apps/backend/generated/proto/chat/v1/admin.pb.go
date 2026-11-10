@@ -511,8 +511,7 @@ func (x *GetMessageRequest) GetMessageId() string {
 type GetMessageResponse struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	// Empty for a message kept before accounts, or of a deleted account.
-	AccountId string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	AccountId string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	// Types that are valid to be assigned to Body:
 	//
 	//	*GetMessageResponse_Text
@@ -762,9 +761,8 @@ func (x *ListMessagesResponse) GetMessages() []*KeptMessage {
 type KeptMessage struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	// Empty for a message kept before accounts.
-	AccountId string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	// Its author's name now: the name it was sent under for a message kept before accounts, [deleted] for an account nobody can name any more.
+	AccountId string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// Its author's name now: [deleted] for an account nobody can name any more.
 	AuthorName string `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
 	// Types that are valid to be assigned to Body:
 	//
@@ -1131,7 +1129,7 @@ func (x *ListModerationResponse) GetActions() []*ModerationAction {
 type ModerationAction struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	ActionId string                 `protobuf:"bytes,1,opt,name=action_id,json=actionId,proto3" json:"action_id,omitempty"`
-	// The account it was taken on, never the network a mute also holds. Empty for a message kept before accounts.
+	// The account it was taken on, never the network a mute also holds.
 	AccountId string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	ActedAt   *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=acted_at,json=actedAt,proto3" json:"acted_at,omitempty"`
 	// Types that are valid to be assigned to Action:

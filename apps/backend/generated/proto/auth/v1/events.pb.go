@@ -22,8 +22,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// The account is gone, and everything another module keeps about it goes too: a guest idle too long, or an account
-// whose deletion was asked for longer ago than the grace period.
+// The account is gone, and everything another module keeps about it goes too: a guest idle too long, a guest that
+// asked to be deleted, or an account whose deletion was asked for longer ago than the grace period.
 type AccountDeleted struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`

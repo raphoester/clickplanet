@@ -111,7 +111,6 @@ message GetMessageRequest {
 
 message GetMessageResponse {
   string message_id = 1;
-  // Empty for a message kept before accounts, or of a deleted account.
   string account_id = 2;
   oneof body {
     string text = 3;
@@ -144,9 +143,8 @@ message ListMessagesResponse {
 // A message as it was sent, removed or not, for an operator.
 message KeptMessage {
   string message_id = 1;
-  // Empty for a message kept before accounts.
   string account_id = 2;
-  // Its author's name now: the name it was sent under for a message kept before accounts, [deleted] for an account nobody can name any more.
+  // Its author's name now: [deleted] for an account nobody can name any more.
   string author_name = 3;
   oneof body {
     string text = 4;
@@ -192,7 +190,7 @@ message ListModerationResponse {
 // One action an operator took on an account in the chat.
 message ModerationAction {
   string action_id = 1;
-  // The account it was taken on, never the network a mute also holds. Empty for a message kept before accounts.
+  // The account it was taken on, never the network a mute also holds.
   string account_id = 2;
   google.protobuf.Timestamp acted_at = 3;
   oneof action {

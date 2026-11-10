@@ -244,7 +244,7 @@ type ChatMessage struct {
 	Reactions        []*ReactionCount   `protobuf:"bytes,8,rep,name=reactions,proto3" json:"reactions,omitempty"`
 	ReactionsVersion uint64             `protobuf:"varint,9,opt,name=reactions_version,json=reactionsVersion,proto3" json:"reactions_version,omitempty"`
 	ReplyTo          *Quote             `protobuf:"bytes,13,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
-	// Empty for a message kept before accounts. An account the other players can no longer name was deleted.
+	// An account the other players can no longer name was deleted.
 	AuthorAccountId string `protobuf:"bytes,14,opt,name=author_account_id,json=authorAccountId,proto3" json:"author_account_id,omitempty"`
 	// An operator removed it: it keeps its place, with no body and no reactions.
 	Removed       bool `protobuf:"varint,15,opt,name=removed,proto3" json:"removed,omitempty"`

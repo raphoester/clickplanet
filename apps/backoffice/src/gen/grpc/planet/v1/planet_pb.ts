@@ -835,7 +835,8 @@ export class GetMapResponse extends Message<GetMapResponse> {
  */
 export class MapVersion extends Message<MapVersion> {
   /**
-   * The second the server started: seq starts again from zero on every start.
+   * The second the map started over: the server's start, a map reset, or an arena's open or close. seq starts again
+   * from zero each time.
    *
    * @generated from field: uint32 epoch = 1;
    */
