@@ -147,7 +147,7 @@ describe("SeasonChip", () => {
 
         fireEvent.click(screen.getByRole("button", {name: /Today ends in/}))
         expect(screen.getByRole("button", {name: /Today ends in/}).getAttribute("aria-expanded")).toBe("true")
-        expect(screen.getByText("When a day ends, the countries that gained the most ground that day score points.")).toBeDefined()
+        expect(screen.getByText("When a day ends, the countries that hold the most ground and gained the most that day score points.")).toBeDefined()
         expect(battleTeased()).toBeNull()
 
         fireEvent.keyDown(document, {key: "Escape"})

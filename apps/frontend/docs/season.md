@@ -80,7 +80,7 @@ dropdown's rows again with it.
 **What it opens is the one place the UI explains the rules**, asked for on
 purpose: three rows (`SeasonFacts`), the daily rounds ("Win the day"), the
 winner's trophy in the Hall of Fame, and the titles. **Say only what is
-decided**: points when a day ends for the countries that gained the most ground that day,
+decided**: points when a day ends for the countries that hold the most ground and gained the most that day,
 a trophy for the winning country, a title for every signed-in player and one
 more for the winning country's. A battle and what it is worth are the schedule's:
 the next battle's details say them before it (below), and the battle chip while it plays, in the operator's words.
