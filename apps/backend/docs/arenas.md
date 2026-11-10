@@ -11,8 +11,9 @@ word battle: it opens and closes arenas by the ids it is told.
 
 ## The order
 
-Day K ends as the arena battle starts (T1), and day K+1 starts as it ends (T2). The gamemaster's runners tick each
-second with no order between them, so **every step waits on a fact kept in postgres, never on a time margin**:
+Day K ends as the arena battle starts (T1), and day K+1 starts as it ends (T2). The gamemaster's schedule and its
+[plan tick](gamemaster.md#one-plan-a-tick) run each second with no order between them, and scoring and planet answer
+late, so **every step waits on a fact kept in postgres, never on a time margin**:
 
 | when | who | what | waits for |
 |---|---|---|---|
@@ -33,11 +34,12 @@ second with no order between them, so **every step waits on a fact kept in postg
 kept): **nothing opens on the map while an arena battle that ended before it has its arena open** (`Plan.Waits`). It
 holds a round's and a book's open (`DueAt`), the day told (`DayAt`, so `DayStarted` and the missions' draw come after
 the map is back), a season's reset (`play_resets_usecase`: a reset before the restore would be undone by it) and the
-next arena (`ArenasDueAt`). A battle's round opens only once the battle is judged, about one tick: an arena battle's
+next arena (`ArenasDueAt`). A battle's round opens only once the battle is judged, in the same tick (`Plan.Judged`
+hands the judgement to the steps after the arena step): an arena battle's
 round counts from nothing, so its gain is the tiles held when it ends. A plan built with no arena battles (the zero
 `Arenas`, as `turn_query` builds it) waits for nothing.
 
-**Retries, crashes and restarts**: the judgement, the scored rounds and the closed arenas are rows; the runners keep
+**Retries, crashes and restarts**: the judgement, the scored rounds and the closed arenas are rows; the steps keep
 only what they sent in this process, so a boot sends again what is due, and planet keeps each arena by its id. A command
 Redis refused stops the tick, and it and every one after it go the next second.
 
@@ -79,7 +81,7 @@ map.
 
 ## Gamemaster: the arena battles (`internal/gamemaster/internal/arenas/`)
 
-- `play_arenas_usecase` (`gamemaster-arenas`, each second): judges the battle that runs (`Plan.Unjudged`, `Plan.Judge`,
+- `play_arenas_usecase` (the second step of `gamemaster-plan`, each second): judges the battle that runs (`Plan.Unjudged`, `Plan.Judge`,
   `rpc_planet_arenas`), then sends each arena command due (`Plan.ArenasDueAt`), once per process, by time, a close
   before an open at one instant (`redis_arena_commands`).
 - `arena_closed_subscriber` (`gamemaster-arenas-closed`) → `hear_arena_usecase` keeps the arena closed once.

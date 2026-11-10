@@ -20,8 +20,8 @@ type Logged struct {
 
 var _ tell_starts_usecase.Executor = (*Logged)(nil)
 
-func (l *Logged) Execute(ctx context.Context) ([]moments.Moment, error) {
-	told, err := l.inner.Execute(ctx)
+func (l *Logged) Execute(ctx context.Context, plan moments.Plan) ([]moments.Moment, error) {
+	told, err := l.inner.Execute(ctx, plan)
 	for _, moment := range told {
 		switch started := moment.(type) {
 		case moments.SeasonStarted:

@@ -10,10 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Planner interface {
-	Plan(ctx context.Context) (moments.Plan, error)
-}
-
 type Judged interface {
 	KeepJudged(ctx context.Context, judgement moments.Judgement) (bool, error)
 }
@@ -34,21 +30,17 @@ type Tick struct {
 }
 
 type Executor interface {
-	Execute(ctx context.Context) (Tick, error)
+	Execute(ctx context.Context, plan moments.Plan) (Tick, error)
 }
 
-func New(planner Planner, judged Judged, planet Planet, commands Commands, clock cptime.Clock) *UseCase {
-	return &UseCase{
-		planner: planner, judged: judged, planet: planet, commands: commands, clock: clock,
-		sent: cpcolls.NewSet[moments.ArenaKey](),
-	}
+func New(judged Judged, planet Planet, commands Commands, clock cptime.Clock) *UseCase {
+	return &UseCase{judged: judged, planet: planet, commands: commands, clock: clock, sent: cpcolls.NewSet[moments.ArenaKey]()}
 }
 
 // UseCase judges the battle that runs, once, and sends each arena command whose time has come, once per process and in
 // order: a command Redis refused stops the tick, and it and every one after it go at the next Execute. Planet keeps
 // each arena, so a boot that sends them again changes nothing.
 type UseCase struct {
-	planner  Planner
 	judged   Judged
 	planet   Planet
 	commands Commands
@@ -59,12 +51,8 @@ type UseCase struct {
 
 var _ Executor = (*UseCase)(nil)
 
-func (u *UseCase) Execute(ctx context.Context) (Tick, error) {
+func (u *UseCase) Execute(ctx context.Context, plan moments.Plan) (Tick, error) {
 	var tick Tick
-	plan, err := u.planner.Plan(ctx)
-	if err != nil {
-		return tick, err //nolint:wrapcheck // the planner names it.
-	}
 	now := u.clock.Now()
 
 	if battle, ok := plan.Unjudged(now); ok {
@@ -77,9 +65,7 @@ func (u *UseCase) Execute(ctx context.Context) (Tick, error) {
 			return tick, fmt.Errorf("failed to keep %s judged: %w", battle, err)
 		}
 		tick.Judged = append(tick.Judged, judgement)
-		if plan, err = u.planner.Plan(ctx); err != nil {
-			return tick, err //nolint:wrapcheck // the planner names it.
-		}
+		plan = plan.Judged(judgement)
 	}
 
 	for _, command := range plan.ArenasDueAt(now) {

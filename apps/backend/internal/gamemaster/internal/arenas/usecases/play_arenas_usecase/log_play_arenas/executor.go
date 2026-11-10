@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/play_arenas_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 )
 
 func New(inner play_arenas_usecase.Executor, logger *slog.Logger) *Logged {
@@ -19,8 +20,8 @@ type Logged struct {
 
 var _ play_arenas_usecase.Executor = (*Logged)(nil)
 
-func (l *Logged) Execute(ctx context.Context) (play_arenas_usecase.Tick, error) {
-	tick, err := l.inner.Execute(ctx)
+func (l *Logged) Execute(ctx context.Context, plan moments.Plan) (play_arenas_usecase.Tick, error) {
+	tick, err := l.inner.Execute(ctx, plan)
 	for _, judgement := range tick.Judged {
 		l.logger.Warn("a battle is judged", slog.String("round", string(judgement.Round)),
 			slog.String("mode", judgement.Mode.String()))
