@@ -102,17 +102,8 @@ func (s *Store) Save(
 
 	return s.db.InTx(ctx, func(ctx context.Context) error {
 		tx := s.db.On(ctx)
-		for start := 0; start < len(taken); start += chunkSize {
-			end := min(start+chunkSize, len(taken))
-			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO tiles (map, id, country, shields, holder)
-				SELECT $1, id, country, shields, NULLIF(holder, '')::uuid
-				FROM unnest($2::integer[], $3::text[], $4::smallint[], $5::text[]) AS t(id, country, shields, holder)
-				ON CONFLICT (map, id) DO UPDATE SET country = EXCLUDED.country, shields = EXCLUDED.shields, holder = EXCLUDED.holder
-			`, string(played), pq.Array(taken[start:end]), pq.Array(takenBy[start:end]), pq.Array(shields[start:end]),
-				pq.Array(holders[start:end])); err != nil {
-				return fmt.Errorf("failed to upsert tiles: %w", err)
-			}
+		if err := upsertTiles(ctx, tx, played, taken, takenBy, shields, holders); err != nil {
+			return err
 		}
 
 		for start := 0; start < len(freed); start += chunkSize {
@@ -127,6 +118,60 @@ func (s *Store) Save(
 
 		return saveLandmasses(ctx, tx, played, landmasses)
 	})
+}
+
+func upsertTiles(
+	ctx context.Context, tx cppg.Querier, played clicks.MapID, taken []int64, takenBy []string, shields []int64,
+	holders []string,
+) error {
+	for start := 0; start < len(taken); start += chunkSize {
+		end := min(start+chunkSize, len(taken))
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO tiles (map, id, country, shields, holder)
+			SELECT $1, id, country, shields, NULLIF(holder, '')::uuid
+			FROM unnest($2::integer[], $3::text[], $4::smallint[], $5::text[]) AS t(id, country, shields, holder)
+			ON CONFLICT (map, id) DO UPDATE SET country = EXCLUDED.country, shields = EXCLUDED.shields, holder = EXCLUDED.holder
+		`, string(played), pq.Array(taken[start:end]), pq.Array(takenBy[start:end]), pq.Array(shields[start:end]),
+			pq.Array(holders[start:end])); err != nil {
+			return fmt.Errorf("failed to upsert tiles: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// Open writes a map's first tiles in keep's transaction, once keep says to.
+func (s *Store) Open(
+	ctx context.Context, played clicks.MapID, tiles []inmemory_tile_storage.Tile, keep func(ctx context.Context) (bool, error),
+) (bool, error) {
+	taken := make([]int64, 0, len(tiles))
+	takenBy := make([]string, 0, len(tiles))
+	holders := make([]string, 0, len(tiles))
+	shields := make([]int64, 0, len(tiles))
+	for _, tile := range tiles {
+		taken = append(taken, int64(tile.ID))
+		takenBy = append(takenBy, tile.Owner)
+		shields = append(shields, int64(tile.Shields))
+		holders = append(holders, holderOf(tile.Holder))
+	}
+
+	opened := false
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
+		kept, err := keep(ctx)
+		if err != nil || !kept {
+			return err
+		}
+		if err := upsertTiles(ctx, s.db.On(ctx), played, taken, takenBy, shields, holders); err != nil {
+			return err
+		}
+		opened = true
+		return nil
+	})
+	if err != nil {
+		return false, err //nolint:wrapcheck // each step names itself.
+	}
+
+	return opened, nil
 }
 
 // lib/pq takes no array of a named type, and a NULL holder is no take's.

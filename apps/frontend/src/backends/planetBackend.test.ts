@@ -45,6 +45,7 @@ import {
     Heartbeat,
     LandmassFortified,
     PlanetEvent,
+    ReachRefusal,
     RulesChanged,
     SharedWith,
     TilesEnclosed,
@@ -53,7 +54,7 @@ import {
     TilesSpread,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {AllegianceLockedError, BankFullError, BannedError, BonusLostError, FrozenError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
+import {AllegianceLockedError, BankFullError, BannedError, BonusLostError, FrozenError, OutOfReachError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusRules, Charges} from "../domain/bonus.ts"
@@ -268,6 +269,20 @@ describe("PlanetBackend.getOwnerships", () => {
         await backend.getOwnerships([{start: 1, end: 2}], ({range, version, shields}) => seen.push({range, version, shields}))
 
         expect(seen).toEqual([{range: {start: 1, end: 2}, version: {epoch: 1_790_000_000, seq: 9}, shields: new Map([[2, 3]])}])
+        backend.close()
+    })
+
+    it("says whether the map read is an arena's", async () => {
+        const getMap = getMapMock(async () => new GetMapResponse({
+            startTileId: 1, codes: ["", "fr"], tiles: tileBytes([1, 0]), arena: true,
+            version: new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(9)}),
+        }))
+        const backend = backendWith(getMap)
+
+        const seen: boolean[] = []
+        await backend.getOwnerships([{start: 1, end: 2}], ({arena}) => seen.push(arena))
+
+        expect(seen).toEqual([true])
         backend.close()
     })
 
@@ -503,6 +518,16 @@ describe("PlanetBackend.clickTile", () => {
         const backend = backendWith(click)
 
         await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(FrozenError)
+        expect(click).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("reports a click out of the flag's reach in an arena as an OutOfReachError, sent once", async () => {
+        const refused = new ConnectError("out of reach", Code.FailedPrecondition, undefined, [new ReachRefusal()])
+        const click = vi.fn().mockRejectedValue(refused)
+        const backend = backendWith(click)
+
+        await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(OutOfReachError)
         expect(click).toHaveBeenCalledTimes(1)
         backend.close()
     })

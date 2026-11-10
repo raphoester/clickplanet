@@ -48,7 +48,7 @@ export class HistoryBackend implements OwnershipsGetter, UpdatesListener {
                 const owner = this.codeOf(this.shown[tile] ?? 0)
                 if (owner !== undefined) bindings.set(tile, owner)
             }
-            callback({range, version: this.version(), bindings, shields: new Map()})
+            callback({range, version: this.version(), bindings, shields: new Map(), arena: false})
         }
     }
 

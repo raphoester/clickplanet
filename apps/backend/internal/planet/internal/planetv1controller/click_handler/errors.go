@@ -4,6 +4,8 @@ import (
 	"errors"
 
 	"connectrpc.com/connect"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/allegiancemessage"
@@ -27,6 +29,14 @@ func toConnect(err error, out click_usecase.Out) error {
 	}
 
 	if refused, ok := allegiancemessage.Refusal(err); ok {
+		return refused
+	}
+
+	if errors.Is(err, arenas.ErrOutOfReach) {
+		refused := connect.NewError(connect.CodeFailedPrecondition, err)
+		if detail, detailErr := connect.NewErrorDetail(&planetv1.ReachRefusal{}); detailErr == nil {
+			refused.AddDetail(detail)
+		}
 		return refused
 	}
 

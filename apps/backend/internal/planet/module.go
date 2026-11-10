@@ -52,6 +52,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click/prom_enclose"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/prom_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/reach_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/refusal_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
@@ -196,6 +197,17 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the map borders: %w", err)
 			}
 
+			waters, err := gameMap.LoadWaters()
+			if err != nil {
+				return fmt.Errorf("failed to load the map's waters: %w", err)
+			}
+
+			capitals, err := gameMap.LoadCapitals(borders)
+			if err != nil {
+				return fmt.Errorf("failed to load the map's capitals: %w", err)
+			}
+			capitals = capitals.Flags(countries.CheckCountry)
+
 			tilesChecker := clicks.NewBoard(config.GameMap.MaxIndex)
 
 			db := cppg.New(config.Database)
@@ -231,8 +243,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			// Before any request, and a failure only waits for the next boot: a row this boot made is a shield not flushed yet.
 			_, _ = log_return_placements.New(return_placements_usecase.New(placementStore, escrow), props.Logger).Execute(ctx)
 
-			tilesStorage := inmemory_tile_storage.New(borders, config.TilesStorage, postgres_tile_store.New(db), db, escrow, clock,
-				props.Logger)
+			tilesStorage := inmemory_tile_storage.New(borders, capitals, config.TilesStorage, postgres_tile_store.New(db), db,
+				escrow, clock, props.Logger)
 			if err := tilesStorage.Load(ctx, playing.Played()); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to load the tile map: %w", err)
@@ -269,10 +281,13 @@ func NewModule(config Config) cpbootstrap.Module {
 			freeze := rules.Reader(inForce, clicks.FreezePart)
 			lock := rules.Reader(inForce, allegiances.LockPart)
 
-			inPlay := arenas.NewInPlay(rules.Reader(inForce, arenas.Part), clock)
+			arenaRules := rules.Reader(inForce, arenas.Part)
+			inPlay := arenas.NewInPlay(arenaRules, clock)
 			inPlay.Resume(playing)
+			reach := arenas.NewReach(inPlay, geography, waters, tilesStorage)
 			arenaCommands, err := cpredis.Handle(ctx, streams, arena_command_handler.New(
-				log_open_arena.New(open_arena_usecase.New(tilesStorage, arenaStore, inPlay, clock), props.Logger),
+				log_open_arena.New(open_arena_usecase.New(tilesStorage, arenas.NewStarts(capitals, arenaRules), arenaStore, inPlay,
+					clock), props.Logger),
 				log_close_arena.New(close_arena_usecase.New(tilesStorage, arenaStore, cpoutbox.New(db), inPlay, clock),
 					props.Logger)))
 			if err != nil {
@@ -356,7 +371,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			bombing := bonuses.NewBombing(game, geography.Spacing())
 
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
-			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, registry)
+			clickUseCase = spread_click.New(clickUseCase, charges, reach, writer, registry)
 
 			clickUseCase = enclose_click.New(clickUseCase, charges,
 				bonuses.NewTerrain(geography, tilesStorage),
@@ -369,6 +384,9 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Outside the throttle, so it reads the bank the click left.
 			clickUseCase = bonus_click.New(clickUseCase, registry)
+
+			// Outside the throttle, so a click out of the flag's reach in an arena spends nothing.
+			clickUseCase = reach_click.New(clickUseCase, reach)
 
 			// Outside the throttle, so a click refused for its flag spends nothing.
 			clickUseCase = allegiance_click.New(clickUseCase, book)

@@ -11,10 +11,11 @@ export function outcomeOf(owner: string | undefined, flag: string, shields: numb
     return shields > 0 ? "shielded" : "taken"
 }
 
-export type Placement = "place" | "full" | "click"
+export type Placement = "place" | "full" | "capital" | "click"
 
-export function placementOf(owner: string | undefined, flag: string, shields: number, most: number | undefined): Placement {
+export function placementOf(owner: string | undefined, flag: string, shields: number, most: number | undefined, capital = false): Placement {
     if (owner !== flag) return "click"
+    if (capital) return "capital"
     return most !== undefined && most > 0 && shields >= most ? "full" : "place"
 }
 

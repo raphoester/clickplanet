@@ -3,12 +3,13 @@ import path from "node:path"
 
 import sharp from "sharp"
 
-import {readBorders, readCoordinates, staticDir} from "./map/blob.mjs"
+import {readBorders, readCapitals, readCoordinates, readWaters, staticDir} from "./map/blob.mjs"
 import {SEA, loadGround} from "./map/ground.mjs"
 import {DETAIL, keyOf, lattice, lonLatOf, neighbours} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
 import {latticeGround} from "./map/oracle.mjs"
 import {REGIONS} from "./map/seats.mjs"
+import {watersOf} from "./map/waters.mjs"
 
 const seaPixel = (r, g, b) => b > r + 18 && b > g + 8
 
@@ -19,7 +20,8 @@ async function main() {
     const borders = readBorders()
     const ground = await loadGround()
     const {count: vertices, positions, uvs} = lattice()
-    const {grounds, lakes, seated} = latticeGround(ground, {count: vertices, positions, uvs}, neighbours(DETAIL))
+    const edges = neighbours(DETAIL)
+    const {grounds, lakes, seated} = latticeGround(ground, {count: vertices, positions, uvs}, edges)
 
     const texture = await sharp(path.join(staticDir, "earth", earthName()))
         .raw().toBuffer({resolveWithObject: true})
@@ -31,10 +33,11 @@ async function main() {
         return !seaPixel(texture.data[i], texture.data[i + 1], texture.data[i + 2])
     }
 
-    const isTile = new Set()
+    const tileAt = new Map()
     for (let t = 0; t < tiles.count; t++) {
-        isTile.add(keyOf(tiles.positions[t * 3], tiles.positions[t * 3 + 1], tiles.positions[t * 3 + 2]))
+        tileAt.set(keyOf(tiles.positions[t * 3], tiles.positions[t * 3 + 1], tiles.positions[t * 3 + 2]), t)
     }
+    const isTile = {has: (key) => tileAt.has(key)}
 
     const counts = {
         vertices,
@@ -49,6 +52,9 @@ async function main() {
         iceWithNoTile: 0,
         tilesWithNoCountry: 0,
         flagsWithNoGround: 0,
+        groundWithNoCapital: 0,
+        capitalsOffTheirGround: 0,
+        watersAstray: 0,
     }
     const texture_ = {landButBlue: 0, blueButLand: 0}
     const seam = {land: 0, tiles: 0}
@@ -88,6 +94,22 @@ async function main() {
     const grounded = new Set(borders.codes.slice(1))
     const groundless = Object.keys(flags).filter((code) => !REGIONS.has(code) && !grounded.has(code))
     faults.flagsWithNoGround = groundless.length
+
+    const {capitals} = readCapitals()
+    for (const code of grounded) if (!(code in capitals)) faults.groundWithNoCapital++
+    for (const [code, tile] of Object.entries(capitals)) {
+        if (borders.codes[borders.landmass[tile - 1]] !== code) faults.capitalsOffTheirGround++
+    }
+
+    const tileOf = new Int32Array(vertices)
+    for (let i = 0; i < vertices; i++) {
+        tileOf[i] = tileAt.get(keyOf(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2])) ?? -1
+    }
+    const drawn = watersOf(edges, tileOf)
+    const {bodies} = readWaters()
+    const kept = new Set(bodies.map((coast) => coast.join(",")))
+    faults.watersAstray = drawn.filter((coast) => !kept.has(coast.join(","))).length
+        + Math.max(0, bodies.length - drawn.length)
 
     report({counts, faults, texture: texture_, seam, elsewhere, tiles, borders, seated, groundless, lakes})
 
@@ -134,6 +156,9 @@ faults between the tile set and the ground oracle
   ice shelf with no tile ${faults.iceWithNoTile}
   tiles in no country   ${faults.tilesWithNoCountry}
   flags with no ground  ${faults.flagsWithNoGround}${groundless.length ? `  (${groundless.join(" ")})` : ""}
+  ground with no capital ${faults.groundWithNoCapital}
+  capitals off their ground ${faults.capitalsOffTheirGround}
+  waters astray from the lattice ${faults.watersAstray}
 
 lakes, sea on a country's ground where most of the cell is lake
   ${lakes} lattice vertices

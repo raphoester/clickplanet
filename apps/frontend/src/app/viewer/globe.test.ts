@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from "vitest"
 import {drawsFrame, reportClaimFailure, reportClickFailure, spinStep} from "./globe.ts"
-import {AllegianceLockedError, BannedError, BonusLostError, FrozenError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
+import {AllegianceLockedError, BannedError, BonusLostError, FrozenError, OutOfReachError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
 import {SessionUnavailableError} from "../../backends/session.ts"
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts"
 import {TileField} from "./tileField.ts"
@@ -8,7 +8,7 @@ import {regions} from "./atlas.ts"
 import {PLAIN} from "./graphics.ts"
 
 function handlers() {
-    return {onRateLimited: vi.fn(), onFrozen: vi.fn(), onVPNBlocked: vi.fn(), onBanned: vi.fn(), onSessionUnavailable: vi.fn(), onAllegianceLocked: vi.fn()}
+    return {onRateLimited: vi.fn(), onFrozen: vi.fn(), onVPNBlocked: vi.fn(), onBanned: vi.fn(), onSessionUnavailable: vi.fn(), onAllegianceLocked: vi.fn(), onOutOfReach: vi.fn()}
 }
 
 describe("reportClickFailure", () => {
@@ -30,6 +30,16 @@ describe("reportClickFailure", () => {
         expect(h.onFrozen).toHaveBeenCalledTimes(1)
         expect(h.onRateLimited).not.toHaveBeenCalled()
         expect(h.onVPNBlocked).not.toHaveBeenCalled()
+    })
+
+    it("sends a click out of the flag's reach in an arena to the reach bubble, and to nothing else", () => {
+        const h = handlers()
+
+        expect(reportClickFailure(new OutOfReachError(), h)).toBe(true)
+
+        expect(h.onOutOfReach).toHaveBeenCalledTimes(1)
+        expect(h.onFrozen).not.toHaveBeenCalled()
+        expect(h.onRateLimited).not.toHaveBeenCalled()
     })
 
     it("sends the VPN refusal to the VPN dialog, and nowhere else", () => {

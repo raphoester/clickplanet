@@ -152,6 +152,35 @@ func (m *MemoryPersistence) Save(_ context.Context, played clicks.MapID, tiles [
 	return nil
 }
 
+func (m *MemoryPersistence) Open(
+	ctx context.Context, played clicks.MapID, tiles []Tile, keep func(ctx context.Context) (bool, error),
+) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return false, m.failing
+	}
+	kept, err := keep(ctx)
+	if err != nil || !kept {
+		return false, err
+	}
+	opened := m.mapLocked(played)
+	for _, tile := range tiles {
+		opened.rows[tile.ID] = tile.Owner
+		opened.shields[tile.ID] = tile.Shields
+	}
+	return true, nil
+}
+
+// StoredShieldsOn is a map's shields.
+func (m *MemoryPersistence) StoredShieldsOn(played clicks.MapID) map[uint32]int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return maps.Clone(m.mapLocked(played).shields)
+}
+
 func (m *MemoryPersistence) Wipe(ctx context.Context, played clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

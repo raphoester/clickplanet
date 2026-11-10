@@ -15,11 +15,12 @@ MAP_DIR := ../../map
 MAP_ASSET_DIR := generated/map
 
 map:
-	@for asset in coordinates borders; do \
-		test -n "$$(ls $(MAP_DIR)/$$asset-*.bin 2>/dev/null)" || { echo "map: no $(MAP_DIR)/$$asset-<hash>.bin" >&2; exit 1; }; \
-		rm -f $(MAP_ASSET_DIR)/$$asset-*.bin; \
-		cp $(MAP_DIR)/$$asset-*.bin $(MAP_ASSET_DIR)/; \
-		ls $(MAP_ASSET_DIR)/$$asset-*.bin; \
+	@for blob in coordinates.bin borders.bin capitals.json waters.json; do \
+		asset=$${blob%.*}; ext=$${blob##*.}; \
+		test -n "$$(ls $(MAP_DIR)/$$asset-*.$$ext 2>/dev/null)" || { echo "map: no $(MAP_DIR)/$$asset-<hash>.$$ext" >&2; exit 1; }; \
+		rm -f $(MAP_ASSET_DIR)/$$asset-*.$$ext; \
+		cp $(MAP_DIR)/$$asset-*.$$ext $(MAP_ASSET_DIR)/; \
+		ls $(MAP_ASSET_DIR)/$$asset-*.$$ext; \
 	done
 
 QUIZ_DIR := ../../quiz

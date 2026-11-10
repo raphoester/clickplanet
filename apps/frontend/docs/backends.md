@@ -157,6 +157,9 @@ Connect code is:
 - `failed_precondition` with a `FrozenRefusal` detail → `FrozenError`. The rules in
   force freeze the map (see [A frozen map](#a-frozen-map)); the click meter shakes,
   as for the throttle.
+- `failed_precondition` with a `ReachRefusal` detail → `OutOfReachError`. In an
+  arena, the tile is next to none of the flag's land and across none of its waters
+  (see [The arena](arena.md)); the meter shakes and says to take a tile next to it.
 
 They are separate classes rather than one with a field because each one says
 something different: ease off for a second (the click meter shakes — no dialog),

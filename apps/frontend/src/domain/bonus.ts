@@ -61,7 +61,7 @@ export function sameSwitches(a: Switches, b: Switches): boolean {
     return a.spread === b.spread && a.enclose === b.enclose && a.shield === b.shield
 }
 
-export type BonusNotice = "shieldFull" | "shieldTaken" | "shieldNotYours" | "nothingEnclosed"
+export type BonusNotice = "shieldFull" | "shieldCapital" | "shieldTaken" | "shieldNotYours" | "nothingEnclosed"
 
 export type BonusNoticeEvent = {
     notice: BonusNotice

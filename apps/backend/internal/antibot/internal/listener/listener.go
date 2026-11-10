@@ -65,7 +65,8 @@ func (l *Listener) tried(ctx context.Context, fact *planetv1.ClickTried) error {
 
 	switch outcome := fact.GetOutcome(); outcome {
 	case planetv1.ClickOutcome_CLICK_OUTCOME_REFUSED:
-	case planetv1.ClickOutcome_CLICK_OUTCOME_THROTTLED, planetv1.ClickOutcome_CLICK_OUTCOME_OTHER_FLAG:
+	case planetv1.ClickOutcome_CLICK_OUTCOME_THROTTLED, planetv1.ClickOutcome_CLICK_OUTCOME_OTHER_FLAG,
+		planetv1.ClickOutcome_CLICK_OUTCOME_OUT_OF_REACH:
 		l.guard.Attempted(click)
 	case planetv1.ClickOutcome_CLICK_OUTCOME_INVALID, planetv1.ClickOutcome_CLICK_OUTCOME_FAILED:
 		l.guard.Attempted(click)

@@ -102,6 +102,14 @@ export class ArenaRules extends Message<ArenaRules> {
    */
   freeze?: Duration;
 
+  /**
+   * The shields each country's capital starts the arena with, past bonuses.shield.per_tile. No shield is added to a
+   * capital while the arena plays. 0 to 255.
+   *
+   * @generated from field: optional uint32 capital_shields = 3;
+   */
+  capitalShields?: number;
+
   constructor(data?: PartialMessage<ArenaRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -112,6 +120,7 @@ export class ArenaRules extends Message<ArenaRules> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "on", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 2, name: "freeze", kind: "message", T: Duration },
+    { no: 3, name: "capital_shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ArenaRules {

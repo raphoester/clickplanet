@@ -58,15 +58,16 @@ func newHarness(t *testing.T) harness {
 	clock := cptime.NewFixedClock(starts)
 	stored := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{1: "fr", 2: "fr", 3: "de"})
 	stored.Shield(1, 4)
-	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), inmemory_tile_storage.Config{}, inTx{stored},
+	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), clicks.NoCapitals(), inmemory_tile_storage.Config{}, inTx{stored},
 		cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, clock,
 		slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context(), clicks.World))
 	kept, outbox := arenas.NewMemoryStore(), &cpatomic.FakeOutbox{}
-	inPlay := arenas.NewInPlay(func() arenas.Rules { return arenas.Rules{Freeze: 8 * time.Second} }, clock)
+	arenaRules := func() arenas.Rules { return arenas.Rules{Freeze: 8 * time.Second} }
+	inPlay := arenas.NewInPlay(arenaRules, clock)
 	return harness{
 		tiles: tiles, stored: stored, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock,
-		opening: open_arena_usecase.New(tiles, kept, inPlay, clock),
+		opening: open_arena_usecase.New(tiles, arenas.NewStarts(clicks.NoCapitals(), arenaRules), kept, inPlay, clock),
 		useCase: close_arena_usecase.New(tiles, kept, outbox, inPlay, clock),
 	}
 }

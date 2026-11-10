@@ -9,6 +9,9 @@ const SHIELD = {
     height: 38,
 } as const
 
+// A three-pointed crown, in the shield's 48 box.
+const CROWN = "M8 37 L5 15 L16 24 L24 9 L32 24 L43 15 L40 37 Z"
+
 const SHIELD_HEIGHT = 0.8
 const OUTLINE = 0.05
 const DROP = 0.035
@@ -20,11 +23,14 @@ type Look = {
     ink: string
     steel: string
     steelLight: string
+    gold: string
+    goldLight: string
     digit: string
 }
 
+// The plain shield, each count up to the most, then the crown of a capital in an arena.
 export function shieldCellsOf(most: number): THREE.Vector2 {
-    return new THREE.Vector2(COLUMNS, Math.ceil((Math.max(1, most) + 1) / COLUMNS))
+    return new THREE.Vector2(COLUMNS, Math.ceil((Math.max(1, most) + 2) / COLUMNS))
 }
 
 export function drawShieldMarks(most: number, onRedrawn: () => void): THREE.CanvasTexture {
@@ -49,6 +55,11 @@ export function drawShieldMarks(most: number, onRedrawn: () => void): THREE.Canv
             if (count > 0) drawCount(context, count, look)
             context.restore()
         }
+        const crown = most + 1
+        context.save()
+        context.translate((crown % COLUMNS) * CELL, Math.floor(crown / COLUMNS) * CELL)
+        drawMetal(context, new Path2D(CROWN), look.gold, look.goldLight, look)
+        context.restore()
         texture.needsUpdate = true
     }
 
@@ -62,8 +73,11 @@ export function drawShieldMarks(most: number, onRedrawn: () => void): THREE.Canv
 }
 
 function drawShield(context: CanvasRenderingContext2D, look: Look) {
+    drawMetal(context, new Path2D(SHIELD.body), look.steel, look.steelLight, look)
+}
+
+function drawMetal(context: CanvasRenderingContext2D, body: Path2D, shade: string, light: string, look: Look) {
     const scale = CELL * SHIELD_HEIGHT / SHIELD.height
-    const body = new Path2D(SHIELD.body)
 
     context.save()
     context.translate(CELL / 2 - SHIELD.size / 2 * scale, CELL / 2 - SHIELD.size / 2 * scale)
@@ -79,12 +93,12 @@ function drawShield(context: CanvasRenderingContext2D, look: Look) {
     context.stroke(body)
     context.restore()
 
-    context.fillStyle = look.steelLight
+    context.fillStyle = light
     context.fill(body)
 
     context.save()
     context.clip(body)
-    context.fillStyle = look.steel
+    context.fillStyle = shade
     context.fillRect(SHIELD.size / 2, 0, SHIELD.size / 2, SHIELD.size)
     context.restore()
 
@@ -134,6 +148,8 @@ function lookOfThePage(): Look {
         ink: token("--ink"),
         steel: token("--shield"),
         steelLight: token("--shield-light"),
+        gold: token("--gold"),
+        goldLight: token("--gold-light"),
         digit: token("--text"),
     }
 }

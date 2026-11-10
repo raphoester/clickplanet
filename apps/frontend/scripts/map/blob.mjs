@@ -9,6 +9,8 @@ export const staticDir = path.join(frontendRoot, "static")
 
 const COORDINATES = /^coordinates-[0-9a-f]{8}\.bin$/
 const BORDERS = /^borders-[0-9a-f]{8}\.bin$/
+const CAPITALS = /^capitals-[0-9a-f]{8}\.json$/
+const WATERS = /^waters-[0-9a-f]{8}\.json$/
 
 export function blobNamed(pattern, directory = mapDir) {
     const names = fs.readdirSync(directory).filter((entry) => pattern.test(entry))
@@ -63,4 +65,16 @@ export function readBorders(directory = mapDir) {
         codes,
         landmass: new Uint16Array(bytes.buffer, bytes.byteOffset + 4 + headerLength, tiles),
     }
+}
+
+/** @returns {{name: string, tiles: number, capitals: Record<string, number>}} */
+export function readCapitals(directory = mapDir) {
+    const name = blobNamed(CAPITALS, directory)
+    return {name, ...JSON.parse(fs.readFileSync(path.join(directory, name), "utf8"))}
+}
+
+/** @returns {{name: string, tiles: number, bodies: number[][]}} */
+export function readWaters(directory = mapDir) {
+    const name = blobNamed(WATERS, directory)
+    return {name, ...JSON.parse(fs.readFileSync(path.join(directory, name), "utf8"))}
 }

@@ -131,5 +131,6 @@ func Map(batch clicks.DenseBatch) *planetv1.GetMapResponse {
 		Tiles:       batch.Tiles,
 		Shields:     shields,
 		Version:     Version(batch.Version),
+		Arena:       batch.Arena,
 	}
 }

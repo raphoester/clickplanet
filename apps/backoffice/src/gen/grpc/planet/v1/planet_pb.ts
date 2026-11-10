@@ -504,6 +504,40 @@ export class FrozenRefusal extends Message<FrozenRefusal> {
 }
 
 /**
+ * The detail of the FailedPrecondition that Click answers in an arena, for a tile that touches none of the flag's land
+ * and is on the coast of no water where the flag holds a coast.
+ *
+ * @generated from message planet.v1.ReachRefusal
+ */
+export class ReachRefusal extends Message<ReachRefusal> {
+  constructor(data?: PartialMessage<ReachRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ReachRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReachRefusal {
+    return new ReachRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReachRefusal {
+    return new ReachRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReachRefusal {
+    return new ReachRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReachRefusal | PlainMessage<ReachRefusal> | undefined, b: ReachRefusal | PlainMessage<ReachRefusal> | undefined): boolean {
+    return proto3.util.equals(ReachRefusal, a, b);
+  }
+}
+
+/**
  * The detail of a PermissionDenied that Click, DropBomb and PlaceShield answer a banned caller.
  *
  * @generated from message planet.v1.BanRefusal
@@ -756,6 +790,13 @@ export class GetMapResponse extends Message<GetMapResponse> {
    */
   version?: MapVersion;
 
+  /**
+   * The map is an arena's: a battle's blank map, which started with each country's capital.
+   *
+   * @generated from field: bool arena = 6;
+   */
+  arena = false;
+
   constructor(data?: PartialMessage<GetMapResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -769,6 +810,7 @@ export class GetMapResponse extends Message<GetMapResponse> {
     { no: 3, name: "tiles", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
     { no: 4, name: "shields", kind: "message", T: TileShields, repeated: true },
     { no: 5, name: "version", kind: "message", T: MapVersion },
+    { no: 6, name: "arena", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMapResponse {

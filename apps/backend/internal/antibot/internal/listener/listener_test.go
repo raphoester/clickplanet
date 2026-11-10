@@ -58,14 +58,15 @@ func tried(outcome planetv1.ClickOutcome, when time.Time) *planetv1.ClickTried {
 
 func TestEachOutcomeReachesTheWatchdogsAsFarAsTheClickWent(t *testing.T) {
 	for outcome, calls := range map[planetv1.ClickOutcome][]string{
-		planetv1.ClickOutcome_CLICK_OUTCOME_REFUSED:    nil,
-		planetv1.ClickOutcome_CLICK_OUTCOME_THROTTLED:  {"attempted"},
-		planetv1.ClickOutcome_CLICK_OUTCOME_OTHER_FLAG: {"attempted"},
-		planetv1.ClickOutcome_CLICK_OUTCOME_INVALID:    {"attempted", "inspect"},
-		planetv1.ClickOutcome_CLICK_OUTCOME_FAILED:     {"attempted", "inspect"},
-		planetv1.ClickOutcome_CLICK_OUTCOME_TAKEN:      {"attempted", "inspect", "committed"},
-		planetv1.ClickOutcome_CLICK_OUTCOME_STRUCK:     {"attempted", "inspect", "committed"},
-		planetv1.ClickOutcome_CLICK_OUTCOME_UNCHANGED:  {"attempted", "inspect", "committed"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_REFUSED:      nil,
+		planetv1.ClickOutcome_CLICK_OUTCOME_THROTTLED:    {"attempted"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_OTHER_FLAG:   {"attempted"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_OUT_OF_REACH: {"attempted"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_INVALID:      {"attempted", "inspect"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_FAILED:       {"attempted", "inspect"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_TAKEN:        {"attempted", "inspect", "committed"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_STRUCK:       {"attempted", "inspect", "committed"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_UNCHANGED:    {"attempted", "inspect", "committed"},
 	} {
 		t.Run(outcome.String(), func(t *testing.T) {
 			guard := &recorder{}

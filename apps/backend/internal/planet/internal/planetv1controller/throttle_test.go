@@ -14,9 +14,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/reach_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
@@ -54,6 +56,26 @@ func clickAs(t *testing.T, server *httptest.Server, ip string) (*connect.Respons
 	req.Header().Set("X-Real-IP", ip)
 
 	return planetv1connect.NewClickServiceClient(server.Client(), server.URL).Click(t.Context(), req)
+}
+
+type farAway struct{}
+
+func (farAway) Refuses(string, uint32) error { return arenas.ErrOutOfReach }
+
+func TestAClickOutOfReachSpendsNoToken(t *testing.T) {
+	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
+	limiter := cpratelimit.New("test", cpratelimit.Config{PerSecond: 1, Burst: 1}, clock)
+	throttled := throttle_click.New(stubService{}, limiter, onePrice, buckets)
+	far := clickServerWith(t, reach_click.New(throttled, farAway{}), limiter, connect.WithInterceptors(errorNet()))
+	near := clickServerWith(t, throttled, limiter, connect.WithInterceptors(errorNet()))
+
+	for range 3 {
+		_, err := clickAs(t, far, "1.2.3.4")
+		require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	}
+
+	_, err := clickAs(t, near, "1.2.3.4")
+	require.NoError(t, err, "the one token is still in the bucket")
 }
 
 func TestThrottleOverHTTP(t *testing.T) {
