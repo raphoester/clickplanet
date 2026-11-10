@@ -38,6 +38,26 @@ func (s *Store) KeepBook(ctx context.Context, closed moments.ClosedBook) (bool, 
 	return inserted(res)
 }
 
+func (s *Store) KeepMissedRound(ctx context.Context, missed moments.MissedRound) (bool, error) {
+	res, err := s.db.On(ctx).ExecContext(ctx, `
+		INSERT INTO missed_rounds (round_id, ended_at) VALUES ($1, $2) ON CONFLICT (round_id) DO NOTHING
+	`, string(missed.Round), missed.EndedAt.UTC())
+	if err != nil {
+		return false, fmt.Errorf("failed to keep the round %s missed: %w", missed.Round, err)
+	}
+	return inserted(res)
+}
+
+func (s *Store) KeepMissedBook(ctx context.Context, missed moments.MissedBook) (bool, error) {
+	res, err := s.db.On(ctx).ExecContext(ctx, `
+		INSERT INTO missed_books (book_id, ended_at) VALUES ($1, $2) ON CONFLICT (book_id) DO NOTHING
+	`, string(missed.Book), missed.EndedAt.UTC())
+	if err != nil {
+		return false, fmt.Errorf("failed to keep the book %s missed: %w", missed.Book, err)
+	}
+	return inserted(res)
+}
+
 func (s *Store) KeepOpened(ctx context.Context, round moments.RoundID) error {
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO opened_rounds (round_id) VALUES ($1) ON CONFLICT (round_id) DO NOTHING
@@ -78,33 +98,48 @@ func (s *Store) KeepToldBattle(ctx context.Context, round moments.RoundID) (bool
 	return inserted(res)
 }
 
-func (s *Store) Opened(ctx context.Context) ([]moments.RoundID, error) {
-	return s.rounds(ctx, `SELECT round_id FROM opened_rounds`, "opened")
-}
-
-func (s *Store) Scored(ctx context.Context) ([]moments.RoundID, error) {
-	return s.rounds(ctx, `SELECT round_id FROM scored_rounds`, "scored")
-}
-
-func (s *Store) rounds(ctx context.Context, query, what string) ([]moments.RoundID, error) {
-	rows, err := s.db.On(ctx).QueryContext(ctx, query)
+func (s *Store) Kept(ctx context.Context) (moments.Kept, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
+		SELECT 'opened', round_id FROM opened_rounds
+		UNION ALL
+		SELECT 'scored', round_id FROM scored_rounds
+		UNION ALL
+		SELECT 'missed round', round_id FROM missed_rounds
+		UNION ALL
+		SELECT 'closed', book_id FROM closed_books
+		UNION ALL
+		SELECT 'missed book', book_id FROM missed_books
+	`)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the rounds %s: %w", what, err)
+		return moments.Kept{}, fmt.Errorf("failed to read what scoring answered: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	var rounds []moments.RoundID
+	var kept moments.Kept
 	for rows.Next() {
-		var round string
-		if err := rows.Scan(&round); err != nil {
-			return nil, fmt.Errorf("failed to read a round %s: %w", what, err)
+		var kind, id string
+		if err := rows.Scan(&kind, &id); err != nil {
+			return moments.Kept{}, fmt.Errorf("failed to read what scoring answered: %w", err)
 		}
-		rounds = append(rounds, moments.RoundID(round))
+		switch kind {
+		case "opened":
+			kept.Opened = append(kept.Opened, moments.RoundID(id))
+		case "scored":
+			kept.Scored = append(kept.Scored, moments.RoundID(id))
+		case "missed round":
+			kept.MissedRounds = append(kept.MissedRounds, moments.RoundID(id))
+		case "closed":
+			kept.Closed = append(kept.Closed, moments.BookID(id))
+		case "missed book":
+			kept.MissedBooks = append(kept.MissedBooks, moments.BookID(id))
+		default:
+			return moments.Kept{}, fmt.Errorf("a row of a kind this build does not know: %q", kind)
+		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the rounds %s: %w", what, err)
+		return moments.Kept{}, fmt.Errorf("failed to read what scoring answered: %w", err)
 	}
-	return rounds, nil
+	return kept, nil
 }
 
 func inserted(res interface{ RowsAffected() (int64, error) }) (bool, error) {

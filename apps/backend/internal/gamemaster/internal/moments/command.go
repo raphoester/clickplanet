@@ -42,7 +42,7 @@ type Command struct {
 	FromNothing bool
 }
 
-// Key is a command's identity: each is sent once per process.
+// Key is a command's identity: an open is sent once per process, a close again until scoring answers it.
 type Key struct {
 	Action Action
 	Book   BookID
@@ -50,3 +50,6 @@ type Key struct {
 }
 
 func (c Command) Key() Key { return Key{Action: c.Action, Book: c.Book, Round: c.Round} }
+
+// Closes is true for the commands scoring answers with a fact: each is sent again until the fact comes.
+func (a Action) Closes() bool { return a == CloseRound || a == CloseBook }

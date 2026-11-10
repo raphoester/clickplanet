@@ -85,11 +85,15 @@ store's insert (`ON CONFLICT DO NOTHING`, which answers whether this call did it
   reads no map and counts from nothing** (`books.CountsFromNothing`): a season after season 0 opens on a blank map,
   and the gamemaster tells planet to wipe it on another stream, so the wipe can land after the round opened; an arena battle's
   round plays on a map planet blanks after day K is scored (see [Arena battles](arenas.md)).
-- **`CloseRound{round_id, ends_at}`**: a round never opened, or scored, is not scored. Else `close_round_usecase` reads
+- **`CloseRound{round_id, ends_at}`**: a round scored is not scored again. **A round never opened is not scored, and
+  `close_round_usecase` records `scoring.v1.RoundMissed`** (round, end) in the outbox, at each such close: the
+  gamemaster closes a round until scoring answers it, so a close that cannot apply is answered too (see [The gamemaster
+  as a reconciler](gamemaster-reconciler.md)). Nothing is kept of it. Else `close_round_usecase` reads
   the round's start and the map once (`GetTerritories`), ranks the gains (`Round.Results`), keeps the results and records **`scoring.v1.RoundScored`**
   (round, book, end) in the outbox, in one transaction. A failure to read the map
   scores nothing and is tried again. Nothing freezes the map: a round closed late is scored from the map as it is then.
-- **`CloseBook{book_id, ends_at, tiebreak_round_id}`**: a book never opened, or closed, is not closed again. Else
+- **`CloseBook{book_id, ends_at, tiebreak_round_id}`**: a book closed is not closed again. **A book never opened is not
+  closed, and `close_book_usecase` records `scoring.v1.BookMissed`** (book, end), at each such close. Else
   `close_book_usecase` closes the book with its tiebreak round and records **`scoring.v1.BookClosed`** (book, end), in
   one transaction. Its table is ranked at each read (`Book.Table`). Scoring ranks by
   the tiebreak round it is given and never picks one: the gamemaster names its season's finale, or none when the season
@@ -104,7 +108,8 @@ the books read the grants by time.
 
 `scoring_command_handler/season_end_test.go` plays season 0's end: day 24 closed at 21:00, the battle ×3 from 21:00 to
 23:00 as the tiebreak, then the book; the outbox holds the two `RoundScored` then `BookClosed`, and every command sent
-again changes nothing.
+again changes nothing. It also pins a close of a round or a book never opened told missed at each close, and a round and
+a book closed twice told once.
 
 ## The rules
 
@@ -213,7 +218,8 @@ tiebreak has no row), `grants` (`grant_id`, `country`, `points`, `granted_at`, b
 `book_id`, `times`, `starts_at`, `counted_takes_below`, `counted_takes_below_index`), `round_starts` (`round_id`,
 `country`, `tiles`: a country that held nothing has no row, and a round opened from nothing none), `scored_rounds`
 (`ended_at`), `round_results` (`rank`, `points`, `share`), `round_takes`, `round_players`, and the outbox
-(`outbox_event`: `scoring.v1.RoundScored`, `scoring.v1.BookClosed`). An end is a table of its own, not a nullable
+(`outbox_event`: `scoring.v1.RoundScored`, `scoring.v1.BookClosed`, and `scoring.v1.RoundMissed`,
+`scoring.v1.BookMissed` from migration `20261110160000_missed`). An end is a table of its own, not a nullable
 column: an open book or round has none. The rules stay in Go; SQL keeps what they said.
 
 **Migration `20261028130000_books` converted production** (only season 0 had run; any other season refuses it):

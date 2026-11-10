@@ -189,7 +189,7 @@ export class OpenRound extends Message<OpenRound> {
 
 /**
  * Scores the round from the map now. Takes before ends_at still count in its numbers when they arrive after it. A round
- * never opened, or already scored, is not scored.
+ * already scored is not scored again; one never opened is not scored, and scoring tells RoundMissed.
  *
  * @generated from message scoring.v1.CloseRound
  */
@@ -235,7 +235,8 @@ export class CloseRound extends Message<CloseRound> {
 
 /**
  * Ranks the book from its rounds: points, then rounds won, then the points of tiebreak_round_id (empty: no third key).
- * Takes after ends_at count in it no more.
+ * Takes after ends_at count in it no more. A book already closed is not ranked again; one never opened is not ranked,
+ * and scoring tells BookMissed.
  *
  * @generated from message scoring.v1.CloseBook
  */

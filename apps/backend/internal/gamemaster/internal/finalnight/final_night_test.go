@@ -51,6 +51,9 @@ type planetAndAntibot struct {
 }
 
 func (p *planetAndAntibot) Play(_ context.Context, turn schedule.Turn, decidedAt time.Time) error {
+	if len(p.played) > 0 && !decidedAt.After(p.played[len(p.played)-1].at) {
+		return nil
+	}
 	p.played = append(p.played, played{set: turn.TakeSnapshot().Set, at: decidedAt})
 	return nil
 }
@@ -105,7 +108,7 @@ func TestSeasonZerosLastDayAndItsFinalePlaySecondBySecond(t *testing.T) {
 	told := outbox_moment_events.New(outbox)
 
 	modules := &planetAndAntibot{}
-	rules := play_schedule_usecase.New(entries, seasons, modules, clock)
+	rules := play_schedule_usecase.New(entries, seasons, modules, clock, time.Minute)
 	scored := &scoring{
 		t:      t,
 		rounds: hear_round_usecase.New(planner, kept, told, cpatomic.FakeTransactioner{}),
@@ -114,8 +117,8 @@ func TestSeasonZerosLastDayAndItsFinalePlaySecondBySecond(t *testing.T) {
 	planet := &arenaCommands{}
 	plan := play_plan_usecase.New(planner,
 		play_resets_usecase.New(&resetsTold{}, clock),
-		play_arenas_usecase.New(judged, rulesOf{}, planet, clock),
-		play_scoring_usecase.New(kept, scored, clock),
+		play_arenas_usecase.New(judged, rulesOf{}, planet, clock, time.Minute),
+		play_scoring_usecase.New(kept, scored, clock, time.Minute),
 		tell_starts_usecase.New(kept, outbox_moment_events.New(&cpatomic.FakeOutbox{}), cpatomic.FakeTransactioner{}, clock))
 
 	tick := func() {

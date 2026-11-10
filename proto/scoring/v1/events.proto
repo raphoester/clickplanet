@@ -13,10 +13,23 @@ message RoundScored {
   reserved "results";
 }
 
+// A round was closed that never opened: nothing scores it. Told at each close of it, so whoever closed it waits for no
+// score.
+message RoundMissed {
+  string round_id = 1;
+  google.protobuf.Timestamp ended_at = 2;
+}
+
 // A book was closed.
 message BookClosed {
   string book_id = 1;
   google.protobuf.Timestamp ended_at = 2;
   reserved 3;
   reserved "table";
+}
+
+// A book was closed that never opened: nothing ranks it. Told at each close of it.
+message BookMissed {
+  string book_id = 1;
+  google.protobuf.Timestamp ended_at = 2;
 }

@@ -33,31 +33,6 @@ func (s *Store) KeepJudged(ctx context.Context, judgement moments.Judgement) (bo
 	return inserted(res)
 }
 
-func (s *Store) Judged(ctx context.Context) ([]moments.Judgement, error) {
-	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT round_id, mode::text FROM battle_modes`)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the battles judged: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var judged []moments.Judgement
-	for rows.Next() {
-		var round, kept string
-		if err := rows.Scan(&round, &kept); err != nil {
-			return nil, fmt.Errorf("failed to read a battle judged: %w", err)
-		}
-		mode, err := modeFrom(kept)
-		if err != nil {
-			return nil, err
-		}
-		judged = append(judged, moments.Judgement{Round: moments.RoundID(round), Mode: mode})
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the battles judged: %w", err)
-	}
-	return judged, nil
-}
-
 func (s *Store) KeepClosed(ctx context.Context, arena moments.RoundID) (bool, error) {
 	res, err := s.db.On(ctx).ExecContext(ctx,
 		`INSERT INTO closed_arenas (round_id) VALUES ($1) ON CONFLICT (round_id) DO NOTHING`, string(arena))
@@ -67,25 +42,40 @@ func (s *Store) KeepClosed(ctx context.Context, arena moments.RoundID) (bool, er
 	return inserted(res)
 }
 
-func (s *Store) Closed(ctx context.Context) ([]moments.RoundID, error) {
-	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT round_id FROM closed_arenas`)
+func (s *Store) ArenasKept(ctx context.Context) (moments.ArenasKept, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
+		SELECT 'judged', round_id, mode::text FROM battle_modes
+		UNION ALL
+		SELECT 'closed', round_id, '' FROM closed_arenas
+	`)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the arenas closed: %w", err)
+		return moments.ArenasKept{}, fmt.Errorf("failed to read the arena battles: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	var closed []moments.RoundID
+	var kept moments.ArenasKept
 	for rows.Next() {
-		var round string
-		if err := rows.Scan(&round); err != nil {
-			return nil, fmt.Errorf("failed to read an arena closed: %w", err)
+		var kind, round, mode string
+		if err := rows.Scan(&kind, &round, &mode); err != nil {
+			return moments.ArenasKept{}, fmt.Errorf("failed to read an arena battle: %w", err)
 		}
-		closed = append(closed, moments.RoundID(round))
+		switch kind {
+		case "judged":
+			judged, err := modeFrom(mode)
+			if err != nil {
+				return moments.ArenasKept{}, err
+			}
+			kept.Judged = append(kept.Judged, moments.Judgement{Round: moments.RoundID(round), Mode: judged})
+		case "closed":
+			kept.Closed = append(kept.Closed, moments.RoundID(round))
+		default:
+			return moments.ArenasKept{}, fmt.Errorf("an arena row of a kind this build does not know: %q", kind)
+		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the arenas closed: %w", err)
+		return moments.ArenasKept{}, fmt.Errorf("failed to read the arena battles: %w", err)
 	}
-	return closed, nil
+	return kept, nil
 }
 
 func modeOf(mode moments.Mode) (string, error) {

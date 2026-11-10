@@ -46,12 +46,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/book_closed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/book_missed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/outbox_moment_events"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/postgres_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/redis_scoring_commands"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/round_missed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/round_scored_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_book_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_book_usecase/log_hear_book"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_missed_book_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_missed_book_usecase/log_hear_missed_book"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_missed_round_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_missed_round_usecase/log_hear_missed_round"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_round_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_round_usecase/log_hear_round"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_plan_usecase"
@@ -95,6 +101,8 @@ import (
 const (
 	moduleName    = "gamemaster"
 	scheduleCheck = time.Second
+	// sendAgain is how long a close waits for its answer, and the turn for its next send, before it is sent again.
+	sendAgain = time.Minute
 )
 
 func NewModule(config Config) cpbootstrap.Module {
@@ -138,7 +146,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	entries := postgres_entry_store.New(db)
 	seasons := postgres_season_store.New(db)
 	ruleSchedule := play_schedule_usecase.NewRunner(scheduleCheck, log_play_schedule.New(
-		play_schedule_usecase.New(entries, seasons, redis_rule_set_commands.New(streams.Commands()), clock), props.Logger))
+		play_schedule_usecase.New(entries, seasons, redis_rule_set_commands.New(streams.Commands()), clock, sendAgain),
+		props.Logger))
 	heard := postgres_moment_store.New(db)
 	judged := postgres_arena_store.New(db)
 	planner := moments.NewPlanner(seasons, entries, heard, judged, cutoff)
@@ -147,8 +156,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		log_play_resets.New(play_resets_usecase.New(redis_map_commands.New(streams.Commands()), clock), props.Logger),
 		log_play_arenas.New(play_arenas_usecase.New(judged,
 			rpc_planet_arenas.New(planetv1connect.NewInternalServiceClient(internal, baseURL)),
-			redis_arena_commands.New(streams.Commands()), clock), props.Logger),
-		log_play_scoring.New(play_scoring_usecase.New(heard, redis_scoring_commands.New(streams.Commands()), clock), props.Logger),
+			redis_arena_commands.New(streams.Commands()), clock, sendAgain), props.Logger),
+		log_play_scoring.New(play_scoring_usecase.New(heard, redis_scoring_commands.New(streams.Commands()), clock, sendAgain),
+			props.Logger),
 		log_tell_starts.New(tell_starts_usecase.New(heard, told, db, clock), props.Logger),
 	), props.Logger))
 	rounds, err := cpredis.Subscribe(ctx, streams, "gamemaster-rounds", round_scored_subscriber.New(
@@ -165,6 +175,20 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to scoring.v1.BookClosed: %w", err)
 	}
+	missedRounds, err := cpredis.Subscribe(ctx, streams, "gamemaster-rounds-missed", round_missed_subscriber.New(
+		log_hear_missed_round.New(hear_missed_round_usecase.New(heard), props.Logger)))
+	if err != nil {
+		_ = streams.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to scoring.v1.RoundMissed: %w", err)
+	}
+	missedBooks, err := cpredis.Subscribe(ctx, streams, "gamemaster-books-missed", book_missed_subscriber.New(
+		log_hear_missed_book.New(hear_missed_book_usecase.New(heard), props.Logger)))
+	if err != nil {
+		_ = streams.Close()
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to scoring.v1.BookMissed: %w", err)
+	}
 	arenas, err := cpredis.Subscribe(ctx, streams, "gamemaster-arenas-closed", arena_closed_subscriber.New(
 		log_hear_arena.New(hear_arena_usecase.New(judged), props.Logger)))
 	if err != nil {
@@ -176,7 +200,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	turns := turn_query.NewPostgresQuery(db, clock, cutoff)
 	turnFeed := inprocess_turn_feed.New(log_turn_reader.New(turns, props.Logger))
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, turnFeed, cpredis.CloseAfter(streams, props.Logger,
-		ruleSchedule, planPlay, rounds, books, arenas, cpoutbox.NewRelay("gamemaster-outbox", db, streams, props.Logger))))
+		ruleSchedule, planPlay, rounds, books, missedRounds, missedBooks, arenas, cpoutbox.NewRelay("gamemaster-outbox", db, streams, props.Logger))))
 
 	admin := gamemasterv1controller.AdminService{
 		GetScheduleHandler: get_schedule_handler.New(schedule_query.NewPostgresQuery(db, clock)),

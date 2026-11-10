@@ -23,10 +23,10 @@ func New(commands Commands, clock cptime.Clock) *UseCase {
 	return &UseCase{commands: commands, clock: clock, told: cpcolls.NewSet[season.Number]()}
 }
 
-// UseCase tells planet once per process that the running season starts on a blank map. Planet keeps each reset, so
-// a boot that tells it again wipes nothing; a command Redis did not take is sent again at the next Execute. A season
-// that starts after an arena battle waits for the map from before the arena battle to be back, or the arena battle's end would undo the
-// reset.
+// UseCase tells planet once per process that the running season starts on a blank map, once the plan says the map may
+// be wiped (Plan.ResetAt): scoring answered the book of the season before it, so its finale was scored on the map, and
+// no arena battle before it waits for its map, whose end would undo the reset. Planet keeps each reset, so a boot that
+// tells it again wipes nothing; a command Redis did not take is sent again at the next Execute.
 type UseCase struct {
 	commands Commands
 	clock    cptime.Clock
@@ -37,9 +37,8 @@ type UseCase struct {
 var _ Executor = (*UseCase)(nil)
 
 func (u *UseCase) Execute(ctx context.Context, plan moments.Plan) (season.Window, bool, error) {
-	book, ok := plan.BookAt(u.clock.Now())
-	running := book.Window
-	if !ok || !running.StartsOnBlankMap() || u.told.Contains(running.Number) || plan.Waits(running.StartsAt) {
+	running, ok := plan.ResetAt(u.clock.Now())
+	if !ok || u.told.Contains(running.Number) {
 		return season.Window{}, false, nil
 	}
 	if err := u.commands.Reset(ctx, running); err != nil {

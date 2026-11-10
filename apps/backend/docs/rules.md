@@ -135,7 +135,8 @@ The readers call it where they use the rules, not when they are built: a set tak
   `clicks.Claiming` (a tile's most shields, for a fortify) and `GetBonusRules`.
 - **`play_rules_usecase` plays when something changes, never on a timer**: at boot and after each save (`Execute`) the
   set the schedule chose last, and `default` until it chose one; then each `planet.v1.PlayRuleSet` the schedule sends (`Play`, from
-  `commands/play_rule_set_handler`). A missing or broken set at boot refuses the boot. Each time it reads the set to
+  `commands/play_rule_set_handler`); the same turn, sent again each minute with the same `decided_at`, is no newer
+  and changes nothing (see [The gamemaster as a reconciler](gamemaster-reconciler.md)). A missing or broken set at boot refuses the boot. Each time it reads the set to
   play from the store and enforces it when its values changed (`Set.Equal`), one play at a time under a lock. A failed
   read, or a kept set that cannot play, keeps the rules in force, and `log_play_rules` logs it; each set taken is
   logged at Warn (`rules in force`, `set`, `rules`: every value it plays, as protojson). A save of `default` changes

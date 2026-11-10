@@ -20,18 +20,22 @@ var (
 	second       = moments.BattleRoundOf(late)
 )
 
-func backToBack(known moments.Arenas) moments.Plan {
+func backToBack(known moments.Known) moments.Plan {
 	return moments.NewPlan(calendar(season.Finale{}), cutoff, nil,
 		battle(early, firstStarts, secondStarts), battle(late, secondStarts, secondEnds)).With(known)
 }
 
-func both(scored, closed []moments.RoundID) moments.Arenas {
-	return moments.NewArenas([]moments.Judgement{{Round: first, Mode: moments.Arena}, {Round: second, Mode: moments.Arena}},
+func both(scored, closed []moments.RoundID) moments.Known {
+	return knowing([]moments.Judgement{{Round: first, Mode: moments.Arena}, {Round: second, Mode: moments.Arena}},
 		scored, closed)
 }
 
+func knowing(judged []moments.Judgement, scored, closed []moments.RoundID) moments.Known {
+	return moments.NewKnown(moments.Kept{Scored: scored}, moments.ArenasKept{Judged: judged, Closed: closed})
+}
+
 func TestABattleIsJudgedAnArenaBattleWhenItsSetSaysSoUnlessItOpensItsBook(t *testing.T) {
-	plan := backToBack(moments.NewArenas(nil, nil, nil))
+	plan := backToBack(knowing(nil, nil, nil))
 
 	running, ok := plan.Unjudged(firstStarts)
 	require.True(t, ok)
@@ -44,7 +48,7 @@ func TestABattleIsJudgedAnArenaBattleWhenItsSetSaysSoUnlessItOpensItsBook(t *tes
 	require.True(t, ok)
 	assert.Equal(t, moments.Plain, opener.Judge(atStart, true).Mode, "the season's reset blanked the map already")
 
-	_, ok = backToBack(moments.NewArenas([]moments.Judgement{{Round: first, Mode: moments.Plain}}, nil, nil)).Unjudged(firstStarts)
+	_, ok = backToBack(knowing([]moments.Judgement{{Round: first, Mode: moments.Plain}}, nil, nil)).Unjudged(firstStarts)
 	assert.False(t, ok, "judged once")
 }
 
@@ -105,12 +109,12 @@ func TestAPlanThatKnowsNoArenaOpensEveryRoundOnTime(t *testing.T) {
 }
 
 func TestAPlanJudgedOpensTheBattleAsAPlanReadAfterTheJudgementWasKept(t *testing.T) {
-	unjudged := backToBack(moments.NewArenas(nil, []moments.RoundID{"season-0/day-23"}, nil))
+	unjudged := backToBack(knowing(nil, []moments.RoundID{"season-0/day-23"}, nil))
 	arena := moments.Judgement{Round: first, Mode: moments.Arena}
 
 	judged := unjudged.Judged(arena)
 
-	kept := backToBack(moments.NewArenas([]moments.Judgement{arena}, []moments.RoundID{"season-0/day-23"}, nil))
+	kept := backToBack(knowing([]moments.Judgement{arena}, []moments.RoundID{"season-0/day-23"}, nil))
 	assert.Equal(t, kept.DueAt(firstStarts), judged.DueAt(firstStarts))
 	assert.Equal(t, kept.ArenasDueAt(firstStarts), judged.ArenasDueAt(firstStarts))
 	_, ok := unjudged.Unjudged(firstStarts)

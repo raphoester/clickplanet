@@ -83,6 +83,60 @@ func (x *RoundScored) GetEndedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// A round was closed that never opened: nothing scores it. Told at each close of it, so whoever closed it waits for no
+// score.
+type RoundMissed struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoundId       string                 `protobuf:"bytes,1,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
+	EndedAt       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoundMissed) Reset() {
+	*x = RoundMissed{}
+	mi := &file_scoring_v1_events_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoundMissed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoundMissed) ProtoMessage() {}
+
+func (x *RoundMissed) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_events_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoundMissed.ProtoReflect.Descriptor instead.
+func (*RoundMissed) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_events_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RoundMissed) GetRoundId() string {
+	if x != nil {
+		return x.RoundId
+	}
+	return ""
+}
+
+func (x *RoundMissed) GetEndedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndedAt
+	}
+	return nil
+}
+
 // A book was closed.
 type BookClosed struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -94,7 +148,7 @@ type BookClosed struct {
 
 func (x *BookClosed) Reset() {
 	*x = BookClosed{}
-	mi := &file_scoring_v1_events_proto_msgTypes[1]
+	mi := &file_scoring_v1_events_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -106,7 +160,7 @@ func (x *BookClosed) String() string {
 func (*BookClosed) ProtoMessage() {}
 
 func (x *BookClosed) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_events_proto_msgTypes[1]
+	mi := &file_scoring_v1_events_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -119,7 +173,7 @@ func (x *BookClosed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BookClosed.ProtoReflect.Descriptor instead.
 func (*BookClosed) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_events_proto_rawDescGZIP(), []int{1}
+	return file_scoring_v1_events_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *BookClosed) GetBookId() string {
@@ -136,6 +190,59 @@ func (x *BookClosed) GetEndedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// A book was closed that never opened: nothing ranks it. Told at each close of it.
+type BookMissed struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	EndedAt       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BookMissed) Reset() {
+	*x = BookMissed{}
+	mi := &file_scoring_v1_events_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BookMissed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BookMissed) ProtoMessage() {}
+
+func (x *BookMissed) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_events_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BookMissed.ProtoReflect.Descriptor instead.
+func (*BookMissed) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_events_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *BookMissed) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *BookMissed) GetEndedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndedAt
+	}
+	return nil
+}
+
 var File_scoring_v1_events_proto protoreflect.FileDescriptor
 
 const file_scoring_v1_events_proto_rawDesc = "" +
@@ -145,11 +252,18 @@ const file_scoring_v1_events_proto_rawDesc = "" +
 	"\vRoundScored\x12\x19\n" +
 	"\bround_id\x18\x01 \x01(\tR\aroundId\x12\x17\n" +
 	"\abook_id\x18\x02 \x01(\tR\x06bookId\x125\n" +
-	"\bended_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAtJ\x04\b\x04\x10\x05R\aresults\"i\n" +
+	"\bended_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAtJ\x04\b\x04\x10\x05R\aresults\"_\n" +
+	"\vRoundMissed\x12\x19\n" +
+	"\bround_id\x18\x01 \x01(\tR\aroundId\x125\n" +
+	"\bended_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\"i\n" +
 	"\n" +
 	"BookClosed\x12\x17\n" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\x125\n" +
-	"\bended_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAtJ\x04\b\x03\x10\x04R\x05tableB\xba\x01\n" +
+	"\bended_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAtJ\x04\b\x03\x10\x04R\x05table\"\\\n" +
+	"\n" +
+	"BookMissed\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x125\n" +
+	"\bended_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAtB\xba\x01\n" +
 	"\x0ecom.scoring.v1B\vEventsProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1;scoringv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Scoring.V1\xca\x02\n" +
 	"Scoring\\V1\xe2\x02\x16Scoring\\V1\\GPBMetadata\xea\x02\vScoring::V1b\x06proto3"
@@ -166,20 +280,24 @@ func file_scoring_v1_events_proto_rawDescGZIP() []byte {
 	return file_scoring_v1_events_proto_rawDescData
 }
 
-var file_scoring_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_scoring_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_scoring_v1_events_proto_goTypes = []any{
 	(*RoundScored)(nil),           // 0: scoring.v1.RoundScored
-	(*BookClosed)(nil),            // 1: scoring.v1.BookClosed
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(*RoundMissed)(nil),           // 1: scoring.v1.RoundMissed
+	(*BookClosed)(nil),            // 2: scoring.v1.BookClosed
+	(*BookMissed)(nil),            // 3: scoring.v1.BookMissed
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
 }
 var file_scoring_v1_events_proto_depIdxs = []int32{
-	2, // 0: scoring.v1.RoundScored.ended_at:type_name -> google.protobuf.Timestamp
-	2, // 1: scoring.v1.BookClosed.ended_at:type_name -> google.protobuf.Timestamp
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	4, // 0: scoring.v1.RoundScored.ended_at:type_name -> google.protobuf.Timestamp
+	4, // 1: scoring.v1.RoundMissed.ended_at:type_name -> google.protobuf.Timestamp
+	4, // 2: scoring.v1.BookClosed.ended_at:type_name -> google.protobuf.Timestamp
+	4, // 3: scoring.v1.BookMissed.ended_at:type_name -> google.protobuf.Timestamp
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_scoring_v1_events_proto_init() }
@@ -193,7 +311,7 @@ func file_scoring_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scoring_v1_events_proto_rawDesc), len(file_scoring_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

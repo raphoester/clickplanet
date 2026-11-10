@@ -33,11 +33,18 @@ func New(transactioner cpatomic.Transactioner, books Books, outbox cpatomic.Outb
 	return &UseCase{transactioner: transactioner, books: books, outbox: outbox}
 }
 
-// Execute closes the book, and answers whether it did: a book never opened, or closed before, is not.
+// Execute closes the book, and answers whether it did: a book closed before is not closed again, and one never opened
+// is not closed and is told missed, at each close of it.
 func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	book, found, err := u.books.Find(ctx, command.Book)
-	if err != nil || !found || book.Closed {
+	if err != nil {
 		return false, err //nolint:wrapcheck // the store says what failed.
+	}
+	if !found {
+		return false, u.miss(ctx, command)
+	}
+	if book.Closed {
+		return false, nil
 	}
 
 	closed := book.ClosedAt(command.EndsAt, command.Tiebreak)
@@ -57,4 +64,14 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 		return false, err //nolint:wrapcheck // each step named what failed.
 	}
 	return done, nil
+}
+
+func (u *UseCase) miss(ctx context.Context, command Command) error {
+	missed := &scoringv1.BookMissed{BookId: string(command.Book), EndedAt: timestamppb.New(command.EndsAt)}
+	return u.transactioner.InTx(ctx, func(ctx context.Context) error { //nolint:wrapcheck // the outbox names the event.
+		if err := u.outbox.Record(ctx, missed); err != nil {
+			return fmt.Errorf("failed to record book %s missed: %w", command.Book, err)
+		}
+		return nil
+	})
 }

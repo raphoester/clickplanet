@@ -11,8 +11,8 @@ import (
 type Store interface {
 	// KeepJudged is true for a battle not judged yet, and keeps it; one judged already keeps its mode.
 	KeepJudged(ctx context.Context, judgement moments.Judgement) (bool, error)
-	Judged(ctx context.Context) ([]moments.Judgement, error)
 	// KeepClosed is true for an arena not kept closed yet.
 	KeepClosed(ctx context.Context, arena moments.RoundID) (bool, error)
-	Closed(ctx context.Context) ([]moments.RoundID, error)
+	// ArenasKept is every battle judged and every arena closed, in one read.
+	ArenasKept(ctx context.Context) (moments.ArenasKept, error)
 }

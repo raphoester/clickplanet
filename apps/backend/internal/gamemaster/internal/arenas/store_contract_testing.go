@@ -34,11 +34,12 @@ func (s *StoreContractSuite) TestABattleIsJudgedOnceAndKeepsItsMode() {
 
 	s.True(first)
 	s.False(again)
-	judged, err := s.store.Judged(ctx)
+	kept, err := s.store.ArenasKept(ctx)
 	s.Require().NoError(err)
 	s.ElementsMatch([]moments.Judgement{
 		{Round: contractBattle, Mode: moments.Arena}, {Round: "season-1/finale", Mode: moments.Plain},
-	}, judged)
+	}, kept.Judged)
+	s.Empty(kept.Closed)
 }
 
 func (s *StoreContractSuite) TestAnArenaIsKeptClosedOnce() {
@@ -51,7 +52,8 @@ func (s *StoreContractSuite) TestAnArenaIsKeptClosedOnce() {
 
 	s.True(first)
 	s.False(again)
-	closed, err := s.store.Closed(ctx)
+	kept, err := s.store.ArenasKept(ctx)
 	s.Require().NoError(err)
-	s.Equal([]moments.RoundID{contractBattle}, closed)
+	s.Equal([]moments.RoundID{contractBattle}, kept.Closed)
+	s.Empty(kept.Judged)
 }

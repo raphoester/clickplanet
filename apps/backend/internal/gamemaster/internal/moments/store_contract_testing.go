@@ -51,9 +51,9 @@ func (s *StoreContractSuite) TestTheRoundsOpenedAreReadAsKeptOnce() {
 	s.Require().NoError(s.store.KeepOpened(s.T().Context(), "season-0/day-24"))
 	s.Require().NoError(s.store.KeepOpened(s.T().Context(), "season-0/day-25"))
 
-	opened, err := s.store.Opened(s.T().Context())
+	kept, err := s.store.Kept(s.T().Context())
 	s.Require().NoError(err)
-	s.ElementsMatch([]RoundID{"season-0/day-24", "season-0/day-25"}, opened)
+	s.ElementsMatch([]RoundID{"season-0/day-24", "season-0/day-25"}, kept.Opened)
 }
 
 func (s *StoreContractSuite) TestTheRoundsScoredAreReadAsKept() {
@@ -64,10 +64,37 @@ func (s *StoreContractSuite) TestTheRoundsScoredAreReadAsKept() {
 		s.Require().NoError(err)
 	}
 
-	scored, err := s.store.Scored(ctx)
+	kept, err := s.store.Kept(ctx)
 
 	s.Require().NoError(err)
-	s.ElementsMatch([]RoundID{"season-0/day-24", "season-0/finale"}, scored)
+	s.ElementsMatch([]RoundID{"season-0/day-24", "season-0/finale"}, kept.Scored)
+	s.Empty(kept.MissedRounds)
+}
+
+func (s *StoreContractSuite) TestARoundAndABookMissedAreKeptOnceAndReadApart() {
+	ctx := s.T().Context()
+	missed := MissedRound{Round: "season-1/day-3", EndedAt: contractEnd}
+
+	first, err := s.store.KeepMissedRound(ctx, missed)
+	s.Require().NoError(err)
+	again, err := s.store.KeepMissedRound(ctx, missed)
+	s.Require().NoError(err)
+	book, err := s.store.KeepMissedBook(ctx, MissedBook{Book: "season-2", EndedAt: contractEnd})
+	s.Require().NoError(err)
+	bookAgain, err := s.store.KeepMissedBook(ctx, MissedBook{Book: "season-2", EndedAt: contractEnd})
+	s.Require().NoError(err)
+	_, err = s.store.KeepBook(ctx, ClosedBook{Book: "season-0", EndedAt: contractEnd})
+	s.Require().NoError(err)
+
+	s.True(first)
+	s.False(again, "a round told missed twice is kept once")
+	s.True(book)
+	s.False(bookAgain)
+	kept, err := s.store.Kept(ctx)
+	s.Require().NoError(err)
+	s.Equal(Kept{
+		MissedRounds: []RoundID{"season-1/day-3"}, Closed: []BookID{"season-0"}, MissedBooks: []BookID{"season-2"},
+	}, kept)
 }
 
 func (s *StoreContractSuite) TestASeasonIsToldOnce() {

@@ -23,7 +23,7 @@ func TestAnArenaToldClosedIsKeptOnce(t *testing.T) {
 	require.NoError(t, subscriber.Handle(t.Context(), event))
 	require.NoError(t, subscriber.Handle(t.Context(), &planetv1.ArenaClosed{}))
 
-	closed, err := store.Closed(t.Context())
+	kept, err := store.ArenasKept(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, []moments.RoundID{"season-1/finale"}, closed)
+	assert.Equal(t, []moments.RoundID{"season-1/finale"}, kept.Closed)
 }

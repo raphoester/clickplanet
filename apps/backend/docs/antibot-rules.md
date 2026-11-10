@@ -111,7 +111,8 @@ judgement sees one set.
 
 - **`play_rules_usecase` plays when something changes, never on a timer**: at boot (`Execute`) the set the schedule
   chose last, and `default` until it chose one; then each `antibot.v1.PlayRuleSet` the schedule sends (`Play`, from
-  `commands/play_rule_set_handler`). After each save, `Execute` plays the set chosen last again (see [The
+  `commands/play_rule_set_handler`); the same turn, sent again each minute with the same `decided_at`, is no newer
+  and changes nothing (see [The gamemaster as a reconciler](gamemaster-reconciler.md)). After each save, `Execute` plays the set chosen last again (see [The
   operator](#the-operator)), so a save of the set in force takes over at once. Each time it reads the set to play from the store, which restores it, and enforces it when its
   values changed (`Set.Equal`), one play at a time under a lock. A missing set at boot refuses the boot. A failed read,
   or a kept set that cannot play, keeps the rules in force; the caller gets the error and `log_play_rules` logs it.

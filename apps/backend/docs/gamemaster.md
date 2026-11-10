@@ -28,7 +28,7 @@ internal/gamemaster/
                                     entry_times, scored_moments (scored_rounds, opened_rounds, closed_books, outbox),
                                     season_finales (season 0's Final Battle seeded), told_days, halloween_kind,
                                     halloween_times, told_battles_and_seasons, arenas (battle_modes, closed_arenas),
-                                    drop_scored_round_book, drop_halloween_kind
+                                    drop_scored_round_book, drop_halloween_kind, missed (missed_rounds, missed_books)
     schedule/                       EntryID, SetName, Kind, Description, Times, Priority, Draft, Entry (NewEntry, Edited,
                                     Changeable), Schedule (New, With, TurnAt, SinceAt, BattlesAfter), Finale, Turn; the
                                     Store, Keeper and IDProvider ports, Playable; the store's contract suite; FakeKeeper and
@@ -50,38 +50,47 @@ internal/gamemaster/
       inmemory_season_store/        the Store in a map, behind the testing tag
       postgres_season_store/        the Store over gamemaster.seasons and season_finales
       redis_map_commands/           planet.v1.ResetMap, on planet's command stream
-      usecases/play_resets_usecase/ a season after season 0 starts on a blank map, told once per process and once no
-                                    arena battle before it waits for its map; a step of play_plan_usecase
+      usecases/play_resets_usecase/ a season after season 0 starts on a blank map, told once per process once scoring
+                                    answered the book before it and no arena battle before it waits for its map
+                                    (Plan.ResetAt); a step of play_plan_usecase
         log_play_resets/            logs each reset told, and a failure
       usecases/add_season_usecase/     audit_add_season/
       usecases/edit_season_usecase/    audit_edit_season/
       usecases/delete_season_usecase/  audit_delete_season/
     moments/                        BookID, RoundID (BookOf, DayRoundOf, FinaleRoundOf, BattleRoundOf, SeasonOf, NamedOf),
                                     Battle, Book (Tiebreak, FinaleBattle), Plan (DueAt, BookAt, DayAt, BattleAt, DaysOf,
-                                    BattleOf, FinaleAt, FinalesAfter, RoundEnded, BookClosed, Clashes, Judged), Planner (Plan,
-                                    With), Command, Action,
-                                    Key, Moment (SeasonStarted, DayStarted, BattleStarted, DayEnded, BattleEnded,
-                                    SeasonEnded), ToldDay; the Store and Events ports, the store's contract suite
+                                    BattleOf, FinaleAt, FinalesAfter, RoundEnded, BookClosed, Clashes, Judged, ResetAt),
+                                    Planner (Plan, With), Kept, ArenasKept, Known (what was commanded and answered),
+                                    Command, Action (Closes), Key, Moment (SeasonStarted, DayStarted, BattleStarted,
+                                    DayEnded, BattleEnded, SeasonEnded), ToldDay, MissedRound, MissedBook; the Store and
+                                    Events ports, the store's contract suite
       inmemory_moment_store/        the Store in maps, behind the testing tag
-      postgres_moment_store/        the Store over gamemaster.scored_rounds, closed_books, opened_rounds, told_days,
-                                    told_battles and told_seasons
+      postgres_moment_store/        the Store over gamemaster.scored_rounds, closed_books, missed_rounds, missed_books,
+                                    opened_rounds, told_days, told_battles and told_seasons; Kept reads the first five in
+                                    one statement
       momentmessage/                DebriefOf and EventOf: a moment in gamemaster.v1's words
       outbox_moment_events/         Events, into the gamemaster outbox
       redis_scoring_commands/       one scoring.v1.ScoringCommand per command, on scoring's command stream
       round_scored_subscriber/      hears scoring.v1.RoundScored (gamemaster-rounds)
       book_closed_subscriber/       hears scoring.v1.BookClosed (gamemaster-books)
+      round_missed_subscriber/      hears scoring.v1.RoundMissed (gamemaster-rounds-missed)
+      book_missed_subscriber/       hears scoring.v1.BookMissed (gamemaster-books-missed)
       usecases/play_plan_usecase/   reads the plan once a tick and hands it to the reset, the arena battles, scoring
                                     and the starts, in that order; Runner (gamemaster-plan)
         log_play_plan/              logs a plan that could not be read
-      usecases/play_scoring_usecase/ each command whose time has come, once per process; a step of play_plan_usecase
+      usecases/play_scoring_usecase/ each command due: an open once per process, a close again each minute until scoring
+                                    answers it; a step of play_plan_usecase
         log_play_scoring/           logs each command sent, and a failure
       usecases/tell_starts_usecase/ the season, the day and the battle that run, each told once as it starts, and a
                                     day again when its end moved; a step of play_plan_usecase
         log_tell_starts/            logs each season, day and battle told, and a failure
       usecases/hear_round_usecase/  keeps a scored round, and records its day's or battle's end once; log_hear_round/
       usecases/hear_book_usecase/   keeps a closed book, and records its season's end once; log_hear_book/
+      usecases/hear_missed_round_usecase/  keeps a round scoring missed, once; log_hear_missed_round/
+      usecases/hear_missed_book_usecase/   keeps a book scoring missed, once; log_hear_missed_book/
     arenas/                         the battles fought on a blank map: Store (battle_modes, closed_arenas) and its contract
-                                    suite; the rules are the plan's (Mode, Judgement, Arenas, ArenaCommand in moments)
+                                    suite, ArenasKept in one statement; the rules are the plan's (Mode, Judgement,
+                                    ArenaCommand in moments)
       inmemory_arena_store/  postgres_arena_store/
       rpc_planet_arenas/            whether a set makes an arena battle, from planet.v1.InternalService/GetRuleSet
       redis_arena_commands/         planet.v1.ArenaCommand, on planet's one arena stream
@@ -169,24 +178,28 @@ the antibot turned on after the entry was saved), it is loud, not silent:
   `no rule set has this name`).
 - **The backoffice warns** on each entry that has not ended and names a set a module lacks ("No set rush in planet or
   the antibot."), from each module's `GetRules`, and says when a module does not play what the schedule plays.
-- **The fix is an entry**: mend or make the set, then add an entry that starts in a minute, at a higher priority. It is
-  a turn of its own, so it is commanded again even when it names the set refused.
+- **The fix is the set**: mend or make it. The schedule sends the turn again each minute (see [Commanding the
+  turn](#commanding-the-turn)), so the module plays it within a minute, with no new entry. Until 2026-11-10 the turn was
+  sent only at a change, and the fix was an entry at a higher priority.
 
 ## Commanding the turn
 
 **`play_schedule_usecase` runs every second** (`gamemaster-schedule`): it reads the entries that end after now
 (`Store.Unended`) and takes the turn at now. **It commands the turn when it changes, and once at each boot**, when it
-remembers none: a module may have kept a stale set. Otherwise it sends nothing. `log_play_schedule` logs
-each turn told at Warn (`the schedule plays`, `set`, `entry`).
+remembers none: a module may have kept a stale set. **It sends the same turn again each minute, with the same
+`decided_at`** (see [The gamemaster as a reconciler](gamemaster-reconciler.md)): a module that plays it already finds it
+no newer and changes nothing, and one that refused its set plays it once the set is made. `log_play_schedule` logs each
+new turn told at Warn (`the schedule plays`, `set`, `entry`); a turn sent again is not logged.
 
-**Level-triggered, with no outbox and no resend loop.** The runner keeps the last turn it told in memory, and moves it
-only once Redis took both commands. A send Redis refuses is tried again the next second; a crash is followed by the
+**Level-triggered, with no outbox.** The runner keeps the last turn it told and its decision time in memory, and moves
+them only once Redis took both commands. A send Redis refuses is tried again the next second; a crash is followed by the
 boot's send. The outbox is for a command decided in the transaction of a change (see
 [the outbox](composite-layer.md#what-may-not-be-lost-the-outbox)): here the clock decides, and nothing is written.
 
 **`redis_rule_set_commands` sends one command to each module, in its words**: `planet.v1.PlayRuleSet{rule_set,
 decided_at}` and `antibot.v1.PlayRuleSet{rule_set, decided_at}`, each on its own command stream
-(`commands:planet.v1.PlayRuleSet`, `commands:antibot.v1.PlayRuleSet`). `decided_at` is the runner's now. Scoring hears no
+(`commands:planet.v1.PlayRuleSet`, `commands:antibot.v1.PlayRuleSet`). `decided_at` is the runner's now when the turn
+changed, or at the boot, and stays the same when the turn is sent again. Scoring hears no
 rule set: a battle reaches it as a round (see [Commanding scoring](#commanding-scoring)).
 
 ## Playing it
@@ -201,7 +214,7 @@ Planet and the antibot do the same thing, each in its own `play_rules_usecase`:
   missing or cannot play refuses the boot, as a broken `default` does.
 - **A set the module does not keep, or one that cannot play, is refused**: the rules in force stay, the choice is not
   kept, the log says so, and the command is dropped (`play_rule_set_handler` acks it). Delivered again, it would hold
-  back the commands behind it, and the schedule commands again only when its turn changes.
+  back the commands behind it, and the schedule sends it again within a minute.
 - **A choice that cannot be kept** (postgres down) fails the handler, and Redis delivers the command again.
 - The antibot also tells planet every running ban again under each set it takes (`bans.Book.Restate`). A failed
   restatement fails the handler, and the command delivered again restates them.
@@ -326,8 +339,8 @@ The gamemaster's format; scoring treats each as an opaque string (`moments`):
 ## One plan a tick
 
 **`play_plan_usecase` runs every second** (`gamemaster-plan`): it reads the plan once (`moments.Planner.Plan`: the
-seasons, the entries that end after `season.Origin`, the rounds opened and scored, the battles judged and the arenas
-closed, six reads) and hands it to four steps, in this order: the reset (`play_resets_usecase`), the arena battles
+seasons, the entries that end after `season.Origin`, what scoring answered in one read, and the arena battles in one
+read: four reads) and hands it to four steps, in this order: the reset (`play_resets_usecase`), the arena battles
 (`play_arenas_usecase`), scoring (`play_scoring_usecase`), then what starts (`tell_starts_usecase`). Until 2026-11-10
 each step had its own runner and read the plan itself, about 24 reads a second on a pool of 2.
 
@@ -338,7 +351,10 @@ each step had its own runner and read the plan itself, about 24 reads a second o
 - **The steps run one after the other**, so a step that hangs holds the others until it returns. None has a timeout of
   its own.
 - The rule schedule (`gamemaster-schedule`) keeps its own runner: it reads the entries and the seasons, not the plan.
-  The subscribers (`gamemaster-rounds`, `gamemaster-books`) still read the plan once per event they hear.
+  The subscribers (`gamemaster-rounds`, `gamemaster-books`) still read the plan once per event they hear; the missed ones
+  read none.
+- **The tick is a reconciler**: each step sends only the commands the plan says are due, given what scoring and planet
+  answered, and a close again until it is answered. See [The gamemaster as a reconciler](gamemaster-reconciler.md).
 
 ## Commanding scoring
 
@@ -348,20 +364,21 @@ all numbered by start among the season's battles (a tie goes to the entry made f
 starts in a break is no round. **A book's tiebreak** is its finale's round, or none (`Book.Tiebreak`).
 
 **`play_scoring_usecase` runs every second**, a step of [the tick](#one-plan-a-tick): it takes the plan of the books
-and sends each command whose time has come
-(`Plan.DueAt`), **once per process**: the runner keeps each command's key (`moments.Key`, its action and ids) in memory
-once Redis took it.
+and sends each command due (`Plan.DueAt`): **an open once per process, and a close again each minute until scoring
+answers it** (`Action.Closes`; see [The gamemaster as a reconciler](gamemaster-reconciler.md)). The runner keeps each
+command's key (`moments.Key`, its action and ids) and when Redis took it, in memory.
 
 - `OpenBook{season-N, starts_at}` while the season runs; `CloseBook{season-N, ends_at, tiebreak_round_id}` once it ended.
 - `OpenRound{id, book, times, starts_at}` while a day (times 1) or a battle (the entry's times) runs; `CloseRound{id,
   ends_at}` once it ended.
 - **An open is only sent while what it opens has not ended**: a round that already ended is never opened, since scoring
-  would score it from today's map. **The closes are sent for every ended round and book of every started season**, so
-  a boot after downtime closes what ended meanwhile; scoring ignores the ones it handled already.
+  would score it from today's map. **A close is due for every ended round and book scoring has not answered**: scored
+  or missed for a round, closed or missed for a book, and every round of an answered book (`Plan.settled`). So a boot
+  after downtime closes what ended meanwhile, and no longer every round since season 0.
 - **In order**: by time, and at one instant OpenBook, CloseRound, OpenRound, then CloseBook. A command Redis refuses
   stops the tick, so it and every one after it go the next second, in order.
-- **Level-triggered, no outbox**, like the schedule: the clock decides, and a boot sends again what is due.
-  `log_play_scoring` logs each command at Warn (`scoring is commanded`).
+- **Level-triggered, no outbox**, like the schedule: the clock and the answers decide, and a boot sends again what is
+  due. `log_play_scoring` logs each command at Warn (`scoring is commanded`).
 - **With the arena battles kept** (`Plan.With`), **a battle's round opens once the battle is judged**, in the same tick, and an
   arena battle's round with `from_nothing`; **no round or book opens while an arena battle that ended before it has its arena open**
   (`Plan.Waits`). See [Arena battles](arenas.md).
@@ -416,6 +433,13 @@ its moment in the gamemaster outbox, relayed by `cpoutbox.NewRelay` (`gamemaster
 
 They carry ids, not numbers: whoever needs the points reads scoring by id. **A round or book id no day, battle or
 season has is logged at Warn and dropped** (acked, not kept). A second delivery finds the row and records nothing.
+
+**It also hears `scoring.v1.RoundMissed` (`gamemaster-rounds-missed`) and `scoring.v1.BookMissed`
+(`gamemaster-books-missed`)**: a close of a round or a book scoring never opened. `hear_missed_round_usecase` and
+`hear_missed_book_usecase` keep each once (`missed_rounds`, `missed_books`, migration `20261110160000_missed`), logged at
+Warn (`scoring missed a round`), and record nothing: nothing scored it, so the players are told nothing, as before. The
+close is answered: the gamemaster closes it no more, and what waited for it goes on (see [The gamemaster as a
+reconciler](gamemaster-reconciler.md)). An event with no id is dropped.
 
 ## What another module asks
 
@@ -513,9 +537,9 @@ holds `DayEnded` day 24, then `BattleEnded` (`ends_season`), then `SeasonEnded` 
 `postgres_season_store`'s test pins the seed: season 0's finale, rush × 3, 31 Oct 21:00 to 23:00.
 
 **`play_scoring_usecase`'s test is the Final Battle night** too: `CloseRound season-0/day-24` then `OpenRound
-season-0/finale × 3` at 21:00, the closes at 23:00, nothing in between, and a boot at 23:05 that sends every close again
-and no open. It also pins a moved season end that moves the finale, a day cut by a season end moved before its cutoff
-(its close then the book's, no tiebreak, again after a boot), a running battle entry cut the same way and no finale, a
+season-0/finale × 3` at 21:00, the closes at 23:00, nothing in between, and a boot at 23:05 that sends nothing, since
+scoring answered each close. It also pins a moved season end that moves the finale, a day cut by a season end moved before its cutoff
+(its close then the book's, no tiebreak, again after a boot before scoring answered), a running battle entry cut the same way and no finale, a
 boot mid-day (the book and the running day opened, the ended days closed), a send Redis refused sent again in order,
 and nothing before any season. `hear_round_usecase`'s and `hear_book_usecase`'s tests pin the event recorded once (a day, the Final Battle as
 the season's second battle that ends it, the season's end with its finale and its finale battle), a second delivery that records nothing,

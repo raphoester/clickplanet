@@ -18,28 +18,27 @@ type Entries interface {
 	Unended(ctx context.Context, at time.Time) ([]schedule.Entry, error)
 }
 
-// Kept is what the gamemaster keeps of the rounds it opened and scoring scored.
-type Kept interface {
-	Opened(ctx context.Context) ([]RoundID, error)
-	Scored(ctx context.Context) ([]RoundID, error)
+// Rounds is what the gamemaster keeps of its commands to scoring, read in one go.
+type Rounds interface {
+	Kept(ctx context.Context) (Kept, error)
 }
 
-// Judged is what the gamemaster keeps of the arena battles: each battle judged, and each arena planet closed.
-type Judged interface {
-	Judged(ctx context.Context) ([]Judgement, error)
-	Closed(ctx context.Context) ([]RoundID, error)
+// Arenas is what the gamemaster keeps of the arena battles, read in one go.
+type Arenas interface {
+	ArenasKept(ctx context.Context) (ArenasKept, error)
 }
 
-func NewPlanner(seasons Seasons, entries Entries, kept Kept, judged Judged, cutoff season.Cutoff) Planner {
-	return Planner{seasons: seasons, entries: entries, kept: kept, judged: judged, cutoff: cutoff}
+func NewPlanner(seasons Seasons, entries Entries, rounds Rounds, arenas Arenas, cutoff season.Cutoff) Planner {
+	return Planner{seasons: seasons, entries: entries, rounds: rounds, arenas: arenas, cutoff: cutoff}
 }
 
-// Planner reads the seasons, the entries that may be a battle of one and the arena battles, and plans their books.
+// Planner reads the seasons, the entries that may be a battle of one, and what the gamemaster kept of its commands, and
+// plans their books.
 type Planner struct {
 	seasons Seasons
 	entries Entries
-	kept    Kept
-	judged  Judged
+	rounds  Rounds
+	arenas  Arenas
 	cutoff  season.Cutoff
 }
 
@@ -56,33 +55,17 @@ func (p Planner) With(ctx context.Context, changed ...schedule.Entry) (Plan, err
 	if err != nil {
 		return Plan{}, fmt.Errorf("could not read the schedule: %w", err)
 	}
-	opened, err := p.kept.Opened(ctx)
+	kept, err := p.rounds.Kept(ctx)
 	if err != nil {
-		return Plan{}, fmt.Errorf("could not read the rounds opened: %w", err)
+		return Plan{}, fmt.Errorf("could not read what scoring answered: %w", err)
 	}
-	known, err := p.arenas(ctx)
+	arenas, err := p.arenas.ArenasKept(ctx)
 	if err != nil {
-		return Plan{}, err
+		return Plan{}, fmt.Errorf("could not read the arena battles: %w", err)
 	}
 	for _, entry := range changed {
 		id := entry.TakeSnapshot().ID
-		entries = slices.DeleteFunc(entries, func(kept schedule.Entry) bool { return kept.TakeSnapshot().ID == id })
+		entries = slices.DeleteFunc(entries, func(other schedule.Entry) bool { return other.TakeSnapshot().ID == id })
 	}
-	return NewPlan(calendar, p.cutoff, opened, append(entries, changed...)...).With(known), nil
-}
-
-func (p Planner) arenas(ctx context.Context) (Arenas, error) {
-	scored, err := p.kept.Scored(ctx)
-	if err != nil {
-		return Arenas{}, fmt.Errorf("could not read the rounds scored: %w", err)
-	}
-	judged, err := p.judged.Judged(ctx)
-	if err != nil {
-		return Arenas{}, fmt.Errorf("could not read the battles judged: %w", err)
-	}
-	closed, err := p.judged.Closed(ctx)
-	if err != nil {
-		return Arenas{}, fmt.Errorf("could not read the arenas closed: %w", err)
-	}
-	return NewArenas(judged, scored, closed), nil
+	return NewPlan(calendar, p.cutoff, kept.Opened, append(entries, changed...)...).With(NewKnown(kept, arenas)), nil
 }

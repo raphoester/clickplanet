@@ -57,16 +57,6 @@ func TestACommandThatCanNeverApplyIsDropped(t *testing.T) {
 	assert.False(t, found)
 }
 
-func TestACloseOfARoundNeverOpenedScoresNothing(t *testing.T) {
-	stack := newStack()
-	stack.territory.held = map[books.Country]uint32{"fr": 1}
-
-	require.NoError(t, stack.handler.Handle(t.Context(), closeRound("season-0/day-1", utc(8, 21))))
-	require.NoError(t, stack.handler.Handle(t.Context(), closeBook("season-0", "", utc(31, 23))))
-
-	assert.Empty(t, stack.outbox.Recorded())
-}
-
 func TestAFailureIsDeliveredAgainAndScoresTheRoundThen(t *testing.T) {
 	stack := newStack()
 	require.NoError(t, stack.handler.Handle(t.Context(), openBook("season-0", utc(8, 0))))
