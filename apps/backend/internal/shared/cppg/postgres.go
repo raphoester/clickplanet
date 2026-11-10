@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -39,10 +38,7 @@ var _ Conn = (*Postgres)(nil)
 var ErrNoTransaction = errors.New("no transaction is open on this database")
 
 type PoolConfig struct {
-	MaxOpenConns    *int
-	MaxIdleConns    *int
-	ConnMaxLifetime *time.Duration
-	ConnMaxIdleTime *time.Duration
+	MaxOpenConns *int
 }
 
 type Config struct {
@@ -171,18 +167,12 @@ func (p *Postgres) url() string {
 }
 
 func applyPoolConfig(db *sql.DB, cfg PoolConfig) {
-	if cfg.MaxOpenConns != nil {
-		db.SetMaxOpenConns(*cfg.MaxOpenConns)
+	if cfg.MaxOpenConns == nil {
+		return
 	}
-	if cfg.MaxIdleConns != nil {
-		db.SetMaxIdleConns(*cfg.MaxIdleConns)
-	}
-	if cfg.ConnMaxLifetime != nil {
-		db.SetConnMaxLifetime(*cfg.ConnMaxLifetime)
-	}
-	if cfg.ConnMaxIdleTime != nil {
-		db.SetConnMaxIdleTime(*cfg.ConnMaxIdleTime)
-	}
+	db.SetMaxOpenConns(*cfg.MaxOpenConns)
+	// database/sql keeps 2 idle by default, so a pool of 4 would close and open its last two on every use.
+	db.SetMaxIdleConns(*cfg.MaxOpenConns)
 }
 
 var schemaName = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
