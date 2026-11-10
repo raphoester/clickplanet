@@ -57,9 +57,11 @@ Of a front, you write the story: its `kind`, its sides, where it is told, and it
 - `attacker`: the flag that took the most of what the story tells; for a rout, the flag that took the most from the
   loser. `takenFrom`: whom it took from, the main one first; the flag thrown out, for a kickout or a rout.
 - Where: `countries`, the codes of the front's countries where the sides fought, or `continent`, one of theirs, only
-  when the fighting spread across it. Name where the fighting is, never a bigger place around it: on 2026-11-09 Ireland
-  took Honduras and Guatemala from Brazil, and the clip, told on North America, said "IRELAND TAKES NORTH AMERICA FROM
-  BRAZIL" over Central America, of a continent Ireland already held.
+  when the fighting covered most of it. Name where the fighting is, never a bigger place around it. The continents in
+  the facts (`continent`, `flippedByContinent`) measure; they are not names for a headline. On 2026-11-10 Bulgaria
+  took Albania, Greece, Romania and Bulgaria from Germany, and the clip, told on Europe, said "BULGARIA STORMS EUROPE
+  FROM GERMANY" over a counter of 1,588 of Europe's 40,225 tiles: told on those four, it was "BULGARIA TAKES OVER THE
+  BALKANS".
 
 Of a tour or a place you only choose: answer its number (`tour`, `place`) and a headline. The story is the facts' own:
 the flag taking over the world; the holder holding its share of the place.
@@ -89,7 +91,8 @@ The first thing read, over the fight up close. A stranger knows the real world m
 must understand the headline alone.
 
 - **One plain sentence: who does what to which place.** "HUNGARY INVADES BRAZIL", "BULGARIA KICKS BRAZIL OUT OF
-  ARGENTINA". Upper case, present tense, 25 to 45 letters, never over 60.
+  ARGENTINA". Upper case, present tense, 25 to 45 letters, never over 60. Each verb in its own shape: TAKES or STEALS
+  a place FROM a flag, KICKS a flag OUT OF a place, INVADES or STORMS a place; never "STORMS EUROPE FROM GERMANY".
 - **No "VS", no "FIGHT FOR".** "BULGARIA VS GERMANY FOR SAUDI ARABIA" tells a stranger nothing: why would two
   countries fight over a third, and who won? Say who held the place, who came for it, and how it ended: Germany held
   Saudi Arabia, Bulgaria came for it and Germany took it all back, so "GERMANY KICKS BULGARIA OUT OF SAUDI ARABIA".
