@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {act, cleanup, render, screen, waitFor} from "@testing-library/react"
+import {act, cleanup, render, screen, waitFor, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {StrictMode} from "react"
 import HolderCardPlace from "./HolderCardPlace.tsx"
@@ -54,21 +54,54 @@ describe("HolderCardPlace", () => {
     it("says so when the tile pointed at is the player's own", async () => {
         render(<HolderCardPlace holders={holdersOf(ANAS_TILE)} players={playersOf(ANA_INFO)} pointing={POINTING} accountId="account-ana"/>)
 
-        await waitFor(() => expect(shown()?.mine).toBe(true))
-        expect(shown()?.line).toEqual(ANA)
+        await waitFor(() => expect(shown()).toMatchObject({mine: true, line: ANA}))
         expect(screen.getByRole("region", {name: "Ana"}).textContent).toContain("You took it for France")
     })
 
-    it("names nobody on a tile that changed hands since its last take was kept", async () => {
+    it("says there is no record of who took a tile whose last take is of another flag, and names nobody", async () => {
         const holders = holdersOf({...ANAS_TILE, countryCode: "de"})
         const players = playersOf(ANA_INFO)
 
         render(<HolderCardPlace holders={holders} players={players} pointing={POINTING}/>)
 
-        await waitFor(() => expect(holders.tileHolder).toHaveBeenCalled())
+        await waitFor(() => expect(shown()).toEqual({
+            error: "unknown", countryCode: "fr", tile: {owner: "fr", ground: "fr", shields: 0}, point: PEEK.point, touch: false, id: 1,
+        }))
         expect(players.playerInfo).not.toHaveBeenCalled()
-        expect(shown()).toBeUndefined()
-        expect(screen.queryByRole("region")).toBeNull()
+        const card = screen.getByRole("region", {name: "France"})
+        expect(within(card).getByRole("alert").textContent).toBe("No record of who took this tile.")
+    })
+
+    it("says there is no record of who took a tile no take holds", async () => {
+        render(<HolderCardPlace holders={holdersOf(undefined)} players={playersOf(ANA_INFO)} pointing={POINTING}/>)
+
+        await waitFor(() => expect(shown()).toMatchObject({error: "unknown"}))
+        expect(screen.getByRole("alert").textContent).toBe("No record of who took this tile.")
+    })
+
+    it.each([
+        ["who holds the tile", {tileHolder: vi.fn(async () => Promise.reject(new Error("down")))}, playersOf(ANA_INFO)],
+        ["the holder's card", holdersOf(ANAS_TILE), {playerInfo: vi.fn(async () => Promise.reject(new Error("down")))}],
+    ])("says the holder could not be loaded when %s cannot be read", async (_, holders, players) => {
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {})
+
+        render(<HolderCardPlace holders={holders} players={players} pointing={POINTING}/>)
+
+        await waitFor(() => expect(shown()).toEqual({
+            error: "failed", countryCode: "fr", tile: {owner: "fr", ground: "fr", shields: 0}, point: PEEK.point, touch: false, id: 1,
+        }))
+        expect(screen.getByRole("alert").textContent).toBe("Who took this tile could not be loaded.")
+        expect(logged).toHaveBeenCalled()
+        logged.mockRestore()
+    })
+
+    it("shows a take whose account the players hide as a deleted account", async () => {
+        render(<HolderCardPlace holders={holdersOf(ANAS_TILE)} players={playersOf(undefined)} pointing={POINTING}/>)
+
+        await waitFor(() => expect(shown()).toMatchObject({
+            line: {accountId: "", name: DELETED_ACCOUNT, countryCode: "fr"}, playsFor: [], takenAt: 1_000,
+        }))
+        expect(screen.getByRole("region", {name: DELETED_ACCOUNT}).textContent).toContain("Took it for France")
     })
 
     it("shows a take whose account was deleted as a deleted account, and reads no card", async () => {

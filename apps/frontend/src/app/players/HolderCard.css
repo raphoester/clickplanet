@@ -31,6 +31,12 @@
     white-space: nowrap;
 }
 
+.holder-card-error {
+    margin: 0;
+    padding-right: var(--space-5);
+    color: var(--text-soft);
+}
+
 .holder-card-flags {
     display: flex;
     gap: 6px;
